@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/cluster.iml" filepath="$PROJECT_DIR$/.idea/modules/cluster.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/cluster-build.iml" filepath="$PROJECT_DIR$/.idea/modules/cluster-build.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/dockerexp.iml" filepath="$PROJECT_DIR$/.idea/modules/dockerexp.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/dockerexp-build.iml" filepath="$PROJECT_DIR$/.idea/modules/dockerexp-build.iml" />
+    </modules>
+  </component>
+</project>
