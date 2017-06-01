@@ -3,6 +3,7 @@ package com.gwz.dockerexp.Actors.RaphtoryActors
 import java.io._
 
 import akka.actor.{Actor, ActorRef}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass._
 import com.gwz.dockerexp.GraphEntities._
 /**
@@ -13,52 +14,57 @@ import com.gwz.dockerexp.GraphEntities._
 
 //need to work out why the return death is happening multiple times
 
-class GraphPartition(id:Int,test:Boolean) extends Actor {
+class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
   val childID = id  //ID which refers to the partitions position in the graph manager map
   var vertices = Map[Int,Vertex]() // Map of Vertices contained in the partition
   var edges = Map[(Int,Int),Edge]() // Map of Edges contained in the partition
-  var partitionList = Map[Int,ActorRef]()
-  val logging = true
+
+  val logging = false
   val testPartition = test
- var count = 0
+  var count = 0
+
+  val mediator = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
+  mediator ! DistributedPubSubMediator.Put(self)
+
   override def receive: Receive = {
 
-    case PassPartitionList(pl) => partitionList = pl
+    case VertexAdd(msgId,srcId) => vertexAdd(msgId,srcId); log2()
+    case VertexAddWithProperties(msgId,srcId,properties) => vertexAddWithProperties(msgId,srcId,properties); log2()
+    case VertexUpdateProperties(msgId,srcId,properties) => vertexUpdateProperties(msgId,srcId,properties); log2()
+    case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); log2()
 
-    case VertexAdd(msgId,srcId) => vertexAdd(msgId,srcId); log(srcId)
-    case VertexAddWithProperties(msgId,srcId,properties) => vertexAddWithProperties(msgId,srcId,properties); log(srcId)
-    case VertexUpdateProperties(msgId,srcId,properties) => vertexUpdateProperties(msgId,srcId,properties); log(srcId)
-    case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); log(srcId)
+    case EdgeAdd(msgId,srcId,dstId) => edgeAdd(msgId,srcId,dstId); log2()
+    case RemoteEdgeAdd(msgId,srcId,dstId) => remoteEdgeAdd(msgId,srcId,dstId); log2()
+    case RemoteEdgeAddNew(msgId,srcId,dstId,deaths) =>  remoteEdgeAddNew(msgId,srcId,dstId,deaths); log2()
 
-    case EdgeAdd(msgId,srcId,dstId) => edgeAdd(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeAdd(msgId,srcId,dstId) => remoteEdgeAdd(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeAddNew(msgId,srcId,dstId,deaths) =>  remoteEdgeAddNew(msgId,srcId,dstId,deaths); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); log2()
+    case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); log2()
+    case RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths); log2()
 
-    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeUpdateWithProperties(msgId,srcId,dstId,properties); log2()
+    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeUpdateWithProperties(msgId,srcId,dstId,properties); log2()
 
-    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeUpdateWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeUpdateWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); log2()
+    case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); log2()
+    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); log2()
 
-    case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); log(msgId,srcId,dstId); log(srcId); log(dstId)
-
-    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); log(msgId,srcId,dstId); log(srcId); log(dstId)
-    case ReturnEdgeRemoval(msgId,srcId,dstId) => returnEdgeRemoval(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); log2()
+    case ReturnEdgeRemoval(msgId,srcId,dstId) => returnEdgeRemoval(msgId,srcId,dstId); log2()
   }
 
   def vertexAdd(msgId:Int,srcId:Int): Unit ={ //Vertex add handler function
     if(!(vertices contains srcId))vertices = vertices updated(srcId,new Vertex(msgId,srcId,true)) //if the vertex doesn't already exist, create it and add it to the vertex map
     else vertices(srcId) revive msgId //if it does exist, store the add in the vertex state
+    println(s"Got Vertex Add for $srcId")
   }
   def vertexAddWithProperties(msgId:Int,srcId:Int, properties:Map[String,String]):Unit ={
     vertexAdd(msgId,srcId) //add the vertex
     properties.foreach(l => vertices(srcId) + (msgId,l._1,l._2)) //add all properties
+    println(s"Got Vertex Add with properties for $srcId")
   }
 
   def edgeAdd(msgId:Int,srcId:Int,dstId:Int):Unit={
+    println(s"Got edge Add for $srcId --> $dstId")
     if(checkDst(dstId)) { //local edge
       vertexAdd(msgId,srcId) //create or revive the source ID
       vertexAdd(msgId,dstId) //do the same for the destination ID
@@ -78,13 +84,13 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
 
       if(edges contains (srcId,dstId)) { //if the edge already exists
         edges(srcId,dstId) revive msgId // revive
-        partitionList(getPartition(dstId)) ! RemoteEdgeAdd(msgId,srcId,dstId) // inform the partition dealing with the destination node
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId),RemoteEdgeAdd(msgId,srcId,dstId),false) // inform the partition dealing with the destination node
       }
       else {
         edges = edges updated((srcId,dstId),new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Destination,getPartition(dstId))) //create the re
         val deaths = vertices(srcId).removeList.map(kill => kill._1)
         edges(srcId,dstId) killList deaths
-        partitionList(getPartition(dstId)) ! RemoteEdgeAddNew(msgId,srcId,dstId,deaths) // inform the partition dealing with the destination node
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId),RemoteEdgeAddNew(msgId,srcId,dstId,deaths),false) // inform the partition dealing with the destination node
       }
     }
   }
@@ -103,7 +109,7 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
     val deaths = vertices(dstId).removeList.map(kill => kill._1) //get the destination node deaths
     edges(srcId,dstId) killList srcDeaths //pass source node death lists to the edge
     edges(srcId,dstId) killList deaths  // pass destination node death lists to the edge
-    partitionList(getPartition(srcId)) ! RemoteReturnDeaths(msgId,srcId,dstId,deaths)
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId),RemoteReturnDeaths(msgId,srcId,dstId,deaths),false)
   }
 
 
@@ -130,14 +136,14 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
       if(edges contains (srcId,dstId)) { //if the edge already exists
         edges(srcId,dstId) revive msgId // revive
         properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the edge
-        partitionList(getPartition(dstId)) ! RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) // inform the partition dealing with the destination node
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId),RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties),false) // inform the partition dealing with the destination node
       }
       else {
         edges = edges updated((srcId,dstId),new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Destination,getPartition(dstId))) //create the remote edge
         val deaths = vertices(srcId).removeList.map(kill => kill._1) //get the source node deaths
         edges(srcId,dstId) killList deaths //pass to teh edge
         properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the edge
-        partitionList(getPartition(dstId)) ! RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) // inform the partition dealing with the destination node
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId),RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths),false) // inform the partition dealing with the destination node
       }
     }
   }
@@ -157,7 +163,7 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
     edges(srcId,dstId) killList srcDeaths //pass source node death lists to the edge
     edges(srcId,dstId) killList deaths  // pass destination node death lists to the edge
     properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
-    partitionList(getPartition(srcId)) ! RemoteReturnDeaths(msgId,srcId,dstId,deaths)
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId),RemoteReturnDeaths(msgId,srcId,dstId,deaths),false)
   }
 
 
@@ -190,13 +196,13 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
 
       if(edges contains (srcId,dstId)) { //if the edge already exists
         edges((srcId,dstId)) kill msgId // kill it
-        partitionList(getPartition(dstId)) ! RemoteEdgeRemoval(msgId,srcId,dstId) // inform the partition dealing with the destination node
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId),RemoteEdgeRemoval(msgId,srcId,dstId),false) // inform the partition dealing with the destination node
       }
       else {
         edges = edges updated((srcId,dstId),new RemoteEdge(msgId,false,srcId,dstId,RemotePos.Destination,getPartition(dstId))) // otherwise create and initialise as false
         val deaths = vertices(srcId).removeList.map(kill => kill._1) //get the source node deaths
         edges(srcId,dstId) killList deaths //pass to the edge
-        partitionList(getPartition(dstId)) ! RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) // inform the partition dealing with the destination node
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId),RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths),false) // inform the partition dealing with the destination node
       }
     }
   }
@@ -222,7 +228,7 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
     edges(srcId,dstId) killList srcDeaths //pass source node death lists to the edge
     edges(srcId,dstId) killList deaths  // pass destination node death lists to the edge
 
-    partitionList(getPartition(srcId)) ! RemoteReturnDeaths(msgId,srcId,dstId,deaths)
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId),RemoteReturnDeaths(msgId,srcId,dstId,deaths),false)
   }
 
   def vertexRemoval(msgId:Int,srcId:Int):Unit={
@@ -236,10 +242,10 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
       edges(eKey) kill msgId //kill the edge
       if(edges(eKey).isInstanceOf[RemoteEdge]){
         if(edges(eKey).asInstanceOf[RemoteEdge].remotePos==RemotePos.Destination) {
-          partitionList(edges(eKey).asInstanceOf[RemoteEdge].remotePartitionID) ! RemoteEdgeRemoval(msgId, eKey._1, eKey._2)
+          mediator ! DistributedPubSubMediator.Send(getManager(edges(eKey).asInstanceOf[RemoteEdge].remotePartitionID),RemoteEdgeRemoval(msgId, eKey._1, eKey._2),false)
         } //if this is the source node
         else{
-          partitionList(edges(eKey).asInstanceOf[RemoteEdge].remotePartitionID) ! ReturnEdgeRemoval(msgId, eKey._1, eKey._2)
+          mediator ! DistributedPubSubMediator.Send(getManager(edges(eKey).asInstanceOf[RemoteEdge].remotePartitionID),ReturnEdgeRemoval(msgId, eKey._1, eKey._2),false)
         }//if this is the dest node
       }
       log(msgId,eKey._1,eKey._2)
@@ -261,8 +267,8 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
 
 
   //***************** EDGE HELPERS
-  def checkDst(dstID:Int):Boolean = if(dstID%partitionList.size==childID) true else false //check if destination is also local
-  def getPartition(ID:Int):Int = ID%partitionList.size //get the partition a vertex is stored in
+  def checkDst(dstID:Int):Boolean = if(dstID%managerCount==childID) true else false //check if destination is also local
+  def getPartition(ID:Int):Int = ID%managerCount//get the partition a vertex is stored in
 
 
   //*******************PRINT BLOCK
@@ -273,6 +279,10 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
   }
 
   def log(srcId:Int):Unit = if(logging && (vertices contains srcId)) printToFile(s"Vertex$srcId",vertices(srcId).printHistory())
+  def log2()={
+    println(s"Current Vertex list is ${vertices.foreach(f=> println(s"${f._1}"))}")
+    println(s"Current Edge list is ${edges.foreach(f=> println(s"${f._1}"))}")
+  }
 
   def log(msgId:Int,srcId:Int,dstId:Int):Unit={
     if(logging && (edges contains (srcId,dstId))) {
@@ -288,5 +298,5 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
   def edgeUpdateWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit= edgeAddWithProperties(msgId,srcId,dstId,properties)
   def vertexUpdateProperties(msgId:Int,srcId:Int,properties:Map[String,String]):Unit = vertexAddWithProperties(msgId,srcId,properties)
   def remoteEdgeUpdateWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit= remoteEdgeAddWithProperties(msgId,srcId,dstId,properties)
-
+  def getManager(srcId:Int):String = s"/user/Manager_${srcId % managerCount}"
 }

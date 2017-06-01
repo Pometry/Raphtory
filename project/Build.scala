@@ -33,14 +33,16 @@ object Dependencies {
 	def dep_test      (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "test")  // ttest vs test so as not to confuse w/sbt 'test'
 
 	val akka_actor		  = "com.typesafe.akka"		%% "akka-actor"		% Akka
-	val akka_slf4j 		  = "com.typesafe.akka" 		%% "akka-slf4j"		% Akka
-	val akka_remote		  = "com.typesafe.akka" 		%% "akka-remote"	% Akka
-	val akka_cluster	  = "com.typesafe.akka" 		%% "akka-cluster" 	% Akka
-	val akka_contrib	  = "com.typesafe.akka" 		%% "akka-contrib" 	% Akka
+	val akka_slf4j 		  = "com.typesafe.akka" 	%% "akka-slf4j"		% Akka
+	val akka_remote		  = "com.typesafe.akka" 	%% "akka-remote"	% Akka
+	val akka_cluster	  = "com.typesafe.akka" 	%% "akka-cluster" 	% Akka
+	val akka_contrib	  = "com.typesafe.akka" 	%% "akka-contrib" 	% Akka
 	val akka_tools 		  = "com.typesafe.akka"		%% "akka-cluster-tools" % Akka
-	val akka_streams	  = "com.typesafe.akka" 		%% "akka-stream-experimental" % "1.0"
-	val akka_http		    = "com.typesafe.akka" 		%% "akka-http-core-experimental" % "1.0"
-	val typesafe_config	= "com.typesafe"			% "config"			% Config
+  //val akka_streams	  = "com.typesafe.akka" 	%% "akka-stream-experimental" % "1.0"
+  val akka_streams   = "com.typesafe.akka"   %  "akka-stream_2.11" % "2.5.2"
+	//val akka_http		    = "com.typesafe.akka" 	%% "akka-http-core-experimental" % "1.0"
+  val akka_http      = "com.typesafe.akka" % "akka-http_2.11" % "10.0.7"
+	val typesafe_config	= "com.typesafe"			  %  "config"			% Config
 
 	val spray_json     =  "io.spray" % "spray-json_2.11" % "1.3.3"
 
@@ -73,9 +75,8 @@ object Build extends Build {
 	lazy val dockerStuff = Seq(
 		maintainer := "John Smith <fake@nowhere.com>",
 		dockerBaseImage := "errordeveloper/oracle-jre",
-		// This is a dummy repo for local-only testing.  In a real project you'd use something like quay.io and log in
-		// from the command line before doing docker:publish.
-		dockerRepository := Some("dockerexp"),  
+    //dockerRepository := Some("quay.io/miratepuffin"),
+		dockerRepository := Some("dockerexp"),
 		dockerExposedPorts := Seq(2551,8080,2552)
 		// test <<= test dependsOn (publishLocal in docker)
 		)

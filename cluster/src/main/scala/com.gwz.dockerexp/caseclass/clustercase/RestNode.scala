@@ -3,16 +3,24 @@ package com.gwz.dockerexp.caseclass.clustercase
 import akka.actor._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods._
-import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.{HttpResponse, _}
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.Timeout
 import com.gwz.dockerexp.Actors.ClusterActors.{ClusterActor, DocSvr}
 import com.typesafe.config.ConfigFactory
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.{HttpResponse, HttpRequest}
+import akka.stream.{Materializer, ActorMaterializer}
+import akka.stream.scaladsl.{Sink, Flow, Source}
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success}
+
 
 case class RestNode(seedLoc : String) extends DocSvr {
 	import akka.cluster.pubsub._
@@ -28,17 +36,26 @@ case class RestNode(seedLoc : String) extends DocSvr {
 	val mediator = DistributedPubSub(system).mediator
 
 	val requestHandler: HttpRequest ⇒ HttpResponse = {
-		case HttpRequest(GET, Uri.Path("/nodes"), _, _, _)  => HttpResponse(entity = s"""{"nodes":"[${getNodes()}]}""")
+		case HttpRequest(GET, Uri.Path("/nodes"), _, _, _)  => HttpResponse(entity = s"""{"nnodes":"[${getNodes()}]}""")
 
-		case HttpRequest(GET, Uri.Path("/svc"), _, _, _)  => {
+		case HttpRequest(GET, Uri.Path("/svc"),_,_,_)  => {
 			println("Making logic call with AKKA...")
-			val resp = Await.result(mediator ? DistributedPubSubMediator.Send("/user/logic","hey",false), t.duration).asInstanceOf[String]
-			HttpResponse(entity = s"""{"cluster_node":"$resp"}""")
+			//val resp = Await.result(mediator ? DistributedPubSubMediator.Send("/user/logic","hey",false), t.duration).asInstanceOf[String]
+      mediator ! DistributedPubSubMediator.Send("/user/logic","hey",false)
+			HttpResponse(entity = s"""{"cluster_node":"}""")
 		}
-
-		case _: HttpRequest => HttpResponse(404, entity = "Unknown resource!")
+		case HttpRequest(POST,Uri.Path("/command"),_,entity,_)  => {
+			println("Sending data to Router")
+      val value = entity.toStrict(5 seconds).map(_.data.decodeString("UTF-8"))
+      value.onComplete(f=>{
+        mediator ! DistributedPubSubMediator.Send("/user/router",f.get,false)
+      })
+      HttpResponse(entity = s"""sending data to manager 1""")
+		}
+		case last: HttpRequest => {
+      HttpResponse(404, entity = s"unknown address")
+    }
 	}
-
 	val serverSource: Source[Http.IncomingConnection, Future[Http.ServerBinding]] =
 		Http(system).bind(interface = iface, port = port)
 	val bindingFuture: Future[Http.ServerBinding] = serverSource.to(Sink.foreach { connection =>

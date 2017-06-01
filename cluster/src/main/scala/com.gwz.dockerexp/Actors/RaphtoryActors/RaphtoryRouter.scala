@@ -1,6 +1,7 @@
 package com.gwz.dockerexp.Actors.RaphtoryActors
 
 import akka.actor.{Actor, ActorRef}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass._
 import spray.json._
 
@@ -16,15 +17,11 @@ import spray.json._
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-
-
-class GraphManager() extends Actor{
-  var childMap = Map[Int,ActorRef]() // map of graph partitions
-  var children = 0 // var to store number of children
-
+class RaphtoryRouter(managerCount:Int) extends Actor{
+  val mediator = DistributedPubSub(context.system).mediator
+  mediator ! DistributedPubSubMediator.Put(self)
   //************* MESSAGE HANDLING BLOCK
   override def receive: Receive = {
-    case command:PassPartitionList => {childMap = command.partitionList; children = command.partitionList.size}
     case command:String => parseJSON(command)
     case _ => println("message not recognized!")
   }
@@ -43,6 +40,7 @@ class GraphManager() extends Actor{
 //************ END MESSAGE HANDLING BLOCK
 
   def vertexAdd(command:JsObject):Unit = {
+    println("Inside add")
     val msgId = command.fields("messageID").toString().toInt
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     if(command.fields.contains("properties")){ //if there are properties within the command
@@ -50,9 +48,13 @@ class GraphManager() extends Actor{
       command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
         properties = properties updated (pair._1,pair._2.toString())
       })
-      childMap(chooseChild(srcId)) ! VertexAddWithProperties(msgId,srcId,properties) //send the srcID and properties to the graph manager
+      mediator ! DistributedPubSubMediator.Send(getManager(srcId),VertexAddWithProperties(msgId,srcId,properties),false)  //send the srcID and properties to the graph manager
+      println(s"sending vertex add $srcId to Manager 1")
     }
-    else childMap(chooseChild(srcId)) ! VertexAdd(msgId,srcId) //if there are not any properties, just send the srcID
+    else {
+      mediator ! DistributedPubSubMediator.Send(getManager(srcId),VertexAdd(msgId,srcId),false)
+      println(s"sending vertex add $srcId to Manager 1")
+    } //if there are not any properties, just send the srcID
   }
 
   def vertexUpdateProperties(command:JsObject):Unit={
@@ -60,13 +62,13 @@ class GraphManager() extends Actor{
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    childMap(chooseChild(srcId)) ! VertexUpdateProperties(msgId,srcId,properties) //send the srcID and properties to the graph parition
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId),VertexUpdateProperties(msgId,srcId,properties),false) //send the srcID and properties to the graph parition
   }
 
   def vertexRemoval(command:JsObject):Unit={
     val msgId = command.fields("messageID").toString().toInt
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
-    childMap(chooseChild(srcId)) ! VertexRemoval(msgId,srcId)
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId),VertexRemoval(msgId,srcId),false)
   }
 
   def edgeAdd(command:JsObject):Unit = {
@@ -78,9 +80,9 @@ class GraphManager() extends Actor{
       command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
         properties = properties updated (pair._1,pair._2.toString())
       })
-      childMap(chooseChild(srcId)) ! EdgeAddWithProperties(msgId,srcId,dstId,properties) //send the srcID, dstID and properties to the graph manager
+      mediator ! DistributedPubSubMediator.Send(getManager(srcId),EdgeAddWithProperties(msgId,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
     }
-    else childMap(chooseChild(srcId)) ! EdgeAdd(msgId,srcId,dstId)
+    else mediator ! DistributedPubSubMediator.Send(getManager(srcId),EdgeAdd(msgId,srcId,dstId),false)
   }
 
   def edgeUpdateProperties(command:JsObject):Unit={
@@ -89,16 +91,16 @@ class GraphManager() extends Actor{
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    childMap(chooseChild(srcId)) ! EdgeUpdateProperties(msgId,srcId,dstId,properties) //send the srcID, dstID and properties to the graph manager
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId),EdgeUpdateProperties(msgId,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
   }
 
   def edgeRemoval(command:JsObject):Unit={
     val msgId = command.fields("messageID").toString().toInt
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
-    childMap(chooseChild(srcId)) ! EdgeRemoval(msgId,srcId,dstId) //send the srcID, dstID to graph manager
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId),EdgeRemoval(msgId,srcId,dstId),false) //send the srcID, dstID to graph manager
   }
 
-  def chooseChild(srcId:Int):Int = srcId % children //simple srcID hash at the moment
+  def getManager(srcId:Int):String = s"/user/Manager_${srcId % managerCount}" //simple srcID hash at the moment
 
 }
