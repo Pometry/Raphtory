@@ -30,15 +30,21 @@ class UpdateGen(managerCount:Int) extends Actor{
   }
 
   def genRandomCommands(number:Int):Unit={
+    var commandblock = ""
     for (i <- 0 until number){
       val random = Random.nextFloat()
-      if(random<=0.2) vertexAdd()
-      else if(random<=0.4) vertexAdd()
-      else if(random<=0.5) vertexRemove()
-      else if(random<=0.7) edgeAdd()
-      else if(random<=0.8) edgeAdd()
-      else                 edgeRemove()
+      var command = ""
+      if(random<=0.2) command =genVertexAdd()
+      else if(random<=0.4) command = genVertexAdd()
+      else if(random<=0.5) command = genVertexRemoval()
+      else if(random<=0.7) command = genEdgeAdd()
+      else if(random<=0.8) command = genEdgeAdd()
+      else                 command = genEdgeRemoval()
+
+      mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
+      commandblock = s"$commandblock $command \n"
     }
+    sender ! commandblock
   }
 
   def vertexAdd(){

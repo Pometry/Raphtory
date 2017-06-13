@@ -71,11 +71,9 @@ case class RestNode(seedLoc : String) extends DocSvr {
     }
     case HttpRequest(GET, Uri.Path("/random"),_,_,_)  => {
       println("Sending 10 random commands to router")
-      mediator ! DistributedPubSubMediator.Send("/user/updateGen","random",false)
-      HttpResponse(entity = "10 random commands send to the router")
+      val resp = Await.result(mediator ? DistributedPubSubMediator.Send("/user/updateGen","random",false), t.duration).asInstanceOf[String]
+      HttpResponse(entity = s"Command Generated: $resp")
     }
-
-
 
     case last: HttpRequest => {
       HttpResponse(404, entity = s"unknown address")
