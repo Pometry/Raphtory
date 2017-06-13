@@ -291,13 +291,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
   //*******************PRINT BLOCK
   def printToFile(entityName:String,msg: String):Unit={
     val fw:FileWriter = new FileWriter(s"/logs/entityLogs/$entityName.txt")
-    try {
-      fw.write(msg+"\n")
-      val filename = "/logs/entityLogs/test.txt"
-      for (line <- Source.fromFile(filename).getLines()) {
-        println(line)
-      }
-    }
+    try {fw.write(msg+"\n")}
     finally fw.close()
   }
 

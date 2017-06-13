@@ -13,6 +13,7 @@ Router1Port=9103
 Router2Port=9104
 PM0Port=9105
 PM1Port=9106
+UpdatePort=9107
 
 #Number of partitions must be known before hand as there is currently no addition of partitions once running
 NumberOfPartitions=2
@@ -23,9 +24,8 @@ Image="dockerexp/cluster" #local if you build your own from the source files
 
 #check if a log file exists, if it does not create it
 if [ ! -d logs ]; then mkdir logs; fi
-#if [ ! -d logs/testEntityLogs/ ]; then mkdir logs/testEntityLogs/; fi //only needed for serialized testing
-if [ ! -d logs/entityLogs/ ]; then mkdir logs/entityLogs/; fi
-
+if [ -d logs/entityLogs/ ]; then rm -r logs/entityLogs/; fi
+mkdir logs/entityLogs/
 #get full log file paths to pass to partition mangers for logging
 entityLogs=$(pwd)"/logs/entityLogs"
 
@@ -54,3 +54,7 @@ echo "Partition Manager $PM0ID up and running at $IP:$PM0Port"
 PM1ID=1
 (docker run -p $PM1Port:2551  --rm -e "HOST_IP=$IP" -e "HOST_PORT=$PM1ID" -v $entityLogs:/logs/entityLogs $Image partitionManager $IP:$SeedPort $PM1ID $NumberOfPartitions &) > logs/partitionManager1.txt
 echo "Partition Manager $PM1ID up and running at $IP:$PM1Port"
+
+#Run update generator node (takes argument for number of partitions but doesn't use it --will sort at some point)
+(docker run -p $UpdatePort:2551  --rm -e "HOST_IP=$IP" -e "HOST_PORT=$UpdatePort" $Image updateGen $IP:$SeedPort $NumberOfPartitions &) > logs/updateGenerator.txt
+echo "Update Generator up and running at $IP:$UpdatePort"

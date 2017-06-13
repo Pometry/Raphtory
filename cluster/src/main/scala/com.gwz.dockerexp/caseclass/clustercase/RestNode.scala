@@ -38,13 +38,8 @@ case class RestNode(seedLoc : String) extends DocSvr {
 	val requestHandler: HttpRequest ⇒ HttpResponse = {
 		case HttpRequest(GET, Uri.Path("/nodes"), _, _, _)  => HttpResponse(entity = s"""{"nnodes":"[${getNodes()}]}""")
 
-		case HttpRequest(GET, Uri.Path("/svc"),_,_,_)  => {
-			println("Making logic call with AKKA...")
-			//val resp = Await.result(mediator ? DistributedPubSubMediator.Send("/user/logic","hey",false), t.duration).asInstanceOf[String]
-      mediator ! DistributedPubSubMediator.Send("/user/logic","hey",false)
-			HttpResponse(entity = s"""{"cluster_node":"}""")
-		}
-		case HttpRequest(POST,Uri.Path("/command"),_,entity,_)  => {
+    //submit your own command
+    case HttpRequest(POST,Uri.Path("/command"),_,entity,_)  => {
 			println("Sending data to Router")
       val value = entity.toStrict(5 seconds).map(_.data.decodeString("UTF-8"))
       value.onComplete(f=>{
@@ -52,7 +47,36 @@ case class RestNode(seedLoc : String) extends DocSvr {
       })
       HttpResponse(entity = s"""sending data to manager 1""")
 		}
-		case last: HttpRequest => {
+
+    case HttpRequest(GET, Uri.Path("/addvertex"),_,_,_)  => {
+      println("Sending add vertex to router")
+      mediator ! DistributedPubSubMediator.Send("/user/updateGen","addVertex",false)
+      HttpResponse(entity = "Add Vertex Command sent to router")
+    }
+    case HttpRequest(GET, Uri.Path("/rmvvertex"),_,_,_)  => {
+      println("Sending remove vertex to router")
+      mediator ! DistributedPubSubMediator.Send("/user/updateGen","removeVertex",false)
+      HttpResponse(entity = "Remove Vertex Command sent to router")
+    }
+    case HttpRequest(GET, Uri.Path("/addedge"),_,_,_)  => {
+      println("Sending add edge to router")
+      mediator ! DistributedPubSubMediator.Send("/user/updateGen","addEdge",false)
+      HttpResponse(entity = "Add Edge Command sent to router")
+    }
+    case HttpRequest(GET, Uri.Path("/rmvedge"),_,_,_)  => {
+      println("Sending remove edge to router")
+      mediator ! DistributedPubSubMediator.Send("/user/updateGen","removeEdge",false)
+      HttpResponse(entity = "Remove Edge Command sent to router")
+    }
+    case HttpRequest(GET, Uri.Path("/random"),_,_,_)  => {
+      println("Sending 10 random commands to router")
+      mediator ! DistributedPubSubMediator.Send("/user/updateGen","random",false)
+      HttpResponse(entity = "10 random commands send to the router")
+    }
+
+
+
+    case last: HttpRequest => {
       HttpResponse(404, entity = s"unknown address")
     }
 	}

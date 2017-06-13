@@ -42,7 +42,7 @@ object Dependencies {
   val akka_http       = "com.typesafe.akka"   % "akka-http_2.11" % "10.0.7"
 	val typesafe_config	= "com.typesafe"			  %  "config"			% Config
 	val spray_json      = "io.spray"            % "spray-json_2.11" % "1.3.3"
-
+  //val  kafka          = "org.apache.kafka"    % "kafka_2.10" % "0.10.2.1"
 	val scalajack		    = "co.blocke"			    	%% "scalajack"		% ScalaJack
 	val logback			    = "ch.qos.logback" 			% "logback-classic"	% Logback
 
