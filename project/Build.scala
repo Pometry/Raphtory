@@ -38,20 +38,16 @@ object Dependencies {
 	val akka_cluster	  = "com.typesafe.akka" 	%% "akka-cluster" 	% Akka
 	val akka_contrib	  = "com.typesafe.akka" 	%% "akka-contrib" 	% Akka
 	val akka_tools 		  = "com.typesafe.akka"		%% "akka-cluster-tools" % Akka
-  //val akka_streams	  = "com.typesafe.akka" 	%% "akka-stream-experimental" % "1.0"
-  val akka_streams   = "com.typesafe.akka"   %  "akka-stream_2.11" % "2.5.2"
-	//val akka_http		    = "com.typesafe.akka" 	%% "akka-http-core-experimental" % "1.0"
-  val akka_http      = "com.typesafe.akka" % "akka-http_2.11" % "10.0.7"
+  val akka_streams    = "com.typesafe.akka"   %  "akka-stream_2.11" % "2.5.2"
+  val akka_http       = "com.typesafe.akka"   % "akka-http_2.11" % "10.0.7"
 	val typesafe_config	= "com.typesafe"			  %  "config"			% Config
+	val spray_json      = "io.spray"            % "spray-json_2.11" % "1.3.3"
 
-	val spray_json     =  "io.spray" % "spray-json_2.11" % "1.3.3"
-
-
-	val scalajack		    = "co.blocke"				%% "scalajack"		% ScalaJack
+	val scalajack		    = "co.blocke"			    	%% "scalajack"		% ScalaJack
 	val logback			    = "ch.qos.logback" 			% "logback-classic"	% Logback
 
 	val scalatest 		  = "org.scalatest" 			%% "scalatest"		% ScalaTest
-	val slf4j_simple 	  = "org.slf4j" 				% "slf4j-simple" 	% Slf4j
+	val slf4j_simple 	  = "org.slf4j" 				  % "slf4j-simple" 	% Slf4j
 }
 
 object Build extends Build {

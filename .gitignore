@@ -15,7 +15,7 @@ project/boot/
 project/plugins/project/
 project/project
 project/target
-
+logs
 # Scala-IDE specific
 .scala_dependencies
 .worksheet
