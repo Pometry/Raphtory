@@ -21,10 +21,10 @@ class UpdateGen(managerCount:Int) extends Actor{
 
   //************* MESSAGE HANDLING BLOCK
   override def receive: Receive = {
-    case "addVertex" => mediator ! DistributedPubSubMediator.Send("/user/router",genVertexAdd(),false)
-    case "removeVertex" => mediator ! DistributedPubSubMediator.Send("/user/router",genVertexRemoval(),false)
-    case "addEdge" => mediator ! DistributedPubSubMediator.Send("/user/router",genEdgeAdd(),false)
-    case "removeEdge" => mediator ! DistributedPubSubMediator.Send("/user/router",genEdgeRemoval(),false)
+    case "addVertex" => vertexAdd()
+    case "removeVertex" => vertexRemove()
+    case "addEdge" => edgeAdd()
+    case "removeEdge" => edgeRemove()
     case "random" => genRandomCommands(10)
     case _ => println("message not recognized!")
   }
@@ -32,14 +32,39 @@ class UpdateGen(managerCount:Int) extends Actor{
   def genRandomCommands(number:Int):Unit={
     for (i <- 0 until number){
       val random = Random.nextFloat()
-      if(random<=0.2) mediator ! DistributedPubSubMediator.Send("/user/router",genVertexAdd(),false)
-      else if(random<=0.4) mediator ! DistributedPubSubMediator.Send("/user/router",genVertexAdd(),false)
-      else if(random<=0.5) mediator ! DistributedPubSubMediator.Send("/user/router",genVertexRemoval(),false)
-      else if(random<=0.7) mediator ! DistributedPubSubMediator.Send("/user/router",genEdgeAdd(),false)
-      else if(random<=0.8) mediator ! DistributedPubSubMediator.Send("/user/router",genEdgeAdd(),false)
-      else                 mediator ! DistributedPubSubMediator.Send("/user/router",genEdgeRemoval(),false)
+      if(random<=0.2) vertexAdd()
+      else if(random<=0.4) vertexAdd()
+      else if(random<=0.5) vertexRemove()
+      else if(random<=0.7) edgeAdd()
+      else if(random<=0.8) edgeAdd()
+      else                 edgeRemove()
     }
   }
+
+  def vertexAdd(){
+    val command = genVertexAdd()
+    sender ! command
+    mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
+  }
+
+  def vertexRemove(): Unit ={
+    val command = genVertexRemoval()
+    sender ! command
+    mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
+  }
+
+  def edgeAdd(): Unit ={
+    val command = genEdgeAdd()
+    sender ! command
+    mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
+  }
+
+  def edgeRemove(): Unit ={
+    val command = genEdgeRemoval()
+    sender ! genEdgeRemoval()
+    mediator ! DistributedPubSubMediator.Send("/user/router",genEdgeRemoval(),false)
+  }
+
 
   def storeRunNumber(runNumber:Int):Unit={
     val fw = new FileWriter(s"CurrentMessageNumber.txt") //if not create the file and show that we are starting at 0

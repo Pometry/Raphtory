@@ -50,23 +50,24 @@ case class RestNode(seedLoc : String) extends DocSvr {
 
     case HttpRequest(GET, Uri.Path("/addvertex"),_,_,_)  => {
       println("Sending add vertex to router")
-      mediator ! DistributedPubSubMediator.Send("/user/updateGen","addVertex",false)
-      HttpResponse(entity = "Add Vertex Command sent to router")
+      val resp = Await.result(mediator ? DistributedPubSubMediator.Send("/user/updateGen","addVertex",false), t.duration).asInstanceOf[String]
+      HttpResponse(entity = s"Command Generated: $resp")
     }
+
     case HttpRequest(GET, Uri.Path("/rmvvertex"),_,_,_)  => {
       println("Sending remove vertex to router")
-      mediator ! DistributedPubSubMediator.Send("/user/updateGen","removeVertex",false)
-      HttpResponse(entity = "Remove Vertex Command sent to router")
+      val resp = Await.result(mediator ? DistributedPubSubMediator.Send("/user/updateGen","removeVertex",false), t.duration).asInstanceOf[String]
+      HttpResponse(entity = s"Command Generated: $resp")
     }
     case HttpRequest(GET, Uri.Path("/addedge"),_,_,_)  => {
       println("Sending add edge to router")
-      mediator ! DistributedPubSubMediator.Send("/user/updateGen","addEdge",false)
-      HttpResponse(entity = "Add Edge Command sent to router")
+      val resp = Await.result(mediator ? DistributedPubSubMediator.Send("/user/updateGen","addEdge",false), t.duration).asInstanceOf[String]
+      HttpResponse(entity = s"Command Generated: $resp")
     }
     case HttpRequest(GET, Uri.Path("/rmvedge"),_,_,_)  => {
       println("Sending remove edge to router")
-      mediator ! DistributedPubSubMediator.Send("/user/updateGen","removeEdge",false)
-      HttpResponse(entity = "Remove Edge Command sent to router")
+      val resp = Await.result(mediator ? DistributedPubSubMediator.Send("/user/updateGen","removeEdge",false), t.duration).asInstanceOf[String]
+      HttpResponse(entity = s"Command Generated: $resp")
     }
     case HttpRequest(GET, Uri.Path("/random"),_,_,_)  => {
       println("Sending 10 random commands to router")
