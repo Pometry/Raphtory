@@ -8,10 +8,10 @@ Raphtory is built around the actor model using the [Akka Framework](http://akka.
 
 ![Raphtory diagram](readmepics/raphtory.png)
 
-#Running Raphtory
+# Running Raphtory
 To make Raphtory as easy to run as possible it has been containerised to be able to run within docker. This means that you only have to [install docker](https://docs.docker.com/engine/installation/) and you will be able to run raphtory on your machine. This was possible, thanks to the great example by [Nicolas A Perez](https://github.com/anicolaspp/docker-exp/tree/cluster) which allowed me to get Akka working within docker.
 
-##Quick Start
+## Quick Start
 If you wish to get Raphtory running as soon as possible, once Docker is installed you can simply run the [setup.sh](setup.sh) bash file. This will run two router containers, two partition managers and the rest API. It will then create a log folder within the running directory, which will store the output from the actors (showing how messages are passed around) and the output from the entities (their full history). Note: There will be several other containers running, but these do not matter for the quick start.
 
   **Warning: This will also kill all running containers.**
@@ -24,7 +24,7 @@ The first block of random numbers and letters are the previous execution being k
 
 After giving the containers a couple of seconds to connect to eachother you can now go onto your browser and contact the rest api to create and delete vertices/edges. 
 
-###Rest API
+### Rest API
 The Rest API will now be running on the given IP (161.23.49.217 in the example above, but will be different for you) at port 8080. 
 
 For random command generation you can access:
