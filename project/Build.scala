@@ -71,8 +71,8 @@ object Build extends Build {
 	lazy val dockerStuff = Seq(
 		maintainer := "John Smith <fake@nowhere.com>",
 		dockerBaseImage := "errordeveloper/oracle-jre",
-    //dockerRepository := Some("quay.io/miratepuffin"),
-		dockerRepository := Some("dockerexp"),
+    dockerRepository := Some("quay.io/miratepuffin"),
+		//dockerRepository := Some("dockerexp"),
 		dockerExposedPorts := Seq(2551,8080,2552)
 		// test <<= test dependsOn (publishLocal in docker)
 		)

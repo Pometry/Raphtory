@@ -19,8 +19,8 @@ UpdatePort=9107
 NumberOfPartitions=2
 
 #Specify the location of the docker image
-Image="dockerexp/cluster" #local if you build your own from the source files
-#Image=blah #if you want to use prebuilt one on my quay.io
+#Image="dockerexp/cluster" #local if you build your own from the source files
+Image="quay.io/miratepuffin/cluster" #if you want to use prebuilt one on my quay.io
 
 #check if a log file exists, if it does not create it
 if [ ! -d logs ]; then mkdir logs; fi
@@ -58,3 +58,4 @@ echo "Partition Manager $PM1ID up and running at $IP:$PM1Port"
 #Run update generator node (takes argument for number of partitions but doesn't use it --will sort at some point)
 (docker run -p $UpdatePort:2551  --rm -e "HOST_IP=$IP" -e "HOST_PORT=$UpdatePort" $Image updateGen $IP:$SeedPort $NumberOfPartitions &) > logs/updateGenerator.txt
 echo "Update Generator up and running at $IP:$UpdatePort"
+
