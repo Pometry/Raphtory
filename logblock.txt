@@ -1,0 +1,22 @@
+case VertexAdd(msgId,srcId) => vertexAdd(msgId,srcId); log(srcId)
+    case VertexAddWithProperties(msgId,srcId,properties) => vertexAddWithProperties(msgId,srcId,properties); log(srcId)
+    case VertexUpdateProperties(msgId,srcId,properties) => vertexUpdateProperties(msgId,srcId,properties); log(srcId)
+    case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); log(srcId)
+
+    case EdgeAdd(msgId,srcId,dstId) => edgeAdd(msgId,srcId,dstId); log(srcId,dstId); log(srcId);log(dstId)
+    case RemoteEdgeAdd(msgId,srcId,dstId) => remoteEdgeAdd(msgId,srcId,dstId); log(srcId,dstId); log(srcId);log(dstId)
+    case RemoteEdgeAddNew(msgId,srcId,dstId,deaths) =>  remoteEdgeAddNew(msgId,srcId,dstId,deaths); log(srcId,dstId); log(srcId);log(dstId)
+
+    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); log(srcId,dstId); log(srcId);log(dstId)
+    case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); log(srcId,dstId); log(srcId);log(dstId)
+    case RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths); log(srcId,dstId); log(srcId);log(dstId)
+
+    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeUpdateWithProperties(msgId,srcId,dstId,properties); log(srcId,dstId); log(srcId); log(dstId)
+    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeUpdateWithProperties(msgId,srcId,dstId,properties); log(srcId,dstId); log(srcId);log(dstId)
+
+    case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); log(srcId,dstId); log(srcId);log(dstId)
+    case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); log(srcId,dstId); log(srcId);log(dstId)
+    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); log(srcId,dstId); log(srcId);log(dstId)
+
+    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); log(srcId,dstId); log(srcId);log(dstId)
+    case ReturnEdgeRemoval(msgId,srcId,dstId) => returnEdgeRemoval(msgId,srcId,dstId); log(srcId,dstId); log(srcId);log(dstId)

@@ -10,7 +10,7 @@ class raphtoryCases {}
 
 
 //The following block are all case classes (commands) which the manager can handle
-case class PassPartitionList(partitionList:Map[Int,ActorRef])
+case class BenchmarkUpdate(id:Int, count:Int)
 
 case class VertexAdd(msgId:Int,srcId:Int) //add a vertex (or add/update a property to an existing vertex)
 case class VertexAddWithProperties(msgId:Int,srcId:Int, properties: Map[String,String])

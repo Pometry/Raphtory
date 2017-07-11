@@ -36,6 +36,11 @@ object Go extends App {
       println("Creating Update Generator")
       UpdateNode(args(1),args(2))
     }
+
+    case "benchmark" => {
+      println("Creating benchmarker")
+      BenchmarkNode(args(1),args(2))
+    }
 	}
 }
 

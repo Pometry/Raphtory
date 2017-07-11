@@ -21,12 +21,13 @@ class RaphtoryRouter(managerCount:Int) extends Actor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   //************* MESSAGE HANDLING BLOCK
+
   override def receive: Receive = {
     case command:String => parseJSON(command)
     case _ => println("message not recognized!")
   }
   def parseJSON(command:String):Unit={
-    println(command)
+   // println(command)
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
 
@@ -40,7 +41,7 @@ class RaphtoryRouter(managerCount:Int) extends Actor{
 //************ END MESSAGE HANDLING BLOCK
 
   def vertexAdd(command:JsObject):Unit = {
-    println("Inside add")
+   // println("Inside add")
     val msgId = command.fields("messageID").toString().toInt
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     if(command.fields.contains("properties")){ //if there are properties within the command
@@ -49,11 +50,11 @@ class RaphtoryRouter(managerCount:Int) extends Actor{
         properties = properties updated (pair._1,pair._2.toString())
       })
       mediator ! DistributedPubSubMediator.Send(getManager(srcId),VertexAddWithProperties(msgId,srcId,properties),false)  //send the srcID and properties to the graph manager
-      println(s"sending vertex add $srcId to Manager 1")
+     // println(s"sending vertex add $srcId to Manager 1")
     }
     else {
       mediator ! DistributedPubSubMediator.Send(getManager(srcId),VertexAdd(msgId,srcId),false)
-      println(s"sending vertex add $srcId to Manager 1")
+    //  println(s"sending vertex add $srcId to Manager 1")
     } //if there are not any properties, just send the srcID
   }
 

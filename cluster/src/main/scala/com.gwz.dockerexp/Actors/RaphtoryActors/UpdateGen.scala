@@ -25,7 +25,7 @@ class UpdateGen(managerCount:Int) extends Actor{
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
     case "removeEdge" => edgeRemove()
-    case "random" => genRandomCommands(10)
+    case "random" => genRandomCommands(50000)
     case _ => println("message not recognized!")
   }
 
@@ -42,9 +42,10 @@ class UpdateGen(managerCount:Int) extends Actor{
       else                 command = genEdgeRemoval()
 
       mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
-      commandblock = s"$commandblock $command \n"
+      sender ! "Messages being generated"
+      //commandblock = s"$commandblock $command \n"
     }
-    sender ! commandblock
+
   }
 
   def vertexAdd(){

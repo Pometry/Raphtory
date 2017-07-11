@@ -9,18 +9,32 @@ IP="$(./getMyIP.sh)"
 #PORTS for all containers managed within this script
 SeedPort=9101
 RestPort=9102
-Router1Port=9103
-Router2Port=9104
-PM0Port=9105
-PM1Port=9106
+
+Router1Port=9111
+Router2Port=9112
+Router3Port=9113
+Router4Port=9114
+Router5Port=9115
+Router6Port=9116
+
+PM0Port=9201
+PM1Port=9202
+PM0Port=9203
+PM1Port=9204
+PM0Port=9205
+PM1Port=9206
+PM0Port=9207
+PM1Port=9208
+
 UpdatePort=9107
+BenchmarkPort=9108
 
 #Number of partitions must be known before hand as there is currently no addition of partitions once running
-NumberOfPartitions=2
+NumberOfPartitions=8
 
 #Specify the location of the docker image
-#Image="dockerexp/cluster" #local if you build your own from the source files
-Image="quay.io/miratepuffin/cluster" #if you want to use prebuilt one on my quay.io
+Image="dockerexp/cluster" #local if you build your own from the source files
+#Image="quay.io/miratepuffin/cluster" #if you want to use prebuilt one on my quay.io
 
 #check if a log file exists, if it does not create it
 if [ ! -d logs ]; then mkdir logs; fi
@@ -59,3 +73,6 @@ echo "Partition Manager $PM1ID up and running at $IP:$PM1Port"
 (docker run -p $UpdatePort:2551  --rm -e "HOST_IP=$IP" -e "HOST_PORT=$UpdatePort" $Image updateGen $IP:$SeedPort $NumberOfPartitions &) > logs/updateGenerator.txt
 echo "Update Generator up and running at $IP:$UpdatePort"
 
+#Run the benchmark node which the partition managers report to
+(docker run -p $BenchmarkPort:2551  --rm -e "HOST_IP=$IP" -e "HOST_PORT=$BenchmarkPort" $Image benchmark $IP:$SeedPort $NumberOfPartitions &) > logs/benchmark.txt
+echo "Benchmarker and running at $IP:$BenchmarkPort"
