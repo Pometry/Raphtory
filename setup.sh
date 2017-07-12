@@ -12,19 +12,9 @@ RestPort=9102
 
 Router1Port=9111
 Router2Port=9112
-Router3Port=9113
-Router4Port=9114
-Router5Port=9115
-Router6Port=9116
 
 PM0Port=9201
 PM1Port=9202
-PM0Port=9203
-PM1Port=9204
-PM0Port=9205
-PM1Port=9206
-PM0Port=9207
-PM1Port=9208
 
 UpdatePort=9107
 BenchmarkPort=9108
