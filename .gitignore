@@ -1,6 +1,8 @@
 *.class
 *.log
 
+autoSetup.sh
+
 .DS_Store
 
 # sbt specific

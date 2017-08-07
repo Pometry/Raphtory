@@ -21,7 +21,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
   val childID = id  //ID which refers to the partitions position in the graph manager map
   var vertices = Map[Int,Vertex]() // Map of Vertices contained in the partition
   var edges = Map[(Int,Int),Edge]() // Map of Edges contained in the partition
-
+  val printing=true
   val logging = true
   val testPartition = test
   var count = 0
@@ -33,7 +33,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
     context.system.scheduler.schedule(Duration(1, SECONDS),Duration(10, SECONDS),self,"tick")
   }
   def reportIntake(): Unit ={
-    println("sending")
+    //if(printing) println("sending")
     mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkUpdate(id,count),false)
     count = 0
   }
@@ -42,44 +42,44 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
 
     case "tick" => reportIntake()
 
-    case VertexAdd(msgId,srcId) => vertexAdd(msgId,srcId); count=count+1;
-    case VertexAddWithProperties(msgId,srcId,properties) => vertexAddWithProperties(msgId,srcId,properties); count=count+1;
-    case VertexUpdateProperties(msgId,srcId,properties) => vertexUpdateProperties(msgId,srcId,properties); count=count+1;
-    case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); count=count+1;
+    case VertexAdd(msgId,srcId) => vertexAdd(msgId,srcId); count=count+1; log(srcId);
+    case VertexAddWithProperties(msgId,srcId,properties) => vertexAddWithProperties(msgId,srcId,properties); count=count+1; log(srcId);
+    case VertexUpdateProperties(msgId,srcId,properties) => vertexUpdateProperties(msgId,srcId,properties); count=count+1; log(srcId);
+    case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); count=count+1; log(srcId);
 
-    case EdgeAdd(msgId,srcId,dstId) => edgeAdd(msgId,srcId,dstId); count=count+1;
-    case RemoteEdgeAdd(msgId,srcId,dstId) => remoteEdgeAdd(msgId,srcId,dstId); count=count+1;
-    case RemoteEdgeAddNew(msgId,srcId,dstId,deaths) =>  remoteEdgeAddNew(msgId,srcId,dstId,deaths); count=count+1;
+    case EdgeAdd(msgId,srcId,dstId) => edgeAdd(msgId,srcId,dstId); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case RemoteEdgeAdd(msgId,srcId,dstId) => remoteEdgeAdd(msgId,srcId,dstId); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case RemoteEdgeAddNew(msgId,srcId,dstId,deaths) =>  remoteEdgeAddNew(msgId,srcId,dstId,deaths); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
 
-    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); count=count+1;
-    case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); count=count+1;
-    case RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths); count=count+1;
+    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
 
-    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeUpdateWithProperties(msgId,srcId,dstId,properties); count=count+1;
-    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeUpdateWithProperties(msgId,srcId,dstId,properties); count=count+1;
+    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeUpdateWithProperties(msgId,srcId,dstId,properties); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeUpdateWithProperties(msgId,srcId,dstId,properties); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
 
-    case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); count=count+1;
-    case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); count=count+1;
-    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); count=count+1;
+    case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
 
-    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); count=count+1;
-    case ReturnEdgeRemoval(msgId,srcId,dstId) => returnEdgeRemoval(msgId,srcId,dstId);  count=count+1;
+    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case ReturnEdgeRemoval(msgId,srcId,dstId) => returnEdgeRemoval(msgId,srcId,dstId);  count=count+1; log(srcId,dstId); log(srcId);log(dstId);
 
   }
 
   def vertexAdd(msgId:Int,srcId:Int): Unit ={ //Vertex add handler function
     if(!(vertices contains srcId))vertices = vertices updated(srcId,new Vertex(msgId,srcId,true)) //if the vertex doesn't already exist, create it and add it to the vertex map
     else vertices(srcId) revive msgId //if it does exist, store the add in the vertex state
-    //println(s"Received a Vertex Add for $srcId")
+    if(printing) println(s"Received a Vertex Add for $srcId")
   }
   def vertexAddWithProperties(msgId:Int,srcId:Int, properties:Map[String,String]):Unit ={
     vertexAdd(msgId,srcId) //add the vertex
     properties.foreach(l => vertices(srcId) + (msgId,l._1,l._2)) //add all properties
-    //println(s"Received a Vertex Add with properties for $srcId")
+    if(printing) println(s"Received a Vertex Add with properties for $srcId")
   }
 
   def edgeAdd(msgId:Int,srcId:Int,dstId:Int):Unit={
-    //println(s"Received an edge Add for $srcId --> $dstId")
+    if(printing) println(s"Received an edge Add for $srcId --> $dstId")
     if(checkDst(dstId)) { //local edge
       vertexAdd(msgId,srcId) //create or revive the source ID
       vertexAdd(msgId,dstId) //do the same for the destination ID
@@ -94,7 +94,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
       } //if the edge is yet to exist
     }
     else{ //remote edge
-      //println(s"    Is a remote edge: Sending to ${getManager(dstId)}")
+      if(printing) println(s"    Is a remote edge: Sending to ${getManager(dstId)}")
       vertexAdd(msgId,srcId) //create or revive the source ID
       vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the source node
 
@@ -112,14 +112,14 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
   }
 
   def remoteEdgeAdd(msgId:Int,srcId:Int,dstId:Int):Unit={
-    //println(s"Received Remote Edge Add for $srcId --> $dstId. Edge already exists so just updating")
+    if(printing) println(s"Received Remote Edge Add for $srcId --> $dstId. Edge already exists so just updating")
     vertexAdd(msgId,dstId) //create or revive the destination node
     vertices(dstId) addAssociatedEdge (srcId,dstId) //don't think this is needed, may be able to remove
     edges((srcId,dstId)) revive msgId //revive the edge
   }
 
   def remoteEdgeAddNew(msgId:Int,srcId:Int,dstId:Int,srcDeaths:List[Int]):Unit={
-    //println(s"Received Remote Edge Add for $srcId --> $dstId. Edge did not previously exist so adding deaths from src and dst and sending dst deaths back to src partition")
+    if(printing) println(s"Received Remote Edge Add for $srcId --> $dstId. Edge did not previously exist so adding deaths from src and dst and sending dst deaths back to src partition")
     vertexAdd(msgId,dstId) //create or revive the destination node
     vertices(dstId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the destination node
 
@@ -132,7 +132,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
 
 
   def edgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
-    //println(s"Received an edge Add with properties for $srcId --> $dstId")
+    if(printing) println(s"Received an edge Add with properties for $srcId --> $dstId")
     if(checkDst(dstId)) { //local edge
       vertexAdd(msgId,srcId) //create or revive the source ID
       vertexAdd(msgId,dstId) //do the same for the destination ID
@@ -149,7 +149,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
     }
 
     else{ //remote edge
-      //println(s"    Is a remote edge: Sending to ${getManager(dstId)}")
+      if(printing) println(s"    Is a remote edge: Sending to ${getManager(dstId)}")
       vertexAdd(msgId,srcId) //create or revive the source ID
       vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the source node
 
@@ -168,7 +168,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
     }
   }
   def remoteEdgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
-    //println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId)}. Edge already exists so just updating")
+    if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId)}. Edge already exists so just updating")
     vertexAdd(msgId,dstId) //create or revive the destination node
     vertices(dstId) addAssociatedEdge (srcId,dstId) //again I think this can be removed
     edges((srcId,dstId)) revive msgId //revive  the edge
@@ -176,7 +176,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
   }
 
   def remoteEdgeAddWithPropertiesNew(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String],srcDeaths:List[Int]):Unit={
-    //println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId)}. Edge did not previously exist so sending back deaths")
+    if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId)}. Edge did not previously exist so sending back deaths")
     vertexAdd(msgId,dstId) //create or revive the destination node
     vertices(dstId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the destination node
 
@@ -190,7 +190,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
 
 
   def edgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
-    //println(s"Received Edge removal for $srcId --> $dstId")
+    if(printing) println(s"Received Edge removal for $srcId --> $dstId")
     if(checkDst(dstId)) { //local edge
       if(!(vertices contains srcId)){ //if src vertex does not exist, create it and wipe the history so that it may contain the associated Edge list
         vertices = vertices updated(srcId,new Vertex(msgId,srcId,true))
@@ -211,7 +211,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
       }
     }
     else { // remote edge
-      //println(s"   Is Remote Edge, sending remove to ${getManager(dstId)}")
+      if(printing) println(s"   Is Remote Edge, sending remove to ${getManager(dstId)}")
       if(!(vertices contains srcId)){ //if src vertex does not exist, create it and wipe the history so that it may contain the associated Edge list
         vertices = vertices updated(srcId,new Vertex(msgId,srcId,true))
         vertices(srcId) wipe()
@@ -231,7 +231,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
     }
   }
   def remoteEdgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
-    //println(s"Received Remote Edge Removal with properties for $srcId --> $dstId from ${getManager(srcId)}. Edge already exists so just updating")
+    if(printing) println(s"Received Remote Edge Removal with properties for $srcId --> $dstId from ${getManager(srcId)}. Edge already exists so just updating")
     if(!(vertices contains dstId)){ //check if the destination node exists, if it does not create it and wipe the history
       vertices = vertices updated(dstId,new Vertex(msgId,dstId,true))
       vertices(dstId) wipe()
@@ -242,7 +242,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
   }
 
   def remoteEdgeRemovalNew(msgId:Int,srcId:Int,dstId:Int,srcDeaths:List[Int]):Unit={
-    //println(s"Received Remote Edge Removal with properties for $srcId --> $dstId from ${getManager(srcId)}. Edge did not previously exist so sending back deaths ")
+    if(printing) println(s"Received Remote Edge Removal with properties for $srcId --> $dstId from ${getManager(srcId)}. Edge did not previously exist so sending back deaths ")
 
     if(!(vertices contains dstId)){ //check if the destination node exists, if it does not create it and wipe the history
       vertices = vertices updated(dstId,new Vertex(msgId,dstId,true))
@@ -259,7 +259,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
   }
 
   def vertexRemoval(msgId:Int,srcId:Int):Unit={
-    //println(s"Received vertex remove for $srcId, updating + informing all edges")
+    if(printing) println(s"Received vertex remove for $srcId, updating + informing all edges")
     if(vertices contains srcId) {
       vertices(srcId) kill msgId
     } //if the vertex already exists then kill it
@@ -281,7 +281,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
   }
 
   def returnEdgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
-    //println(s"Received Remote Edge Removal (return) for $srcId --> $dstId from ${getManager(dstId )}. Edge already exists so just updating")
+    if(printing) println(s"Received Remote Edge Removal (return) for $srcId --> $dstId from ${getManager(dstId )}. Edge already exists so just updating")
     if(!(vertices contains srcId)){ //check if the destination node exists, if it does not create it and wipe the history
       vertices = vertices updated(srcId,new Vertex(msgId,srcId,true))
       vertices(srcId) wipe()
@@ -291,7 +291,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
   }
 
   def remoteReturnDeaths(msgId:Int,srcId:Int,dstId:Int,dstDeaths:List[Int]):Unit= {
-    //println(s"Received deaths for $srcId --> $dstId from ${getManager(dstId)}")
+    if(printing) println(s"Received deaths for $srcId --> $dstId from ${getManager(dstId)}")
     edges(srcId,dstId) killList dstDeaths
   }
 

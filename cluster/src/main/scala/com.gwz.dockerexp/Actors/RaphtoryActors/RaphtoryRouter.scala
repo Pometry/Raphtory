@@ -27,7 +27,7 @@ class RaphtoryRouter(managerCount:Int) extends Actor{
     case _ => println("message not recognized!")
   }
   def parseJSON(command:String):Unit={
-   // println(command)
+    println(s"received command: \n $command")
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
 

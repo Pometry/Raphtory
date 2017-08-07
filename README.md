@@ -12,29 +12,97 @@ Raphtory is built around the actor model using the [Akka Framework](http://akka.
 To make Raphtory as easy to run as possible it has been containerised to be able to run within docker. This means that you only have to [install docker](https://docs.docker.com/engine/installation/) and you will be able to run raphtory on your machine. This was possible, thanks to the great example by [Nicolas A Perez](https://github.com/anicolaspp/docker-exp/tree/cluster) which allowed me to get Akka working within docker.
 
 ## Quick Start
-If you wish to get Raphtory running as soon as possible, once Docker is installed you can simply run the [setup.sh](setup.sh) bash file. This will run two router containers, two partition managers and the rest API. It will then create a log folder within the running directory, which will store the output from the actors (showing how messages are passed around) and the output from the entities (their full history). Note: There will be several other containers running, but these do not matter for the quick start.
 
-  **Warning: This will also kill all running containers.**
+###Generating setup file
+---
+Once Docker is installed and running you must first generate the Raphtory setup script by running [setupgen.py](setupgen.py). This requires python3 which if not present on your machine can be installed via: 
 
-In the terminal you should see something along these line:
+**sudo apt-get install python3**
 
-<img src="readmepics/setup output.png" width="400"> 
+The setup generator requires three parameters: The number of partition managers, the number of routers and whether Raphtory is running on a local or remote docker image. You may choose any number of routers/partition managers, though it is recommended that you run on the online image (unless you wish to compile yourself with [sbt publish-local](http://www.scala-sbt.org/sbt-native-packager/formats/docker.html) ).
+ 
+Run: **python3 setupgen.py 2 2 ""**
 
-The first block of random numbers and letters are the previous execution being killed off. The second block are all the new containers coming online, specifying the IP and port they are running at. 
+This should create a new file called **autogen.sh**. 
 
-After giving the containers a couple of seconds to connect to eachother you can now go onto your browser and contact the rest api to create and delete vertices/edges. 
+---
+###Downloading the Docker image
+---
+Next, before running the setup script, it is best to first download the docker image from quay.io. The script will do this automatically, but multiple times (one for each running container leading to A LOT of text exploding on your terminal).
 
-### Rest API
-The Rest API will now be running on the given IP (161.23.49.217 in the example above, but will be different for you) at port 8080. 
+Run: **docker pull quay.io/miratepuffin/cluster:latest**  
+
+sudo may be required as docker accesses */var/run/docker.sock* (Error will look something like this "Cannot connect to the Docker daemon. Is the docker daemon running on this host?")
+
+This will pull all components of the image, as can be seen in the image below:
+<img src="readmepics/pulling.png" width="400"> 
+
+
+---
+###Running the setup script
+---
+
+Once the image has completed downloading, you can run the setup script to start your Raphtory cluster:
+
+Run: **./autogen.sh**   (Again sudo may be required)
+
+**Warning: This will also kill all running containers.**
+
+
+
+If you have run the same command as above, in the terminal you should see something along these lines:
+
+<img src="readmepics/autosetup.png" width="400"> 
+
+This tells you all the containers that you have started up, specifying the IP and port they are running on. The important ones for this quick start are the two router containers, the two partition managers and the rest API. 
+
+The setup script will also create a log folder within the running directory, storing the output from the containers (showing how messages are passed around) and the output from the graph entities (their full history). An example of this can be seen in the final section.
+
+If you wish to stop the cluster, run the command: **./dockblock.sh**
+
+---
+### Utilising the Rest API
+---
+
+After giving the containers a couple of seconds to connect to each other you can now contact the rest api to create and delete vertices/edges within Raphtory.
+
+The Rest API will be running on the given IP (138.37.32.86 in the example above, but will be different for you) at port 8080. 
 
 For random command generation you can access:
  
-* Add a Vertex - 161.23.49.217:8080/addvertex
-* Add an Edge - 161.23.49.217:8080/addedge
-* Remove a Vertex - 161.23.49.217:8080/rmvvertex
-* Remove an Edge - 161.23.49.217:8080/rmvedge
-* Generate 10 of the above - 161.23.49.217:8080/random
+* Add a Vertex - 138.37.32.86:8080/addvertex
+* Add an Edge - 138.37.32.86:8080/addedge
+* Remove a Vertex - 138.37.32.86:8080/rmvvertex
+* Remove an Edge - 138.37.32.86:8080/rmvedge
+* Generate 10 random messages - 138.37.32.86:8080/random
 
-The output on your browser will then look something like the following: 
+Your browser should return a list of commands similar to the following: 
 <img src="readmepics/restoutput.png" width=""> 
-Here you can see Vertices and Edges being created (with a K/V list of properties) and deleted. 
+Note: When Vertices or Edges are created, they also assigned some properties in Key value format. 
+
+---
+### Seeing what happened
+---
+Now that we have got the cluster up and running we can create some data and explore what happens. Below is the overview of the Log folder structure:
+
+<img src="readmepics/files.png" width="400">
+ 
+As an example I contacted the rest API via **/addedge** and it created a new edge between vertex 12 and 5. 
+
+#### What happens within the system
+
+* First the command is received by a random router (Router 0 in this instance). 
+* This then routes the command to partition manager 0 who is in charge of the source vertex (arrow 1).
+* Partition manager 0 creates the source vertex (12) and a local copy of the edge. As it is not in charge of vertex 5 it contacts the Manager who is; in this case PM 1 (arrow 2). 
+* Partition Manager 1 creates the destination Vertex (5) and its own copy of the edge. It then informs manager 0 that the destination vertex is newly created and was not previously removed from the graph, as this would effect the edge and have to be syncronised. (arrow 3) 
+* The edge and its ajoining vertices are now stored within the graph. 
+
+<img src="readmepics/messaging" width="400">
+
+These entities can then be found within the entityLogs folder. Below you can see Vertex 12 & 5 (source and destination) and the local/remote copies of the edge:
+
+<img src="readmepics/entities.png" width="400">
+
+If I now contact the rst API via **/random** several times it will generate a variety of commands and build up the history within individual entities. For example, the below edge was created at time 1 (message 1) and deleted at time 16. This is reflected in its own history at the top, as well as within the internal history of its associated properties:
+
+<img src="readmepics/edge.png" width="400">
