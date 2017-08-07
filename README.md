@@ -1,5 +1,3 @@
-Currently writing up the readme, shall be done by this evening (20/6/17)
-
 # Raphtory Introduction
 
 Raphtory is an ongoing project to maintain and analyse a temporal graph within a distributed environment. The most recent paper on Raphtory can be found [here] (RaphtoryPaper.pdf).
@@ -13,7 +11,7 @@ To make Raphtory as easy to run as possible it has been containerised to be able
 
 ## Quick Start
 
-###Generating setup file
+### Generating setup file
 ---
 Once Docker is installed and running you must first generate the Raphtory setup script by running [setupgen.py](setupgen.py). This requires python3 which if not present on your machine can be installed via: 
 
@@ -26,7 +24,7 @@ Run: **python3 setupgen.py 2 2 ""**
 This should create a new file called **autogen.sh**. 
 
 ---
-###Downloading the Docker image
+### Downloading the Docker image
 ---
 Next, before running the setup script, it is best to first download the docker image from quay.io. The script will do this automatically, but multiple times (one for each running container leading to A LOT of text exploding on your terminal).
 
@@ -39,7 +37,7 @@ This will pull all components of the image, as can be seen in the image below:
 
 
 ---
-###Running the setup script
+### Running the setup script
 ---
 
 Once the image has completed downloading, you can run the setup script to start your Raphtory cluster:
