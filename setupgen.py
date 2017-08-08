@@ -25,8 +25,8 @@ file.write("if [ -d logs/entityLogs/ ]; then rm -r logs/entityLogs/; fi \n")
 file.write("mkdir logs/entityLogs/ \n")
 file.write("entityLogs=$(pwd)\"/logs/entityLogs\" \n \n")
 
-file.write ("chmod 777 logs")
-file.write ("chmod 777 logs/entityLogs")
+file.write ("chmod 777 logs \n")
+file.write ("chmod 777 logs/entityLogs\n \n")
 #write out number of partitions to be parsed to routers
 file.write("NumberOfPartitions="+str(NumberOfPartitions)+"\n \n")
 
