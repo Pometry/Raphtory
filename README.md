@@ -40,9 +40,11 @@ This will pull all components of the image, as can be seen in the image below:
 ### Running the setup script
 ---
 
-Once the image has completed downloading, you can run the setup script to start your Raphtory cluster:
+Once the image has completed downloading, you can run the setup script to start your Raphtory cluster. Again sudo may be required. You may also need to change the permissions of the file to allow it to run:
 
-Run: **./autogen.sh**   (Again sudo may be required)
+Run: **chmod 777 autoSetup.sh**
+
+Run: **./autoSetup.sh**  
 
 **Warning: This will also kill all running containers.**
 
