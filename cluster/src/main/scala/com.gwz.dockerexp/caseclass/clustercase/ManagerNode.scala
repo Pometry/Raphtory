@@ -9,3 +9,4 @@ case class ManagerNode(seedLoc : String,managerID:String,managerCount:String) ex
   system.actorOf(Props(new PartitionManager(managerID.toInt,false,managerCount.toInt)),s"Manager_$managerID")
   println(s"Manager_$managerID")
 }
+//.withDispatcher("akka.actor.prio-dispatcher")

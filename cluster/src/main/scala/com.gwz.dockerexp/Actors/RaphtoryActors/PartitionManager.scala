@@ -4,8 +4,10 @@ import java.io._
 
 import akka.actor.{Actor, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import akka.dispatch.RequiresMessageQueue
 import com.gwz.dockerexp.caseclass._
 import com.gwz.dockerexp.GraphEntities._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.io.Source
@@ -17,14 +19,16 @@ import scala.io.Source
 
 //need to work out why the return death is happening multiple times
 
-class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
+class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
   val childID = id  //ID which refers to the partitions position in the graph manager map
   var vertices = Map[Int,Vertex]() // Map of Vertices contained in the partition
   var edges = Map[(Int,Int),Edge]() // Map of Edges contained in the partition
-  val printing=true
-  val logging = true
+  val printing=false //should the handled messages be printed to terminal
+  val logging = false // should the state of the vertex/edge map be output to file
   val testPartition = test
-  var count = 0
+
+  var messageCount = 0
+  var messageBlockID = 0
 
   val mediator = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
@@ -32,38 +36,44 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     context.system.scheduler.schedule(Duration(1, SECONDS),Duration(10, SECONDS),self,"tick")
   }
+
   def reportIntake(): Unit ={
-    //if(printing) println("sending")
-    mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkUpdate(id,count),false)
-    count = 0
+    //if(printing)
+      println("sending")
+    mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkUpdate(id,messageBlockID,messageCount),false)
+    messageCount = 0
+    messageBlockID=messageBlockID+1
   }
+
+  def vHandle(srcID:Int):Unit={messageCount=messageCount+1; log(srcID);}
+  def eHandle(srcID:Int,dstID:Int):Unit={messageCount=messageCount+1; log(srcID,dstID); log(srcID);log(dstID);}
 
   override def receive: Receive = {
 
     case "tick" => reportIntake()
 
-    case VertexAdd(msgId,srcId) => vertexAdd(msgId,srcId); count=count+1; log(srcId);
-    case VertexAddWithProperties(msgId,srcId,properties) => vertexAddWithProperties(msgId,srcId,properties); count=count+1; log(srcId);
-    case VertexUpdateProperties(msgId,srcId,properties) => vertexUpdateProperties(msgId,srcId,properties); count=count+1; log(srcId);
-    case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); count=count+1; log(srcId);
+    case VertexAdd(msgId,srcId) => vertexAdd(msgId,srcId); vHandle(srcId);
+    case VertexAddWithProperties(msgId,srcId,properties) => vertexAddWithProperties(msgId,srcId,properties); vHandle(srcId);
+    case VertexUpdateProperties(msgId,srcId,properties) => vertexUpdateProperties(msgId,srcId,properties); vHandle(srcId);
+    case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); vHandle(srcId);
 
-    case EdgeAdd(msgId,srcId,dstId) => edgeAdd(msgId,srcId,dstId); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
-    case RemoteEdgeAdd(msgId,srcId,dstId) => remoteEdgeAdd(msgId,srcId,dstId); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
-    case RemoteEdgeAddNew(msgId,srcId,dstId,deaths) =>  remoteEdgeAddNew(msgId,srcId,dstId,deaths); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case EdgeAdd(msgId,srcId,dstId) => edgeAdd(msgId,srcId,dstId); eHandle(srcId,dstId)
+    case RemoteEdgeAdd(msgId,srcId,dstId) => remoteEdgeAdd(msgId,srcId,dstId); eHandle(srcId,dstId)
+    case RemoteEdgeAddNew(msgId,srcId,dstId,deaths) =>  remoteEdgeAddNew(msgId,srcId,dstId,deaths); eHandle(srcId,dstId)
 
-    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
-    case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
-    case RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); eHandle(srcId,dstId)
+    case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); eHandle(srcId,dstId)
+    case RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths); eHandle(srcId,dstId)
 
-    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeUpdateWithProperties(msgId,srcId,dstId,properties); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
-    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeUpdateWithProperties(msgId,srcId,dstId,properties); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeUpdateWithProperties(msgId,srcId,dstId,properties); eHandle(srcId,dstId)
+    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeUpdateWithProperties(msgId,srcId,dstId,properties); eHandle(srcId,dstId)
 
-    case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
-    case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
-    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); eHandle(srcId,dstId)
+    case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); eHandle(srcId,dstId)
+    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); eHandle(srcId,dstId)
 
-    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); count=count+1; log(srcId,dstId); log(srcId);log(dstId);
-    case ReturnEdgeRemoval(msgId,srcId,dstId) => returnEdgeRemoval(msgId,srcId,dstId);  count=count+1; log(srcId,dstId); log(srcId);log(dstId);
+    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); eHandle(srcId,dstId)
+    case ReturnEdgeRemoval(msgId,srcId,dstId) => returnEdgeRemoval(msgId,srcId,dstId);  eHandle(srcId,dstId)
 
   }
 
@@ -237,8 +247,10 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor {
       vertices(dstId) wipe()
     }
     vertices(dstId) addAssociatedEdge (srcId,dstId) //add the edge to the destination nodes associated list
-
-    edges((srcId,dstId)) kill msgId // if the edge already exists, kill it
+    if(edges contains (srcId,dstId))
+      edges((srcId,dstId)) kill msgId // if the edge already exists, kill it
+    else
+      println("Didn't exist")
   }
 
   def remoteEdgeRemovalNew(msgId:Int,srcId:Int,dstId:Int,srcDeaths:List[Int]):Unit={

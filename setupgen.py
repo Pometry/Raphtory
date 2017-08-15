@@ -39,7 +39,7 @@ file.write("BenchmarkPort=9104 \n \n")
 #For each partition manager, generate a port
 for i in range(0,NumberOfPartitions):
 	id = "PM"+str(i)+"Port="
-	port = 2200+i
+	port = 9200+i
 	file.write(id+str(port)+"\n")
 file.write("\n")
 
@@ -52,7 +52,7 @@ file.write("\n")
 #For each router, generate a port
 for i in range(0,NumberOfRouters):
 	id = "Router"+str(i)+"Port="
-	port = 2300+i
+	port = 9300+i
 	file.write(id+str(port)+"\n")
 file.write("\n")
 
@@ -88,7 +88,7 @@ file.write("\n \n")
 for i in range(0,NumberOfRouters):
 	file.write("(docker run -p $Router"+str(i)+"Port:2551  --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$Router"+str(i)+"Port\" $Image router $IP:$SeedPort $NumberOfPartitions &) > logs/router"+str(i)+".txt \n")
 	file.write("sleep 1 \n")
-	file.write("echo \"Router "+str(i)+" up and running at $IP:$Router1Port\" \n \n")
+	file.write("echo \"Router "+str(i)+" up and running at $IP:$Router"+str(i)+"Port\" \n \n")
 
 #Spacing 
 file.write("\n \n")

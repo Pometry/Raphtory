@@ -26,6 +26,9 @@ trait DocSvr {
       .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(ipAndPort.akkaPort))
       .withValue("akka.cluster.seed-nodes", ConfigValueFactory.fromIterable(JavaConversions.asJavaIterable(seeds.map(seedLoc => s"akka.tcp://$clusterSystemName@$seedLoc").toIterable)))
 
+     // prio-dispatcher {
+    //  mailbox-type = "akka.docs.dispatcher.DispatcherDocSpec$MyPrioMailbox"
+    //}
     val actorSystem = ActorSystem( clusterSystemName, config )
     printConfigInfo(config,actorSystem)
     actorSystem // return actor system with set config
