@@ -1,5 +1,4 @@
-<script language="javascript" type="text/JavaScript">
-        function getLog(log, lines) {
+function getLog(log, lines) {
                 var url = "getLogFile.php?log=" + log + "&lines=" + lines;
                 request.open("GET", url, true);
                 request.onreadystatechange = updatePage;
@@ -8,9 +7,10 @@
 
         function tail(command,log,lines) {
                 if (command == "start") {
+                        window.alert("DDDD")
                         document.getElementById("watchStart").disabled = true;
                         document.getElementById("watchStop").disabled = false;
-                        timer = setInterval(function() {getLog(log,lines);},5000);
+                        timer = setInterval(function() {getLog("index.php",20);},5000);
                 } else {
                         document.getElementById("watchStart").disabled = false;
                         document.getElementById("watchStop").disabled = true;
@@ -30,19 +30,3 @@
         }
 
         var request = (window.XMLHttpRequest) ? new XMLHttpRequest() : (window.ActiveXObject ? new window.ActiveXObject("Microsoft.XMLHTTP") : false);
-</script>
-
-
-<!DOCTYPE html>
-<html>
-<body>
-<div id="log" style="width:100%; height:90%; overflow:auto;"></div>
-
-<td style="width:100px;">Watch</td>
-                        <td>
-                                <input type="button" style="width:40px; 0px" id="watchStart" name="watch" value="Start" onclick="tail('start',document.getElementById('logfile').value, document.getElementById('loglength').value);">
-                                <input type="button" style="width:40px; 0px" id="watchStop" name="watch" value="Stop" disabled=true onclick="tail('stop','','');">
-                        </td>
-
-</body>
-</html>

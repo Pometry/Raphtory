@@ -23,11 +23,11 @@ class RaphtoryRouter(managerCount:Int) extends Actor{
   //************* MESSAGE HANDLING BLOCK
 
   override def receive: Receive = {
-    case command:String => parseJSON(command)
+    case command:String => try{parseJSON(command)}catch {case e: Exception => println(e)}
     case _ => println("message not recognized!")
   }
   def parseJSON(command:String):Unit={
-    println(s"received command: \n $command")
+    //println(s"received command: \n $command")
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
 

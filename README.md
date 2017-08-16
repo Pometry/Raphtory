@@ -11,6 +11,8 @@ To make Raphtory as easy to run as possible it has been containerised to be able
 
 ## Quick Start
 
+Currently out of date as creating new WebUI
+
 ### Generating setup file
 ---
 Once Docker is installed and running you must first generate the Raphtory setup script by running [setupgen.py](setupgen.py). This requires python3 which if not present on your machine can be installed via: 

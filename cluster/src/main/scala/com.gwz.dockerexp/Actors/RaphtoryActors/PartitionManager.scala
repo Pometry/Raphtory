@@ -7,6 +7,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.dispatch.RequiresMessageQueue
 import com.gwz.dockerexp.caseclass._
 import com.gwz.dockerexp.GraphEntities._
+import akka.event.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -23,12 +24,14 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
   val childID = id  //ID which refers to the partitions position in the graph manager map
   var vertices = Map[Int,Vertex]() // Map of Vertices contained in the partition
   var edges = Map[(Int,Int),Edge]() // Map of Edges contained in the partition
+
+  val loggger = Logging(context.system, this)
   val printing=false //should the handled messages be printed to terminal
   val logging = false // should the state of the vertex/edge map be output to file
-  val testPartition = test
 
-  var messageCount = 0
-  var messageBlockID = 0
+  var messageCount = 0 //number of messages processed since last report to the benchmarker
+  var messageBlockID = 0 //id of current message block to syncronise times across partition managers
+  val secondaryCounting = false //count all messages or just main incoming ones
 
   val mediator = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
@@ -46,34 +49,36 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
   }
 
   def vHandle(srcID:Int):Unit={messageCount=messageCount+1; log(srcID);}
+  def vHandleSecondary(srcID:Int):Unit={if(secondaryCounting)messageCount=messageCount+1; log(srcID);}
   def eHandle(srcID:Int,dstID:Int):Unit={messageCount=messageCount+1; log(srcID,dstID); log(srcID);log(dstID);}
+  def eHandleSecondary(srcID:Int,dstID:Int):Unit={if(secondaryCounting)messageCount=messageCount+1; log(srcID,dstID); log(srcID);log(dstID);}
 
   override def receive: Receive = {
 
     case "tick" => reportIntake()
 
-    case VertexAdd(msgId,srcId) => vertexAdd(msgId,srcId); vHandle(srcId);
-    case VertexAddWithProperties(msgId,srcId,properties) => vertexAddWithProperties(msgId,srcId,properties); vHandle(srcId);
-    case VertexUpdateProperties(msgId,srcId,properties) => vertexUpdateProperties(msgId,srcId,properties); vHandle(srcId);
-    case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); vHandle(srcId);
+    case VertexAdd(msgId,srcId) => try{vertexAdd(msgId,srcId); vHandle(srcId)}catch {case e: Exception => println(e)};
+    case VertexAddWithProperties(msgId,srcId,properties) => try{vertexAddWithProperties(msgId,srcId,properties); vHandle(srcId);}catch {case e: Exception => println(e)};
+    case VertexUpdateProperties(msgId,srcId,properties) => try{vertexUpdateProperties(msgId,srcId,properties); vHandle(srcId);}catch {case e: Exception => println(e)};
+    case VertexRemoval(msgId,srcId) => try{vertexRemoval(msgId,srcId); vHandle(srcId);}catch {case e: Exception => println(e)};
 
-    case EdgeAdd(msgId,srcId,dstId) => edgeAdd(msgId,srcId,dstId); eHandle(srcId,dstId)
-    case RemoteEdgeAdd(msgId,srcId,dstId) => remoteEdgeAdd(msgId,srcId,dstId); eHandle(srcId,dstId)
-    case RemoteEdgeAddNew(msgId,srcId,dstId,deaths) =>  remoteEdgeAddNew(msgId,srcId,dstId,deaths); eHandle(srcId,dstId)
+    case EdgeAdd(msgId,srcId,dstId) => try{edgeAdd(msgId,srcId,dstId); eHandle(srcId,dstId)}catch {case e: Exception => println(e)};
+    case RemoteEdgeAdd(msgId,srcId,dstId) => try{remoteEdgeAdd(msgId,srcId,dstId); eHandleSecondary(srcId,dstId)}catch {case e: Exception => println(e)};
+    case RemoteEdgeAddNew(msgId,srcId,dstId,deaths) =>  try{remoteEdgeAddNew(msgId,srcId,dstId,deaths); eHandleSecondary(srcId,dstId)}catch {case e: Exception => println(e)};
 
-    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); eHandle(srcId,dstId)
-    case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); eHandle(srcId,dstId)
-    case RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths); eHandle(srcId,dstId)
+    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => try{edgeAddWithProperties(msgId,srcId,dstId,properties); eHandle(srcId,dstId)}catch {case e: Exception => println(e)};
+    case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => try{remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); eHandleSecondary(srcId,dstId)}catch {case e: Exception => println(e)};
+    case RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) => try{remoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths); eHandleSecondary(srcId,dstId)}catch {case e: Exception => println(e)};
 
-    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeUpdateWithProperties(msgId,srcId,dstId,properties); eHandle(srcId,dstId)
-    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeUpdateWithProperties(msgId,srcId,dstId,properties); eHandle(srcId,dstId)
+    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => try{edgeUpdateWithProperties(msgId,srcId,dstId,properties); eHandle(srcId,dstId)}catch {case e: Exception => println(e)};
+    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => try{remoteEdgeUpdateWithProperties(msgId,srcId,dstId,properties); eHandleSecondary(srcId,dstId)}catch {case e: Exception => println(e)};
 
-    case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); eHandle(srcId,dstId)
-    case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); eHandle(srcId,dstId)
-    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); eHandle(srcId,dstId)
+    case EdgeRemoval(msgId,srcId,dstId) => try{edgeRemoval(msgId,srcId,dstId); eHandle(srcId,dstId)}catch {case e: Exception => println(e)};
+    case RemoteEdgeRemoval(msgId,srcId,dstId) => try{remoteEdgeRemoval(msgId,srcId,dstId); eHandleSecondary(srcId,dstId)}catch {case e: Exception => println(e)};
+    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => try{remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); eHandleSecondary(srcId,dstId)}catch {case e: Exception => println(e)};
 
-    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); eHandle(srcId,dstId)
-    case ReturnEdgeRemoval(msgId,srcId,dstId) => returnEdgeRemoval(msgId,srcId,dstId);  eHandle(srcId,dstId)
+    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => try{remoteReturnDeaths(msgId,srcId,dstId,deaths); eHandleSecondary(srcId,dstId)}catch {case e: Exception => println(e)};
+    case ReturnEdgeRemoval(msgId,srcId,dstId) => try{returnEdgeRemoval(msgId,srcId,dstId);  eHandleSecondary(srcId,dstId)}catch {case e: Exception => println(e)};
 
   }
 
@@ -250,7 +255,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
     if(edges contains (srcId,dstId))
       edges((srcId,dstId)) kill msgId // if the edge already exists, kill it
     else
-      println("Didn't exist")
+      println("Didn't exist") //possibly need to fix when adding the priority box
   }
 
   def remoteEdgeRemovalNew(msgId:Int,srcId:Int,dstId:Int,srcDeaths:List[Int]):Unit={

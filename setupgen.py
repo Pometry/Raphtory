@@ -3,7 +3,7 @@ import sys
 #get all required arguments
 NumberOfPartitions=int(sys.argv[1])
 NumberOfRouters=int(sys.argv[2])
-LocalOrRemote = bool(sys.argv[3])
+#LocalOrRemote = bool(sys.argv[3])
 
 #open file for writing
 file = open("autoSetup.sh","w")
@@ -14,12 +14,13 @@ file.write("IP=\"$(./getMyIP.sh)\" \n \n")
 file.write("./dockblock.sh \n \n")
 
 #image name (local or quay)
-if(LocalOrRemote):
-	file.write("Image=\"dockerexp/cluster\" #local if you build your own from the source files \n \n")
-else:
-	file.write("Image=\"quay.io/miratepuffin/cluster\" #if you want to use prebuilt one on my quay.io \n \n")
+#if(LocalOrRemote):
+#	file.write("Image=\"dockerexp/cluster\" #local if you build your own from the source files \n \n")
+#else:
+file.write("Image=\"quay.io/miratepuffin/cluster\" #if you want to use prebuilt one on my quay.io \n \n")
 
 #create/clear log folder
+file.write("rm -r logs \n")
 file.write("if [ ! -d logs ]; then mkdir logs; fi \n")
 file.write("if [ -d logs/entityLogs/ ]; then rm -r logs/entityLogs/; fi \n")
 file.write("mkdir logs/entityLogs/ \n")
@@ -96,7 +97,7 @@ file.write("\n \n")
 #partition nodes
 for i in range(0,NumberOfPartitions):
 	file.write("(docker run -p $PM"+str(i)+"Port:2551  --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$PM"+str(i)+"Port\" -v $entityLogs:/logs/entityLogs $Image partitionManager $IP:$SeedPort $PM"+str(i)+"ID $NumberOfPartitions &) > logs/partitionManager"+str(i)+".txt \n")
-	file.write("sleep 1 \n")
+	file.write("sleep 2 \n")
 	file.write("echo \"Partition Manager $PM"+str(i)+"ID up and running at $IP:$PM"+str(i)+"Port\" \n \n")
 	
 

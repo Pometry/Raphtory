@@ -2,9 +2,11 @@ package com.gwz.dockerexp.Actors.RaphtoryActors
 
 
 import java.io.FileWriter
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{Actor, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+
+import scala.concurrent.duration._
 //import kafka.producer.KeyedMessage
 
 import scala.io.Source
@@ -14,10 +16,14 @@ import scala.util.Random
 class UpdateGen(managerCount:Int) extends Actor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-
   var currentMessage = 0
   if(!new java.io.File("CurrentMessageNumber.txt").exists) storeRunNumber(0) //check if there is previous run which has created messages, fi not create file
   else for (line <- Source.fromFile("CurrentMessageNumber.txt").getLines()) {currentMessage = line.toInt} //otherwise read previous number
+
+  override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
+    println("Prestarting")
+    context.system.scheduler.schedule(Duration(20, SECONDS),Duration(1, SECONDS),self,"random")
+  }
 
   //************* MESSAGE HANDLING BLOCK
   override def receive: Receive = {
@@ -25,7 +31,7 @@ class UpdateGen(managerCount:Int) extends Actor{
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
     case "removeEdge" => edgeRemove()
-    case "random" => genRandomCommands(1000)
+    case "random" => try{genRandomCommands(2000)}catch {case e: Exception => println(e)}
     case _ => println("message not recognized!")
   }
 
@@ -36,13 +42,12 @@ class UpdateGen(managerCount:Int) extends Actor{
       var command = ""
       if(random<=0.2) command =genVertexAdd()
       else if(random<=0.4) command = genVertexAdd()
-      else if(random<=0.5) command = genVertexRemoval()
+      //else if(random<=0.5) command = genVertexRemoval()
       else if(random<=0.7) command = genEdgeAdd()
       else if(random<=0.8) command = genEdgeAdd()
       else                 command = genEdgeRemoval()
 
       mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
-      sender ! "Messages being generated"
       //commandblock = s"$commandblock $command \n"
     }
 
