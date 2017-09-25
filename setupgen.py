@@ -37,6 +37,8 @@ file.write("RestPort=9102 \n")
 file.write("UpdatePort=9103 \n")
 file.write("BenchmarkPort=9104 \n \n")
 
+file.write("JVM=\"-Dcom.sun.management.jmxremote.rmi.port=9090 -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.port=9090  -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.local.only=false -Djava.rmi.server.hostname=$IP\" \n")
+
 #For each partition manager, generate a port
 for i in range(0,NumberOfPartitions):
 	id = "PM"+str(i)+"Port="

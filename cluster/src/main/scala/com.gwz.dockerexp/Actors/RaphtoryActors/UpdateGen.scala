@@ -31,7 +31,7 @@ class UpdateGen(managerCount:Int) extends Actor{
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
     case "removeEdge" => edgeRemove()
-    case "random" => try{genRandomCommands(2000)}catch {case e: Exception => println(e)}
+    case "random" => try{genRandomCommands(1000)}catch {case e: Exception => println(e)}
     case _ => println("message not recognized!")
   }
 
@@ -86,7 +86,7 @@ class UpdateGen(managerCount:Int) extends Actor{
 
   def genVertexAdd():String={
     currentMessage+=1
-    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}, ${genProperties(2,true)}}}"""
+    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}}}"""
   }
   def genVertexAdd(src:Int):String={ //overloaded method if you want to specify src ID
     currentMessage+=1
@@ -116,11 +116,11 @@ class UpdateGen(managerCount:Int) extends Actor{
 
   def genEdgeAdd():String={
     currentMessage+=1
-    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID()}, ${genDstID()}, ${genProperties(2,true)}}}"""
+    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID()}, ${genDstID()}}}"""
   }
   def genEdgeAdd(src:Int,dst:Int):String={
     currentMessage+=1
-    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID(src)}, ${genDstID(dst)}, ${genProperties(2,true)}}}"""
+    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID(src)}, ${genDstID(dst)}}}"""
   }
 
   def genEdgeUpdateProperties():String={
