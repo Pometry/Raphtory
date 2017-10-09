@@ -48,6 +48,19 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
     messageBlockID=messageBlockID+1
   }
 
+  def runFunc() = {
+    var vList = s"$id: "
+    vertices.foreach(pair => {
+      vList = vList + s"${pair._2.vertexId} "
+      println(vList)
+    })
+    println(vList)
+    mediator ! DistributedPubSubMediator.Send("/user/LiveAnalysisManager",Results(vList),false)
+  }
+
+
+
+
   def vHandle(srcID:Int):Unit={messageCount=messageCount+1; log(srcID);}
   def vHandleSecondary(srcID:Int):Unit={if(secondaryCounting)messageCount=messageCount+1; log(srcID);}
   def eHandle(srcID:Int,dstID:Int):Unit={messageCount=messageCount+1; log(srcID,dstID); log(srcID);log(dstID);}
@@ -56,7 +69,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
   override def receive: Receive = {
 
     case "tick" => reportIntake()
-
+    case LiveAnalysis() => runFunc()
     case VertexAdd(msgId,srcId) => try{vertexAdd(msgId,srcId); vHandle(srcId)}catch {case e: Exception => println(e)};
     case VertexAddWithProperties(msgId,srcId,properties) => try{vertexAddWithProperties(msgId,srcId,properties); vHandle(srcId);}catch {case e: Exception => println(e)};
     case VertexUpdateProperties(msgId,srcId,properties) => try{vertexUpdateProperties(msgId,srcId,properties); vHandle(srcId);}catch {case e: Exception => println(e)};

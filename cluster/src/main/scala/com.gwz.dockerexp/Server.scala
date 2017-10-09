@@ -41,6 +41,12 @@ object Go extends App {
       println("Creating benchmarker")
       BenchmarkNode(args(1),args(2))
     }
+
+    case "LiveAnalysisManager" => {
+      println("Creating Live Analysis Manager")
+      LiveAnalysisNode(args(1),args(2))
+    }
+
 	}
 }
 

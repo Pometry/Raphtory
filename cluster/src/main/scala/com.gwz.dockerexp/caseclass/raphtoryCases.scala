@@ -1,6 +1,7 @@
 package com.gwz.dockerexp.caseclass
 
 import akka.actor.ActorRef
+import com.gwz.dockerexp.GraphEntities.{Edge, Vertex}
 
 /**
   * Created by Mirate on 30/05/2017.
@@ -11,6 +12,9 @@ class raphtoryCases {}
 
 //The following block are all case classes (commands) which the manager can handle
 case class BenchmarkUpdate(id:Int, updateID:Int, count:Int)
+
+case class LiveAnalysis()
+case class Results(result:String)
 
 case class VertexAdd(msgId:Int,srcId:Int) //add a vertex (or add/update a property to an existing vertex)
 case class VertexAddWithProperties(msgId:Int,srcId:Int, properties: Map[String,String])

@@ -36,6 +36,7 @@ file.write("SeedPort=9101 \n")
 file.write("RestPort=9102 \n")
 file.write("UpdatePort=9103 \n")
 file.write("BenchmarkPort=9104 \n \n")
+file.write("LiveAnalysisPort=9105 \n \n")
 
 file.write("JVM=\"-Dcom.sun.management.jmxremote.rmi.port=9090 -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.port=9090  -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.local.only=false -Djava.rmi.server.hostname=$IP\" \n")
 
@@ -82,7 +83,7 @@ file.write("echo \"Update Generator up and running at $IP:$UpdatePort\" \n \n")
 #benchmark node
 file.write("(docker run -p $BenchmarkPort:2551  --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$BenchmarkPort\" $Image benchmark $IP:$SeedPort $NumberOfPartitions &) > logs/benchmark.txt \n")
 file.write("sleep 1 \n")
-file.write("echo \"Benchmarker and running at $IP:$BenchmarkPort\" \n \n")
+file.write("echo \"Benchmarker up and running at $IP:$BenchmarkPort\" \n \n")
 
 #Spacing 
 file.write("\n \n")
@@ -102,6 +103,10 @@ for i in range(0,NumberOfPartitions):
 	file.write("sleep 2 \n")
 	file.write("echo \"Partition Manager $PM"+str(i)+"ID up and running at $IP:$PM"+str(i)+"Port\" \n \n")
 	
+file.write("(docker run -p $LiveAnalysisPort:2551  --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$LiveAnalysisPort\" $Image LiveAnalysisManager $IP:$SeedPort $NumberOfPartitions &) > logs/LiveAnalysisManager.txt \n")
+file.write("sleep 1 \n")
+file.write("echo \"Live Analyser running at $IP:$LiveAnalysisPort\" \n \n")
+
 
 file.close()
 

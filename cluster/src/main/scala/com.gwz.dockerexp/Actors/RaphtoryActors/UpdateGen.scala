@@ -31,7 +31,7 @@ class UpdateGen(managerCount:Int) extends Actor{
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
     case "removeEdge" => edgeRemove()
-    case "random" => try{genRandomCommands(1000)}catch {case e: Exception => println(e)}
+    case "random" => try{genRandomCommands(10)}catch {case e: Exception => println(e)}
     case _ => println("message not recognized!")
   }
 
