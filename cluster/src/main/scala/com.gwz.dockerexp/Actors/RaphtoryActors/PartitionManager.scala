@@ -11,7 +11,6 @@ import akka.event.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.io.Source
 /**
   * The graph partition manages a set of vertices and there edges
   * Is sent commands which have been processed by the command Processor
@@ -52,7 +51,6 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
     var vList = s"$id: "
     vertices.foreach(pair => {
       vList = vList + s"${pair._2.vertexId} "
-      println(vList)
     })
     println(vList)
     mediator ! DistributedPubSubMediator.Send("/user/LiveAnalysisManager",Results(vList),false)

@@ -2,9 +2,11 @@ package com.gwz.dockerexp.Actors.RaphtoryActors
 
 
 import java.io.FileWriter
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{Actor, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.gwz.dockerexp.caseclass.LiveAnalysis
 
 import scala.concurrent.duration._
 //import kafka.producer.KeyedMessage
@@ -17,21 +19,23 @@ class UpdateGen(managerCount:Int) extends Actor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   var currentMessage = 0
+  var safe = false
   if(!new java.io.File("CurrentMessageNumber.txt").exists) storeRunNumber(0) //check if there is previous run which has created messages, fi not create file
   else for (line <- Source.fromFile("CurrentMessageNumber.txt").getLines()) {currentMessage = line.toInt} //otherwise read previous number
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     println("Prestarting")
-    context.system.scheduler.schedule(Duration(20, SECONDS),Duration(1, SECONDS),self,"random")
+    context.system.scheduler.schedule(Duration(2, SECONDS),Duration(1, SECONDS),self,"random")
   }
 
   //************* MESSAGE HANDLING BLOCK
   override def receive: Receive = {
+    case LiveAnalysis() => {safe = true;println("Got2")}
     case "addVertex" => vertexAdd()
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
     case "removeEdge" => edgeRemove()
-    case "random" => try{genRandomCommands(10)}catch {case e: Exception => println(e)}
+    case "random" => {if(safe){genRandomCommands(10);println("Safe")}}
     case _ => println("message not recognized!")
   }
 

@@ -10,30 +10,33 @@ import akka.actor.{Actor, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass.BenchmarkUpdate
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+
 
 
 class Benchmarker(managerCount:Int) extends Actor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  var blockMap = Map[Int,BenchmarkBlock]()
+  //var blockMap = Map[Int,BenchmarkBlock]()
+  var currentCount:Int = 0
+
+  override def preStart() {
+    context.system.scheduler.schedule(Duration(1, SECONDS),Duration(10, SECONDS),self,"tick")
+  }
 
   override def receive: Receive = {
-    case BenchmarkUpdate(id,blockID,count) => update(id,blockID,count)
+    case "tick" => {println(s"Total count at ${Calendar.getInstance().getTime}: $currentCount"); currentCount=0}
+    case BenchmarkUpdate(id,blockID,count) => currentCount=currentCount+count
     case _ => println("message not recognized!")
   }
 
 
-  def update(managerid:Int,blockID:Int,count:Int) ={
-      if(blockMap.contains(blockID)) blockMap(blockID).insert(count,managerid)
-      else {
-        blockMap = blockMap.updated(blockID,new BenchmarkBlock(managerCount,blockID))
-        blockMap(blockID).insert(count,managerid)
-      }
-  }
+
 
   def getManager(srcId:Int):String = s"/user/Manager_${srcId % managerCount}" //simple srcID hash at the moment
 
-  class BenchmarkBlock(managerCount:Int,blockID:Int){
+  /*class BenchmarkBlock(managerCount:Int,blockID:Int){
     var totalCount:Int =0
     var messageCount:Int =0
 
@@ -56,9 +59,15 @@ class Benchmarker(managerCount:Int) extends Actor{
         println(s"Initial message received from $initialManager at $initialTime")
         println(s"End message received from $endManager at $endTime")
       }
-
-    }
+def update(managerid:Int,blockID:Int,count:Int) ={
+      //if(blockMap.contains(blockID)) blockMap(blockID).insert(count,managerid)
+      //else {
+      //  blockMap = blockMap.updated(blockID,new BenchmarkBlock(managerCount,blockID))
+      //  blockMap(blockID).insert(count,managerid)
+      //}
   }
+    }
+  }*/
 
 }
 
