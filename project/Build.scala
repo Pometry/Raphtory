@@ -58,7 +58,6 @@ object Dependencies {
 object Build extends Build {
 	import Dependencies._
 	import Versions._
-
 	val IP = java.net.InetAddress.getLocalHost().getHostAddress()
 
 	lazy val basicSettings = Seq(
