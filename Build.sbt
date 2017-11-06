@@ -1,12 +1,6 @@
-import sbt._
-import Keys._    
 import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
-import com.typesafe.sbt.SbtNativePackager._
-import com.typesafe.sbt.packager.Keys._
-import com.typesafe.sbt.packager.archetypes._
-import com.typesafe.sbt.packager.docker._
 
-object Versions {
+
 	val Akka            = "2.5.2"
 	val Config          = "1.2.1"
 	val JodaT           = "2.3"
@@ -16,11 +10,9 @@ object Versions {
 	val Slf4j           = "1.7.7"
 	val ScalaJack		= "4.0"
 	val SbtPackager 	= "1.2.0"
-}
 
 
-object Dependencies {
-	import Versions._
+
 
 	val resolutionRepos = Seq(
 		"Typesafe Repo" 	at "http://repo.typesafe.com/typesafe/releases/",
@@ -52,12 +44,8 @@ object Dependencies {
 	//Zookeeper tings
 	val curator1        = "org.apache.curator"  % "curator-framework"   % "2.12.0"
 	val curator2        = "org.apache.curator"  % "curator-recipes"     % "2.12.0"
-}
 
 
-object Build extends Build {
-	import Dependencies._
-	import Versions._
 	val IP = java.net.InetAddress.getLocalHost().getHostAddress()
 
 	lazy val basicSettings = Seq(
@@ -66,7 +54,7 @@ object Build extends Build {
 		startYear 					:= Some(2014),
 		scalaVersion 				:= Scala,
 		parallelExecution in Test 	:= false,
-		resolvers					++= Dependencies.resolutionRepos,
+		//resolvers					++= Dependencies.resolutionRepos,
 		scalacOptions				:= Seq("-feature", "-deprecation", "-encoding", "UTF8", "-unchecked"),
 		testOptions in Test += Tests.Argument("-oDF"),
 		version 					:= "latest"
@@ -95,5 +83,4 @@ object Build extends Build {
 				typesafe_config, scalajack, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2) ++
 			dep_test(scalatest)
 		)
-		.settings((Keys.test in Test) <<= (Keys.test in Test) dependsOn (publishLocal in Docker))
-}
+		//.settings((Keys.test in Test) <<= (Keys.test in Test) dependsOn (publishLocal in Docker))
