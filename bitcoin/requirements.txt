@@ -1,0 +1,16 @@
+Flask==0.12.2
+jsonschema==2.6.0
+matplotlib==2.0.2
+networkx==1.11
+numpy==1.13.1
+pandas==0.20.3
+plotly==2.0.14
+psycopg2==2.7.3.1
+pycrypto==2.6.1
+python-bitcoinlib==0.8.0
+python-bitcoinrpc==1.0
+python-dateutil==2.6.1
+requests==2.18.4
+simplejson==3.11.1
+SQLAlchemy==1.1.13
+
