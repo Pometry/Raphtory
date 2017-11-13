@@ -117,7 +117,7 @@ def updateDatabase(currentBlockHeight):
     if currentBlockHeight == "None":
         currentBlockHeight = -1
     print("Collecting blocks from range " + str(currentBlockHeight) + " to " + str(latestBlock))
-    for blockHeight in range(currentBlockHeight+1, latestBlock+1, 1):
+    for blockHeight in range(int(currentBlockHeight)+1, latestBlock+1, 1):
         print("Block " + str(blockHeight) +  "/" + str(latestBlock))
         objects = []
         rpc = rpcConnection()
