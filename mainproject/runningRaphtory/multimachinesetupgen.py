@@ -108,7 +108,7 @@ NumberOfPartitions=int(sys.argv[1])
 NumberOfRouters=int(sys.argv[2])
 NumberOfMachines=int(sys.argv[3])
 #zookeeperLoc = sys.argv[4]
-#zookeeperLoc = "192.168.1.245:2181"
+zookeeperLoc = "192.168.1.245:2181"
 #zookeeperLoc = "161.23.245.190:2181,161.23.245.190:2182,161.23.245.190:2183"
 #zookeeperLoc = "138.37.32.88:2181,138.37.32.86:2181"
 

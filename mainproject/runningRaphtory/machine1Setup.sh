@@ -2,7 +2,7 @@
  
 IP="$(./getMyIP.sh)" 
  
-ZooKeeper="192.168.1.245:2180" 
+ZooKeeper="192.168.1.245:2181" 
  
 Image="quay.io/miratepuffin/cluster" #if you want to use prebuilt one on my quay.io 
  
