@@ -27,7 +27,7 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
     *
     * @param msgID
     */
-  def definePresentAtMoment(msgID: Int): Unit = {
+  def revive(msgID: Int): Unit = {
     previousState = findEventPositionInLog(previousState, (msgID, true))
   }
 
@@ -36,7 +36,7 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
     *
     * @param msgID
     */
-  def defineAbsentAtMoment(msgID: Int): Unit = {
+  def kill(msgID: Int): Unit = {
 
     /** *
       * Filter to only removes and convert to a list which can be given to properties
@@ -48,7 +48,7 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
     previousState = findEventPositionInLog(previousState, (msgID, false))
 
     //send the message to all properties
-    properties.foreach(p => p._2.deprecate(msgID))
+    properties.foreach(p => p._2.kill(msgID))
     updateRemoveList()
   }
 

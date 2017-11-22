@@ -11,11 +11,11 @@ class Edge(msgID: Int, initialValue: Boolean, srcId: Int, dstId: Int)
       .lineSeparator() +
       super.printProperties()
 
-  def deprecateProperties(vKills: List[Int]): Unit = {
+  def killList(vKills: List[Int]): Unit = {
     vKills match {
       case head :: tail => {
-        defineAbsentAtMoment(head)
-        deprecateProperties(tail)
+        kill(head)
+        killList(tail)
       }
       case _ =>
     }

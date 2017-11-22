@@ -31,11 +31,11 @@ class Property(creationMessage: Int,
       findEventPositionInLog(previousState, (msgID, (true, newValue)))
 
   /**
-    * Deprecate the property (used when the vertex/edge is removed)
+    * kill the property (used when the vertex/edge is removed)
     *
     * @param msgID
     */
-  def deprecate(msgID: Int): Unit =
+  def kill(msgID: Int): Unit =
     previousState = findEventPositionInLog(previousState, (msgID, (false, "")))
 
   /** *
