@@ -3,7 +3,6 @@ package com.gwz.dockerexp.Actors.RaphtoryActors
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.gwz.dockerexp.GraphEntities.{Edge, Vertex}
 import com.gwz.dockerexp.caseclass.{LiveAnalysis, Results}
 
 import scala.concurrent.duration._

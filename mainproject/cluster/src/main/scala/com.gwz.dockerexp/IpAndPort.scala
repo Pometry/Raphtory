@@ -1,7 +1,5 @@
 package com.gwz.dockerexp
 
-import java.net._
-import java.io._
 import co.blocke.scalajack._
 import scala.util.Try
 

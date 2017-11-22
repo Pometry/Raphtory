@@ -4,7 +4,7 @@ package com.gwz.dockerexp.Actors.RaphtoryActors
 import java.io.FileWriter
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import akka.actor.{Actor, ActorRef}
+import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass.LiveAnalysis
 
