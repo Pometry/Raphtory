@@ -1,0 +1,6 @@
+BootStrap: docker
+From quay.io/miratepuffin/zookeeper:latest
+
+%runscript
+ 
+    exec /opt/zookeeper/bin/runzoo.sh

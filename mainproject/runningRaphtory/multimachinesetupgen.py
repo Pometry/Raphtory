@@ -53,7 +53,7 @@ def partitionManagerIDs(files):
 def partitionManagerRun(files):
 	#partition nodes
 	for i in range(0,NumberOfPartitions):
-		files[(i%NumberOfMachines)].write("(docker run -p $PM"+str(i)+"Port:2551  --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$PM"+str(i)+"Port\" -v $entityLogs:/logs/entityLogs $Image partitionManager $PM"+str(i)+"ID $NumberOfPartitions $ZooKeeper &) > logs/"+files[(i%NumberOfMachines)].name[:len(files[(i%NumberOfMachines)].name)-3]+"/partitionManager"+str(i)+".txt \n")
+		files[(i%NumberOfMachines)].write("(docker run -p $PM"+str(i)+"Port:$PM"+str(i)+"Port  --rm -e \"BIND_PORT=$PM"+str(i)+"Port\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$PM"+str(i)+"Port\" -v $entityLogs:/logs/entityLogs $Image partitionManager $PM"+str(i)+"ID $NumberOfPartitions $ZooKeeper &) > logs/"+files[(i%NumberOfMachines)].name[:len(files[(i%NumberOfMachines)].name)-3]+"/partitionManager"+str(i)+".txt \n")
 		files[(i%NumberOfMachines)].write("sleep 2 \n")
 		files[(i%NumberOfMachines)].write("echo \"Partition Manager $PM"+str(i)+"ID up and running at $IP:$PM"+str(i)+"Port\" \n \n")
 
@@ -67,38 +67,38 @@ def routerPorts(files):
 def routerRun(files):
 	#Routers
 	for i in range(0,NumberOfRouters):
-		files[(i%NumberOfMachines)].write("(docker run -p $Router"+str(i)+"Port:2551  --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$Router"+str(i)+"Port\" $Image router $NumberOfPartitions $ZooKeeper &) > logs/"+files[(i%NumberOfMachines)].name[:len(files[(i%NumberOfMachines)].name)-3]+"/router"+str(i)+".txt \n")
+		files[(i%NumberOfMachines)].write("(docker run -p $Router"+str(i)+"Port:$Router"+str(i)+"Port  --rm -e \"BIND_PORT=$Router"+str(i)+"Port\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$Router"+str(i)+"Port\" $Image router $NumberOfPartitions $ZooKeeper &) > logs/"+files[(i%NumberOfMachines)].name[:len(files[(i%NumberOfMachines)].name)-3]+"/router"+str(i)+".txt \n")
 		files[(i%NumberOfMachines)].write("sleep 1 \n")
 		files[(i%NumberOfMachines)].write("echo \"Router "+str(i)+" up and running at $IP:$Router"+str(i)+"Port\" \n \n")
 
 def dockerblock(file):
 	#seed node
-	file.write("(docker run -p $SeedPort:2551 --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$SeedPort\" $Image seed $IP:$SeedPort $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/seed.txt \n")
+	file.write("(docker run -p $SeedPort:$SeedPort --rm -e \"BIND_PORT=$SeedPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$SeedPort\" $Image seed $IP:$SeedPort $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/seed.txt \n")
 	file.write("sleep 5 \n")
 	file.write("echo \"Seed node up and running at $IP:$SeedPort\" \n \n")
 	
 	#Rest API Node
-	file.write("(docker run -p $RestPort:2551 -p 8080:8080 --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$RestPort\" $Image rest $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/rest.txt \n")
+	file.write("(docker run -p $RestPort:$RestPort -p 8080:8080 --rm -e \"BIND_PORT=$RestPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$RestPort\" $Image rest $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/rest.txt \n")
 	file.write("sleep 1 \n")
 	file.write("echo \"REST API node up and running at $IP:$RestPort\" \n \n")
 
 	#Update Node
-	file.write("(docker run -p $UpdatePort:2551  --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$UpdatePort\" $Image updateGen $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/updateGenerator.txt \n")
+	file.write("(docker run -p $UpdatePort:$UpdatePort  --rm -e \"BIND_PORT=$UpdatePort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$UpdatePort\" $Image updateGen $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/updateGenerator.txt \n")
 	file.write("sleep 1 \n")
 	file.write("echo \"Update Generator up and running at $IP:$UpdatePort\" \n \n")
 
 	#benchmark node
-	file.write("(docker run -p $BenchmarkPort:2551  --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$BenchmarkPort\" $Image benchmark $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/benchmark.txt \n")
+	file.write("(docker run -p $BenchmarkPort:$BenchmarkPort  --rm -e \"BIND_PORT=$BenchmarkPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$BenchmarkPort\" $Image benchmark $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/benchmark.txt \n")
 	file.write("sleep 1 \n")
 	file.write("echo \"Benchmarker up and running at $IP:$BenchmarkPort\" \n \n")
 	
 	#live analysis manager
-	file.write("(docker run -p $LiveAnalysisPort:2551  --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$LiveAnalysisPort\" $Image LiveAnalysisManager $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/LiveAnalysisManager.txt \n")
+	file.write("(docker run -p $LiveAnalysisPort:$LiveAnalysisPort  --rm -e \"BIND_PORT=$LiveAnalysisPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$LiveAnalysisPort\" $Image LiveAnalysisManager $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/LiveAnalysisManager.txt \n")
 	file.write("sleep 1 \n")
 	file.write("echo \"Live Analyser running at $IP:$LiveAnalysisPort\" \n \n")
 
 def complete(file):
-	file.write("(docker run -p $ClusterUpPort:2551  --rm -e \"HOST_IP=$IP\" -e \"HOST_PORT=$ClusterUpPort\" $Image ClusterUp $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/ClusterUp.txt \n")
+	file.write("(docker run -p $ClusterUpPort:$ClusterUpPort  --rm -e \"BIND_PORT=$ClusterUpPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$ClusterUpPort\" $Image ClusterUp $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/ClusterUp.txt \n")
 	file.write("sleep 1 \n")
 	file.write("echo \"CLUSTER UP\"\n \n")
 
@@ -107,8 +107,8 @@ def complete(file):
 NumberOfPartitions=int(sys.argv[1])
 NumberOfRouters=int(sys.argv[2])
 NumberOfMachines=int(sys.argv[3])
-#zookeeperLoc = sys.argv[4]
-zookeeperLoc = "192.168.1.245:2181"
+zookeeperLoc = sys.argv[4]
+#zookeeperLoc = "192.168.1.245:2181"
 #zookeeperLoc = "161.23.245.190:2181,161.23.245.190:2182,161.23.245.190:2183"
 #zookeeperLoc = "138.37.32.88:2181,138.37.32.86:2181"
 

@@ -23,7 +23,7 @@ Figure out IP and port mappings for this running Docker depending on the
 object IpPort {
   val AWS_LOCAL_HOST_IP  = "http://169.254.169.254/latest/meta-data/local-ipv4"
   val AWS_PUBLIC_HOST_IP = "http://169.254.169.254/latest/meta-data/public-ipv4"
-  val INTERNAL_AKKA_PORT = 2551
+  val INTERNAL_AKKA_PORT = 2552
 
   val ENV_HOST_IP        = "HOST_IP"
   val ENV_HOST_PORT      = "HOST_PORT"
@@ -56,6 +56,34 @@ trait EnvAdaptor {
   }
 }
 
+
+class FailException(msg:String) extends Exception(msg)
+
+case class DockerInspect (
+                           Id    : String,
+                           Ports : List[PortBinding]
+                         )
+
+case class PortBinding(
+                        PrivatePort : Int,
+                        PublicPort  : Option[Int]
+                      )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // AWS EC2-specific Introspection
 case class AwsEnvAdaptor() extends EnvAdaptor {
   private val sj = ScalaJack()
@@ -80,65 +108,3 @@ case class AwsEnvAdaptor() extends EnvAdaptor {
     })
   }
 }
-
-class FailException(msg:String) extends Exception(msg)
-
-case class DockerInspect (
-                           Id    : String,
-                           Ports : List[PortBinding]
-                         )
-
-case class PortBinding(
-                        PrivatePort : Int,
-                        PublicPort  : Option[Int]
-                      )
-
-/*  Docker remote call to <host>:5555/containers/json
-
-Output:
-
-[
-  {
-    "Command": "bin/root",
-    "Created": 1432418467,
-    "Id": "743a9a256262e427e8d630c785dc0f7d3016e06fed94baf6988691a89198c642",
-    "Image": "quay.io/gzoller/root:latest",
-    "Labels": {},
-    "Names": [
-      "/serene_leakey"
-    ],
-    "Ports": [
-      {
-        "IP": "0.0.0.0",
-        "PrivatePort": 8080,
-        "PublicPort": 8090,
-        "Type": "tcp"
-      },
-      {
-        "PrivatePort": 2551,
-        "Type": "tcp"
-      },
-      {
-        "IP": "0.0.0.0",
-        "PrivatePort": 1600,
-        "PublicPort": 2551,
-        "Type": "tcp"
-      }
-    ],
-    "Status": "Up Less than a second"
-  }
-]
-*/
-
-
-/*
-
-AWS Notes:
-
-1) Need to map /var/run/docker.sock to a http port by adding this to  /etc/sysconfig/docker
-	OPTIONS="-H 0.0.0.0:5555 -H unix:///var/run/docker.sock"
-
-	Note that this is insecure so [TODO] there is a way to secure this!  Google is your friend.
-
-2) Run on AWS with: sudo docker run -it -p 9101:2551 -p 9100:8080 quay.io/gzoller/root
-*/

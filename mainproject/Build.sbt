@@ -6,7 +6,6 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 	val JodaT           = "2.3"
 	val Logback         = "1.1.2"
 	val Scala           = "2.12.4"
-	//val ScalaTest       = "2.2.4"
 	val Slf4j           = "1.7.7"
 	val ScalaJack		    = "4.0"
 	val SbtPackager 	  = "1.2.0"
@@ -33,12 +32,9 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
   val akka_streams    = "com.typesafe.akka"   %  "akka-stream_2.12"   % "2.5.2"
   val akka_http       = "com.typesafe.akka"   % "akka-http_2.12"      % "10.0.7"
 	val typesafe_config	= "com.typesafe"			  %  "config"			        % Config
-	val spray_json      = "io.spray"            % "spray-json_2.11"     % "1.3.3"
-  //val  kafka          = "org.apache.kafka"    % "kafka_2.10" % "0.10.2.1"
+	val spray_json      = "io.spray"            % "spray-json_2.12"     % "1.3.3"
 	val scalajack		    = "co.blocke"           % "scalajack_2.11"      % "4.1"
 	val logback			    = "ch.qos.logback" 			% "logback-classic"	    % Logback
-
-	//val scalatest 		  = "org.scalatest" 			%% "scalatest"		      % ScalaTest
 	val slf4j_simple 	  = "org.slf4j" 				  % "slf4j-simple" 	      % Slf4j
 
 	//Zookeeper tings
@@ -64,7 +60,7 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 		maintainer := "Ben Steer <b.a.steer@qmul.ac.uk>",
 		dockerBaseImage := "errordeveloper/oracle-jre",
     dockerRepository := Some("quay.io/miratepuffin"),
-		dockerExposedPorts := Seq(2551,8080,2552)
+		dockerExposedPorts := Seq(2551,8080,2552) ++ (9000 to 10000)
 		// test <<= test dependsOn (publishLocal in docker)
 		)
 
