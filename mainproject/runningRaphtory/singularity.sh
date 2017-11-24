@@ -3,24 +3,39 @@
 IP="$(./getMyIP.sh)" 
  
 ZooKeeper="$IP:2181" 
- 
+NumberOfPartitions=1
 
+
+if [ -d logs ]; then rm -r logs; fi 
+mkdir logs
+mkdir logs/entityLogs
+chmod 777 logs 
+chmod 777 logs/entityLogs
  
 SeedPort=9101 
 RestPort=9102 
-UpdatePort=9103
-SINGULARITYENV_HOST_PORT=$SeedPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$SeedPort singularity exec cluster.simg /opt/docker/bin/cluster seed $IP:$SeedPort $ZooKeeper
-SINGULARITYENV_HOST_PORT=$RestPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$RestPort singularity exec cluster.simg /opt/docker/bin/cluster rest $ZooKeeper
-SINGULARITYENV_HOST_PORT=$UpdatePort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$UpdatePort 
+UpdatePort=9103 
+BenchmarkPort=9104  
+LiveAnalysisPort=9105 
+ClusterUpPort=9106 
+PM0Port=9200
+PM0ID=0
+Router0Port=9300
 
-(docker run -p $UpdatePort:$UpdatePort  --rm -e "BIND_PORT=$UpdatePort" -e "HOST_IP=$IP" -e "HOST_PORT=$UpdatePort" $Image updateGen $NumberOfPartitions $ZooKeeper &) > logs/seedSetup/updateGenerator.txt 
 
+(SINGULARITYENV_HOST_PORT=$SeedPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$SeedPort singularity exec cluster.simg /opt/docker/bin/cluster seed $IP:$SeedPort $ZooKeeper &) >logs/seed.txt
+sleep 2
+(SINGULARITYENV_HOST_PORT=$RestPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$RestPort singularity exec cluster.simg /opt/docker/bin/cluster rest $ZooKeeper &) >logs/rest.txt
+sleep 2
+(SINGULARITYENV_HOST_PORT=$UpdatePort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$UpdatePort singularity exec cluster.simg /opt/docker/bin/cluster updateGen $NumberOfPartitions $ZooKeeper &) >logs/update.txt
+sleep 2
+(SINGULARITYENV_HOST_PORT=$BenchmarkPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$BenchmarkPort singularity exec cluster.simg /opt/docker/bin/cluster benchmark $NumberOfPartitions $ZooKeeper &) > logs/benchmark.txt
+sleep 2
+(SINGULARITYENV_HOST_PORT=$LiveAnalysisPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$LiveAnalysisPort singularity exec cluster.simg /opt/docker/bin/cluster LiveAnalysisManager $NumberOfPartitions $ZooKeeper &) > logs/Live.txt
+sleep 2
+(SINGULARITYENV_HOST_PORT=$PM0Port SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$PM0Port singularity exec cluster.simg /opt/docker/bin/cluster partitionManager $PM0ID $NumberOfPartitions $ZooKeeper &) > logs/pm1.txt
+sleep 2
+(SINGULARITYENV_HOST_PORT=$Router0Port SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$Router0Port singularity exec cluster.simg /opt/docker/bin/cluster router $NumberOfPartitions $ZooKeeper &) > logs/r1.txt
+sleep 2
+(SINGULARITYENV_HOST_PORT=$ClusterUpPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$ClusterUpPort singularity exec cluster.simg /opt/docker/bin/cluster ClusterUp $NumberOfPartitions $ZooKeeper &) > logs/clusterUp.txt
 
-chmod 777 logs 
-chmod 777 logs/seedSetup
-chmod 777 logs/seedSetup/entityLogs
-
-( &) > logs/seedSetup/seed.txt 
-
- 
-(docker run -p $RestPort:$RestPort -p 8080:8080 --rm -e "BIND_PORT=$RestPort" -e "HOST_IP=$IP" -e "HOST_PORT=$RestPort" $Image rest $ZooKeeper &) > logs/seedSetup/rest.txt 

@@ -21,7 +21,8 @@ trait DocSvr {
 
   def init( seeds:List[String] ) : ActorSystem = {
     val config = ConfigFactory.load()
-      .withValue("akka.remote.netty.tcp.bind-hostname", ConfigValueFactory.fromAnyRef(java.net.InetAddress.getLocalHost().getHostAddress()))
+      //.withValue("akka.remote.netty.tcp.bind-hostname", ConfigValueFactory.fromAnyRef(java.net.InetAddress.getLocalHost().getHostAddress())) //docker
+      .withValue("akka.remote.netty.tcp.bind-hostname", ConfigValueFactory.fromAnyRef(ipAndPort.hostIP)) //singularirty (maybe "192.168.1.1")
       .withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef(ipAndPort.hostIP))
       .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(ipAndPort.akkaPort))
       .withValue("akka.cluster.seed-nodes", ConfigValueFactory.fromIterable(JavaConversions.asJavaIterable(seeds.map(seedLoc => s"akka.tcp://$clusterSystemName@$seedLoc").toIterable)))
