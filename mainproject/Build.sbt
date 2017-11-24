@@ -7,7 +7,7 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 	val Logback         = "1.1.2"
 	val Scala           = "2.12.4"
 	val Slf4j           = "1.7.7"
-	val ScalaJack		    = "4.0"
+	//val ScalaJack		    = "4.0"
 	val SbtPackager 	  = "1.2.0"
 
 
@@ -33,7 +33,7 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
   val akka_http       = "com.typesafe.akka"   % "akka-http_2.12"      % "10.0.7"
 	val typesafe_config	= "com.typesafe"			  %  "config"			        % Config
 	val spray_json      = "io.spray"            % "spray-json_2.12"     % "1.3.3"
-	val scalajack		    = "co.blocke"           % "scalajack_2.11"      % "4.1"
+	//val scalajack		    = "co.blocke"           % "scalajack_2.12"      % "4.1"
 	val logback			    = "ch.qos.logback" 			% "logback-classic"	    % Logback
 	val slf4j_simple 	  = "org.slf4j" 				  % "slf4j-simple" 	      % Slf4j
 
@@ -68,14 +68,15 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 		base = file(".")) aggregate(cluster)
 
 	lazy val cluster = project.in(file("cluster"))
-		//.enablePlugins(JavaAppPackaging)
+		.enablePlugins(JavaAppPackaging)
 		.enablePlugins(AshScriptPlugin)
 		.settings(isSnapshot := true)
 		.settings(dockerStuff:_*)
-		.settings(dockerEntrypoint := Seq("bin/cluster"))
+		//.settings(dockerEntrypoint := Seq("bin/cluster"))
+		.settings(dockerEntrypoint := Seq("/opt/docker/bin/cluster"))
 		.settings(basicSettings: _*)
 		.settings(libraryDependencies ++=
 			dep_compile(
-				typesafe_config, scalajack, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2)
+				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2)
 		)
 		//.settings((Keys.test in Test) <<= (Keys.test in Test) dependsOn (publishLocal in Docker))

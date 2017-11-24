@@ -2,7 +2,6 @@ package com.gwz.dockerexp
 
 import java.net._
 import java.io._
-import co.blocke.scalajack._
 import scala.util.Try
 
 /**
@@ -35,9 +34,6 @@ import IpPort._
 case class IpAndPort() {
   val baseAdaptor = {
     val base = new EnvAdaptor(){}
-    if( base.hostIP.isEmpty || base.akkaPort.isEmpty )
-      base + AwsEnvAdaptor()
-    else
       base
   }
   val hostIP   = baseAdaptor.hostIP.getOrElse( throw new FailException("Can't determine host IP") )
@@ -68,43 +64,3 @@ case class PortBinding(
                         PrivatePort : Int,
                         PublicPort  : Option[Int]
                       )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// AWS EC2-specific Introspection
-case class AwsEnvAdaptor() extends EnvAdaptor {
-  private val sj = ScalaJack()
-
-  def httpGetLite( uri:String ) = Try{scala.io.Source.fromURL(uri,"utf-8").getLines.fold("")( (a,b) => a + b )}.toOption
-
-  override val hostIP   : Option[String] = {
-    if( System.getenv().get(ENV_EXT_AKKA) == "true" )
-      httpGetLite(AWS_PUBLIC_HOST_IP)  // Akka callable only outside AWS
-    else
-      httpGetLite(AWS_LOCAL_HOST_IP)   // Akka callable only inside AWS
-  }
-  override val akkaPort : Option[Int] = httpGetLite(AWS_LOCAL_HOST_IP).flatMap(local => inspectPort(local))
-
-  def inspectPort(hIp:String) : Option[Int] = {
-    val instId = System.getenv().get(ENV_HOSTNAME)
-    httpGetLite(s"http://$hIp:5555/containers/json").flatMap( ins => {
-      Try {
-        val ob = sj.read[List[DockerInspect]](ins)
-        ob.find( _.Id.startsWith(instId) ).map(_.Ports.find( _.PrivatePort == INTERNAL_AKKA_PORT ).map( _.PublicPort.get ).get ).get
-      }.toOption
-    })
-  }
-}
