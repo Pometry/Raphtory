@@ -3,10 +3,9 @@ package com.gwz.dockerexp.Actors.RaphtoryActors
 /**
   * Created by Mirate on 11/07/2017.
   */
-import java.util
-import java.util.{Calendar, Date}
+import java.util.Calendar
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass.BenchmarkUpdate
 

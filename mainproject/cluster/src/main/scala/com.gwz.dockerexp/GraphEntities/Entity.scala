@@ -1,76 +1,115 @@
 package com.gwz.dockerexp.GraphEntities
-/**
-  * Class representing Graph Entities
+
+/** *
+  * Represents Graph Entities (Edges and Vertices)
   * Contains a Map of properties (currently String to string)
   * longs representing unique vertex ID's stored in subclassses
+  *
+  * @param creationMessage ID of the message that created the entity
+  * @param isInitialValue  Is the first moment this entity is referenced
   */
+class Entity(creationMessage: Int, isInitialValue: Boolean)
+    extends LogManageable {
 
-class Entity(creationMessage:Int, initialValue:Boolean) {
-  var properties = Map[String,Property]()
-  var previousState:List[(Int,Boolean)] = (creationMessage,initialValue)::Nil // if initial is delete set to false
-  var removeList:List[(Int,(Boolean,String))] =  if(initialValue) Nil else (creationMessage,(false,""))::Nil //need to track all removes to pass to properties
+  // Properties from that entity
+  var properties = Map[String, Property]()
 
-  //************* REVIVE BLOCK *********************\\
-  def revive(msgID:Int):Unit={
-    if(previousState==Nil) previousState = (msgID,true) :: previousState // if the vertex has been wiped then no need to do anything
-    else if(msgID > previousState.head._1) previousState = (msgID,true) :: previousState //if the revive can go at the front of the list, then just add it
-    else previousState = previousState.head :: reviveHelper(msgID,previousState.tail) //otherwise we need to find where it goes by looking through the list
+  // History of that entity
+  var previousState: List[(Int, Boolean)] = List(
+    (creationMessage, isInitialValue))
+
+  //need to track all removes to pass to properties
+  var removeList: List[(Int, (Boolean, String))] =
+    if (isInitialValue) List() else List((creationMessage, (false, "")))
+
+  /** *
+    * Set the Entity has alive at a given time
+    *
+    * @param msgID
+    */
+  def revive(msgID: Int): Unit = {
+    previousState = findEventPositionInLog(previousState, (msgID, true))
   }
-  private def reviveHelper(msgID:Int,ps:List[(Int,Boolean)]):List[(Int,Boolean)] ={
-    if(ps isEmpty) (msgID,true)::Nil //somehow reached the end of the list
-    else if(msgID > ps.head._1) (msgID,true) :: ps //if we have found the position the command should go in the list, return it at the head of the ps
-    else ps.head :: reviveHelper(msgID,ps.tail) //otherwise keep looking
-  }
-  //************* END REVIVE BLOCK *********************\\
 
-  //************* KILL ENTITY BLOCK *********************\\
-  def kill(msgID:Int):Unit={
-    if(previousState isEmpty) previousState = (msgID,false)::Nil // if the vertex has been wiped then no need to do anything
-    else if(msgID > previousState.head._1) previousState = (msgID,false) :: previousState //if the kill is the latest command put at the front
-    else previousState = previousState.head :: conspireToCommitMurder(msgID,previousState.tail) //otherwise we need to find where it goes by looking through the list
-    properties.foreach(p => p._2.kill(msgID)) //send the message to all properties
+  /** *
+    * Set the entity absent in a given time
+    *
+    * @param msgID
+    */
+  def kill(msgID: Int): Unit = {
+
+    /** *
+      * Filter to only removes and convert to a list which can be given to properties
+      */
+    def updateRemoveList() =
+      removeList =
+        previousState.filter(_._2 == false).map(p => (p._1, (false, "")))
+
+    previousState = findEventPositionInLog(previousState, (msgID, false))
+
+    //send the message to all properties
+    properties.foreach(p => p._2.kill(msgID))
     updateRemoveList()
   }
 
-  private def conspireToCommitMurder(msgID:Int,ps:List[(Int,Boolean)]):List[(Int,Boolean)] ={
-    if(ps isEmpty) (msgID,false)::Nil //somehow reached the end of the list
-    else if(msgID > ps.head._1) (msgID,false) :: ps //if we have found the position the command should go in the list, return it at the head of the ps
-    else ps.head :: conspireToCommitMurder(msgID,ps.tail) //otherwise keep looking
+  /** *
+    * override the apply method so that we can do edge/vertex("key") to easily retrieve properties
+    *
+    * @param property property key
+    * @return property value
+    */
+  def apply(property: String): Property = properties(property)
+
+  /** *
+    * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
+    *
+    * @param msgID Message ID where the update came from
+    * @param key   property key
+    * @param value property value
+    */
+  def +(msgID: Int, key: String, value: String): Unit = {
+    if (properties contains key) properties(key) update (msgID, value)
+    //add new property passing all previous removes so the add can be slotted in accordingly
+    else
+      properties = properties updated (key, new Property(msgID,
+                                                         key,
+                                                         value,
+                                                         removeList))
   }
-  def updateRemoveList() = removeList = previousState.filter(p => p._2==false).map(p => (p._1,(false,""))) //filter to only removes and convert to a list which can be given to properties
-  //************* END KILL BLOCK *********************\\
-
-  //************* PROPERTY BLOCK *********************\\
-  def apply(property:String): Property = properties(property) //overrite the apply method so that we can do vertex("key") to easily retrieve properties
-
-  def +(msgID:Int,key:String,value:String):Unit = { //create + method so can write vertex + (k,v) to easily add new properties
-    if(properties contains key) properties(key) update (msgID,value)
-    else properties = properties updated (key,new Property(msgID,key,value,removeList)) //add new property passing all previous removes so the add can be slotted in accordingly
-  }
-  //************* END PROPERTY BLOCK *********************\\
-
 
   //************* PRINT ENTITY DETAILS BLOCK *********************\\
-  def printCurrent():String={
-    var toReturn= s"MessageID ${previousState.head._1}: ${previousState.head._2} \n"
-    properties.foreach(p => toReturn = s"$toReturn      ${p._2.toStringCurrent} \n")
+  def printCurrent(): String = {
+    var toReturn = s"MessageID ${previousState.head._1}: ${previousState.head._2} " + System.lineSeparator
+    properties.foreach(p =>
+      toReturn = s"$toReturn      ${p._2.toStringCurrent} " + System.lineSeparator)
     toReturn
   }
-  def printHistory():String={
-    var toReturn="Previous state of entity: \n"
-    previousState.foreach(p => toReturn = s"$toReturn MessageID ${p._1}: ${p._2} \n")
-    s"$toReturn \n $printProperties" //print previous state of entity + properties -- title left off as will be done in subclass
+
+  /** *
+    * Returns string with previous state of entity + properties -- title left off as will be done in subclass
+    *
+    * @return
+    */
+  def printHistory(): String = {
+    var toReturn = "Previous state of entity: " + System.lineSeparator
+    previousState.foreach(p =>
+      toReturn = s"$toReturn MessageID ${p._1}: ${p._2} " + System.lineSeparator)
+    s"$toReturn \n $printProperties"
   }
-  def printProperties():String ={ //test function to make sure the properties are being added to the correct vertices
-    var toReturn ="" //indent to be inside the entity
-    properties.toSeq.sortBy(_._1).foreach(p => toReturn = s"$toReturn      ${p._2.toString} \n")
+
+  def printProperties()
+    : String = { //test function to make sure the properties are being added to the correct vertices
+    var toReturn = "" //indent to be inside the entity
+    properties.toSeq
+      .sortBy(_._1)
+      .foreach(p => toReturn = s"$toReturn      ${p._2.toString} \n")
     toReturn
   }
+
   //************* END PRINT ENTITY DETAILS BLOCK *********************\\
 
   def wipe() = {
-    previousState = Nil
-    removeList=Nil
+    previousState = List()
+    removeList = List()
   }
-
 }

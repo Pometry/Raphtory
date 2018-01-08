@@ -1,15 +1,8 @@
 package com.gwz.dockerexp.caseclass
 
-import akka.actor.ActorRef
-import com.gwz.dockerexp.GraphEntities.{Edge, Vertex}
-
 /**
   * Created by Mirate on 30/05/2017.
   */
-class raphtoryCases {}
-
-
-
 //The following block are all case classes (commands) which the manager can handle
 case class BenchmarkUpdate(id:Int, updateID:Int, count:Int)
 case class LiveAnalysis()

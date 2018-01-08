@@ -5,10 +5,9 @@ package com.gwz.dockerexp.caseclass.clustercase
   */
 import com.gwz.dockerexp.Actors.ClusterActors.{ClusterUpActor, DocSvr}
 import akka.actor.Props
-import com.gwz.dockerexp.Actors.RaphtoryActors._
 
-
-case class ClusterUpNode(seedLoc : String,partitionNumber:String) extends DocSvr {
+case class ClusterUpNode(seedLoc: String, partitionNumber: String)
+    extends DocSvr {
   implicit val system = init(List(seedLoc))
-  system.actorOf(Props(new ClusterUpActor(partitionNumber.toInt)),"ClusterUp")
+  system.actorOf(Props(new ClusterUpActor(partitionNumber.toInt)), "ClusterUp")
 }
