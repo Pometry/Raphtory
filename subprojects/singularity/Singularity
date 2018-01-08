@@ -1,0 +1,9 @@
+BootStrap: docker
+From: quay.io/miratepuffin/cluster:latest
+
+%post 
+    chmod -R 777 /opt/docker
+%runscript
+    exec docker/bin/cluster
+
+
