@@ -12,7 +12,6 @@ class raphtoryCases {}
 
 //The following block are all case classes (commands) which the manager can handle
 case class BenchmarkUpdate(id:Int, updateID:Int, count:Int)
-
 case class LiveAnalysis()
 case class Results(result:String)
 

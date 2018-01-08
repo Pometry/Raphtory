@@ -1,8 +1,8 @@
 #!/usr/bin/env bash 
  
 IP="$(./getMyIP.sh)" 
-#IP="192.168.1.5" 
-ZooKeeper="192.168.1.5:2180" 
+ 
+ZooKeeper="161.23.245.10:2181" 
  
 Image="quay.io/miratepuffin/cluster" #if you want to use prebuilt one on my quay.io 
  
