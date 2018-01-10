@@ -12,7 +12,7 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
     extends LogManageable {
 
   // Properties from that entity
-  var properties = Map[String, Property]()
+  var properties:Map[String,Property] = Map[String, Property]()
 
   // History of that entity
   var previousState: List[(Int, Boolean)] = List(
@@ -47,8 +47,6 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
 
     previousState = findEventPositionInLog(previousState, (msgID, false))
 
-    //send the message to all properties
-    properties.foreach(p => p._2.kill(msgID))
     updateRemoveList()
   }
 
@@ -68,15 +66,14 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
     * @param value property value
     */
   def +(msgID: Int, key: String, value: String): Unit = {
-    if (properties contains key) properties(key) update (msgID, value)
-    //add new property passing all previous removes so the add can be slotted in accordingly
+    if (properties contains key)
+      properties(key) update(msgID, value)
     else
-      properties = properties updated (key, new Property(msgID,
-                                                         key,
-                                                         value,
-                                                         removeList))
+      properties = properties updated(key, new Property(msgID,
+        key,
+        value,
+        List()))
   }
-
   //************* PRINT ENTITY DETAILS BLOCK *********************\\
   def printCurrent(): String = {
     var toReturn = s"MessageID ${previousState.head._1}: ${previousState.head._2} " + System.lineSeparator
@@ -97,8 +94,7 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
     s"$toReturn \n $printProperties"
   }
 
-  def printProperties()
-    : String = { //test function to make sure the properties are being added to the correct vertices
+  def printProperties(): String = { //test function to make sure the properties are being added to the correct vertices
     var toReturn = "" //indent to be inside the entity
     properties.toSeq
       .sortBy(_._1)

@@ -7,15 +7,12 @@ import scala.reflect.ClassTag
   */
 trait LogManageable {
 
-  def findEventPositionInLog[T: ClassTag](
-      logBeforeUpdate: List[(Int, T)],
-      insertedInformation: (Int, T)): List[(Int, T)] = {
-    val lastHighMessage =
-      logBeforeUpdate.lastIndexWhere(e => e._1 > insertedInformation._1)
+  def findEventPositionInLog[T: ClassTag](logBeforeUpdate: List[(Int, T)], insertedInformation: (Int, T)): List[(Int, T)] = {
+    val lastHighMessage = logBeforeUpdate.lastIndexWhere(e =>
+      e._1 > insertedInformation._1)
     if (lastHighMessage < 0) insertedInformation :: logBeforeUpdate
     else
-      logBeforeUpdate.take(lastHighMessage) ::: insertedInformation :: logBeforeUpdate
-        .drop(lastHighMessage)
+      logBeforeUpdate.take(lastHighMessage) ::: insertedInformation :: logBeforeUpdate.drop(lastHighMessage)
   }
 
 }

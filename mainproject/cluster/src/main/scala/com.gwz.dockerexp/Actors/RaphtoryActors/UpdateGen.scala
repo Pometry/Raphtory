@@ -35,7 +35,7 @@ class UpdateGen(managerCount:Int) extends Actor{
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
     case "removeEdge" => edgeRemove()
-    case "random" => {if(safe){genRandomCommands(10);println("Safe")}}
+    case "random" => {if(safe){genRandomCommands(1);println("Safe")}}
     case _ => println("message not recognized!")
   }
 
@@ -46,7 +46,7 @@ class UpdateGen(managerCount:Int) extends Actor{
       var command = ""
       if(random<=0.2) command =genVertexAdd()
       else if(random<=0.4) command = genVertexAdd()
-      //else if(random<=0.5) command = genVertexRemoval()
+      else if(random<=0.5) command = genVertexRemoval()
       else if(random<=0.7) command = genEdgeAdd()
       else if(random<=0.8) command = genEdgeAdd()
       else                 command = genEdgeRemoval()
@@ -90,7 +90,7 @@ class UpdateGen(managerCount:Int) extends Actor{
 
   def genVertexAdd():String={
     currentMessage+=1
-    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}}}"""
+    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}, ${genProperties(2,true)}}}"""
   }
   def genVertexAdd(src:Int):String={ //overloaded method if you want to specify src ID
     currentMessage+=1
@@ -120,7 +120,7 @@ class UpdateGen(managerCount:Int) extends Actor{
 
   def genEdgeAdd():String={
     currentMessage+=1
-    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID()}, ${genDstID()}}}"""
+    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID()}, ${genDstID()}, ${genProperties(2,true)}}}"""
   }
   def genEdgeAdd(src:Int,dst:Int):String={
     currentMessage+=1

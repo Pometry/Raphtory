@@ -6,7 +6,6 @@ package com.gwz.dockerexp.GraphEntities
   * @param creationMessage
   * @param key           Property name
   * @param value         Property value
-  * @param previousState list of previous states for that property
   */
 class Property(creationMessage: Int,
                key: String,
@@ -17,27 +16,16 @@ class Property(creationMessage: Int,
   // add in the initial information
   update(creationMessage, value)
 
-  //check front pos of list
-  def isCurrentlyAlive(): Boolean = previousState.head._2._1
-
   /**
     * update the value of the property
     *
     * @param msgID
     * @param newValue
     */
-  def update(msgID: Int, newValue: String): Unit =
+  def update(msgID: Int, newValue: String): Unit = {
     previousState =
       findEventPositionInLog(previousState, (msgID, (true, newValue)))
-
-  /**
-    * kill the property (used when the vertex/edge is removed)
-    *
-    * @param msgID
-    */
-  def kill(msgID: Int): Unit =
-    previousState = findEventPositionInLog(previousState, (msgID, (false, "")))
-
+  }
   /** *
     * returns a string with all the history of that property
     *
