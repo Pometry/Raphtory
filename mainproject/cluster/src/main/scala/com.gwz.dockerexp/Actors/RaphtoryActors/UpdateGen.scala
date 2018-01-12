@@ -30,7 +30,7 @@ class UpdateGen(managerCount:Int) extends Actor{
 
   //************* MESSAGE HANDLING BLOCK
   override def receive: Receive = {
-    case LiveAnalysis() => {safe = true;println("Got2")}
+    case "Safe" => {safe = true;println("Got2")}
     case "addVertex" => vertexAdd()
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()

@@ -39,7 +39,7 @@ object Go extends App {
     }
     case "LiveAnalysisManager" => {
       println("Creating Live Analysis Manager")
-      LiveAnalysisNode(getConf(args(2)), args(1))
+      LiveAnalysisNode(getConf(args(2)), args(1),args(3))
     }
     case "ClusterUp" => {
       println("Cluster Up, informing Partition Managers and Routers")

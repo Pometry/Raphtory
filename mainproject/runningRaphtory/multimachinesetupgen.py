@@ -6,6 +6,7 @@ def metadata(file):
 	file.write("#!/usr/bin/env bash \n \n")
 	file.write("IP=\"$(./getMyIP.sh)\" \n \n")
 	file.write("ZooKeeper=\""+zookeeperLoc+"\" \n \n")
+	file.write("LAMName=\"testLam\" \n \n")
 	#file.write("./dockblock.sh \n \n")
 	file.write("Image=\"quay.io/miratepuffin/cluster\" #if you want to use prebuilt one on my quay.io \n \n")
 
@@ -93,7 +94,7 @@ def dockerblock(file):
 	file.write("echo \"Benchmarker up and running at $IP:$BenchmarkPort\" \n \n")
 	
 	#live analysis manager
-	file.write("(docker run -p $LiveAnalysisPort:$LiveAnalysisPort  --rm -e \"BIND_PORT=$LiveAnalysisPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$LiveAnalysisPort\" $Image LiveAnalysisManager $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/LiveAnalysisManager.txt \n")
+	file.write("(docker run -p $LiveAnalysisPort:$LiveAnalysisPort  --rm -e \"BIND_PORT=$LiveAnalysisPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$LiveAnalysisPort\" $Image LiveAnalysisManager $NumberOfPartitions $ZooKeeper $LAMName &) > logs/"+file.name[:len(file.name)-3]+"/LiveAnalysisManager.txt \n")
 	file.write("sleep 1 \n")
 	file.write("echo \"Live Analyser running at $IP:$LiveAnalysisPort\" \n \n")
 

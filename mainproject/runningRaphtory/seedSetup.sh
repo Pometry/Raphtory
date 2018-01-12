@@ -2,7 +2,9 @@
  
 IP="$(./getMyIP.sh)" 
  
-ZooKeeper="192.168.1.245" 
+ZooKeeper="161.23.245.65" 
+ 
+LAMName="testLam" 
  
 Image="quay.io/miratepuffin/cluster" #if you want to use prebuilt one on my quay.io 
  
@@ -44,7 +46,7 @@ echo "Update Generator up and running at $IP:$UpdatePort"
 sleep 1 
 echo "Benchmarker up and running at $IP:$BenchmarkPort" 
  
-(docker run -p $LiveAnalysisPort:$LiveAnalysisPort  --rm -e "BIND_PORT=$LiveAnalysisPort" -e "HOST_IP=$IP" -e "HOST_PORT=$LiveAnalysisPort" $Image LiveAnalysisManager $NumberOfPartitions $ZooKeeper &) > logs/seedSetup/LiveAnalysisManager.txt 
+(docker run -p $LiveAnalysisPort:$LiveAnalysisPort  --rm -e "BIND_PORT=$LiveAnalysisPort" -e "HOST_IP=$IP" -e "HOST_PORT=$LiveAnalysisPort" $Image LiveAnalysisManager $NumberOfPartitions $ZooKeeper $LAMName &) > logs/seedSetup/LiveAnalysisManager.txt 
 sleep 1 
 echo "Live Analyser running at $IP:$LiveAnalysisPort" 
  

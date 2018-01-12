@@ -22,7 +22,7 @@ class ClusterUpActor(managerCount:Int) extends Actor{
   }
 
   override def receive: Receive = {
-    case "tick" => {mediator ! DistributedPubSubMediator.Send("/user/updateGen",LiveAnalysis(),false); println("got")}
+    case "tick" => {mediator ! DistributedPubSubMediator.Send("/user/updateGen","Safe",false); println("got")}
   }
 
   def getManager(srcId:Int):String = s"/user/Manager_${srcId % managerCount}" //simple srcID hash at the moment
