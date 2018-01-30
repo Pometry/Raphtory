@@ -3,9 +3,8 @@ package com.gwz.dockerexp.Actors.RaphtoryActors
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.gwz.dockerexp.Actors.RaphtoryActors.Analaysis.{OpenAnalyser, Test2Analyser}
-import com.gwz.dockerexp.GraphEntities.{Edge, Vertex}
-import com.gwz.dockerexp.caseclass.{LiveAnalysis, OpenLiveAnalysis, Results}
+import com.gwz.dockerexp.Actors.RaphtoryActors.Analaysis.TestAnalyser
+import com.gwz.dockerexp.caseclass.{LiveAnalysis, Results}
 
 import scala.concurrent.duration._
 
@@ -28,16 +27,9 @@ class LiveAnalysisManager(managerCount:Int,name:String) extends Actor{
 
   def analyse() ={
       for(i <- 0 until managerCount){
-        mediator ! DistributedPubSubMediator.Send(s"/user/Manager_$i",LiveAnalysis(name,new Test2Analyser),false)
+        mediator ! DistributedPubSubMediator.Send(s"/user/Manager_$i",LiveAnalysis(name,new TestAnalyser),false)
       }
   }
-  def analyseRedux() ={
-    for(i <- 0 until managerCount){
-      mediator ! DistributedPubSubMediator.Send(s"/user/Manager_$i",OpenLiveAnalysis(name,new OpenAnalyser(analyse)),false)
-    }
-  }
-  def analyse(vertices:Map[Int,Vertex],edges:Map[(Int,Int),Edge]):Object = "Please Work"
-
 
 }
 

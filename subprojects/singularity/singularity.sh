@@ -2,7 +2,7 @@
 #$ -cwd           # Set the working directory for the job to the current directory
 #$ -pe smp 1      # Request 1 core
 #$ -l h_rt=1:0:0 # Request 1 hour runtime
-#$ -l h_vmem=1G   # Request 1GB RAM
+#$ -l h_vmem=1G   # Request 8GB RAM
 module load singularity
 getMyIP() {
     local _ip _myip _line _nl=$'\n'
@@ -16,7 +16,7 @@ getMyIP() {
 getMyIP
 IP=$getMyIP
 echo $IP
-ZooKeeper="10.14.0.93:2181" 
+ZooKeeper="10.14.100.24:2181" 
 NumberOfPartitions=1
 
 
@@ -38,17 +38,17 @@ Router0Port=9300
 
 SINGULARITYENV_HOST_PORT=$SeedPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$SeedPort singularity exec cluster.img /opt/docker/bin/cluster seed $IP:$SeedPort $ZooKeeper
 #sleep 2
-#(SINGULARITYENV_HOST_PORT=$RestPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$RestPort singularity exec cluster.simg /opt/docker/bin/cluster rest $ZooKeeper &) >logs/rest.txt
+#(SINGULARITYENV_HOST_PORT=$RestPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$RestPort singularity exec cluster.img /opt/docker/bin/cluster rest $ZooKeeper &) >logs/rest.txt
 #sleep 2
-#(SINGULARITYENV_HOST_PORT=$UpdatePort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$UpdatePort singularity exec cluster.simg /opt/docker/bin/cluster updateGen $NumberOfPartitions $ZooKeeper &) >logs/update.txt
+#(SINGULARITYENV_HOST_PORT=$UpdatePort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$UpdatePort singularity exec cluster.img /opt/docker/bin/cluster updateGen $NumberOfPartitions $ZooKeeper &) >logs/update.txt
 #sleep 2
-#(SINGULARITYENV_HOST_PORT=$BenchmarkPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$BenchmarkPort singularity exec cluster.simg /opt/docker/bin/cluster benchmark $NumberOfPartitions $ZooKeeper &) > logs/benchmark.txt
+#(SINGULARITYENV_HOST_PORT=$BenchmarkPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$BenchmarkPort singularity exec cluster.img /opt/docker/bin/cluster benchmark $NumberOfPartitions $ZooKeeper &) > logs/benchmark.txt
 #sleep 2
-#(SINGULARITYENV_HOST_PORT=$LiveAnalysisPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$LiveAnalysisPort singularity exec cluster.simg /opt/docker/bin/cluster LiveAnalysisManager $NumberOfPartitions $ZooKeeper &) > logs/Live.txt
+#(SINGULARITYENV_HOST_PORT=$LiveAnalysisPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$LiveAnalysisPort singularity exec cluster.img /opt/docker/bin/cluster LiveAnalysisManager $NumberOfPartitions $ZooKeeper &) > logs/Live.txt
 #sleep 2
-#(SINGULARITYENV_HOST_PORT=$PM0Port SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$PM0Port singularity exec cluster.simg /opt/docker/bin/cluster partitionManager $PM0ID $NumberOfPartitions $ZooKeeper &) > logs/pm1.txt
+#(SINGULARITYENV_HOST_PORT=$PM0Port SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$PM0Port singularity exec cluster.img /opt/docker/bin/cluster partitionManager $PM0ID $NumberOfPartitions $ZooKeeper &) > logs/pm1.txt
 #sleep 2
-#(SINGULARITYENV_HOST_PORT=$Router0Port SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$Router0Port singularity exec cluster.simg /opt/docker/bin/cluster router $NumberOfPartitions $ZooKeeper &) > logs/r1.txt
+#(SINGULARITYENV_HOST_PORT=$Router0Port SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$Router0Port singularity exec cluster.img /opt/docker/bin/cluster router $NumberOfPartitions $ZooKeeper &) > logs/r1.txt
 #sleep 2
-#(SINGULARITYENV_HOST_PORT=$ClusterUpPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$ClusterUpPort singularity exec cluster.simg /opt/docker/bin/cluster ClusterUp $NumberOfPartitions $ZooKeeper &) > logs/clusterUp.txt
+#(SINGULARITYENV_HOST_PORT=$ClusterUpPort SINGULARITYENV_HOST_IP=$IP SINGULARITYENV_BIND_PORT=$ClusterUpPort singularity exec cluster.img /opt/docker/bin/cluster ClusterUp $NumberOfPartitions $ZooKeeper &) > logs/clusterUp.txt
 

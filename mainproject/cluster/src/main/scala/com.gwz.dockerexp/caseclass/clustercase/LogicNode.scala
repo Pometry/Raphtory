@@ -1,7 +1,7 @@
 package com.gwz.dockerexp.caseclass.clustercase
 
 import akka.actor.Props
-import com.gwz.dockerexp.Actors.ClusterActors.{DocSvr, LogicActor}
+import com.gwz.dockerexp.Actors.ClusterActors.DocSvr
 
 /**
   * Created by Mirate on 29/05/2017.

@@ -35,7 +35,7 @@ class UpdateGen(managerCount:Int) extends Actor{
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
     case "removeEdge" => edgeRemove()
-    case "random" => {if(safe){genRandomCommands(1);println("Safe")}}
+    case "random" => {if(safe){genRandomCommands(10000);println("Safe")}}
     case _ => println("message not recognized!")
   }
 
@@ -148,8 +148,8 @@ class UpdateGen(managerCount:Int) extends Actor{
 
   def genSetSrcID():String = s""" "srcID":9 """
   def genSetDstID():String = s""" "dstID":10 """
-  def genSrcID():String = s""" "srcID":${Random.nextInt(30)} """
-  def genDstID():String = s""" "dstID":${Random.nextInt(30)} """
+  def genSrcID():String = s""" "srcID":${Random.nextInt(100000)} """
+  def genDstID():String = s""" "dstID":${Random.nextInt(100000)} """
   def genSrcID(src:Int):String = s""" "srcID":$src """
   def genDstID(dst:Int):String = s""" "dstID":$dst """
 

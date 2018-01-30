@@ -1,6 +1,6 @@
 package com.gwz.dockerexp.caseclass
 
-import com.gwz.dockerexp.Actors.RaphtoryActors.Analaysis.{Analyser, OpenAnalyser}
+import com.gwz.dockerexp.Actors.RaphtoryActors.Analaysis.Analyser
 
 /**
   * Created by Mirate on 30/05/2017.
@@ -8,7 +8,6 @@ import com.gwz.dockerexp.Actors.RaphtoryActors.Analaysis.{Analyser, OpenAnalyser
 //The following block are all case classes (commands) which the manager can handle
 case class BenchmarkUpdate(id:Int, updateID:Int, count:Int)
 case class LiveAnalysis(name: String,analyser: Analyser)
-case class OpenLiveAnalysis(name:String,analyser: OpenAnalyser)
 case class Results(result:Object)
 
 case class VertexAdd(msgId:Int,srcId:Int) //add a vertex (or add/update a property to an existing vertex)
