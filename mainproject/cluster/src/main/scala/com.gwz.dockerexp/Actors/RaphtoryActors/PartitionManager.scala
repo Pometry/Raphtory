@@ -60,7 +60,6 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
 
     case "tick" => reportIntake()
     case LiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name,Results(analyser.analyse(vertices,edges)),false)
-    case OpenLiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name,Results(analyser.analyse(vertices,edges)),false)
 
     case VertexAdd(msgId,srcId) => try{vertexAdd(msgId,srcId); vHandle(srcId)}catch {case e: Exception => e.printStackTrace()};
     case VertexAddWithProperties(msgId,srcId,properties) => try{vertexAddWithProperties(msgId,srcId,properties); vHandle(srcId);}catch {case e: Exception => e.printStackTrace()};
