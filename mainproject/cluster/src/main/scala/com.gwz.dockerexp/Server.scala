@@ -30,7 +30,7 @@ object Go extends App {
 
     case "updateGen" => {
       println("Creating Update Generator")
-      UpdateNode(getConf(args(2)), args(1))
+      UpdateNode(getConf(args(3)), args(1),args(2))
     }
 
     case "benchmark" => {

@@ -7,11 +7,11 @@ def metadata(file):
 	file.write("IP=\"$(./getMyIP.sh)\" \n \n")
 	file.write("ZooKeeper=\""+zookeeperLoc+"\" \n \n")
 	file.write("LAMName=\"testLam\" \n \n")
-	#file.write("./dockblock.sh \n \n")
 	file.write("Image=\"quay.io/miratepuffin/cluster\" #if you want to use prebuilt one on my quay.io \n \n")
 
 	#write out number of partitions to be parsed to routers
 	file.write("NumberOfPartitions="+str(NumberOfPartitions)+"\n \n")
+	file.write("NumberOfUpdates="+str(NumberOfUpdates)+"\n \n")
 	#for investigation of internal JVM
 	file.write("JVM=\"-Dcom.sun.management.jmxremote.rmi.port=9090 -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.port=9090  -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.local.only=false -Djava.rmi.server.hostname=$IP\" \n")
 
@@ -32,10 +32,9 @@ def seedports(file):
 	#PORT BLOCK
 	file.write("SeedPort=9101 \n")
 	file.write("RestPort=9102 \n")
-	file.write("UpdatePort=9103 \n")
 	file.write("BenchmarkPort=9104 \n \n")
 	file.write("LiveAnalysisPort=9105 \n \n")
-	file.write("ClusterUpPort=9106 \n \n")
+
 
 def partitionManagerPorts(files):
 	#For each partition manager, generate a port
@@ -72,6 +71,20 @@ def routerRun(files):
 		files[(i%NumberOfMachines)].write("sleep 1 \n")
 		files[(i%NumberOfMachines)].write("echo \"Router "+str(i)+" up and running at $IP:$Router"+str(i)+"Port\" \n \n")
 
+def updatePorts(files):
+	#For each updater, generate a port
+	for i in range(0,NumberOfUpdaters):
+		id = "Update"+str(i)+"Port="
+		port = 9400+i
+		files[(i%NumberOfMachines)].write(id+str(port)+"\n")
+
+def updateRun(files):
+	#Updaters
+	for i in range(0,NumberOfUpdaters):
+		files[(i%NumberOfMachines)].write("(docker run -p $Update"+str(i)+"Port:$Update"+str(i)+"Port  --rm -e \"BIND_PORT=$Update"+str(i)+"Port\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$Update"+str(i)+"Port\" $Image updateGen $NumberOfPartitions $NumberOfUpdates $ZooKeeper &) > logs/"+files[(i%NumberOfMachines)].name[:len(files[(i%NumberOfMachines)].name)-3]+"/updateGenerator"+str(i)+".txt \n")
+		files[(i%NumberOfMachines)].write("sleep 1 \n")
+		files[(i%NumberOfMachines)].write("echo \"Update Generator "+str(i)+" up and running at $IP:$Update"+str(i)+"Port\" \n \n")		
+
 def dockerblock(file):
 	#seed node
 	file.write("(docker run -p $SeedPort:$SeedPort --rm -e \"BIND_PORT=$SeedPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$SeedPort\" $Image seed $IP:$SeedPort $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/seed.txt \n")
@@ -82,11 +95,6 @@ def dockerblock(file):
 	file.write("(docker run -p $RestPort:$RestPort -p 8080:8080 --rm -e \"BIND_PORT=$RestPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$RestPort\" $Image rest $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/rest.txt \n")
 	file.write("sleep 1 \n")
 	file.write("echo \"REST API node up and running at $IP:$RestPort\" \n \n")
-
-	#Update Node
-	file.write("(docker run -p $UpdatePort:$UpdatePort  --rm -e \"BIND_PORT=$UpdatePort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$UpdatePort\" $Image updateGen $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/updateGenerator.txt \n")
-	file.write("sleep 1 \n")
-	file.write("echo \"Update Generator up and running at $IP:$UpdatePort\" \n \n")
 
 	#benchmark node
 	file.write("(docker run -p $BenchmarkPort:$BenchmarkPort  --rm -e \"BIND_PORT=$BenchmarkPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$BenchmarkPort\" $Image benchmark $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/benchmark.txt \n")
@@ -99,6 +107,7 @@ def dockerblock(file):
 	file.write("echo \"Live Analyser running at $IP:$LiveAnalysisPort\" \n \n")
 
 def complete(file):
+	file.write("ClusterUpPort=9106 \n \n")
 	file.write("(docker run -p $ClusterUpPort:$ClusterUpPort  --rm -e \"BIND_PORT=$ClusterUpPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$ClusterUpPort\" $Image ClusterUp $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/ClusterUp.txt \n")
 	file.write("sleep 1 \n")
 	file.write("echo \"CLUSTER UP\"\n \n")
@@ -107,8 +116,10 @@ def complete(file):
 #get all required arguments
 NumberOfPartitions=int(sys.argv[1])
 NumberOfRouters=int(sys.argv[2])
-NumberOfMachines=int(sys.argv[3])
-zookeeperLoc = sys.argv[4]
+NumberOfUpdaters=int(sys.argv[3])
+NumberOfMachines=int(sys.argv[4])
+NumberOfUpdates=int(sys.argv[5])
+zookeeperLoc = sys.argv[6]
 
 #open files for writing
 seedFile = open("seedSetup.sh","w")
@@ -124,10 +135,8 @@ logs(seedFile)
 for f in machinefiles:
 	logs(f)
 
-#write ports for meta containers to all files (only really needed in seed, but might as well)
+#write ports for meta containers to all files
 seedports(seedFile)
-for f in machinefiles:
-	seedports(f)
 
 #split desired number of parition managers amongst set number of servers
 partitionManagerPorts(machinefiles)
@@ -137,6 +146,10 @@ partitionManagerRun(machinefiles)
 #split routers amongst servers
 routerPorts(machinefiles)
 routerRun(machinefiles)
+
+#split updates amongst servers
+updatePorts(machinefiles)
+updateRun(machinefiles)
 
 #write run command for all meta containers to 
 dockerblock(seedFile)

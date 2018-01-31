@@ -15,7 +15,7 @@ import scala.io.Source
 import scala.util.Random
 
 
-class UpdateGen(managerCount:Int) extends Actor{
+class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   var currentMessage = 0
@@ -35,7 +35,7 @@ class UpdateGen(managerCount:Int) extends Actor{
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
     case "removeEdge" => edgeRemove()
-    case "random" => {if(safe){genRandomCommands(10000);println("Safe")}}
+    case "random" => {if(safe){genRandomCommands(numberofUpdates);println("Safe")}}
     case _ => println("message not recognized!")
   }
 
