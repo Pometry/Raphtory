@@ -9,6 +9,7 @@ import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass.BenchmarkUpdate
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
@@ -19,14 +20,20 @@ class Benchmarker(managerCount:Int) extends Actor{
   mediator ! DistributedPubSubMediator.Put(self)
   //var blockMap = Map[Int,BenchmarkBlock]()
   var currentCount:Int = 0
+  var list = List[Int]()
 
   override def preStart() {
     context.system.scheduler.schedule(Duration(1, SECONDS),Duration(10, SECONDS),self,"tick")
   }
 
   override def receive: Receive = {
-    case "tick" => {println(s"Total count at ${Calendar.getInstance().getTime}: $currentCount"); currentCount=0}
-    case BenchmarkUpdate(id,blockID,count) => currentCount=currentCount+count
+    case "tick" => {println(s"Total count at ${Calendar.getInstance().getTime}: ${list.sum}")
+      list = List[Int]()
+    }
+    case BenchmarkUpdate(id,blockID,count) => {
+      list = list.+:(count)
+      println(s"Received ${Calendar.getInstance().getTime}: $count")
+    }
     case _ => println("message not recognized!")
   }
 

@@ -26,7 +26,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
 
   val loggger = Logging(context.system, this)
   val printing=false //should the handled messages be printed to terminal
-  val logging = true // should the state of the vertex/edge map be output to file
+  val logging = false // should the state of the vertex/edge map be output to file
 
   var messageCount = 0 //number of messages processed since last report to the benchmarker
   var messageBlockID = 0 //id of current message block to syncronise times across partition managers
@@ -41,7 +41,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
 
   def reportIntake(): Unit ={
     //if(printing)
-      println("sending")
+      println(messageCount)
     mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkUpdate(id,messageBlockID,messageCount),false)
     messageCount = 0
     messageBlockID=messageBlockID+1

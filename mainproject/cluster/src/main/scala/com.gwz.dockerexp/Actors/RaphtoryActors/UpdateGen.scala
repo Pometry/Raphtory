@@ -2,6 +2,7 @@ package com.gwz.dockerexp.Actors.RaphtoryActors
 
 
 import java.io.FileWriter
+import java.util.Calendar
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Actor
@@ -18,6 +19,7 @@ import scala.util.Random
 class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
+  var totalCount =10000
   var currentMessage = 0
   var safe = false
   if(!new java.io.File("CurrentMessageNumber.txt").exists) storeRunNumber(0) //check if there is previous run which has created messages, fi not create file
@@ -25,18 +27,28 @@ class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     println("Prestarting")
-    context.system.scheduler.schedule(Duration(2, SECONDS),Duration(1, SECONDS),self,"random")
+    context.system.scheduler.schedule(Duration(2, SECONDS),Duration(5, SECONDS),self,"random")
   }
 
   //************* MESSAGE HANDLING BLOCK
   override def receive: Receive = {
-    case "Safe" => {safe = true;println("Got2")}
+    case "Safe" => {safe = true;}
     case "addVertex" => vertexAdd()
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
     case "removeEdge" => edgeRemove()
-    case "random" => {if(safe){genRandomCommands(numberofUpdates);println("Safe")}}
+    case "random" => {
+      if(safe){
+        running()
+      }
+    }
     case _ => println("message not recognized!")
+  }
+
+  def running():Unit={
+    genRandomCommands(totalCount)
+    println(s"${Calendar.getInstance().getTime}:$totalCount")
+    totalCount+=1000
   }
 
   def genRandomCommands(number:Int):Unit={

@@ -1,9 +1,14 @@
 package com.gwz.dockerexp.Actors.RaphtoryActors
 
+import java.util.Calendar
+
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass._
 import spray.json._
+import scala.concurrent.ExecutionContext.Implicits.global
+
+import scala.concurrent.duration.{Duration, SECONDS}
 
 /**
   * The Graph Manager is the top level actor in this system (under the stream)
@@ -21,12 +26,22 @@ class RaphtoryRouter(managerCount:Int) extends Actor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   //************* MESSAGE HANDLING BLOCK
+  var count =0;
+
+  override def preStart() {
+    context.system.scheduler.schedule(Duration(1, SECONDS),Duration(1, SECONDS),self,"tick")
+  }
 
   override def receive: Receive = {
+    case "tick" => {
+      println(s"Total count at ${Calendar.getInstance().getTime}: $count")
+      count=0
+    }
     case command:String => try{parseJSON(command)}catch {case e: Exception => println(e)}
     case _ => println("message not recognized!")
   }
   def parseJSON(command:String):Unit={
+    count+=1
     //println(s"received command: \n $command")
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
