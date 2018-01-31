@@ -46,7 +46,7 @@ class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
       var command = ""
       if(random<=0.2) command =genVertexAdd()
       else if(random<=0.4) command = genVertexAdd()
-      else if(random<=0.5) command = genVertexRemoval()
+      //else if(random<=0.5) command = genVertexRemoval()
       else if(random<=0.7) command = genEdgeAdd()
       else if(random<=0.8) command = genEdgeAdd()
       else                 command = genEdgeRemoval()
