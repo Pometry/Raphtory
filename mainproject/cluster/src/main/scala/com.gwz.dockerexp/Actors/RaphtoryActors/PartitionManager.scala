@@ -42,7 +42,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
   def reportIntake(): Unit ={
     //if(printing)
       println(messageCount)
-    mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkUpdate(id,messageBlockID,messageCount),false)
+    mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkPartitionManager(id,messageBlockID,messageCount),false)
     messageCount = 0
     messageBlockID=messageBlockID+1
   }

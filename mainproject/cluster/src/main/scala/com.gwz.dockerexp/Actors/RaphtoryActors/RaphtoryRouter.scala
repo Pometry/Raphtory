@@ -29,12 +29,12 @@ class RaphtoryRouter(managerCount:Int) extends Actor{
   var count =0;
 
   override def preStart() {
-    context.system.scheduler.schedule(Duration(1, SECONDS),Duration(1, SECONDS),self,"tick")
+    context.system.scheduler.schedule(Duration(10, SECONDS),Duration(10, SECONDS),self,"tick")
   }
 
   override def receive: Receive = {
     case "tick" => {
-      println(s"Total count at ${Calendar.getInstance().getTime}: $count")
+      mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkRouter(count),false)
       count=0
     }
     case command:String => try{parseJSON(command)}catch {case e: Exception => println(e)}

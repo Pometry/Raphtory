@@ -7,7 +7,7 @@ import java.util.Calendar
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.gwz.dockerexp.caseclass.LiveAnalysis
+import com.gwz.dockerexp.caseclass.BenchmarkUpdater
 
 import scala.concurrent.duration._
 //import kafka.producer.KeyedMessage
@@ -21,6 +21,7 @@ class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
   mediator ! DistributedPubSubMediator.Put(self)
   var totalCount =10000
   var currentMessage = 0
+  var previousMessage =0
   var safe = false
   if(!new java.io.File("CurrentMessageNumber.txt").exists) storeRunNumber(0) //check if there is previous run which has created messages, fi not create file
   else for (line <- Source.fromFile("CurrentMessageNumber.txt").getLines()) {currentMessage = line.toInt} //otherwise read previous number
@@ -28,6 +29,7 @@ class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     println("Prestarting")
     context.system.scheduler.schedule(Duration(2, SECONDS),Duration(5, SECONDS),self,"random")
+    context.system.scheduler.schedule(Duration(10, SECONDS),Duration(10, SECONDS),self,"benchmark")
   }
 
   //************* MESSAGE HANDLING BLOCK
@@ -42,6 +44,7 @@ class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
         running()
       }
     }
+    case "benchmark" => benchmark()
     case _ => println("message not recognized!")
   }
 
@@ -49,6 +52,11 @@ class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
     genRandomCommands(totalCount)
     println(s"${Calendar.getInstance().getTime}:$totalCount")
     totalCount+=1000
+  }
+
+  def benchmark():Unit={
+    mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkUpdater(currentMessage-previousMessage),false)
+    previousMessage=currentMessage
   }
 
   def genRandomCommands(number:Int):Unit={
@@ -102,7 +110,7 @@ class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
 
   def genVertexAdd():String={
     currentMessage+=1
-    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}, ${genProperties(2,true)}}}"""
+    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}}}"""
   }
   def genVertexAdd(src:Int):String={ //overloaded method if you want to specify src ID
     currentMessage+=1
@@ -112,7 +120,7 @@ class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
 
   def genVertexUpdateProperties():String={
     currentMessage+=1
-    s""" {"VertexUpdateProperties":{${getMessageID()}, ${genSrcID()}, ${genProperties(2,true)}}}"""
+    s""" {"VertexUpdateProperties":{${getMessageID()}, ${genSrcID()}}}"""
   }
   def genVertexUpdateProperties(src:Int):String={ //overloaded to mass src
     currentMessage+=1
@@ -132,7 +140,7 @@ class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
 
   def genEdgeAdd():String={
     currentMessage+=1
-    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID()}, ${genDstID()}, ${genProperties(2,true)}}}"""
+    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID()}, ${genDstID()}}}"""
   }
   def genEdgeAdd(src:Int,dst:Int):String={
     currentMessage+=1
@@ -141,7 +149,7 @@ class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
 
   def genEdgeUpdateProperties():String={
     currentMessage+=1
-    s""" {"EdgeUpdateProperties":{${getMessageID()}, ${genSrcID()}, ${genDstID()}, ${genProperties(2,true)}}}"""
+    s""" {"EdgeUpdateProperties":{${getMessageID()}, ${genSrcID()}, ${genDstID()}}}"""
   }
   def genEdgeUpdateProperties(src:Int,dst:Int):String={
     currentMessage+=1

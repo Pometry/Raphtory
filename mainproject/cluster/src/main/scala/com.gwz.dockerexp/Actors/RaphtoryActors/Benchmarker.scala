@@ -7,7 +7,7 @@ import java.util.Calendar
 
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.gwz.dockerexp.caseclass.BenchmarkUpdate
+import com.gwz.dockerexp.caseclass.{BenchmarkPartitionManager, BenchmarkRouter, BenchmarkUpdater}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -20,60 +20,53 @@ class Benchmarker(managerCount:Int) extends Actor{
   mediator ! DistributedPubSubMediator.Put(self)
   //var blockMap = Map[Int,BenchmarkBlock]()
   var currentCount:Int = 0
-  var list = List[Int]()
+  var partitionlist = List[Int]()
+  var updaterlist = List[Int]()
+  var routerlist = List[Int]()
 
   override def preStart() {
     context.system.scheduler.schedule(Duration(1, SECONDS),Duration(10, SECONDS),self,"tick")
   }
 
   override def receive: Receive = {
-    case "tick" => {println(s"Total count at ${Calendar.getInstance().getTime}: ${list.sum}")
-      list = List[Int]()
+    case "tick" => {
+      csvprint()
     }
-    case BenchmarkUpdate(id,blockID,count) => {
-      list = list.+:(count)
-      println(s"Received ${Calendar.getInstance().getTime}: $count")
+    case BenchmarkPartitionManager(id,blockID,count) => {
+      partitionlist = partitionlist.+:(count)
+      //println(s"Received partition update ${Calendar.getInstance().getTime}: $count")
     }
+    case BenchmarkUpdater(count) => {
+      updaterlist = updaterlist.+:(count)
+      //println(s"Received updater count ${Calendar.getInstance().getTime}: $count")
+    }
+    case BenchmarkRouter(count) => {
+      routerlist = routerlist.+:(count)
+      //println(s"Received router count ${Calendar.getInstance().getTime}: $count")
+    }
+
     case _ => println("message not recognized!")
   }
 
+  def csvprint():Unit={
+    println(s"${Calendar.getInstance().getTime},${updaterlist.sum},${routerlist.sum},${partitionlist.sum}")
+    partitionlist = List[Int]()
+    updaterlist = List[Int]()
+    routerlist = List[Int]()
+  }
 
+  def prettyprint():Unit={
+    println(s"Total count at ${Calendar.getInstance().getTime}: \n" +
+      s"    The Updater has generated ${updaterlist.sum} messages \n" +
+      s"    The Graph Routers have processed ${routerlist.sum} messages \n" +
+      s"    The partition managers have processed ${partitionlist.sum} messages \n")
+    partitionlist = List[Int]()
+    updaterlist = List[Int]()
+    routerlist = List[Int]()
+  }
 
 
   def getManager(srcId:Int):String = s"/user/Manager_${srcId % managerCount}" //simple srcID hash at the moment
-
-  /*class BenchmarkBlock(managerCount:Int,blockID:Int){
-    var totalCount:Int =0
-    var messageCount:Int =0
-
-    var initialTime:Date = new Date()
-    var initialManager:Int =0
-    var endTime:Date = new Date()
-    var endManager:Int = 0
-
-    def insert(count:Int,managerID:Int)={
-      if(messageCount==0) {
-        initialTime=Calendar.getInstance().getTime
-        initialManager=managerID
-      }
-      totalCount = totalCount +count
-      messageCount = messageCount +1
-      if(messageCount==managerCount){
-        endManager=managerID
-        endTime=Calendar.getInstance().getTime
-        println(s"Total count for block $blockID: $totalCount")
-        println(s"Initial message received from $initialManager at $initialTime")
-        println(s"End message received from $endManager at $endTime")
-      }
-def update(managerid:Int,blockID:Int,count:Int) ={
-      //if(blockMap.contains(blockID)) blockMap(blockID).insert(count,managerid)
-      //else {
-      //  blockMap = blockMap.updated(blockID,new BenchmarkBlock(managerCount,blockID))
-      //  blockMap(blockID).insert(count,managerid)
-      //}
-  }
-    }
-  }*/
 
 }
 

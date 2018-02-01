@@ -7,7 +7,6 @@ import java.util.{Calendar, Date}
 
 import akka.actor.{Actor, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.gwz.dockerexp.caseclass.{BenchmarkUpdate, LiveAnalysis}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

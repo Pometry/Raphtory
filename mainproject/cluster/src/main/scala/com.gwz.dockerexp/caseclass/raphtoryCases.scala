@@ -6,7 +6,9 @@ import com.gwz.dockerexp.Actors.RaphtoryActors.Analaysis.Analyser
   * Created by Mirate on 30/05/2017.
   */
 //The following block are all case classes (commands) which the manager can handle
-case class BenchmarkUpdate(id:Int, updateID:Int, count:Int)
+case class BenchmarkPartitionManager(id:Int, updateID:Int, count:Int)
+case class BenchmarkUpdater(count:Int)
+case class BenchmarkRouter(count:Int)
 case class LiveAnalysis(name: String,analyser: Analyser)
 case class Results(result:Object)
 
