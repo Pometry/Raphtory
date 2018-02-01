@@ -21,6 +21,7 @@ class Benchmarker(managerCount:Int) extends Actor{
   //var blockMap = Map[Int,BenchmarkBlock]()
   var currentCount:Int = 0
   var partitionlist = List[Int]()
+  var partitionlist2 = List[Int]()
   var updaterlist = List[Int]()
   var routerlist = List[Int]()
 
@@ -32,8 +33,9 @@ class Benchmarker(managerCount:Int) extends Actor{
     case "tick" => {
       csvprint()
     }
-    case BenchmarkPartitionManager(id,blockID,count) => {
+    case BenchmarkPartitionManager(id,count,secondCount) => {
       partitionlist = partitionlist.+:(count)
+      partitionlist2 = partitionlist2.+:(secondCount)
       //println(s"Received partition update ${Calendar.getInstance().getTime}: $count")
     }
     case BenchmarkUpdater(count) => {
@@ -49,8 +51,9 @@ class Benchmarker(managerCount:Int) extends Actor{
   }
 
   def csvprint():Unit={
-    println(s"${Calendar.getInstance().getTime},${updaterlist.sum},${routerlist.sum},${partitionlist.sum}")
+    println(s"${Calendar.getInstance().getTime},${updaterlist.sum},${routerlist.sum},${partitionlist.sum},${partitionlist.sum+partitionlist2.sum}")
     partitionlist = List[Int]()
+    partitionlist2 = List[Int]()
     updaterlist = List[Int]()
     routerlist = List[Int]()
   }
@@ -59,8 +62,10 @@ class Benchmarker(managerCount:Int) extends Actor{
     println(s"Total count at ${Calendar.getInstance().getTime}: \n" +
       s"    The Updater has generated ${updaterlist.sum} messages \n" +
       s"    The Graph Routers have processed ${routerlist.sum} messages \n" +
-      s"    The partition managers have processed ${partitionlist.sum} messages \n")
+      s"    The partition managers have processed ${partitionlist.sum} messages \n" +
+      s"    The partition managers have processed ${partitionlist2.sum} secondary messages \n")
     partitionlist = List[Int]()
+    partitionlist2 = List[Int]()
     updaterlist = List[Int]()
     routerlist = List[Int]()
   }

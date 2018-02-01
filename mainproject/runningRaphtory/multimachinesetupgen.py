@@ -5,7 +5,7 @@ def metadata(file):
 	#scripts for getting running IP and killing off existing containers
 	file.write("#!/usr/bin/env bash \n \n")
 	file.write("IP=\"$(./getMyIP.sh)\" \n \n")
-	file.write("docker ps -aq --no-trunc | xargs docker rm\n \n" )
+	file.write("(docker ps -aq --no-trunc | xargs docker rm) >/dev/null\n \n" )
 	file.write("ZooKeeper=\""+zookeeperLoc+"\" \n \n")
 	file.write("LAMName=\"testLam\" \n \n")
 	file.write("Image=\"quay.io/miratepuffin/cluster\" #if you want to use prebuilt one on my quay.io \n \n")
@@ -109,7 +109,7 @@ def dockerblock(file):
 
 def complete(file):
 	file.write("ClusterUpPort=9106 \n \n")
-	file.write("(docker run --name=\"cluster up\"  -p $ClusterUpPort:$ClusterUpPort  --rm -e \"BIND_PORT=$ClusterUpPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$ClusterUpPort\" $Image ClusterUp $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/ClusterUp.txt \n")
+	file.write("(docker run --name=\"clusterUp\"  -p $ClusterUpPort:$ClusterUpPort  --rm -e \"BIND_PORT=$ClusterUpPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$ClusterUpPort\" $Image ClusterUp $NumberOfPartitions $ZooKeeper &) > logs/"+file.name[:len(file.name)-3]+"/ClusterUp.txt \n")
 	file.write("sleep 15 \n")
 	file.write("echo \"CLUSTER UP\"\n \n")
 

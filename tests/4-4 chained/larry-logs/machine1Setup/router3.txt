@@ -1,0 +1,56 @@
+Creating Router
+04:03:16.373 [main] INFO  o.a.c.f.imps.CuratorFrameworkImpl - Starting
+04:03:16.384 [main] DEBUG o.a.curator.CuratorZookeeperClient - Starting
+04:03:16.384 [main] DEBUG org.apache.curator.ConnectionState - Starting
+04:03:16.384 [main] DEBUG org.apache.curator.ConnectionState - reset
+04:03:16.392 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:zookeeper.version=3.4.8--1, built on 02/06/2016 03:18 GMT
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:host.name=189291c59dc4
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.version=1.8.0_66
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.vendor=Oracle Corporation
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.home=/usr/jdk1.8.0_66/jre
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.class.path=/opt/docker/lib/com.gwz.cluster-latest.jar:/opt/docker/lib/org.scala-lang.scala-library-2.12.4.jar:/opt/docker/lib/com.typesafe.akka.akka-http_2.12-10.0.7.jar:/opt/docker/lib/com.typesafe.akka.akka-http-core_2.12-10.0.7.jar:/opt/docker/lib/com.typesafe.akka.akka-parsing_2.12-10.0.7.jar:/opt/docker/lib/com.typesafe.akka.akka-actor_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.config-1.3.1.jar:/opt/docker/lib/org.scala-lang.modules.scala-java8-compat_2.12-0.8.0.jar:/opt/docker/lib/com.typesafe.akka.akka-stream_2.12-2.5.2.jar:/opt/docker/lib/org.reactivestreams.reactive-streams-1.0.0.jar:/opt/docker/lib/com.typesafe.ssl-config-core_2.12-0.2.1.jar:/opt/docker/lib/org.scala-lang.modules.scala-parser-combinators_2.12-1.0.4.jar:/opt/docker/lib/com.typesafe.akka.akka-cluster_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-remote_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-protobuf_2.12-2.5.2.jar:/opt/docker/lib/io.netty.netty-3.10.6.Final.jar:/opt/docker/lib/io.aeron.aeron-driver-1.2.5.jar:/opt/docker/lib/io.aeron.aeron-client-1.2.5.jar:/opt/docker/lib/org.agrona.agrona-0.9.5.jar:/opt/docker/lib/com.typesafe.akka.akka-cluster-tools_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-contrib_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-persistence_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-slf4j_2.12-2.5.2.jar:/opt/docker/lib/org.slf4j.slf4j-api-1.7.23.jar:/opt/docker/lib/ch.qos.logback.logback-classic-1.1.2.jar:/opt/docker/lib/ch.qos.logback.logback-core-1.1.2.jar:/opt/docker/lib/io.spray.spray-json_2.12-1.3.3.jar:/opt/docker/lib/org.apache.curator.curator-framework-2.12.0.jar:/opt/docker/lib/org.apache.curator.curator-client-2.12.0.jar:/opt/docker/lib/org.apache.zookeeper.zookeeper-3.4.8.jar:/opt/docker/lib/log4j.log4j-1.2.16.jar:/opt/docker/lib/jline.jline-0.9.94.jar:/opt/docker/lib/com.google.guava.guava-16.0.1.jar:/opt/docker/lib/org.apache.curator.curator-recipes-2.12.0.jar
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.library.path=/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.io.tmpdir=/tmp
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.compiler=<NA>
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:os.name=Linux
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:os.arch=amd64
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:os.version=4.13.0-26-generic
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:user.name=daemon
+04:03:16.393 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:user.home=/usr/sbin
+04:03:16.394 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:user.dir=/opt/docker
+04:03:16.395 [main] INFO  org.apache.zookeeper.ZooKeeper - Initiating client connection, connectString=138.37.32.88:2181 sessionTimeout=60000 watcher=org.apache.curator.ConnectionState@44f75083
+04:03:16.400 [main] DEBUG org.apache.zookeeper.ClientCnxn - zookeeper.disableAutoWatchReset is false
+04:03:16.422 [main-SendThread(138.37.32.88:2181)] INFO  org.apache.zookeeper.ClientCnxn - Opening socket connection to server 138.37.32.88/138.37.32.88:2181. Will not attempt to authenticate using SASL (unknown error)
+04:03:16.424 [main] DEBUG o.a.curator.CuratorZookeeperClient - blockUntilConnectedOrTimedOut() start
+04:03:16.438 [main-SendThread(138.37.32.88:2181)] INFO  org.apache.zookeeper.ClientCnxn - Socket connection established to 138.37.32.88/138.37.32.88:2181, initiating session
+04:03:16.473 [main-SendThread(138.37.32.88:2181)] DEBUG org.apache.zookeeper.ClientCnxn - Session establishment request sent on 138.37.32.88/138.37.32.88:2181
+04:03:16.483 [main-SendThread(138.37.32.88:2181)] INFO  org.apache.zookeeper.ClientCnxn - Session establishment complete on server 138.37.32.88/138.37.32.88:2181, sessionid = 0x1614f87c8f0000b, negotiated timeout = 40000
+04:03:16.490 [main-EventThread] INFO  o.a.c.f.state.ConnectionStateManager - State change: CONNECTED
+04:03:16.492 [main] DEBUG o.a.curator.CuratorZookeeperClient - blockUntilConnectedOrTimedOut() end. isConnected: true
+04:03:16.534 [main-SendThread(138.37.32.88:2181)] DEBUG org.apache.zookeeper.ClientCnxn - Reading reply sessionid:0x1614f87c8f0000b, packet:: clientPath:null serverPath:null finished:false header:: 1,4  replyHeader:: 1,24,0  request:: '/seednode,F  response:: #3133382e33372e33322e38383a39313031,s{2,2,1517457765234,1517457765234,0,0,0,0,17,0,2} 
+138.37.32.88:9101
+04:03:16.535 [main] DEBUG o.a.c.f.imps.CuratorFrameworkImpl - Closing
+04:03:16.570 [Curator-Framework-0] INFO  o.a.c.f.imps.CuratorFrameworkImpl - backgroundOperationsLoop exiting
+04:03:16.571 [main] DEBUG o.a.curator.CuratorZookeeperClient - Closing
+04:03:16.572 [main] DEBUG org.apache.curator.ConnectionState - Closing
+04:03:16.573 [main] DEBUG org.apache.zookeeper.ZooKeeper - Closing session: 0x1614f87c8f0000b
+04:03:16.574 [main] DEBUG org.apache.zookeeper.ClientCnxn - Closing client for session: 0x1614f87c8f0000b
+04:03:16.576 [main-SendThread(138.37.32.88:2181)] DEBUG org.apache.zookeeper.ClientCnxn - Reading reply sessionid:0x1614f87c8f0000b, packet:: clientPath:null serverPath:null finished:false header:: 2,-11  replyHeader:: 2,25,0  request:: null response:: null
+04:03:16.576 [main] DEBUG org.apache.zookeeper.ClientCnxn - Disconnecting client for session: 0x1614f87c8f0000b
+04:03:16.577 [main] INFO  org.apache.zookeeper.ZooKeeper - Session: 0x1614f87c8f0000b closed
+04:03:16.577 [main-EventThread] INFO  org.apache.zookeeper.ClientCnxn - EventThread shut down for session: 0x1614f87c8f0000b
+04:03:19.705 [dockerexp-akka.actor.default-dispatcher-3] INFO  akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+------ 425e3a91-ed37-449c-966a-e1a3ba8a46b5 ------
+Binding core internally on 172.17.0.5 port 9303
+Binding core externally on 138.37.32.86 port 9303
+Seeds: List(Quoted("akka.tcp://dockerexp@138.37.32.88:9101"))
+Roles: List()
+My Akka URI: akka.tcp://dockerexp@138.37.32.86:9303
+04:07:56.555 [dockerexp-akka.actor.default-dispatcher-63] ERROR akka.remote.EndpointWriter - AssociationError [akka.tcp://dockerexp@138.37.32.86:9303] <- [akka.tcp://dockerexp@138.37.32.88:9202]: Error [Shut down address: akka.tcp://dockerexp@138.37.32.88:9202] [
+akka.remote.ShutDownAssociation: Shut down address: akka.tcp://dockerexp@138.37.32.88:9202
+Caused by: akka.remote.transport.Transport$InvalidAssociationException: The remote system terminated the association because it is shutting down.
+]
+04:08:15.850 [dockerexp-akka.actor.default-dispatcher-60] ERROR akka.remote.EndpointWriter - AssociationError [akka.tcp://dockerexp@138.37.32.86:9303] <- [akka.tcp://dockerexp@138.37.32.88:9302]: Error [Shut down address: akka.tcp://dockerexp@138.37.32.88:9302] [
+akka.remote.ShutDownAssociation: Shut down address: akka.tcp://dockerexp@138.37.32.88:9302
+Caused by: akka.remote.transport.Transport$InvalidAssociationException: The remote system terminated the association because it is shutting down.
+]

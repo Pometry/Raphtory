@@ -29,6 +29,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
   val logging = false // should the state of the vertex/edge map be output to file
 
   var messageCount = 0 //number of messages processed since last report to the benchmarker
+  var secondaryMessageCount = 0
   var messageBlockID = 0 //id of current message block to syncronise times across partition managers
   val secondaryCounting = false //count all messages or just main incoming ones
 
@@ -42,8 +43,9 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
   def reportIntake(): Unit ={
     //if(printing)
       println(messageCount)
-    mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkPartitionManager(id,messageBlockID,messageCount),false)
+    mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkPartitionManager(id,messageCount,secondaryMessageCount),false)
     messageCount = 0
+    secondaryMessageCount =0
     messageBlockID=messageBlockID+1
   }
 
@@ -52,9 +54,9 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
 
 
   def vHandle(srcID:Int):Unit={messageCount=messageCount+1; log(srcID);}
-  def vHandleSecondary(srcID:Int):Unit={if(secondaryCounting)messageCount=messageCount+1; log(srcID);}
+  def vHandleSecondary(srcID:Int):Unit={secondaryMessageCount=secondaryMessageCount+1; log(srcID);}
   def eHandle(srcID:Int,dstID:Int):Unit={messageCount=messageCount+1; log(srcID,dstID); log(srcID);log(dstID);}
-  def eHandleSecondary(srcID:Int,dstID:Int):Unit={if(secondaryCounting)messageCount=messageCount+1; log(srcID,dstID); log(srcID);log(dstID);}
+  def eHandleSecondary(srcID:Int,dstID:Int):Unit={secondaryMessageCount=secondaryMessageCount+1; log(srcID,dstID); log(srcID);log(dstID);}
 
   override def receive: Receive = {
 

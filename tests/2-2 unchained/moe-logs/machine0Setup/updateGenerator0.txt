@@ -1,0 +1,183 @@
+Creating Update Generator
+02:58:28.699 [main] INFO  o.a.c.f.imps.CuratorFrameworkImpl - Starting
+02:58:28.709 [main] DEBUG o.a.curator.CuratorZookeeperClient - Starting
+02:58:28.709 [main] DEBUG org.apache.curator.ConnectionState - Starting
+02:58:28.709 [main] DEBUG org.apache.curator.ConnectionState - reset
+02:58:28.718 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:zookeeper.version=3.4.8--1, built on 02/06/2016 03:18 GMT
+02:58:28.719 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:host.name=64b67678facc
+02:58:28.719 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.version=1.8.0_66
+02:58:28.719 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.vendor=Oracle Corporation
+02:58:28.719 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.home=/usr/jdk1.8.0_66/jre
+02:58:28.719 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.class.path=/opt/docker/lib/com.gwz.cluster-latest.jar:/opt/docker/lib/org.scala-lang.scala-library-2.12.4.jar:/opt/docker/lib/com.typesafe.akka.akka-http_2.12-10.0.7.jar:/opt/docker/lib/com.typesafe.akka.akka-http-core_2.12-10.0.7.jar:/opt/docker/lib/com.typesafe.akka.akka-parsing_2.12-10.0.7.jar:/opt/docker/lib/com.typesafe.akka.akka-actor_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.config-1.3.1.jar:/opt/docker/lib/org.scala-lang.modules.scala-java8-compat_2.12-0.8.0.jar:/opt/docker/lib/com.typesafe.akka.akka-stream_2.12-2.5.2.jar:/opt/docker/lib/org.reactivestreams.reactive-streams-1.0.0.jar:/opt/docker/lib/com.typesafe.ssl-config-core_2.12-0.2.1.jar:/opt/docker/lib/org.scala-lang.modules.scala-parser-combinators_2.12-1.0.4.jar:/opt/docker/lib/com.typesafe.akka.akka-cluster_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-remote_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-protobuf_2.12-2.5.2.jar:/opt/docker/lib/io.netty.netty-3.10.6.Final.jar:/opt/docker/lib/io.aeron.aeron-driver-1.2.5.jar:/opt/docker/lib/io.aeron.aeron-client-1.2.5.jar:/opt/docker/lib/org.agrona.agrona-0.9.5.jar:/opt/docker/lib/com.typesafe.akka.akka-cluster-tools_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-contrib_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-persistence_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-slf4j_2.12-2.5.2.jar:/opt/docker/lib/org.slf4j.slf4j-api-1.7.23.jar:/opt/docker/lib/ch.qos.logback.logback-classic-1.1.2.jar:/opt/docker/lib/ch.qos.logback.logback-core-1.1.2.jar:/opt/docker/lib/io.spray.spray-json_2.12-1.3.3.jar:/opt/docker/lib/org.apache.curator.curator-framework-2.12.0.jar:/opt/docker/lib/org.apache.curator.curator-client-2.12.0.jar:/opt/docker/lib/org.apache.zookeeper.zookeeper-3.4.8.jar:/opt/docker/lib/log4j.log4j-1.2.16.jar:/opt/docker/lib/jline.jline-0.9.94.jar:/opt/docker/lib/com.google.guava.guava-16.0.1.jar:/opt/docker/lib/org.apache.curator.curator-recipes-2.12.0.jar
+02:58:28.719 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.library.path=/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib
+02:58:28.719 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.io.tmpdir=/tmp
+02:58:28.719 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.compiler=<NA>
+02:58:28.719 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:os.name=Linux
+02:58:28.719 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:os.arch=amd64
+02:58:28.719 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:os.version=4.13.0-26-generic
+02:58:28.720 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:user.name=daemon
+02:58:28.720 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:user.home=/usr/sbin
+02:58:28.720 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:user.dir=/opt/docker
+02:58:28.721 [main] INFO  org.apache.zookeeper.ZooKeeper - Initiating client connection, connectString=138.37.32.88:2181 sessionTimeout=60000 watcher=org.apache.curator.ConnectionState@44f75083
+02:58:28.726 [main] DEBUG org.apache.zookeeper.ClientCnxn - zookeeper.disableAutoWatchReset is false
+02:58:28.750 [main-SendThread(138.37.32.88:2181)] INFO  org.apache.zookeeper.ClientCnxn - Opening socket connection to server 138.37.32.88/138.37.32.88:2181. Will not attempt to authenticate using SASL (unknown error)
+02:58:28.752 [main] DEBUG o.a.curator.CuratorZookeeperClient - blockUntilConnectedOrTimedOut() start
+02:58:28.765 [main-SendThread(138.37.32.88:2181)] INFO  org.apache.zookeeper.ClientCnxn - Socket connection established to 138.37.32.88/138.37.32.88:2181, initiating session
+02:58:28.767 [main-SendThread(138.37.32.88:2181)] DEBUG org.apache.zookeeper.ClientCnxn - Session establishment request sent on 138.37.32.88/138.37.32.88:2181
+02:58:28.775 [main-SendThread(138.37.32.88:2181)] INFO  org.apache.zookeeper.ClientCnxn - Session establishment complete on server 138.37.32.88/138.37.32.88:2181, sessionid = 0x1614f4cb3e50005, negotiated timeout = 40000
+02:58:28.783 [main-EventThread] INFO  o.a.c.f.state.ConnectionStateManager - State change: CONNECTED
+02:58:28.784 [main] DEBUG o.a.curator.CuratorZookeeperClient - blockUntilConnectedOrTimedOut() end. isConnected: true
+02:58:28.821 [main-SendThread(138.37.32.88:2181)] DEBUG org.apache.zookeeper.ClientCnxn - Reading reply sessionid:0x1614f4cb3e50005, packet:: clientPath:null serverPath:null finished:false header:: 1,4  replyHeader:: 1,12,0  request:: '/seednode,F  response:: #3133382e33372e33322e38383a39313031,s{2,2,1517453898571,1517453898571,0,0,0,0,17,0,2} 
+138.37.32.88:9101
+02:58:28.821 [main] DEBUG o.a.c.f.imps.CuratorFrameworkImpl - Closing
+02:58:28.822 [Curator-Framework-0] INFO  o.a.c.f.imps.CuratorFrameworkImpl - backgroundOperationsLoop exiting
+02:58:28.822 [main] DEBUG o.a.curator.CuratorZookeeperClient - Closing
+02:58:28.822 [main] DEBUG org.apache.curator.ConnectionState - Closing
+02:58:28.824 [main] DEBUG org.apache.zookeeper.ZooKeeper - Closing session: 0x1614f4cb3e50005
+02:58:28.824 [main] DEBUG org.apache.zookeeper.ClientCnxn - Closing client for session: 0x1614f4cb3e50005
+02:58:28.827 [main-SendThread(138.37.32.88:2181)] DEBUG org.apache.zookeeper.ClientCnxn - Reading reply sessionid:0x1614f4cb3e50005, packet:: clientPath:null serverPath:null finished:false header:: 2,-11  replyHeader:: 2,13,0  request:: null response:: null
+02:58:28.828 [main-SendThread(138.37.32.88:2181)] DEBUG org.apache.zookeeper.ClientCnxn - An exception was thrown while closing send thread for session 0x1614f4cb3e50005 : Unable to read additional data from server sessionid 0x1614f4cb3e50005, likely server has closed socket
+02:58:28.828 [main] DEBUG org.apache.zookeeper.ClientCnxn - Disconnecting client for session: 0x1614f4cb3e50005
+02:58:28.828 [main] INFO  org.apache.zookeeper.ZooKeeper - Session: 0x1614f4cb3e50005 closed
+02:58:28.828 [main-EventThread] INFO  org.apache.zookeeper.ClientCnxn - EventThread shut down for session: 0x1614f4cb3e50005
+02:58:29.947 [dockerexp-akka.actor.default-dispatcher-4] INFO  akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+------ 8893c83e-0fce-4121-bbd8-bf3ee94b9fab ------
+Binding core internally on 172.17.0.8 port 9400
+Binding core externally on 138.37.32.88 port 9400
+Seeds: List(Quoted("akka.tcp://dockerexp@138.37.32.88:9101"))
+Roles: List()
+My Akka URI: akka.tcp://dockerexp@138.37.32.88:9400
+Prestarting
+Thu Feb 01 02:59:03 GMT 2018:10000
+Thu Feb 01 02:59:07 GMT 2018:11000
+Thu Feb 01 02:59:12 GMT 2018:12000
+Thu Feb 01 02:59:17 GMT 2018:13000
+Thu Feb 01 02:59:22 GMT 2018:14000
+Thu Feb 01 02:59:27 GMT 2018:15000
+Thu Feb 01 02:59:32 GMT 2018:16000
+Thu Feb 01 02:59:37 GMT 2018:17000
+Thu Feb 01 02:59:42 GMT 2018:18000
+Thu Feb 01 02:59:47 GMT 2018:19000
+Thu Feb 01 02:59:52 GMT 2018:20000
+Thu Feb 01 02:59:57 GMT 2018:21000
+Thu Feb 01 03:00:02 GMT 2018:22000
+Thu Feb 01 03:00:07 GMT 2018:23000
+Thu Feb 01 03:00:12 GMT 2018:24000
+Thu Feb 01 03:00:17 GMT 2018:25000
+Thu Feb 01 03:00:22 GMT 2018:26000
+Thu Feb 01 03:00:27 GMT 2018:27000
+Thu Feb 01 03:00:32 GMT 2018:28000
+Thu Feb 01 03:00:37 GMT 2018:29000
+Thu Feb 01 03:00:42 GMT 2018:30000
+Thu Feb 01 03:00:47 GMT 2018:31000
+Thu Feb 01 03:00:52 GMT 2018:32000
+Thu Feb 01 03:00:57 GMT 2018:33000
+Thu Feb 01 03:01:02 GMT 2018:34000
+Thu Feb 01 03:01:07 GMT 2018:35000
+Thu Feb 01 03:01:12 GMT 2018:36000
+Thu Feb 01 03:01:17 GMT 2018:37000
+Thu Feb 01 03:01:22 GMT 2018:38000
+Thu Feb 01 03:01:27 GMT 2018:39000
+Thu Feb 01 03:01:32 GMT 2018:40000
+Thu Feb 01 03:01:37 GMT 2018:41000
+Thu Feb 01 03:01:42 GMT 2018:42000
+Thu Feb 01 03:01:47 GMT 2018:43000
+Thu Feb 01 03:01:52 GMT 2018:44000
+Thu Feb 01 03:01:57 GMT 2018:45000
+Thu Feb 01 03:02:02 GMT 2018:46000
+Thu Feb 01 03:02:07 GMT 2018:47000
+Thu Feb 01 03:02:12 GMT 2018:48000
+Thu Feb 01 03:02:17 GMT 2018:49000
+Thu Feb 01 03:02:22 GMT 2018:50000
+Thu Feb 01 03:02:27 GMT 2018:51000
+Thu Feb 01 03:02:32 GMT 2018:52000
+Thu Feb 01 03:02:37 GMT 2018:53000
+Thu Feb 01 03:02:42 GMT 2018:54000
+Thu Feb 01 03:02:47 GMT 2018:55000
+Thu Feb 01 03:02:52 GMT 2018:56000
+Thu Feb 01 03:02:57 GMT 2018:57000
+Thu Feb 01 03:03:02 GMT 2018:58000
+Thu Feb 01 03:03:07 GMT 2018:59000
+Thu Feb 01 03:03:12 GMT 2018:60000
+Thu Feb 01 03:03:17 GMT 2018:61000
+Thu Feb 01 03:03:22 GMT 2018:62000
+Thu Feb 01 03:03:27 GMT 2018:63000
+Thu Feb 01 03:03:32 GMT 2018:64000
+Thu Feb 01 03:03:37 GMT 2018:65000
+Thu Feb 01 03:03:42 GMT 2018:66000
+Thu Feb 01 03:03:47 GMT 2018:67000
+Thu Feb 01 03:03:52 GMT 2018:68000
+Thu Feb 01 03:03:57 GMT 2018:69000
+Thu Feb 01 03:04:02 GMT 2018:70000
+Thu Feb 01 03:04:07 GMT 2018:71000
+Thu Feb 01 03:04:12 GMT 2018:72000
+Thu Feb 01 03:04:17 GMT 2018:73000
+Thu Feb 01 03:04:22 GMT 2018:74000
+Thu Feb 01 03:04:27 GMT 2018:75000
+Thu Feb 01 03:04:32 GMT 2018:76000
+Thu Feb 01 03:04:37 GMT 2018:77000
+Thu Feb 01 03:04:42 GMT 2018:78000
+Thu Feb 01 03:04:47 GMT 2018:79000
+Thu Feb 01 03:04:52 GMT 2018:80000
+Thu Feb 01 03:04:57 GMT 2018:81000
+Thu Feb 01 03:05:03 GMT 2018:82000
+Thu Feb 01 03:05:07 GMT 2018:83000
+Thu Feb 01 03:05:12 GMT 2018:84000
+Thu Feb 01 03:05:17 GMT 2018:85000
+Thu Feb 01 03:05:22 GMT 2018:86000
+Thu Feb 01 03:05:27 GMT 2018:87000
+Thu Feb 01 03:05:32 GMT 2018:88000
+Thu Feb 01 03:05:37 GMT 2018:89000
+Thu Feb 01 03:05:43 GMT 2018:90000
+Thu Feb 01 03:05:47 GMT 2018:91000
+Thu Feb 01 03:05:53 GMT 2018:92000
+Thu Feb 01 03:05:57 GMT 2018:93000
+Thu Feb 01 03:06:02 GMT 2018:94000
+Thu Feb 01 03:06:07 GMT 2018:95000
+Thu Feb 01 03:06:12 GMT 2018:96000
+Thu Feb 01 03:06:17 GMT 2018:97000
+Thu Feb 01 03:06:23 GMT 2018:98000
+Thu Feb 01 03:06:27 GMT 2018:99000
+Thu Feb 01 03:06:32 GMT 2018:100000
+Thu Feb 01 03:06:37 GMT 2018:101000
+Thu Feb 01 03:06:43 GMT 2018:102000
+Thu Feb 01 03:06:47 GMT 2018:103000
+Thu Feb 01 03:06:52 GMT 2018:104000
+Thu Feb 01 03:06:57 GMT 2018:105000
+Thu Feb 01 03:07:02 GMT 2018:106000
+Thu Feb 01 03:07:07 GMT 2018:107000
+Thu Feb 01 03:07:12 GMT 2018:108000
+Thu Feb 01 03:07:17 GMT 2018:109000
+Thu Feb 01 03:07:23 GMT 2018:110000
+Thu Feb 01 03:07:28 GMT 2018:111000
+Thu Feb 01 03:07:32 GMT 2018:112000
+Thu Feb 01 03:07:37 GMT 2018:113000
+Thu Feb 01 03:07:43 GMT 2018:114000
+Thu Feb 01 03:07:48 GMT 2018:115000
+Thu Feb 01 03:07:52 GMT 2018:116000
+Thu Feb 01 03:07:57 GMT 2018:117000
+Thu Feb 01 03:08:03 GMT 2018:118000
+Thu Feb 01 03:08:07 GMT 2018:119000
+Thu Feb 01 03:08:12 GMT 2018:120000
+Thu Feb 01 03:08:17 GMT 2018:121000
+Thu Feb 01 03:08:23 GMT 2018:122000
+Thu Feb 01 03:08:28 GMT 2018:123000
+Thu Feb 01 03:08:32 GMT 2018:124000
+Thu Feb 01 03:08:37 GMT 2018:125000
+Thu Feb 01 03:08:43 GMT 2018:126000
+Thu Feb 01 03:08:47 GMT 2018:127000
+Thu Feb 01 03:08:53 GMT 2018:128000
+Thu Feb 01 03:08:58 GMT 2018:129000
+Thu Feb 01 03:09:02 GMT 2018:130000
+Thu Feb 01 03:09:07 GMT 2018:131000
+Thu Feb 01 03:09:12 GMT 2018:132000
+Thu Feb 01 03:09:18 GMT 2018:133000
+Thu Feb 01 03:09:23 GMT 2018:134000
+Thu Feb 01 03:09:28 GMT 2018:135000
+Thu Feb 01 03:09:32 GMT 2018:136000
+Thu Feb 01 03:09:38 GMT 2018:137000
+Thu Feb 01 03:09:42 GMT 2018:138000
+Thu Feb 01 03:09:48 GMT 2018:139000
+Thu Feb 01 03:09:53 GMT 2018:140000
+Thu Feb 01 03:09:58 GMT 2018:141000
+Thu Feb 01 03:10:03 GMT 2018:142000

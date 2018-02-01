@@ -1,0 +1,166 @@
+Creating Update Generator
+04:02:58.620 [main] INFO  o.a.c.f.imps.CuratorFrameworkImpl - Starting
+04:02:58.630 [main] DEBUG o.a.curator.CuratorZookeeperClient - Starting
+04:02:58.630 [main] DEBUG org.apache.curator.ConnectionState - Starting
+04:02:58.631 [main] DEBUG org.apache.curator.ConnectionState - reset
+04:02:58.644 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:zookeeper.version=3.4.8--1, built on 02/06/2016 03:18 GMT
+04:02:58.644 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:host.name=4559c36d978c
+04:02:58.644 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.version=1.8.0_66
+04:02:58.644 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.vendor=Oracle Corporation
+04:02:58.644 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.home=/usr/jdk1.8.0_66/jre
+04:02:58.644 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.class.path=/opt/docker/lib/com.gwz.cluster-latest.jar:/opt/docker/lib/org.scala-lang.scala-library-2.12.4.jar:/opt/docker/lib/com.typesafe.akka.akka-http_2.12-10.0.7.jar:/opt/docker/lib/com.typesafe.akka.akka-http-core_2.12-10.0.7.jar:/opt/docker/lib/com.typesafe.akka.akka-parsing_2.12-10.0.7.jar:/opt/docker/lib/com.typesafe.akka.akka-actor_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.config-1.3.1.jar:/opt/docker/lib/org.scala-lang.modules.scala-java8-compat_2.12-0.8.0.jar:/opt/docker/lib/com.typesafe.akka.akka-stream_2.12-2.5.2.jar:/opt/docker/lib/org.reactivestreams.reactive-streams-1.0.0.jar:/opt/docker/lib/com.typesafe.ssl-config-core_2.12-0.2.1.jar:/opt/docker/lib/org.scala-lang.modules.scala-parser-combinators_2.12-1.0.4.jar:/opt/docker/lib/com.typesafe.akka.akka-cluster_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-remote_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-protobuf_2.12-2.5.2.jar:/opt/docker/lib/io.netty.netty-3.10.6.Final.jar:/opt/docker/lib/io.aeron.aeron-driver-1.2.5.jar:/opt/docker/lib/io.aeron.aeron-client-1.2.5.jar:/opt/docker/lib/org.agrona.agrona-0.9.5.jar:/opt/docker/lib/com.typesafe.akka.akka-cluster-tools_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-contrib_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-persistence_2.12-2.5.2.jar:/opt/docker/lib/com.typesafe.akka.akka-slf4j_2.12-2.5.2.jar:/opt/docker/lib/org.slf4j.slf4j-api-1.7.23.jar:/opt/docker/lib/ch.qos.logback.logback-classic-1.1.2.jar:/opt/docker/lib/ch.qos.logback.logback-core-1.1.2.jar:/opt/docker/lib/io.spray.spray-json_2.12-1.3.3.jar:/opt/docker/lib/org.apache.curator.curator-framework-2.12.0.jar:/opt/docker/lib/org.apache.curator.curator-client-2.12.0.jar:/opt/docker/lib/org.apache.zookeeper.zookeeper-3.4.8.jar:/opt/docker/lib/log4j.log4j-1.2.16.jar:/opt/docker/lib/jline.jline-0.9.94.jar:/opt/docker/lib/com.google.guava.guava-16.0.1.jar:/opt/docker/lib/org.apache.curator.curator-recipes-2.12.0.jar
+04:02:58.645 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.library.path=/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib
+04:02:58.645 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.io.tmpdir=/tmp
+04:02:58.645 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:java.compiler=<NA>
+04:02:58.645 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:os.name=Linux
+04:02:58.645 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:os.arch=amd64
+04:02:58.645 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:os.version=4.13.0-26-generic
+04:02:58.645 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:user.name=daemon
+04:02:58.645 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:user.home=/usr/sbin
+04:02:58.645 [main] INFO  org.apache.zookeeper.ZooKeeper - Client environment:user.dir=/opt/docker
+04:02:58.646 [main] INFO  org.apache.zookeeper.ZooKeeper - Initiating client connection, connectString=138.37.32.88:2181 sessionTimeout=60000 watcher=org.apache.curator.ConnectionState@44f75083
+04:02:58.651 [main] DEBUG org.apache.zookeeper.ClientCnxn - zookeeper.disableAutoWatchReset is false
+04:02:58.675 [main-SendThread(138.37.32.88:2181)] INFO  org.apache.zookeeper.ClientCnxn - Opening socket connection to server 138.37.32.88/138.37.32.88:2181. Will not attempt to authenticate using SASL (unknown error)
+04:02:58.678 [main] DEBUG o.a.curator.CuratorZookeeperClient - blockUntilConnectedOrTimedOut() start
+04:02:58.689 [main-SendThread(138.37.32.88:2181)] INFO  org.apache.zookeeper.ClientCnxn - Socket connection established to 138.37.32.88/138.37.32.88:2181, initiating session
+04:02:58.690 [main-SendThread(138.37.32.88:2181)] DEBUG org.apache.zookeeper.ClientCnxn - Session establishment request sent on 138.37.32.88/138.37.32.88:2181
+04:02:58.698 [main-SendThread(138.37.32.88:2181)] INFO  org.apache.zookeeper.ClientCnxn - Session establishment complete on server 138.37.32.88/138.37.32.88:2181, sessionid = 0x1614f87c8f00007, negotiated timeout = 40000
+04:02:58.706 [main-EventThread] INFO  o.a.c.f.state.ConnectionStateManager - State change: CONNECTED
+04:02:58.707 [main] DEBUG o.a.curator.CuratorZookeeperClient - blockUntilConnectedOrTimedOut() end. isConnected: true
+04:02:58.750 [main-SendThread(138.37.32.88:2181)] DEBUG org.apache.zookeeper.ClientCnxn - Reading reply sessionid:0x1614f87c8f00007, packet:: clientPath:null serverPath:null finished:false header:: 1,4  replyHeader:: 1,15,0  request:: '/seednode,F  response:: #3133382e33372e33322e38383a39313031,s{2,2,1517457765234,1517457765234,0,0,0,0,17,0,2} 
+138.37.32.88:9101
+04:02:58.751 [main] DEBUG o.a.c.f.imps.CuratorFrameworkImpl - Closing
+04:02:58.752 [Curator-Framework-0] INFO  o.a.c.f.imps.CuratorFrameworkImpl - backgroundOperationsLoop exiting
+04:02:58.752 [main] DEBUG o.a.curator.CuratorZookeeperClient - Closing
+04:02:58.753 [main] DEBUG org.apache.curator.ConnectionState - Closing
+04:02:58.755 [main] DEBUG org.apache.zookeeper.ZooKeeper - Closing session: 0x1614f87c8f00007
+04:02:58.755 [main] DEBUG org.apache.zookeeper.ClientCnxn - Closing client for session: 0x1614f87c8f00007
+04:02:58.758 [main-SendThread(138.37.32.88:2181)] DEBUG org.apache.zookeeper.ClientCnxn - Reading reply sessionid:0x1614f87c8f00007, packet:: clientPath:null serverPath:null finished:false header:: 2,-11  replyHeader:: 2,16,0  request:: null response:: null
+04:02:58.758 [main] DEBUG org.apache.zookeeper.ClientCnxn - Disconnecting client for session: 0x1614f87c8f00007
+04:02:58.759 [main] INFO  org.apache.zookeeper.ZooKeeper - Session: 0x1614f87c8f00007 closed
+04:02:58.759 [main-SendThread(138.37.32.88:2181)] DEBUG org.apache.zookeeper.ClientCnxn - An exception was thrown while closing send thread for session 0x1614f87c8f00007 : Unable to read additional data from server sessionid 0x1614f87c8f00007, likely server has closed socket
+04:02:58.759 [main-EventThread] INFO  org.apache.zookeeper.ClientCnxn - EventThread shut down for session: 0x1614f87c8f00007
+04:03:00.047 [dockerexp-akka.actor.default-dispatcher-2] INFO  akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+------ 16c1201d-cab8-45bb-8584-1513b4486f9b ------
+Binding core internally on 172.17.0.10 port 9400
+Binding core externally on 138.37.32.88 port 9400
+Seeds: List(Quoted("akka.tcp://dockerexp@138.37.32.88:9101"))
+Roles: List()
+My Akka URI: akka.tcp://dockerexp@138.37.32.88:9400
+Prestarting
+Thu Feb 01 04:03:23 GMT 2018:10000
+Thu Feb 01 04:03:28 GMT 2018:11000
+Thu Feb 01 04:03:33 GMT 2018:12000
+Thu Feb 01 04:03:37 GMT 2018:13000
+Thu Feb 01 04:03:43 GMT 2018:14000
+Thu Feb 01 04:03:47 GMT 2018:15000
+Thu Feb 01 04:03:52 GMT 2018:16000
+Thu Feb 01 04:03:57 GMT 2018:17000
+Thu Feb 01 04:04:02 GMT 2018:18000
+Thu Feb 01 04:04:08 GMT 2018:19000
+Thu Feb 01 04:04:12 GMT 2018:20000
+Thu Feb 01 04:04:17 GMT 2018:21000
+Thu Feb 01 04:04:22 GMT 2018:22000
+Thu Feb 01 04:04:28 GMT 2018:23000
+Thu Feb 01 04:04:33 GMT 2018:24000
+Thu Feb 01 04:04:38 GMT 2018:25000
+Thu Feb 01 04:04:42 GMT 2018:26000
+Thu Feb 01 04:04:47 GMT 2018:27000
+Thu Feb 01 04:04:53 GMT 2018:28000
+Thu Feb 01 04:04:57 GMT 2018:29000
+Thu Feb 01 04:05:02 GMT 2018:30000
+Thu Feb 01 04:05:07 GMT 2018:31000
+Thu Feb 01 04:05:13 GMT 2018:32000
+Thu Feb 01 04:05:17 GMT 2018:33000
+Thu Feb 01 04:05:23 GMT 2018:34000
+Thu Feb 01 04:05:28 GMT 2018:35000
+Thu Feb 01 04:05:33 GMT 2018:36000
+Thu Feb 01 04:05:38 GMT 2018:37000
+Thu Feb 01 04:05:43 GMT 2018:38000
+Thu Feb 01 04:05:47 GMT 2018:39000
+Thu Feb 01 04:05:53 GMT 2018:40000
+Thu Feb 01 04:05:58 GMT 2018:41000
+Thu Feb 01 04:06:03 GMT 2018:42000
+Thu Feb 01 04:06:08 GMT 2018:43000
+Thu Feb 01 04:06:13 GMT 2018:44000
+Thu Feb 01 04:06:18 GMT 2018:45000
+Thu Feb 01 04:06:23 GMT 2018:46000
+Thu Feb 01 04:06:28 GMT 2018:47000
+Thu Feb 01 04:06:33 GMT 2018:48000
+Thu Feb 01 04:06:38 GMT 2018:49000
+Thu Feb 01 04:06:43 GMT 2018:50000
+Thu Feb 01 04:06:48 GMT 2018:51000
+Thu Feb 01 04:06:53 GMT 2018:52000
+Thu Feb 01 04:06:58 GMT 2018:53000
+Thu Feb 01 04:07:03 GMT 2018:54000
+Thu Feb 01 04:07:08 GMT 2018:55000
+Thu Feb 01 04:07:13 GMT 2018:56000
+Thu Feb 01 04:07:18 GMT 2018:57000
+Thu Feb 01 04:07:23 GMT 2018:58000
+Thu Feb 01 04:07:28 GMT 2018:59000
+Thu Feb 01 04:07:33 GMT 2018:60000
+Thu Feb 01 04:07:38 GMT 2018:61000
+Thu Feb 01 04:07:43 GMT 2018:62000
+Thu Feb 01 04:07:48 GMT 2018:63000
+Thu Feb 01 04:07:53 GMT 2018:64000
+04:07:55.960 [dockerexp-akka.actor.default-dispatcher-82] ERROR akka.remote.EndpointWriter - AssociationError [akka.tcp://dockerexp@138.37.32.88:9400] <- [akka.tcp://dockerexp@138.37.32.88:9202]: Error [Shut down address: akka.tcp://dockerexp@138.37.32.88:9202] [
+akka.remote.ShutDownAssociation: Shut down address: akka.tcp://dockerexp@138.37.32.88:9202
+Caused by: akka.remote.transport.Transport$InvalidAssociationException: The remote system terminated the association because it is shutting down.
+]
+Thu Feb 01 04:07:58 GMT 2018:65000
+Thu Feb 01 04:08:03 GMT 2018:66000
+Thu Feb 01 04:08:08 GMT 2018:67000
+Thu Feb 01 04:08:13 GMT 2018:68000
+04:08:15.945 [dockerexp-akka.actor.default-dispatcher-39] ERROR akka.remote.EndpointWriter - AssociationError [akka.tcp://dockerexp@138.37.32.88:9400] <- [akka.tcp://dockerexp@138.37.32.88:9302]: Error [Shut down address: akka.tcp://dockerexp@138.37.32.88:9302] [
+akka.remote.ShutDownAssociation: Shut down address: akka.tcp://dockerexp@138.37.32.88:9302
+Caused by: akka.remote.transport.Transport$InvalidAssociationException: The remote system terminated the association because it is shutting down.
+]
+Thu Feb 01 04:08:18 GMT 2018:69000
+Thu Feb 01 04:08:23 GMT 2018:70000
+Thu Feb 01 04:08:28 GMT 2018:71000
+Thu Feb 01 04:08:33 GMT 2018:72000
+Thu Feb 01 04:08:38 GMT 2018:73000
+Thu Feb 01 04:08:43 GMT 2018:74000
+Thu Feb 01 04:08:48 GMT 2018:75000
+Thu Feb 01 04:08:53 GMT 2018:76000
+Thu Feb 01 04:08:58 GMT 2018:77000
+Thu Feb 01 04:09:03 GMT 2018:78000
+Thu Feb 01 04:09:08 GMT 2018:79000
+Thu Feb 01 04:09:13 GMT 2018:80000
+Thu Feb 01 04:09:18 GMT 2018:81000
+Thu Feb 01 04:09:23 GMT 2018:82000
+Thu Feb 01 04:09:28 GMT 2018:83000
+Thu Feb 01 04:09:33 GMT 2018:84000
+Thu Feb 01 04:09:38 GMT 2018:85000
+Thu Feb 01 04:09:43 GMT 2018:86000
+Thu Feb 01 04:09:48 GMT 2018:87000
+Thu Feb 01 04:09:53 GMT 2018:88000
+Thu Feb 01 04:09:58 GMT 2018:89000
+Thu Feb 01 04:10:03 GMT 2018:90000
+Thu Feb 01 04:10:08 GMT 2018:91000
+Thu Feb 01 04:10:13 GMT 2018:92000
+Thu Feb 01 04:10:18 GMT 2018:93000
+Thu Feb 01 04:10:23 GMT 2018:94000
+Thu Feb 01 04:10:28 GMT 2018:95000
+Thu Feb 01 04:10:33 GMT 2018:96000
+Thu Feb 01 04:10:38 GMT 2018:97000
+Thu Feb 01 04:10:43 GMT 2018:98000
+Thu Feb 01 04:10:48 GMT 2018:99000
+Thu Feb 01 04:10:53 GMT 2018:100000
+Thu Feb 01 04:10:58 GMT 2018:101000
+Thu Feb 01 04:11:03 GMT 2018:102000
+Thu Feb 01 04:11:08 GMT 2018:103000
+Thu Feb 01 04:11:13 GMT 2018:104000
+Thu Feb 01 04:11:18 GMT 2018:105000
+Thu Feb 01 04:11:23 GMT 2018:106000
+Thu Feb 01 04:11:28 GMT 2018:107000
+Thu Feb 01 04:11:33 GMT 2018:108000
+Thu Feb 01 04:11:38 GMT 2018:109000
+Thu Feb 01 04:11:43 GMT 2018:110000
+Thu Feb 01 04:11:48 GMT 2018:111000
+Thu Feb 01 04:11:53 GMT 2018:112000
+Thu Feb 01 04:11:58 GMT 2018:113000
+Thu Feb 01 04:12:03 GMT 2018:114000
+Thu Feb 01 04:12:08 GMT 2018:115000
+Thu Feb 01 04:12:13 GMT 2018:116000
+Thu Feb 01 04:12:18 GMT 2018:117000
