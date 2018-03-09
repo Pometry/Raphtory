@@ -21,18 +21,11 @@ def logs(file):
 	file.write("if [ ! -d logs ]; then mkdir logs; fi \n")
 	file.write("rm -r logs/"+file.name[:len(file.name)-3]+"\n")
 	file.write("if [ ! -d logs/"+file.name[:len(file.name)-3]+" ]; then mkdir logs/"+file.name[:len(file.name)-3]+"; fi \n")
-	
-	file.write("if [ ! -d logs/"+file.name[:len(file.name)-3]+"/entityLogs/ ]; then mkdir logs/"+file.name[:len(file.name)-3]+"/entityLogs/; fi \n")
-	file.write("entityLogs=$(pwd)\"/logs/"+file.name[:len(file.name)-3]+"/entityLogs\" \n \n")
-
-	file.write("if [ ! -d logs/"+file.name[:len(file.name)-3]+"/heapSpace/ ]; then mkdir logs/"+file.name[:len(file.name)-3]+"/heapSpace/; fi \n")
-	file.write("heapSpaceLogs=$(pwd)\"/logs/"+file.name[:len(file.name)-3]+"/heapSpace\" \n \n")
 
 	file.write ("chmod 777 logs \n")
 	file.write ("chmod 777 logs/"+file.name[:len(file.name)-3]+"\n")
-	file.write ("chmod 777 logs/"+file.name[:len(file.name)-3]+"/entityLogs\n \n")
-	file.write ("chmod 777 logs/"+file.name[:len(file.name)-3]+"/heapSpace\n \n")
-
+	
+	file.write("logsdir=$(pwd)\"/logs/"+file.name[:len(file.name)-3]+"/\" \n \n")
 
 def seedports(file):
 	#PORT BLOCK
@@ -59,7 +52,7 @@ def partitionManagerIDs(files):
 def partitionManagerRun(files):
 	#partition nodes
 	for i in range(0,NumberOfPartitions):
-		files[(i%NumberOfMachines)].write("(docker run --name=\"partition"+str(i)+"\" -p $PM"+str(i)+"Port:$PM"+str(i)+"Port --rm -e \"BIND_PORT=$PM"+str(i)+"Port\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$PM"+str(i)+"Port\" -v $entityLogs:/logs/entityLogs -v $heapSpaceLogs:/logs/heapSpace $Image partitionManager $PM"+str(i)+"ID $NumberOfPartitions $ZooKeeper &) > logs/"+files[(i%NumberOfMachines)].name[:len(files[(i%NumberOfMachines)].name)-3]+"/partitionManager"+str(i)+".txt \n")
+		files[(i%NumberOfMachines)].write("(docker run --name=\"partition"+str(i)+"\" -p $PM"+str(i)+"Port:$PM"+str(i)+"Port --rm -e \"BIND_PORT=$PM"+str(i)+"Port\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$PM"+str(i)+"Port\" -v $logsdir:/logs $Image partitionManager $PM"+str(i)+"ID $NumberOfPartitions $ZooKeeper &) > logs/"+files[(i%NumberOfMachines)].name[:len(files[(i%NumberOfMachines)].name)-3]+"/partitionManager"+str(i)+".txt \n")
 		files[(i%NumberOfMachines)].write("sleep 2 \n")
 		files[(i%NumberOfMachines)].write("echo \"Partition Manager $PM"+str(i)+"ID up and running at $IP:$PM"+str(i)+"Port\" \n \n")
 

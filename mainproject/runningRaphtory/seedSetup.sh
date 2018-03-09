@@ -4,7 +4,7 @@ IP="$(./getMyIP.sh)"
  
 (docker ps -aq --no-trunc | xargs docker rm) >/dev/null
  
-ZooKeeper="192.168.1.5" 
+ZooKeeper="161.23.244.212" 
  
 LAMName="testLam" 
  
@@ -15,17 +15,9 @@ NumberOfPartitions=1
 if [ ! -d logs ]; then mkdir logs; fi 
 rm -r logs/seedSetup
 if [ ! -d logs/seedSetup ]; then mkdir logs/seedSetup; fi 
-if [ ! -d logs/seedSetup/entityLogs/ ]; then mkdir logs/seedSetup/entityLogs/; fi 
-entityLogs=$(pwd)"/logs/seedSetup/entityLogs" 
- 
-if [ ! -d logs/seedSetup/heapSpace/ ]; then mkdir logs/seedSetup/heapSpace/; fi 
-heapSpaceLogs=$(pwd)"/logs/seedSetup/heapSpace" 
- 
 chmod 777 logs 
 chmod 777 logs/seedSetup
-chmod 777 logs/seedSetup/entityLogs
- 
-chmod 777 logs/seedSetup/heapSpace
+logsdir=$(pwd)"/logs/seedSetup/" 
  
 SeedPort=9101 
 RestPort=9102 

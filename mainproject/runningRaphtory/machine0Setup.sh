@@ -4,7 +4,7 @@ IP="$(./getMyIP.sh)"
  
 (docker ps -aq --no-trunc | xargs docker rm) >/dev/null
  
-ZooKeeper="192.168.1.5" 
+ZooKeeper="161.23.244.212" 
  
 LAMName="testLam" 
  
@@ -15,21 +15,13 @@ NumberOfPartitions=1
 if [ ! -d logs ]; then mkdir logs; fi 
 rm -r logs/machine0Setup
 if [ ! -d logs/machine0Setup ]; then mkdir logs/machine0Setup; fi 
-if [ ! -d logs/machine0Setup/entityLogs/ ]; then mkdir logs/machine0Setup/entityLogs/; fi 
-entityLogs=$(pwd)"/logs/machine0Setup/entityLogs" 
- 
-if [ ! -d logs/machine0Setup/heapSpace/ ]; then mkdir logs/machine0Setup/heapSpace/; fi 
-heapSpaceLogs=$(pwd)"/logs/machine0Setup/heapSpace" 
- 
 chmod 777 logs 
 chmod 777 logs/machine0Setup
-chmod 777 logs/machine0Setup/entityLogs
- 
-chmod 777 logs/machine0Setup/heapSpace
+logsdir=$(pwd)"/logs/machine0Setup/" 
  
 PM0Port=9200
 PM0ID=0
-(docker run --name="partition0" -p $PM0Port:$PM0Port --rm -e "BIND_PORT=$PM0Port" -e "HOST_IP=$IP" -e "HOST_PORT=$PM0Port" -v $entityLogs:/logs/entityLogs -v $heapSpaceLogs:/logs/heapSpace $Image partitionManager $PM0ID $NumberOfPartitions $ZooKeeper &) > logs/machine0Setup/partitionManager0.txt 
+(docker run --name="partition0" -p $PM0Port:$PM0Port --rm -e "BIND_PORT=$PM0Port" -e "HOST_IP=$IP" -e "HOST_PORT=$PM0Port" -v $logsdir:/logs $Image partitionManager $PM0ID $NumberOfPartitions $ZooKeeper &) > logs/machine0Setup/partitionManager0.txt 
 sleep 2 
 echo "Partition Manager $PM0ID up and running at $IP:$PM0Port" 
  

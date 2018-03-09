@@ -20,19 +20,21 @@ abstract class RaphtoryActor extends Actor {
   def getHeap():Array[HashMap[String,String]]={
     val PID = ManagementFactory.getRuntimeMXBean().getName().split("@")(0)
     val rawHisto = (s"jmap -histo $PID" !!).split("\n").drop(3)
-    rawHisto.take(200).map(x => (x.trim.split("\\s+"))).map(x=> HashMap[String,String](("name",x(3)),("instances",x(1)),("bytes",x(2))))
+    rawHisto.take(20).map(x => (x.trim.split("\\s+"))).map(x=> HashMap[String,String](("name",x(3)),("instances",x(1)),("bytes",x(2))))
   }//val sortedHisto = listHisto.toBuffer.sortWith{(a,b) => (a("instances").toInt>b("instances").toInt)}
 
 
   def getLiveHeap():Array[HashMap[String,String]]={
     val PID = ManagementFactory.getRuntimeMXBean().getName().split("@")(0)
-    val rawHisto = (s"jmap -histo:Live $PID" !!).split("\n").drop(3)
-    rawHisto.take(200).map(x => (x.trim.split("\\s+"))).map(x=> HashMap[String,String](("name",x(3)),("instances",x(1)),("bytes",x(2))))
+    val rawHisto = (s"jmap -histo:live $PID" !!).split("\n").drop(3)
+    rawHisto.take(20).map(x => (x.trim.split("\\s+"))).map(x=> HashMap[String,String](("name",x(3)),("instances",x(1)),("bytes",x(2))))
   }
 
 
   def logHeap(heap: Array[HashMap[String,String]]):Unit={
-    val fw:FileWriter = new FileWriter(s"/logs/heapSpace/${self.path.name}/${System.currentTimeMillis()}.txt")
+    val file = new File(s"/logs/${self.path.name}/heapSpace")
+    file.mkdirs()
+    val fw:FileWriter = new FileWriter(s"/logs/${self.path.name}/heapSpace/${System.currentTimeMillis()}.txt")
     try {
       fw.write("Name,Instances,Bytes")
       heap.foreach(x=>fw.write(s"${x("name")},${x("instances")},${x("bytes")}\n"))
@@ -41,10 +43,9 @@ abstract class RaphtoryActor extends Actor {
   }
 
   def logLiveHeap(heap: Array[HashMap[String,String]]):Unit={
-    val fw:FileWriter = new FileWriter(s"/logs/liveheapSpace/${self.path.name}/${System.currentTimeMillis()}.txt")
-    val file = new File(s"/logs/liveheapSpace/${self.path.name}/${System.currentTimeMillis()}.txt")
-    if (! file.exists)
-      file.mkdirs()
+    val file = new File(s"/logs/${self.path.name}/liveheapSpace")
+    file.mkdirs()
+    val fw:FileWriter = new FileWriter(s"/logs/${self.path.name}/liveheapSpace/${System.currentTimeMillis()}.txt")
     try {
       fw.write("Name,Instances,Bytes")
       heap.foreach(x=>fw.write(s"${x("name")},${x("instances")},${x("bytes")}\n"))

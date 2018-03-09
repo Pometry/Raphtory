@@ -25,7 +25,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
 
   val loggger = Logging(context.system, this)
   val printing=false //should the handled messages be printed to terminal
-  val logging = false // should the state of the vertex/edge map be output to file
+  val logging = true // should the state of the vertex/edge map be output to file
 
   var messageCount = 0 //number of messages processed since last report to the benchmarker
   var secondaryMessageCount = 0
@@ -46,7 +46,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
     messageCount = 0
     secondaryMessageCount =0
     messageBlockID=messageBlockID+1
-    //profile()
+    profile()
   }
 
   def checkHeap(): Unit = {
@@ -329,7 +329,9 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
 
   //*******************PRINT BLOCK
   def printToFile(entityName:String,msg: String):Unit={
-    val fw:FileWriter = new FileWriter(s"/logs/entityLogs/$entityName.txt")
+    val file = new File(s"/logs/${self.path.name}/entityLogs")
+    file.mkdirs()
+    val fw:FileWriter = new FileWriter(s"/logs/${self.path.name}/entityLogs/$entityName.txt")
     try {fw.write(msg+"\n")}
     finally fw.close()
   }
