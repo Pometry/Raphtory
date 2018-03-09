@@ -58,7 +58,8 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 
 	lazy val dockerStuff = Seq(
 		maintainer := "Ben Steer <b.a.steer@qmul.ac.uk>",
-		dockerBaseImage := "errordeveloper/oracle-jre",
+		//dockerBaseImage := "errordeveloper/oracle-jre",
+		dockerBaseImage := "bigtruedata/scala",
     dockerRepository := Some("quay.io/miratepuffin"),
 		dockerExposedPorts := Seq(2551,8080,2552) ++ (9000 to 10000)
 		// test <<= test dependsOn (publishLocal in docker)

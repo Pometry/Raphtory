@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 
 
 
-class Benchmarker(managerCount:Int) extends Actor{
+class Benchmarker(managerCount:Int) extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   //var blockMap = Map[Int,BenchmarkBlock]()

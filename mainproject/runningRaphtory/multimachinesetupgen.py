@@ -12,21 +12,26 @@ def metadata(file):
 
 	#write out number of partitions to be parsed to routers
 	file.write("NumberOfPartitions="+str(NumberOfPartitions)+"\n \n")
-	file.write("NumberOfUpdates="+str(NumberOfUpdates)+"\n \n")
 	#for investigation of internal JVM
-	file.write("JVM=\"-Dcom.sun.management.jmxremote.rmi.port=9090 -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.port=9090  -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.local.only=false -Djava.rmi.server.hostname=$IP\" \n")
-
+	#file.write("JVM=\"-Dcom.sun.management.jmxremote.rmi.port=9090 -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.port=9090  -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.local.only=false -Djava.rmi.server.hostname=$IP\" \n")
+	# -p 9090:9090 -e \"JAVA_OPTS=$JVM\"
 
 def logs(file):
 	#create/clear log folder
 	file.write("if [ ! -d logs ]; then mkdir logs; fi \n")
 	file.write("rm -r logs/"+file.name[:len(file.name)-3]+"\n")
 	file.write("if [ ! -d logs/"+file.name[:len(file.name)-3]+" ]; then mkdir logs/"+file.name[:len(file.name)-3]+"; fi \n")
+	
 	file.write("if [ ! -d logs/"+file.name[:len(file.name)-3]+"/entityLogs/ ]; then mkdir logs/"+file.name[:len(file.name)-3]+"/entityLogs/; fi \n")
 	file.write("entityLogs=$(pwd)\"/logs/"+file.name[:len(file.name)-3]+"/entityLogs\" \n \n")
+
+	file.write("if [ ! -d logs/"+file.name[:len(file.name)-3]+"/heapSpace/ ]; then mkdir logs/"+file.name[:len(file.name)-3]+"/heapSpace/; fi \n")
+	file.write("heapSpaceLogs=$(pwd)\"/logs/"+file.name[:len(file.name)-3]+"/heapSpace\" \n \n")
+
 	file.write ("chmod 777 logs \n")
 	file.write ("chmod 777 logs/"+file.name[:len(file.name)-3]+"\n")
 	file.write ("chmod 777 logs/"+file.name[:len(file.name)-3]+"/entityLogs\n \n")
+	file.write ("chmod 777 logs/"+file.name[:len(file.name)-3]+"/heapSpace\n \n")
 
 
 def seedports(file):
@@ -54,7 +59,7 @@ def partitionManagerIDs(files):
 def partitionManagerRun(files):
 	#partition nodes
 	for i in range(0,NumberOfPartitions):
-		files[(i%NumberOfMachines)].write("(docker run --name=\"partition"+str(i)+"\"  -p $PM"+str(i)+"Port:$PM"+str(i)+"Port  --rm -e \"BIND_PORT=$PM"+str(i)+"Port\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$PM"+str(i)+"Port\" -v $entityLogs:/logs/entityLogs $Image partitionManager $PM"+str(i)+"ID $NumberOfPartitions $ZooKeeper &) > logs/"+files[(i%NumberOfMachines)].name[:len(files[(i%NumberOfMachines)].name)-3]+"/partitionManager"+str(i)+".txt \n")
+		files[(i%NumberOfMachines)].write("(docker run --name=\"partition"+str(i)+"\" -p $PM"+str(i)+"Port:$PM"+str(i)+"Port --rm -e \"BIND_PORT=$PM"+str(i)+"Port\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$PM"+str(i)+"Port\" -v $entityLogs:/logs/entityLogs -v $heapSpaceLogs:/logs/heapSpace $Image partitionManager $PM"+str(i)+"ID $NumberOfPartitions $ZooKeeper &) > logs/"+files[(i%NumberOfMachines)].name[:len(files[(i%NumberOfMachines)].name)-3]+"/partitionManager"+str(i)+".txt \n")
 		files[(i%NumberOfMachines)].write("sleep 2 \n")
 		files[(i%NumberOfMachines)].write("echo \"Partition Manager $PM"+str(i)+"ID up and running at $IP:$PM"+str(i)+"Port\" \n \n")
 
@@ -82,7 +87,7 @@ def updatePorts(files):
 def updateRun(files):
 	#Updaters
 	for i in range(0,NumberOfUpdaters):
-		files[(i%NumberOfMachines)].write("(docker run --name=\"updater"+str(i)+"\" -p $Update"+str(i)+"Port:$Update"+str(i)+"Port  --rm -e \"BIND_PORT=$Update"+str(i)+"Port\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$Update"+str(i)+"Port\" $Image updateGen $NumberOfPartitions $NumberOfUpdates $ZooKeeper &) > logs/"+files[(i%NumberOfMachines)].name[:len(files[(i%NumberOfMachines)].name)-3]+"/updateGenerator"+str(i)+".txt \n")
+		files[(i%NumberOfMachines)].write("(docker run --name=\"updater"+str(i)+"\" -p $Update"+str(i)+"Port:$Update"+str(i)+"Port  --rm -e \"BIND_PORT=$Update"+str(i)+"Port\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$Update"+str(i)+"Port\" $Image updateGen $NumberOfPartitions $ZooKeeper &) > logs/"+files[(i%NumberOfMachines)].name[:len(files[(i%NumberOfMachines)].name)-3]+"/updateGenerator"+str(i)+".txt \n")
 		files[(i%NumberOfMachines)].write("sleep 1 \n")
 		files[(i%NumberOfMachines)].write("echo \"Update Generator "+str(i)+" up and running at $IP:$Update"+str(i)+"Port\" \n \n")		
 
@@ -103,9 +108,9 @@ def dockerblock(file):
 	file.write("echo \"Benchmarker up and running at $IP:$BenchmarkPort\" \n \n")
 	
 	#live analysis manager
-	#file.write("(docker run --name=\"lam\"  -p $LiveAnalysisPort:$LiveAnalysisPort  --rm -e \"BIND_PORT=$LiveAnalysisPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$LiveAnalysisPort\" $Image LiveAnalysisManager $NumberOfPartitions $ZooKeeper $LAMName &) > logs/"+file.name[:len(file.name)-3]+"/LiveAnalysisManager.txt \n")
-	#file.write("sleep 1 \n")
-	#file.write("echo \"Live Analyser running at $IP:$LiveAnalysisPort\" \n \n")
+	file.write("(docker run --name=\"lam\"  -p $LiveAnalysisPort:$LiveAnalysisPort  --rm -e \"BIND_PORT=$LiveAnalysisPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$LiveAnalysisPort\" $Image LiveAnalysisManager $NumberOfPartitions $ZooKeeper $LAMName &) > logs/"+file.name[:len(file.name)-3]+"/LiveAnalysisManager.txt \n")
+	file.write("sleep 1 \n")
+	file.write("echo \"Live Analyser running at $IP:$LiveAnalysisPort\" \n \n")
 
 def complete(file):
 	file.write("ClusterUpPort=9106 \n \n")
@@ -119,8 +124,7 @@ NumberOfPartitions=int(sys.argv[1])
 NumberOfRouters=int(sys.argv[2])
 NumberOfUpdaters=int(sys.argv[3])
 NumberOfMachines=int(sys.argv[4])
-NumberOfUpdates=int(sys.argv[5])
-zookeeperLoc = sys.argv[6]
+zookeeperLoc = sys.argv[5]
 
 #open files for writing
 seedFile = open("seedSetup.sh","w")

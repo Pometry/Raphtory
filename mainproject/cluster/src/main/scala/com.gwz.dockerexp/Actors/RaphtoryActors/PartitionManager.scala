@@ -2,9 +2,8 @@ package com.gwz.dockerexp.Actors.RaphtoryActors
 
 import java.io._
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import akka.dispatch.RequiresMessageQueue
 import com.gwz.dockerexp.caseclass._
 import com.gwz.dockerexp.GraphEntities._
 import akka.event.Logging
@@ -19,7 +18,7 @@ import scala.concurrent.duration._
 
 //need to work out why the return death is happening multiple times
 
-class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
+class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryActor{
   val childID = id  //ID which refers to the partitions position in the graph manager map
   var vertices = Map[Int,Vertex]() // Map of Vertices contained in the partition
   var edges = Map[(Int,Int),Edge]() // Map of Edges contained in the partition
@@ -42,13 +41,17 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends Actor{
 
   def reportIntake(): Unit ={
     //if(printing)
-      println(messageCount)
+      //println(messageCount)
     mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkPartitionManager(id,messageCount,secondaryMessageCount),false)
     messageCount = 0
     secondaryMessageCount =0
     messageBlockID=messageBlockID+1
+    //profile()
   }
 
+  def checkHeap(): Unit = {
+
+  }
 
 
 

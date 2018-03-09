@@ -22,7 +22,7 @@ import scala.concurrent.duration.{Duration, SECONDS}
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-class RaphtoryRouter(managerCount:Int) extends Actor{
+class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   //************* MESSAGE HANDLING BLOCK

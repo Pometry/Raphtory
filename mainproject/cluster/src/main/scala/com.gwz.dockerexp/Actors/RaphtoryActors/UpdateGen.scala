@@ -3,7 +3,6 @@ package com.gwz.dockerexp.Actors.RaphtoryActors
 
 import java.io.FileWriter
 import java.util.Calendar
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
@@ -16,7 +15,7 @@ import scala.io.Source
 import scala.util.Random
 
 
-class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
+class UpdateGen(managerCount:Int) extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   var totalCount =10000
@@ -51,7 +50,7 @@ class UpdateGen(managerCount:Int,numberofUpdates:Int) extends Actor{
   def running():Unit={
     genRandomCommands(totalCount)
     println(s"${Calendar.getInstance().getTime}:$totalCount")
-    totalCount+=1000
+    //totalCount+=1000
   }
 
   def benchmark():Unit={

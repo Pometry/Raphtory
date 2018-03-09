@@ -10,7 +10,7 @@ import scala.concurrent.duration._
 
 
 
-class LiveAnalysisManager(managerCount:Int,name:String) extends Actor{
+class LiveAnalysisManager(managerCount:Int,name:String) extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
