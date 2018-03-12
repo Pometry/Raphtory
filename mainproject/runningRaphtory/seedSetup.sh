@@ -4,7 +4,7 @@ IP="$(./getMyIP.sh)"
  
 (docker ps -aq --no-trunc | xargs docker rm) >/dev/null
  
-ZooKeeper="161.23.244.212" 
+ZooKeeper="161.23.245.235:2181" 
  
 LAMName="testLam" 
  
