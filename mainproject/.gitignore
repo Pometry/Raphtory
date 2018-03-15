@@ -1,5 +1,6 @@
 *.class
 *.log
+.*.sw[op]
 
 autoSetup.sh
 
@@ -22,3 +23,5 @@ logs
 .scala_dependencies
 .worksheet
 .idea
+
+**/logs/**

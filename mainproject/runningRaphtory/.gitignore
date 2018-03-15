@@ -22,3 +22,7 @@ logs
 .scala_dependencies
 .worksheet
 .idea
+
+machine[0-9]*Setup.sh
+seedSetup.sh
+
