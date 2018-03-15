@@ -2,7 +2,9 @@
 *.log
 
 autoSetup.sh
-
+seedSetup.sh
+machine0Setup.sh
+machine1Setup.sh
 .DS_Store
 
 # sbt specific

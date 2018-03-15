@@ -50,7 +50,7 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
   def running():Unit={
     genRandomCommands(totalCount)
     println(s"${Calendar.getInstance().getTime}:$totalCount")
-    //totalCount+=1000
+    totalCount+=1000
   }
 
   def benchmark():Unit={
