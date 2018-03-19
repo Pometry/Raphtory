@@ -1,0 +1,118 @@
+version: '3'
+services:
+    prometheus:
+        image: prom/prometheus:latest
+        ports:
+            - 8888:9090
+#### runZoo
+    zooKeeper:
+        image: quay.io/miratepuffin/zookeeper:latest
+        ports:
+            - 2181:2181
+            - 2888:2888
+            - 3888:3888
+   #### seedSetup
+    seedNode:
+       image: quay.io/miratepuffin/cluster
+       depends_on: 
+            - zooKeeper
+       ports:
+            - 9101:9101
+       command: seed raphtory_seedNode_1:9101 $ZOOKEEPER
+       environment:
+            - BIND_PORT=9101
+            - HOST_PORT=9101
+            - HOST_IP=raphtory_seedNode_1
+            - ZOOKEEPER
+
+    rest:
+       image: quay.io/miratepuffin/cluster
+       depends_on: 
+            - seedNode
+       ports:
+            - 8080:8080
+       command: rest $ZOOKEEPER
+       environment:
+            - BIND_PORT=9101
+            - HOST_PORT=9101
+            - HOST_IP=raphtory_rest_1
+    benchmarker:
+        image: quay.io/miratepuffin/cluster
+        depends_on: 
+            - seedNode
+        ports: 
+            - 9104:9104
+        command: benchmark $NUMBER_OF_PARTITIONS $ZOOKEEPER
+        environment:
+            - BIND_PORT=9104
+            - HOST_PORT=9105
+            - HOST_IP=raphtory_benchmarker_1
+    lam:
+        image: quay.io/miratepuffin/cluster
+        depends_on: 
+            - benchmarker
+        ports:
+            - 9105:9105
+        command: LiveAnalysisManager $NUMBER_OF_PARTITIONS $ZOOKEEPER $LAM_NAME
+        environment:
+            - BIND_PORT=9105
+            - HOST_PORT=9105
+            - HOST_IP=raphtory_lam_1
+
+# Machines Setup
+#
+    partitionManager:
+        image: quay.io/miratepuffin/cluster
+        depends_on: 
+            - lam
+        ports:
+            - 9200:9200
+        command: partitionManager 0 $NUMBER_OF_PARTITIONS $ZOOKEEPER
+        environment:
+            - BIND_PORT=9200
+            - HOST_PORT=9200
+            - HOST_IP=raphtory_partitionManager_1
+        scale: 1
+
+    router:
+        image: quay.io/miratepuffin/cluster
+        depends_on: 
+            - partitionManager
+        ports:
+            - 9300:9300
+        command: router $NUMBER_OF_PARTITIONS $ZOOKEEPER
+        environment:
+            - BIND_PORT=9300
+            - HOST_PORT=9300
+            - HOST_IP=raphtory_router_1
+        scale: 1
+
+    updater:
+        image: quay.io/miratepuffin/cluster
+        depends_on: 
+            - router
+        ports:
+            - 9400:9400
+        command: updateGen $NUMBER_OF_PARTITIONS $ZOOKEEPER
+        environment:
+            - BIND_PORT=9400
+            - HOST_PORT=9400
+            - HOST_IP=raphtory_updater_1
+        scale: 1
+
+    updater:
+        image: quay.io/miratepuffin/cluster
+        depends_on: 
+            - updater
+        ports:
+            - 9106:9106
+        command: updateGen $NUMBER_OF_PARTITIONS $ZOOKEEPER
+        environment:
+            - BIND_PORT=9106
+            - HOST_PORT=9106
+            - HOST_IP=raphtory_clusterup_1
+        scale: 1
+
+
+
+
