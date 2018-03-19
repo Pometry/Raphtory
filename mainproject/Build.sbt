@@ -11,8 +11,6 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 	val SbtPackager 	  = "1.2.0"
 
 
-
-
 	val resolutionRepos = Seq(
 		"Typesafe Repo" 	at "http://repo.typesafe.com/typesafe/releases/",
 		"Akka Snapshots"	at "http://repo.akka.io/snapshots/",
@@ -43,7 +41,9 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 
 	val kamon						= "io.kamon"					 %% "kamon-core"					% "1.1.0"
 	val kamon_prometheus= "io.kamon"					 %% "kamon-prometheus"		% "1.0.0"
-  val kamon_akka      = "io.kamon"					 %% "kamon-akka-2.5"		  % "1.0.0-RC4"
+  val kamon_akka      = "io.kamon"					 %% "kamon-akka-2.5"		  % "1.0.1"
+	val kamon_repos     = Seq(Resolver.bintrayRepo("kamon-io", "snapshots"))
+
 
 	val IP = java.net.InetAddress.getLocalHost().getHostAddress()
 
@@ -54,7 +54,7 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 		scalaVersion 				:= Scala,
 		parallelExecution in Test 	:= false,
 		//resolvers					++= Dependencies.resolutionRepos,
-		resolvers					  += Resolver.bintrayRepo("kamon-io", "snapshots"),
+		resolvers					  ++= kamon_repos,
 		scalacOptions				:= Seq("-feature", "-deprecation", "-encoding", "UTF8", "-unchecked"),
 		testOptions in Test += Tests.Argument("-oDF"),
 		version 					:= "latest"
@@ -65,7 +65,7 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 		//dockerBaseImage := "errordeveloper/oracle-jre",
 		dockerBaseImage := "bigtruedata/scala",
     dockerRepository := Some("quay.io/miratepuffin"),
-		dockerExposedPorts := Seq(2551,8080,2552) ++ (9000 to 10000)
+		dockerExposedPorts := Seq(2551,8080,2552) ++ (9000 to 20000)
 		// test <<= test dependsOn (publishLocal in docker)
 		)
 
@@ -75,6 +75,7 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 	lazy val cluster = project.in(file("cluster"))
 		.enablePlugins(JavaAppPackaging)
 		.enablePlugins(AshScriptPlugin)
+	  	.enablePlugins(JavaAgent)
 		.settings(isSnapshot := true)
 		.settings(dockerStuff:_*)
 		//.settings(dockerEntrypoint := Seq("bin/cluster"))
@@ -86,4 +87,8 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
 				kamon, kamon_akka, kamon_prometheus)
 		)
+	  	.settings(
+          javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
+          javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default"
+			)
 		//.settings((Keys.test in Test) <<= (Keys.test in Test) dependsOn (publishLocal in Docker))
