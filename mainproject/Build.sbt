@@ -21,7 +21,7 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 	)
 
 	def dep_compile   (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "compile")
-	def dep_test      (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "test")  // ttest vs test so as not to confuse w/sbt 'test'
+	def dep_test      (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "test")  // test vs test so as not to confuse w/sbt 'test'
 
 	val akka_actor		  = "com.typesafe.akka"		%% "akka-actor"		      % Akka
 	val akka_slf4j 		  = "com.typesafe.akka" 	%% "akka-slf4j"		      % Akka
@@ -46,9 +46,10 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 
 	lazy val basicSettings = Seq(
  		organization 				:= "com.gwz",
-		description 				:= "Playing with Docker",
+		description 				:= "Raphtory Distributed Graph Stream Processing",
 		startYear 					:= Some(2014),
 		scalaVersion 				:= Scala,
+		packageName         := "raphtory",
 		parallelExecution in Test 	:= false,
 		//resolvers					++= Dependencies.resolutionRepos,
 		scalacOptions				:= Seq("-feature", "-deprecation", "-encoding", "UTF8", "-unchecked"),
@@ -58,14 +59,12 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 
 	lazy val dockerStuff = Seq(
 		maintainer := "Ben Steer <b.a.steer@qmul.ac.uk>",
-		//dockerBaseImage := "errordeveloper/oracle-jre",
-		dockerBaseImage := "bigtruedata/scala",
-    dockerRepository := Some("quay.io/miratepuffin"),
+		dockerBaseImage := "miratepuffin/raphtory-redis",
+    dockerRepository := Some("miratepuffin"),
 		dockerExposedPorts := Seq(2551,8080,2552) ++ (9000 to 10000)
-		// test <<= test dependsOn (publishLocal in docker)
 		)
 
-	lazy val root = Project(id = "dockerexp",
+	lazy val root = Project(id = "raphtory",
 		base = file(".")) aggregate(cluster)
 
 	lazy val cluster = project.in(file("cluster"))
@@ -73,11 +72,9 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 		.enablePlugins(AshScriptPlugin)
 		.settings(isSnapshot := true)
 		.settings(dockerStuff:_*)
-		//.settings(dockerEntrypoint := Seq("bin/cluster"))
 		.settings(dockerEntrypoint := Seq("/opt/docker/bin/cluster"))
 		.settings(basicSettings: _*)
 		.settings(libraryDependencies ++=
 			dep_compile(
 				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2)
 		)
-		//.settings((Keys.test in Test) <<= (Keys.test in Test) dependsOn (publishLocal in Docker))

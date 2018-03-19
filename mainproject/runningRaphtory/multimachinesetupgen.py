@@ -8,7 +8,7 @@ def metadata(file):
 	file.write("(docker ps -aq --no-trunc | xargs docker rm) >/dev/null\n \n" )
 	file.write("ZooKeeper=\""+zookeeperLoc+"\" \n \n")
 	file.write("LAMName=\"testLam\" \n \n")
-	file.write("Image=\"quay.io/miratepuffin/cluster\" #if you want to use prebuilt one on my quay.io \n \n")
+	file.write("Image=\"miratepuffin/raphtory\" \n \n")
 
 	#write out number of partitions to be parsed to routers
 	file.write("NumberOfPartitions="+str(NumberOfPartitions)+"\n \n")
