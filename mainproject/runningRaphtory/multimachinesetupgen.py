@@ -5,7 +5,7 @@ def metadata(file):
 	#scripts for getting running IP and killing off existing containers
 	file.write("#!/usr/bin/env bash \n \n")
 	file.write("IP=\"$(./getMyIP.sh)\" \n \n")
-	file.write("(docker ps -aq --no-trunc | xargs docker rm) >/dev/null\n \n" )
+	file.write("docker ps -aq --no-trunc | xargs docker rm > /dev/null 2>&1\n \n" )
 	file.write("ZooKeeper=\""+zookeeperLoc+"\" \n \n")
 	file.write("LAMName=\"testLam\" \n \n")
 	file.write("Image=\"miratepuffin/raphtory\" \n \n")
