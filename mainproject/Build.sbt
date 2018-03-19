@@ -41,6 +41,9 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 	val curator1        = "org.apache.curator"  % "curator-framework"   % "2.12.0"
 	val curator2        = "org.apache.curator"  % "curator-recipes"     % "2.12.0"
 
+	val kamon						= "io.kamon"					 %% "kamon-core"					% "1.1.0"
+	val kamon_prometheus= "io.kamon"					 %% "kamon-prometheus"		% "1.0.0"
+  val kamon_akka      = "io.kamon"					 %% "kamon-akka-2.5"		  % "1.0.0-RC4"
 
 	val IP = java.net.InetAddress.getLocalHost().getHostAddress()
 
@@ -51,6 +54,7 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 		scalaVersion 				:= Scala,
 		parallelExecution in Test 	:= false,
 		//resolvers					++= Dependencies.resolutionRepos,
+		resolvers					  += Resolver.bintrayRepo("kamon-io", "snapshots"),
 		scalacOptions				:= Seq("-feature", "-deprecation", "-encoding", "UTF8", "-unchecked"),
 		testOptions in Test += Tests.Argument("-oDF"),
 		version 					:= "latest"
@@ -78,6 +82,8 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 		.settings(basicSettings: _*)
 		.settings(libraryDependencies ++=
 			dep_compile(
-				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2)
+				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools,
+				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
+				kamon, kamon_akka, kamon_prometheus)
 		)
 		//.settings((Keys.test in Test) <<= (Keys.test in Test) dependsOn (publishLocal in Docker))
