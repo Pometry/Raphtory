@@ -3,7 +3,7 @@ services:
 
     #### Monitoring front-end ####
     prometheus:
-        image: prom/prometheus:latest
+        build: prometheus/
         ports:
             - 8888:9090
 
