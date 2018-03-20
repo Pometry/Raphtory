@@ -1,5 +1,7 @@
 package com.gwz.dockerexp
 
+import java.net.InetAddress
+
 import com.gwz.dockerexp.caseclass.clustercase._
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
@@ -15,7 +17,7 @@ object Go extends App {
       val seedloc = args(1)
       val zookeeper = args(2)
       setConf(seedloc, zookeeper)
-      SeedNode()
+      SeedNode(seedLoc2Ip(seedloc))
     }
     case "rest" => {
       println("Creating rest node")
@@ -80,11 +82,18 @@ object Go extends App {
     println(originalData)
     prometheusReporter()
     curatorZookeeperClient.close()
-    originalData
+    seedLoc2Ip(originalData)
   }
   //https://blog.knoldus.com/2014/08/29/how-to-setup-and-use-zookeeper-in-scala-using-apache-curator/
 
   def prometheusReporter() = {
     Kamon.addReporter(new PrometheusReporter())
   }
+
+  def seedLoc2Ip(seedLoc: String): String = {
+    // hostname_asd_1:port
+    val t = seedLoc.split(":")
+    return InetAddress.getByName(t(0)).getHostAddress() + ":" + t(1)
+  }
+
 }

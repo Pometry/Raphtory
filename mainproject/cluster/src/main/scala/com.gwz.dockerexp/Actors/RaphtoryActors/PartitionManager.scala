@@ -25,7 +25,6 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
   val loggger = Logging(context.system, this)
   val printing= false //should the handled messages be printed to terminal
   val logging = false // should the state of the vertex/edge map be output to file
-
   var messageCount = 0 //number of messages processed since last report to the benchmarker
   var secondaryMessageCount = 0
   var messageBlockID = 0 //id of current message block to syncronise times across partition managers

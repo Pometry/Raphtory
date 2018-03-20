@@ -2,6 +2,9 @@
 *.log
 .*.sw[op]
 
+sbt/
+cluster/src/main/scala/scala.iml
+
 autoSetup.sh
 seedSetup.sh
 machine0Setup.sh
