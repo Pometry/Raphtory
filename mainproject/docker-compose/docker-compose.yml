@@ -1,17 +1,21 @@
 version: '3'
 services:
+
+    #### Monitoring front-end ####
     prometheus:
         image: prom/prometheus:latest
         ports:
             - 8888:9090
-#### runZoo
+
+    #### runZoo ####
     zooKeeper:
         image: quay.io/miratepuffin/zookeeper:latest
         ports:
             - 2181:2181
             - 2888:2888
             - 3888:3888
-   #### seedSetup
+
+    #### seedSetup ####
     seedNode:
        image: quay.io/miratepuffin/cluster
        depends_on: 
@@ -44,8 +48,10 @@ services:
             - 9104:9104
         command: benchmark $NUMBER_OF_PARTITIONS $ZOOKEEPER
         environment:
+            # Are both the variables used?
             - BIND_PORT=9104
             - HOST_PORT=9105
+            # TODO the line below should be redundant
             - HOST_IP=raphtory_benchmarker_1
     lam:
         image: quay.io/miratepuffin/cluster
@@ -59,20 +65,27 @@ services:
             - HOST_PORT=9105
             - HOST_IP=raphtory_lam_1
 
-# Machines Setup
-#
+    #### Machines Setup ####
     partitionManager:
         image: quay.io/miratepuffin/cluster
         depends_on: 
             - lam
         ports:
             - 9200:9200
+        # TODO Swarm Cluster Id (currently fixed to 0)
         command: partitionManager 0 $NUMBER_OF_PARTITIONS $ZOOKEEPER
         environment:
             - BIND_PORT=9200
             - HOST_PORT=9200
             - HOST_IP=raphtory_partitionManager_1
-        scale: 1
+        volumes:
+            - ./logs/:/logs
+        deploy:
+            replicas: 1
+            update_config:
+                delay: "0"
+            restart_policy:
+                condition: on-failure
 
     router:
         image: quay.io/miratepuffin/cluster
@@ -85,7 +98,14 @@ services:
             - BIND_PORT=9300
             - HOST_PORT=9300
             - HOST_IP=raphtory_router_1
-        scale: 1
+        volumes:
+            - ./logs/:/logs
+        deploy:
+            replicas: 1
+            update_config:
+                delay: "0"
+            restart_policy:
+                condition: on-failure
 
     updater:
         image: quay.io/miratepuffin/cluster
@@ -98,9 +118,16 @@ services:
             - BIND_PORT=9400
             - HOST_PORT=9400
             - HOST_IP=raphtory_updater_1
-        scale: 1
+        volumes:
+            - ./logs/:/logs
+        deploy:
+            replicas: 1
+            update_config:
+                delay: "0"
+            restart_policy:
+                condition: on-failure
 
-    updater:
+    clusterUp:
         image: quay.io/miratepuffin/cluster
         depends_on: 
             - updater
@@ -110,9 +137,12 @@ services:
         environment:
             - BIND_PORT=9106
             - HOST_PORT=9106
-            - HOST_IP=raphtory_clusterup_1
-        scale: 1
-
-
-
-
+            - HOST_IP=raphtory_clusterUp_1
+        volumes:
+            - ./logs/:/logs
+        deploy:
+            replicas: 1
+            update_config:
+                delay: "0"
+            restart_policy:
+                condition: on-failure
