@@ -14,6 +14,7 @@ import scala.collection.JavaConversions
 import scala.collection.JavaConversions._
 
 trait DocSvr {
+  def seedLoc:String
   val clusterSystemName = "dockerexp"
   val ssn = java.util.UUID.randomUUID.toString
   val ipAndPort = IpAndPort()
@@ -23,9 +24,9 @@ trait DocSvr {
     val config = ConfigFactory.load()
       .withValue("akka.remote.netty.tcp.bind-hostname", ConfigValueFactory.fromAnyRef(java.net.InetAddress.getLocalHost().getHostAddress())) //docker
       //.withValue("akka.remote.netty.tcp.bind-hostname", ConfigValueFactory.fromAnyRef(ipAndPort.hostIP)) //singularirty (maybe "192.168.1.1")
-      .withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef(ipAndPort.hostIP))
+      .withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef(java.net.InetAddress.getByName(ipAndPort.hostIP).getHostAddress()))
       .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(ipAndPort.akkaPort))
-      .withValue("akka.cluster.seed-nodes", ConfigValueFactory.fromIterable(JavaConversions.asJavaIterable(seeds.map(seedLoc => s"akka.tcp://$clusterSystemName@$seedLoc").toIterable)))
+      .withValue("akka.cluster.seed-nodes", ConfigValueFactory.fromIterable(JavaConversions.asJavaIterable(seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc").toIterable)))
 
     val actorSystem = ActorSystem( clusterSystemName, config )
     printConfigInfo(config,actorSystem)
