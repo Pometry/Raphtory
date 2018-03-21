@@ -2,11 +2,14 @@ package com.gwz.dockerexp.Actors.RaphtoryActors
 
 import java.io.FileWriter
 import java.io.File
+
 import akka.actor.Actor
 
 import sys.process._
 import scala.language.postfixOps
 import java.lang.management.ManagementFactory
+
+import kamon.Kamon
 
 import scala.collection.immutable.HashMap
 
@@ -20,7 +23,12 @@ abstract class RaphtoryActor extends Actor {
   def getHeap():Array[HashMap[String,String]]={
     val PID = ManagementFactory.getRuntimeMXBean().getName().split("@")(0)
     val rawHisto = (s"jmap -histo $PID" !!).split("\n").drop(3)
+    rawHisto.take(20).map(x => (x.trim.split("\\s+"))).foreach(x=> {
+      Kamon.histogram(s"raphtory.heap.${x(3)}.instances").record(x(1).toLong)
+      Kamon.histogram(s"raphtory.heap.${x(3)}.bytes").record(x(2).toLong)
+    })
     rawHisto.take(20).map(x => (x.trim.split("\\s+"))).map(x=> HashMap[String,String](("name",x(3)),("instances",x(1)),("bytes",x(2))))
+
   }//val sortedHisto = listHisto.toBuffer.sortWith{(a,b) => (a("instances").toInt>b("instances").toInt)}
 
 
