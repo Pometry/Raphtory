@@ -10,10 +10,17 @@ import scala.language.postfixOps
 import java.lang.management.ManagementFactory
 
 import kamon.Kamon
+import kamon.metric.MeasurementUnit
 
 import scala.collection.immutable.HashMap
 
 abstract class RaphtoryActor extends Actor {
+
+  // TODO Add cluster Id
+  val bytesGauge     = Kamon.gauge(s"raphtory.heap.bytes", MeasurementUnit.information.bytes)
+  val instancesGauge = Kamon.gauge(s"raphtory.heap.instances", MeasurementUnit.none)
+  val kCounter = Kamon.counter("raphtory.counters")
+  val kGauge = Kamon.gauge("raphtory.benchmarker")
 
   def profile():Unit={
     logHeap(getHeap())
@@ -24,8 +31,8 @@ abstract class RaphtoryActor extends Actor {
     val PID = ManagementFactory.getRuntimeMXBean().getName().split("@")(0)
     val rawHisto = (s"jmap -histo $PID" !!).split("\n").drop(3)
     rawHisto.take(20).map(x => (x.trim.split("\\s+"))).foreach(x=> {
-      Kamon.histogram(s"raphtory.heap.${x(3)}.instances").record(x(1).toLong)
-      Kamon.histogram(s"raphtory.heap.${x(3)}.bytes").record(x(2).toLong)
+      instancesGauge.refine("name" -> x(3)).set(x(1).toLong)
+      bytesGauge.refine("name" -> x(3)).set(x(2).toLong)
     })
     rawHisto.take(20).map(x => (x.trim.split("\\s+"))).map(x=> HashMap[String,String](("name",x(3)),("instances",x(1)),("bytes",x(2))))
 

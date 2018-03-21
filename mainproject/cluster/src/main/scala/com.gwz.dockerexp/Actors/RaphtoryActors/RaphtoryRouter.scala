@@ -27,7 +27,8 @@ class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   //************* MESSAGE HANDLING BLOCK
-  var count =0;
+
+  var count = 0
 
   override def preStart() {
     context.system.scheduler.schedule(Duration(10, SECONDS),Duration(10, SECONDS),self,"tick")
@@ -37,7 +38,7 @@ class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
     case "tick" => {
       mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkRouter(count),false)
       // TODO put router ID here
-      Kamon.histogram("raphtory.router").record(count)
+      kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
       count = 0
     }
     case command:String => try{parseJSON(command)}catch {case e: Exception => println(e)}
@@ -45,8 +46,8 @@ class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
   }
   def parseJSON(command:String):Unit={
     count += 1
-    Kamon.counter("raphtory.routerCounter").increment()
-
+    kCounter.refine("actor" -> "Router", "name" -> "count").increment()
+    Kamon.gauge("raphtory.router.countGauge").set(count)
     //println(s"received command: \n $command")
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type

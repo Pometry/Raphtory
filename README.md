@@ -19,7 +19,7 @@ To make Raphtory as easy to run as possible it has been containerised to be able
 
 Currently out of date as creating new WebUI
 
-### Generating setup file
+### Generating setup file (Go to the Docker-compose section for an alternative testing deploy)
 ---
 Once Docker is installed and running you must first generate the Raphtory setup script by running [setupgen.py](setupgen.py). This requires python3 which if not present on your machine can be installed via: 
 
@@ -82,6 +82,20 @@ This tells you all the containers that you have started up, specifying the IP an
 The setup script will also create a log folder within the running directory, storing the output from the containers (showing how messages are passed around) and the output from the graph entities (their full history). An example of this can be seen in the final section.
 
 If you wish to stop the cluster, run the command: **./dockblock.sh**
+
+---
+### Deploy by docker-compose/swarm (Alternative)
+---
+
+```bash
+    cd mainproject/docker-compose
+    docker-compose build
+    docker-compose up
+``` 
+
+If you want to deploy Raphtory on a Docker Swarm cluster adapt *mainproject/docker-compose/docker-compose.yml* deploy sections to your needs and use *docker-stack deploy*.
+
+If Raphtory cannot write logs and it prints for Permission denied (or similar) exceptions you should run *mainproject/docker-compose/fixDirPerms.sh* (Only tested on GNU/Linux).
 
 ---
 ### Utilising the Rest API
