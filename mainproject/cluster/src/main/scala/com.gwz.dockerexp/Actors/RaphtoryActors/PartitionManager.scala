@@ -6,6 +6,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass._
 import com.gwz.dockerexp.GraphEntities._
 import akka.event.Logging
+import kamon.Kamon
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -44,20 +45,39 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
     messageCount = 0
     secondaryMessageCount =0
     messageBlockID=messageBlockID+1
+    // TODO Put the partition manager Id\
+    Kamon.histogram("raphtory.partitionManager.messageCount").record(messageCount, messageBlockID)
+    Kamon.histogram("raphtory.partitionManager.secondaryMessageCount").record(secondaryMessageCount, messageBlockID)
     profile()
   }
 
-  def checkHeap(): Unit = {
-
+  def vHandle(srcID:Int) : Unit = {
+    messageCount = messageCount + 1
+    Kamon.counter("raphtory.partitionManager.messageCounter").increment()
+    log(srcID)
   }
 
+  def vHandleSecondary(srcID:Int) : Unit = {
+    secondaryMessageCount = secondaryMessageCount + 1
+    log(srcID)
+    Kamon.counter("raphtory.partitionManager.secondaryMessageCounter").increment()
 
+  }
+  def eHandle(srcID:Int,dstID:Int) : Unit = {
+    messageCount=messageCount+1
+    Kamon.counter("raphtory.partitionManager.messageCounter").increment()
+    log(srcID,dstID)
+    log(srcID)
+    log(dstID)
+  }
 
-
-  def vHandle(srcID:Int):Unit={messageCount=messageCount+1; log(srcID);}
-  def vHandleSecondary(srcID:Int):Unit={secondaryMessageCount=secondaryMessageCount+1; log(srcID);}
-  def eHandle(srcID:Int,dstID:Int):Unit={messageCount=messageCount+1; log(srcID,dstID); log(srcID);log(dstID);}
-  def eHandleSecondary(srcID:Int,dstID:Int):Unit={secondaryMessageCount=secondaryMessageCount+1; log(srcID,dstID); log(srcID);log(dstID);}
+  def eHandleSecondary(srcID:Int,dstID:Int) : Unit = {
+    secondaryMessageCount = secondaryMessageCount + 1
+    Kamon.counter("raphtory.partitionManager.secondaryMessageCounter").increment()
+    log(srcID,dstID)
+    log(srcID)
+    log(dstID)
+  }
 
   override def receive: Receive = {
 
@@ -94,6 +114,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
     else vertices(srcId) revive msgId //if it does exist, store the add in the vertex state
     if(printing) println(s"Received a Vertex Add for $srcId")
   }
+
   def vertexAddWithProperties(msgId:Int,srcId:Int, properties:Map[String,String]):Unit ={
     vertexAdd(msgId,srcId) //add the vertex
     properties.foreach(l => vertices(srcId) + (msgId,l._1,l._2)) //add all properties
@@ -152,7 +173,6 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
     mediator ! DistributedPubSubMediator.Send(getManager(srcId),RemoteReturnDeaths(msgId,srcId,dstId,deaths),false) //return to the src manager the deaths present within the dst to finalise sync
   }
 
-
   def edgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
     if(printing) println(s"Received an edge Add with properties for $srcId --> $dstId")
     if(checkDst(dstId)) { //local edge
@@ -189,6 +209,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
       }
     }
   }
+
   def remoteEdgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
     if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId)}. Edge already exists so just updating")
     vertexAdd(msgId,dstId) //create or revive the destination node
@@ -209,7 +230,6 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
     properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
     mediator ! DistributedPubSubMediator.Send(getManager(srcId),RemoteReturnDeaths(msgId,srcId,dstId,deaths),false)
   }
-
 
   def edgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
     if(printing) println(s"Received Edge removal for $srcId --> $dstId")
@@ -252,6 +272,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
       }
     }
   }
+
   def remoteEdgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
     if(printing) println(s"Received Remote Edge Removal with properties for $srcId --> $dstId from ${getManager(srcId)}. Edge already exists so just updating")
     if(!(vertices contains dstId)){ //check if the destination node exists, if it does not create it and wipe the history
@@ -319,11 +340,10 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
     edges(srcId,dstId) killList dstDeaths
   }
 
-
   //***************** EDGE HELPERS
   def checkDst(dstID:Int):Boolean = if(dstID%managerCount==childID) true else false //check if destination is also local
-  def getPartition(ID:Int):Int = ID%managerCount//get the partition a vertex is stored in
 
+  def getPartition(ID:Int):Int = ID%managerCount//get the partition a vertex is stored in
 
   //*******************PRINT BLOCK
   def printToFile(entityName:String,msg: String):Unit={
@@ -348,7 +368,10 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
   //*******************END PRINT BLOCK
 
   def edgeUpdateWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit= edgeAddWithProperties(msgId,srcId,dstId,properties)
+
   def vertexUpdateProperties(msgId:Int,srcId:Int,properties:Map[String,String]):Unit = vertexAddWithProperties(msgId,srcId,properties)
+
   def remoteEdgeUpdateWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit= remoteEdgeAddWithProperties(msgId,srcId,dstId,properties)
+
   def getManager(srcId:Int):String = s"/user/Manager_${srcId % managerCount}"
 }

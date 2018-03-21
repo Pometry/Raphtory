@@ -5,9 +5,10 @@ import java.util.Calendar
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass._
+import kamon.Kamon
 import spray.json._
-import scala.concurrent.ExecutionContext.Implicits.global
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, SECONDS}
 
 /**
@@ -35,13 +36,17 @@ class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
   override def receive: Receive = {
     case "tick" => {
       mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkRouter(count),false)
-      count=0
+      // TODO put router ID here
+      Kamon.histogram("raphtory.router").record(count)
+      count = 0
     }
     case command:String => try{parseJSON(command)}catch {case e: Exception => println(e)}
     case _ => println("message not recognized!")
   }
   def parseJSON(command:String):Unit={
-    count+=1
+    count += 1
+    Kamon.counter("raphtory.routerCounter").increment()
+
     //println(s"received command: \n $command")
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
