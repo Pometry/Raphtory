@@ -6,7 +6,6 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass._
 import com.gwz.dockerexp.GraphEntities._
 import akka.event.Logging
-import kamon.Kamon
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

@@ -5,6 +5,7 @@ import java.net.InetAddress
 import com.gwz.dockerexp.caseclass.clustercase._
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
+import kamon.system.SystemMetrics
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.retry.ExponentialBackoffRetry
 import org.slf4j.LoggerFactory;
@@ -87,6 +88,7 @@ object Go extends App {
   //https://blog.knoldus.com/2014/08/29/how-to-setup-and-use-zookeeper-in-scala-using-apache-curator/
 
   def prometheusReporter() = {
+    SystemMetrics.startCollecting()
     Kamon.addReporter(new PrometheusReporter())
   }
 
