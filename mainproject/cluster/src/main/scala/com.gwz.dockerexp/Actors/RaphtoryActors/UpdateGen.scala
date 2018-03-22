@@ -20,10 +20,11 @@ import scala.util.Random
 class UpdateGen(managerCount:Int) extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  var totalCount =10000
-  var currentMessage = 0
-  var previousMessage =0
-  var safe = true
+  var totalCount      = 1000
+  var currentMessage  = 0
+  var previousMessage = 0
+  var safe            = true
+
   if(!new java.io.File("CurrentMessageNumber.txt").exists) storeRunNumber(0) //check if there is previous run which has created messages, fi not create file
   else for (line <- Source.fromFile("CurrentMessageNumber.txt").getLines()) {currentMessage = line.toInt} //otherwise read previous number
 
@@ -52,11 +53,13 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
   def running() : Unit = {
     genRandomCommands(totalCount)
     println(s"${Calendar.getInstance().getTime}:$totalCount")
-    totalCount+=1000
+    //totalCount+=1000
   }
 
   def benchmark():Unit={
-    mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkUpdater(currentMessage-previousMessage),false)
+    val diff = currentMessage - previousMessage
+    mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkUpdater(diff),false)
+    kGauge.refine("actor" -> "Updater", "name" -> "diff").set(diff)
     previousMessage = currentMessage
   }
 

@@ -42,30 +42,30 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
     //if(printing)
       //println(messageCount)
     mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkPartitionManager(id,messageCount,secondaryMessageCount),false)
-    messageCount = 0
-    secondaryMessageCount =0
-    messageBlockID=messageBlockID+1
-    // TODO Put the partition manager Id\
-    Kamon.histogram("raphtory.partitionManager.messageCount").record(messageCount, messageBlockID)
-    Kamon.histogram("raphtory.partitionManager.secondaryMessageCount").record(secondaryMessageCount, messageBlockID)
+    // TODO Put the partition manager Id
+    kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount").set(messageCount)
+    messageCount          = 0
+    secondaryMessageCount = 0
+    messageBlockID        = messageBlockID + 1
+
     profile()
   }
 
   def vHandle(srcID:Int) : Unit = {
     messageCount = messageCount + 1
-    Kamon.counter("raphtory.partitionManager.messageCounter").increment()
+    kCounter.refine("actor" -> "PartitionManager", "name" -> "messageCounter").increment()
     log(srcID)
   }
 
   def vHandleSecondary(srcID:Int) : Unit = {
     secondaryMessageCount = secondaryMessageCount + 1
     log(srcID)
-    Kamon.counter("raphtory.partitionManager.secondaryMessageCounter").increment()
+    kCounter.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCounter").increment()
 
   }
   def eHandle(srcID:Int,dstID:Int) : Unit = {
     messageCount=messageCount+1
-    Kamon.counter("raphtory.partitionManager.messageCounter").increment()
+    kCounter.refine("actor" -> "PartitionManager", "name" -> "messageCounter").increment()
     log(srcID,dstID)
     log(srcID)
     log(dstID)
@@ -73,7 +73,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
 
   def eHandleSecondary(srcID:Int,dstID:Int) : Unit = {
     secondaryMessageCount = secondaryMessageCount + 1
-    Kamon.counter("raphtory.partitionManager.secondaryMessageCounter").increment()
+    kCounter.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCounter").increment()
     log(srcID,dstID)
     log(srcID)
     log(dstID)
