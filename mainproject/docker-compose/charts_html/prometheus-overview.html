@@ -1,19 +1,31 @@
 {{ template "head" . }}
 <style>
-.prom_lhs_menu, .navbar {
-    display:none;
-}
+    .prom_lhs_menu, .navbar {
+        display:none;
+    }
 
-.chart {
-    margin-top: 100px;
-}
+    .chart {
+        margin-top: 100px;
+    }
 
-body, html {
-    overflow-x: hidden;
-}
-
+    body, html {
+        overflow-x: hidden;
+    }
 </style>
+
 <div class="container-fluid">
+    <div class="row">
+        <div class="col-sm-12 text-center">
+            <h4>Select the test:</h4> <br/>
+            <a href="http://moe.eecs.qmul.ac.uk:8888/consoles/prometheus-overview.html?t=180s"> Latest </a>
+        </div>
+        <div id="json-div" class="col-sm-12 text-center">
+            <h5>Export to json (Current test):</h5>
+            <div id="json-links">
+            </div>
+        </div>
+    </div>
+
     <div class="row">
         <div id="mailbox-size" class="chart col-sm-12"></div>
         <div id="time-in-mailbox" class="chart col-sm-4"></div>
@@ -29,29 +41,61 @@ body, html {
 </div>
 
 <script>
+    function generateLink(query) {
+        uri = window.location.origin + "/api/v1/query_range?query=" +
+        encodeURIComponent(query);
+        duration = '3600';
+        {{ if .Params.duration }}
+            duration = {{ .Params.duration }};
+        {{ end }}
+        endTime = Math.floor(new Date() / 1000);
+        {{ if .Params.endTime }}
+            endTime = '{{ .Params.endTime }}';
+        {{ end }}
+        uri += "&step=1" + "&start=" + 
+            (endTime - duration) + "&end=" + endTime;
+        return uri;
+    }
+
     function generate(query, id, yTitle, yUnits) {
         new PromConsole.Graph({
-          node: document.querySelector(id),
-          expr: query,
-          yAxisFormatter: PromConsole.NumberFormatter.humanizeNoSmallPrefix,
-          yHoverFormatter: PromConsole.NumberFormatter.humanizeNoSmallPrefix,
-          yUnits: yUnits,
-          yTitle: yTitle
+            node: document.querySelector("#" + id),
+            expr: query,
+            yAxisFormatter: PromConsole.NumberFormatter.humanizeNoSmallPrefix,
+            yHoverFormatter: PromConsole.NumberFormatter.humanizeNoSmallPrefix,
+            yUnits: yUnits,
+            yTitle: yTitle,
+            {{ if .Params.duration }}duration: '{{ .Params.duration }}',{{ end }}
+            {{ if .Params.endTime  }}endTime:  '{{ .Params.endTime  }}'{{ end }}
         })
+        document.getElementById("json-links")
+            .insertAdjacentHTML('beforeend', '<a href="' + generateLink(query) + '" target="_blank">' + id + '</a> -- ');
     }
-    generate("rate(akka_actor_mailbox_size_sum[180s]) /  rate(akka_actor_mailbox_size_count[180s])",
-        "#mailbox-size",
-        "Messages");
-    generate("rate(akka_actor_time_in_mailbox_seconds_sum[180s]) /  rate(akka_actor_time_in_mailbox_seconds_count[180s])", "#time-in-mailbox", "Time in the mailbox", "seconds");
-    generate("rate(akka_actor_processing_time_seconds_sum[180s]) /  rate(akka_actor_processing_time_seconds_count[180s])", "#processing-time", "Actor processing time", "seconds")
-    generate("akka_system_dead_letters_total", "#dead-letters", "Dead letters")
-    generate("raphtory_benchmarker", "#raphtory-benchmarker", "Benchmarker 'old' metrics");
-    generate("rate(host_cpu_sum[120s]) /  rate(host_cpu_count[120s])",
-        "#host-cpu", "CPU Usage", "%");
-    generate("rate(host_memory_bytes_sum[120s]) /  rate(host_memory_bytes_count[120s])", "#host-memory", "Containers memory usages", "Bytes")
-    generate("raphtory_heap_instances", "#heap-instances", "Heap", "Instances");
-    generate("raphtory_heap_bytes_bytes", "#heap-memory", "Heap", "Bytes");
-    generate("rate(host_load_average_sum[120s]) /  rate(host_load_average_count[120s])", "#load-average", "Load average");
+    {{ if .Params.t }}
+        // Queries
+        mailboxSize    = "rate(akka_actor_mailbox_size_sum[{{ .Params.t }}]) /  rate(akka_actor_mailbox_size_count[{{ .Params.t }}])";
+        timeInMailbox  = "rate(akka_actor_time_in_mailbox_seconds_sum[{{ .Params.t }}]) /  rate(akka_actor_time_in_mailbox_seconds_count[{{ .Params.t }}])";
+        processingTime = "rate(akka_actor_processing_time_seconds_sum[{{ .Params.t }}]) /  rate(akka_actor_processing_time_seconds_count[{{ .Params.t }}])";
+        deadLetters    = "akka_system_dead_letters_total";
+        benchmarker    = "raphtory_benchmarker";
+        cpuUsage       = "rate(host_cpu_sum[{{ .Params.t }}]) /  rate(host_cpu_count[{{ .Params.t }}])";
+        memUsage       = "rate(jvm_memory_bytes_sum[{{ .Params.t }}]) /  rate(jvm_memory_bytes_count[{{ .Params.t }}])";
+        heapInstances  = "raphtory_heap_instances";
+        heapMemory     = "raphtory_heap_bytes_bytes";
+        loadAverage    = "rate(host_load_average_sum[{{ .Params.t }}]) /  rate(host_load_average_count[{{ .Params.t }}])"
+
+        // Charts
+        generate(mailboxSize,    "mailbox-size",         "Messages");
+        generate(timeInMailbox,  "time-in-mailbox",      "Time in the mailbox",   "seconds");
+        generate(processingTime, "processing-time",      "Actor processing time", "seconds")
+        generate(deadLetters,    "dead-letters",         "Dead letters")
+        generate(benchmarker,    "raphtory-benchmarker", "Benchmarker 'old' metrics");
+        generate(cpuUsage,       "host-cpu",             "CPU Usage", "%");
+        generate(memUsage,       "host-memory",          "Containers memory usages", "Bytes")
+        generate(heapInstances,  "heap-instances",       "Heap", "Instances");
+        generate(heapMemory,     "heap-memory",          "Heap", "Bytes");
+        generate(loadAverage,    "load-average",         "Load average");
+    {{ end }}
 </script>
 
 {{ template "tail" }}
