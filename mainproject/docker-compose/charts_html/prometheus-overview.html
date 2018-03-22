@@ -1,0 +1,57 @@
+{{ template "head" . }}
+<style>
+.prom_lhs_menu, .navbar {
+    display:none;
+}
+
+.chart {
+    margin-top: 100px;
+}
+
+body, html {
+    overflow-x: hidden;
+}
+
+</style>
+<div class="container-fluid">
+    <div class="row">
+        <div id="mailbox-size" class="chart col-sm-12"></div>
+        <div id="time-in-mailbox" class="chart col-sm-4"></div>
+        <div id="processing-time" class="chart col-sm-4"></div>
+        <div id="dead-letters" class="chart col-sm-4"></div>
+        <div id="raphtory-benchmarker" class="chart col-sm-12"></div>
+        <div id="host-memory" class="chart col-sm-12"></div>
+        <div id="host-cpu" class="chart col-sm-12"></div>
+        <div id="heap-instances" class="chart col-sm-6"></div>
+        <div id="heap-memory" class="chart col-sm-6"></div>
+        <div id="load-average" class="chart col-sm-12"></div>
+    </div>
+</div>
+
+<script>
+    function generate(query, id, yTitle, yUnits) {
+        new PromConsole.Graph({
+          node: document.querySelector(id),
+          expr: query,
+          yAxisFormatter: PromConsole.NumberFormatter.humanizeNoSmallPrefix,
+          yHoverFormatter: PromConsole.NumberFormatter.humanizeNoSmallPrefix,
+          yUnits: yUnits,
+          yTitle: yTitle
+        })
+    }
+    generate("rate(akka_actor_mailbox_size_sum[180s]) /  rate(akka_actor_mailbox_size_count[180s])",
+        "#mailbox-size",
+        "Messages");
+    generate("rate(akka_actor_time_in_mailbox_seconds_sum[180s]) /  rate(akka_actor_time_in_mailbox_seconds_count[180s])", "#time-in-mailbox", "Time in the mailbox", "seconds");
+    generate("rate(akka_actor_processing_time_seconds_sum[180s]) /  rate(akka_actor_processing_time_seconds_count[180s])", "#processing-time", "Actor processing time", "seconds")
+    generate("akka_system_dead_letters_total", "#dead-letters", "Dead letters")
+    generate("raphtory_benchmarker", "#raphtory-benchmarker", "Benchmarker 'old' metrics");
+    generate("rate(host_cpu_sum[120s]) /  rate(host_cpu_count[120s])",
+        "#host-cpu", "CPU Usage", "%");
+    generate("rate(host_memory_bytes_sum[120s]) /  rate(host_memory_bytes_count[120s])", "#host-memory", "Containers memory usages", "Bytes")
+    generate("raphtory_heap_instances", "#heap-instances", "Heap", "Instances");
+    generate("raphtory_heap_bytes_bytes", "#heap-memory", "Heap", "Bytes");
+    generate("rate(host_load_average_sum[120s]) /  rate(host_load_average_count[120s])", "#load-average", "Load average");
+</script>
+
+{{ template "tail" }}

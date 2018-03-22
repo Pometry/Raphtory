@@ -6,6 +6,9 @@ services:
         build: prometheus/
         ports:
             - 8888:9090
+        volumes:
+            - prometheus_data:/prometheus
+            - ./charts_html:/usr/share/prometheus/consoles
 
     #### runZoo ####
     zooKeeper:
@@ -146,3 +149,6 @@ services:
                 delay: "0"
             restart_policy:
                 condition: on-failure
+
+volumes:
+    prometheus_data:
