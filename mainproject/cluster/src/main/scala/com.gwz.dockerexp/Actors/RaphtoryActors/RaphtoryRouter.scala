@@ -31,12 +31,11 @@ class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
   var count = 0
 
   override def preStart() {
-    context.system.scheduler.schedule(Duration(10, SECONDS),Duration(10, SECONDS),self,"tick")
+    context.system.scheduler.schedule(Duration(1, SECONDS),Duration(2, SECONDS),self,"tick")
   }
 
   override def receive: Receive = {
     case "tick" => {
-      mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkRouter(count),false)
       // TODO put router ID here
       kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
       count = 0

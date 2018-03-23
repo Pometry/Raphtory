@@ -42,6 +42,7 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 	val kamon						= "io.kamon"					 %% "kamon-core"					% "1.1.0"
 	val kamon_prometheus= "io.kamon"					 %% "kamon-prometheus"		% "1.0.0"
   val kamon_akka      = "io.kamon"					 %% "kamon-akka-2.5"		  % "1.0.1"
+	val kamon_system 		= "io.kamon" 					 %% "kamon-system-metrics"% "1.0.0"
 	val kamon_repos     = Seq(Resolver.bintrayRepo("kamon-io", "snapshots"))
 
 
@@ -83,7 +84,7 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 			dep_compile(
 				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools,
 				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
-				kamon, kamon_akka, kamon_prometheus)
+				kamon, kamon_akka, kamon_prometheus, kamon_system)
 		)
 	  	.settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
