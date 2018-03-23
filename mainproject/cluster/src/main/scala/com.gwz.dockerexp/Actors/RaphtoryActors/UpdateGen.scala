@@ -31,7 +31,7 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     println("Prestarting")
     context.system.scheduler.schedule(Duration(2, SECONDS),Duration(5, SECONDS),self,"random")
-    context.system.scheduler.schedule(Duration(10, SECONDS),Duration(10, SECONDS),self,"benchmark")
+    context.system.scheduler.schedule(Duration(1, SECONDS),Duration(2, SECONDS),self,"benchmark")
   }
 
   //************* MESSAGE HANDLING BLOCK
@@ -58,7 +58,6 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
 
   def benchmark():Unit={
     val diff = currentMessage - previousMessage
-    mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkUpdater(diff),false)
     kGauge.refine("actor" -> "Updater", "name" -> "diff").set(diff)
     previousMessage = currentMessage
   }

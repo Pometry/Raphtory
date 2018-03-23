@@ -34,20 +34,23 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
   mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
-    context.system.scheduler.schedule(Duration(1, SECONDS),Duration(10, SECONDS),self,"tick")
+    context.system.scheduler.schedule(Duration(1, SECONDS),
+      Duration(2, SECONDS),
+      self,
+      "tick")
   }
 
   def reportIntake(): Unit ={
     //if(printing)
       //println(messageCount)
-    mediator ! DistributedPubSubMediator.Send("/user/benchmark",BenchmarkPartitionManager(id,messageCount,secondaryMessageCount),false)
     // TODO Put the partition manager Id
     kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount").set(messageCount)
+    kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount").set(secondaryMessageCount)
+    profile()
+
     messageCount          = 0
     secondaryMessageCount = 0
     messageBlockID        = messageBlockID + 1
-
-    profile()
   }
 
   def vHandle(srcID:Int) : Unit = {

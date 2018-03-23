@@ -43,23 +43,23 @@ services:
             - BIND_PORT=9101
             - HOST_PORT=9101
             - HOST_IP=raphtory_rest_1
-    benchmarker:
-        image: miratepuffin/raphtory
-        depends_on: 
-            - seedNode
-        ports: 
-            - 9104:9104
-        command: benchmark $NUMBER_OF_PARTITIONS $ZOOKEEPER
-        environment:
-            # Are both the variables used?
-            - BIND_PORT=9104
-            - HOST_PORT=9105
-            # TODO the line below should be redundant
-            - HOST_IP=raphtory_benchmarker_1
+#    benchmarker:
+#        image: miratepuffin/raphtory
+#        depends_on: 
+#            - seedNode
+#        ports: 
+#            - 9104:9104
+#        command: benchmark $NUMBER_OF_PARTITIONS $ZOOKEEPER
+#        environment:
+#            # Are both the variables used?
+#            - BIND_PORT=9104
+#            - HOST_PORT=9105
+#            # TODO the line below should be redundant
+#            - HOST_IP=raphtory_benchmarker_1
     lam:
         image: miratepuffin/raphtory
         depends_on: 
-            - benchmarker
+            - rest
         ports:
             - 9105:9105
         command: LiveAnalysisManager $NUMBER_OF_PARTITIONS $ZOOKEEPER $LAM_NAME

@@ -38,10 +38,6 @@ object Go extends App {
       UpdateNode(getConf(args(2)), args(1))
     }
 
-    case "benchmark" => {
-      println("Creating benchmarker")
-      BenchmarkNode(getConf(args(2)), args(1))
-    }
     case "LiveAnalysisManager" => {
       println("Creating Live Analysis Manager")
       LiveAnalysisNode(getConf(args(2)), args(1),args(3))
