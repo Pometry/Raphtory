@@ -31,7 +31,6 @@ def seedports(file):
 	#PORT BLOCK
 	file.write("SeedPort=9101 \n")
 	file.write("RestPort=9102 \n")
-	file.write("BenchmarkPort=9104 \n \n")
 	file.write("LiveAnalysisPort=9105 \n \n")
 
 
@@ -95,11 +94,6 @@ def dockerblock(file):
 	file.write("sleep 1 \n")
 	file.write("echo \"REST API node up and running at $IP:$RestPort\" \n \n")
 
-	#benchmark node
-	file.write("(docker run --name=\"benchmarker\"  -p $BenchmarkPort:$BenchmarkPort  --rm -e \"BIND_PORT=$BenchmarkPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$BenchmarkPort\" $Image benchmark $NumberOfPartitions $ZooKeeper &) 2>&1 > logs/"+file.name[:len(file.name)-3]+"/benchmark.txt \n")
-	file.write("sleep 1 \n")
-	file.write("echo \"Benchmarker up and running at $IP:$BenchmarkPort\" \n \n")
-	
 	#live analysis manager
 	file.write("(docker run --name=\"lam\"  -p $LiveAnalysisPort:$LiveAnalysisPort  --rm -e \"BIND_PORT=$LiveAnalysisPort\" -e \"HOST_IP=$IP\" -e \"HOST_PORT=$LiveAnalysisPort\" $Image LiveAnalysisManager $NumberOfPartitions $ZooKeeper $LAMName &) 2>&1 > logs/"+file.name[:len(file.name)-3]+"/LiveAnalysisManager.txt \n")
 	file.write("sleep 1 \n")
