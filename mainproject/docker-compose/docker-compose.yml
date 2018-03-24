@@ -7,7 +7,7 @@ services:
         ports:
             - 8888:9090
         volumes:
-            - prometheus_data:/prometheus
+            - ./prometheus_data:/prometheus
             - ./charts_html:/usr/share/prometheus/consoles
 
     #### runZoo ####

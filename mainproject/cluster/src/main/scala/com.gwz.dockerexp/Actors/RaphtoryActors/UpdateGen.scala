@@ -20,7 +20,7 @@ import scala.util.Random
 class UpdateGen(managerCount:Int) extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  var totalCount      = 1000
+  var totalCount      = 50
   var currentMessage  = 0
   var previousMessage = 0
   var safe            = true
@@ -30,8 +30,8 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     println("Prestarting")
-    context.system.scheduler.schedule(Duration(2, SECONDS),Duration(5, SECONDS),self,"random")
-    context.system.scheduler.schedule(Duration(1, SECONDS),Duration(2, SECONDS),self,"benchmark")
+    context.system.scheduler.schedule(Duration(3, SECONDS), Duration(1, SECONDS), self,"random")
+    context.system.scheduler.schedule(Duration(7, SECONDS), Duration(2, SECONDS), self,"benchmark")
   }
 
   //************* MESSAGE HANDLING BLOCK
@@ -136,12 +136,11 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
     currentMessage+=1
     s""" {"VertexRemoval":{${getMessageID()}, ${genSrcID()}}}"""
   }
+
   def genVertexRemoval(src:Int):String={
     currentMessage+=1
     s""" {"VertexRemoval":{${getMessageID()}, ${genSrcID(src)}}}"""
   }
-
-
 
   def genEdgeAdd():String={
     currentMessage+=1
