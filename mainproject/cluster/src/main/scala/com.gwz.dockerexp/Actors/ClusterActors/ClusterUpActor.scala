@@ -3,9 +3,7 @@ package com.gwz.dockerexp.Actors.ClusterActors
 /**
   * Created by Mirate on 11/07/2017.
   */
-import java.util.{Calendar, Date}
-
-import akka.actor.{Actor, ActorRef}
+import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 
 import scala.concurrent.ExecutionContext.Implicits.global

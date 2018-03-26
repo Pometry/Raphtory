@@ -1,13 +1,7 @@
 package com.gwz.dockerexp.Actors.ClusterActors
 
 import akka.actor.{ActorSystem, ExtendedActorSystem}
-import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
-import akka.stream.scaladsl.{Flow, Sink, Source}
-
-import scala.concurrent.{Await, Future}
-import com.gwz.dockerexp.Actors.ClusterActors._
 import com.gwz.dockerexp.IpAndPort
-import com.gwz.dockerexp.caseclass.clustercase.{RestNode, SeedNode}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 import scala.collection.JavaConversions

@@ -5,8 +5,6 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods._
 import akka.http.scaladsl.model.{HttpResponse, _}
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
 import akka.util.Timeout
 import com.gwz.dockerexp.Actors.ClusterActors.{ClusterActor, DocSvr}
 import com.typesafe.config.ConfigFactory

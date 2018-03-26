@@ -1,8 +1,5 @@
 package com.gwz.dockerexp
 
-import java.net._
-import java.io._
-import scala.util.Try
 
 
 object IpPort {

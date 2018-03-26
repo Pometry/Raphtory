@@ -7,7 +7,6 @@ import java.util.Calendar
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.gwz.dockerexp.caseclass.BenchmarkUpdater
 import kamon.Kamon
 
 import scala.concurrent.duration._
@@ -20,7 +19,7 @@ import scala.util.Random
 class UpdateGen(managerCount:Int) extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  var totalCount      = 1000
+  var totalCount      = 1
   var currentMessage  = 0
   var previousMessage = 0
   var safe            = true
