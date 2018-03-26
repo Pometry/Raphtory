@@ -32,10 +32,10 @@ abstract class RaphtoryActor extends Actor {
   def getHeap():Array[HashMap[String,String]]={
     val PID = ManagementFactory.getRuntimeMXBean().getName().split("@")(0)
     val rawHisto = (s"jmap -histo $PID" !!).split("\n").drop(3)
-    rawHisto.take(20).map(x => (x.trim.split("\\s+"))).foreach(x=> {
+    /*rawHisto.take(20).map(x => (x.trim.split("\\s+"))).foreach(x=> {
       instancesGauge.refine("name" -> x(3)).set(x(1).toLong)
       bytesGauge.refine("name" -> x(3)).set(x(2).toLong)
-    })
+    })*/
     rawHisto.take(20).map(x => (x.trim.split("\\s+"))).map(x=> HashMap[String,String](("name",x(3)),("instances",x(1)),("bytes",x(2))))
 
   }
@@ -45,6 +45,10 @@ abstract class RaphtoryActor extends Actor {
   def getLiveHeap():Array[HashMap[String,String]]={
     val PID = ManagementFactory.getRuntimeMXBean().getName().split("@")(0)
     val rawHisto = (s"jmap -histo:live $PID" !!).split("\n").drop(3)
+    rawHisto.take(20).map(x => (x.trim.split("\\s+"))).foreach(x=> {
+      instancesGauge.refine("name" -> x(3)).set(x(1).toLong)
+      bytesGauge.refine("name" -> x(3)).set(x(2).toLong)
+    })
     rawHisto.take(20).map(x => (x.trim.split("\\s+"))).map(x=> HashMap[String,String](("name",x(3)),("instances",x(1)),("bytes",x(2))))
   }
 

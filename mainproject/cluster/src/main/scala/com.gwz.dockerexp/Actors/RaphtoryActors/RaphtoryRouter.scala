@@ -1,8 +1,6 @@
 package com.gwz.dockerexp.Actors.RaphtoryActors
 
-import java.util.Calendar
 
-import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass._
 import kamon.Kamon

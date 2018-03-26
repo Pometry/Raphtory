@@ -7,8 +7,10 @@ import com.gwz.dockerexp.caseclass._
 import com.gwz.dockerexp.GraphEntities._
 import akka.event.Logging
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
 /**
   * The graph partition manages a set of vertices and there edges
   * Is sent commands which have been processed by the command Processor
@@ -36,19 +38,20 @@ class PartitionManager(id : Int, test : Boolean, managerCount : Int) extends Rap
   override def preStart() {             // set up partition to report how many messages it has processed in the last X seconds
     context.system.scheduler.schedule(Duration(7, SECONDS),
       Duration(2, SECONDS), self, "tick")
+        context.system.scheduler.schedule(Duration(13, SECONDS),
+      Duration(5, MINUTES), self, "profile")
   }
 
   def reportIntake() : Unit = {
     if(printing)
       println(messageCount)
-
     // TODO Put the partition manager Id
     // Kamon monitoring
     kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount").set(messageCount)
     kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount").set(secondaryMessageCount)
 
     // Heap benchmarking
-    profile()
+    //profile()
 
     // Set counters
     messageCount          = 0
@@ -86,6 +89,8 @@ class PartitionManager(id : Int, test : Boolean, managerCount : Int) extends Rap
   override def receive : Receive = {
 
     case "tick" => reportIntake()
+    case "profile" => profile()
+
     case LiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name, Results(analyser.analyse(vertices,edges)), false)
 
     case VertexAdd(msgId,srcId) => vertexAdd(msgId,srcId); vHandle(srcId)
@@ -118,6 +123,7 @@ class PartitionManager(id : Int, test : Boolean, managerCount : Int) extends Rap
       vertices = vertices updated(srcId, new Vertex(msgId, srcId, true))
     else                              // if it does exist, store the add in the vertex state
       vertices(srcId) revive msgId
+
     if (printing)
       println(s"Received a Vertex Add for $srcId")
   }
