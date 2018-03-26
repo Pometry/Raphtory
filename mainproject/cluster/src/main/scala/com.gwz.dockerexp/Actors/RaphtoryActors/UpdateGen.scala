@@ -30,8 +30,8 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     println("Prestarting")
-    context.system.scheduler.schedule(Duration(2, SECONDS),Duration(5, SECONDS),self,"random")
-    context.system.scheduler.schedule(Duration(1, SECONDS),Duration(2, SECONDS),self,"benchmark")
+    context.system.scheduler.schedule(Duration(3, SECONDS), Duration(1, SECONDS), self,"random")
+    context.system.scheduler.schedule(Duration(7, SECONDS), Duration(2, SECONDS), self,"benchmark")
   }
 
   //************* MESSAGE HANDLING BLOCK
@@ -62,22 +62,21 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
     previousMessage = currentMessage
   }
 
-  def genRandomCommands(number:Int):Unit={
+  def genRandomCommands(number : Int) : Unit = {
     var commandblock = ""
-    for (i <- 0 until number){
+    for (i <- 0 until number) {
+
       val random = Random.nextFloat()
       var command = ""
-      if(random<=0.2) command =genVertexAdd()
-      else if(random<=0.4) command = genVertexAdd()
+
+      if      (random <= 0.4) command = genVertexAdd()
+      else if (random <= 0.7) command = genEdgeAdd()
+      else if (random <= 0.8) command = genEdgeAdd()
+      else                    command = genEdgeRemoval()
       //else if(random<=0.5) command = genVertexRemoval()
-      else if(random<=0.7) command = genEdgeAdd()
-      else if(random<=0.8) command = genEdgeAdd()
-      else                 command = genEdgeRemoval()
 
       mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
-
       Kamon.counter("raphtory.updateGen.commandsSent").increment()
-      //commandblock = s"$commandblock $command \n"
     }
 
   }
@@ -136,12 +135,11 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
     currentMessage+=1
     s""" {"VertexRemoval":{${getMessageID()}, ${genSrcID()}}}"""
   }
+
   def genVertexRemoval(src:Int):String={
     currentMessage+=1
     s""" {"VertexRemoval":{${getMessageID()}, ${genSrcID(src)}}}"""
   }
-
-
 
   def genEdgeAdd():String={
     currentMessage+=1
