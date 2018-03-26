@@ -1,8 +1,6 @@
 package com.gwz.dockerexp.Actors.RaphtoryActors
 
-import java.util.Calendar
 
-import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.gwz.dockerexp.caseclass._
 import kamon.Kamon
@@ -31,7 +29,7 @@ class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
   var count = 0
 
   override def preStart() {
-    context.system.scheduler.schedule(Duration(1, SECONDS),Duration(2, SECONDS),self,"tick")
+    context.system.scheduler.schedule(Duration(7, SECONDS),Duration(2, SECONDS),self,"tick")
   }
 
   override def receive: Receive = {
@@ -62,19 +60,20 @@ class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
   def vertexAdd(command:JsObject):Unit = {
    // println("Inside add")
     val msgId = command.fields("messageID").toString().toInt
-    val srcId = command.fields("srcID").toString().toInt //extract the srcID
-    if(command.fields.contains("properties")){ //if there are properties within the command
-    var properties = Map[String,String]() //create a vertex map
-      command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
-        properties = properties updated (pair._1,pair._2.toString())
+    val srcId = command.fields("srcID").toString().toInt                 //extract the srcID
+    if(command.fields.contains("properties")) {                          //if there are properties within the command
+      var properties = Map[String,String]()                              //create a vertex map
+      command.fields("properties").asJsObject.fields.foreach( pair => {  //add all of the pairs to the map
+        properties = properties updated (pair._1, pair._2.toString())
       })
-      mediator ! DistributedPubSubMediator.Send(getManager(srcId),VertexAddWithProperties(msgId,srcId,properties),false)  //send the srcID and properties to the graph manager
-     // println(s"sending vertex add $srcId to Manager 1")
+      //send the srcID and properties to the graph manager
+      mediator ! DistributedPubSubMediator.Send(getManager(srcId),VertexAddWithProperties(msgId,srcId,properties),false)
+      // println(s"sending vertex add $srcId to Manager 1")
     }
     else {
       mediator ! DistributedPubSubMediator.Send(getManager(srcId),VertexAdd(msgId,srcId),false)
-    //  println(s"sending vertex add $srcId to Manager 1")
-    } //if there are not any properties, just send the srcID
+      // println(s"sending vertex add $srcId to Manager 1")
+    } // if there are not any properties, just send the srcID
   }
 
   def vertexUpdateProperties(command:JsObject):Unit={

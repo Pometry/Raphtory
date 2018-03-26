@@ -7,8 +7,10 @@ import com.gwz.dockerexp.caseclass._
 import com.gwz.dockerexp.GraphEntities._
 import akka.event.Logging
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
 /**
   * The graph partition manages a set of vertices and there edges
   * Is sent commands which have been processed by the command Processor
@@ -16,64 +18,67 @@ import scala.concurrent.duration._
   * */
 
 //need to work out why the return death is happening multiple times
+class PartitionManager(id : Int, test : Boolean, managerCount : Int) extends RaphtoryActor{
+  val childID  = id                     //ID which refers to the partitions position in the graph manager map
+  var vertices = Map[Int,Vertex]()      // Map of Vertices contained in the partition
+  var edges    = Map[(Int,Int),Edge]()  // Map of Edges contained in the partition
 
-class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryActor{
-  val childID = id  //ID which refers to the partitions position in the graph manager map
-  var vertices = Map[Int,Vertex]() // Map of Vertices contained in the partition
-  var edges = Map[(Int,Int),Edge]() // Map of Edges contained in the partition
+  val loggger  = Logging(context.system, this)
+  val printing = false                  //should the handled messages be printed to terminal
+  val logging  = false                  // should the state of the vertex/edge map be output to file
 
-  val loggger = Logging(context.system, this)
-  val printing= false //should the handled messages be printed to terminal
-  val logging = false // should the state of the vertex/edge map be output to file
-  var messageCount = 0 //number of messages processed since last report to the benchmarker
+  var messageCount          = 0         // number of messages processed since last report to the benchmarker
   var secondaryMessageCount = 0
-  var messageBlockID = 0 //id of current message block to syncronise times across partition managers
-  val secondaryCounting = false //count all messages or just main incoming ones
+  var messageBlockID        = 0         // id of current message block to syncronise times across partition managers
+  val secondaryCounting     = false     // count all messages or just main incoming ones
 
-  val mediator = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
+  val mediator              = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
 
-  override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
-    context.system.scheduler.schedule(Duration(1, SECONDS),
-      Duration(2, SECONDS),
-      self,
-      "tick")
+  override def preStart() {             // set up partition to report how many messages it has processed in the last X seconds
+    context.system.scheduler.schedule(Duration(7, SECONDS),
+      Duration(2, SECONDS), self, "tick")
+        context.system.scheduler.schedule(Duration(13, SECONDS),
+      Duration(5, MINUTES), self, "profile")
   }
 
-  def reportIntake(): Unit ={
-    //if(printing)
-      //println(messageCount)
+  def reportIntake() : Unit = {
+    if(printing)
+      println(messageCount)
     // TODO Put the partition manager Id
+    // Kamon monitoring
     kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount").set(messageCount)
     kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount").set(secondaryMessageCount)
-    profile()
 
+    // Heap benchmarking
+    //profile()
+
+    // Set counters
     messageCount          = 0
     secondaryMessageCount = 0
     messageBlockID        = messageBlockID + 1
   }
 
-  def vHandle(srcID:Int) : Unit = {
+  def vHandle(srcID : Int) : Unit = {
     messageCount = messageCount + 1
     kCounter.refine("actor" -> "PartitionManager", "name" -> "messageCounter").increment()
     log(srcID)
   }
 
-  def vHandleSecondary(srcID:Int) : Unit = {
+  def vHandleSecondary(srcID : Int) : Unit = {
     secondaryMessageCount = secondaryMessageCount + 1
-    log(srcID)
     kCounter.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCounter").increment()
-
+    log(srcID)
   }
-  def eHandle(srcID:Int,dstID:Int) : Unit = {
-    messageCount=messageCount+1
+  def eHandle(srcID : Int, dstID : Int) : Unit = {
+    messageCount = messageCount + 1
     kCounter.refine("actor" -> "PartitionManager", "name" -> "messageCounter").increment()
-    log(srcID,dstID)
+    log(srcID, dstID)
     log(srcID)
     log(dstID)
   }
 
-  def eHandleSecondary(srcID:Int,dstID:Int) : Unit = {
+  def eHandleSecondary(srcID : Int, dstID : Int) : Unit = {
     secondaryMessageCount = secondaryMessageCount + 1
     kCounter.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCounter").increment()
     log(srcID,dstID)
@@ -81,10 +86,12 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
     log(dstID)
   }
 
-  override def receive: Receive = {
+  override def receive : Receive = {
 
     case "tick" => reportIntake()
-    case LiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name,Results(analyser.analyse(vertices,edges)),false)
+    case "profile" => profile()
+
+    case LiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name, Results(analyser.analyse(vertices,edges)), false)
 
     case VertexAdd(msgId,srcId) => vertexAdd(msgId,srcId); vHandle(srcId)
     case VertexAddWithProperties(msgId,srcId,properties) => vertexAddWithProperties(msgId,srcId,properties); vHandle(srcId);
@@ -111,47 +118,58 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
 
   }
 
-  def vertexAdd(msgId:Int,srcId:Int): Unit ={ //Vertex add handler function
-    if(!(vertices contains srcId))vertices = vertices updated(srcId,new Vertex(msgId,srcId,true)) //if the vertex doesn't already exist, create it and add it to the vertex map
-    else vertices(srcId) revive msgId //if it does exist, store the add in the vertex state
-    if(printing) println(s"Received a Vertex Add for $srcId")
+  def vertexAdd(msgId : Int, srcId : Int) : Unit = { //Vertex add handler function
+    if (!(vertices contains srcId))   // if the vertex doesn't already exist, create it and add it to the vertex map
+      vertices = vertices updated(srcId, new Vertex(msgId, srcId, true))
+    else                              // if it does exist, store the add in the vertex state
+      vertices(srcId) revive msgId
+
+    if (printing)
+      println(s"Received a Vertex Add for $srcId")
   }
 
-  def vertexAddWithProperties(msgId:Int,srcId:Int, properties:Map[String,String]):Unit ={
+  def vertexAddWithProperties(msgId : Int,srcId : Int, properties : Map[String,String]) : Unit ={
     vertexAdd(msgId,srcId) //add the vertex
     properties.foreach(l => vertices(srcId) + (msgId,l._1,l._2)) //add all properties
     if(printing) println(s"Received a Vertex Add with properties for $srcId")
   }
 
-  def edgeAdd(msgId:Int,srcId:Int,dstId:Int):Unit={
-    if(printing) println(s"Received an edge Add for $srcId --> $dstId")
-    if(checkDst(dstId)) { //local edge
-      vertexAdd(msgId,srcId) //create or revive the source ID
-      if(srcId!=dstId)vertexAdd(msgId,dstId) //do the same for the destination ID
-      vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the source node
-      vertices(dstId) addAssociatedEdge (srcId,dstId) //do the same for the destination node
+  def edgeAdd(msgId : Int, srcId : Int, dstId : Int) : Unit = {
+    if (printing) println(s"Received an edge Add for $srcId --> $dstId")
+    if (checkDst(dstId)) {                             // local edge
+      vertexAdd(msgId, srcId)                          // create or revive the source ID
+      if (srcId != dstId)
+        vertexAdd(msgId, dstId)                        // do the same for the destination ID
 
-      if(edges contains (srcId,dstId)) edges(srcId,dstId) revive msgId //if the edge already exists revive
-      else {
-        edges = edges updated((srcId,dstId),new Edge(msgId,true,srcId,dstId))
-        edges(srcId,dstId) killList vertices(srcId).removeList.map(kill => kill._1) //get the remove list from source node and give to the Edge
-        if(srcId!=dstId)edges(srcId,dstId) killList vertices(dstId).removeList.map(kill => kill._1) //get the remove list from destination node and give to the Edge
-      } //if the edge is yet to exist
+      vertices(srcId) addAssociatedEdge (srcId, dstId) // add the edge to the associated edges of the source node
+      vertices(dstId) addAssociatedEdge (srcId, dstId) // do the same for the destination node
+
+      if (edges contains (srcId, dstId))               // if the edge already exists revive
+        edges(srcId, dstId) revive msgId
+      else {                                           //if the edge is yet to exist
+        edges = edges updated((srcId, dstId), new Edge(msgId, true, srcId, dstId))
+        edges(srcId, dstId) killList vertices(srcId).removeList.map(kill => kill._1) // get the remove list from source node and give to the Edge
+        if (srcId != dstId)
+          edges(srcId, dstId) killList vertices(dstId).removeList.map(kill => kill._1) // get the remove list from destination node and give to the Edge
+      }
     }
-    else{ //remote edge
-      if(printing) println(s"    Is a remote edge: Sending to ${getManager(dstId)}")
-      vertexAdd(msgId,srcId) //create or revive the source ID
-      vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the source node
+    else {                                            // remote edge
+      if(printing)
+        println(s"    Is a remote edge: Sending to ${getManager(dstId)}")
+      vertexAdd(msgId,srcId)                          // create or revive the source ID
+      vertices(srcId) addAssociatedEdge(srcId,dstId)  // add the edge to the associated edges of the source node
 
-      if(edges contains (srcId,dstId)) { //if the edge already exists
-        edges(srcId,dstId) revive msgId // revive
+      if (edges contains (srcId,dstId)) {             // if the edge already exists
+        edges(srcId,dstId) revive msgId               // revive
         mediator ! DistributedPubSubMediator.Send(getManager(dstId),RemoteEdgeAdd(msgId,srcId,dstId),false) // inform the partition dealing with the destination node
       }
       else {
-        edges = edges updated((srcId,dstId),new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Destination,getPartition(dstId))) //create the remote edge
-        val deaths = vertices(srcId).removeList.map(kill => kill._1) //retrieve all the deaths present within the source node
-        edges(srcId,dstId) killList deaths //and add them to the new edge
-        mediator ! DistributedPubSubMediator.Send(getManager(dstId),RemoteEdgeAddNew(msgId,srcId,dstId,deaths),false) // inform the partition dealing with the destination node (also send the deaths so they can be added on the mirror side)
+        edges = edges updated((srcId,dstId),
+          new RemoteEdge(msgId, true, srcId, dstId, RemotePos.Destination, getPartition(dstId)))  // create the remote edge
+        val deaths = vertices(srcId).removeList.map(kill => kill._1)                              // retrieve all the deaths present within the source node
+        edges(srcId,dstId) killList deaths                                                        // and add them to the new edge
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId),
+          RemoteEdgeAddNew(msgId, srcId, dstId, deaths), false)                                       // inform the partition dealing with the destination node (also send the deaths so they can be added on the mirror side)
       }
     }
   }
@@ -233,7 +251,7 @@ class PartitionManager(id:Int, test:Boolean, managerCount:Int) extends RaphtoryA
     mediator ! DistributedPubSubMediator.Send(getManager(srcId),RemoteReturnDeaths(msgId,srcId,dstId,deaths),false)
   }
 
-  def edgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
+  def edgeRemoval(msgId:Int, srcId:Int, dstId:Int):Unit={
     if(printing) println(s"Received Edge removal for $srcId --> $dstId")
     if(checkDst(dstId)) { //local edge
       if(!(vertices contains srcId)){ //if src vertex does not exist, create it and wipe the history so that it may contain the associated Edge list
