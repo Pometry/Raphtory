@@ -44,20 +44,21 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 	val kamon_prometheus= "io.kamon"					 %% "kamon-prometheus"		% "1.0.0"
   val kamon_akka      = "io.kamon"					 %% "kamon-akka-2.5"		  % "1.0.1"
 	val kamon_system 		= "io.kamon" 					 %% "kamon-system-metrics"% "1.0.0"
-	val kamon_repos     = Seq(Resolver.bintrayRepo("kamon-io", "snapshots"))
+
+	//val kamon_repos     = Seq(Resolver.bintrayRepo("kamon-io", "snapshots"))
 
 
 	val IP = java.net.InetAddress.getLocalHost().getHostAddress()
 
 	lazy val basicSettings = Seq(
- 		organization 				:= "com.gwz",
+ 		organization 				:= "com.raphtory",
 		description 				:= "Raphtory Distributed Graph Stream Processing",
 		startYear 					:= Some(2014),
 		scalaVersion 				:= Scala,
 		packageName         := "raphtory",
 		parallelExecution in Test 	:= false,
 		//resolvers					++= Dependencies.resolutionRepos,
-		resolvers					  ++= kamon_repos,
+		//resolvers					  ++= kamon_repos,
 		scalacOptions				:= Seq("-feature", "-deprecation", "-encoding", "UTF8", "-unchecked"),
 		testOptions in Test += Tests.Argument("-oDF"),
 		version 					:= "latest"
