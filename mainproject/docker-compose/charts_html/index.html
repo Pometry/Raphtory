@@ -7,8 +7,9 @@
             </div>
         </div>
         <div id="json-div" class="col-sm-12 text-center">
-            <h5>Export to json (Current test):</h5>
-            <div id="json-links">
+            <h5><a onclick="jsonSnapshot()" href="#">Json snapshot</a></h5>
+            <h5>Export to csv (Current test):</h5>
+            <div id="csv-links">
             </div>
         </div>
     </div>
@@ -112,7 +113,24 @@
             {{ if .Params.endTime  }}endTime:  '{{ .Params.endTime  }}'{{ end }}
         })
     }
-
+    
+    function download(data, filename, type) {
+        var file = new Blob([data], {type: type});
+        if (window.navigator.msSaveOrOpenBlob) // IE10+
+            window.navigator.msSaveOrOpenBlob(file, filename);
+        else { // Others
+            var a = document.createElement("a"),
+                    url = URL.createObjectURL(file);
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);  
+            }, 0); 
+        }
+    }
     function getCSV(id) {
         separator = "\t";
 
@@ -137,13 +155,22 @@
             }
             csv.push(ret);
         }
-        var hiddenElement = document.createElement('a');
+        download(csv.join("\n"), queries[id].id + ".csv", 'text/plain');
+    }
 
-        hiddenElement.href = "data:attachment/text," + encodeURI(csv.join("\n"));
-        hiddenElement.target = "_blank";
-        hiddenElement.download = queries[id].id + ".csv";
-        hiddenElement.click();
-        console.log(csv);
+    function jsonSnapshot() {
+        queriesC = [];
+        queries.map( (e, i) => {
+            queriesC[i] = {};
+            Object.keys(e).forEach((key) => {
+                if (key !== "rendered")
+                    queriesC[i][key] = e[key];
+                else
+                    queriesC[i]["rendered_data"] = e[key].rendered_data;
+            });
+        });
+        download(JSON.stringify(queriesC), 
+                (new Date()).toISOString().replace(/[:\-.]*/g, "") + "_snapshot.min.json", "text/plain");
     }
 
     simulations = [
@@ -163,10 +190,9 @@
     {{ if .Params.t }}
         queries.forEach(function(e, i) {
             generate(e);
-            document.getElementById("json-links")
+            document.getElementById("csv-links")
                 .insertAdjacentHTML('beforeend', '<a href="#" onclick="getCSV(' + i + ')">' +
                         e.name + '</a> -- ');
-
         });
     {{ end }}
 
