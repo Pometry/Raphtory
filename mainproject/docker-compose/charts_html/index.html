@@ -1,29 +1,9 @@
 {{ template "head" . }}
-<style>
-
-    .prom_lhs_menu, .navbar {
-        display:none;
-    }
-
-    .chart {
-        margin-top: 100px;
-    }
-
-    body, html {
-        overflow-x: hidden;
-    }
-
-    #simulation-links a {
-        padding: 0 10px;
-    }
-</style>
-
 <div class="container-fluid">
     <div class="row">
         <div class="col-sm-12 text-center ">
             <h4>Select the test:</h4> <br/>
             <div id="simulation-links">
-
             </div>
         </div>
         <div id="json-div" class="col-sm-12 text-center">
@@ -33,21 +13,72 @@
         </div>
     </div>
 
-    <div class="row">
-        <div id="mailbox-size" class="chart col-sm-12"></div>
-        <div id="time-in-mailbox" class="chart col-sm-12"></div>
-        <div id="processing-time" class="chart col-sm-12"></div>
-        <div id="raphtory-benchmarker" class="chart col-sm-12"></div>
-        <div id="host-memory" class="chart col-sm-12"></div>
-        <div id="host-cpu" class="chart col-sm-12"></div>
-        <div id="heap-instances" class="chart col-sm-6"></div>
-        <div id="heap-memory" class="chart col-sm-6"></div>
-        <div id="dead-letters" class="chart col-sm-12"></div>
-        <!--<div id="load-average" class="chart col-sm-12"></div>-->
+    <div id="charts" class="row charts">
     </div>
+
 </div>
 
 <script>
+    queries = [{
+            id: "mailbox-size",
+            name: "Mailbox size",
+            query: "rate(akka_actor_mailbox_size_sum[{{ .Params.t }}]) / "
+                    + "rate(akka_actor_mailbox_size_count[{{ .Params.t }}])",
+            classes: "col-sm-12 chart"
+        }, {
+            id:   "time-in-mailbox",
+            name: "time in mailbox",
+            units: "seconds",
+            query: "rate(akka_actor_time_in_mailbox_seconds_sum[{{ .Params.t }}]) / "
+                    + "rate(akka_actor_time_in_mailbox_seconds_count[{{ .Params.t }}])",
+            classes: "col-sm-12 chart"
+        }, {
+            id: "processing-time",
+            name: "Actor processing time",
+            units: "seconds",
+            query: "rate(akka_actor_processing_time_seconds_sum[{{ .Params.t }}]) / "
+                    + "rate(akka_actor_processing_time_seconds_count[{{ .Params.t }}])",
+            classes: "col-sm-12 chart"
+        }, {
+            id: "raphtory-benchmarker",
+            name: "benchmarker",
+            query: "raphtory_benchmarker",
+            classes: "col-sm-12 chart"
+        }, {
+            id: "host-memory",
+            name: "Mem usage", 
+            units: "Bytes",
+            query: "rate(jvm_memory_bytes_sum{measure='used'}[{{ .Params.t }}]) / "
+                    + "rate(jvm_memory_bytes_count{measure='used'}[{{ .Params.t }}])",
+            classes: "col-sm-12 chart"
+        }, {
+            id: "host-cpu",
+            name: "Cpu usage",
+            units: "%",
+            query: "rate(process_cpu_sum[{{ .Params.t }}]) / "
+                    + "rate(process_cpu_count[{{ .Params.t }}])",
+            classes: "col-sm-12 chart"
+        }, {
+            id: "heap-instances",
+            name: "heapInstances",
+            units: "instances",
+            query: "raphtory_heap_instances",
+            classes: "col-sm-6 chart"
+        }, {
+            id: "heap-memory",
+            name: "heapMemory",
+            units: "Bytes",
+            query: "raphtory_heap_bytes_bytes",
+            classes: "col-sm-6 chart"
+        }, {
+            id: "dead-letters",
+            name: "Dead letters",
+            query: "akka_system_dead_letters_total",
+            classes: "col-sm-12 chart"
+        }
+    ];
+
+
     function generateLink(query) {
         uri = window.location.origin + "/api/v1/query_range?query=" +
         encodeURIComponent(query);
@@ -64,61 +95,62 @@
         return uri;
     }
 
-    function generate(query, id, yTitle, yUnits) {
-        new PromConsole.Graph({
-            node: document.querySelector("#" + id),
-            expr: query,
+    function generate(query) {
+        var div       = document.createElement('div');
+        div.id        = query.id;
+        div.className = query.classes;
+        document.getElementById("charts").appendChild(div);
+
+        query.rendered = new PromConsole.Graph({
+            node: document.querySelector("#" + query.id),
+            expr: query.query,
             yAxisFormatter: PromConsole.NumberFormatter.humanizeNoSmallPrefix,
             yHoverFormatter: PromConsole.NumberFormatter.humanizeNoSmallPrefix,
-            yUnits: yUnits,
-            yTitle: yTitle,
+            yUnits: query.units,
+            yTitle: query.name,
             {{ if .Params.duration }}duration: '{{ .Params.duration }}',{{ end }}
             {{ if .Params.endTime  }}endTime:  '{{ .Params.endTime  }}'{{ end }}
         })
-        document.getElementById("json-links")
-            .insertAdjacentHTML('beforeend', '<a href="' + generateLink(query) + '" target="_blank">' + id + '</a> -- ');
     }
-    {{ if .Params.t }}
-        // Queries
-        mailboxSize    = "rate(akka_actor_mailbox_size_sum[{{ .Params.t }}]) /  rate(akka_actor_mailbox_size_count[{{ .Params.t }}])";
-        timeInMailbox  = "rate(akka_actor_time_in_mailbox_seconds_sum[{{ .Params.t }}]) /  rate(akka_actor_time_in_mailbox_seconds_count[{{ .Params.t }}])";
-        processingTime = "rate(akka_actor_processing_time_seconds_sum[{{ .Params.t }}]) /  rate(akka_actor_processing_time_seconds_count[{{ .Params.t }}])";
-        deadLetters    = "akka_system_dead_letters_total";
-        benchmarker    = "raphtory_benchmarker";
-        cpuUsage       = "rate(process_cpu_sum[{{ .Params.t }}]) /  rate(process_cpu_count[{{ .Params.t }}])";
-memUsage       = "rate(jvm_memory_bytes_sum{measure=\"used\"}[{{ .Params.t }}]) /  rate(jvm_memory_bytes_count{measure=\"used\"}[{{ .Params.t }}])";
-        heapInstances  = "raphtory_heap_instances";
-        heapMemory     = "raphtory_heap_bytes_bytes";
-        loadAverage    = "rate(host_load_average_sum[{{ .Params.t }}]) /  rate(host_load_average_count[{{ .Params.t }}])"
 
-        // Charts
-        generate(mailboxSize,    "mailbox-size",         "Mailbox size");
-        generate(timeInMailbox,  "time-in-mailbox",      "Time in the mailbox",   "seconds");
-        generate(processingTime, "processing-time",      "Actor processing time", "seconds")
-        generate(deadLetters,    "dead-letters",         "Dead letters")
-        generate(benchmarker,    "raphtory-benchmarker", "Benchmarker 'old' metrics");
-        generate(cpuUsage,       "host-cpu",             "CPU Usage", "%");
-        generate(memUsage,       "host-memory",          "Containers memory usages", "Bytes")
-        generate(heapInstances,  "heap-instances",       "Heap", "Instances");
-        generate(heapMemory,     "heap-memory",          "Heap", "Bytes");
-        //generate(loadAverage,    "load-average",         "Load average");
-    {{ end }}
-        /*    <a href="http://ORIGIN:8888/consoles/index.html?t=180s"> Latest </a>
+    function getCSV(id) {
+        separator = "\t";
 
-            <a href="http://ORIGIN:8888/consoles/index.html?t=180s&endTime=1522074787&duration=1800">100 updates/s</a>
-            <a href="http://ORIGIN:8888/consoles/index.html?t=180s&endTime=1522076699&duration=1300">1k updates/s</a>
-            <a href="http://ORIGIN:8888/consoles/index.html?t=180s&endTime=1522077798&duration=600">10k updates/s</a>
-            <a href="http://ORIGIN:8888/consoles/index.html?t=180s&endTime=1522077798&duration=600">5k updates/s</a>
-        */
+        json = queries[id].rendered.rendered_data[0].data.result;
+
+        datas = json.map(e => e.values.map(data => data[1]));
+        datas[datas.length] = json[0].values.map(data => data[0]);
+
+        header= json.map(e => JSON.stringify(e.metric));
+        header[header.length] = "time";
+
+        columns = datas.length;
+        rows = datas[0].length;
+
+        csv = [];
+        csv.push(header.join(separator));
+
+        for (i = 0; i < rows; i++) {
+            ret = "";
+            for (j = 0; j < columns; j++) {
+                ret += datas[j][i] + ((j+1<columns)?separator:"");
+            }
+            csv.push(ret);
+        }
+        var hiddenElement = document.createElement('a');
+
+        hiddenElement.href = "data:attachment/text," + encodeURI(csv.join("\n"));
+        hiddenElement.target = "_blank";
+        hiddenElement.download = queries[id].id + ".csv";
+        hiddenElement.click();
+        console.log(csv);
+    }
 
     simulations = [
-        { name: "latest",        uri: "/consoles/index.html?t=180s"                                  },
-        //{ name: "1k updates/s",  uri: "/consoles/index.html?t=180s&endTime=1522076699&duration=1300" },
-        { name: "100 updates/s (12h)", uri: "/consoles/index.html?t=180s&endTime=1522142481&duration=43200" },
-        /*{ name: "10k updates/s", uri: "/consoles/index.html?t=180s&endTime=1522077798&duration=600"  },
-        { name: "5k updates/s",  uri: "/consoles/index.html?t=180s&endTime=1522080588&duration=1100"  },
-        { name: "*- updates/s",  uri: "/consoles/index.html?t=180s&endTime=1522077798&duration=600"  }*/
+        { name: "latest",              uri: "/consoles/index.html?t=180s"                                   },
+        { name: "100 updates/s (21h)", uri: "/consoles/index.html?t=180s&endTime=1522163854&duration=75600" },
     ];
+
 
     simulations.forEach(function(e) {
         var a = document.createElement('a');
@@ -128,6 +160,34 @@ memUsage       = "rate(jvm_memory_bytes_sum{measure=\"used\"}[{{ .Params.t }}]) 
         document.getElementById("simulation-links").appendChild(a);
     });
 
+    {{ if .Params.t }}
+        queries.forEach(function(e, i) {
+            generate(e);
+            document.getElementById("json-links")
+                .insertAdjacentHTML('beforeend', '<a href="#" onclick="getCSV(' + i + ')">' +
+                        e.name + '</a> -- ');
+
+        });
+    {{ end }}
+
 </script>
+
+<style>
+    .prom_lhs_menu, .navbar {
+        display:none;
+    }
+
+    .chart {
+        margin-top: 100px;
+    }
+
+    body, html {
+        overflow-x: hidden;
+    }
+
+    #simulation-links a {
+        padding: 0 10px;
+    }
+</style>
 
 {{ template "tail" }}
