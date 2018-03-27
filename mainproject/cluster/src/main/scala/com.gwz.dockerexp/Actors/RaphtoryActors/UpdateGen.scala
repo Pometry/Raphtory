@@ -20,7 +20,7 @@ import scala.util.Random
 class UpdateGen(managerCount:Int) extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  var totalCount      = 1000
+  var totalCount      = 100
   var currentMessage  = 0
   var previousMessage = 0
   var safe            = true
@@ -52,7 +52,6 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
 
   def running() : Unit = {
     genRandomCommands(totalCount)
-    println(s"${Calendar.getInstance().getTime}:$totalCount")
     //totalCount+=1000
   }
 
@@ -64,20 +63,24 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
 
   def genRandomCommands(number : Int) : Unit = {
     var commandblock = ""
+    var counter = 0
     for (i <- 0 until number) {
-
       val random = Random.nextFloat()
       var command = ""
-
-      if      (random <= 0.4) command = genVertexAdd()
-      else if (random <= 0.7) command = genEdgeAdd()
-      else if (random <= 0.8) command = genEdgeAdd()
-      else                    command = genEdgeRemoval()
+      //if (random > 0.4) {
+        if (random <= 0.6) command = genVertexAdd()
+        else if (random <= 0.7) command = genEdgeAdd()
+        else if (random <= 0.8) command = genEdgeAdd()
+        else                    command = genEdgeRemoval()
+        counter += 1
+        mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
+        Kamon.counter("raphtory.updateGen.commandsSent").increment()
+      //}
       //else if(random<=0.5) command = genVertexRemoval()
-
-      mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
-      Kamon.counter("raphtory.updateGen.commandsSent").increment()
     }
+
+    println(s"${Calendar.getInstance().getTime}:$counter")
+    kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
 
   }
 

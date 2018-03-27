@@ -38,8 +38,8 @@ class PartitionManager(id : Int, test : Boolean, managerCount : Int) extends Rap
   override def preStart() {             // set up partition to report how many messages it has processed in the last X seconds
     context.system.scheduler.schedule(Duration(7, SECONDS),
       Duration(2, SECONDS), self, "tick")
-        context.system.scheduler.schedule(Duration(13, SECONDS),
-      Duration(5, MINUTES), self, "profile")
+      context.system.scheduler.schedule(Duration(13, SECONDS),
+        Duration(30, MINUTES), self, "profile")
   }
 
   def reportIntake() : Unit = {

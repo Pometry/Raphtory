@@ -1,5 +1,6 @@
 {{ template "head" . }}
 <style>
+
     .prom_lhs_menu, .navbar {
         display:none;
     }
@@ -11,17 +12,19 @@
     body, html {
         overflow-x: hidden;
     }
+
+    #simulation-links a {
+        padding: 0 10px;
+    }
 </style>
 
 <div class="container-fluid">
     <div class="row">
-        <div class="col-sm-12 text-center">
+        <div class="col-sm-12 text-center ">
             <h4>Select the test:</h4> <br/>
+            <div id="simulation-links">
 
-            <a href="http://moe.eecs.qmul.ac.uk:8888/consoles/index.html?t=180s"> Latest </a>
-
-            <a href="http://moe.eecs.qmul.ac.uk:8888/consoles/index.html?t=180s&endTime=1522074787&duration=1800">100 updates/s</a>
-            <!--<a href="http://moe.eecs.qmul.ac.uk:8888/consoles/index.html?t=180s&endTime=1521820800&duration=1800">100 updates/s</a>-->
+            </div>
         </div>
         <div id="json-div" class="col-sm-12 text-center">
             <h5>Export to json (Current test):</h5>
@@ -98,8 +101,33 @@ memUsage       = "rate(jvm_memory_bytes_sum{measure=\"used\"}[{{ .Params.t }}]) 
         generate(memUsage,       "host-memory",          "Containers memory usages", "Bytes")
         generate(heapInstances,  "heap-instances",       "Heap", "Instances");
         generate(heapMemory,     "heap-memory",          "Heap", "Bytes");
-        generate(loadAverage,    "load-average",         "Load average");
+        //generate(loadAverage,    "load-average",         "Load average");
     {{ end }}
+        /*    <a href="http://ORIGIN:8888/consoles/index.html?t=180s"> Latest </a>
+
+            <a href="http://ORIGIN:8888/consoles/index.html?t=180s&endTime=1522074787&duration=1800">100 updates/s</a>
+            <a href="http://ORIGIN:8888/consoles/index.html?t=180s&endTime=1522076699&duration=1300">1k updates/s</a>
+            <a href="http://ORIGIN:8888/consoles/index.html?t=180s&endTime=1522077798&duration=600">10k updates/s</a>
+            <a href="http://ORIGIN:8888/consoles/index.html?t=180s&endTime=1522077798&duration=600">5k updates/s</a>
+        */
+
+    simulations = [
+        { name: "latest",        uri: "/consoles/index.html?t=180s"                                  },
+        //{ name: "1k updates/s",  uri: "/consoles/index.html?t=180s&endTime=1522076699&duration=1300" },
+        { name: "100 updates/s (12h)", uri: "/consoles/index.html?t=180s&endTime=1522142481&duration=43200" },
+        /*{ name: "10k updates/s", uri: "/consoles/index.html?t=180s&endTime=1522077798&duration=600"  },
+        { name: "5k updates/s",  uri: "/consoles/index.html?t=180s&endTime=1522080588&duration=1100"  },
+        { name: "*- updates/s",  uri: "/consoles/index.html?t=180s&endTime=1522077798&duration=600"  }*/
+    ];
+
+    simulations.forEach(function(e) {
+        var a = document.createElement('a');
+        var linkText = document.createTextNode(e.name);
+        a.appendChild(linkText);
+        a.href = window.location.origin + e.uri;
+        document.getElementById("simulation-links").appendChild(a);
+    });
+
 </script>
 
 {{ template "tail" }}
