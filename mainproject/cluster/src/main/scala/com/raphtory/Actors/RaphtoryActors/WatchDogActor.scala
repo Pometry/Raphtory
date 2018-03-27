@@ -1,4 +1,4 @@
-package com.raphtory.Actors.ClusterActors
+package com.raphtory.Actors.RaphtoryActors
 
 /**
   * Created by Mirate on 11/07/2017.

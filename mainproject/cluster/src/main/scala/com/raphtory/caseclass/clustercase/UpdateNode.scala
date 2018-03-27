@@ -5,10 +5,10 @@ package com.raphtory.caseclass.clustercase
   */
 import akka.actor.Props
 import com.raphtory.Actors.RaphtoryActors._
-import com.raphtory.Actors.ClusterActors.DocSvr
 import com.raphtory.Actors.RaphtoryActors.UpdateGen
+import com.raphtory.caseclass.DocSvr
 
 case class UpdateNode(seedLoc: String, partitionNumber: String) extends DocSvr {
   implicit val system = init(List(seedLoc))
-  system.actorOf(Props(new UpdateGen(partitionNumber.toInt)), "updateGen")
+  system.actorOf(Props(new UpdateGen(partitionNumber.toInt)), "WatchDog")
 }

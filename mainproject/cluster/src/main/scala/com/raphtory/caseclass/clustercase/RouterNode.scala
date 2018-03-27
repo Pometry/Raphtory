@@ -5,8 +5,8 @@ package com.raphtory.caseclass.clustercase
   */
 import akka.actor.Props
 import com.raphtory.Actors.RaphtoryActors._
-import com.raphtory.Actors.ClusterActors.DocSvr
 import com.raphtory.Actors.RaphtoryActors.RaphtoryRouter
+import com.raphtory.caseclass.DocSvr
 
 case class RouterNode(seedLoc: String, partitionNumber: String) extends DocSvr {
   implicit val system = init(List(seedLoc))

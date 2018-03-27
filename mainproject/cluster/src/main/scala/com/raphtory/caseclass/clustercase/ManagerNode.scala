@@ -1,8 +1,9 @@
 package com.raphtory.caseclass.clustercase
 
 import akka.actor.Props
-import com.raphtory.Actors.ClusterActors.DocSvr
 import com.raphtory.Actors.RaphtoryActors.PartitionManager
+import com.raphtory.caseclass.DocSvr
+
 import scala.language.postfixOps
 import scala.sys.process._
 

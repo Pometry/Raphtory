@@ -5,8 +5,8 @@ package com.raphtory.caseclass.clustercase
   */
 import akka.actor.Props
 import com.raphtory.Actors.RaphtoryActors._
-import com.raphtory.Actors.ClusterActors.DocSvr
 import com.raphtory.Actors.RaphtoryActors.LiveAnalysisManager
+import com.raphtory.caseclass.DocSvr
 
 case class LiveAnalysisNode(seedLoc: String, partitionNumber: String,name:String)
     extends DocSvr {

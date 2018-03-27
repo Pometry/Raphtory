@@ -3,7 +3,7 @@ package com.raphtory.caseclass.clustercase
 import akka.actor.{Actor, Props}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
-import com.raphtory.Actors.ClusterActors.DocSvr
+import com.raphtory.caseclass.DocSvr
 
 case class SeedNode(seedLoc:String) extends DocSvr {
   implicit val system = init(List(ipAndPort.hostIP + ":" + ipAndPort.akkaPort))
