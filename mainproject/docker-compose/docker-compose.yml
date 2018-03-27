@@ -65,11 +65,12 @@ services:
         ports:
             - 9200:9200
         # TODO Swarm Cluster Id (currently fixed to 0)
-        command: partitionManager 0 $NUMBER_OF_PARTITIONS $ZOOKEEPER
+        command: partitionManager 0 $NUMBER_OF_PARTITIONS $ZOOKEEPER # CHANGE WITH env-setter.sh partitionManager...
         environment:
             - BIND_PORT=9200
             - HOST_PORT=9200
-            - HOST_IP=raphtory_partitionManager_1
+            - HOST_IP=raphtory_partitionManager_1 # Delete me
+            - COMMAND=partitionManager $REPLICA_ID $NUMBER_OF_PARTITIONS $ZOOKEEPER # TOTEST
         volumes:
             - ./logs/:/logs
         deploy:
@@ -85,7 +86,7 @@ services:
             - partitionManager
         ports:
             - 9300:9300
-        command: router $NUMBER_OF_PARTITIONS $ZOOKEEPER
+        command: router $NUMBER_OF_PARTITIONS $ZOOKEEPER # TODO see partitionManager notes
         environment:
             - BIND_PORT=9300
             - HOST_PORT=9300
