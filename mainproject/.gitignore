@@ -12,6 +12,7 @@ machine1Setup.sh
 
 .DS_Store
 
+docker-compose/prometheus_data/
 # sbt specific
 .cache/
 .history/

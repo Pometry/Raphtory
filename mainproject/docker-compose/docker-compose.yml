@@ -32,17 +32,17 @@ services:
             - HOST_IP=raphtory_seedNode_1
             - ZOOKEEPER
 
-    rest:
-       image: miratepuffin/raphtory
-       depends_on: 
-            - seedNode
-       ports:
-            - 8080:8080
-       command: rest $ZOOKEEPER
-       environment:
-            - BIND_PORT=9101
-            - HOST_PORT=9101
-            - HOST_IP=raphtory_rest_1
+#    rest:
+#       image: miratepuffin/raphtory
+#       depends_on: 
+#            - seedNode
+#       ports:
+#            - 8080:8080
+#       command: rest $ZOOKEEPER
+#       environment:
+#            - BIND_PORT=9101
+#            - HOST_PORT=9101
+#            - HOST_IP=raphtory_rest_1
 #    benchmarker:
 #        image: miratepuffin/raphtory
 #        depends_on: 
@@ -56,23 +56,12 @@ services:
 #            - HOST_PORT=9105
 #            # TODO the line below should be redundant
 #            - HOST_IP=raphtory_benchmarker_1
-    lam:
-        image: miratepuffin/raphtory
-        depends_on: 
-            - rest
-        ports:
-            - 9105:9105
-        command: LiveAnalysisManager $NUMBER_OF_PARTITIONS $ZOOKEEPER $LAM_NAME
-        environment:
-            - BIND_PORT=9105
-            - HOST_PORT=9105
-            - HOST_IP=raphtory_lam_1
 
     #### Machines Setup ####
     partitionManager:
         image: miratepuffin/raphtory
         depends_on: 
-            - lam
+            - seedNode
         ports:
             - 9200:9200
         # TODO Swarm Cluster Id (currently fixed to 0)
@@ -146,9 +135,21 @@ services:
         deploy:
             replicas: 1
             update_config:
-                delay: "0"
+                 delay: "0"
             restart_policy:
                 condition: on-failure
+
+#    lam:
+#        image: miratepuffin/raphtory
+#        depends_on: 
+#            - clusterUp
+#        ports:
+#            - 9105:9105
+#        command: LiveAnalysisManager $NUMBER_OF_PARTITIONS $ZOOKEEPER $LAM_NAME
+#        environment:
+#            - BIND_PORT=9105
+#            - HOST_PORT=9105
+#            - HOST_IP=raphtory_lam_1
 
 volumes:
     prometheus_data:
