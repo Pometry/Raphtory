@@ -5,6 +5,9 @@
             <h4>Select the test:</h4> <br/>
             <div id="simulation-links">
             </div>
+            <div style="display:none" class="snapshot-loader">
+                <img src="/static/img/ajax-loader.gif" />
+            </div>
         </div>
         <div id="json-div" class="col-sm-12 text-center">
             <h5><a onclick="jsonSnapshotExport()" href="#">Export all metrics (json)</a></h5>
@@ -174,6 +177,7 @@
     }
 
     function jsonSnapshotImport(url) {
+        $(".snapshot-loader").show();
         $.ajax({
             url: url,
             success: function(result) {
@@ -181,6 +185,7 @@
                 queries.forEach((e, i) => {
                     e.rendered._render(snapshotQueries[i].rendered_data);
                 });
+                $(".snapshot-loader").hide();
             }
         });
     }
@@ -191,7 +196,8 @@
 
     simulations = [
         { name: "latest",              uri: "/consoles/index.html?t=180s"                                   },
-        { name: "100 updates/s (21h)", uri: "#", json: "/consoles/snapshots/20180327T162525192Z_snapshot.min.json" },
+        { name: "100 updates/s (21h)", uri: "#", json: "/consoles/snapshots/20180327T205759638Z_snapshot.min.json" },
+        { name: "1k updates/s (6h)", uri: "#", json: "/consoles/snapshots/20180327T204651327Z_snapshot.min.json" }
     ];
 
 
@@ -217,6 +223,8 @@
                 .insertAdjacentHTML('beforeend', '<a href="#" onclick="getCSV(' + i + ')">' +
                         e.name + '</a> -- ');
         });
+    {{ else }}
+        window.location = "?t=180s";
     {{ end }}
 
 </script>
@@ -236,6 +244,10 @@
 
     #simulation-links a {
         padding: 0 10px;
+    }
+
+    .snapshot-loader {
+        padding: 20px;
     }
 </style>
 
