@@ -57,6 +57,6 @@ class ClusterActor(svr:DocSvr) extends Actor {
       }
     }
 
-    case _ => _ //println(s"Hmm... unknown event $z")
+    case _ => //println(s"Hmm... unknown event $z")
   }
 }

@@ -23,29 +23,42 @@ object Go extends App {
     }
     case "rest" => {
       println("Creating rest node")
-      RestNode(getConf(args(1)))
+      val zookeeper = args(1)
+      RestNode(getConf(zookeeper))
     }
     case "router" => {
       println("Creating Router")
-      RouterNode(getConf(args(2)), args(1))
+      val zookeeper = args(2)
+      val partitionCount = args(1)
+      RouterNode(getConf(zookeeper),partitionCount)
     }
     case "partitionManager" => {
       println(s"Creating Patition Manager ID: ${args(1)}")
-      ManagerNode(getConf(args(3)), args(1), args(2))
+      val zookeeper = args(3)
+      val partitionCount = args(2)
+      val partitionID = args(1)
+      ManagerNode(getConf(zookeeper), partitionID, partitionCount)
     }
 
     case "updateGen" => {
       println("Creating Update Generator")
-      UpdateNode(getConf(args(2)), args(1))
+      val zookeeper = args(2)
+      val partitionCount = args(1)
+      UpdateNode(getConf(zookeeper), partitionCount)
     }
 
     case "LiveAnalysisManager" => {
       println("Creating Live Analysis Manager")
-      LiveAnalysisNode(getConf(args(2)), args(1),args(3))
+      val zookeeper = args(2)
+      val partitionCount = args(1)
+      val LAM_Name = args(3)
+      LiveAnalysisNode(getConf(zookeeper), partitionCount, LAM_Name)
     }
     case "ClusterUp" => {
       println("Cluster Up, informing Partition Managers and Routers")
-      WatchDogNode(getConf(args(2)), args(1))
+      val zookeeper = args(2)
+      val partitionCount = args(1)
+      WatchDogNode(getConf(zookeeper), partitionCount)
     }
 
   }

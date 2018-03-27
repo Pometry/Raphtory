@@ -62,7 +62,7 @@ class PartitionManager(id : Int, test : Boolean, managerCount : Int) extends Rap
     messageBlockID        = messageBlockID + 1
   }
 
-  def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", Results(analyser.analyse(vertices,edges)), false)
+  def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(childID), false)
 
   def vHandle(srcID : Int) : Unit = {
     messageCount = messageCount + 1
