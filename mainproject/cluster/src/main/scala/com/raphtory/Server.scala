@@ -2,8 +2,9 @@ package com.raphtory
 
 import java.net.InetAddress
 
+import ch.qos.logback.classic.{Level, Logger}
 import com.raphtory.caseclass.clustercase._
-import com.raphtory.caseclass.clustercase.{WatchDogNode, ManagerNode, RestNode, SeedNode}
+import com.raphtory.caseclass.clustercase.{ManagerNode, RestNode, SeedNode, WatchDogNode}
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.retry.ExponentialBackoffRetry
 import org.slf4j.LoggerFactory
@@ -66,6 +67,11 @@ object Go extends App {
     val retryPolicy = new ExponentialBackoffRetry(1000, 3)
     val curatorZookeeperClient =
       CuratorFrameworkFactory.newClient(zookeeper, retryPolicy)
+
+    val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+    root.setLevel(Level.ERROR)
+
+
     curatorZookeeperClient.start
     curatorZookeeperClient.getZookeeperClient.blockUntilConnectedOrTimedOut
     if (curatorZookeeperClient.checkExists().forPath("/seednode") == null) {
@@ -85,7 +91,10 @@ object Go extends App {
     val retryPolicy = new ExponentialBackoffRetry(1000, 3)
     val curatorZookeeperClient =
       CuratorFrameworkFactory.newClient(zookeeper, retryPolicy)
-    val logger = LoggerFactory.getLogger("Server");
+
+    val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+    root.setLevel(Level.ERROR)
+
     curatorZookeeperClient.start
     curatorZookeeperClient.getZookeeperClient.blockUntilConnectedOrTimedOut
     val originalData = new String(
