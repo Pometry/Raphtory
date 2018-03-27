@@ -3,7 +3,7 @@ package com.raphtory
 import java.net.InetAddress
 
 import com.raphtory.caseclass.clustercase._
-import com.raphtory.caseclass.clustercase.{ClusterUpNode, ManagerNode, RestNode, SeedNode}
+import com.raphtory.caseclass.clustercase.{WatchDogNode, ManagerNode, RestNode, SeedNode}
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.retry.ExponentialBackoffRetry
 import org.slf4j.LoggerFactory
@@ -45,7 +45,7 @@ object Go extends App {
     }
     case "ClusterUp" => {
       println("Cluster Up, informing Partition Managers and Routers")
-      ClusterUpNode(getConf(args(2)), args(1))
+      WatchDogNode(getConf(args(2)), args(1))
     }
 
   }

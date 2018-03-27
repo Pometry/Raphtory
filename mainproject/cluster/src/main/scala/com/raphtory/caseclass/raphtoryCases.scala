@@ -5,8 +5,11 @@ import com.raphtory.Actors.RaphtoryActors.Analaysis.Analyser
 /**
   * Created by Mirate on 30/05/2017.
   */
-//The following block are all case classes (commands) which the manager can handle
 
+case class RouterUp(id:Int)
+case class PartitionUp(id:Int)
+
+//The following block are all case classes (commands) which the manager can handle
 case class LiveAnalysis(name: String,analyser: Analyser)
 case class Results(result:Object)
 

@@ -39,8 +39,10 @@ class PartitionManager(id : Int, test : Boolean, managerCount : Int) extends Rap
   override def preStart() {             // set up partition to report how many messages it has processed in the last X seconds
     context.system.scheduler.schedule(Duration(7, SECONDS),
       Duration(2, SECONDS), self, "tick")
-        context.system.scheduler.schedule(Duration(13, SECONDS),
+    context.system.scheduler.schedule(Duration(13, SECONDS),
       Duration(5, MINUTES), self, "profile")
+    context.system.scheduler.schedule(Duration(10, SECONDS),
+      Duration(10, SECONDS), self, "keep_alive")
   }
 
   def reportIntake() : Unit = {
@@ -59,6 +61,8 @@ class PartitionManager(id : Int, test : Boolean, managerCount : Int) extends Rap
     secondaryMessageCount = 0
     messageBlockID        = messageBlockID + 1
   }
+
+  def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", Results(analyser.analyse(vertices,edges)), false)
 
   def vHandle(srcID : Int) : Unit = {
     messageCount = messageCount + 1
@@ -91,6 +95,7 @@ class PartitionManager(id : Int, test : Boolean, managerCount : Int) extends Rap
 
     case "tick" => reportIntake()
     case "profile" => profile()
+    case "keep_alive" => keepAlive()
 
     case LiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name, Results(analyser.analyse(vertices,edges)), false)
 

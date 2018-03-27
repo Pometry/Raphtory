@@ -9,7 +9,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class ClusterUpActor(managerCount:Int) extends Actor{
+class WatchDogActor(managerCount:Int) extends Actor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
