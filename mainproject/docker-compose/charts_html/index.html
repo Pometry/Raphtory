@@ -7,8 +7,8 @@
             </div>
         </div>
         <div id="json-div" class="col-sm-12 text-center">
-            <h5><a onclick="jsonSnapshot()" href="#">Json snapshot</a></h5>
-            <h5>Export to csv (Current test):</h5>
+            <h5><a onclick="jsonSnapshotExport()" href="#">Export all metrics (json)</a></h5>
+            <h5>Export to csv:</h5>
             <div id="csv-links">
             </div>
         </div>
@@ -113,7 +113,7 @@
             {{ if .Params.endTime  }}endTime:  '{{ .Params.endTime  }}'{{ end }}
         })
     }
-    
+
     function download(data, filename, type) {
         var file = new Blob([data], {type: type});
         if (window.navigator.msSaveOrOpenBlob) // IE10+
@@ -158,7 +158,7 @@
         download(csv.join("\n"), queries[id].id + ".csv", 'text/plain');
     }
 
-    function jsonSnapshot() {
+    function jsonSnapshotExport() {
         queriesC = [];
         queries.map( (e, i) => {
             queriesC[i] = {};
@@ -173,9 +173,25 @@
                 (new Date()).toISOString().replace(/[:\-.]*/g, "") + "_snapshot.min.json", "text/plain");
     }
 
+    function jsonSnapshotImport(url) {
+        $.ajax({
+            url: url,
+            success: function(result) {
+                snapshotQueries = JSON.parse(result);
+                queries.forEach((e, i) => {
+                    e.rendered._render(snapshotQueries[i].rendered_data);
+                });
+            }
+        });
+    }
+
+    function callbackSnapshot(e) {
+        jsonSnapshotImport(e.toElement.dataset.json);
+    }
+
     simulations = [
         { name: "latest",              uri: "/consoles/index.html?t=180s"                                   },
-        { name: "100 updates/s (21h)", uri: "/consoles/index.html?t=180s&endTime=1522163854&duration=75600" },
+        { name: "100 updates/s (21h)", uri: "#", json: "/consoles/snapshots/20180327T162525192Z_snapshot.min.json" },
     ];
 
 
@@ -183,7 +199,14 @@
         var a = document.createElement('a');
         var linkText = document.createTextNode(e.name);
         a.appendChild(linkText);
-        a.href = window.location.origin + e.uri;
+        if (e.uri == "#") {
+            a.href = "#";
+            a.dataset.json = e.json;
+            a.onclick = callbackSnapshot;
+        } else {
+            a.href = window.location.origin + e.uri;
+        }
+
         document.getElementById("simulation-links").appendChild(a);
     });
 
