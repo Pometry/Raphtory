@@ -8,7 +8,7 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.Timeout
-import com.raphtory.Actors.ClusterActors.{ClusterActor, DocSvr}
+import com.raphtory.caseclass.DocSvr
 import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -41,7 +41,6 @@ case class RestNode(seedLoc : String) extends DocSvr {
       })
       HttpResponse(entity = s"""sending data to manager 1""")
 		}
-
     case HttpRequest(GET, Uri.Path("/addvertex"),_,_,_)  => {
       println("Sending add vertex to router")
       val resp = Await.result(mediator ? DistributedPubSubMediator.Send("/user/updateGen","addVertex",false), t.duration).asInstanceOf[String]

@@ -1,4 +1,4 @@
-package com.raphtory.Actors.ClusterActors
+package com.raphtory.Actors.RaphtoryActors
 
 /**
   * Created by Mirate on 11/07/2017.
@@ -9,7 +9,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class ClusterUpActor(managerCount:Int) extends Actor{
+class WatchDogActor(managerCount:Int) extends Actor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 

@@ -1,4 +1,4 @@
-package com.raphtory.Actors.ClusterActors
+package com.raphtory.caseclass
 
 import akka.actor.{ActorSystem, ExtendedActorSystem}
 import com.raphtory.IpAndPort

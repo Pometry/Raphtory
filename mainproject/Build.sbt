@@ -33,7 +33,7 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 	val spray_json      = "io.spray"            % "spray-json_2.12"     % "1.3.3"
 	//val scalajack		    = "co.blocke"           % "scalajack_2.12"      % "4.1"
 	val logback			    = "ch.qos.logback" 			% "logback-classic"	    % Logback
-	val slf4j_simple 	  = "org.slf4j" 				  % "slf4j-simple" 	      % Slf4j
+	val slf4j_simple 	  = "org.slf4j" 					% "slf4j-api" 					% "1.7.25"
 	val redis 					= "net.debasishg"       %% "redisclient"        % "3.5"
 
 	//Zookeeper tings

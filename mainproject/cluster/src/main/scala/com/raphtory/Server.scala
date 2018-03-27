@@ -2,8 +2,9 @@ package com.raphtory
 
 import java.net.InetAddress
 
+import ch.qos.logback.classic.{Level, Logger}
 import com.raphtory.caseclass.clustercase._
-import com.raphtory.caseclass.clustercase.{ClusterUpNode, ManagerNode, RestNode, SeedNode}
+import com.raphtory.caseclass.clustercase.{ManagerNode, RestNode, SeedNode, WatchDogNode}
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.retry.ExponentialBackoffRetry
 import org.slf4j.LoggerFactory
@@ -23,29 +24,42 @@ object Go extends App {
     }
     case "rest" => {
       println("Creating rest node")
-      RestNode(getConf(args(1)))
+      val zookeeper = args(1)
+      RestNode(getConf(zookeeper))
     }
     case "router" => {
       println("Creating Router")
-      RouterNode(getConf(args(2)), args(1))
+      val zookeeper = args(2)
+      val partitionCount = args(1)
+      RouterNode(getConf(zookeeper),partitionCount)
     }
     case "partitionManager" => {
       println(s"Creating Patition Manager ID: ${args(1)}")
-      ManagerNode(getConf(args(3)), args(1), args(2))
+      val zookeeper = args(3)
+      val partitionCount = args(2)
+      val partitionID = args(1)
+      ManagerNode(getConf(zookeeper), partitionID, partitionCount)
     }
 
     case "updateGen" => {
       println("Creating Update Generator")
-      UpdateNode(getConf(args(2)), args(1))
+      val zookeeper = args(2)
+      val partitionCount = args(1)
+      UpdateNode(getConf(zookeeper), partitionCount)
     }
 
     case "LiveAnalysisManager" => {
       println("Creating Live Analysis Manager")
-      LiveAnalysisNode(getConf(args(2)), args(1),args(3))
+      val zookeeper = args(2)
+      val partitionCount = args(1)
+      val LAM_Name = args(3)
+      LiveAnalysisNode(getConf(zookeeper), partitionCount, LAM_Name)
     }
     case "ClusterUp" => {
       println("Cluster Up, informing Partition Managers and Routers")
-      ClusterUpNode(getConf(args(2)), args(1))
+      val zookeeper = args(2)
+      val partitionCount = args(1)
+      WatchDogNode(getConf(zookeeper), partitionCount)
     }
 
   }
@@ -53,6 +67,11 @@ object Go extends App {
     val retryPolicy = new ExponentialBackoffRetry(1000, 3)
     val curatorZookeeperClient =
       CuratorFrameworkFactory.newClient(zookeeper, retryPolicy)
+
+    val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+    root.setLevel(Level.ERROR)
+
+
     curatorZookeeperClient.start
     curatorZookeeperClient.getZookeeperClient.blockUntilConnectedOrTimedOut
     if (curatorZookeeperClient.checkExists().forPath("/seednode") == null) {
@@ -72,7 +91,10 @@ object Go extends App {
     val retryPolicy = new ExponentialBackoffRetry(1000, 3)
     val curatorZookeeperClient =
       CuratorFrameworkFactory.newClient(zookeeper, retryPolicy)
-    val logger = LoggerFactory.getLogger("Server");
+
+    val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+    root.setLevel(Level.ERROR)
+
     curatorZookeeperClient.start
     curatorZookeeperClient.getZookeeperClient.blockUntilConnectedOrTimedOut
     val originalData = new String(
