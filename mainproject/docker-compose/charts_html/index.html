@@ -1,25 +1,29 @@
 {{ template "head" . }}
+<style>
+    .prom_lhs_menu, .navbar {display:none;}
+    .chart {margin-top: 100px;}
+    body, html {overflow-x: hidden;}
+    #simulation-links a, #csv-links a {padding: 0 10px;}
+    .margin{margin:10px;}
+    h4{margin-top:30px;}
+</style>
+
 <div class="container-fluid">
     <div class="row">
         <div class="col-sm-12 text-center ">
-            <h4>Select the test:</h4> <br/>
-            <div id="simulation-links">
-            </div>
+            <h3>Simulations</h3>
+            <div id="simulation-links"></div>
             <div style="display:none" class="snapshot-loader">
                 <img src="/static/img/ajax-loader.gif" />
             </div>
         </div>
         <div id="json-div" class="col-sm-12 text-center">
-            <h5><a onclick="jsonSnapshotExport()" href="#">Export all metrics (json)</a></h5>
-            <h5>Export to csv:</h5>
-            <div id="csv-links">
-            </div>
+            <h4>Export</h4>
+            <div class="margin"><a onclick="jsonSnapshotExport()" href="#">Download current (json)</a></div>
+            <div id="csv-links"></div>
         </div>
     </div>
-
-    <div id="charts" class="row charts">
-    </div>
-
+    <div id="charts" class="row charts"></div>
 </div>
 
 <script>
@@ -177,6 +181,7 @@
     }
 
     function jsonSnapshotImport(url) {
+        $("#simulation-links").hide();
         $(".snapshot-loader").show();
         $.ajax({
             url: url,
@@ -186,16 +191,17 @@
                     e.rendered._render(snapshotQueries[i].rendered_data);
                 });
                 $(".snapshot-loader").hide();
+                $("#simulation-links").show();
             }
         });
     }
 
     function callbackSnapshot(e) {
-        jsonSnapshotImport(e.toElement.dataset.json);
+        jsonSnapshotImport(this.dataset.json);
     }
 
     simulations = [
-        { name: "latest",              uri: "/consoles/index.html?t=180s"                                   },
+        { name: "Current",              uri: "/consoles/index.html?t=180s"                                   },
         { name: "100 updates/s (21h)", uri: "#", json: "/consoles/snapshots/20180327T205759638Z_snapshot.min.json" },
         { name: "1k updates/s (6h)", uri: "#", json: "/consoles/snapshots/20180327T204651327Z_snapshot.min.json" }
     ];
@@ -221,34 +227,12 @@
             generate(e);
             document.getElementById("csv-links")
                 .insertAdjacentHTML('beforeend', '<a href="#" onclick="getCSV(' + i + ')">' +
-                        e.name + '</a> -- ');
+                        e.name + '</a>');
         });
     {{ else }}
         window.location = "?t=180s";
     {{ end }}
-
 </script>
 
-<style>
-    .prom_lhs_menu, .navbar {
-        display:none;
-    }
-
-    .chart {
-        margin-top: 100px;
-    }
-
-    body, html {
-        overflow-x: hidden;
-    }
-
-    #simulation-links a {
-        padding: 0 10px;
-    }
-
-    .snapshot-loader {
-        padding: 20px;
-    }
-</style>
-
 {{ template "tail" }}
+
