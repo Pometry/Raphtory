@@ -1,4 +1,5 @@
 import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
+import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 
 
 	val Akka            = "2.5.2"
@@ -69,7 +70,8 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 		dockerBaseImage := "miratepuffin/raphtory-redis",
         dockerRepository := Some("miratepuffin"),
 		dockerExposedPorts := Seq(2551,8080,2552) ++ (9000 to 20000)
-		)
+
+	)
 
 	lazy val root = Project(id = "raphtory",
 		base = file(".")) aggregate(cluster)
@@ -80,7 +82,17 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 	  	.enablePlugins(JavaAgent)
 		.settings(isSnapshot := true)
 		.settings(dockerStuff:_*)
-		.settings(dockerEntrypoint := Seq("/opt/docker/bin/cluster"))
+  	.settings(mappings in Universal +=
+			file(s"${baseDirectory.value}/../docker-compose/env-setter.sh") -> "bin/env-setter.sh")
+		.settings(dockerEntrypoint := Seq("bash"))
+		.settings(dockerCommands ++= Seq(
+			Cmd("USER", "root"),
+			Cmd("RUN", "apt-get update && apt-get install -y dnsutils"),
+			Cmd("RUN", "ln -s /opt/docker/aspectjweaver /opt/aspectjweaver"), // TODO hacky
+			Cmd("USER", "daemon"),
+			Cmd("ENV", "PATH=/opt/docker/bin:${PATH}"),
+			Cmd("RUN", "chmod 755 bin/env-setter.sh")
+		))
 		.settings(basicSettings: _*)
 		.settings(libraryDependencies ++=
 			dep_compile(
