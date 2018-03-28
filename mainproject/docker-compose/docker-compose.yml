@@ -7,7 +7,7 @@ services:
         ports:
             - 8888:9090
         volumes:
-            - ./prometheus_data:/prometheus
+            - prometheus_data:/prometheus
             - ./charts_html:/usr/share/prometheus/consoles
 
     #### runZoo ####
@@ -71,8 +71,6 @@ services:
             - HOST_PORT=9200
             - HOST_IP=raphtory_partitionManager_1 # Delete me
             - COMMAND=partitionManager $REPLICA_ID $NUMBER_OF_PARTITIONS $ZOOKEEPER # TOTEST
-        volumes:
-            - ./logs/:/logs
         deploy:
             replicas: 1
             update_config:
@@ -91,8 +89,6 @@ services:
             - BIND_PORT=9300
             - HOST_PORT=9300
             - HOST_IP=raphtory_router_1
-        volumes:
-            - ./logs/:/logs
         deploy:
             replicas: 1
             update_config:
@@ -111,8 +107,6 @@ services:
             - BIND_PORT=9400
             - HOST_PORT=9400
             - HOST_IP=raphtory_updater_1
-        volumes:
-            - ./logs/:/logs
         deploy:
             replicas: 1
             update_config:
@@ -131,8 +125,6 @@ services:
             - BIND_PORT=9106
             - HOST_PORT=9106
             - HOST_IP=raphtory_clusterUp_1
-        volumes:
-            - ./logs/:/logs
         deploy:
             replicas: 1
             update_config:
