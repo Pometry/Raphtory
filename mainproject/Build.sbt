@@ -69,7 +69,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		maintainer := "Ben Steer <b.a.steer@qmul.ac.uk>",
 		dockerBaseImage := "miratepuffin/raphtory-redis",
         dockerRepository := Some("miratepuffin"),
-		dockerExposedPorts := Seq(2551,8080,2552) ++ (9000 to 20000)
+		dockerExposedPorts := Seq(2551,8080,2552, 1600, 11600)
 
 	)
 

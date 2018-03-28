@@ -1,7 +1,6 @@
 package com.raphtory.caseclass
 
 import akka.actor.{ActorSystem, ExtendedActorSystem}
-import com.raphtory.IpAndPort
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 import scala.collection.JavaConversions
@@ -11,15 +10,16 @@ trait DocSvr {
   def seedLoc:String
   val clusterSystemName = "dockerexp"
   val ssn = java.util.UUID.randomUUID.toString
-  val ipAndPort = IpAndPort()
   implicit val system:ActorSystem
 
   def init( seeds:List[String] ) : ActorSystem = {
+
     val config = ConfigFactory.load()
-      .withValue("akka.remote.netty.tcp.bind-hostname", ConfigValueFactory.fromAnyRef(java.net.InetAddress.getLocalHost().getHostAddress())) //docker
+
+    config.withValue("akka.remote.netty.tcp.bind-hostname", ConfigValueFactory.fromAnyRef(java.net.InetAddress.getLocalHost().getHostAddress())) //docker
       //.withValue("akka.remote.netty.tcp.bind-hostname", ConfigValueFactory.fromAnyRef(ipAndPort.hostIP)) //singularirty (maybe "192.168.1.1")
-      .withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef(java.net.InetAddress.getByName(ipAndPort.hostIP).getHostAddress()))
-      .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(ipAndPort.akkaPort))
+      .withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef(java.net.InetAddress.getByName(config.getString("settings.ip")).getHostAddress()))
+      .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(config.getInt("settings.bport")))
       .withValue("akka.cluster.seed-nodes", ConfigValueFactory.fromIterable(JavaConversions.asJavaIterable(seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc").toIterable)))
 
     val actorSystem = ActorSystem( clusterSystemName, config )

@@ -5,6 +5,7 @@ import java.net.InetAddress
 import ch.qos.logback.classic.{Level, Logger}
 import com.raphtory.caseclass.clustercase._
 import com.raphtory.caseclass.clustercase.{ManagerNode, RestNode, SeedNode, WatchDogNode}
+import com.typesafe.config.ConfigFactory
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.retry.ExponentialBackoffRetry
 import org.slf4j.LoggerFactory
@@ -14,55 +15,48 @@ import kamon.system.SystemMetrics
 
 //main function
 object Go extends App {
+  val conf          = ConfigFactory.load()
+  val seedLoc       = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
+  val zookeeper     = s"${sys.env("ZOOKEEPER")}"
+  val replicaId     = s"${sys.env("REPLICA_ID")}"
+  val partitionCount= s"${sys.env("NUMBER_OF_PARTITIONS")}"
+
   args(0) match {
-    case "seed" => {
+    case "seedNode" => {
       println("Creating seed node")
-      val seedloc = args(1)
-      val zookeeper = args(2)
-      setConf(seedloc, zookeeper)
-      SeedNode(seedLoc2Ip(seedloc))
+      setConf(seedLoc, zookeeper)
+      SeedNode(seedLoc2Ip(seedLoc))
     }
     case "rest" => {
       println("Creating rest node")
-      val zookeeper = args(1)
       RestNode(getConf(zookeeper))
     }
     case "router" => {
       println("Creating Router")
-      val zookeeper = args(2)
-      val partitionCount = args(1)
-      RouterNode(getConf(zookeeper),partitionCount)
+      RouterNode(getConf(zookeeper), partitionCount)
     }
     case "partitionManager" => {
-      println(s"Creating Patition Manager ID: ${args(1)}")
-      val zookeeper = args(3)
-      val partitionCount = args(2)
-      val partitionID = args(1)
-      ManagerNode(getConf(zookeeper), partitionID, partitionCount)
+      println(s"Creating Patition Manager ID: ${replicaId}")
+      ManagerNode(getConf(zookeeper), replicaId, partitionCount)
     }
 
-    case "updateGen" => {
+    case "updater" => {
       println("Creating Update Generator")
-      val zookeeper = args(2)
-      val partitionCount = args(1)
       UpdateNode(getConf(zookeeper), partitionCount)
     }
 
     case "LiveAnalysisManager" => {
       println("Creating Live Analysis Manager")
-      val zookeeper = args(2)
-      val partitionCount = args(1)
-      val LAM_Name = args(3)
+      val LAM_Name = args(1) // TODO other ways (still env?): see issue #5 #6
       LiveAnalysisNode(getConf(zookeeper), partitionCount, LAM_Name)
     }
-    case "ClusterUp" => {
+    case "clusterUp" => {
       println("Cluster Up, informing Partition Managers and Routers")
-      val zookeeper = args(2)
-      val partitionCount = args(1)
       WatchDogNode(getConf(zookeeper), partitionCount)
     }
 
   }
+
   def setConf(seedLoc: String, zookeeper: String): Unit = {
     val retryPolicy = new ExponentialBackoffRetry(1000, 3)
     val curatorZookeeperClient =

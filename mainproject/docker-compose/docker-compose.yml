@@ -10,6 +10,10 @@ services:
             - prometheus_data:/prometheus
             - ./charts_html:/usr/share/prometheus/consoles
 
+        environment:
+            - NUMBER_OF_PARTITIONS
+            - NUMBER_OF_ROUTERS
+
     #### runZoo ####
     zooKeeper:
         image: quay.io/miratepuffin/zookeeper:latest
@@ -23,13 +27,10 @@ services:
        image: miratepuffin/raphtory
        depends_on: 
             - zooKeeper
-       ports:
-            - 9101:9101
        command: env-setter.sh seedNode
        environment:
-            - BIND_PORT=9101
-            - HOST_PORT=9101
-            - ZOOKEEPER=$ZOOKEEPER
+            - ZOOKEEPER
+            - NUMBER_OF_PARTITIONS
 
 #    rest:
 #       image: miratepuffin/raphtory
@@ -60,14 +61,10 @@ services:
         image: miratepuffin/raphtory
         depends_on: 
             - seedNode
-        ports:
-            - 9200:9200
         command: env-setter.sh partitionManager
         environment:
-            - BIND_PORT=9200
-            - HOST_PORT=9200
-            - ZOOKEEPER=$ZOOKEEPER
-            - NUMBER_OF_PARTITIONS=$NUMBER_OF_PARTITIONS
+            - ZOOKEEPER
+            - NUMBER_OF_PARTITIONS
         deploy:
             replicas: 1
             update_config:
@@ -79,14 +76,10 @@ services:
         image: miratepuffin/raphtory
         depends_on: 
             - partitionManager
-        ports:
-            - 9300:9300
         command: env-setter.sh router
         environment:
-            - BIND_PORT=9300
-            - HOST_PORT=9300
-            - ZOOKEEPER=$ZOOKEEPER
-            - NUMBER_OF_PARTITIONS=$NUMBER_OF_PARTITIONS
+            - ZOOKEEPER
+            - NUMBER_OF_PARTITIONS
         deploy:
             replicas: 1
             update_config:
@@ -98,15 +91,10 @@ services:
         image: miratepuffin/raphtory
         depends_on: 
             - router
-        ports:
-            - 9400:9400
         command: env-setter.sh updater
         environment:
-            - BIND_PORT=9400
-            - HOST_PORT=9400
-            - HOST_IP=raphtory_updater_1
-            - NUMBER_OF_PARTITIONS=$NUMBER_OF_PARTITIONS
-            - ZOOKEEPER=$ZOOKEEPER
+            - NUMBER_OF_PARTITIONS
+            - ZOOKEEPER
         deploy:
             replicas: 1
             update_config:
