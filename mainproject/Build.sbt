@@ -87,10 +87,6 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 			file(s"${baseDirectory.value}/../docker-compose/env-setter.sh") -> "bin/env-setter.sh")
 		.settings(dockerEntrypoint := Seq("bash"))
 		.settings(dockerCommands ++= Seq(
-			Cmd("USER", "root"),
-			Cmd("RUN", "apt-get update && apt-get install -y dnsutils"),
-			Cmd("RUN", "ln -s /opt/docker/aspectjweaver /opt/aspectjweaver"), // TODO hacky
-			Cmd("USER", "daemon"),
 			Cmd("ENV", "PATH=/opt/docker/bin:${PATH}"),
 			Cmd("RUN", "chmod 755 bin/env-setter.sh")
 		))

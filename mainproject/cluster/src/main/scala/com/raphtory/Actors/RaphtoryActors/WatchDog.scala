@@ -41,6 +41,7 @@ class WatchDog(managerCount:Int) extends Actor{
     case "tick" => keepAliveHandler()
     case PartitionUp(id:Int) => mapHandler(id,PMKeepAlive, "Partition Manager")
     case RouterUp(id:Int) =>mapHandler(id,RouterKeepAlive, "Router")
+<<<<<<< HEAD:mainproject/cluster/src/main/scala/com/raphtory/Actors/RaphtoryActors/WatchDog.scala
     case RequestPartitionId => {
       println("Sending Id to the requestor")
       sender() ! AssignedId(pmCounter)
@@ -48,6 +49,9 @@ class WatchDog(managerCount:Int) extends Actor{
       println("Sending new total coutner to all the subscribers")
       mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
     }
+=======
+
+>>>>>>> bebf6df... Finialise #20 so Update gen now requests state from WatchDog:mainproject/cluster/src/main/scala/com/raphtory/Actors/RaphtoryActors/WatchDog.scala
   }
 
   def keepAliveHandler() = {

@@ -6,6 +6,7 @@ import java.util.Calendar
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.caseclass.{ClusterStatusRequest, ClusterStatusResponse}
 import kamon.Kamon
 
 import scala.concurrent.Await
@@ -33,7 +34,7 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
 
   var currentMessage  = 0
   var previousMessage = 0
-  var safe            = true
+  var safe            = false
 
   if(!new java.io.File("CurrentMessageNumber.txt").exists) storeRunNumber(0) //check if there is previous run which has created messages, fi not create file
   else for (line <- Source.fromFile("CurrentMessageNumber.txt").getLines()) {currentMessage = line.toInt} //otherwise read previous number
@@ -47,12 +48,12 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
     println("Prestarting")
     context.system.scheduler.schedule(Duration(3, SECONDS), getPeriodDuration(timerUnit), self, "random")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(2, SECONDS), self,"benchmark")
-
+    context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"stateCheck")
   }
 
   //************* MESSAGE HANDLING BLOCK
   override def receive: Receive = {
-    case "Safe" => {}
+    case "stateCheck" => checkUp()
     case "addVertex" => vertexAdd()
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
