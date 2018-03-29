@@ -15,8 +15,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 	val resolutionRepos = Seq(
 		"Typesafe Repo" 	at "http://repo.typesafe.com/typesafe/releases/",
 		"Akka Snapshots"	at "http://repo.akka.io/snapshots/",
-		"OSS"				at "http://oss.sonatype.org/content/repositories/releases",
-		"Mvn" 				at "http://mvnrepository.com/artifact"  // for commons_exec
+		"OSS"						  at "http://oss.sonatype.org/content/repositories/releases",
+		"Mvn" 						at "http://mvnrepository.com/artifact"  // for commons_exec
 	)
 
 	def dep_compile   (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "compile")

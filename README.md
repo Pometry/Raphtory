@@ -89,9 +89,10 @@ If you wish to stop the cluster, run the command: **./dockblock.sh**
 
 ```bash
     cd mainproject/docker-compose
-    docker-compose build
-    docker-compose up
+    docker stack deploy raphtory --compose-file docker-compose.yml
 ``` 
+
+Note: the prometheus targets configuration is statically bounded to all the subnet 10.0.0.0/24, as configured for our environments, take a look at your docker swarm networking configuration if metrics should not be available.
 
 If you want to deploy Raphtory on a Docker Swarm cluster adapt *mainproject/docker-compose/docker-compose.yml* deploy sections to your needs and use *docker-stack deploy*.
 

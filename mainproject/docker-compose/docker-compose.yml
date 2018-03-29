@@ -1,19 +1,24 @@
-version: '3'
+version: '3.3'
+
 services:
 
     #### Monitoring front-end ####
     prometheus:
         build: prometheus/
+        image: miratepuffin/raphtory_prometheus
         ports:
             - 8888:9090
         volumes:
             - prometheus_data:/prometheus
             - ./charts_html:/usr/share/prometheus/consoles
-
-        environment:
-            - NUMBER_OF_PARTITIONS
-            - NUMBER_OF_ROUTERS
-
+        env_file: .env
+        deploy:
+            endpoint_mode: vip
+            replicas: 1
+            update_config:
+                delay: "0"
+            restart_policy:
+                condition: on-failure
     #### runZoo ####
     zooKeeper:
         image: quay.io/miratepuffin/zookeeper:latest
@@ -21,16 +26,27 @@ services:
             - 2181:2181
             - 2888:2888
             - 3888:3888
-
+        deploy:
+            endpoint_mode: vip
+            replicas: 1
+            update_config:
+                delay: "0"
+            restart_policy:
+                condition: on-failure
     #### seedSetup ####
     seedNode:
        image: miratepuffin/raphtory
        depends_on: 
             - zooKeeper
        command: env-setter.sh seedNode
-       environment:
-            - ZOOKEEPER
-            - NUMBER_OF_PARTITIONS
+       env_file: .env
+       deploy:
+          endpoint_mode: dnsrr
+          replicas: 1 #$NUMBER_OF_PARTITIONS
+          update_config:
+              delay: "0"
+          restart_policy:
+              condition: on-failure
 
 #    rest:
 #       image: miratepuffin/raphtory
@@ -62,11 +78,10 @@ services:
         depends_on: 
             - seedNode
         command: env-setter.sh partitionManager
-        environment:
-            - ZOOKEEPER
-            - NUMBER_OF_PARTITIONS
+        env_file: .env
         deploy:
-            replicas: 1
+            endpoint_mode: dnsrr
+            replicas: 1 #$NUMBER_OF_PARTITIONS
             update_config:
                 delay: "0"
             restart_policy:
@@ -77,10 +92,9 @@ services:
         depends_on: 
             - partitionManager
         command: env-setter.sh router
-        environment:
-            - ZOOKEEPER
-            - NUMBER_OF_PARTITIONS
+        env_file: .env
         deploy:
+            endpoint_mode: dnsrr
             replicas: 1
             update_config:
                 delay: "0"
@@ -92,16 +106,14 @@ services:
         depends_on: 
             - router
         command: env-setter.sh updater
-        environment:
-            - NUMBER_OF_PARTITIONS
-            - ZOOKEEPER
+        env_file: .env
         deploy:
             replicas: 1
             update_config:
                 delay: "0"
             restart_policy:
                 condition: on-failure
-#
+
 #    clusterUp:
 #        image: miratepuffin/raphtory
 #        depends_on: 
