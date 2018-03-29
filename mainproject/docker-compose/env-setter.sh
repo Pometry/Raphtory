@@ -3,18 +3,18 @@
 
 echo "Looking for replica id"
 
-MYIP=$(ip addr show eth0 | grep inet[^6] | sed 's/.*inet \(.*\)\/[0-9]* \(.* \)*scope.*/\1/')
+HOST_IP=$(ip addr show eth0 | grep inet[^6] | sed 's/.*inet \(.*\)\/[0-9]* \(.* \)*scope.*/\1/')
 REPLICA_ID=1
 PREFIX=raphtory_$1
 # Loop until DNS resolution of $PREFIX_$REPLICA_ID return $MYIP
 
-while [ "$(host -4 -t a ${PREFIX}_${REPLICA_ID} | cut -d " " -f 4)" != "$MYIP" ]
+while [ "$(host -4 -t a ${PREFIX}_${REPLICA_ID} | cut -d " " -f 4)" != "$HOST_IP" ]
 do
     ((REPLICA_ID++))
     [ REPLICA_ID -gt $(($NUMBER_OF_PARTITIONS + $NUMBER_OF_ROUTERS)) ] && break
 done
 
-HOST_IP=${PREFIX}_${REPLICA_ID}
+HOSTNAME=${PREFIX}_${REPLICA_ID}
 echo "I am ${PREFIX}_${REPLICA_ID}."
 
 export HOST_IP
@@ -25,6 +25,7 @@ echo "ZOOKEEPER    = $ZOOKEEPER"
 echo "REPLICA_ID   = $REPLICA_ID"
 echo "N_PARTITIONS = $NUMBER_OF_PARTITIONS"
 echo "HOST_IP      = $HOST_IP"
+echo "HOSTNAME     = $HOSTNAME"
 echo "/////////////////////"
 
 [ $1 = "seedNode" ] || sleep 5

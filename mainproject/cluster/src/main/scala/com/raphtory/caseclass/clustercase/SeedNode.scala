@@ -8,7 +8,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 
 case class SeedNode(seedLoc:String) extends DocSvr {
   val conf : Config = ConfigFactory.load()
-  implicit val system = init(List(conf.getString("settings.ip") + ":" + conf.getInt("settings.bport")))
+  implicit val system = init(List(seedLoc))
   system.actorOf(Props(new ClusterActor(this)), "cluster")
 }
 
@@ -16,12 +16,12 @@ class ClusterActor(svr:DocSvr) extends Actor {
   val cluster = Cluster(context.system)
 
   // subscribe to cluster events
-  override def preStart(): Unit = {
+  override def preStart() : Unit = {
     println("== Starting cluster listener 2 ==")
     cluster.subscribe(self, initialStateMode = InitialStateAsEvents, classOf[MemberEvent], classOf[UnreachableMember])
   }
 
-  override def postStop(): Unit = cluster.unsubscribe(self)
+  override def postStop() : Unit = cluster.unsubscribe(self)
 
   def receive = {
 

@@ -18,14 +18,15 @@ object Go extends App {
   val conf          = ConfigFactory.load()
   val seedLoc       = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
   val zookeeper     = s"${sys.env("ZOOKEEPER")}"
-  val replicaId     = s"${sys.env("REPLICA_ID")}"
+  val replicaId     = s"${sys.env("REPLICA_ID").toInt - 1}"
   val partitionCount= s"${sys.env("NUMBER_OF_PARTITIONS")}"
 
+  println(s"Replica n. ${replicaId}")
   args(0) match {
     case "seedNode" => {
       println("Creating seed node")
       setConf(seedLoc, zookeeper)
-      SeedNode(seedLoc2Ip(seedLoc))
+      SeedNode(seedLoc)
     }
     case "rest" => {
       println("Creating rest node")
@@ -96,7 +97,7 @@ object Go extends App {
     println(originalData)
     prometheusReporter()
     curatorZookeeperClient.close()
-    seedLoc2Ip(originalData)
+    hostname2Ip(originalData)
   }
   //https://blog.knoldus.com/2014/08/29/how-to-setup-and-use-zookeeper-in-scala-using-apache-curator/
 
@@ -105,7 +106,7 @@ object Go extends App {
     Kamon.addReporter(new PrometheusReporter())
   }
 
-  def seedLoc2Ip(seedLoc: String): String = {
+  def hostname2Ip(seedLoc: String): String = {
     // hostname_asd_1:port
     val t = seedLoc.split(":")
     return InetAddress.getByName(t(0)).getHostAddress() + ":" + t(1)
