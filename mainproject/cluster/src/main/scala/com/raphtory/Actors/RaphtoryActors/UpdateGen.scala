@@ -19,6 +19,9 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   var totalCount      = 100
+  val freq            = 1000         // (Updates/s) - Hz
+  val timerUnit       = MICROSECONDS // Change timerUnit if needed (MICROSECONDS w/ freq ~ 10^6 shouldn't work properly)
+
   var currentMessage  = 0
   var previousMessage = 0
   var safe            = true
@@ -26,9 +29,14 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
   if(!new java.io.File("CurrentMessageNumber.txt").exists) storeRunNumber(0) //check if there is previous run which has created messages, fi not create file
   else for (line <- Source.fromFile("CurrentMessageNumber.txt").getLines()) {currentMessage = line.toInt} //otherwise read previous number
 
+
+  def getPeriodDuration(unit : TimeUnit) : FiniteDuration = {
+    val period = 1/freq
+    Duration(unit.convert(period, SECONDS), unit)
+  }
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     println("Prestarting")
-    context.system.scheduler.schedule(Duration(3, SECONDS), Duration(1, SECONDS), self,"random")
+    context.system.scheduler.schedule(Duration(3, SECONDS), getPeriodDuration(timerUnit), self, "random")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(2, SECONDS), self,"benchmark")
   }
 
@@ -41,7 +49,7 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
     case "removeEdge" => edgeRemove()
     case "random" => {
       if(safe){
-        running()
+        genRandomCommands(1)
       }
     }
     case "benchmark" => benchmark()
@@ -77,9 +85,8 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
       //else if(random<=0.5) command = genVertexRemoval()
     }
 
-    println(s"${Calendar.getInstance().getTime}:$counter")
+    println(s"${Calendar.getInstance().getTime}:$counter") // TODO comment
     kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
-
   }
 
   def vertexAdd(){
