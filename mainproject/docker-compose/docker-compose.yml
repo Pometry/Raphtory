@@ -81,7 +81,7 @@ services:
         env_file: .env
         deploy:
             endpoint_mode: dnsrr
-            replicas: 1 #$NUMBER_OF_PARTITIONS
+            replicas: 2 #$NUMBER_OF_PARTITIONS
             update_config:
                 delay: "0"
             restart_policy:
@@ -114,25 +114,20 @@ services:
             restart_policy:
                 condition: on-failure
 
-#    clusterUp:
-#        image: miratepuffin/raphtory
-#        depends_on: 
-#            - updater
-#        ports:
-#            - 9106:9106
-#        command: env-setter.sh clusterUp
-#        environment:
-#            - BIND_PORT=9106
-#            - HOST_PORT=9106
-#            - NUMBER_OF_PARTITIONS=$NUMBER_OF_PARTITIONS
-#            - ZOOKEEPER=$ZOOKEEPER
-#
-#        deploy:
-#            replicas: 1
-#            update_config:
-#                 delay: "0"
-#            restart_policy:
-#                condition: on-failure
+    watchDog:
+        container_name: "watchDog"
+        image: miratepuffin/raphtory
+        depends_on: 
+            - updater
+        command: env-setter.sh clusterUp
+        env_file: .env
+        deploy:
+            endpoint_mode: vip
+            replicas: 1
+            update_config:
+                 delay: "0"
+            restart_policy:
+                condition: on-failure
 
 #    lam:
 #        image: miratepuffin/raphtory

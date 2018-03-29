@@ -7,6 +7,7 @@ import com.raphtory.caseclass._
 import com.raphtory.GraphEntities._
 import akka.event.Logging
 import com.raphtory.caseclass._
+import com.raphtory.utils.Utils
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -19,7 +20,8 @@ import scala.concurrent.duration._
   * */
 
 //need to work out why the return death is happening multiple times
-class PartitionManager(id : Int, test : Boolean, managerCount : Int) extends RaphtoryActor{
+class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends RaphtoryActor{
+  var managerCount = managerCountVal
   val childID  = id                     //ID which refers to the partitions position in the graph manager map
   var vertices = Map[Int,Vertex]()      // Map of Vertices contained in the partition
   var edges    = Map[(Int,Int),Edge]()  // Map of Edges contained in the partition
@@ -121,6 +123,11 @@ class PartitionManager(id : Int, test : Boolean, managerCount : Int) extends Rap
 
     case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); eHandleSecondary(srcId,dstId)
     case ReturnEdgeRemoval(msgId,srcId,dstId) => returnEdgeRemoval(msgId,srcId,dstId);  eHandleSecondary(srcId,dstId)
+
+    case UpdatedCounter(newValue) => {
+      managerCount = newValue
+      println(s"Maybe a new PartitionManager has arrived: ${newValue}")
+    }
 
   }
 

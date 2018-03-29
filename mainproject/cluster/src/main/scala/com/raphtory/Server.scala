@@ -19,7 +19,7 @@ object Go extends App {
   val seedLoc       = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
   val zookeeper     = s"${sys.env("ZOOKEEPER")}"
   val replicaId     = s"${sys.env("REPLICA_ID").toInt - 1}"
-  val partitionCount= s"${sys.env("NUMBER_OF_PARTITIONS")}"
+  val partitionCount= s"${sys.env("NUMBER_OF_PARTITIONS")}" // TODO delete
 
   println(s"Replica n. ${replicaId}")
   args(0) match {
@@ -37,7 +37,7 @@ object Go extends App {
       RouterNode(getConf(zookeeper), partitionCount)
     }
     case "partitionManager" => {
-      println(s"Creating Patition Manager ID: ${replicaId}")
+      println(s"Creating Patition Manager...")
       ManagerNode(getConf(zookeeper), replicaId, partitionCount)
     }
 

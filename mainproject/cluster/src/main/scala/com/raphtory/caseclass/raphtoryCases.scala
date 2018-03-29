@@ -35,3 +35,10 @@ case class RemoteEdgeRemovalNew(msgId:Int,srcId:Int,dstId:Int,kills:List[Int])
 
 case class RemoteReturnDeaths(msgId:Int,srcId:Int,dstId:Int,kills:List[Int])
 case class ReturnEdgeRemoval(msgId:Int,srcId:Int,dstId:Int)
+
+case class UpdatedCounter(newValue : Int)
+case class AssignedId(id : Int)
+case class PartitionsCount(count : Int)
+case class RequestPartitionId()
+case class WatchDogIp(ip: String)
+

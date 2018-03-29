@@ -1,6 +1,7 @@
 package com.raphtory.caseclass
 
 import akka.actor.{ActorSystem, ExtendedActorSystem}
+import com.raphtory.utils.Utils
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 import scala.collection.JavaConversions
@@ -10,7 +11,7 @@ trait DocSvr {
 
   def seedLoc : String
   implicit val system : ActorSystem
-  val clusterSystemName = "dockerexp"
+  val clusterSystemName = Utils.clusterSystemName
   val ssn               = java.util.UUID.randomUUID.toString
 
   def init(seeds:List[String]) : ActorSystem = {

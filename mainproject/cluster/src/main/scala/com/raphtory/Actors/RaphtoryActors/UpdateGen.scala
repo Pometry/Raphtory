@@ -67,6 +67,23 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
     previousMessage = currentMessage
   }
 
+  def checkUp():Unit={
+    if(!safe){
+      try{
+        implicit val timeout: Timeout = Timeout(10 seconds)
+        val future = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest, false)
+        safe = Await.result(future, timeout.duration).asInstanceOf[ClusterStatusResponse].clusterUp
+        println("New Safe value received")
+      }
+      catch {
+        case e: java.util.concurrent.TimeoutException => {
+          safe = false
+        }
+      }
+    }
+
+  }
+
   def genRandomCommands(number : Int) : Unit = {
     var commandblock = ""
     var counter = 0

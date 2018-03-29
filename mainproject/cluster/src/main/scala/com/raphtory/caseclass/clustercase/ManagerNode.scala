@@ -1,24 +1,21 @@
 package com.raphtory.caseclass.clustercase
 
 import akka.actor.Props
-import com.raphtory.Actors.RaphtoryActors.PartitionManager
 import com.raphtory.caseclass.DocSvr
+import com.raphtory.Actors.RaphtoryActors.{PartitionManager, RaphtoryReplicator}
 
 import scala.language.postfixOps
 import scala.sys.process._
 
-
 case class ManagerNode(seedLoc: String, managerID: String, managerCount: String)
     extends DocSvr {
   implicit val system = init(List(seedLoc))
-  system.actorOf(
+  system.actorOf(Props(new RaphtoryReplicator()), s"PartitionManager")
+  /*system.actorOf(
     Props(new PartitionManager(managerID.toInt, false, managerCount.toInt)),
-    s"Manager_$managerID")
+    s"Manager_$managerID")*/
 
   "redis-server --daemonize yes" ! //start redis running on manager partition
 
-  println(s"Manager_$managerID")
-
-
+  //println(s"Manager_$managerID")
 }
-//.withDispatcher("akka.actor.prio-dispatcher")

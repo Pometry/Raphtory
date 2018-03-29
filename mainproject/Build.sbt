@@ -28,6 +28,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 	val akka_cluster	  = "com.typesafe.akka" 	%% "akka-cluster" 	    % Akka
 	val akka_contrib	  = "com.typesafe.akka" 	%% "akka-contrib" 	    % Akka
 	val akka_tools 		  = "com.typesafe.akka"		%% "akka-cluster-tools" % Akka
+	val akka_dist_data  = "com.typesafe.akka" 	%% "akka-distributed-data" % Akka
   val akka_streams    = "com.typesafe.akka"   %  "akka-stream_2.12"   % "2.5.2"
   val akka_http       = "com.typesafe.akka"   % "akka-http_2.12"      % "10.0.7"
 	val typesafe_config	= "com.typesafe"			  %  "config"			        % Config
@@ -96,7 +97,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		.settings(basicSettings: _*)
 		.settings(libraryDependencies ++=
 			dep_compile(
-				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools,
+				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_dist_data,
 				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
 				kamon, kamon_akka, kamon_prometheus, kamon_system,redis)
 		)
