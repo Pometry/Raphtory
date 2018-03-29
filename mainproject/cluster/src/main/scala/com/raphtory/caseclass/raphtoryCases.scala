@@ -8,6 +8,8 @@ import com.raphtory.Actors.RaphtoryActors.Analaysis.Analyser
 
 case class RouterUp(id:Int)
 case class PartitionUp(id:Int)
+case class ClusterStatusRequest()
+case class ClusterStatusResponse(clusterUp: Boolean)
 
 //The following block are all case classes (commands) which the manager can handle
 case class LiveAnalysis(name: String,analyser: Analyser)

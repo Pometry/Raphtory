@@ -8,8 +8,17 @@ import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import kamon.Kamon
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 //import kafka.producer.KeyedMessage
+import akka.actor._
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
+
 
 import scala.io.Source
 import scala.util.Random
@@ -38,11 +47,12 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
     println("Prestarting")
     context.system.scheduler.schedule(Duration(3, SECONDS), getPeriodDuration(timerUnit), self, "random")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(2, SECONDS), self,"benchmark")
+
   }
 
   //************* MESSAGE HANDLING BLOCK
   override def receive: Receive = {
-    case "Safe" => {safe = true;}
+    case "Safe" => {}
     case "addVertex" => vertexAdd()
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
@@ -81,7 +91,6 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
         }
       }
     }
-
   }
 
   def genRandomCommands(number : Int) : Unit = {

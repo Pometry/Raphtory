@@ -10,5 +10,5 @@ import com.raphtory.caseclass.DocSvr
 
 case class UpdateNode(seedLoc: String, partitionNumber: String) extends DocSvr {
   implicit val system = init(List(seedLoc))
-  system.actorOf(Props(new UpdateGen(partitionNumber.toInt)), "WatchDog")
+  system.actorOf(Props(new UpdateGen(partitionNumber.toInt)), "UpdateGen")
 }

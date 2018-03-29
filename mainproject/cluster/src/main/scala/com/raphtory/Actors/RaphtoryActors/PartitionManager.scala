@@ -43,7 +43,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
       Duration(2, SECONDS), self, "tick")
     context.system.scheduler.schedule(Duration(13, SECONDS),
         Duration(30, MINUTES), self, "profile")
-    context.system.scheduler.schedule(Duration(10, SECONDS),
+    context.system.scheduler.schedule(Duration(8, SECONDS),
       Duration(10, SECONDS), self, "keep_alive")
   }
 
@@ -64,7 +64,9 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
     messageBlockID        = messageBlockID + 1
   }
 
-  def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(childID), false)
+  def keepAlive() = {
+    mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(childID), false)
+  }
 
   def vHandle(srcID : Int) : Unit = {
     messageCount = messageCount + 1

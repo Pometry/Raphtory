@@ -29,8 +29,13 @@ class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
   var count = 0
 
   override def preStart() {
-    context.system.scheduler.schedule(Duration(7, SECONDS),Duration(2, SECONDS),self,"tick")
+    context.system.scheduler.schedule(Duration(7, SECONDS),
+      Duration(2, SECONDS),self,"tick")
+    context.system.scheduler.schedule(Duration(8, SECONDS),
+      Duration(10, SECONDS), self, "keep_alive")
   }
+
+  def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RouterUp(0), false) //TODO needs to be changed to a real value passed in
 
   override def receive: Receive = {
     case "tick" => {
@@ -38,6 +43,7 @@ class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
       kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
       count = 0
     }
+    case "keep_alive" => keepAlive()
     case command:String => try{parseJSON(command)}catch {case e: Exception => println(e)}
     case _ => println("message not recognized!")
   }
