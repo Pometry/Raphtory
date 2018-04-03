@@ -12,15 +12,15 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
     extends LogManageable {
 
   // Properties from that entity
-  var properties:Map[String,Property] = Map[String, Property]()
+  var properties:Map[String,Property] = Map[String, Property]() // TODO counter
 
   // History of that entity
   var previousState: List[(Int, Boolean)] = List(
-    (creationMessage, isInitialValue))
+    (creationMessage, isInitialValue)) // TODO counter
 
   //need to track all removes to pass to properties
   var removeList: List[(Int, (Boolean, String))] =
-    if (isInitialValue) List() else List((creationMessage, (false, "")))
+    if (isInitialValue) List() else List((creationMessage, (false, ""))) // TODO counter
 
   /** *
     * Set the Entity has alive at a given time
@@ -108,4 +108,5 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
     previousState = List()
     removeList = List()
   }
+
 }

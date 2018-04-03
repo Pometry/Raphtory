@@ -10,7 +10,7 @@ package com.raphtory.GraphEntities
 class Property(creationMessage: Int,
                key: String,
                value: String,
-               var previousState: List[(Int, (Boolean, String))])
+               var previousState: List[(Int, (Boolean, String))])  // TODO counter
     extends LogManageable {
 
   // add in the initial information
@@ -50,4 +50,6 @@ class Property(creationMessage: Int,
       System.lineSeparator()
     s"Property: ${key} ----- Current State: $toReturn"
   }
+
+
 }

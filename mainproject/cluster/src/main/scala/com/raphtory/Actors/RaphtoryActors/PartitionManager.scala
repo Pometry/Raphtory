@@ -9,6 +9,7 @@ import com.raphtory.GraphEntities._
 import akka.event.Logging
 import com.raphtory.caseclass._
 import com.raphtory.utils.Utils
+import kamon.Kamon
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable
@@ -25,8 +26,8 @@ import scala.concurrent.duration._
 class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends RaphtoryActor{
   var managerCount = managerCountVal
   val childID  = id                     //ID which refers to the partitions position in the graph manager map
-  var vertices = Map[Int,Vertex]()      // Map of Vertices contained in the partition
-  var edges    = Map[(Int,Int),Edge]()  // Map of Edges contained in the partition
+  var vertices = Map[Int,Vertex]()      // Map of Vertices contained in the partition // TODO counter
+  var edges    = Map[(Int,Int),Edge]()  // Map of Edges contained in the partition  // TODO counter
 
   val loggger  = Logging(context.system, this)
   val printing = false                  //should the handled messages be printed to terminal
@@ -40,6 +41,10 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   val mediator              = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
 
+  val entitiesGauge         = Kamon.gauge("raphtory.entities")
+  val verticesGauge         = Kamon.gauge("raphtory.vertices")
+  val edgesGauge            = Kamon.gauge("raphtory.edges")
+
   override def preStart() {             // set up partition to report how many messages it has processed in the last X seconds
     context.system.scheduler.schedule(Duration(7, SECONDS),
       Duration(2, SECONDS), self, "tick")
@@ -49,6 +54,49 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
       Duration(10, SECONDS), self, "keep_alive")
   }
 
+  def getEntitiesPrevStates[T,U <: Entity](m : Map[T, U]) : Int = {
+    var ret : Int = 0
+    m.foreach[Unit](e => {
+      ret += e._2.previousState.size
+    })
+    ret
+  }
+
+  def getEntitiesRemoveList[T,U <: Entity](m : Map[T, U]) : Int = {
+    var ret : Int = 0
+    m.foreach[Unit](e => {
+      ret += e._2.removeList.size
+    })
+    ret
+  }
+
+  def getEntitiesPreviousHistory[T, U <: Entity](m : Map[T, U]) : Int = {
+    var ret : Int = 0
+    m.foreach[Unit](e => {
+      ret += e._2.removeList.size
+    })
+    ret
+  }
+
+  def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map : Map[T, U]) = {
+    def getGauge(name : String) = {
+     g.refine("actor" -> "PartitionManager", "replica" -> id.toString, "name" -> name)
+    }
+
+    getGauge("Total number of entities").set(map.size)
+    //getGauge("Total number of properties") TODO
+
+    getGauge("Total number of previous states").set(
+      getEntitiesPrevStates(map)
+    )
+
+    getGauge("Total number of remove lists sizes").set(
+      getEntitiesRemoveList(map)
+    )
+
+    // getGauge("Number of props previous history") TODO
+
+  }
   def reportIntake() : Unit = {
     if(printing)
       println(messageCount)
@@ -56,7 +104,8 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
     // Kamon monitoring
     kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount").set(messageCount)
     kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount").set(secondaryMessageCount)
-
+    reportSizes(edgesGauge, edges)
+    reportSizes(verticesGauge, vertices)
     // Heap benchmarking
     //profile()
 

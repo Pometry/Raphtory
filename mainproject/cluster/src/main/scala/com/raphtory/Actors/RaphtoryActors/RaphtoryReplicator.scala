@@ -36,6 +36,7 @@ class RaphtoryReplicator extends Actor {
         actorRef = context.system.actorOf(
           Props(new PartitionManager(myId, false, myId+1)),
           s"Manager_$myId")
+        println(s"Partition Manager n. $myId is coming up")
       }
       catch {
         case e: java.util.concurrent.TimeoutException => {
