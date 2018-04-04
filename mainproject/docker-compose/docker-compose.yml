@@ -42,6 +42,7 @@ services:
         image: miratepuffin/raphtory
         depends_on: 
             - seedNode
+            - watchDog
         command: env-setter.sh partitionManager
         env_file: .env
         deploy:
@@ -70,7 +71,7 @@ services:
     watchDog:
         image: miratepuffin/raphtory
         depends_on: 
-            - updater
+            - seedNode
         command: env-setter.sh clusterUp
         env_file: .env
         deploy:

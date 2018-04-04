@@ -37,9 +37,13 @@ class UpdateGen() extends RaphtoryActor{
 
 
   def getPeriodDuration(unit : TimeUnit) : FiniteDuration = {
-    val period = 1/freq
-    Duration(unit.convert(period, SECONDS), unit)
+    val period : Long = unit.convert(1, SECONDS)/freq
+    println(period)
+    val x = Duration(period, unit)
+    println(x)
+    x
   }
+
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     println(s"Prestarting ($freq Hz)")
     context.system.scheduler.schedule(Duration(3, SECONDS), getPeriodDuration(timerUnit), self, "random")
@@ -70,9 +74,9 @@ class UpdateGen() extends RaphtoryActor{
 
   def benchmark():Unit={
     val diff = currentMessage - previousMessage
+    previousMessage = currentMessage
     counter = 0
     kGauge.refine("actor" -> "Updater", "name" -> "diff").set(diff)
-    previousMessage = currentMessage
   }
 
   def checkUp():Unit={
@@ -92,21 +96,16 @@ class UpdateGen() extends RaphtoryActor{
   }
 
   def genRandomCommands(number : Int) : Unit = {
-    var commandblock = ""
-    for (i <- 0 until number) {
-      val random = Random.nextFloat()
-      var command = ""
-      //if (random > 0.4) {
-        if (random <= 0.4) command = genVertexAdd()
-        else if (random <= 0.8) command = genEdgeAdd()
-        else                    command = genEdgeRemoval()
-        counter += 1
-        mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
-        Kamon.counter("raphtory.updateGen.commandsSent").increment()
-      //}
-      //else if(random<=0.5) command = genVertexRemoval()
-    }
+    val random = Random.nextFloat()
+    var command = ""
+    if      (random <= 0.4) command = genVertexAdd()
+    else if (random <= 0.8) command = genEdgeAdd()
+    else                    command = genEdgeRemoval()
 
+    counter += 1
+    mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
+
+    Kamon.counter("raphtory.updateGen.commandsSent").increment()
     kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
   }
 
