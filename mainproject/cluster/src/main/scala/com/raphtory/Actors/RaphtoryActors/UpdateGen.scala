@@ -36,6 +36,7 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
   var currentMessage  = 0
   var previousMessage = 0
   var safe            = false
+  var counter         = 0
 
   if(!new java.io.File("CurrentMessageNumber.txt").exists) storeRunNumber(0) //check if there is previous run which has created messages, fi not create file
   else for (line <- Source.fromFile("CurrentMessageNumber.txt").getLines()) {currentMessage = line.toInt} //otherwise read previous number
@@ -46,7 +47,7 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
     Duration(unit.convert(period, SECONDS), unit)
   }
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
-    println("Prestarting")
+    println(s"Prestarting ($freq Hz)")
     context.system.scheduler.schedule(Duration(3, SECONDS), getPeriodDuration(timerUnit), self, "random")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(2, SECONDS), self,"benchmark")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"stateCheck")
@@ -75,6 +76,7 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
 
   def benchmark():Unit={
     val diff = currentMessage - previousMessage
+    counter = 0
     kGauge.refine("actor" -> "Updater", "name" -> "diff").set(diff)
     previousMessage = currentMessage
   }
@@ -97,7 +99,6 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
 
   def genRandomCommands(number : Int) : Unit = {
     var commandblock = ""
-    var counter = 0
     for (i <- 0 until number) {
       val random = Random.nextFloat()
       var command = ""
