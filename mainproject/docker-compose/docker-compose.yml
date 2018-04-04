@@ -1,7 +1,6 @@
 version: '3.3'
 
 services:
-
     #### Monitoring front-end ####
     prometheus:
         build: prometheus/
@@ -15,10 +14,7 @@ services:
         deploy:
             endpoint_mode: vip
             replicas: 1
-            update_config:
-                delay: "0"
-            restart_policy:
-                condition: on-failure
+
     #### runZoo ####
     zooKeeper:
         image: quay.io/miratepuffin/zookeeper:latest
@@ -29,10 +25,7 @@ services:
         deploy:
             endpoint_mode: vip
             replicas: 1
-            update_config:
-                delay: "0"
-            restart_policy:
-                condition: on-failure
+
     #### seedSetup ####
     seedNode:
        image: miratepuffin/raphtory
@@ -42,35 +35,7 @@ services:
        env_file: .env
        deploy:
           endpoint_mode: dnsrr
-          replicas: 1 #$NUMBER_OF_PARTITIONS
-          update_config:
-              delay: "0"
-          restart_policy:
-              condition: on-failure
-
-#    rest:
-#       image: miratepuffin/raphtory
-#       depends_on: 
-#            - seedNode
-#       ports:
-#            - 8080:8080
-#       command: rest $ZOOKEEPER
-#       environment:
-#            - BIND_PORT=9101
-#            - HOST_PORT=9101
-#            - HOST_IP=raphtory_rest_1
-#    benchmarker:
-#        image: miratepuffin/raphtory
-#        depends_on: 
-#            - seedNode
-#        ports: 
-#            - 9104:9104
-#        command: benchmark $NUMBER_OF_PARTITIONS $ZOOKEEPER
-#        environment:
-#            # Are both the variables used?
-#            - BIND_PORT=9104
-#            - HOST_PORT=9105
-#            - HOST_IP=raphtory_benchmarker_1
+          replicas: 1
 
     #### Machines Setup ####
     partitionManager:
@@ -81,11 +46,7 @@ services:
         env_file: .env
         deploy:
             endpoint_mode: dnsrr
-            replicas: 2 #$NUMBER_OF_PARTITIONS
-            update_config:
-                delay: "0"
-            restart_policy:
-                condition: on-failure
+            replicas: 1 #$NUMBER_OF_PARTITIONS
 
     router:
         image: miratepuffin/raphtory
@@ -96,26 +57,17 @@ services:
         deploy:
             endpoint_mode: dnsrr
             replicas: 1
-            update_config:
-                delay: "0"
-            restart_policy:
-                condition: on-failure
 
     updater:
         image: miratepuffin/raphtory
-        depends_on: 
+        depends_on:
             - router
         command: env-setter.sh updater
         env_file: .env
         deploy:
             replicas: 1
-            update_config:
-                delay: "0"
-            restart_policy:
-                condition: on-failure
 
     watchDog:
-        container_name: "watchDog"
         image: miratepuffin/raphtory
         depends_on: 
             - updater
@@ -124,10 +76,6 @@ services:
         deploy:
             endpoint_mode: vip
             replicas: 1
-            update_config:
-                 delay: "0"
-            restart_policy:
-                condition: on-failure
 
 #    lam:
 #        image: miratepuffin/raphtory
@@ -140,6 +88,17 @@ services:
 #            - BIND_PORT=9105
 #            - HOST_PORT=9105
 #            - HOST_IP=raphtory_lam_1
+#    rest:
+#       image: miratepuffin/raphtory
+#       depends_on: 
+#            - seedNode
+#       ports:
+#            - 8080:8080
+#       command: rest $ZOOKEEPER
+#       environment:
+#            - BIND_PORT=9101
+#            - HOST_PORT=9101
+#            - HOST_IP=raphtory_rest_1
 
 volumes:
     prometheus_data:

@@ -28,8 +28,9 @@ import scala.util.Random
 class UpdateGen(managerCount:Int) extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
+
   var totalCount      = 100
-  val freq            = 1000         // (Updates/s) - Hz
+  val freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt  // (Updates/s) - Hz
   val timerUnit       = MICROSECONDS // Change timerUnit if needed (MICROSECONDS w/ freq ~ 10^6 shouldn't work properly)
 
   var currentMessage  = 0
@@ -101,8 +102,7 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
       val random = Random.nextFloat()
       var command = ""
       //if (random > 0.4) {
-        if (random <= 0.6) command = genVertexAdd()
-        else if (random <= 0.7) command = genEdgeAdd()
+        if (random <= 0.4) command = genVertexAdd()
         else if (random <= 0.8) command = genEdgeAdd()
         else                    command = genEdgeRemoval()
         counter += 1
@@ -112,7 +112,6 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
       //else if(random<=0.5) command = genVertexRemoval()
     }
 
-    println(s"${Calendar.getInstance().getTime}:$counter") // TODO comment
     kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
   }
 
