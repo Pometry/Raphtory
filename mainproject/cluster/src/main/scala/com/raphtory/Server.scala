@@ -2,7 +2,7 @@ package com.raphtory
 
 import java.net.InetAddress
 
-import ch.qos.logback.classic.{Level, Logger}
+import ch.qos.logback.classic.Level
 import com.raphtory.caseclass.clustercase._
 import com.raphtory.caseclass.clustercase.{ManagerNode, RestNode, SeedNode, WatchDogNode}
 import com.typesafe.config.ConfigFactory
@@ -18,10 +18,7 @@ object Go extends App {
   val conf          = ConfigFactory.load()
   val seedLoc       = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
   val zookeeper     = s"${sys.env("ZOOKEEPER")}"
-  val replicaId     = s"${sys.env("REPLICA_ID").toInt - 1}"
-  val partitionCount= s"${sys.env("NUMBER_OF_PARTITIONS")}" // TODO delete
 
-  println(s"Replica n. ${replicaId}")
   args(0) match {
     case "seedNode" => {
       println("Creating seed node")
@@ -34,26 +31,26 @@ object Go extends App {
     }
     case "router" => {
       println("Creating Router")
-      RouterNode(getConf(zookeeper), partitionCount)
+      RouterNode(getConf(zookeeper))
     }
     case "partitionManager" => {
       println(s"Creating Patition Manager...")
-      ManagerNode(getConf(zookeeper), replicaId, partitionCount)
+      ManagerNode(getConf(zookeeper))
     }
 
     case "updater" => {
       println("Creating Update Generator")
-      UpdateNode(getConf(zookeeper), partitionCount)
+      UpdateNode(getConf(zookeeper))
     }
 
     case "LiveAnalysisManager" => {
       println("Creating Live Analysis Manager")
       val LAM_Name = args(1) // TODO other ways (still env?): see issue #5 #6
-      LiveAnalysisNode(getConf(zookeeper), partitionCount, LAM_Name)
+      LiveAnalysisNode(getConf(zookeeper), LAM_Name)
     }
     case "clusterUp" => {
       println("Cluster Up, informing Partition Managers and Routers")
-      WatchDogNode(getConf(zookeeper), partitionCount)
+      WatchDogNode(getConf(zookeeper), "1") // TODO How to deal here if we'd like to remove definitely the NUMBER_OF_PARTITIONS env variable? Should this become just a minimum number of partitions
     }
 
   }

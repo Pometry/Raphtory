@@ -1,7 +1,5 @@
 package com.raphtory.utils
 
-import java.net.InetAddress
-
 import akka.actor.ActorContext
 import com.typesafe.config.ConfigFactory
 

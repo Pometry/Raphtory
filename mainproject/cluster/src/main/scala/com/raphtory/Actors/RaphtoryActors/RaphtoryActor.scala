@@ -16,7 +16,6 @@ import scala.collection.immutable.HashMap
 
 abstract class RaphtoryActor extends Actor {
 
-  // TODO Add cluster Id
   val bytesGauge     = Kamon.gauge("raphtory.heap.bytes", MeasurementUnit.information.bytes)
   val instancesGauge = Kamon.gauge("raphtory.heap.instances", MeasurementUnit.none)
   val kGauge         = Kamon.gauge("raphtory.benchmarker")

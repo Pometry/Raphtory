@@ -2,7 +2,7 @@ package com.raphtory.Actors.RaphtoryActors
 
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.caseclass._
-import com.raphtory.caseclass._
+import com.raphtory.utils.Utils
 import kamon.Kamon
 import spray.json._
 
@@ -21,9 +21,11 @@ import scala.concurrent.duration.{Duration, SECONDS}
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
+class RaphtoryRouter() extends RaphtoryActor{
+  var managerCount : Int = -1  // TODO check for initial behavior (does the watchdog stop the router?)
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
+  mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
   //************* MESSAGE HANDLING BLOCK
 
   var count = 0
@@ -39,14 +41,18 @@ class RaphtoryRouter(managerCount:Int) extends RaphtoryActor{
 
   override def receive: Receive = {
     case "tick" => {
-      // TODO put router ID here
       kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
       count = 0
     }
     case "keep_alive" => keepAlive()
     case command:String => try{parseJSON(command)}catch {case e: Exception => println(e)}
+    case PartitionsCount(newValue) => { // TODO redundant in Router and LAM (https://stackoverflow.com/questions/37596888/scala-akka-implement-abstract-class-with-subtype-parameter)
+      managerCount = newValue
+      println(s"Maybe a new PartitionManager has arrived: ${newValue}")
+    }
     case _ => println("message not recognized!")
   }
+
   def parseJSON(command:String):Unit={
     count += 1
     kCounter.refine("actor" -> "Router", "name" -> "count").increment()

@@ -2,17 +2,12 @@ package com.raphtory.Actors.RaphtoryActors
 
 import java.io._
 
-import akka.actor.{ActorPath, Address, RootActorPath}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.caseclass._
 import com.raphtory.GraphEntities._
 import akka.event.Logging
 import com.raphtory.caseclass._
-import com.raphtory.utils.Utils
 import kamon.Kamon
 
-import scala.collection.concurrent.TrieMap
-import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
@@ -26,8 +21,8 @@ import scala.concurrent.duration._
 class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends RaphtoryActor{
   var managerCount = managerCountVal
   val childID  = id                     //ID which refers to the partitions position in the graph manager map
-  var vertices = Map[Int,Vertex]()      // Map of Vertices contained in the partition // TODO counter
-  var edges    = Map[(Int,Int),Edge]()  // Map of Edges contained in the partition  // TODO counter
+  var vertices = Map[Int,Vertex]()      // Map of Vertices contained in the partition
+  var edges    = Map[(Int,Int),Edge]()  // Map of Edges contained in the partition
 
   val loggger  = Logging(context.system, this)
   val printing = false                  //should the handled messages be printed to terminal
@@ -100,7 +95,6 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   def reportIntake() : Unit = {
     if(printing)
       println(messageCount)
-    // TODO Put the partition manager Id
     // Kamon monitoring
     kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount").set(messageCount)
     kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount").set(secondaryMessageCount)
@@ -147,7 +141,6 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   }
 
   override def receive : Receive = {
-
     case "tick" => reportIntake()
     case "profile" => profile()
     case "keep_alive" => keepAlive()

@@ -1,21 +1,16 @@
 package com.raphtory.Actors.RaphtoryActors
 
 import java.io.FileWriter
-import java.util.Calendar
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.caseclass.{ClusterStatusRequest, ClusterStatusResponse}
 import kamon.Kamon
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
-//import kafka.producer.KeyedMessage
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -25,10 +20,9 @@ import scala.io.Source
 import scala.util.Random
 
 
-class UpdateGen(managerCount:Int) extends RaphtoryActor{
+class UpdateGen() extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-
   var totalCount      = 100
   val freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt  // (Updates/s) - Hz
   val timerUnit       = MICROSECONDS // Change timerUnit if needed (MICROSECONDS w/ freq ~ 10^6 shouldn't work properly)
@@ -203,7 +197,6 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
     s""" {"EdgeRemoval":{${getMessageID()}, ${genSrcID(src)}, ${genDstID(dst)}}}"""
   }
 
-
   def genSetSrcID():String = s""" "srcID":9 """
   def genSetDstID():String = s""" "dstID":10 """
   def genSrcID():String = s""" "srcID":${Random.nextInt(100000)} """
@@ -222,7 +215,5 @@ class UpdateGen(managerCount:Int) extends RaphtoryActor{
     }
     properties
   }
-
-  def getManager(srcId:Int):String = s"/user/Manager_${srcId % managerCount}" //simple srcID hash at the moment
 
 }

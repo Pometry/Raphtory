@@ -10,7 +10,7 @@ package com.raphtory.GraphEntities
 class Property(creationMessage: Int,
                key: String,
                value: String,
-               var previousState: List[(Int, (Boolean, String))])  // TODO counter
+               var previousState: List[(Int, (Boolean, String))])
     extends LogManageable {
 
   // add in the initial information

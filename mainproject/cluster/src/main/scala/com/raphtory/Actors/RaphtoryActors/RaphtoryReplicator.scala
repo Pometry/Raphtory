@@ -1,7 +1,5 @@
 package com.raphtory.Actors.RaphtoryActors
 
-import java.net.InetAddress
-
 import akka.actor.{Actor, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.cluster.pubsub.DistributedPubSub
@@ -26,7 +24,6 @@ class RaphtoryReplicator extends Actor {
   var watchDogIp = ""
   var actorRef : ActorRef = null
 
-  //Utils.watchDogSelector(context) ! RequestPartitionId
   def getNewId() = {
     if (myId == -1) {
       try {
