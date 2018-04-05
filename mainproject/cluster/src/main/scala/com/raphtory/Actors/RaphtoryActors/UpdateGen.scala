@@ -100,7 +100,7 @@ class UpdateGen() extends RaphtoryActor{
         else if (random <= 0.8) command = genEdgeAdd()
         else                    command = genEdgeRemoval()
         counter += 1
-        mediator ! DistributedPubSubMediator.Send("/user/Routers/router",command,false)
+        mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
         Kamon.counter("raphtory.updateGen.commandsSent").increment()
       //}
       //else if(random<=0.5) command = genVertexRemoval()
@@ -112,25 +112,25 @@ class UpdateGen() extends RaphtoryActor{
   def vertexAdd(){
     val command = genVertexAdd()
     sender ! command
-    mediator ! DistributedPubSubMediator.Send("/user/Routers/router",command,false)
+    mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
   }
 
   def vertexRemove(): Unit ={
     val command = genVertexRemoval()
     sender ! command
-    mediator ! DistributedPubSubMediator.Send("/user/Routers/router",command,false)
+    mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
   }
 
   def edgeAdd(): Unit ={
     val command = genEdgeAdd()
     sender ! command
-    mediator ! DistributedPubSubMediator.Send("/user/Routers/router",command,false)
+    mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
   }
 
   def edgeRemove(): Unit ={
     val command = genEdgeRemoval()
     sender ! genEdgeRemoval()
-    mediator ! DistributedPubSubMediator.Send("/user/Routers/router",genEdgeRemoval(),false)
+    mediator ! DistributedPubSubMediator.Send("/user/router",genEdgeRemoval(),false)
   }
 
 
