@@ -18,14 +18,20 @@ import scala.language.postfixOps
 
 import scala.io.Source
 import scala.util.Random
+object UpdateGen {
+  private case object TickKey
+  private case object FirstTick
+  private case object Tick
+  private case object LaterTick
+}
 
+class UpdateGen extends RaphtoryActor with Timers {
+  import UpdateGen._
 
-class UpdateGen() extends RaphtoryActor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   var totalCount      = 100
   val freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt  // (Updates/s) - Hz
-  val timerUnit       = MICROSECONDS // Change timerUnit if needed (MICROSECONDS w/ freq ~ 10^6 shouldn't work properly)
 
   var currentMessage  = 0
   var previousMessage = 0
@@ -46,8 +52,9 @@ class UpdateGen() extends RaphtoryActor{
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     println(s"Prestarting ($freq Hz)")
-    context.system.scheduler.schedule(Duration(3, SECONDS), getPeriodDuration(timerUnit), self, "random")
-    context.system.scheduler.schedule(Duration(7, SECONDS), Duration(2, SECONDS), self,"benchmark")
+
+    context.system.scheduler.schedule(Duration(3, SECONDS), Duration(1, MILLISECONDS), self, "random")
+    context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"benchmark")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"stateCheck")
   }
 
@@ -59,8 +66,8 @@ class UpdateGen() extends RaphtoryActor{
     case "addEdge" => edgeAdd()
     case "removeEdge" => edgeRemove()
     case "random" => {
-      if(safe){
-        genRandomCommands(1)
+      if(safe) {
+        genRandomCommands(freq/1000)
       }
     }
     case "benchmark" => benchmark()
@@ -98,15 +105,19 @@ class UpdateGen() extends RaphtoryActor{
   def genRandomCommands(number : Int) : Unit = {
     val random = Random.nextFloat()
     var command = ""
-    if      (random <= 0.4) command = genVertexAdd()
-    else if (random <= 0.8) command = genEdgeAdd()
-    else                    command = genEdgeRemoval()
+    def distribution() = {
+      //if (random <= 0.4)
+      genVertexAdd()
+      //else if (random <= 0.8) command = genEdgeAdd()
+      //else command = genEdgeRemoval()
+    }
+    (1 to number) foreach (_ => {
+      counter += 1
+      mediator ! DistributedPubSubMediator.Send("/user/router",genVertexAdd(),false)
+      Kamon.counter("raphtory.updateGen.commandsSent").increment()
+      kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
+    })
 
-    counter += 1
-    mediator ! DistributedPubSubMediator.Send("/user/router",command,false)
-
-    Kamon.counter("raphtory.updateGen.commandsSent").increment()
-    kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
   }
 
   def vertexAdd(){
