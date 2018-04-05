@@ -14,14 +14,11 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class WatchDog(managerCount:Int) extends Actor{
+class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-
   var pmcounter = 0
   var routercounter = 0
-
-  var minimumRouters = 1
   var clusterUp = false
 
   val maxTime = 10000
