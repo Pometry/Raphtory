@@ -21,11 +21,10 @@ import scala.concurrent.duration.{Duration, SECONDS}
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-class RaphtoryRouter() extends RaphtoryActor{
-  var managerCount : Int = -1  // TODO check for initial behavior (does the watchdog stop the router?)
+class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor{
+  var managerCount : Int = initialManagerCount  // TODO check for initial behavior (does the watchdog stop the router?)
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
   //************* MESSAGE HANDLING BLOCK
 
   var count = 0
@@ -37,7 +36,7 @@ class RaphtoryRouter() extends RaphtoryActor{
       Duration(10, SECONDS), self, "keep_alive")
   }
 
-  def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RouterUp(0), false) //TODO needs to be changed to a real value passed in
+  def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RouterUp(routerId), false)
 
   override def receive: Receive = {
     case "tick" => {
@@ -45,12 +44,14 @@ class RaphtoryRouter() extends RaphtoryActor{
       count = 0
     }
     case "keep_alive" => keepAlive()
+
     case command:String => try{parseJSON(command)}catch {case e: Exception => println(e)}
+
     case PartitionsCount(newValue) => { // TODO redundant in Router and LAM (https://stackoverflow.com/questions/37596888/scala-akka-implement-abstract-class-with-subtype-parameter)
       managerCount = newValue
       println(s"Maybe a new PartitionManager has arrived: ${newValue}")
     }
-    case _ => println("message not recognized!")
+    case e => println(s"message not recognized! ${e.getClass}")
   }
 
   def parseJSON(command:String):Unit={

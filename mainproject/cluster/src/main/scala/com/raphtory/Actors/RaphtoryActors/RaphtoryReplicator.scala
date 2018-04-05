@@ -8,12 +8,12 @@ import com.raphtory.utils.Utils
 import akka.pattern.ask
 import akka.util.Timeout
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class RaphtoryReplicator extends Actor {
-
+class RaphtoryReplicator(actorType:String) extends Actor {
+  implicit val timeout: Timeout = Timeout(10 seconds)
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
@@ -21,19 +21,14 @@ class RaphtoryReplicator extends Actor {
   var myId         = -1
   var currentCount = -1
 
-  var watchDogIp = ""
   var actorRef : ActorRef = null
 
   def getNewId() = {
     if (myId == -1) {
       try {
-        implicit val timeout: Timeout = Timeout(10 seconds)
-        val future = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionId, false)
+        val future = callTheWatchDog() //get the future object from the watchdog requesting either a PM id or Router id
         myId = Await.result(future, timeout.duration).asInstanceOf[AssignedId].id
-        actorRef = context.system.actorOf(
-          Props(new PartitionManager(myId, false, myId+1)),
-          s"Manager_$myId")
-        println(s"Partition Manager n. $myId is coming up")
+        giveBirth(myId) //create the child actor (PM or Router)
       }
       catch {
         case e: java.util.concurrent.TimeoutException => {
@@ -42,6 +37,21 @@ class RaphtoryReplicator extends Actor {
         }
       }
     }
+  }
+
+  def callTheWatchDog():Future[Any] = {
+    actorType match {
+      case "Partition Manager" => mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionId, false)
+      case "Router" => mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestRouterId, false)
+    }
+  }
+
+  def giveBirth(assignedId:Int): Unit ={
+    actorType match {
+      case "Partition Manager" => actorRef = context.system.actorOf(Props(new PartitionManager(myId, false, myId+1)), s"Manager_$myId")
+      case "Router" => actorRef = context.system.actorOf(Props(new RaphtoryRouter(myId,currentCount)), "router")
+    }
+
   }
 
   override def preStart() {
@@ -59,6 +69,6 @@ class RaphtoryReplicator extends Actor {
     case "tick" => {
       getNewId()
     }
-    case _ => println("Received not handled message")
+    case e => println(s"Received not handled message ${e.getClass}")
   }
 }
