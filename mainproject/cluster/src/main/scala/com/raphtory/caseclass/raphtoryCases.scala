@@ -2,6 +2,8 @@ package com.raphtory.caseclass
 
 import com.raphtory.Actors.RaphtoryActors.Analaysis.Analyser
 
+import scala.collection.mutable
+
 /**
   * Created by Mirate on 30/05/2017.
   */
@@ -20,22 +22,20 @@ case class VertexAddWithProperties(msgId:Int,srcId:Int, properties: Map[String,S
 case class VertexUpdateProperties(msgId:Int,srcId:Int, propery:Map[String,String])
 case class VertexRemoval(msgId:Int,srcId:Int)
 
-case class EdgeAdd(msgId:Int,srcId:Int,destId:Int)
+case class EdgeAdd(msgId:Int,srcId:Int,dstId:Int)
 case class EdgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int, properties: Map[String,String])
 case class EdgeUpdateProperties(msgId:Int,srcId:Int,dstId:Int,property:Map[String,String])
 case class EdgeRemoval(msgId:Int,srcId:Int,dstID:Int)
 
 case class RemoteEdgeUpdateProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String])
-case class RemoteEdgeAdd(msgId:Int,srcId:Int,dstId:Int)
-case class RemoteEdgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int,properties: Map[String,String])
+case class RemoteEdgeAdd(msgId:Int, srcId:Int, dstId:Int, properties: Map[String,String])
 case class RemoteEdgeRemoval(msgId:Int,srcId:Int,dstId:Int)
 
-case class RemoteEdgeUpdatePropertiesNew(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String],kills:List[Int])
-case class RemoteEdgeAddNew(msgId:Int,srcId:Int,dstId:Int,kills:List[Int])
-case class RemoteEdgeAddWithPropertiesNew(msgId:Int,srcId:Int,dstId:Int,properties: Map[String,String],kills:List[Int])
-case class RemoteEdgeRemovalNew(msgId:Int,srcId:Int,dstId:Int,kills:List[Int])
+case class RemoteEdgeUpdatePropertiesNew(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String],kills:mutable.TreeMap[Int, Boolean])
+case class RemoteEdgeAddNew(msgId:Int,srcId:Int,dstId:Int,properties: Map[String,String],kills:mutable.TreeMap[Int, Boolean])
+case class RemoteEdgeRemovalNew(msgId:Int,srcId:Int,dstId:Int,kills:mutable.TreeMap[Int, Boolean])
 
-case class RemoteReturnDeaths(msgId:Int,srcId:Int,dstId:Int,kills:List[Int])
+case class RemoteReturnDeaths(msgId:Int,srcId:Int,dstId:Int,kills:mutable.TreeMap[Int, Boolean])
 case class ReturnEdgeRemoval(msgId:Int,srcId:Int,dstId:Int)
 
 case class UpdatedCounter(newValue : Int)

@@ -1,5 +1,8 @@
 package com.raphtory.GraphEntities
 
+import scala.collection.concurrent.TrieMap
+import scala.collection.{SortedMap, mutable}
+
 /** *
   * Represents Graph Entities (Edges and Vertices)
   * Contains a Map of properties (currently String to string)
@@ -8,27 +11,28 @@ package com.raphtory.GraphEntities
   * @param creationMessage ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced
   */
-class Entity(creationMessage: Int, isInitialValue: Boolean)
-    extends LogManageable {
+class Entity(creationMessage: Int, isInitialValue: Boolean) {
 
   // Properties from that entity
-  var properties:Map[String,Property] = Map[String, Property]()
+  var properties:TrieMap[String,Property] = TrieMap[String, Property]()
 
   // History of that entity
-  var previousState: List[(Int, Boolean)] = List(
-    (creationMessage, isInitialValue))
+  var previousState: mutable.TreeMap[Int, Boolean] = mutable.TreeMap(
+    creationMessage -> isInitialValue)
 
-  //need to track all removes to pass to properties
-  var removeList: List[(Int, (Boolean, String))] =
-    if (isInitialValue) List() else List((creationMessage, (false, "")))
-
+  // History of that entity
+  var removeList: mutable.TreeMap[Int,Boolean] = null
+  if(isInitialValue)
+    removeList = mutable.TreeMap()
+  else
+    removeList = mutable.TreeMap(creationMessage -> isInitialValue)
   /** *
     * Set the Entity has alive at a given time
     *
     * @param msgID
     */
   def revive(msgID: Int): Unit = {
-    previousState = findEventPositionInLog(previousState, (msgID, true))
+    previousState += msgID -> true
   }
 
   /** *
@@ -37,17 +41,8 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
     * @param msgID
     */
   def kill(msgID: Int): Unit = {
-
-    /** *
-      * Filter to only removes and convert to a list which can be given to properties
-      */
-    def updateRemoveList() =
-      removeList =
-        previousState.filter(_._2 == false).map(p => (p._1, (false, "")))
-
-    previousState = findEventPositionInLog(previousState, (msgID, false))
-
-    updateRemoveList()
+    removeList    += msgID -> false
+    previousState += msgID -> false
   }
 
   /** *
@@ -66,14 +61,12 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
     * @param value property value
     */
   def +(msgID: Int, key: String, value: String): Unit = {
-    if (properties contains key)
-      properties(key) update(msgID, value)
-    else
-      properties = properties updated(key, new Property(msgID,
-        key,
-        value,
-        List()))
+    properties.putIfAbsent(key, new Property(msgID, key, value)) match {
+      case Some(oldValue) => oldValue update(msgID, value)
+      case None =>
+    }
   }
+
   //************* PRINT ENTITY DETAILS BLOCK *********************\\
   def printCurrent(): String = {
     var toReturn = s"MessageID ${previousState.head._1}: ${previousState.head._2} " + System.lineSeparator
@@ -105,8 +98,7 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
   //************* END PRINT ENTITY DETAILS BLOCK *********************\\
 
   def wipe() = {
-    previousState = List()
-    removeList = List()
+    previousState = mutable.TreeMap()
   }
 
 }

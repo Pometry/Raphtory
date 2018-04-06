@@ -103,16 +103,14 @@ class UpdateGen extends RaphtoryActor with Timers {
 
   def genRandomCommands(number : Int) : Unit = {
     val random = Random.nextFloat()
-    var command = ""
-    def distribution() = {
-      //if (random <= 0.4)
-      genVertexAdd()
-      //else if (random <= 0.8) command = genEdgeAdd()
-      //else command = genEdgeRemoval()
+    def distribution() : String = {
+      if (random <= 0.4)      genVertexAdd()
+      else if (random <= 0.8) genEdgeAdd()
+      else                    genEdgeRemoval()
     }
     (1 to number) foreach (_ => {
       counter += 1
-      mediator ! DistributedPubSubMediator.Send("/user/router",genVertexAdd(),false)
+      mediator ! DistributedPubSubMediator.Send("/user/router", distribution(),false)
       Kamon.counter("raphtory.updateGen.commandsSent").increment()
       kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
     })

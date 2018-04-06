@@ -12,13 +12,10 @@ import scala.collection.mutable.Set
 class Vertex(msdId: Int, val vertexId: Int, initialValue: Boolean)
     extends Entity(msdId, initialValue) {
 
-  var associatedEdges = Set[Tuple2[Int, Int]]()
+  var associatedEdges = Set[Edge]()
 
-  def addAssociatedEdge(srcId: Int, dstId: Int): Unit =
-    associatedEdges = associatedEdges + ((srcId, dstId))
-
-  def hasAssociatedEdge(srcId: Int, dstId: Int): Boolean =
-    associatedEdges contains ((srcId, dstId))
+  def addAssociatedEdge(edge: Edge): Unit =
+    associatedEdges += edge
 
   override def printProperties(): String =
     s"Vertex $vertexId with properties: \n" + super.printProperties()

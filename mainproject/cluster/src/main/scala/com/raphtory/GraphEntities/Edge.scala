@@ -1,5 +1,7 @@
 package com.raphtory.GraphEntities
 
+import scala.collection.mutable
+
 /**
   * Created by Mirate on 01/03/2017.
   */
@@ -11,13 +13,8 @@ class Edge(msgID: Int, initialValue: Boolean, srcId: Int, dstId: Int)
       .lineSeparator() +
       super.printProperties()
 
-  def killList(vKills: List[Int]): Unit = {
-    vKills match {
-      case head :: tail => {
-        kill(head)
-        killList(tail)
-      }
-      case _ =>
-    }
+  def killList(vKills: mutable.TreeMap[Int, Boolean]): Unit = {
+    removeList ++= vKills
+    previousState ++= vKills
   }
 }
