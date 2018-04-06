@@ -21,7 +21,6 @@ class RaphtoryReplicator extends Actor {
   var myId         = -1
   var currentCount = -1
 
-  var watchDogIp = ""
   var actorRef : ActorRef = null
 
   def getNewId() = {
@@ -48,17 +47,13 @@ class RaphtoryReplicator extends Actor {
     context.system.scheduler.schedule(2.seconds,5.seconds,self,"tick")
   }
 
-
-
   def receive : Receive = {
     case PartitionsCount(count) => {
       currentCount = count
       if(actorRef != null)
         actorRef ! UpdatedCounter(currentCount)
     }
-    case "tick" => {
-      getNewId()
-    }
+    case "tick" => getNewId
     case _ => println("Received not handled message")
   }
 }
