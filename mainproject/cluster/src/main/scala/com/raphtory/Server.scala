@@ -50,7 +50,7 @@ object Go extends App {
     }
     case "clusterUp" => {
       println("Cluster Up, informing Partition Managers and Routers")
-      WatchDogNode(getConf(zookeeper), "1") // TODO How to deal here if we'd like to remove definitely the NUMBER_OF_PARTITIONS env variable? Should this become just a minimum number of partitions
+      WatchDogNode(getConf(zookeeper), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
     }
 
   }

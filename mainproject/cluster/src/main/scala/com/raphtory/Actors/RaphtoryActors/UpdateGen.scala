@@ -92,7 +92,6 @@ class UpdateGen extends RaphtoryActor with Timers {
         implicit val timeout: Timeout = Timeout(10 seconds)
         val future = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest, false)
         safe = Await.result(future, timeout.duration).asInstanceOf[ClusterStatusResponse].clusterUp
-        println("New Safe value received")
       }
       catch {
         case e: java.util.concurrent.TimeoutException => {

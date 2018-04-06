@@ -25,7 +25,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   var edges    = Map[(Int,Int),Edge]()  // Map of Edges contained in the partition
 
   val loggger  = Logging(context.system, this)
-  val printing = false                  //should the handled messages be printed to terminal
+  val printing = true                  //should the handled messages be printed to terminal
   val logging  = false                  // should the state of the vertex/edge map be output to file
 
   var messageCount          = 0         // number of messages processed since last report to the benchmarker

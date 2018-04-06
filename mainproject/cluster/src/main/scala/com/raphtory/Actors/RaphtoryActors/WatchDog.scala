@@ -14,14 +14,11 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class WatchDog(managerCount:Int) extends Actor{
+class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-
   var pmcounter = 0
   var routercounter = 0
-
-  var minimumRouters = 1
   var clusterUp = false
 
   val maxTime = 30000
@@ -41,15 +38,26 @@ class WatchDog(managerCount:Int) extends Actor{
     case "tick" => keepAliveHandler()
     case PartitionUp(id:Int) => mapHandler(id,PMKeepAlive, "Partition Manager")
     case RouterUp(id:Int) =>mapHandler(id,RouterKeepAlive, "Router")
-    case RequestPartitionId => {
-      println("Sending Id to the requestor")
-      sender() ! AssignedId(pmCounter)
-      pmCounter += 1
-      println("Sending new total coutner to all the subscribers")
-      mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
-    }
+
+    case RequestPartitionId => newPMReqest()
+
+    case RequestRouterId => newRouterRequest()
+
 
   }
+
+  def newRouterRequest() ={
+    println("Sending Id for new Router to Replicator")
+    sender() ! AssignedId(roCounter)
+    roCounter += 1
+  }
+
+  def newPMReqest() ={
+    println("Sending Id for new PM to Replicator")
+    sender() ! AssignedId(pmCounter)
+    pmCounter += 1
+    println("Sending new total Partition managers to all the subscribers")
+    mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))}
 
   def keepAliveHandler() = {
     checkMapTime(PMKeepAlive)

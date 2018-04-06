@@ -13,5 +13,5 @@ object Utils {
     context.actorSelection(s"akka.tcp://$ip:${config.getString("settings.bport")}/user/WatchDog")
   }
 
-  def getManager(srcId:Int, managerCount : Int):String = s"/user/partitionManager/Manager_${srcId % managerCount}" //simple srcID hash at the moment
+  def getManager(srcId:Int, managerCount : Int):String = s"/user/Manager_${srcId % managerCount}" //simple srcID hash at the moment
 }

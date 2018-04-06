@@ -12,7 +12,7 @@ case class ManagerNode(seedLoc: String)
 
   implicit val system = init(List(seedLoc))
 
-  system.actorOf(Props(new RaphtoryReplicator()), s"PartitionManager")
+  system.actorOf(Props(new RaphtoryReplicator("Partition Manager")), s"PartitionManager")
 
   "redis-server --daemonize yes" ! //start redis running on manager partition
 

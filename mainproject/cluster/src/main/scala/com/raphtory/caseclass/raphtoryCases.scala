@@ -42,5 +42,6 @@ case class UpdatedCounter(newValue : Int)
 case class AssignedId(id : Int)
 case class PartitionsCount(count : Int)
 case class RequestPartitionId()
-case class WatchDogIp(ip: String)
+case class RequestRouterId()
+//case class WatchDogIp(ip: String)
 
