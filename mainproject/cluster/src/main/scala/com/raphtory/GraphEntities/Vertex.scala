@@ -1,5 +1,6 @@
 package com.raphtory.GraphEntities
 
+import scala.collection.mutable
 import scala.collection.mutable.Set
 
 /** *
@@ -12,10 +13,10 @@ import scala.collection.mutable.Set
 class Vertex(msdId: Int, val vertexId: Int, initialValue: Boolean)
     extends Entity(msdId, initialValue) {
 
-  var associatedEdges = Set[Edge]()
+  var associatedEdges = mutable.LinkedHashSet[Edge]()
 
   def addAssociatedEdge(edge: Edge): Unit =
-    associatedEdges += edge
+    associatedEdges add edge
 
   override def printProperties(): String =
     s"Vertex $vertexId with properties: \n" + super.printProperties()

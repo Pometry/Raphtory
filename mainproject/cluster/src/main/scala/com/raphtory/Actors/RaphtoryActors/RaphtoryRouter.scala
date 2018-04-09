@@ -32,7 +32,7 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
 
   override def preStart() {
     context.system.scheduler.schedule(Duration(7, SECONDS),
-      Duration(2, SECONDS),self,"tick")
+      Duration(1, SECONDS),self,"tick")
     context.system.scheduler.schedule(Duration(8, SECONDS),
       Duration(10, SECONDS), self, "keep_alive")
   }

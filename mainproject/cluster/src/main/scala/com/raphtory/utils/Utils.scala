@@ -28,23 +28,24 @@ object Utils {
     */
   def edgeCreator(msgId : Int, srcId: Int, dstId: Int, managerCount : Int, managerId : Int,
                   edges : TrieMap[(Int, Int), Edge], initialValue : Boolean = true) : (Edge, Boolean, Boolean) = {
-    edges.get((srcId,dstId)) match {
+
+    val local       = checkDst(dstId, managerCount, managerId)
+    var present     = false
+    var edge : Edge = null
+
+    if (local)
+      edge = new Edge(msgId, initialValue, srcId, dstId)
+    else
+      edge = new RemoteEdge(msgId, initialValue, srcId, dstId, RemotePos.Destination, getPartition(dstId, managerCount))
+
+    edges.putIfAbsent((srcId, dstId), edge) match {
       case Some(e) => {
-        (e, e.isInstanceOf[Edge], true)
+        edge = e
+        present = true
       }
-      case None => {
-        if (checkDst(dstId, managerCount, managerId)) {
-          val edge = new Edge(msgId, initialValue, srcId, dstId)
-          edges put((srcId,dstId),edge)
-          (edge , true, false)
-        }
-        else {
-          val edge = new RemoteEdge(msgId, initialValue, srcId, dstId, RemotePos.Destination, getPartition(dstId, managerCount))
-          edges put((srcId, dstId), edge)
-          (edge, false, false)
-        }
-      }
+      case None => // All is set
     }
+    (edge, local, present)
   }
 
   def getPartition(ID:Int, managerCount : Int):Int = ID % managerCount //get the partition a vertex is stored in

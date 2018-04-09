@@ -8,10 +8,10 @@ import com.raphtory.caseclass._
 import kamon.Kamon
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import com.raphtory.utils.Utils._
-
+import monix.eval.Task
+import monix.execution.Scheduler.Implicits.global
 import scala.collection.mutable
 /**
   * The graph partition manages a set of vertices and there edges
@@ -19,7 +19,6 @@ import scala.collection.mutable
   * Will process these, storing information in graph entities which may be updated if they already exist
   * */
 class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends RaphtoryActor {
-
   var managerCount = managerCountVal
   val managerID  = id                         //ID which refers to the partitions position in the graph manager map
 
@@ -65,11 +64,11 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
     //case LiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name, Results(analyser.analyse(vertices,edges)), false)
 
-    case VertexAdd(msgId,srcId) => vertexAdd(msgId,srcId); vHandle(srcId)
+    case VertexAdd(msgId,srcId) => Task.eval(vertexAdd(msgId,srcId)).runAsync; vHandle(srcId)
     case VertexAddWithProperties(msgId,srcId,properties) => vertexAdd(msgId,srcId,properties); vHandle(srcId);
     case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); vHandle(srcId);
 
-    case EdgeAdd(msgId,srcId,dstId) => edgeAdd(msgId,srcId,dstId); eHandle(srcId,dstId)
+    case EdgeAdd(msgId,srcId,dstId) => Task.eval(edgeAdd(msgId,srcId,dstId)).runAsync; eHandle(srcId,dstId)
     case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAdd(msgId,srcId,dstId,properties); eHandle(srcId,dstId)
     case RemoteEdgeAdd(msgId,srcId,dstId,properties) => remoteEdgeAdd(msgId,srcId,dstId,properties); eHandleSecondary(srcId,dstId)
     case RemoteEdgeAddNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddNew(msgId,srcId,dstId,properties,deaths); eHandleSecondary(srcId,dstId)
@@ -87,41 +86,64 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
     }
   }
 
-  def vertexAdd(msgId : Int, srcId : Int, properties : Map[String,String] = null) : Unit = { //Vertex add handler function
-    vertices.putIfAbsent(srcId, new Vertex(msgId, srcId, true)) match {
-      case Some(oldValue) => oldValue revive msgId
+  def vertexAdd(msgId : Int, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
+    var value : Vertex = new Vertex(msgId, srcId, true)
+    vertices.putIfAbsent(srcId, value) match {
+      case Some(oldValue) => {
+        oldValue revive msgId
+        value = oldValue
+      }
       case None =>
     }
     if (properties != null)
-      properties.foreach(l => vertices(srcId) + (msgId,l._1,l._2)) //add all properties
+      properties.foreach(l => value + (msgId,l._1,l._2)) //add all properties
+    value
   }
 
   def edgeAdd(msgId : Int, srcId : Int, dstId : Int, properties : Map[String, String] = null) : Unit = {
-    val (edge, local, present) = edgeCreator(msgId, srcId, dstId, managerCount, managerID, edges)
+    //val (edge, local, present) = edgeCreator(msgId, srcId, dstId, managerCount, managerID, edges)
+
+    val local       = checkDst(dstId, managerCount, managerID)
+    var present     = false
+    var edge : Edge = null
+
+    if (local)
+      edge = new Edge(msgId, true, srcId, dstId)
+    else
+      edge = new RemoteEdge(msgId, true, srcId, dstId, RemotePos.Destination, getPartition(dstId, managerCount))
+
+    edges.putIfAbsent((srcId, dstId), edge) match {
+      case Some(e) => {
+        edge = e
+        present = true
+      }
+      case None => // All is set
+    }
     if (printing) println(s"Received an edge Add for $srcId --> $dstId (local: $local)")
 
     if (local && srcId != dstId) {
-      vertexAdd(msgId, dstId) // do the same for the destination ID
-      vertices(dstId) addAssociatedEdge edge // do the same for the destination node
+      val dstVertex = vertexAdd(msgId, dstId) // do the same for the destination ID
+      dstVertex addAssociatedEdge edge // do the same for the destination node
       if (!present)
-        edge killList vertices(dstId).removeList
+        edge killList dstVertex.removeList
     }
 
-    vertexAdd(msgId, srcId)                          // create or revive the source ID
-    vertices(srcId) addAssociatedEdge edge // add the edge to the associated edges of the source node
+    val srcVertex = vertexAdd(msgId, srcId)                          // create or revive the source ID
+    srcVertex addAssociatedEdge edge // add the edge to the associated edges of the source node
 
     if (present) {
         edge revive msgId
         if (!local)
-          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAdd(msgId, srcId, dstId, null),false) // inform the partition dealing with the destination node
+          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAdd(msgId, srcId, dstId, null),false) // inform the partition dealing with the destination node*/
     } else {
-        val deaths = vertices(srcId).removeList
+        val deaths = srcVertex.removeList
         edge killList deaths
         if (!local)
           mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(msgId, srcId, dstId, null, deaths), false)
     }
     if (properties != null)
       properties.foreach(prop => edge + (msgId,prop._1,prop._2)) // add all passed properties onto the edge
+
   }
 
   def remoteEdgeAdd(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String] = null):Unit={
@@ -334,21 +356,21 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   }
 
   def vHandle(srcID : Int) : Unit = {
-    messageCount = messageCount + 1
+    messageCount += 1
     kCounter.refine("actor" -> "PartitionManager", "name" -> "messageCounter").increment()
   }
 
   def vHandleSecondary(srcID : Int) : Unit = {
-    secondaryMessageCount = secondaryMessageCount + 1
+    secondaryMessageCount += 1
     kCounter.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCounter").increment()
   }
   def eHandle(srcID : Int, dstID : Int) : Unit = {
-    messageCount = messageCount + 1
+    messageCount += 1
     kCounter.refine("actor" -> "PartitionManager", "name" -> "messageCounter").increment()
   }
 
   def eHandleSecondary(srcID : Int, dstID : Int) : Unit = {
-    secondaryMessageCount = secondaryMessageCount + 1
+    secondaryMessageCount += 1
     kCounter.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCounter").increment()
   }
 
