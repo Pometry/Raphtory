@@ -2,10 +2,12 @@ package com.raphtory.Actors.RaphtoryActors
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.GraphEntities._
 import com.raphtory.caseclass._
 import kamon.Kamon
+import kamon.metric.GaugeMetric
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
@@ -18,27 +20,28 @@ import monix.execution.{ExecutionModel, Scheduler}
   * Will process these, storing information in graph entities which may be updated if they already exist
   * */
 class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends RaphtoryActor {
-  var managerCount = managerCountVal
-  val managerID  = id                   //ID which refers to the partitions position in the graph manager map
+  var managerCount : Int = managerCountVal
+  val managerID    : Int = id                   //ID which refers to the partitions position in the graph manager map
 
-  val printing = false                  // should the handled messages be printed to terminal
-  val logging  = false                  // should the state of the vertex/edge map be output to file
-  val addOnly = System.getenv().getOrDefault("ADD_ONLY", "false").trim.toBoolean
+  val printing: Boolean = false                  // should the handled messages be printed to terminal
+  val logging : Boolean = false                  // should the state of the vertex/edge map be output to file
+  val addOnly : Boolean = System.getenv().getOrDefault("ADD_ONLY", "fals").trim.toBoolean
 
-  var messageCount          : AtomicInteger = new AtomicInteger(0)         // number of messages processed since last report to the benchmarker
-  var secondaryMessageCount : AtomicInteger = new AtomicInteger(0)
+  val messageCount          : AtomicInteger = new AtomicInteger(0)         // number of messages processed since last report to the benchmarker
+  val secondaryMessageCount : AtomicInteger = new AtomicInteger(0)
   val secondaryCounting     = false     // count all messages or just main incoming ones
 
-  val mediator              = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
+  val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
 
   val storage = EntitiesStorage.apply(printing, managerCount, managerID, mediator, addOnly)
 
   mediator ! DistributedPubSubMediator.Put(self)
 
-  val verticesGauge         = Kamon.gauge("raphtory.vertices")
-  val edgesGauge            = Kamon.gauge("raphtory.edges")
+  val verticesGauge : GaugeMetric = Kamon.gauge("raphtory.vertices")
+  val edgesGauge    : GaugeMetric = Kamon.gauge("raphtory.edges")
 
-  implicit val s = Scheduler(ExecutionModel.BatchedExecution(1024))
+
+  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
 
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
@@ -76,15 +79,13 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
     case ReturnEdgeRemoval(msgId,srcId,dstId)                  => Task.eval(storage.returnEdgeRemoval(msgId,srcId,dstId)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
     case RemoteReturnDeaths(msgId,srcId,dstId,deaths)          => Task.eval(storage.remoteReturnDeaths(msgId,srcId,dstId,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
 
-    case UpdatedCounter(newValue) => {
+    case UpdatedCounter(newValue) =>
       managerCount = newValue
-      println(s"A new PartitionManager has joined the cluster: ${newValue}")
-    }
+      println(s"A new PartitionManager has joined the cluster: $newValue")
+
   }
 
-  def keepAlive() = {
-    mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), false)
-  }
+  def keepAlive() : Unit = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), localAffinity = false)
 
   /*****************************
    * Metrics reporting methods *
@@ -97,7 +98,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
     ret
   }
 
-  def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map : TrieMap[T, U]) = {
+  def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map : TrieMap[T, U]) : Unit = {
     def getGauge(name : String) = {
      g.refine("actor" -> "PartitionManager", "replica" -> id.toString, "name" -> name)
     }
