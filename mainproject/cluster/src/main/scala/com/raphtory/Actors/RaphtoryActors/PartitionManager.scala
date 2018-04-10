@@ -67,25 +67,25 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
     //case LiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name, Results(analyser.analyse(vertices,edges)), false)
 
-    case VertexAdd(msgId,srcId) => Task.fork(Task.eval(vertexAdd(msgId,srcId)), s).runAsync; vHandle(srcId)
-    case VertexAddWithProperties(msgId,srcId,properties) => vertexAdd(msgId,srcId,properties); vHandle(srcId);
-    case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); vHandle(srcId);
+    case VertexAdd(msgId,srcId) => Task.eval(vertexAdd(msgId,srcId)).fork.runAsync; vHandle(srcId)
+    case VertexAddWithProperties(msgId,srcId,properties) => Task.eval(vertexAdd(msgId,srcId,properties)).fork.runAsync; vHandle(srcId);
+    case VertexRemoval(msgId,srcId) => Task.eval(vertexRemoval(msgId,srcId)).fork.runAsync; vHandle(srcId);
 
-    case EdgeAdd(msgId,srcId,dstId) => Task.fork(Task.eval(edgeAdd(msgId,srcId,dstId)), s).runAsync; eHandle(srcId,dstId)
-    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAdd(msgId,srcId,dstId,properties); eHandle(srcId,dstId)
-    case RemoteEdgeAdd(msgId,srcId,dstId,properties) => remoteEdgeAdd(msgId,srcId,dstId,properties); eHandleSecondary(srcId,dstId)
-    case RemoteEdgeAddNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddNew(msgId,srcId,dstId,properties,deaths); eHandleSecondary(srcId,dstId)
+    case EdgeAdd(msgId,srcId,dstId) => Task.eval(edgeAdd(msgId,srcId,dstId)).fork.runAsync; eHandle(srcId,dstId)
+    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => Task.eval(edgeAdd(msgId,srcId,dstId,properties)).fork.runAsync; eHandle(srcId,dstId)
+    case RemoteEdgeAdd(msgId,srcId,dstId,properties) => Task.eval(remoteEdgeAdd(msgId,srcId,dstId,properties)).fork.runAsync; eHandleSecondary(srcId,dstId)
+    case RemoteEdgeAddNew(msgId,srcId,dstId,properties,deaths) => Task.eval(remoteEdgeAddNew(msgId,srcId,dstId,properties,deaths)).fork.runAsync; eHandleSecondary(srcId,dstId)
 
-    case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); eHandle(srcId,dstId)
-    case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); eHandleSecondary(srcId,dstId)
-    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); eHandleSecondary(srcId,dstId)
+    case EdgeRemoval(msgId,srcId,dstId) => Task.eval(edgeRemoval(msgId,srcId,dstId)).fork.runAsync; eHandle(srcId,dstId)
+    case RemoteEdgeRemoval(msgId,srcId,dstId) => Task.eval(remoteEdgeRemoval(msgId,srcId,dstId)).fork.runAsync; eHandleSecondary(srcId,dstId)
+    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => Task.eval(remoteEdgeRemovalNew(msgId,srcId,dstId,deaths)).fork.runAsync; eHandleSecondary(srcId,dstId)
 
-    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); eHandleSecondary(srcId,dstId)
-    case ReturnEdgeRemoval(msgId,srcId,dstId) => returnEdgeRemoval(msgId,srcId,dstId);  eHandleSecondary(srcId,dstId)
+    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => Task.eval(remoteReturnDeaths(msgId,srcId,dstId,deaths)).fork.runAsync; eHandleSecondary(srcId,dstId)
+    case ReturnEdgeRemoval(msgId,srcId,dstId) => Task.eval(returnEdgeRemoval(msgId,srcId,dstId)).fork.runAsync;  eHandleSecondary(srcId,dstId)
 
     case UpdatedCounter(newValue) => {
       managerCount = newValue
-      println(s"Maybe a new PartitionManager has arrived: ${newValue}")
+      println(s"A new PartitionManager has joined the cluster: ${newValue}")
     }
   }
 
@@ -159,11 +159,11 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
   def remoteEdgeAddNew(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String],srcDeaths:mutable.TreeMap[Int, Boolean]):Unit={
     if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge did not previously exist so sending back deaths")
-    vertexAdd(msgId,dstId) //create or revive the destination node
+    val dstVertex = vertexAdd(msgId,dstId) //create or revive the destination node
     val edge = new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Source,getPartition(srcId, managerCount))
-    vertices(dstId) addAssociatedEdge edge //add the edge to the associated edges of the destination node
+    dstVertex addAssociatedEdge edge //add the edge to the associated edges of the destination node
     edges put(getEdgeIndex(srcId,dstId), edge) //create the new edge
-    val deaths = vertices(dstId).removeList //get the destination node deaths
+    val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
     properties.foreach(prop => edge + (msgId,prop._1,prop._2)) // add all passed properties onto the list
@@ -228,8 +228,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
   def remoteEdgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
     if(printing) println(s"Received Remote Edge Removal with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge already exists so just updating")
-    var dstVertex = getVertexAndWipe(dstId, msgId)
-    (srcId,dstId) //add the edge to the destination nodes associated list
+    val dstVertex = getVertexAndWipe(dstId, msgId)
     edges.get(getEdgeIndex(srcId, dstId)) match {
       case Some(e) => {
         e kill msgId
@@ -266,7 +265,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
       }
     }
 
-    vertices(srcId).associatedEdges.foreach(e => {
+    vertex.associatedEdges.foreach(e => {
       e kill msgId
       if(e.isInstanceOf[RemoteEdge]){
         val ee = e.asInstanceOf[RemoteEdge]
