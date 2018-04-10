@@ -29,7 +29,7 @@ services:
     #### seedSetup ####
     seedNode:
        image: miratepuffin/raphtory
-       depends_on: 
+       depends_on:
             - zooKeeper
        command: env-setter.sh seedNode
        env_file: .env
@@ -40,7 +40,7 @@ services:
     #### Machines Setup ####
     partitionManager:
         image: miratepuffin/raphtory
-        depends_on: 
+        depends_on:
             - seedNode
             - watchDog
         command: env-setter.sh partitionManager
@@ -51,7 +51,7 @@ services:
 
     router:
         image: miratepuffin/raphtory
-        depends_on: 
+        depends_on:
             - partitionManager
         command: env-setter.sh router
         env_file: .env
@@ -70,7 +70,7 @@ services:
 
     watchDog:
         image: miratepuffin/raphtory
-        depends_on: 
+        depends_on:
             - seedNode
         command: env-setter.sh clusterUp
         env_file: .env
@@ -80,7 +80,7 @@ services:
 
 #    lam:
 #        image: miratepuffin/raphtory
-#        depends_on: 
+#        depends_on:
 #            - clusterUp
 #        ports:
 #            - 9105:9105
@@ -91,7 +91,7 @@ services:
 #            - HOST_IP=raphtory_lam_1
 #    rest:
 #       image: miratepuffin/raphtory
-#       depends_on: 
+#       depends_on:
 #            - seedNode
 #       ports:
 #            - 8080:8080

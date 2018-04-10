@@ -23,6 +23,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
   val printing = false                  // should the handled messages be printed to terminal
   val logging  = false                  // should the state of the vertex/edge map be output to file
+  val addOnly = sys.env("ADD_ONLY").trim.toBoolean
 
   var messageCount          : AtomicInteger = new AtomicInteger(0)         // number of messages processed since last report to the benchmarker
   var secondaryMessageCount : AtomicInteger = new AtomicInteger(0)
@@ -30,7 +31,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
   val mediator              = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
 
-  val storage = EntitiesStorage.apply(printing, managerCount, managerID, mediator)
+  val storage = EntitiesStorage.apply(printing, managerCount, managerID, mediator, addOnly)
 
   mediator ! DistributedPubSubMediator.Put(self)
 
