@@ -11,7 +11,7 @@ import scala.collection.{SortedMap, mutable}
   * @param creationMessage ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced
   */
-class Entity(creationMessage: Int, isInitialValue: Boolean) {
+class Entity(creationMessage: Int, isInitialValue: Boolean, addOnly: Boolean) {
 
   // Properties from that entity
   var properties:TrieMap[String,Property] = TrieMap[String, Property]()
@@ -20,8 +20,12 @@ class Entity(creationMessage: Int, isInitialValue: Boolean) {
   var previousState: mutable.TreeMap[Int, Boolean] = mutable.TreeMap(
     creationMessage -> isInitialValue)
 
+  //track the oldest point for use in AddOnly mode
+  var oldestPoint = creationMessage
+
   // History of that entity
   var removeList: mutable.TreeMap[Int,Boolean] = null
+
   if(isInitialValue)
     removeList = mutable.TreeMap()
   else
@@ -32,7 +36,15 @@ class Entity(creationMessage: Int, isInitialValue: Boolean) {
     * @param msgID
     */
   def revive(msgID: Int): Unit = {
-    previousState += msgID -> true
+    if(addOnly) {
+      // if we are in add only mode
+      if (oldestPoint > msgID) { //check if the current point in history is the oldest
+        previousState -= oldestPoint //if the new update is older
+        previousState += msgID -> true //then replace
+      }
+    }
+    else
+      previousState += msgID -> true
   }
 
   /** *
