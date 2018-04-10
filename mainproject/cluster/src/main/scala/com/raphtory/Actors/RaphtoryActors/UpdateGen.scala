@@ -217,5 +217,4 @@ class UpdateGen extends RaphtoryActor with Timers {
     }
     properties
   }
-
 }
