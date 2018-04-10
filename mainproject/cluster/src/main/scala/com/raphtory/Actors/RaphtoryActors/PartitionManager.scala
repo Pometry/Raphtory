@@ -24,8 +24,10 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   val managerID    : Int = id                   //ID which refers to the partitions position in the graph manager map
 
   val printing: Boolean = false                  // should the handled messages be printed to terminal
-  val logging : Boolean = false                  // should the state of the vertex/edge map be output to file
-  val addOnly : Boolean = System.getenv().getOrDefault("ADD_ONLY", "fals").trim.toBoolean
+
+  val kLogging: Boolean = System.getenv().getOrDefault("PROMETHEUS", "true").trim().toBoolean // should the state of the vertex/edge map be output to Kamon/Prometheus
+  val stdoutLog:Boolean = System.getenv().getOrDefault("STDOUT_LOG", "true").trim().toBoolean // A slower logging for the state of vertices/edges maps to Stdout
+  val addOnly : Boolean = System.getenv().getOrDefault("ADD_ONLY", "false").trim.toBoolean    // Doesn't consider previousStates adding
 
   val messageCount          : AtomicInteger = new AtomicInteger(0)         // number of messages processed since last report to the benchmarker
   val secondaryMessageCount : AtomicInteger = new AtomicInteger(0)
@@ -49,8 +51,10 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   override def preStart() {
     context.system.scheduler.schedule(Duration(7, SECONDS),
       Duration(1, SECONDS), self, "tick")
-    /*context.system.scheduler.schedule(Duration(13, SECONDS),
-        Duration(30, MINUTES), self, "profile")*/
+    //context.system.scheduler.schedule(Duration(13, SECONDS),
+    //    Duration(30, MINUTES), self, "profile")
+    context.system.scheduler.schedule(Duration(1, SECONDS),
+        Duration(1, MINUTES), self, "stdoutReport")
     context.system.scheduler.schedule(Duration(8, SECONDS),
       Duration(10, SECONDS), self, "keep_alive")
   }
@@ -60,6 +64,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
     case "tick"       => reportIntake()
     case "profile"    => profile()
     case "keep_alive" => keepAlive()
+    case "stdoutReport"=> Task.eval(reportStdout()).fork.runAsync
 
     //case LiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name, Results(analyser.analyse(vertices,edges)), false)
 
@@ -113,16 +118,22 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
     // getGauge("Number of props previous history") TODO
   }
 
+  def reportStdout() : Unit = {
+    if (stdoutLog)
+      println(s"TrieMaps size: ${storage.edges.size}\t${storage.vertices.size} | " +
+              s"TreeMaps size: ${getEntitiesPrevStates(storage.edges)}\t${getEntitiesPrevStates(storage.vertices)}")
+  }
   def reportIntake() : Unit = {
     if(printing)
       println(messageCount)
 
     // Kamon monitoring
-    kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount").set(messageCount.intValue())
-    kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount").set(secondaryMessageCount.intValue())
-
-    reportSizes(edgesGauge, storage.edges)
-    reportSizes(verticesGauge, storage.vertices)
+    if (kLogging) {
+      kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount").set(messageCount.intValue())
+      kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount").set(secondaryMessageCount.intValue())
+      reportSizes(edgesGauge, storage.edges)
+      reportSizes(verticesGauge, storage.vertices)
+    }
 
     // Heap benchmarking
     //profile()
