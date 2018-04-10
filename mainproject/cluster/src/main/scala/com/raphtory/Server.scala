@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
 import kamon.system.SystemMetrics
+import java.lang.management.ManagementFactory
 
 //main function
 object Go extends App {
@@ -19,6 +20,10 @@ object Go extends App {
   val seedLoc       = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
   val zookeeper     = s"${sys.env("ZOOKEEPER")}"
 
+
+  val runtimeMxBean = ManagementFactory.getRuntimeMXBean
+  val arguments = runtimeMxBean.getInputArguments
+  println(s"Current java options: ${arguments}")
   args(0) match {
     case "seedNode" => {
       println("Creating seed node")
