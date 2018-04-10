@@ -11,8 +11,9 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import com.raphtory.utils.Utils._
 import monix.eval.Task
-import monix.execution.Scheduler.Implicits.global
+import monix.execution.{ExecutionModel, Scheduler}
 import scala.collection.mutable
+
 /**
   * The graph partition manages a set of vertices and there edges
   * Is sent commands which have been processed by the command Processor
@@ -25,8 +26,8 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   /**
     * Graph model maps
     */
-  var vertices = TrieMap[Int,Vertex]()      // Map of Vertices contained in the partition
-  var edges    = TrieMap[(Int,Int),Edge]()  // Map of Edges contained in the partition
+  var vertices = TrieMap[Int, Vertex]()      // Map of Vertices contained in the partition
+  var edges    = TrieMap[Long, Edge]()  // Map of Edges contained in the partition
 
   val printing = false                  // should the handled messages be printed to terminal
   val logging  = false                  // should the state of the vertex/edge map be output to file
@@ -44,6 +45,8 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   val verticesGauge         = Kamon.gauge("raphtory.vertices")
   val edgesGauge            = Kamon.gauge("raphtory.edges")
 
+
+  implicit val s = Scheduler(ExecutionModel.BatchedExecution(1024))
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
     */
@@ -64,11 +67,11 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
     //case LiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name, Results(analyser.analyse(vertices,edges)), false)
 
-    case VertexAdd(msgId,srcId) => Task.eval(vertexAdd(msgId,srcId)).runAsync; vHandle(srcId)
+    case VertexAdd(msgId,srcId) => Task.fork(Task.eval(vertexAdd(msgId,srcId)), s).runAsync; vHandle(srcId)
     case VertexAddWithProperties(msgId,srcId,properties) => vertexAdd(msgId,srcId,properties); vHandle(srcId);
     case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); vHandle(srcId);
 
-    case EdgeAdd(msgId,srcId,dstId) => Task.eval(edgeAdd(msgId,srcId,dstId)).runAsync; eHandle(srcId,dstId)
+    case EdgeAdd(msgId,srcId,dstId) => Task.fork(Task.eval(edgeAdd(msgId,srcId,dstId)), s).runAsync; eHandle(srcId,dstId)
     case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAdd(msgId,srcId,dstId,properties); eHandle(srcId,dstId)
     case RemoteEdgeAdd(msgId,srcId,dstId,properties) => remoteEdgeAdd(msgId,srcId,dstId,properties); eHandleSecondary(srcId,dstId)
     case RemoteEdgeAddNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddNew(msgId,srcId,dstId,properties,deaths); eHandleSecondary(srcId,dstId)
@@ -101,18 +104,16 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   }
 
   def edgeAdd(msgId : Int, srcId : Int, dstId : Int, properties : Map[String, String] = null) : Unit = {
-    //val (edge, local, present) = edgeCreator(msgId, srcId, dstId, managerCount, managerID, edges)
-
     val local       = checkDst(dstId, managerCount, managerID)
     var present     = false
     var edge : Edge = null
-
+    val index : Long= getEdgeIndex(srcId, dstId)
     if (local)
       edge = new Edge(msgId, true, addOnly, srcId, dstId)
     else
       edge = new RemoteEdge(msgId, true, addOnly, srcId, dstId, RemotePos.Destination, getPartition(dstId, managerCount))
 
-    edges.putIfAbsent((srcId, dstId), edge) match {
+    edges.putIfAbsent(index, edge) match {
       case Some(e) => {
         edge = e
         present = true
@@ -148,9 +149,9 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
   def remoteEdgeAdd(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String] = null):Unit={
     if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge already exists so just updating")
-    vertexAdd(msgId,dstId) //create or revive the destination node
-    val edge = edges((srcId, dstId))
-    vertices(dstId) addAssociatedEdge edge //again I think this can be removed
+    val dstVertex = vertexAdd(msgId,dstId) //create or revive the destination node
+    val edge = edges(getEdgeIndex(srcId, dstId))
+    dstVertex addAssociatedEdge edge //again I think this can be removed
     edge revive msgId //revive  the edge
     if (properties != null)
       properties.foreach(prop => edge + (msgId,prop._1,prop._2)) // add all passed properties onto the list
@@ -161,7 +162,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
     vertexAdd(msgId,dstId) //create or revive the destination node
     val edge = new RemoteEdge(msgId,true, addOnly, srcId,dstId,RemotePos.Source,getPartition(srcId, managerCount))
     vertices(dstId) addAssociatedEdge edge //add the edge to the associated edges of the destination node
-    edges put((srcId,dstId), edge) //create the new edge
+    edges put(getEdgeIndex(srcId,dstId), edge) //create the new edge
     val deaths = vertices(dstId).removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
@@ -182,7 +183,22 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   }
 
   def edgeRemoval(msgId:Int, srcId:Int, dstId:Int):Unit={
-    val (edge, local, present) = edgeCreator(msgId, srcId, dstId, managerCount, managerID, edges, false,addOnly)
+    val local       = checkDst(dstId, managerCount, managerID)
+    var present     = false
+    var edge : Edge = null
+    val index : Long= getEdgeIndex(srcId, dstId)
+    if (local)
+      edge = new Edge(msgId, true, addOnly, srcId, dstId)
+    else
+      edge = new RemoteEdge(msgId, true, addOnly, srcId, dstId, RemotePos.Destination, getPartition(dstId, managerCount))
+
+    edges.putIfAbsent(index, edge) match {
+      case Some(e) => {
+        edge = e
+        present = true
+      }
+      case None => // All is set
+    }
     if (printing) println(s"Received an edge Add for $srcId --> $dstId (local: $local)")
     var dstVertex : Vertex = null
     var srcVertex : Vertex = null
@@ -214,7 +230,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
     if(printing) println(s"Received Remote Edge Removal with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge already exists so just updating")
     var dstVertex = getVertexAndWipe(dstId, msgId)
     (srcId,dstId) //add the edge to the destination nodes associated list
-    edges.get(srcId, dstId) match {
+    edges.get(getEdgeIndex(srcId, dstId)) match {
       case Some(e) => {
         e kill msgId
         dstVertex addAssociatedEdge e
@@ -228,7 +244,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
     val dstVertex = getVertexAndWipe(dstId, msgId)
     val edge = new RemoteEdge(msgId,false,addOnly,srcId,dstId,RemotePos.Source,getPartition(srcId, managerCount))
     dstVertex addAssociatedEdge edge  //add the edge to the destination nodes associated list
-    edges put((srcId,dstId), edge) // otherwise create and initialise as false
+    edges put(getEdgeIndex(srcId,dstId), edge) // otherwise create and initialise as false
 
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
@@ -267,7 +283,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   def returnEdgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
     if(printing) println(s"Received Remote Edge Removal (return) for $srcId --> $dstId from ${getManager(dstId, managerCount )}. Edge already exists so just updating")
     val srcVertex = getVertexAndWipe(srcId, msgId)
-    val edge = edges(srcId, dstId)
+    val edge = edges(getEdgeIndex(srcId, dstId))
 
     srcVertex addAssociatedEdge edge //add the edge to the destination nodes associated list
     edge kill msgId                  // if the edge already exists, kill it
@@ -275,7 +291,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
   def remoteReturnDeaths(msgId:Int,srcId:Int,dstId:Int,dstDeaths:mutable.TreeMap[Int, Boolean]):Unit= {
     if(printing) println(s"Received deaths for $srcId --> $dstId from ${getManager(dstId, managerCount)}")
-    edges(srcId,dstId) killList dstDeaths
+    edges(getEdgeIndex(srcId,dstId)) killList dstDeaths
   }
 
   //***************** EDGE HELPERS
@@ -295,12 +311,14 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   def log(srcId:Int):Unit = if(logging && (vertices contains srcId)) printToFile(s"Vertex$srcId",vertices(srcId).printHistory())
 
   def log(srcId:Int,dstId:Int):Unit={
-    if(logging && (edges contains (srcId,dstId))) {
-      if(edges(srcId,dstId).isInstanceOf[RemoteEdge]) {
-        if(edges(srcId,dstId).asInstanceOf[RemoteEdge].remotePos == RemotePos.Source) printToFile(s"RemoteEdge$srcId-->$dstId",s"${edges(srcId,dstId).printHistory()}")
-        else printToFile(s"Edge$srcId-->$dstId",s"${edges(srcId,dstId).printHistory()}")
+    val edgeIndex = getEdgeIndex(srcId, dstId)
+    val edge = edges(edgeIndex)
+    if(logging && (edges contains edgeIndex)) {
+      if(edge.isInstanceOf[RemoteEdge]) {
+        if(edge.asInstanceOf[RemoteEdge].remotePos == RemotePos.Source) printToFile(s"RemoteEdge$srcId-->$dstId",s"${edge.printHistory()}")
+        else printToFile(s"Edge$srcId-->$dstId",s"${edge.printHistory()}")
       }
-      else printToFile(s"Edge$srcId-->$dstId",s"${edges(srcId,dstId).printHistory()}")
+      else printToFile(s"Edge$srcId-->$dstId",s"${edge.printHistory()}")
     }
   }
 
@@ -324,12 +342,13 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
      g.refine("actor" -> "PartitionManager", "replica" -> id.toString, "name" -> name)
     }
 
-    getGauge("Total number of entities").set(map.size)
+    Task.eval(getGauge("Total number of entities").set(map.size)).fork.runAsync
     //getGauge("Total number of properties") TODO
 
-    getGauge("Total number of previous states").set(
+    Task.eval(getGauge("Total number of previous states").set(
       getEntitiesPrevStates(map)
-    )
+    )).fork.runAsync
+
     // getGauge("Number of props previous history") TODO
   }
 

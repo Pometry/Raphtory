@@ -106,7 +106,7 @@ class UpdateGen extends RaphtoryActor with Timers {
     (1 to number) foreach (_ => {
       val command = distribution()
       counter += 1
-      mediator ! DistributedPubSubMediator.Send("/user/router", genVertexAdd(), false)
+      mediator ! DistributedPubSubMediator.Send("/user/router", command, false)
       Kamon.counter("raphtory.updateGen.commandsSent").increment()
       kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
     })
