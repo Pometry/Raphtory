@@ -104,9 +104,9 @@ object EntitiesStorage {
     var edge : Edge = null
     val index : Long= getEdgeIndex(srcId, dstId)
     if (local)
-      edge = new Edge(msgId, true, addOnly, srcId, dstId)
+      edge = new Edge(msgId, srcId, dstId, true, addOnly)
     else
-      edge = new RemoteEdge(msgId, true, addOnly, srcId, dstId, RemotePos.Destination, getPartition(dstId, managerCount))
+      edge = new RemoteEdge(msgId, srcId, dstId, true, addOnly, RemotePos.Destination, getPartition(dstId, managerCount))
 
     edges.putIfAbsent(index, edge) match {
       case Some(e) => {
@@ -155,7 +155,7 @@ object EntitiesStorage {
   def remoteEdgeAddNew(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String],srcDeaths:mutable.TreeMap[Int, Boolean]):Unit={
     if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge did not previously exist so sending back deaths")
     val dstVertex = vertexAdd(msgId,dstId) //create or revive the destination node
-    val edge = new RemoteEdge(msgId,true, addOnly, srcId,dstId,RemotePos.Source,getPartition(srcId, managerCount))
+    val edge = new RemoteEdge(msgId, srcId, dstId, true, addOnly,RemotePos.Source,getPartition(srcId, managerCount))
     dstVertex addAssociatedEdge edge //add the edge to the associated edges of the destination node
     edges put(getEdgeIndex(srcId,dstId), edge) //create the new edge
     val deaths = dstVertex.removeList //get the destination node deaths
@@ -171,9 +171,9 @@ object EntitiesStorage {
     var edge : Edge = null
     val index : Long= getEdgeIndex(srcId, dstId)
     if (local)
-      edge = new Edge(msgId, true, addOnly, srcId, dstId)
+      edge = new Edge(msgId, srcId, dstId, true, addOnly)
     else
-      edge = new RemoteEdge(msgId, true, addOnly, srcId, dstId, RemotePos.Destination, getPartition(dstId, managerCount))
+      edge = new RemoteEdge(msgId,srcId, dstId, true, addOnly, RemotePos.Destination, getPartition(dstId, managerCount))
 
     edges.putIfAbsent(index, edge) match {
       case Some(e) => {
@@ -223,7 +223,7 @@ object EntitiesStorage {
   def remoteEdgeRemovalNew(msgId:Int,srcId:Int,dstId:Int,srcDeaths:mutable.TreeMap[Int, Boolean]):Unit={
     if(printing) println(s"Received Remote Edge Removal with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge did not previously exist so sending back deaths ")
     val dstVertex = getVertexAndWipe(dstId, msgId)
-    val edge = new RemoteEdge(msgId,false, addOnly, srcId,dstId,RemotePos.Source,getPartition(srcId, managerCount))
+    val edge = new RemoteEdge(msgId,srcId, dstId, false, addOnly,RemotePos.Source,getPartition(srcId, managerCount))
     dstVertex addAssociatedEdge edge  //add the edge to the destination nodes associated list
     edges put(getEdgeIndex(srcId,dstId), edge) // otherwise create and initialise as false
 
