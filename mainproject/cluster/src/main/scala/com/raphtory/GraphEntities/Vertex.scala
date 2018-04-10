@@ -19,6 +19,6 @@ class Vertex(msdId: Int, val vertexId: Int, initialValue: Boolean, addOnly:Boole
   def addAssociatedEdge(edge: Edge): Unit =
     associatedEdges add edge
 
-  override def printProperties(): String =
-    s"Vertex $vertexId with properties: \n" + super.printProperties()
+  /*override def printProperties(): String =
+    s"Vertex $vertexId with properties: \n" + super.printProperties()*/
 }

@@ -97,7 +97,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
   def getEntitiesPrevStates[T,U <: Entity](m : TrieMap[T, U]) : Int = {
     var ret : Int = 0
     m.foreach[Unit](e => {
-      ret += e._2.previousState.size
+      ret += e._2.getPreviousStateSize()
     })
     ret
   }
