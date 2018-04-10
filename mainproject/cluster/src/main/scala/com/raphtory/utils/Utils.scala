@@ -34,9 +34,9 @@ object Utils {
     var edge : Edge = null
 
     if (local)
-      edge = new Edge(msgId, initialValue, addOnly, srcId, dstId)
+      edge = new Edge(msgId, srcId, dstId, initialValue, addOnly)
     else
-      edge = new RemoteEdge(msgId, initialValue, addOnly, srcId, dstId, RemotePos.Destination, getPartition(dstId, managerCount))
+      edge = new RemoteEdge(msgId, srcId, dstId, initialValue, addOnly, RemotePos.Destination, getPartition(dstId, managerCount))
 
     edges.putIfAbsent(getEdgeIndex(srcId, dstId), edge) match {
       case Some(e) => {

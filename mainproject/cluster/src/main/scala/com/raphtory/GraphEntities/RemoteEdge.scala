@@ -14,10 +14,10 @@ package com.raphtory.GraphEntities
   * @param remotePartitionID
   */
 case class RemoteEdge(msgID: Int,
-                      initialValue: Boolean,
-                      addOnly:Boolean,
                       srcId: Int,
                       dstId: Int,
+                      initialValue: Boolean,
+                      addOnly:Boolean,
                       remotePos: RemotePos.Value,
                       remotePartitionID: Int)
-    extends Edge(msgID, initialValue, addOnly, srcId, dstId)
+    extends Edge(msgID, srcId, dstId, initialValue, addOnly)

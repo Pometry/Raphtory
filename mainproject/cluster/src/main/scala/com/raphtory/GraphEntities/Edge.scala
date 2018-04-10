@@ -5,7 +5,7 @@ import scala.collection.mutable
 /**
   * Created by Mirate on 01/03/2017.
   */
-class Edge(msgID: Int, initialValue: Boolean, addOnly:Boolean, srcId: Int, dstId: Int)
+class Edge(msgID: Int, srcId: Int, dstId: Int, initialValue: Boolean, addOnly:Boolean)
     extends Entity(msgID, initialValue,addOnly) {
 
   override def printProperties: String =
