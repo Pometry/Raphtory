@@ -1,53 +1,64 @@
 package com.raphtory.GraphEntities
 
+import java.util.concurrent.atomic.AtomicInteger
+
+import monix.execution.atomic.AtomicLong
+
+import scala.collection.concurrent.TrieMap
+import scala.collection.{SortedMap, mutable}
+
 /** *
   * Represents Graph Entities (Edges and Vertices)
   * Contains a Map of properties (currently String to string)
   * longs representing unique vertex ID's stored in subclassses
   *
-  * @param creationMessage ID of the message that created the entity
+  * @param creationTime ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced
   */
-class Entity(creationMessage: Int, isInitialValue: Boolean)
-    extends LogManageable {
+class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
 
   // Properties from that entity
-  var properties:Map[String,Property] = Map[String, Property]()
+  var properties:TrieMap[String,Property] = TrieMap[String, Property]()
 
   // History of that entity
-  var previousState: List[(Int, Boolean)] = List(
-    (creationMessage, isInitialValue))
+  var previousState : mutable.TreeMap[Long, Boolean] = null
+  if (!addOnly)
+    previousState = mutable.TreeMap(creationTime -> isInitialValue)
 
-  //need to track all removes to pass to properties
-  var removeList: List[(Int, (Boolean, String))] =
-    if (isInitialValue) List() else List((creationMessage, (false, "")))
+  //track the oldest point for use in AddOnly mode
+  var oldestPoint : AtomicLong=  AtomicLong(creationTime)
 
+  // History of that entity
+  var removeList: mutable.TreeMap[Long,Boolean] = null
+
+  if(isInitialValue)
+    removeList = mutable.TreeMap()
+  else
+    removeList = mutable.TreeMap(creationTime -> isInitialValue)
   /** *
     * Set the Entity has alive at a given time
     *
-    * @param msgID
+    * @param msgTime
     */
-  def revive(msgID: Int): Unit = {
-    previousState = findEventPositionInLog(previousState, (msgID, true))
+  def revive(msgTime: Long): Unit = {
+    if(addOnly) {
+      // if we are in add only mode
+      if (oldestPoint.get > msgTime) //check if the current point in history is the oldest
+        oldestPoint.set(msgTime)
+    }
+    else
+      previousState += msgTime -> true
   }
 
   /** *
     * Set the entity absent in a given time
     *
-    * @param msgID
+    * @param msgTime
     */
-  def kill(msgID: Int): Unit = {
-
-    /** *
-      * Filter to only removes and convert to a list which can be given to properties
-      */
-    def updateRemoveList() =
-      removeList =
-        previousState.filter(_._2 == false).map(p => (p._1, (false, "")))
-
-    previousState = findEventPositionInLog(previousState, (msgID, false))
-
-    updateRemoveList()
+  def kill(msgTime: Long): Unit = {
+    removeList    += msgTime -> false
+    if (!addOnly)
+      previousState += msgTime -> false
   }
 
   /** *
@@ -61,25 +72,24 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
   /** *
     * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
     *
-    * @param msgID Message ID where the update came from
+    * @param msgTime Message ID where the update came from
     * @param key   property key
     * @param value property value
     */
-  def +(msgID: Int, key: String, value: String): Unit = {
-    if (properties contains key)
-      properties(key) update(msgID, value)
-    else
-      properties = properties updated(key, new Property(msgID,
-        key,
-        value,
-        List()))
+  def +(msgTime: Long, key: String, value: String): Unit = {
+    properties.putIfAbsent(key, new Property(msgTime, key, value)) match {
+      case Some(oldValue) => oldValue update(msgTime, value)
+      case None =>
+    }
   }
+
   //************* PRINT ENTITY DETAILS BLOCK *********************\\
-  def printCurrent(): String = {
+/*  def printCurrent(): String = {
     var toReturn = s"MessageID ${previousState.head._1}: ${previousState.head._2} " + System.lineSeparator
     properties.foreach(p =>
       toReturn = s"$toReturn      ${p._2.toStringCurrent} " + System.lineSeparator)
     toReturn
+    ""
   }
 
   /** *
@@ -89,9 +99,11 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
     */
   def printHistory(): String = {
     var toReturn = "Previous state of entity: " + System.lineSeparator
-    previousState.foreach(p =>
-      toReturn = s"$toReturn MessageID ${p._1}: ${p._2} " + System.lineSeparator)
-    s"$toReturn \n $printProperties"
+    if (!addOnly)
+      previousState.foreach(p =>
+       toReturn = s"$toReturn MessageID ${p._1}: ${p._2} " + System.lineSeparator)
+      s"$toReturn \n $printProperties"
+      ""
   }
 
   def printProperties(): String = { //test function to make sure the properties are being added to the correct vertices
@@ -100,13 +112,19 @@ class Entity(creationMessage: Int, isInitialValue: Boolean)
       .sortBy(_._1)
       .foreach(p => toReturn = s"$toReturn      ${p._2.toString} \n")
     toReturn
-  }
+  }*/
 
   //************* END PRINT ENTITY DETAILS BLOCK *********************\\
 
   def wipe() = {
-    previousState = List()
-    removeList = List()
+    if (!addOnly)
+      previousState = mutable.TreeMap()
   }
 
+  def getPreviousStateSize() : Int = {
+    if (addOnly)
+      0
+    else
+      previousState.size
+  }
 }

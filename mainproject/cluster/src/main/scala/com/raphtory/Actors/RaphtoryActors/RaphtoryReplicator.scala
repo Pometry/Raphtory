@@ -58,17 +58,13 @@ class RaphtoryReplicator(actorType:String) extends Actor {
     context.system.scheduler.schedule(2.seconds,5.seconds,self,"tick")
   }
 
-
-
   def receive : Receive = {
     case PartitionsCount(count) => {
       currentCount = count
       if(actorRef != null)
         actorRef ! UpdatedCounter(currentCount)
     }
-    case "tick" => {
-      getNewId()
-    }
+    case "tick" => getNewId
     case e => println(s"Received not handled message ${e.getClass}")
   }
 }

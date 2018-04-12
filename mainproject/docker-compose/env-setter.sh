@@ -14,5 +14,5 @@ echo "/////////////////////"
 [ $1 = "seedNode" ] || sleep 5 # Workaround TODO
 [ $1 = "LiveAnalysisManager" ] && echo TODO
 
-cluster $1
-
+cd /opt/docker/bin
+go $1

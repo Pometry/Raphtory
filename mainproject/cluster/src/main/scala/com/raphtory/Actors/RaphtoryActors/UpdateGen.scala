@@ -14,19 +14,10 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-
-
 import scala.io.Source
 import scala.util.Random
-object UpdateGen {
-  private case object TickKey
-  private case object FirstTick
-  private case object Tick
-  private case object LaterTick
-}
 
 class UpdateGen extends RaphtoryActor with Timers {
-  import UpdateGen._
 
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -100,23 +91,25 @@ class UpdateGen extends RaphtoryActor with Timers {
       }
     }
   }
-
-  def genRandomCommands(number : Int) : Unit = {
+  def distribution() : String = {
     val random = Random.nextFloat()
-    var command = ""
-    def distribution() = {
-      //if (random <= 0.4)
-      genVertexAdd()
-      //else if (random <= 0.8) command = genEdgeAdd()
-      //else command = genEdgeRemoval()
-    }
+    if (random <= 0.4)      genVertexAdd()
+    //else if (random <= 0.8) genEdgeRemoval()
+    else                    genEdgeAdd()
+  }
+
+  /**
+    *
+    * @param number: frequency in mHz
+    */
+  def genRandomCommands(number : Int) : Unit = {
     (1 to number) foreach (_ => {
+      val command = distribution()
       counter += 1
-      mediator ! DistributedPubSubMediator.Send("/user/router",genVertexAdd(),false)
+      mediator ! DistributedPubSubMediator.Send("/user/router", command, false)
       Kamon.counter("raphtory.updateGen.commandsSent").increment()
       kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
     })
-
   }
 
   def vertexAdd(){
@@ -213,7 +206,7 @@ class UpdateGen extends RaphtoryActor with Timers {
   def genSrcID(src:Int):String = s""" "srcID":$src """
   def genDstID(dst:Int):String = s""" "dstID":$dst """
 
-  def getMessageID():String = s""" "messageID":$currentMessage """
+  def getMessageID():String = s""" "messageID":${System.currentTimeMillis()} """
 
   def genProperties(numOfProps:Int,randomProps:Boolean):String ={
     var properties = "\"properties\":{"
@@ -224,5 +217,4 @@ class UpdateGen extends RaphtoryActor with Timers {
     }
     properties
   }
-
 }

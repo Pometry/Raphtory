@@ -21,7 +21,7 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
   var routercounter = 0
   var clusterUp = false
 
-  val maxTime = 10000
+  val maxTime = 30000
 
   var PMKeepAlive = TrieMap[Int,Long]()
   var RouterKeepAlive = TrieMap[Int,Long]()

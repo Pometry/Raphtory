@@ -1,31 +1,34 @@
 package com.raphtory.GraphEntities
 
+import scala.collection.mutable
+
 /** *
   * Node or Vertice Property. Created by Mirate on 10/03/2017.
   *
-  * @param creationMessage
+  * @param creationTime
   * @param key           Property name
   * @param value         Property value
   */
-class Property(creationMessage: Int,
+class Property(creationTime: Long,
                key: String,
-               value: String,
-               var previousState: List[(Int, (Boolean, String))])
-    extends LogManageable {
+               value: String) {
+
+  // Initialize the TreeMap
+  var previousState: mutable.TreeMap[Long, (Boolean, String)] = mutable.TreeMap()
 
   // add in the initial information
-  update(creationMessage, value)
+  update(creationTime, value)
 
   /**
     * update the value of the property
     *
-    * @param msgID
+    * @param msgTime
     * @param newValue
     */
-  def update(msgID: Int, newValue: String): Unit = {
-    previousState =
-      findEventPositionInLog(previousState, (msgID, (true, newValue)))
+  def update(msgTime: Long, newValue: String): Unit = {
+    previousState += msgTime -> (true, newValue)
   }
+
   /** *
     * returns a string with all the history of that property
     *
@@ -50,6 +53,5 @@ class Property(creationMessage: Int,
       System.lineSeparator()
     s"Property: ${key} ----- Current State: $toReturn"
   }
-
 
 }

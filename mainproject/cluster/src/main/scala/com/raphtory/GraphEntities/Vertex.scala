@@ -1,25 +1,24 @@
 package com.raphtory.GraphEntities
 
+import scala.collection.mutable
 import scala.collection.mutable.Set
 
 /** *
   * Class representing Graph Vertices
   *
-  * @param msdId
+  * @param msgTime
   * @param vertexId
   * @param initialValue
+  * @param addOnly
   */
-class Vertex(msdId: Int, val vertexId: Int, initialValue: Boolean)
-    extends Entity(msdId, initialValue) {
+class Vertex(msgTime: Long, val vertexId: Int, initialValue: Boolean, addOnly:Boolean)
+    extends Entity(msgTime, initialValue,addOnly) {
 
-  var associatedEdges = Set[Tuple2[Int, Int]]()
+  var associatedEdges = mutable.LinkedHashSet[Edge]()
 
-  def addAssociatedEdge(srcId: Int, dstId: Int): Unit =
-    associatedEdges = associatedEdges + ((srcId, dstId))
+  def addAssociatedEdge(edge: Edge): Unit =
+    associatedEdges add edge
 
-  def hasAssociatedEdge(srcId: Int, dstId: Int): Boolean =
-    associatedEdges contains ((srcId, dstId))
-
-  override def printProperties(): String =
-    s"Vertex $vertexId with properties: \n" + super.printProperties()
+  /*override def printProperties(): String =
+    s"Vertex $vertexId with properties: \n" + super.printProperties()*/
 }
