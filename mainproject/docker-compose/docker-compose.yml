@@ -18,10 +18,6 @@ services:
     #### runZoo ####
     zooKeeper:
         image: quay.io/miratepuffin/zookeeper:latest
-        ports:
-            - 2181:2181
-            - 2888:2888
-            - 3888:3888
         deploy:
             endpoint_mode: vip
             replicas: 1
