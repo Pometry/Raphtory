@@ -206,7 +206,7 @@ class UpdateGen extends RaphtoryActor with Timers {
   def genSrcID(src:Int):String = s""" "srcID":$src """
   def genDstID(dst:Int):String = s""" "dstID":$dst """
 
-  def getMessageID():String = s""" "messageID":$currentMessage """
+  def getMessageID():String = s""" "messageID":${System.currentTimeMillis()} """
 
   def genProperties(numOfProps:Int,randomProps:Boolean):String ={
     var properties = "\"properties\":{"

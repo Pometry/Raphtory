@@ -6,13 +6,13 @@ import scala.collection.mutable.Set
 /** *
   * Class representing Graph Vertices
   *
-  * @param msdId
+  * @param msgTime
   * @param vertexId
   * @param initialValue
   * @param addOnly
   */
-class Vertex(msdId: Int, val vertexId: Int, initialValue: Boolean, addOnly:Boolean)
-    extends Entity(msdId, initialValue,addOnly) {
+class Vertex(msgTime: Long, val vertexId: Int, initialValue: Boolean, addOnly:Boolean)
+    extends Entity(msgTime, initialValue,addOnly) {
 
   var associatedEdges = mutable.LinkedHashSet[Edge]()
 

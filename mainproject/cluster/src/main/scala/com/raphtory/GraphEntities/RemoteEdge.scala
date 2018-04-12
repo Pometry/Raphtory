@@ -6,18 +6,18 @@ package com.raphtory.GraphEntities
   * currently only stores what end of the edge is remote
   * and which partition this other half is stored in
   *
-  * @param msgID
+  * @param msgTime
   * @param initialValue
   * @param srcId
   * @param dstId
   * @param remotePos
   * @param remotePartitionID
   */
-case class RemoteEdge(msgID: Int,
+case class RemoteEdge(msgTime: Long,
                       srcId: Int,
                       dstId: Int,
                       initialValue: Boolean,
                       addOnly:Boolean,
                       remotePos: RemotePos.Value,
                       remotePartitionID: Int)
-    extends Edge(msgID, srcId, dstId, initialValue, addOnly)
+    extends Edge(msgTime, srcId, dstId, initialValue, addOnly)

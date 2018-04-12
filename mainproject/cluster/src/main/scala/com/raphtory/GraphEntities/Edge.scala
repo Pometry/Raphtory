@@ -5,8 +5,8 @@ import scala.collection.mutable
 /**
   * Created by Mirate on 01/03/2017.
   */
-class Edge(msgID: Int, srcId: Int, dstId: Int, initialValue: Boolean, addOnly:Boolean)
-    extends Entity(msgID, initialValue,addOnly) {
+class Edge(msgTime: Long, srcId: Int, dstId: Int, initialValue: Boolean, addOnly:Boolean)
+    extends Entity(msgTime, initialValue,addOnly) {
 
   /*override def printProperties: String =
     s"Edge between $srcId and $dstId: with properties: " + System
@@ -14,7 +14,7 @@ class Edge(msgID: Int, srcId: Int, dstId: Int, initialValue: Boolean, addOnly:Bo
       super.printProperties()
   */
 
-  def killList(vKills: mutable.TreeMap[Int, Boolean]): Unit = {
+  def killList(vKills: mutable.TreeMap[Long, Boolean]): Unit = {
     removeList ++= vKills
     if (!addOnly)
       previousState ++= vKills

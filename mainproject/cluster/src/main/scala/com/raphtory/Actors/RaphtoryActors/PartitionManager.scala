@@ -66,21 +66,21 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
     //case LiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name, Results(analyser.analyse(vertices,edges)), false)
 
-    case VertexAdd(msgId,srcId)                                => Task.eval(storage.vertexAdd(msgId,srcId)).fork.runAsync.onComplete(_ => vHandle(srcId))
-    case VertexRemoval(msgId,srcId)                            => Task.eval(storage.vertexRemoval(msgId,srcId)).fork.runAsync.onComplete(_ => vHandle(srcId))
-    case VertexAddWithProperties(msgId,srcId,properties)       => Task.eval(storage.vertexAdd(msgId,srcId,properties)).fork.runAsync.onComplete(_ => vHandle(srcId))
+    case VertexAdd(msgTime,srcId)                                => Task.eval(storage.vertexAdd(msgTime,srcId)).fork.runAsync.onComplete(_ => vHandle(srcId))
+    case VertexRemoval(msgTime,srcId)                            => Task.eval(storage.vertexRemoval(msgTime,srcId)).fork.runAsync.onComplete(_ => vHandle(srcId))
+    case VertexAddWithProperties(msgTime,srcId,properties)       => Task.eval(storage.vertexAdd(msgTime,srcId,properties)).fork.runAsync.onComplete(_ => vHandle(srcId))
 
-    case EdgeAdd(msgId,srcId,dstId)                            => Task.eval(storage.edgeAdd(msgId,srcId,dstId)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId))
-    case RemoteEdgeAdd(msgId,srcId,dstId,properties)           => Task.eval(storage.remoteEdgeAdd(msgId,srcId,dstId,properties)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
-    case RemoteEdgeAddNew(msgId,srcId,dstId,properties,deaths) => Task.eval(storage.remoteEdgeAddNew(msgId,srcId,dstId,properties,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
-    case EdgeAddWithProperties(msgId,srcId,dstId,properties)   => Task.eval(storage.edgeAdd(msgId,srcId,dstId,properties)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId))
+    case EdgeAdd(msgTime,srcId,dstId)                            => Task.eval(storage.edgeAdd(msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId))
+    case RemoteEdgeAdd(msgTime,srcId,dstId,properties)           => Task.eval(storage.remoteEdgeAdd(msgTime,srcId,dstId,properties)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
+    case RemoteEdgeAddNew(msgTime,srcId,dstId,properties,deaths) => Task.eval(storage.remoteEdgeAddNew(msgTime,srcId,dstId,properties,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
+    case EdgeAddWithProperties(msgTime,srcId,dstId,properties)   => Task.eval(storage.edgeAdd(msgTime,srcId,dstId,properties)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId))
 
-    case EdgeRemoval(msgId,srcId,dstId)                        => Task.eval(storage.edgeRemoval(msgId,srcId,dstId)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId))
-    case RemoteEdgeRemoval(msgId,srcId,dstId)                  => Task.eval(storage.remoteEdgeRemoval(msgId,srcId,dstId)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
-    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths)        => Task.eval(storage.remoteEdgeRemovalNew(msgId,srcId,dstId,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
+    case EdgeRemoval(msgTime,srcId,dstId)                        => Task.eval(storage.edgeRemoval(msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId))
+    case RemoteEdgeRemoval(msgTime,srcId,dstId)                  => Task.eval(storage.remoteEdgeRemoval(msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
+    case RemoteEdgeRemovalNew(msgTime,srcId,dstId,deaths)        => Task.eval(storage.remoteEdgeRemovalNew(msgTime,srcId,dstId,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
 
-    case ReturnEdgeRemoval(msgId,srcId,dstId)                  => Task.eval(storage.returnEdgeRemoval(msgId,srcId,dstId)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
-    case RemoteReturnDeaths(msgId,srcId,dstId,deaths)          => Task.eval(storage.remoteReturnDeaths(msgId,srcId,dstId,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
+    case ReturnEdgeRemoval(msgTime,srcId,dstId)                  => Task.eval(storage.returnEdgeRemoval(msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
+    case RemoteReturnDeaths(msgTime,srcId,dstId,deaths)          => Task.eval(storage.remoteReturnDeaths(msgTime,srcId,dstId,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
 
     case UpdatedCounter(newValue) =>
       managerCount = newValue

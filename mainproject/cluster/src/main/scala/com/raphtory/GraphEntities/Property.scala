@@ -5,28 +5,28 @@ import scala.collection.mutable
 /** *
   * Node or Vertice Property. Created by Mirate on 10/03/2017.
   *
-  * @param creationMessage
+  * @param creationTime
   * @param key           Property name
   * @param value         Property value
   */
-class Property(creationMessage: Int,
+class Property(creationTime: Long,
                key: String,
                value: String) {
 
   // Initialize the TreeMap
-  var previousState: mutable.TreeMap[Int, (Boolean, String)] = mutable.TreeMap()
+  var previousState: mutable.TreeMap[Long, (Boolean, String)] = mutable.TreeMap()
 
   // add in the initial information
-  update(creationMessage, value)
+  update(creationTime, value)
 
   /**
     * update the value of the property
     *
-    * @param msgID
+    * @param msgTime
     * @param newValue
     */
-  def update(msgID: Int, newValue: String): Unit = {
-    previousState += msgID -> (true, newValue)
+  def update(msgTime: Long, newValue: String): Unit = {
+    previousState += msgTime -> (true, newValue)
   }
 
   /** *

@@ -42,53 +42,53 @@ object EntitiesStorage {
   /**
     * Vertices Methods
     */
-  def vertexAdd(msgId : Int, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
-    var value : Vertex = new Vertex(msgId, srcId, initialValue = true, addOnlyVertex)
+  def vertexAdd(msgTime : Long, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
+    var value : Vertex = new Vertex(msgTime, srcId, initialValue = true, addOnlyVertex)
     vertices.putIfAbsent(srcId, value) match {
       case Some(oldValue) => {
-        oldValue revive msgId
+        oldValue revive msgTime
         value = oldValue
       }
       case None =>
     }
     if (properties != null)
-      properties.foreach(l => value + (msgId,l._1,l._2)) //add all properties
+      properties.foreach(l => value + (msgTime,l._1,l._2)) //add all properties
     value
   }
 
-  def vertexRemoval(msgId:Int,srcId:Int):Unit={
+  def vertexRemoval(msgTime:Long,srcId:Int):Unit={
     if (printing) println(s"Received vertex remove for $srcId, updating + informing all edges")
     var vertex : Vertex = null
     vertices.get(srcId) match {
       case Some(v) => {
         vertex = v
-        v kill msgId
+        v kill msgTime
       }
       case None    => {
-        vertex = new Vertex(msgId, srcId, initialValue = false, addOnly = addOnlyVertex)
+        vertex = new Vertex(msgTime, srcId, initialValue = false, addOnly = addOnlyVertex)
         vertices put (srcId, vertex)
       }
     }
 
     vertex.associatedEdges.foreach(e => {
-      e kill msgId
+      e kill msgTime
       if(e.isInstanceOf[RemoteEdge]){
         val ee = e.asInstanceOf[RemoteEdge]
         if(ee.remotePos == RemotePos.Destination) {
-          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), RemoteEdgeRemoval(msgId, ee.srcId, ee.dstId),false)
+          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), RemoteEdgeRemoval(msgTime, ee.srcId, ee.dstId),false)
         } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
         else{
-          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), ReturnEdgeRemoval(msgId, ee.srcId, ee.dstId), false)
+          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), ReturnEdgeRemoval(msgTime, ee.srcId, ee.dstId), false)
         }//This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
       }
     })
   }
 
-  def getVertexAndWipe(id : Int, msgId : Int) : Vertex = {
+  def getVertexAndWipe(id : Int, msgTime : Long) : Vertex = {
     vertices.get(id) match {
       case Some(value) => value
       case None => {
-        val x  = new Vertex(msgId,id,initialValue = true, addOnlyVertex)
+        val x  = new Vertex(msgTime,id,initialValue = true, addOnlyVertex)
         vertices put(id, x)
         x wipe()
         x
@@ -99,15 +99,15 @@ object EntitiesStorage {
   /**
     * Edges Methods
     */
-  def edgeAdd(msgId : Int, srcId : Int, dstId : Int, properties : Map[String, String] = null) = {
+  def edgeAdd(msgTime : Long, srcId : Int, dstId : Int, properties : Map[String, String] = null) = {
     val local       = checkDst(dstId, managerCount, managerID)
     var present     = false
     var edge : Edge = null
     val index : Long= getEdgeIndex(srcId, dstId)
     if (local)
-      edge = new Edge(msgId, srcId, dstId, initialValue = true, addOnlyEdge)
+      edge = new Edge(msgTime, srcId, dstId, initialValue = true, addOnlyEdge)
     else
-      edge = new RemoteEdge(msgId, srcId, dstId, initialValue = true, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+      edge = new RemoteEdge(msgTime, srcId, dstId, initialValue = true, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
 
     edges.putIfAbsent(index, edge) match {
       case Some(e) => {
@@ -119,62 +119,62 @@ object EntitiesStorage {
     if (printing) println(s"Received an edge Add for $srcId --> $dstId (local: $local)")
 
     if (local && srcId != dstId) {
-      val dstVertex = vertexAdd(msgId, dstId) // do the same for the destination ID
+      val dstVertex = vertexAdd(msgTime, dstId) // do the same for the destination ID
       dstVertex addAssociatedEdge edge // do the same for the destination node
       if (!present)
         edge killList dstVertex.removeList
     }
 
-    val srcVertex = vertexAdd(msgId, srcId)                          // create or revive the source ID
+    val srcVertex = vertexAdd(msgTime, srcId)                          // create or revive the source ID
     srcVertex addAssociatedEdge edge // add the edge to the associated edges of the source node
 
     if (present) {
-        edge revive msgId
+        edge revive msgTime
         if (!local)
-          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAdd(msgId, srcId, dstId, null),false) // inform the partition dealing with the destination node*/
+          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAdd(msgTime, srcId, dstId, null),false) // inform the partition dealing with the destination node*/
     } else {
         val deaths = srcVertex.removeList
         edge killList deaths
         if (!local)
-          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(msgId, srcId, dstId, null, deaths), false)
+          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(msgTime, srcId, dstId, null, deaths), false)
     }
     if (properties != null)
-      properties.foreach(prop => edge + (msgId,prop._1,prop._2)) // add all passed properties onto the edge
+      properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the edge
 
   }
 
-  def remoteEdgeAdd(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String] = null):Unit={
+  def remoteEdgeAdd(msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String] = null):Unit={
     if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge already exists so just updating")
-    val dstVertex = vertexAdd(msgId,dstId) //create or revive the destination node
+    val dstVertex = vertexAdd(msgTime,dstId) //create or revive the destination node
     val edge = edges(getEdgeIndex(srcId, dstId))
     dstVertex addAssociatedEdge edge //again I think this can be removed
-    edge revive msgId //revive  the edge
+    edge revive msgTime //revive  the edge
     if (properties != null)
-      properties.foreach(prop => edge + (msgId,prop._1,prop._2)) // add all passed properties onto the list
+      properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the list
   }
 
-  def remoteEdgeAddNew(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String],srcDeaths:mutable.TreeMap[Int, Boolean]):Unit={
+  def remoteEdgeAddNew(msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String],srcDeaths:mutable.TreeMap[Long, Boolean]):Unit={
     if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge did not previously exist so sending back deaths")
-    val dstVertex = vertexAdd(msgId,dstId) //create or revive the destination node
-    val edge = new RemoteEdge(msgId, srcId, dstId, initialValue = true, addOnlyEdge,RemotePos.Source,getPartition(srcId, managerCount))
+    val dstVertex = vertexAdd(msgTime,dstId) //create or revive the destination node
+    val edge = new RemoteEdge(msgTime, srcId, dstId, initialValue = true, addOnlyEdge,RemotePos.Source,getPartition(srcId, managerCount))
     dstVertex addAssociatedEdge edge //add the edge to the associated edges of the destination node
     edges put(getEdgeIndex(srcId,dstId), edge) //create the new edge
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
-    properties.foreach(prop => edge + (msgId,prop._1,prop._2)) // add all passed properties onto the list
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgId,srcId,dstId,deaths),false)
+    properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the list
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgTime,srcId,dstId,deaths),false)
   }
 
-  def edgeRemoval(msgId:Int, srcId:Int, dstId:Int):Unit={
+  def edgeRemoval(msgTime:Long, srcId:Int, dstId:Int):Unit={
     val local       = checkDst(dstId, managerCount, managerID)
     var present     = false
     var edge : Edge = null
     val index : Long= getEdgeIndex(srcId, dstId)
     if (local)
-      edge = new Edge(msgId, srcId, dstId, initialValue = false, addOnlyEdge)
+      edge = new Edge(msgTime, srcId, dstId, initialValue = false, addOnlyEdge)
     else
-      edge = new RemoteEdge(msgId,srcId, dstId, initialValue = false, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+      edge = new RemoteEdge(msgTime,srcId, dstId, initialValue = false, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
 
     edges.putIfAbsent(index, edge) match {
       case Some(e) => {
@@ -189,61 +189,61 @@ object EntitiesStorage {
 
 
     if (local && srcId != dstId) {
-      dstVertex = getVertexAndWipe(dstId, msgId)
+      dstVertex = getVertexAndWipe(dstId, msgTime)
       dstVertex addAssociatedEdge edge // do the same for the destination node
       if (!present)
         edge killList dstVertex.removeList
     }
-    srcVertex = getVertexAndWipe(srcId, msgId)
+    srcVertex = getVertexAndWipe(srcId, msgTime)
     srcVertex addAssociatedEdge edge // add the edge to the associated edges of the source node
 
     if (present) {
-        edge kill msgId
+        edge kill msgTime
         if (!local)
-          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemoval(msgId,srcId,dstId),false) // inform the partition dealing with the destination node
+          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemoval(msgTime,srcId,dstId),false) // inform the partition dealing with the destination node
     } else {
         val deaths = srcVertex.removeList
         edge killList deaths
         if (!local)
-          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths), false)
+          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemovalNew(msgTime,srcId,dstId,deaths), false)
     }
   }
 
-  def remoteEdgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
+  def remoteEdgeRemoval(msgTime:Long,srcId:Int,dstId:Int):Unit={
     if(printing) println(s"Received Remote Edge Removal with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge already exists so just updating")
-    val dstVertex = getVertexAndWipe(dstId, msgId)
+    val dstVertex = getVertexAndWipe(dstId, msgTime)
     edges.get(getEdgeIndex(srcId, dstId)) match {
       case Some(e) => {
-        e kill msgId
+        e kill msgTime
         dstVertex addAssociatedEdge e
       }
       case None    => println("Didn't exist") //possibly need to fix when adding the priority box
     }
   }
 
-  def remoteEdgeRemovalNew(msgId:Int,srcId:Int,dstId:Int,srcDeaths:mutable.TreeMap[Int, Boolean]):Unit={
+  def remoteEdgeRemovalNew(msgTime:Long,srcId:Int,dstId:Int,srcDeaths:mutable.TreeMap[Long, Boolean]):Unit={
     if(printing) println(s"Received Remote Edge Removal with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge did not previously exist so sending back deaths ")
-    val dstVertex = getVertexAndWipe(dstId, msgId)
-    val edge = new RemoteEdge(msgId,srcId, dstId, initialValue = false, addOnlyEdge, RemotePos.Source, getPartition(srcId, managerCount))
+    val dstVertex = getVertexAndWipe(dstId, msgTime)
+    val edge = new RemoteEdge(msgTime,srcId, dstId, initialValue = false, addOnlyEdge, RemotePos.Source, getPartition(srcId, managerCount))
     dstVertex addAssociatedEdge edge  //add the edge to the destination nodes associated list
     edges put(getEdgeIndex(srcId,dstId), edge) // otherwise create and initialise as false
 
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgId,srcId,dstId,deaths),false)
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgTime,srcId,dstId,deaths),false)
   }
 
-  def returnEdgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
+  def returnEdgeRemoval(msgTime:Long,srcId:Int,dstId:Int):Unit={
     if(printing) println(s"Received Remote Edge Removal (return) for $srcId --> $dstId from ${getManager(dstId, managerCount )}. Edge already exists so just updating")
-    val srcVertex = getVertexAndWipe(srcId, msgId)
+    val srcVertex = getVertexAndWipe(srcId, msgTime)
     val edge = edges(getEdgeIndex(srcId, dstId))
 
     srcVertex addAssociatedEdge edge //add the edge to the destination nodes associated list
-    edge kill msgId                  // if the edge already exists, kill it
+    edge kill msgTime                  // if the edge already exists, kill it
   }
 
-  def remoteReturnDeaths(msgId:Int,srcId:Int,dstId:Int,dstDeaths:mutable.TreeMap[Int, Boolean]):Unit= {
+  def remoteReturnDeaths(msgTime:Long,srcId:Int,dstId:Int,dstDeaths:mutable.TreeMap[Long, Boolean]):Unit= {
     if(printing) println(s"Received deaths for $srcId --> $dstId from ${getManager(dstId, managerCount)}")
     edges(getEdgeIndex(srcId,dstId)) killList dstDeaths
   }

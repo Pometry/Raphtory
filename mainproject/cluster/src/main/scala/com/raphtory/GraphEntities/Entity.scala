@@ -2,6 +2,8 @@ package com.raphtory.GraphEntities
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import monix.execution.atomic.AtomicLong
+
 import scala.collection.concurrent.TrieMap
 import scala.collection.{SortedMap, mutable}
 
@@ -10,53 +12,53 @@ import scala.collection.{SortedMap, mutable}
   * Contains a Map of properties (currently String to string)
   * longs representing unique vertex ID's stored in subclassses
   *
-  * @param creationMessage ID of the message that created the entity
+  * @param creationTime ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced
   */
-class Entity(creationMessage: Int, isInitialValue: Boolean, addOnly: Boolean) {
+class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
 
   // Properties from that entity
   var properties:TrieMap[String,Property] = TrieMap[String, Property]()
 
   // History of that entity
-  var previousState : mutable.TreeMap[Int, Boolean] = null
+  var previousState : mutable.TreeMap[Long, Boolean] = null
   if (!addOnly)
-    previousState = mutable.TreeMap(creationMessage -> isInitialValue)
+    previousState = mutable.TreeMap(creationTime -> isInitialValue)
 
   //track the oldest point for use in AddOnly mode
-  var oldestPoint : AtomicInteger = new AtomicInteger(creationMessage)
+  var oldestPoint : AtomicLong=  AtomicLong(creationTime)
 
   // History of that entity
-  var removeList: mutable.TreeMap[Int,Boolean] = null
+  var removeList: mutable.TreeMap[Long,Boolean] = null
 
   if(isInitialValue)
     removeList = mutable.TreeMap()
   else
-    removeList = mutable.TreeMap(creationMessage -> isInitialValue)
+    removeList = mutable.TreeMap(creationTime -> isInitialValue)
   /** *
     * Set the Entity has alive at a given time
     *
-    * @param msgID
+    * @param msgTime
     */
-  def revive(msgID: Int): Unit = {
+  def revive(msgTime: Long): Unit = {
     if(addOnly) {
       // if we are in add only mode
-      if (oldestPoint.get() > msgID) //check if the current point in history is the oldest
-        oldestPoint.set(msgID)
+      if (oldestPoint.get > msgTime) //check if the current point in history is the oldest
+        oldestPoint.set(msgTime)
     }
     else
-      previousState += msgID -> true
+      previousState += msgTime -> true
   }
 
   /** *
     * Set the entity absent in a given time
     *
-    * @param msgID
+    * @param msgTime
     */
-  def kill(msgID: Int): Unit = {
-    removeList    += msgID -> false
+  def kill(msgTime: Long): Unit = {
+    removeList    += msgTime -> false
     if (!addOnly)
-      previousState += msgID -> false
+      previousState += msgTime -> false
   }
 
   /** *
@@ -70,13 +72,13 @@ class Entity(creationMessage: Int, isInitialValue: Boolean, addOnly: Boolean) {
   /** *
     * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
     *
-    * @param msgID Message ID where the update came from
+    * @param msgTime Message ID where the update came from
     * @param key   property key
     * @param value property value
     */
-  def +(msgID: Int, key: String, value: String): Unit = {
-    properties.putIfAbsent(key, new Property(msgID, key, value)) match {
-      case Some(oldValue) => oldValue update(msgID, value)
+  def +(msgTime: Long, key: String, value: String): Unit = {
+    properties.putIfAbsent(key, new Property(msgTime, key, value)) match {
+      case Some(oldValue) => oldValue update(msgTime, value)
       case None =>
     }
   }
