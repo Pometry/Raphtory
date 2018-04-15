@@ -2,6 +2,7 @@ package com.raphtory.GraphEntities
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import com.raphtory.utils.HistoryOrdering
 import monix.execution.atomic.AtomicLong
 
 import scala.collection.concurrent.TrieMap
@@ -23,7 +24,7 @@ class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
   // History of that entity
   var previousState : mutable.TreeMap[Long, Boolean] = null
   if (!addOnly)
-    previousState = mutable.TreeMap(creationTime -> isInitialValue)
+    previousState = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
 
   //track the oldest point for use in AddOnly mode
   var oldestPoint : AtomicLong=  AtomicLong(creationTime)
@@ -32,9 +33,9 @@ class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
   var removeList: mutable.TreeMap[Long,Boolean] = null
 
   if(isInitialValue)
-    removeList = mutable.TreeMap()
+    removeList = mutable.TreeMap()(HistoryOrdering)
   else
-    removeList = mutable.TreeMap(creationTime -> isInitialValue)
+    removeList = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
   /** *
     * Set the Entity has alive at a given time
     *
@@ -69,6 +70,39 @@ class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
     */
   def apply(property: String): Property = properties(property)
 
+  def removeAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, Boolean] ={
+    val (safeHistory, oldHistory) = historySplit(cutoff)
+    previousState = safeHistory
+    oldHistory
+  }
+
+  def historySplit(cutOff: Long):( mutable.TreeMap[Long, Boolean], mutable.TreeMap[Long, Boolean]) = {
+
+    if(getPreviousStateSize==0){
+     return (previousState,null)
+    }
+
+    var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+    var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+    val head = previousState.head
+    println(head)
+    safeHistory += head // always keep at least one point in history
+
+    var prev: (Long,Boolean) = head
+    previousState.head
+    for((k,v) <- previousState){
+      if(k<cutOff)
+       if(v == !prev._2)
+          oldHistory += prev._1 -> prev._2 //if the current point differs from the val of the previous it means the prev was the last of its type
+      else
+        safeHistory += k -> v
+      prev = (k,v)
+    }
+    println(prev._1)
+    if(prev._1<cutOff)
+      oldHistory += prev //add the final history point to oldHistory as not done in loop
+    (safeHistory,oldHistory)
+  }
   /** *
     * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
     *
@@ -118,7 +152,7 @@ class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
 
   def wipe() = {
     if (!addOnly)
-      previousState = mutable.TreeMap()
+      previousState = mutable.TreeMap()(HistoryOrdering)
   }
 
   def getPreviousStateSize() : Int = {
