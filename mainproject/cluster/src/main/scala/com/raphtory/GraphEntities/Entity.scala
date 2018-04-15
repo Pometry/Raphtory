@@ -84,25 +84,32 @@ class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
 
     var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
     var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+
     val head = previousState.head
-    println(head)
     safeHistory += head // always keep at least one point in history
 
     var prev: (Long,Boolean) = head
-    previousState.head
+    var swapped = false
     for((k,v) <- previousState){
-      if(k<cutOff)
-       if(v == !prev._2)
-          oldHistory += prev._1 -> prev._2 //if the current point differs from the val of the previous it means the prev was the last of its type
+      if(k<cutOff) {
+        if(swapped)
+          if (v == !prev._2)
+            oldHistory += prev._1 -> prev._2 //if the current point differs from the val of the previous it means the prev was the last of its type
+        swapped=true
+      }
       else
         safeHistory += k -> v
       prev = (k,v)
     }
-    println(prev._1)
+
     if(prev._1<cutOff)
       oldHistory += prev //add the final history point to oldHistory as not done in loop
+
     (safeHistory,oldHistory)
   }
+
+  def rejoinCompressedHistory(oldHistory: mutable.TreeMap[Long, Boolean] ) = previousState ++= oldHistory
+
   /** *
     * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
     *

@@ -29,16 +29,15 @@ object JanitorTest extends App{
   vertex kill(5)
   vertex revive(6)
   println(vertex.previousState)
-  println(vertex.removeAndReturnOldHistory(5))
-
-  //compressHistory(vertex)
+  compressHistory(vertex)
+  println(vertex.previousState)
 
   def compressHistory(e:Entity) ={
-    val toCompress = e.removeAndReturnOldHistory(cutOff)
-    var compressedHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()
-    var prev = null
+    val compressedHistory = e.removeAndReturnOldHistory(cutOff)
+    //TODO save to redis
+    //TODO prehaps decide if compressed history is rejoined
+    e.rejoinCompressedHistory(compressedHistory)
   }
-
 
   def cutOff = System.currentTimeMillis() - timeWindowMils
   //vertex + (1, "Name", "Ben")
