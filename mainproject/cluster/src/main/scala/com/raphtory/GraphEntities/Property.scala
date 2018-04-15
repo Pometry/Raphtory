@@ -14,7 +14,7 @@ class Property(creationTime: Long,
                value: String) {
 
   // Initialize the TreeMap
-  var previousState: mutable.TreeMap[Long, (Boolean, String)] = mutable.TreeMap()
+  var previousState: mutable.TreeMap[Long, String] = mutable.TreeMap()
 
   // add in the initial information
   update(creationTime, value)
@@ -26,7 +26,7 @@ class Property(creationTime: Long,
     * @param newValue
     */
   def update(msgTime: Long, newValue: String): Unit = {
-    previousState += msgTime -> (true, newValue)
+    previousState += msgTime -> newValue
   }
 
   /** *
@@ -37,7 +37,7 @@ class Property(creationTime: Long,
   override def toString: String = {
     var toReturn = System.lineSeparator()
     previousState.foreach(p =>
-      toReturn = s"$toReturn           MessageID ${p._1}: ${p._2._1} -- ${p._2._2} " + System
+      toReturn = s"$toReturn           MessageID ${p._1}: ${p._2} -- ${p._2} " + System
         .lineSeparator())
     s"Property: ${key} ----- Previous State: $toReturn"
   }
@@ -49,7 +49,7 @@ class Property(creationTime: Long,
     */
   def toStringCurrent: String = {
     val toReturn = System.lineSeparator() +
-      s"           MessageID ${previousState.head._1}: ${previousState.head._2._1} -- ${previousState.head._2._2} " +
+      s"           MessageID ${previousState.head._1}: ${previousState.head._2} -- ${previousState.head._2} " +
       System.lineSeparator()
     s"Property: ${key} ----- Current State: $toReturn"
   }
