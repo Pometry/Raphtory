@@ -5,6 +5,9 @@ import com.raphtory.Storage.{Connector, RedisConnector}
 object GraphRepoProxy {
   private val connectors : Array[Connector] = Array(RedisConnector) // TODO add Raphtory Cache Implementation
 
+  private var edgesSet : Set[Long] = Set[Long]()
+  private var verticesSet : Set[Long] = Set[Long]()
+
   def apply(): Unit = {
   }
 
@@ -19,18 +22,20 @@ object GraphRepoProxy {
     false
   }
 
-  def addEntity(entityType : String, entityId : Long, timestamp : Long) : Boolean = {
-    connectors.foreach(conn => {
-      conn.saveEntity(entityType, entityId, timestamp)
-    })
-    true // TODO what?
+  def addEdge(id : Long) = {
+    edgesSet += id
   }
 
-  def delEntity(entityType : String, entityId : Long, timestamp : Long) : Boolean = {
-    connectors.foreach(conn => {
-      conn.removeEntity(entityType, entityId, timestamp)
-    })
-    true // TODO what?
+  def addVertex(id : Long) = {
+    verticesSet += id
+  }
+
+  def getEdges() : Set[Long] = {
+    edgesSet
+  }
+
+  def getVertices() : Set[Long] = {
+    verticesSet
   }
 
   // TODO
