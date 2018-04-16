@@ -9,10 +9,15 @@ object StreamingExample extends App {
 
   val restClient = TwitterRestClient(consumerToken, accessToken)
   val streamingClient = TwitterStreamingClient(consumerToken, accessToken)
-  val trackedWords = Seq("#scala", "#functionalprogramming")
+  val trackedWords = Seq("#java", "#functionalprogramming")
 
   streamingClient.filterStatuses(tracks = trackedWords) {
-    case tweet: Tweet => println(tweet.text)
+    case tweet: Tweet => {
+      println(tweet.text)
+      println(tweet.contributors)
+      println(tweet.id)
+      println(tweet.created_at)
+    }
   }
 
 }
