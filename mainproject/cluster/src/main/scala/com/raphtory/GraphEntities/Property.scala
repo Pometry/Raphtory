@@ -1,5 +1,7 @@
 package com.raphtory.GraphEntities
 
+import com.raphtory.utils.HistoryOrdering
+
 import scala.collection.mutable
 
 /** *
@@ -14,7 +16,7 @@ class Property(creationTime: Long,
                value: String) {
 
   // Initialize the TreeMap
-  var previousState: mutable.TreeMap[Long, String] = mutable.TreeMap()
+  var previousState: mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
 
   // add in the initial information
   update(creationTime, value)
@@ -28,6 +30,29 @@ class Property(creationTime: Long,
   def update(msgTime: Long, newValue: String): Unit = {
     previousState += msgTime -> newValue
   }
+
+  def removeAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, String] ={
+    val (safeHistory, oldHistory) = historySplit(cutoff)
+    previousState = safeHistory
+    oldHistory
+  }
+  def historySplit(cutOff: Long):( mutable.TreeMap[Long, String], mutable.TreeMap[Long, String]) = {
+
+    var safeHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
+    var oldHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
+
+    safeHistory += previousState.head // always keep at least one point in history
+    for((k,v) <- previousState){
+      if(k<cutOff)
+        oldHistory += k ->v
+      else
+        safeHistory += k -> v
+    }
+    (safeHistory,oldHistory)
+  }
+
+
+
 
   /** *
     * returns a string with all the history of that property

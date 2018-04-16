@@ -247,4 +247,14 @@ object EntitiesStorage {
     if(printing) println(s"Received deaths for $srcId --> $dstId from ${getManager(dstId, managerCount)}")
     edges(getEdgeIndex(srcId,dstId)) killList dstDeaths
   }
+
+  def oldEntity(e:Entity) = {
+    if(e.isInstanceOf[Vertex]){
+      //TODO remove from vertex map
+    }
+    if(e.isInstanceOf[Edge]){
+      //TODO remove from edge map
+    }
+  }
+
 }

@@ -33,10 +33,12 @@ object JanitorTest extends App{
   println(vertex.previousState)
 
   def compressHistory(e:Entity) ={
-    val compressedHistory = e.removeAndReturnOldHistory(cutOff)
-    //TODO save to redis
-    //TODO prehaps decide if compressed history is rejoined
-    e.rejoinCompressedHistory(compressedHistory)
+    val compressedHistory = e.compressAndReturnOldHistory(cutOff)
+    if(compressedHistory.nonEmpty){
+      //TODO save to redis
+      //TODO prehaps decide if compressed history is rejoined
+      e.rejoinHistory(compressedHistory)
+    }
   }
 
   def cutOff = System.currentTimeMillis() - timeWindowMils

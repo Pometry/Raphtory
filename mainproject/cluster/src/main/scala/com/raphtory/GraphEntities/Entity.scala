@@ -70,18 +70,10 @@ class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
     */
   def apply(property: String): Property = properties(property)
 
-  def removeAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, Boolean] ={
-    val (safeHistory, oldHistory) = historySplit(cutoff)
-    previousState = safeHistory
-    oldHistory
-  }
-
-  def historySplit(cutOff: Long):( mutable.TreeMap[Long, Boolean], mutable.TreeMap[Long, Boolean]) = {
-
-    if(getPreviousStateSize==0){
-     return (previousState,null)
+  def compressAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, Boolean] ={
+    if(getPreviousStateSize==0 || getPreviousStateSize == 1){ //if the state size is 0 it is a wiped node and should not be interacted with
+      return  mutable.TreeMap()(HistoryOrdering) //if the size is one, no need to compress
     }
-
     var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
     var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
 
@@ -91,7 +83,7 @@ class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
     var prev: (Long,Boolean) = head
     var swapped = false
     for((k,v) <- previousState){
-      if(k<cutOff) {
+      if(k<cutoff) {
         if(swapped)
           if (v == !prev._2)
             oldHistory += prev._1 -> prev._2 //if the current point differs from the val of the previous it means the prev was the last of its type
@@ -102,13 +94,41 @@ class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
       prev = (k,v)
     }
 
-    if(prev._1<cutOff)
+    if(prev._1<cutoff)
       oldHistory += prev //add the final history point to oldHistory as not done in loop
 
-    (safeHistory,oldHistory)
+    previousState = safeHistory
+    oldHistory
   }
+  def rejoinHistory(oldHistory: mutable.TreeMap[Long, Boolean] ) = previousState ++= oldHistory
 
-  def rejoinCompressedHistory(oldHistory: mutable.TreeMap[Long, Boolean] ) = previousState ++= oldHistory
+  /** *
+    * check what part of the history is outside of the historians time window
+    *
+    * @param cutoff the histories time cutoff
+    * @return (is it a place holder, is the full history holder than the cutoff, the old history)
+    */
+  def returnAncientHistory(cutoff:Long): (Boolean, Boolean, mutable.TreeMap[Long, Boolean]) ={ //
+    if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node inform the historian
+      return  (true,true,null)
+    }
+    var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+    var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+
+    var allOld = true
+    safeHistory += previousState.head // always keep at least one point in history
+    for((k,v) <- previousState){
+      if(k<cutoff)
+        oldHistory += k ->v
+      else {
+        allOld =false
+        safeHistory += k -> v
+      }
+    }
+    previousState = safeHistory
+
+    (false,allOld,oldHistory)
+  }
 
   /** *
     * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
@@ -158,13 +178,18 @@ class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
   //************* END PRINT ENTITY DETAILS BLOCK *********************\\
 
   def wipe() = {
-    if (!addOnly)
+    if (addOnly)
+      oldestPoint.set(Long.MaxValue)
+    else
       previousState = mutable.TreeMap()(HistoryOrdering)
   }
 
   def getPreviousStateSize() : Int = {
     if (addOnly)
-      0
+      if(oldestPoint.get == Long.MaxValue)
+        0 //is a placeholder entity
+      else
+        1
     else
       previousState.size
   }
