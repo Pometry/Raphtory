@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.GraphEntities._
+import com.raphtory.Storage.EntitiesStorage
 import com.raphtory.caseclass._
 import kamon.Kamon
 import kamon.metric.GaugeMetric
