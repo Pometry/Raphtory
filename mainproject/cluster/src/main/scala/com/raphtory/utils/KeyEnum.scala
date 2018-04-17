@@ -6,5 +6,6 @@ object KeyEnum extends Enumeration {
 }
 
 object SubKeyEnum extends Enumeration {
-  val history  : Value = Value("history")
+  val history      : Value = Value("history")
+  val creationTime : Value = Value("creationTime")
 }
