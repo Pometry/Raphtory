@@ -16,6 +16,7 @@ import scala.collection.{SortedMap, mutable}
   * @param creationTime ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced
   */
+
 abstract class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
 
   // Properties from that entity

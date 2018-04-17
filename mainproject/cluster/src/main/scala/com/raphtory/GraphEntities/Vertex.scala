@@ -1,7 +1,21 @@
 package com.raphtory.GraphEntities
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-import scala.collection.mutable.Set
+
+/**
+  * Companion Vertex object (extended creator for storage loads)
+  */
+object Vertex {
+  def apply(creationTime : Long, vertexId : Int, associatedEdges : mutable.LinkedHashSet[Edge], previousState : mutable.TreeMap[Long, Boolean], properties : TrieMap[String, Property]) = {
+    val v = new Vertex(creationTime, vertexId, initialValue = true, addOnly = false)
+    v.previousState   = previousState
+    v.associatedEdges = associatedEdges
+    v.properties      = properties
+    v
+  }
+}
+
 
 /** *
   * Class representing Graph Vertices

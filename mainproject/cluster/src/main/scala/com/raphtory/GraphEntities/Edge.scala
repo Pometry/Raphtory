@@ -2,7 +2,26 @@ package com.raphtory.GraphEntities
 
 import com.raphtory.utils.Utils
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+/**
+  * Companion Edge object (extended creator for storage loads)
+  */
+object Edge {
+  def apply(creationTime : Long, edgeId : Long,
+            associatedEdges : mutable.LinkedHashSet[Edge],
+            previousState : mutable.TreeMap[Long, Boolean],
+            properties : TrieMap[String, Property]) = {
+
+    val srcId = Utils.getIndexHI(edgeId)
+    val dstId = Utils.getIndexLO(edgeId)
+
+    val e = new Edge(creationTime, srcId, dstId, initialValue = true, addOnly = false)
+    e.previousState   = previousState
+    e.properties      = properties
+    e
+  }
+}
 
 /**
   * Created by Mirate on 01/03/2017.
