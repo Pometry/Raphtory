@@ -9,7 +9,6 @@ import scala.collection.mutable
   */
 object Edge {
   def apply(creationTime : Long, edgeId : Long,
-            associatedEdges : mutable.LinkedHashSet[Edge],
             previousState : mutable.TreeMap[Long, Boolean],
             properties : TrieMap[String, Property]) = {
 

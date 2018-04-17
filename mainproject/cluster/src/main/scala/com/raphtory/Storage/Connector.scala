@@ -1,12 +1,25 @@
 package com.raphtory.Storage
+import com.raphtory.GraphEntities.Entity
+import com.raphtory.utils.KeyEnum
 
+import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 trait Connector {
-  def putTimeSeriesValue[T](entityType : String, entityId: Long, property: String, timestamp: Long, value: T): Boolean
-  def lookup(entityType : String, entityId : Long, property : String, timestamp : Long) : Any
   def rangeQuery(entityType : String, entityId : Long, property : String, startTime : Long, endTime : Long) : Any
-  def setString[T] (entityType : String, entityId : Long, property : String, timestamp : Long, value : T) : Boolean
 
   def lookupEntity(entityType : String, entityId : Long) : Boolean
-  def saveEntity(entityType : String, entityId : Long, timestamp : Long) : Boolean
-  def removeEntity(entityType : String, entityId : Long, timestamp : Long) : Boolean
+  def getEntity(entityType : KeyEnum.Value, entityId : Long) : Option[_ <: Entity]
+
+  def getHistory(entityType : KeyEnum.Value, entityId : Long) : mutable.TreeMap[Long, Boolean]
+  def getProperties(entityType : KeyEnum.Value, entityId : Long) : mutable.TreeMap[Long, String]
+  def getEntities(entityType : KeyEnum.Value) : Set[Long]
+  def getEntitiesObjs(entityType : KeyEnum.Value) : TrieMap[Long, Entity]
+  def getAssociatedEdges(entityId : Long) : mutable.Set[Long]
+
+  def addEntity(entityType : KeyEnum.Value, entityId : Long, creationTime : Long)
+  def addState(entityType : KeyEnum.Value, entityId : Long, timestamp : Long, value : Boolean)
+  def addProperty(entityType : KeyEnum.Value, entityId : Long, key : String, timestamp : Long, value : String)
+
+  def addAssociatedVertex(vertexId : Long, edgeId : Long)
+
 }

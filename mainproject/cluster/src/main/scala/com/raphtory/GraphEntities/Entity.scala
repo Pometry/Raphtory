@@ -17,7 +17,7 @@ import scala.collection.{SortedMap, mutable}
   * @param isInitialValue  Is the first moment this entity is referenced
   */
 
-abstract class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
+abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
 
   // Properties from that entity
   var properties:TrieMap[String,Property] = TrieMap[String, Property]()

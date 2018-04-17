@@ -1,45 +1,137 @@
 package com.raphtory.Storage
 
-import java.util.concurrent.ConcurrentSkipListSet
-
-import com.raphtory.GraphEntities.Entity
+import com.raphtory.GraphEntities.{Entity, Property, Vertex, Edge}
 import com.raphtory.utils.{KeyEnum, SubKeyEnum}
 import com.redis.RedisClient
+import com.raphtory.utils.exceptions._
+
+import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 
 object RedisConnector extends Connector {
   private val redis : RedisClient = new RedisClient()("localhost", 6379)
-  private val historyKey : String = "history"
 
-  private def getPropertyKey(entityType : String, entityId : Long, property : String, timestamp : Long) : String = {
-    s"$entityType:$entityId:$property:$timestamp"
+  /**
+    * Add the entity and set its creation time (if it doesn't exist)
+    * @param entityType
+    * @param entityId
+    * @param creationTime
+    */
+  override def addEntity(entityType : KeyEnum.Value, entityId : Long, creationTime : Long) = {
+    redis.sadd(entityType, entityId)
+    redis.sadd(s"$entityType:$entityId:${SubKeyEnum.creationTime}", creationTime)
   }
 
-  private def getEntityKey(entityType : String) : String = {
-    entityType
+  /**
+    * add a new change on the state of the Entity (history)
+    * @param entityType
+    * @param entityId
+    * @param timestamp
+    * @param value
+    */
+  override def addState(entityType : KeyEnum.Value, entityId : Long, timestamp : Long, value : Boolean) = {
+    addProperty(entityType, entityId, SubKeyEnum.history.toString, timestamp, value.toString)
   }
 
-  private def getEntityType[T <: Entity](entity : T) : String = {
-    entity.getClass.getSimpleName
+  /**
+    * add a new value for a given property at a given time
+    * @param entityType
+    * @param entityId
+    * @param key
+    * @param timestamp
+    * @param value
+    */
+  override def addProperty(entityType : KeyEnum.Value, entityId : Long, key : String, timestamp : Long, value : String) = {
+    redis.set(s"${KeyEnum.vertices}:$entityId:$key:$timestamp", value)
   }
 
-  override def putTimeSeriesValue[T](entityType : String, entityId: Long, property: String, timestamp: Long, value: T): Boolean = {
-    redis.append(getPropertyKey(entityType, entityId, property, timestamp), value) match {
-      case Some(ret) => true
-      case None      => false
+  /**
+    * add one associated vertex to the set of associatedEdges for the given Vertex
+    * @param vertexId
+    * @param edgeId
+    */
+  override def addAssociatedVertex(vertexId : Long, edgeId : Long) = {
+    redis.sadd(s"${KeyEnum.vertices}:$vertexId:${KeyEnum.edges}", edgeId)
+  }
+
+  /**
+    * check for the existence of the given $entityId in the $entityType set
+    * @param entityType
+    * @param entityId
+    * @return
+    */
+  override def lookupEntity(entityType: String, entityId: Long) : Boolean = {
+    redis.sismember(entityType, entityId)
+  }
+
+  /**
+    * Get the list of the entities ids (vertex or edges)
+    * @param entityType
+    * @return
+    */
+  override def getEntities(entityType : KeyEnum.Value) : Set[Long] = {
+    redis.smembers(entityType) match {
+      case None => Set[Long]()
+      case Some(set) => {
+        set.map(opEl => opEl match {
+          case Some(s) => s.toLong
+        })
+      }
     }
   }
 
   /**
-    * Lookup operation on Redis, it should return the right dataType (TODO as generic) or just return a string
+    * Load from Redis the Entity datas
     * @param entityType
     * @param entityId
-    * @param property
-    * @param timestamp
     * @return
     */
-  override def lookup(entityType : String, entityId : Long, property : String, timestamp : Long) : Any = {
-    // TODO
+  override def getEntity(entityType: KeyEnum.Value, entityId: Long) : Option[_ <: Entity] = {
+    entityType match {
+      case KeyEnum.vertices => Some(getVertex(entityId.toInt))
+      case KeyEnum.edges    => Some(getEdge(entityId))
+      case _                => throw new IllegalArgumentException
+    }
   }
+
+  /**
+    * Load all of the Redis-stored graph
+    * @param entityType
+    * @return
+    */
+  override def getEntitiesObjs(entityType: KeyEnum.Value) = {
+    val entities = TrieMap[Long, Entity]()
+    getEntities(entityType).par.foreach((id) => {
+      getEntity(entityType, id) match {
+        case Some(entity) => entities.put(id, entity)
+        case _            =>
+      }
+    })
+    entities
+  }
+
+  /**
+    * Load the associated edges for the given VertexId
+    * @param entityId
+    * @return
+    */
+  override def getAssociatedEdges(entityId: Long) = ???
+
+  /**
+    * Load the history for the given $entityId
+    * @param entityType
+    * @param entityId
+    * @return
+    */
+  override def getHistory(entityType: KeyEnum.Value, entityId: Long) : Nothing = ???
+
+  /**
+    * Get properties (and their history) for the given entityId
+    * @param entityType
+    * @param entityId
+    * @return
+    */
+  override def getProperties(entityType: KeyEnum.Value, entityId: Long) = ???
 
 
   /**
@@ -55,65 +147,40 @@ object RedisConnector extends Connector {
     // TODO
   }
 
-  def setString[T] (entityType : String, entityId : Long, property : String, timestamp : Long, value : T) : Boolean =
-    redis.set(getPropertyKey(entityType, entityId, property, timestamp), value)
 
-  override def saveEntity(entityType : String, entityId : Long, timestamp : Long) : Boolean = {
-    //redis.hm
-    val entityKey = getEntityKey(entityType)
-    lookupEntity(entityType, entityId) match {
-      case true => putTimeSeriesValue(entityKey, entityId, historyKey, timestamp, true)
-      case false => redis.sadd(entityKey, entityId); true // TODO
+  private def getVertex(entityId : Int) : Vertex = {
+    var creationTime : Long = 0
+    // Verify existence
+    redis.get(KeyEnum.vertices, entityId) match {
+      case None => throw EntityIdNotFoundException(entityId)
+      case _ => // Some(id)
     }
-  }
 
-  override def removeEntity(entityType : String, entityId : Long, timestamp : Long) : Boolean = {
-    putTimeSeriesValue(entityType, entityId, historyKey, timestamp, false)
-  }
-
-  override def lookupEntity(entityType: String, entityId: Long) : Boolean = {
-    redis.sismember(entityType, entityId)
-  }
-
-
-  def getEntities(key : String) : Set[Long] = {
-    redis.smembers(key) match {
-      case None => Set[Long]()
-      case Some(set) => {
-        set.map(opEl => opEl match {
-          case Some(s) => s.toLong
-        })
-      }
+    // get Creation Time
+    redis.get(s"${KeyEnum.vertices}:$entityId:${SubKeyEnum.creationTime}") match {
+      case None => throw CreationTimeNotFoundException(entityId)
+      case Some(time) => creationTime = time.toLong
     }
+    Vertex(creationTime = creationTime, vertexId = entityId,
+      associatedEdges = getAssociatedEdges(entityId),
+      previousState = getHistory(KeyEnum.vertices, entityId),
+      properties = getProperties(KeyEnum.vertices, entityId)
+    )
   }
 
+  private def getEdge(edgeId : Long) : Edge = {
+    var creationTime : Long = 0
+    redis.get(KeyEnum.edges, edgeId) match {
+      case None => throw EntityIdNotFoundException(edgeId)
+      case _ =>
+    }
+    redis.get(s"${KeyEnum.edges}:$edgeId:${SubKeyEnum.creationTime}") match {
+      case None => throw CreationTimeNotFoundException(edgeId)
+      case Some(time) => creationTime = time.toLong
+    }
 
-  // Used
-  def addVertex(id : Long) = {
-    redis.sadd("vertices", id)
-  }
-
-  def addEdge(id : Long) = {
-    redis.sadd("edges", id)
-  }
-
-  def addVertexState(id : Long, timestamp : Long, value : Boolean) = {
-    addState(KeyEnum.vertices, id, timestamp, value)
-  }
-
-  def addEdgeState(id : Long, timestamp : Long, value : Boolean) = {
-    addState(KeyEnum.edges, id, timestamp, value)
-  }
-
-  def addState(entityType : KeyEnum.Value, entityId : Long, timestamp : Long, value : Boolean) = {
-    addProperty(entityType, entityId, SubKeyEnum.history.toString, timestamp, value.toString)
-  }
-
-  def addProperty(entityType : KeyEnum.Value, entityId : Long, key : String, timestamp : Long, value : String) = {
-    redis.set(s"${KeyEnum.vertices}:$entityId:$key:$timestamp", value)
-  }
-
-  def addAssociatedVertex(vertexId : Long, edgeId : Long) = {
-    redis.sadd(s"${KeyEnum.vertices}:$vertexId:${KeyEnum.edges}", edgeId)
+    Edge(creationTime, edgeId,
+      getHistory(KeyEnum.edges, edgeId),
+      getProperties(KeyEnum.vertices, edgeId))
   }
 }
