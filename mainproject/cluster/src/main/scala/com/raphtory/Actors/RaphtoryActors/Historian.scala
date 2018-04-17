@@ -21,7 +21,7 @@ class Historian(entityStorage:EntitiesStorage.type,maximumHistory:Int,compressio
   val maximumHistoryMils = maximumHistory * 60000 //set in minutes
   val compressionWindowMils = compressionWindow * 1000 //set in seconds
 
-  val lastSaved = 0
+  var lastSaved : Long = 0
   implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(100))
   override def receive: Receive = {
     case "archive"=> archive()
@@ -73,6 +73,7 @@ class Historian(entityStorage:EntitiesStorage.type,maximumHistory:Int,compressio
       //TODO  decide if compressed history is rejoined
       var entityType : KeyEnum.Value = null
       var entityId   : Long = 0
+      lastSaved = Math.max(compressedHistory.head._1, lastSaved)
       if (e.isInstanceOf[Vertex])
         entityType = KeyEnum.vertices
       else
