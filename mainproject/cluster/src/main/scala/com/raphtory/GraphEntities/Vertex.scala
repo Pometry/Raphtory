@@ -21,4 +21,5 @@ class Vertex(msgTime: Long, val vertexId: Int, initialValue: Boolean, addOnly:Bo
 
   /*override def printProperties(): String =
     s"Vertex $vertexId with properties: \n" + super.printProperties()*/
+  override def getId = vertexId
 }

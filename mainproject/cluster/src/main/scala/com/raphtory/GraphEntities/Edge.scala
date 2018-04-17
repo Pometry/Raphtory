@@ -1,5 +1,7 @@
 package com.raphtory.GraphEntities
 
+import com.raphtory.utils.Utils
+
 import scala.collection.mutable
 
 /**
@@ -19,4 +21,6 @@ class Edge(msgTime: Long, srcId: Int, dstId: Int, initialValue: Boolean, addOnly
     if (!addOnly)
       previousState ++= vKills
   }
+
+  override def getId: Long = Utils.getEdgeIndex(srcId, dstId)
 }

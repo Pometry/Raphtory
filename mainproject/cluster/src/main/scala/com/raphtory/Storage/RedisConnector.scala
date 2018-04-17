@@ -3,6 +3,7 @@ package com.raphtory.Storage
 import java.util.concurrent.ConcurrentSkipListSet
 
 import com.raphtory.GraphEntities.Entity
+import com.raphtory.utils.{KeyEnum, SubKeyEnum}
 import com.redis.RedisClient
 
 object RedisConnector extends Connector {
@@ -86,7 +87,33 @@ object RedisConnector extends Connector {
     }
   }
 
-  def addAssociatedEdge(vertexId : Long, edgeIndex : Long) : Boolean = {
-    redis
+
+  // Used
+  def addVertex(id : Long) = {
+    redis.sadd("vertices", id)
+  }
+
+  def addEdge(id : Long) = {
+    redis.sadd("edges", id)
+  }
+
+  def addVertexState(id : Long, timestamp : Long, value : Boolean) = {
+    addState(KeyEnum.vertices, id, timestamp, value)
+  }
+
+  def addEdgeState(id : Long, timestamp : Long, value : Boolean) = {
+    addState(KeyEnum.edges, id, timestamp, value)
+  }
+
+  def addState(entityType : KeyEnum.Value, entityId : Long, timestamp : Long, value : Boolean) = {
+    addProperty(entityType, entityId, SubKeyEnum.history.toString, timestamp, value.toString)
+  }
+
+  def addProperty(entityType : KeyEnum.Value, entityId : Long, key : String, timestamp : Long, value : String) = {
+    redis.set(s"${KeyEnum.vertices}:$entityId:$key:$timestamp", value)
+  }
+
+  def addAssociatedVertex(vertexId : Long, edgeId : Long) = {
+    redis.sadd(s"${KeyEnum.vertices}:$vertexId:${KeyEnum.edges}", edgeId)
   }
 }

@@ -41,7 +41,6 @@ object GraphRepoProxy {
   // TODO
   // getHistory
   // getProperties
-  // updateProperty
   // getProperty
   // getEntity
 

@@ -16,7 +16,7 @@ import scala.collection.{SortedMap, mutable}
   * @param creationTime ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced
   */
-class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
+abstract class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
 
   // Properties from that entity
   var properties:TrieMap[String,Property] = TrieMap[String, Property]()
@@ -193,4 +193,6 @@ class Entity(creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
     else
       previousState.size
   }
+
+  def getId : Long
 }

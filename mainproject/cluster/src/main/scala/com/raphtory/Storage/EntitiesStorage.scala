@@ -2,6 +2,7 @@ package com.raphtory.GraphEntities
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
+import com.raphtory.Controller.GraphRepoProxy
 
 import scala.collection.concurrent.TrieMap
 import com.raphtory.caseclass._
@@ -27,9 +28,11 @@ object EntitiesStorage {
   var managerCount : Int     = -1
   var managerID    : Int     = -1
   var mediator     : ActorRef= null
-  var addOnlyVertex      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_VERTEX", "false").trim.toBoolean
-  var addOnlyEdge      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_EDGE", "false").trim.toBoolean
+  var addOnlyVertex: Boolean =  System.getenv().getOrDefault("ADD_ONLY_VERTEX", "false").trim.toBoolean
+  var addOnlyEdge  : Boolean =  System.getenv().getOrDefault("ADD_ONLY_EDGE", "false").trim.toBoolean
 
+  var lastSaved    : Long = 0
+  var lastCompressed:Long = 0
 
   def apply(printing : Boolean, managerCount : Int, managerID : Int, mediator : ActorRef) = {
     this.printing     = printing
@@ -44,6 +47,7 @@ object EntitiesStorage {
     */
   def vertexAdd(msgTime : Long, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
     var value : Vertex = new Vertex(msgTime, srcId, initialValue = true, addOnlyVertex)
+    GraphRepoProxy.addVertex(srcId)
     vertices.putIfAbsent(srcId, value) match {
       case Some(oldValue) => {
         oldValue revive msgTime
@@ -72,6 +76,7 @@ object EntitiesStorage {
 
     vertex.associatedEdges.foreach(e => {
       e kill msgTime
+
       if(e.isInstanceOf[RemoteEdge]){
         val ee = e.asInstanceOf[RemoteEdge]
         if(ee.remotePos == RemotePos.Destination) {
@@ -104,6 +109,7 @@ object EntitiesStorage {
     var present     = false
     var edge : Edge = null
     val index : Long= getEdgeIndex(srcId, dstId)
+    GraphRepoProxy.addEdge(index)
     if (local)
       edge = new Edge(msgTime, srcId, dstId, initialValue = true, addOnlyEdge)
     else
@@ -146,9 +152,11 @@ object EntitiesStorage {
   def remoteEdgeAdd(msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String] = null):Unit={
     if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge already exists so just updating")
     val dstVertex = vertexAdd(msgTime,dstId) //create or revive the destination node
-    val edge = edges(getEdgeIndex(srcId, dstId))
+    val index= getEdgeIndex(srcId, dstId)
+    val edge = edges(index)
     dstVertex addAssociatedEdge edge //again I think this can be removed
     edge revive msgTime //revive  the edge
+    GraphRepoProxy.addEdge(index)
     if (properties != null)
       properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the list
   }
@@ -159,6 +167,7 @@ object EntitiesStorage {
     val edge = new RemoteEdge(msgTime, srcId, dstId, initialValue = true, addOnlyEdge,RemotePos.Source,getPartition(srcId, managerCount))
     dstVertex addAssociatedEdge edge //add the edge to the associated edges of the destination node
     edges put(getEdgeIndex(srcId,dstId), edge) //create the new edge
+    GraphRepoProxy.addEdge(getEdgeIndex(srcId, dstId))
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge

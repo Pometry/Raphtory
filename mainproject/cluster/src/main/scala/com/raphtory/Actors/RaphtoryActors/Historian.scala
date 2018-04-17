@@ -1,6 +1,13 @@
 package com.raphtory.Actors.RaphtoryActors
 
-import com.raphtory.GraphEntities.{EntitiesStorage, Entity}
+import com.raphtory.GraphEntities.{EntitiesStorage, Entity, Vertex}
+import com.raphtory.Storage.RedisConnector
+import com.raphtory.utils.KeyEnum
+import monix.eval.Task
+import monix.execution.{ExecutionModel, Scheduler}
+
+import scala.collection.mutable
+import util.control.Breaks._
 
 //TODO decide how to do shrinking window as graph expands
 //TODO implement temporal/spacial profiles
@@ -14,6 +21,8 @@ class Historian(entityStorage:EntitiesStorage.type,maximumHistory:Int,compressio
   val maximumHistoryMils = maximumHistory * 60000 //set in minutes
   val compressionWindowMils = compressionWindow * 1000 //set in seconds
 
+  val lastSaved = 0
+  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(100))
   override def receive: Receive = {
     case "archive"=> archive()
     case "compress" => compressGraph()
@@ -61,8 +70,14 @@ class Historian(entityStorage:EntitiesStorage.type,maximumHistory:Int,compressio
   def compressHistory(e:Entity) ={
     val compressedHistory = e.compressAndReturnOldHistory(cutOff)
     if(compressedHistory.nonEmpty){
-      //TODO save to redis
       //TODO  decide if compressed history is rejoined
+      var entityType : KeyEnum.Value = null
+      var entityId   : Long = 0
+      if (e.isInstanceOf[Vertex])
+        entityType = KeyEnum.vertices
+      else
+        entityType = KeyEnum.edges
+      Task.eval(saveToRedis(compressedHistory, entityType, e.getId)).fork.runAsync
       e.rejoinHistory(compressedHistory)
     }
   }
@@ -71,4 +86,13 @@ class Historian(entityStorage:EntitiesStorage.type,maximumHistory:Int,compressio
 
   def spaceForExtraHistory = if((runtime.freeMemory/runtime.totalMemory()) < (1-maximumMem)) true else false //check if used memory less than set maximum
 
+
+  def saveToRedis(compressedHistory : mutable.TreeMap[Long, Boolean], entityType : KeyEnum.Value, entityId : Long) = {
+    val entityTypeString = entityType.toString
+    compressedHistory.foreach(h => {
+      if (h._1 > lastSaved)
+        Task.eval(RedisConnector.addState(entityType, entityId, h._1, h._2)).fork.runAsync
+      else break
+    })
+  }
 }
