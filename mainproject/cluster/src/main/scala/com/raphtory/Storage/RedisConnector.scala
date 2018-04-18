@@ -1,14 +1,14 @@
 package com.raphtory.Storage
 
-import com.raphtory.GraphEntities.{Entity, Property, Vertex, Edge}
-import com.raphtory.utils.{KeyEnum, SubKeyEnum}
+import com.raphtory.GraphEntities._
+import com.raphtory.utils.{KeyEnum, SubKeyEnum, Utils}
 import com.redis.RedisClient
 import com.raphtory.utils.exceptions._
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
-object RedisConnector extends Connector {
+object RedisConnector extends ReaderConnector with WriterConnector {
   private val redis : RedisClient = new RedisClient()("localhost", 6379)
 
   /**
@@ -19,7 +19,7 @@ object RedisConnector extends Connector {
     */
   override def addEntity(entityType : KeyEnum.Value, entityId : Long, creationTime : Long) = {
     redis.sadd(entityType, entityId)
-    redis.sadd(s"$entityType:$entityId:${SubKeyEnum.creationTime}", creationTime)
+    redis.sadd(creationTimeKey(entityType, entityId), creationTime)
   }
 
   /**
@@ -30,7 +30,7 @@ object RedisConnector extends Connector {
     * @param value
     */
   override def addState(entityType : KeyEnum.Value, entityId : Long, timestamp : Long, value : Boolean) = {
-    addProperty(entityType, entityId, SubKeyEnum.history.toString, timestamp, value.toString)
+    redis.set(historyKey(entityType, entityId, timestamp), value)
   }
 
   /**
@@ -42,7 +42,7 @@ object RedisConnector extends Connector {
     * @param value
     */
   override def addProperty(entityType : KeyEnum.Value, entityId : Long, key : String, timestamp : Long, value : String) = {
-    redis.set(s"${KeyEnum.vertices}:$entityId:$key:$timestamp", value)
+    redis.set(propertyKey(entityType, entityId, key, timestamp), value)
   }
 
   /**
@@ -50,8 +50,8 @@ object RedisConnector extends Connector {
     * @param vertexId
     * @param edgeId
     */
-  override def addAssociatedVertex(vertexId : Long, edgeId : Long) = {
-    redis.sadd(s"${KeyEnum.vertices}:$vertexId:${KeyEnum.edges}", edgeId)
+  override def addAssociatedEdge(vertexId : Long, edgeId : Long) = {
+    redis.sadd(associatedEdgesKey(vertexId), edgeId)
   }
 
   /**
@@ -60,7 +60,7 @@ object RedisConnector extends Connector {
     * @param entityId
     * @return
     */
-  override def lookupEntity(entityType: String, entityId: Long) : Boolean = {
+  override def lookupEntity(entityType: KeyEnum.Value, entityId: Long) : Boolean = {
     redis.sismember(entityType, entityId)
   }
 
@@ -112,10 +112,20 @@ object RedisConnector extends Connector {
 
   /**
     * Load the associated edges for the given VertexId
-    * @param entityId
+    * @param vertexId
     * @return
     */
-  override def getAssociatedEdges(entityId: Long) = ???
+  override def getAssociatedEdges(vertexId: Long) : mutable.LinkedHashSet[Edge]= {
+    val edges = mutable.LinkedHashSet[Edge]()
+    redis.smembers(associatedEdgesKey(vertexId)) match {
+      case set : Set[Option[String]] =>
+        set.par.foreach {
+          case Some(str) => edges.+(getEdge(str.toLong))
+          case None =>
+        }
+    }
+    edges
+  }
 
   /**
     * Load the history for the given $entityId
@@ -123,7 +133,14 @@ object RedisConnector extends Connector {
     * @param entityId
     * @return
     */
-  override def getHistory(entityType: KeyEnum.Value, entityId: Long) : Nothing = ???
+  override def getHistory(entityType: KeyEnum.Value, entityId: Long) : mutable.TreeMap[Long, Boolean] = {
+    val history = mutable.TreeMap[Long, Boolean]()
+    redis.keys(s"$entityType:$entityId|${SubKeyEnum.history}:*")
+      .get.par.foreach(
+      optStr => history.put(optStr.get.split(":")(3).toLong, false)
+    )
+    history
+  }
 
   /**
     * Get properties (and their history) for the given entityId
@@ -131,8 +148,24 @@ object RedisConnector extends Connector {
     * @param entityId
     * @return
     */
-  override def getProperties(entityType: KeyEnum.Value, entityId: Long) = ???
+  override def getProperties(entityType: KeyEnum.Value, entityId: Long) : TrieMap[String, Property] = {
+    val properties = TrieMap[String, Property]()
+    redis.keys(s"$entityType:$entityId:*:*")
+      .get.par.foreach(
+      optStr => {
+        val key = optStr.get
+        val propertyName = key.split(":")(2)
+        val propertyTime = key.split(":")(3).toLong
+        val propertyValue = redis.get(optStr.get).get
 
+        properties.putIfAbsent(propertyName, new Property(propertyTime, propertyName, propertyValue)) match {
+          case Some(existingProp) => existingProp.update(propertyTime, propertyValue)
+          case None =>
+        }
+      }
+    )
+    properties
+  }
 
   /**
     * RangeQuery operation on Redis. Read lookup TODO notes
@@ -147,7 +180,6 @@ object RedisConnector extends Connector {
     // TODO
   }
 
-
   private def getVertex(entityId : Int) : Vertex = {
     var creationTime : Long = 0
     // Verify existence
@@ -157,7 +189,7 @@ object RedisConnector extends Connector {
     }
 
     // get Creation Time
-    redis.get(s"${KeyEnum.vertices}:$entityId:${SubKeyEnum.creationTime}") match {
+    redis.get(creationTimeKey(KeyEnum.vertices, entityId)) match {
       case None => throw CreationTimeNotFoundException(entityId)
       case Some(time) => creationTime = time.toLong
     }
@@ -174,13 +206,48 @@ object RedisConnector extends Connector {
       case None => throw EntityIdNotFoundException(edgeId)
       case _ =>
     }
-    redis.get(s"${KeyEnum.edges}:$edgeId:${SubKeyEnum.creationTime}") match {
+    redis.get(creationTimeKey(KeyEnum.edges, edgeId)) match {
       case None => throw CreationTimeNotFoundException(edgeId)
       case Some(time) => creationTime = time.toLong
     }
 
-    Edge(creationTime, edgeId,
-      getHistory(KeyEnum.edges, edgeId),
-      getProperties(KeyEnum.vertices, edgeId))
+    val srcId = Utils.getIndexHI(edgeId)
+    val dstId = Utils.getIndexLO(edgeId)
+    val remoteSrc = Utils.getPartition(Utils.getIndexHI(srcId), EntitiesStorage.managerCount) != EntitiesStorage.managerID
+    val remoteDst = Utils.getPartition(Utils.getIndexLO(dstId), EntitiesStorage.managerCount) != EntitiesStorage.managerID
+
+    if (remoteSrc || remoteDst) {
+      var remotePos = RemotePos.Destination
+      var remotePartitionId = Utils.getPartition(dstId, EntitiesStorage.managerCount)
+      if (remoteSrc) {
+        remotePos = RemotePos.Source
+        remotePartitionId = Utils.getPartition(srcId, EntitiesStorage.managerCount)
+      }
+      // Remote edge
+      RemoteEdge(creationTime, edgeId,
+        getHistory(KeyEnum.edges, edgeId),
+        getProperties(KeyEnum.edges, edgeId),
+        remotePos,
+        remotePartitionId
+      )
+    } else {
+      Edge(creationTime, edgeId,
+        getHistory(KeyEnum.edges, edgeId),
+        getProperties(KeyEnum.edges, edgeId))
+    }
   }
+
+
+  private def associatedEdgesKey(vertexId : Long) : String =
+    s"${KeyEnum.vertices}:$vertexId:${KeyEnum.edges}"
+
+  private def propertyKey(entityType: KeyEnum.Value, entityId: Long,
+                          key: String, timestamp : Long) =
+    s"$entityType:$entityId:$key:$timestamp"
+
+  private def creationTimeKey(entityType : KeyEnum.Value, entityId : Long) =
+    s"$entityType:$entityId:${SubKeyEnum.creationTime}"
+
+  private def historyKey(entityType: KeyEnum.Value, entityId: Long, timestamp : Long) =
+    s"$entityType:$entityId|${SubKeyEnum.history}:$timestamp"
 }

@@ -1,5 +1,27 @@
 package com.raphtory.GraphEntities
 
+import com.raphtory.utils.Utils
+
+import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
+
+/**
+  * Companion Edge object (extended creator for storage loads)
+  */
+object RemoteEdge {
+  def apply(creationTime : Long, edgeId : Long,
+            previousState : mutable.TreeMap[Long, Boolean],
+            properties : TrieMap[String, Property], remotePos : RemotePos.Value, remotePartitionId : Int)= {
+
+    val srcId = Utils.getIndexHI(edgeId)
+    val dstId = Utils.getIndexLO(edgeId)
+
+    val e = new RemoteEdge(creationTime, srcId, dstId, initialValue = true, addOnly = false, remotePos, remotePartitionId)
+    e.previousState   = previousState
+    e.properties      = properties
+    e
+  }
+}
 /** *
   * Extension of the Edge entity, used when we want to store a remote edge
   * i.e. one spread across two partitions
