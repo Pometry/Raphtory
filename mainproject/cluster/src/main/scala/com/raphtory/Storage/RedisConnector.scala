@@ -9,7 +9,7 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
 object RedisConnector extends ReaderConnector with WriterConnector {
-  private val redis : RedisClient = new RedisClient()("localhost", 6379)
+  private val redis : RedisClient = new RedisClient("localhost", 6379)
 
   /**
     * Add the entity and set its creation time (if it doesn't exist)

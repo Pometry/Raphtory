@@ -69,8 +69,8 @@ object MemoryConnector extends ReaderConnector {
     }
   }
 
-  override def getAssociatedEdges(entityId: Long): mutable.Set[Long] = {
-    scala.collection.mutable.Set[Long]()++(vertices(entityId.toInt).associatedEdges.par.map(e => e.getId).toSet)
+  override def getAssociatedEdges(entityId: Long): mutable.LinkedHashSet[Edge] = {
+    vertices(entityId.toInt).associatedEdges
   }
 
   private def lookupVertex(vertexId : Int) : Boolean = {
