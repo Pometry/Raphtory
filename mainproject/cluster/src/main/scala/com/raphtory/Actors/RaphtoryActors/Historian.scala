@@ -9,6 +9,8 @@ import monix.execution.{ExecutionModel, Scheduler}
 import scala.collection.mutable
 import util.control.Breaks._
 
+import scala.concurrent.duration._
+
 //TODO decide how to do shrinking window as graph expands
 //TODO implement temporal/spacial profiles (future)
 //TODO join historian to cluster
@@ -25,14 +27,22 @@ class Historian(maximumHistory:Int,compressionWindow:Int,maximumMem:Double) exte
   var newLastSaved : Long = 0
   var canArchiveFlag = false
   implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(100))
+
+  override def preStart() {
+    //context.system.scheduler.schedule(2.seconds,5.seconds, self,"archive")
+
+    context.system.scheduler.scheduleOnce(7.seconds, self,"compress")
+  }
   override def receive: Receive = {
     case "archive"=> archive()
     case "compress" => compressGraph()
   }
 
   def archive() : Unit ={
+    println("Try to archive")
     if (!canArchiveFlag)
       return
+    println("Archiving")
     if(!spaceForExtraHistory) { //first check edges
       for (e <- EntitiesStorage.edges){
         checkMaximumHistory(e._2, KeyEnum.edges)
@@ -47,6 +57,7 @@ class Historian(maximumHistory:Int,compressionWindow:Int,maximumMem:Double) exte
 
   def compressGraph() = {
     newLastSaved = cutOff
+    println("Compressing")
     for (e <- EntitiesStorage.edges){
       compressHistory(e._2, newLastSaved, lastSaved)
     }
@@ -55,6 +66,7 @@ class Historian(maximumHistory:Int,compressionWindow:Int,maximumMem:Double) exte
     }
     canArchiveFlag = true
     lastSaved = newLastSaved
+    context.system.scheduler.scheduleOnce(30.seconds, self,"compress")
   }
 
   def checkMaximumHistory(e:Entity, et : KeyEnum.Value) = {
@@ -84,9 +96,8 @@ class Historian(maximumHistory:Int,compressionWindow:Int,maximumMem:Double) exte
         entityType = KeyEnum.vertices
       else
         entityType = KeyEnum.edges
-      Task(saveToRedis(compressedHistory, entityType, e.getId, past)).fork.runAsync
-      Task(savePropertiesToRedis(e, past)).fork.runAsync
-      e.rejoinHistory(compressedHistory)
+      saveToRedis(compressedHistory, entityType, e.getId, past, e)
+      savePropertiesToRedis(e, past)
     }
   }
 
@@ -95,12 +106,12 @@ class Historian(maximumHistory:Int,compressionWindow:Int,maximumMem:Double) exte
   def spaceForExtraHistory = if((runtime.freeMemory/runtime.totalMemory()) < (1-maximumMem)) true else false //check if used memory less than set maximum
 
 
-  def saveToRedis(compressedHistory : mutable.TreeMap[Long, Boolean], entityType : KeyEnum.Value, entityId : Long, pastCheckpoint : Long) = {
-    compressedHistory.foreach(h => {
-      if (h._1 > pastCheckpoint)
-        Task.eval(RedisConnector.addState(entityType, entityId, h._1, h._2)).fork.runAsync
-      else break
-    })
+  def saveToRedis(compressedHistory : mutable.TreeMap[Long, Boolean], entityType : KeyEnum.Value, entityId : Long, pastCheckpoint : Long, e :Entity) = {
+    RedisConnector.addEntity(entityType, entityId, e.creationTime)
+    for ((k,v) <- compressedHistory) {
+      if (k > pastCheckpoint)
+        RedisConnector.addState(entityType, entityId,k, v)
+    }
   }
 
   def savePropertiesToRedis(e : Entity, pastCheckpoint : Long) = {
@@ -115,7 +126,7 @@ class Historian(maximumHistory:Int,compressionWindow:Int,maximumMem:Double) exte
       val propName  = el._1
       propValue.previousState.foreach(h => {
         if (h._1 > pastCheckpoint)
-          Task.eval(RedisConnector.addProperty(entityType, id, propName, h._1, h._2)).fork.runAsync
+          RedisConnector.addProperty(entityType, id, propName, h._1, h._2)
         else break
       })
     })

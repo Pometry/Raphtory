@@ -72,7 +72,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
   def apply(property: String): Property = properties(property)
 
   def compressAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, Boolean] ={
-    if(getPreviousStateSize==0 || getPreviousStateSize == 1){ //if the state size is 0 it is a wiped node and should not be interacted with
+    if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node and should not be interacted with
       return  mutable.TreeMap()(HistoryOrdering) //if the size is one, no need to compress
     }
     var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
@@ -86,8 +86,10 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     for((k,v) <- previousState){
       if(k<cutoff) {
         if(swapped)
-          if (v == !prev._2)
-            oldHistory += prev._1 -> prev._2 //if the current point differs from the val of the previous it means the prev was the last of its type
+          if (v == !prev._2) {
+            oldHistory += prev //if the current point differs from the val of the previous it means the prev was the last of its type
+            safeHistory += prev
+          }
         swapped=true
       }
       else
@@ -95,13 +97,13 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
       prev = (k,v)
     }
 
-    if(prev._1<cutoff)
+    if(prev._1<cutoff) {
+      safeHistory += prev
       oldHistory += prev //add the final history point to oldHistory as not done in loop
-
+    }
     previousState = safeHistory
     oldHistory
   }
-  def rejoinHistory(oldHistory: mutable.TreeMap[Long, Boolean] ) = previousState ++= oldHistory
 
   /** *
     * check what part of the history is outside of the historians time window
@@ -113,7 +115,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node inform the historian
       return  (true,true,null)
     }
-    var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+    var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering )
     var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
 
     var allOld = true

@@ -30,6 +30,7 @@ object RedisConnector extends ReaderConnector with WriterConnector {
     * @param value
     */
   override def addState(entityType : KeyEnum.Value, entityId : Long, timestamp : Long, value : Boolean) = {
+
     redis.set(historyKey(entityType, entityId, timestamp), value)
   }
 

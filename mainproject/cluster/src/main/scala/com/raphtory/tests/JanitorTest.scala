@@ -37,7 +37,6 @@ object JanitorTest extends App{
     if(compressedHistory.nonEmpty){
       //TODO save to redis
       //TODO prehaps decide if compressed history is rejoined
-      e.rejoinHistory(compressedHistory)
     }
   }
 
