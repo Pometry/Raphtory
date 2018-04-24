@@ -26,7 +26,7 @@ class Historian(maximumHistory:Int,compressionWindow:Int,maximumMem:Double) exte
   var lastSaved : Long = 0
   var newLastSaved : Long = 0
   var canArchiveFlag = false
-  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(100))
+  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(50))
 
   override def preStart() {
     //context.system.scheduler.schedule(2.seconds,5.seconds, self,"archive")
@@ -59,10 +59,10 @@ class Historian(maximumHistory:Int,compressionWindow:Int,maximumMem:Double) exte
     newLastSaved = cutOff
     println("Compressing")
     for (e <- EntitiesStorage.edges){
-      compressHistory(e._2, newLastSaved, lastSaved)
+      Task.eval(compressHistory(e._2, newLastSaved, lastSaved)).runAsync
     }
     for (e <- EntitiesStorage.vertices){
-      compressHistory(e._2, newLastSaved, lastSaved)
+      Task.eval(compressHistory(e._2, newLastSaved, lastSaved)).runAsync
     }
     canArchiveFlag = true
     lastSaved = newLastSaved
@@ -96,8 +96,8 @@ class Historian(maximumHistory:Int,compressionWindow:Int,maximumMem:Double) exte
         entityType = KeyEnum.vertices
       else
         entityType = KeyEnum.edges
-      saveToRedis(compressedHistory, entityType, e.getId, past, e)
-      savePropertiesToRedis(e, past)
+      Task.eval(saveToRedis(compressedHistory, entityType, e.getId, past, e)).fork.runAsync
+      Task.eval(savePropertiesToRedis(e, past)).fork.runAsync
     }
   }
 
