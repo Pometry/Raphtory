@@ -7,13 +7,7 @@ case class GabPost (
   edit : Boolean,
   body : String,
   body_html : String,
-  body_html_summary : String,
-  body_html_summary_trucated : Boolean,
   only_emojy : Boolean,
-  liked : Boolean,
-  disliked : Boolean,
-  bookmarked : Boolean,
-  repost : Boolean,
   score : Int,
   like_count : Int,
   dislike_count : Int,
@@ -26,13 +20,8 @@ case class GabPost (
   attachment : GabAttachment,
   category : Int,
   categoryDetails: GabCategoryDetails,
-  language : String,
-  nsfw : Boolean,
-  is_premium : Boolean,
-  is_locked : Boolean,
   user : GabUser,
   topic : GabTopic,
-  replies : GabReplies
 )
 
 case class GabEmbed(

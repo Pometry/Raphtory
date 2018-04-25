@@ -34,12 +34,12 @@ object GabJsonProtocol extends DefaultJsonProtocol {
           embed
           new GabPost(
             id.toLong, createdAt, revisedAt, edit, body,
-            bodyHtml, null, null, onlyEmoji,
-            null, null, null, null, score.toInt,
+            bodyHtml, onlyEmoji,
+            score.toInt,
             likeCount.toInt, dislikeCount.toInt, repliesCount.toInt, repostCount.toInt, isQuote,
             isReply, isRepliesDisabled, embed.convertTo[GabEmbed], attachment.convertTo[GabAttachment], category.toInt,
-            categoryDetails.convertTo[GabCategoryDetails], null, null, null, null,
-            user.convertTo[GabUser], topic.convertTo[GabTopic], null)
+            categoryDetails.convertTo[GabCategoryDetails],
+            user.convertTo[GabUser], topic.convertTo[GabTopic])
         }
       }
     }
