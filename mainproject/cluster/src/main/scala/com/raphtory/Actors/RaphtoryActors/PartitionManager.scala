@@ -127,8 +127,8 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
     // Kamon monitoring
     if (kLogging) {
-      kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount").set(messageCount.intValue())
-      kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount").set(secondaryMessageCount.intValue())
+      kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount.intValue())
+      kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount.intValue())
       reportSizes(edgesGauge, storage.edges)
       reportSizes(verticesGauge, storage.vertices)
     }
