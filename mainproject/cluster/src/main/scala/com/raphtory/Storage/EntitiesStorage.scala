@@ -39,6 +39,10 @@ object EntitiesStorage {
     this
   }
 
+  def setManagerCount(count : Int) = {
+    this.managerCount = count
+  }
+
   /**
     * Vertices Methods
     */
@@ -56,7 +60,7 @@ object EntitiesStorage {
     value
   }
 
-  def vertexRemoval(msgTime:Long,srcId:Int):Unit={
+  def vertexRemoval(msgTime:Long,srcId:Int) : Unit = {
     if (printing) println(s"Received vertex remove for $srcId, updating + informing all edges")
     var vertex : Vertex = null
     vertices.get(srcId) match {
@@ -72,14 +76,17 @@ object EntitiesStorage {
 
     vertex.associatedEdges.foreach(e => {
       e kill msgTime
-      if(e.isInstanceOf[RemoteEdge]){
-        val ee = e.asInstanceOf[RemoteEdge]
-        if(ee.remotePos == RemotePos.Destination) {
-          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), RemoteEdgeRemoval(msgTime, ee.srcId, ee.dstId),false)
-        } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
-        else{
-          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), ReturnEdgeRemoval(msgTime, ee.srcId, ee.dstId), false)
-        }//This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
+      try {
+          val ee = e.asInstanceOf[RemoteEdge]
+          if (ee.remotePos == RemotePos.Destination) {
+            mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), RemoteEdgeRemoval(msgTime, ee.srcId, ee.dstId), false)
+          } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
+          else {
+            mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), ReturnEdgeRemoval(msgTime, ee.srcId, ee.dstId), false)
+          } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
+
+      } catch {
+        case ClassCastException =>
       }
     })
   }

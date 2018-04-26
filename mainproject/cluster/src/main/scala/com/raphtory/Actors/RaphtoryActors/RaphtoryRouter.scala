@@ -51,7 +51,8 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
 
    // case PartitionsCount(newValue) => { // TODO redundant in Router and LAM (https://stackoverflow.com/questions/37596888/scala-akka-implement-abstract-class-with-subtype-parameter)
     case UpdatedCounter(newValue) => {
-      managerCount = newValue
+      if (managerCount < newValue)
+        managerCount = newValue
       println(s"Maybe a new PartitionManager has arrived: ${newValue}")
     }
 

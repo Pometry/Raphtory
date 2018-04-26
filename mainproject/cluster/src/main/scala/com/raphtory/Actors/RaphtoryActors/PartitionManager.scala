@@ -29,7 +29,6 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
   val messageCount          : AtomicInteger = new AtomicInteger(0)         // number of messages processed since last report to the benchmarker
   val secondaryMessageCount : AtomicInteger = new AtomicInteger(0)
-  val secondaryCounting     = false     // count all messages or just main incoming ones
 
   val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
 
@@ -84,6 +83,7 @@ class PartitionManager(id : Int, test : Boolean, managerCountVal : Int) extends 
 
     case UpdatedCounter(newValue) =>
       managerCount = newValue
+      storage.setManagerCount(managerCount)
       println(s"A new PartitionManager has joined the cluster: $newValue")
 
   }
