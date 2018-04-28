@@ -86,7 +86,7 @@ object EntitiesStorage {
           } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
 
       } catch {
-        case ClassCastException =>
+        case _ : ClassCastException =>
       }
     })
   }

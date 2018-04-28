@@ -63,7 +63,7 @@ class UpdateGen extends RaphtoryActor with Timers {
         genRandomCommands(freq/1000)
       }
     }
-    case "increaseFreq" => freq += 1000 //TODO delete
+    case "increaseFreq" => if (safe) freq += 1000 //TODO delete
     case "benchmark" => benchmark()
     case _ => println("message not recognized!")
   }
@@ -94,6 +94,7 @@ class UpdateGen extends RaphtoryActor with Timers {
       }
     }
   }
+
   def distribution() : String = {
     val random = Random.nextFloat()
     if (random <= 0.3)      genVertexAdd()

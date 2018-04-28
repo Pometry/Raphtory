@@ -10,6 +10,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, SECONDS}
 import Utils.getManager
 import com.raphtory.Actors.RaphtoryActors.Router.RouterTrait
+import monix.eval.Task
+import monix.execution.{ExecutionModel, Scheduler}
 
 /**
   * The Graph Manager is the top level actor in this system (under the stream)
@@ -31,6 +33,8 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
   println(akka.serialization.Serialization.serializedActorPath(self))
   var count = 0
 
+  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
+
   override def preStart() {
     context.system.scheduler.schedule(Duration(7, SECONDS),
       Duration(1, SECONDS),self,"tick")
@@ -47,7 +51,7 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     }
     case "keep_alive" => keepAlive()
 
-    case command:String => try{parseJSON(command)}catch {case e: Exception => println(e)}
+    case command:String =>  Task.eval(parseJSON(command)).fork.runAsync
 
    // case PartitionsCount(newValue) => { // TODO redundant in Router and LAM (https://stackoverflow.com/questions/37596888/scala-akka-implement-abstract-class-with-subtype-parameter)
     case UpdatedCounter(newValue) => {
