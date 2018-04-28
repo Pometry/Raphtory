@@ -4,7 +4,7 @@ package com.raphtory.caseclass.clustercase
   * Created by Mirate on 13/06/2017.
   */
 import akka.actor.Props
-import com.raphtory.Actors.RaphtoryActors.UpdateGen
+import com.raphtory.Actors.RaphtoryActors.DataSource.UpdateGen
 import com.raphtory.caseclass.DocSvr
 
 case class UpdateNode(seedLoc: String) extends DocSvr {
