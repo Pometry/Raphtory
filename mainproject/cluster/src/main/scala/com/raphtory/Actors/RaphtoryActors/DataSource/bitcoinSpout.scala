@@ -35,7 +35,7 @@ class bitcoinSpout extends RaphtoryActor with Timers {
   var blockcount = 1
   val rpcuser = System.getenv().getOrDefault("BITCOIN_USERNAME", "user").trim
   val rpcpassword = System.getenv().getOrDefault("BITCOIN_PASSWORD", "password").trim
-  val serverAddress = System.getenv().getOrDefault("BITCOIN_PASSWORD", "bitcoinNodeURL").trim
+  val serverAddress = System.getenv().getOrDefault("BITCOIN_NODE", "bitcoinNodeURL").trim
   val id = "scala-jsonrpc"
   val baseRequest = Http(serverAddress).auth(rpcuser, rpcpassword).header("content-type", "text/plain")
 
@@ -69,7 +69,6 @@ class bitcoinSpout extends RaphtoryActor with Timers {
     val result = blockData.fields("result")
     val time = result.asJsObject.fields("time")
     for(transaction <- result.asJsObject().fields("tx").asInstanceOf[JsArray].elements){
-      println(transaction)
       //val time = transaction.asJsObject.fields("time")
       val txid = transaction.asJsObject.fields("txid")
       val vins = transaction.asJsObject.fields("vin")
