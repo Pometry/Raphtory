@@ -160,7 +160,7 @@ class UpdateGen extends RaphtoryActor with Timers {
 
   def genVertexUpdateProperties():String={
     currentMessage+=1
-    s""" {"VertexUpdateProperties":{${getMessageID()}, ${genSrcID()}}}"""
+    s""" {"VertexUpdateProperties":{${getMessageID()}, ${genSrcID(1)}}}"""
   }
   def genVertexUpdateProperties(src:Int):String={ //overloaded to mass src
     currentMessage+=1
