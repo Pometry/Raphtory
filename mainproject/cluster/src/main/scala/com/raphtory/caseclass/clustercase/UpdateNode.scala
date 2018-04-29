@@ -9,5 +9,5 @@ import com.raphtory.caseclass.DocSvr
 
 case class UpdateNode(seedLoc: String) extends DocSvr {
   implicit val system = init(List(seedLoc))
-  system.actorOf(Props(new bitcoinSpout()), "UpdateGen")
+  system.actorOf(Props(new UpdateGen()), "UpdateGen")
 }

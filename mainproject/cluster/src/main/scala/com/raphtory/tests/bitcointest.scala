@@ -23,7 +23,6 @@ println(getTransactions())
     val result = blockData.fields("result")
     val time = result.asJsObject.fields("time")
     for(transaction <- result.asJsObject().fields("tx").asInstanceOf[JsArray].elements){
-      println(transaction)
       //val time = transaction.asJsObject.fields("time")
       val txid = transaction.asJsObject.fields("txid")
       val vins = transaction.asJsObject.fields("vin")
@@ -42,14 +41,14 @@ println(getTransactions())
           address = scriptpubkey.fields("addresses").asInstanceOf[JsArray].elements(0).toString
         else value = "0" //TODO deal with people burning money
 
-        sendCommand(s"""" {"VertexAdd":{ "messageID":$time , "srcID":${address.hashCode}, "properties":{type:address address:$address} }}"""") //creates vertex for the receiving wallet
-        sendCommand(s"""" {"EdgeAdd":{ "messageID":$time ,  "srcID":${txid.hashCode} ,  "dstID":${address.hashCode} , properties":{n: $n, value:$value}}}"""") //creates edge between the transaction and the wallet
+        sendCommand(s"""" {"VertexAdd":{ "messageID":$time , "srcID":${address.hashCode}, "properties":{"type":"address", "address":$address} }}"""") //creates vertex for the receiving wallet
+        sendCommand(s"""" {"EdgeAdd":{ "messageID":$time ,  "srcID":${txid.hashCode} ,  "dstID":${address.hashCode} , "properties":{"n": $n, "value":$value}}}"""") //creates edge between the transaction and the wallet
       }
 
-      sendCommand(s"""" {"VertexAdd":{ "messageID":$time ,  "srcID":${txid.hashCode} , "properties":{type:transaction "time":$time, "id:$txid, total: $total,blockhash:$blockID}}}"""")
+      sendCommand(s"""" {"VertexAdd":{ "messageID":$time ,  "srcID":${txid.hashCode} , "properties":{"type":"transaction", "time":$time, "id":$txid, "total": $total, "blockhash":$blockID}}}"""")
 
       if(vins.toString().contains("coinbase")){
-        sendCommand(s"""" {"VertexAdd":{ "messageID":$time ,  "srcID":${"coingen".hashCode} ,"properties":{"type":coingen}}}"""") //creates the coingen node //TODO change so only added once
+        sendCommand(s"""" {"VertexAdd":{ "messageID":$time ,  "srcID":${"coingen".hashCode} ,"properties":{"type":"coingen"}}}"""") //creates the coingen node //TODO change so only added once
         sendCommand(s"""" {"EdgeAdd":{ "messageID":$time ,  "srcID":${"coingen".hashCode},  "dstID":${txid.hashCode}}}"""") //creates edge between coingen and the transaction
 
       }
@@ -64,6 +63,7 @@ println(getTransactions())
       }
     }
   }
+
 
   def sendCommand(str: String) = println(str)
 
