@@ -7,7 +7,13 @@ case class GabPost (
   edit : Boolean,
   body : String,
   body_html : String,
+  body_html_summary : String,
+  body_html_summary_trucated : Boolean,
   only_emojy : Boolean,
+  liked : Boolean,
+  disliked : Boolean,
+  bookmarked : Boolean,
+  repost : Boolean,
   score : Int,
   like_count : Int,
   dislike_count : Int,
@@ -16,17 +22,21 @@ case class GabPost (
   is_quote : Boolean,
   is_reply : Boolean,
   is_replies_disabled : Boolean,
-  embed : GabEmbed,
-  attachment : GabAttachment,
+  //embed : GabEmbed,
+  //attachment : GabAttachment,
   category : Int,
   categoryDetails: GabCategoryDetails,
+  language : String,
+  nsfw : Boolean,
+  is_premium : Boolean,
+  is_locked : Boolean,
   user : GabUser,
   topic : GabTopic,
 )
 
 case class GabEmbed(
-  html : String,
-  iframe : String
+  html : Option[String],
+  iframe : Option[String]
 )
 
 case class GabAttachment(
@@ -45,13 +55,13 @@ case class GabCategoryDetails(
   title : String,
   slug : String,
   value : Int,
-  emojy : String
+  emoji : String
 )
 
 case class GabUser(
   id : Int,
   name : String,
-  user_name : String,
+  username : String,
   picture_url : String,
   verified : Boolean,
   is_donor : Boolean,
@@ -66,7 +76,7 @@ case class GabTopic (
   created_at : String,
   is_featured : Boolean,
   title : String,
-  category : String
+  category : Long
 )
 
 case class GabReplies (

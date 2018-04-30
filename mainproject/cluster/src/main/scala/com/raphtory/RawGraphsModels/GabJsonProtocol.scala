@@ -16,32 +16,55 @@ object GabJsonProtocol extends DefaultJsonProtocol {
 
   implicit object GabPostJsonFormat extends RootJsonFormat[GabPost] {
     // TODO Writer method
+
+    def getRawField(field :String)(implicit jsObj : JsObject) : JsValue = {
+      jsObj.getFields(field).head
+    }
+
+    def getField(field : String)(implicit jsObj : JsObject) : String = {
+      getRawField(field).toString
+    }
+
+
+
     def write(p : GabPost) = JsString("TODO")
 
     def read(value: JsValue) = {
-      value.asJsObject.getFields("id", "created_at", "revised_at", "edited", "body", "body_html", "body_html_summary",
-        "body_html_summary_truncated", "only_emoji", "score",
-        "like_count", "dislike_count", "reply_count", "repost_count", "is_quote", "is_reply", "is_replies_disabled",
-        "embed", "attachment", "category", "category_details", "language", "nsfw", "is_premium", "is_locked", "user",
-        "topic", "replies") match {
-        case Seq(JsNumber(id), JsString(createdAt), JsString(revisedAt), JsBoolean(edit), JsString(body),
-        JsString(bodyHtml), JsBoolean(onlyEmoji),
-        JsNumber(score),
-        JsNumber(likeCount), JsNumber(dislikeCount), JsNumber(repliesCount), JsNumber(repostCount), JsBoolean(isQuote),
-        JsBoolean(isReply), JsBoolean(isRepliesDisabled), embed, attachment, JsNumber(category),
-        categoryDetails,
-        user, topic) => {
-          embed
-          new GabPost(
-            id.toLong, createdAt, revisedAt, edit, body,
-            bodyHtml, onlyEmoji,
-            score.toInt,
-            likeCount.toInt, dislikeCount.toInt, repliesCount.toInt, repostCount.toInt, isQuote,
-            isReply, isRepliesDisabled, embed.convertTo[GabEmbed], attachment.convertTo[GabAttachment], category.toInt,
-            categoryDetails.convertTo[GabCategoryDetails],
-            user.convertTo[GabUser], topic.convertTo[GabTopic])
-        }
-      }
+      implicit val jsObj = value.asJsObject
+
+      new GabPost(
+        getField("id").toLong,
+        getField("created_at"),
+        getField("revised_at"),
+        getField("edited").toBoolean,
+        getField("body"),
+        getField("body_html"),
+        getField("body_html_summary"),
+        getField("body_html_summary_truncated").toBoolean,
+        getField("only_emoji").toBoolean,
+        getField("liked").toBoolean,
+        getField("disliked").toBoolean,
+        getField("bookmarked").toBoolean,
+        getField("repost").toBoolean,
+        getField("score").toInt,
+        getField("like_count").toInt,
+        getField("dislike_count").toInt,
+        getField("reply_count").toInt,
+        getField("repost_count").toInt,
+        getField("is_quote").toBoolean,
+        getField("is_reply").toBoolean,
+        getField("is_replies_disabled").toBoolean,
+        //getRawField("embed").convertTo[GabEmbed],
+        //getRawField("attachment").convertTo[GabAttachment],
+        getField("category").toInt,
+        getRawField("category_details").convertTo[GabCategoryDetails],
+        getField("language"),
+        getField("nsfw").toBoolean,
+        getField("is_premium").toBoolean,
+        getField("is_locked").toBoolean,
+        getRawField("user").convertTo[GabUser],
+        getRawField("topic").convertTo[GabTopic]
+      )
     }
   }
 
