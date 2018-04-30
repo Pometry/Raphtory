@@ -25,7 +25,7 @@ import monix.execution.{ExecutionModel, Scheduler}
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor with RouterTrait {
+class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor {
   var managerCount : Int = initialManagerCount  // TODO check for initial behavior (does the watchdog stop the router?)
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -63,7 +63,7 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     case e => println(s"message not recognized! ${e.getClass}")
   }
 
-  override def parseJSON(command:String):Unit={
+  def parseJSON(command:String):Unit={
     count += 1
     kCounter.refine("actor" -> "Router", "name" -> "count").increment()
     Kamon.gauge("raphtory.router.countGauge").set(count)
@@ -78,7 +78,7 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     else if(commandKey.contains("EdgeRemoval")) edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject)
   }
 
-  override def vertexAdd(command:JsObject):Unit = {
+  def vertexAdd(command:JsObject):Unit = {
    // println("Inside add")
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt                 //extract the srcID
@@ -97,7 +97,7 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     } // if there are not any properties, just send the srcID
   }
 
-  override def vertexUpdateProperties(command:JsObject):Unit={
+  def vertexUpdateProperties(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     var properties = Map[String,String]() //create a vertex map
@@ -105,13 +105,13 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexUpdateProperties(msgTime,srcId,properties),false) //send the srcID and properties to the graph parition
   }
 
-  override def vertexRemoval(command:JsObject):Unit={
+  def vertexRemoval(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexRemoval(msgTime,srcId),false)
   }
 
-  override def edgeAdd(command:JsObject):Unit = {
+  def edgeAdd(command:JsObject):Unit = {
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
@@ -125,7 +125,7 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     else mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeAdd(msgTime,srcId,dstId),false)
   }
 
-  override def edgeUpdateProperties(command:JsObject):Unit={
+  def edgeUpdateProperties(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
@@ -134,7 +134,7 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeUpdateProperties(msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
   }
 
-  override def edgeRemoval(command:JsObject):Unit={
+  def edgeRemoval(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID

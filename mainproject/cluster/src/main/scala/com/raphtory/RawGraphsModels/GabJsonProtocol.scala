@@ -34,8 +34,8 @@ object GabJsonProtocol extends DefaultJsonProtocol {
 
       new GabPost(
         getField("id").toLong,
-        getField("created_at"),
-        getField("revised_at"),
+        getField("created_at").replaceAll("\"",""),
+        getField("revised_at").replaceAll("\"",""),
         getField("edited").toBoolean,
         getField("body"),
         getField("body_html"),
