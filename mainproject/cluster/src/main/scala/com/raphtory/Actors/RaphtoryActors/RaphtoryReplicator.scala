@@ -7,6 +7,7 @@ import com.raphtory.caseclass._
 import com.raphtory.utils.Utils
 import akka.pattern.ask
 import akka.util.Timeout
+import com.raphtory.Actors.RaphtoryActors.Router.RaphtoryGabRouter
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -53,7 +54,7 @@ class RaphtoryReplicator(actorType:String) extends Actor {
         actorRef = context.system.actorOf(Props(new PartitionManager(myId, false, myId+1)), s"Manager_$myId")
         //context.system.actorOf(Props(new Historian(20, 60, 0.3)))
       }
-      case "Router" => actorRef = context.system.actorOf(Props(new RaphtoryRouter(myId,currentCount)), "router")
+      case "Router" => actorRef = context.system.actorOf(Props(new RaphtoryGabRouter(myId,currentCount)), "router")
     }
   }
 
