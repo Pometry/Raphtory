@@ -14,9 +14,9 @@ object GabJsonTest extends App {
   import com.raphtory.RawGraphsModels.GabJsonProtocol._
   import com.raphtory.caseclass.RaphtoryJsonProtocol._
 
-  val myString = """{"id":24470573,"created_at":"2018-04-25T04:04:18+00:00","revised_at":null,"edited":false,"body":"NBA commissioner Adam Silver in the middle.","body_html":"<p>NBA commissioner Adam Silver in the middle.<\/p>\n\n\n","body_html_summary":"<p>NBA commissioner Adam Silver in the middle.<\/p>\n\n\n","body_html_summary_truncated":false,"only_emoji":false,"liked":false,"disliked":false,"bookmarked":false,"repost":false,"reported":false,"score":18,"like_count":18,"dislike_count":0,"reply_count":3,"repost_count":7,"is_quote":false,"is_reply":false,"is_replies_disabled":false,"embed":{"html":null,"iframe":null},"attachment":{"type":"media","value":[{"id":"e2a7ede4-33af-4c18-b2a9-c8c2497ae289","url_thumbnail":"https:\/\/gabfiles.blob.core.windows.net\/image\/5adffaf011a82.jpeg","url_full":"https:\/\/gabfiles.blob.core.windows.net\/image\/5adffaf011ad5.jpeg","width":900,"height":600}]},"category":5,"category_details":{"title":"Sports","slug":"sports","value":5,"emoji":"\u26bd"},"language":"en","nsfw":false,"is_premium":false,"is_locked":false,"user":{"id":69280,"name":"America1stMotif","username":"spirit76","picture_url":"https:\/\/files.gab.ai\/user\/5833ef1a13ca2.jpg","verified":false,"is_donor":false,"is_investor":false,"is_pro":false,"is_private":false,"is_premium":false},"topic":{"id":"72e45c1b-8a40-4ada-a2a3-c4094779d6db","created_at":"2018-04-25T02:33:42+00:00","is_featured":true,"title":"NBA Playoffs","category":5},"replies":{"data":[]}}"""
+  val myString = """{"id":250349,"created_at":"2016-09-09T15:38:29+00:00","revised_at":null,"edited":false,"body":"Meanwhile, on twatter...\\n\\nhttps:\\/\\/pbs.twimg.com\\/media\\/ClXHoZWWAAMS-8r.jpg","body_html":null,"body_html_summary":null,"body_html_summary_truncated":false,"only_emoji":false,"liked":false,"disliked":false,"bookmarked":false,"repost":false,"reported":false,"score":1,"like_count":0,"dislike_count":0,"reply_count":0,"repost_count":0,"is_quote":false,"is_reply":false,"is_replies_disabled":false,"embed":{"html":"<a href=\https:\\/\\/pbs.twimg.com\\/media\\/ClXHoZWWAAMS-8r.jpg\ target=\_blank\ class=\post__embed__body post__embed__body--photo\><div class=\post__embed__body__image\ style=\background-image: url(\'https:\\/\\/ipr2.gab.ai\\/52232a4964df5f85a4f6a0ec6caf6688f03b1837\\/68747470733a2f2f7062732e7477696d672e636f6d2f6d656469612f436c58486f5a575741414d532d38722e6a7067\\/\')\><\\/div><\\/a>","iframe":false},"attachment":{"type":"url","value":{"image":"https:\\/\\/ipr2.gab.ai\\/52232a4964df5f85a4f6a0ec6caf6688f03b1837\\/68747470733a2f2f7062732e7477696d672e636f6d2f6d656469612f436c58486f5a575741414d532d38722e6a7067\\/","title":null,"description":null,"url":"https:\\/\\/pbs.twimg.com\\/media\\/ClXHoZWWAAMS-8r.jpg","source":"pbs.twimg.com"}},"category":null,"category_details":null,"language":null,"nsfw":false,"is_premium":false,"is_locked":false,"user":{"id":5585,"name":"Bluto","username":"Darth_Bluto","picture_url":"https:\\/\\/files.gab.ai\\/user\\/5aadea5f52d4e.png","verified":false,"is_donor":false,"is_investor":false,"is_pro":false,"is_private":false,"is_premium":false},"replies":{"data":[]}}"""
 
-  val myJsonAst = myString.parseJson
+  val myJsonAst = myString.replaceAll("""\\""", "").parseJson
 
   println("JsonAst prettyPrint")
   myJsonAst.prettyPrint
@@ -25,11 +25,11 @@ object GabJsonTest extends App {
   println("The GabPost Object")
   println(post)
   println(post.created_at)
-  val timestamp = OffsetDateTime.parse(post.created_at).toEpochSecond
+  val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
 
   val user      = post.user
   val topic     = post.topic
-  println(Command(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, post.id.toInt, Map(
+  /*println(Command(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, post.id.toInt, Map(
     "user"         -> user.id.toString,
     "category"     -> post.category.toString,
     "likeCount"    -> post.like_count.toString,
@@ -56,5 +56,5 @@ object GabJsonTest extends App {
 
   def sendCommand[T <: RaphCaseClass](command: CommandEnum.Value, value: T) = {
     println(Command(command, value).toJson.toString)
-  }
+  }*/
 }

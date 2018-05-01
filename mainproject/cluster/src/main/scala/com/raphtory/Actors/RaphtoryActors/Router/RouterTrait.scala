@@ -34,10 +34,12 @@ trait RouterTrait extends RaphtoryActor {
   }
 
   final override def receive: Receive = {
-    case command:String =>  Task.eval(parseJSON(command)).fork.runAsync
     case "tick" => tick()
     case "keep_alive" => keepAlive()
     case UpdatedCounter(newValue) => newPmJoined(newValue)
+    case command:String =>  {
+      this.parseJSON(command)
+    }
     case e => otherMessages(e)
   }
 

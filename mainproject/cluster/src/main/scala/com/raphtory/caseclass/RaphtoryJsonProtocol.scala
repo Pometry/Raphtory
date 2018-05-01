@@ -22,8 +22,8 @@ object RaphtoryJsonProtocol extends DefaultJsonProtocol {
     def read(json: JsValue) = {
       val head = json.asJsObject.fields.head
       head._1 match {
-        case "VertexAdd" => Command(CommandEnum.withName(head._1), head._2.convertTo[VertexAddWithProperties])
-        case "EdgeAdd"   => Command(CommandEnum.withName(head._1), head._2.convertTo[EdgeAddWithProperties])
+        case "vertexAdd" => Command(CommandEnum.withName(head._1), head._2.convertTo[VertexAddWithProperties])
+        case "edgeAdd"   => Command(CommandEnum.withName(head._1), head._2.convertTo[EdgeAddWithProperties])
       }
     }
   }

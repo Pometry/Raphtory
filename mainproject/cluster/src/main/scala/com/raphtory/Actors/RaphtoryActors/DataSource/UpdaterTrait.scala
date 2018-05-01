@@ -36,7 +36,8 @@ trait UpdaterTrait extends RaphtoryActor with Timers {
     currentMessage+=1
     Kamon.counter("raphtory.updateGen.commandsSent").increment()
     kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
-    mediator ! DistributedPubSubMediator.Send("/user/router", Command(command, value).toJson.toString, false)
+    val jsonCommand = Command(command, value).toJson.toString
+    mediator ! DistributedPubSubMediator.Send("/user/router", jsonCommand, false)
   }
 
   protected def processChildMessages(rcvdMessage : Any)

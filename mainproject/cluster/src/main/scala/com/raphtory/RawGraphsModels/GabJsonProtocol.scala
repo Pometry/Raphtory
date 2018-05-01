@@ -17,14 +17,37 @@ object GabJsonProtocol extends DefaultJsonProtocol {
   implicit object GabPostJsonFormat extends RootJsonFormat[GabPost] {
     // TODO Writer method
 
-    def getRawField(field :String)(implicit jsObj : JsObject) : JsValue = {
-      jsObj.getFields(field).head
+    def getRawField(field :String)(implicit jsObj : JsObject) : Option[JsValue] = {
+      jsObj.getFields(field).headOption
     }
 
-    def getField(field : String)(implicit jsObj : JsObject) : String = {
-      getRawField(field).toString
+    def getField(field : String)(implicit jsObj : JsObject) : Option[String] = {
+      getRawField(field) match {
+        case Some(s) => Some(s.toString())
+        case None => None
+      }
     }
 
+    def getBoolean(field : String)(implicit jsObj : JsObject) : Option[Boolean] = {
+      getField(field) match {
+        case Some(s) => Some(s.toBoolean)
+        case None => None
+      }
+    }
+
+    def getInt(field : String)(implicit jsObj : JsObject) : Option[Int] = {
+      getField(field) match {
+        case Some(s) => Some(s.toInt)
+        case None => None
+      }
+    }
+
+    def getLong(field : String)(implicit jsObj : JsObject) : Option[Long] = {
+      getField(field) match {
+        case Some(s) => Some(s.toLong)
+        case None => None
+      }
+    }
 
 
     def write(p : GabPost) = JsString("TODO")
@@ -33,37 +56,56 @@ object GabJsonProtocol extends DefaultJsonProtocol {
       implicit val jsObj = value.asJsObject
 
       new GabPost(
-        getField("id").toLong,
-        getField("created_at").replaceAll("\"",""),
-        getField("revised_at").replaceAll("\"",""),
-        getField("edited").toBoolean,
-        getField("body"),
+        getLong("id"),
+        getField("created_at") match {
+          case Some(s) => Some(s.replaceAll("\"",""))
+          case None => None
+        },
+        getField("revised_at") match {
+          case Some(s) => Some(s.replaceAll("\"", ""))
+          case None => None
+        },
+        getBoolean("edited"),
+        /*getField("body"),
         getField("body_html"),
         getField("body_html_summary"),
-        getField("body_html_summary_truncated").toBoolean,
-        getField("only_emoji").toBoolean,
-        getField("liked").toBoolean,
-        getField("disliked").toBoolean,
-        getField("bookmarked").toBoolean,
-        getField("repost").toBoolean,
-        getField("score").toInt,
-        getField("like_count").toInt,
-        getField("dislike_count").toInt,
-        getField("reply_count").toInt,
-        getField("repost_count").toInt,
-        getField("is_quote").toBoolean,
-        getField("is_reply").toBoolean,
-        getField("is_replies_disabled").toBoolean,
+        getField("body_html_summary_truncated").toBoolean,*/
+        getBoolean("only_emoji"),
+        getBoolean("liked"),
+        getBoolean("disliked"),
+        getBoolean("bookmarked"),
+        getBoolean("repost"),
+        getInt("score"),
+        getInt("like_count"),
+        getInt("dislike_count"),
+        getInt("reply_count"),
+        getInt("repost_count"),
+        getBoolean("is_quote"),
+        getBoolean("is_reply"),
+        getBoolean("is_replies_disabled"),
         //getRawField("embed").convertTo[GabEmbed],
         //getRawField("attachment").convertTo[GabAttachment],
-        getField("category").toInt,
-        getRawField("category_details").convertTo[GabCategoryDetails],
+        //getInt("category"),
+        /*tRawField("category_details") match {
+          case Some(c) => Some(c.convertTo[GabCategoryDetails])
+          case None    => None
+        },*/
         getField("language"),
-        getField("nsfw").toBoolean,
-        getField("is_premium").toBoolean,
-        getField("is_locked").toBoolean,
-        getRawField("user").convertTo[GabUser],
-        getRawField("topic").convertTo[GabTopic]
+        getBoolean("nsfw"),
+        getBoolean("is_premium"),
+        getBoolean("is_locked"),
+        getRawField("user") match {
+          case Some(u) => Some(u.convertTo[GabUser])
+          case None => None
+        },
+        getRawField("topic") match {
+          case Some(t) => Some(t.convertTo[GabTopic])
+          case None => None
+        },
+        getRawField("parent") match {
+          case Some(p) => Some(p.convertTo[GabPost])
+          case None => None
+        }
       )
     }
   }
