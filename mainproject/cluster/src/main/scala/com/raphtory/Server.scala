@@ -85,7 +85,6 @@ object Go extends App {
   }
 
   def getConf(zookeeper: String): String = {
-    //Change
     val retryPolicy = new ExponentialBackoffRetry(1000, 3)
     val curatorZookeeperClient =
       CuratorFrameworkFactory.newClient(zookeeper, retryPolicy)
