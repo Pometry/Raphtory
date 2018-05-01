@@ -1,0 +1,3 @@
+[submodule "mainproject/docker-compose"]
+	path = mainproject/docker-compose
+	url = https://github.com/miratepuffin/Raphtory-Deployment.git

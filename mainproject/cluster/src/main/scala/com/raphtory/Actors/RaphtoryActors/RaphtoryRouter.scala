@@ -9,6 +9,9 @@ import spray.json._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, SECONDS}
 import Utils.getManager
+import com.raphtory.Actors.RaphtoryActors.Router.RouterTrait
+import monix.eval.Task
+import monix.execution.{ExecutionModel, Scheduler}
 
 /**
   * The Graph Manager is the top level actor in this system (under the stream)
@@ -22,13 +25,15 @@ import Utils.getManager
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor{
+class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor {
   var managerCount : Int = initialManagerCount  // TODO check for initial behavior (does the watchdog stop the router?)
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   //************* MESSAGE HANDLING BLOCK
   println(akka.serialization.Serialization.serializedActorPath(self))
   var count = 0
+
+  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
 
   override def preStart() {
     context.system.scheduler.schedule(Duration(7, SECONDS),
@@ -46,11 +51,12 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     }
     case "keep_alive" => keepAlive()
 
-    case command:String => try{parseJSON(command)}catch {case e: Exception => println(e)}
+    case command:String =>  Task.eval(parseJSON(command)).fork.runAsync
 
    // case PartitionsCount(newValue) => { // TODO redundant in Router and LAM (https://stackoverflow.com/questions/37596888/scala-akka-implement-abstract-class-with-subtype-parameter)
     case UpdatedCounter(newValue) => {
-      managerCount = newValue
+      if (managerCount < newValue)
+        managerCount = newValue
       println(s"Maybe a new PartitionManager has arrived: ${newValue}")
     }
 
@@ -71,7 +77,6 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     else if(commandKey.contains("EdgeUpdateProperties")) edgeUpdateProperties(parsedOBJ.getFields("EdgeUpdateProperties").head.asJsObject)
     else if(commandKey.contains("EdgeRemoval")) edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject)
   }
-//************ END MESSAGE HANDLING BLOCK
 
   def vertexAdd(command:JsObject):Unit = {
    // println("Inside add")
@@ -135,6 +140,5 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
     mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeRemoval(msgTime,srcId,dstId),false) //send the srcID, dstID to graph manager
   }
-
 
 }

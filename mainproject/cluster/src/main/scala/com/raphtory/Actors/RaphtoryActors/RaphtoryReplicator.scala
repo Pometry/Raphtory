@@ -47,11 +47,14 @@ class RaphtoryReplicator(actorType:String) extends Actor {
   }
 
   def giveBirth(assignedId:Int): Unit ={
+    println(s"MyId is $assignedId")
     actorType match {
-      case "Partition Manager" => actorRef = context.system.actorOf(Props(new PartitionManager(myId, false, myId+1)), s"Manager_$myId")
+      case "Partition Manager" => {
+        actorRef = context.system.actorOf(Props(new PartitionManager(myId, false, myId+1)), s"Manager_$myId")
+        //context.system.actorOf(Props(new Historian(20, 60, 0.3)))
+      }
       case "Router" => actorRef = context.system.actorOf(Props(new RaphtoryRouter(myId,currentCount)), "router")
     }
-
   }
 
   override def preStart() {
