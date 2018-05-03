@@ -50,7 +50,7 @@ trait RouterTrait extends RaphtoryActor {
 
 
   private var count = 0
-  private var managerCount : Int = initialManagerCount  // TODO check for initial behavior (does the watchdog stop the router?)
+  private var managerCount : Int = initialManagerCount
 
   private def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RouterUp(routerId), false)
 
