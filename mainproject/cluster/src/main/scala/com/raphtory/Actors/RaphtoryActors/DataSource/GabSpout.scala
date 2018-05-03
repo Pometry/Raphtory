@@ -33,7 +33,7 @@ final class GabSpout extends UpdaterTrait {
 
   }
 
-  def sendPostToPartitions(post : GabPost) : Unit = {
+  def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false) : Unit = {
 
     val postUUID  = post.id.get.toInt
     val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
@@ -84,8 +84,10 @@ final class GabSpout extends UpdaterTrait {
 
     post.parent match {
       case Some(p) => {
-        println("Found parent post: Recursion!")
-        sendPostToPartitions(p)
+        if (!recursiveCall) { // Allow only one recursion per post
+          println("Found parent post: Recursion!")
+          sendPostToPartitions(p, true)
+        }
       }
       case None =>
     }
