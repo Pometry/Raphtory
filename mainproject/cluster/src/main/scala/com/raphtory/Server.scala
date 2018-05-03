@@ -14,12 +14,18 @@ import kamon.prometheus.PrometheusReporter
 import kamon.system.SystemMetrics
 import java.lang.management.ManagementFactory
 
+import com.raphtory.Actors.RaphtoryActors.Analaysis.{LiveAnalysisManager, TestAnalyser}
+import com.raphtory.Actors.RaphtoryActors.DataSource.UpdateGen
+import com.raphtory.Actors.RaphtoryActors.RaphtoryRouter
 //main function
 object Go extends App {
   val conf          = ConfigFactory.load()
   val seedLoc       = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
   val zookeeper     = s"${sys.env("ZOOKEEPER")}"
 
+  val routerName    = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RaphtoryRouter].getClass.getName)}"
+  val updaterName   = s"${sys.env.getOrElse("UPDATERCLASS", classOf[UpdateGen].getClass.getName)}"
+  val lamName       = s"${sys.env.getOrElse("LAMCLASS", classOf[LiveAnalysisManager].getClass.getName)}"
 
   val runtimeMxBean = ManagementFactory.getRuntimeMXBean
   val arguments = runtimeMxBean.getInputArguments
@@ -36,7 +42,7 @@ object Go extends App {
     }
     case "router" => {
       println("Creating Router")
-      RouterNode(getConf(zookeeper))
+      RouterNode(getConf(zookeeper), routerName)
     }
     case "partitionManager" => {
       println(s"Creating Patition Manager...")
@@ -45,13 +51,14 @@ object Go extends App {
 
     case "updater" => {
       println("Creating Update Generator")
-      UpdateNode(getConf(zookeeper))
+      UpdateNode(getConf(zookeeper), updaterName)
     }
 
     case "LiveAnalysisManager" => {
       println("Creating Live Analysis Manager")
-      val LAM_Name = args(1) // TODO other ways (still env?): see issue #5 #6
-      LiveAnalysisNode(getConf(zookeeper), LAM_Name)
+      //val LAM_Name = args(1) // TODO other ways (still env?): see issue #5 #6
+
+      LiveAnalysisNode(getConf(zookeeper), lamName)
     }
     case "clusterUp" => {
       println("Cluster Up, informing Partition Managers and Routers")
@@ -113,5 +120,4 @@ object Go extends App {
     val t = seedLoc.split(":")
     return InetAddress.getByName(t(0)).getHostAddress() + ":" + t(1)
   }
-
 }

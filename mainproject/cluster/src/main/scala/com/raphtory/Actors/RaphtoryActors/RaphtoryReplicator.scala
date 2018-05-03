@@ -7,12 +7,26 @@ import com.raphtory.caseclass._
 import com.raphtory.utils.Utils
 import akka.pattern.ask
 import akka.util.Timeout
+import com.raphtory.Actors.RaphtoryActors.Router.RaphtoryGabRouter
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class RaphtoryReplicator(actorType:String) extends Actor {
+object RaphtoryReplicator {
+
+  // Router instantiation
+  def apply(actorType : String, routerName : String) = {
+    new RaphtoryReplicator(actorType, routerName)
+  }
+
+  // PartitionManager instantiation
+  def apply(actorType : String) = {
+    new RaphtoryReplicator(actorType, null)
+  }
+}
+
+class RaphtoryReplicator(actorType:String, routerName : String) extends Actor {
   implicit val timeout: Timeout = Timeout(10 seconds)
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -53,7 +67,10 @@ class RaphtoryReplicator(actorType:String) extends Actor {
         actorRef = context.system.actorOf(Props(new PartitionManager(myId, false, myId+1)), s"Manager_$myId")
         //context.system.actorOf(Props(new Historian(20, 60, 0.3)))
       }
-      case "Router" => actorRef = context.system.actorOf(Props(new RaphtoryRouter(myId,currentCount)), "router")
+
+      case "Router" => {
+        actorRef = context.system.actorOf(Props(Class.forName(routerName), myId, currentCount), "router")
+      }
     }
   }
 

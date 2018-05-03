@@ -26,7 +26,7 @@ import monix.execution.{ExecutionModel, Scheduler}
   */
 
 class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor {
-  var managerCount : Int = initialManagerCount  // TODO check for initial behavior (does the watchdog stop the router?)
+  var managerCount : Int = initialManagerCount
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   //************* MESSAGE HANDLING BLOCK
