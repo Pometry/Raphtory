@@ -3,8 +3,7 @@ package com.raphtory
 import java.net.InetAddress
 
 import ch.qos.logback.classic.Level
-import com.raphtory.caseclass.clustercase._
-import com.raphtory.caseclass.clustercase.{ManagerNode, RestNode, SeedNode, WatchDogNode}
+import com.raphtory.core.clustersetup._
 import com.typesafe.config.ConfigFactory
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.retry.ExponentialBackoffRetry
@@ -14,9 +13,10 @@ import kamon.prometheus.PrometheusReporter
 import kamon.system.SystemMetrics
 import java.lang.management.ManagementFactory
 
-import com.raphtory.Actors.RaphtoryActors.Analaysis.{LiveAnalysisManager, TestAnalyser}
-import com.raphtory.Actors.RaphtoryActors.DataSource.UpdateGen
-import com.raphtory.Actors.RaphtoryActors.RaphtoryRouter
+import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
+import com.raphtory.core.actors.datasource.UpdateGen
+import com.raphtory.core.actors.router.RaphtoryRouter
+import com.raphtory.core.clustersetup._
 //main function
 object Go extends App {
   val conf          = ConfigFactory.load()
@@ -29,7 +29,9 @@ object Go extends App {
 
   val runtimeMxBean = ManagementFactory.getRuntimeMXBean
   val arguments = runtimeMxBean.getInputArguments
+
   println(s"Current java options: ${arguments}")
+
   args(0) match {
     case "seedNode" => {
       println("Creating seed node")

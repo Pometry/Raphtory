@@ -2,17 +2,13 @@ package com.raphtory.tests
 import java.time.OffsetDateTime
 
 import spray.json._
-import DefaultJsonProtocol._
-import com.raphtory.RawGraphsModels.GabPost
-import com.raphtory.RawGraphsModels._
-import com.raphtory.caseclass.{Command, EdgeAddWithProperties, RaphCaseClass, VertexAddWithProperties}
-import com.raphtory.utils.{CommandEnum, GabEntityType}
+import com.raphtory.examples.gab.rawgraphmodel.GabPost
 
 import scala.util.parsing.json.JSONObject
 
 object GabJsonTest extends App {
-  import com.raphtory.RawGraphsModels.GabJsonProtocol._
-  import com.raphtory.caseclass.RaphtoryJsonProtocol._
+  import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
+  import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
 
   val myString = """{"id":250349,"created_at":"2016-09-09T15:38:29+00:00","revised_at":null,"edited":false,"body":"Meanwhile, on twatter...\\n\\nhttps:\\/\\/pbs.twimg.com\\/media\\/ClXHoZWWAAMS-8r.jpg","body_html":null,"body_html_summary":null,"body_html_summary_truncated":false,"only_emoji":false,"liked":false,"disliked":false,"bookmarked":false,"repost":false,"reported":false,"score":1,"like_count":0,"dislike_count":0,"reply_count":0,"repost_count":0,"is_quote":false,"is_reply":false,"is_replies_disabled":false,"embed":{"html":"<a href=\https:\\/\\/pbs.twimg.com\\/media\\/ClXHoZWWAAMS-8r.jpg\ target=\_blank\ class=\post__embed__body post__embed__body--photo\><div class=\post__embed__body__image\ style=\background-image: url(\'https:\\/\\/ipr2.gab.ai\\/52232a4964df5f85a4f6a0ec6caf6688f03b1837\\/68747470733a2f2f7062732e7477696d672e636f6d2f6d656469612f436c58486f5a575741414d532d38722e6a7067\\/\')\><\\/div><\\/a>","iframe":false},"attachment":{"type":"url","value":{"image":"https:\\/\\/ipr2.gab.ai\\/52232a4964df5f85a4f6a0ec6caf6688f03b1837\\/68747470733a2f2f7062732e7477696d672e636f6d2f6d656469612f436c58486f5a575741414d532d38722e6a7067\\/","title":null,"description":null,"url":"https:\\/\\/pbs.twimg.com\\/media\\/ClXHoZWWAAMS-8r.jpg","source":"pbs.twimg.com"}},"category":null,"category_details":null,"language":null,"nsfw":false,"is_premium":false,"is_locked":false,"user":{"id":5585,"name":"Bluto","username":"Darth_Bluto","picture_url":"https:\\/\\/files.gab.ai\\/user\\/5aadea5f52d4e.png","verified":false,"is_donor":false,"is_investor":false,"is_pro":false,"is_private":false,"is_premium":false},"replies":{"data":[]}}"""
 

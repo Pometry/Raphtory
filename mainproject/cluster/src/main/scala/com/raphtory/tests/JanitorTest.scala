@@ -1,8 +1,6 @@
 package com.raphtory.tests
 
-import com.raphtory.GraphEntities.{Entity, Vertex}
-
-import scala.collection.mutable
+import com.raphtory.core.model.graphentities.{Entity, Vertex}
 
 object JanitorTest extends App{
 

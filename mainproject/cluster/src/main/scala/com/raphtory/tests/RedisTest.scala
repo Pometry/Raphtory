@@ -1,6 +1,6 @@
 package com.raphtory.tests
 
-import com.raphtory.GraphEntities.{Entity, Vertex}
+import com.raphtory.core.model.graphentities.Vertex
 import com.redis._
 
 import scala.collection.concurrent.TrieMap
