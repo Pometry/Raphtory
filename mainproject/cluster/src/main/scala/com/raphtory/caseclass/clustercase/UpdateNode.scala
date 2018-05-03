@@ -9,8 +9,8 @@ import com.raphtory.caseclass.DocSvr
 import scala.sys.process._
 import scala.language.postfixOps
 
-case class UpdateNode(seedLoc: String) extends DocSvr {
+case class UpdateNode(seedLoc: String, className: String) extends DocSvr {
   implicit val system = init(List(seedLoc))
   "redis-server /etc/redis/redis.conf --daemonize yes" ! ; //start redis running on manager partition
-  system.actorOf(Props(new GabSpout()), "UpdateGen")
+  system.actorOf(Props(Class.forName(className)), "UpdateGen")
 }

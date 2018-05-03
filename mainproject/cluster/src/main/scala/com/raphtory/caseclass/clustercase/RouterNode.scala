@@ -7,7 +7,7 @@ import akka.actor.Props
 import com.raphtory.Actors.RaphtoryActors.{RaphtoryReplicator, RaphtoryRouter}
 import com.raphtory.caseclass.DocSvr
 
-case class RouterNode(seedLoc: String) extends DocSvr {
+case class RouterNode(seedLoc: String, className: String) extends DocSvr {
   implicit val system = init(List(seedLoc))
-  system.actorOf(Props(new RaphtoryReplicator("Router")), s"Routers")
+  system.actorOf(Props(RaphtoryReplicator("Router", className)), s"Routers")
 }

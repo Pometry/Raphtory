@@ -1,16 +1,16 @@
-package com.raphtory.Actors.RaphtoryActors
+package com.raphtory.Actors.RaphtoryActors.Analaysis
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.Actors.RaphtoryActors.Analaysis.TestAnalyser
+import com.raphtory.Actors.RaphtoryActors.RaphtoryActor
 import com.raphtory.caseclass.{LiveAnalysis, PartitionsCount, Results}
 import com.raphtory.utils.Utils
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 
 
-class LiveAnalysisManager(name:String) extends RaphtoryActor{
+class LiveAnalysisManager(name:String) extends LiveAnalyser(name) {
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
@@ -33,6 +33,7 @@ class LiveAnalysisManager(name:String) extends RaphtoryActor{
 
   def analyse() ={
       for(i <- 0 until managerCount){
+        // TODO set reflection here
         mediator ! DistributedPubSubMediator.Send(s"/user/Manager_$i",LiveAnalysis(name,new TestAnalyser),false)
       }
   }
