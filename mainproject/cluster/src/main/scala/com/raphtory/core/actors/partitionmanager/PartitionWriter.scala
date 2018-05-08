@@ -32,6 +32,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   val messageCount          : AtomicInteger = new AtomicInteger(0)         // number of messages processed since last report to the benchmarker
   val secondaryMessageCount : AtomicInteger = new AtomicInteger(0)
 
+
   val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
 
   val storage = EntitiesStorage.apply(printing, managerCount, managerID, mediator)
@@ -83,12 +84,13 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     case ReturnEdgeRemoval(msgTime,srcId,dstId)                  => Task.eval(storage.returnEdgeRemoval(msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
     case RemoteReturnDeaths(msgTime,srcId,dstId,deaths)          => Task.eval(storage.remoteReturnDeaths(msgTime,srcId,dstId,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
 
-    case UpdatedCounter(newValue) =>
+    case UpdatedCounter(newValue) => {
       managerCount = newValue
       storage.setManagerCount(managerCount)
-      println(s"A new PartitionManager has joined the cluster: $newValue")
-
-  }
+    }
+    case EdgeUpdateProperty(msgTime, edgeId, key, value)        => Task.eval(storage.updateEdgeProperties(msgTime, edgeId, key, value)).fork.runAsync
+    case e => println(s"Not handled message ${e.getClass} ${e.toString}")
+ }
 
   def keepAlive() : Unit = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), localAffinity = false)
 

@@ -7,7 +7,7 @@ import com.raphtory.core.actors.datasource.UpdaterTrait
 import com.raphtory.core.model.communication.{EdgeAddWithProperties, VertexAddWithProperties}
 import com.raphtory.core.utils.{CommandEnum, GabEntityType}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
-import com.redis.RedisClient
+import com.redis.{RedisClient, RedisConnectionException}
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -16,22 +16,37 @@ import scala.language.postfixOps
 
 final class GabSpout extends UpdaterTrait {
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
-  private val redis    = new RedisClient("localhost", 6379)
+  private val redis    = new RedisClient("moe", 6379)
   private val redisKey = "gab-posts"
   private var sched : Cancellable = null
   private val nullStr = "null"
 
   override def preStart() {
     super.preStart()
-    sched = context.system.scheduler.schedule(Duration(1, MINUTES), Duration(2, MILLISECONDS), self, "parsePost")
+    sched = context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "parsePost")
+    //sched = context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "parsePost")
   }
 
   override def running() : Unit = if (isSafe) {
+    /*sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(System.currentTimeMillis(), 0, Map()))
+    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(System.currentTimeMillis(), 1, Map()))
+    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(System.currentTimeMillis(), 2, Map()))
+    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(System.currentTimeMillis(), 3, Map()))
+    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(System.currentTimeMillis(), 4, Map()))
+    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 0, 1, Map()))
+    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 0, 4, Map()))
+    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 0, 3, Map()))
+    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 4, 3, Map()))
+    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 2, 4, Map()))
+    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 1, 4, Map()))
+    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 2, 0, Map()))
+    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 2, 1, Map()))*/
     getNextPost() match {
-      case None => return
+      case None =>
       case Some(p) => sendPostToPartitions(p)
     }
-
+    sched.cancel()
+    sched = context.system.scheduler.scheduleOnce(Duration(20, MILLISECONDS), self, "parsePost")
   }
 
   def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false) : Unit = {
@@ -52,9 +67,10 @@ final class GabSpout extends UpdaterTrait {
                         }},
       "type"         -> GabEntityType.post.toString
     )))
+
     post.user match {
       case Some(user) => {
-        val userUUID  = -user.id
+        val userUUID  = Math.pow(2,24).toInt + user.id
         sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, userUUID, Map(
           "username" -> user.username,
           "type"     -> GabEntityType.user.toString
@@ -65,23 +81,25 @@ final class GabSpout extends UpdaterTrait {
       case None =>
     }
 
-    post.topic match {
+    /*post.topic match {
       case Some(topic) => {
-        val topicUUID = -Math.pow(2, 16).toInt - topic.id.hashCode
-        sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, topicUUID, Map(
+        val topicUUID : Int = (Math.pow(2, 10) + topic.id.hashCode()).toInt
+        println(topicUUID)
+        println(sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, topicUUID, Map(
           "created_at" -> topic.created_at,
           "category"   -> topic.category.toString,
-          "title"      -> topic.title.get,
+          "title"      -> topic.title.getOrElse("null"),
           "type"       -> GabEntityType.topic.toString,
           "id"         -> topic.id
           )
-        ))
+        )))
 
-        sendCommand(CommandEnum.edgeAdd,
-          EdgeAddWithProperties(timestamp, postUUID, topicUUID, Map()))
+        //sendCommand(CommandEnum.edgeAdd,
+        //  EdgeAddWithProperties(timestamp, postUUID, topicUUID, Map()))
       }
       case None =>
-    }
+    }*/
+
 
     post.parent match {
       case Some(p) => {
@@ -105,7 +123,7 @@ final class GabSpout extends UpdaterTrait {
     redis.lpop(redisKey) match {
       case Some(i) => {
         val x = redis.get(i).get
-        Some(x.drop(2).dropRight(1).replaceAll("""\\"""","").replaceAll("""\\""", "").parseJson.convertTo[GabPost])
+        Some(x.drop(2).dropRight(1).replaceAll("""\\"""", "").replaceAll("""\\""", "").parseJson.convertTo[GabPost])
       }
       case None => {
         println("Stream end")

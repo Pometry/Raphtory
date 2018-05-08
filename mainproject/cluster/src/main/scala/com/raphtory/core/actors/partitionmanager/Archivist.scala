@@ -14,7 +14,7 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.control.Breaks._
-
+import com.raphtory.core.storage.RedisConnector
 //TODO decide how to do shrinking window as graph expands
 //TODO implement temporal/spacial profiles (future)
 //TODO join historian to cluster

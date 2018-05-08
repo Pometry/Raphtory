@@ -10,6 +10,8 @@ object Utils {
   val clusterSystemName = "dockerexp"
   val config            = ConfigFactory.load
   val partitionsTopic   = "/partitionsCount"
+  val readersTopic      = "/readers"
+  val liveAnalysisTopic      = "/liveanalysis"
 
   def watchDogSelector(context : ActorContext, ip : String) = {
     // IP $clusterSystemName@${InetAddress.getByName("watchDog").getHostAddress()}
@@ -62,7 +64,7 @@ object Utils {
   }
 
   /**
-    * Get lowest (32 bit) part of a Binary string representing two Int numbers (used for Edges indexing)
+    * Get lowest (32 bit) part of a Binary string representing two Int numbers (used for Edges indexing) - The dstId of a given edgeId
     * @param index the Long representing the two Int numbers
     * @return the rightmost 32bit as an Int
     */

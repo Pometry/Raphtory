@@ -1,8 +1,12 @@
 package com.raphtory.core.storage.controller
 
+import akka.actor.ActorContext
+import com.raphtory.core.analysis.VertexVisitor
+import com.raphtory.core.model.graphentities.{Edge, Vertex}
 import com.raphtory.core.storage.{MemoryConnector, ReaderConnector, RedisConnector}
 import com.raphtory.core.utils.KeyEnum
 object GraphRepoProxy {
+
   private val connectors : Array[ReaderConnector] = Array(MemoryConnector, RedisConnector)
 
   private var edgesSet : Set[Long] = Set[Long]()
@@ -11,7 +15,6 @@ object GraphRepoProxy {
   def apply(): Unit = {
   }
 
-  // TODO iterative apply
   //def iterativeApply(f : Connector => Unit)
 
   def entityExists(entityType : KeyEnum.Value, id : Long) : Boolean = {
@@ -38,10 +41,23 @@ object GraphRepoProxy {
     verticesSet
   }
 
-  // TODO
-  // getHistory
-  // getProperties
-  // getProperty
-  // getEntity
+  def getVertex(id : Long)(implicit context : ActorContext, managerCount : Int) : VertexVisitor = {
+    connectors.foreach(c => {
+      c.getEntity(KeyEnum.vertices, id) match {
+        case Some(v) => return VertexVisitor(v.asInstanceOf[Vertex])
+        case None    =>
+      }
+    })
+    return null
+  }
 
+  def getEdge(id : Long) : Edge = {
+    connectors.foreach(c => {
+      c.getEntity(KeyEnum.edges, id) match {
+        case Some(edge) => return  edge.asInstanceOf[Edge]
+        case None    =>
+      }
+    })
+    return null
+  }
 }

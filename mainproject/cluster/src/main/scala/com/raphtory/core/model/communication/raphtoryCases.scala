@@ -32,7 +32,7 @@ case class EdgeAdd(msgTime:Long,srcId:Int,dstId:Int)
 case class EdgeAddWithProperties(msgTime:Long, override val srcId:Int,dstId:Int, properties: Map[String,String]) extends RaphCaseClass
 case class EdgeUpdateProperties(msgTime:Long,srcId:Int,dstId:Int,property:Map[String,String])
 case class EdgeRemoval(msgTime:Long,srcId:Int,dstID:Int)
-
+case class EdgeUpdateProperty(msgTime : Long, edgeId : Long, key : String, value : String)
 case class RemoteEdgeUpdateProperties(msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String])
 case class RemoteEdgeAdd(msgTime:Long, srcId:Int, dstId:Int, properties: Map[String,String])
 case class RemoteEdgeRemoval(msgTime:Long,srcId:Int,dstId:Int)
@@ -49,5 +49,15 @@ case class AssignedId(id : Int)
 case class PartitionsCount(count : Int)
 case class RequestPartitionId()
 case class RequestRouterId()
+
+
+sealed trait RaphReadClasses
+
+case class Setup(analyzer : Analyser) extends RaphReadClasses
+case class Ready() extends RaphReadClasses
+case class NextStep(analyzer : Analyser) extends RaphReadClasses
+case class EndStep(results : Any) extends RaphReadClasses // TODO Define results
+case class GetNetworkSize() extends RaphReadClasses
+case class NetworkSize(size : Int) extends RaphReadClasses
 //case class WatchDogIp(ip: String)
 

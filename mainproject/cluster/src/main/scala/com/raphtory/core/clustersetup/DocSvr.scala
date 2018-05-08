@@ -7,7 +7,7 @@ import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import scala.collection.JavaConversions
 import scala.collection.JavaConversions._
 
-protected trait DocSvr {
+trait DocSvr {
 
   def seedLoc : String
   implicit val system : ActorSystem

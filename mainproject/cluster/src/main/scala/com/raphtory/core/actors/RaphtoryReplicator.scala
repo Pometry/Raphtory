@@ -7,12 +7,12 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.core.actors.partitionmanager.PartitionWriter
+import com.raphtory.core.actors.partitionmanager.{PartitionReader, PartitionWriter}
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-
+import scala.language.postfixOps
 object RaphtoryReplicator {
 
   // Router instantiation
@@ -36,6 +36,7 @@ class RaphtoryReplicator(actorType:String, routerName : String) extends Actor {
   var currentCount = -1
 
   var actorRef : ActorRef = null
+  var actorRefReader : ActorRef = null
 
   def getNewId() = {
     if (myId == -1) {
@@ -65,6 +66,7 @@ class RaphtoryReplicator(actorType:String, routerName : String) extends Actor {
     actorType match {
       case "Partition Manager" => {
         actorRef = context.system.actorOf(Props(new PartitionWriter(myId, false, myId+1)), s"Manager_$myId")
+        actorRefReader = context.system.actorOf(Props(new PartitionReader(myId, false, myId+1)), s"ManagerReader_$myId")
         //context.system.actorOf(Props(new Historian(20, 60, 0.3)))
       }
 
@@ -83,8 +85,15 @@ class RaphtoryReplicator(actorType:String, routerName : String) extends Actor {
       currentCount = count
       if(actorRef != null)
         actorRef ! UpdatedCounter(currentCount)
+      if (actorRefReader != null)
+        actorRef ! UpdatedCounter(currentCount)
     }
     case "tick" => getNewId
+    case GetNetworkSize() => {
+      println("GetNetworkSize" + actorRefReader != null)
+      if (actorRefReader != null)
+        sender() ! actorRefReader ? GetNetworkSize
+    }
     case e => println(s"Received not handled message ${e.getClass}")
   }
 }

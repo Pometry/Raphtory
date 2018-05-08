@@ -6,6 +6,8 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import scala.collection.concurrent.TrieMap
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, RemoteEdge, RemotePos, Vertex}
+import com.raphtory.core.storage.controller.GraphRepoProxy
+import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
 
@@ -58,6 +60,7 @@ object EntitiesStorage {
     }
     if (properties != null)
       properties.foreach(l => value + (msgTime,l._1,l._2)) //add all properties
+    GraphRepoProxy.addVertex(value.getId)
     value
   }
 
@@ -146,9 +149,22 @@ object EntitiesStorage {
         if (!local)
           mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(msgTime, srcId, dstId, null, deaths), false)
     }
+    GraphRepoProxy.addEdge(edge.getId)
     if (properties != null)
       properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the edge
 
+  }
+
+  def updateEdgeProperties(msgTime : Long, edgeId : Long, key : String, value : String) : Unit = {
+    edges.get(edgeId) match {
+      case Some(e) => e + (msgTime, key, value)
+      case None =>
+    }
+
+    // If edge is split reroute the update to the remote position
+    if (Utils.getPartition(Utils.getIndexLO(edgeId), managerCount) != managerID) {
+      mediator ! DistributedPubSubMediator.Send(getManager(Utils.getIndexLO(edgeId), managerCount), EdgeUpdateProperty(msgTime, edgeId, key, value), false)
+    }
   }
 
   def remoteEdgeAdd(msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String] = null):Unit={

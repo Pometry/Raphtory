@@ -56,7 +56,7 @@ object Go extends App {
       UpdateNode(getConf(zookeeper), updaterName)
     }
 
-    case "LiveAnalysisManager" => {
+    case "liveAnalysis" => {
       println("Creating Live Analysis Manager")
       //val LAM_Name = args(1) // TODO other ways (still env?): see issue #5 #6
 

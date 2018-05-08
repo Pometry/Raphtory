@@ -5,6 +5,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
 import monix.execution.{ExecutionModel, Scheduler}
 import kamon.Kamon
+import monix.eval.Task
 
 import scala.concurrent.duration.{Duration, SECONDS}
 
@@ -34,7 +35,7 @@ trait RouterTrait extends RaphtoryActor {
     case "keep_alive" => keepAlive()
     case UpdatedCounter(newValue) => newPmJoined(newValue)
     case command:String =>  {
-      this.parseJSON(command)
+      Task.eval(this.parseJSON(command)).fork.runAsync
     }
     case e => otherMessages(e)
   }
@@ -57,10 +58,9 @@ trait RouterTrait extends RaphtoryActor {
 
   private def newPmJoined(newValue : Int) = if (managerCount < newValue) {
       managerCount = newValue
-    println(s"Maybe a new PartitionManager has arrived: ${newValue}")
   }
 
-  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
+  implicit val s : Scheduler = Scheduler(ExecutionModel.AlwaysAsyncExecution)
   println(akka.serialization.Serialization.serializedActorPath(self))
 }
 /*def vertexAdd(command : JsObject) : Unit
