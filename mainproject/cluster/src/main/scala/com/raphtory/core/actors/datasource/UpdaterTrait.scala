@@ -16,6 +16,7 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.utils.CommandEnum
 
+import scala.language.postfixOps
 
 trait UpdaterTrait extends RaphtoryActor with Timers {
   import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
@@ -32,13 +33,14 @@ trait UpdaterTrait extends RaphtoryActor with Timers {
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"stateCheck")
   }
 
-  protected def sendCommand[T <: RaphCaseClass](command: CommandEnum.Value, value: T) = {
+  protected def sendCommand[T <: RaphCaseClass](command: CommandEnum.Value, value: T) : String = {
     counter       += 1
     currentMessage+=1
     Kamon.counter("raphtory.updateGen.commandsSent").increment()
     kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
     val jsonCommand = Command(command, value).toJson.toString
     mediator ! DistributedPubSubMediator.Send("/user/router", jsonCommand, false)
+    jsonCommand
   }
 
   protected def processChildMessages(rcvdMessage : Any)

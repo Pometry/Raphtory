@@ -198,4 +198,9 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
   }
 
   def getId : Long
+  def getPropertyCurrentValue(key : String) : Option[String] =
+    properties.get(key) match {
+      case Some(p) => Some(p.currentValue)
+      case None => None
+    }
 }

@@ -79,4 +79,5 @@ class Property(creationTime: Long,
     s"Property: ${key} ----- Current State: $toReturn"
   }
 
+  def currentValue : String = previousState.head._2
 }

@@ -41,4 +41,6 @@ class Edge(msgTime: Long, srcId: Int, dstId: Int, initialValue: Boolean, addOnly
   }
 
   override def getId: Long = Utils.getEdgeIndex(srcId, dstId)
+  def getSrcId : Int = srcId
+  def getDstId : Int = dstId
 }

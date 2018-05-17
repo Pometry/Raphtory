@@ -1,6 +1,5 @@
 package com.raphtory.core.storage
 
-import com.raphtory.core.storage.EntitiesStorage
 import com.raphtory.core.model.graphentities._
 import com.raphtory.core.utils.exceptions._
 import com.raphtory.core.utils.{KeyEnum, SubKeyEnum, Utils}
@@ -9,7 +8,7 @@ import com.redis.RedisClient
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
-private object RedisConnector extends ReaderConnector with WriterConnector {
+object RedisConnector extends ReaderConnector with WriterConnector {
   private val redis : RedisClient = new RedisClient("localhost", 6379)
 
   /**
@@ -77,6 +76,7 @@ private object RedisConnector extends ReaderConnector with WriterConnector {
       case Some(set) => {
         set.map(opEl => opEl match {
           case Some(s) => s.toLong
+          case None    => Long.MaxValue // TODO check
         })
       }
     }
@@ -120,11 +120,12 @@ private object RedisConnector extends ReaderConnector with WriterConnector {
   override def getAssociatedEdges(vertexId: Long) : mutable.LinkedHashSet[Edge]= {
     val edges = mutable.LinkedHashSet[Edge]()
     redis.smembers(associatedEdgesKey(vertexId)) match {
-      case set : Set[Option[String]] =>
+      case Some(set) =>
         set.par.foreach {
           case Some(str) => edges.+(getEdge(str.toLong))
           case None =>
         }
+      case None =>
     }
     edges
   }
@@ -195,14 +196,17 @@ private object RedisConnector extends ReaderConnector with WriterConnector {
       case None => throw CreationTimeNotFoundException(entityId)
       case Some(time) => creationTime = time.toLong
     }
-    Vertex(creationTime = creationTime, vertexId = entityId,
+    val v = Vertex(creationTime = creationTime, vertexId = entityId,
       associatedEdges = getAssociatedEdges(entityId),
       previousState = getHistory(KeyEnum.vertices, entityId),
       properties = getProperties(KeyEnum.vertices, entityId)
     )
+    EntitiesStorage.vertices.putIfAbsent(entityId, v)
+    v
   }
 
   private def getEdge(edgeId : Long) : Edge = {
+    var e : Edge = null
     var creationTime : Long = 0
     redis.get(KeyEnum.edges, edgeId) match {
       case None => throw EntityIdNotFoundException(edgeId)
@@ -226,17 +230,19 @@ private object RedisConnector extends ReaderConnector with WriterConnector {
         remotePartitionId = Utils.getPartition(srcId, EntitiesStorage.managerCount)
       }
       // Remote edge
-      RemoteEdge(creationTime, edgeId,
+      e = RemoteEdge(creationTime, edgeId,
         getHistory(KeyEnum.edges, edgeId),
         getProperties(KeyEnum.edges, edgeId),
         remotePos,
         remotePartitionId
       )
     } else {
-      Edge(creationTime, edgeId,
+      e = Edge(creationTime, edgeId,
         getHistory(KeyEnum.edges, edgeId),
         getProperties(KeyEnum.edges, edgeId))
     }
+    EntitiesStorage.edges.putIfAbsent(edgeId, e)
+    e
   }
 
 

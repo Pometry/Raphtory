@@ -42,7 +42,6 @@ class UpdateGen extends RaphtoryActor with Timers {
     context.system.scheduler.schedule(Duration(1, MINUTES), Duration(1, MILLISECONDS), self, "random")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"benchmark")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"stateCheck")
-    context.system.scheduler.schedule(Duration(0, SECONDS), Duration(10, SECONDS), self,"increaseFreq") // TODO delete
 
   }
 
@@ -58,7 +57,6 @@ class UpdateGen extends RaphtoryActor with Timers {
         genRandomCommands(freq/1000)
       }
     }
-    case "increaseFreq" => if (safe) freq += 1000 //TODO delete
     case "benchmark" => benchmark()
     case _ => println("message not recognized!")
   }
