@@ -49,6 +49,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
   val monix						= "io.monix" 					 %% "monix" 						  % "3.0.0-RC1"
 // https://mvnrepository.com/artifact/wf.bitcoin/JavaBitcoindRpcClient
 	val bitcoin 			  = "org.scalaj" %% "scalaj-http" % "2.3.0"
+// https://mvnrepository.com/artifact/com.twitter/util-eval
+	val twitter_eval 		= "com.twitter" %% "util-eval" % "6.43.0"
 
 	//val kamon_repos     = Seq(Resolver.bintrayRepo("kamon-io", "snapshots"))
 
@@ -98,7 +100,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 			dep_compile(
 				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_dist_data,
 				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
-				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin)
+				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval)
 		)
 	  	.settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",

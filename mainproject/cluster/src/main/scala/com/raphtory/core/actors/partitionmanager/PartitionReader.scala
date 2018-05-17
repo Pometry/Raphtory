@@ -26,29 +26,33 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
   }
 
   override def receive : Receive = {
-    case Setup(analyzer) => {
-      println("Setup analyzer, sending Ready packet")
-      analyzer.sysSetup()
-      analyzer.setup()
-      sender() ! Ready()
-    }
-    case NextStep(analyzer) => {
-      println(s"Received new step for pm_$managerID")
-      analyzer.sysSetup()
-      val senderPath = sender().path
+      case Setup(analyzer)
+      => {
+        println("Setup analyzer, sending Ready packet")
+        analyzer.sysSetup()
+        analyzer.setup()
+        sender() ! Ready()
+      }
+      case NextStep(analyzer)
+      => {
+        println(s"Received new step for pm_$managerID")
+        analyzer.sysSetup()
+        val senderPath = sender().path
 
         println("Inside future")
         val value = analyzer.analyse()
 
-            println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
-            println(value)
-            mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value), false)
-    }
-    case GetNetworkSize() =>
+        println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
+        println(value)
+        mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value), false)
+      }
+      case GetNetworkSize()
+      =>
       sender() ! NetworkSize(GraphRepoProxy.getVerticesSet().size)
-    case UpdatedCounter(newValue) => {
-      managerCount = newValue
+      case UpdatedCounter(newValue)
+      => {
+        managerCount = newValue
+      }
+      case e => println(s"[READER] not handled message " + e)
     }
-    case e => println(s"[READER] not handled message " + e)
-  }
 }
