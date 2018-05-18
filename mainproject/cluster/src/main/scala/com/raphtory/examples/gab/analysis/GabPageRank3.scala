@@ -47,8 +47,9 @@ class GabPageRank3(networkSize : Int, dumplingFactor : Float) extends Analyser {
         vertex.pushToOutgoingNeighbor(u, getPageRankStr(v.toInt, u), pageRank.toString)
       )
       results +:= (v, pageRank)
-      if (results.size > 10)
-        results = results.sortBy(f => f._2)(Ordering[Double]).reverse.take(10)
+      if (results.size > 10) {
+        results = results.sortBy(_._2)(Ordering[Double].reverse).take(10)
+      }
     })
     println("Sending step end")
     results

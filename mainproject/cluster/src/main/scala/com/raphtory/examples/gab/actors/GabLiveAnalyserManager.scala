@@ -14,7 +14,7 @@ class GabLiveAnalyserManager extends LiveAnalyser {
   private var firstStep      = true
 
   override protected def processResults(result: Any): Unit = println(
-    result.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten.sorted)/*.asInstanceOf[Vector[Vector[(Long, Double)]]]
+    result.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten.sortBy(f => f._2)(Ordering[Double].reverse))/*.asInstanceOf[Vector[Vector[(Long, Double)]]]
       .flatMap(e => e).sortBy(f => f._2)(Ordering[Double])
       .reverse
   )*/
@@ -22,7 +22,8 @@ class GabLiveAnalyserManager extends LiveAnalyser {
   override protected def defineMaxSteps(): Unit = {
     //steps =  (B * Math.log(getNetworkSize/epsilon)).round
     steps = 100 //Int.MaxValue
-    epsilon = 1/(100*getNetworkSize)
+    if (getNetworkSize != 0)
+      epsilon = 1/(100*getNetworkSize)
   }
 
   override protected def generateAnalyzer : Analyser = new GabPageRank3(getNetworkSize, dumplingFactor)
@@ -43,7 +44,7 @@ class GabLiveAnalyserManager extends LiveAnalyser {
       val oldSum = _oldResults.sum(resultNumeric)._2
 
       println(s"newSum = $newSum - oldSum = $oldSum - diff = ${newSum - oldSum}")
-      results = _newResults
+      //results = _newResults
       Math.abs(newSum - oldSum) / _newResults.size < epsilon
     } catch {
       case _ : Exception => false

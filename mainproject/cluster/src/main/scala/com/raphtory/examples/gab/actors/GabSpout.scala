@@ -49,7 +49,7 @@ final class GabSpout extends UpdaterTrait {
     sched = context.system.scheduler.scheduleOnce(Duration(20, MILLISECONDS), self, "parsePost")
   }
 
-  def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false) : Unit = {
+  def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false, parent : Int = 0) : Unit = {
 
     val postUUID  = post.id.get.toInt
     val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
@@ -65,7 +65,7 @@ final class GabSpout extends UpdaterTrait {
                           case Some(topic) => topic.id
                           case None => nullStr
                         }},
-      "type"         -> GabEntityType.post.toString
+      "type"         -> GabEntityType.post.toString,
     )))
 
     post.user match {
@@ -101,11 +101,16 @@ final class GabSpout extends UpdaterTrait {
     }*/
 
 
+    // Edge from child to parent post
+    if (recursiveCall && parent > 0)
+      sendCommand(CommandEnum.edgeAdd,
+        EdgeAddWithProperties(timestamp, postUUID, parent, Map()))
+
     post.parent match {
       case Some(p) => {
         if (!recursiveCall) { // Allow only one recursion per post
           println("Found parent post: Recursion!")
-          sendPostToPartitions(p, true)
+          sendPostToPartitions(p, true, postUUID)
         }
       }
       case None =>

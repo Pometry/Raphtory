@@ -103,7 +103,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
         if (currentStep == steps || this.checkProcessEnd()) {
           // Process results
           this.processResults(results)
-          context.system.scheduler.scheduleOnce(Duration(15, MINUTES), self, "start")
+          context.system.scheduler.scheduleOnce(Duration(5, MINUTES), self, "start")
         } else {
           println(s"Sending new step")
           oldResults = results
@@ -114,7 +114,6 @@ abstract class LiveAnalyser extends RaphtoryActor {
         }
       }
     }
-
     case _ => processOtherMessages(_)
   }
 
