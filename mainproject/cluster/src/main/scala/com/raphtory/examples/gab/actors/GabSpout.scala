@@ -46,7 +46,7 @@ final class GabSpout extends UpdaterTrait {
       case Some(p) => sendPostToPartitions(p)
     }
     sched.cancel()
-    sched = context.system.scheduler.scheduleOnce(Duration(20, MILLISECONDS), self, "parsePost")
+    sched = context.system.scheduler.scheduleOnce(Duration(2, MILLISECONDS), self, "parsePost")
   }
 
   def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false, parent : Int = 0) : Unit = {
@@ -109,7 +109,7 @@ final class GabSpout extends UpdaterTrait {
     post.parent match {
       case Some(p) => {
         if (!recursiveCall) { // Allow only one recursion per post
-          println("Found parent post: Recursion!")
+          //println("Found parent post: Recursion!")
           sendPostToPartitions(p, true, postUUID)
         }
       }
@@ -128,7 +128,14 @@ final class GabSpout extends UpdaterTrait {
     redis.lpop(redisKey) match {
       case Some(i) => {
         val x = redis.get(i).get
-        Some(x.drop(2).dropRight(1).replaceAll("""\\"""", "").replaceAll("""\\""", "").parseJson.convertTo[GabPost])
+        val y = x.drop(2).dropRight(1)
+        try {
+          Some(y.replaceAll("""\\"""", "").replaceAll("""\\""", "").parseJson.convertTo[GabPost])
+        } catch {
+          case e =>
+            println(e.toString)
+            None
+        }
       }
       case None => {
         println("Stream end")

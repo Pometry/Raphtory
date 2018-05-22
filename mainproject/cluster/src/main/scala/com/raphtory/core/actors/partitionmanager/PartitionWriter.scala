@@ -11,6 +11,7 @@ import com.raphtory.core.model.graphentities.Entity
 import kamon.Kamon
 import kamon.metric.GaugeMetric
 import monix.eval.Task
+import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{ExecutionModel, Scheduler}
 
 import scala.collection.concurrent.TrieMap
@@ -43,7 +44,16 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   val edgesGauge    : GaugeMetric = Kamon.gauge("raphtory.edges")
 
 
-  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
+  //implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
+
+  // Explicit execution model
+  implicit val s = Scheduler.io(
+    name="my-io",
+    executionModel = AlwaysAsyncExecution
+  )
+  // Simple constructor
+  //implicit val s =
+  //  Scheduler.computation(parallelism=16)
 
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
