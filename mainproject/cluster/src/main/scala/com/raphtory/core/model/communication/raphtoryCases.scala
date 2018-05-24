@@ -59,5 +59,13 @@ case class NextStep(analyzer : Analyser) extends RaphReadClasses
 case class EndStep(results : Any) extends RaphReadClasses // TODO Define results
 case class GetNetworkSize() extends RaphReadClasses
 case class NetworkSize(size : Int) extends RaphReadClasses
+
+
+case class ClassMissing() extends RaphReadClasses
+case class SetupNewAnalyser(analyser: String, name:String) extends RaphReadClasses
+case class FailedToCompile (stackTrace:String) extends  RaphReadClasses
+case class NextStepNewAnalyser(name: String) extends RaphReadClasses
+
+
 //case class WatchDogIp(ip: String)
 

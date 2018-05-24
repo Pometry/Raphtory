@@ -22,6 +22,9 @@ abstract class LiveAnalyser extends RaphtoryActor {
   private var currentStepCounter = 0
   private var toSetup            = true
 
+  private var analyserName:String = ""
+  private var newAnalyser:Boolean = false
+
   protected val mediator     = DistributedPubSub(context.system).mediator
   protected var steps  : Long= 0L
   protected var results      = Vector.empty[Any]
@@ -82,6 +85,29 @@ abstract class LiveAnalyser extends RaphtoryActor {
           mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, Setup(this.generateAnalyzer))
         }
       }
+
+    case ClassMissing() => {
+      println(s"$sender does not have analyser, sending now")
+      import scala.io.Source
+      var code = ""
+      for (line <- Source.fromFile("cluster/src/main/scala/"+generateAnalyzer.getClass.getName.replaceAll("\\.","/").replaceAll("\\$",".scala")).getLines) {
+        if(line.contains("package com.")){}
+        else if (line.contains("extends Analyser")) {
+          code += "new Analyser {\n"
+        }
+        else {
+          code += s"$line\n"
+        }
+      }
+      analyserName = generateAnalyzer.getClass.getName
+      newAnalyser = true
+      sender() ! SetupNewAnalyser(code,generateAnalyzer.getClass.getName)
+    }
+
+    case FailedToCompile(stackTrace) => {
+      println(s"${sender} failed to compiled, stacktrace returned: \n $stackTrace")
+    }
+
     case Ready() => {
       println("Received ready")
       readyCounter += 1
@@ -91,7 +117,10 @@ abstract class LiveAnalyser extends RaphtoryActor {
         currentStep = 1
         results = Vector.empty[Any]
         println(s"Sending analyzer")
-        mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStep(this.generateAnalyzer))
+        if(newAnalyser)
+          mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStepNewAnalyser(analyserName))
+        else
+          mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStep(this.generateAnalyzer))
       }
     }
     case EndStep(res) => {
@@ -110,7 +139,10 @@ abstract class LiveAnalyser extends RaphtoryActor {
           results = Vector.empty[Any]
           currentStep += 1
           currentStepCounter = 0
-          mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStep(this.generateAnalyzer))
+          if(newAnalyser)
+            mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStepNewAnalyser(analyserName))
+          else
+            mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStep(this.generateAnalyzer))
         }
       }
     }
