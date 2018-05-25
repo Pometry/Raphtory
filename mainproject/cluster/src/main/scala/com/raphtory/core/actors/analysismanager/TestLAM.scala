@@ -21,5 +21,5 @@ import com.raphtory.core.storage.controller.GraphRepoProxy
 
   override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int): Any = "hello"
 
-  override def setup()(implicit proxy: GraphRepoProxy.type): Any = ???
+  override def setup()(implicit proxy: GraphRepoProxy.type): Any = ""
 }

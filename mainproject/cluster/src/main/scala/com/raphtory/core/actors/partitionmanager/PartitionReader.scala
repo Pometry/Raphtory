@@ -25,6 +25,7 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersTopic, self)
   implicit val proxy = GraphRepoProxy
+
   override def preStart() = {
     println("Starting reader")
   }
@@ -41,16 +42,21 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
 
   def setup(analyzer:Analyser) {
     try {
-      println("Setup analyzer, sending Ready packet")
       analyzer.sysSetup()
       analyzer.setup()
       sender() ! Ready()
+      println("Setup analyzer, sending Ready packet")
     }
     catch {
       case e: ClassNotFoundException =>{
         println("Analyser not found within this image, requesting scala file")
-        sender() ! ClassMissing
+        sender() ! ClassMissing()
       }
+      case e: scala.NotImplementedError =>{
+        println("Analyser not found within this image, requesting scala file")
+        sender() ! ClassMissing()
+      }
+
     }
   }
 
@@ -60,11 +66,16 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
       val eval = new Eval // Initializing The Eval without any target location
       val analyser: Analyser = eval[Analyser](analyserString)
       analyserMap += ((name,analyser))
-      setup(analyser)
+      println("before sys Setup")
+      analyser.sysSetup()
+      println("after sys setup")
+      analyser.setup()
+      println("after setup")
+      sender() ! Ready()
     }
     catch {
       case e: Exception =>{
-        sender() ! FailedToCompile(e.getStackTrace.toString)
+        sender() ! FailedToCompile(e.getMessage)
       }
     }
   }

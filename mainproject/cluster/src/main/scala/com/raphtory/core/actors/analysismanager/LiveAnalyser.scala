@@ -43,7 +43,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
   mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
 
   override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(Duration(5, MINUTES), self, "start")
+    context.system.scheduler.scheduleOnce(Duration(5, SECONDS), self, "start")
     //context.system.scheduler.schedule(Duration(5, MINUTES), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
 
@@ -89,19 +89,20 @@ abstract class LiveAnalyser extends RaphtoryActor {
     case ClassMissing() => {
       println(s"$sender does not have analyser, sending now")
       import scala.io.Source
-      var code = ""
-      for (line <- Source.fromFile("cluster/src/main/scala/"+generateAnalyzer.getClass.getName.replaceAll("\\.","/").replaceAll("\\$",".scala")).getLines) {
-        if(line.contains("package com.")){}
-        else if (line.contains("extends Analyser")) {
-          code += "new Analyser {\n"
-        }
-        else {
-          code += s"$line\n"
-        }
-      }
-      analyserName = generateAnalyzer.getClass.getName
+      var code = "import com.raphtory.core.analysis.Analyser \n new Analyser {\n\nimport akka.actor.ActorContext\nimport com.raphtory.core.storage.controller.GraphRepoProxy\n\n  override implicit var context: ActorContext = _\n  override implicit var managerCount: Int = _\n\n  override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int): Any = \"hello\"\n\n  override def setup()(implicit proxy: GraphRepoProxy.type): Any = ""\n}"
+//      for (line <- Source.fromFile("cluster/src/main/scala/"+generateAnalyzer.getClass.getName.replaceAll("\\.","/").replaceAll("\\$",".scala")).getLines) {
+//        if(line.contains("package com.")){}
+//        else if (line.contains("extends Analyser")) {
+//          code += "new Analyser {\n"
+//        }
+//        else {
+//          code += s"$line\n"
+//        }
+//      }
+//      analyserName = generateAnalyzer.getClass.getName
+      analyserName = "test"
       newAnalyser = true
-      sender() ! SetupNewAnalyser(code,generateAnalyzer.getClass.getName)
+      sender() ! SetupNewAnalyser(code,analyserName)
     }
 
     case FailedToCompile(stackTrace) => {

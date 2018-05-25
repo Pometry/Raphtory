@@ -49,6 +49,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     * Set up partition to report how many messages it has processed in the last X seconds
     */
   override def preStart() {
+    println("starting writer")
     context.system.scheduler.schedule(Duration(7, SECONDS),
       Duration(1, SECONDS), self, "tick")
     //context.system.scheduler.schedule(Duration(13, SECONDS),
