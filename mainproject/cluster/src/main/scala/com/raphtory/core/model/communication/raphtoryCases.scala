@@ -28,7 +28,7 @@ case class VertexAddWithProperties(msgTime:Long, override val srcId:Int, propert
 case class VertexUpdateProperties(msgTime:Long,srcId:Int, propery:Map[String,String])
 case class VertexRemoval(msgTime:Long,srcId:Int)
 
-case class EdgeAdd(msgTime:Long,srcId:Int,dstId:Int)
+case class EdgeAdd(msgTime:Long,srcId:Int,dstId:Int) extends RaphCaseClass
 case class EdgeAddWithProperties(msgTime:Long, override val srcId:Int,dstId:Int, properties: Map[String,String]) extends RaphCaseClass
 case class EdgeUpdateProperties(msgTime:Long,srcId:Int,dstId:Int,property:Map[String,String])
 case class EdgeRemoval(msgTime:Long,srcId:Int,dstID:Int)

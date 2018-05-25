@@ -49,7 +49,7 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     }
     case "keep_alive" => keepAlive()
 
-    case command:String =>  Task.eval(parseJSON(command)).fork.runAsync
+    case command:String => parseJSON(command)
 
     case UpdatedCounter(newValue) => {
       if (managerCount < newValue)
@@ -63,7 +63,6 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     count += 1
     kCounter.refine("actor" -> "Router", "name" -> "count").increment()
     Kamon.gauge("raphtory.router.countGauge").set(count)
-    //println(s"received command: \n $command")
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
     if(commandKey.contains("VertexAdd")) vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject)
@@ -76,8 +75,8 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
 
   def vertexAdd(command:JsObject):Unit = {
    // println("Inside add")
-    val msgTime = command.fields("messageID").toString().toLong
-    val srcId = command.fields("srcID").toString().toInt                 //extract the srcID
+    val msgTime = command.fields("msgTime").toString().toLong
+    val srcId = command.fields("srcId").toString().toInt                 //extract the srcID
     if(command.fields.contains("properties")) {                          //if there are properties within the command
       var properties = Map[String,String]()                              //create a vertex map
       command.fields("properties").asJsObject.fields.foreach( pair => {  //add all of the pairs to the map
@@ -108,9 +107,9 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
   }
 
   def edgeAdd(command:JsObject):Unit = {
-    val msgTime = command.fields("messageID").toString().toLong
-    val srcId = command.fields("srcID").toString().toInt //extract the srcID
-    val dstId = command.fields("dstID").toString().toInt //extract the dstID
+    val msgTime = command.fields("msgTime").toString().toLong
+    val srcId = command.fields("srcId").toString().toInt //extract the srcID
+    val dstId = command.fields("dstId").toString().toInt //extract the dstID
     if(command.fields.contains("properties")){ //if there are properties within the command
     var properties = Map[String,String]() //create a vertex map
       command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
