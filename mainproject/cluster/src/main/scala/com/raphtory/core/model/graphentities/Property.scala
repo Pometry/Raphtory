@@ -28,7 +28,7 @@ class Property(creationTime: Long,
     * @param newValue
     */
   def update(msgTime: Long, newValue: String): Unit = {
-    previousState += msgTime -> newValue
+    previousState.put(msgTime, newValue)
   }
 
   def removeAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, String] ={
@@ -80,4 +80,5 @@ class Property(creationTime: Long,
   }
 
   def currentValue : String = previousState.head._2
+  def currentTime : Long    = previousState.head._1
 }

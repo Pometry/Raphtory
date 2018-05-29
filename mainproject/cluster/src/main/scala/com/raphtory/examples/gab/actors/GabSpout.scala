@@ -120,8 +120,10 @@ final class GabSpout extends UpdaterTrait {
       /*sendCommand(CommandEnum.edgeAdd,
         EdgeAddWithProperties(timestamp, postUUID, parent, Map()))*/
       //sendCommand(CommandEnum.edgeAdd, EdgeAdd(timestamp, postUUID, parent))
+      val c = EdgeAdd(timestamp, postUUID, parent).toJson.toString()
+      println(c)
       sendCommand2(
-        s"""{"EdgeAdd":${EdgeAdd(timestamp, postUUID, parent).toJson.toString()}}"""
+        s"""{"EdgeAdd":${c}}"""
       )
     }
     post.parent match {

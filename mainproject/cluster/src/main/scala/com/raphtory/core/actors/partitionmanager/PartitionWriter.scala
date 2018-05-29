@@ -15,6 +15,7 @@ import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{ExecutionModel, Scheduler}
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration._
 
 /**
@@ -107,15 +108,15 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   /*****************************
    * Metrics reporting methods *
    *****************************/
-  def getEntitiesPrevStates[T,U <: Entity](m : TrieMap[T, U]) : Int = {
-    var ret : Int = 0
+  def getEntitiesPrevStates[T,U <: Entity](m : ParTrieMap[T, U]) : Int = {
+    var ret = new AtomicInteger(0)
     m.foreach[Unit](e => {
-      ret += e._2.getPreviousStateSize()
+      ret.getAndAdd(e._2.getPreviousStateSize())
     })
-    ret
+    ret.get
   }
 
-  def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map : TrieMap[T, U]) : Unit = {
+  def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map : ParTrieMap[T, U]) : Unit = {
     def getGauge(name : String) = {
      g.refine("actor" -> "PartitionManager", "replica" -> id.toString, "name" -> name)
     }
