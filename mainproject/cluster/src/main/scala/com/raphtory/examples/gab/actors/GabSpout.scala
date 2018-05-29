@@ -24,7 +24,7 @@ final class GabSpout extends UpdaterTrait {
 
   override def preStart() {
     super.preStart()
-    sched = context.system.scheduler.schedule(Duration(1, MINUTES), Duration(10, MILLISECONDS), self, "parsePost")
+    sched = context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "parsePost")
     //sched = context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "parsePost")
   }
 
@@ -46,16 +46,15 @@ final class GabSpout extends UpdaterTrait {
       case None =>
       case Some(p) => sendPostToPartitions(p)
     }
-    //sched.cancel()
-    //sched = context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "parsePost")
+    sched.cancel()
+    sched = context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "parsePost")
   }
 
   def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false, parent : Int = 0) : Unit = {
-
     val postUUID  = post.id.get.toInt
     val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
 
-    /*sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, postUUID, Map(
+    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, postUUID, Map(
       "user"         -> {post.user match {
                             case Some(u) => u.id.toString
                             case None => nullStr
@@ -67,30 +66,27 @@ final class GabSpout extends UpdaterTrait {
                           case None => nullStr
                         }},
       "type"         -> GabEntityType.post.toString,
-    )))*/
-    //sendCommand(CommandEnum.vertexAdd, VertexAdd(timestamp, postUUID))
-    sendCommand2(
+    )))
+    /*sendCommand2(
         s"""{"VertexAdd":${VertexAdd(timestamp, postUUID).toJson.toString()}}"""
-    )
+    )*/
     post.user match {
       case Some(user) => {
         val userUUID  = Math.pow(2,24).toInt + user.id
         if (userUUID < 0 || userUUID > Int.MaxValue)
           println(s"UserID is $userUUID")
-        /*sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, userUUID, Map(
+        sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, userUUID, Map(
           "username" -> user.username,
           "type"     -> GabEntityType.user.toString
-        )))*/
-        /*sendCommand(CommandEnum.vertexAdd, VertexAdd(timestamp, userUUID))
-        sendCommand(CommandEnum.edgeAdd, EdgeAdd(timestamp, userUUID, postUUID))*/
-        sendCommand2(
+        )))
+        /*sendCommand2(
           s"""{"VertexAdd":${VertexAdd(timestamp, userUUID).toJson.toString()}}"""
         )
-        //sendCommand2(
-        //  s"""{"EdgeAdd":${EdgeAdd(timestamp, userUUID, postUUID).toJson.toString()}}"""
-        //)
-        /*sendCommand(CommandEnum.edgeAdd,
-          EdgeAddWithProperties(timestamp, userUUID, postUUID, Map()))*/
+        sendCommand2(
+          s"""{"EdgeAdd":${EdgeAdd(timestamp, userUUID, postUUID).toJson.toString()}}"""
+        )*/
+        sendCommand(CommandEnum.edgeAdd,
+          EdgeAddWithProperties(timestamp, userUUID, postUUID, Map()))
       }
       case None =>
     }
@@ -117,14 +113,8 @@ final class GabSpout extends UpdaterTrait {
 
     // Edge from child to parent post
     if (recursiveCall && parent > 0) {
-      /*sendCommand(CommandEnum.edgeAdd,
-        EdgeAddWithProperties(timestamp, postUUID, parent, Map()))*/
-      //sendCommand(CommandEnum.edgeAdd, EdgeAdd(timestamp, postUUID, parent))
-      val c = EdgeAdd(timestamp, postUUID, parent).toJson.toString()
-      println(c)
-      sendCommand2(
-        s"""{"EdgeAdd":${c}}"""
-      )
+      sendCommand(CommandEnum.edgeAdd,
+        EdgeAddWithProperties(timestamp, postUUID, parent, Map()))
     }
     post.parent match {
       case Some(p) => {

@@ -23,12 +23,6 @@ trait RouterTrait extends RaphtoryActor {
     Kamon.gauge("raphtory.router.countGauge").set(count)
   }
 
-  /*protected def parseCommand(comm : Command) = {
-    count += 1
-    kCounter.refine("actor" -> "Router", "name" -> "count").increment()
-    Kamon.gauge("raphtory.router.countGauge").set(count)
-  }*/
-
   override def preStart() {
     context.system.scheduler.schedule(Duration(7, SECONDS),
       Duration(1, SECONDS),self,"tick")
@@ -44,7 +38,6 @@ trait RouterTrait extends RaphtoryActor {
     case command:String =>  {
       Task.eval(this.parseJSON(command)).fork.runAsync
     }
-    //case x : Command => Task.eval(this.parseCommand(x)).fork.runAsync
     case e => otherMessages(e)
   }
 

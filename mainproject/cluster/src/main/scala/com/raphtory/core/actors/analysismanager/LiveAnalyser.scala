@@ -40,7 +40,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
   mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
 
   override def preStart(): Unit = {
-    //context.system.scheduler.scheduleOnce(Duration(5, MINUTES), self, "start")
+    //context.system.scheduler.scheduleOnce(Duration(5, MINUTES), self, "start") TODO RESTORE uncomment me
     //context.system.scheduler.schedule(Duration(5, MINUTES), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
 
