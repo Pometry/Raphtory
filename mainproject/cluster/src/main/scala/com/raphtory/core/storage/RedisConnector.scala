@@ -201,9 +201,11 @@ object RedisConnector extends ReaderConnector with WriterConnector {
       previousState = getHistory(KeyEnum.vertices, entityId),
       properties = getProperties(KeyEnum.vertices, entityId)
     )
-    EntitiesStorage.vertices.get(entityId) match {
-      case Some(vx) => return vx
-      case None => EntitiesStorage.vertices.put(entityId, v)
+    EntitiesStorage.vertices.synchronized {
+      EntitiesStorage.vertices.get(entityId) match {
+        case Some(vx) => return vx
+        case None => EntitiesStorage.vertices.put(entityId, v)
+      }
     }
     v
   }
@@ -244,9 +246,11 @@ object RedisConnector extends ReaderConnector with WriterConnector {
         getHistory(KeyEnum.edges, edgeId),
         getProperties(KeyEnum.edges, edgeId))
     }
-    EntitiesStorage.edges.get(edgeId) match {
-      case None => EntitiesStorage.edges.put(edgeId, e)
-      case Some(edge) => return edge
+    EntitiesStorage.synchronized {
+      EntitiesStorage.edges.get(edgeId) match {
+        case None => EntitiesStorage.edges.put(edgeId, e)
+        case Some(edge) => return edge
+      }
     }
     e
   }

@@ -148,9 +148,11 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
   }
 
   def updateProp(key: String, p : Property) = {
-    properties.get(key) match {
-      case Some(v) => v update(p.currentTime, p.currentValue)
-      case None => properties.put(key, p)
+    properties.synchronized {
+      properties.get(key) match {
+        case Some(v) => v update(p.currentTime, p.currentValue)
+        case None => properties.put(key, p)
+      }
     }
   }
 

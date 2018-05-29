@@ -43,10 +43,12 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
     }
 
   def updateProperty(key : String, value : String) = {
-    v.properties.get(key) match {
-      case None =>
-        v.properties.put (key, new Property (System.currentTimeMillis (), key, value) )
-      case Some (oldProp) => oldProp.update (System.currentTimeMillis (), value)
+    v.synchronized {
+      v.properties.get(key) match {
+        case None =>
+          v.properties.put(key, new Property(System.currentTimeMillis(), key, value))
+        case Some(oldProp) => oldProp.update(System.currentTimeMillis(), value)
+      }
     }
   }
 
