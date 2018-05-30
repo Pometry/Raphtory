@@ -5,6 +5,7 @@ import com.raphtory.core.utils.KeyEnum
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import scala.collection.parallel.mutable.ParTrieMap
 
 private object MemoryConnector extends ReaderConnector {
   import EntitiesStorage.{edges,vertices}
@@ -45,7 +46,7 @@ private object MemoryConnector extends ReaderConnector {
     }
   }
 
-  override def getProperties(entityType: KeyEnum.Value, entityId: Long): TrieMap[String, Property] = {
+  override def getProperties(entityType: KeyEnum.Value, entityId: Long): ParTrieMap[String, Property] = {
     entityType match {
       case KeyEnum.vertices => vertices(entityId.toInt).properties
       case KeyEnum.edges    => edges(entityId.toInt).properties
@@ -60,7 +61,7 @@ private object MemoryConnector extends ReaderConnector {
     }
   }
 
-  override def getEntitiesObjs(entityType: KeyEnum.Value): TrieMap[_ <: AnyVal, _ <: Entity] = {
+  override def getEntitiesObjs(entityType: KeyEnum.Value): ParTrieMap[_ <: AnyVal, _ <: Entity] = {
     entityType match {
       case KeyEnum.vertices => EntitiesStorage.vertices
       case KeyEnum.edges    => EntitiesStorage.edges

@@ -15,6 +15,8 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.control.Breaks._
 import com.raphtory.core.storage.RedisConnector
+
+import scala.collection.parallel.mutable.ParTrieMap
 //TODO decide how to do shrinking window as graph expands
 //TODO implement temporal/spacial profiles (future)
 //TODO join historian to cluster
@@ -65,7 +67,7 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     }
   }
 
-  def compressJob[T <: AnyVal, U <: Entity](map : TrieMap[T, U]) = {
+  def compressJob[T <: AnyVal, U <: Entity](map : ParTrieMap[T, U]) = {
     val mapSize = map.size
     val taskNumber   = maxThreads * 10
     val batchedElems = mapSize / taskNumber
