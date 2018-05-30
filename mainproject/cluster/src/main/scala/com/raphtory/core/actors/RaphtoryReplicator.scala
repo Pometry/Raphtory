@@ -66,7 +66,7 @@ class RaphtoryReplicator(actorType:String, routerName : String) extends Actor {
     actorType match {
       case "Partition Manager" => {
         actorRef = context.system.actorOf(Props(new PartitionWriter(myId, false, myId+1)), s"Manager_$myId")
-        //actorRefReader = context.system.actorOf(Props(new PartitionReader(myId, false, myId+1)), s"ManagerReader_$myId") TODO RESTORE uncomment me
+        actorRefReader = context.system.actorOf(Props(new PartitionReader(myId, false, myId+1)), s"ManagerReader_$myId")
         //context.system.actorOf(Props(new Historian(20, 60, 0.3)))
       }
 
