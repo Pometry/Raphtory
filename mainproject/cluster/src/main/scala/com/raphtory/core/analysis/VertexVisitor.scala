@@ -4,6 +4,8 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.model.communication.EdgeUpdateProperty
 import com.raphtory.core.model.graphentities.{Edge, Property, Vertex}
 import com.raphtory.core.utils.Utils
+
+import scala.collection.parallel.mutable.ParArray
 object VertexVisitor  {
   def apply(v : Vertex)(implicit context : ActorContext, managerCount : Int) = {
     new VertexVisitor(v)
@@ -29,12 +31,12 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
 
   }
 
-  def getOutgoingNeighbors : Vector[Int] =
-    v.associatedEdges.filter(e => e.getSrcId == v.getId).map(e => e.getDstId).toVector
+  def getOutgoingNeighbors : ParArray[Int] =
+    v.associatedEdges.filter(e => e.getSrcId == v.getId).map(e => e.getDstId).toParArray
 
 
-  def getIngoingNeighbors  : Vector[Int] =
-    v.associatedEdges.filter(e => e.getDstId == v.getId).map(e => e.getSrcId).toVector
+  def getIngoingNeighbors  : ParArray[Int] =
+    v.associatedEdges.filter(e => e.getDstId == v.getId).map(e => e.getSrcId).toParArray
 
   def getPropertyCurrentValue(key : String) : Option[String] =
     v.properties.get(key) match {

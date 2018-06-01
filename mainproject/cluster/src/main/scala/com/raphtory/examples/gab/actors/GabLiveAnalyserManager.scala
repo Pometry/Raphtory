@@ -21,7 +21,7 @@ class GabLiveAnalyserManager extends LiveAnalyser {
 
   override protected def defineMaxSteps(): Unit = {
     //steps =  (B * Math.log(getNetworkSize/epsilon)).round
-    steps = 100 //Int.MaxValue
+    steps = 50 //Int.MaxValue
     if (getNetworkSize != 0)
       epsilon = 1/(100*getNetworkSize)
   }

@@ -40,7 +40,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
   mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
 
   override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(Duration(15, MINUTES), self, "start")
+    context.system.scheduler.scheduleOnce(Duration(10, MINUTES), self, "start")
     //context.system.scheduler.schedule(Duration(5, MINUTES), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
 
@@ -103,15 +103,16 @@ abstract class LiveAnalyser extends RaphtoryActor {
         if (currentStep == steps || this.checkProcessEnd()) {
           // Process results
           this.processResults(results)
-          context.system.scheduler.scheduleOnce(Duration(15, MINUTES), self, "start")
+          currentStep = 0
+          context.system.scheduler.scheduleOnce(Duration(10, MINUTES), self, "start")
         } else {
           println(s"Sending new step")
           oldResults = results
           results = Vector.empty[Any]
           currentStep += 1
-          currentStepCounter = 0
           mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStep(this.generateAnalyzer))
         }
+        currentStepCounter = 0
       }
     }
     case _ => processOtherMessages(_)

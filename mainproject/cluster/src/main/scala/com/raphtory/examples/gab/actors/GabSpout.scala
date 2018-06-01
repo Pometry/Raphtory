@@ -47,7 +47,7 @@ final class GabSpout extends UpdaterTrait {
       case Some(p) => sendPostToPartitions(p)
     }
     sched.cancel()
-    sched = context.system.scheduler.scheduleOnce(Duration(1, MILLISECONDS), self, "parsePost")
+    sched = context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "parsePost")
   }
 
   def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false, parent : Int = 0) : Unit = {
