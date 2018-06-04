@@ -17,7 +17,7 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
   implicit var managerCount : Int = managerCountVal
   val managerID    : Int = id                   //ID which refers to the partitions position in the graph manager map
   val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
-  implicit val s = Scheduler.forkJoin(8,16)
+  implicit val s = Scheduler.computation()
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersTopic, self)
   implicit val proxy = GraphRepoProxy

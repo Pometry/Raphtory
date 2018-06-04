@@ -104,7 +104,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
           // Process results
           this.processResults(results)
           currentStep = 0
-          context.system.scheduler.scheduleOnce(Duration(10, MINUTES), self, "start")
+          context.system.scheduler.scheduleOnce(Duration(30, MINUTES), self, "start")
         } else {
           println(s"Sending new step")
           oldResults = results
