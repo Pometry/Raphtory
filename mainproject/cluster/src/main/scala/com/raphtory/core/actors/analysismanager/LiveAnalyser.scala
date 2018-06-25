@@ -1,11 +1,11 @@
 package com.raphtory.core.actors.analysismanager
 
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 import akka.actor.Cancellable
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
@@ -33,14 +33,14 @@ abstract class LiveAnalyser extends RaphtoryActor {
   protected def generateAnalyzer : Analyser
   protected def processResults(result : Any) : Unit
   protected def processOtherMessages(value : Any) : Unit
-  protected def checkProcessEnd(result : Any) : Boolean = false
+  protected def checkProcessEnd() : Boolean = false
 
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
 
   override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(Duration(5, MINUTES), self, "start")
+    context.system.scheduler.scheduleOnce(Duration(15, MINUTES), self, "start")
     //context.system.scheduler.schedule(Duration(5, MINUTES), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
 
@@ -114,7 +114,6 @@ abstract class LiveAnalyser extends RaphtoryActor {
         }
       }
     }
-
     case _ => processOtherMessages(_)
   }
 

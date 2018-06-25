@@ -5,11 +5,12 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 
 import scala.collection.concurrent.TrieMap
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.{Edge, RemoteEdge, RemotePos, Vertex}
+import com.raphtory.core.model.graphentities.{Edge, Property, RemoteEdge, RemotePos, Vertex}
 import com.raphtory.core.storage.controller.GraphRepoProxy
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
+import scala.collection.parallel.mutable.ParTrieMap
 
 /**
   * Singleton representing the Storage for the entities
@@ -19,12 +20,12 @@ object EntitiesStorage {
   /**
     * Map of vertices contained in the partition
     */
-  val vertices = TrieMap[Int, Vertex]()
+  val vertices = ParTrieMap[Int, Vertex]()
 
    /**
     * Map of edges contained in the partition
     */
-  val edges    = TrieMap[Long, Edge]()  // Map of Edges contained in the partition
+  val edges    = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
 
   var printing     : Boolean = false
   var managerCount : Int     = -1
@@ -51,15 +52,19 @@ object EntitiesStorage {
     */
   def vertexAdd(msgTime : Long, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
     var value : Vertex = new Vertex(msgTime, srcId, initialValue = true, addOnlyVertex)
-    vertices.putIfAbsent(srcId, value) match {
-      case Some(oldValue) => {
-        oldValue revive msgTime
-        value = oldValue
+    vertices.synchronized {
+      vertices.get(srcId) match {
+        case Some(v) =>
+          v revive (msgTime)
+          value = v
+        case None =>
+          vertices.put(srcId, value)
       }
-      case None =>
     }
+
     if (properties != null)
-      properties.foreach(l => value + (msgTime,l._1,l._2)) //add all properties
+      properties.foreach(prop => value.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
+      //properties.foreach(l => value + (msgTime,l._1,l._2)) //add all properties
     GraphRepoProxy.addVertex(value.getId)
     value
   }
@@ -67,14 +72,16 @@ object EntitiesStorage {
   def vertexRemoval(msgTime:Long,srcId:Int) : Unit = {
     if (printing) println(s"Received vertex remove for $srcId, updating + informing all edges")
     var vertex : Vertex = null
-    vertices.get(srcId) match {
-      case Some(v) => {
-        vertex = v
-        v kill msgTime
-      }
-      case None    => {
-        vertex = new Vertex(msgTime, srcId, initialValue = false, addOnly = addOnlyVertex)
-        vertices put (srcId, vertex)
+    vertices.synchronized {
+      vertices.get(srcId) match {
+        case Some(v) => {
+          vertex = v
+          v kill msgTime
+        }
+        case None => {
+          vertex = new Vertex(msgTime, srcId, initialValue = false, addOnly = addOnlyVertex)
+          vertices put(srcId, vertex)
+        }
       }
     }
 
@@ -120,13 +127,17 @@ object EntitiesStorage {
     else
       edge = new RemoteEdge(msgTime, srcId, dstId, initialValue = true, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
 
-    edges.putIfAbsent(index, edge) match {
-      case Some(e) => {
-        edge = e
-        present = true
+    edges.synchronized {
+      edges.get(index) match {
+        case Some(e) => {
+          edge = e
+          present = true
+        }
+        case None =>
+          edges.put(index, edge)
       }
-      case None => // All is set
     }
+
     if (printing) println(s"Received an edge Add for $srcId --> $dstId (local: $local)")
 
     if (local && srcId != dstId) {
@@ -151,7 +162,7 @@ object EntitiesStorage {
     }
     GraphRepoProxy.addEdge(edge.getId)
     if (properties != null)
-      properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the edge
+      properties.foreach(prop => edge.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
 
   }
 
@@ -200,13 +211,14 @@ object EntitiesStorage {
     else
       edge = new RemoteEdge(msgTime,srcId, dstId, initialValue = false, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
 
-    edges.putIfAbsent(index, edge) match {
-      case Some(e) => {
+    edges.get(index) match {
+      case Some(e) =>
         edge = e
         present = true
-      }
-      case None => // All is set
+      case None =>
+        edges.put(index, edge)
     }
+
     if (printing) println(s"Received an edge Add for $srcId --> $dstId (local: $local)")
     var dstVertex : Vertex = null
     var srcVertex : Vertex = null

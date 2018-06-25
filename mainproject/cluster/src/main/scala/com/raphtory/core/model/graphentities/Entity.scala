@@ -1,12 +1,11 @@
 package com.raphtory.core.model.graphentities
 
-import java.util.concurrent.atomic.AtomicInteger
 
 import com.raphtory.core.utils.HistoryOrdering
 import monix.execution.atomic.AtomicLong
 
-import scala.collection.concurrent.TrieMap
-import scala.collection.{SortedMap, mutable}
+import scala.collection.parallel.mutable.ParTrieMap
+import scala.collection.mutable
 
 /** *
   * Represents Graph Entities (Edges and Vertices)
@@ -20,7 +19,7 @@ import scala.collection.{SortedMap, mutable}
 abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
 
   // Properties from that entity
-  var properties:TrieMap[String,Property] = TrieMap[String, Property]()
+  var properties:ParTrieMap[String,Property] = ParTrieMap[String, Property]()
 
   // History of that entity
   var previousState : mutable.TreeMap[Long, Boolean] = null
@@ -48,8 +47,9 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
       if (oldestPoint.get > msgTime) //check if the current point in history is the oldest
         oldestPoint.set(msgTime)
     }
-    else
-      previousState += msgTime -> true
+    else {
+      previousState.put(msgTime, true)
+    }
   }
 
   /** *
@@ -58,9 +58,9 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     * @param msgTime
     */
   def kill(msgTime: Long): Unit = {
-    removeList    += msgTime -> false
+    removeList.put(msgTime, false)
     if (!addOnly)
-      previousState += msgTime -> false
+      previousState.put(msgTime, false)
   }
 
   /** *
@@ -141,9 +141,18 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     * @param value property value
     */
   def +(msgTime: Long, key: String, value: String): Unit = {
-    properties.putIfAbsent(key, new Property(msgTime, key, value)) match {
-      case Some(oldValue) => oldValue update(msgTime, value)
-      case None =>
+    properties.get(key) match {
+      case Some(v) => v update(msgTime, value)
+      case None => properties.put(key, new Property(msgTime, key, value))
+    }
+  }
+
+  def updateProp(key: String, p : Property) = {
+    properties.synchronized {
+      properties.get(key) match {
+        case Some(v) => v update(p.currentTime, p.currentValue)
+        case None => properties.put(key, p)
+      }
     }
   }
 

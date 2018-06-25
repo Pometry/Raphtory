@@ -30,6 +30,7 @@ trait RouterTrait extends RaphtoryActor {
       Duration(10, SECONDS), self, "keep_alive")
   }
 
+
   final override def receive: Receive = {
     case "tick" => tick()
     case "keep_alive" => keepAlive()
@@ -60,7 +61,7 @@ trait RouterTrait extends RaphtoryActor {
       managerCount = newValue
   }
 
-  implicit val s : Scheduler = Scheduler(ExecutionModel.AlwaysAsyncExecution)
+  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
   println(akka.serialization.Serialization.serializedActorPath(self))
 }
 /*def vertexAdd(command : JsObject) : Unit
