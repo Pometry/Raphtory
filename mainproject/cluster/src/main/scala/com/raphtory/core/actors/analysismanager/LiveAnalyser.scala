@@ -44,7 +44,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
 
   override def preStart(): Unit = {
     context.system.scheduler.scheduleOnce(Duration(5, SECONDS), self, "start")
-    //context.system.scheduler.schedule(Duration(5, MINUTES), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
+    //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
 
   protected final def getNetworkSize  : Int = networkSize
@@ -60,6 +60,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
     //case "analyse" => analyse()
     case "start" => {
       println("Starting")
+      checkClusterSize
       sendGetNetworkSize()
     }
     case "networkSizeTimeout" => {
@@ -143,7 +144,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
 
   def checkClusterSize ={
     if (getManagerCount == 0) {
-      mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionsCountRequest, false)
+      mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
     }
   }
 

@@ -39,12 +39,17 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
     case "tick" => keepAliveHandler()
     case "refreshManagerCount" =>
       mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
+
+    case RequestPartitionCount => mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
+
     case PartitionUp(id:Int) => mapHandler(id,PMKeepAlive, "Partition Manager")
     case RouterUp(id:Int) =>mapHandler(id,RouterKeepAlive, "Router")
 
     case RequestPartitionId => newPMReqest()
 
     case RequestRouterId => newRouterRequest()
+
+
 
 
   }
