@@ -4,6 +4,7 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import scala.collection.parallel.mutable.ParTrieMap
 
 /**
   * Companion Edge object (extended creator for storage loads)
@@ -11,7 +12,7 @@ import scala.collection.mutable
 object RemoteEdge {
   def apply(creationTime : Long, edgeId : Long,
             previousState : mutable.TreeMap[Long, Boolean],
-            properties : TrieMap[String, Property], remotePos : RemotePos.Value, remotePartitionId : Int)= {
+            properties : ParTrieMap[String, Property], remotePos : RemotePos.Value, remotePartitionId : Int)= {
 
     val srcId = Utils.getIndexHI(edgeId)
     val dstId = Utils.getIndexLO(edgeId)

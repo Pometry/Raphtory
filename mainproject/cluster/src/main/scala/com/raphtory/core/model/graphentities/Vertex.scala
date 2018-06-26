@@ -2,12 +2,13 @@ package com.raphtory.core.model.graphentities
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import scala.collection.parallel.mutable.ParTrieMap
 
 /**
   * Companion Vertex object (extended creator for storage loads)
   */
 object Vertex {
-  def apply(creationTime : Long, vertexId : Int, associatedEdges : mutable.LinkedHashSet[Edge], previousState : mutable.TreeMap[Long, Boolean], properties : TrieMap[String, Property]) = {
+  def apply(creationTime : Long, vertexId : Int, associatedEdges : mutable.LinkedHashSet[Edge], previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property]) = {
     val v = new Vertex(creationTime, vertexId, initialValue = true, addOnly = false)
     v.previousState   = previousState
     v.associatedEdges = associatedEdges

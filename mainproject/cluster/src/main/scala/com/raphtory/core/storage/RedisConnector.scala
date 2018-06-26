@@ -7,6 +7,7 @@ import com.redis.RedisClient
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import scala.collection.parallel.mutable.ParTrieMap
 
 object RedisConnector extends ReaderConnector with WriterConnector {
   private val redis : RedisClient = new RedisClient("localhost", 6379)
@@ -102,7 +103,7 @@ object RedisConnector extends ReaderConnector with WriterConnector {
     * @return
     */
   override def getEntitiesObjs(entityType: KeyEnum.Value) = {
-    val entities = TrieMap[Long, Entity]()
+    val entities = ParTrieMap[Long, Entity]()
     getEntities(entityType).par.foreach((id) => {
       getEntity(entityType, id) match {
         case Some(entity) => entities.put(id, entity)
@@ -151,8 +152,8 @@ object RedisConnector extends ReaderConnector with WriterConnector {
     * @param entityId
     * @return
     */
-  override def getProperties(entityType: KeyEnum.Value, entityId: Long) : TrieMap[String, Property] = {
-    val properties = TrieMap[String, Property]()
+  override def getProperties(entityType: KeyEnum.Value, entityId: Long) : ParTrieMap[String, Property] = {
+    val properties = ParTrieMap[String, Property]()
     redis.keys(s"$entityType:$entityId:*:*")
       .get.par.foreach(
       optStr => {
@@ -160,10 +161,9 @@ object RedisConnector extends ReaderConnector with WriterConnector {
         val propertyName = key.split(":")(2)
         val propertyTime = key.split(":")(3).toLong
         val propertyValue = redis.get(optStr.get).get
-
-        properties.putIfAbsent(propertyName, new Property(propertyTime, propertyName, propertyValue)) match {
-          case Some(existingProp) => existingProp.update(propertyTime, propertyValue)
-          case None =>
+        properties.get(propertyName) match {
+          case Some(ep) => ep.update(propertyTime, propertyValue)
+          case None => properties.put(propertyName, new Property(propertyTime, propertyName, propertyValue))
         }
       }
     )
@@ -201,7 +201,12 @@ object RedisConnector extends ReaderConnector with WriterConnector {
       previousState = getHistory(KeyEnum.vertices, entityId),
       properties = getProperties(KeyEnum.vertices, entityId)
     )
-    EntitiesStorage.vertices.putIfAbsent(entityId, v)
+    EntitiesStorage.vertices.synchronized {
+      EntitiesStorage.vertices.get(entityId) match {
+        case Some(vx) => return vx
+        case None => EntitiesStorage.vertices.put(entityId, v)
+      }
+    }
     v
   }
 
@@ -241,7 +246,12 @@ object RedisConnector extends ReaderConnector with WriterConnector {
         getHistory(KeyEnum.edges, edgeId),
         getProperties(KeyEnum.edges, edgeId))
     }
-    EntitiesStorage.edges.putIfAbsent(edgeId, e)
+    EntitiesStorage.synchronized {
+      EntitiesStorage.edges.get(edgeId) match {
+        case None => EntitiesStorage.edges.put(edgeId, e)
+        case Some(edge) => return edge
+      }
+    }
     e
   }
 

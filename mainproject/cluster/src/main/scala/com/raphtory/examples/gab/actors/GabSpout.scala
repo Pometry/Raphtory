@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.Cancellable
 import com.raphtory.core.actors.datasource.UpdaterTrait
-import com.raphtory.core.model.communication.{EdgeAddWithProperties, VertexAddWithProperties}
+import com.raphtory.core.model.communication.{EdgeAddWithProperties, VertexAddWithProperties, VertexAdd, EdgeAdd}
 import com.raphtory.core.utils.{CommandEnum, GabEntityType}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import com.redis.{RedisClient, RedisConnectionException}
@@ -16,6 +16,7 @@ import scala.language.postfixOps
 
 final class GabSpout extends UpdaterTrait {
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
+  import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   private val redis    = new RedisClient("moe", 6379)
   private val redisKey = "gab-posts"
   private var sched : Cancellable = null
@@ -46,11 +47,10 @@ final class GabSpout extends UpdaterTrait {
       case Some(p) => sendPostToPartitions(p)
     }
     sched.cancel()
-    sched = context.system.scheduler.scheduleOnce(Duration(20, MILLISECONDS), self, "parsePost")
+    sched = context.system.scheduler.scheduleOnce(Duration(1, MILLISECONDS), self, "parsePost")
   }
 
-  def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false) : Unit = {
-
+  def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false, parent : Int = 0) : Unit = {
     val postUUID  = post.id.get.toInt
     val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
 
@@ -65,16 +65,26 @@ final class GabSpout extends UpdaterTrait {
                           case Some(topic) => topic.id
                           case None => nullStr
                         }},
-      "type"         -> GabEntityType.post.toString
+      "type"         -> GabEntityType.post.toString,
     )))
-
+    /*sendCommand2(
+        s"""{"VertexAdd":${VertexAdd(timestamp, postUUID).toJson.toString()}}"""
+    )*/
     post.user match {
       case Some(user) => {
         val userUUID  = Math.pow(2,24).toInt + user.id
+        if (userUUID < 0 || userUUID > Int.MaxValue)
+          println(s"UserID is $userUUID")
         sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, userUUID, Map(
           "username" -> user.username,
           "type"     -> GabEntityType.user.toString
         )))
+        /*sendCommand2(
+          s"""{"VertexAdd":${VertexAdd(timestamp, userUUID).toJson.toString()}}"""
+        )
+        sendCommand2(
+          s"""{"EdgeAdd":${EdgeAdd(timestamp, userUUID, postUUID).toJson.toString()}}"""
+        )*/
         sendCommand(CommandEnum.edgeAdd,
           EdgeAddWithProperties(timestamp, userUUID, postUUID, Map()))
       }
@@ -101,15 +111,21 @@ final class GabSpout extends UpdaterTrait {
     }*/
 
 
+    // Edge from child to parent post
+    if (recursiveCall && parent > 0) {
+      sendCommand(CommandEnum.edgeAdd,
+        EdgeAddWithProperties(timestamp, postUUID, parent, Map()))
+    }
     post.parent match {
       case Some(p) => {
         if (!recursiveCall) { // Allow only one recursion per post
-          println("Found parent post: Recursion!")
-          sendPostToPartitions(p, true)
+          //println("Found parent post: Recursion!")
+          sendPostToPartitions(p, true, postUUID)
         }
       }
       case None =>
     }
+
   }
 
   override protected def processChildMessages(rcvdMessage: Any) : Unit = {
@@ -119,11 +135,17 @@ final class GabSpout extends UpdaterTrait {
   }
 
   private def getNextPost() : Option[GabPost] = {
-
     redis.lpop(redisKey) match {
       case Some(i) => {
         val x = redis.get(i).get
-        Some(x.drop(2).dropRight(1).replaceAll("""\\"""", "").replaceAll("""\\""", "").parseJson.convertTo[GabPost])
+        val y = x.drop(2).dropRight(1)
+        try {
+          Some(y.replaceAll("""\\"""", "").replaceAll("""\\""", "").parseJson.convertTo[GabPost])
+        } catch {
+          case e =>
+            println(e.toString)
+            None
+        }
       }
       case None => {
         println("Stream end")

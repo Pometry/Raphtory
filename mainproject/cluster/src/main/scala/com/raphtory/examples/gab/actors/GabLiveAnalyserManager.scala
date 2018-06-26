@@ -9,44 +9,46 @@ class GabLiveAnalyserManager extends LiveAnalyser {
   private val epsilon : Float = 0.85F
   private val delta1  : Float = 1F*/
 
-  private val epsilon        = 0.00000001F
+  private var epsilon        = 1
   private val dumplingFactor = 0.85F
+  private var firstStep      = true
 
   override protected def processResults(result: Any): Unit = println(
-    result.asInstanceOf[Vector[Vector[(Long, Double)]]]
+    result.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten.sortBy(f => f._2)(Ordering[Double].reverse))/*.asInstanceOf[Vector[Vector[(Long, Double)]]]
       .flatMap(e => e).sortBy(f => f._2)(Ordering[Double])
       .reverse
-  )
+  )*/
 
   override protected def defineMaxSteps(): Int = {
     //steps =  (B * Math.log(getNetworkSize/epsilon)).round
-    100 //Int.MaxValue
+    if (getNetworkSize != 0)
+      epsilon = 1/(100*getNetworkSize)
+    100
   }
 
   override protected def generateAnalyzer : Analyser = new GabPageRank3(getNetworkSize, dumplingFactor)
   override protected def processOtherMessages(value: Any) : Unit = {println ("Not handled message" + value.toString)}
 
-  override protected def checkProcessEnd(result: Any): Boolean = {
-    val _newResults = results.asInstanceOf[Vector[Vector[(Long, Double)]]].flatMap(v => v)
-    val _oldResults = oldResults.asInstanceOf[Vector[Vector[(Long, Double)]]].flatMap(v => v)
-    println(s"newResults: ${_newResults.size} => ${_oldResults.size}")
-    if (_oldResults.size < 1 && _newResults.size > 0) {
-      println("OldResults are empty, newResults were filled")
-      return false // Process has not finished (just first iteration)
+  override protected def checkProcessEnd() : Boolean = {
+    try {
+      val _newResults = results.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten
+      val _oldResults = oldResults.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten
+      println(s"newResults: ${_newResults.size} => ${_oldResults.size}")
+
+      if (firstStep) {
+        firstStep = false
+        return false
+      }
+
+      val newSum = _newResults.sum(resultNumeric)._2
+      val oldSum = _oldResults.sum(resultNumeric)._2
+
+      println(s"newSum = $newSum - oldSum = $oldSum - diff = ${newSum - oldSum}")
+      //results = _newResults
+      Math.abs(newSum - oldSum) / _newResults.size < epsilon
+    } catch {
+      case _ : Exception => false
     }
-
-    return false
-    if (_newResults.size < 1) {
-      println("NewResults are empty.")
-      return true // Graph is now empty (endProcess/retry in a while)
-    }
-
-    val newSum = _newResults.sum(resultNumeric)._2
-    val oldSum = _oldResults.sum(resultNumeric)._2
-
-    println(s"newSum = $newSum - oldSum = $oldSum - diff = ${newSum - oldSum}")
-    results = _newResults
-    Math.abs(newSum - oldSum) / _newResults.size < epsilon
   }
 
   implicit object resultNumeric extends Numeric[(Long, Double)] {

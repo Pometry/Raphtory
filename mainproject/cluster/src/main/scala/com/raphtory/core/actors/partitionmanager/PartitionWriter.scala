@@ -11,9 +11,11 @@ import com.raphtory.core.model.graphentities.Entity
 import kamon.Kamon
 import kamon.metric.GaugeMetric
 import monix.eval.Task
+import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{ExecutionModel, Scheduler}
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration._
 
 /**
@@ -27,7 +29,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
 
   val printing: Boolean = false                  // should the handled messages be printed to terminal
   val kLogging: Boolean = System.getenv().getOrDefault("PROMETHEUS", "true").trim().toBoolean // should the state of the vertex/edge map be output to Kamon/Prometheus
-  val stdoutLog:Boolean = System.getenv().getOrDefault("STDOUT_LOG", "true").trim().toBoolean // A slower logging for the state of vertices/edges maps to Stdout
+  val stdoutLog:Boolean = System.getenv().getOrDefault("STDOUT_LOG", "false").trim().toBoolean // A slower logging for the state of vertices/edges maps to Stdout
 
   val messageCount          : AtomicInteger = new AtomicInteger(0)         // number of messages processed since last report to the benchmarker
   val secondaryMessageCount : AtomicInteger = new AtomicInteger(0)
@@ -43,7 +45,16 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   val edgesGauge    : GaugeMetric = Kamon.gauge("raphtory.edges")
 
 
-  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
+  //implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
+
+  // Explicit execution model
+  implicit val s = Scheduler.io(
+    name="my-io",
+    executionModel = AlwaysAsyncExecution
+  )
+  // Simple constructor
+  //implicit val s =
+  //  Scheduler.computation(parallelism=16)
 
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
@@ -98,15 +109,15 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   /*****************************
    * Metrics reporting methods *
    *****************************/
-  def getEntitiesPrevStates[T,U <: Entity](m : TrieMap[T, U]) : Int = {
-    var ret : Int = 0
+  def getEntitiesPrevStates[T,U <: Entity](m : ParTrieMap[T, U]) : Int = {
+    var ret = new AtomicInteger(0)
     m.foreach[Unit](e => {
-      ret += e._2.getPreviousStateSize()
+      ret.getAndAdd(e._2.getPreviousStateSize())
     })
-    ret
+    ret.get
   }
 
-  def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map : TrieMap[T, U]) : Unit = {
+  def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map : ParTrieMap[T, U]) : Unit = {
     def getGauge(name : String) = {
      g.refine("actor" -> "PartitionManager", "replica" -> id.toString, "name" -> name)
     }
