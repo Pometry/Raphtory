@@ -47,6 +47,7 @@ case class ReturnEdgeRemoval(msgTime:Long,srcId:Int,dstId:Int)
 case class UpdatedCounter(newValue : Int)
 case class AssignedId(id : Int)
 case class PartitionsCount(count : Int)
+case class PartitionsCountRequest()
 case class RequestPartitionId()
 case class RequestRouterId()
 

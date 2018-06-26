@@ -89,17 +89,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
     case ClassMissing() => {
       println(s"$sender does not have analyser, sending now")
       import scala.io.Source
-      var code = "import com.raphtory.core.analysis.Analyser \n new Analyser {\n\nimport akka.actor.ActorContext\nimport com.raphtory.core.storage.controller.GraphRepoProxy\n\n  override implicit var context: ActorContext = _\n  override implicit var managerCount: Int = _\n\n  override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int): Any = \"hello\"\n\n  override def setup()(implicit proxy: GraphRepoProxy.type): Any = ""\n}"
-//      for (line <- Source.fromFile("cluster/src/main/scala/"+generateAnalyzer.getClass.getName.replaceAll("\\.","/").replaceAll("\\$",".scala")).getLines) {
-//        if(line.contains("package com.")){}
-//        else if (line.contains("extends Analyser")) {
-//          code += "new Analyser {\n"
-//        }
-//        else {
-//          code += s"$line\n"
-//        }
-//      }
-//      analyserName = generateAnalyzer.getClass.getName
+      var code = ""
       analyserName = "test"
       newAnalyser = true
       sender() ! SetupNewAnalyser(code,analyserName)
@@ -149,6 +139,12 @@ abstract class LiveAnalyser extends RaphtoryActor {
     }
 
     case _ => processOtherMessages(_)
+  }
+
+  def checkClusterSize ={
+    if (getManagerCount == 0) {
+      mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionsCountRequest, false)
+    }
   }
 
   //  private final def analyse() ={
