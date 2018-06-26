@@ -32,7 +32,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
 
   implicit val proxy : GraphRepoProxy.type = null
 
-  protected def defineMaxSteps() : Unit
+  protected def defineMaxSteps() : Int
   protected def generateAnalyzer : Analyser
   protected def processResults(result : Any) : Unit
   protected def processOtherMessages(value : Any) : Unit
@@ -44,6 +44,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
 
   override def preStart(): Unit = {
     context.system.scheduler.scheduleOnce(Duration(5, SECONDS), self, "start")
+    steps = defineMaxSteps()
     //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
 

@@ -10,7 +10,7 @@ class LiveAnalysisManager() extends LiveAnalyser {
   private val delta1  : Float = 1F
 
   override protected def processResults(result: Any): Unit = println(result)
-  override protected def defineMaxSteps(): Unit = steps =  (B * Math.log(getNetworkSize/epsilon)).round
+  override protected def defineMaxSteps(): Int = (B * Math.log(getNetworkSize/epsilon)).round.toInt
   override protected def generateAnalyzer : Analyser = new GabPageRank(getNetworkSize, epsilon, delta1)
   override protected def processOtherMessages(value: Any) : Unit = {}
 }

@@ -2,7 +2,7 @@ package com.raphtory.core.actors.analysismanager
 import com.raphtory.core.analysis._
 
 class TestLAM extends LiveAnalyser {
-  override protected def defineMaxSteps(): Unit = 10
+  override protected def defineMaxSteps(): Int = 10
 
   override protected def generateAnalyzer: Analyser = new TestAnalyser()
 

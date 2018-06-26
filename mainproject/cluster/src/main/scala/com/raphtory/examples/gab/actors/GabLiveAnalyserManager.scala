@@ -18,9 +18,9 @@ class GabLiveAnalyserManager extends LiveAnalyser {
       .reverse
   )
 
-  override protected def defineMaxSteps(): Unit = {
+  override protected def defineMaxSteps(): Int = {
     //steps =  (B * Math.log(getNetworkSize/epsilon)).round
-    steps = 100 //Int.MaxValue
+    100 //Int.MaxValue
   }
 
   override protected def generateAnalyzer : Analyser = new GabPageRank3(getNetworkSize, dumplingFactor)
