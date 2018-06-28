@@ -6,6 +6,6 @@ import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
 
 object SingleNodeClusterTest extends App {
 
-  SingleNodeSetup("192.168.1.92:1600")
+  SingleNodeSetup("161.23.168.75:1600")
 
 }

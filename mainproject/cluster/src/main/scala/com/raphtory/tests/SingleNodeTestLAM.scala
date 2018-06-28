@@ -9,12 +9,24 @@ import com.twitter.util.Eval
 object SingleNodeTestLAM extends  App{
 
 
-  SingleNodeLAM("192.168.1.92:1600")
+  //SingleNodeLAM("161.23.168.75:1600")
 
   def extra = {
     val eval = new Eval // Initializing The Eval without any target location
 
-    val csvEval: Analyser = eval[Analyser]("import akka.actor.ActorContext\nimport com.raphtory.core.analysis.Analyser\nimport com.raphtory.core.storage.controller.GraphRepoProxy\n\nnew Analyser {\n  override implicit var context: ActorContext = _\n  override implicit var managerCount: Int = _\n\n  override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int): Any = \"hello\"\n\n  override def setup()(implicit proxy: GraphRepoProxy.type): Any = ???\n}")
+    //val csvEval: Analyser = eval[Analyser]("import akka.actor.ActorContext\nimport com.raphtory.core.analysis.Analyser\nimport com.raphtory.core.storage.controller.GraphRepoProxy\n\nnew Analyser {\n  override implicit var context: ActorContext = _\n  override implicit var managerCount: Int = _\n\n  override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int): Any = \"hello\"\n\n  override def setup()(implicit proxy: GraphRepoProxy.type): Any = ???\n}")
+    val csvEval:Analyser = eval[Analyser]("""private class TestAnalyser1 extends Analyser {
+      |
+      |import akka.actor.ActorContext
+      |import com.raphtory.core.storage.controller.GraphRepoProxy
+      |
+      |  override implicit var context: ActorContext = _
+      |  override implicit var managerCount: Int = _
+      |
+      |  override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int): Any = "goodbye"
+      |
+      |  override def setup()(implicit proxy: GraphRepoProxy.type): Any = ""
+      |}""")
     implicit val proxy: GraphRepoProxy.type = null
     implicit val managerCount: Int = 1
     import scala.io.Source

@@ -37,6 +37,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
   protected def processResults(result : Any) : Unit
   protected def processOtherMessages(value : Any) : Unit
   protected def checkProcessEnd() : Boolean = false
+  protected  def missingCode() : String
 
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
@@ -91,7 +92,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
     case ClassMissing() => {
       println(s"$sender does not have analyser, sending now")
       import scala.io.Source
-      var code = ""
+      var code = missingCode()
       analyserName = "test"
       newAnalyser = true
       sender() ! SetupNewAnalyser(code,analyserName)
@@ -147,6 +148,7 @@ abstract class LiveAnalyser extends RaphtoryActor {
       mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
     }
   }
+
 
   //  private final def analyse() ={
   //      for(i <- 0 until managerCount){
