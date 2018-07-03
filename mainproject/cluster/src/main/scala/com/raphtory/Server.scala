@@ -17,6 +17,7 @@ import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
 import com.raphtory.core.actors.datasource.UpdateGen
 import com.raphtory.core.actors.router.RaphtoryRouter
 import com.raphtory.core.clustersetup._
+import com.raphtory.core.clustersetup.singlenode.{SingleNodeLAM, SingleNodeSetup}
 //main function
 object Go extends App {
   val conf          = ConfigFactory.load()
@@ -67,6 +68,15 @@ object Go extends App {
       WatchDogNode(getConf(zookeeper), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
     }
 
+    case "singleNodeSetup" => {
+      println("Creating seed node")
+      setConf(seedLoc, zookeeper)
+      SingleNodeSetup(seedLoc)
+    }
+
+    case "singleNodeLam" => {
+      SingleNodeLAM(getConf(zookeeper))
+    }
   }
 
   def setConf(seedLoc: String, zookeeper: String): Unit = {

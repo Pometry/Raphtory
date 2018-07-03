@@ -1,10 +1,10 @@
 package com.raphtory.examples.gab.actors
 
-import com.raphtory.core.actors.analysismanager.LiveAnalyser
+import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.examples.gab.analysis.{GabPageRank, GabPageRank2, GabPageRank3}
 
-class GabLiveAnalyserManager extends LiveAnalyser {
+class GabLiveAnalyserManager extends LiveAnalysisManager {
   /*private val B       : Int   = 100 // TODO set
   private val epsilon : Float = 0.85F
   private val delta1  : Float = 1F*/
@@ -63,4 +63,6 @@ class GabLiveAnalyserManager extends LiveAnalyser {
     override def toDouble(x: (Long, Double)) = x._2
     override def compare(x: (Long, Double), y: (Long, Double)) = x._2.compare(y._2)
   }
+
+  override protected def missingCode() = ""
 }
