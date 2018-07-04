@@ -21,12 +21,14 @@ class UpdateGen extends RaphtoryActor with Timers {
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   var totalCount      = 100
-  var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt  // (Updates/s) - Hz
+  var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt  // (Updates/s) - Hz  ->1000
 
   var currentMessage  = 0
   var previousMessage = 0
   var safe            = false
   var counter         = 0
+
+  val vertexPool      = 1000 //100000
 
   def getPeriodDuration(unit : TimeUnit) : FiniteDuration = {
     val period : Long = unit.convert(1, SECONDS)/freq
@@ -38,8 +40,8 @@ class UpdateGen extends RaphtoryActor with Timers {
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     println(s"Prestarting ($freq Hz)")
-
-    context.system.scheduler.schedule(Duration(1, MINUTES), Duration(1, MILLISECONDS), self, "random")
+    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "random")
+    //context.system.scheduler.schedule(Duration(1, MINUTES), Duration(1, MILLISECONDS), self, "random") //1 MINUTE
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"benchmark")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"stateCheck")
 
@@ -55,6 +57,7 @@ class UpdateGen extends RaphtoryActor with Timers {
     case "random" => {
       if(safe) {
         genRandomCommands(freq/1000)
+        safe=false //to be removed
       }
     }
     case "benchmark" => benchmark()
@@ -91,9 +94,10 @@ class UpdateGen extends RaphtoryActor with Timers {
   def distribution() : String = {
     val random = Random.nextFloat()
     if (random <= 0.3)      genVertexAdd()
-    else if (random <= 0.7) genEdgeAdd()
-    else if (random <= 0.8) genVertexRemoval()
-    else                    genEdgeAdd()
+    //else if (random <= 0.7) genEdgeAdd()
+    else genEdgeAdd()
+    //else if (random <= 0.8) genVertexRemoval()
+    //else                    genEdgeRemoval()
   }
 
   /**
@@ -191,8 +195,8 @@ class UpdateGen extends RaphtoryActor with Timers {
 
   def genSetSrcID():String = s""" "srcID":9 """
   def genSetDstID():String = s""" "dstID":10 """
-  def genSrcID():String = s""" "srcID":${Random.nextInt(100000)} """
-  def genDstID():String = s""" "dstID":${Random.nextInt(100000)} """
+  def genSrcID():String = s""" "srcID":${Random.nextInt(vertexPool)} """
+  def genDstID():String = s""" "dstID":${Random.nextInt(vertexPool)} """
   def genSrcID(src:Int):String = s""" "srcID":$src """
   def genDstID(dst:Int):String = s""" "dstID":$dst """
 

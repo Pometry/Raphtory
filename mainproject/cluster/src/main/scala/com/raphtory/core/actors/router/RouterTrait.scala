@@ -31,7 +31,7 @@ trait RouterTrait extends RaphtoryActor {
   }
 
 
-  final override def receive: Receive = {
+  override def receive: Receive = {
     case "tick" => tick()
     case "keep_alive" => keepAlive()
     case UpdatedCounter(newValue) => newPmJoined(newValue)

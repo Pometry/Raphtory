@@ -68,5 +68,8 @@ case class FailedToCompile (stackTrace:String) extends  RaphReadClasses
 case class NextStepNewAnalyser(name: String) extends RaphReadClasses
 
 
+case class CheckVertex()
+case class CheckEdges()
+
 //case class WatchDogIp(ip: String)
 
