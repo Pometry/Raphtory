@@ -7,7 +7,7 @@ class LiveAnalysisManager() extends LiveAnalyser {
   // !!!Not used look at GabLiveAnalysisManager for Gab example!!!
   private val B       : Int   = 100 // TODO set
   private val epsilon : Float = 0.01F // TODO set
-  private val delta1  : Float = 1F
+    private val delta1  : Float = 2F
 
   override protected def processResults(result: Any): Unit = println(result)
   override protected def defineMaxSteps(): Unit = steps =  (B * Math.log(getNetworkSize/epsilon)).round

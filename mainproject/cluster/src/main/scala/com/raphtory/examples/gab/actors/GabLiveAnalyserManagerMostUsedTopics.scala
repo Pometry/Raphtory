@@ -2,9 +2,9 @@ package com.raphtory.examples.gab.actors
 
 import com.raphtory.core.actors.analysismanager.LiveAnalyser
 import com.raphtory.core.analysis.Analyser
-import com.raphtory.examples.gab.analysis.{GabPageRank, GabPageRank2, GabPageRank3}
+import com.raphtory.examples.gab.analysis.GabMostUsedTopics
 
-class GabLiveAnalyserManager extends LiveAnalyser {
+class GabLiveAnalyserManagerMostUsedTopics extends LiveAnalyser {
   /*private val B       : Int   = 100 // TODO set
   private val epsilon : Float = 0.85F
   private val delta1  : Float = 1F*/
@@ -14,19 +14,17 @@ class GabLiveAnalyserManager extends LiveAnalyser {
   private var firstStep      = true
 
   override protected def processResults(result: Any): Unit = println(
-    result.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten.sortBy(f => f._2)(Ordering[Double].reverse))/*.asInstanceOf[Vector[Vector[(Long, Double)]]]
+    result.asInstanceOf[Vector[Vector[(String, Int, String)]]].flatten.sortBy(f => f._2)(Ordering[Int].reverse))/*.asInstanceOf[Vector[Vector[(Long, Double)]]]
       .flatMap(e => e).sortBy(f => f._2)(Ordering[Double])
       .reverse
   )*/
 
   override protected def defineMaxSteps(): Unit = {
     //steps =  (B * Math.log(getNetworkSize/epsilon)).round
-    steps = 50 //Int.MaxValue
-    if (getNetworkSize != 0)
-      epsilon = 1/(100*getNetworkSize)
+    steps = 1 //Int.MaxValue
   }
 
-  override protected def generateAnalyzer : Analyser = new GabPageRank3(getNetworkSize, dumplingFactor)
+  override protected def generateAnalyzer : Analyser = new GabMostUsedTopics(getNetworkSize, dumplingFactor)
   override protected def processOtherMessages(value: Any) : Unit = {println ("Not handled message" + value.toString)}
 
   override protected def checkProcessEnd() : Boolean = {

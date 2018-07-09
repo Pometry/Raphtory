@@ -10,14 +10,14 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.controller.GraphRepoProxy
 import com.raphtory.core.utils.Utils
 import monix.eval.Task
+import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{ExecutionModel, Scheduler}
 
 class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends RaphtoryActor {
   implicit var managerCount : Int = managerCountVal
   val managerID    : Int = id                   //ID which refers to the partitions position in the graph manager map
-  implicit val s : Scheduler = Scheduler(ExecutionModel.AlwaysAsyncExecution)
   val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
-
+  implicit val s = Scheduler.computation()
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersTopic, self)
   implicit val proxy = GraphRepoProxy
@@ -44,7 +44,7 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
       println(s"Received new step for pm_$managerID")
       analyzer.sysSetup()
       val senderPath = sender().path
-      this.analyze(analyzer, senderPath)
+      Task.eval(this.analyze(analyzer, senderPath)).runAsync
     }
     case GetNetworkSize() =>
       sender() ! NetworkSize(GraphRepoProxy.getVerticesSet().size)
