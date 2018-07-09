@@ -54,7 +54,7 @@ final class GabSpout extends UpdaterTrait {
     val postUUID  = post.id.get.toInt
     val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
 
-    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, postUUID, Map(
+    sendCommand(CommandEnum.vertexAddWithProperties, VertexAddWithProperties(timestamp, postUUID, Map(
       "user"         -> {post.user match {
                             case Some(u) => u.id.toString
                             case None => nullStr
@@ -70,7 +70,7 @@ final class GabSpout extends UpdaterTrait {
     /*sendCommand2(
         s"""{"VertexAdd":${VertexAdd(timestamp, postUUID).toJson.toString()}}"""
     )*/
-    post.user match {
+    /*post.user match {
       case Some(user) => {
         val userUUID  = Math.pow(2,24).toInt + user.id
         if (userUUID < 0 || userUUID > Int.MaxValue)
@@ -89,32 +89,31 @@ final class GabSpout extends UpdaterTrait {
           EdgeAddWithProperties(timestamp, userUUID, postUUID, Map()))
       }
       case None =>
-    }
+    }*/
 
-    /*post.topic match {
+    post.topic match {
       case Some(topic) => {
-        val topicUUID : Int = (Math.pow(2, 10) + topic.id.hashCode()).toInt
-        println(topicUUID)
-        println(sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, topicUUID, Map(
+        val topicUUID : Int = Math.pow(2,24).toInt+ (topic.id.hashCode()).toInt
+        sendCommand(CommandEnum.vertexAddWithProperties, VertexAddWithProperties(timestamp, topicUUID, Map(
           "created_at" -> topic.created_at,
           "category"   -> topic.category.toString,
           "title"      -> topic.title.getOrElse("null"),
           "type"       -> GabEntityType.topic.toString,
           "id"         -> topic.id
           )
-        )))
+        ))
 
-        //sendCommand(CommandEnum.edgeAdd,
-        //  EdgeAddWithProperties(timestamp, postUUID, topicUUID, Map()))
+        sendCommand(CommandEnum.edgeAdd,
+          EdgeAdd(timestamp, postUUID, topicUUID))
       }
       case None =>
-    }*/
+    }
 
 
     // Edge from child to parent post
     if (recursiveCall && parent > 0) {
       sendCommand(CommandEnum.edgeAdd,
-        EdgeAddWithProperties(timestamp, postUUID, parent, Map()))
+        EdgeAdd(timestamp, postUUID, parent))
     }
     post.parent match {
       case Some(p) => {
