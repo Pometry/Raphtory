@@ -4,6 +4,8 @@ import akka.actor.Props
 import com.raphtory.core.actors.{RaphtoryReplicator, SeedActor, WatchDog}
 import com.raphtory.core.clustersetup.DocSvr
 import com.typesafe.config.{Config, ConfigFactory}
+import scala.language.postfixOps
+import scala.sys.process._
 
 case class SingleNodeSetup(seedLoc:String) extends DocSvr {
   val conf : Config = ConfigFactory.load()
@@ -13,6 +15,7 @@ case class SingleNodeSetup(seedLoc:String) extends DocSvr {
   val routerClassName = "com.raphtory.core.actors.router.RaphtoryRouter"
   val LamClassName = "com.raphtory.core.actors.analysismanager.TestLAM"
   val UpdaterName = "com.raphtory.core.actors.datasource.UpdateGen"
+  "redis-server --daemonize yes" ! //start redis running on manager partition
 
 
   system.actorOf(Props(new SeedActor(this)), "cluster")

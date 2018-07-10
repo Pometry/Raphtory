@@ -1,7 +1,8 @@
 package com.raphtory.core.actors.analysismanager
 
-import scala.concurrent.duration._
+import java.io.FileNotFoundException
 
+import scala.concurrent.duration._
 import akka.actor.Cancellable
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 
@@ -12,6 +13,8 @@ import com.raphtory.core.utils.Utils
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.storage.controller.GraphRepoProxy
 
+import scala.io.Source
+
 abstract class LiveAnalysisManager extends RaphtoryActor {
   private var managerCount : Int = 0
   private var currentStep  = 0L
@@ -21,8 +24,8 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
   private var readyCounter       = 0
   private var currentStepCounter = 0
   private var toSetup            = true
+  protected def analyserName:String = generateAnalyzer.getClass.getName
 
-  private var analyserName:String = ""
   private var newAnalyser:Boolean = false
 
   protected val mediator     = DistributedPubSub(context.system).mediator
@@ -37,10 +40,8 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
   protected def generateAnalyzer : Analyser
   protected def processResults(result : Any) : Unit
   protected def processOtherMessages(value : Any) : Unit
-  protected  def missingCode() : String
   protected def checkProcessEnd() : Boolean = false
   /******************** STUFF TO DEFINE *********************/
-
 
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
@@ -77,6 +78,7 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
       this.processResults(result)
     }
     case PartitionsCount(newValue) => {
+      println(s"received new count of $newValue")
       managerCount = newValue
     }
     case NetworkSize(size) => {
@@ -94,9 +96,7 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
 
     case ClassMissing() => {
       println(s"$sender does not have analyser, sending now")
-      import scala.io.Source
       var code = missingCode                                                                                                                                                                   ()
-      analyserName = "test"
       newAnalyser = true
       sender() ! SetupNewAnalyser(code,analyserName)
     }
@@ -152,6 +152,29 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
     }
   }
 
+  def missingCode() : String = {
+    val file = generateAnalyzer.getClass.getName.replaceAll("\\.","/").replaceAll("$","")
+    var code = ""
+    try code = readClass(s"$file.scala") //if inside a contained and the src has been copied
+    catch { case e:FileNotFoundException=> code = readClass(s"cluster/src/main/scala/$file.scala")} //if we are running locally inside of the the mainproject folder
+    code
+  }
+
+  def readClass(file:String):String = {
+    val bufferedSource = Source.fromFile(file)
+    var code =""
+    for (line <- bufferedSource.getLines) {
+      if(line.startsWith("class ") && line.contains("extends Analyser")) //name of class must be replaced with "new Analyser"
+        if(line.contains("{"))
+          code += "new Analyser{ \n"
+        else
+          code += "new Analyser \n"
+      else if(!line.startsWith("package com.")) //have to also remove package line
+        code += s"$line\n"
+    }
+    bufferedSource.close
+    code
+  }
 
   //  private final def analyse() ={
   //      for(i <- 0 until managerCount){

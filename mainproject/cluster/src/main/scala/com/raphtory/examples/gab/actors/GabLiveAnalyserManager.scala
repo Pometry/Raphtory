@@ -63,6 +63,4 @@ class GabLiveAnalyserManager extends LiveAnalysisManager {
     override def toDouble(x: (Long, Double)) = x._2
     override def compare(x: (Long, Double), y: (Long, Double)) = x._2.compare(y._2)
   }
-
-  override protected def missingCode() = ""
 }
