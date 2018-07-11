@@ -96,7 +96,7 @@ trait WindowingRouter extends  RouterTrait {
     if (vertexWindow.nonEmpty) {
       vertexWindow foreach { case(k,v) =>
           if (System.currentTimeMillis() - v > WindowSize) {
-            mediator ! DistributedPubSubMediator.Send(getManager(k,managerCount),VertexRemoval(System.currentTimeMillis(),k),false)
+            mediator ! DistributedPubSubMediator.Send(getManager(k,managerCount),VertexRemoval(routerId,System.currentTimeMillis(),k),false)
             vertexWindow.remove(k)
             println(s"${System.currentTimeMillis()} vertex removed with src: $k")
           }
@@ -113,7 +113,7 @@ trait WindowingRouter extends  RouterTrait {
         if (System.currentTimeMillis() - v > WindowSize) {
           val srcId: Int = getIndexLO(k) //ASK BEN
           val dstId: Int = getIndexHI(k)
-          mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeRemoval(System.currentTimeMillis(),srcId,dstId),false) //send the srcID, dstID to graph manager
+          mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeRemoval(routerId,System.currentTimeMillis(),srcId,dstId),false) //send the srcID, dstID to graph manager
           edgeWindow.remove(k)
           println(s"${System.currentTimeMillis()} edge removed with src: $srcId, dst: $dstId")
         }

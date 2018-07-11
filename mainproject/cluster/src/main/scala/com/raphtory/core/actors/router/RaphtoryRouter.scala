@@ -84,11 +84,11 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
         properties = properties updated (pair._1, pair._2.toString())
       })
       //send the srcID and properties to the graph manager
-      mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexAddWithProperties(msgTime,srcId,properties),false)
+      mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexAddWithProperties(routerId,msgTime,srcId,properties),false)
       // println(s"sending vertex add $srcId to Manager 1")
     }
     else {
-      mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexAdd(msgTime,srcId),false)
+      mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexAdd(routerId,msgTime,srcId),false)
       // println(s"sending vertex add $srcId to Manager 1")
     } // if there are not any properties, just send the srcID
 
@@ -100,13 +100,13 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexUpdateProperties(msgTime,srcId,properties),false) //send the srcID and properties to the graph parition
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexUpdateProperties(routerId,msgTime,srcId,properties),false) //send the srcID and properties to the graph parition
   }
 
   def vertexRemoval(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexRemoval(msgTime,srcId),false)
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexRemoval(routerId,msgTime,srcId),false)
   }
 
   def edgeAdd(command:JsObject):Unit = {
@@ -118,9 +118,9 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
       command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
         properties = properties updated (pair._1,pair._2.toString())
       })
-      mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeAddWithProperties(msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
+      mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeAddWithProperties(routerId,msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
     }
-    else mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeAdd(msgTime,srcId,dstId),false)
+    else mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeAdd(routerId,msgTime,srcId,dstId),false)
   }
 
   def edgeUpdateProperties(command:JsObject):Unit={
@@ -129,14 +129,14 @@ class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeUpdateProperties(msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeUpdateProperties(routerId,msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
   }
 
   def edgeRemoval(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeRemoval(msgTime,srcId,dstId),false) //send the srcID, dstID to graph manager
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeRemoval(routerId,msgTime,srcId,dstId),false) //send the srcID, dstID to graph manager
   }
 
 }

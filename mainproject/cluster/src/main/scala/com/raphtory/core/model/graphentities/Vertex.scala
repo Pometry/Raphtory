@@ -8,8 +8,8 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Vertex object (extended creator for storage loads)
   */
 object Vertex {
-  def apply(creationTime : Long, vertexId : Int, associatedEdges : mutable.LinkedHashSet[Edge], previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property]) = {
-    val v = new Vertex(creationTime, vertexId, initialValue = true, addOnly = false)
+  def apply(routerID:Int, creationTime : Long, vertexId : Int, associatedEdges : mutable.LinkedHashSet[Edge], previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property]) = {
+    val v = new Vertex(routerID,creationTime, vertexId, initialValue = true, addOnly = false)
     v.previousState   = previousState
     v.associatedEdges = associatedEdges
     v.properties      = properties
@@ -26,8 +26,8 @@ object Vertex {
   * @param initialValue
   * @param addOnly
   */
-class Vertex(msgTime: Long, val vertexId: Int, initialValue: Boolean, addOnly:Boolean)
-    extends Entity(msgTime, initialValue,addOnly) {
+class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolean, addOnly:Boolean)
+    extends Entity(routerID,msgTime, initialValue,addOnly) {
 
   var associatedEdges = mutable.LinkedHashSet[Edge]()
 

@@ -46,11 +46,11 @@ final class RaphtoryWindowingRouter(override val routerId:Int, override val init
         properties = properties updated (pair._1, pair._2.toString())
       })
       //send the srcID and properties to the graph manager
-      mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),VertexAddWithProperties(msgTime,srcId,properties),false)
+      mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),VertexAddWithProperties(routerId,msgTime,srcId,properties),false)
       // println(s"sending vertex add $srcId to Manager 1")
     }
     else {
-      mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),VertexAdd(msgTime,srcId),false)
+      mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),VertexAdd(routerId,msgTime,srcId),false)
       // println(s"sending vertex add $srcId to Manager 1")
     } // if there are not any properties, just send the srcID
 
@@ -64,7 +64,7 @@ final class RaphtoryWindowingRouter(override val routerId:Int, override val init
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),VertexUpdateProperties(msgTime,srcId,properties),false) //send the srcID and properties to the graph parition
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),VertexUpdateProperties(routerId,msgTime,srcId,properties),false) //send the srcID and properties to the graph parition
 
     //Add into our router map
     super.addVertex(srcId)
@@ -79,9 +79,9 @@ final class RaphtoryWindowingRouter(override val routerId:Int, override val init
       command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
         properties = properties updated (pair._1,pair._2.toString())
       })
-      mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),EdgeAddWithProperties(msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
+      mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),EdgeAddWithProperties(routerId,msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
     }
-    else mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),EdgeAdd(msgTime,srcId,dstId),false)
+    else mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),EdgeAdd(routerId,msgTime,srcId,dstId),false)
 
     //Add into our router map
     super.addEdge(srcId,dstId)
@@ -93,7 +93,7 @@ final class RaphtoryWindowingRouter(override val routerId:Int, override val init
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),EdgeUpdateProperties(msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
+    mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),EdgeUpdateProperties(routerId,msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
 
     //Add into our router map
     super.addEdge(srcId,dstId)

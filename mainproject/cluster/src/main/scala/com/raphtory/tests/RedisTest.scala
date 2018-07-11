@@ -8,7 +8,7 @@ import scala.collection.concurrent.TrieMap
 object RedisTest extends App {
   val r = new RedisClient("localhost", 6379)
 
-  val vertex = new Vertex(1,1,true,false)
+  val vertex = new Vertex(-1,1,1,true,false)
   vertex kill(2)
   vertex revive(3)
 
