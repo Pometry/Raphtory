@@ -16,6 +16,8 @@ trait WindowingRouter extends  RouterTrait {
   protected val edgeWindow = ParTrieMap[Long, Long]()
   protected val vertexWindow = ParTrieMap[Int, Long]()
   protected var WindowSize = 5000
+  protected var vertexCheckFr = 1
+  protected var edgesCheckFr = 1
 
 
 
@@ -27,9 +29,9 @@ trait WindowingRouter extends  RouterTrait {
   override def preStart() {
     super.preStart()  //ASK BEN for SCHEDULES
     context.system.scheduler.schedule(Duration(7, SECONDS),
-      Duration(1, SECONDS),self,CheckVertex)
+      Duration(vertexCheckFr, SECONDS),self,CheckVertex)
     context.system.scheduler.schedule(Duration(7, SECONDS),
-      Duration(1, SECONDS),self,CheckEdges)
+      Duration(edgesCheckFr, SECONDS),self,CheckEdges)
   }
 
   def otherMessages(rcvdMessage : Any) = {
