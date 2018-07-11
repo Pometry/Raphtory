@@ -90,6 +90,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		.settings(dockerStuff:_*)
   	.settings(mappings in Universal +=
 			file(s"${baseDirectory.value}/../docker-compose/env-setter.sh") -> "bin/env-setter.sh")
+		.settings(mappings in Universal +=
+			file(s"${baseDirectory.value}/cluster/src/main/scala/com/raphtory/core/actors/analysismanager/TestAnalyser.scala") -> "cluster/src/main/scala/com/raphtory/core/actors/analysismanager/TestAnalyser.scala")
 		.settings(dockerEntrypoint := Seq("bash"))
 		.settings(dockerCommands ++= Seq(
 			Cmd("ENV", "PATH=/opt/docker/bin:${PATH}"),

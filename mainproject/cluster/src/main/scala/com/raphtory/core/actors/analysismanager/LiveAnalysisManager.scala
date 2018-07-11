@@ -147,9 +147,8 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
   }
 
   def checkClusterSize ={
-    if (getManagerCount == 0) {
+      println("LAM SENDING REQUEST TO WATCHDOG")
       mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
-    }
   }
 
   def missingCode() : String = {

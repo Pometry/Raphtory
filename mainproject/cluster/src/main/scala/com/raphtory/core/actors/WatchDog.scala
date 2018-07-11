@@ -42,6 +42,7 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
 
     case RequestPartitionCount => {
       println("sending out Partition Manager Count")
+      sender() ! PartitionsCount(pmCounter)
       mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
     }
 
