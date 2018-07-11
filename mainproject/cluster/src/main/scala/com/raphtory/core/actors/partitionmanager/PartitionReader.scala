@@ -66,11 +66,11 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
 
   def setup(analyzer: Analyser) {
     try {
-      throw new ClassNotFoundException
+      throw new ClassNotFoundException()
       //analyzer.sysSetup()
       //analyzer.setup()
       //sender() ! Ready()
-      //println("Setup analyzer, sending Ready packet")
+     // println("Setup analyzer, sending Ready packet")
     }
     catch {
       case e: ClassNotFoundException => {
