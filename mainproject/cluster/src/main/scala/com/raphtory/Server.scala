@@ -17,6 +17,7 @@ import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
 import com.raphtory.core.actors.datasource.UpdateGen
 import com.raphtory.core.actors.router.RaphtoryRouter
 import com.raphtory.core.clustersetup._
+import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
 //main function
 object Go extends App {
   val conf          = ConfigFactory.load()
@@ -65,6 +66,12 @@ object Go extends App {
     case "clusterUp" => {
       println("Cluster Up, informing Partition Managers and Routers")
       WatchDogNode(getConf(zookeeper), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
+    }
+
+    case "singleNodeSetup" => {
+      println("putting up cluster in one node")
+      setConf(seedLoc, zookeeper)
+      SingleNodeSetup(getConf(zookeeper),routerName,updaterName,sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
     }
 
   }
