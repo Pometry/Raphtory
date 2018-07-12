@@ -21,7 +21,7 @@ final class GabSpout extends UpdaterTrait {
   private val redisKey = "gab-posts"
   private var sched : Cancellable = null
   private val nullStr = "null"
-
+  private val routerID = -1 //TODO: Remove fake router ID
   override def preStart() {
     super.preStart()
     sched = context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "parsePost")
@@ -53,8 +53,7 @@ final class GabSpout extends UpdaterTrait {
   def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false, parent : Int = 0) : Unit = {
     val postUUID  = post.id.get.toInt
     val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
-
-    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, postUUID, Map(
+    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(routerID,timestamp, postUUID, Map(
       "user"         -> {post.user match {
                             case Some(u) => u.id.toString
                             case None => nullStr
@@ -75,7 +74,7 @@ final class GabSpout extends UpdaterTrait {
         val userUUID  = Math.pow(2,24).toInt + user.id
         if (userUUID < 0 || userUUID > Int.MaxValue)
           println(s"UserID is $userUUID")
-        sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, userUUID, Map(
+        sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(routerID,timestamp, userUUID, Map(
           "username" -> user.username,
           "type"     -> GabEntityType.user.toString
         )))
@@ -86,7 +85,7 @@ final class GabSpout extends UpdaterTrait {
           s"""{"EdgeAdd":${EdgeAdd(timestamp, userUUID, postUUID).toJson.toString()}}"""
         )*/
         sendCommand(CommandEnum.edgeAdd,
-          EdgeAddWithProperties(timestamp, userUUID, postUUID, Map()))
+          EdgeAddWithProperties(routerID,timestamp, userUUID, postUUID, Map()))
       }
       case None =>
     }
@@ -114,7 +113,7 @@ final class GabSpout extends UpdaterTrait {
     // Edge from child to parent post
     if (recursiveCall && parent > 0) {
       sendCommand(CommandEnum.edgeAdd,
-        EdgeAddWithProperties(timestamp, postUUID, parent, Map()))
+        EdgeAddWithProperties(routerID,timestamp, postUUID, parent, Map()))
     }
     post.parent match {
       case Some(p) => {
