@@ -60,11 +60,11 @@ trait WindowingRouter extends  RouterTrait {
       vertexWindow.get(srcId) match {
         case Some(v) => {
           vertexWindow.update(srcId, System.currentTimeMillis())
-          println(s"${System.currentTimeMillis()} vertex update with src: $srcId")
+          println(s"${System.currentTimeMillis()} vertex update with src: $srcId from $routerId")
         }
         case None => {
           vertexWindow.put(srcId, System.currentTimeMillis())
-          println(s"${System.currentTimeMillis()} vertex added with src: $srcId")
+          println(s"${System.currentTimeMillis()} vertex added with src: $srcId from $routerId")
         }
 
       }
@@ -77,12 +77,12 @@ trait WindowingRouter extends  RouterTrait {
       edgeWindow.get(index) match {
         case Some(v) => {
           edgeWindow.update(index, System.currentTimeMillis())
-          println(s"${System.currentTimeMillis()} edge updated with src: $srcId, dst: $dstId")
+          println(s"${System.currentTimeMillis()} edge updated with src: $srcId, dst: $dstId from $routerId")
         }
 
         case None => {
           edgeWindow.put(index, System.currentTimeMillis())
-          println(s"${System.currentTimeMillis()} edge added with src: $srcId, dst: $dstId")
+          println(s"${System.currentTimeMillis()} edge added with src: $srcId, dst: $dstId from $routerId")
         }
 
       }
@@ -98,7 +98,7 @@ trait WindowingRouter extends  RouterTrait {
           if (System.currentTimeMillis() - v > WindowSize) {
             mediator ! DistributedPubSubMediator.Send(getManager(k,managerCount),VertexRemoval(routerId,System.currentTimeMillis(),k),false)
             vertexWindow.remove(k)
-            println(s"${System.currentTimeMillis()} vertex removed with src: $k")
+            println(s"${System.currentTimeMillis()} vertex removed with src: $k from $routerId")
           }
 
       }
@@ -115,7 +115,7 @@ trait WindowingRouter extends  RouterTrait {
           val dstId: Int = getIndexHI(k)
           mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeRemoval(routerId,System.currentTimeMillis(),srcId,dstId),false) //send the srcID, dstID to graph manager
           edgeWindow.remove(k)
-          println(s"${System.currentTimeMillis()} edge removed with src: $srcId, dst: $dstId")
+          println(s"${System.currentTimeMillis()} edge removed with src: $srcId, dst: $dstId from $routerId")
         }
 
       }
