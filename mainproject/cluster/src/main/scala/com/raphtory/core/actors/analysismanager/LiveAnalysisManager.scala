@@ -26,6 +26,7 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
   private var toSetup            = true
   protected def analyserName:String = generateAnalyzer.getClass.getName
 
+
   private var newAnalyser:Boolean = false
 
   protected val mediator     = DistributedPubSub(context.system).mediator

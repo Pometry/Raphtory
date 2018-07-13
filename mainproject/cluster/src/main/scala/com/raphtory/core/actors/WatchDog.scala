@@ -30,7 +30,7 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
   var roCounter = 0
 
   override def preStart() {
-    context.system.scheduler.schedule(Duration(2, SECONDS),Duration(1, SECONDS),self,"tick")
+    context.system.scheduler.schedule(Duration(2, SECONDS),Duration(10, SECONDS),self,"tick")
     context.system.scheduler.schedule(Duration(3, MINUTES),Duration(1, MINUTES),self,"refreshManagerCount")
   }
 

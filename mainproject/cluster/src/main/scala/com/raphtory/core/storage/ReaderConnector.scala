@@ -4,6 +4,7 @@ import com.raphtory.core.utils.KeyEnum
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 trait ReaderConnector {
 
@@ -12,9 +13,9 @@ trait ReaderConnector {
 
   def getHistory(entityType : KeyEnum.Value, entityId : Long) : mutable.TreeMap[Long, Boolean]
   def getProperties(entityType : KeyEnum.Value, entityId : Long) : ParTrieMap[String, Property]
-  def getEntities(entityType : KeyEnum.Value) : Set[Long]
+  def getEntities(entityType : KeyEnum.Value) : ParSet[Long]
   def getEntitiesObjs(entityType : KeyEnum.Value) : ParTrieMap[_ <: AnyVal, _ <: Entity]
-  def getAssociatedEdges(entityId : Long) : mutable.LinkedHashSet[Edge]
+  def getAssociatedEdges(entityId : Long) : ParSet[Edge]
 
   def rangeQuery(entityType : String, entityId : Long, property : String, startTime : Long, endTime : Long) : Any
 }
