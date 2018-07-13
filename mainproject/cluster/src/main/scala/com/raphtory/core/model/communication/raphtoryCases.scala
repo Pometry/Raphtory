@@ -47,17 +47,28 @@ case class ReturnEdgeRemoval(msgTime:Long,srcId:Int,dstId:Int)
 case class UpdatedCounter(newValue : Int)
 case class AssignedId(id : Int)
 case class PartitionsCount(count : Int)
+case class RequestPartitionCount()
 case class RequestPartitionId()
 case class RequestRouterId()
 
 
 sealed trait RaphReadClasses
 
+case class AnalyserPresentCheck(classname:String) extends  RaphReadClasses
+case class AnalyserPresent() extends  RaphReadClasses
 case class Setup(analyzer : Analyser) extends RaphReadClasses
 case class Ready() extends RaphReadClasses
 case class NextStep(analyzer : Analyser) extends RaphReadClasses
 case class EndStep(results : Any) extends RaphReadClasses // TODO Define results
 case class GetNetworkSize() extends RaphReadClasses
 case class NetworkSize(size : Int) extends RaphReadClasses
+
+
+case class ClassMissing() extends RaphReadClasses
+case class SetupNewAnalyser(analyser: String, name:String) extends RaphReadClasses
+case class FailedToCompile (stackTrace:String) extends  RaphReadClasses
+case class NextStepNewAnalyser(name: String) extends RaphReadClasses
+
+
 //case class WatchDogIp(ip: String)
 

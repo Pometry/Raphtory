@@ -96,7 +96,7 @@ class UpdateGen extends RaphtoryActor with Timers {
     if (random <= 0.3)      genVertexAdd()
     else if (random <= 0.7) genEdgeAdd()
     else if (random <= 0.8) genVertexRemoval()
-    else                    genEdgeAdd()
+    else                    genEdgeRemoval()
   }
 
   /**

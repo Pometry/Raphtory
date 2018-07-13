@@ -79,6 +79,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 
 	)
 
+	val newAnalyser = "com/raphtory/core/actors/analysismanager/TestAnalyser2.scala"
+
 	lazy val root = Project(id = "raphtory",
 		base = file(".")) aggregate(cluster)
 
@@ -90,6 +92,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		.settings(dockerStuff:_*)
   	.settings(mappings in Universal +=
 			file(s"${baseDirectory.value}/../docker-compose/env-setter.sh") -> "bin/env-setter.sh")
+		.settings(mappings in Universal +=
+			file(s"${baseDirectory.value}/src/main/scala/$newAnalyser") -> newAnalyser)
 		.settings(dockerEntrypoint := Seq("bash"))
 		.settings(dockerCommands ++= Seq(
 			Cmd("ENV", "PATH=/opt/docker/bin:${PATH}"),

@@ -1,10 +1,10 @@
 package com.raphtory.examples.gab.actors
 
-import com.raphtory.core.actors.analysismanager.LiveAnalyser
+import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.examples.gab.analysis.{GabPageRank, GabPageRank2, GabPageRank3}
 
-class GabLiveAnalyserManager extends LiveAnalyser {
+class GabLiveAnalyserManager extends LiveAnalysisManager {
   /*private val B       : Int   = 100 // TODO set
   private val epsilon : Float = 0.85F
   private val delta1  : Float = 1F*/
@@ -19,11 +19,12 @@ class GabLiveAnalyserManager extends LiveAnalyser {
       .reverse
   )*/
 
-  override protected def defineMaxSteps(): Unit = {
+  override protected def defineMaxSteps(): Int = {
     //steps =  (B * Math.log(getNetworkSize/epsilon)).round
     steps = 50 //Int.MaxValue
     if (getNetworkSize != 0)
       epsilon = 1/(100*getNetworkSize)
+    50
   }
 
   override protected def generateAnalyzer : Analyser = new GabPageRank3(getNetworkSize, dumplingFactor)

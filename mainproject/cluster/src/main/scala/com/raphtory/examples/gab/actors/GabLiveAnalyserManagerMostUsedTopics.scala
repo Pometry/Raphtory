@@ -1,10 +1,10 @@
 package com.raphtory.examples.gab.actors
 
-import com.raphtory.core.actors.analysismanager.LiveAnalyser
+import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.examples.gab.analysis.GabMostUsedTopics
 
-class GabLiveAnalyserManagerMostUsedTopics extends LiveAnalyser {
+class GabLiveAnalyserManagerMostUsedTopics extends LiveAnalysisManager {
   /*private val B       : Int   = 100 // TODO set
   private val epsilon : Float = 0.85F
   private val delta1  : Float = 1F*/
@@ -19,9 +19,10 @@ class GabLiveAnalyserManagerMostUsedTopics extends LiveAnalyser {
       .reverse
   )*/
 
-  override protected def defineMaxSteps(): Unit = {
+  override protected def defineMaxSteps(): Int = {
     //steps =  (B * Math.log(getNetworkSize/epsilon)).round
     steps = 1 //Int.MaxValue
+    1
   }
 
   override protected def generateAnalyzer : Analyser = new GabMostUsedTopics(getNetworkSize, dumplingFactor)
