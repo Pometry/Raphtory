@@ -35,6 +35,7 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
   }
 
   override def receive: Receive = {
+    case AnalyserPresentCheck(classname) => presentCheck(classname)
     case Setup(analyzer) => setup(analyzer)
     case SetupNewAnalyser(analyser, name) => setupNewAnalyser(analyser, name)
     case NextStep(analyzer) => nextStep(analyzer)
@@ -42,6 +43,20 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
     case GetNetworkSize() => sender() ! NetworkSize(GraphRepoProxy.getVerticesSet().size)
     case UpdatedCounter(newValue) => managerCount = newValue
     case e => println(s"[READER] not handled message " + e)
+  }
+
+  def presentCheck(classname:String) = {
+    try {
+      Class.forName(classname)
+      println(s"Reader has this class can precede: $classname ")
+      sender() ! AnalyserPresent()
+    }
+    catch {
+      case e: ClassNotFoundException => {
+        println("Analyser not found within this image, requesting scala file")
+        sender() ! ClassMissing()
+      }
+    }
   }
 
   def nextStep(analyzer: Analyser): Unit = {
@@ -76,10 +91,10 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
         println("Analyser not found within this image, requesting scala file")
         sender() ! ClassMissing()
       }
-      case e: scala.NotImplementedError => {
-        println("Analyser not found within this image, requesting scala file")
-        sender() ! ClassMissing()
-      }
+  //    case e: scala.NotImplementedError => {
+  //      println("Analyser not found within this image, requesting scala file")
+  //      sender() ! ClassMissing()
+  //    }
     }
   }
 

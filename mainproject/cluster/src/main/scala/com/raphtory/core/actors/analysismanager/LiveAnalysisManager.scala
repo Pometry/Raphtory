@@ -90,13 +90,17 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
           println(steps)
           this.defineMaxSteps()
           println(networkSize)
-          mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, Setup(this.generateAnalyzer))
+          mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$","")))
         }
       }
 
+    case AnalyserPresent() => {
+      mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, Setup(this.generateAnalyzer))
+    }
+
     case ClassMissing() => {
       println(s"$sender does not have analyser, sending now")
-      var code = missingCode                                                                                                                                                                   ()
+      var code = missingCode()
       newAnalyser = true
       sender() ! SetupNewAnalyser(code,analyserName)
     }

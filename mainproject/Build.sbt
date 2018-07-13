@@ -79,7 +79,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 
 	)
 
-	val newAnalyser = "com/raphtory/core/actors/analysismanager/TestAnalyser.scala"
+	val newAnalyser = "com/raphtory/core/actors/analysismanager/TestAnalyser2.scala"
 
 	lazy val root = Project(id = "raphtory",
 		base = file(".")) aggregate(cluster)

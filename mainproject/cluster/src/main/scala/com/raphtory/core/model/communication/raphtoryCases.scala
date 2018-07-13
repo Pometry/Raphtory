@@ -54,6 +54,8 @@ case class RequestRouterId()
 
 sealed trait RaphReadClasses
 
+case class AnalyserPresentCheck(classname:String) extends  RaphReadClasses
+case class AnalyserPresent() extends  RaphReadClasses
 case class Setup(analyzer : Analyser) extends RaphReadClasses
 case class Ready() extends RaphReadClasses
 case class NextStep(analyzer : Analyser) extends RaphReadClasses
