@@ -35,7 +35,6 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
   }
 
   override def receive: Receive = {
-
     case Setup(analyzer) => setup(analyzer)
     case SetupNewAnalyser(analyser, name) => setupNewAnalyser(analyser, name)
     case NextStep(analyzer) => nextStep(analyzer)
@@ -66,11 +65,11 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
 
   def setup(analyzer: Analyser) {
     try {
-      throw new ClassNotFoundException()
-      //analyzer.sysSetup()
-      //analyzer.setup()
-      //sender() ! Ready()
-     // println("Setup analyzer, sending Ready packet")
+      //throw new ClassNotFoundException()
+      analyzer.sysSetup()
+      analyzer.setup()
+      sender() ! Ready()
+      println("Setup analyzer, sending Ready packet")
     }
     catch {
       case e: ClassNotFoundException => {
