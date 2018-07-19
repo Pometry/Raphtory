@@ -91,7 +91,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		.settings(isSnapshot := true)
 		.settings(dockerStuff:_*)
   	.settings(mappings in Universal +=
-			file(s"${baseDirectory.value}/../docker-compose/env-setter.sh") -> "bin/env-setter.sh")
+			file(s"${baseDirectory.value}/../Build-Scripts/env-setter.sh") -> "bin/env-setter.sh")
 		.settings(mappings in Universal +=
 			file(s"${baseDirectory.value}/src/main/scala/$newAnalyser") -> newAnalyser)
 		.settings(dockerEntrypoint := Seq("bash"))
