@@ -25,6 +25,7 @@ trait UpdaterTrait extends RaphtoryActor with Timers {
   private var safe            = false
   private var counter         = 0
 
+
   protected final val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
@@ -43,6 +44,7 @@ trait UpdaterTrait extends RaphtoryActor with Timers {
     jsonCommand
   }
 
+//TODO: What is this for?
   protected def sendCommand2(command: String) : Unit = {
     counter       += 1
     currentMessage+=1

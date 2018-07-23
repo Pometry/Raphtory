@@ -5,6 +5,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.datasource.UpdaterTrait
 import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse}
 import kamon.Kamon
 import spray.json._
@@ -15,16 +16,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scalaj.http.{Http, HttpRequest}
 
-class BitcoinSpout extends RaphtoryActor with Timers {
-
-  val mediator = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
-
-
-  var currentMessage  = 0
-  var previousMessage = 0
-  var safe            = false
-  var counter         = 0
+class BitcoinSpout extends UpdaterTrait {
 
   var blockcount = 1
   val rpcuser = System.getenv().getOrDefault("BITCOIN_USERNAME", "user").trim
@@ -34,22 +26,18 @@ class BitcoinSpout extends RaphtoryActor with Timers {
   val baseRequest = Http(serverAddress).auth(rpcuser, rpcpassword).header("content-type", "text/plain")
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
+    super.preStart()
     context.system.scheduler.schedule(Duration(1, MINUTES), Duration(1, MILLISECONDS), self, "parseBlock")
-    context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"benchmark")
-    context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"stateCheck")
-    context.system.scheduler.schedule(Duration(0, SECONDS), Duration(10, SECONDS), self,"increaseFreq") // TODO delete
 
   }
 
   //************* MESSAGE HANDLING BLOCK
-  override def receive: Receive = {
-    case "stateCheck" => checkUp()
-    case "benchmark" => benchmark()
+  override def processChildMessages(message:Any): Receive = {
     case "parseBlock" => running()
     case _ => println("message not recognized!")
   }
 
-  def running() : Unit = if(safe) {
+  def running() : Unit = if(isSafe()) {
     getTransactions()
     blockcount +=1
   }
@@ -63,6 +51,7 @@ class BitcoinSpout extends RaphtoryActor with Timers {
     val result = blockData.fields("result")
     val time = result.asJsObject.fields("time")
     for(transaction <- result.asJsObject().fields("tx").asInstanceOf[JsArray].elements){
+      BitcoinTransaction(time,transaction)
       //val time = transaction.asJsObject.fields("time")
       val txid = transaction.asJsObject.fields("txid")
       val vins = transaction.asJsObject.fields("vin")
@@ -112,30 +101,6 @@ class BitcoinSpout extends RaphtoryActor with Timers {
     kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
   }
 
-  def benchmark():Unit={
-    val diff = currentMessage - previousMessage
-    previousMessage = currentMessage
-    counter = 0
-    kGauge.refine("actor" -> "Updater", "name" -> "diff").set(diff)
-  }
-
-  def checkUp():Unit={
-    if(!safe){
-      try{
-        implicit val timeout: Timeout = Timeout(10 seconds)
-        val future = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest, false)
-        safe = Await.result(future, timeout.duration).asInstanceOf[ClusterStatusResponse].clusterUp
-      }
-      catch {
-        case e: java.util.concurrent.TimeoutException => {
-          safe = false
-        }
-      }
-    }
-  }
-
-
-
-
-
 }
+
+case class BitcoinTransaction(time:JsValue,transaction:JsValue)

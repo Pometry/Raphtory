@@ -7,10 +7,10 @@ import DefaultJsonProtocol._
 
 object bitcointest extends App {
   val blockcount = "1"
-  val rpcuser = "moe"
-  val rpcpassword = "30xIeKEhn"
+  val rpcuser = ""
+  val rpcpassword = ""
   val id = "scala-jsonrpc"
-  val baseRequest = Http("http://moe.eecs.qmul.ac.uk:8332").auth(rpcuser, rpcpassword).header("content-type", "text/plain")
+  val baseRequest = Http("http://eecs.qmul.ac.uk:8332").auth(rpcuser, rpcpassword).header("content-type", "text/plain")
 
   def request(command: String, params: String = ""): HttpRequest = baseRequest.postData(s"""{"jsonrpc": "1.0", "id":"$id", "method": "$command", "params": [$params] }""")
 

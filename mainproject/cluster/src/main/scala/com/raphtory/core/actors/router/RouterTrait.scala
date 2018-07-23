@@ -17,6 +17,7 @@ trait RouterTrait extends RaphtoryActor {
   protected def otherMessages(rcvdMessage : Any)
 
   // Let's call the super.parseJSON in the Router implementation to get Kamon Metrics
+  //TODO: Probably rename this to "record data" or something
   protected def parseJSON(command : String) = {
     count += 1
     kCounter.refine("actor" -> "Router", "name" -> "count").increment()
