@@ -19,22 +19,24 @@ import scalaj.http.{Http, HttpRequest}
 class BitcoinSpout extends UpdaterTrait {
 
   var blockcount = 1
-  val rpcuser = System.getenv().getOrDefault("BITCOIN_USERNAME", "user").trim
-  val rpcpassword = System.getenv().getOrDefault("BITCOIN_PASSWORD", "password").trim
-  val serverAddress = System.getenv().getOrDefault("BITCOIN_NODE", "bitcoinNodeURL").trim
+  val rpcuser = System.getenv().getOrDefault("BITCOIN_USERNAME", "name").trim
+  val rpcpassword = System.getenv().getOrDefault("BITCOIN_PASSWORD", "pass").trim
+  val serverAddress = System.getenv().getOrDefault("BITCOIN_NODE", "http://eecs.qmul.ac.uk:8332").trim
   val id = "scala-jsonrpc"
   val baseRequest = Http(serverAddress).auth(rpcuser, rpcpassword).header("content-type", "text/plain")
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
-    context.system.scheduler.schedule(Duration(1, MINUTES), Duration(1, MILLISECONDS), self, "parseBlock")
+    context.system.scheduler.schedule(Duration(1, SECONDS), Duration(1, SECONDS), self, "parseBlock")
 
   }
 
   //************* MESSAGE HANDLING BLOCK
-  override def processChildMessages(message:Any): Receive = {
-    case "parseBlock" => running()
-    case _ => println("message not recognized!")
+  override def processChildMessages(message:Any): Unit = {
+    message match {
+      case "parseBlock" => running()
+      case _ => println("message not recognized!")
+    }
   }
 
   def running() : Unit = if(isSafe()) {
@@ -51,7 +53,8 @@ class BitcoinSpout extends UpdaterTrait {
     val result = blockData.fields("result")
     val time = result.asJsObject.fields("time")
     for(transaction <- result.asJsObject().fields("tx").asInstanceOf[JsArray].elements){
-      BitcoinTransaction(time,blockID,transaction)
+
+      sendCommand3(BitcoinTransaction(time,blockID,transaction))
       //val time = transaction.asJsObject.fields("time")
 
     }

@@ -16,6 +16,7 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
 
   def parseTransaction(value: BitcoinTransaction): Unit = {
     recordUpdate()
+
     val transaction = value.transaction
     val time = value.time
     val blockID = value.blockID
@@ -39,7 +40,7 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
         address = scriptpubkey.fields("addresses").asInstanceOf[JsArray].elements(0).toString
       else value = "0" //TODO deal with people burning money
 
-
+      println(s"Edge $timeAsLong, ${txid.hashCode}, ${address.hashCode}, $n, $value")
       //creates vertex for the receiving wallet
       toPartitionManager(VertexAddWithProperties(
                           msgTime = timeAsLong,
@@ -105,4 +106,4 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
 //sendCommand(s"""" {"VertexAdd":{ "messageID":$time ,  "srcID":${"coingen".hashCode} ,"properties":{"type":"coingen"}}}"""")
 //sendCommand(s"""" {"EdgeAdd":{ "messageID":$time ,  "srcID":${"coingen".hashCode},  "dstID":${txid.hashCode}}}"""")
 ////sendCommand(s"""" {"EdgeAdd":{ "messageID":$time ,  "srcID":${prevtxid.hashCode},  "dstID":${txid.hashCode}, "properties":{"vout":$prevVout}}}"""")
-      
+
