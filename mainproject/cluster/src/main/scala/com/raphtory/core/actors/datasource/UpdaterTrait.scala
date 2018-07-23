@@ -34,26 +34,32 @@ trait UpdaterTrait extends RaphtoryActor with Timers {
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"stateCheck")
   }
 
-  protected def sendCommand[T <: RaphCaseClass](command: CommandEnum.Value, value: T) : String = {
+
+  protected def recordUpdate(): Unit ={
     counter       += 1
     currentMessage+=1
     Kamon.counter("raphtory.updateGen.commandsSent").increment()
     kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
+  }
+
+  //TODO: Clean up these names, make explicit the function of each
+  protected def sendCommand[T <: RaphCaseClass](command: CommandEnum.Value, value: T) : String = {
+    recordUpdate()
     val jsonCommand = Command(command, value).toJson.toString
     mediator ! DistributedPubSubMediator.Send("/user/router", jsonCommand, false)
     jsonCommand
   }
 
-//TODO: What is this for?
   protected def sendCommand2(command: String) : Unit = {
-    counter       += 1
-    currentMessage+=1
-    Kamon.counter("raphtory.updateGen.commandsSent").increment()
-    kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
+    recordUpdate()
     mediator ! DistributedPubSubMediator.Send("/user/router", command /*Command(command, value)*/, false)
-    //Command(command, value).toJson.toString
-    //jsonCommand
   }
+
+  protected def sendCommand3[T <: SpoutGoing](command:T): Unit = {
+    recordUpdate()
+    mediator ! DistributedPubSubMediator.Send("/user/router", command , false)
+  }
+
   protected def processChildMessages(rcvdMessage : Any)
   protected def running()
 

@@ -12,6 +12,8 @@ sealed trait RaphCaseClass {
   def srcId:Int
 }
 
+trait SpoutGoing
+
 case class Command(command: CommandEnum.Value, value: RaphCaseClass)
 
 case class RouterUp(id:Int)

@@ -6,7 +6,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.datasource.UpdaterTrait
-import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse}
+import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse, SpoutGoing}
 import kamon.Kamon
 import spray.json._
 
@@ -51,56 +51,14 @@ class BitcoinSpout extends UpdaterTrait {
     val result = blockData.fields("result")
     val time = result.asJsObject.fields("time")
     for(transaction <- result.asJsObject().fields("tx").asInstanceOf[JsArray].elements){
-      BitcoinTransaction(time,transaction)
+      BitcoinTransaction(time,blockID,transaction)
       //val time = transaction.asJsObject.fields("time")
-      val txid = transaction.asJsObject.fields("txid")
-      val vins = transaction.asJsObject.fields("vin")
-      val vouts = transaction.asJsObject.fields("vout")
-      var total:Double = 0
 
-      for (vout <- vouts.asInstanceOf[JsArray].elements) {
-        val voutOBJ = vout.asJsObject()
-        var value = voutOBJ.fields("value").toString
-        total+= value.toDouble
-        val n = voutOBJ.fields("n").toString
-        val scriptpubkey = voutOBJ.fields("scriptPubKey").asJsObject()
-
-        var address = "nulldata"
-        if(scriptpubkey.fields.contains("addresses"))
-          address = scriptpubkey.fields("addresses").asInstanceOf[JsArray].elements(0).toString
-        else value = "0" //TODO deal with people burning money
-
-        sendCommand(s"""" {"VertexAdd":{ "messageID":$time , "srcID":${address.hashCode}, "properties":{"type":"address", "address":$address} }}"""") //creates vertex for the receiving wallet
-        sendCommand(s"""" {"EdgeAdd":{ "messageID":$time ,  "srcID":${txid.hashCode} ,  "dstID":${address.hashCode} , "properties":{"n": $n, "value":$value}}}"""") //creates edge between the transaction and the wallet
-      }
-
-      sendCommand(s"""" {"VertexAdd":{ "messageID":$time ,  "srcID":${txid.hashCode} , "properties":{"type":"transaction", "time":$time, "id:$txid, "total": $total,"blockhash":$blockID}}}"""")
-
-      if(vins.toString().contains("coinbase")){
-        sendCommand(s"""" {"VertexAdd":{ "messageID":$time ,  "srcID":${"coingen".hashCode} ,"properties":{"type":"coingen"}}}"""") //creates the coingen node //TODO change so only added once
-        sendCommand(s"""" {"EdgeAdd":{ "messageID":$time ,  "srcID":${"coingen".hashCode},  "dstID":${txid.hashCode}}}"""") //creates edge between coingen and the transaction
-
-      }
-      else{
-        for(vin <- vins.asInstanceOf[JsArray].elements){
-          val vinOBJ = vin.asJsObject()
-          val prevVout = vinOBJ.fields("vout")
-          val prevtxid = vinOBJ.fields("txid")
-          //no need to create node for prevtxid as should already exist
-          sendCommand(s"""" {"EdgeAdd":{ "messageID":$time ,  "srcID":${prevtxid.hashCode},  "dstID":${txid.hashCode}, "properties":{"vout":$prevVout}}}"""") //creates edge between the prev transaction and current transaction
-        }
-      }
     }
   }
 
-  def sendCommand(command: String) ={
-    counter += 1
-    currentMessage+=1
-    mediator ! DistributedPubSubMediator.Send("/user/router", command, false)
-    Kamon.counter("raphtory.updateGen.commandsSent").increment()
-    kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
-  }
+
 
 }
 
-case class BitcoinTransaction(time:JsValue,transaction:JsValue)
+case class BitcoinTransaction(time:JsValue,blockID:JsValue,transaction:JsValue) extends SpoutGoing
