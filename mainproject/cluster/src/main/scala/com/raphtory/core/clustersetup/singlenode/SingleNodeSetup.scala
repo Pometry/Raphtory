@@ -7,7 +7,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import scala.language.postfixOps
 import scala.sys.process._
 
-case class SingleNodeSetup(seedLoc:String,routerClassName:String,UpdaterName:String,partitionNumber:Int,minimumRouters:Int) extends DocSvr {
+case class SingleNodeSetup(seedLoc:String,routerClassName:String,UpdaterName:String,LAMName:String,partitionNumber:Int,minimumRouters:Int) extends DocSvr {
   val conf : Config = ConfigFactory.load()
   implicit val system = init(List(seedLoc))
   "redis-server --daemonize yes" ! //start redis running on manager partition
@@ -17,5 +17,6 @@ case class SingleNodeSetup(seedLoc:String,routerClassName:String,UpdaterName:Str
   system.actorOf(Props(RaphtoryReplicator("Router", routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager")), s"PartitionManager")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
+  system.actorOf(Props(Class.forName(LAMName)), s"LiveAnalysisManager_$LAMName")
 
 }

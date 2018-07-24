@@ -42,7 +42,7 @@ trait SpoutTrait extends RaphtoryActor with Timers {
     kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
   }
 
-  //TODO: Clean up these names, make explicit the function of each
+  //TODO: Need to move Gab parsing to router
   protected def sendCommand[T <: RaphCaseClass](command: CommandEnum.Value, value: T) : String = {
     recordUpdate()
     val jsonCommand = Command(command, value).toJson.toString
@@ -50,12 +50,12 @@ trait SpoutTrait extends RaphtoryActor with Timers {
     jsonCommand
   }
 
-  protected def sendCommand2(command: String) : Unit = {
+  protected def sendCommand(command: String) : Unit = {
     recordUpdate()
     mediator ! DistributedPubSubMediator.Send("/user/router", command /*Command(command, value)*/, false)
   }
 
-  protected def sendCommand3[T <: SpoutGoing](command:T): Unit = {
+  protected def sendCommand[T <: SpoutGoing](command:T): Unit = {
     recordUpdate()
     mediator ! DistributedPubSubMediator.Send("/user/router", command , false)
   }

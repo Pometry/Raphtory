@@ -68,7 +68,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		//resolvers					  ++= kamon_repos,
 		scalacOptions				:= Seq("-feature", "-deprecation", "-encoding", "UTF8", "-unchecked"),
 		testOptions in Test += Tests.Argument("-oDF"),
-		version 					:= "latest"
+		version 					:= "ben"
 	)
 
 	lazy val dockerStuff = Seq(
