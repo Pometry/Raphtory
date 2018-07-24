@@ -1,8 +1,7 @@
-package com.raphtory.examples.random.actors
+package com.raphtory.examples.random.analysis
 
 import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
-import com.raphtory.examples.gab.analysis.GabMostUsedTopics
 
 class RandomVoidAnalyser extends LiveAnalysisManager {
 

@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.router
+package com.raphtory.examples.random.actors
 
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor

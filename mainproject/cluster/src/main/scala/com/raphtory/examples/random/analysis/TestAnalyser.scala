@@ -1,8 +1,8 @@
-package com.raphtory.core.actors.analysismanager
+package com.raphtory.examples.random.analysis
 
 import com.raphtory.core.analysis.Analyser
 
-class TestAnalyser2 extends Analyser {
+class TestAnalyser extends Analyser {
 
   import akka.actor.ActorContext
   import com.raphtory.core.storage.controller.GraphRepoProxy

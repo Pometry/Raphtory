@@ -1,13 +1,11 @@
-package com.raphtory.core.actors.datasource
-
-import com.raphtory.core.model.communication._
-import com.raphtory.core.actors.RaphtoryActor
+package com.raphtory.examples.random.actors
 
 import akka.actor._
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
-
+import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.model.communication._
 import kamon.Kamon
 
 import scala.concurrent.Await

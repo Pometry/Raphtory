@@ -14,10 +14,9 @@ import kamon.system.SystemMetrics
 import java.lang.management.ManagementFactory
 
 import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
-import com.raphtory.core.actors.datasource.UpdateGen
-import com.raphtory.core.actors.router.RaphtoryRouter
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
+import com.raphtory.examples.random.actors.{RaphtoryRouter, UpdateGen}
 //main function
 object Go extends App {
   val conf          = ConfigFactory.load()
