@@ -8,13 +8,13 @@ import scala.collection.mutable
 /**
   * Created by Mirate on 30/05/2017.
   */
-sealed trait RaphCaseClass {
+sealed trait RaphWriteClass {
   def srcId:Int
 }
 
 trait SpoutGoing
 
-case class Command(command: CommandEnum.Value, value: RaphCaseClass)
+case class Command(command: CommandEnum.Value, value: RaphWriteClass)
 
 case class RouterUp(id:Int)
 case class PartitionUp(id:Int)
@@ -25,15 +25,16 @@ case class ClusterStatusResponse(clusterUp: Boolean)
 case class LiveAnalysis(analyser: Analyser)
 case class Results(result:Object)
 
-case class VertexAdd(msgTime:Long, override val srcId:Int) extends RaphCaseClass //add a vertex (or add/update a property to an existing vertex)
-case class VertexAddWithProperties(msgTime:Long, override val srcId:Int, properties: Map[String,String]) extends RaphCaseClass
-case class VertexUpdateProperties(msgTime:Long,srcId:Int, propery:Map[String,String])
-case class VertexRemoval(msgTime:Long,srcId:Int)
+case class VertexAdd(msgTime:Long, override val srcId:Int) extends RaphWriteClass //add a vertex (or add/update a property to an existing vertex)
+case class VertexAddWithProperties(msgTime:Long, override val srcId:Int, properties: Map[String,String]) extends RaphWriteClass
+case class VertexUpdateProperties(msgTime:Long,override val srcId:Int, propery:Map[String,String]) extends  RaphWriteClass
+case class VertexRemoval(msgTime:Long,override val srcId:Int) extends RaphWriteClass
 
-case class EdgeAdd(msgTime:Long,srcId:Int,dstId:Int) extends RaphCaseClass
-case class EdgeAddWithProperties(msgTime:Long, override val srcId:Int,dstId:Int, properties: Map[String,String]) extends RaphCaseClass
-case class EdgeUpdateProperties(msgTime:Long,srcId:Int,dstId:Int,property:Map[String,String])
-case class EdgeRemoval(msgTime:Long,srcId:Int,dstID:Int)
+case class EdgeAdd(msgTime:Long,srcId:Int,dstId:Int) extends RaphWriteClass
+case class EdgeAddWithProperties(msgTime:Long, override val srcId:Int,dstId:Int, properties: Map[String,String]) extends RaphWriteClass
+case class EdgeUpdateProperties(msgTime:Long,override val srcId:Int,dstId:Int,property:Map[String,String]) extends RaphWriteClass
+case class EdgeRemoval(msgTime:Long,override val srcId:Int,dstID:Int) extends RaphWriteClass
+
 case class EdgeUpdateProperty(msgTime : Long, edgeId : Long, key : String, value : String)
 case class RemoteEdgeUpdateProperties(msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String])
 case class RemoteEdgeAdd(msgTime:Long, srcId:Int, dstId:Int, properties: Map[String,String])

@@ -2,6 +2,7 @@ package com.raphtory.examples.random.actors
 
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.router.RouterTrait
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.getManager
 import kamon.Kamon
@@ -23,46 +24,20 @@ import scala.concurrent.duration.{Duration, SECONDS}
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-class RandomRouter(routerId:Int, initialManagerCount:Int) extends RaphtoryActor {
-  var managerCount : Int = initialManagerCount
-  val mediator = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
+class RandomRouter(override val routerId:Int, override val initialManagerCount:Int) extends RouterTrait {
+
   //************* MESSAGE HANDLING BLOCK
   println(akka.serialization.Serialization.serializedActorPath(self))
-  var count = 0
 
-  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
-
-  override def preStart() {
-    context.system.scheduler.schedule(Duration(7, SECONDS),
-      Duration(1, SECONDS),self,"tick")
-    context.system.scheduler.schedule(Duration(8, SECONDS),
-      Duration(10, SECONDS), self, "keep_alive")
+  override def otherMessages(rcvdMessage : Any) = {
+    rcvdMessage match {
+      case command:String =>  Task.eval(parseJSON(command)).fork.runAsync
+      case e => println(s"message not recognized! ${e.getClass}")
+    }
   }
 
-  def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RouterUp(routerId), false)
-
-  override def receive: Receive = {
-    case "tick" => {
-      kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
-      count = 0
-    }
-    case "keep_alive" => keepAlive()
-
-    case command:String =>  Task.eval(parseJSON(command)).fork.runAsync
-
-    case UpdatedCounter(newValue) => {
-      if (managerCount < newValue)
-        managerCount = newValue
-    }
-
-    case e => println(s"message not recognized! ${e.getClass}")
-  }
-
-  def parseJSON(command:String):Unit={
-    count += 1
-    kCounter.refine("actor" -> "Router", "name" -> "count").increment()
-    Kamon.gauge("raphtory.router.countGauge").set(count)
+  override def parseJSON(command:String):Unit={
+    super.parseJSON(command)
     //println(s"received command: \n $command")
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
@@ -84,11 +59,11 @@ class RandomRouter(routerId:Int, initialManagerCount:Int) extends RaphtoryActor 
         properties = properties updated (pair._1, pair._2.toString())
       })
       //send the srcID and properties to the graph manager
-      mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexAddWithProperties(msgTime,srcId,properties),false)
+      toPartitionManager(VertexAddWithProperties(msgTime,srcId,properties))
       // println(s"sending vertex add $srcId to Manager 1")
     }
     else {
-      mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexAdd(msgTime,srcId),false)
+      toPartitionManager(VertexAdd(msgTime,srcId))
       // println(s"sending vertex add $srcId to Manager 1")
     } // if there are not any properties, just send the srcID
   }
@@ -98,13 +73,13 @@ class RandomRouter(routerId:Int, initialManagerCount:Int) extends RaphtoryActor 
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexUpdateProperties(msgTime,srcId,properties),false) //send the srcID and properties to the graph parition
+    toPartitionManager(VertexUpdateProperties(msgTime,srcId,properties)) //send the srcID and properties to the graph parition
   }
 
   def vertexRemoval(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),VertexRemoval(msgTime,srcId),false)
+    toPartitionManager(VertexRemoval(msgTime,srcId))
   }
 
   def edgeAdd(command:JsObject):Unit = {
@@ -116,9 +91,9 @@ class RandomRouter(routerId:Int, initialManagerCount:Int) extends RaphtoryActor 
       command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
         properties = properties updated (pair._1,pair._2.toString())
       })
-      mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeAddWithProperties(msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
+      toPartitionManager(EdgeAddWithProperties(msgTime,srcId,dstId,properties))
     }
-    else mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeAdd(msgTime,srcId,dstId),false)
+    else toPartitionManager(EdgeAdd(msgTime,srcId,dstId))
   }
 
   def edgeUpdateProperties(command:JsObject):Unit={
@@ -127,14 +102,14 @@ class RandomRouter(routerId:Int, initialManagerCount:Int) extends RaphtoryActor 
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeUpdateProperties(msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
+    toPartitionManager(EdgeUpdateProperties(msgTime,srcId,dstId,properties))//send the srcID, dstID and properties to the graph manager
   }
 
   def edgeRemoval(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
-    mediator ! DistributedPubSubMediator.Send(getManager(srcId,managerCount),EdgeRemoval(msgTime,srcId,dstId),false) //send the srcID, dstID to graph manager
+    toPartitionManager(EdgeRemoval(msgTime,srcId,dstId))
   }
 
 }

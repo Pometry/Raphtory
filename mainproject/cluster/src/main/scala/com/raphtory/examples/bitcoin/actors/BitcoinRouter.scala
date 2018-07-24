@@ -2,7 +2,7 @@ package com.raphtory.examples.bitcoin.actors
 
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.router.RouterTrait
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, RaphCaseClass, VertexAddWithProperties}
+import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, RaphWriteClass, VertexAddWithProperties}
 import com.raphtory.core.utils.Utils.getManager
 import spray.json.JsArray
 
@@ -93,9 +93,6 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
     }
   }
 
-  def toPartitionManager[T <: RaphCaseClass](message:T): Unit ={
-    mediator ! DistributedPubSubMediator.Send(getManager(message.srcId, getManagerCount), message , false)
-  }
 
 }
 

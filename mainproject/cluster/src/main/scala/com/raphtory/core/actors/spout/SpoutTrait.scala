@@ -43,7 +43,7 @@ trait SpoutTrait extends RaphtoryActor with Timers {
   }
 
   //TODO: Need to move Gab parsing to router
-  protected def sendCommand[T <: RaphCaseClass](command: CommandEnum.Value, value: T) : String = {
+  protected def sendCommand[T <: RaphWriteClass](command: CommandEnum.Value, value: T) : String = {
     recordUpdate()
     val jsonCommand = Command(command, value).toJson.toString
     mediator ! DistributedPubSubMediator.Send("/user/router", jsonCommand, false)
@@ -75,6 +75,7 @@ trait SpoutTrait extends RaphtoryActor with Timers {
     val diff = currentMessage - previousMessage
     previousMessage = currentMessage
     counter = 0
+    //println(s"Spout sent $diff to Log")
     kGauge.refine("actor" -> "Updater", "name" -> "diff").set(diff)
   }
 

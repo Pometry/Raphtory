@@ -119,12 +119,4 @@ class RandomSpout extends SpoutTrait {
     //totalCount+=1000
   }
 
-  //def getPeriodDuration(unit : TimeUnit) : FiniteDuration = {
-  //  val period : Long = unit.convert(1, SECONDS)/freq
-  //  println(period)
-  //  val x = Duration(period, unit)
-  //  println(x)
-  //  x
- // }
-
 }
