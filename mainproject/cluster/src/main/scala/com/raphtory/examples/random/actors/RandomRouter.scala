@@ -23,7 +23,7 @@ import scala.concurrent.duration.{Duration, SECONDS}
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-class RaphtoryRouter(routerId:Int,initialManagerCount:Int) extends RaphtoryActor {
+class RandomRouter(routerId:Int, initialManagerCount:Int) extends RaphtoryActor {
   var managerCount : Int = initialManagerCount
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)

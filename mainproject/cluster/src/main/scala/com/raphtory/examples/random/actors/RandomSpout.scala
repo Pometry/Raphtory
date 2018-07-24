@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Random
 
-class UpdateGen extends RaphtoryActor with Timers {
+class RandomSpout extends RaphtoryActor with Timers {
 
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)

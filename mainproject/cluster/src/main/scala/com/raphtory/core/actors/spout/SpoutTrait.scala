@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.datasource
+package com.raphtory.core.actors.spout
 
 import akka.actor.Timers
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
@@ -18,7 +18,7 @@ import com.raphtory.core.utils.CommandEnum
 
 import scala.language.postfixOps
 
-trait UpdaterTrait extends RaphtoryActor with Timers {
+trait SpoutTrait extends RaphtoryActor with Timers {
   import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   private var currentMessage  = 0
   private var previousMessage = 0

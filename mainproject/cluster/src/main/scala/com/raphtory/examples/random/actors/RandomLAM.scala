@@ -4,7 +4,7 @@ import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
 import com.raphtory.core.analysis._
 import com.raphtory.examples.random.analysis.TestAnalyser
 
-class TestLAM extends LiveAnalysisManager {
+class RandomLAM extends LiveAnalysisManager {
   override protected def defineMaxSteps(): Int = 10
 
   override protected def generateAnalyzer: Analyser = new TestAnalyser()

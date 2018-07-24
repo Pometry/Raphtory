@@ -3,7 +3,7 @@ package com.raphtory.examples.gab.actors
 import java.time.OffsetDateTime
 
 import akka.actor.Cancellable
-import com.raphtory.core.actors.datasource.UpdaterTrait
+import com.raphtory.core.actors.spout.SpoutTrait
 import com.raphtory.core.model.communication.{EdgeAddWithProperties, VertexAddWithProperties, VertexAdd, EdgeAdd}
 import com.raphtory.core.utils.{CommandEnum, GabEntityType}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-final class GabSpout extends UpdaterTrait {
+final class GabSpout extends SpoutTrait {
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
   import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   private val redis    = new RedisClient("moe", 6379)

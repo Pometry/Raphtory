@@ -5,7 +5,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.datasource.UpdaterTrait
+import com.raphtory.core.actors.spout.SpoutTrait
 import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse, SpoutGoing}
 import kamon.Kamon
 import spray.json._
@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scalaj.http.{Http, HttpRequest}
 
-class BitcoinSpout extends UpdaterTrait {
+class BitcoinSpout extends SpoutTrait {
 
   var blockcount = 1
   val rpcuser = System.getenv().getOrDefault("BITCOIN_USERNAME", "name").trim

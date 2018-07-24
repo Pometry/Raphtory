@@ -16,15 +16,15 @@ import java.lang.management.ManagementFactory
 import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
-import com.raphtory.examples.random.actors.{RaphtoryRouter, UpdateGen}
+import com.raphtory.examples.random.actors.{RandomRouter, RandomSpout}
 //main function
 object Go extends App {
   val conf          = ConfigFactory.load()
   val seedLoc       = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
   val zookeeper     = s"${sys.env("ZOOKEEPER")}"
 
-  val routerName    = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RaphtoryRouter].getClass.getName)}"
-  val updaterName   = s"${sys.env.getOrElse("UPDATERCLASS", classOf[UpdateGen].getClass.getName)}"
+  val routerName    = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
+  val updaterName   = s"${sys.env.getOrElse("UPDATERCLASS", classOf[RandomSpout].getClass.getName)}"
   val lamName       = s"${sys.env.getOrElse("LAMCLASS", classOf[LiveAnalysisManager].getClass.getName)}"
 
   val runtimeMxBean = ManagementFactory.getRuntimeMXBean
