@@ -4,6 +4,7 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.router.RouterTrait
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, RaphWriteClass, VertexAddWithProperties}
 import com.raphtory.core.utils.Utils.getManager
+import com.raphtory.examples.bitcoin.communications.BitcoinTransaction
 import spray.json.JsArray
 
 class BitcoinRouter(override val routerId:Int, override val initialManagerCount:Int) extends RouterTrait{

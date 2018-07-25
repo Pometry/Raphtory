@@ -7,6 +7,7 @@ import akka.util.Timeout
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.spout.SpoutTrait
 import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse, SpoutGoing}
+import com.raphtory.examples.bitcoin.communications.BitcoinTransaction
 import kamon.Kamon
 import spray.json._
 
@@ -63,5 +64,3 @@ class BitcoinSpout extends SpoutTrait {
 
 
 }
-
-case class BitcoinTransaction(time:JsValue,blockID:JsValue,transaction:JsValue) extends SpoutGoing

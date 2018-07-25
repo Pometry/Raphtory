@@ -14,7 +14,9 @@ object bitcointest extends App {
 
   def request(command: String, params: String = ""): HttpRequest = baseRequest.postData(s"""{"jsonrpc": "1.0", "id":"$id", "method": "$command", "params": [$params] }""")
 
-println(getTransactions())
+//println(getTransactions())
+
+  println(request("getblockhash",blockcount.toString).execute().code)
 
   def getTransactions():Unit = {
     val re = request("getblockhash",blockcount.toString).execute().body.toString.parseJson.asJsObject
