@@ -20,7 +20,7 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
   var pmcounter = 0
   var routercounter = 0
   var clusterUp = false
-
+  val debug = false
   val maxTime = 30000
 
   var PMKeepAlive = TrieMap[Int,Long]()
@@ -41,7 +41,7 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
       mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
 
     case RequestPartitionCount => {
-      println("sending out Partition Manager Count")
+      if(debug)println("sending out Partition Manager Count")
       sender() ! PartitionsCount(pmCounter)
       mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
     }
@@ -55,16 +55,16 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
   }
 
   def newRouterRequest() ={
-    println("Sending Id for new Router to Replicator")
+    if(debug)println("Sending Id for new Router to Replicator")
     sender() ! AssignedId(roCounter)
     roCounter += 1
   }
 
   def newPMReqest() ={
-    println("Sending Id for new PM to Replicator")
+    if(debug)println("Sending Id for new PM to Replicator")
     sender() ! AssignedId(pmCounter)
     pmCounter += 1
-    println("Sending new total Partition managers to all the subscribers")
+    if(debug)println("Sending new total Partition managers to all the subscribers")
     mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))}
 
   def keepAliveHandler() = {
@@ -75,20 +75,20 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
         if(PMKeepAlive.size==managerCount){
           clusterUp=true
 
-          println("All Partition Managers and minimum number of routers have joined the cluster")
+          if(debug) println("All Partition Managers and minimum number of routers have joined the cluster")
         }
 
   }
 
   def checkMapTime(map: TrieMap[Int,Long]) = map.foreach(pm =>
     if(pm._2 + maxTime <= System.currentTimeMillis())
-      println(s"Manager ${pm._1} not responding since ${unixToTimeStamp(pm._2)}"))
+      if(debug)println(s"Manager ${pm._1} not responding since ${unixToTimeStamp(pm._2)}"))
 
   def mapHandler(id: Int, map:TrieMap[Int,Long], mapType:String) = {
-    println(s"Inside map handler for $mapType $id")
+    if(debug)println(s"Inside map handler for $mapType $id")
     map.putIfAbsent(id,System.currentTimeMillis()) match {
       case Some(time) => map.update(id,System.currentTimeMillis())
-      case _ => println(s"$mapType $id has started sending keep alive messages at ${nowTimeStamp()}")
+      case _ => if(debug)println(s"$mapType $id has started sending keep alive messages at ${nowTimeStamp()}")
     }
   }
 

@@ -41,7 +41,7 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
         address = scriptpubkey.fields("addresses").asInstanceOf[JsArray].elements(0).toString
       else value = "0" //TODO deal with people burning money
 
-      println(s"Edge $timeAsLong, ${txid.hashCode}, ${address.hashCode}, $n, $value")
+      //println(s"Edge $timeAsLong, ${txid.hashCode}, ${address.hashCode}, $n, $value")
       //creates vertex for the receiving wallet
       toPartitionManager(VertexAddWithProperties(
                           msgTime = timeAsLong,

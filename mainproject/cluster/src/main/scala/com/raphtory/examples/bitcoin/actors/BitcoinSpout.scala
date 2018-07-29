@@ -31,7 +31,7 @@ class BitcoinSpout extends SpoutTrait {
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
-    context.system.scheduler.schedule(Duration(1, SECONDS), Duration(1, SECONDS), self, "parseBlock")
+    context.system.scheduler.schedule(Duration(1, SECONDS),Duration(10, MILLISECONDS), self, "parseBlock")
 
   }
 
@@ -51,7 +51,6 @@ class BitcoinSpout extends SpoutTrait {
     catch {
       case e:java.net.SocketTimeoutException => "do nothing"
     }
-
   }
 
 
@@ -84,6 +83,7 @@ class BitcoinSpout extends SpoutTrait {
       //val time = transaction.asJsObject.fields("time")
 
     }
+
   }
 
 

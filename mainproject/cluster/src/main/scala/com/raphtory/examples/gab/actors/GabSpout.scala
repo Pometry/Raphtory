@@ -29,19 +29,7 @@ final class GabSpout extends SpoutTrait {
   }
 
   override def running() : Unit = if (isSafe) {
-    /*sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(System.currentTimeMillis(), 0, Map()))
-    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(System.currentTimeMillis(), 1, Map()))
-    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(System.currentTimeMillis(), 2, Map()))
-    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(System.currentTimeMillis(), 3, Map()))
-    sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(System.currentTimeMillis(), 4, Map()))
-    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 0, 1, Map()))
-    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 0, 4, Map()))
-    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 0, 3, Map()))
-    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 4, 3, Map()))
-    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 2, 4, Map()))
-    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 1, 4, Map()))
-    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 2, 0, Map()))
-    sendCommand(CommandEnum.edgeAdd, EdgeAddWithProperties(System.currentTimeMillis(), 2, 1, Map()))*/
+
     getNextPost() match {
       case None =>
       case Some(p) => sendPostToPartitions(p)
@@ -154,3 +142,5 @@ final class GabSpout extends SpoutTrait {
     }
   }
 }
+
+//redis-server --dir /home/moe/ben/gab --dbfilename gab.rdb --daemonize yes

@@ -26,7 +26,7 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
   private var toSetup            = true
   protected def analyserName:String = generateAnalyzer.getClass.getName
 
-
+  private val debug = false
   private var newAnalyser:Boolean = false
 
   protected val mediator     = DistributedPubSub(context.system).mediator
@@ -49,7 +49,7 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
   mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
 
   override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(Duration(5, SECONDS), self, "start")
+    context.system.scheduler.scheduleOnce(Duration(20, SECONDS), self, "start")
     steps = defineMaxSteps()
     //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
@@ -66,31 +66,31 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
   override def receive: Receive = {
     //case "analyse" => analyse()
     case "start" => {
-      println("Starting")
+      if(debug)println("Starting")
       checkClusterSize
       sendGetNetworkSize()
     }
     case "networkSizeTimeout" => {
       sendGetNetworkSize()
-      println("Timeout networkSize")
+      if(debug)println("Timeout networkSize")
     }
     case Results(result) => {
-      println("Printing results")
+      if(debug)println("Printing results")
       this.processResults(result)
     }
     case PartitionsCount(newValue) => {
-      println(s"received new count of $newValue")
+      if(debug)println(s"received new count of $newValue")
       managerCount = newValue
     }
     case NetworkSize(size) => {
-        println("Received NetworkSize packet")
+      if(debug)println("Received NetworkSize packet")
         networkSize += size
         networkSizeReplies += 1
         if (networkSizeReplies >= getManagerCount) {
           networkSizeTimeout.cancel()
-          println(steps)
+          if(debug)println(steps)
           this.defineMaxSteps()
-          println(networkSize)
+          if(debug)println(networkSize)
           mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$","")))
         }
       }
@@ -100,25 +100,25 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
     }
 
     case ClassMissing() => {
-      println(s"$sender does not have analyser, sending now")
+      if(debug)println(s"$sender does not have analyser, sending now")
       var code = missingCode()
       newAnalyser = true
       sender() ! SetupNewAnalyser(code,analyserName)
     }
 
     case FailedToCompile(stackTrace) => {
-      println(s"${sender} failed to compiled, stacktrace returned: \n $stackTrace")
+      if(debug)println(s"${sender} failed to compiled, stacktrace returned: \n $stackTrace")
     }
 
     case Ready() => {
-      println("Received ready")
+      if(debug)println("Received ready")
       readyCounter += 1
-      println(s"$readyCounter / ${getManagerCount}")
+      if(debug)println(s"$readyCounter / ${getManagerCount}")
       if (readyCounter == getManagerCount) {
         readyCounter = 0
         currentStep = 1
         results = Vector.empty[Any]
-        println(s"Sending analyzer")
+        if(debug)println(s"Sending analyzer")
         if(newAnalyser)
           mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStepNewAnalyser(analyserName))
         else
@@ -126,17 +126,17 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
       }
     }
     case EndStep(res) => {
-      println("EndStep")
+      if(debug)println("EndStep")
       currentStepCounter += 1
       results +:= res
-      println(s"$currentStepCounter / $getManagerCount : $currentStep / $steps")
+      if(debug)println(s"$currentStepCounter / $getManagerCount : $currentStep / $steps")
       if (currentStepCounter >= getManagerCount) {
         if (currentStep == steps || this.checkProcessEnd()) {
           // Process results
           this.processResults(results)
-          context.system.scheduler.scheduleOnce(Duration(15, MINUTES), self, "start")
+          context.system.scheduler.scheduleOnce(Duration(20, SECONDS), self, "start")
         } else {
-          println(s"Sending new step")
+          if(debug)println(s"Sending new step")
           oldResults = results
           results = Vector.empty[Any]
           currentStep += 1
@@ -152,14 +152,14 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
   }
 
   def checkClusterSize ={
-      println("LAM SENDING REQUEST TO WATCHDOG")
+    if(debug)println("LAM SENDING REQUEST TO WATCHDOG")
       mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
   }
 
   def missingCode() : String = {
     val file = generateAnalyzer.getClass.getName.replaceAll("\\.","/").replaceAll("$","")
     var code = ""
-    println("pwd" !)
+    if(debug)println("pwd" !)
     try code = readClass(s"../$file.scala") //if inside a contained and the src has been copied
     catch { case e:FileNotFoundException=> code = readClass(s"cluster/src/main/scala/$file.scala")} //if we are running locally inside of the the mainproject folder
     code
