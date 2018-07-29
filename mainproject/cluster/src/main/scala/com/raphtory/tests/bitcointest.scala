@@ -6,6 +6,8 @@ import spray.json._
 import scalaj.http.{Http, HttpRequest}
 import DefaultJsonProtocol._
 import java.io._
+import scala.sys.process._
+
 
 import com.raphtory.tests.bitcointest.sendCommand
 
@@ -13,21 +15,39 @@ import scala.io.Source
 
 object bitcointest extends App {
   var blockcount = "1"
-  val rpcuser = "moe"
-  val rpcpassword = "30xIeKEhn"
+  val rpcuser = ""
+  val rpcpassword = ""
   val id = "scala-jsonrpc"
-  val baseRequest = Http("http://moe.eecs.qmul.ac.uk:8332").auth(rpcuser, rpcpassword).header("content-type", "text/plain")
+  val address = "http://eecs.qmul.ac.uk:8332"
+  val baseRequest = Http("http://eecs.qmul.ac.uk:8332").auth(rpcuser, rpcpassword).header("content-type", "text/plain")
 
   def request(command: String, params: String = ""): HttpRequest = baseRequest.postData(s"""{"jsonrpc": "1.0", "id":"$id", "method": "$command", "params": [$params] }""")
 
+  def outputScript()={
+    val pw = new PrintWriter(new File("bitcoin.sh"))
+    pw.write("echo $3\n")
+    pw.write("""curl --user $1:$2 --data-binary $3 -H 'content-type: text/plain;' $4"""
+    )
+    pw.close
+  }
+
+  def curlRequest(command:String,params:String)={
+    //val data = """{"jsonrpc":"1.0","id":"scala-jsonrpc","method":"getblockhash","params":[2]}"""
+    val data = s"""{"jsonrpc":"1.0","id":"$id","method":"$command","params":[$params]}"""
+    s"bash bitcoin.sh $rpcuser $rpcpassword $data $address"!
+  }
+
+  outputScript()
+  println(curlRequest("getblockhash","2"))
+  //val blockID = re.fields("result")
+  //val blockData = request("getblock",s"$blockID,2").execute().body.toString.parseJson.asJsObject
+
+//  getTransactions()
+ // readTransactions()
   //for(i <- 1 to 20000){
   //  blockcount = i.toString
-   // saveTransactions()
+  // saveTransactions()
   //}
-
-  getTransactions()
-  readTransactions()
-
 
   def saveTransactions()={
     val re = request("getblockhash",blockcount.toString).execute().body.toString.parseJson.asJsObject
@@ -98,10 +118,6 @@ object bitcointest extends App {
 
   }
 
-  //println(getTransactions())
-
-  //println(request("getblockhash",blockcount.toString).execute().code)
-
   def getTransactions():Unit = {
     val re = request("getblockhash",blockcount.toString).execute().body.toString.parseJson.asJsObject
     val blockID = re.fields("result")
@@ -150,12 +166,6 @@ object bitcointest extends App {
     }
   }
 
-
   def sendCommand(str: String) = println(str)
 
-  //println(curlResponse)
-  //val parsedOBJ = curlResponse.toString.parseJson.asJsObject //get the json object
-  //val commandKey = parsedOBJ.fields //get the command type3
-  //if(commandKey.contains("error"))
-  //  println(commandKey("error").compactPrint)
 }

@@ -1,5 +1,7 @@
 package com.raphtory.examples.bitcoin.actors
 
+import java.io.{File, PrintWriter}
+
 import akka.actor._
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
@@ -10,6 +12,7 @@ import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatu
 import com.raphtory.examples.bitcoin.communications.BitcoinTransaction
 import kamon.Kamon
 import spray.json._
+import scala.sys.process._
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -20,9 +23,9 @@ import scalaj.http.{Http, HttpRequest}
 class BitcoinSpout extends SpoutTrait {
 
   var blockcount = 1
-  val rpcuser = System.getenv().getOrDefault("BITCOIN_USERNAME", "name").trim
-  val rpcpassword = System.getenv().getOrDefault("BITCOIN_PASSWORD", "pass").trim
-  val serverAddress = System.getenv().getOrDefault("BITCOIN_NODE", "http://eecs.qmul.ac.uk:8332").trim
+  val rpcuser = System.getenv().getOrDefault("BITCOIN_USERNAME", "moe").trim
+  val rpcpassword = System.getenv().getOrDefault("BITCOIN_PASSWORD", "30xIeKEhn").trim
+  val serverAddress = System.getenv().getOrDefault("BITCOIN_NODE", "http://moe.eecs.qmul.ac.uk:8332").trim
   val id = "scala-jsonrpc"
   val baseRequest = Http(serverAddress).auth(rpcuser, rpcpassword).header("content-type", "text/plain")
 
@@ -41,11 +44,33 @@ class BitcoinSpout extends SpoutTrait {
   }
 
   def running() : Unit = if(isSafe()) {
-    getTransactions()
-    blockcount +=1
+    try {
+      getTransactions()
+      blockcount +=1
+    }
+    catch {
+      case e:java.net.SocketTimeoutException => "do nothing"
+    }
+
+  }
+
+
+  def outputScript()={
+    val pw = new PrintWriter(new File("bitcoin.sh"))
+    pw.write("""curl --user $1:$2 --data-binary $3 -H 'content-type: text/plain;' $4"""
+    )
+    pw.close
+    "chmod 777 bitcoin.sh" !
+  }
+
+  def curlRequest(command:String,params:String):String={
+    //val data = """{"jsonrpc":"1.0","id":"scala-jsonrpc","method":"getblockhash","params":[2]}"""
+    val data = s"""{"jsonrpc":"1.0","id":"$id","method":"$command","params":[$params]}"""
+    s"bash bitcoin.sh $rpcuser $rpcpassword $data $serverAddress"!!
   }
 
   def request(command: String, params: String = ""): HttpRequest = baseRequest.postData(s"""{"jsonrpc": "1.0", "id":"$id", "method": "$command", "params": [$params] }""")
+
 
   def getTransactions():Unit = {
     val re = request("getblockhash",blockcount.toString).execute().body.toString.parseJson.asJsObject
@@ -64,3 +89,4 @@ class BitcoinSpout extends SpoutTrait {
 
 
 }
+//def request(command: String, params: String = ""): HttpRequest = baseRequest.postData(s"""{"jsonrpc": "1.0", "id":"$id", "method": "$command", "params": [$params] }""")
