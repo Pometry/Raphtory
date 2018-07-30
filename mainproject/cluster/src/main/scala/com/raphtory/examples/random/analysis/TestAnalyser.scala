@@ -10,7 +10,7 @@ class TestAnalyser extends Analyser {
   override implicit var context: ActorContext = _
   override implicit var managerCount: Int = _
 
-  override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int): Any = "hello"
+  override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int): Any = "Test Analysis"
 
   override def setup()(implicit proxy: GraphRepoProxy.type): Any = ""
 }
