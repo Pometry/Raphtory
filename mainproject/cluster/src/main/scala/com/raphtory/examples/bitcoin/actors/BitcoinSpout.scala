@@ -79,7 +79,7 @@ class BitcoinSpout extends SpoutTrait {
     val time = result.asJsObject.fields("time")
     for(transaction <- result.asJsObject().fields("tx").asInstanceOf[JsArray].elements){
 
-      sendCommand(BitcoinTransaction(time,blockID,transaction))
+      sendCommand(BitcoinTransaction(time,blockcount,blockID,transaction))
       //val time = transaction.asJsObject.fields("time")
 
     }

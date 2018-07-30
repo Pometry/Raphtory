@@ -21,6 +21,7 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
     val transaction = value.transaction
     val time = value.time
     val blockID = value.blockID
+    val block = value.block
     val timeAsString = time.toString
     val timeAsLong = timeAsString.toLong
 
@@ -63,7 +64,8 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
                               ("time",timeAsString),
                               ("id",txid),
                               ("total",total.toString),
-                              ("blockhash",blockID.toString))))
+                              ("blockhash",blockID.toString),
+                              ("block",block.toString))))
 
     if(vins.toString().contains("coinbase")){
       //creates the coingen node //TODO change so only added once
