@@ -23,9 +23,9 @@ import scalaj.http.{Http, HttpRequest}
 class BitcoinSpout extends SpoutTrait {
 
   var blockcount = 1
-  val rpcuser = System.getenv().getOrDefault("BITCOIN_USERNAME", "moe").trim
-  val rpcpassword = System.getenv().getOrDefault("BITCOIN_PASSWORD", "30xIeKEhn").trim
-  val serverAddress = System.getenv().getOrDefault("BITCOIN_NODE", "http://moe.eecs.qmul.ac.uk:8332").trim
+  val rpcuser = System.getenv().getOrDefault("BITCOIN_USERNAME", "").trim
+  val rpcpassword = System.getenv().getOrDefault("BITCOIN_PASSWORD", "").trim
+  val serverAddress = System.getenv().getOrDefault("BITCOIN_NODE", "").trim
   val id = "scala-jsonrpc"
   val baseRequest = Http(serverAddress).auth(rpcuser, rpcpassword).header("content-type", "text/plain")
 
