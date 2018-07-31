@@ -90,7 +90,7 @@ When we look inside of this file it can be seen that there a lot more services. 
 As you are now running in cluster mode the number of PM's and Routers within your cluster can be specified. This is set within the yml file under the 'deploy' section of each service. A nice way we have found to do this is to set the mode to global and then set a [label constraint](https://docs.docker.com/v17.09/datacenter/ucp/2.2/guides/admin/configure/add-labels-to-cluster-nodes/#apply-labels-to-a-node) for the service. This way you get one Partition on each chosen node within the swarm cluster.             
 
 <p align="center">
-  <img src="readmepics/pms.png" alt="Raphtory diagram" width=40%/>
+  <img src="readmepics/Pms.png" alt="Raphtory diagram" width=40%/>
 </p>
 
 In addition to the above, whilst Routers and Live Analysis Managers can leave and join the cluster at any time (as they are somewhat stateless), there has to be a set number of Partition Managers established at the start. This is set within the .env file under PARTITION_MIN and should match the number which will be created when the containers are deployed.
