@@ -12,8 +12,9 @@ import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatu
 import com.raphtory.examples.bitcoin.communications.BitcoinTransaction
 import kamon.Kamon
 import spray.json._
-import scala.sys.process._
 
+import scala.collection.mutable
+import scala.sys.process._
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
