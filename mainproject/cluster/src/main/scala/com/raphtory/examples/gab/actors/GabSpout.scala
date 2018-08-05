@@ -15,11 +15,13 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 final class GabSpout extends SpoutTrait {
+
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
   import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
-  private val redis    = new RedisClient("moe", 6379)
+
+  private val redis = new RedisClient("moe", 6379)
   private val redisKey = "gab-posts"
-  private var sched : Cancellable = null
+  private var sched: Cancellable = null
   private val nullStr = "null"
 
   override def preStart() {
@@ -28,7 +30,13 @@ final class GabSpout extends SpoutTrait {
     //sched = context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "parsePost")
   }
 
-  override def running() : Unit = if (isSafe) {
+  override protected def processChildMessages(rcvdMessage: Any): Unit = {
+    rcvdMessage match {
+      case "parsePost" => running()
+    }
+  }
+
+  override def running(): Unit = if (isSafe) {
 
     getNextPost() match {
       case None =>
@@ -38,34 +46,61 @@ final class GabSpout extends SpoutTrait {
     sched = context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "parsePost")
   }
 
-  def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false, parent : Int = 0) : Unit = {
-    val postUUID  = post.id.get.toInt
+  private def getNextPost(): Option[GabPost] = {
+    redis.lpop(redisKey) match {
+      case Some(i) => {
+        val x = redis.get(i).get
+        val y = x.drop(2).dropRight(1)
+        try {
+          Some(y.replaceAll("""\\"""", "").replaceAll("""\\""", "").parseJson.convertTo[GabPost])
+        } catch {
+          case e =>
+            println(e.toString)
+            None
+        }
+      }
+      case None => {
+        println("Stream end")
+        sched.cancel()
+        None
+      }
+    }
+  }
+
+
+  def sendPostToPartitions(post: GabPost, recursiveCall: Boolean = false, parent: Int = 0): Unit = {
+    val postUUID = post.id.get.toInt
     val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
 
     sendCommand(CommandEnum.vertexAddWithProperties, VertexAddWithProperties(timestamp, postUUID, Map(
-      "user"         -> {post.user match {
-                            case Some(u) => u.id.toString
-                            case None => nullStr
-                        }},
-      "likeCount"    -> post.like_count.toString,
-      "score"        -> post.score.toString,
-      "topic"        -> {post.topic match {
-                          case Some(topic) => topic.id
-                          case None => nullStr
-                        }},
-      "type"         -> GabEntityType.post.toString,
+      "user" -> {
+        post.user match {
+          case Some(u) => u.id.toString
+          case None => nullStr
+        }
+      },
+      "likeCount" -> post.like_count.toString,
+      "score" -> post.score.toString,
+      "topic" -> {
+        post.topic match {
+          case Some(topic) => topic.id
+          case None => nullStr
+        }
+      },
+      "type" -> GabEntityType.post.toString,
     )))
     /*sendCommand2(
         s"""{"VertexAdd":${VertexAdd(timestamp, postUUID).toJson.toString()}}"""
     )*/
-    /*post.user match {
+    /* post
+    .user match {
       case Some(user) => {
-        val userUUID  = Math.pow(2,24).toInt + user.id
+        val userUUID = Math.pow(2, 24).toInt + user.id
         if (userUUID < 0 || userUUID > Int.MaxValue)
           println(s"UserID is $userUUID")
         sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, userUUID, Map(
           "username" -> user.username,
-          "type"     -> GabEntityType.user.toString
+          "type" -> GabEntityType.user.toString
         )))
         /*sendCommand2(
           s"""{"VertexAdd":${VertexAdd(timestamp, userUUID).toJson.toString()}}"""
@@ -77,18 +112,19 @@ final class GabSpout extends SpoutTrait {
           EdgeAddWithProperties(timestamp, userUUID, postUUID, Map()))
       }
       case None =>
-    }*/
+    }
+    */
 
     post.topic match {
       case Some(topic) => {
-        val topicUUID : Int = Math.pow(2,24).toInt+ (topic.id.hashCode()).toInt
+        val topicUUID: Int = Math.pow(2, 24).toInt + (topic.id.hashCode()).toInt
         sendCommand(CommandEnum.vertexAddWithProperties, VertexAddWithProperties(timestamp, topicUUID, Map(
           "created_at" -> topic.created_at,
-          "category"   -> topic.category.toString,
-          "title"      -> topic.title.getOrElse("null"),
-          "type"       -> GabEntityType.topic.toString,
-          "id"         -> topic.id
-          )
+          "category" -> topic.category.toString,
+          "title" -> topic.title.getOrElse("null"),
+          "type" -> GabEntityType.topic.toString,
+          "id" -> topic.id
+        )
         ))
 
         sendCommand(CommandEnum.edgeAdd,
@@ -115,32 +151,7 @@ final class GabSpout extends SpoutTrait {
 
   }
 
-  override protected def processChildMessages(rcvdMessage: Any) : Unit = {
-    rcvdMessage match {
-      case "parsePost" => running()
-    }
-  }
 
-  private def getNextPost() : Option[GabPost] = {
-    redis.lpop(redisKey) match {
-      case Some(i) => {
-        val x = redis.get(i).get
-        val y = x.drop(2).dropRight(1)
-        try {
-          Some(y.replaceAll("""\\"""", "").replaceAll("""\\""", "").parseJson.convertTo[GabPost])
-        } catch {
-          case e =>
-            println(e.toString)
-            None
-        }
-      }
-      case None => {
-        println("Stream end")
-        sched.cancel()
-        None
-      }
-    }
-  }
 }
 
 //redis-server --dir /home/moe/ben/gab --dbfilename gab.rdb --daemonize yes

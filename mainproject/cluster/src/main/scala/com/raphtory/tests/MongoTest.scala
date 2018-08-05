@@ -1,16 +1,14 @@
 package com.raphtory.tests
-import scala.collection.immutable.IndexedSeq
 
-import org.mongodb.scala._
-import org.mongodb.scala.model.Aggregates._
-import org.mongodb.scala.model.Filters._
-import org.mongodb.scala.model.Projections._
-import org.mongodb.scala.model.Sorts._
-import org.mongodb.scala.model.Updates._
-import org.mongodb.scala.model._
-
+import com.mongodb.casbah.Imports._
 object MongoTest extends App {
-  val client:MongoClient=MongoClient("mongodb://138.37.32.68:27017")
-  val database: MongoDatabase = client.getDatabase("gab")
-  val collection: MongoCollection[Document] = database.getCollection("posts")
+  val mongoConn = MongoConnection("138.37.32.68", 27017)
+  val mongoColl = mongoConn("gab")("posts")
+  val q = MongoDBObject("_id" -> 2)
+  //println( mongoColl.findOne(q))
+  mongoColl.findOne(q) match {
+    case e:Some[DBObject] => println(e.get("data").getClass)
+    case None => {/*do nothing*/}
+  }
 }
+
