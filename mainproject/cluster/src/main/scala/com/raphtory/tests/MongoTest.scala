@@ -6,9 +6,13 @@ object MongoTest extends App {
   val mongoColl = mongoConn("gab")("posts")
   val q = MongoDBObject("_id" -> 2)
   //println( mongoColl.findOne(q))
-  mongoColl.findOne(q) match {
-    case e:Some[DBObject] => println(e.get("data").getClass)
-    case None => {/*do nothing*/}
+  for (x <- mongoColl.find("_id" $lt 1000 $gt 0)){
+    println(x.get("data"))
   }
+
+
+
+
+
 }
 

@@ -3,31 +3,43 @@ package com.raphtory.examples.gab.actors
 import java.time.OffsetDateTime
 
 import akka.actor.Cancellable
+import com.mongodb.casbah.Imports.{DBObject, MongoConnection, MongoDBObject}
 import com.raphtory.core.actors.spout.SpoutTrait
-import com.raphtory.core.model.communication.{EdgeAddWithProperties, VertexAddWithProperties, VertexAdd, EdgeAdd}
+import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
 import com.raphtory.core.utils.{CommandEnum, GabEntityType}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import com.redis.{RedisClient, RedisConnectionException}
 import spray.json._
+import org.apache.log4j.LogManager
+import com.mongodb.casbah.Imports._
+
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import ch.qos.logback.classic.Level
+import com.raphtory.tests.MongoTest.mongoColl
+import org.slf4j.LoggerFactory
 
 final class GabSpout extends SpoutTrait {
 
-  import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
-  import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
-
-  private val redis = new RedisClient("moe", 6379)
-  private val redisKey = "gab-posts"
+  //private val redis    = new RedisClient("moe", 6379)
+  //private val redisKey = "gab-posts"
   private var sched: Cancellable = null
-  private val nullStr = "null"
+
+  private val mongoConn = MongoConnection("138.37.32.68", 27017)
+  private val mongoColl = mongoConn("gab")("posts")
+  private var postMin = 0
+  private var postMax = 1001
+
+  val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+  root.setLevel(Level.ERROR)
+  // private val mongoLogger = Logger.getLogger("org.mongodb.driver.cluster")
+  // mongoLogger.setLevel(Level.OFF)
 
   override def preStart() {
     super.preStart()
-    sched = context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "parsePost")
-    //sched = context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "parsePost")
+    sched = context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "parsePost")
   }
 
   override protected def processChildMessages(rcvdMessage: Any): Unit = {
@@ -36,121 +48,26 @@ final class GabSpout extends SpoutTrait {
     }
   }
 
-  override def running(): Unit = if (isSafe) {
-
-    getNextPost() match {
-      case None =>
-      case Some(p) => sendPostToPartitions(p)
-    }
-    sched.cancel()
-    sched = context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "parsePost")
-  }
-
-  private def getNextPost(): Option[GabPost] = {
-    redis.lpop(redisKey) match {
-      case Some(i) => {
-        val x = redis.get(i).get
-        val y = x.drop(2).dropRight(1)
-        try {
-          Some(y.replaceAll("""\\"""", "").replaceAll("""\\""", "").parseJson.convertTo[GabPost])
-        } catch {
-          case e =>
-            println(e.toString)
-            None
-        }
-      }
-      case None => {
-        println("Stream end")
-        sched.cancel()
-        None
-      }
+  override def running(): Unit = {
+    if (isSafe) {
+      getNextPosts()
+      postMin += 1000
+      postMax += 1000
     }
   }
 
-
-  def sendPostToPartitions(post: GabPost, recursiveCall: Boolean = false, parent: Int = 0): Unit = {
-    val postUUID = post.id.get.toInt
-    val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
-
-    sendCommand(CommandEnum.vertexAddWithProperties, VertexAddWithProperties(timestamp, postUUID, Map(
-      "user" -> {
-        post.user match {
-          case Some(u) => u.id.toString
-          case None => nullStr
-        }
-      },
-      "likeCount" -> post.like_count.toString,
-      "score" -> post.score.toString,
-      "topic" -> {
-        post.topic match {
-          case Some(topic) => topic.id
-          case None => nullStr
-        }
-      },
-      "type" -> GabEntityType.post.toString,
-    )))
-    /*sendCommand2(
-        s"""{"VertexAdd":${VertexAdd(timestamp, postUUID).toJson.toString()}}"""
-    )*/
-    /* post
-    .user match {
-      case Some(user) => {
-        val userUUID = Math.pow(2, 24).toInt + user.id
-        if (userUUID < 0 || userUUID > Int.MaxValue)
-          println(s"UserID is $userUUID")
-        sendCommand(CommandEnum.vertexAdd, VertexAddWithProperties(timestamp, userUUID, Map(
-          "username" -> user.username,
-          "type" -> GabEntityType.user.toString
-        )))
-        /*sendCommand2(
-          s"""{"VertexAdd":${VertexAdd(timestamp, userUUID).toJson.toString()}}"""
-        )
-        sendCommand2(
-          s"""{"EdgeAdd":${EdgeAdd(timestamp, userUUID, postUUID).toJson.toString()}}"""
-        )*/
-        sendCommand(CommandEnum.edgeAdd,
-          EdgeAddWithProperties(timestamp, userUUID, postUUID, Map()))
+  private def getNextPosts(): Unit = {
+    for (x <- mongoColl.find("_id" $lt postMax $gt postMin)) {
+      try {
+        val data = x.get("data").toString.drop(2).dropRight(1).replaceAll("""\\"""", "").replaceAll("""\\""", "")
+        //println(data)
+        sendCommand(data)
+      } catch {
+        case e: Throwable =>
+          println(e.toString)
       }
-      case None =>
     }
-    */
-
-    post.topic match {
-      case Some(topic) => {
-        val topicUUID: Int = Math.pow(2, 24).toInt + (topic.id.hashCode()).toInt
-        sendCommand(CommandEnum.vertexAddWithProperties, VertexAddWithProperties(timestamp, topicUUID, Map(
-          "created_at" -> topic.created_at,
-          "category" -> topic.category.toString,
-          "title" -> topic.title.getOrElse("null"),
-          "type" -> GabEntityType.topic.toString,
-          "id" -> topic.id
-        )
-        ))
-
-        sendCommand(CommandEnum.edgeAdd,
-          EdgeAdd(timestamp, postUUID, topicUUID))
-      }
-      case None =>
-    }
-
-
-    // Edge from child to parent post
-    if (recursiveCall && parent > 0) {
-      sendCommand(CommandEnum.edgeAdd,
-        EdgeAdd(timestamp, postUUID, parent))
-    }
-    post.parent match {
-      case Some(p) => {
-        if (!recursiveCall) { // Allow only one recursion per post
-          //println("Found parent post: Recursion!")
-          sendPostToPartitions(p, true, postUUID)
-        }
-      }
-      case None =>
-    }
-
   }
-
 
 }
 

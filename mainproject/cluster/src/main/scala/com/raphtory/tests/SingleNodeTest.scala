@@ -14,9 +14,9 @@ object SingleNodeTest extends App {
   //val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRouter"
   //val LamClassName = "com.raphtory.examples.random.actors.TestLAM"
   //val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinSpout"
-  val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRouter"
-  val LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
-  val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinSpout"
+  val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
+  val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
+  val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
 
   val system = ActorSystem("Single-Node-test")
 

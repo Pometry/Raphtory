@@ -13,11 +13,17 @@ class GabLiveAnalyserManagerMostUsedTopics extends LiveAnalysisManager {
   private val dumplingFactor = 0.85F
   private var firstStep      = true
 
-  override protected def processResults(result: Any): Unit = println(
-    result.asInstanceOf[Vector[Vector[(String, Int, String)]]].flatten.sortBy(f => f._2)(Ordering[Int].reverse))/*.asInstanceOf[Vector[Vector[(Long, Double)]]]
-      .flatMap(e => e).sortBy(f => f._2)(Ordering[Double])
-      .reverse
-  )*/
+  override protected def processResults(result: Any): Unit = {
+    println()
+    println("Current top topics")
+    result.asInstanceOf[Vector[Vector[(String, Int, String)]]].flatten.sortBy(f => f._2)(Ordering[Int].reverse).foreach(
+      topic => println(s"Topic: ${topic._3} with ID ${topic._1} and total uses of ${topic._2}")
+    )
+    }
+    println()
+   //   .flatMap(e => e).sortBy(f => f._2)(Ordering[Double])
+   //   .reverse
+  //)*/
 
   override protected def defineMaxSteps(): Int = {
     //steps =  (B * Math.log(getNetworkSize/epsilon)).round
