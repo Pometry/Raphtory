@@ -17,6 +17,8 @@ import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
 import com.raphtory.examples.random.actors.{RandomRouter, RandomSpout}
+import scala.language.postfixOps
+import scala.sys.process._
 //main function
 object Go extends App {
   val conf          = ConfigFactory.load()
@@ -75,16 +77,20 @@ object Go extends App {
   }
 
   def setConf(seedLoc: String, zookeeper: String): Unit ={
-    var zookeeperFailed = true
-    while(zookeeperFailed){
-      try {
-        zookeeperFailed = setConfHelper(seedLoc, zookeeper)
-      }
-      catch {
-        case e:Exception => println("Zookeeper Timeout")
-      }
-    }
+    println(s"I AM AT $seedLoc")
   }
+
+//  def setConf(seedLoc: String, zookeeper: String): Unit ={
+//    var zookeeperFailed = true
+//    while(zookeeperFailed){
+//      try {
+//        zookeeperFailed = setConfHelper(seedLoc, zookeeper)
+//      }
+//      catch {
+//        case e:Exception => println("Zookeeper Timeout")
+//      }
+//    }
+//  }
 
   def setConfHelper(seedLoc: String, zookeeper: String): Boolean = {
     try {
@@ -119,21 +125,28 @@ object Go extends App {
     }
   }
 
-  def getConf(zookeeper: String): String = {
-    var zookeeperFailed = true
-    var seedlocation = ""
-    while(zookeeperFailed){
-      try {
-        val pair = getConfHelper(zookeeper)
-        zookeeperFailed = pair._2
-        seedlocation = pair._1
-      }
-      catch {
-        case e:Exception => println("Zookeeper Timeout")
-      }
+  def getConf(zookeeper:String):String = {
+    while(!("nc seedNode 1600" !).equals(0)){
+      println("Waiting for seednode to come online")
     }
-    seedlocation
+    hostname2Ip("seedNode:1600")
   }
+
+//  def getConf(zookeeper: String): String = {
+//    var zookeeperFailed = true
+//    var seedlocation = ""
+//    while(zookeeperFailed){
+//      try {
+//        val pair = getConfHelper(zookeeper)
+//        zookeeperFailed = pair._2
+//        seedlocation = pair._1
+//      }
+//      catch {
+//        case e:Exception => println("Zookeeper Timeout")
+//      }
+//    }
+//    seedlocation
+//  }
 
   def getConfHelper(zookeeper: String): (String,Boolean) = {
     try {
