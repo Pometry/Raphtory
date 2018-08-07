@@ -134,6 +134,7 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
         if (currentStep == steps || this.checkProcessEnd()) {
           // Process results
           this.processResults(results)
+          currentStepCounter = 0
           context.system.scheduler.scheduleOnce(Duration(20, SECONDS), self, "start")
         } else {
           if(debug)println(s"Sending new step")
