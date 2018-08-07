@@ -74,46 +74,92 @@ object Go extends App {
     }
   }
 
-  def setConf(seedLoc: String, zookeeper: String): Unit = {
-    val retryPolicy = new ExponentialBackoffRetry(1000, 3)
-    val curatorZookeeperClient =
-      CuratorFrameworkFactory.newClient(zookeeper, retryPolicy)
-
-    val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
-    root.setLevel(Level.ERROR)
-
-
-    curatorZookeeperClient.start
-    curatorZookeeperClient.getZookeeperClient.blockUntilConnectedOrTimedOut
-    if (curatorZookeeperClient.checkExists().forPath("/seednode") == null) {
-      curatorZookeeperClient
-        .create()
-        .creatingParentsIfNeeded()
-        .forPath("/seednode", seedLoc.getBytes)
-    } else {
-      curatorZookeeperClient.setData().forPath("/seednode", seedLoc.getBytes)
+  def setConf(seedLoc: String, zookeeper: String): Unit ={
+    var zookeeperFailed = true
+    while(zookeeperFailed){
+      try {
+        zookeeperFailed = setConfHelper(seedLoc, zookeeper)
+      }
+      catch {
+        case e:Exception => println("Zookeeper Timeout")
+      }
     }
-    val originalData = new String(
-      curatorZookeeperClient.getData.forPath("/seednode"))
-    curatorZookeeperClient.close()
+  }
+
+  def setConfHelper(seedLoc: String, zookeeper: String): Boolean = {
+    try {
+      val retryPolicy = new ExponentialBackoffRetry(1000, 3)
+      val curatorZookeeperClient =
+        CuratorFrameworkFactory.newClient(zookeeper, retryPolicy)
+
+      val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+      root.setLevel(Level.ERROR)
+
+
+      curatorZookeeperClient.start
+      curatorZookeeperClient.getZookeeperClient.blockUntilConnectedOrTimedOut
+      if (curatorZookeeperClient.checkExists().forPath("/seednode") == null) {
+        curatorZookeeperClient
+          .create()
+          .creatingParentsIfNeeded()
+          .forPath("/seednode", seedLoc.getBytes)
+      } else {
+        curatorZookeeperClient.setData().forPath("/seednode", seedLoc.getBytes)
+      }
+      val originalData = new String(
+        curatorZookeeperClient.getData.forPath("/seednode"))
+      curatorZookeeperClient.close()
+      false
+    }
+    catch {
+      case e:Exception => {
+        println("zookeeper currently unavailable, trying again in 10 seconds")
+        true
+      }
+    }
   }
 
   def getConf(zookeeper: String): String = {
-    val retryPolicy = new ExponentialBackoffRetry(1000, 3)
-    val curatorZookeeperClient =
-      CuratorFrameworkFactory.newClient(zookeeper, retryPolicy)
+    var zookeeperFailed = true
+    var seedlocation = ""
+    while(zookeeperFailed){
+      try {
+        val pair = getConfHelper(zookeeper)
+        zookeeperFailed = pair._2
+        seedlocation = pair._1
+      }
+      catch {
+        case e:Exception => println("Zookeeper Timeout")
+      }
+    }
+    seedlocation
+  }
 
-    val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
-    root.setLevel(Level.ERROR)
+  def getConfHelper(zookeeper: String): (String,Boolean) = {
+    try {
+      val retryPolicy = new ExponentialBackoffRetry(1000, 3)
+      val curatorZookeeperClient =
+        CuratorFrameworkFactory.newClient(zookeeper, retryPolicy)
 
-    curatorZookeeperClient.start
-    curatorZookeeperClient.getZookeeperClient.blockUntilConnectedOrTimedOut
-    val originalData = new String(
-      curatorZookeeperClient.getData.forPath("/seednode"))
-    println(originalData)
-    prometheusReporter()
-    curatorZookeeperClient.close()
-    hostname2Ip(originalData)
+      val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+      root.setLevel(Level.ERROR)
+
+      curatorZookeeperClient.start
+      curatorZookeeperClient.getZookeeperClient.blockUntilConnectedOrTimedOut
+      val originalData = new String(
+        curatorZookeeperClient.getData.forPath("/seednode"))
+      println(originalData)
+      prometheusReporter()
+      curatorZookeeperClient.close()
+      (hostname2Ip(originalData),false)
+    }
+    catch {
+      case e:Exception =>{
+        println("zookeeper currently unavailable, trying again in 10 seconds")
+        ("",true)
+      }
+
+    }
   }
   //https://blog.knoldus.com/2014/08/29/how-to-setup-and-use-zookeeper-in-scala-using-apache-curator/
 
