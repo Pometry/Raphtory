@@ -78,6 +78,7 @@ object Go extends App {
 
   def setConf(seedLoc: String, zookeeper: String): Unit ={
     println(s"I AM AT $seedLoc")
+    prometheusReporter()
   }
 
 //  def setConf(seedLoc: String, zookeeper: String): Unit ={
@@ -129,7 +130,9 @@ object Go extends App {
     while(!("nc seedNode 1600" !).equals(0)){
       println("Waiting for seednode to come online")
     }
+    prometheusReporter()
     hostname2Ip("seedNode:1600")
+
   }
 
 //  def getConf(zookeeper: String): String = {

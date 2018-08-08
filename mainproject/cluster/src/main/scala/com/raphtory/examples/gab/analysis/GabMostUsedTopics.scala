@@ -10,7 +10,7 @@ class GabMostUsedTopics(networkSize : Int, dumplingFactor : Float) extends Analy
   override def setup()(implicit proxy : GraphRepoProxy.type) = {}
 
   override def analyse()(implicit proxy : GraphRepoProxy.type, managerCount : Int) : Vector[(String, Int, String)] = {
-    println("Analyzing")
+    //println("Analyzing")
     var results = Vector.empty[(String, Int, String)]
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
@@ -27,7 +27,7 @@ class GabMostUsedTopics(networkSize : Int, dumplingFactor : Float) extends Analy
           }
         }
     }})
-    println("Sending step end")
+    //println("Sending step end")
     results
   }
 
