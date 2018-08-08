@@ -27,6 +27,10 @@ final class GabSpout extends SpoutTrait {
   //private val redisKey = "gab-posts"
   private var sched: Cancellable = null
 
+  import com.mongodb.MongoClientOptions
+
+  //val options: MongoClientOptions = MongoClientOptions.builder.addCommandListener(new LoggingClusterListener).build()
+  //ddClusterListener(new LoggingClusterListener).build
   private val mongoConn = MongoConnection("138.37.32.68", 27017)
   private val mongoColl = mongoConn("gab")("posts")
   private var postMin = 0
@@ -39,7 +43,7 @@ final class GabSpout extends SpoutTrait {
 
   override def preStart() {
     super.preStart()
-    sched = context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "parsePost")
+    sched = context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, SECONDS), self, "parsePost")
   }
 
   override protected def processChildMessages(rcvdMessage: Any): Unit = {
@@ -53,6 +57,7 @@ final class GabSpout extends SpoutTrait {
       getNextPosts()
       postMin += 1000
       postMax += 1000
+      println(s"Current max post is $postMax")
     }
   }
 
@@ -70,5 +75,6 @@ final class GabSpout extends SpoutTrait {
   }
 
 }
+
 
 //redis-server --dir /home/moe/ben/gab --dbfilename gab.rdb --daemonize yes

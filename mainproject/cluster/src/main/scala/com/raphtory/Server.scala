@@ -71,8 +71,8 @@ object Go extends App {
 
     case "singleNodeSetup" => {
       println("putting up cluster in one node")
-      setConf(seedLoc, zookeeper)
-      SingleNodeSetup(getConf(zookeeper),routerName,updaterName,lamName,sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
+      //setConf(seedLoc, zookeeper)
+      SingleNodeSetup(hostname2Ip(seedLoc),routerName,updaterName,lamName,sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
     }
   }
 

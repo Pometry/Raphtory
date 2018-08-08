@@ -52,8 +52,9 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 // https://mvnrepository.com/artifact/com.twitter/util-eval
 	val twitter_eval 		= "com.twitter" %% "util-eval" % "6.43.0"
 // https://mvnrepository.com/artifact/org.mongodb.scala/mongo-scala-driver
-  val mongo 					= "org.mongodb.scala" %% "mongo-scala-driver" % "2.4.0"
+  //val mongo 					= "org.mongodb.scala" %% "mongo-scala-driver" % "2.4.0"
 	val casbah 					= "org.mongodb" %% "casbah-core" % "3.1.1"
+
 // https://mvnrepository.com/artifact/org.mongodb/casbah-core
 
 
@@ -110,7 +111,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 			dep_compile(
 				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_dist_data,
 				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
-				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval,mongo,casbah)
+				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval,casbah)
 		)
 	  	.settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
