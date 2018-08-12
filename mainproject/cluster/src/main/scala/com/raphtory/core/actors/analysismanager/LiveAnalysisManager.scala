@@ -26,7 +26,7 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
   private var toSetup            = true
   protected def analyserName:String = generateAnalyzer.getClass.getName
 
-  private val debug = false
+  private val debug = true
   private var newAnalyser:Boolean = false
 
   protected val mediator     = DistributedPubSub(context.system).mediator
@@ -49,7 +49,7 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
   mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
 
   override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(Duration(20, SECONDS), self, "start")
+    context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "start")
     steps = defineMaxSteps()
     //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
@@ -65,38 +65,46 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
 
   override def receive: Receive = {
     //case "analyse" => analyse()
-    case "start" => {
-      if(debug)println("Starting")
-      checkClusterSize
-      sendGetNetworkSize()
-    }
-    case "networkSizeTimeout" => {
-      sendGetNetworkSize()
-      if(debug)println("Timeout networkSize")
-    }
-    case Results(result) => {
-      if(debug)println("Printing results")
-      this.processResults(result)
-    }
     case PartitionsCount(newValue) => {
       if(debug)println(s"received new count of $newValue")
       managerCount = newValue
     }
+
+    case "start" => {
+      println("Starting")
+      checkClusterSize
+    }
+
+    case "restart" => {
+      println("restarting")
+      mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$","")))
+    }
+
+    case PartitionsCountResponse(newValue)=>{
+      if(debug)println(s"received watchdog response")
+      managerCount = newValue
+      sendGetNetworkSize()
+    }
+
+    case "networkSizeTimeout" => {
+      sendGetNetworkSize()
+      if(debug)println("Timeout networkSize")
+    }
+
     case NetworkSize(size) => {
       if(debug)println("Received NetworkSize packet")
         networkSize += size
         networkSizeReplies += 1
-        if (networkSizeReplies >= getManagerCount) {
+        if (networkSizeReplies == getManagerCount) {
           networkSizeTimeout.cancel()
-          if(debug)println(steps)
-          this.defineMaxSteps()
-          if(debug)println(networkSize)
+          //if(debug)println(steps)
+          //if(debug)println(networkSize)
           mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$","")))
         }
       }
 
     case AnalyserPresent() => {
-      mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, Setup(this.generateAnalyzer))
+      sender() !  Setup(this.generateAnalyzer)
     }
 
     case ClassMissing() => {
@@ -130,14 +138,15 @@ abstract class LiveAnalysisManager extends RaphtoryActor {
       currentStepCounter += 1
       results +:= res
       if(debug)println(s"$currentStepCounter / $getManagerCount : $currentStep / $steps")
-      if (currentStepCounter >= getManagerCount) {
+      if (currentStepCounter == getManagerCount) {
         if (currentStep == steps || this.checkProcessEnd()) {
           // Process results
           this.processResults(results)
-          println(System.currentTimeMillis())
-
-          context.system.scheduler.scheduleOnce(Duration(20, SECONDS), self, "start")
-        } else {
+          currentStepCounter = 0
+          currentStep = 0
+          context.system.scheduler.scheduleOnce(Duration(20, SECONDS), self, "restart")
+        }
+        else {
           if(debug)println(s"Sending new step")
           oldResults = results
           results = Vector.empty[Any]

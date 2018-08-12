@@ -129,6 +129,7 @@ object Go extends App {
   def getConf(zookeeper:String):String = {
     while(!("nc seedNode 1600" !).equals(0)){
       println("Waiting for seednode to come online")
+      Thread.sleep(3000)
     }
     prometheusReporter()
     hostname2Ip("seedNode:1600")
