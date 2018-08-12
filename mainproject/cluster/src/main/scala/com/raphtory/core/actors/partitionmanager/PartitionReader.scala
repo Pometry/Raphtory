@@ -32,13 +32,6 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
    if(debug)println("Starting reader")
   }
 
-  private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
-    val value = analyzer.analyse()
-    if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
-    if(debug)println(value)
-    mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value), false)
-  }
-
   override def receive: Receive = {
     case AnalyserPresentCheck(classname) => presentCheck(classname)
     case Setup(analyzer) => setup(analyzer)
@@ -64,24 +57,6 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
     }
   }
 
-  def nextStep(analyzer: Analyser): Unit = {
-    try {
-      if(debug)println(s"Received new step for pm_$managerID")
-      analyzer.sysSetup()
-      val senderPath = sender().path
-      Task.eval(this.analyze(analyzer, senderPath)).runAsync
-    }
-    catch {
-      case e: Exception => {
-        if(debug)println(e.getStackTrace)
-      }
-    }
-  }
-
-  def nextStepNewAnalyser(name: String) = {
-    nextStep(analyserMap(name))
-  }
-
   def setup(analyzer: Analyser) {
     try {
       //throw new ClassNotFoundException()
@@ -95,10 +70,10 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
         if(debug)println("Analyser not found within this image, requesting scala file")
         sender() ! ClassMissing()
       }
-  //    case e: scala.NotImplementedError => {
-  //      println("Analyser not found within this image, requesting scala file")
-  //      sender() ! ClassMissing()
-  //    }
+      //    case e: scala.NotImplementedError => {
+      //      println("Analyser not found within this image, requesting scala file")
+      //      sender() ! ClassMissing()
+      //    }
     }
   }
 
@@ -121,5 +96,38 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
       }
     }
   }
+
+  private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
+    val value = analyzer.analyse()
+    if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
+    if(debug)println(value)
+    mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value), false)
+  }
+
+
+
+
+
+  def nextStep(analyzer: Analyser): Unit = {
+    try {
+      if(debug)println(s"Received new step for pm_$managerID")
+      analyzer.sysSetup()
+      val senderPath = sender().path
+      Task.eval(this.analyze(analyzer, senderPath)).runAsync
+    }
+    catch {
+      case e: Exception => {
+        if(debug)println(e.getStackTrace)
+      }
+    }
+  }
+
+  def nextStepNewAnalyser(name: String) = {
+    nextStep(analyserMap(name))
+  }
+
+
+
+
 }
 
