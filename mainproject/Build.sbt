@@ -51,8 +51,15 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 	val bitcoin 			  = "org.scalaj" %% "scalaj-http" % "2.3.0"
 // https://mvnrepository.com/artifact/com.twitter/util-eval
 	val twitter_eval 		= "com.twitter" %% "util-eval" % "6.43.0"
+// https://mvnrepository.com/artifact/org.mongodb.scala/mongo-scala-driver
+  //val mongo 					= "org.mongodb.scala" %% "mongo-scala-driver" % "2.4.0"
+	val casbah 					= "org.mongodb" %% "casbah-core" % "3.1.1"
 
-	//val kamon_repos     = Seq(Resolver.bintrayRepo("kamon-io", "snapshots"))
+// https://mvnrepository.com/artifact/org.mongodb/casbah-core
+
+
+
+//val kamon_repos     = Seq(Resolver.bintrayRepo("kamon-io", "snapshots"))
 
 
 	val IP = java.net.InetAddress.getLocalHost().getHostAddress()
@@ -68,7 +75,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		//resolvers					  ++= kamon_repos,
 		scalacOptions				:= Seq("-feature", "-deprecation", "-encoding", "UTF8", "-unchecked"),
 		testOptions in Test += Tests.Argument("-oDF"),
-		version 					:= "latest"
+		version 					:= "ben"
 	)
 
 	lazy val dockerStuff = Seq(
@@ -91,7 +98,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		.settings(isSnapshot := true)
 		.settings(dockerStuff:_*)
   	.settings(mappings in Universal +=
-			file(s"${baseDirectory.value}/../docker-compose/env-setter.sh") -> "bin/env-setter.sh")
+			file(s"${baseDirectory.value}/../Build-Scripts/env-setter.sh") -> "bin/env-setter.sh")
 		.settings(mappings in Universal +=
 			file(s"${baseDirectory.value}/src/main/scala/$newAnalyser") -> newAnalyser)
 		.settings(dockerEntrypoint := Seq("bash"))
@@ -104,7 +111,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 			dep_compile(
 				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_dist_data,
 				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
-				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval)
+				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval,casbah)
 		)
 	  	.settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",

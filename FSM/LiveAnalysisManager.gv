@@ -1,0 +1,100 @@
+digraph {
+
+    node[shape="box", style="rounded"]
+       AC;Crashed;AC2;
+
+    node[shape="parallelogram", style=""]
+       StartAnalysis; PartitionCount; NetworkSize; NetworkTimeout; AnalyserPresent;
+       ClassMissing; FailedToCompile; Ready; EndStep;
+
+    node[shape="box", style=""]
+      NetworkRequest; UpdatePC; UpdateResponses; EnoughResponses; TimeoutHandler;
+      SetupHandler; CompileCode; IncrementReady; ProcessReady; IncreamentEndStep;
+      Finished; NextSuperstep;
+
+    node[shape="diamond", style=""]
+       ResponseCheck; AllReady; AllEndStep; AllFinished;
+
+    #Startup[label="Startup"]
+
+    #Zookeeper[label="Received \n Zookeeper connection"]
+    #connecting[label="Attempting to \n join Cluster"]
+
+    #did_connect[label="Was the \n connection successful"]
+
+    AC[label="Awaiting \n Communication"]
+    AC2[label="Awaiting \n Communication"]
+    Crashed[label="Crashed"]
+
+    StartAnalysis[label="--1--\nReceived Analysis\nStartup Request"]
+    NetworkRequest[label="Requesting Partition\nManager Count"]
+
+    PartitionCount[label="--2--\nReceived Parititon\nManager Count"]
+    UpdatePC[label="Updated LAMs PM Count.\nBroadcasting handshake to\nall Partition Managers.\nSetting 30 second timeout."]
+
+    NetworkTimeout[label="--3b--\nHandshake timeout reached"]
+    TimeoutHandler[label="Broadcasting handshake to\nall Partition Managers.\nSetting 30 second timeout."]
+
+    NetworkSize[label="--3--\nReceived handshake\nresponse from Partition Manager"]
+    UpdateResponses[label="Incrementing Response Count"]
+    ResponseCheck[label="Does the response count\nequal the PM count"]
+    EnoughResponses[label="Canceling timeout.\nSetting Maximum Steps.\nBroadcasting analyser present precheck."]
+
+    AnalyserPresent[label="--4--\nA Partition Manager has\nreported the requested\nAnalyser is present"]
+    SetupHandler[label="Requesting Partition Manager perform Setup function"]
+
+    ClassMissing[label="--4--\nA Partition Manager has\nreported the requested\nanalyser is not present"]
+    CompileCode[label="Sending serialized Analyser to Partition Manager"]
+
+    FailedToCompile[label="--4b--\nA Parition Manager could\nnot compile the Analyser"]
+
+    Ready[label="--5--\nA Partition Manager\nhas finished Setup"]
+    IncrementReady[label="Incrementing next step counter"]
+    AllReady[label="Does the next step counter\nequal the PM count"]
+    ProcessReady[label="Reseting next step counter.\nBroadcasting first superstep to Partition Managers"]
+
+    EndStep[label="--6--\nA Partition Manager has\nfinished the current superstep"]
+    IncreamentEndStep[label="Increment end step count"]
+    AllEndStep[label="Does the end step count\nequal the PM count"]
+    AllFinished[label="Does the current step\nequal the defined maximum steps"]
+    Finished[label="Process the results.\nReset the end step counter.\nSchedule a restart."]
+    NextSuperstep[label="Increament current step.\nReset end step count.\nBroadcast next superstep to Partition Managers."]
+
+
+    #Startup -> Zookeeper
+    #Zookeeper -> connecting
+    #connecting -> did_connect
+    #did_connect -> Crashed [label = "No"]
+    #did_connect -> AC [label = "Yes"]
+
+    AC -> StartAnalysis-> NetworkRequest -> AC2
+
+    AC -> PartitionCount -> UpdatePC -> AC2
+
+    AC -> NetworkSize -> UpdateResponses -> ResponseCheck
+    ResponseCheck -> AC2[label="No"]
+    ResponseCheck -> EnoughResponses[label="Yes"]
+    EnoughResponses -> AC2
+
+    AC -> NetworkTimeout -> TimeoutHandler-> AC2
+
+    AC -> AnalyserPresent -> SetupHandler -> AC2
+
+    AC -> ClassMissing -> CompileCode -> AC2
+
+    AC -> FailedToCompile -> Crashed
+
+    AC -> Ready -> IncrementReady -> AllReady
+    AllReady -> AC2[label="No"]
+    AllReady -> ProcessReady[label="Yes"]
+    ProcessReady -> AC2
+
+    AC -> EndStep -> IncreamentEndStep -> AllEndStep
+    AllEndStep -> AC2[label="No"]
+    AllEndStep -> AllFinished[label="Yes"]
+    AllFinished -> NextSuperstep[label="No"]
+    AllFinished -> Finished[label="Yes"]
+    Finished -> AC2
+    NextSuperstep -> AC2
+
+}#[label=""]

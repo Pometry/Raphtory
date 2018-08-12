@@ -3,6 +3,7 @@ package com.raphtory.core.actors.router
 import com.raphtory.core.model.communication._
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.utils.Utils.getManager
 import monix.execution.{ExecutionModel, Scheduler}
 import kamon.Kamon
 import monix.eval.Task
@@ -15,13 +16,16 @@ trait RouterTrait extends RaphtoryActor {
   protected def routerId : Int
   protected def initialManagerCount : Int
   protected def otherMessages(rcvdMessage : Any)
+  protected final def getManagerCount = managerCount
 
-  // Let's call the super.parseJSON in the Router implementation to get Kamon Metrics
-  protected def parseJSON(command : String) = {
-    count += 1
-    kCounter.refine("actor" -> "Router", "name" -> "count").increment()
-    Kamon.gauge("raphtory.router.countGauge").set(count)
-  }
+  protected final val mediator = DistributedPubSub(context.system).mediator
+  mediator ! DistributedPubSubMediator.Put(self)
+
+  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
+  println(akka.serialization.Serialization.serializedActorPath(self))
+
+  private var count = 0
+  private var managerCount : Int = initialManagerCount
 
   override def preStart() {
     context.system.scheduler.schedule(Duration(7, SECONDS),
@@ -30,6 +34,17 @@ trait RouterTrait extends RaphtoryActor {
       Duration(10, SECONDS), self, "keep_alive")
   }
 
+  private def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RouterUp(routerId), false)
+
+  private def tick() = {
+    kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
+    //println(s"Router send $count to Log")
+    count = 0
+  }
+
+  protected def parseJSON(command : String) = {
+    recordUpdate()
+  }
 
   final override def receive: Receive = {
     case "tick" => tick()
@@ -41,29 +56,23 @@ trait RouterTrait extends RaphtoryActor {
     case e : Any => otherMessages(e)
   }
 
-  protected final def getManagerCount = managerCount
-
-  protected final val mediator = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
-
-
-  private var count = 0
-  private var managerCount : Int = initialManagerCount
-
-  private def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RouterUp(routerId), false)
-
-  private def tick() = {
-    kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
-    count = 0
+  protected def recordUpdate(): Unit ={
+    count += 1
+    kCounter.refine("actor" -> "Router", "name" -> "count").increment()
+    Kamon.gauge("raphtory.router.countGauge").set(count)
   }
 
   private def newPmJoined(newValue : Int) = if (managerCount < newValue) {
       managerCount = newValue
   }
 
-  implicit val s : Scheduler = Scheduler(ExecutionModel.BatchedExecution(1024))
-  println(akka.serialization.Serialization.serializedActorPath(self))
+  def toPartitionManager[T <: RaphWriteClass](message:T): Unit ={
+    mediator ! DistributedPubSubMediator.Send(getManager(message.srcId, getManagerCount), message , false)
+  }
+
 }
+
+
 /*def vertexAdd(command : JsObject) : Unit
 def vertexUpdateProperties(command : JsObject) : Unit
 def vertexRemoval(command : JsObject) : Unit

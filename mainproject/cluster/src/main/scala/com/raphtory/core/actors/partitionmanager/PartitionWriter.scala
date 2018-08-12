@@ -29,7 +29,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
 
   val printing: Boolean = false                  // should the handled messages be printed to terminal
   val kLogging: Boolean = System.getenv().getOrDefault("PROMETHEUS", "true").trim().toBoolean // should the state of the vertex/edge map be output to Kamon/Prometheus
-  val stdoutLog:Boolean = System.getenv().getOrDefault("STDOUT_LOG", "false").trim().toBoolean // A slower logging for the state of vertices/edges maps to Stdout
+  val stdoutLog:Boolean = System.getenv().getOrDefault("STDOUT_LOG", "true").trim().toBoolean // A slower logging for the state of vertices/edges maps to Stdout
 
   val messageCount          : AtomicInteger = new AtomicInteger(0)         // number of messages processed since last report to the benchmarker
   val secondaryMessageCount : AtomicInteger = new AtomicInteger(0)
