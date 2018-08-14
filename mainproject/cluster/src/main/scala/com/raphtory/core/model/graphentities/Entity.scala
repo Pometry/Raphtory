@@ -28,6 +28,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
 
   //track the oldest point for use in AddOnly mode
   var oldestPoint : AtomicLong=  AtomicLong(creationTime)
+  var originalHistorySize : AtomicLong=  AtomicLong(0)
 
   // History of that entity
   var removeList: mutable.TreeMap[Long,Boolean] = null
@@ -48,6 +49,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
         oldestPoint.set(msgTime)
     }
     else {
+      originalHistorySize.add(1)
       previousState.put(msgTime, true)
     }
   }
@@ -59,8 +61,10 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     */
   def kill(msgTime: Long): Unit = {
     removeList.put(msgTime, false)
-    if (!addOnly)
+    if (!addOnly) {
+      originalHistorySize.add(1)
       previousState.put(msgTime, false)
+    }
   }
 
   /** *
@@ -103,6 +107,10 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     }
     previousState = safeHistory
     oldHistory
+  }
+
+  def compressionRate():Double ={
+    previousState.size.toDouble/originalHistorySize.get.toDouble
   }
 
   /** *

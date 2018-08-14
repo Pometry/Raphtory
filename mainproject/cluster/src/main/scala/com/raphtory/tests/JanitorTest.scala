@@ -39,6 +39,7 @@ object JanitorTest extends App{
   compressHistory(vertex)
 //  println(vertex.previousState)
   println(vertex.properties.getOrElse("prop",null).previousState)
+  println(vertex.compressionRate())
 
   def compressHistory(e:Entity) ={
     val compressedHistory = e.compressAndReturnOldHistory(cutOff)
