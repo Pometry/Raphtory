@@ -30,25 +30,58 @@ class Property(creationTime: Long,
     previousState.put(msgTime, newValue)
   }
 
-  def removeAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, String] ={
-    val (safeHistory, oldHistory) = historySplit(cutoff)
-    previousState = safeHistory
-    oldHistory
-  }
-  def historySplit(cutOff: Long):( mutable.TreeMap[Long, String], mutable.TreeMap[Long, String]) = {
-
+  def compressAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, String] ={
+    if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node and should not be interacted with
+      return  mutable.TreeMap()(HistoryOrdering) //if the size is one, no need to compress
+    }
     var safeHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
     var oldHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
 
-    safeHistory += previousState.head // always keep at least one point in history
+    val head = previousState.head
+    safeHistory += head // always keep at least one point in history
+
+    var prev: (Long,String) = head
+    var swapped = false
     for((k,v) <- previousState){
-      if(k<cutOff)
-        oldHistory += k ->v
+      if(k<cutoff) {
+        if(swapped) //as we are adding prev skip the value on the pivot as it is already added
+          if (!(v equals prev._2)) {
+            oldHistory += prev //if the current point differs from the val of the previous it means the prev was the last of its type
+            safeHistory += prev
+          }
+        swapped=true
+      }
       else
         safeHistory += k -> v
+      prev = (k,v)
     }
-    (safeHistory,oldHistory)
+
+    if(prev._1<cutoff) {
+      safeHistory += prev
+      oldHistory += prev //add the final history point to oldHistory as not done in loop
+    }
+    previousState = safeHistory
+    oldHistory
   }
+
+  def getPreviousStateSize() : Int = {
+      previousState.size
+  }
+
+
+//  def compressAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, String] ={
+//    var safeHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
+//    var oldHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
+//    safeHistory += previousState.head // always keep at least one point in history
+//    for((k,v) <- previousState){
+//      if(k<cutOff)
+//        oldHistory += k ->v
+//      else
+//        safeHistory += k -> v
+//    }
+//    (safeHistory,oldHistory)
+//    oldHistory
+//  }
 
 
 

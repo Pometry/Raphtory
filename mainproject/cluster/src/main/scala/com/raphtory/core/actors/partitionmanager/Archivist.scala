@@ -46,9 +46,50 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     context.system.scheduler.scheduleOnce(7.seconds, self,"compress")
   }
   override def receive: Receive = {
-    case "archive"=> archive()
     case "compress" => compressGraph()
+    case "archive"=> archive()
   }
+
+  def compressGraph() : Unit = {
+    if (lockerCounter > 0)
+      return
+
+    newLastSaved   = cutOff
+    canArchiveFlag = false
+    println("Compressing")
+
+    lockerCounter += 2
+    Task.eval(compressJob[Long, Edge](EntitiesStorage.edges)).runAsync.onComplete(_ => compressEnder())
+    Task.eval(compressJob[Int, Vertex](EntitiesStorage.vertices)).runAsync.onComplete(_ => compressEnder())
+  }
+
+  def compressJob[T <: AnyVal, U <: Entity](map : ParTrieMap[T, U]) = for((k,v) <- map) compressHistory(v, newLastSaved, lastSaved)
+
+  def compressHistory(e:Entity, now : Long, past : Long) ={
+    val compressedHistory = e.compressAndReturnOldHistory(now)
+    if(compressedHistory.nonEmpty){
+      val entityType = if (e.isInstanceOf[Vertex]) KeyEnum.vertices else KeyEnum.edges
+      //saveToRedis(compressedHistory, entityType, e.getId, past, e)
+
+    }
+    for ((id,property) <- e.properties){
+      val oldHistory = property.compressAndReturnOldHistory(now)
+      // savePropertiesToRedis(e, past)
+      //store offline
+    }
+  }
+
+  def compressEnder(): Unit = {
+    lockerCounter -= 1
+    if (lockerCounter == 0) {
+      canArchiveFlag = true
+      lastSaved = newLastSaved
+      context.system.scheduler.scheduleOnce(30.seconds, self,"compress")
+    }
+  }
+
+
+
 
   def archive() : Unit ={
     println("Try to archive")
@@ -67,43 +108,11 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     }
   }
 
-  def compressJob[T <: AnyVal, U <: Entity](map : ParTrieMap[T, U]) = {
-    val mapSize = map.size
-    val taskNumber   = maxThreads * 10
-    val batchedElems = mapSize / taskNumber
 
-    var i : Long = 0
-    while (i < taskNumber) {
-      var j = i * batchedElems
-      while (j < (i + 1) * batchedElems) {
-        compressHistory(map(j.asInstanceOf[T]), newLastSaved, lastSaved)
-        j += 1
-      }
-      i += 1
-    }
-  }
 
-  def compressEnder(): Unit = {
-    lockerCounter -= 1
-    if (lockerCounter == 0) {
-      canArchiveFlag = true
-      lastSaved = newLastSaved
-      context.system.scheduler.scheduleOnce(30.seconds, self,"compress")
-    }
-  }
 
-  def compressGraph() : Unit = {
-    if (lockerCounter > 0)
-      return
 
-    newLastSaved   = cutOff
-    canArchiveFlag = false
-    println("Compressing")
 
-    lockerCounter += 2
-    Task.eval(compressJob[Long, Edge](EntitiesStorage.edges)).runAsync.onComplete(_ => compressEnder())
-    Task.eval(compressJob[Int, Vertex](EntitiesStorage.vertices)).runAsync.onComplete(_ => compressEnder())
-  }
 
   def checkMaximumHistory(e:Entity, et : KeyEnum.Value) = {
       val (placeholder, allOld, ancientHistory) = e.returnAncientHistory(System.currentTimeMillis - maximumHistoryMils)
@@ -118,24 +127,11 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
       }
 
       for ((propkey, propval) <- e.properties) {
-        propval.removeAndReturnOldHistory(System.currentTimeMillis - maximumHistoryMils)
+        propval.compressAndReturnOldHistory(System.currentTimeMillis - maximumHistoryMils)
       }
   }
 
-  def compressHistory(e:Entity, now : Long, past : Long) ={
-    val compressedHistory = e.compressAndReturnOldHistory(now)
-    if(compressedHistory.nonEmpty){
-      //TODO  decide if compressed history is rejoined
-      var entityType: KeyEnum.Value = null
-      var entityId: Long = 0
-      if (e.isInstanceOf[Vertex])
-        entityType = KeyEnum.vertices
-      else
-        entityType = KeyEnum.edges
-      saveToRedis(compressedHistory, entityType, e.getId, past, e)
-      savePropertiesToRedis(e, past)
-    }
-  }
+
 
   def cutOff = System.currentTimeMillis() - compressionWindowMils
 
@@ -168,3 +164,23 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     })
   }
 }
+
+
+
+
+
+//def compressJob[T <: AnyVal, U <: Entity](map : ParTrieMap[T, U]) = {
+//  //val mapSize = map.size
+//  //val taskNumber   = maxThreads * 10
+//  val batchedElems = mapSize / taskNumber
+//
+//  var i : Long = 0
+//  while (i < taskNumber) {
+//  var j = i * batchedElems
+//  while (j < (i + 1) * batchedElems) {
+//  compressHistory(map(j.asInstanceOf[T]), newLastSaved, lastSaved)
+//  j += 1
+//}
+//  i += 1
+//}
+//}

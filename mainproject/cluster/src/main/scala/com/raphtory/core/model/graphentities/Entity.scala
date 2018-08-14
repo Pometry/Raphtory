@@ -85,7 +85,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     var swapped = false
     for((k,v) <- previousState){
       if(k<cutoff) {
-        if(swapped)
+        if(swapped) //as we are adding prev skip the value on the pivot as it is already added
           if (v == !prev._2) {
             oldHistory += prev //if the current point differs from the val of the previous it means the prev was the last of its type
             safeHistory += prev
