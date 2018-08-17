@@ -13,6 +13,7 @@ import scala.collection.mutable
 class Property(creationTime: Long,
                key: String,
                value: String) {
+  private var saved = false
 
   // Initialize the TreeMap
   var previousState: mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
@@ -20,6 +21,7 @@ class Property(creationTime: Long,
   // add in the initial information
   update(creationTime, value)
 
+  def name = key
   /**
     * update the value of the property
     *
@@ -34,6 +36,7 @@ class Property(creationTime: Long,
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node and should not be interacted with
       return  mutable.TreeMap()(HistoryOrdering) //if the size is one, no need to compress
     }
+    saved=true
     var safeHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
     var oldHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
 
@@ -113,4 +116,6 @@ class Property(creationTime: Long,
 
   def currentValue : String = previousState.head._2
   def currentTime : Long    = previousState.head._1
+  def beenSaved():Boolean=saved
+
 }

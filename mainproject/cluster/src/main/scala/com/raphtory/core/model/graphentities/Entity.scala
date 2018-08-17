@@ -25,7 +25,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
   var previousState : mutable.TreeMap[Long, Boolean] = null
   if (!addOnly)
     previousState = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
-
+  private var saved = false
   //track the oldest point for use in AddOnly mode
   var oldestPoint : AtomicLong=  AtomicLong(creationTime)
   var originalHistorySize : AtomicLong=  AtomicLong(0)
@@ -79,6 +79,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node and should not be interacted with
       return  mutable.TreeMap()(HistoryOrdering) //if the size is one, no need to compress
     }
+    saved=true
     var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
     var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
 
@@ -163,6 +164,8 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
       }
     }
   }
+
+  def beenSaved():Boolean=saved
 
   //************* PRINT ENTITY DETAILS BLOCK *********************\\
 /*  def printCurrent(): String = {

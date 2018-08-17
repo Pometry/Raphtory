@@ -1,7 +1,11 @@
 package com.raphtory.tests
 
-import com.raphtory.core.model.graphentities.{Entity, Vertex}
+import com.raphtory.core.model.graphentities.{Entity, Property, Vertex}
+import com.mongodb.casbah.Imports.{$addToSet, _}
+import com.mongodb.casbah.MongoConnection
 
+import scala.collection.mutable
+import scala.collection.parallel.mutable.ParTrieMap
 object JanitorTest extends App{
 
   val temporalMode = true //flag denoting if storage should focus on keeping more entities in memory or more history
@@ -34,12 +38,26 @@ object JanitorTest extends App{
   vertex +(6,"prop","val3")
   vertex +(7,"prop","val3")
 
+  vertex +(1,"prop2","val1")
+  vertex +(2,"prop2","val2")
+  vertex +(3,"prop2","val2")
+  vertex +(4,"prop2","val3")
+  vertex +(5,"prop2","val3")
+  vertex +(6,"prop2","val3")
+  vertex +(7,"prop2","val3")
+
+  entity2Mongo(vertex)
+  println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
+  vertex kill(7)
+  vertex revive(8)
+  entity2Mongo(vertex)
+  println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
+  //  println(vertex.previousState)
+ // println(vertex.properties.getOrElse("prop",null).previousState)
+ // compressHistory(vertex)
 //  println(vertex.previousState)
-  println(vertex.properties.getOrElse("prop",null).previousState)
-  compressHistory(vertex)
-//  println(vertex.previousState)
-  println(vertex.properties.getOrElse("prop",null).previousState)
-  println(vertex.compressionRate())
+  //println(vertex.properties.getOrElse("prop",null).previousState)
+  //println(vertex.compressionRate())
 
   def compressHistory(e:Entity) ={
     val compressedHistory = e.compressAndReturnOldHistory(cutOff)
@@ -50,11 +68,84 @@ object JanitorTest extends App{
     }
   }
 
-  def cutOff = 8
+  def cutOff = 10
+  object MongoFactory {
+    private val DATABASE = "raphtory"
+    val connection = MongoConnection()
+    val edges = connection(DATABASE)("edges")
+    val vertices = connection(DATABASE)("vertices")
+  }
+
+  def entity2Mongo(entity:Entity)={
+    if(entity beenSaved()){
+      update(entity)
+    }
+    else{
+      newEntity(entity)
+    }
+
+  }
+
+  def update(entity: Entity) ={
+    val history = convertHistory(entity.compressAndReturnOldHistory(cutOff))
+    //MongoFactory.vertices.update(DBObject("_id" -> entity.getId), $addToSet("history") $each(history: _*))
+    //MongoFactory.vertices.find(MongoDBObject("_id" -> 1)) .updateOne($addToSet("history") $each(history: _*))
+  }
+
+  def newEntity(entity:Entity) ={
+    val history = entity.compressAndReturnOldHistory(cutOff)
+    val builder = MongoDBObject.newBuilder
+    builder += "_id" -> entity.getId
+    builder += "oldestPoint" -> entity.oldestPoint.get
+    builder += "history" -> convertHistory(history)
+    builder += "properties" -> convertProperties(entity.properties)
+    MongoFactory.vertices.save(builder.result())
+  }
+
+  def convertHistory[b <: Any](history:mutable.TreeMap[Long,b]):MongoDBList ={
+    val builder = MongoDBList.newBuilder
+    for((k,v) <-history)
+      if(v.isInstanceOf[String])
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
+      else
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
+
+    builder.result
+  }
+
+  def convertProperties(properties: ParTrieMap[String,Property]):MongoDBList ={
+    val builder = MongoDBList.newBuilder
+    for((k,v)<-properties)
+      builder += convertProperty(v)
+    builder.result
+  }
+
+  def convertProperty(property:Property):MongoDBObject ={
+    val builder = MongoDBObject.newBuilder
+    builder += "name" -> property.name
+    builder += "history" -> convertHistory(property.compressAndReturnOldHistory(cutOff))
+    builder.result()
+  }
+
+
+
+ // MongoFactory.collection.update(DBObject("_id" -> "1"), $addToSet("list") $each (Seq("1"->"true", "2"->false, "3"->true ): _*))
+  //MongoFactory.collection
+
   //vertex + (1, "Name", "Ben")
   //vertex + (1, "Hair", "Brown")
 
   // vertex + (3, "Eyes", "Brown")
   // vertex + (1, "Name", "Alessandro")
+//  val builder = collection.initializeOrderedBulkOperation
+//  builder.insert(MongoDBObject("_id" -> 1))
+//  builder.insert(MongoDBObject("_id" -> 2))
+//  builder.insert(MongoDBObject("_id" -> 3))
+//
+//  builder.find(MongoDBObject("_id" -> 1)).updateOne($set("x" -> 2))
+//  builder.find(MongoDBObject("_id" -> 2)).removeOne()
+//  builder.find(MongoDBObject("_id" -> 3)).replaceOne(MongoDBObject("_id" -> 3, "x" -> 4))
+//
+//  val result = builder.execute()
 
 }
