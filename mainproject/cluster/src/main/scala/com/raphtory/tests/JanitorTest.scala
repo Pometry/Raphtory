@@ -52,6 +52,7 @@ object JanitorTest extends App{
   vertex revive(8)
   entity2Mongo(vertex)
   println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
+  MongoFactory.vertices.drop()
   //  println(vertex.previousState)
  // println(vertex.properties.getOrElse("prop",null).previousState)
  // compressHistory(vertex)
@@ -87,9 +88,13 @@ object JanitorTest extends App{
   }
 
   def update(entity: Entity) ={
-    val history = convertHistory(entity.compressAndReturnOldHistory(cutOff))
+    val history = convertHistoryUpdate(entity.compressAndReturnOldHistory(cutOff))
     //MongoFactory.vertices.update(DBObject("_id" -> entity.getId), $addToSet("history") $each(history: _*))
     //MongoFactory.vertices.find(MongoDBObject("_id" -> 1)) .updateOne($addToSet("history") $each(history: _*))
+      val builder = MongoFactory.vertices.initializeOrderedBulkOperation
+      builder.find(MongoDBObject("_id" -> 1)).updateOne($addToSet("history") $each(history:_*))
+
+      val result = builder.execute()
   }
 
   def newEntity(entity:Entity) ={
@@ -111,6 +116,16 @@ object JanitorTest extends App{
         builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
 
     builder.result
+  }
+  def convertHistoryUpdate[b <: Any](history:mutable.TreeMap[Long,b]):List[MongoDBObject] ={
+    val builder = mutable.ListBuffer[MongoDBObject]()
+    for((k,v) <-history)
+      if(v.isInstanceOf[String])
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
+      else
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
+
+    builder.toList
   }
 
   def convertProperties(properties: ParTrieMap[String,Property]):MongoDBList ={
