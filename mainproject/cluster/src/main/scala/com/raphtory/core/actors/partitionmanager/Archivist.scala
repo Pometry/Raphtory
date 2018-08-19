@@ -2,19 +2,24 @@ package com.raphtory.core.actors.partitionmanager
 
 import java.util.concurrent.Executors
 
+import ch.qos.logback.classic.Level
+import com.mongodb.casbah.MongoConnection
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.model.graphentities.{Edge, Entity, Vertex}
+import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
 import com.raphtory.core.storage.{EntitiesStorage, RedisConnector}
 import com.raphtory.core.utils.KeyEnum
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.Scheduler
+import com.mongodb.casbah.Imports.{$addToSet, _}
+import com.mongodb.casbah.MongoConnection
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.control.Breaks._
 import com.raphtory.core.storage.RedisConnector
+import org.slf4j.LoggerFactory
 
 import scala.collection.parallel.mutable.ParTrieMap
 //TODO decide how to do shrinking window as graph expands
@@ -35,21 +40,24 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
   var lockerCounter = 0
 
   lazy val maxThreads = 12
+
   lazy implicit val scheduler = {
     val javaService = Executors.newScheduledThreadPool(maxThreads)
     Scheduler(javaService, AlwaysAsyncExecution)
   }
 
   override def preStart() {
-    //context.system.scheduler.schedule(2.seconds,5.seconds, self,"archive")
-
     context.system.scheduler.scheduleOnce(7.seconds, self,"compress")
   }
+
   override def receive: Receive = {
     case "compress" => compressGraph()
     case "archive"=> archive()
   }
 
+
+  //COMPRESSION BLOCK
+  def cutOff = System.currentTimeMillis() - compressionWindowMils
   def compressGraph() : Unit = {
     if (lockerCounter > 0)
       return
@@ -84,13 +92,13 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     if (lockerCounter == 0) {
       canArchiveFlag = true
       lastSaved = newLastSaved
-      context.system.scheduler.scheduleOnce(30.seconds, self,"compress")
+      context.system.scheduler.scheduleOnce(5.seconds, self,"archive")
     }
   }
+  //END COMPRESSION BLOCK
 
-
-
-
+  //ARCHIVING BLOCK
+  def spaceForExtraHistory = if((runtime.freeMemory/runtime.totalMemory()) < (1-maximumMem)) true else false //check if used memory less than set maximum
   def archive() : Unit ={
     println("Try to archive")
     if (!canArchiveFlag)
@@ -106,19 +114,12 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
         checkMaximumHistory(e._2, KeyEnum.vertices)
       }
     }
+    context.system.scheduler.scheduleOnce(5.seconds, self,"compress")
   }
-
-
-
-
-
-
 
   def checkMaximumHistory(e:Entity, et : KeyEnum.Value) = {
       val (placeholder, allOld, ancientHistory) = e.returnAncientHistory(System.currentTimeMillis - maximumHistoryMils)
-      if (placeholder) {
-        //TODO decide what to do with placeholders (future)
-      }
+      if (placeholder) {/*TODO decide what to do with placeholders (future)*/}
       if (allOld) {
         et match {
           case KeyEnum.vertices => EntitiesStorage.vertices.remove(e.getId.toInt)
@@ -133,38 +134,85 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
 
 
 
-  def cutOff = System.currentTimeMillis() - compressionWindowMils
-
-  def spaceForExtraHistory = if((runtime.freeMemory/runtime.totalMemory()) < (1-maximumMem)) true else false //check if used memory less than set maximum
 
 
-  def saveToRedis(compressedHistory : mutable.TreeMap[Long, Boolean], entityType : KeyEnum.Value, entityId : Long, pastCheckpoint : Long, e :Entity) = {
-    RedisConnector.addEntity(entityType, entityId, e.creationTime)
-    for ((k,v) <- compressedHistory) {
-      if (k > pastCheckpoint)
-        RedisConnector.addState(entityType, entityId,k, v)
-    }
-  }
-
-  def savePropertiesToRedis(e : Entity, pastCheckpoint : Long) = {
-    val properties = e.properties
-    var entityType = KeyEnum.edges
-    val id         = e.getId
-    if (e.isInstanceOf[Vertex])
-        entityType = KeyEnum.vertices
-
-    properties.foreach(el => {
-      val propValue = el._2
-      val propName  = el._1
-      propValue.previousState.foreach(h => {
-        if (h._1 > pastCheckpoint)
-          RedisConnector.addProperty(entityType, id, propName, h._1, h._2)
-        else break
-      })
-    })
-  }
 }
 
+object MongoFactory {
+  private val DATABASE = "raphtory"
+  val connection = MongoConnection()
+  val edges = connection(DATABASE)("edges")
+  val vertices = connection(DATABASE)("vertices")
+  private val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+  root.setLevel(Level.ERROR)
+
+  def entity2Mongo(entity:Entity)={
+    if(entity beenSaved()){
+      update(entity)
+    }
+    else{
+      newEntity(entity)
+    }
+
+  }
+
+  def update(entity: Entity) ={
+    val history = convertHistoryUpdate(entity.compressAndReturnOldHistory(cutOff))
+    //MongoFactory.vertices.update(DBObject("_id" -> entity.getId), $addToSet("history") $each(history: _*))
+    //MongoFactory.vertices.find(MongoDBObject("_id" -> 1)) .updateOne($addToSet("history") $each(history: _*))
+    val builder = MongoFactory.vertices.initializeOrderedBulkOperation
+    val dbEntity = builder.find(MongoDBObject("_id" -> entity.getId))
+    dbEntity.updateOne($addToSet("history") $each(history:_*))
+    for((key,property) <- entity.properties){
+      val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
+      println(entityHistory)
+      if(history.nonEmpty)
+        dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*))
+    }
+
+    val result = builder.execute()
+  }
+
+  def newEntity(entity:Entity) ={
+    val history = entity.compressAndReturnOldHistory(cutOff)
+    val builder = MongoDBObject.newBuilder
+    builder += "_id" -> entity.getId
+    builder += "oldestPoint" -> entity.oldestPoint.get
+    builder += "history" -> convertHistory(history)
+    builder += "properties" -> convertProperties(entity.properties)
+    MongoFactory.vertices.save(builder.result())
+  }
+
+  def convertHistory[b <: Any](history:mutable.TreeMap[Long,b]):MongoDBList ={
+    val builder = MongoDBList.newBuilder
+    for((k,v) <-history)
+      if(v.isInstanceOf[String])
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
+      else
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
+
+    builder.result
+  }
+  def convertHistoryUpdate[b <: Any](history:mutable.TreeMap[Long,b]):List[MongoDBObject] ={
+    val builder = mutable.ListBuffer[MongoDBObject]()
+    for((k,v) <-history)
+      if(v.isInstanceOf[String])
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
+      else
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
+
+    builder.toList
+  }
+
+  def convertProperties(properties: ParTrieMap[String,Property]):MongoDBObject = {
+    val builder = MongoDBObject.newBuilder
+    for ((k, v) <- properties) {
+      builder += k -> convertHistory(v.compressAndReturnOldHistory(cutOff))
+    }
+    builder.result
+  }
+
+}
 
 
 

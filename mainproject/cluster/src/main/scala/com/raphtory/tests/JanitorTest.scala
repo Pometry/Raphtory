@@ -1,13 +1,16 @@
 package com.raphtory.tests
 
+import ch.qos.logback.classic.Level
 import com.raphtory.core.model.graphentities.{Entity, Property, Vertex}
 import com.mongodb.casbah.Imports.{$addToSet, _}
 import com.mongodb.casbah.MongoConnection
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 object JanitorTest extends App{
-
+  val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+  root.setLevel(Level.ERROR)
   val temporalMode = true //flag denoting if storage should focus on keeping more entities in memory or more history
   val timeWindow = 1 //timeWindow set in seconds
   val timeWindowMils = timeWindow * 1000
@@ -50,6 +53,8 @@ object JanitorTest extends App{
   println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
   vertex kill(7)
   vertex revive(8)
+  vertex +(8,"prop3","dave")
+  vertex +(9,"prop3","bob")
   entity2Mongo(vertex)
   println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
   MongoFactory.vertices.drop()
@@ -92,7 +97,14 @@ object JanitorTest extends App{
     //MongoFactory.vertices.update(DBObject("_id" -> entity.getId), $addToSet("history") $each(history: _*))
     //MongoFactory.vertices.find(MongoDBObject("_id" -> 1)) .updateOne($addToSet("history") $each(history: _*))
       val builder = MongoFactory.vertices.initializeOrderedBulkOperation
-      builder.find(MongoDBObject("_id" -> 1)).updateOne($addToSet("history") $each(history:_*))
+      val dbEntity = builder.find(MongoDBObject("_id" -> entity.getId))
+      dbEntity.updateOne($addToSet("history") $each(history:_*))
+      for((key,property) <- entity.properties){
+        val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
+        println(entityHistory)
+        if(history.nonEmpty)
+          dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*))
+      }
 
       val result = builder.execute()
   }
@@ -128,19 +140,18 @@ object JanitorTest extends App{
     builder.toList
   }
 
-  def convertProperties(properties: ParTrieMap[String,Property]):MongoDBList ={
-    val builder = MongoDBList.newBuilder
-    for((k,v)<-properties)
-      builder += convertProperty(v)
+  def convertProperties(properties: ParTrieMap[String,Property]):MongoDBObject = {
+    val builder = MongoDBObject.newBuilder
+    for ((k, v) <- properties) {
+      builder += k -> convertHistory(v.compressAndReturnOldHistory(cutOff))
+    }
     builder.result
   }
 
-  def convertProperty(property:Property):MongoDBObject ={
-    val builder = MongoDBObject.newBuilder
-    builder += "name" -> property.name
-    builder += "history" -> convertHistory(property.compressAndReturnOldHistory(cutOff))
-    builder.result()
-  }
+ // def convertProperty(property:Property):MongoDBObject ={
+ //   val builder = MongoDBObject.newBuilder
+ //   builder.result()
+ // }
 
 
 
@@ -164,3 +175,30 @@ object JanitorTest extends App{
 //  val result = builder.execute()
 
 }
+
+
+//  def saveToRedis(compressedHistory : mutable.TreeMap[Long, Boolean], entityType : KeyEnum.Value, entityId : Long, pastCheckpoint : Long, e :Entity) = {
+//    RedisConnector.addEntity(entityType, entityId, e.creationTime)
+//    for ((k,v) <- compressedHistory) {
+//      if (k > pastCheckpoint)
+//        RedisConnector.addState(entityType, entityId,k, v)
+//    }
+//  }
+//
+//  def savePropertiesToRedis(e : Entity, pastCheckpoint : Long) = {
+//    val properties = e.properties
+//    var entityType = KeyEnum.edges
+//    val id         = e.getId
+//    if (e.isInstanceOf[Vertex])
+//        entityType = KeyEnum.vertices
+//
+//    properties.foreach(el => {
+//      val propValue = el._2
+//      val propName  = el._1
+//      propValue.previousState.foreach(h => {
+//        if (h._1 > pastCheckpoint)
+//          RedisConnector.addProperty(entityType, id, propName, h._1, h._2)
+//        else break
+//      })
+//    })
+//  }

@@ -28,6 +28,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
   private var saved = false
   //track the oldest point for use in AddOnly mode
   var oldestPoint : AtomicLong=  AtomicLong(creationTime)
+  var newestPoint: AtomicLong = AtomicLong(creationTime)
   var originalHistorySize : AtomicLong=  AtomicLong(0)
 
   // History of that entity
@@ -43,6 +44,8 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     * @param msgTime
     */
   def revive(msgTime: Long): Unit = {
+    if(msgTime>newestPoint.get)
+      newestPoint.set(msgTime)
     if(addOnly) {
       // if we are in add only mode
       if (oldestPoint.get > msgTime) //check if the current point in history is the oldest
@@ -60,6 +63,8 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     * @param msgTime
     */
   def kill(msgTime: Long): Unit = {
+    if(msgTime>newestPoint.get)
+      newestPoint.set(msgTime)
     removeList.put(msgTime, false)
     if (!addOnly) {
       originalHistorySize.add(1)
@@ -127,13 +132,12 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering )
     var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
 
-    var allOld = true
+    var allOld = if(newestPoint.get<cutoff)
     safeHistory += previousState.head // always keep at least one point in history
     for((k,v) <- previousState){
       if(k<cutoff)
         oldHistory += k ->v
       else {
-        allOld =false
         safeHistory += k -> v
       }
     }
