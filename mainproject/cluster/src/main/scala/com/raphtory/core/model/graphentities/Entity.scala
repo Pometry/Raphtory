@@ -125,25 +125,21 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     * @param cutoff the histories time cutoff
     * @return (is it a place holder, is the full history holder than the cutoff, the old history)
     */
-  def returnAncientHistory(cutoff:Long): (Boolean, Boolean, mutable.TreeMap[Long, Boolean]) ={ //
+  def removeAncientHistory(cutoff:Long): (Boolean, Boolean)={ //
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node inform the historian
-      return  (true,true,null)
+      return  (true,true)
     }
     var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering )
-    var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
-
-    var allOld = if(newestPoint.get<cutoff)
     safeHistory += previousState.head // always keep at least one point in history
     for((k,v) <- previousState){
-      if(k<cutoff)
-        oldHistory += k ->v
-      else {
+      if(k>=cutoff){
         safeHistory += k -> v
       }
     }
     previousState = safeHistory
 
-    (false,allOld,oldHistory)
+    val allOld = if(newestPoint.get<cutoff)
+    (false,allOld)
   }
 
   /** *
