@@ -7,6 +7,7 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import akka.pattern.ask
 import akka.util.Timeout
+import com.raphtory.core.actors.partitionmanager.Archivist.Archivist
 import com.raphtory.core.actors.partitionmanager.{PartitionReader, PartitionWriter}
 
 import scala.concurrent.{Await, Future}
@@ -67,7 +68,7 @@ class RaphtoryReplicator(actorType:String, routerName : String) extends Actor {
       case "Partition Manager" => {
         actorRef = context.system.actorOf(Props(new PartitionWriter(myId, false, myId+1)), s"Manager_$myId")
         actorRefReader = context.system.actorOf(Props(new PartitionReader(myId, false, myId+1)), s"ManagerReader_$myId")
-        //context.system.actorOf(Props(new Historian(20, 60, 0.3)))
+        context.system.actorOf(Props(new Archivist(20, 60, 0.3)))
       }
 
       case "Router" => {

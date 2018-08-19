@@ -138,7 +138,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     }
     previousState = safeHistory
 
-    val allOld = if(newestPoint.get<cutoff)
+    val allOld = newestPoint.get<cutoff
     (false,allOld)
   }
 

@@ -53,7 +53,7 @@ class RandomSpout extends SpoutTrait {
   }
 
   def genVertexAdd():String={
-    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}}}"""
+    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}, ${genProperties(2,true)}}}"""
   }
   def genVertexAdd(src:Int):String={ //overloaded method if you want to specify src ID
     s""" {"VertexAdd":{${getMessageID()}, ${genSrcID(src)}, ${genProperties(2,true)}}}"""
@@ -97,8 +97,8 @@ class RandomSpout extends SpoutTrait {
 
   def genSetSrcID():String = s""" "srcID":9 """
   def genSetDstID():String = s""" "dstID":10 """
-  def genSrcID():String = s""" "srcID":${Random.nextInt(100000)} """
-  def genDstID():String = s""" "dstID":${Random.nextInt(100000)} """
+  def genSrcID():String = s""" "srcID":${Random.nextInt(100)} """
+  def genDstID():String = s""" "dstID":${Random.nextInt(100)} """
   def genSrcID(src:Int):String = s""" "srcID":$src """
   def genDstID(dst:Int):String = s""" "dstID":$dst """
 
@@ -107,7 +107,7 @@ class RandomSpout extends SpoutTrait {
   def genProperties(numOfProps:Int,randomProps:Boolean):String ={
     var properties = "\"properties\":{"
     for(i <- 1 to numOfProps){
-      val propnum = {if(randomProps) Random.nextInt(30) else i}
+      val propnum = {if(randomProps) Random.nextInt(2) else i}
       if(i<numOfProps) properties = properties + s""" "property$propnum":${Random.nextInt()}, """
       else properties = properties + s""" "property$propnum":${Random.nextInt()} }"""
     }

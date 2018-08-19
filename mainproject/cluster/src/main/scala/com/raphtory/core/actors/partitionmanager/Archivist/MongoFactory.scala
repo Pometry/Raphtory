@@ -3,7 +3,7 @@ package com.raphtory.core.actors.partitionmanager
 import ch.qos.logback.classic.Level
 import com.mongodb.casbah.Imports.{$addToSet, MongoDBList, MongoDBObject}
 import com.mongodb.casbah.MongoConnection
-import com.raphtory.core.model.graphentities.{Entity, Property, Vertex}
+import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
@@ -24,8 +24,14 @@ object MongoFactory {
   private var vertexOperator = MongoFactory.vertices.initializeOrderedBulkOperation
   private var edgeOperator = MongoFactory.vertices.initializeOrderedBulkOperation
   def flushBatch() ={
-    vertexOperator.execute()
-    edgeOperator.execute()
+    try {
+      vertexOperator.execute()
+      edgeOperator.execute()
+      println("flushing")
+    }
+    catch {
+      case e:Exception => //e.printStackTrace()
+    }
     vertexOperator = MongoFactory.vertices.initializeOrderedBulkOperation
     edgeOperator = MongoFactory.vertices.initializeOrderedBulkOperation
   }
@@ -38,7 +44,8 @@ object MongoFactory {
       newEntity(entity,cutoff,vertexOperator)
     }
   }
-  def edge2Mongo(entity:Vertex,cutoff:Long)={
+  def edge2Mongo(entity:Edge,cutoff:Long)={
+    println("inside edge")
     if(entity beenSaved()){
       update(entity,cutoff,edgeOperator)
     }
@@ -47,7 +54,7 @@ object MongoFactory {
     }
   }
 
-  def update(entity: Entity,cutOff:Long,operator:BulkWriteOperation) ={
+  private def update(entity: Entity,cutOff:Long,operator:BulkWriteOperation) ={
     val history = convertHistoryUpdate(entity.compressAndReturnOldHistory(cutOff))
     val dbEntity = operator.find(MongoDBObject("_id" -> entity.getId))
     dbEntity.updateOne($addToSet("history") $each(history:_*))
@@ -60,17 +67,19 @@ object MongoFactory {
 
   }
 
-  def newEntity(entity:Entity,cutOff:Long,operator:BulkWriteOperation) ={
+  private def newEntity(entity:Entity,cutOff:Long,operator:BulkWriteOperation):Unit ={
     val history = entity.compressAndReturnOldHistory(cutOff)
+    if(history isEmpty)
+      return
     val builder = MongoDBObject.newBuilder
     builder += "_id" -> entity.getId
     builder += "oldestPoint" -> entity.oldestPoint.get
     builder += "history" -> convertHistory(history)
-    builder += "properties" -> convertProperties(entity.properties)
+    builder += "properties" -> convertProperties(entity.properties,cutOff)
     operator.insert(builder.result())
   }
 
-  def convertHistory[b <: Any](history:mutable.TreeMap[Long,b]):MongoDBList ={
+  private def convertHistory[b <: Any](history:mutable.TreeMap[Long,b]):MongoDBList ={
     val builder = MongoDBList.newBuilder
     for((k,v) <-history)
       if(v.isInstanceOf[String])
@@ -80,7 +89,7 @@ object MongoFactory {
     builder.result
   }
   //these are different as the update requires a scala list which can be 'eached'
-  def convertHistoryUpdate[b <: Any](history:mutable.TreeMap[Long,b]):List[MongoDBObject] ={
+  private def convertHistoryUpdate[b <: Any](history:mutable.TreeMap[Long,b]):List[MongoDBObject] ={
     val builder = mutable.ListBuffer[MongoDBObject]()
     for((k,v) <-history)
       if(v.isInstanceOf[String])
@@ -91,7 +100,7 @@ object MongoFactory {
     builder.toList
   }
 
-  def convertProperties(properties: ParTrieMap[String,Property]):MongoDBObject = {
+  private def convertProperties(properties: ParTrieMap[String,Property],cutOff:Long):MongoDBObject = {
     val builder = MongoDBObject.newBuilder
     for ((k, v) <- properties) {
       builder += k -> convertHistory(v.compressAndReturnOldHistory(cutOff))

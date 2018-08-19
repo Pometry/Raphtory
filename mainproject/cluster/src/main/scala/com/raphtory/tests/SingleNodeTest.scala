@@ -11,12 +11,12 @@ object SingleNodeTest extends App {
 
   val partitionNumber = 1
   val minimumRouters = 1
-  //val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRouter"
+  val routerClassName = "com.raphtory.examples.random.actors.RandomRouter"
   //val LamClassName = "com.raphtory.examples.random.actors.TestLAM"
-  //val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinSpout"
-  val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
-  val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
-  val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
+  val UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
+  //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
+  //val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
+  //val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
 
   val system = ActorSystem("Single-Node-test")
 
@@ -24,7 +24,7 @@ object SingleNodeTest extends App {
   system.actorOf(Props(RaphtoryReplicator("Router", routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager")), s"PartitionManager")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
-  system.actorOf(Props(Class.forName(LamClassName)), s"LiveAnalysisManager_$LamClassName")
+  //system.actorOf(Props(Class.forName(LamClassName)), s"LiveAnalysisManager_$LamClassName")
 
 }
 

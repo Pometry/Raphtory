@@ -2,8 +2,8 @@ package com.raphtory.core.actors.partitionmanager.Archivist
 
 import java.util.concurrent.Executors
 
-
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.partitionmanager.MongoFactory
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
 import com.raphtory.core.storage.EntitiesStorage
 import com.raphtory.core.utils.KeyEnum
@@ -16,6 +16,9 @@ import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration._
 //TODO decide how to do shrinking window as graph expands
+//TODO work out general cutoff function
+//TODO don't resave history
+//TODO fix edges
 //TODO implement temporal/spacial profiles (future)
 //TODO join historian to cluster
 
@@ -58,26 +61,22 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     newLastSaved   = cutOff
     canArchiveFlag = false
     println("Compressing")
-
     lockerCounter += 2
     Task.eval(compressJob[Long, Edge](EntitiesStorage.edges)).runAsync.onComplete(_ => compressEnder())
     Task.eval(compressJob[Int, Vertex](EntitiesStorage.vertices)).runAsync.onComplete(_ => compressEnder())
   }
 
-  def compressJob[T <: AnyVal, U <: Entity](map : ParTrieMap[T, U]) = for((k,v) <- map) compressHistory(v, newLastSaved, lastSaved)
+  def compressJob[T <: AnyVal, U <: Entity](map : ParTrieMap[T, U]) = {
+    val now = newLastSaved
+    val past = lastSaved
+    for((k,v) <- map) compressHistory(v,now,past)
+  }
 
   def compressHistory(e:Entity, now : Long, past : Long) ={
-    val compressedHistory = e.compressAndReturnOldHistory(now)
-    if(compressedHistory.nonEmpty){
-      val entityType = if (e.isInstanceOf[Vertex]) KeyEnum.vertices else KeyEnum.edges
-      //saveToRedis(compressedHistory, entityType, e.getId, past, e)
-
-    }
-    for ((id,property) <- e.properties){
-      val oldHistory = property.compressAndReturnOldHistory(now)
-      // savePropertiesToRedis(e, past)
-      //store offline
-    }
+      if (e.isInstanceOf[Vertex])
+        MongoFactory.vertex2Mongo(e.asInstanceOf[Vertex],now)
+      else
+        MongoFactory.edge2Mongo(e.asInstanceOf[Edge],now)
   }
 
   def compressEnder(): Unit = {
@@ -85,6 +84,7 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     if (lockerCounter == 0) {
       canArchiveFlag = true
       lastSaved = newLastSaved
+      MongoFactory.flushBatch()
       context.system.scheduler.scheduleOnce(5.seconds, self,"archive")
     }
   }
@@ -94,7 +94,7 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
   def spaceForExtraHistory = if((runtime.freeMemory/runtime.totalMemory()) < (1-maximumMem)) true else false //check if used memory less than set maximum
 
   def checkMaximumHistory(e:Entity, et : KeyEnum.Value) = {
-      val (placeholder, allOld, ancientHistory) = e.removeAncientHistory(System.currentTimeMillis - maximumHistoryMils)
+      val (placeholder, allOld) = e.removeAncientHistory(System.currentTimeMillis - maximumHistoryMils)
       if (placeholder) {/*TODO decide what to do with placeholders (future)*/}
       if (allOld) {
         et match {
