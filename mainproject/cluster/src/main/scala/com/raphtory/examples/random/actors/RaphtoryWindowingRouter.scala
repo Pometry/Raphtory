@@ -1,22 +1,51 @@
-package com.raphtory.core.actors.router
+package com.raphtory.examples.random.actors
 
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import akka.cluster.pubsub.DistributedPubSubMediator
+import com.raphtory.core.actors.router.WindowingRouter
 //import com.raphtory.core.actors.router.QueueWindowingRouter
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.getManager
 import kamon.Kamon
-import monix.eval.Task
-import monix.execution.{ExecutionModel, Scheduler}
 import spray.json._
 
 import scala.concurrent.duration.{Duration, SECONDS}
 
 final class RaphtoryWindowingRouter(override val routerId:Int, override val initialManagerCount:Int) extends WindowingRouter {
   var count = 0
-
+  var edgeCount: Long = 1
+  var edgeTime: Long = 0
+  var vertexCount: Long = 1
+  var vertexTime: Long = 0
 
   override def preStart() {
     super.preStart()
+    context.system.scheduler.schedule(Duration(10, SECONDS),
+      Duration(1, SECONDS),self,EdgeAvg)
+    context.system.scheduler.schedule(Duration(10, SECONDS),
+      Duration(1, SECONDS),self,VertexAvg)
+  }
+
+  override def otherOtherMessages(rcvdMessage: Any): Unit = {
+    rcvdMessage match {
+      case EdgeAvg => edgeTimeAvg()
+      case VertexAvg => vertexTimeAvg()
+    }
+  }
+
+  def edgeTimeAvg(): Unit = {
+    val avg = edgeTime/edgeCount
+    println(s"$avg")
+    kGauge.refine("actor" -> "Router", "name" -> "edgeTime").set(avg)
+    edgeTime = 0
+    edgeCount = 1
+  }
+
+  def vertexTimeAvg(): Unit = {
+    val avg = vertexTime/vertexCount
+    println(s"$avg")
+    kGauge.refine("actor" -> "Router", "name" -> "vertexTime").set(avg)
+    vertexTime = 0
+    vertexCount = 1
   }
 
   def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RouterUp(routerId), false)
@@ -55,8 +84,8 @@ final class RaphtoryWindowingRouter(override val routerId:Int, override val init
     } // if there are not any properties, just send the srcID
 
     //Add into our router map
-    super.addVertex(srcId)
-
+    vertexTime = vertexTime + super.addVertex(srcId)
+    vertexCount += 1
   }
 
   def vertexUpdateProperties(command:JsObject):Unit={
@@ -67,7 +96,8 @@ final class RaphtoryWindowingRouter(override val routerId:Int, override val init
     mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),VertexUpdateProperties(routerId,msgTime,srcId,properties),false) //send the srcID and properties to the graph parition
 
     //Add into our router map
-    super.addVertex(srcId)
+    vertexTime = vertexTime + super.addVertex(srcId)
+    vertexCount += 1
   }
 
   def edgeAdd(command:JsObject):Unit = {
@@ -84,7 +114,8 @@ final class RaphtoryWindowingRouter(override val routerId:Int, override val init
     else mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),EdgeAdd(routerId,msgTime,srcId,dstId),false)
 
     //Add into our router map
-    super.addEdge(srcId,dstId)
+    edgeTime = edgeTime + super.addEdge(srcId,dstId)
+    edgeCount += 1
   }
 
   def edgeUpdateProperties(command:JsObject):Unit={
@@ -96,7 +127,8 @@ final class RaphtoryWindowingRouter(override val routerId:Int, override val init
     mediator ! DistributedPubSubMediator.Send(getManager(srcId,getManagerCount),EdgeUpdateProperties(routerId,msgTime,srcId,dstId,properties),false) //send the srcID, dstID and properties to the graph manager
 
     //Add into our router map
-    super.addEdge(srcId,dstId)
+    edgeTime = edgeTime + super.addEdge(srcId,dstId)
+    edgeCount += 1
   }
 
 }

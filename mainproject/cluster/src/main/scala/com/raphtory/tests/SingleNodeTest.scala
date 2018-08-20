@@ -12,7 +12,7 @@ object SingleNodeTest extends App {
   val partitionNumber = 1
   val minimumRouters = 1
 
-  val routerClassName = "com.raphtory.core.actors.router.RaphtoryWindowingRouter"
+  val routerClassName = "com.raphtory.examples.random.actors.RaphtoryWindowingRouter"
   val LamClassName = "com.raphtory.core.actors.analysismanager.TestLAM"
   val UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
 

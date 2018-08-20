@@ -77,6 +77,12 @@ case class NextStepNewAnalyser(name: String) extends RaphReadClasses
 
 case class CheckVertex()// extends CheckingFunction
 case class CheckEdges()// extends CheckingFunction
+
+case class EdgeAvgTrait()
+case class VertexAvgTrait()
+
+case class EdgeAvg()
+case class VertexAvg()
 //sealed trait CheckingFunction
 //case class WatchDogIp(ip: String)
 
