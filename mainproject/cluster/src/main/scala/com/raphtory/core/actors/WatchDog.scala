@@ -30,7 +30,7 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
   var roCounter = 0
 
   override def preStart() {
-    context.system.scheduler.schedule(Duration(2, SECONDS),Duration(1, SECONDS),self,"tick")
+    context.system.scheduler.schedule(Duration(2, SECONDS),Duration(10, SECONDS),self,"tick")
     context.system.scheduler.schedule(Duration(3, MINUTES),Duration(1, MINUTES),self,"refreshManagerCount")
   }
 
@@ -40,7 +40,11 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
     case "refreshManagerCount" =>
       mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
 
-    case RequestPartitionCount => mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
+    case RequestPartitionCount => {
+      println("sending out Partition Manager Count")
+      sender() ! PartitionsCount(pmCounter)
+      mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
+    }
 
     case PartitionUp(id:Int) => mapHandler(id,PMKeepAlive, "Partition Manager")
     case RouterUp(id:Int) =>mapHandler(id,RouterKeepAlive, "Router")
@@ -48,10 +52,6 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
     case RequestPartitionId => newPMReqest()
 
     case RequestRouterId => newRouterRequest()
-
-
-
-
   }
 
   def newRouterRequest() ={

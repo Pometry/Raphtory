@@ -3,7 +3,9 @@ package com.raphtory.examples.gab.analysis
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.storage.controller.GraphRepoProxy
+import monix.execution.atomic.AtomicDouble
 
+import scala.concurrent.Await
 import scala.util.Random
 
 class GabPageRank3(networkSize : Int, dumplingFactor : Float) extends Analyser {
@@ -35,20 +37,28 @@ class GabPageRank3(networkSize : Int, dumplingFactor : Float) extends Analyser {
     var results = Vector.empty[(Long, Double)]
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
-      var pageRank : Double = constantPRop
+      val pageRank : AtomicDouble = AtomicDouble(constantPRop)
       val ingoingNeighbors  = vertex.getIngoingNeighbors
       val outgoingNeighbors = vertex.getOutgoingNeighbors
       ingoingNeighbors.foreach(u => {
         val previousPrU        = vertex.getIngoingNeighborProp(u, getPageRankStr(u, v.toInt)).getOrElse(defaultPR).toDouble
         val outgoingCounterU   = vertex.getIngoingNeighborProp(u, outgoingCounterStr).getOrElse(defaultOC).toDouble
-        pageRank += dumplingFactor * previousPrU / outgoingCounterU // PR(v, t + 1)
+        pageRank.getAndAdd(dumplingFactor * previousPrU / outgoingCounterU) // PR(v, t + 1)
+        Thread.sleep(0,10)
       })
-      outgoingNeighbors.foreach(u =>
-        vertex.pushToOutgoingNeighbor(u, getPageRankStr(v.toInt, u), pageRank.toString)
-      )
-      results +:= (v, pageRank)
-      if (results.size > 10) {
-        results = results.sortBy(_._2)(Ordering[Double].reverse).take(10)
+
+      if (pageRank.get == Double.PositiveInfinity || pageRank.get == Double.NegativeInfinity)
+        pageRank.set(defaultPR.toDouble)
+      outgoingNeighbors.foreach(u => {
+        vertex.pushToOutgoingNeighbor(u, getPageRankStr(v.toInt, u), pageRank.get.toString)
+        Thread.sleep(0, 10)
+      })
+      results.synchronized {
+        results
+        results +:= (v, pageRank.get)
+        if (results.size > 10) {
+          results = results.sortBy(_._2)(Ordering[Double].reverse).take(10)
+        }
       }
     })
     println("Sending step end")

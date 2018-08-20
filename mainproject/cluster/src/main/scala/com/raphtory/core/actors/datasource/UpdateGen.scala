@@ -21,7 +21,9 @@ class UpdateGen extends RaphtoryActor with Timers {
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   var totalCount      = 100
-  var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt  // (Updates/s) - Hz  ->1000
+
+  var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt    // (Updates/s) - Hz
+  var increase        = System.getenv().getOrDefault("RAMP_FLAG", "false").toBoolean  // (Updates/s) - Hz
 
   var currentMessage  = 0
   var previousMessage = 0
@@ -40,11 +42,10 @@ class UpdateGen extends RaphtoryActor with Timers {
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     println(s"Prestarting ($freq Hz)")
-    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "random")
-    //context.system.scheduler.schedule(Duration(1, MINUTES), Duration(1, MILLISECONDS), self, "random") //1 MINUTE
+    context.system.scheduler.schedule(Duration(1, MINUTES), Duration(1, MILLISECONDS), self, "random")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"benchmark")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"stateCheck")
-
+    context.system.scheduler.schedule(Duration(5, MINUTES), Duration(5, MINUTES), self, "increase")
   }
 
   //************* MESSAGE HANDLING BLOCK
@@ -54,6 +55,9 @@ class UpdateGen extends RaphtoryActor with Timers {
     case "removeVertex" => vertexRemove()
     case "addEdge" => edgeAdd()
     case "removeEdge" => edgeRemove()
+    case "increase" =>
+      if (increase)
+        freq += 1000
     case "random" => {
       if(safe) {
         genRandomCommands(freq/1000)
@@ -98,6 +102,7 @@ class UpdateGen extends RaphtoryActor with Timers {
     else genEdgeAdd()
     //else if (random <= 0.8) genVertexRemoval()
     //else                    genEdgeRemoval()
+
   }
 
   /**

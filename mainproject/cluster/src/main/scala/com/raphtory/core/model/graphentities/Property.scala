@@ -3,7 +3,6 @@ package com.raphtory.core.model.graphentities
 import com.raphtory.core.utils.HistoryOrdering
 
 import scala.collection.mutable
-
 /** *
   * Node or Vertice Property. Created by Mirate on 10/03/2017.
   *

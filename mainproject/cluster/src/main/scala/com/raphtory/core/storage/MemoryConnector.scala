@@ -5,6 +5,7 @@ import com.raphtory.core.utils.KeyEnum
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
 private object MemoryConnector extends ReaderConnector {
@@ -54,7 +55,7 @@ private object MemoryConnector extends ReaderConnector {
     }
   }
 
-  override def getEntities(entityType: KeyEnum.Value): Set[Long] = {
+  override def getEntities(entityType: KeyEnum.Value): ParSet[Long] = {
     entityType match { // Not needed method
       case KeyEnum.vertices => GraphRepoProxy.getVerticesSet()
       case KeyEnum.edges    => GraphRepoProxy.getEdgesSet()
@@ -68,7 +69,7 @@ private object MemoryConnector extends ReaderConnector {
     }
   }
 
-  override def getAssociatedEdges(entityId: Long): mutable.LinkedHashSet[Edge] = {
+  override def getAssociatedEdges(entityId: Long): ParSet[Edge] = {
     vertices(entityId.toInt).associatedEdges
   }
 

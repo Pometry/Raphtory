@@ -7,6 +7,7 @@ import com.redis.RedisClient
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
 object RedisConnector extends ReaderConnector with WriterConnector {
@@ -71,14 +72,14 @@ object RedisConnector extends ReaderConnector with WriterConnector {
     * @param entityType
     * @return
     */
-  override def getEntities(entityType : KeyEnum.Value) : Set[Long] = {
+  override def getEntities(entityType : KeyEnum.Value) : ParSet[Long] = {
     redis.smembers(entityType) match {
-      case None => Set[Long]()
+      case None => ParSet[Long]()
       case Some(set) => {
         set.map(opEl => opEl match {
           case Some(s) => s.toLong
           case None    => Long.MaxValue // TODO check
-        })
+        }).par
       }
     }
   }
@@ -118,12 +119,12 @@ object RedisConnector extends ReaderConnector with WriterConnector {
     * @param vertexId
     * @return
     */
-  override def getAssociatedEdges(vertexId: Long) : mutable.LinkedHashSet[Edge]= {
-    val edges = mutable.LinkedHashSet[Edge]()
+  override def getAssociatedEdges(vertexId: Long) : ParSet[Edge]= {
+    var edges = ParSet[Edge]()
     redis.smembers(associatedEdgesKey(vertexId)) match {
       case Some(set) =>
         set.par.foreach {
-          case Some(str) => edges.+(getEdge(str.toLong))
+          case Some(str) => edges += getEdge(str.toLong)
           case None =>
         }
       case None =>

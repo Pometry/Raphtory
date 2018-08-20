@@ -11,13 +11,16 @@ import com.raphtory.core.utils.Utils
 import com.twitter.util.Eval
 import scala.collection.concurrent.TrieMap
 import monix.execution.{ExecutionModel, Scheduler}
+import monix.eval.Task
+import monix.execution.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.{ExecutionModel, Scheduler}
 
 class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends RaphtoryActor {
   implicit var managerCount: Int = managerCountVal
   val managerID: Int = id //ID which refers to the partitions position in the graph manager map
-  implicit val s: Scheduler = Scheduler(ExecutionModel.AlwaysAsyncExecution)
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   val analyserMap: TrieMap[String, Analyser] = TrieMap[String, Analyser]()
+  implicit val s = Scheduler.computation()
 
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersTopic, self)
@@ -35,7 +38,7 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
   }
 
   override def receive: Receive = {
-
+    case AnalyserPresentCheck(classname) => presentCheck(classname)
     case Setup(analyzer) => setup(analyzer)
     case SetupNewAnalyser(analyser, name) => setupNewAnalyser(analyser, name)
     case NextStep(analyzer) => nextStep(analyzer)
@@ -45,13 +48,26 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
     case e => println(s"[READER] not handled message " + e)
   }
 
+  def presentCheck(classname:String) = {
+    try {
+      Class.forName(classname)
+      println(s"Reader has this class can precede: $classname ")
+      sender() ! AnalyserPresent()
+    }
+    catch {
+      case e: ClassNotFoundException => {
+        println("Analyser not found within this image, requesting scala file")
+        sender() ! ClassMissing()
+      }
+    }
+  }
+
   def nextStep(analyzer: Analyser): Unit = {
     try {
       println(s"Received new step for pm_$managerID")
       analyzer.sysSetup()
       val senderPath = sender().path
-      this.analyze(analyzer, senderPath)
-
+      Task.eval(this.analyze(analyzer, senderPath)).runAsync
     }
     catch {
       case e: Exception => {
@@ -66,6 +82,7 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
 
   def setup(analyzer: Analyser) {
     try {
+      //throw new ClassNotFoundException()
       analyzer.sysSetup()
       analyzer.setup()
       sender() ! Ready()
@@ -76,10 +93,10 @@ class PartitionReader(id : Int, test : Boolean, managerCountVal : Int) extends R
         println("Analyser not found within this image, requesting scala file")
         sender() ! ClassMissing()
       }
-      case e: scala.NotImplementedError => {
-        println("Analyser not found within this image, requesting scala file")
-        sender() ! ClassMissing()
-      }
+  //    case e: scala.NotImplementedError => {
+  //      println("Analyser not found within this image, requesting scala file")
+  //      sender() ! ClassMissing()
+  //    }
     }
   }
 

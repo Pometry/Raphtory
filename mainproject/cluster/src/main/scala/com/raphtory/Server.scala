@@ -73,7 +73,6 @@ object Go extends App {
       setConf(seedLoc, zookeeper)
       SingleNodeSetup(getConf(zookeeper),routerName,updaterName,sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
     }
-
   }
 
   def setConf(seedLoc: String, zookeeper: String): Unit = {

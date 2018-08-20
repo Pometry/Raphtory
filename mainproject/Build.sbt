@@ -69,6 +69,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		scalacOptions				:= Seq("-feature", "-deprecation", "-encoding", "UTF8", "-unchecked"),
 		testOptions in Test += Tests.Argument("-oDF"),
 		version 					:= "bazar"
+
 	)
 
 	lazy val dockerStuff = Seq(
@@ -78,6 +79,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		dockerExposedPorts := Seq(2551,8080,2552, 1600, 11600)
 
 	)
+
+	val newAnalyser = "com/raphtory/core/actors/analysismanager/TestAnalyser2.scala"
 
 	lazy val root = Project(id = "raphtory",
 		base = file(".")) aggregate(cluster)
@@ -90,6 +93,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		.settings(dockerStuff:_*)
   	.settings(mappings in Universal +=
 			file(s"${baseDirectory.value}/../docker-compose/env-setter.sh") -> "bin/env-setter.sh")
+		.settings(mappings in Universal +=
+			file(s"${baseDirectory.value}/src/main/scala/$newAnalyser") -> newAnalyser)
 		.settings(dockerEntrypoint := Seq("bash"))
 		.settings(dockerCommands ++= Seq(
 			Cmd("ENV", "PATH=/opt/docker/bin:${PATH}"),

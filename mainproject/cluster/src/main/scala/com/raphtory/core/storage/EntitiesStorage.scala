@@ -64,8 +64,9 @@ object EntitiesStorage {
       }
     }
 
-    if (properties != null)
+    if (properties != null) {
       properties.foreach(prop => value.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
+    }
       //properties.foreach(l => value + (msgTime,l._1,l._2)) //add all properties
     GraphRepoProxy.addVertex(value.getId)
     value

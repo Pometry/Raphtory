@@ -38,7 +38,7 @@ trait RouterTrait extends RaphtoryActor {
     case command:String =>  {
       Task.eval(this.parseJSON(command)).fork.runAsync
     }
-    case e => otherMessages(e)
+    case e : Any => otherMessages(e)
   }
 
   protected final def getManagerCount = managerCount
