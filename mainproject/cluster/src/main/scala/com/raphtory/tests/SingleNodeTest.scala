@@ -9,12 +9,20 @@ import scala.sys.process._
 //this class creates an actor system with all of the required components for a Raphtory cluster
 object SingleNodeTest extends App {
 
-
   val partitionNumber = 1
   val minimumRouters = 1
+
   val routerClassName = "com.raphtory.core.actors.router.RaphtoryWindowingRouter"
   val LamClassName = "com.raphtory.core.actors.analysismanager.TestLAM"
   val UpdaterName = "com.raphtory.core.actors.datasource.UpdateGen"
+
+  //val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRouter"
+  //val LamClassName = "com.raphtory.examples.random.actors.TestLAM"
+  //val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinSpout"
+  //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
+ // val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
+ // val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
+
   val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")

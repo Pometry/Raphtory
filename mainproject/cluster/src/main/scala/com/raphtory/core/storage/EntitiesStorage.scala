@@ -51,8 +51,10 @@ object EntitiesStorage {
   /**
     * Vertices Methods
     */
-  def vertexAdd(routerID : Int, msgTime : Long, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
-    var value : Vertex = new Vertex(routerID, msgTime, srcId, initialValue = true, addOnlyVertex)
+
+  def vertexAdd(routerID:Int,msgTime : Long, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
+    if(printing) println(s"Received vertex add for $srcId with map: $properties")
+    var value : Vertex = new Vertex(routerID,msgTime, srcId, initialValue = true, addOnlyVertex)
     vertices.synchronized {
       vertices.get(srcId) match {
         case Some(v) =>

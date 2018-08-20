@@ -1,0 +1,33 @@
+digraph finite_state_machine {
+    rankdir=LR;
+
+    node [shape = doublecircle, fontsize=20, width=2,fixedsize=true] idle;
+
+    node [shape = circle, fontsize=20,width=2,fixedsize=true] handshake; presenceCheck; present; setup; setupNew; compileCheck;idle;processing;
+
+    idle [label="Idle"]
+    handshake [label="Handshake"]
+    presenceCheck[label="Presence\nCheck"]
+    present[label="Analyser\nPresent"]
+    setupNew[label="Analyser Absent"]
+    compileCheck[label="Compile\nCheck"]
+    setup[label="Setup"]
+    processing[label="Processing"]
+
+
+    idle -> handshake [ label = "Received handshake from new LAM\n --------------------------------\nResponding to handshake request",fontsize=20 ];
+    handshake -> presenceCheck [ label = "Received Analyser presence check\n --------------------------------\nChecking if Analyser class is present",fontsize=20 ];
+    presenceCheck -> present [ label = "Analyser is present\n --------------------------------\nInforming LAM",fontsize=20 ];
+    present -> setup[ label = "Received Setup Request\n --------------------------------\nExecuting setup step\nInforming LAM of setup completion",fontsize=20 ]
+    presenceCheck -> setupNew [ label = "Analyser class is missing\n --------------------------------\nRequesting Analyser code",fontsize=20 ];
+    setupNew -> compileCheck [ label = "Analyser code received\n --------------------------------\nCompiling into executable class",fontsize=20 ];
+    compileCheck -> idle [ label = "Code uncompilable\n --------------------------------\nInforming LAM of failed compile",fontsize=20 ];
+    compileCheck -> setup [ label = "Code compiled\n --------------------------------\nExecuting setup step\nInforming LAM of setup completion",fontsize=20 ];
+    setup -> processing [ label = "Received superstep request\n --------------------------------\nExecuting superstep",fontsize=20 ];
+    processing -> idle [ label = "Superstep completed\n --------------------------------\nReturning results to LAM",fontsize=20 ];
+    idle -> processing  [ label = "Received superstep request\n --------------------------------\nExecuting superstep",fontsize=20 ];
+
+
+
+    nodesep=1
+}

@@ -9,8 +9,8 @@ object RaphtoryJsonProtocol extends DefaultJsonProtocol {
   implicit val vertexAddFormat               = jsonFormat3(VertexAdd)
   implicit val edgeAddFormat                 = jsonFormat4(EdgeAdd)
 
-  implicit object raphCaseClassFormat extends RootJsonFormat[RaphCaseClass] {
-    def write(obj: RaphCaseClass): JsValue =
+  implicit object raphCaseClassFormat extends RootJsonFormat[RaphWriteClass] {
+    def write(obj: RaphWriteClass): JsValue =
       JsObject((obj match {
         case e : VertexAddWithProperties => e.toJson
         case e : EdgeAddWithProperties => e.toJson

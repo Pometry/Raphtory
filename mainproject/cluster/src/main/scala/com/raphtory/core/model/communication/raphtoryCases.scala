@@ -8,11 +8,13 @@ import scala.collection.mutable
 /**
   * Created by Mirate on 30/05/2017.
   */
-sealed trait RaphCaseClass {
+sealed trait RaphWriteClass {
   def srcId:Int
 }
 
-case class Command(command: CommandEnum.Value, value: RaphCaseClass)
+trait SpoutGoing
+
+case class Command(command: CommandEnum.Value, value: RaphWriteClass)
 
 case class RouterUp(id:Int)
 case class PartitionUp(id:Int)
@@ -23,15 +25,16 @@ case class ClusterStatusResponse(clusterUp: Boolean)
 case class LiveAnalysis(analyser: Analyser)
 case class Results(result:Object)
 
-case class VertexAdd(routerID:Int,msgTime:Long, override val srcId:Int) extends RaphCaseClass //add a vertex (or add/update a property to an existing vertex)
-case class VertexAddWithProperties(routerID:Int,msgTime:Long, override val srcId:Int, properties: Map[String,String]) extends RaphCaseClass
-case class VertexUpdateProperties(routerID:Int,msgTime:Long,srcId:Int, propery:Map[String,String])
-case class VertexRemoval(routerID:Int,msgTime:Long,srcId:Int)
+case class VertexAdd(routerID:Int,msgTime:Long, override val srcId:Int) extends RaphWriteClass //add a vertex (or add/update a property to an existing vertex)
+case class VertexAddWithProperties(routerID:Int,msgTime:Long, override val srcId:Int, properties: Map[String,String]) extends RaphWriteClass
+case class VertexUpdateProperties(routerID:Int,msgTime:Long,override val srcId:Int, propery:Map[String,String]) extends  RaphWriteClass
+case class VertexRemoval(routerID:Int,msgTime:Long,override val srcId:Int) extends RaphWriteClass
 
-case class EdgeAdd(routerID:Int,msgTime:Long,srcId:Int,dstId:Int) extends RaphCaseClass
-case class EdgeAddWithProperties(routerID:Int,msgTime:Long, override val srcId:Int,dstId:Int, properties: Map[String,String]) extends RaphCaseClass
-case class EdgeUpdateProperties(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,property:Map[String,String])
-case class EdgeRemoval(routerID:Int,msgTime:Long,srcId:Int,dstID:Int)
+case class EdgeAdd(routerID:Int,msgTime:Long,srcId:Int,dstId:Int) extends RaphWriteClass
+case class EdgeAddWithProperties(routerID:Int,msgTime:Long, override val srcId:Int,dstId:Int, properties: Map[String,String]) extends RaphWriteClass
+case class EdgeUpdateProperties(routerID:Int,msgTime:Long,override val srcId:Int,dstId:Int,property:Map[String,String]) extends RaphWriteClass
+case class EdgeRemoval(routerID:Int,msgTime:Long,override val srcId:Int,dstID:Int) extends RaphWriteClass
+
 case class EdgeUpdateProperty(msgTime : Long, edgeId : Long, key : String, value : String) //for data coming from the LAM
 case class RemoteEdgeUpdateProperties(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String])
 case class RemoteEdgeAdd(routerID:Int,msgTime:Long, srcId:Int, dstId:Int, properties: Map[String,String])
@@ -41,12 +44,14 @@ case class RemoteEdgeUpdatePropertiesNew(routerID:Int,msgTime:Long,srcId:Int,dst
 case class RemoteEdgeAddNew(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,properties: Map[String,String],kills:mutable.TreeMap[Long, Boolean])
 case class RemoteEdgeRemovalNew(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,kills:mutable.TreeMap[Long, Boolean])
 
+
 case class RemoteReturnDeaths(msgTime:Long,srcId:Int,dstId:Int,kills:mutable.TreeMap[Long, Boolean])
 case class ReturnEdgeRemoval(routerID:Int,msgTime:Long,srcId:Int,dstId:Int)
 
 case class UpdatedCounter(newValue : Int)
 case class AssignedId(id : Int)
 case class PartitionsCount(count : Int)
+case class PartitionsCountResponse(count:Int)
 case class RequestPartitionCount()
 case class RequestPartitionId()
 case class RequestRouterId()

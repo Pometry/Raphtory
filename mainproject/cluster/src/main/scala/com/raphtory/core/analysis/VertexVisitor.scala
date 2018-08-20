@@ -5,6 +5,7 @@ import com.raphtory.core.model.communication.EdgeUpdateProperty
 import com.raphtory.core.model.graphentities.{Edge, Property, Vertex}
 import com.raphtory.core.utils.Utils
 
+import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParArray
 object VertexVisitor  {
   def apply(v : Vertex)(implicit context : ActorContext, managerCount : Int) = {
@@ -53,6 +54,11 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
       }
     }
   }
+
+  def getPropertySet():ParSet[String] = {
+    v.properties.keySet
+  }
+
 
   def pushToOutgoingNeighbor(dstId : Int, key : String, value : String) : Unit =
     pushToNeighbor(Utils.getEdgeIndex(v.getId.toInt, dstId), key, value)
