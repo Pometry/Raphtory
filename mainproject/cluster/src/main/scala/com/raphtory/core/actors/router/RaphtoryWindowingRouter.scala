@@ -11,7 +11,7 @@ import spray.json._
 
 import scala.concurrent.duration.{Duration, SECONDS}
 
-final class RaphtoryWindowingRouter(override val routerId:Int, override val initialManagerCount:Int) extends MapQueueWindowingRouter {
+final class RaphtoryWindowingRouter(override val routerId:Int, override val initialManagerCount:Int) extends WindowingRouter {
   var count = 0
 
 

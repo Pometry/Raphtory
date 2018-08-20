@@ -14,7 +14,7 @@ object SingleNodeTest extends App {
 
   val routerClassName = "com.raphtory.core.actors.router.RaphtoryWindowingRouter"
   val LamClassName = "com.raphtory.core.actors.analysismanager.TestLAM"
-  val UpdaterName = "com.raphtory.core.actors.datasource.UpdateGen"
+  val UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
 
   //val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRouter"
   //val LamClassName = "com.raphtory.examples.random.actors.TestLAM"

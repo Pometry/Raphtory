@@ -174,7 +174,7 @@ trait MapQueueWindowingRouter extends  RouterTrait {
       moreToPop = false
     }
     //For each Id in set check if other instance in the queue by calling check function
-    uniqueIDs foreach(t => checkVertex(t)) //to become multi threaded
+    uniqueIDs foreach(t => Task.eval(checkVertex(t)).fork.runAsync) //to become multi threaded
 
     //Call the function again to keep peeking at the queue
     //context.system.scheduler.scheduleOnce(Duration(QueueCheckFr, SECONDS), self,msgType)
@@ -197,7 +197,7 @@ trait MapQueueWindowingRouter extends  RouterTrait {
       moreToPop = false
     }
     //For each index in set check if other instance in the queue by calling check function
-    uniqueIDs foreach(t => checkEdges(t)) //to become multi threaded
+    uniqueIDs foreach(t => Task.eval(checkEdges(t)).fork.runAsync) //to become multi threaded
 
     //Call the function again to keep peeking at the queue
     //context.system.scheduler.scheduleOnce(Duration(QueueCheckFr, SECONDS), self,msgType)

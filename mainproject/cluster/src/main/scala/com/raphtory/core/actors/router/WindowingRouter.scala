@@ -36,8 +36,8 @@ trait WindowingRouter extends  RouterTrait {
 
   def otherMessages(rcvdMessage : Any) = {
     rcvdMessage match {
-      case CheckVertex => checkVertex()
-      case CheckEdges => checkEdges()
+      case CheckVertex => Task.eval(checkVertex()).fork.runAsync
+      case CheckEdges => Task.eval(checkEdges()).fork.runAsync
     }
   }
 
