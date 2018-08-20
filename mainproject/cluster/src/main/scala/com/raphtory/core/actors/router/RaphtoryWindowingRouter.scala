@@ -1,7 +1,7 @@
 package com.raphtory.core.actors.router
 
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.router.WindowingRouter
+//import com.raphtory.core.actors.router.QueueWindowingRouter
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.getManager
 import kamon.Kamon
@@ -11,7 +11,7 @@ import spray.json._
 
 import scala.concurrent.duration.{Duration, SECONDS}
 
-final class RaphtoryWindowingRouter(override val routerId:Int, override val initialManagerCount:Int) extends WindowingRouter {
+final class RaphtoryWindowingRouter(override val routerId:Int, override val initialManagerCount:Int) extends MapQueueWindowingRouter {
   var count = 0
 
 

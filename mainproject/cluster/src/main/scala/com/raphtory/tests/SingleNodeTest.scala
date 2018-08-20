@@ -18,7 +18,6 @@ object SingleNodeTest extends App {
 
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
   system.actorOf(Props(RaphtoryReplicator("Router", routerClassName)), s"Routers")
-  system.actorOf(Props(RaphtoryReplicator("Router", routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager")), s"PartitionManager")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
   //system.actorOf(Props(Class.forName(LamClassName)), s"LiveAnalysisManager_$LamClassName")

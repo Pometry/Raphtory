@@ -55,8 +55,9 @@ trait WindowingRouter extends  RouterTrait {
     managerCount = newValue
   }
 
-  protected def addVertex(srcId: Int): Unit = {
-    vertexWindow.synchronized {
+  protected def addVertex(srcId: Int): Long = {
+    val time1 = System.currentTimeMillis()
+    vertexWindow.synchronized { //Why not synchronize only on the update ???
       vertexWindow.get(srcId) match {
         case Some(v) => {
           vertexWindow.update(srcId, System.currentTimeMillis())
@@ -69,9 +70,12 @@ trait WindowingRouter extends  RouterTrait {
 
       }
     }
+    val time2 = System.currentTimeMillis()
+    time2 - time1
   }
 
   protected def addEdge(srcId: Int, dstId: Int): Unit = {
+    var time1 = System.currentTimeMillis();
     val index: Long = getEdgeIndex(srcId, dstId)
     edgeWindow.synchronized {
       edgeWindow.get(index) match {
@@ -79,12 +83,10 @@ trait WindowingRouter extends  RouterTrait {
           edgeWindow.update(index, System.currentTimeMillis())
           println(s"${System.currentTimeMillis()} edge updated with src: $srcId, dst: $dstId from $routerId")
         }
-
         case None => {
           edgeWindow.put(index, System.currentTimeMillis())
           println(s"${System.currentTimeMillis()} edge added with src: $srcId, dst: $dstId from $routerId")
         }
-
       }
     }
     addVertex(srcId)

@@ -28,7 +28,7 @@ class UpdateGen extends RaphtoryActor with Timers {
   var safe            = false
   var counter         = 0
 
-  val vertexPool      = 1000 //100000
+  val vertexPool      = 10 //100000
 
   def getPeriodDuration(unit : TimeUnit) : FiniteDuration = {
     val period : Long = unit.convert(1, SECONDS)/freq
