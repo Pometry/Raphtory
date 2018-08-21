@@ -83,7 +83,6 @@ object EntitiesStorage {
           vertex = v
           if(windowing)
             if (!(v latestRouterCheck routerID)){//if we are windowing we must check the latest Router for the vertex
-              println(s"Deletion of vertex with src: $srcId from router $routerID ignored")
               return //if its not from the same router we ignore and return the function here
             }
 
@@ -231,7 +230,6 @@ object EntitiesStorage {
         edge = e
         if(windowing)
           if (!(edge latestRouterCheck routerID)) { //if we are windowing we must check the latest Router for the vertex
-            println(s"Deletion of edge with src: $srcId, dst: $dstId from router $routerID ignored")
             return //if its not from the same router we ignore and return the function here
           }
         present = true
