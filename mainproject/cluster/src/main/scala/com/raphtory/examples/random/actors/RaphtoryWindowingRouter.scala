@@ -2,6 +2,7 @@ package com.raphtory.examples.random.actors
 
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.router.WindowingRouter
+import kamon.metric.GaugeMetric
 //import com.raphtory.core.actors.router.QueueWindowingRouter
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.getManager
@@ -16,7 +17,8 @@ final class RaphtoryWindowingRouter(override val routerId:Int, override val init
   var edgeTime: Long = 0
   var vertexCount: Long = 1
   var vertexTime: Long = 0
-
+  val verticesGauge : GaugeMetric = Kamon.gauge("raphtory.vertexAddingTime")
+  val edgesGauge    : GaugeMetric = Kamon.gauge("raphtory.edgeAddingTime")
   override def preStart() {
     super.preStart()
     context.system.scheduler.schedule(Duration(10, SECONDS),
@@ -34,16 +36,18 @@ final class RaphtoryWindowingRouter(override val routerId:Int, override val init
 
   def edgeTimeAvg(): Unit = {
     val avg = edgeTime/edgeCount
-    println(s"$avg")
-    kGauge.refine("actor" -> "Router", "name" -> "edgeTime").set(avg)
+    //println(s"$avg")
+    edgesGauge.refine("actor" -> "Router", "replica" -> routerId.toString, "name" -> "Adding Time Edges").set(avg)
+    //kGauge.refine("actor" -> "Router", "name" -> "edgeTime").set(avg)
     edgeTime = 0
     edgeCount = 1
   }
 
   def vertexTimeAvg(): Unit = {
     val avg = vertexTime/vertexCount
-    println(s"$avg")
-    kGauge.refine("actor" -> "Router", "name" -> "vertexTime").set(avg)
+    //println(s"$avg")
+    verticesGauge.refine("actor" -> "Router", "replica" -> routerId.toString, "name" -> "Adding Time Vertices").set(avg)
+    //kGauge.refine("actor" -> "Router", "name" -> "vertexTime").set(avg)
     vertexTime = 0
     vertexCount = 1
   }

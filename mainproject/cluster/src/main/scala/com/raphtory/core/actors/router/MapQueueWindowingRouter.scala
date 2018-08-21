@@ -8,6 +8,8 @@ import monix.execution.{ExecutionModel, Scheduler}
 import kamon.Kamon
 import monix.eval.Task
 import com.raphtory.core.utils.Utils._
+import kamon.metric.GaugeMetric
+
 import scala.collection.mutable.Queue
 import scala.collection.mutable.Set
 import scala.collection.parallel.mutable.ParTrieMap
@@ -19,14 +21,17 @@ trait MapQueueWindowingRouter extends  RouterTrait {
   protected val edgeWindow = ParTrieMap[Long, Int]()
   protected val vertexWindow = ParTrieMap[Int, Int]()
 
-  protected var WindowSize = 5000
-  protected var QueueCheckFr = 1
+  protected var WindowSize = System.getenv().getOrDefault("WINDOW_SIZE", "5").toInt * 1000
+  println(s"Window size set to $WindowSize milliseconds")
+
+  protected var QueueCheckFr = 15
 
   var edgeCountTrait: Long = 1
   var edgeTimeTrait: Long = 0
   var vertexCountTrait: Long = 1
   var vertexTimeTrait: Long = 0
-
+  private val verticesGauge : GaugeMetric = Kamon.gauge("raphtory.vertexCheckingTime")
+  private val edgesGauge    : GaugeMetric = Kamon.gauge("raphtory.edgeCheckingTime")
 
   // Let's call the super.parseJSON in the Router implementation to get Kamon Metrics
   override def parseJSON(command: String) = {
@@ -66,7 +71,7 @@ trait MapQueueWindowingRouter extends  RouterTrait {
   def edgeTimeTraitAvg(): Unit = {
     val avg = edgeTimeTrait/edgeCountTrait
     //println(s"Edge Check Avg is $avg")
-    kGauge.refine("actor" -> "Router", "name" -> "edgeTimeTrait").set(avg)
+    edgesGauge.refine("actor" -> "Router", "replica" -> routerId.toString, "name" -> "Checking Time Edges").set(avg)
     edgeTimeTrait = 0
     edgeCountTrait = 1
   }
@@ -74,7 +79,7 @@ trait MapQueueWindowingRouter extends  RouterTrait {
   def vertexTimeTraitAvg(): Unit = {
     val avg = vertexTimeTrait/vertexCountTrait
     //println(s"Vertex Check Avg is $avg")
-    kGauge.refine("actor" -> "Router", "name" -> "vertexTimeTrait").set(avg)
+    verticesGauge.refine("actor" -> "Router", "replica" -> routerId.toString, "name" -> "Checking Time Vertices").set(avg)
     vertexTimeTrait = 0
     vertexCountTrait = 1
   }
@@ -146,7 +151,7 @@ trait MapQueueWindowingRouter extends  RouterTrait {
   }
 
   protected def checkVertex(id: Int) = {
-    val time1 = System.currentTimeMillis
+    val time1 = System.nanoTime()
     //println("Checking verteces")
     //Called by peekingQueue function to check if any other vertex in the queue then delete if not
     if (vertexWindow.nonEmpty) {
@@ -154,7 +159,8 @@ trait MapQueueWindowingRouter extends  RouterTrait {
         vertexWindow.get(id) match {
           case Some(v) => {
             if (v-1 == 0){
-              mediator ! DistributedPubSubMediator.Send(getManager(id, managerCount), VertexRemoval(routerId, System.currentTimeMillis(), id), false)
+              toPartitionManager(VertexRemoval(routerId,System.currentTimeMillis(),id))
+              //mediator ! DistributedPubSubMediator.Send(getManager(id, managerCount), VertexRemoval(routerId, System.currentTimeMillis(), id), false)
               vertexWindow.remove(id)
               //println(s"${System.currentTimeMillis()} vertex removed with src: $id from $routerId")
             }
@@ -169,14 +175,14 @@ trait MapQueueWindowingRouter extends  RouterTrait {
         }
       }
     }
-    val time2 = System.currentTimeMillis
+    val time2 = System.nanoTime()
     val time = time2 - time1
     vertexTimeTrait = vertexTimeTrait + time
     vertexCountTrait += 1
   }
 
   protected def checkEdges(index: Long) = {
-    val time1 = System.currentTimeMillis
+    val time1 = System.nanoTime()
     //println("Checking edges")
     //Called by peekingQueue function to check if any other Index in the queue then delete if not
     if (edgeWindow.nonEmpty) {
@@ -186,7 +192,8 @@ trait MapQueueWindowingRouter extends  RouterTrait {
             val dstId: Int = getIndexHI(index)
             val srcId: Int = getIndexLO(index)
             if (v-1 == 0){
-              mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount), EdgeRemoval(routerId, System.currentTimeMillis(), srcId, dstId), false)
+              toPartitionManager(EdgeRemoval(routerId,System.currentTimeMillis(),srcId,dstId))
+              //mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount), EdgeRemoval(routerId, System.currentTimeMillis(), srcId, dstId), false)
               edgeWindow.remove(index)
               //println(s"${System.currentTimeMillis()} edge removed with src: $srcId, dst: $dstId from $routerId")
             }
@@ -201,7 +208,7 @@ trait MapQueueWindowingRouter extends  RouterTrait {
         }
       }
     }
-    val time2 = System.currentTimeMillis
+    val time2 = System.nanoTime()
     var time = time2 - time1
     edgeTimeTrait = edgeTimeTrait + time
     edgeCountTrait += 1

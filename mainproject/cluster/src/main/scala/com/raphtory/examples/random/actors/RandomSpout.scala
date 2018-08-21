@@ -15,10 +15,11 @@ class RandomSpout extends SpoutTrait {
   var totalCount      = 100
   var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt    // (Updates/s) - Hz
   var increase        = System.getenv().getOrDefault("RAMP_FLAG", "false").toBoolean  // (Updates/s) - Hz
+  var pool            = System.getenv().getOrDefault("ENTITY_POOL", "10000").toInt
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
-    println(s"Prestarting ($freq Hz)")
+    println(s"Prestarting ($freq Hz) Entity pool = $pool Ramp flag = $increase")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "random")
     context.system.scheduler.schedule(Duration(5, MINUTES), Duration(5, MINUTES), self, "increase")
   }
@@ -98,8 +99,8 @@ class RandomSpout extends SpoutTrait {
 
   def genSetSrcID():String = s""" "srcID":9 """
   def genSetDstID():String = s""" "dstID":10 """
-  def genSrcID():String = s""" "srcID":${Random.nextInt(100000)} """
-  def genDstID():String = s""" "dstID":${Random.nextInt(100000)} """
+  def genSrcID():String = s""" "srcID":${Random.nextInt(pool)} """
+  def genDstID():String = s""" "dstID":${Random.nextInt(pool)} """
   def genSrcID(src:Int):String = s""" "srcID":$src """
   def genDstID(dst:Int):String = s""" "dstID":$dst """
 
