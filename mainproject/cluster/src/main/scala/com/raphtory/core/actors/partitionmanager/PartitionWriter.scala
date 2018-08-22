@@ -138,8 +138,8 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
               s"TreeMaps size: ${getEntitiesPrevStates(storage.edges)}\t${getEntitiesPrevStates(storage.vertices)}")
   }
   def reportIntake() : Unit = {
-    if(printing)
-      println(messageCount)
+    //f(printing)
+      println(messageCount.get())
 
     // Kamon monitoring
     if (kLogging) {

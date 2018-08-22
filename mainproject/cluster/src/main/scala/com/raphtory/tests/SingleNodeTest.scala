@@ -26,8 +26,8 @@ object SingleNodeTest extends App {
   val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
-  system.actorOf(Props(RaphtoryReplicator("Router", routerClassName)), s"Routers")
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager")), s"PartitionManager")
+  system.actorOf(Props(RaphtoryReplicator("Router",1, routerClassName)), s"Routers")
+  system.actorOf(Props(RaphtoryReplicator("Partition Manager",1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
   //system.actorOf(Props(Class.forName(LamClassName)), s"LiveAnalysisManager_$LamClassName")
 

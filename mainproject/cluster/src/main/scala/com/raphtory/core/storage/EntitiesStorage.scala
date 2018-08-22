@@ -33,7 +33,7 @@ object EntitiesStorage {
   var mediator     : ActorRef= null
   var addOnlyVertex      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_VERTEX", "false").trim.toBoolean
   var addOnlyEdge      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_EDGE", "false").trim.toBoolean
-  var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "true").trim.toBoolean
+  var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
 
 
   def apply(printing : Boolean, managerCount : Int, managerID : Int, mediator : ActorRef) = {
@@ -81,11 +81,12 @@ object EntitiesStorage {
       vertices.get(srcId) match {
         case Some(v) => {
           vertex = v
-          if(windowing)
-            if (!(v latestRouterCheck routerID)){//if we are windowing we must check the latest Router for the vertex
+          if(windowing) {
+            if (!(v latestRouterCheck routerID)) {
+              //if we are windowing we must check the latest Router for the vertex
               return //if its not from the same router we ignore and return the function here
             }
-
+          }
           v kill msgTime //if we are not windowing we just run as normal or if it is the correct router we remove
         }
         case None => {
@@ -226,13 +227,15 @@ object EntitiesStorage {
       edge = new RemoteEdge(routerID, msgTime,srcId, dstId, initialValue = false, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
 
     edges.get(index) match {
-      case Some(e) =>
+      case Some(e) => {
         edge = e
-        if(windowing)
+        if (windowing) {
           if (!(edge latestRouterCheck routerID)) { //if we are windowing we must check the latest Router for the vertex
             return //if its not from the same router we ignore and return the function here
           }
+        }
         present = true
+      }
       case None =>
         edges.put(index, edge)
     }
@@ -255,7 +258,8 @@ object EntitiesStorage {
       edge kill msgTime
       if (!local)
         mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemoval(routerID,msgTime,srcId,dstId),false) // inform the partition dealing with the destination node
-    } else {
+    }
+    else {
         val deaths = srcVertex.removeList
         edge killList deaths
         if (!local)

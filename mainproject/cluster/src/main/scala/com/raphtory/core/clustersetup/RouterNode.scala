@@ -6,7 +6,7 @@ package com.raphtory.core.clustersetup
 import akka.actor.Props
 import com.raphtory.core.actors.RaphtoryReplicator
 
-case class RouterNode(seedLoc: String, className: String) extends DocSvr {
+case class RouterNode(seedLoc: String, partitionCount:Int, className: String) extends DocSvr {
   implicit val system = init(List(seedLoc))
-  system.actorOf(Props(RaphtoryReplicator("Router", className)), s"Routers")
+  system.actorOf(Props(RaphtoryReplicator("Router",partitionCount, className)), s"Routers")
 }
