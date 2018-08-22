@@ -38,7 +38,7 @@ trait RouterTrait extends RaphtoryActor {
 
   private def tick() = {
     kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
-    println(s"Router with $getManagerCount Sent to ${checkList(0)} ${checkList(1)} ${checkList(2)} ${checkList(3)}")
+    //println(s"Router with $getManagerCount Sent to ${checkList(0)} ${checkList(1)} ${checkList(2)} ${checkList(3)}")
     checkList(0)=0
     checkList(1)=0
     checkList(2)=0
@@ -72,9 +72,9 @@ trait RouterTrait extends RaphtoryActor {
   }
 
   def toPartitionManager[T <: RaphWriteClass](message:T): Unit ={
-    val manager = getManager(message.srcId, getManagerCount)
-    val man = manager.charAt(manager.length-1).toString.toInt
-    checkList(man) = checkList(man) +1
+    //val manager = getManager(message.srcId, getManagerCount)
+    //val man = manager.charAt(manager.length-1).toString.toInt
+    //checkList(man) = checkList(man) +1
     mediator ! DistributedPubSubMediator.Send(getManager(message.srcId, getManagerCount), message , false)
   }
 

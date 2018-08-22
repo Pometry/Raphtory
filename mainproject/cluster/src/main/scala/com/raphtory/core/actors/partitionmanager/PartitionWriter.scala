@@ -139,7 +139,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   }
   def reportIntake() : Unit = {
     //f(printing)
-      println(messageCount.get())
+      //println(messageCount.get())
 
     // Kamon monitoring
     if (kLogging) {
