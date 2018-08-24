@@ -45,11 +45,13 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
       //println(s"Edge $timeAsLong, ${txid.hashCode}, ${address.hashCode}, $n, $value")
       //creates vertex for the receiving wallet
       toPartitionManager(VertexAddWithProperties(
+                          routerId,
                           msgTime = timeAsLong,
                           srcId = address.hashCode,
                           properties = Map[String,String](("type","address"),("address",address))))
       //creates edge between the transaction and the wallet
       toPartitionManager(EdgeAddWithProperties(
+                          routerId,
                           msgTime = timeAsLong,
                           srcId = txid.hashCode,
                           dstId = address.hashCode,
@@ -57,6 +59,7 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
 
     }
     toPartitionManager(VertexAddWithProperties(
+                        routerId,
                         msgTime = timeAsLong,
                         srcId = txid.hashCode,
                         properties = Map[String,String](
@@ -70,12 +73,14 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
     if(vins.toString().contains("coinbase")){
       //creates the coingen node //TODO change so only added once
       toPartitionManager(VertexAddWithProperties(
+        routerId,
         msgTime = timeAsLong,
         srcId = "coingen".hashCode,
         properties = Map[String,String](("type","coingen"))))
 
       //creates edge between coingen and the transaction
       toPartitionManager(EdgeAdd(
+        routerId,
         msgTime = timeAsLong,
         srcId = "coingen".hashCode,
         dstId = txid.hashCode))
@@ -88,6 +93,7 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
         //no need to create node for prevtxid as should already exist
         //creates edge between the prev transaction and current transaction
         toPartitionManager(EdgeAddWithProperties(
+                            routerId,
                             msgTime = timeAsLong,
                             srcId = prevtxid.hashCode,
                             dstId = txid.hashCode,

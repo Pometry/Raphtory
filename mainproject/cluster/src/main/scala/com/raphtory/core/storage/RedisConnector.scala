@@ -12,7 +12,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 object RedisConnector extends ReaderConnector with WriterConnector {
   private val redis : RedisClient = new RedisClient("localhost", 6379)
-
+  val routerID = -1 //fake router ID for entities brought back from storage
   /**
     * Add the entity and set its creation time (if it doesn't exist)
     * @param entityType
@@ -197,7 +197,7 @@ object RedisConnector extends ReaderConnector with WriterConnector {
       case None => throw CreationTimeNotFoundException(entityId)
       case Some(time) => creationTime = time.toLong
     }
-    val v = Vertex(creationTime = creationTime, vertexId = entityId,
+    val v = Vertex(routerID, creationTime = creationTime, vertexId = entityId,
       associatedEdges = getAssociatedEdges(entityId),
       previousState = getHistory(KeyEnum.vertices, entityId),
       properties = getProperties(KeyEnum.vertices, entityId)
@@ -236,14 +236,14 @@ object RedisConnector extends ReaderConnector with WriterConnector {
         remotePartitionId = Utils.getPartition(srcId, EntitiesStorage.managerCount)
       }
       // Remote edge
-      e = RemoteEdge(creationTime, edgeId,
+      e = RemoteEdge(routerID,creationTime, edgeId,
         getHistory(KeyEnum.edges, edgeId),
         getProperties(KeyEnum.edges, edgeId),
         remotePos,
         remotePartitionId
       )
     } else {
-      e = Edge(creationTime, edgeId,
+      e = Edge(routerID,creationTime, edgeId,
         getHistory(KeyEnum.edges, edgeId),
         getProperties(KeyEnum.edges, edgeId))
     }

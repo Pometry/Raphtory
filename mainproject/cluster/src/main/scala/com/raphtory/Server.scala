@@ -46,11 +46,11 @@ object Go extends App {
     }
     case "router" => {
       println("Creating Router")
-      RouterNode(getConf(zookeeper), routerName)
+      RouterNode(getConf(zookeeper),sys.env("PARTITION_MIN").toInt, routerName)
     }
     case "partitionManager" => {
       println(s"Creating Patition Manager...")
-      ManagerNode(getConf(zookeeper))
+      ManagerNode(getConf(zookeeper),sys.env("PARTITION_MIN").toInt)
     }
 
     case "updater" => {

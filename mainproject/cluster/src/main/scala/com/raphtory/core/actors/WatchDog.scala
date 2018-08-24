@@ -20,7 +20,7 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
   var pmcounter = 0
   var routercounter = 0
   var clusterUp = false
-  val debug = false
+  val debug = true
   val maxTime = 30000
 
   var PMKeepAlive = TrieMap[Int,Long]()
@@ -73,6 +73,7 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
     if(!clusterUp)
       if(RouterKeepAlive.size>=minimumRouters)
         if(PMKeepAlive.size==managerCount){
+
           clusterUp=true
 
           if(debug) println("All Partition Managers and minimum number of routers have joined the cluster")

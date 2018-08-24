@@ -4,10 +4,10 @@ import com.raphtory.core.utils.CommandEnum
 import spray.json._
 
 object RaphtoryJsonProtocol extends DefaultJsonProtocol {
-  implicit val vertexAddWithPropertiesFormat = jsonFormat3(VertexAddWithProperties)
-  implicit val edgeAddWithPropertiesFormat   = jsonFormat4(EdgeAddWithProperties)
-  implicit val vertexAddFormat               = jsonFormat2(VertexAdd)
-  implicit val edgeAddFormat                 = jsonFormat3(EdgeAdd)
+  implicit val vertexAddWithPropertiesFormat = jsonFormat4(VertexAddWithProperties)
+  implicit val edgeAddWithPropertiesFormat   = jsonFormat5(EdgeAddWithProperties)
+  implicit val vertexAddFormat               = jsonFormat3(VertexAdd)
+  implicit val edgeAddFormat                 = jsonFormat4(EdgeAdd)
 
   implicit object raphCaseClassFormat extends RootJsonFormat[RaphWriteClass] {
     def write(obj: RaphWriteClass): JsValue =
