@@ -158,6 +158,9 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   }
 
   def vHandle(srcID : Int) : Unit = {
+    if(srcID%managerCount!=id){
+      println(s"Received incorrect update $srcID with pm id $id")
+    }
     messageCount.incrementAndGet()
   }
 
@@ -165,6 +168,9 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     secondaryMessageCount.incrementAndGet()
   }
   def eHandle(srcID : Int, dstID : Int) : Unit = {
+    if(srcID%managerCount!=id){
+      println(s"Received incorrect update $srcID with pm id $id")
+    }
     messageCount.incrementAndGet()
   }
 
