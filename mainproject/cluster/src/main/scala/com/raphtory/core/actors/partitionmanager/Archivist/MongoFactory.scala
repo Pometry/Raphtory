@@ -61,7 +61,7 @@ object MongoFactory {
     for((key,property) <- entity.properties){
       val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
       if(history.nonEmpty)
-        dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*))
+        dbEntity.updateOne($addToSet(key) $each(entityHistory:_*)) //s"properties.$key"
     }
 
   }
@@ -74,7 +74,7 @@ object MongoFactory {
     builder += "_id" -> entity.getId
     builder += "oldestPoint" -> entity.oldestPoint.get
     builder += "history" -> convertHistory(history)
-    builder += "properties" -> convertProperties(entity.properties,cutOff)
+    convertProperties(builder,entity.properties,cutOff)
     operator.insert(builder.result())
   }
 
@@ -99,8 +99,7 @@ object MongoFactory {
     builder.toList
   }
 
-  private def convertProperties(properties: ParTrieMap[String,Property],cutOff:Long):MongoDBObject = {
-    val builder = MongoDBObject.newBuilder
+  private def convertProperties(builder:scala.collection.mutable.Builder[(String, Any),com.mongodb.casbah.commons.Imports.DBObject], properties: ParTrieMap[String,Property], cutOff:Long):MongoDBObject = {
     for ((k, v) <- properties) {
       builder += k -> convertHistory(v.compressAndReturnOldHistory(cutOff))
     }
@@ -108,11 +107,21 @@ object MongoFactory {
   }
 
   def retriveVertexHistory(id:Long):Unit = {
-    println(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("history" -> 1)).getOrElse(""))
+    println(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse(""))
   }
 
   def retriveVertexPropertyHistory(id:Long,key:String):Unit ={
-    println(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("properties" -> 1)).getOrElse(""))
+    println(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,key -> 1)).getOrElse(""))
   }
 
 }
+
+
+
+//  private def convertProperties(properties: ParTrieMap[String,Property],cutOff:Long):MongoDBObject = {
+//    val builder = MongoDBObject.newBuilder
+//    for ((k, v) <- properties) {
+//      builder += k -> convertHistory(v.compressAndReturnOldHistory(cutOff))
+//    }
+//    builder.result
+//  }
