@@ -14,8 +14,8 @@ case class SingleNodeSetup(seedLoc:String,routerClassName:String,UpdaterName:Str
 
   system.actorOf(Props(new SeedActor(this)), "cluster")
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
-  system.actorOf(Props(RaphtoryReplicator("Router", routerClassName)), s"Routers")
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager")), s"PartitionManager")
+  system.actorOf(Props(RaphtoryReplicator("Router",1, routerClassName)), s"Routers")
+  system.actorOf(Props(RaphtoryReplicator("Partition Manager",1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
   system.actorOf(Props(Class.forName(LAMName)), s"LiveAnalysisManager_$LAMName")
 

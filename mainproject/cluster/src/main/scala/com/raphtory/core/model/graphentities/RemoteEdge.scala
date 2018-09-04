@@ -10,14 +10,14 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Edge object (extended creator for storage loads)
   */
 object RemoteEdge {
-  def apply(creationTime : Long, edgeId : Long,
+  def apply(routerID : Int, creationTime : Long, edgeId : Long,
             previousState : mutable.TreeMap[Long, Boolean],
             properties : ParTrieMap[String, Property], remotePos : RemotePos.Value, remotePartitionId : Int)= {
 
     val srcId = Utils.getIndexHI(edgeId)
     val dstId = Utils.getIndexLO(edgeId)
 
-    val e = new RemoteEdge(creationTime, srcId, dstId, initialValue = true, addOnly = false, remotePos, remotePartitionId)
+    val e = new RemoteEdge(routerID,creationTime, srcId, dstId, initialValue = true, addOnly = false, remotePos, remotePartitionId)
     e.previousState   = previousState
     e.properties      = properties
     e
@@ -36,11 +36,12 @@ object RemoteEdge {
   * @param remotePos
   * @param remotePartitionID
   */
-case class RemoteEdge(msgTime: Long,
+case class RemoteEdge(routerID: Int,
+                      msgTime: Long,
                       srcId: Int,
                       dstId: Int,
                       initialValue: Boolean,
                       addOnly:Boolean,
                       remotePos: RemotePos.Value,
                       remotePartitionID: Int)
-    extends Edge(msgTime, srcId, dstId, initialValue, addOnly)
+    extends Edge(routerID,msgTime, srcId, dstId, initialValue, addOnly)

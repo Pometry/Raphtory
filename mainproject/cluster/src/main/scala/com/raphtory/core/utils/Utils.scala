@@ -28,7 +28,7 @@ object Utils {
     * @param edges
     * @return (Edge, Local, Present)
     */
-  def edgeCreator(msgId : Int, srcId: Int, dstId: Int, managerCount : Int, managerId : Int,
+  def edgeCreator(routerID: Int, msgId : Int, srcId: Int, dstId: Int, managerCount : Int, managerId : Int,
                   edges : TrieMap[Long, Edge], initialValue : Boolean = true, addOnly:Boolean) : (Edge, Boolean, Boolean) = {
 
     val local       = checkDst(dstId, managerCount, managerId)
@@ -36,9 +36,9 @@ object Utils {
     var edge : Edge = null
 
     if (local)
-      edge = new Edge(msgId, srcId, dstId, initialValue, addOnly)
+      edge = new Edge(routerID, msgId, srcId, dstId, initialValue, addOnly)
     else
-      edge = new RemoteEdge(msgId, srcId, dstId, initialValue, addOnly, RemotePos.Destination, getPartition(dstId, managerCount))
+      edge = new RemoteEdge(routerID, msgId, srcId, dstId, initialValue, addOnly, RemotePos.Destination, getPartition(dstId, managerCount))
 
     edges.putIfAbsent(getEdgeIndex(srcId, dstId), edge) match {
       case Some(e) => {

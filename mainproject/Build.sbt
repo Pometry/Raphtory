@@ -78,6 +78,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		scalacOptions				:= Seq("-feature", "-deprecation", "-encoding", "UTF8", "-unchecked"),
 		testOptions in Test += Tests.Argument("-oDF"),
 		version 					:= "ben"
+
 	)
 
 	lazy val dockerStuff = Seq(

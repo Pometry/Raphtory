@@ -16,7 +16,7 @@ import scala.collection.mutable
   * @param isInitialValue  Is the first moment this entity is referenced
   */
 
-abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
+abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
 
   // Properties from that entity
   var properties:ParTrieMap[String,Property] = ParTrieMap[String, Property]()
@@ -165,7 +165,13 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, addOnly: 
     }
   }
 
+
   def beenSaved():Boolean=saved
+
+  def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter
+
+  def updateLatestRouter(newRouter:Int):Unit = latestRouter = newRouter
+
 
   //************* PRINT ENTITY DETAILS BLOCK *********************\\
 /*  def printCurrent(): String = {

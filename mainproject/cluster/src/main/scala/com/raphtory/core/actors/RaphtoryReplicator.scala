@@ -17,24 +17,24 @@ import scala.language.postfixOps
 object RaphtoryReplicator {
 
   // Router instantiation
-  def apply(actorType : String, routerName : String) = {
-    new RaphtoryReplicator(actorType, routerName)
+  def apply(actorType : String, initialManagerCount:Int, routerName : String) = {
+    new RaphtoryReplicator(actorType, initialManagerCount, routerName)
   }
 
   // PartitionManager instantiation
-  def apply(actorType : String) = {
-    new RaphtoryReplicator(actorType, null)
+  def apply(actorType : String,initialManagerCount:Int) = {
+    new RaphtoryReplicator(actorType, initialManagerCount,null)
   }
 }
 
-class RaphtoryReplicator(actorType:String, routerName : String) extends Actor {
+class RaphtoryReplicator(actorType:String, initialManagerCount:Int, routerName : String) extends Actor {
   implicit val timeout: Timeout = Timeout(10 seconds)
   val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
 
   var myId         = -1
-  var currentCount = -1
+  var currentCount = initialManagerCount
 
   var actorRef : ActorRef = null
   var actorRefReader : ActorRef = null
@@ -66,8 +66,9 @@ class RaphtoryReplicator(actorType:String, routerName : String) extends Actor {
     println(s"MyId is $assignedId")
     actorType match {
       case "Partition Manager" => {
-        actorRef = context.system.actorOf(Props(new PartitionWriter(myId, false, myId+1)), s"Manager_$myId")
-        actorRefReader = context.system.actorOf(Props(new PartitionReader(myId, false, myId+1)), s"ManagerReader_$myId")
+
+        actorRef = context.system.actorOf(Props(new PartitionWriter(myId, false, currentCount)), s"Manager_$myId")
+        actorRefReader = context.system.actorOf(Props(new PartitionReader(myId, false, currentCount)), s"ManagerReader_$myId")
         context.system.actorOf(Props(new Archivist(20, 60, 0.3)))
       }
 
@@ -83,11 +84,13 @@ class RaphtoryReplicator(actorType:String, routerName : String) extends Actor {
 
   def receive : Receive = {
     case PartitionsCount(count) => {
-      currentCount = count
-      if(actorRef != null)
-        actorRef ! UpdatedCounter(currentCount)
-      if (actorRefReader != null)
-        actorRef ! UpdatedCounter(currentCount)
+      if(count>currentCount) {
+        currentCount = count
+        if (actorRef != null)
+          actorRef ! UpdatedCounter(currentCount)
+        if (actorRefReader != null)
+          actorRef ! UpdatedCounter(currentCount)
+      }
     }
     case "tick" => getNewId
     case GetNetworkSize() => {

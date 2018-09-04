@@ -25,27 +25,28 @@ case class ClusterStatusResponse(clusterUp: Boolean)
 case class LiveAnalysis(analyser: Analyser)
 case class Results(result:Object)
 
-case class VertexAdd(msgTime:Long, override val srcId:Int) extends RaphWriteClass //add a vertex (or add/update a property to an existing vertex)
-case class VertexAddWithProperties(msgTime:Long, override val srcId:Int, properties: Map[String,String]) extends RaphWriteClass
-case class VertexUpdateProperties(msgTime:Long,override val srcId:Int, propery:Map[String,String]) extends  RaphWriteClass
-case class VertexRemoval(msgTime:Long,override val srcId:Int) extends RaphWriteClass
+case class VertexAdd(routerID:Int,msgTime:Long, override val srcId:Int) extends RaphWriteClass //add a vertex (or add/update a property to an existing vertex)
+case class VertexAddWithProperties(routerID:Int,msgTime:Long, override val srcId:Int, properties: Map[String,String]) extends RaphWriteClass
+case class VertexUpdateProperties(routerID:Int,msgTime:Long,override val srcId:Int, propery:Map[String,String]) extends  RaphWriteClass
+case class VertexRemoval(routerID:Int,msgTime:Long,override val srcId:Int) extends RaphWriteClass
 
-case class EdgeAdd(msgTime:Long,srcId:Int,dstId:Int) extends RaphWriteClass
-case class EdgeAddWithProperties(msgTime:Long, override val srcId:Int,dstId:Int, properties: Map[String,String]) extends RaphWriteClass
-case class EdgeUpdateProperties(msgTime:Long,override val srcId:Int,dstId:Int,property:Map[String,String]) extends RaphWriteClass
-case class EdgeRemoval(msgTime:Long,override val srcId:Int,dstID:Int) extends RaphWriteClass
+case class EdgeAdd(routerID:Int,msgTime:Long,srcId:Int,dstId:Int) extends RaphWriteClass
+case class EdgeAddWithProperties(routerID:Int,msgTime:Long, override val srcId:Int,dstId:Int, properties: Map[String,String]) extends RaphWriteClass
+case class EdgeUpdateProperties(routerID:Int,msgTime:Long,override val srcId:Int,dstId:Int,property:Map[String,String]) extends RaphWriteClass
+case class EdgeRemoval(routerID:Int,msgTime:Long,override val srcId:Int,dstID:Int) extends RaphWriteClass
 
-case class EdgeUpdateProperty(msgTime : Long, edgeId : Long, key : String, value : String)
-case class RemoteEdgeUpdateProperties(msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String])
-case class RemoteEdgeAdd(msgTime:Long, srcId:Int, dstId:Int, properties: Map[String,String])
-case class RemoteEdgeRemoval(msgTime:Long,srcId:Int,dstId:Int)
+case class EdgeUpdateProperty(msgTime : Long, edgeId : Long, key : String, value : String) //for data coming from the LAM
+case class RemoteEdgeUpdateProperties(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String])
+case class RemoteEdgeAdd(routerID:Int,msgTime:Long, srcId:Int, dstId:Int, properties: Map[String,String])
+case class RemoteEdgeRemoval(routerID:Int,msgTime:Long,srcId:Int,dstId:Int)
 
-case class RemoteEdgeUpdatePropertiesNew(msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String],kills:mutable.TreeMap[Long, Boolean])
-case class RemoteEdgeAddNew(msgTime:Long,srcId:Int,dstId:Int,properties: Map[String,String],kills:mutable.TreeMap[Long, Boolean])
-case class RemoteEdgeRemovalNew(msgTime:Long,srcId:Int,dstId:Int,kills:mutable.TreeMap[Long, Boolean])
+case class RemoteEdgeUpdatePropertiesNew(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String],kills:mutable.TreeMap[Long, Boolean])
+case class RemoteEdgeAddNew(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,properties: Map[String,String],kills:mutable.TreeMap[Long, Boolean])
+case class RemoteEdgeRemovalNew(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,kills:mutable.TreeMap[Long, Boolean])
+
 
 case class RemoteReturnDeaths(msgTime:Long,srcId:Int,dstId:Int,kills:mutable.TreeMap[Long, Boolean])
-case class ReturnEdgeRemoval(msgTime:Long,srcId:Int,dstId:Int)
+case class ReturnEdgeRemoval(routerID:Int,msgTime:Long,srcId:Int,dstId:Int)
 
 case class UpdatedCounter(newValue : Int)
 case class AssignedId(id : Int)
@@ -74,5 +75,14 @@ case class FailedToCompile (stackTrace:String) extends  RaphReadClasses
 case class NextStepNewAnalyser(name: String) extends RaphReadClasses
 
 
+case class CheckVertex()// extends CheckingFunction
+case class CheckEdges()// extends CheckingFunction
+
+case class EdgeAvgTrait()
+case class VertexAvgTrait()
+
+case class EdgeAvg()
+case class VertexAvg()
+//sealed trait CheckingFunction
 //case class WatchDogIp(ip: String)
 

@@ -27,7 +27,7 @@ object JanitorTest extends App{
   //  Thread.sleep(500)
   //  vertex revive(System.currentTimeMillis())
 
-  val vertex = new Vertex(1,1,true,false)
+  val vertex = new Vertex(1,1,1,true,false)
   vertex revive(2)
   vertex revive(3)
   vertex revive(4)
