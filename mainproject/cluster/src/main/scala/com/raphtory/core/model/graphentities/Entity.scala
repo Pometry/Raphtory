@@ -142,6 +142,10 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     (false,allOld)
   }
 
+  def compareHistory() = {
+
+  }
+
   /** *
     * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
     *

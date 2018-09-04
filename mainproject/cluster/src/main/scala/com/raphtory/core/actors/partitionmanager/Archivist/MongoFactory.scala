@@ -22,7 +22,7 @@ object MongoFactory {
   val vertices = connection(DATABASE)("vertices")
 
   private var vertexOperator = MongoFactory.vertices.initializeOrderedBulkOperation
-  private var edgeOperator = MongoFactory.vertices.initializeOrderedBulkOperation
+  private var edgeOperator = MongoFactory.edges.initializeOrderedBulkOperation
   def flushBatch() ={
     try {
       vertexOperator.execute()
@@ -33,7 +33,7 @@ object MongoFactory {
       case e:Exception => //e.printStackTrace()
     }
     vertexOperator = MongoFactory.vertices.initializeOrderedBulkOperation
-    edgeOperator = MongoFactory.vertices.initializeOrderedBulkOperation
+    edgeOperator = MongoFactory.edges.initializeOrderedBulkOperation
   }
 
   def vertex2Mongo(entity:Vertex,cutoff:Long)={
@@ -45,7 +45,6 @@ object MongoFactory {
     }
   }
   def edge2Mongo(entity:Edge,cutoff:Long)={
-    println("inside edge")
     if(entity beenSaved()){
       update(entity,cutoff,edgeOperator)
     }
@@ -106,6 +105,14 @@ object MongoFactory {
       builder += k -> convertHistory(v.compressAndReturnOldHistory(cutOff))
     }
     builder.result
+  }
+
+  def retriveVertexHistory(id:Long):Unit = {
+    println(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("history" -> 1)).getOrElse(""))
+  }
+
+  def retriveVertexPropertyHistory(id:Long,key:String):Unit ={
+    println(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("properties" -> 1)).getOrElse(""))
   }
 
 }

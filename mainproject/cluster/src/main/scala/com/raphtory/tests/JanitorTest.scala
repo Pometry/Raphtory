@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Level
 import com.raphtory.core.model.graphentities.{Entity, Property, Vertex}
 import com.mongodb.casbah.Imports.{$addToSet, _}
 import com.mongodb.casbah.MongoConnection
+import com.raphtory.core.actors.partitionmanager.MongoFactory
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
@@ -49,14 +50,21 @@ object JanitorTest extends App{
   vertex +(6,"prop2","val3")
   vertex +(7,"prop2","val3")
 
-  entity2Mongo(vertex)
-  println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
+  MongoFactory.vertex2Mongo(vertex,cutOff)
+  MongoFactory.flushBatch()
+  MongoFactory.retriveVertexHistory(vertex.getId)
+  //println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
   vertex kill(7)
   vertex revive(8)
   vertex +(8,"prop3","dave")
   vertex +(9,"prop3","bob")
-  entity2Mongo(vertex)
-  println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
+  MongoFactory.vertex2Mongo(vertex,cutOff)
+  MongoFactory.flushBatch()
+  MongoFactory.retriveVertexPropertyHistory(vertex.getId,"prop3")
+  MongoFactory.retriveVertexHistory(vertex.getId)
+
+  // println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
+
   MongoFactory.vertices.drop()
   //  println(vertex.previousState)
  // println(vertex.properties.getOrElse("prop",null).previousState)
@@ -75,78 +83,78 @@ object JanitorTest extends App{
   }
 
   def cutOff = 10
-  object MongoFactory {
-    private val DATABASE = "raphtory"
-    val connection = MongoConnection()
-    val edges = connection(DATABASE)("edges")
-    val vertices = connection(DATABASE)("vertices")
-  }
+//  object MongoFactory {
+//    private val DATABASE = "raphtory"
+//    val connection = MongoConnection()
+//    val edges = connection(DATABASE)("edges")
+//    val vertices = connection(DATABASE)("vertices")
+//  }
+//
+//  def entity2Mongo(entity:Entity)={
+//    if(entity beenSaved()){
+//      update(entity)
+//    }
+//    else{
+//      newEntity(entity)
+//    }
+//
+//  }
 
-  def entity2Mongo(entity:Entity)={
-    if(entity beenSaved()){
-      update(entity)
-    }
-    else{
-      newEntity(entity)
-    }
-
-  }
-
-  def update(entity: Entity) ={
-    val history = convertHistoryUpdate(entity.compressAndReturnOldHistory(cutOff))
-    //MongoFactory.vertices.update(DBObject("_id" -> entity.getId), $addToSet("history") $each(history: _*))
-    //MongoFactory.vertices.find(MongoDBObject("_id" -> 1)) .updateOne($addToSet("history") $each(history: _*))
-      val builder = MongoFactory.vertices.initializeOrderedBulkOperation
-      val dbEntity = builder.find(MongoDBObject("_id" -> entity.getId))
-      dbEntity.updateOne($addToSet("history") $each(history:_*))
-      for((key,property) <- entity.properties){
-        val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
-        println(entityHistory)
-        if(history.nonEmpty)
-          dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*))
-      }
-
-      val result = builder.execute()
-  }
-
-  def newEntity(entity:Entity) ={
-    val history = entity.compressAndReturnOldHistory(cutOff)
-    val builder = MongoDBObject.newBuilder
-    builder += "_id" -> entity.getId
-    builder += "oldestPoint" -> entity.oldestPoint.get
-    builder += "history" -> convertHistory(history)
-    builder += "properties" -> convertProperties(entity.properties)
-    MongoFactory.vertices.save(builder.result())
-  }
-
-  def convertHistory[b <: Any](history:mutable.TreeMap[Long,b]):MongoDBList ={
-    val builder = MongoDBList.newBuilder
-    for((k,v) <-history)
-      if(v.isInstanceOf[String])
-        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
-      else
-        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
-
-    builder.result
-  }
-  def convertHistoryUpdate[b <: Any](history:mutable.TreeMap[Long,b]):List[MongoDBObject] ={
-    val builder = mutable.ListBuffer[MongoDBObject]()
-    for((k,v) <-history)
-      if(v.isInstanceOf[String])
-        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
-      else
-        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
-
-    builder.toList
-  }
-
-  def convertProperties(properties: ParTrieMap[String,Property]):MongoDBObject = {
-    val builder = MongoDBObject.newBuilder
-    for ((k, v) <- properties) {
-      builder += k -> convertHistory(v.compressAndReturnOldHistory(cutOff))
-    }
-    builder.result
-  }
+//  def update(entity: Entity) ={
+//    val history = convertHistoryUpdate(entity.compressAndReturnOldHistory(cutOff))
+//    //MongoFactory.vertices.update(DBObject("_id" -> entity.getId), $addToSet("history") $each(history: _*))
+//    //MongoFactory.vertices.find(MongoDBObject("_id" -> 1)) .updateOne($addToSet("history") $each(history: _*))
+//      val builder = MongoFactory.vertices.initializeOrderedBulkOperation
+//      val dbEntity = builder.find(MongoDBObject("_id" -> entity.getId))
+//      dbEntity.updateOne($addToSet("history") $each(history:_*))
+//      for((key,property) <- entity.properties){
+//        val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
+//        println(entityHistory)
+//        if(history.nonEmpty)
+//          dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*))
+//      }
+//
+//      val result = builder.execute()
+//  }
+//
+//  def newEntity(entity:Entity) ={
+//    val history = entity.compressAndReturnOldHistory(cutOff)
+//    val builder = MongoDBObject.newBuilder
+//    builder += "_id" -> entity.getId
+//    builder += "oldestPoint" -> entity.oldestPoint.get
+//    builder += "history" -> convertHistory(history)
+//    builder += "properties" -> convertProperties(entity.properties)
+//    MongoFactory.vertices.save(builder.result())
+//  }
+//
+//  def convertHistory[b <: Any](history:mutable.TreeMap[Long,b]):MongoDBList ={
+//    val builder = MongoDBList.newBuilder
+//    for((k,v) <-history)
+//      if(v.isInstanceOf[String])
+//        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
+//      else
+//        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
+//
+//    builder.result
+//  }
+//  def convertHistoryUpdate[b <: Any](history:mutable.TreeMap[Long,b]):List[MongoDBObject] ={
+//    val builder = mutable.ListBuffer[MongoDBObject]()
+//    for((k,v) <-history)
+//      if(v.isInstanceOf[String])
+//        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
+//      else
+//        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
+//
+//    builder.toList
+//  }
+//
+//  def convertProperties(properties: ParTrieMap[String,Property]):MongoDBObject = {
+//    val builder = MongoDBObject.newBuilder
+//    for ((k, v) <- properties) {
+//      builder += k -> convertHistory(v.compressAndReturnOldHistory(cutOff))
+//    }
+//    builder.result
+//  }
 
  // def convertProperty(property:Property):MongoDBObject ={
  //   val builder = MongoDBObject.newBuilder

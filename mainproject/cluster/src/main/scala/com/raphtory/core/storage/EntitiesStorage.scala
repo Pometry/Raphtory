@@ -15,6 +15,8 @@ import scala.collection.parallel.mutable.ParTrieMap
 /**
   * Singleton representing the Storage for the entities
   */
+//TODO add capacity function based on memory used and number of updates processed/stored in memory
+//TODO check which percentage of updates are compressed/archived
 object EntitiesStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager}
   /**
@@ -51,6 +53,17 @@ object EntitiesStorage {
   /**
     * Vertices Methods
     */
+
+  def compareMemoryToSaved() ={
+    vertices.foreach(pair=>{
+      val vertex = pair._2
+      vertex.compareHistory()
+    })
+    edges.foreach(pair=>{
+      val edge = pair._2
+      edge.compareHistory()
+    })
+  }
 
   def vertexAdd(routerID:Int,msgTime : Long, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
     if(printing) println(s"Received vertex add for $srcId with map: $properties")
