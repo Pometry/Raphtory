@@ -106,12 +106,12 @@ object MongoFactory {
     builder.result
   }
 
-  def retriveVertexHistory(id:Long):Unit = {
-    println(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse(""))
+  def retriveVertexHistory(id:Long):String = {
+    vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse("")
   }
 
-  def retriveVertexPropertyHistory(id:Long,key:String):Unit ={
-    println(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,key -> 1)).getOrElse(""))
+  def retriveVertexPropertyHistory(id:Long,key:String):String ={
+    vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,key -> 1)).getOrElse("")
   }
 
 }

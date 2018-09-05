@@ -1,11 +1,13 @@
 package com.raphtory.core.model.graphentities
 
 
+import com.raphtory.core.actors.partitionmanager.MongoFactory
 import com.raphtory.core.utils.HistoryOrdering
 import monix.execution.atomic.AtomicLong
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.collection.mutable
+import spray.json._
 
 /** *
   * Represents Graph Entities (Edges and Vertices)
@@ -144,6 +146,14 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
 
   def compareHistory() = {
 
+    for (historyPoint <- MongoFactory.retriveVertexHistory(getId).parseJson.asJsObject.fields("history").asInstanceOf[JsArray].elements){
+      
+      historyPoint.asJsObject.fields("time").asJsObject.fields("$numberLong").toString().toInt
+
+    }
+    //for((k,v)<- properties){
+    //  val propertyHistory = MongoFactory.retriveVertexPropertyHistory(getId,k)
+    //}
   }
 
   /** *
