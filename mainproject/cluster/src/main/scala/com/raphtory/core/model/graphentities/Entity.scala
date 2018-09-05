@@ -146,11 +146,11 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
 
   def compareHistory() = {
 
-    for (historyPoint <- MongoFactory.retriveVertexHistory(getId).parseJson.asJsObject.fields("history").asInstanceOf[JsArray].elements){
+//    for (historyPoint <- MongoFactory.retriveVertexHistory(getId).parseJson.asJsObject.fields("history").asInstanceOf[JsArray].elements){
       
-      historyPoint.asJsObject.fields("time").asJsObject.fields("$numberLong").toString().toInt
+//      historyPoint.asJsObject.fields("time").asJsObject.fields("$numberLong").toString().toInt
 
-    }
+//    }
     //for((k,v)<- properties){
     //  val propertyHistory = MongoFactory.retriveVertexPropertyHistory(getId,k)
     //}

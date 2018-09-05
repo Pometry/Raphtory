@@ -28,12 +28,12 @@ object JanitorTest extends App{
   //  Thread.sleep(500)
   //  vertex revive(System.currentTimeMillis())
 
-  val vertex = new Vertex(1,1,1,true,false)
-  vertex revive(2)
-  vertex revive(3)
-  vertex revive(4)
-  vertex kill(5)
-  vertex revive(6)
+  val vertex = new Vertex(1,System.currentTimeMillis(),1,true,false)
+  vertex revive(System.currentTimeMillis())
+  vertex revive(System.currentTimeMillis())
+  vertex revive(System.currentTimeMillis())
+  vertex kill(System.currentTimeMillis())
+  vertex revive(System.currentTimeMillis())
   vertex +(1,"prop","val1")
   vertex +(2,"prop","val2")
   vertex +(3,"prop","val2")
@@ -50,6 +50,7 @@ object JanitorTest extends App{
   vertex +(6,"prop2","val3")
   vertex +(7,"prop2","val3")
 
+  println(cutOff)
   MongoFactory.vertex2Mongo(vertex,cutOff)
   MongoFactory.flushBatch()
   MongoFactory.retriveVertexHistory(vertex.getId)
@@ -82,7 +83,7 @@ object JanitorTest extends App{
     }
   }
 
-  def cutOff = 10
+  def cutOff = System.currentTimeMillis()+1000
 //  object MongoFactory {
 //    private val DATABASE = "raphtory"
 //    val connection = MongoConnection()

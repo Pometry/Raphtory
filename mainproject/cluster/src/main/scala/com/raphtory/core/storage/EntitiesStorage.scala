@@ -17,6 +17,7 @@ import scala.collection.parallel.mutable.ParTrieMap
   */
 //TODO add capacity function based on memory used and number of updates processed/stored in memory
 //TODO check which percentage of updates are compressed/archived
+//TODO make compression and archivist based on relative 1st update to latest update time
 object EntitiesStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager}
   /**

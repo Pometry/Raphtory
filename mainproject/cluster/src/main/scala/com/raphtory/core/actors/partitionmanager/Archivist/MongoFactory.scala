@@ -11,10 +11,12 @@ import scala.collection.parallel.mutable.ParTrieMap
 import ch.qos.logback.classic.Level
 import com.mongodb.casbah.Imports.{$addToSet, _}
 import com.mongodb.casbah.MongoConnection
-
+import net.liftweb.json._
 object MongoFactory {
+
   private val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
+  implicit val formats = DefaultFormats // Brings in default date formats etc.
 
   private val DATABASE = "raphtory"
   val connection = MongoConnection()
@@ -82,9 +84,9 @@ object MongoFactory {
     val builder = MongoDBList.newBuilder
     for((k,v) <-history)
       if(v.isInstanceOf[String])
-        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
+        builder += MongoDBObject("time"->k.toDouble,"value"->v.asInstanceOf[String])
       else
-        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
+        builder += MongoDBObject("time"->k.toDouble,"value"->v.asInstanceOf[Boolean])
     builder.result
   }
   //these are different as the update requires a scala list which can be 'eached'
@@ -92,9 +94,9 @@ object MongoFactory {
     val builder = mutable.ListBuffer[MongoDBObject]()
     for((k,v) <-history)
       if(v.isInstanceOf[String])
-        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
+        builder += MongoDBObject("time"->k.toDouble,"value"->v.asInstanceOf[String])
       else
-        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
+        builder += MongoDBObject("time"->k.toDouble,"value"->v.asInstanceOf[Boolean])
 
     builder.toList
   }
@@ -106,18 +108,49 @@ object MongoFactory {
     builder.result
   }
 
-  def retriveVertexHistory(id:Long):String = {
-    vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse("")
+  def retriveVertexHistory(id:Long):SavedHistory = {
+    parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse("").toString).extract[SavedHistory]
   }
 
-  def retriveVertexPropertyHistory(id:Long,key:String):String ={
-    vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,key -> 1)).getOrElse("")
+  def retriveVertexPropertyHistory(id:Long,key:String):SavedProperty ={
+    parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,key -> 1)).getOrElse("").toString.replaceFirst(key,"property")).extract[SavedProperty]
   }
 
 }
+case class SavedHistory(history:List[HistoryPoint])
+case class SavedProperty(property:List[PropertyPoint])
+case class PropertyPoint(time:Double, value: String)
+case class HistoryPoint(time:Double,value:Boolean)
 
+//
+//case class Child(name: String, age: Int,
+//                 birthdate: Option[java.util.Date])
+//case class Address(street: String, city: String)
+//case class Person(name: String, address: Address,
+//                  children: List[Child])
+//val json = parse("""
+//         { "name": "joe",
+//           "address": {
+//             "street": "Bulevard",
+//             "city": "Helsinki"
+//           },
+//           "children": [
+//             {
+//               "name": "Mary",
+//               "age": 5
+//               "birthdate": "2004-09-04T18:06:22Z"
+//             },
+//             {
+//               "name": "Mazy",
+//               "age": 3
+//             }
+//           ]
+//         }
+//       """)
+//
+//json.extract[Person]
 
-
+//https://stackoverflow.com/questions/11889907/how-to-convert-json-to-a-type-in-scala
 //  private def convertProperties(properties: ParTrieMap[String,Property],cutOff:Long):MongoDBObject = {
 //    val builder = MongoDBObject.newBuilder
 //    for ((k, v) <- properties) {
