@@ -1,7 +1,7 @@
 package com.raphtory.tests
 
 import ch.qos.logback.classic.Level
-import com.raphtory.core.model.graphentities.{Entity, Property, Vertex}
+import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
 import com.mongodb.casbah.Imports.{$addToSet, _}
 import com.mongodb.casbah.MongoConnection
 import com.raphtory.core.actors.partitionmanager.MongoFactory
@@ -50,6 +50,11 @@ object JanitorTest extends App{
   vertex +(6,"prop2","val3")
   vertex +(7,"prop2","val3")
 
+
+  vertex addAssociatedEdge new Edge(1,System.currentTimeMillis(),1,2,true,false)
+  vertex addAssociatedEdge new Edge(1,System.currentTimeMillis(),1,3,true,false)
+  vertex addAssociatedEdge new Edge(1,System.currentTimeMillis(),1,4,true,false)
+  vertex addAssociatedEdge new Edge(1,System.currentTimeMillis(),1,5,true,false)
   //println(cutOff)
   MongoFactory.vertex2Mongo(vertex,cutOff)
   MongoFactory.flushBatch()
@@ -61,10 +66,10 @@ object JanitorTest extends App{
   vertex +(9,"prop3","bob")
   MongoFactory.vertex2Mongo(vertex,cutOff)
   MongoFactory.flushBatch()
-  println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop"))
-  println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop2"))
-  println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop3"))
-  println(MongoFactory.retrieveVertexHistory(vertex.getId))
+  //println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop"))
+  //println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop2"))
+  //println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop3"))
+  //println(MongoFactory.retrieveVertexHistory(vertex.getId))
   println(MongoFactory.retrieveVertex(vertex.getId))
 
   // println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))

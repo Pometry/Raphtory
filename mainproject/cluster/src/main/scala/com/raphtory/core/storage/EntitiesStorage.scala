@@ -61,7 +61,13 @@ object EntitiesStorage {
     */
 
   def retrieveVertex(id:Int):Vertex = {
-    Vertex(MongoFactory.retrieveVertex(id))
+    val savedVertex = MongoFactory.retrieveVertex(id)
+    val history = savedVertex.history
+    val head = history.head
+    val vertex = new Vertex(-1,head.time.toLong,id,head.value,addOnlyVertex)
+    vertex.addHistory(history.tail)
+    vertex.addProperties(savedVertex.properties)
+    vertex
   }
 
   def compareMemoryToSaved() ={

@@ -12,6 +12,8 @@ import ch.qos.logback.classic.Level
 import com.mongodb.casbah.Imports.{$addToSet, _}
 import com.mongodb.casbah.MongoConnection
 import net.liftweb.json._
+
+import scala.collection.parallel.ParSet
 object MongoFactory {
 
   private val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
@@ -40,25 +42,74 @@ object MongoFactory {
 
   def vertex2Mongo(entity:Vertex,cutoff:Long)={
     if(entity beenSaved()){
-      update(entity,cutoff,vertexOperator)
+      updateVertex(entity,cutoff)
     }
     else{
-      newEntity(entity,cutoff,vertexOperator)
+      newVertex(entity,cutoff)
     }
   }
   def edge2Mongo(entity:Edge,cutoff:Long)={
     if(entity beenSaved()){
-      update(entity,cutoff,edgeOperator)
+      updateEdge(entity,cutoff)
     }
     else{
-      newEntity(entity,cutoff,edgeOperator)
+      newEdge(entity,cutoff)
     }
   }
 
+  private def newVertex(vertex:Vertex,cutOff:Long):Unit ={
+    val history = vertex.compressAndReturnOldHistory(cutOff)
+    if(history isEmpty)
+      return
+    val builder = MongoDBObject.newBuilder
+    builder += "_id" -> vertex.getId
+    builder += "oldestPoint" -> vertex.oldestPoint.get.toDouble
+    builder += "history" -> convertHistory(history)
+    builder += "properties" -> convertProperties(vertex.properties,cutOff)
+    val set = vertex.getNewAssociatedEdges()
+    if (set.nonEmpty)
+      builder += "associatedEdges" -> convertAssociatedEdges(set)
+    //convertProperties(builder,entity.properties,cutOff) // no outside properties list
+    vertexOperator.insert(builder.result())
+  }
 
-   private def update(entity: Entity,cutOff:Long,operator:BulkWriteOperation) ={
+   private def updateVertex(entity: Entity,cutOff:Long) ={
     val history = convertHistoryUpdate(entity.compressAndReturnOldHistory(cutOff))
-    val dbEntity = operator.find(MongoDBObject("_id" -> entity.getId))
+    val dbEntity = vertexOperator.find(MongoDBObject("_id" -> entity.getId))
+    dbEntity.updateOne($addToSet("history") $each(history:_*))
+
+    for((key,property) <- entity.properties){
+      val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
+      if(history.nonEmpty)
+        dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*)) //s"properties.$key"
+    }
+  }
+
+  def convertAssociatedEdges(set:ParSet[Edge]):MongoDBList = {
+    val builder = MongoDBList.newBuilder
+    for(edge <- set){
+      println(edge.getId)
+      builder += edge.getId.toDouble
+    }
+    builder.result()
+  }
+
+  private def newEdge(entity:Entity,cutOff:Long):Unit ={
+    val history = entity.compressAndReturnOldHistory(cutOff)
+    if(history isEmpty)
+      return
+    val builder = MongoDBObject.newBuilder
+    builder += "_id" -> entity.getId
+    builder += "oldestPoint" -> entity.oldestPoint.get.toDouble
+    builder += "history" -> convertHistory(history)
+    builder += "properties" -> convertProperties(entity.properties,cutOff)
+    //convertProperties(builder,entity.properties,cutOff) // no outside properties list
+    edgeOperator.insert(builder.result())
+  }
+
+   private def updateEdge(entity: Entity,cutOff:Long) ={
+    val history = convertHistoryUpdate(entity.compressAndReturnOldHistory(cutOff))
+    val dbEntity = edgeOperator.find(MongoDBObject("_id" -> entity.getId))
     dbEntity.updateOne($addToSet("history") $each(history:_*))
 
     for((key,property) <- entity.properties){
@@ -69,18 +120,6 @@ object MongoFactory {
 
   }
 
-  private def newEntity(entity:Entity,cutOff:Long,operator:BulkWriteOperation):Unit ={
-    val history = entity.compressAndReturnOldHistory(cutOff)
-    if(history isEmpty)
-      return
-    val builder = MongoDBObject.newBuilder
-    builder += "_id" -> entity.getId
-    builder += "oldestPoint" -> entity.oldestPoint.get.toDouble
-    builder += "history" -> convertHistory(history)
-    builder += "properties" -> convertProperties(entity.properties,cutOff)
-    //convertProperties(builder,entity.properties,cutOff) // no outside properties list
-    operator.insert(builder.result())
-  }
 
   private def convertHistory[b <: Any](history:mutable.TreeMap[Long,b]):MongoDBList ={
     val builder = MongoDBList.newBuilder
@@ -121,12 +160,12 @@ object MongoFactory {
     val json = vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,s"properties.$key" -> 1)).getOrElse("").toString
     parse(json.substring(17,json.length-1).replaceFirst(key,"property")).extract[SavedProperty]
   }
-  def retrieveVertex(id:Long):SavedEntity ={
-    parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString).extract[SavedEntity]
+  def retrieveVertex(id:Long):SavedVertex ={
+    parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString).extract[SavedVertex]
   }
 
 }
-case class SavedEntity(history:List[HistoryPoint],properties:Map[String,List[PropertyPoint]],oldestPoint:Double)
+case class SavedVertex(history:List[HistoryPoint],properties:Map[String,List[PropertyPoint]],oldestPoint:Double,associatedEdges:List[Double])
 case class SavedHistory(history:List[HistoryPoint])
 case class SavedProperties(properties:Map[String,List[PropertyPoint]])
 case class SavedProperty(property:List[PropertyPoint])

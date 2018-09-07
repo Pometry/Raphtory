@@ -1,5 +1,7 @@
 package com.raphtory.core.model.graphentities
 
+import com.raphtory.core.actors.partitionmanager.SavedVertex
+
 import scala.collection.mutable
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
@@ -15,6 +17,7 @@ object Vertex {
     v.properties      = properties
     v
   }
+
 }
 
 

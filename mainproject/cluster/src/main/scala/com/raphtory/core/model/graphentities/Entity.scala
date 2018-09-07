@@ -1,7 +1,6 @@
 package com.raphtory.core.model.graphentities
 
-
-import com.raphtory.core.actors.partitionmanager.MongoFactory
+import com.raphtory.core.actors.partitionmanager._
 import com.raphtory.core.utils.HistoryOrdering
 import monix.execution.atomic.AtomicLong
 
@@ -71,6 +70,28 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     if (!addOnly) {
       originalHistorySize.add(1)
       previousState.put(msgTime, false)
+    }
+  }
+
+  def addHistory(history:List[HistoryPoint])={
+    for(historyPoint <- history.tail){
+      if(historyPoint.value){
+        revive(historyPoint.time.toLong)
+      }
+      else{
+        kill(historyPoint.time.toLong)
+      }
+    }
+  }
+
+  def addProperties(savedProperties:Map[String,List[PropertyPoint]])={
+    for((key,history) <- savedProperties){
+      val head = history.head
+      val property = new Property(head.time.toLong,key,head.value)
+      for(point <- history.tail){
+        property update(point.time.toLong,point.value)
+      }
+      properties put (key,property)
     }
   }
 
