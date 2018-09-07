@@ -50,10 +50,10 @@ object JanitorTest extends App{
   vertex +(6,"prop2","val3")
   vertex +(7,"prop2","val3")
 
-  println(cutOff)
+  //println(cutOff)
   MongoFactory.vertex2Mongo(vertex,cutOff)
   MongoFactory.flushBatch()
-  MongoFactory.retriveVertexHistory(vertex.getId)
+  MongoFactory.retrieveVertexHistory(vertex.getId)
   //println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
   vertex kill(7)
   vertex revive(8)
@@ -61,8 +61,11 @@ object JanitorTest extends App{
   vertex +(9,"prop3","bob")
   MongoFactory.vertex2Mongo(vertex,cutOff)
   MongoFactory.flushBatch()
-  MongoFactory.retriveVertexPropertyHistory(vertex.getId,"prop3")
-  MongoFactory.retriveVertexHistory(vertex.getId)
+  println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop"))
+  println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop2"))
+  println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop3"))
+  println(MongoFactory.retrieveVertexHistory(vertex.getId))
+  println(MongoFactory.retrieveVertex(vertex.getId))
 
   // println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
 

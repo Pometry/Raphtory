@@ -55,7 +55,23 @@ object MongoFactory {
     }
   }
 
-  private def update(entity: Entity,cutOff:Long,operator:BulkWriteOperation) ={
+//  private def update(entity: Entity,cutOff:Long,operator:BulkWriteOperation) = {
+//    val history = convertHistoryUpdate(entity.compressAndReturnOldHistory(cutOff))
+//    val dbEntity = operator.find(MongoDBObject("_id" -> entity.getId))
+//    dbEntity.updateOne($addToSet("history") $each (history: _*))
+//
+//    for ((key, property) <- entity.properties) {
+//      val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
+//      //if (history.nonEmpty)
+//      //dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*)) //s"properties.$key"
+//      println(entityHistory)
+//      //vertices.update(MongoDBObject("_id" -> entity.getId,"properties.name" -> key), $addToSet(s"properties.history") $each(entityHistory:_*) )
+//      vertices.update(MongoDBObject("_id" -> entity.getId,"properties.name" -> key), MongoDBObject("properties" -> entityHistory)  )
+//      dbEntity.updateOne($addToSet("properties.name" $eq key)) //s"properties.$key"
+//    }
+//    //_id: 4, "grades.grade": 85
+//  }
+   private def update(entity: Entity,cutOff:Long,operator:BulkWriteOperation) ={
     val history = convertHistoryUpdate(entity.compressAndReturnOldHistory(cutOff))
     val dbEntity = operator.find(MongoDBObject("_id" -> entity.getId))
     dbEntity.updateOne($addToSet("history") $each(history:_*))
@@ -63,7 +79,7 @@ object MongoFactory {
     for((key,property) <- entity.properties){
       val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
       if(history.nonEmpty)
-        dbEntity.updateOne($addToSet(key) $each(entityHistory:_*)) //s"properties.$key"
+        dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*)) //s"properties.$key"
     }
 
   }
@@ -74,9 +90,10 @@ object MongoFactory {
       return
     val builder = MongoDBObject.newBuilder
     builder += "_id" -> entity.getId
-    builder += "oldestPoint" -> entity.oldestPoint.get
+    builder += "oldestPoint" -> entity.oldestPoint.get.toDouble
     builder += "history" -> convertHistory(history)
-    convertProperties(builder,entity.properties,cutOff)
+    builder += "properties" -> convertProperties(entity.properties,cutOff)
+    //convertProperties(builder,entity.properties,cutOff) // no outside properties list
     operator.insert(builder.result())
   }
 
@@ -100,24 +117,50 @@ object MongoFactory {
 
     builder.toList
   }
+//  private def convertHistoryUpdate[b <: Any](history:mutable.TreeMap[Long,b]):List[MongoDBObject] ={
+//    val builder = mutable.ListBuffer[MongoDBObject]()
+//    for((k,v) <-history)
+//      if(v.isInstanceOf[String])
+//        builder += MongoDBObject("time"->k.toDouble,"value"->v.asInstanceOf[String])
+//      else
+//        builder += MongoDBObject("time"->k.toDouble,"value"->v.asInstanceOf[Boolean])
+//
+//    builder.toList
+//  }
 
-  private def convertProperties(builder:scala.collection.mutable.Builder[(String, Any),com.mongodb.casbah.commons.Imports.DBObject], properties: ParTrieMap[String,Property], cutOff:Long):MongoDBObject = {
-    for ((k, v) <- properties) {
-      builder += k -> convertHistory(v.compressAndReturnOldHistory(cutOff))
-    }
-    builder.result
+ // private def convertProperties(builder:scala.collection.mutable.Builder[(String, Any),com.mongodb.casbah.commons.Imports.DBObject], properties: ParTrieMap[String,Property], cutOff:Long):MongoDBObject = {
+ //   for ((k, v) <- properties) {
+ //     builder += k -> convertHistory(v.compressAndReturnOldHistory(cutOff))
+ //   }
+ //   builder.result
+ // }
+
+  private def convertProperties(properties: ParTrieMap[String,Property],cutOff:Long):MongoDBObject = {
+      val builder = MongoDBObject.newBuilder
+      for ((k, v) <- properties) {
+        builder += k -> convertHistory(v.compressAndReturnOldHistory(cutOff))
+      }
+      builder.result
   }
 
-  def retriveVertexHistory(id:Long):SavedHistory = {
+  def retrieveVertexHistory(id:Long):SavedHistory = {
     parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse("").toString).extract[SavedHistory]
   }
 
-  def retriveVertexPropertyHistory(id:Long,key:String):SavedProperty ={
-    parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,key -> 1)).getOrElse("").toString.replaceFirst(key,"property")).extract[SavedProperty]
+  def retrieveVertexPropertyHistory(id:Long,key:String):SavedProperty ={
+    //println(vertices.findOne(("_id" $eq id),MongoDBObject("_id"->0,s"properties.$key"->1)).getOrElse(""))
+    //println(vertices.findOne(MongoDBObject("_id" -> id,"properties" -> "properties" $elemMatch(MongoDBObject("name" -> "key"))),MongoDBObject("_id"->0,s"properties.$key" -> 1)).getOrElse(""))
+    val json = vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,s"properties.$key" -> 1)).getOrElse("").toString
+    parse(json.substring(17,json.length-1).replaceFirst(key,"property")).extract[SavedProperty]
+  }
+  def retrieveVertex(id:Long):SavedEntity ={
+    parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString).extract[SavedEntity]
   }
 
 }
+case class SavedEntity(history:List[HistoryPoint],properties:Map[String,List[PropertyPoint]],oldestPoint:Double)
 case class SavedHistory(history:List[HistoryPoint])
+case class SavedProperties(properties:Map[String,List[PropertyPoint]])
 case class SavedProperty(property:List[PropertyPoint])
 case class PropertyPoint(time:Double, value: String)
 case class HistoryPoint(time:Double,value:Boolean)

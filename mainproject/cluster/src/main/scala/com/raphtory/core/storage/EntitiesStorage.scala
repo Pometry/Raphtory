@@ -2,6 +2,7 @@ package com.raphtory.core.storage
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
+import com.raphtory.core.actors.partitionmanager.MongoFactory
 
 import scala.collection.concurrent.TrieMap
 import com.raphtory.core.model.communication._
@@ -18,6 +19,10 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO add capacity function based on memory used and number of updates processed/stored in memory
 //TODO check which percentage of updates are compressed/archived
 //TODO make compression and archivist based on relative 1st update to latest update time
+//TODO keep cached entities in a separate map which can be cleared once analysis is finished
+//TODO filter to set of entities, expand to x number of hop neighbours and retrieve history
+//TODO perhaps create a new map for each LAM, this way we can add the entities to this map and remove after
+//TODO workout what to do sub millisecond as currently overwrites
 object EntitiesStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager}
   /**
@@ -54,6 +59,10 @@ object EntitiesStorage {
   /**
     * Vertices Methods
     */
+
+//  def retrieveVertex(id:Int):Vertex = {
+//    MongoFactory.retriveVertexHistory()
+//  }
 
   def compareMemoryToSaved() ={
     vertices.foreach(pair=>{
