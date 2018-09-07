@@ -30,9 +30,18 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     extends Entity(routerID,msgTime, initialValue,addOnly) {
 
   var associatedEdges = ParSet[Edge]()
+  var newAssociatedEdges = ParSet[Edge]()
 
-  def addAssociatedEdge(edge: Edge): Unit =
+  def addAssociatedEdge(edge: Edge): Unit = {
     associatedEdges += edge
+    newAssociatedEdges += edge
+  }
+
+  def getNewAssociatedEdges():ParSet[Edge] ={
+    val temp = newAssociatedEdges
+    newAssociatedEdges = ParSet[Edge]()
+    temp
+  }
 
   /*override def printProperties(): String =
     s"Vertex $vertexId with properties: \n" + super.printProperties()*/
