@@ -60,9 +60,9 @@ object EntitiesStorage {
     * Vertices Methods
     */
 
-//  def retrieveVertex(id:Int):Vertex = {
-//    MongoFactory.retriveVertexHistory()
-//  }
+  def retrieveVertex(id:Int):Vertex = {
+    Vertex(MongoFactory.retrieveVertex(id))
+  }
 
   def compareMemoryToSaved() ={
     vertices.foreach(pair=>{
