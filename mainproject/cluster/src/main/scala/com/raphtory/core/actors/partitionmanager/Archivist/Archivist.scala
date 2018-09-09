@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.partitionmanager.MongoFactory
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
-import com.raphtory.core.storage.EntitiesStorage
+import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.KeyEnum
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
@@ -62,8 +62,8 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     canArchiveFlag = false
     println("Compressing")
     lockerCounter += 2
-    Task.eval(compressJob[Long, Edge](EntitiesStorage.edges)).runAsync.onComplete(_ => compressEnder())
-    Task.eval(compressJob[Int, Vertex](EntitiesStorage.vertices)).runAsync.onComplete(_ => compressEnder())
+    Task.eval(compressJob[Long, Edge](EntityStorage.edges)).runAsync.onComplete(_ => compressEnder())
+    Task.eval(compressJob[Int, Vertex](EntityStorage.vertices)).runAsync.onComplete(_ => compressEnder())
   }
 
   def compressJob[T <: AnyVal, U <: Entity](map : ParTrieMap[T, U]) = {
@@ -98,8 +98,8 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
       if (placeholder) {/*TODO decide what to do with placeholders (future)*/}
       if (allOld) {
         et match {
-          case KeyEnum.vertices => EntitiesStorage.vertices.remove(e.getId.toInt)
-          case KeyEnum.edges    => EntitiesStorage.edges.remove(e.getId)
+          case KeyEnum.vertices => EntityStorage.vertices.remove(e.getId.toInt)
+          case KeyEnum.edges    => EntityStorage.edges.remove(e.getId)
         }
       }
 
@@ -114,12 +114,12 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
       return
     println("Archiving")
     if(!spaceForExtraHistory) { //first check edges
-      for (e <- EntitiesStorage.edges){
+      for (e <- EntityStorage.edges){
         checkMaximumHistory(e._2, KeyEnum.edges)
       }
     }
     if(!spaceForExtraHistory) { //then check vertices
-      for (e <- EntitiesStorage.vertices){
+      for (e <- EntityStorage.vertices){
         checkMaximumHistory(e._2, KeyEnum.vertices)
       }
     }

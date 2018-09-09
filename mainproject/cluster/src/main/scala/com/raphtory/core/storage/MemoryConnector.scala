@@ -9,7 +9,7 @@ import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
 private object MemoryConnector extends ReaderConnector {
-  import EntitiesStorage.{edges,vertices}
+  import EntityStorage.{edges,vertices}
   //val entities = Map[KeyEnum.Value, TrieMap[_ <: AnyVal, _ <: Entity]]((KeyEnum.edges -> edges), (KeyEnum.vertices -> vertices))
 
   /**
@@ -64,8 +64,8 @@ private object MemoryConnector extends ReaderConnector {
 
   override def getEntitiesObjs(entityType: KeyEnum.Value): ParTrieMap[_ <: AnyVal, _ <: Entity] = {
     entityType match {
-      case KeyEnum.vertices => EntitiesStorage.vertices
-      case KeyEnum.edges    => EntitiesStorage.edges
+      case KeyEnum.vertices => EntityStorage.vertices
+      case KeyEnum.edges    => EntityStorage.edges
     }
   }
 

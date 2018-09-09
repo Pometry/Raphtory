@@ -23,7 +23,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO filter to set of entities, expand to x number of hop neighbours and retrieve history
 //TODO perhaps create a new map for each LAM, this way we can add the entities to this map and remove after
 //TODO workout what to do sub millisecond as currently overwrites
-object EntitiesStorage {
+object EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager}
   /**
     * Map of vertices contained in the partition

@@ -5,6 +5,7 @@ import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
 import com.mongodb.casbah.Imports.{$addToSet, _}
 import com.mongodb.casbah.MongoConnection
 import com.raphtory.core.actors.partitionmanager.MongoFactory
+import com.raphtory.core.storage.EntityStorage
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
@@ -70,8 +71,8 @@ object JanitorTest extends App{
   //println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop2"))
   //println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop3"))
   //println(MongoFactory.retrieveVertexHistory(vertex.getId))
-  println(MongoFactory.retrieveVertex(vertex.getId))
-
+  println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId)))
+  
   // println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
 
   MongoFactory.vertices.drop()

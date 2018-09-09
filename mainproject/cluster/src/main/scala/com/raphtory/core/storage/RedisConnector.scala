@@ -202,10 +202,10 @@ object RedisConnector extends ReaderConnector with WriterConnector {
       previousState = getHistory(KeyEnum.vertices, entityId),
       properties = getProperties(KeyEnum.vertices, entityId)
     )
-    EntitiesStorage.vertices.synchronized {
-      EntitiesStorage.vertices.get(entityId) match {
+    EntityStorage.vertices.synchronized {
+      EntityStorage.vertices.get(entityId) match {
         case Some(vx) => return vx
-        case None => EntitiesStorage.vertices.put(entityId, v)
+        case None => EntityStorage.vertices.put(entityId, v)
       }
     }
     v
@@ -225,15 +225,15 @@ object RedisConnector extends ReaderConnector with WriterConnector {
 
     val srcId = Utils.getIndexHI(edgeId)
     val dstId = Utils.getIndexLO(edgeId)
-    val remoteSrc = Utils.getPartition(Utils.getIndexHI(srcId), EntitiesStorage.managerCount) != EntitiesStorage.managerID
-    val remoteDst = Utils.getPartition(Utils.getIndexLO(dstId), EntitiesStorage.managerCount) != EntitiesStorage.managerID
+    val remoteSrc = Utils.getPartition(Utils.getIndexHI(srcId), EntityStorage.managerCount) != EntityStorage.managerID
+    val remoteDst = Utils.getPartition(Utils.getIndexLO(dstId), EntityStorage.managerCount) != EntityStorage.managerID
 
     if (remoteSrc || remoteDst) {
       var remotePos = RemotePos.Destination
-      var remotePartitionId = Utils.getPartition(dstId, EntitiesStorage.managerCount)
+      var remotePartitionId = Utils.getPartition(dstId, EntityStorage.managerCount)
       if (remoteSrc) {
         remotePos = RemotePos.Source
-        remotePartitionId = Utils.getPartition(srcId, EntitiesStorage.managerCount)
+        remotePartitionId = Utils.getPartition(srcId, EntityStorage.managerCount)
       }
       // Remote edge
       e = RemoteEdge(routerID,creationTime, edgeId,
@@ -247,9 +247,9 @@ object RedisConnector extends ReaderConnector with WriterConnector {
         getHistory(KeyEnum.edges, edgeId),
         getProperties(KeyEnum.edges, edgeId))
     }
-    EntitiesStorage.synchronized {
-      EntitiesStorage.edges.get(edgeId) match {
-        case None => EntitiesStorage.edges.put(edgeId, e)
+    EntityStorage.synchronized {
+      EntityStorage.edges.get(edgeId) match {
+        case None => EntityStorage.edges.put(edgeId, e)
         case Some(edge) => return edge
       }
     }

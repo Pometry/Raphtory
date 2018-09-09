@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.storage.EntitiesStorage
+import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.model.communication._
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.graphentities.Entity
@@ -37,7 +37,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
 
   val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
 
-  val storage = EntitiesStorage.apply(printing, managerCount, managerID, mediator)
+  val storage = EntityStorage.apply(printing, managerCount, managerID, mediator)
 
   mediator ! DistributedPubSubMediator.Put(self)
 

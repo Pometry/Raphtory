@@ -49,4 +49,21 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   /*override def printProperties(): String =
     s"Vertex $vertexId with properties: \n" + super.printProperties()*/
   override def getId = vertexId
+
+  override def equals(obj: scala.Any): Boolean = {
+    if(obj.isInstanceOf[Vertex]){
+      val v2 = obj.asInstanceOf[Vertex] //add associated edges
+      if((vertexId == v2.vertexId) &&(previousState.equals(v2.previousState)) && (oldestPoint.get == v2.oldestPoint.get) && (newestPoint.get == oldestPoint.get) && (properties.size == v2.properties.size)){
+        for((key,prop) <- properties){
+          if(!prop.equals(v2.properties.getOrElse(key,null))){
+            return false
+          }
+        }
+      }
+      return true
+    }
+    false
+  }
+
+
 }
