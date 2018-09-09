@@ -67,21 +67,10 @@ object JanitorTest extends App{
   vertex +(9,"prop3","bob")
   MongoFactory.vertex2Mongo(vertex,cutOff)
   MongoFactory.flushBatch()
-  //println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop"))
-  //println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop2"))
-  //println(MongoFactory.retrieveVertexPropertyHistory(vertex.getId,"prop3"))
-  //println(MongoFactory.retrieveVertexHistory(vertex.getId))
-  println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId)))
-  
-  // println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
 
+  println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId.toInt)))
   MongoFactory.vertices.drop()
-  //  println(vertex.previousState)
- // println(vertex.properties.getOrElse("prop",null).previousState)
- // compressHistory(vertex)
-//  println(vertex.previousState)
-  //println(vertex.properties.getOrElse("prop",null).previousState)
-  //println(vertex.compressionRate())
+
 
   def compressHistory(e:Entity) ={
     val compressedHistory = e.compressAndReturnOldHistory(cutOff)

@@ -31,7 +31,6 @@ object MongoFactory {
     try {
       vertexOperator.execute()
       edgeOperator.execute()
-      println("flushing")
     }
     catch {
       case e:Exception => //e.printStackTrace()
@@ -48,14 +47,6 @@ object MongoFactory {
       newVertex(entity,cutoff)
     }
   }
-  def edge2Mongo(entity:Edge,cutoff:Long)={
-    if(entity beenSaved()){
-      updateEdge(entity,cutoff)
-    }
-    else{
-      newEdge(entity,cutoff)
-    }
-  }
 
   private def newVertex(vertex:Vertex,cutOff:Long):Unit ={
     val history = vertex.compressAndReturnOldHistory(cutOff)
@@ -69,7 +60,6 @@ object MongoFactory {
     val set = vertex.getNewAssociatedEdges()
     if (set.nonEmpty)
       builder += "associatedEdges" -> convertAssociatedEdges(set)
-    //convertProperties(builder,entity.properties,cutOff) // no outside properties list
     vertexOperator.insert(builder.result())
   }
 
@@ -85,34 +75,42 @@ object MongoFactory {
     }
   }
 
-  def convertAssociatedEdges(set:ParSet[Edge]):MongoDBList = {
+  private def convertAssociatedEdges(set:ParSet[Edge]):MongoDBList = {
     val builder = MongoDBList.newBuilder
     for(edge <- set){
-      println(edge.getId)
       builder += edge.getId.toDouble
     }
     builder.result()
   }
 
-  private def newEdge(entity:Entity,cutOff:Long):Unit ={
-    val history = entity.compressAndReturnOldHistory(cutOff)
+  def edge2Mongo(entity:Edge,cutoff:Long)={
+    if(entity beenSaved()){
+      updateEdge(entity,cutoff)
+    }
+    else{
+      newEdge(entity,cutoff)
+    }
+  }
+
+  private def newEdge(edge:Edge,cutOff:Long):Unit ={
+    val history = edge.compressAndReturnOldHistory(cutOff)
     if(history isEmpty)
       return
     val builder = MongoDBObject.newBuilder
-    builder += "_id" -> entity.getId
-    builder += "oldestPoint" -> entity.oldestPoint.get.toDouble
+    builder += "_id" -> edge.getId
+    builder += "oldestPoint" -> edge.oldestPoint.get.toDouble
     builder += "history" -> convertHistory(history)
-    builder += "properties" -> convertProperties(entity.properties,cutOff)
+    builder += "properties" -> convertProperties(edge.properties,cutOff)
     //convertProperties(builder,entity.properties,cutOff) // no outside properties list
     edgeOperator.insert(builder.result())
   }
 
-   private def updateEdge(entity: Entity,cutOff:Long) ={
-    val history = convertHistoryUpdate(entity.compressAndReturnOldHistory(cutOff))
-    val dbEntity = edgeOperator.find(MongoDBObject("_id" -> entity.getId))
+   private def updateEdge(edge: Edge,cutOff:Long) ={
+    val history = convertHistoryUpdate(edge.compressAndReturnOldHistory(cutOff))
+    val dbEntity = edgeOperator.find(MongoDBObject("_id" -> edge.getId))
     dbEntity.updateOne($addToSet("history") $each(history:_*))
 
-    for((key,property) <- entity.properties){
+    for((key,property) <- edge.properties){
       val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
       if(history.nonEmpty)
         dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*)) //s"properties.$key"
@@ -153,10 +151,7 @@ object MongoFactory {
   def retrieveVertexHistory(id:Long):SavedHistory = {
     parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse("").toString).extract[SavedHistory]
   }
-
   def retrieveVertexPropertyHistory(id:Long,key:String):SavedProperty ={
-    //println(vertices.findOne(("_id" $eq id),MongoDBObject("_id"->0,s"properties.$key"->1)).getOrElse(""))
-    //println(vertices.findOne(MongoDBObject("_id" -> id,"properties" -> "properties" $elemMatch(MongoDBObject("name" -> "key"))),MongoDBObject("_id"->0,s"properties.$key" -> 1)).getOrElse(""))
     val json = vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,s"properties.$key" -> 1)).getOrElse("").toString
     parse(json.substring(17,json.length-1).replaceFirst(key,"property")).extract[SavedProperty]
   }
@@ -164,10 +159,32 @@ object MongoFactory {
     parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString).extract[SavedVertex]
   }
 
+  def retrieveEdgeHistory(id:Long):SavedHistory = {
+    parse(edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse("").toString).extract[SavedHistory]
+  }
+
+  def retrieveEdgePropertyHistory(id:Long,key:String):SavedProperty ={
+    val json = edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,s"properties.$key" -> 1)).getOrElse("").toString
+    parse(json.substring(17,json.length-1).replaceFirst(key,"property")).extract[SavedProperty]
+  }
+
+  def retrieveEdge(id:Long):SavedEdge ={
+    parse(edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString).extract[SavedEdge]
+  }
+
+
 }
 case class SavedVertex(history:List[HistoryPoint],properties:Map[String,List[PropertyPoint]],oldestPoint:Double,associatedEdges:List[Double])
+case class SavedEdge(history:List[HistoryPoint],properties:Map[String,List[PropertyPoint]],oldestPoint:Double)
 case class SavedHistory(history:List[HistoryPoint])
 case class SavedProperties(properties:Map[String,List[PropertyPoint]])
 case class SavedProperty(property:List[PropertyPoint])
 case class PropertyPoint(time:Double, value: String)
 case class HistoryPoint(time:Double,value:Boolean)
+
+
+
+//println(vertices.findOne(("_id" $eq id),MongoDBObject("_id"->0,s"properties.$key"->1)).getOrElse(""))
+//println(vertices.findOne(MongoDBObject("_id" -> id,"properties" -> "properties" $elemMatch(MongoDBObject("name" -> "key"))),MongoDBObject("_id"->0,s"properties.$key" -> 1)).getOrElse(""))
+
+//convertProperties(builder,entity.properties,cutOff) // no outside properties list

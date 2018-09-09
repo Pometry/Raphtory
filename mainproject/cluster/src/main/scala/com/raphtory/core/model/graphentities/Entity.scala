@@ -165,18 +165,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     (false,allOld)
   }
 
-  def compareHistory() = {
-
-//    for (historyPoint <- MongoFactory.retriveVertexHistory(getId).parseJson.asJsObject.fields("history").asInstanceOf[JsArray].elements){
-      
-//      historyPoint.asJsObject.fields("time").asJsObject.fields("$numberLong").toString().toInt
-
-//    }
-    //for((k,v)<- properties){
-    //  val propertyHistory = MongoFactory.retriveVertexPropertyHistory(getId,k)
-    //}
-  }
-
   /** *
     * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
     *

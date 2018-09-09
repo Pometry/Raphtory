@@ -71,6 +71,16 @@ class Property(creationTime: Long,
       previousState.size
   }
 
+  override def equals(obj: scala.Any): Boolean = {
+    if(obj.isInstanceOf[Property]){
+      val prop2 = obj.asInstanceOf[Property]
+      if(name.equals(prop2.name) && (previousState.equals(prop2.previousState))){
+        return true
+      }
+      return false
+    }
+    false
+  }
 
 //  def compressAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, String] ={
 //    var safeHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)

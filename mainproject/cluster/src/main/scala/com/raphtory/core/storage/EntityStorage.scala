@@ -60,6 +60,10 @@ object EntityStorage {
     * Vertices Methods
     */
 
+  def retrieveEdge(id:Long) = {
+
+  }
+
   def retrieveVertex(id:Int):Vertex = {
     val savedVertex = MongoFactory.retrieveVertex(id)
     val history = savedVertex.history
@@ -73,11 +77,11 @@ object EntityStorage {
   def compareMemoryToSaved() ={
     vertices.foreach(pair=>{
       val vertex = pair._2
-      vertex.compareHistory()
+      //vertex.compareHistory()
     })
     edges.foreach(pair=>{
       val edge = pair._2
-      edge.compareHistory()
+     // edge.compareHistory()
     })
   }
 
