@@ -23,6 +23,8 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO filter to set of entities, expand to x number of hop neighbours and retrieve history
 //TODO perhaps create a new map for each LAM, this way we can add the entities to this map and remove after
 //TODO workout what to do sub millisecond as currently overwrites
+//TODO retrieve edge on other partition manager -- decide how to propagate
+//TODO do we need an edge map?
 object EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager}
   /**
@@ -60,8 +62,30 @@ object EntityStorage {
     * Vertices Methods
     */
 
-  def retrieveEdge(id:Long) = {
-
+  def retrieveEdge(id:Long):Edge = {
+    val srcId = Utils.getIndexHI(id)
+    val dstId = Utils.getIndexLO(id)
+    val savedEdge = MongoFactory.retrieveEdge(id)
+    val history = savedEdge.history
+    val head = history.head
+    if(checkDst(dstId, managerCount, managerID)) {
+      val edge = new Edge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge)
+      edge.addHistory(history.tail)
+      savedEdge.properties match {
+        case Some(properties) => edge.addProperties(properties)
+        case None =>
+      }
+      edge
+    }
+    else {
+      val edge = new RemoteEdge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+      edge.addHistory(history.tail)
+      savedEdge.properties match {
+        case Some(properties) => edge.addProperties(properties)
+        case None =>
+      }
+      edge
+    }
   }
 
   def retrieveVertex(id:Int):Vertex = {
@@ -70,7 +94,13 @@ object EntityStorage {
     val head = history.head
     val vertex = new Vertex(-1,head.time.toLong,id,head.value,addOnlyVertex)
     vertex.addHistory(history.tail)
-    vertex.addProperties(savedVertex.properties)
+    savedVertex.properties match {
+      case Some(properties) => vertex.addProperties(properties)
+      case None => {}
+    }
+    for(edgeID <- savedVertex.associatedEdges){
+      vertex.addAssociatedEdge(retrieveEdge(edgeID.toLong))
+    }
     vertex
   }
 

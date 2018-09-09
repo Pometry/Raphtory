@@ -105,11 +105,12 @@ class Property(creationTime: Long,
     * @return
     */
   override def toString: String = {
-    var toReturn = System.lineSeparator()
-    previousState.foreach(p =>
-      toReturn = s"$toReturn           MessageID ${p._1}: ${p._2} -- ${p._2} " + System
-        .lineSeparator())
-    s"Property: ${key} ----- Previous State: $toReturn"
+    s"Property Key: $name \n History: $previousState"
+   // var toReturn = System.lineSeparator()
+   // previousState.foreach(p =>
+   //   toReturn = s"$toReturn           MessageID ${p._1}: ${p._2} -- ${p._2} " + System
+   //     .lineSeparator())
+   // s"Property: ${key} ----- Previous State: $toReturn"
   }
 
   /** *

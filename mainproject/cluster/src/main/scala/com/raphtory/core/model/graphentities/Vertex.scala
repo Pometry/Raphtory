@@ -51,19 +51,25 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   override def getId = vertexId
 
   override def equals(obj: scala.Any): Boolean = {
+    println(this)
+    println(obj)
     if(obj.isInstanceOf[Vertex]){
       val v2 = obj.asInstanceOf[Vertex] //add associated edges
-      if((vertexId == v2.vertexId) &&(previousState.equals(v2.previousState)) && (oldestPoint.get == v2.oldestPoint.get) && (newestPoint.get == oldestPoint.get) && (properties.size == v2.properties.size)){
+      if((vertexId == v2.vertexId) &&(previousState.equals(v2.previousState)) && (oldestPoint.get == v2.oldestPoint.get) && (newestPoint.get == newestPoint.get) && (properties.size == v2.properties.size) && (associatedEdges.equals(v2.associatedEdges))){
         for((key,prop) <- properties){
           if(!prop.equals(v2.properties.getOrElse(key,null))){
             return false
           }
         }
+        return true
       }
       return true
     }
     false
   }
 
+  override def toString: String = {
+    s"Vertex ID $vertexId \n History $previousState \n Properties: $properties \n Associated Edges: $associatedEdges"
+  }
 
 }

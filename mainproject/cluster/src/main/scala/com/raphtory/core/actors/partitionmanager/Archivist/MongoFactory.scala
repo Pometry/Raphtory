@@ -98,7 +98,6 @@ object MongoFactory {
       return
     val builder = MongoDBObject.newBuilder
     builder += "_id" -> edge.getId
-    builder += "oldestPoint" -> edge.oldestPoint.get.toDouble
     builder += "history" -> convertHistory(history)
     builder += "properties" -> convertProperties(edge.properties,cutOff)
     //convertProperties(builder,entity.properties,cutOff) // no outside properties list
@@ -174,8 +173,8 @@ object MongoFactory {
 
 
 }
-case class SavedVertex(history:List[HistoryPoint],properties:Map[String,List[PropertyPoint]],oldestPoint:Double,associatedEdges:List[Double])
-case class SavedEdge(history:List[HistoryPoint],properties:Map[String,List[PropertyPoint]],oldestPoint:Double)
+case class SavedVertex(history:List[HistoryPoint],properties:Option[Map[String,List[PropertyPoint]]],oldestPoint:Double,associatedEdges:List[Double])
+case class SavedEdge(history:List[HistoryPoint],properties:Option[Map[String,List[PropertyPoint]]])
 case class SavedHistory(history:List[HistoryPoint])
 case class SavedProperties(properties:Map[String,List[PropertyPoint]])
 case class SavedProperty(property:List[PropertyPoint])

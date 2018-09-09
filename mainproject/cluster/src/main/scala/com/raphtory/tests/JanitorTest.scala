@@ -56,6 +56,11 @@ object JanitorTest extends App{
   vertex addAssociatedEdge new Edge(1,System.currentTimeMillis(),1,3,true,false)
   vertex addAssociatedEdge new Edge(1,System.currentTimeMillis(),1,4,true,false)
   vertex addAssociatedEdge new Edge(1,System.currentTimeMillis(),1,5,true,false)
+
+  for(edge <- vertex.associatedEdges){
+    MongoFactory.edge2Mongo(edge,cutOff)
+  }
+
   //println(cutOff)
   MongoFactory.vertex2Mongo(vertex,cutOff)
   MongoFactory.flushBatch()

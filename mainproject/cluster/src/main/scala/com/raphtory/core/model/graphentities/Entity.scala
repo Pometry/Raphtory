@@ -74,12 +74,14 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   }
 
   def addHistory(history:List[HistoryPoint])={
-    for(historyPoint <- history.tail){
-      if(historyPoint.value){
-        revive(historyPoint.time.toLong)
-      }
-      else{
-        kill(historyPoint.time.toLong)
+    if(history.nonEmpty) {
+      for (historyPoint <- history) {
+        if (historyPoint.value) {
+          revive(historyPoint.time.toLong)
+        }
+        else {
+          kill(historyPoint.time.toLong)
+        }
       }
     }
   }
@@ -188,15 +190,42 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     }
   }
 
-
   def beenSaved():Boolean=saved
 
   def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter
 
   def updateLatestRouter(newRouter:Int):Unit = latestRouter = newRouter
 
+  def wipe() = {
+    if (addOnly)
+      oldestPoint.set(Long.MaxValue)
+    else
+      previousState = mutable.TreeMap()(HistoryOrdering)
+  }
 
-  //************* PRINT ENTITY DETAILS BLOCK *********************\\
+  def getPreviousStateSize() : Int = {
+    if (addOnly)
+      if(oldestPoint.get == Long.MaxValue)
+        0 //is a placeholder entity
+      else
+        1
+    else
+      previousState.size
+  }
+
+  def getId : Long
+  def getPropertyCurrentValue(key : String) : Option[String] =
+    properties.get(key) match {
+      case Some(p) => Some(p.currentValue)
+      case None => None
+    }
+
+
+}
+
+
+
+//************* PRINT ENTITY DETAILS BLOCK *********************\\
 /*  def printCurrent(): String = {
     var toReturn = s"MessageID ${previousState.head._1}: ${previousState.head._2} " + System.lineSeparator
     properties.foreach(p =>
@@ -227,31 +256,4 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     toReturn
   }*/
 
-  //************* END PRINT ENTITY DETAILS BLOCK *********************\\
-
-  def wipe() = {
-    if (addOnly)
-      oldestPoint.set(Long.MaxValue)
-    else
-      previousState = mutable.TreeMap()(HistoryOrdering)
-  }
-
-  def getPreviousStateSize() : Int = {
-    if (addOnly)
-      if(oldestPoint.get == Long.MaxValue)
-        0 //is a placeholder entity
-      else
-        1
-    else
-      previousState.size
-  }
-
-  def getId : Long
-  def getPropertyCurrentValue(key : String) : Option[String] =
-    properties.get(key) match {
-      case Some(p) => Some(p.currentValue)
-      case None => None
-    }
-
-
-}
+//************* END PRINT ENTITY DETAILS BLOCK *********************\\
