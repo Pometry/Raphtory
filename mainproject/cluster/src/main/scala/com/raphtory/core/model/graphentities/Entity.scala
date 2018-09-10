@@ -45,14 +45,8 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     * @param msgTime
     */
   def revive(msgTime: Long): Unit = {
-    if(msgTime>newestPoint.get)
-      newestPoint.set(msgTime)
-    if(addOnly) {
-      // if we are in add only mode
-      if (oldestPoint.get > msgTime) //check if the current point in history is the oldest
-        oldestPoint.set(msgTime)
-    }
-    else {
+    checkOldestNewest(msgTime)
+    if(!addOnly) {
       originalHistorySize.add(1)
       previousState.put(msgTime, true)
     }
@@ -64,13 +58,19 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     * @param msgTime
     */
   def kill(msgTime: Long): Unit = {
-    if(msgTime>newestPoint.get)
-      newestPoint.set(msgTime)
-    removeList.put(msgTime, false)
+    checkOldestNewest(msgTime)
     if (!addOnly) {
       originalHistorySize.add(1)
+      removeList.put(msgTime, false)
       previousState.put(msgTime, false)
     }
+  }
+
+  def checkOldestNewest(msgTime:Long) ={
+    if(msgTime>newestPoint.get)
+      newestPoint.set(msgTime)
+    if (oldestPoint.get > msgTime) //check if the current point in history is the oldest
+      oldestPoint.set(msgTime)
   }
 
   def addHistory(history:List[HistoryPoint])={
@@ -116,8 +116,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
 
     val head = previousState.head
-    safeHistory += head // always keep at least one point in history
-
     var prev: (Long,Boolean) = head
     var swapped = false
     for((k,v) <- previousState){
@@ -138,6 +136,9 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
       safeHistory += prev
       oldHistory += prev //add the final history point to oldHistory as not done in loop
     }
+    if(safeHistory.isEmpty)
+      safeHistory += head // always keep at least one point in history
+
     previousState = safeHistory
     oldHistory
   }

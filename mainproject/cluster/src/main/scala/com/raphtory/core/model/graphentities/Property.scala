@@ -41,8 +41,6 @@ class Property(creationTime: Long,
     var oldHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
 
     val head = previousState.head
-    safeHistory += head // always keep at least one point in history
-
     var prev: (Long,String) = head
     var swapped = false
     for((k,v) <- previousState){
@@ -63,6 +61,9 @@ class Property(creationTime: Long,
       safeHistory += prev
       oldHistory += prev //add the final history point to oldHistory as not done in loop
     }
+    if(safeHistory.isEmpty)
+      safeHistory += head // always keep at least one point in history
+
     previousState = safeHistory
     oldHistory
   }

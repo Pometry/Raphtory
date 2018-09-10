@@ -1,5 +1,7 @@
 package com.raphtory.core.storage
 
+import java.util.NoSuchElementException
+
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.partitionmanager.MongoFactory
@@ -38,8 +40,8 @@ object EntityStorage {
   val edges    = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
 
   var printing     : Boolean = false
-  var managerCount : Int     = -1
-  var managerID    : Int     = -1
+  var managerCount : Int     = 1
+  var managerID    : Int     = 0
   var mediator     : ActorRef= null
   var addOnlyVertex      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_VERTEX", "false").trim.toBoolean
   var addOnlyEdge      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_EDGE", "false").trim.toBoolean
@@ -66,26 +68,35 @@ object EntityStorage {
     val srcId = Utils.getIndexHI(id)
     val dstId = Utils.getIndexLO(id)
     val savedEdge = MongoFactory.retrieveEdge(id)
-    val history = savedEdge.history
-    val head = history.head
-    if(checkDst(dstId, managerCount, managerID)) {
-      val edge = new Edge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge)
-      edge.addHistory(history.tail)
-      savedEdge.properties match {
-        case Some(properties) => edge.addProperties(properties)
-        case None =>
+    try {
+      val history = savedEdge.history
+      val head = history.head
+      if (checkDst(dstId, managerCount, managerID)) {
+        val edge = new Edge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge)
+        edge.addHistory(history.tail)
+        savedEdge.properties match {
+          case Some(properties) => edge.addProperties(properties)
+          case None =>
+        }
+        edge
       }
-      edge
-    }
-    else {
-      val edge = new RemoteEdge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
-      edge.addHistory(history.tail)
-      savedEdge.properties match {
-        case Some(properties) => edge.addProperties(properties)
-        case None =>
+      else {
+        val edge = new RemoteEdge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+        edge.addHistory(history.tail)
+        savedEdge.properties match {
+          case Some(properties) => edge.addProperties(properties)
+          case None =>
+        }
+        edge
       }
-      edge
     }
+    catch {
+      case e:NoSuchElementException =>{
+        println(id)
+        new RemoteEdge(-1,1.toLong, srcId, dstId, initialValue = true, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+      }
+    }
+
   }
 
   def retrieveVertex(id:Int):Vertex = {

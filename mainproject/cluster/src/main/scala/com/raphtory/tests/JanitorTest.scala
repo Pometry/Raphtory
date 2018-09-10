@@ -28,6 +28,8 @@ object JanitorTest extends App{
   //  vertex kill(System.currentTimeMillis())
   //  Thread.sleep(500)
   //  vertex revive(System.currentTimeMillis())
+  MongoFactory.vertices.drop()
+  MongoFactory.edges.drop()
 
   val vertex = new Vertex(1,1,1,true,false)
   vertex revive(2)
@@ -70,13 +72,14 @@ object JanitorTest extends App{
   vertex revive(8)
   vertex +(8,"prop3","dave")
   vertex +(9,"prop3","bob")
-  MongoFactory.vertex2Mongo(vertex,cutOff)
-  MongoFactory.flushBatch()
+ MongoFactory.vertex2Mongo(vertex,cutOff)
+ MongoFactory.flushBatch()
 
 
 
   println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId.toInt)))
   MongoFactory.vertices.drop()
+  MongoFactory.edges.drop()
 
 
   def compressHistory(e:Entity) ={

@@ -60,4 +60,8 @@ class Edge(routerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Bo
     false
   }
 
+  override def toString: String = {
+    s"Edge srcID $srcId dstID $dstId \n History $previousState \n Properties:\n $properties"
+  }
+
 }

@@ -58,21 +58,25 @@ object MongoFactory {
     builder += "history" -> convertHistory(history)
     builder += "properties" -> convertProperties(vertex.properties,cutOff)
     val set = vertex.getNewAssociatedEdges()
-    if (set.nonEmpty)
+    if (set.nonEmpty) {
       builder += "associatedEdges" -> convertAssociatedEdges(set)
+    }
     vertexOperator.insert(builder.result())
   }
 
-   private def updateVertex(entity: Entity,cutOff:Long) ={
-    val history = convertHistoryUpdate(entity.compressAndReturnOldHistory(cutOff))
-    val dbEntity = vertexOperator.find(MongoDBObject("_id" -> entity.getId))
+   private def updateVertex(vertex: Vertex,cutOff:Long) ={
+    val history = convertHistoryUpdate(vertex.compressAndReturnOldHistory(cutOff))
+    val dbEntity = vertexOperator.find(MongoDBObject("_id" -> vertex.getId))
     dbEntity.updateOne($addToSet("history") $each(history:_*))
 
-    for((key,property) <- entity.properties){
+    for((key,property) <- vertex.properties){
+      println(property)
       val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
-      println(entityHistory)
       dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*)) //s"properties.$key"
     }
+     val set = vertex.getNewAssociatedEdges()
+     if (set.nonEmpty)
+       dbEntity.updateOne($addToSet(s"associatedEdges") $each(convertAssociatedEdges(set)))
   }
 
   private def convertAssociatedEdges(set:ParSet[Edge]):MongoDBList = {
@@ -82,6 +86,14 @@ object MongoFactory {
     }
     builder.result()
   }
+  private def convertAssociatedEdgesUpdate(set:ParSet[Edge]):List[Double] = {
+    val builder = mutable.ListBuffer[Double]()
+    for(edge <- set){
+      builder += edge.getId.toDouble
+    }
+    builder.toList
+  }
+
 
   def edge2Mongo(entity:Edge,cutoff:Long)={
     if(entity beenSaved()){

@@ -51,21 +51,51 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   override def getId = vertexId
 
   override def equals(obj: scala.Any): Boolean = {
-    println(this)
-    println(obj)
     if(obj.isInstanceOf[Vertex]){
       val v2 = obj.asInstanceOf[Vertex] //add associated edges
-      if((vertexId == v2.vertexId) &&(previousState.equals(v2.previousState)) && (oldestPoint.get == v2.oldestPoint.get) && (newestPoint.get == newestPoint.get) && (properties.size == v2.properties.size) && (associatedEdges.equals(v2.associatedEdges))){
-        for((key,prop) <- properties){
-          if(!prop.equals(v2.properties.getOrElse(key,null))){
-            return false
-          }
-        }
-        return true
+      if(!(vertexId == v2.vertexId)) {
+        false
       }
-      return false
+      else if(!(previousState.equals(v2.previousState))){
+        println("Previous State incorrect:")
+        println(previousState)
+        println(v2.previousState)
+        false
+      }
+      else if(!(oldestPoint.get == v2.oldestPoint.get)){
+        println("oldest point incorrect:")
+        println(previousState)
+        println(v2.previousState)
+        println(oldestPoint.get)
+        println(v2.oldestPoint.get)
+        false
+      }
+      else if(!(newestPoint.get == newestPoint.get)){
+        println("newest point incorrect:")
+        println(previousState)
+        println(v2.previousState)
+        println(newestPoint.get)
+        println(v2.newestPoint.get)
+        false
+      }
+
+      else if(!(properties.equals(v2.properties))){
+        println("properties incorrect:")
+        println(properties)
+        println(v2.properties)
+        false
+      }
+
+      else if(!(associatedEdges.size == associatedEdges.intersect(v2.associatedEdges).size)){
+        println("associated edges incorrect:")
+        println(associatedEdges)
+        println(v2.associatedEdges)
+        false
+      }
+      else true
     }
-    false
+    else false
+
   }
 
   override def toString: String = {
@@ -73,3 +103,9 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   }
 
 }
+
+//        for((key,prop) <- properties){
+//          if(!prop.equals(v2.properties.getOrElse(key,null))){
+//            return false
+//          }
+//        }
