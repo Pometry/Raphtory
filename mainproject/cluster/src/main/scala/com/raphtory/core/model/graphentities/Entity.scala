@@ -84,6 +84,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
         }
       }
     }
+    compressAndReturnOldHistory(System.currentTimeMillis()) //to Remove
   }
 
   def addProperties(savedProperties:Map[String,List[PropertyPoint]])={
@@ -93,6 +94,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
       for(point <- history.tail){
         property update(point.time.toLong,point.value)
       }
+      property.compressAndReturnOldHistory(System.currentTimeMillis()) //to Remove
       properties put (key,property)
     }
   }

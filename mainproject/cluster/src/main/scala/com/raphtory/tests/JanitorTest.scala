@@ -29,12 +29,12 @@ object JanitorTest extends App{
   //  Thread.sleep(500)
   //  vertex revive(System.currentTimeMillis())
 
-  val vertex = new Vertex(1,System.currentTimeMillis(),1,true,false)
-  vertex revive(System.currentTimeMillis())
-  vertex revive(System.currentTimeMillis())
-  vertex revive(System.currentTimeMillis())
-  vertex kill(System.currentTimeMillis())
-  vertex revive(System.currentTimeMillis())
+  val vertex = new Vertex(1,1,1,true,false)
+  vertex revive(2)
+  vertex revive(3)
+  vertex revive(4)
+  vertex kill(5)
+  vertex revive(6)
   vertex +(1,"prop","val1")
   vertex +(2,"prop","val2")
   vertex +(3,"prop","val2")
@@ -52,10 +52,10 @@ object JanitorTest extends App{
   vertex +(7,"prop2","val3")
 
 
-  vertex addAssociatedEdge new Edge(1,System.currentTimeMillis(),1,2,true,false)
-  vertex addAssociatedEdge new Edge(1,System.currentTimeMillis(),1,3,true,false)
-  vertex addAssociatedEdge new Edge(1,System.currentTimeMillis(),1,4,true,false)
-  vertex addAssociatedEdge new Edge(1,System.currentTimeMillis(),1,5,true,false)
+  vertex addAssociatedEdge new Edge(1,1,1,2,true,false)
+  vertex addAssociatedEdge new Edge(1,2,1,3,true,false)
+  vertex addAssociatedEdge new Edge(1,3,1,4,true,false)
+  vertex addAssociatedEdge new Edge(1,4,1,5,true,false)
 
   for(edge <- vertex.associatedEdges){
     MongoFactory.edge2Mongo(edge,cutOff)
@@ -64,7 +64,7 @@ object JanitorTest extends App{
   //println(cutOff)
   MongoFactory.vertex2Mongo(vertex,cutOff)
   MongoFactory.flushBatch()
-  MongoFactory.retrieveVertexHistory(vertex.getId)
+  //MongoFactory.retrieveVertexHistory(vertex.getId)
   //println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
   vertex kill(7)
   vertex revive(8)
@@ -72,6 +72,8 @@ object JanitorTest extends App{
   vertex +(9,"prop3","bob")
   MongoFactory.vertex2Mongo(vertex,cutOff)
   MongoFactory.flushBatch()
+
+
 
   println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId.toInt)))
   MongoFactory.vertices.drop()

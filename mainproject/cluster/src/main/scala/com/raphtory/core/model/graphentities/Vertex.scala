@@ -63,13 +63,13 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
         }
         return true
       }
-      return true
+      return false
     }
     false
   }
 
   override def toString: String = {
-    s"Vertex ID $vertexId \n History $previousState \n Properties: $properties \n Associated Edges: $associatedEdges"
+    s"Vertex ID $vertexId \n History $previousState \n Properties:\n $properties \n Associated Edges: $associatedEdges"
   }
 
 }

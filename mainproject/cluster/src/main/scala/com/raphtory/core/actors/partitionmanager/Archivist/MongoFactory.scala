@@ -70,8 +70,8 @@ object MongoFactory {
 
     for((key,property) <- entity.properties){
       val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
-      if(history.nonEmpty)
-        dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*)) //s"properties.$key"
+      println(entityHistory)
+      dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*)) //s"properties.$key"
     }
   }
 
@@ -111,7 +111,8 @@ object MongoFactory {
 
     for((key,property) <- edge.properties){
       val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
-      if(history.nonEmpty)
+      //if(history.nonEmpty)
+        println(entityHistory)
         dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*)) //s"properties.$key"
     }
 
