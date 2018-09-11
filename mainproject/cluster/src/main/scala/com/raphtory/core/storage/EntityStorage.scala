@@ -34,7 +34,7 @@ object EntityStorage {
     */
   val vertices = ParTrieMap[Int, Vertex]()
 
-   /**
+  /**
     * Map of edges contained in the partition
     */
   val edges    = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
@@ -64,68 +64,6 @@ object EntityStorage {
     * Vertices Methods
     */
 
-  def retrieveEdge(id:Long):Edge = {
-    val srcId = Utils.getIndexHI(id)
-    val dstId = Utils.getIndexLO(id)
-    val savedEdge = MongoFactory.retrieveEdge(id)
-    try {
-      val history = savedEdge.history
-      val head = history.head
-      if (checkDst(dstId, managerCount, managerID)) {
-        val edge = new Edge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge)
-        edge.addHistory(history.tail)
-        savedEdge.properties match {
-          case Some(properties) => edge.addProperties(properties)
-          case None =>
-        }
-        edge
-      }
-      else {
-        val edge = new RemoteEdge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
-        edge.addHistory(history.tail)
-        savedEdge.properties match {
-          case Some(properties) => edge.addProperties(properties)
-          case None =>
-        }
-        edge
-      }
-    }
-    catch {
-      case e:NoSuchElementException =>{
-        println(id)
-        new RemoteEdge(-1,1.toLong, srcId, dstId, initialValue = true, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
-      }
-    }
-
-  }
-
-  def retrieveVertex(id:Int):Vertex = {
-    val savedVertex = MongoFactory.retrieveVertex(id)
-    val history = savedVertex.history
-    val head = history.head
-    val vertex = new Vertex(-1,head.time.toLong,id,head.value,addOnlyVertex)
-    vertex.addHistory(history.tail)
-    savedVertex.properties match {
-      case Some(properties) => vertex.addProperties(properties)
-      case None => {}
-    }
-    for(edgeID <- savedVertex.associatedEdges){
-      vertex.addAssociatedEdge(retrieveEdge(edgeID.toLong))
-    }
-    vertex
-  }
-
-  def compareMemoryToSaved() ={
-    vertices.foreach(pair=>{
-      val vertex = pair._2
-      //vertex.compareHistory()
-    })
-    edges.foreach(pair=>{
-      val edge = pair._2
-     // edge.compareHistory()
-    })
-  }
-
   def vertexAdd(routerID:Int,msgTime : Long, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
     if(printing) println(s"Received vertex add for $srcId with map: $properties")
     var value : Vertex = new Vertex(routerID,msgTime, srcId, initialValue = true, addOnlyVertex)
@@ -143,7 +81,7 @@ object EntityStorage {
     if (properties != null) {
       properties.foreach(prop => value.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
     }
-      //properties.foreach(l => value + (msgTime,l._1,l._2)) //add all properties
+    //properties.foreach(l => value + (msgTime,l._1,l._2)) //add all properties
     GraphRepoProxy.addVertex(value.getId)
     value
   }
@@ -173,13 +111,13 @@ object EntityStorage {
     vertex.associatedEdges.foreach(e => {
       e kill msgTime
       try {
-          val ee = e.asInstanceOf[RemoteEdge]
-          if (ee.remotePos == RemotePos.Destination) {
-            mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), RemoteEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
-          } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
-          else {
-            mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), ReturnEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
-          } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
+        val ee = e.asInstanceOf[RemoteEdge]
+        if (ee.remotePos == RemotePos.Destination) {
+          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), RemoteEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
+        } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
+        else {
+          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), ReturnEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
+        } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
 
       } catch {
         case _ : ClassCastException =>
@@ -236,15 +174,15 @@ object EntityStorage {
     srcVertex addAssociatedEdge edge // add the edge to the associated edges of the source node
 
     if (present) {
-        edge revive msgTime
-        edge updateLatestRouter routerID
-        if (!local)
-          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAdd(routerID,msgTime, srcId, dstId, null),false) // inform the partition dealing with the destination node*/
+      edge revive msgTime
+      edge updateLatestRouter routerID
+      if (!local)
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAdd(routerID,msgTime, srcId, dstId, null),false) // inform the partition dealing with the destination node*/
     } else {
-        val deaths = srcVertex.removeList
-        edge killList deaths
-        if (!local)
-          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(routerID,msgTime, srcId, dstId, null, deaths), false)
+      val deaths = srcVertex.removeList
+      edge killList deaths
+      if (!local)
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(routerID,msgTime, srcId, dstId, null, deaths), false)
     }
     GraphRepoProxy.addEdge(edge.getId)
     if (properties != null)
@@ -334,10 +272,10 @@ object EntityStorage {
         mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemoval(routerID,msgTime,srcId,dstId),false) // inform the partition dealing with the destination node
     }
     else {
-        val deaths = srcVertex.removeList
-        edge killList deaths
-        if (!local)
-          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths), false)
+      val deaths = srcVertex.removeList
+      edge killList deaths
+      if (!local)
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths), false)
     }
   }
 
@@ -379,4 +317,66 @@ object EntityStorage {
     if(printing) println(s"Received deaths for $srcId --> $dstId from ${getManager(dstId, managerCount)}")
     edges(getEdgeIndex(srcId,dstId)) killList dstDeaths
   }
+
+
+  def retrieveEdge(id:Long):Edge = {
+    val srcId = Utils.getIndexHI(id)
+    val dstId = Utils.getIndexLO(id)
+    println(srcId)
+    println(dstId)
+    println(MongoFactory.retrieveEdgeRaw(id))
+    val savedEdge = MongoFactory.retrieveEdge(id)
+
+    val history = savedEdge.history
+    val head = history.head
+    if (checkDst(dstId, managerCount, managerID)) {
+      val edge = new Edge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge)
+      edge.addHistory(history.tail)
+      savedEdge.properties match {
+        case Some(properties) => edge.addProperties(properties)
+        case None =>
+      }
+      edge
+    }
+    else {
+      val edge = new RemoteEdge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+      edge.addHistory(history.tail)
+      savedEdge.properties match {
+        case Some(properties) => edge.addProperties(properties)
+        case None =>
+      }
+      edge
+    }
+  }
+
+  def retrieveVertex(id:Int):Vertex = {
+    val savedVertex = MongoFactory.retrieveVertex(id)
+    println(savedVertex)
+    val history = savedVertex.history
+    val head = history.head
+    val vertex = new Vertex(-1,head.time.toLong,id,head.value,addOnlyVertex)
+    vertex.addHistory(history.tail)
+    savedVertex.properties match {
+      case Some(properties) => vertex.addProperties(properties)
+      case None => {}
+    }
+   // for(edgeID <- savedVertex.associatedEdges){
+   //   vertex.addAssociatedEdge(retrieveEdge(edgeID.toLong))
+   // }
+    vertex
+  }
+
+  def compareMemoryToSaved() ={
+    vertices.foreach(pair=>{
+      val vertex = pair._2
+      //vertex.compareHistory()
+    })
+    edges.foreach(pair=>{
+      val edge = pair._2
+      // edge.compareHistory()
+    })
+  }
+
+
+
 }

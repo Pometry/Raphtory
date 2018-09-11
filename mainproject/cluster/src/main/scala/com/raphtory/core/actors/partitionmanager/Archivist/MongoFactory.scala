@@ -31,12 +31,12 @@ object MongoFactory {
     try {
       vertexOperator.execute()
       edgeOperator.execute()
+      vertexOperator = MongoFactory.vertices.initializeOrderedBulkOperation
+      edgeOperator = MongoFactory.edges.initializeOrderedBulkOperation
     }
     catch {
-      case e:Exception => //e.printStackTrace()
+      case e:Exception => e.printStackTrace()
     }
-    vertexOperator = MongoFactory.vertices.initializeOrderedBulkOperation
-    edgeOperator = MongoFactory.edges.initializeOrderedBulkOperation
   }
 
   def vertex2Mongo(entity:Vertex,cutoff:Long)={
@@ -61,6 +61,7 @@ object MongoFactory {
     if (set.nonEmpty) {
       builder += "associatedEdges" -> convertAssociatedEdges(set)
     }
+    println(builder.result())
     vertexOperator.insert(builder.result())
   }
 
@@ -106,14 +107,16 @@ object MongoFactory {
 
   private def newEdge(edge:Edge,cutOff:Long):Unit ={
     val history = edge.compressAndReturnOldHistory(cutOff)
+    println(history)
     if(history isEmpty)
       return
     val builder = MongoDBObject.newBuilder
     builder += "_id" -> edge.getId
     builder += "history" -> convertHistory(history)
-    builder += "properties" -> convertProperties(edge.properties,cutOff)
+   // builder += "properties" -> convertProperties(edge.properties,cutOff)
     //convertProperties(builder,entity.properties,cutOff) // no outside properties list
-    edgeOperator.insert(builder.result())
+    println("BUILDER"+builder.result())
+    vertexOperator.insert(builder.result())
   }
 
    private def updateEdge(edge: Edge,cutOff:Long) ={
@@ -170,6 +173,9 @@ object MongoFactory {
   def retrieveVertex(id:Long):SavedVertex ={
     parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString).extract[SavedVertex]
   }
+  def retrieveVertexRaw(id:Long):String ={
+    vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString
+  }
 
   def retrieveEdgeHistory(id:Long):SavedHistory = {
     parse(edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse("").toString).extract[SavedHistory]
@@ -182,6 +188,9 @@ object MongoFactory {
 
   def retrieveEdge(id:Long):SavedEdge ={
     parse(edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString).extract[SavedEdge]
+  }
+  def retrieveEdgeRaw(id:Long):String ={
+    edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString
   }
 
 

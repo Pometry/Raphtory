@@ -86,12 +86,12 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
         false
       }
 
-      else if(!(associatedEdges.size == associatedEdges.intersect(v2.associatedEdges).size)){
-        println("associated edges incorrect:")
-        println(associatedEdges)
-        println(v2.associatedEdges)
-        false
-      }
+//      else if(!(associatedEdges.size == associatedEdges.intersect(v2.associatedEdges).size)){
+//        println("associated edges incorrect:")
+//        println(associatedEdges)
+//        println(v2.associatedEdges)
+//        false
+//      }
       else true
     }
     else false
