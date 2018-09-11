@@ -49,11 +49,6 @@ class Edge(routerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Bo
     if(obj.isInstanceOf[Edge]){
       val v2 = obj.asInstanceOf[Edge] //add associated edges
       if((getSrcId == v2.getSrcId) && (getDstId == v2.getDstId) && (previousState.equals(v2.previousState)) && (oldestPoint.get == v2.oldestPoint.get) && (newestPoint.get == newestPoint.get) && (properties.equals(v2.properties))){
-//        for((key,prop) <- properties){
-//          if(!prop.equals(v2.properties.getOrElse(key,null))){
-//            return false
-//          }
-//        }
         return true
       }
     }

@@ -34,8 +34,10 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
 
   var associatedEdges = ParSet[Edge]()
   var newAssociatedEdges = ParSet[Edge]()
+  val edges    = ParTrieMap[Long, Edge]()
 
   def addAssociatedEdge(edge: Edge): Unit = {
+    edges.put(edge.getId,edge)
     associatedEdges += edge
     newAssociatedEdges += edge
   }
@@ -86,12 +88,12 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
         false
       }
 
-//      else if(!(associatedEdges.size == associatedEdges.intersect(v2.associatedEdges).size)){
-//        println("associated edges incorrect:")
-//        println(associatedEdges)
-//        println(v2.associatedEdges)
-//        false
-//      }
+      else if(!(edges.equals(v2.edges))){
+        println("associated edges incorrect:")
+        println(edges)
+        println(v2.edges)
+        false
+      }
       else true
     }
     else false

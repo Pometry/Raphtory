@@ -24,19 +24,30 @@ object MongoFactory {
   val connection = MongoConnection()
   val edges = connection(DATABASE)("edges")
   val vertices = connection(DATABASE)("vertices")
+  vertices.remove(new MongoDBObject)
+  edges.remove(new MongoDBObject)
 
-  private var vertexOperator = MongoFactory.vertices.initializeOrderedBulkOperation
-  private var edgeOperator = MongoFactory.edges.initializeOrderedBulkOperation
+  private var vertexOperator = vertices.initializeOrderedBulkOperation
+  private var edgeOperator = edges.initializeOrderedBulkOperation
+
+
   def flushBatch() ={
     try {
       vertexOperator.execute()
-      edgeOperator.execute()
-      vertexOperator = MongoFactory.vertices.initializeOrderedBulkOperation
-      edgeOperator = MongoFactory.edges.initializeOrderedBulkOperation
     }
     catch {
       case e:Exception => e.printStackTrace()
     }
+
+    try {
+      edgeOperator.execute()
+
+    }
+    catch {
+      case e:Exception => e.printStackTrace()
+    }
+    vertexOperator = vertices.initializeOrderedBulkOperation
+    edgeOperator = edges.initializeOrderedBulkOperation
   }
 
   def vertex2Mongo(entity:Vertex,cutoff:Long)={
@@ -61,7 +72,6 @@ object MongoFactory {
     if (set.nonEmpty) {
       builder += "associatedEdges" -> convertAssociatedEdges(set)
     }
-    println(builder.result())
     vertexOperator.insert(builder.result())
   }
 
@@ -71,13 +81,12 @@ object MongoFactory {
     dbEntity.updateOne($addToSet("history") $each(history:_*))
 
     for((key,property) <- vertex.properties){
-      println(property)
       val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
       dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*)) //s"properties.$key"
     }
      val set = vertex.getNewAssociatedEdges()
      if (set.nonEmpty)
-       dbEntity.updateOne($addToSet(s"associatedEdges") $each(convertAssociatedEdges(set)))
+       dbEntity.updateOne($addToSet(s"associatedEdges") $each(convertAssociatedEdgesUpdate(set):_*))
   }
 
   private def convertAssociatedEdges(set:ParSet[Edge]):MongoDBList = {
@@ -85,6 +94,7 @@ object MongoFactory {
     for(edge <- set){
       builder += edge.getId.toDouble
     }
+    println(builder.result())
     builder.result()
   }
   private def convertAssociatedEdgesUpdate(set:ParSet[Edge]):List[Double] = {
@@ -105,18 +115,17 @@ object MongoFactory {
     }
   }
 
+
   private def newEdge(edge:Edge,cutOff:Long):Unit ={
     val history = edge.compressAndReturnOldHistory(cutOff)
-    println(history)
     if(history isEmpty)
       return
     val builder = MongoDBObject.newBuilder
     builder += "_id" -> edge.getId
     builder += "history" -> convertHistory(history)
-   // builder += "properties" -> convertProperties(edge.properties,cutOff)
+    builder += "properties" -> convertProperties(edge.properties,cutOff)
     //convertProperties(builder,entity.properties,cutOff) // no outside properties list
-    println("BUILDER"+builder.result())
-    vertexOperator.insert(builder.result())
+    edgeOperator.insert(builder.result())
   }
 
    private def updateEdge(edge: Edge,cutOff:Long) ={
@@ -126,8 +135,6 @@ object MongoFactory {
 
     for((key,property) <- edge.properties){
       val entityHistory = convertHistoryUpdate(property.compressAndReturnOldHistory(cutOff))
-      //if(history.nonEmpty)
-        println(entityHistory)
         dbEntity.updateOne($addToSet(s"properties.$key") $each(entityHistory:_*)) //s"properties.$key"
     }
 
@@ -195,7 +202,7 @@ object MongoFactory {
 
 
 }
-case class SavedVertex(history:List[HistoryPoint],properties:Option[Map[String,List[PropertyPoint]]],oldestPoint:Double,associatedEdges:List[Double])
+case class SavedVertex(history:List[HistoryPoint],properties:Option[Map[String,List[PropertyPoint]]],oldestPoint:Double,associatedEdges:Option[List[Double]])
 case class SavedEdge(history:List[HistoryPoint],properties:Option[Map[String,List[PropertyPoint]]])
 case class SavedHistory(history:List[HistoryPoint])
 case class SavedProperties(properties:Map[String,List[PropertyPoint]])

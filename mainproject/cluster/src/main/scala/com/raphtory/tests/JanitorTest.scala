@@ -29,8 +29,7 @@ object JanitorTest extends App{
   //  vertex kill(System.currentTimeMillis())
   //  Thread.sleep(500)
   //  vertex revive(System.currentTimeMillis())
-  MongoFactory.vertices.drop()
-  MongoFactory.edges.drop()
+
 
   val vertex = new Vertex(1,1,1,true,false)
   vertex revive(2)
@@ -61,33 +60,31 @@ object JanitorTest extends App{
   vertex addAssociatedEdge new Edge(1,3,1,4,true,false)
   vertex addAssociatedEdge new Edge(1,4,1,5,true,false)
 
+  MongoFactory.vertex2Mongo(vertex,cutOff)
   for(edge <- vertex.associatedEdges){
     MongoFactory.edge2Mongo(edge,cutOff)
   }
-
-  //println(cutOff)
-  MongoFactory.vertex2Mongo(vertex,cutOff)
   MongoFactory.flushBatch()
-  //println(MongoFactory.retrieveVertexRaw(vertex.vertexId))
-  //MongoFactory.retrieveVertexHistory(vertex.getId)
-  //println(MongoFactory.vertices.find().foreach(x=>println(x.toString)))
+
+
   vertex kill(7)
   vertex revive(8)
   vertex +(8,"prop3","dave")
   vertex +(9,"prop3","bob")
+  vertex addAssociatedEdge new Edge(1,6,1,7,true,false)
+//  println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId.toInt)))
+  val retrieved = EntityStorage.retrieveVertex(vertex.getId.toInt)
  MongoFactory.vertex2Mongo(vertex,cutOff)
+  for(edge <- vertex.associatedEdges){
+    MongoFactory.edge2Mongo(edge,cutOff)
+  }
  MongoFactory.flushBatch()
  // Thread.sleep(1000)
 
-
-  //println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId.toInt)))
-  println(new Edge(1,1,1,2,true,false).getId)
-  println(MongoFactory.retrieveEdge(new Edge(1,1,1,2,true,false).getId))
-  println(MongoFactory.retrieveEdgeRaw(new Edge(1,1,1,2,true,false).getId))
-  try{println(EntityStorage.retrieveEdge(new Edge(1,1,1,2,true,false).getId))}catch {case e:Exception => println("broke")}
-  //println(new Edge(1,1,1,2,true,false).equals(EntityStorage.retrieveEdge(new Edge(1,1,1,2,true,false).getId)))
- // MongoFactory.vertices.drop()
- // MongoFactory.edges.drop()
+  //println(EntityStorage.retrieveVertex(vertex.getId.toInt))
+   println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId.toInt)))
+  //println(MongoFactory.retrieveEdge(new Edge(1,1,1,2,true,false).getId))
+  //println(MongoFactory.retrieveEdgeRaw(new Edge(1,1,1,2,true,false).getId))
 
 
 

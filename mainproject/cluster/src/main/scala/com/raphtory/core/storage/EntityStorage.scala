@@ -322,9 +322,6 @@ object EntityStorage {
   def retrieveEdge(id:Long):Edge = {
     val srcId = Utils.getIndexHI(id)
     val dstId = Utils.getIndexLO(id)
-    println(srcId)
-    println(dstId)
-    println(MongoFactory.retrieveEdgeRaw(id))
     val savedEdge = MongoFactory.retrieveEdge(id)
 
     val history = savedEdge.history
@@ -351,18 +348,25 @@ object EntityStorage {
 
   def retrieveVertex(id:Int):Vertex = {
     val savedVertex = MongoFactory.retrieveVertex(id)
-    println(savedVertex)
     val history = savedVertex.history
     val head = history.head
+    println(savedVertex)
     val vertex = new Vertex(-1,head.time.toLong,id,head.value,addOnlyVertex)
     vertex.addHistory(history.tail)
     savedVertex.properties match {
       case Some(properties) => vertex.addProperties(properties)
       case None => {}
     }
-   // for(edgeID <- savedVertex.associatedEdges){
-   //   vertex.addAssociatedEdge(retrieveEdge(edgeID.toLong))
-   // }
+    savedVertex.associatedEdges match {
+      case Some(associatedEdges) => {
+        for(edgeID <- associatedEdges){
+          println(edgeID.toLong)
+          vertex.addAssociatedEdge(retrieveEdge(edgeID.toLong))
+        }
+      }
+      case None => {}
+    }
+
     vertex
   }
 
