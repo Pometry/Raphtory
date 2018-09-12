@@ -77,10 +77,10 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     if(history.nonEmpty) {
       for (historyPoint <- history) {
         if (historyPoint.value) {
-          revive(historyPoint.time.toLong)
+          revive(historyPoint.time)
         }
         else {
-          kill(historyPoint.time.toLong)
+          kill(historyPoint.time)
         }
       }
     }
@@ -90,9 +90,9 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   def addProperties(savedProperties:Map[String,List[PropertyPoint]])={
     for((key,history) <- savedProperties){
       val head = history.head
-      val property = new Property(head.time.toLong,key,head.value)
+      val property = new Property(head.time,key,head.value)
       for(point <- history.tail){
-        property update(point.time.toLong,point.value)
+        property update(point.time,point.value)
       }
       property.compressAndReturnOldHistory(System.currentTimeMillis()) //to Remove
       properties put (key,property)

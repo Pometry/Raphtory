@@ -327,7 +327,7 @@ object EntityStorage {
     val history = savedEdge.history
     val head = history.head
     if (checkDst(dstId, managerCount, managerID)) {
-      val edge = new Edge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge)
+      val edge = new Edge(-1, head.time, srcId, dstId, initialValue = head.value, addOnlyEdge)
       edge.addHistory(history.tail)
       savedEdge.properties match {
         case Some(properties) => edge.addProperties(properties)
@@ -336,7 +336,7 @@ object EntityStorage {
       edge
     }
     else {
-      val edge = new RemoteEdge(-1, head.time.toLong, srcId, dstId, initialValue = head.value, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+      val edge = new RemoteEdge(-1, head.time, srcId, dstId, initialValue = head.value, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
       edge.addHistory(history.tail)
       savedEdge.properties match {
         case Some(properties) => edge.addProperties(properties)
@@ -351,7 +351,7 @@ object EntityStorage {
     val history = savedVertex.history
     val head = history.head
     println(savedVertex)
-    val vertex = new Vertex(-1,head.time.toLong,id,head.value,addOnlyVertex)
+    val vertex = new Vertex(-1,head.time,id,head.value,addOnlyVertex)
     vertex.addHistory(history.tail)
     savedVertex.properties match {
       case Some(properties) => vertex.addProperties(properties)
@@ -360,8 +360,8 @@ object EntityStorage {
     savedVertex.associatedEdges match {
       case Some(associatedEdges) => {
         for(edgeID <- associatedEdges){
-          println(edgeID.toLong)
-          vertex.addAssociatedEdge(retrieveEdge(edgeID.toLong))
+          println(edgeID)
+          vertex.addAssociatedEdge(retrieveEdge(edgeID))
         }
       }
       case None => {}

@@ -73,14 +73,14 @@ object JanitorTest extends App{
   vertex +(9,"prop3","bob")
   vertex addAssociatedEdge new Edge(1,6,1,7,true,false)
 //  println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId.toInt)))
-  val retrieved = EntityStorage.retrieveVertex(vertex.getId.toInt)
+//  val retrieved = EntityStorage.retrieveVertex(vertex.getId.toInt)
  MongoFactory.vertex2Mongo(vertex,cutOff)
   for(edge <- vertex.associatedEdges){
     MongoFactory.edge2Mongo(edge,cutOff)
   }
  MongoFactory.flushBatch()
  // Thread.sleep(1000)
-
+//println(MongoFactory.retrieveVertexRaw(1))
   //println(EntityStorage.retrieveVertex(vertex.getId.toInt))
    println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId.toInt)))
   //println(MongoFactory.retrieveEdge(new Edge(1,1,1,2,true,false).getId))

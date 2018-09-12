@@ -21,7 +21,8 @@ object MongoFactory {
   implicit val formats = DefaultFormats // Brings in default date formats etc.
 
   private val DATABASE = "raphtory"
-  val connection = MongoConnection()
+  val connection = MongoClient()
+
   val edges = connection(DATABASE)("edges")
   val vertices = connection(DATABASE)("vertices")
   vertices.remove(new MongoDBObject)
@@ -65,7 +66,7 @@ object MongoFactory {
       return
     val builder = MongoDBObject.newBuilder
     builder += "_id" -> vertex.getId
-    builder += "oldestPoint" -> vertex.oldestPoint.get.toDouble
+    builder += "oldestPoint" -> vertex.oldestPoint.get
     builder += "history" -> convertHistory(history)
     builder += "properties" -> convertProperties(vertex.properties,cutOff)
     val set = vertex.getNewAssociatedEdges()
@@ -92,15 +93,15 @@ object MongoFactory {
   private def convertAssociatedEdges(set:ParSet[Edge]):MongoDBList = {
     val builder = MongoDBList.newBuilder
     for(edge <- set){
-      builder += edge.getId.toDouble
+      builder += edge.getId
     }
     println(builder.result())
     builder.result()
   }
-  private def convertAssociatedEdgesUpdate(set:ParSet[Edge]):List[Double] = {
-    val builder = mutable.ListBuffer[Double]()
+  private def convertAssociatedEdgesUpdate(set:ParSet[Edge]):List[Long] = {
+    val builder = mutable.ListBuffer[Long]()
     for(edge <- set){
-      builder += edge.getId.toDouble
+      builder += edge.getId
     }
     builder.toList
   }
@@ -145,9 +146,9 @@ object MongoFactory {
     val builder = MongoDBList.newBuilder
     for((k,v) <-history)
       if(v.isInstanceOf[String])
-        builder += MongoDBObject("time"->k.toDouble,"value"->v.asInstanceOf[String])
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
       else
-        builder += MongoDBObject("time"->k.toDouble,"value"->v.asInstanceOf[Boolean])
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
     builder.result
   }
   //these are different as the update requires a scala list which can be 'eached'
@@ -155,9 +156,9 @@ object MongoFactory {
     val builder = mutable.ListBuffer[MongoDBObject]()
     for((k,v) <-history)
       if(v.isInstanceOf[String])
-        builder += MongoDBObject("time"->k.toDouble,"value"->v.asInstanceOf[String])
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[String])
       else
-        builder += MongoDBObject("time"->k.toDouble,"value"->v.asInstanceOf[Boolean])
+        builder += MongoDBObject("time"->k,"value"->v.asInstanceOf[Boolean])
 
     builder.toList
   }
@@ -171,44 +172,45 @@ object MongoFactory {
   }
 
   def retrieveVertexHistory(id:Long):SavedHistory = {
-    parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse("").toString).extract[SavedHistory]
+    parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse("").toString.toString.replaceAll("""\{ "\$numberLong" : "([0-9]*)" \}""", "$1")).extract[SavedHistory]
   }
   def retrieveVertexPropertyHistory(id:Long,key:String):SavedProperty ={
-    val json = vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,s"properties.$key" -> 1)).getOrElse("").toString
+    val json = vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,s"properties.$key" -> 1)).getOrElse("").toString.toString.replaceAll("""\{ "\$numberLong" : "([0-9]*)" \}""", "$1")
     parse(json.substring(17,json.length-1).replaceFirst(key,"property")).extract[SavedProperty]
   }
   def retrieveVertex(id:Long):SavedVertex ={
-    parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString).extract[SavedVertex]
+    parse(vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString.toString.replaceAll("""\{ "\$numberLong" : "([0-9]*)" \}""", "$1")).extract[SavedVertex]
   }
-  def retrieveVertexRaw(id:Long):String ={
-    vertices.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString
+  def retrieveVertexRaw(id:Long):String = {
+    vertices.findOne(MongoDBObject("_id" -> id), MongoDBObject("_id" -> 0)).getOrElse("").toString.toString.replaceAll("""\{ "\$numberLong" : "([0-9]*)" \}""", "$1")
   }
 
   def retrieveEdgeHistory(id:Long):SavedHistory = {
-    parse(edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse("").toString).extract[SavedHistory]
+
+    parse(edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,"history" -> 1)).getOrElse("").toString.toString.replaceAll("""\{ "\$numberLong" : "([0-9]*)" \}""", "$1")).extract[SavedHistory]
   }
 
   def retrieveEdgePropertyHistory(id:Long,key:String):SavedProperty ={
-    val json = edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,s"properties.$key" -> 1)).getOrElse("").toString
+    val json = edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0,s"properties.$key" -> 1)).getOrElse("").toString.toString.replaceAll("""\{ "\$numberLong" : "([0-9]*)" \}""", "$1")
     parse(json.substring(17,json.length-1).replaceFirst(key,"property")).extract[SavedProperty]
   }
 
   def retrieveEdge(id:Long):SavedEdge ={
-    parse(edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString).extract[SavedEdge]
+    parse(edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString.toString.replaceAll("""\{ "\$numberLong" : "([0-9]*)" \}""", "$1")).extract[SavedEdge]
   }
   def retrieveEdgeRaw(id:Long):String ={
-    edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString
+    edges.findOne(MongoDBObject("_id" -> id),MongoDBObject("_id"->0)).getOrElse("").toString.toString.replaceAll("""\{ "\$numberLong" : "([0-9]*)" \}""", "$1")
   }
 
-
 }
-case class SavedVertex(history:List[HistoryPoint],properties:Option[Map[String,List[PropertyPoint]]],oldestPoint:Double,associatedEdges:Option[List[Double]])
+case class SavedVertex(history:List[HistoryPoint],properties:Option[Map[String,List[PropertyPoint]]],oldestPoint:Long,associatedEdges:Option[List[Long]])
 case class SavedEdge(history:List[HistoryPoint],properties:Option[Map[String,List[PropertyPoint]]])
 case class SavedHistory(history:List[HistoryPoint])
 case class SavedProperties(properties:Map[String,List[PropertyPoint]])
 case class SavedProperty(property:List[PropertyPoint])
-case class PropertyPoint(time:Double, value: String)
-case class HistoryPoint(time:Double,value:Boolean)
+case class PropertyPoint(time:Long, value: String)
+case class HistoryPoint(time:Long,value:Boolean)
+case class MongoLong($numberLong:Long)
 
 
 
