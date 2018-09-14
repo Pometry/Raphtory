@@ -49,11 +49,22 @@ object JanitorTest extends App{
   vertex +(8,"prop3","dave")
   vertex +(9,"prop3","bob")
   vertex addAssociatedEdge new Edge(1,6,1,7,true,false)
+  val time = System.currentTimeMillis()
+  //for(i <- 1 to 2)
+  //  RaphtoryDB.vertexHistory.save(i.toLong,i.toLong,true)
+  //RaphtoryDB.vertexHistory.save(4,4,true).isCompleted
+//  println(System.currentTimeMillis()-time)
+  val time2 = System.currentTimeMillis()
+ for(i <- 1 to 100000)
+   //RaphtoryDB.vertexHistory.store(VertexHistoryPoint(i.toLong,i.toLong,true))
+   RaphtoryDB.session.executeAsync(s"INSERT INTO raphtory.vertexhistory (id,time,value) VALUES ($i,$i,true)")
 
-  //RaphtoryDB.vertexHistory.create.ifNotExists()
-  println(RaphtoryDB.vertexHistory.save())
 
-  def cutOff = System.currentTimeMillis()+1000
+  //    //RaphtoryDB.vertexHistory.save(i.toLong,i.toLong,true).isCompleted
+ println(System.currentTimeMillis()-time2)
+//    //println(RaphtoryDB.connector.session.execute("select * from raphtory.vertexhistory ;").one())
+//
+//  def cutOff = System.currentTimeMillis()+1000
 
 
 }

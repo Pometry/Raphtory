@@ -37,36 +37,11 @@ abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
   object time extends LongColumn with PartitionKey
   object value extends BooleanColumn
 
-  def save() = {
+  def save(id:Long,time:Long,value:Boolean) = {
     insert
       .value(_.id, 3L)
       .value(_.time, 3L)
-      .value(_.value, true).future()
+      .value(_.value, true)
   }
 
-}
-class CassandraDatabase(override val connector: CassandraConnection) extends Database[CassandraDatabase](connector) {
-  object beers extends Beers with Connector
-}
-object CassandraDatabase extends CassandraDatabase(ContactPoint.local.keySpace(KeySpace("outworkers")
-  .ifNotExists().`with`(replication eqs SimpleStrategy.replication_factor(1))))
-
-case class Beer(company:String,name:String,style:String)
-
-abstract class Beers extends Table[Beers, Beer] {
-  object company extends StringColumn with PartitionKey
-  object name extends StringColumn with PartitionKey
-  object style extends StringColumn
-
-  def save(beer: Beer): Future[ResultSet] = {
-    insert
-      .value(_.company, beer.company)
-      .value(_.name, beer.name)
-      .value(_.style, beer.style)
-      .future()
-  }
-
-  def all(): Future[Seq[Beer]] = {
-    select.all.fetch()
-  }
 }
