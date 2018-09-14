@@ -1,23 +1,17 @@
 package com.raphtory.tests
 
 import ch.qos.logback.classic.Level
+import com.outworkers.phantom.dsl.KeySpace
+import com.raphtory.core.actors.partitionmanager.Archivist.{RaphtoryDB, VertexHistoryPoint}
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
-import com.mongodb.casbah.Imports.{$addToSet, _}
-import com.mongodb.casbah.MongoConnection
-import com.raphtory.core.actors.partitionmanager.MongoFactory
-import com.raphtory.core.storage.EntityStorage
-import com.raphtory.core.utils.Utils
 import org.slf4j.LoggerFactory
 
-import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 object JanitorTest extends App{
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
   val temporalMode = true //flag denoting if storage should focus on keeping more entities in memory or more history
   val timeWindow = 1 //timeWindow set in seconds
   val timeWindowMils = timeWindow * 1000
-
 
 
 
@@ -43,18 +37,11 @@ object JanitorTest extends App{
   vertex +(6,"prop2","val3")
   vertex +(7,"prop2","val3")
 
-
-
   vertex addAssociatedEdge new Edge(1,1,1,2,true,false)
   vertex addAssociatedEdge new Edge(1,2,1,3,true,false)
   vertex addAssociatedEdge new Edge(1,3,1,4,true,false)
   vertex addAssociatedEdge new Edge(1,4,1,5,true,false)
 
-  MongoFactory.vertex2Mongo(vertex,cutOff)
-  for(edge <- vertex.associatedEdges){
-    MongoFactory.edge2Mongo(edge,cutOff)
-  }
-  MongoFactory.flushBatch()
 
 
   vertex kill(7)
@@ -62,24 +49,30 @@ object JanitorTest extends App{
   vertex +(8,"prop3","dave")
   vertex +(9,"prop3","bob")
   vertex addAssociatedEdge new Edge(1,6,1,7,true,false)
-//  println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId.toInt)))
-//  val retrieved = EntityStorage.retrieveVertex(vertex.getId.toInt)
- MongoFactory.vertex2Mongo(vertex,cutOff)
-  for(edge <- vertex.associatedEdges){
-    MongoFactory.edge2Mongo(edge,cutOff)
-  }
- MongoFactory.flushBatch()
- // Thread.sleep(1000)
-//println(MongoFactory.retrieveVertexRaw(1))
-  //println(EntityStorage.retrieveVertex(vertex.getId.toInt))
-   println(vertex.equals(EntityStorage.retrieveVertex(vertex.getId.toInt)))
-  //println(MongoFactory.retrieveEdge(new Edge(1,1,1,2,true,false).getId))
-  //println(MongoFactory.retrieveEdgeRaw(new Edge(1,1,1,2,true,false).getId))
 
+  //RaphtoryDB.vertexHistory.create.ifNotExists()
+  println(RaphtoryDB.vertexHistory.save())
 
   def cutOff = System.currentTimeMillis()+1000
 
 
 }
+/*
+ create keyspace raphtory
+   ... with replication = {'class':'SimpleStrategy','replication_factor':1};
+ use dev;
 
+ CREATE TABLE vertexHistory (
+id bigint,
+time bigint,
+value boolean,
+PRIMARY KEY (id, time)
+)
+
+INSERT INTO raphtory.vertexHistory (id, time, value)
+  VALUES (1, 1,true)
+
+INSERT INTO raphtory.vertexHistory (id, time, value)
+  VALUES (1, 2,false)
+* */
 
