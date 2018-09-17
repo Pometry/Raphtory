@@ -12,6 +12,7 @@ object JanitorTest extends App{
   val temporalMode = true //flag denoting if storage should focus on keeping more entities in memory or more history
   val timeWindow = 1 //timeWindow set in seconds
   val timeWindowMils = timeWindow * 1000
+  import scala.concurrent.ExecutionContext.Implicits.global
 
 
 
@@ -42,6 +43,7 @@ object JanitorTest extends App{
   vertex addAssociatedEdge new Edge(1,3,1,4,true,false)
   vertex addAssociatedEdge new Edge(1,4,1,5,true,false)
 
+  RaphtoryDB.vertexHistory.saveNew(vertex.getId,vertex.oldestPoint.get,vertex.compressAndReturnOldHistory(cutOff))
 
 
   vertex kill(7)
@@ -49,41 +51,19 @@ object JanitorTest extends App{
   vertex +(8,"prop3","dave")
   vertex +(9,"prop3","bob")
   vertex addAssociatedEdge new Edge(1,6,1,7,true,false)
-  val time = System.currentTimeMillis()
-  //for(i <- 1 to 2)
-  //  RaphtoryDB.vertexHistory.save(i.toLong,i.toLong,true)
-  //RaphtoryDB.vertexHistory.save(4,4,true).isCompleted
-//  println(System.currentTimeMillis()-time)
-  val time2 = System.currentTimeMillis()
-  //RaphtoryDB.vertexHistory.store(VertexHistoryPoint(i.toLong,i.toLong,true))
- // RaphtoryDB.session.executeAsync(s"INSERT INTO raphtory.vertexhistory (id,time,value) VALUES ($i,$i,true)")
-  RaphtoryDB.vertexHistory.save(vertex)
 
+  RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
+  val fut = RaphtoryDB.vertexHistory.allVertexHistory(vertex.getId)
+
+  println(fut.onComplete(f => println(f.get)))
 
   //    //RaphtoryDB.vertexHistory.save(i.toLong,i.toLong,true).isCompleted
- println(System.currentTimeMillis()-time2)
+ //println(System.currentTimeMillis()-time2)
 //    //println(RaphtoryDB.connector.session.execute("select * from raphtory.vertexhistory ;").one())
 //
-//  def cutOff = System.currentTimeMillis()+1000
+  def cutOff = System.currentTimeMillis()+1000
+
 
 
 }
-/*
- create keyspace raphtory
-   ... with replication = {'class':'SimpleStrategy','replication_factor':1};
- use dev;
-
- CREATE TABLE vertexHistory (
-id bigint,
-time bigint,
-value boolean,
-PRIMARY KEY (id, time)
-)
-
-INSERT INTO raphtory.vertexHistory (id, time, value)
-  VALUES (1, 1,true)
-
-INSERT INTO raphtory.vertexHistory (id, time, value)
-  VALUES (1, 2,false)
-* */
 
