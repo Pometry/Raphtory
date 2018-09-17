@@ -55,9 +55,9 @@ object JanitorTest extends App{
   //RaphtoryDB.vertexHistory.save(4,4,true).isCompleted
 //  println(System.currentTimeMillis()-time)
   val time2 = System.currentTimeMillis()
- for(i <- 1 to 100000)
-   //RaphtoryDB.vertexHistory.store(VertexHistoryPoint(i.toLong,i.toLong,true))
-   RaphtoryDB.session.executeAsync(s"INSERT INTO raphtory.vertexhistory (id,time,value) VALUES ($i,$i,true)")
+  //RaphtoryDB.vertexHistory.store(VertexHistoryPoint(i.toLong,i.toLong,true))
+ // RaphtoryDB.session.executeAsync(s"INSERT INTO raphtory.vertexhistory (id,time,value) VALUES ($i,$i,true)")
+  RaphtoryDB.vertexHistory.save(vertex)
 
 
   //    //RaphtoryDB.vertexHistory.save(i.toLong,i.toLong,true).isCompleted
