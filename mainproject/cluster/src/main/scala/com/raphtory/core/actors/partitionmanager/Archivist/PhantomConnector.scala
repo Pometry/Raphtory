@@ -28,6 +28,7 @@ object Connector {
 class RaphtoryDatabase(override val connector: CassandraConnection) extends Database[RaphtoryDatabase](connector) {
 
   object vertexHistory extends VertexHistory with Connector
+  object vertexPropertyPoint extends VertexPropertyHistory with Connector
 
 
 
@@ -36,11 +37,11 @@ class RaphtoryDatabase(override val connector: CassandraConnection) extends Data
 
 object RaphtoryDB extends RaphtoryDatabase(Connector.default)
 
-case class VertexHistoryPoint (id: Long, oldestPoint: Long, value: Boolean)
+case class VertexHistoryPoint (id: Long, oldestPoint: Long, history:Map[Long, Boolean])
 
 abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
   object id extends LongColumn with PartitionKey
-  object time extends LongColumn
+  object oldestPoint extends LongColumn
   object history extends MapColumn[Long,Boolean]
 
   def saveNew(id:Long,oldestPoint:Long,history:mutable.TreeMap[Long, Boolean]) = {
@@ -60,8 +61,43 @@ abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
     s.dropRight(2) + "}"
   }
 
-  def allVertexHistory(id:Long) : Future[List[(Long, Map[Long, Boolean])]] = {
-    RaphtoryDB.vertexHistory.select(_.id,_.history).where(_.id eqs id).fetch()
+  def allVertexHistory(id:Long) : Future[List[VertexHistoryPoint]] = {
+    RaphtoryDB.vertexHistory.select.where(_.id eqs id).fetch()
+  }
+}
+
+
+
+case class VertexPropertyPoint (id: Long, name:String, oldestPoint: Long, history:Map[Long, String])
+
+abstract class VertexPropertyHistory extends Table[VertexPropertyHistory, VertexPropertyPoint] {
+  object id extends LongColumn with PartitionKey
+  object name extends StringColumn with PartitionKey
+  object oldestPoint extends LongColumn
+  object history extends MapColumn[Long,String]
+
+  def saveNew(id:Long,name:String,oldestPoint:Long,history:mutable.TreeMap[Long, String]) = {
+    session.execute(s"INSERT INTO raphtory.VertexPropertyHistory (id, name, oldestpoint, history) VALUES (${id},'$name',${oldestPoint},${createHistory(history)});")
+   //println(s"INSERT INTO raphtory.VertexPropertyHistory (id, name, oldestPoint, history) VALUES (${id},'$name',${oldestPoint},${createHistory(history)});")
+  }
+
+  def save(id:Long,name:String,history:mutable.TreeMap[Long,String]) = {
+    session.execute(s"UPDATE raphtory.vertexHistory SET history = history + ${createHistory(history)} WHERE id = $id AND name = $name;")
+  }
+
+  private def createHistory(history: mutable.TreeMap[Long, String]):String = {
+    var s = "{"
+    for((k,v) <- history){
+      println(k)
+      s = s+ s"$k : '$v', "
+    }
+    println(s.dropRight(2) + "}")
+    s.dropRight(2) + "}"
+
+  }
+
+  def allVertexHistory(id:Long) : Future[List[VertexHistoryPoint]] = {
+    RaphtoryDB.vertexHistory.select.where(_.id eqs id).fetch()
   }
 }
 
@@ -71,7 +107,7 @@ abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
  CREATE TABLE raphtory.vertexhistory ( id bigint PRIMARY KEY, oldestPoint bigint, history map<bigint,boolean> );
  CREATE INDEX history_key ON raphtory.vertexhistory ( KEYS (history) );
 
-
+ CREATE TABLE raphtory.vertexpropertyhistory ( id bigint, name ascii, oldestPoint bigint, history map<bigint,ascii>, PRIMARY KEY (id,name) );
 
 
  CREATE TABLE vertexHistory (

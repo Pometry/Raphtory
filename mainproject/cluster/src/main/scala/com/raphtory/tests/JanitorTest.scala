@@ -44,7 +44,7 @@ object JanitorTest extends App{
   vertex addAssociatedEdge new Edge(1,4,1,5,true,false)
 
   RaphtoryDB.vertexHistory.saveNew(vertex.getId,vertex.oldestPoint.get,vertex.compressAndReturnOldHistory(cutOff))
-
+  //vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyPoint.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,prop._2.compressAndReturnOldHistory(cutOff)))
 
   vertex kill(7)
   vertex revive(8)
@@ -53,9 +53,16 @@ object JanitorTest extends App{
   vertex addAssociatedEdge new Edge(1,6,1,7,true,false)
 
   RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
-  val fut = RaphtoryDB.vertexHistory.allVertexHistory(vertex.getId)
+  vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyPoint.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,prop._2.compressAndReturnOldHistory(cutOff)))
+  retrieveVertex(2)
 
-  println(fut.onComplete(f => println(f.get)))
+  def retrieveVertex(id:Long)={
+    val history = RaphtoryDB.vertexHistory.allVertexHistory(id)
+    history.onComplete(f => println(f.get))
+  }
+
+
+
 
   //    //RaphtoryDB.vertexHistory.save(i.toLong,i.toLong,true).isCompleted
  //println(System.currentTimeMillis()-time2)
