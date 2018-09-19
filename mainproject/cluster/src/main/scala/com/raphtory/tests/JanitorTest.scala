@@ -4,7 +4,12 @@ import ch.qos.logback.classic.Level
 import com.outworkers.phantom.dsl.KeySpace
 import com.raphtory.core.actors.partitionmanager.Archivist.{RaphtoryDB, VertexHistoryPoint}
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
+import com.raphtory.core.storage.EntityStorage
+import com.raphtory.core.utils.exceptions.EntityRemovedAtTimeException
 import org.slf4j.LoggerFactory
+
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 object JanitorTest extends App{
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
@@ -44,21 +49,38 @@ object JanitorTest extends App{
   vertex addAssociatedEdge new Edge(1,4,1,5,true,false)
 
   RaphtoryDB.vertexHistory.saveNew(vertex.getId,vertex.oldestPoint.get,vertex.compressAndReturnOldHistory(cutOff))
-  //vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyPoint.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,prop._2.compressAndReturnOldHistory(cutOff)))
+  vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,prop._2.compressAndReturnOldHistory(cutOff)))
 
   vertex kill(7)
   vertex revive(8)
-  vertex +(8,"prop3","dave")
-  vertex +(9,"prop3","bob")
+  vertex +(8,"prop2","dave")
+  vertex +(9,"prop","bob")
   vertex addAssociatedEdge new Edge(1,6,1,7,true,false)
 
   RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
-  vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyPoint.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,prop._2.compressAndReturnOldHistory(cutOff)))
-  retrieveVertex(2)
+  vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.save(vertex.getId,prop._1,prop._2.compressAndReturnOldHistory(cutOff)))
+  retrieveVertex(1,5)
 
-  def retrieveVertex(id:Long)={
-    val history = RaphtoryDB.vertexHistory.allVertexHistory(id)
-    history.onComplete(f => println(f.get))
+  def retrieveVertex(id:Long,time:Long)={
+
+    val x = for {
+      vertexHistory <- RaphtoryDB.vertexHistory.allVertexHistory(id)
+      vertexPropertyHistory <- RaphtoryDB.vertexPropertyHistory.allPropertyHistory(id)
+    } yield {
+      val vertex = Vertex(vertexHistory.head,time)
+      if(!vertex.previousState.head._2)
+        throw EntityRemovedAtTimeException(vertex.getId)
+      for(property <-  vertexPropertyHistory){
+        vertex.addSavedProperty(property,time)
+      }
+      vertex
+    }
+
+    x.onComplete(p => p match {
+      case Success(v)=> println(v)//EntityStorage.vertices.put(v.vertexId,v)
+      case Failure(e) => println(e) //do nothing
+    })
+
   }
 
 

@@ -28,7 +28,7 @@ object Connector {
 class RaphtoryDatabase(override val connector: CassandraConnection) extends Database[RaphtoryDatabase](connector) {
 
   object vertexHistory extends VertexHistory with Connector
-  object vertexPropertyPoint extends VertexPropertyHistory with Connector
+  object vertexPropertyHistory extends VertexPropertyHistory with Connector
 
 
 
@@ -37,6 +37,7 @@ class RaphtoryDatabase(override val connector: CassandraConnection) extends Data
 
 object RaphtoryDB extends RaphtoryDatabase(Connector.default)
 
+case class VertexPropertyPoint (id: Long, name:String, oldestPoint: Long, history:Map[Long, String])
 case class VertexHistoryPoint (id: Long, oldestPoint: Long, history:Map[Long, Boolean])
 
 abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
@@ -52,10 +53,14 @@ abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
     session.execute(s"UPDATE raphtory.vertexHistory SET history = history + ${createHistory(history)} WHERE id = $id;")
   }
 
+  def clear() = {
+    session.execute("truncate raphtory.vertexhistory ;")
+  }
+
+
   private def createHistory(history: mutable.TreeMap[Long, Boolean]):String = {
     var s = "{"
     for((k,v) <- history){
-      println(k)
       s = s+ s"$k : $v, "
     }
     s.dropRight(2) + "}"
@@ -67,8 +72,6 @@ abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
 }
 
 
-
-case class VertexPropertyPoint (id: Long, name:String, oldestPoint: Long, history:Map[Long, String])
 
 abstract class VertexPropertyHistory extends Table[VertexPropertyHistory, VertexPropertyPoint] {
   object id extends LongColumn with PartitionKey
@@ -82,22 +85,24 @@ abstract class VertexPropertyHistory extends Table[VertexPropertyHistory, Vertex
   }
 
   def save(id:Long,name:String,history:mutable.TreeMap[Long,String]) = {
-    session.execute(s"UPDATE raphtory.vertexHistory SET history = history + ${createHistory(history)} WHERE id = $id AND name = $name;")
+    session.execute(s"UPDATE raphtory.vertexPropertyHistory SET history = history + ${createHistory(history)} WHERE id = $id AND name = '$name';")
+  }
+
+  def clear() = {
+    session.execute("truncate raphtory.vertexpropertyhistory ;")
   }
 
   private def createHistory(history: mutable.TreeMap[Long, String]):String = {
     var s = "{"
     for((k,v) <- history){
-      println(k)
       s = s+ s"$k : '$v', "
     }
-    println(s.dropRight(2) + "}")
     s.dropRight(2) + "}"
 
   }
 
-  def allVertexHistory(id:Long) : Future[List[VertexHistoryPoint]] = {
-    RaphtoryDB.vertexHistory.select.where(_.id eqs id).fetch()
+  def allPropertyHistory(id:Long) : Future[List[VertexPropertyPoint]] = {
+    RaphtoryDB.vertexPropertyHistory.select.where(_.id eqs id).fetch()
   }
 }
 

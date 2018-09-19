@@ -1,5 +1,6 @@
 package com.raphtory.core.model.graphentities
 
+import com.raphtory.core.actors.partitionmanager.Archivist.{VertexHistoryPoint, VertexPropertyPoint}
 import com.raphtory.core.actors.partitionmanager.SavedVertex
 
 import scala.collection.mutable
@@ -16,6 +17,21 @@ object Vertex {
     v.associatedEdges = associatedEdges
     v.properties      = properties
     v
+  }
+
+  def apply(saved:VertexHistoryPoint,time:Long) = {
+    val id = saved.id
+    val history = saved.history
+    var closestTime:Long = 0
+    var value = false
+    for((k,v) <- history){
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
+    }
+    new Vertex(-1,closestTime,id.toInt,value,false)
   }
 
 }
@@ -51,6 +67,20 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   /*override def printProperties(): String =
     s"Vertex $vertexId with properties: \n" + super.printProperties()*/
   override def getId = vertexId
+
+  def addSavedProperty(property:VertexPropertyPoint,time:Long): Unit ={
+    val history = property.history
+    var closestTime:Long = 0
+    var value = ""
+    for((k,v) <- history){
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
+    }
+    this + (closestTime,property.name,value)
+  }
 
   override def equals(obj: scala.Any): Boolean = {
     if(obj.isInstanceOf[Vertex]){
