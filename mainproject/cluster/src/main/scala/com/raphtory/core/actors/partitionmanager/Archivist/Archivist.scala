@@ -3,7 +3,6 @@ package com.raphtory.core.actors.partitionmanager.Archivist
 import java.util.concurrent.Executors
 
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.partitionmanager.MongoFactory
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.KeyEnum
@@ -73,10 +72,8 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
   }
 
   def compressHistory(e:Entity, now : Long, past : Long) ={
-      if (e.isInstanceOf[Vertex])
-        MongoFactory.vertex2Mongo(e.asInstanceOf[Vertex],now)
-      else
-        MongoFactory.edge2Mongo(e.asInstanceOf[Edge],now)
+    //  if (e.isInstanceOf[Vertex])
+
   }
 
   def compressEnder(): Unit = {
@@ -84,7 +81,6 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     if (lockerCounter == 0) {
       canArchiveFlag = true
       lastSaved = newLastSaved
-      MongoFactory.flushBatch()
       context.system.scheduler.scheduleOnce(5.seconds, self,"archive")
     }
   }

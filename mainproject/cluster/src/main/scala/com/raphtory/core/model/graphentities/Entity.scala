@@ -73,32 +73,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
       oldestPoint.set(msgTime)
   }
 
-  def addHistory(history:List[HistoryPoint])={
-    if(history.nonEmpty) {
-      for (historyPoint <- history) {
-        if (historyPoint.value) {
-          revive(historyPoint.time)
-        }
-        else {
-          kill(historyPoint.time)
-        }
-      }
-    }
-    compressAndReturnOldHistory(System.currentTimeMillis()) //to Remove
-  }
-
-  def addProperties(savedProperties:Map[String,List[PropertyPoint]])={
-    for((key,history) <- savedProperties){
-      val head = history.head
-      val property = new Property(head.time,key,head.value)
-      for(point <- history.tail){
-        property update(point.time,point.value)
-      }
-      property.compressAndReturnOldHistory(System.currentTimeMillis()) //to Remove
-      properties put (key,property)
-    }
-  }
-
   /** *
     * override the apply method so that we can do edge/vertex("key") to easily retrieve properties
     *

@@ -1,7 +1,6 @@
 package com.raphtory.core.model.graphentities
 
 import com.raphtory.core.actors.partitionmanager.Archivist.{VertexHistoryPoint, VertexPropertyPoint}
-import com.raphtory.core.actors.partitionmanager.SavedVertex
 
 import scala.collection.mutable
 import scala.collection.parallel.ParSet

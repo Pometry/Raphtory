@@ -4,7 +4,6 @@ import java.util.NoSuchElementException
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.partitionmanager.MongoFactory
 
 import scala.collection.concurrent.TrieMap
 import com.raphtory.core.model.communication._
@@ -319,56 +318,56 @@ object EntityStorage {
   }
 
 
-  def retrieveEdge(id:Long):Edge = {
-    val srcId = Utils.getIndexHI(id)
-    val dstId = Utils.getIndexLO(id)
-    val savedEdge = MongoFactory.retrieveEdge(id)
+//  def retrieveEdge(id:Long):Edge = {
+//    val srcId = Utils.getIndexHI(id)
+//    val dstId = Utils.getIndexLO(id)
+//    val savedEdge = MongoFactory.retrieveEdge(id)
+//
+//    val history = savedEdge.history
+//    val head = history.head
+//    if (checkDst(dstId, managerCount, managerID)) {
+//      val edge = new Edge(-1, head.time, srcId, dstId, initialValue = head.value, addOnlyEdge)
+//      edge.addHistory(history.tail)
+//      savedEdge.properties match {
+//        case Some(properties) => edge.addProperties(properties)
+//        case None =>
+//      }
+//      edge
+//    }
+//    else {
+//      val edge = new RemoteEdge(-1, head.time, srcId, dstId, initialValue = head.value, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+//      edge.addHistory(history.tail)
+//      savedEdge.properties match {
+//        case Some(properties) => edge.addProperties(properties)
+//        case None =>
+//      }
+//      edge
+//    }
+//  }
 
-    val history = savedEdge.history
-    val head = history.head
-    if (checkDst(dstId, managerCount, managerID)) {
-      val edge = new Edge(-1, head.time, srcId, dstId, initialValue = head.value, addOnlyEdge)
-      edge.addHistory(history.tail)
-      savedEdge.properties match {
-        case Some(properties) => edge.addProperties(properties)
-        case None =>
-      }
-      edge
-    }
-    else {
-      val edge = new RemoteEdge(-1, head.time, srcId, dstId, initialValue = head.value, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
-      edge.addHistory(history.tail)
-      savedEdge.properties match {
-        case Some(properties) => edge.addProperties(properties)
-        case None =>
-      }
-      edge
-    }
-  }
-
-  def retrieveVertex(id:Int):Vertex = {
-    val savedVertex = MongoFactory.retrieveVertex(id)
-    val history = savedVertex.history
-    val head = history.head
-    println(savedVertex)
-    val vertex = new Vertex(-1,head.time,id,head.value,addOnlyVertex)
-    vertex.addHistory(history.tail)
-    savedVertex.properties match {
-      case Some(properties) => vertex.addProperties(properties)
-      case None => {}
-    }
-    savedVertex.associatedEdges match {
-      case Some(associatedEdges) => {
-        for(edgeID <- associatedEdges){
-          println(edgeID)
-          vertex.addAssociatedEdge(retrieveEdge(edgeID))
-        }
-      }
-      case None => {}
-    }
-
-    vertex
-  }
+//  def retrieveVertex(id:Int):Vertex = {
+//    val savedVertex = MongoFactory.retrieveVertex(id)
+//    val history = savedVertex.history
+//    val head = history.head
+//    println(savedVertex)
+//    val vertex = new Vertex(-1,head.time,id,head.value,addOnlyVertex)
+//    vertex.addHistory(history.tail)
+//    savedVertex.properties match {
+//      case Some(properties) => vertex.addProperties(properties)
+//      case None => {}
+//    }
+//    savedVertex.associatedEdges match {
+//      case Some(associatedEdges) => {
+//        for(edgeID <- associatedEdges){
+//          println(edgeID)
+//          vertex.addAssociatedEdge(retrieveEdge(edgeID))
+//        }
+//      }
+//      case None => {}
+//    }
+//
+//    vertex
+//  }
 
   def compareMemoryToSaved() ={
     vertices.foreach(pair=>{
