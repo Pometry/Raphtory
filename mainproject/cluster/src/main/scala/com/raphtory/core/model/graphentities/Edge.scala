@@ -1,5 +1,6 @@
 package com.raphtory.core.model.graphentities
 
+import com.raphtory.core.actors.partitionmanager.Archivist.{EdgeHistoryPoint}
 import com.raphtory.core.utils.Utils
 
 import scala.collection.concurrent.TrieMap
@@ -20,6 +21,22 @@ object Edge {
     e.previousState   = previousState
     e.properties      = properties
     e
+  }
+
+  def apply(saved:EdgeHistoryPoint, time:Long) = {
+    val src = saved.src
+    val dst = saved.dst
+    val history = saved.history
+    var closestTime:Long = 0
+    var value = false
+    for((k,v) <- history){
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
+    }
+    new Edge(-1,closestTime,src,dst,value,false)
   }
 }
 

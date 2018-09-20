@@ -19,7 +19,9 @@ object JanitorTest extends App{
   val timeWindowMils = timeWindow * 1000
   import scala.concurrent.ExecutionContext.Implicits.global
 
-
+  RaphtoryDB.vertexHistory.createTable()
+  RaphtoryDB.edgeHistory.createTable()
+  RaphtoryDB.vertexPropertyHistory.createTable()
 
   val vertex = new Vertex(1,1,1,true,false)
   vertex revive(2)
@@ -49,6 +51,10 @@ object JanitorTest extends App{
   vertex addAssociatedEdge new Edge(1,4,1,5,true,false)
 
   RaphtoryDB.vertexHistory.saveNew(vertex.getId,vertex.oldestPoint.get,vertex.compressAndReturnOldHistory(cutOff))
+  for(edge <- vertex.associatedEdges){
+    RaphtoryDB.edgeHistory.saveNew(edge.getSrcId,edge.getDstId,edge.oldestPoint.get,edge.compressAndReturnOldHistory(cutOff))
+  }
+
   vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,prop._2.compressAndReturnOldHistory(cutOff)))
 
   vertex kill(7)
@@ -59,19 +65,23 @@ object JanitorTest extends App{
 
   RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
   vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.save(vertex.getId,prop._1,prop._2.compressAndReturnOldHistory(cutOff)))
-  retrieveVertex(1,5)
+  retrieveVertex(1,6)
 
   def retrieveVertex(id:Long,time:Long)={
 
     val x = for {
       vertexHistory <- RaphtoryDB.vertexHistory.allVertexHistory(id)
       vertexPropertyHistory <- RaphtoryDB.vertexPropertyHistory.allPropertyHistory(id)
+      edgehistory <- RaphtoryDB.edgeHistory.allOutgoingHistory(id.toInt)
     } yield {
       val vertex = Vertex(vertexHistory.head,time)
       if(!vertex.previousState.head._2)
         throw EntityRemovedAtTimeException(vertex.getId)
       for(property <-  vertexPropertyHistory){
         vertex.addSavedProperty(property,time)
+      }
+      for(edgepoint <- edgehistory){
+        vertex.addAssociatedEdge(Edge(edgepoint,time))
       }
       vertex
     }
