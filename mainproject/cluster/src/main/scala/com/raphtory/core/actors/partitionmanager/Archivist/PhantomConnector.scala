@@ -121,7 +121,10 @@ abstract class EdgeHistory extends Table[EdgeHistory, EdgeHistoryPoint] {
     session.execute(s"UPDATE raphtory.edgeHistory SET history = history + ${Utils.createHistory(history)} WHERE src = $src AND dst = $dst;")
   }
   def createTable() = {
-    try{session.execute("CREATE TABLE raphtory.edgehistory ( src int, dst int, oldestPoint bigint, remote boolean, history map<bigint,boolean>, PRIMARY KEY (src,dst));")}
+    try{
+      session.execute("CREATE TABLE raphtory.edgehistory ( src int, dst int, oldestPoint bigint, remote boolean, history map<bigint,boolean>, PRIMARY KEY (src,dst));")
+      session.execute("create index on raphtory.edgehistory(dst);")
+    }
     catch {case e:com.datastax.driver.core.exceptions.AlreadyExistsException => println("edgeHistory already exists")}
   }
   def clear() = {
@@ -142,37 +145,51 @@ abstract class EdgeHistory extends Table[EdgeHistory, EdgeHistoryPoint] {
 
 
 abstract class EdgePropertyHistory extends Table[EdgePropertyHistory, EdgePropertyPoint] {
-  object src extends IntColumn with PartitionKey
-  object dst extends IntColumn with PartitionKey
-  object name extends StringColumn with PartitionKey
-  object oldestPoint extends LongColumn
-  object remote extends BooleanColumn
-  object history extends MapColumn[Long,String]
 
-  def saveNew(src:Int,dst:Int,name:String,oldestPoint:Long,remote:Boolean,history:mutable.TreeMap[Long, String]) = {
+  object src extends IntColumn with PartitionKey
+
+  object dst extends IntColumn with PartitionKey
+
+  object name extends StringColumn with PartitionKey
+
+  object oldestPoint extends LongColumn
+
+  object remote extends BooleanColumn
+
+  object history extends MapColumn[Long, String]
+
+  def saveNew(src: Int, dst: Int, name: String, oldestPoint: Long, remote: Boolean, history: mutable.TreeMap[Long, String]) = {
     session.execute(s"INSERT INTO raphtory.EdgePropertyHistory (src, dst, name, oldestpoint,remote, history) VALUES (${src},$dst,'$name',${oldestPoint},$remote,${Utils.createPropHistory(history)});")
   }
 
-  def save(src:Int,dst:Int,name:String,history:mutable.TreeMap[Long,String]) = {
+  def save(src: Int, dst: Int, name: String, history: mutable.TreeMap[Long, String]) = {
     session.execute(s"UPDATE raphtory.EdgePropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE src = $src AND dst = $dst AND name = '$name';")
   }
 
   def createTable() = {
-    try{session.execute(" CREATE TABLE raphtory.EdgePropertyHistory ( src int, dst int, name ascii, oldestPoint bigint, remote boolean, history map<bigint,ascii>, PRIMARY KEY (src,dst,name) );")}
-    catch {case e:com.datastax.driver.core.exceptions.AlreadyExistsException => println("EdgePropertyHistory already exists")}
+    try {
+      session.execute(" CREATE TABLE raphtory.EdgePropertyHistory ( src int, dst int, name ascii, oldestPoint bigint, remote boolean, history map<bigint,ascii>, PRIMARY KEY (src,dst,name) );")
+      session.execute("create index on raphtory.EdgePropertyHistory(dst);")
+    }
+    catch {
+      case e: com.datastax.driver.core.exceptions.AlreadyExistsException => println("EdgePropertyHistory already exists")
+    }
   }
+
   def clear() = {
     session.execute("truncate raphtory.EdgePropertyHistory ;")
   }
 
-  def allOutgoingHistory(src:Int) : Future[List[EdgePropertyPoint]] = {
+  def allOutgoingHistory(src: Int): Future[List[EdgePropertyPoint]] = {
     RaphtoryDB.edgePropertyHistory.select.where(_.src eqs src).fetch()
   }
-  def allIncomingHistory(dst:Int) : Future[List[EdgePropertyPoint]] = {
+
+  def allIncomingHistory(dst: Int): Future[List[EdgePropertyPoint]] = {
     RaphtoryDB.edgePropertyHistory.select.where(_.dst eqs dst).fetch()
   }
-}
 
+
+}
 
 /*
  create keyspace raphtory with replication = {'class':'SimpleStrategy','replication_factor':1}; use raphtory;
