@@ -58,17 +58,17 @@ class RandomSpout extends SpoutTrait {
   }
 
   def genVertexAdd():String={
-    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}, ${genProperties(2,true)}}}"""
+    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}, ${genProperties(2)}}}"""
   }
   def genVertexAdd(src:Int):String={ //overloaded method if you want to specify src ID
-    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID(src)}, ${genProperties(2,true)}}}"""
+    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID(src)}, ${genProperties(2)}}}"""
   }
 
   def genVertexUpdateProperties():String={
     s""" {"VertexUpdateProperties":{${getMessageID()}, ${genSrcID(1)}}}"""
   }
   def genVertexUpdateProperties(src:Int):String={ //overloaded to mass src
-    s""" {"VertexUpdateProperties":{${getMessageID()}, ${genSrcID(src)}, ${genProperties(2,true)}}}"""
+    s""" {"VertexUpdateProperties":{${getMessageID()}, ${genSrcID(src)}, ${genProperties(2)}}}"""
   }
 
   def genVertexRemoval():String={
@@ -87,10 +87,10 @@ class RandomSpout extends SpoutTrait {
   }
 
   def genEdgeUpdateProperties():String={
-    s""" {"EdgeUpdateProperties":{${getMessageID()}, ${genSrcID()}, ${genDstID()}}}"""
+    s""" {"EdgeUpdateProperties":{${getMessageID()}, ${genSrcID()}, ${genDstID()}, ${genProperties(2)}}}"""
   }
   def genEdgeUpdateProperties(src:Int,dst:Int):String={
-    s""" {"EdgeUpdateProperties":{${getMessageID()}, ${genSrcID(src)}, ${genDstID(dst)}, ${genProperties(2,true)}}}"""
+    s""" {"EdgeUpdateProperties":{${getMessageID()}, ${genSrcID(src)}, ${genDstID(dst)}, ${genProperties(2)}}}"""
   }
 
   def genEdgeRemoval():String={
@@ -111,15 +111,16 @@ class RandomSpout extends SpoutTrait {
 
   def getMessageID():String = s""" "messageID":${System.currentTimeMillis()} """
 
-  def genProperties(numOfProps:Int,randomProps:Boolean):String ={
+  def genProperties(numOfProps:Int):String ={
     var properties = "\"properties\":{"
     for(i <- 1 to numOfProps){
-      val propnum = {if(randomProps) Random.nextInt(2) else i}
-      if(i<numOfProps) properties = properties + s""" "property$propnum":${Random.nextInt()}, """
-      else properties = properties + s""" "property$propnum":${Random.nextInt()} }"""
+      val propnum = i
+      if(i<numOfProps) properties = properties + s""" "property$propnum":${Random.alphanumeric.take(10).mkString}, """
+      else properties = properties + s""" "property$propnum":${Random.alphanumeric.take(10).mkString} }"""
     }
     properties
   }
+
 
   def running() : Unit = {
     genRandomCommands(totalCount)

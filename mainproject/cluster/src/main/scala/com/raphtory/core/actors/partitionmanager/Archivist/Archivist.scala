@@ -6,6 +6,7 @@ import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
 import com.raphtory.core.storage.{EntityStorage, RaphtoryDB}
 import com.raphtory.core.utils.KeyEnum
+import com.raphtory.tests.JanitorTest.cutOff
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.Scheduler
@@ -21,19 +22,15 @@ import scala.concurrent.duration._
 //TODO implement temporal/spacial profiles (future)
 //TODO join historian to cluster
 
-class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) extends RaphtoryActor {
+class Archivist(maximumMem:Double) extends RaphtoryActor {
 
 //  val temporalMode = true //flag denoting if storage should focus on keeping more entities in memory or more history
   val runtime = Runtime.getRuntime
-
-  val maximumHistoryMils = maximumHistory * 60000 //set in minutes
-  val compressionWindowMils = compressionWindow * 1000 //set in seconds
 
   var lastSaved : Long = 0
   var newLastSaved : Long = 0
   var canArchiveFlag = false
   var lockerCounter = 0
-
   lazy val maxThreads = 12
 
   lazy implicit val scheduler = {
@@ -50,9 +47,19 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     case "archive"=> archive()
   }
 
-
+  var compressionPercent = 50
+  var archivePercentage = 10
   //COMPRESSION BLOCK
-  def cutOff = System.currentTimeMillis() - compressionWindowMils
+  def toCompress(newestPoint:Long,oldestPoint:Long):Long =  ((newestPoint-oldestPoint) / (100f - compressionPercent)).asInstanceOf[Long]
+  def cutOff = {
+    val oldestPoint = EntityStorage.oldestTime
+    val newestPoint = EntityStorage.newestTime
+    if(oldestPoint != Long.MaxValue)
+      oldestPoint + toCompress(newestPoint,oldestPoint) //oldestpoint + halfway to the newest point == always keep half of in memory stuff compressed
+    else
+      newestPoint
+  }
+
   def compressGraph() : Unit = {
     if (lockerCounter > 0)
       return
@@ -64,28 +71,31 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     Task.eval(compressVertices(EntityStorage.vertices)).runAsync.onComplete(_ => compressEnder())
   }
 
-  def compressEdges(map:ParTrieMap[Long,Edge]) = {
+
+  def compressEdges(map : ParTrieMap[Long, Edge]) = {
     val now = newLastSaved
     val past = lastSaved
-    map.foreach(e => saveEdge(e._2))
+    for((k,v) <- map) saveEdge(v,now)
   }
-  def compressVertices(map:ParTrieMap[Int,Vertex]) = {
+
+  def compressVertices(map : ParTrieMap[Int, Vertex]) = {
     val now = newLastSaved
     val past = lastSaved
-    map.foreach(v => saveVertex(v._2))
+    for((k,v) <- map) saveVertex(v,now)
   }
+
 
   def compressEnder(): Unit = {
     lockerCounter -= 1
     if (lockerCounter == 0) {
       canArchiveFlag = true
       lastSaved = newLastSaved
+      EntityStorage.lastCompressedAt = lastSaved
       context.system.scheduler.scheduleOnce(5.seconds, self,"archive")
     }
   }
 
-
-  def saveVertex(vertex:Vertex) = {
+  def saveVertex(vertex:Vertex,cutOff:Long) = {
     if(vertex.beenSaved()) {
       RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
       vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.save(vertex.getId,prop._1,prop._2.compressAndReturnOldHistory(cutOff)))
@@ -96,7 +106,8 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     }
   }
 
-  def saveEdge(edge:Edge) ={
+
+  def saveEdge(edge:Edge,cutOff:Long) ={
     if(edge.beenSaved()) {
       RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, edge.compressAndReturnOldHistory(cutOff))
       edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.save(edge.getSrcId,edge.getDstId,property._1,property._2.compressAndReturnOldHistory(cutOff)))
@@ -115,10 +126,26 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
 
 
 
-
   //END COMPRESSION BLOCK
 
   //ARCHIVING BLOCK
+
+  def archive() : Unit ={
+    println("Try to archive")
+    if (!canArchiveFlag)
+      return
+    println("Archiving")
+    if(!spaceForExtraHistory) {
+      for (e <- EntityStorage.edges) {
+        checkMaximumHistory(e._2, KeyEnum.edges)
+        for (e <- EntityStorage.vertices) {
+          checkMaximumHistory(e._2, KeyEnum.vertices)
+        }
+      }
+    }
+    context.system.scheduler.scheduleOnce(5.seconds, self,"compress")
+  }
+
   def spaceForExtraHistory = if((runtime.freeMemory/runtime.totalMemory()) < (1-maximumMem)) true else false //check if used memory less than set maximum
 
   def checkMaximumHistory(e:Entity, et : KeyEnum.Value) = {
@@ -136,23 +163,7 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
       }
   }
 
-  def archive() : Unit ={
-    println("Try to archive")
-    if (!canArchiveFlag)
-      return
-    println("Archiving")
-    if(!spaceForExtraHistory) { //first check edges
-      for (e <- EntityStorage.edges){
-        checkMaximumHistory(e._2, KeyEnum.edges)
-      }
-    }
-    if(!spaceForExtraHistory) { //then check vertices
-      for (e <- EntityStorage.vertices){
-        checkMaximumHistory(e._2, KeyEnum.vertices)
-      }
-    }
-    context.system.scheduler.scheduleOnce(5.seconds, self,"compress")
-  }
+
 
 
 
