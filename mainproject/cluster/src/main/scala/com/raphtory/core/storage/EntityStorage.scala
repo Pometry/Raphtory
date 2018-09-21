@@ -107,7 +107,7 @@ object EntityStorage {
       }
     }
 
-    vertex.associatedEdges.foreach(e => {
+    vertex.associatedEdges.values.foreach(e => {
       e kill msgTime
       try {
         val ee = e.asInstanceOf[RemoteEdge]

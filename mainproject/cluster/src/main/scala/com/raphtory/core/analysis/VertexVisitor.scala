@@ -21,7 +21,7 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
   def getNeighborsProp(key : String) : Vector[String] = {
     var values = Vector.empty[String]
     getNeighbors.foreach(e => {
-      values :+= e.getPropertyCurrentValue(key).get
+      values :+= e._2.getPropertyCurrentValue(key).get
     })
     values
   }
@@ -33,11 +33,11 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
   }
 
   def getOutgoingNeighbors : ParArray[Int] =
-    v.associatedEdges.filter(e => e.getSrcId == v.getId).map(e => e.getDstId).toParArray
+    v.associatedEdges.values.filter(e => e.getSrcId == v.getId).map(e => e.getDstId).toParArray
 
 
   def getIngoingNeighbors  : ParArray[Int] =
-    v.associatedEdges.filter(e => e.getDstId == v.getId).map(e => e.getSrcId).toParArray
+    v.associatedEdges.values.filter(e => e.getDstId == v.getId).map(e => e.getSrcId).toParArray
 
   def getPropertyCurrentValue(key : String) : Option[String] =
     v.properties.get(key) match {
@@ -70,7 +70,7 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
   private def outgoingEdgeFilter(dstId : Int, edgeId : Long) : Boolean = edgeFilter(v.getId.toInt, dstId, edgeId)
   private def ingoingEdgeFilter(srcId : Int, edgeId : Long) : Boolean = edgeFilter(srcId, v.getId.toInt, edgeId)
 
-  private def getNeighbor(f: Long => Boolean) : Option[Edge] = v.associatedEdges.find(e => f(e.getId))
+  private def getNeighbor(f: Long => Boolean) : Option[Edge] = v.associatedEdges.values.find(e => f(e.getId))
   private def getOutgoingNeighbor(vId : Int) = getNeighbor(e => outgoingEdgeFilter(vId, e))
   private def getIngoingNeighbor(vId : Int) = getNeighbor(e => ingoingEdgeFilter(vId, e))
 

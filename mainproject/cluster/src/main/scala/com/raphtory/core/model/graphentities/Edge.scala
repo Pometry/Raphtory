@@ -1,7 +1,8 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.actors.partitionmanager.Archivist.{EdgeHistoryPoint}
+import com.raphtory.core.actors.partitionmanager.Archivist.{EdgeHistoryPoint, EdgePropertyPoint, VertexPropertyPoint}
 import com.raphtory.core.utils.Utils
+import com.raphtory.core.utils.exceptions.EntityRemovedAtTimeException
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -35,6 +36,9 @@ object Edge {
           closestTime = k
           value = v
         }
+    }
+    if(!value){
+      throw EntityRemovedAtTimeException(Utils.getEdgeIndex(src,dst))
     }
     new Edge(-1,closestTime,src,dst,value,false)
   }
@@ -70,6 +74,20 @@ class Edge(routerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Bo
       }
     }
     false
+  }
+
+  def addSavedProperty(property:EdgePropertyPoint, time:Long): Unit ={
+    val history = property.history
+    var closestTime:Long = 0
+    var value = ""
+    for((k,v) <- history){
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
+    }
+    this + (closestTime,property.name,value)
   }
 
   override def toString: String = {

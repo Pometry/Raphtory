@@ -3,13 +3,13 @@ package com.raphtory.core.storage.controller
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.VertexVisitor
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
-import com.raphtory.core.storage.{MemoryConnector, ReaderConnector, RedisConnector}
+import com.raphtory.core.storage.{MemoryConnector, ReaderConnector}//, RedisConnector}
 import com.raphtory.core.utils.KeyEnum
 
 import scala.collection.parallel.ParSet
 object GraphRepoProxy {
 
-  private val connectors : Array[ReaderConnector] = Array(MemoryConnector, RedisConnector)
+  private val connectors : Array[ReaderConnector] = Array(MemoryConnector)//, RedisConnector)
 
   private var edgesSet : ParSet[Long] = ParSet[Long]()
   private var verticesSet : ParSet[Long] = ParSet[Long]()

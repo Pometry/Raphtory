@@ -10,7 +10,7 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Vertex object (extended creator for storage loads)
   */
 object Vertex {
-  def apply(routerID:Int, creationTime : Long, vertexId : Int, associatedEdges : ParSet[Edge], previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property]) = {
+  def apply(routerID:Int, creationTime : Long, vertexId : Int, associatedEdges : ParTrieMap[Long, Edge], previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property]) = {
     val v = new Vertex(routerID,creationTime, vertexId, initialValue = true, addOnly = false)
     v.previousState   = previousState
     v.associatedEdges = associatedEdges
@@ -47,20 +47,10 @@ object Vertex {
 class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolean, addOnly:Boolean)
     extends Entity(routerID,msgTime, initialValue,addOnly) {
 
-  var associatedEdges = ParSet[Edge]()
-  var newAssociatedEdges = ParSet[Edge]()
-  val edges    = ParTrieMap[Long, Edge]()
+  var associatedEdges    = ParTrieMap[Long, Edge]()
 
   def addAssociatedEdge(edge: Edge): Unit = {
-    edges.put(edge.getId,edge)
-    associatedEdges += edge
-    newAssociatedEdges += edge
-  }
-
-  def getNewAssociatedEdges():ParSet[Edge] ={
-    val temp = newAssociatedEdges
-    newAssociatedEdges = ParSet[Edge]()
-    temp
+    associatedEdges.put(edge.getId,edge)
   }
 
   /*override def printProperties(): String =
@@ -117,10 +107,10 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
         false
       }
 
-      else if(!(edges.equals(v2.edges))){
+      else if(!(associatedEdges.equals(v2.associatedEdges))){
         println("associated edges incorrect:")
-        println(edges)
-        println(v2.edges)
+        println(associatedEdges)
+        println(v2.associatedEdges)
         false
       }
       else true

@@ -69,7 +69,7 @@ private object MemoryConnector extends ReaderConnector {
     }
   }
 
-  override def getAssociatedEdges(entityId: Long): ParSet[Edge] = {
+  override def getAssociatedEdges(entityId: Long): ParTrieMap[Long, Edge] = {
     vertices(entityId.toInt).associatedEdges
   }
 
