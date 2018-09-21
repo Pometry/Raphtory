@@ -46,6 +46,15 @@ object EntityStorage {
   var addOnlyEdge      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_EDGE", "false").trim.toBoolean
   var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
 
+  //stuff for compression and archiving
+  var oldestTime:Long = Long.MaxValue
+  var newestTime:Long = Long.MinValue
+  var lastCompressedAt:Long = 0
+
+  def timings(updateTime:Long) ={
+    if (updateTime < oldestTime) oldestTime=updateTime
+    if(updateTime > newestTime) newestTime = updateTime //this isn't thread safe, but is only an approx for the archiving
+  }
 
   def apply(printing : Boolean, managerCount : Int, managerID : Int, mediator : ActorRef) = {
     this.printing     = printing
