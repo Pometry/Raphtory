@@ -4,7 +4,7 @@ import java.util.concurrent.Executors
 
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
-import com.raphtory.core.storage.EntityStorage
+import com.raphtory.core.storage.{EntityStorage, RaphtoryDB}
 import com.raphtory.core.utils.KeyEnum
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
@@ -56,24 +56,23 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
   def compressGraph() : Unit = {
     if (lockerCounter > 0)
       return
-
     newLastSaved   = cutOff
     canArchiveFlag = false
     println("Compressing")
     lockerCounter += 2
-    Task.eval(compressJob[Long, Edge](EntityStorage.edges)).runAsync.onComplete(_ => compressEnder())
-    Task.eval(compressJob[Int, Vertex](EntityStorage.vertices)).runAsync.onComplete(_ => compressEnder())
+    Task.eval(compressEdges(EntityStorage.edges)).runAsync.onComplete(_ => compressEnder())
+    Task.eval(compressVertices(EntityStorage.vertices)).runAsync.onComplete(_ => compressEnder())
   }
 
-  def compressJob[T <: AnyVal, U <: Entity](map : ParTrieMap[T, U]) = {
+  def compressEdges(map:ParTrieMap[Long,Edge]) = {
     val now = newLastSaved
     val past = lastSaved
-    for((k,v) <- map) compressHistory(v,now,past)
+    map.foreach(e => saveEdge(e._2))
   }
-
-  def compressHistory(e:Entity, now : Long, past : Long) ={
-    //  if (e.isInstanceOf[Vertex])
-
+  def compressVertices(map:ParTrieMap[Int,Vertex]) = {
+    val now = newLastSaved
+    val past = lastSaved
+    map.foreach(v => saveVertex(v._2))
   }
 
   def compressEnder(): Unit = {
@@ -84,6 +83,39 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
       context.system.scheduler.scheduleOnce(5.seconds, self,"archive")
     }
   }
+
+
+  def saveVertex(vertex:Vertex) = {
+    if(vertex.beenSaved()) {
+      RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
+      vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.save(vertex.getId,prop._1,prop._2.compressAndReturnOldHistory(cutOff)))
+    }
+    else {
+      RaphtoryDB.vertexHistory.saveNew(vertex.getId,vertex.oldestPoint.get,vertex.compressAndReturnOldHistory(cutOff))
+      vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,prop._2.compressAndReturnOldHistory(cutOff)))
+    }
+  }
+
+  def saveEdge(edge:Edge) ={
+    if(edge.beenSaved()) {
+      RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, edge.compressAndReturnOldHistory(cutOff))
+      edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.save(edge.getSrcId,edge.getDstId,property._1,property._2.compressAndReturnOldHistory(cutOff)))
+
+    }
+    else {
+      RaphtoryDB.edgeHistory.saveNew(edge.getSrcId, edge.getDstId, edge.oldestPoint.get, false, edge.compressAndReturnOldHistory(cutOff))
+      edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.saveNew(edge.getSrcId, edge.getDstId, property._1, edge.oldestPoint.get, false, property._2.compressAndReturnOldHistory(cutOff)))
+    }
+  }
+
+
+
+
+
+
+
+
+
   //END COMPRESSION BLOCK
 
   //ARCHIVING BLOCK
@@ -121,6 +153,9 @@ class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) ex
     }
     context.system.scheduler.scheduleOnce(5.seconds, self,"compress")
   }
+
+
+
 
 }
 
