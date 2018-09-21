@@ -1,15 +1,16 @@
-package com.raphtory.core.actors.partitionmanager.Archivist
+package com.raphtory.core.storage
+
 import com.datastax.driver.core.SocketOptions
-import com.outworkers.phantom.builder.query.RootSelectBlock
 import com.outworkers.phantom.connectors.CassandraConnection
-import com.outworkers.phantom.database.{Database, DatabaseProvider}
+import com.outworkers.phantom.database.Database
 import com.outworkers.phantom.dsl._
-import com.raphtory.core.model.graphentities.Vertex
-import com.raphtory.core.utils.{HistoryOrdering, Utils}
+import com.raphtory.core.model.graphentities.{Edge, Vertex}
+import com.raphtory.core.utils.Utils
+import com.raphtory.core.utils.exceptions.EntityRemovedAtTimeException
 
 import scala.collection.mutable
-import scala.collection.mutable.TreeMap
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 private object Connector {
   val default: CassandraConnection = ContactPoint.local
@@ -36,7 +37,73 @@ class RaphtoryDatabase(override val connector: CassandraConnection) extends Data
 }
 //bject RaphtoryDatabase extends Database(Connector.default)
 
-object RaphtoryDB extends RaphtoryDatabase(Connector.default)
+object RaphtoryDB extends RaphtoryDatabase(Connector.default){
+
+  def clearDB() ={
+    RaphtoryDB.vertexHistory.clear()
+    RaphtoryDB.edgeHistory.clear()
+    RaphtoryDB.vertexPropertyHistory.clear()
+    RaphtoryDB.edgePropertyHistory.clear()
+  }
+  def createDB() = {
+    RaphtoryDB.vertexHistory.createKeySpace()
+    RaphtoryDB.vertexHistory.createTable()
+    RaphtoryDB.edgeHistory.createTable()
+    RaphtoryDB.vertexPropertyHistory.createTable()
+    RaphtoryDB.edgePropertyHistory.createTable()
+  }
+
+  def retrieveVertex(id:Long,time:Long)={
+
+    val x = for {
+      vertexHistory <- RaphtoryDB.vertexHistory.allVertexHistory(id)
+      vertexPropertyHistory <- RaphtoryDB.vertexPropertyHistory.allPropertyHistory(id)
+      incomingedgehistory <- RaphtoryDB.edgeHistory.allIncomingHistory(id.toInt)
+      incomingedgePropertyHistory <- RaphtoryDB.edgePropertyHistory.allIncomingHistory(id.toInt)
+      outgoingedgehistory <- RaphtoryDB.edgeHistory.allOutgoingHistory(id.toInt)
+      outgoingedgePropertyHistory <- RaphtoryDB.edgePropertyHistory.allOutgoingHistory(id.toInt)
+    } yield {
+      val vertex = Vertex(vertexHistory.head,time)
+      if(!vertex.previousState.head._2)
+        throw EntityRemovedAtTimeException(vertex.getId)
+      for(property <-  vertexPropertyHistory){
+        vertex.addSavedProperty(property,time)
+      }
+      for(edgepoint <- incomingedgehistory){
+        try{vertex.addAssociatedEdge(Edge(edgepoint,time))}
+        catch {case e:EntityRemovedAtTimeException => println(edgepoint.dst + "bust") } // edge was not alive at this point in time
+      }
+      for(edgepropertypoint <- incomingedgePropertyHistory){
+        vertex.associatedEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
+          case Some(edge) =>edge.addSavedProperty(edgepropertypoint,time)
+          case None => //it was false at given point in time
+        }
+      }
+      for(edgepoint <- outgoingedgehistory){
+        try{vertex.addAssociatedEdge(Edge(edgepoint,time))}
+        catch {case e:EntityRemovedAtTimeException => println(edgepoint.dst + "bust") } // edge was not alive at this point in time
+      }
+      for(edgepropertypoint <- outgoingedgePropertyHistory){
+        vertex.associatedEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
+          case Some(edge) =>edge.addSavedProperty(edgepropertypoint,time)
+          case None => //it was false at given point in time
+        }
+      }
+      vertex
+    }
+
+    x.onComplete(p => p match {
+      case Success(v)=> println(v)//EntityStorage.vertices.put(v.vertexId,v)
+      case Failure(e) => println(e) //do nothing
+    })
+
+  }
+
+
+}
+
+
+
 
 case class VertexPropertyPoint (id: Long, name:String, oldestPoint: Long, history:Map[Long, String])
 case class VertexHistoryPoint (id: Long, oldestPoint: Long, history:Map[Long, Boolean])
@@ -55,6 +122,11 @@ abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
   def save(id:Long,history:mutable.TreeMap[Long,Boolean]) = {
     session.execute(s"UPDATE raphtory.vertexHistory SET history = history + ${createHistory(history)} WHERE id = $id;")
   }
+  def createKeySpace() = {
+   try{session.execute("create keyspace raphtory with replication = {'class':'SimpleStrategy','replication_factor':1};")}
+   catch {case e:com.datastax.driver.core.exceptions.AlreadyExistsException => println("Keyspace already exists")}
+  }
+
   def createTable() = {
     try{session.execute("CREATE TABLE raphtory.vertexhistory ( id bigint PRIMARY KEY, oldestPoint bigint, history map<bigint,boolean> );")}
     catch {case e:com.datastax.driver.core.exceptions.AlreadyExistsException => println("vertexHistory already exists")}
@@ -105,6 +177,12 @@ abstract class VertexPropertyHistory extends Table[VertexPropertyHistory, Vertex
     RaphtoryDB.vertexPropertyHistory.select.where(_.id eqs id).fetch()
   }
 }
+
+
+
+
+
+
 
 abstract class EdgeHistory extends Table[EdgeHistory, EdgeHistoryPoint] {
   object src extends IntColumn with PartitionKey
@@ -190,25 +268,3 @@ abstract class EdgePropertyHistory extends Table[EdgePropertyHistory, EdgeProper
 
 
 }
-
-/*
- create keyspace raphtory with replication = {'class':'SimpleStrategy','replication_factor':1}; use raphtory;
- CREATE TABLE raphtory.vertexhistory ( id bigint PRIMARY KEY, oldestPoint bigint, history map<bigint,boolean> );
- CREATE INDEX history_key ON raphtory.vertexhistory ( KEYS (history) );
-
- CREATE TABLE raphtory.vertexpropertyhistory ( id bigint, name ascii, oldestPoint bigint, history map<bigint,ascii>, PRIMARY KEY (id,name) );
-
-
- CREATE TABLE vertexHistory (
-id bigint,
-time bigint,
-value boolean,
-PRIMARY KEY (id, time)
-)
-
-INSERT INTO raphtory.vertexHistory (id, time, value)
-  VALUES (1, 1,true)
-
-INSERT INTO raphtory.vertexHistory (id, time, value)
-  VALUES (1, 2,false)
-* */

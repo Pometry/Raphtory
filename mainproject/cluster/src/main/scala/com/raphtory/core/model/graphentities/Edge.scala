@@ -1,6 +1,6 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.actors.partitionmanager.Archivist.{EdgeHistoryPoint, EdgePropertyPoint, VertexPropertyPoint}
+import com.raphtory.core.storage.{EdgeHistoryPoint, EdgePropertyPoint}
 import com.raphtory.core.utils.Utils
 import com.raphtory.core.utils.exceptions.EntityRemovedAtTimeException
 

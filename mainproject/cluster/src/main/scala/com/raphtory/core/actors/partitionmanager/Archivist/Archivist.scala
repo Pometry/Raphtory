@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 
 class Archivist(maximumHistory:Int, compressionWindow:Int, maximumMem:Double) extends RaphtoryActor {
 
-  val temporalMode = true //flag denoting if storage should focus on keeping more entities in memory or more history
+//  val temporalMode = true //flag denoting if storage should focus on keeping more entities in memory or more history
   val runtime = Runtime.getRuntime
 
   val maximumHistoryMils = maximumHistory * 60000 //set in minutes

@@ -2,9 +2,8 @@ package com.raphtory.tests
 
 import ch.qos.logback.classic.Level
 import com.outworkers.phantom.dsl.KeySpace
-import com.raphtory.core.actors.partitionmanager.Archivist.{RaphtoryDB, VertexHistoryPoint}
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
-import com.raphtory.core.storage.EntityStorage
+import com.raphtory.core.storage.{EntityStorage, RaphtoryDB}
 import com.raphtory.core.utils.Utils
 import com.raphtory.core.utils.exceptions.EntityRemovedAtTimeException
 import org.slf4j.LoggerFactory
@@ -20,16 +19,8 @@ object JanitorTest extends App{
   val timeWindowMils = timeWindow * 1000
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  RaphtoryDB.vertexHistory.createTable()
-  RaphtoryDB.edgeHistory.createTable()
-  RaphtoryDB.vertexPropertyHistory.createTable()
-  RaphtoryDB.edgePropertyHistory.createTable()
-
-  RaphtoryDB.vertexHistory.clear()
-  RaphtoryDB.edgeHistory.clear()
-  RaphtoryDB.vertexPropertyHistory.clear()
-  RaphtoryDB.edgePropertyHistory.clear()
-
+  RaphtoryDB.createDB()
+  RaphtoryDB.clearDB()
 
   val vertex = new Vertex(1,1,1,true,false)
   vertex revive(2)
@@ -64,9 +55,7 @@ object JanitorTest extends App{
     edge + (3,"prop","testValue")
   }
 
-
-  RaphtoryDB.vertexHistory.saveNew(vertex.getId,vertex.oldestPoint.get,vertex.compressAndReturnOldHistory(cutOff))
-  vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,prop._2.compressAndReturnOldHistory(cutOff)))
+  saveVertex(vertex)
   saveEdges(vertex)
 
   vertex kill(7)
@@ -77,12 +66,33 @@ object JanitorTest extends App{
   for(edge <- vertex.associatedEdges.values){
     edge + (4,"prop","testValue2")
   }
-  RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
-  vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.save(vertex.getId,prop._1,prop._2.compressAndReturnOldHistory(cutOff)))
+  saveVertex(vertex)
   saveEdges(vertex)
 
-  retrieveVertex(1,6)
+  RaphtoryDB.retrieveVertex(1,3)
 
+  def saveVertex(vertex:Vertex) = {
+    if(vertex.beenSaved()) {
+      RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
+      vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.save(vertex.getId,prop._1,prop._2.compressAndReturnOldHistory(cutOff)))
+    }
+    else {
+      RaphtoryDB.vertexHistory.saveNew(vertex.getId,vertex.oldestPoint.get,vertex.compressAndReturnOldHistory(cutOff))
+      vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,prop._2.compressAndReturnOldHistory(cutOff)))
+    }
+  }
+
+  def saveEdge(edge:Edge) ={
+    if(edge.beenSaved()) {
+      RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, edge.compressAndReturnOldHistory(cutOff))
+      edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.save(edge.getSrcId,edge.getDstId,property._1,property._2.compressAndReturnOldHistory(cutOff)))
+
+    }
+    else {
+      RaphtoryDB.edgeHistory.saveNew(edge.getSrcId, edge.getDstId, edge.oldestPoint.get, false, edge.compressAndReturnOldHistory(cutOff))
+      edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.saveNew(edge.getSrcId, edge.getDstId, property._1, edge.oldestPoint.get, false, property._2.compressAndReturnOldHistory(cutOff)))
+    }
+  }
 
 
   def saveEdges(vertex:Vertex) ={
@@ -90,72 +100,25 @@ object JanitorTest extends App{
       // RaphtoryDB.edgeHistory.saveNew(edge.getSrcId,edge.getDstId,edge.oldestPoint.get,false,edge.compressAndReturnOldHistory(cutOff))
       if(edge.beenSaved()) {
         RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, edge.compressAndReturnOldHistory(cutOff))
-        for(property<- edge.properties)
-          RaphtoryDB.edgePropertyHistory.save(edge.getSrcId,edge.getDstId,property._1,property._2.compressAndReturnOldHistory(cutOff))
+        edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.save(edge.getSrcId,edge.getDstId,property._1,property._2.compressAndReturnOldHistory(cutOff)))
+
       }
       else {
         RaphtoryDB.edgeHistory.saveNew(edge.getSrcId, edge.getDstId, edge.oldestPoint.get, false, edge.compressAndReturnOldHistory(cutOff))
-        for (property <- edge.properties)
-          RaphtoryDB.edgePropertyHistory.saveNew(edge.getSrcId, edge.getDstId, property._1, edge.oldestPoint.get, false, property._2.compressAndReturnOldHistory(cutOff))
+        edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.saveNew(edge.getSrcId, edge.getDstId, property._1, edge.oldestPoint.get, false, property._2.compressAndReturnOldHistory(cutOff)))
       }
     }
 
   }
 
-
-  def retrieveVertex(id:Long,time:Long)={
-
-    val x = for {
-      vertexHistory <- RaphtoryDB.vertexHistory.allVertexHistory(id)
-      vertexPropertyHistory <- RaphtoryDB.vertexPropertyHistory.allPropertyHistory(id)
-      incomingedgehistory <- RaphtoryDB.edgeHistory.allIncomingHistory(id.toInt)
-      incomingedgePropertyHistory <- RaphtoryDB.edgePropertyHistory.allIncomingHistory(id.toInt)
-      outgoingedgehistory <- RaphtoryDB.edgeHistory.allOutgoingHistory(id.toInt)
-      outgoingedgePropertyHistory <- RaphtoryDB.edgePropertyHistory.allOutgoingHistory(id.toInt)
-    } yield {
-      val vertex = Vertex(vertexHistory.head,time)
-      if(!vertex.previousState.head._2)
-        throw EntityRemovedAtTimeException(vertex.getId)
-      for(property <-  vertexPropertyHistory){
-        vertex.addSavedProperty(property,time)
-      }
-      for(edgepoint <- incomingedgehistory){
-        try{vertex.addAssociatedEdge(Edge(edgepoint,time))}
-        catch {case e:EntityRemovedAtTimeException => println(edgepoint.dst + "bust") } // edge was not alive at this point in time
-      }
-      for(edgepropertypoint <- incomingedgePropertyHistory){
-        vertex.associatedEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
-          case Some(edge) =>edge.addSavedProperty(edgepropertypoint,time)
-          case None => //it was false at given point in time
-        }
-      }
-      for(edgepoint <- outgoingedgehistory){
-        try{vertex.addAssociatedEdge(Edge(edgepoint,time))}
-        catch {case e:EntityRemovedAtTimeException => println(edgepoint.dst + "bust") } // edge was not alive at this point in time
-      }
-      for(edgepropertypoint <- outgoingedgePropertyHistory){
-        vertex.associatedEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
-          case Some(edge) =>edge.addSavedProperty(edgepropertypoint,time)
-          case None => //it was false at given point in time
-        }
-      }
-      vertex
-    }
-
-    x.onComplete(p => p match {
-      case Success(v)=> println(v)//EntityStorage.vertices.put(v.vertexId,v)
-      case Failure(e) => println(e) //do nothing
-    })
-
-  }
 
 
 
 
   //    //RaphtoryDB.vertexHistory.save(i.toLong,i.toLong,true).isCompleted
- //println(System.currentTimeMillis()-time2)
-//    //println(RaphtoryDB.connector.session.execute("select * from raphtory.vertexhistory ;").one())
-//
+  //println(System.currentTimeMillis()-time2)
+  //    //println(RaphtoryDB.connector.session.execute("select * from raphtory.vertexhistory ;").one())
+  //
   def cutOff = System.currentTimeMillis()+1000
 
 
