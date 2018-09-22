@@ -10,10 +10,10 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Vertex object (extended creator for storage loads)
   */
 object Vertex {
-  def apply(routerID:Int, creationTime : Long, vertexId : Int, associatedEdges : ParTrieMap[Long, Edge], previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property]) = {
+  def apply(routerID:Int, creationTime : Long, vertexId : Int, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property]) = {
     val v = new Vertex(routerID,creationTime, vertexId, initialValue = true, addOnly = false)
     v.previousState   = previousState
-    v.associatedEdges = associatedEdges
+    //v.associatedEdges = associatedEdges
     v.properties      = properties
     v
   }
@@ -47,10 +47,14 @@ object Vertex {
 class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolean, addOnly:Boolean)
     extends Entity(routerID,msgTime, initialValue,addOnly) {
 
-  var associatedEdges    = ParTrieMap[Long, Edge]()
+  var incomingEdges  = ParTrieMap[Long, Edge]()
+  var outgoingEdges  = ParTrieMap[Long, Edge]()
 
   def addAssociatedEdge(edge: Edge): Unit = {
-    associatedEdges.put(edge.getId,edge)
+    if(edge.getSrcId==vertexId)
+      outgoingEdges.put(edge.getId,edge)
+    else
+      incomingEdges.put(edge.getId,edge)
   }
 
   /*override def printProperties(): String =
@@ -107,12 +111,12 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
         false
       }
 
-      else if(!(associatedEdges.equals(v2.associatedEdges))){
-        println("associated edges incorrect:")
-        println(associatedEdges)
-        println(v2.associatedEdges)
-        false
-      }
+//      else if(!(associatedEdges.equals(v2.associatedEdges))){
+//        println("associated edges incorrect:")
+//        println(associatedEdges)
+//        println(v2.associatedEdges)
+//        false
+//      }
       else true
     }
     else false
@@ -120,7 +124,8 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   }
 
   override def toString: String = {
-    s"Vertex ID $vertexId \n History $previousState \n Properties:\n $properties \n Associated Edges: $associatedEdges"
+//    s"Vertex ID $vertexId \n History $previousState \n Properties:\n $properties \n Associated Edges: $associatedEdges"
+    s"Vertex ID $vertexId \n History $previousState \n Properties:\n $properties \n"
   }
 
 }

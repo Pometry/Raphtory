@@ -74,7 +74,7 @@ object RaphtoryDB extends RaphtoryDatabase(Connector.default){
         catch {case e:EntityRemovedAtTimeException => println(edgepoint.dst + "bust") } // edge was not alive at this point in time
       }
       for(edgepropertypoint <- incomingedgePropertyHistory){
-        vertex.associatedEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
+        vertex.incomingEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
           case Some(edge) =>edge.addSavedProperty(edgepropertypoint,time)
           case None => //it was false at given point in time
         }
@@ -84,7 +84,7 @@ object RaphtoryDB extends RaphtoryDatabase(Connector.default){
         catch {case e:EntityRemovedAtTimeException => println(edgepoint.dst + "bust") } // edge was not alive at this point in time
       }
       for(edgepropertypoint <- outgoingedgePropertyHistory){
-        vertex.associatedEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
+        vertex.outgoingEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
           case Some(edge) =>edge.addSavedProperty(edgepropertypoint,time)
           case None => //it was false at given point in time
         }

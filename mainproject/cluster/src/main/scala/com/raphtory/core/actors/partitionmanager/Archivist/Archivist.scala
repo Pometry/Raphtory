@@ -2,17 +2,16 @@ package com.raphtory.core.actors.partitionmanager.Archivist
 
 import java.util.concurrent.Executors
 
+import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
 import com.raphtory.core.storage.{EntityStorage, RaphtoryDB}
 import com.raphtory.core.utils.KeyEnum
-import com.raphtory.tests.JanitorTest.cutOff
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.Scheduler
 import org.slf4j.LoggerFactory
 
-import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration._
 //TODO decide how to do shrinking window as graph expands
@@ -23,7 +22,8 @@ import scala.concurrent.duration._
 //TODO join historian to cluster
 
 class Archivist(maximumMem:Double) extends RaphtoryActor {
-
+  val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+  root.setLevel(Level.ERROR)
 //  val temporalMode = true //flag denoting if storage should focus on keeping more entities in memory or more history
   val runtime = Runtime.getRuntime
 
@@ -39,7 +39,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   }
 
   override def preStart() {
-    context.system.scheduler.scheduleOnce(7.seconds, self,"compress")
+    context.system.scheduler.scheduleOnce(30.seconds, self,"compress")
   }
 
   override def receive: Receive = {
@@ -51,11 +51,15 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   var archivePercentage = 10
   //COMPRESSION BLOCK
   def toCompress(newestPoint:Long,oldestPoint:Long):Long =  ((newestPoint-oldestPoint) / (100f - compressionPercent)).asInstanceOf[Long]
-  def cutOff = {
+  def toArchive(newestPoint:Long,oldestPoint:Long):Long =  ((newestPoint-oldestPoint) / (100f - archivePercentage)).asInstanceOf[Long]
+  def cutOff(compress:Boolean) = {
     val oldestPoint = EntityStorage.oldestTime
     val newestPoint = EntityStorage.newestTime
     if(oldestPoint != Long.MaxValue)
-      oldestPoint + toCompress(newestPoint,oldestPoint) //oldestpoint + halfway to the newest point == always keep half of in memory stuff compressed
+      if(compress)
+        oldestPoint + toCompress(newestPoint,oldestPoint) //oldestpoint + halfway to the newest point == always keep half of in memory stuff compressed
+      else
+        oldestPoint + toArchive(newestPoint,oldestPoint)
     else
       newestPoint
   }
@@ -63,7 +67,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   def compressGraph() : Unit = {
     if (lockerCounter > 0)
       return
-    newLastSaved   = cutOff
+    newLastSaved   = cutOff(true)
     canArchiveFlag = false
     println("Compressing")
     lockerCounter += 2
@@ -136,30 +140,28 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       return
     println("Archiving")
     if(!spaceForExtraHistory) {
+      val removalPoint = cutOff(false)
       for (e <- EntityStorage.edges) {
-        checkMaximumHistory(e._2, KeyEnum.edges)
+        checkMaximumHistory(e._2, KeyEnum.edges,removalPoint)
         for (e <- EntityStorage.vertices) {
-          checkMaximumHistory(e._2, KeyEnum.vertices)
+          checkMaximumHistory(e._2, KeyEnum.vertices,removalPoint)
         }
       }
+      EntityStorage.oldestTime = removalPoint
     }
     context.system.scheduler.scheduleOnce(5.seconds, self,"compress")
   }
 
   def spaceForExtraHistory = if((runtime.freeMemory/runtime.totalMemory()) < (1-maximumMem)) true else false //check if used memory less than set maximum
 
-  def checkMaximumHistory(e:Entity, et : KeyEnum.Value) = {
-      val (placeholder, allOld) = e.removeAncientHistory(System.currentTimeMillis - maximumHistoryMils)
-      if (placeholder) {/*TODO decide what to do with placeholders (future)*/}
-      if (allOld) {
+  def checkMaximumHistory(e:Entity, et : KeyEnum.Value,removalPoint:Long) = {
+      val (placeholder, allOld) = e.removeAncientHistory(removalPoint)
+      if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
+      if (allOld.asInstanceOf[Boolean]) {
         et match {
           case KeyEnum.vertices => EntityStorage.vertices.remove(e.getId.toInt)
           case KeyEnum.edges    => EntityStorage.edges.remove(e.getId)
         }
-      }
-
-      for ((propkey, propval) <- e.properties) {
-        propval.compressAndReturnOldHistory(System.currentTimeMillis - maximumHistoryMils)
       }
   }
 

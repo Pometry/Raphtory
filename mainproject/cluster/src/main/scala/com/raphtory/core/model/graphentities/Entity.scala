@@ -140,6 +140,10 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     }
     previousState = safeHistory
 
+    for ((propkey, propval) <- properties) {
+      propval.removeAncientHistory(cutoff)
+    } //do the same for all properties
+
     val allOld = newestPoint.get<cutoff
     (false,allOld)
   }

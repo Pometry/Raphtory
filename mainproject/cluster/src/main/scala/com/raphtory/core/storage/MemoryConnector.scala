@@ -70,7 +70,7 @@ private object MemoryConnector extends ReaderConnector {
   }
 
   override def getAssociatedEdges(entityId: Long): ParTrieMap[Long, Edge] = {
-    vertices(entityId.toInt).associatedEdges
+    vertices(entityId.toInt).incomingEdges //TODO both, place holder whilst things are rewritten
   }
 
   private def lookupVertex(vertexId : Int) : Boolean = {

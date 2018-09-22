@@ -51,9 +51,9 @@ object JanitorTest extends App{
   vertex addAssociatedEdge new Edge(1,1,2,1,true,false)
   vertex addAssociatedEdge new Edge(1,2,3,1,true,false)
 
-  for(edge <- vertex.associatedEdges.values){
-    edge + (3,"prop","testValue")
-  }
+//  for(edge <- vertex.associatedEdges.values){
+//    edge + (3,"prop","testValue")
+//  }
 
   saveVertex(vertex)
   saveEdges(vertex)
@@ -63,9 +63,9 @@ object JanitorTest extends App{
   vertex +(8,"prop2","dave")
   vertex +(9,"prop","bob")
   vertex addAssociatedEdge new Edge(1,6,1,7,true,false)
-  for(edge <- vertex.associatedEdges.values){
-    edge + (4,"prop","testValue2")
-  }
+//  for(edge <- vertex.associatedEdges.values){
+//    edge + (4,"prop","testValue2")
+//  }
   saveVertex(vertex)
   saveEdges(vertex)
 
@@ -96,7 +96,19 @@ object JanitorTest extends App{
 
 
   def saveEdges(vertex:Vertex) ={
-    for(edge <- vertex.associatedEdges.values){
+    for(edge <- vertex.incomingEdges.values){
+      // RaphtoryDB.edgeHistory.saveNew(edge.getSrcId,edge.getDstId,edge.oldestPoint.get,false,edge.compressAndReturnOldHistory(cutOff))
+      if(edge.beenSaved()) {
+        RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, edge.compressAndReturnOldHistory(cutOff))
+        edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.save(edge.getSrcId,edge.getDstId,property._1,property._2.compressAndReturnOldHistory(cutOff)))
+
+      }
+      else {
+        RaphtoryDB.edgeHistory.saveNew(edge.getSrcId, edge.getDstId, edge.oldestPoint.get, false, edge.compressAndReturnOldHistory(cutOff))
+        edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.saveNew(edge.getSrcId, edge.getDstId, property._1, edge.oldestPoint.get, false, property._2.compressAndReturnOldHistory(cutOff)))
+      }
+    }
+    for(edge <- vertex.outgoingEdges.values){
       // RaphtoryDB.edgeHistory.saveNew(edge.getSrcId,edge.getDstId,edge.oldestPoint.get,false,edge.compressAndReturnOldHistory(cutOff))
       if(edge.beenSaved()) {
         RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, edge.compressAndReturnOldHistory(cutOff))
