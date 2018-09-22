@@ -15,7 +15,7 @@ class RandomSpout extends SpoutTrait {
   var totalCount      = 100
   var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt    // (Updates/s) - Hz
   var increase        = System.getenv().getOrDefault("RAMP_FLAG", "false").toBoolean  // (Updates/s) - Hz
-  var pool            = System.getenv().getOrDefault("ENTITY_POOL", "10000").toInt
+  var pool            = System.getenv().getOrDefault("ENTITY_POOL", "10").toInt
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
@@ -33,7 +33,7 @@ class RandomSpout extends SpoutTrait {
           freq += 1000
       case "random" => {
         if(isSafe) {
-          stop()
+//          stop()
           genRandomCommands(freq/1000)
         }
       }
@@ -45,8 +45,8 @@ class RandomSpout extends SpoutTrait {
   def distribution() : String = {
     val random = Random.nextFloat()
     if (random <= 0.3)      genVertexAdd()
-    else genEdgeAdd()
-    //else if (random <= 0.7) genEdgeAdd()
+    else //if (random <= 0.7)
+      genEdgeAdd()
     //else if (random <= 0.8) genVertexRemoval()
     //else                    genEdgeRemoval()
   }
@@ -80,7 +80,7 @@ class RandomSpout extends SpoutTrait {
   }
 
   def genEdgeAdd():String={
-    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID()}, ${genDstID()}}}"""
+    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID()}, ${genDstID()}, ${genProperties(2)}}}"""
   }
   def genEdgeAdd(src:Int,dst:Int):String={
     s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID(src)}, ${genDstID(dst)}}}"""

@@ -80,21 +80,21 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
 
     //case LiveAnalysis(name,analyser) => mediator ! DistributedPubSubMediator.Send(name, Results(analyser.analyse(vertices,edges)), false)
 
-    case VertexAdd(routerID,msgTime,srcId)                                => Task.eval(storage.vertexAdd(routerID,msgTime,srcId)).fork.runAsync.onComplete(_ => vHandle(srcId))
-    case VertexRemoval(routerID,msgTime,srcId)                            => Task.eval(storage.vertexRemoval(routerID,msgTime,srcId)).fork.runAsync.onComplete(_ => vHandle(srcId))
-    case VertexAddWithProperties(routerID,msgTime,srcId,properties)       => Task.eval(storage.vertexAdd(routerID,msgTime,srcId,properties)).fork.runAsync.onComplete(_ => vHandle(srcId))
+    case VertexAdd(routerID,msgTime,srcId)                                => Task.eval(storage.vertexAdd(routerID,msgTime,srcId)).fork.runAsync.onComplete(_ => vHandle(srcId,msgTime))
+    case VertexRemoval(routerID,msgTime,srcId)                            => Task.eval(storage.vertexRemoval(routerID,msgTime,srcId)).fork.runAsync.onComplete(_ => vHandle(srcId,msgTime))
+    case VertexAddWithProperties(routerID,msgTime,srcId,properties)       => Task.eval(storage.vertexAdd(routerID,msgTime,srcId,properties)).fork.runAsync.onComplete(_ => vHandle(srcId,msgTime))
 
-    case EdgeAdd(routerID,msgTime,srcId,dstId)                            => Task.eval(storage.edgeAdd(routerID,msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId))
-    case RemoteEdgeAdd(routerID,msgTime,srcId,dstId,properties)           => Task.eval(storage.remoteEdgeAdd(routerID,msgTime,srcId,dstId,properties)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
-    case RemoteEdgeAddNew(routerID,msgTime,srcId,dstId,properties,deaths) => Task.eval(storage.remoteEdgeAddNew(routerID,msgTime,srcId,dstId,properties,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
-    case EdgeAddWithProperties(routerID,msgTime,srcId,dstId,properties)   => Task.eval(storage.edgeAdd(routerID,msgTime,srcId,dstId,properties)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId))
+    case EdgeAdd(routerID,msgTime,srcId,dstId)                            => Task.eval(storage.edgeAdd(routerID,msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId,msgTime))
+    case RemoteEdgeAdd(routerID,msgTime,srcId,dstId,properties)           => Task.eval(storage.remoteEdgeAdd(routerID,msgTime,srcId,dstId,properties)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId,msgTime))
+    case RemoteEdgeAddNew(routerID,msgTime,srcId,dstId,properties,deaths) => Task.eval(storage.remoteEdgeAddNew(routerID,msgTime,srcId,dstId,properties,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId,msgTime))
+    case EdgeAddWithProperties(routerID,msgTime,srcId,dstId,properties)   => Task.eval(storage.edgeAdd(routerID,msgTime,srcId,dstId,properties)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId,msgTime))
 
-    case EdgeRemoval(routerID,msgTime,srcId,dstId)                        => Task.eval(storage.edgeRemoval(routerID,msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId))
-    case RemoteEdgeRemoval(routerID,msgTime,srcId,dstId)                  => Task.eval(storage.remoteEdgeRemoval(routerID,msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
-    case RemoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths)        => Task.eval(storage.remoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
+    case EdgeRemoval(routerID,msgTime,srcId,dstId)                        => Task.eval(storage.edgeRemoval(routerID,msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandle(srcId,dstId,msgTime))
+    case RemoteEdgeRemoval(routerID,msgTime,srcId,dstId)                  => Task.eval(storage.remoteEdgeRemoval(routerID,msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId,msgTime))
+    case RemoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths)        => Task.eval(storage.remoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId,msgTime))
 
-    case ReturnEdgeRemoval(routerID,msgTime,srcId,dstId)                  => Task.eval(storage.returnEdgeRemoval(routerID,msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
-    case RemoteReturnDeaths(msgTime,srcId,dstId,deaths)          => Task.eval(storage.remoteReturnDeaths(msgTime,srcId,dstId,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId))
+    case ReturnEdgeRemoval(routerID,msgTime,srcId,dstId)                  => Task.eval(storage.returnEdgeRemoval(routerID,msgTime,srcId,dstId)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId,msgTime))
+    case RemoteReturnDeaths(msgTime,srcId,dstId,deaths)          => Task.eval(storage.remoteReturnDeaths(msgTime,srcId,dstId,deaths)).fork.runAsync.onComplete(_ => eHandleSecondary(srcId,dstId,msgTime))
 
     case UpdatedCounter(newValue) => {
       managerCount = newValue
@@ -157,24 +157,28 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     secondaryMessageCount.set(0)
   }
 
-  def vHandle(srcID : Int) : Unit = {
+  def vHandle(srcID : Int,msgTime:Long) : Unit = {
+    storage.timings(msgTime)
     if(srcID%managerCount!=id){
       println(s"Received incorrect update $srcID with pm id $id")
     }
     messageCount.incrementAndGet()
   }
 
-  def vHandleSecondary(srcID : Int) : Unit = {
+  def vHandleSecondary(srcID : Int,msgTime:Long) : Unit = {
+    storage.timings(msgTime)
     secondaryMessageCount.incrementAndGet()
   }
-  def eHandle(srcID : Int, dstID : Int) : Unit = {
+  def eHandle(srcID : Int, dstID : Int,msgTime:Long) : Unit = {
+    storage.timings(msgTime)
     if(srcID%managerCount!=id){
       println(s"Received incorrect update $srcID with pm id $id")
     }
     messageCount.incrementAndGet()
   }
 
-  def eHandleSecondary(srcID : Int, dstID : Int) : Unit = {
+  def eHandleSecondary(srcID : Int, dstID : Int,msgTime:Long) : Unit = {
+    storage.timings(msgTime)
     secondaryMessageCount.incrementAndGet()
   }
 

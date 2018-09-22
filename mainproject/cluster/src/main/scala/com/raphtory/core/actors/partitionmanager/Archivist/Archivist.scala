@@ -47,19 +47,25 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     case "archive"=> archive()
   }
 
-  var compressionPercent = 50
-  var archivePercentage = 10
+  var compressionPercent = 90f
+  var archivePercentage = 10f
   //COMPRESSION BLOCK
-  def toCompress(newestPoint:Long,oldestPoint:Long):Long =  ((newestPoint-oldestPoint) / (100f - compressionPercent)).asInstanceOf[Long]
-  def toArchive(newestPoint:Long,oldestPoint:Long):Long =  ((newestPoint-oldestPoint) / (100f - archivePercentage)).asInstanceOf[Long]
+  def toCompress(newestPoint:Long,oldestPoint:Long):Long =  (((newestPoint-oldestPoint) / 100f) * compressionPercent).asInstanceOf[Long]
+  def toArchive(newestPoint:Long,oldestPoint:Long):Long =  (((newestPoint-oldestPoint) / 100f) * archivePercentage).asInstanceOf[Long]
   def cutOff(compress:Boolean) = {
     val oldestPoint = EntityStorage.oldestTime
     val newestPoint = EntityStorage.newestTime
-    if(oldestPoint != Long.MaxValue)
-      if(compress)
-        oldestPoint + toCompress(newestPoint,oldestPoint) //oldestpoint + halfway to the newest point == always keep half of in memory stuff compressed
+    if(oldestPoint != Long.MaxValue) {
+      if (compress) {
+        println(newestPoint)
+        println(oldestPoint)
+        println(oldestPoint + toCompress(newestPoint, oldestPoint))
+        oldestPoint + toCompress(newestPoint, oldestPoint) //oldestpoint + halfway to the newest point == always keep half of in memory stuff compressed
+
+      }
       else
-        oldestPoint + toArchive(newestPoint,oldestPoint)
+        oldestPoint + toArchive(newestPoint, oldestPoint)
+    }
     else
       newestPoint
   }
