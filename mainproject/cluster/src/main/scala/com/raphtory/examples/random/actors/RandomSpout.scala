@@ -33,7 +33,7 @@ class RandomSpout extends SpoutTrait {
           freq += 1000
       case "random" => {
         if(isSafe) {
-//          stop()
+ //         stop()
           genRandomCommands(freq/1000)
         }
       }
@@ -115,8 +115,8 @@ class RandomSpout extends SpoutTrait {
     var properties = "\"properties\":{"
     for(i <- 1 to numOfProps){
       val propnum = i
-      if(i<numOfProps) properties = properties + s""" "property$propnum":${Random.alphanumeric.take(10).mkString}, """
-      else properties = properties + s""" "property$propnum":${Random.alphanumeric.take(10).mkString} }"""
+      if(i<numOfProps) properties = properties + s""" "property$propnum":"${Random.alphanumeric.take(10).mkString}", """
+      else properties = properties + s""" "property$propnum":"${Random.alphanumeric.take(10).mkString}" }"""
     }
     properties
   }

@@ -38,7 +38,7 @@ class RandomRouter(override val routerId:Int, override val initialManagerCount:I
 
   override def parseJSON(command:String):Unit={
     super.parseJSON(command)
-    //println(s"received command: \n $command")
+   // println(s"received command: \n $command")
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
     if(commandKey.contains("VertexAdd")) vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject)
@@ -47,10 +47,12 @@ class RandomRouter(override val routerId:Int, override val initialManagerCount:I
     else if(commandKey.contains("EdgeAdd")) edgeAdd(parsedOBJ.getFields("EdgeAdd").head.asJsObject) //if addVertex, parse to handling function
     else if(commandKey.contains("EdgeUpdateProperties")) edgeUpdateProperties(parsedOBJ.getFields("EdgeUpdateProperties").head.asJsObject)
     else if(commandKey.contains("EdgeRemoval")) edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject)
+    else println(command)
   }
 
   def vertexAdd(command:JsObject):Unit = {
    // println("Inside add")
+
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt                 //extract the srcID
     if(command.fields.contains("properties")) {                          //if there are properties within the command

@@ -38,7 +38,7 @@ object EntityStorage {
     */
   val edges    = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
 
-  var printing     : Boolean = false
+  var printing     : Boolean = true
   var managerCount : Int     = 1
   var managerID    : Int     = 0
   var mediator     : ActorRef= null

@@ -31,6 +31,8 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   var newLastSaved : Long = 0
   var canArchiveFlag = false
   var lockerCounter = 0
+  var archivelockerCounter = 0
+
   lazy val maxThreads = 12
 
   lazy implicit val scheduler = {
@@ -53,8 +55,13 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   def toCompress(newestPoint:Long,oldestPoint:Long):Long =  (((newestPoint-oldestPoint) / 100f) * compressionPercent).asInstanceOf[Long]
   def toArchive(newestPoint:Long,oldestPoint:Long):Long =  (((newestPoint-oldestPoint) / 100f) * archivePercentage).asInstanceOf[Long]
   def cutOff(compress:Boolean) = {
+
+
+
     val oldestPoint = EntityStorage.oldestTime
     val newestPoint = EntityStorage.newestTime
+    println(s"$oldestPoint $newestPoint  ${newestPoint-oldestPoint} ${toCompress(newestPoint,oldestPoint)}")
+
     if(oldestPoint != Long.MaxValue) {
       if (compress) {
         println(newestPoint)
@@ -71,8 +78,10 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   }
 
   def compressGraph() : Unit = {
-    if (lockerCounter > 0)
+    if (lockerCounter > 0) {
+      context.system.scheduler.scheduleOnce(5.seconds, self,"archive")
       return
+    }
     newLastSaved   = cutOff(true)
     canArchiveFlag = false
     println("Compressing")
@@ -140,23 +149,41 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
   //ARCHIVING BLOCK
 
-  def archive() : Unit ={
+  def archive() : Unit = {
     println("Try to archive")
-    if (!canArchiveFlag)
-      return
-    println("Archiving")
-    if(!spaceForExtraHistory) {
+    if((archivelockerCounter == 0)&&(anArchiveFlag)&&(!spaceForExtraHistory)) {
+      println("Archiving")
       val removalPoint = cutOff(false)
-      for (e <- EntityStorage.edges) {
-        checkMaximumHistory(e._2, KeyEnum.edges,removalPoint)
-        for (e <- EntityStorage.vertices) {
-          checkMaximumHistory(e._2, KeyEnum.vertices,removalPoint)
-        }
-      }
-      EntityStorage.oldestTime = removalPoint
+      archivelockerCounter += 2
+      Task.eval(archiveEdges(EntityStorage.edges, removalPoint)).runAsync.onComplete(_ => archiveEnder(removalPoint))
+      Task.eval(archiveVertices(EntityStorage.vertices, removalPoint)).runAsync.onComplete(_ => archiveEnder(removalPoint))
     }
-    context.system.scheduler.scheduleOnce(5.seconds, self,"compress")
+    else {
+      context.system.scheduler.scheduleOnce(20.seconds, self,"compress")
+    }
   }
+
+  def archiveEdges(map : ParTrieMap[Long, Edge],removalPoint:Long) = {
+    for (e <- EntityStorage.edges) {
+      checkMaximumHistory(e._2, KeyEnum.edges,removalPoint)
+    }
+  }
+
+  def archiveVertices(map : ParTrieMap[Int, Vertex],removalPoint:Long) = {
+    for (e <- EntityStorage.vertices) {
+      checkMaximumHistory(e._2, KeyEnum.vertices,removalPoint)
+    }
+  }
+
+
+  def archiveEnder(removalPoint:Long): Unit = {
+    archivelockerCounter -= 1
+    if (archivelockerCounter == 0) {
+      EntityStorage.oldestTime = removalPoint
+      context.system.scheduler.scheduleOnce(20.seconds, self,"compress")
+    }
+  }
+
 
   def spaceForExtraHistory = if((runtime.freeMemory/runtime.totalMemory()) < (1-maximumMem)) true else false //check if used memory less than set maximum
 
