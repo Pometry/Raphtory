@@ -68,15 +68,20 @@ class Property(creationTime: Long,
     oldHistory
   }
 
-  def removeAncientHistory(cutoff:Long)={ //
+  def removeAncientHistory(cutoff:Long):Int={ //
     var safeHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering )
     safeHistory += previousState.head // always keep at least one point in history
+    var removed = 0
     for((k,v) <- previousState){
       if(k>=cutoff){
         safeHistory += k -> v
       }
+      else {
+        removed = removed +1
+      }
     }
     previousState = safeHistory
+    removed
   }
 
 

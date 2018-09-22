@@ -10,6 +10,7 @@ import com.raphtory.core.utils.KeyEnum
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.Scheduler
+import monix.execution.atomic.AtomicInt
 import org.slf4j.LoggerFactory
 
 import scala.collection.parallel.mutable.ParTrieMap
@@ -32,6 +33,11 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   var canArchiveFlag = false
   var lockerCounter = 0
   var archivelockerCounter = 0
+
+  val propsRemoved:AtomicInt =  AtomicInt(0)
+  val historyRemoved:AtomicInt =  AtomicInt(0)
+  val verticesRemoved:AtomicInt =  AtomicInt(0)
+  val edgesRemoved:AtomicInt =  AtomicInt(0)
 
   lazy val maxThreads = 12
 
@@ -64,9 +70,6 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
     if(oldestPoint != Long.MaxValue) {
       if (compress) {
-        println(newestPoint)
-        println(oldestPoint)
-        println(oldestPoint + toCompress(newestPoint, oldestPoint))
         oldestPoint + toCompress(newestPoint, oldestPoint) //oldestpoint + halfway to the newest point == always keep half of in memory stuff compressed
 
       }
@@ -151,7 +154,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
   def archive() : Unit = {
     println("Try to archive")
-    if((archivelockerCounter == 0)&&(anArchiveFlag)&&(!spaceForExtraHistory)) {
+    if((archivelockerCounter == 0)&&(canArchiveFlag)&&(!spaceForExtraHistory)) {
       println("Archiving")
       val removalPoint = cutOff(false)
       archivelockerCounter += 2
@@ -180,20 +183,40 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     archivelockerCounter -= 1
     if (archivelockerCounter == 0) {
       EntityStorage.oldestTime = removalPoint
+      println(s"Removed ${verticesRemoved.get} vertices ${edgesRemoved.get} edges ${historyRemoved.get} history points and ${propsRemoved.get} property points")
       context.system.scheduler.scheduleOnce(20.seconds, self,"compress")
+      verticesRemoved.set(0)
+      edgesRemoved.set(0)
+      historyRemoved.set(0)
+      propsRemoved.set(0)
+      if(!spaceForExtraHistory) {
+        archive()
+      }
     }
   }
 
 
-  def spaceForExtraHistory = if((runtime.freeMemory/runtime.totalMemory()) < (1-maximumMem)) true else false //check if used memory less than set maximum
+  def spaceForExtraHistory = {
+    val total = runtime.freeMemory/runtime.totalMemory.asInstanceOf[Float]
+    println(s"Memory usage at $total%")
+    if(total < (1-maximumMem)) true else false
+  } //check if used memory less than set maximum
 
   def checkMaximumHistory(e:Entity, et : KeyEnum.Value,removalPoint:Long) = {
-      val (placeholder, allOld) = e.removeAncientHistory(removalPoint)
+      val (placeholder, allOld,removed,propremoved) = e.removeAncientHistory(removalPoint)
       if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
+      propsRemoved.add(propremoved.asInstanceOf[Int])
+      historyRemoved.add(removed.asInstanceOf[Int])
       if (allOld.asInstanceOf[Boolean]) {
         et match {
-          case KeyEnum.vertices => EntityStorage.vertices.remove(e.getId.toInt)
-          case KeyEnum.edges    => EntityStorage.edges.remove(e.getId)
+          case KeyEnum.vertices => {
+            EntityStorage.vertices.remove(e.getId.toInt)
+            verticesRemoved.add(1)
+          }
+          case KeyEnum.edges    => {
+            EntityStorage.edges.remove(e.getId)
+            edgesRemoved.add(1)
+          }
         }
       }
   }

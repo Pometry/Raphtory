@@ -85,7 +85,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node and should not be interacted with
       return  mutable.TreeMap()(HistoryOrdering) //if the size is one, no need to compress
     }
-    saved=true
     var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
     var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
 
@@ -114,6 +113,8 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
       safeHistory += head // always keep at least one point in history
 
     previousState = safeHistory
+    if(oldHistory.size>0)
+      saved=true
     oldHistory
   }
 
@@ -127,25 +128,31 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     * @param cutoff the histories time cutoff
     * @return (is it a place holder, is the full history holder than the cutoff, the old history)
     */
-  def removeAncientHistory(cutoff:Long): (Boolean, Boolean)={ //
+  def removeAncientHistory(cutoff:Long): (Boolean, Boolean,Int,Int)={ //
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node inform the historian
-      return  (true,true)
+      return  (true,true,0,0)
     }
     var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering )
+    var removed = 0
+    var propRemoval = 0
     safeHistory += previousState.head // always keep at least one point in history
     for((k,v) <- previousState){
       if(k>=cutoff){
         safeHistory += k -> v
       }
+      else{
+        println(removed)
+        removed = removed +1
+      }
     }
     previousState = safeHistory
 
     for ((propkey, propval) <- properties) {
-      propval.removeAncientHistory(cutoff)
+      propRemoval = propRemoval + propval.removeAncientHistory(cutoff)
     } //do the same for all properties
 
     val allOld = newestPoint.get<cutoff
-    (false,allOld)
+    (false,allOld,removed,propRemoval)
   }
 
   /** *
