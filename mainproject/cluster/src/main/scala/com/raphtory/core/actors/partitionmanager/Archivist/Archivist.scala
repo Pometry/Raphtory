@@ -89,8 +89,8 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     canArchiveFlag = false
     println("Compressing")
     lockerCounter += 2
-    Task.eval(compressEdges(EntityStorage.edges)).runAsync.onComplete(_ => compressEnder())
-    Task.eval(compressVertices(EntityStorage.vertices)).runAsync.onComplete(_ => compressEnder())
+    Task.eval(compressEdges(EntityStorage.edges)).runAsync.onComplete(_ => compressEnder("edge"))
+    Task.eval(compressVertices(EntityStorage.vertices)).runAsync.onComplete(_ => compressEnder("vertex"))
   }
 
 
@@ -103,13 +103,17 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   def compressVertices(map : ParTrieMap[Int, Vertex]) = {
     val now = newLastSaved
     val past = lastSaved
-    for((k,v) <- map) saveVertex(v,now)
+    for((k,v) <- map) {
+      saveVertex(v,now)
+    }
   }
 
 
-  def compressEnder(): Unit = {
+  def compressEnder(name:String): Unit = {
     lockerCounter -= 1
+    println(s"finished $name compressing")
     if (lockerCounter == 0) {
+      println("finished compressing")
       canArchiveFlag = true
       lastSaved = newLastSaved
       EntityStorage.lastCompressedAt = lastSaved
@@ -119,25 +123,49 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
   def saveVertex(vertex:Vertex,cutOff:Long) = {
     if(vertex.beenSaved()) {
-      RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
-      vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.save(vertex.getId,prop._1,prop._2.compressAndReturnOldHistory(cutOff)))
+      val history = vertex.compressAndReturnOldHistory(cutOff)
+      if(history.size > 0)
+        RaphtoryDB.vertexHistory.save(vertex.getId,history)
+      vertex.properties.foreach(prop => {
+        val propHistory =prop._2.compressAndReturnOldHistory(cutOff)
+        if(propHistory.size > 0)
+          RaphtoryDB.vertexPropertyHistory.save(vertex.getId,prop._1,propHistory)
+      })
     }
     else {
-      RaphtoryDB.vertexHistory.saveNew(vertex.getId,vertex.oldestPoint.get,vertex.compressAndReturnOldHistory(cutOff))
-      vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,prop._2.compressAndReturnOldHistory(cutOff)))
+      val history = vertex.compressAndReturnOldHistory(cutOff)
+      if(history.size > 0)
+        RaphtoryDB.vertexHistory.saveNew(vertex.getId,vertex.oldestPoint.get,history)
+      vertex.properties.foreach(prop => {
+        val propHistory =prop._2.compressAndReturnOldHistory(cutOff)
+        if(propHistory.size > 0)
+          RaphtoryDB.vertexPropertyHistory.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,propHistory)
+      })
     }
   }
 
 
   def saveEdge(edge:Edge,cutOff:Long) ={
     if(edge.beenSaved()) {
-      RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, edge.compressAndReturnOldHistory(cutOff))
-      edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.save(edge.getSrcId,edge.getDstId,property._1,property._2.compressAndReturnOldHistory(cutOff)))
-
+      val history = edge.compressAndReturnOldHistory(cutOff)
+      if(history.size > 0)
+        RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId,history )
+      edge.properties.foreach(property => {
+        val propHistory =property._2.compressAndReturnOldHistory(cutOff)
+        if(propHistory.size > 0)
+          RaphtoryDB.edgePropertyHistory.save(edge.getSrcId,edge.getDstId,property._1,propHistory)
+      })
     }
     else {
-      RaphtoryDB.edgeHistory.saveNew(edge.getSrcId, edge.getDstId, edge.oldestPoint.get, false, edge.compressAndReturnOldHistory(cutOff))
-      edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.saveNew(edge.getSrcId, edge.getDstId, property._1, edge.oldestPoint.get, false, property._2.compressAndReturnOldHistory(cutOff)))
+      val history = edge.compressAndReturnOldHistory(cutOff)
+      if(history.size > 0){}
+        RaphtoryDB.edgeHistory.saveNew(edge.getSrcId, edge.getDstId, edge.oldestPoint.get, false, history)
+
+      edge.properties.foreach(property => {
+        val propHistory = property._2.compressAndReturnOldHistory(cutOff)
+        if(propHistory.size > 0){}
+          RaphtoryDB.edgePropertyHistory.saveNew(edge.getSrcId, edge.getDstId, property._1, edge.oldestPoint.get, false,propHistory )
+      })
     }
   }
 
@@ -162,7 +190,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       Task.eval(archiveVertices(EntityStorage.vertices, removalPoint)).runAsync.onComplete(_ => archiveEnder(removalPoint))
     }
     else {
-      context.system.scheduler.scheduleOnce(20.seconds, self,"compress")
+      context.system.scheduler.scheduleOnce(5.seconds, self,"compress")
     }
   }
 
@@ -184,20 +212,22 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     if (archivelockerCounter == 0) {
       EntityStorage.oldestTime = removalPoint
       println(s"Removed ${verticesRemoved.get} vertices ${edgesRemoved.get} edges ${historyRemoved.get} history points and ${propsRemoved.get} property points")
-      context.system.scheduler.scheduleOnce(20.seconds, self,"compress")
       verticesRemoved.set(0)
       edgesRemoved.set(0)
       historyRemoved.set(0)
       propsRemoved.set(0)
-      if(!spaceForExtraHistory) {
-        archive()
-      }
+     // if(!spaceForExtraHistory) {
+     //   archive()
+     // }
+
+      context.system.scheduler.scheduleOnce(20.seconds, self,"compress")
     }
   }
 
 
   def spaceForExtraHistory = {
-    val total = runtime.freeMemory/runtime.totalMemory.asInstanceOf[Float]
+    val total = runtime.freeMemory/runtime.maxMemory.asInstanceOf[Float]
+    //println(s"max ${runtime.maxMemory()} total ${runtime.totalMemory()} diff ${runtime.maxMemory()-runtime.totalMemory()} ")
     println(s"Memory usage at $total%")
     if(total < (1-maximumMem)) true else false
   } //check if used memory less than set maximum

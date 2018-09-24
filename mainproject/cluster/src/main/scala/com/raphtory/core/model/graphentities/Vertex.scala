@@ -125,7 +125,7 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
 
   override def toString: String = {
 //    s"Vertex ID $vertexId \n History $previousState \n Properties:\n $properties \n Associated Edges: $associatedEdges"
-    s"Vertex ID $vertexId \n History $previousState \n Properties:\n $properties \n"
+    s"Vertex ID $vertexId \n History $previousState \n $compressedState \n "//Properties:\n $properties \n"
   }
 
 }

@@ -84,6 +84,9 @@ object Utils {
 
 
   def createHistory(history: mutable.TreeMap[Long, Boolean]):String = {
+    if(history.size==0){
+      return ""
+    }
     var s = "{"
     for((k,v) <- history){
       s = s+ s"$k : $v, "
@@ -92,6 +95,9 @@ object Utils {
   }
 
   def createPropHistory(history: mutable.TreeMap[Long, String]):String = {
+    if(history.size==0){
+      return ""
+    }
     var s = "{"
     for((k,v) <- history){
       s = s+ s"$k : '$v', "

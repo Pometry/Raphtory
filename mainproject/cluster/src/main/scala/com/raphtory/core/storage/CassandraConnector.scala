@@ -116,11 +116,11 @@ abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
   object history extends MapColumn[Long,Boolean]
 
   def saveNew(id:Long,oldestPoint:Long,history:mutable.TreeMap[Long, Boolean]) = {
-    session.execute(s"INSERT INTO raphtory.vertexHistory (id, oldestpoint, history) VALUES (${id},${oldestPoint},${createHistory(history)});")
+    session.execute(s"INSERT INTO raphtory.vertexHistory (id, oldestpoint, history) VALUES (${id},${oldestPoint},${Utils.createHistory(history)});")
   }
 
   def save(id:Long,history:mutable.TreeMap[Long,Boolean]) = {
-    session.execute(s"UPDATE raphtory.vertexHistory SET history = history + ${createHistory(history)} WHERE id = $id;")
+    session.execute(s"UPDATE raphtory.vertexHistory SET history = history + ${Utils.createHistory(history)} WHERE id = $id;")
   }
   def createKeySpace() = {
    try{session.execute("create keyspace raphtory with replication = {'class':'SimpleStrategy','replication_factor':1};")}
@@ -133,15 +133,6 @@ abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
   }
   def clear() = {
     session.execute("truncate raphtory.vertexhistory ;")
-  }
-
-
-  private def createHistory(history: mutable.TreeMap[Long, Boolean]):String = {
-    var s = "{"
-    for((k,v) <- history){
-      s = s+ s"$k : $v, "
-    }
-    s.dropRight(2) + "}"
   }
 
   def allVertexHistory(id:Long) : Future[List[VertexHistoryPoint]] = {

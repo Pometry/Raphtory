@@ -17,6 +17,8 @@ class Property(creationTime: Long,
 
   // Initialize the TreeMap
   var previousState: mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
+  var compressedState: mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
+
 
   // add in the initial information
   update(creationTime, value)
@@ -36,51 +38,60 @@ class Property(creationTime: Long,
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node and should not be interacted with
       return  mutable.TreeMap()(HistoryOrdering) //if the size is one, no need to compress
     }
-    saved=true
-    var safeHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
-    var oldHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
+    var toWrite: mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
 
     val head = previousState.head
     var prev: (Long,String) = head
     var swapped = false
-    for((k,v) <- previousState){
-      if(k<cutoff) {
-        if(swapped) //as we are adding prev skip the value on the pivot as it is already added
-          if (!(v equals prev._2)) {
-            oldHistory += prev //if the current point differs from the val of the previous it means the prev was the last of its type
-            safeHistory += prev
+    if (getPreviousStateSize() > 1) {
+      for ((k, v) <- previousState) {
+        if (k < cutoff) {
+          if (swapped) { //as we are adding prev skip the value on the pivot as it is already added
+            if (!(v equals prev._2)) {
+              toWrite.put(prev._1, prev._2) //add to toWrite so this can be saved to cassandra
+              previousState.remove(prev._1)
+            }
+            else {
+              previousState.remove(prev._1)
+            }
           }
-        swapped=true
+          swapped = true
+        }
+        prev = (k, v)
       }
-      else
-        safeHistory += k -> v
-      prev = (k,v)
     }
 
-    if(prev._1<cutoff) {
-      safeHistory += prev
-      oldHistory += prev //add the final history point to oldHistory as not done in loop
+    if ((prev._1 < cutoff)) { //if the last point is before the cut off
+      if (compressedState.size > 0) { //and their has been a previous save
+        if (!(compressedState.head._2 equals  prev._2)) { //we need to compare it against the compressed state
+          toWrite.put(prev._1, prev._2) //add to toWrite so this can be saved to cassandra
+          previousState.remove(prev._1)
+        }
+        else {
+          previousState.remove(prev._1)
+        } //and just removing if not
+      }
+      else {
+        toWrite.put(prev._1, prev._2)
+        previousState.remove(prev._1)
+      }
     }
-    if(safeHistory.isEmpty)
-      safeHistory += head // always keep at least one point in history
 
-    previousState = safeHistory
-    oldHistory
+    if(toWrite.size>0) {
+      compressedState = compressedState ++= toWrite
+      saved = true
+    }
+    toWrite
   }
 
   def removeAncientHistory(cutoff:Long):Int={ //
-    var safeHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering )
-    safeHistory += previousState.head // always keep at least one point in history
     var removed = 0
     for((k,v) <- previousState){
       if(k>=cutoff){
-        safeHistory += k -> v
-      }
-      else {
         removed = removed +1
+        compressedState.remove(k)
       }
     }
-    previousState = safeHistory
     removed
   }
 
@@ -123,7 +134,7 @@ class Property(creationTime: Long,
     * @return
     */
   override def toString: String = {
-    s"History: $previousState \n"
+    s"History: $previousState \n $compressedState"
    // var toReturn = System.lineSeparator()
    // previousState.foreach(p =>
    //   toReturn = s"$toReturn           MessageID ${p._1}: ${p._2} -- ${p._2} " + System

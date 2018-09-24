@@ -24,8 +24,11 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
 
   // History of that entity
   var previousState : mutable.TreeMap[Long, Boolean] = null
-  if (!addOnly)
+  var compressedState: mutable.TreeMap[Long, Boolean] = null
+  if (!addOnly) {
     previousState = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+    compressedState = mutable.TreeMap()(HistoryOrdering)
+  }
   private var saved = false
   //track the oldest point for use in AddOnly mode
   var oldestPoint : AtomicLong=  AtomicLong(creationTime)
@@ -85,37 +88,46 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node and should not be interacted with
       return  mutable.TreeMap()(HistoryOrdering) //if the size is one, no need to compress
     }
-    var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
-    var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
-
-    val head = previousState.head
+    var toWrite : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+    var head = previousState.head
     var prev: (Long,Boolean) = head
     var swapped = false
-    for((k,v) <- previousState){
-      if(k<cutoff) {
-        if(swapped) //as we are adding prev skip the value on the pivot as it is already added
-          if (v == !prev._2) {
-            oldHistory += prev //if the current point differs from the val of the previous it means the prev was the last of its type
-            safeHistory += prev
+    if(getPreviousStateSize()>1) {
+      for ((k, v) <- previousState) {
+        if (k < cutoff) {
+          if (swapped) { //as we are adding prev skip the value on the pivot as it is already added
+            if (v == !prev._2) {
+              toWrite.put(prev._1, prev._2) //add to toWrite so this can be saved to cassandra
+              previousState.remove(prev._1)
+            }
+            else {
+              previousState.remove(prev._1)
+            }
           }
-        swapped=true
+          swapped = true
+        }
+        prev = (k, v)
       }
-      else
-        safeHistory += k -> v
-      prev = (k,v)
+    }
+    if((prev._1<cutoff)) { //if the last point is before the cut off
+      if (compressedState.size > 0) { //and their has been a previous save
+        if (compressedState.head._2 != prev._2) { //we need to compare it against the compressed state
+          toWrite.put(prev._1,prev._2) //add to toWrite so this can be saved to cassandra
+          previousState.remove(prev._1)
+        }
+        else {previousState.remove(prev._1)} //and just removing if not
+      }
+      else {
+        toWrite.put(prev._1,prev._2)
+        previousState.remove(prev._1)
+      }
     }
 
-    if(prev._1<cutoff) {
-      safeHistory += prev
-      oldHistory += prev //add the final history point to oldHistory as not done in loop
+    if(toWrite.size>0) {
+      compressedState = compressedState ++= toWrite
+      saved = true
     }
-    if(safeHistory.isEmpty)
-      safeHistory += head // always keep at least one point in history
-
-    previousState = safeHistory
-    if(oldHistory.size>0)
-      saved=true
-    oldHistory
+    toWrite
   }
 
   def compressionRate():Double ={
@@ -132,21 +144,14 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node inform the historian
       return  (true,true,0,0)
     }
-    var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering )
     var removed = 0
     var propRemoval = 0
-    safeHistory += previousState.head // always keep at least one point in history
-    for((k,v) <- previousState){
-      if(k>=cutoff){
-        safeHistory += k -> v
-      }
-      else{
-        println(removed)
+    for((k,v) <- compressedState){
+      if(k<cutoff){
         removed = removed +1
+        compressedState.remove(k)
       }
     }
-    previousState = safeHistory
-
     for ((propkey, propval) <- properties) {
       propRemoval = propRemoval + propval.removeAncientHistory(cutoff)
     } //do the same for all properties
