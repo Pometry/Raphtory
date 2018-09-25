@@ -10,6 +10,7 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Property, RemoteEdge, RemotePos, Vertex}
 import com.raphtory.core.storage.controller.GraphRepoProxy
 import com.raphtory.core.utils.Utils
+import com.raphtory.core.utils.exceptions.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -351,6 +352,20 @@ object EntityStorage {
     })
   }
 
+  def createSnapshot(time:Long):ParTrieMap[Int, Vertex] = {
+    val snapshot:ParTrieMap[Int, Vertex] = ParTrieMap[Int, Vertex]()
+
+    for ((k,v) <- vertices) {
+      try
+        snapshot.put(k,v.viewAt(time))
+      catch {
+        case e:EntityRemovedAtTimeException => if(k == 1) println(e)
+        case e:PushedOutOfGraphException => println(e)
+        case e:StillWithinLiveGraphException => println(e)
+      }
+    }
+    snapshot
+  }
 
 
 }

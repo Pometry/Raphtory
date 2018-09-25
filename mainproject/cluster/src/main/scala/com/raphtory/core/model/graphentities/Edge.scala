@@ -1,8 +1,8 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.storage.{EdgeHistoryPoint, EdgePropertyPoint}
+import com.raphtory.core.storage.{EdgeHistoryPoint, EdgePropertyPoint, EntityStorage}
 import com.raphtory.core.utils.Utils
-import com.raphtory.core.utils.exceptions.EntityRemovedAtTimeException
+import com.raphtory.core.utils.exceptions.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -65,6 +65,35 @@ class Edge(routerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Bo
   override def getId: Long = Utils.getEdgeIndex(srcId, dstId)
   def getSrcId : Int = srcId
   def getDstId : Int = dstId
+
+
+  def viewAt(time:Long):Edge = {
+
+    if(time > EntityStorage.lastCompressedAt){
+      throw StillWithinLiveGraphException(time)
+    }
+    if(time < EntityStorage.oldestTime){
+      throw PushedOutOfGraphException(time)
+    }
+    var closestTime:Long = 0
+    var value = false
+    for((k,v) <- compressedState){
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
+    }
+    if(value==false)
+      throw EntityRemovedAtTimeException(getId)
+    val edge = new Edge(-1,closestTime,srcId,dstId,value,false)
+    for((k,p) <- properties) {
+      edge  + (time,k,p.valueAt(time))
+    }
+    edge
+  }
+
+
 
   override def equals(obj: scala.Any): Boolean = {
     if(obj.isInstanceOf[Edge]){

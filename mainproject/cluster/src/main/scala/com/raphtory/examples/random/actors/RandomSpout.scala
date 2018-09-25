@@ -22,7 +22,7 @@ class RandomSpout extends SpoutTrait {
     println(s"Prestarting ($freq Hz) Entity pool = $pool Ramp flag = $increase")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "random")
     context.system.scheduler.schedule(Duration(5, MINUTES), Duration(5, MINUTES), self, "increase")
-    context.system.scheduler.schedule(Duration(2, MINUTES), Duration(5, MINUTES), self, "stop")
+    context.system.scheduler.schedule(Duration(40, SECONDS), Duration(5, MINUTES), self, "stop")
 
   }
 
@@ -33,13 +33,14 @@ class RandomSpout extends SpoutTrait {
           freq += 1000
       case "random" => {
         if(isSafe) {
- //         stop()
           genRandomCommands(freq/1000)
         }
       }
+      case "stop" => stop()
       case _ => println("message not recognized!")
 
     }
+
   }
 
   def distribution() : String = {

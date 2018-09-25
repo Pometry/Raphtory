@@ -5,7 +5,7 @@ package com.raphtory.tests
 import akka.actor.{ActorSystem, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.{RaphtoryReplicator, WatchDog}
-import com.raphtory.core.storage.RaphtoryDB
+import com.raphtory.core.storage.{EntityStorage, RaphtoryDB}
 import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
@@ -44,6 +44,11 @@ object SingleNodeTest extends App {
   system.actorOf(Props(RaphtoryReplicator("Router",1, routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager",1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
+
+
+  Thread.sleep(100000)
+  println("trying")
+  println(EntityStorage.createSnapshot(EntityStorage.oldestTime+9000).get(1))
   //system.actorOf(Props(Class.forName(LamClassName)), s"LiveAnalysisManager_$LamClassName")
 
 }

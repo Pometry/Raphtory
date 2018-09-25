@@ -1,6 +1,7 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.storage.{VertexHistoryPoint, VertexPropertyPoint}
+import com.raphtory.core.storage.{EntityStorage, VertexHistoryPoint, VertexPropertyPoint}
+import com.raphtory.core.utils.exceptions.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
 
 import scala.collection.mutable
 import scala.collection.parallel.ParSet
@@ -75,6 +76,41 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     this + (closestTime,property.name,value)
   }
 
+  def viewAt(time:Long):Vertex = {
+    var closestTime:Long = 0
+    var value = false
+    if(time > EntityStorage.lastCompressedAt){
+      throw StillWithinLiveGraphException(time)
+    }
+    if(time < EntityStorage.oldestTime){
+      throw PushedOutOfGraphException(time)
+    }
+
+    for((k,v) <- compressedState){
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
+    }
+    if(value==false)
+      throw EntityRemovedAtTimeException(vertexId)
+    val vertex = new Vertex(-1,closestTime,vertexId,value,false)
+    for((k,p) <- properties) {
+      vertex  + (time,k,p.valueAt(time))
+    }
+    for((k,e) <- incomingEdges){
+      try{vertex   addAssociatedEdge(e.viewAt(time))}
+      catch {case e:EntityRemovedAtTimeException => }
+    }
+    for((k,e) <- outgoingEdges){
+      try{vertex   addAssociatedEdge(e.viewAt(time))}
+      catch {case e:EntityRemovedAtTimeException => }
+    }
+    vertex
+  }
+
+
   override def equals(obj: scala.Any): Boolean = {
     if(obj.isInstanceOf[Vertex]){
       val v2 = obj.asInstanceOf[Vertex] //add associated edges
@@ -125,7 +161,7 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
 
   override def toString: String = {
 //    s"Vertex ID $vertexId \n History $previousState \n Properties:\n $properties \n Associated Edges: $associatedEdges"
-    s"Vertex ID $vertexId \n History $previousState \n $compressedState \n "//Properties:\n $properties \n"
+    s"Vertex ID $vertexId \n History $previousState \n $compressedState \n //Properties:\n $properties \n"
   }
 
 }

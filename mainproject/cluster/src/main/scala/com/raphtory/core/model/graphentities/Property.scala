@@ -111,6 +111,19 @@ class Property(creationTime: Long,
     false
   }
 
+  def valueAt(time:Long): String = {
+    var closestTime:Long = 0
+    var value = ""
+    for((k,v) <- compressedState){
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
+    }
+    value
+  }
+
 //  def compressAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, String] ={
 //    var safeHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
 //    var oldHistory : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
