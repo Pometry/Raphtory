@@ -18,8 +18,6 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Singleton representing the Storage for the entities
   */
 //TODO add capacity function based on memory used and number of updates processed/stored in memory
-//TODO check which percentage of updates are compressed/archived
-//TODO make compression and archivist based on relative 1st update to latest update time
 //TODO keep cached entities in a separate map which can be cleared once analysis is finished
 //TODO filter to set of entities, expand to x number of hop neighbours and retrieve history
 //TODO perhaps create a new map for each LAM, this way we can add the entities to this map and remove after
