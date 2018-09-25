@@ -9,7 +9,7 @@ import com.raphtory.core.utils.KeyEnum
 import scala.collection.parallel.ParSet
 object GraphRepoProxy {
 
-  private val connectors : Array[ReaderConnector] = Array(MemoryConnector)//, RedisConnector)
+  //private val connectors : Array[ReaderConnector] = Array(MemoryConnector)//, RedisConnector)
 
   private var edgesSet : ParSet[Long] = ParSet[Long]()
   private var verticesSet : ParSet[Long] = ParSet[Long]()
@@ -19,13 +19,7 @@ object GraphRepoProxy {
 
   //def iterativeApply(f : Connector => Unit)
 
-  def entityExists(entityType : KeyEnum.Value, id : Long) : Boolean = {
-    connectors.foreach(conn => {
-      if (conn.lookupEntity(entityType, id))
-        return true
-    })
-    false
-  }
+
 
   def addEdge(id : Long) = {
     edgesSet += id
@@ -44,22 +38,12 @@ object GraphRepoProxy {
   }
 
   def getVertex(id : Long)(implicit context : ActorContext, managerCount : Int) : VertexVisitor = {
-    connectors.foreach(c => {
-      c.getEntity(KeyEnum.vertices, id) match {
-        case Some(v) => return VertexVisitor(v.asInstanceOf[Vertex])
-        case None    =>
-      }
-    })
+
     return null
   }
 
   def getEdge(id : Long) : Edge = {
-    connectors.foreach(c => {
-      c.getEntity(KeyEnum.edges, id) match {
-        case Some(edge) => return  edge.asInstanceOf[Edge]
-        case None    =>
-      }
-    })
+
     return null
   }
 }

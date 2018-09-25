@@ -125,7 +125,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
 
     if(toWrite.size>0) {
       compressedState = compressedState ++= toWrite
-      saved = true
     }
     toWrite
   }
@@ -184,6 +183,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   }
 
   def beenSaved():Boolean=saved
+  def firstSave():Unit = saved =true
 
   def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter
 

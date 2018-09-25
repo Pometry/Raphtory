@@ -53,10 +53,10 @@ object JanitorTest extends App{
 //  for(edge <- vertex.associatedEdges.values){
 //    edge + (3,"prop","testValue")
 //  }
-
+  var cutOff = 3
   saveVertex(vertex)
   saveEdges(vertex)
-
+  println(vertex)
   vertex kill(7)
   vertex revive(8)
   vertex +(8,"prop2","dave")
@@ -65,86 +65,49 @@ object JanitorTest extends App{
 //  for(edge <- vertex.associatedEdges.values){
 //    edge + (4,"prop","testValue2")
 //  }
-
+  cutOff = 10
   saveVertex(vertex)
   saveEdges(vertex)
   println(vertex)
   RaphtoryDB.retrieveVertex(1,3)
 
   def saveVertex(vertex:Vertex) = {
-    if(vertex.beenSaved()) {
       RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
       vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.save(vertex.getId,prop._1,prop._2.compressAndReturnOldHistory(cutOff)))
-    }
-    else {
-      RaphtoryDB.vertexHistory.saveNew(vertex.getId,vertex.oldestPoint.get,vertex.compressAndReturnOldHistory(cutOff))
-      vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.saveNew(vertex.getId,prop._1,vertex.oldestPoint.get,prop._2.compressAndReturnOldHistory(cutOff)))
-    }
+
   }
 
   def saveEdge(edge:Edge) ={
-    if(edge.beenSaved()) {
       RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, edge.compressAndReturnOldHistory(cutOff))
-      edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.save(edge.getSrcId,edge.getDstId,property._1,property._2.compressAndReturnOldHistory(cutOff)))
-
-    }
-    else {
-      RaphtoryDB.edgeHistory.saveNew(edge.getSrcId, edge.getDstId, edge.oldestPoint.get, false, edge.compressAndReturnOldHistory(cutOff))
-      edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.saveNew(edge.getSrcId, edge.getDstId, property._1, edge.oldestPoint.get, false, property._2.compressAndReturnOldHistory(cutOff)))
-    }
+      edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1,  property._2.compressAndReturnOldHistory(cutOff)))
   }
 
 
   def saveEdges(vertex:Vertex) ={
     for(edge <- vertex.incomingEdges.values){
       // RaphtoryDB.edgeHistory.saveNew(edge.getSrcId,edge.getDstId,edge.oldestPoint.get,false,edge.compressAndReturnOldHistory(cutOff))
-      if(edge.beenSaved()) {
-        val history = edge.compressAndReturnOldHistory(cutOff)
-        if (history.size > 0)
-          RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId,history )
-        edge.properties.foreach(property => {
-          val history = property._2.compressAndReturnOldHistory(cutOff)
-          if (history.size > 0)
-            RaphtoryDB.edgePropertyHistory.save(edge.getSrcId,edge.getDstId,property._1,history)
-        })
 
-      }
-      else {
         val history = edge.compressAndReturnOldHistory(cutOff)
         if (history.size > 0)
-          RaphtoryDB.edgeHistory.saveNew(edge.getSrcId, edge.getDstId, edge.oldestPoint.get, false, history)
+          RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
         edge.properties.foreach(property => {
           val history = property._2.compressAndReturnOldHistory(cutOff)
           if (history.size > 0)
-            RaphtoryDB.edgePropertyHistory.saveNew(edge.getSrcId, edge.getDstId, property._1, edge.oldestPoint.get, false, history)
+            RaphtoryDB.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, history)
         })
-      }
     }
     for(edge <- vertex.outgoingEdges.values){
       // RaphtoryDB.edgeHistory.saveNew(edge.getSrcId,edge.getDstId,edge.oldestPoint.get,false,edge.compressAndReturnOldHistory(cutOff))
-      if(edge.beenSaved()) {
+
         val history = edge.compressAndReturnOldHistory(cutOff)
         if (history.size > 0)
-          RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId,history )
+          RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
         edge.properties.foreach(property => {
           val history = property._2.compressAndReturnOldHistory(cutOff)
           if (history.size > 0)
-            RaphtoryDB.edgePropertyHistory.save(edge.getSrcId,edge.getDstId,property._1,history)
-        })
-
-      }
-      else {
-        val history = edge.compressAndReturnOldHistory(cutOff)
-        if (history.size > 0)
-          RaphtoryDB.edgeHistory.saveNew(edge.getSrcId, edge.getDstId, edge.oldestPoint.get, false, history)
-        edge.properties.foreach(property => {
-          val history = property._2.compressAndReturnOldHistory(cutOff)
-          if (history.size > 0)
-            RaphtoryDB.edgePropertyHistory.saveNew(edge.getSrcId, edge.getDstId, property._1, edge.oldestPoint.get, false, history)
+            RaphtoryDB.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, history)
         })
       }
-    }
-
   }
 
 
@@ -155,7 +118,7 @@ object JanitorTest extends App{
   //println(System.currentTimeMillis()-time2)
   //    //println(RaphtoryDB.connector.session.execute("select * from raphtory.vertexhistory ;").one())
   //
-  def cutOff = System.currentTimeMillis()+1000
+
 
 
 
