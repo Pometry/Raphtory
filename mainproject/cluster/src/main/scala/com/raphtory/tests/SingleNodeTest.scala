@@ -61,6 +61,10 @@ object SingleNodeTest extends App {
   for (id <- GraphRepoProxy.getVerticesSet()){
     startCount +=1
     RaphtoryDB.retrieveVertex(id.toLong,compress,loadedVertices,finishCount,removedCount)
+    if((startCount % 1000) == 0)
+      while(startCount> finishCount.get){
+        Thread.sleep(1) //Throttle requests to cassandra
+      }
   }
 
   while(startCount> finishCount.get){
