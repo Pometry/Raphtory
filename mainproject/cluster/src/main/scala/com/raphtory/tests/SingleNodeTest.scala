@@ -50,7 +50,7 @@ object SingleNodeTest extends App {
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
 
-  Thread.sleep(60000)
+  Thread.sleep(150000)
   val compress = EntityStorage.lastCompressedAt
   println(s"compression time = $compress")
   val verticesInMem = EntityStorage.createSnapshot(compress)

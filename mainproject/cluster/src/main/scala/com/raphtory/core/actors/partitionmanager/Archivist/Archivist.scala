@@ -14,7 +14,9 @@ import monix.execution.atomic.AtomicInt
 import org.slf4j.LoggerFactory
 
 import scala.collection.parallel.mutable.ParTrieMap
+import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 //TODO decide how to do shrinking window as graph expands
 //TODO work out general cutoff function
 //TODO don't resave history
@@ -36,6 +38,9 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   var vertexCompressionTime:Long = 0L
   var edgeCompressionTime:Long = 0L
 
+  var startcompressioms = 0
+  val compressions:AtomicInt =  AtomicInt(0)
+
   val propsRemoved:AtomicInt =  AtomicInt(0)
   val historyRemoved:AtomicInt =  AtomicInt(0)
   val verticesRemoved:AtomicInt =  AtomicInt(0)
@@ -54,6 +59,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
   override def receive: Receive = {
     case "compress" => compressGraph()
+    case "compressCheck" => compressCheck()
     case "archive"=> archive()
   }
 
@@ -102,14 +108,26 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     val now = newLastSaved
     val past = lastSaved
     println(map.size)
-    for((k,v) <- map) saveEdge(v,now)
+    for((k,v) <- map) {
+      startcompressioms +=1
+      Future {
+        saveEdge(v, now)
+      }.onComplete(p => p match {
+        case Success(e) => compressions.increment()
+        case Failure(e) => {println("problem"+e); compressions.increment()}
+      })
+    }
   }
 
   def compressVertices(map : ParTrieMap[Int, Vertex]) = {
     val now = newLastSaved
     val past = lastSaved
     for((k,v) <- map) {
-      saveVertex(v,now)
+      startcompressioms +=1
+      Future{saveVertex(v,now)}.onComplete(p=>p match{
+        case Success(e) => compressions.increment()
+        case Failure(e) => {println("problem"+e); compressions.increment()}
+      })
     }
   }
 
@@ -124,11 +142,23 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     }
 
     if (lockerCounter == 0) {
+      context.system.scheduler.scheduleOnce(10.millisecond, self, "compressCheck")
+
+    }
+  }
+
+  def compressCheck():Unit = {
+    if(startcompressioms<= compressions.get) {
+      startcompressioms = 0
+      compressions.set(0)
       println("finished compressing")
       canArchiveFlag = true
       lastSaved = newLastSaved
       EntityStorage.lastCompressedAt = lastSaved
-     // context.system.scheduler.scheduleOnce(5.seconds, self,"archive")
+      context.system.scheduler.scheduleOnce(5.seconds, self, "archive")
+    }
+    else{
+      context.system.scheduler.scheduleOnce(10.millisecond, self, "compressCheck")
     }
   }
 

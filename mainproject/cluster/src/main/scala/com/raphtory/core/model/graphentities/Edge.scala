@@ -88,7 +88,9 @@ class Edge(routerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Bo
       throw EntityRemovedAtTimeException(getId)
     val edge = new Edge(-1,closestTime,srcId,dstId,value,false)
     for((k,p) <- properties) {
-      edge  + (time,k,p.valueAt(time))
+      val value = p.valueAt(time)
+      if (!(value equals("default")))
+        edge  + (time,k,value)
     }
     edge
   }
@@ -116,7 +118,8 @@ class Edge(routerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Bo
           value = v
         }
     }
-    this + (time,property.name,value)
+    if(!(value equals ("default")))
+      this + (time,property.name,value)
   }
 
   override def toString: String = {

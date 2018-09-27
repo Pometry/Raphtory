@@ -73,7 +73,8 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
           value = v
         }
     }
-    this + (time,property.name,value)
+    if(!(value.equals("default")))
+      this + (time,property.name,value)
   }
 
   def viewAt(time:Long):Vertex = {
@@ -169,7 +170,7 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
 
   override def toString: String = {
 //    s"Vertex ID $vertexId \n History $previousState \n Properties:\n $properties \n Associated Edges: $associatedEdges"
-    s"Vertex ID $vertexId \n History $previousState \n $compressedState \n //Properties:\n $properties \n"
+    s"Vertex ID $vertexId \n History $previousState \n //Properties:\n $properties \n"
   }
 
 }
