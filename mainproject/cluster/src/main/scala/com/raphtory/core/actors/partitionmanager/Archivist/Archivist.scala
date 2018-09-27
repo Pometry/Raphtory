@@ -128,7 +128,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       canArchiveFlag = true
       lastSaved = newLastSaved
       EntityStorage.lastCompressedAt = lastSaved
-      context.system.scheduler.scheduleOnce(5.seconds, self,"archive")
+     // context.system.scheduler.scheduleOnce(5.seconds, self,"archive")
     }
   }
 

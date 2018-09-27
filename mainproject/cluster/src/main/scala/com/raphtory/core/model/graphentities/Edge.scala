@@ -108,7 +108,7 @@ class Edge(routerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Bo
   def addSavedProperty(property:EdgePropertyPoint, time:Long): Unit ={
     val history = property.history
     var closestTime:Long = 0
-    var value = ""
+    var value = "default"
     for((k,v) <- history){
       if(k<=time)
         if((time-k)<(time-closestTime)) {
@@ -116,7 +116,7 @@ class Edge(routerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Bo
           value = v
         }
     }
-    this + (closestTime,property.name,value)
+    this + (time,property.name,value)
   }
 
   override def toString: String = {

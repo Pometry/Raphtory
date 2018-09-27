@@ -13,10 +13,10 @@ import scala.util.Random
 class RandomSpout extends SpoutTrait {
 
   var totalCount      = 100
-  var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "10000").toInt    // (Updates/s) - Hz
+  var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt    // (Updates/s) - Hz
   var increase        = System.getenv().getOrDefault("RAMP_FLAG", "false").toBoolean  // (Updates/s) - Hz
   var pool            = System.getenv().getOrDefault("ENTITY_POOL", "1000").toInt
-
+  var msgID = 0
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
     println(s"Prestarting ($freq Hz) Entity pool = $pool Ramp flag = $increase")
@@ -110,7 +110,11 @@ class RandomSpout extends SpoutTrait {
   def genSrcID(src:Int):String = s""" "srcID":$src """
   def genDstID(dst:Int):String = s""" "dstID":$dst """
 
-  def getMessageID():String = s""" "messageID":${System.currentTimeMillis()} """
+  def getMessageID():String = {
+    msgID +=1
+    //s""" "messageID":${System.currentTimeMillis()} """
+    s""" "messageID":${msgID} """
+  }
 
   def genProperties(numOfProps:Int):String ={
     var properties = "\"properties\":{"

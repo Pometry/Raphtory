@@ -65,7 +65,7 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   def addSavedProperty(property:VertexPropertyPoint,time:Long): Unit ={
     val history = property.history
     var closestTime:Long = 0
-    var value = ""
+    var value = "default"
     for((k,v) <- history){
       if(k<=time)
         if((time-k)<(time-closestTime)) {
@@ -73,19 +73,18 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
           value = v
         }
     }
-    this + (closestTime,property.name,value)
+    this + (time,property.name,value)
   }
 
   def viewAt(time:Long):Vertex = {
-    var closestTime:Long = 0
-    var value = false
     if(time > EntityStorage.lastCompressedAt){
       throw StillWithinLiveGraphException(time)
     }
     if(time < EntityStorage.oldestTime){
       throw PushedOutOfGraphException(time)
     }
-
+    var closestTime:Long = 0
+    var value = false
     for((k,v) <- compressedState){
       if(k<=time)
         if((time-k)<(time-closestTime)) {
@@ -93,11 +92,13 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
           value = v
         }
     }
-    if(value==false)
+    if(!value)
       throw EntityRemovedAtTimeException(vertexId)
     val vertex = new Vertex(-1,closestTime,vertexId,value,false)
     for((k,p) <- properties) {
-      vertex  + (time,k,p.valueAt(time))
+      val value = p.valueAt(time)
+      if (!(value equals("default")))
+        vertex  + (time,k,value)
     }
     for((k,e) <- incomingEdges){
       try{vertex   addAssociatedEdge(e.viewAt(time))}
@@ -141,18 +142,25 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
       }
 
       else if(!(properties.equals(v2.properties))){
+        println(s"vertex id $vertexId")
         println("properties incorrect:")
         println(properties)
         println(v2.properties)
         false
       }
 
-//      else if(!(associatedEdges.equals(v2.associatedEdges))){
-//        println("associated edges incorrect:")
-//        println(associatedEdges)
-//        println(v2.associatedEdges)
-//        false
-//      }
+      else if(!(incomingEdges.equals(v2.incomingEdges))){
+        println("associated edges incorrect:")
+        println(incomingEdges)
+        println(v2.incomingEdges)
+        false
+      }
+      else if(!(outgoingEdges.equals(v2.outgoingEdges))){
+        println("associated edges incorrect:")
+        println(outgoingEdges)
+        println(v2.outgoingEdges)
+        false
+      }
       else true
     }
     else false

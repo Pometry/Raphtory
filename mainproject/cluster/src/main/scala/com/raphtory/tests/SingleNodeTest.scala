@@ -5,9 +5,13 @@ package com.raphtory.tests
 import akka.actor.{ActorSystem, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.{RaphtoryReplicator, WatchDog}
+import com.raphtory.core.model.graphentities.Vertex
+import com.raphtory.core.storage.controller.GraphRepoProxy
 import com.raphtory.core.storage.{EntityStorage, RaphtoryDB}
+import monix.execution.atomic.AtomicInt
 import org.slf4j.LoggerFactory
 
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.language.postfixOps
 import scala.sys.process._
 //this class creates an actor system with all of the required components for a Raphtory cluster
@@ -46,9 +50,30 @@ object SingleNodeTest extends App {
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
 
-  Thread.sleep(100000)
-  println("trying")
-  println(EntityStorage.createSnapshot(EntityStorage.oldestTime+9000).get(1))
+  Thread.sleep(60000)
+  val compress = EntityStorage.lastCompressedAt
+  println(s"compression time = $compress")
+  val verticesInMem = EntityStorage.createSnapshot(compress)
+  val loadedVertices = ParTrieMap[Int, Vertex]()
+  var startCount = 0
+  val finishCount = AtomicInt(0)
+  val removedCount = AtomicInt(0)
+  for (id <- GraphRepoProxy.getVerticesSet()){
+    startCount +=1
+    RaphtoryDB.retrieveVertex(id.toLong,compress,loadedVertices,finishCount,removedCount)
+  }
+
+  while(startCount> finishCount.get){
+    Thread.sleep(100)
+    println(System.currentTimeMillis())
+  }
+
+
+  println(verticesInMem.size)
+  println(loadedVertices.size)
+
+  println(verticesInMem.equals(loadedVertices))
+  System.exit(0)
   //system.actorOf(Props(Class.forName(LamClassName)), s"LiveAnalysisManager_$LamClassName")
 
 }

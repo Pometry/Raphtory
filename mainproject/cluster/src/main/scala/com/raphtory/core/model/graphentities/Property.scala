@@ -113,7 +113,7 @@ class Property(creationTime: Long,
 
   def valueAt(time:Long): String = {
     var closestTime:Long = 0
-    var value = ""
+    var value = "default"
     for((k,v) <- compressedState){
       if(k<=time)
         if((time-k)<(time-closestTime)) {

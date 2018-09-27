@@ -354,17 +354,22 @@ object EntityStorage {
 
   def createSnapshot(time:Long):ParTrieMap[Int, Vertex] = {
     val snapshot:ParTrieMap[Int, Vertex] = ParTrieMap[Int, Vertex]()
-
+    var count = 0
     for ((k,v) <- vertices) {
-      try
-        snapshot.put(k,v.viewAt(time))
+      try {
+        val vertex =v.viewAt(time)
+        snapshot.put(k,vertex )
+        count +=1
+      }
       catch {
-        case e:EntityRemovedAtTimeException => if(k == 1) println(e)
+        case e:EntityRemovedAtTimeException => //println(e)
         case e:PushedOutOfGraphException => println(e)
         case e:StillWithinLiveGraphException => println(e)
       }
     }
+    println(s"$count entities in snapshot")
     snapshot
+
   }
 
 

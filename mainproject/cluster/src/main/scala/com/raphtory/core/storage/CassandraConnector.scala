@@ -1,14 +1,17 @@
 package com.raphtory.core.storage
 
 import com.datastax.driver.core.SocketOptions
+import com.datastax.driver.core.exceptions.NoHostAvailableException
 import com.outworkers.phantom.connectors.CassandraConnection
 import com.outworkers.phantom.database.Database
 import com.outworkers.phantom.dsl._
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
 import com.raphtory.core.utils.Utils
 import com.raphtory.core.utils.exceptions.EntityRemovedAtTimeException
+import monix.execution.atomic.AtomicInt
 
 import scala.collection.mutable
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
@@ -53,7 +56,7 @@ object RaphtoryDB extends RaphtoryDatabase(Connector.default){
     RaphtoryDB.edgePropertyHistory.createTable()
   }
 
-  def retrieveVertex(id:Long,time:Long)={
+  def retrieveVertex(id:Long,time:Long,vertexMap:ParTrieMap[Int, Vertex],completeCount:AtomicInt,removedCount:AtomicInt):Unit={
 
     val x = for {
       vertexHistory <- RaphtoryDB.vertexHistory.allVertexHistory(id)
@@ -64,14 +67,16 @@ object RaphtoryDB extends RaphtoryDatabase(Connector.default){
       outgoingedgePropertyHistory <- RaphtoryDB.edgePropertyHistory.allOutgoingHistory(id.toInt)
     } yield {
       val vertex = Vertex(vertexHistory.head,time)
-      if(!vertex.previousState.head._2)
+      if(!vertex.previousState.head._2) {
+        //println(s"${vertex.getId} apparently old at time $time $vertexHistory}")
         throw EntityRemovedAtTimeException(vertex.getId)
+      }
       for(property <-  vertexPropertyHistory){
         vertex.addSavedProperty(property,time)
       }
       for(edgepoint <- incomingedgehistory){
         try{vertex.addAssociatedEdge(Edge(edgepoint,time))}
-        catch {case e:EntityRemovedAtTimeException => println(edgepoint.dst + "bust") } // edge was not alive at this point in time
+        catch {case e:EntityRemovedAtTimeException => } // edge was not alive at this point in time
       }
       for(edgepropertypoint <- incomingedgePropertyHistory){
         vertex.incomingEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
@@ -81,7 +86,7 @@ object RaphtoryDB extends RaphtoryDatabase(Connector.default){
       }
       for(edgepoint <- outgoingedgehistory){
         try{vertex.addAssociatedEdge(Edge(edgepoint,time))}
-        catch {case e:EntityRemovedAtTimeException => println(edgepoint.dst + "bust") } // edge was not alive at this point in time
+        catch {case e:EntityRemovedAtTimeException => } // edge was not alive at this point in time
       }
       for(edgepropertypoint <- outgoingedgePropertyHistory){
         vertex.outgoingEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
@@ -93,8 +98,18 @@ object RaphtoryDB extends RaphtoryDatabase(Connector.default){
     }
 
     x.onComplete(p => p match {
-      case Success(v)=> println(v)//EntityStorage.vertices.put(v.vertexId,v)
-      case Failure(e) => println(e) //do nothing
+      case Success(v)=> {
+
+        vertexMap.put(v.vertexId,v);
+        completeCount.increment()}
+      case Failure(e) => {
+        completeCount.increment()
+        e match {
+          case e:EntityRemovedAtTimeException => removedCount.increment()
+          case e:NoSuchElementException =>
+          case e:NoHostAvailableException => println("No host available")
+        }
+      } //do nothing
     })
 
   }
@@ -120,7 +135,8 @@ abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
  // }
 
   def save(id:Long,history:mutable.TreeMap[Long,Boolean]) = {
-    session.executeAsync(s"UPDATE raphtory.vertexHistory SET history = history + ${Utils.createHistory(history)} WHERE id = $id;")
+//    session.executeAsync(s"UPDATE raphtory.vertexHistory SET history = history + ${Utils.createHistory(history)} WHERE id = $id;")
+    session.execute(s"UPDATE raphtory.vertexHistory SET history = history + ${Utils.createHistory(history)} WHERE id = $id;")
   }
   def createKeySpace() = {
    try{session.execute("create keyspace raphtory with replication = {'class':'SimpleStrategy','replication_factor':1};")}
@@ -153,7 +169,7 @@ abstract class VertexPropertyHistory extends Table[VertexPropertyHistory, Vertex
  // }
 
   def save(id:Long,name:String,history:mutable.TreeMap[Long,String]) = {
-    session.executeAsync(s"UPDATE raphtory.vertexPropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE id = $id AND name = '$name';")
+    session.execute(s"UPDATE raphtory.vertexPropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE id = $id AND name = '$name';")
   }
 
   def createTable() = {
@@ -187,7 +203,8 @@ abstract class EdgeHistory extends Table[EdgeHistory, EdgeHistoryPoint] {
  // }
 
   def save(src:Int,dst:Int,history:mutable.TreeMap[Long,Boolean]) = {
-    session.executeAsync(s"UPDATE raphtory.edgeHistory SET history = history + ${Utils.createHistory(history)} WHERE src = $src AND dst = $dst;")
+   // session.executeAsync(s"UPDATE raphtory.edgeHistory SET history = history + ${Utils.createHistory(history)} WHERE src = $src AND dst = $dst;")
+    session.execute(s"UPDATE raphtory.edgeHistory SET history = history + ${Utils.createHistory(history)} WHERE src = $src AND dst = $dst;")
   }
   def createTable() = {
     try{
@@ -232,7 +249,8 @@ abstract class EdgePropertyHistory extends Table[EdgePropertyHistory, EdgeProper
  // }
 
   def save(src: Int, dst: Int, name: String, history: mutable.TreeMap[Long, String]) = {
-    session.executeAsync(s"UPDATE raphtory.EdgePropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE src = $src AND dst = $dst AND name = '$name';")
+    session.execute(s"UPDATE raphtory.EdgePropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE src = $src AND dst = $dst AND name = '$name';")
+    //session.executeAsync(s"UPDATE raphtory.EdgePropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE src = $src AND dst = $dst AND name = '$name';")
   }
 
   def createTable() = {

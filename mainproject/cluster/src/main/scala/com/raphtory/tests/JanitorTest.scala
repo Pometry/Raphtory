@@ -69,7 +69,7 @@ object JanitorTest extends App{
   saveVertex(vertex)
   saveEdges(vertex)
   println(vertex)
-  RaphtoryDB.retrieveVertex(1,3)
+ //RaphtoryDB.retrieveVertex(1,3)
 
   def saveVertex(vertex:Vertex) = {
       RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
