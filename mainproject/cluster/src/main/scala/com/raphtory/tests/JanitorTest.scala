@@ -3,7 +3,7 @@ package com.raphtory.tests
 import ch.qos.logback.classic.Level
 import com.outworkers.phantom.dsl.KeySpace
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
-import com.raphtory.core.storage.{EntityStorage, RaphtoryDB}
+import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
 import com.raphtory.core.utils.Utils
 import com.raphtory.core.utils.exceptions.EntityRemovedAtTimeException
 import org.slf4j.LoggerFactory
@@ -19,8 +19,8 @@ object JanitorTest extends App{
   val timeWindowMils = timeWindow * 1000
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  RaphtoryDB.createDB()
-  RaphtoryDB.clearDB()
+  RaphtoryDBWrite.createDB()
+  RaphtoryDBWrite.clearDB()
 
   val vertex = new Vertex(1,1,1,true,false)
   vertex revive(2)
@@ -72,14 +72,14 @@ object JanitorTest extends App{
  //RaphtoryDB.retrieveVertex(1,3)
 
   def saveVertex(vertex:Vertex) = {
-      RaphtoryDB.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
-      vertex.properties.foreach(prop => RaphtoryDB.vertexPropertyHistory.save(vertex.getId,prop._1,prop._2.compressAndReturnOldHistory(cutOff)))
+      RaphtoryDBWrite.vertexHistory.save(vertex.getId,vertex.compressAndReturnOldHistory(cutOff))
+      vertex.properties.foreach(prop => RaphtoryDBWrite.vertexPropertyHistory.save(vertex.getId,prop._1,prop._2.compressAndReturnOldHistory(cutOff)))
 
   }
 
   def saveEdge(edge:Edge) ={
-      RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, edge.compressAndReturnOldHistory(cutOff))
-      edge.properties.foreach(property => RaphtoryDB.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1,  property._2.compressAndReturnOldHistory(cutOff)))
+      RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, edge.compressAndReturnOldHistory(cutOff))
+      edge.properties.foreach(property => RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1,  property._2.compressAndReturnOldHistory(cutOff)))
   }
 
 
@@ -89,11 +89,11 @@ object JanitorTest extends App{
 
         val history = edge.compressAndReturnOldHistory(cutOff)
         if (history.size > 0)
-          RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
+          RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
         edge.properties.foreach(property => {
           val history = property._2.compressAndReturnOldHistory(cutOff)
           if (history.size > 0)
-            RaphtoryDB.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, history)
+            RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, history)
         })
     }
     for(edge <- vertex.outgoingEdges.values){
@@ -101,11 +101,11 @@ object JanitorTest extends App{
 
         val history = edge.compressAndReturnOldHistory(cutOff)
         if (history.size > 0)
-          RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
+          RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
         edge.properties.foreach(property => {
           val history = property._2.compressAndReturnOldHistory(cutOff)
           if (history.size > 0)
-            RaphtoryDB.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, history)
+            RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, history)
         })
       }
   }

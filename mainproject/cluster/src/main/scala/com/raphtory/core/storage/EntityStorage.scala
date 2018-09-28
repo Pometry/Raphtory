@@ -207,7 +207,7 @@ object EntityStorage {
       if (!local)
         mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(routerID,msgTime, srcId, dstId, null, deaths), false)
     }
-    GraphRepoProxy.addEdge(edge.getId)
+//i    GraphRepoProxy.addEdge(edge.getId)
     if (properties != null)
       properties.foreach(prop => edge.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
 

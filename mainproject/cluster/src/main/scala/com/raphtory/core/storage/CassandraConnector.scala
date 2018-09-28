@@ -10,12 +10,13 @@ import com.raphtory.core.utils.Utils
 import com.raphtory.core.utils.exceptions.EntityRemovedAtTimeException
 import monix.execution.atomic.AtomicInt
 
-import scala.collection.mutable
+import scala.collection.{mutable, parallel}
+import scala.collection.parallel.mutable._
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-private object Connector {
+class Connector {
   val default: CassandraConnection = ContactPoint.local
     .withClusterBuilder(_.withSocketOptions(
       new SocketOptions()
@@ -40,31 +41,36 @@ class RaphtoryDatabase(override val connector: CassandraConnection) extends Data
 }
 //bject RaphtoryDatabase extends Database(Connector.default)
 
-object RaphtoryDB extends RaphtoryDatabase(Connector.default){
+object RaphtoryDBWrite extends RaphtoryDatabase(new Connector().default){
 
   def clearDB() ={
-    RaphtoryDB.vertexHistory.clear()
-    RaphtoryDB.edgeHistory.clear()
-    RaphtoryDB.vertexPropertyHistory.clear()
-    RaphtoryDB.edgePropertyHistory.clear()
+    RaphtoryDBWrite.vertexHistory.clear()
+    RaphtoryDBWrite.edgeHistory.clear()
+    RaphtoryDBWrite.vertexPropertyHistory.clear()
+    RaphtoryDBWrite.edgePropertyHistory.clear()
   }
   def createDB() = {
-    RaphtoryDB.vertexHistory.createKeySpace()
-    RaphtoryDB.vertexHistory.createTable()
-    RaphtoryDB.edgeHistory.createTable()
-    RaphtoryDB.vertexPropertyHistory.createTable()
-    RaphtoryDB.edgePropertyHistory.createTable()
+    RaphtoryDBWrite.vertexHistory.createKeySpace()
+    RaphtoryDBWrite.vertexHistory.createTable()
+    RaphtoryDBWrite.edgeHistory.createTable()
+    RaphtoryDBWrite.vertexPropertyHistory.createTable()
+    RaphtoryDBWrite.edgePropertyHistory.createTable()
   }
 
-  def retrieveVertex(id:Long,time:Long,vertexMap:ParTrieMap[Int, Vertex],completeCount:AtomicInt,removedCount:AtomicInt):Unit={
+
+}
+
+object RaphtoryDBRead extends RaphtoryDatabase(new Connector().default){
+
+  def retrieveVertex(id:Long,time:Long,vertexMap:ParTrieMap[Int, Vertex],completeCount:AtomicInt,retryQueue:parallel.mutable.ParHashSet[Long]):Unit={
 
     val x = for {
-      vertexHistory <- RaphtoryDB.vertexHistory.allVertexHistory(id)
-      vertexPropertyHistory <- RaphtoryDB.vertexPropertyHistory.allPropertyHistory(id)
-      incomingedgehistory <- RaphtoryDB.edgeHistory.allIncomingHistory(id.toInt)
-      incomingedgePropertyHistory <- RaphtoryDB.edgePropertyHistory.allIncomingHistory(id.toInt)
-      outgoingedgehistory <- RaphtoryDB.edgeHistory.allOutgoingHistory(id.toInt)
-      outgoingedgePropertyHistory <- RaphtoryDB.edgePropertyHistory.allOutgoingHistory(id.toInt)
+      vertexHistory <- RaphtoryDBRead.vertexHistory.allVertexHistory(id)
+      vertexPropertyHistory <- RaphtoryDBRead.vertexPropertyHistory.allPropertyHistory(id)
+      incomingedgehistory <- RaphtoryDBRead.edgeHistory.allIncomingHistory(id.toInt)
+      incomingedgePropertyHistory <- RaphtoryDBRead.edgePropertyHistory.allIncomingHistory(id.toInt)
+      outgoingedgehistory <- RaphtoryDBRead.edgeHistory.allOutgoingHistory(id.toInt)
+      outgoingedgePropertyHistory <- RaphtoryDBRead.edgePropertyHistory.allOutgoingHistory(id.toInt)
     } yield {
       val vertex = Vertex(vertexHistory.head,time)
       if(!vertex.previousState.head._2) {
@@ -99,15 +105,14 @@ object RaphtoryDB extends RaphtoryDatabase(Connector.default){
 
     x.onComplete(p => p match {
       case Success(v)=> {
-
         vertexMap.put(v.vertexId,v);
-        completeCount.increment()}
-      case Failure(e) => {
         completeCount.increment()
+      }
+      case Failure(e) => {
         e match {
-          case e:EntityRemovedAtTimeException => removedCount.increment()
-          case e:NoSuchElementException =>
-          case e:NoHostAvailableException => println("No host available")
+          case e:EntityRemovedAtTimeException => completeCount.increment()
+          case e:NoSuchElementException => completeCount.increment()
+          case e:NoHostAvailableException =>{retryQueue += id; completeCount.increment()}
         }
       } //do nothing
     })
@@ -152,7 +157,7 @@ abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
   }
 
   def allVertexHistory(id:Long) : Future[List[VertexHistoryPoint]] = {
-    RaphtoryDB.vertexHistory.select.where(_.id eqs id).fetch()
+    RaphtoryDBWrite.vertexHistory.select.where(_.id eqs id).fetch()
   }
 }
 
@@ -181,7 +186,7 @@ abstract class VertexPropertyHistory extends Table[VertexPropertyHistory, Vertex
   }
 
   def allPropertyHistory(id:Long) : Future[List[VertexPropertyPoint]] = {
-    RaphtoryDB.vertexPropertyHistory.select.where(_.id eqs id).fetch()
+    RaphtoryDBWrite.vertexPropertyHistory.select.where(_.id eqs id).fetch()
   }
 }
 
@@ -222,10 +227,10 @@ abstract class EdgeHistory extends Table[EdgeHistory, EdgeHistoryPoint] {
 //    RaphtoryDB.edgeHistory.select.where(_.src eqs src).where(_.dst eqs dst).fetch()
 //  }
   def allOutgoingHistory(src:Int) : Future[List[EdgeHistoryPoint]] = {
-    RaphtoryDB.edgeHistory.select.where(_.src eqs src).fetch()
+    RaphtoryDBWrite.edgeHistory.select.where(_.src eqs src).fetch()
   }
   def allIncomingHistory(dst:Int) : Future[List[EdgeHistoryPoint]] = {
-    RaphtoryDB.edgeHistory.select.where(_.dst eqs dst).fetch()
+    RaphtoryDBWrite.edgeHistory.select.where(_.dst eqs dst).fetch()
   }
 }
 
@@ -268,11 +273,11 @@ abstract class EdgePropertyHistory extends Table[EdgePropertyHistory, EdgeProper
   }
 
   def allOutgoingHistory(src: Int): Future[List[EdgePropertyPoint]] = {
-    RaphtoryDB.edgePropertyHistory.select.where(_.src eqs src).fetch()
+    RaphtoryDBWrite.edgePropertyHistory.select.where(_.src eqs src).fetch()
   }
 
   def allIncomingHistory(dst: Int): Future[List[EdgePropertyPoint]] = {
-    RaphtoryDB.edgePropertyHistory.select.where(_.dst eqs dst).fetch()
+    RaphtoryDBWrite.edgePropertyHistory.select.where(_.dst eqs dst).fetch()
   }
 
 

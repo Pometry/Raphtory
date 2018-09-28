@@ -7,7 +7,7 @@ import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.{RaphtoryReplicator, WatchDog}
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.controller.GraphRepoProxy
-import com.raphtory.core.storage.{EntityStorage, RaphtoryDB}
+import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
 import monix.execution.atomic.AtomicInt
 import org.slf4j.LoggerFactory
 
@@ -18,7 +18,7 @@ import scala.sys.process._
 object SingleNodeTest extends App {
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
-  RaphtoryDB.clearDB()
+  RaphtoryDBWrite.clearDB()
   val partitionNumber = 1
   val minimumRouters = 1
 
@@ -50,33 +50,11 @@ object SingleNodeTest extends App {
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
 
-  Thread.sleep(150000)
-  val compress = EntityStorage.lastCompressedAt
-  println(s"compression time = $compress")
-  val verticesInMem = EntityStorage.createSnapshot(compress)
-  val loadedVertices = ParTrieMap[Int, Vertex]()
-  var startCount = 0
-  val finishCount = AtomicInt(0)
-  val removedCount = AtomicInt(0)
-  for (id <- GraphRepoProxy.getVerticesSet()){
-    startCount +=1
-    RaphtoryDB.retrieveVertex(id.toLong,compress,loadedVertices,finishCount,removedCount)
-    if((startCount % 1000) == 0)
-      while(startCount> finishCount.get){
-        Thread.sleep(1) //Throttle requests to cassandra
-      }
-  }
 
-  while(startCount> finishCount.get){
-    Thread.sleep(100)
-    println(System.currentTimeMillis())
-  }
+  Thread.sleep(60000)
+  println("hello there")
+  GraphRepoProxy.something
 
-
-  println(verticesInMem.size)
-  println(loadedVertices.size)
-
-  println(verticesInMem.equals(loadedVertices))
   System.exit(0)
   //system.actorOf(Props(Class.forName(LamClassName)), s"LiveAnalysisManager_$LamClassName")
 

@@ -58,7 +58,7 @@ private object MemoryConnector extends ReaderConnector {
   override def getEntities(entityType: KeyEnum.Value): ParSet[Long] = {
     entityType match { // Not needed method
       case KeyEnum.vertices => GraphRepoProxy.getVerticesSet()
-      case KeyEnum.edges    => GraphRepoProxy.getEdgesSet()
+//      case KeyEnum.edges    => GraphRepoProxy.getEdgesSet()
     }
   }
 

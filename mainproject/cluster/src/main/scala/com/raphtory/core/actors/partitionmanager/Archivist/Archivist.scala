@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.graphentities._
-import com.raphtory.core.storage.{EntityStorage, RaphtoryDB}
+import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
 import com.raphtory.core.utils.KeyEnum
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
@@ -165,12 +165,12 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   def saveVertex(vertex:Vertex,cutOff:Long) = {
       val history = vertex.compressAndReturnOldHistory(cutOff)
       if(history.size > 0) {
-        RaphtoryDB.vertexHistory.save(vertex.getId,history)
+        RaphtoryDBWrite.vertexHistory.save(vertex.getId,history)
       }
       vertex.properties.foreach(prop => {
         val propHistory =prop._2.compressAndReturnOldHistory(cutOff)
         if(propHistory.size > 0) {
-          RaphtoryDB.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
+          RaphtoryDBWrite.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
         }
       })
   }
@@ -179,13 +179,13 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   def saveEdge(edge:Edge,cutOff:Long) ={
       val history = edge.compressAndReturnOldHistory(cutOff)
       if(history.size > 0) {
-        RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
+        RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
       }
 
       edge.properties.foreach(property => {
         val propHistory = property._2.compressAndReturnOldHistory(cutOff)
         if(propHistory.size > 0) {
-          RaphtoryDB.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
+          RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
         }
       })
   }
@@ -211,7 +211,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       Task.eval(archiveVertices(EntityStorage.vertices, removalPoint)).runAsync.onComplete(_ => archiveEnder(removalPoint))
     }
     else {
-      context.system.scheduler.scheduleOnce(5.seconds, self,"compress")
+      //context.system.scheduler.scheduleOnce(5.seconds, self,"compress")
     }
   }
 
@@ -241,7 +241,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
      //   archive()
      // }
 
-      context.system.scheduler.scheduleOnce(20.seconds, self,"compress")
+     // context.system.scheduler.scheduleOnce(20.seconds, self,"compress")
     }
   }
 
