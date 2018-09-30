@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.graphentities._
-import com.raphtory.core.storage.{EntityStorage, RaphtoryDB}
+import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
 import com.raphtory.core.utils.KeyEnum
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
@@ -171,12 +171,12 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     val history = vertex.compressAndReturnOldHistory(cutOff)
     if(saving) { //if we are saving data to cassandra
       if (history.size > 0) {
-        RaphtoryDB.vertexHistory.save(vertex.getId, history)
+        RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)
       }
       vertex.properties.foreach(prop => {
         val propHistory = prop._2.compressAndReturnOldHistory(cutOff)
         if (propHistory.size > 0) {
-          RaphtoryDB.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
+          RaphtoryDBWrite.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
         }
       })
     }
@@ -186,14 +186,16 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   def saveEdge(edge:Edge,cutOff:Long) ={
     val history = edge.compressAndReturnOldHistory(cutOff)
     if(saving) {
-      if (history.size > 0) {
-        RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
+      if(history.size > 0) {
+        RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
+
       }
 
       edge.properties.foreach(property => {
         val propHistory = property._2.compressAndReturnOldHistory(cutOff)
-        if (propHistory.size > 0) {
-          RaphtoryDB.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
+        if(propHistory.size > 0) {
+          RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
+
         }
       })
     }
@@ -250,6 +252,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       //   archive()
       // }
       context.system.scheduler.scheduleOnce(10.millisecond, self, "archive") //restart archive to check if there is now enough space
+
     }
   }
 
