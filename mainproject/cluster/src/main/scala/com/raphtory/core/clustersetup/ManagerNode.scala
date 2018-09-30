@@ -13,6 +13,7 @@ case class ManagerNode(seedLoc: String,partitionCount:Int)
 
   system.actorOf(Props(RaphtoryReplicator("Partition Manager",partitionCount)), s"PartitionManager")
 
-  "redis-server --daemonize yes" ! //start redis running on manager partition
+  "cassandra &"! //run cassandara in background on manager
+  //"redis-server --daemonize yes" ! //start redis running on manager partition
 
 }

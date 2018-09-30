@@ -139,20 +139,21 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     * @param cutoff the histories time cutoff
     * @return (is it a place holder, is the full history holder than the cutoff, the old history)
     */
-  def removeAncientHistory(cutoff:Long): (Boolean, Boolean,Int,Int)={ //
+  def removeAncientHistory(cutoff:Long,compressing:Boolean): (Boolean, Boolean,Int,Int)={ //
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node inform the historian
       return  (true,true,0,0)
     }
     var removed = 0
     var propRemoval = 0
-    for((k,v) <- compressedState){
+    val removeFrom = if(compressing) compressedState else previousState
+    for((k,v) <- removeFrom){
       if(k<cutoff){
         removed = removed +1
-        compressedState.remove(k)
+        removeFrom.remove(k)
       }
     }
     for ((propkey, propval) <- properties) {
-      propRemoval = propRemoval + propval.removeAncientHistory(cutoff)
+      propRemoval = propRemoval + propval.removeAncientHistory(cutoff,compressing)
     } //do the same for all properties
 
     val allOld = newestPoint.get<cutoff

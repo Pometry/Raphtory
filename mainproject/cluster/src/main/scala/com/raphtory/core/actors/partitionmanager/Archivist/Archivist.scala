@@ -27,7 +27,7 @@ import scala.util.{Failure, Success}
 class Archivist(maximumMem:Double) extends RaphtoryActor {
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
-//  val temporalMode = true //flag denoting if storage should focus on keeping more entities in memory or more history
+  //  val temporalMode = true //flag denoting if storage should focus on keeping more entities in memory or more history
   val runtime = Runtime.getRuntime
 
   var lastSaved : Long = 0
@@ -45,7 +45,8 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   val historyRemoved:AtomicInt =  AtomicInt(0)
   val verticesRemoved:AtomicInt =  AtomicInt(0)
   val edgesRemoved:AtomicInt =  AtomicInt(0)
-
+  val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
+  val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
   lazy val maxThreads = 12
 
   lazy implicit val scheduler = {
@@ -94,13 +95,17 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       return
     }
     newLastSaved   = cutOff(true)
-    canArchiveFlag = false
-    println("Compressing")
-    lockerCounter += 2
-    vertexCompressionTime = System.currentTimeMillis()
-    edgeCompressionTime = vertexCompressionTime
-    Task.eval(compressEdges(EntityStorage.edges)).runAsync.onComplete(_ => compressEnder("edge"))
-    Task.eval(compressVertices(EntityStorage.vertices)).runAsync.onComplete(_ => compressEnder("vertex"))
+    if(compressing) {
+      canArchiveFlag = false
+      println("Compressing")
+      lockerCounter += 2
+      vertexCompressionTime = System.currentTimeMillis()
+      edgeCompressionTime = vertexCompressionTime
+      Task.eval(compressEdges(EntityStorage.edges)).runAsync.onComplete(_ => compressEnder("edge"))
+      Task.eval(compressVertices(EntityStorage.vertices)).runAsync.onComplete(_ => compressEnder("vertex"))
+    }
+    else
+      context.system.scheduler.scheduleOnce(5.seconds, self,"archive")
   }
 
 
@@ -163,31 +168,35 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   }
 
   def saveVertex(vertex:Vertex,cutOff:Long) = {
-      val history = vertex.compressAndReturnOldHistory(cutOff)
-      if(history.size > 0) {
-        RaphtoryDB.vertexHistory.save(vertex.getId,history)
+    val history = vertex.compressAndReturnOldHistory(cutOff)
+    if(saving) { //if we are saving data to cassandra
+      if (history.size > 0) {
+        RaphtoryDB.vertexHistory.save(vertex.getId, history)
       }
       vertex.properties.foreach(prop => {
-        val propHistory =prop._2.compressAndReturnOldHistory(cutOff)
-        if(propHistory.size > 0) {
+        val propHistory = prop._2.compressAndReturnOldHistory(cutOff)
+        if (propHistory.size > 0) {
           RaphtoryDB.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
         }
       })
+    }
   }
 
 
   def saveEdge(edge:Edge,cutOff:Long) ={
-      val history = edge.compressAndReturnOldHistory(cutOff)
-      if(history.size > 0) {
+    val history = edge.compressAndReturnOldHistory(cutOff)
+    if(saving) {
+      if (history.size > 0) {
         RaphtoryDB.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
       }
 
       edge.properties.foreach(property => {
         val propHistory = property._2.compressAndReturnOldHistory(cutOff)
-        if(propHistory.size > 0) {
+        if (propHistory.size > 0) {
           RaphtoryDB.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
         }
       })
+    }
   }
 
 
@@ -237,11 +246,10 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       edgesRemoved.set(0)
       historyRemoved.set(0)
       propsRemoved.set(0)
-     // if(!spaceForExtraHistory) {
-     //   archive()
-     // }
-
-      context.system.scheduler.scheduleOnce(20.seconds, self,"compress")
+      // if(!spaceForExtraHistory) {
+      //   archive()
+      // }
+      context.system.scheduler.scheduleOnce(10.millisecond, self, "archive") //restart archive to check if there is now enough space
     }
   }
 
@@ -254,22 +262,22 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   } //check if used memory less than set maximum
 
   def checkMaximumHistory(e:Entity, et : KeyEnum.Value,removalPoint:Long) = {
-      val (placeholder, allOld,removed,propremoved) = e.removeAncientHistory(removalPoint)
-      if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
-      propsRemoved.add(propremoved.asInstanceOf[Int])
-      historyRemoved.add(removed.asInstanceOf[Int])
-      if (allOld.asInstanceOf[Boolean]) {
-        et match {
-          case KeyEnum.vertices => {
-            EntityStorage.vertices.remove(e.getId.toInt)
-            verticesRemoved.add(1)
-          }
-          case KeyEnum.edges    => {
-            EntityStorage.edges.remove(e.getId)
-            edgesRemoved.add(1)
-          }
+    val (placeholder, allOld,removed,propremoved) = e.removeAncientHistory(removalPoint)
+    if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
+    propsRemoved.add(propremoved.asInstanceOf[Int])
+    historyRemoved.add(removed.asInstanceOf[Int])
+    if (allOld.asInstanceOf[Boolean]) {
+      et match {
+        case KeyEnum.vertices => {
+          EntityStorage.vertices.remove(e.getId.toInt,compressing)
+          verticesRemoved.add(1)
+        }
+        case KeyEnum.edges    => {
+          EntityStorage.edges.remove(e.getId,compressing)
+          edgesRemoved.add(1)
         }
       }
+    }
   }
 
 

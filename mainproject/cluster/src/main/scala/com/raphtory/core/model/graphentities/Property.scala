@@ -84,12 +84,13 @@ class Property(creationTime: Long,
     toWrite
   }
 
-  def removeAncientHistory(cutoff:Long):Int={ //
+  def removeAncientHistory(cutoff:Long,compressing:Boolean):Int={ //
     var removed = 0
-    for((k,v) <- previousState){
+    val removeFrom = if(compressing) compressedState else previousState
+    for((k,v) <- removeFrom){
       if(k>=cutoff){
         removed = removed +1
-        compressedState.remove(k)
+        removeFrom.remove(k)
       }
     }
     removed
