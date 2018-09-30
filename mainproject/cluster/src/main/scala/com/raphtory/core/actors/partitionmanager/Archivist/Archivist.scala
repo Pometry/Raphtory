@@ -262,18 +262,18 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   } //check if used memory less than set maximum
 
   def checkMaximumHistory(e:Entity, et : KeyEnum.Value,removalPoint:Long) = {
-    val (placeholder, allOld,removed,propremoved) = e.removeAncientHistory(removalPoint)
+    val (placeholder, allOld,removed,propremoved) = e.removeAncientHistory(removalPoint,compressing)
     if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
     propsRemoved.add(propremoved.asInstanceOf[Int])
     historyRemoved.add(removed.asInstanceOf[Int])
     if (allOld.asInstanceOf[Boolean]) {
       et match {
         case KeyEnum.vertices => {
-          EntityStorage.vertices.remove(e.getId.toInt,compressing)
+          EntityStorage.vertices.remove(e.getId.toInt)
           verticesRemoved.add(1)
         }
         case KeyEnum.edges    => {
-          EntityStorage.edges.remove(e.getId,compressing)
+          EntityStorage.edges.remove(e.getId)
           edgesRemoved.add(1)
         }
       }
