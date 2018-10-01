@@ -47,6 +47,8 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   val edgesRemoved:AtomicInt =  AtomicInt(0)
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
   val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
+  println(s"Archivist: compressing = $compressing, Saving = $saving")
+
   lazy val maxThreads = 12
 
   lazy implicit val scheduler = {

@@ -34,7 +34,7 @@ object GraphRepoProxy {
     val loadedVertices = ParTrieMap[Int, Vertex]()
     var startCount = 0
     val finishCount = AtomicInt(0)
-    val retryQueue:parallel.mutable.ParHashSet[Long] = parallel.mutable.ParHashSet.empty
+    var retryQueue:parallel.mutable.ParHashSet[Long] = parallel.mutable.ParHashSet.empty
     for (id <- GraphRepoProxy.getVerticesSet()){
       startCount +=1
       RaphtoryDBRead.retrieveVertex(id.toLong,compress,loadedVertices,finishCount,retryQueue)
@@ -47,7 +47,27 @@ object GraphRepoProxy {
     if(!retryQueue.isEmpty){
       rerun(finishCount,retryQueue,compress,loadedVertices)
     }
-//    while(startCount> finishCount.get){
+
+
+    val loadedVertices2 = ParTrieMap[Int, Vertex]()
+    startCount = 0
+    finishCount.set(0)
+    var retryQueue2:parallel.mutable.ParHashSet[Long] = parallel.mutable.ParHashSet.empty
+    for (id <- GraphRepoProxy.getVerticesSet()){
+      startCount +=1
+      RaphtoryDBRead.retrieveVertex(id.toLong,compress,loadedVertices2,finishCount,retryQueue2)
+      if((startCount % 1000) == 0)
+        while(startCount> finishCount.get){
+          Thread.sleep(1) //Throttle requests to cassandra
+        }
+    }
+    println("queue size"+retryQueue2.size)
+    if(!retryQueue2.isEmpty){
+      rerun(finishCount,retryQueue2,compress,loadedVertices2)
+    }
+
+
+    //    while(startCount> finishCount.get){
 //      Thread.sleep(100)
 //      println(System.currentTimeMillis())
 //      println(retryQueue.size)
@@ -57,6 +77,7 @@ object GraphRepoProxy {
 
     println(verticesInMem.size)
     println(loadedVertices.size)
+    println(loadedVertices2.size)
     for((k,v) <- verticesInMem){
       loadedVertices.get(k) match {
         case Some(e) =>
