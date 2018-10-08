@@ -14,8 +14,7 @@ case class ManagerNode(seedLoc: String,partitionCount:Int)
 
   system.actorOf(Props(RaphtoryReplicator("Partition Manager",partitionCount)), s"PartitionManager")
 
-  "cassandra &" ! //run cassandara in background on manager
-
+  Process("cassandra").lineStream //run cassandara in background on manager
   Thread.sleep(20000)
   RaphtoryDBWrite.createDB()
 

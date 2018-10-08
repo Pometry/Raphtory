@@ -47,7 +47,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   val edgesRemoved:AtomicInt =  AtomicInt(0)
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
   val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
-  println(s"Archivist: compressing = $compressing, Saving = $saving")
+  println(s"Archivist compressing = $compressing, Saving = $saving")
 
   lazy val maxThreads = 12
 
@@ -106,8 +106,10 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       Task.eval(compressEdges(EntityStorage.edges)).runAsync.onComplete(_ => compressEnder("edge"))
       Task.eval(compressVertices(EntityStorage.vertices)).runAsync.onComplete(_ => compressEnder("vertex"))
     }
-    else
-      context.system.scheduler.scheduleOnce(5.seconds, self,"archive")
+    else {
+      canArchiveFlag=true
+      context.system.scheduler.scheduleOnce(5.seconds, self, "archive")
+    }
   }
 
 
@@ -260,7 +262,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
 
   def spaceForExtraHistory = {
-    val total = runtime.freeMemory/runtime.maxMemory.asInstanceOf[Float]
+    val total = runtime.freeMemory/runtime.totalMemory().asInstanceOf[Float]
     //println(s"max ${runtime.maxMemory()} total ${runtime.totalMemory()} diff ${runtime.maxMemory()-runtime.totalMemory()} ")
     println(s"Memory usage at $total%")
     if(total < (1-maximumMem)) true else false

@@ -181,7 +181,7 @@ object Go extends App {
   //https://blog.knoldus.com/2014/08/29/how-to-setup-and-use-zookeeper-in-scala-using-apache-curator/
 
   def prometheusReporter() = {
-    SystemMetrics.startCollecting()
+    //SystemMetrics.startCollecting()
     Kamon.addReporter(new PrometheusReporter())
   }
 
