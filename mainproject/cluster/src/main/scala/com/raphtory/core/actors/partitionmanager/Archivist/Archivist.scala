@@ -262,7 +262,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
 
   def spaceForExtraHistory = {
-    val total = runtime.freeMemory/runtime.totalMemory().asInstanceOf[Float]
+    val total = (runtime.totalMemory - runtime.freeMemory)/runtime.totalMemory().asInstanceOf[Float]
     //println(s"max ${runtime.maxMemory()} total ${runtime.totalMemory()} diff ${runtime.maxMemory()-runtime.totalMemory()} ")
     println(s"Memory usage at $total%")
     if(total < (1-maximumMem)) true else false
