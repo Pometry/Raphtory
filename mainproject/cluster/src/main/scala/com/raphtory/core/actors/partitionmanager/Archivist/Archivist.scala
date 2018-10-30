@@ -262,9 +262,11 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
 
   def spaceForExtraHistory = {
-    val total = (runtime.totalMemory - runtime.freeMemory)/runtime.totalMemory().asInstanceOf[Float]
+    val factor = 4
+    val usedMemory = (runtime.totalMemory - runtime.freeMemory)
+    val total = usedMemory/(runtime.totalMemory()/factor).asInstanceOf[Float]
     //println(s"max ${runtime.maxMemory()} total ${runtime.totalMemory()} diff ${runtime.maxMemory()-runtime.totalMemory()} ")
-    println(s"Memory usage at $total%")
+    println(s"Memory usage at $total% of ${runtime.totalMemory()/(1024*1024*2)}MB")
     if(total < (1-maximumMem)) true else false
   } //check if used memory less than set maximum
 
@@ -273,18 +275,19 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
     propsRemoved.add(propremoved.asInstanceOf[Int])
     historyRemoved.add(removed.asInstanceOf[Int])
-    if (allOld.asInstanceOf[Boolean]) {
-      et match {
-        case KeyEnum.vertices => {
-          EntityStorage.vertices.remove(e.getId.toInt)
-          verticesRemoved.add(1)
-        }
-        case KeyEnum.edges    => {
-          EntityStorage.edges.remove(e.getId)
-          edgesRemoved.add(1)
-        }
-      }
-    }
+    //TODO syncronise
+//    if (allOld.asInstanceOf[Boolean]) {
+//      et match {
+//        case KeyEnum.vertices => {
+//          EntityStorage.vertices.remove(e.getId.toInt)
+//          verticesRemoved.add(1)
+//        }
+//        case KeyEnum.edges    => {
+//          EntityStorage.edges.remove(e.getId)
+//          edgesRemoved.add(1)
+//        }
+//      }
+//    }
   }
 
 

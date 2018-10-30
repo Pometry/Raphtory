@@ -122,8 +122,8 @@ class RandomSpout extends SpoutTrait {
     var properties = "\"properties\":{"
     for(i <- 1 to numOfProps){
       val propnum = i
-      if(i<numOfProps) properties = properties + s""" "property$propnum":"${Random.alphanumeric.take(10).mkString}", """
-      else properties = properties + s""" "property$propnum":"${Random.alphanumeric.take(10).mkString}" }"""
+      if(i<numOfProps) properties = properties + s""" "property$propnum":"${"test"}", """
+      else properties = properties + s""" "property$propnum":"${"test"}" }"""
     }
     properties
   }
