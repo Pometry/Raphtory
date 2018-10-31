@@ -13,7 +13,7 @@ import scala.util.Random
 class RandomSpout extends SpoutTrait {
 
   var totalCount      = 100
-  var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt    // (Updates/s) - Hz
+  var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "10000").toInt    // (Updates/s) - Hz
   var increase        = System.getenv().getOrDefault("RAMP_FLAG", "false").toBoolean  // (Updates/s) - Hz
   var pool            = System.getenv().getOrDefault("ENTITY_POOL", "100000").toInt
   var msgID = 0

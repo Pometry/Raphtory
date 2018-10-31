@@ -30,6 +30,8 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     compressedState = mutable.TreeMap()(HistoryOrdering)
   }
   private var saved = false
+  var shouldBeWiped = false
+
   //track the oldest point for use in AddOnly mode
   var oldestPoint : AtomicLong=  AtomicLong(creationTime)
   var newestPoint: AtomicLong = AtomicLong(creationTime)
@@ -216,7 +218,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
 
 
 }
-
 
 
 //************* PRINT ENTITY DETAILS BLOCK *********************\\

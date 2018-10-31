@@ -28,6 +28,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
   //  val temporalMode = true //flag denoting if storage should focus on keeping more entities in memory or more history
+  //JAVA_OPTS=-XX:+UseConcMarkSweepGC -XX:+DisableExplicitGC -XX:+UseParNewGC -Xms10g -Xmx10g -XX:NewRatio=3
   val runtime = Runtime.getRuntime
 
   var lastSaved : Long = 0
@@ -67,17 +68,14 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   }
 
   var compressionPercent = 90f
-  var archivePercentage = 10f
+  var archivePercentage = 30f
   //COMPRESSION BLOCK
   def toCompress(newestPoint:Long,oldestPoint:Long):Long =  (((newestPoint-oldestPoint) / 100f) * compressionPercent).asInstanceOf[Long]
   def toArchive(newestPoint:Long,oldestPoint:Long):Long =  (((newestPoint-oldestPoint) / 100f) * archivePercentage).asInstanceOf[Long]
   def cutOff(compress:Boolean) = {
-
-
-
     val oldestPoint = EntityStorage.oldestTime
     val newestPoint = EntityStorage.newestTime
-    println(s" Difference between oldest to newest point ${((newestPoint-oldestPoint)/1000)}, ${(toCompress(newestPoint,oldestPoint))/1000} seconds compressed")
+    println(s" Difference between oldest $oldestPoint to newest point $newestPoint --- ${((newestPoint-oldestPoint)/1000)}, ${(toCompress(newestPoint,oldestPoint))/1000} seconds compressed")
 
     if(oldestPoint != Long.MaxValue) {
       if (compress) {
@@ -116,28 +114,33 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   def compressEdges(map : ParTrieMap[Long, Edge]) = {
     val now = newLastSaved
     val past = lastSaved
-    println(map.size)
-    for((k,v) <- map) {
+    map.foreach(edge => {
       startcompressioms +=1
       Future {
-        saveEdge(v, now)
+        if(! edge._2.shouldBeWiped) {
+          saveEdge(edge._2, now)
+        }
       }.onComplete(p => p match {
         case Success(e) => compressions.increment()
         case Failure(e) => {println("problem"+e); compressions.increment()}
       })
-    }
+    })
   }
 
   def compressVertices(map : ParTrieMap[Int, Vertex]) = {
     val now = newLastSaved
     val past = lastSaved
-    for((k,v) <- map) {
+    map.foreach(vertex => {
       startcompressioms +=1
-      Future{saveVertex(v,now)}.onComplete(p=>p match{
+      Future{
+        if(! vertex._2.shouldBeWiped) {
+          saveVertex(vertex._2, now)
+        }
+      }.onComplete(p=>p match{
         case Success(e) => compressions.increment()
         case Failure(e) => {println("problem"+e); compressions.increment()}
       })
-    }
+    })
   }
 
 
@@ -151,7 +154,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     }
 
     if (lockerCounter == 0) {
-      context.system.scheduler.scheduleOnce(10.millisecond, self, "compressCheck")
+      context.system.scheduler.scheduleOnce(5.millisecond, self, "compressCheck")
 
     }
   }
@@ -164,10 +167,10 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       canArchiveFlag = true
       lastSaved = newLastSaved
       EntityStorage.lastCompressedAt = lastSaved
-      context.system.scheduler.scheduleOnce(5.seconds, self, "archive")
+      context.system.scheduler.scheduleOnce(5.millisecond, self, "archive")
     }
     else{
-      context.system.scheduler.scheduleOnce(10.millisecond, self, "compressCheck")
+      context.system.scheduler.scheduleOnce(5.millisecond, self, "compressCheck")
     }
   }
 
@@ -231,15 +234,17 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   }
 
   def archiveEdges(map : ParTrieMap[Long, Edge],removalPoint:Long) = {
-    for (e <- EntityStorage.edges) {
-      checkMaximumHistory(e._2, KeyEnum.edges,removalPoint)
-    }
+    map.foreach(e => {
+      if(! e._2.shouldBeWiped)
+        checkMaximumHistory(e._2, KeyEnum.edges,removalPoint)
+    })
   }
 
   def archiveVertices(map : ParTrieMap[Int, Vertex],removalPoint:Long) = {
-    for (e <- EntityStorage.vertices) {
-      checkMaximumHistory(e._2, KeyEnum.vertices,removalPoint)
-    }
+    map.foreach(e => {
+      if(! e._2.shouldBeWiped)
+        checkMaximumHistory(e._2, KeyEnum.vertices,removalPoint)
+    })
   }
 
 
@@ -252,21 +257,24 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       edgesRemoved.set(0)
       historyRemoved.set(0)
       propsRemoved.set(0)
+      System.gc()
       // if(!spaceForExtraHistory) {
       //   archive()
       // }
-      context.system.scheduler.scheduleOnce(10.millisecond, self, "archive") //restart archive to check if there is now enough space
+      context.system.scheduler.scheduleOnce(10.millisecond, self, "compress") //restart archive to check if there is now enough space
 
     }
   }
 
 
   def spaceForExtraHistory = {
-    val factor = 4
-    val usedMemory = (runtime.totalMemory - runtime.freeMemory)
-    val total = usedMemory/(runtime.totalMemory()/factor).asInstanceOf[Float]
+    val factor = 2
+    val totalMemory = runtime.maxMemory
+    val freeMemory = runtime.freeMemory
+    val usedMemory = (totalMemory - freeMemory)
+    val total = usedMemory/(totalMemory/factor).asInstanceOf[Float]
     //println(s"max ${runtime.maxMemory()} total ${runtime.totalMemory()} diff ${runtime.maxMemory()-runtime.totalMemory()} ")
-    println(s"Memory usage at $total% of ${runtime.totalMemory()/(1024*1024*2)}MB")
+    println(s"Memory usage at ${total*100}% of ${totalMemory/(1024*1024*factor)}MB")
     if(total < (1-maximumMem)) true else false
   } //check if used memory less than set maximum
 
@@ -276,7 +284,9 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     propsRemoved.add(propremoved.asInstanceOf[Int])
     historyRemoved.add(removed.asInstanceOf[Int])
     //TODO syncronise
-//    if (allOld.asInstanceOf[Boolean]) {
+    if (allOld.asInstanceOf[Boolean]) {
+      e.shouldBeWiped = true
+    }
 //      et match {
 //        case KeyEnum.vertices => {
 //          EntityStorage.vertices.remove(e.getId.toInt)
