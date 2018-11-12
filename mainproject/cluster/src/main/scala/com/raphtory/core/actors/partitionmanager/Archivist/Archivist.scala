@@ -38,7 +38,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   var archivelockerCounter = 0
   var vertexCompressionTime:Long = 0L
   var edgeCompressionTime:Long = 0L
-
+  var totalCompressionTime:Long = 0L
   var startcompressioms = AtomicInt(0)
   val compressions:AtomicInt =  AtomicInt(0)
 
@@ -101,6 +101,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       lockerCounter += 2
       vertexCompressionTime = System.currentTimeMillis()
       edgeCompressionTime = vertexCompressionTime
+      totalCompressionTime = vertexCompressionTime
       Task.eval(compressEdges(EntityStorage.edges)).runAsync.onComplete(_ => compressEnder("edge"))
       Task.eval(compressVertices(EntityStorage.vertices)).runAsync.onComplete(_ => compressEnder("vertex"))
     }
@@ -132,15 +133,18 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     map.keySet.foreach(key =>{
       startcompressioms.increment()
       Task.eval({
-        map.get(key) match {
-          case Some(edge) => saveEdge(edge, now)
-          case None => //do nothing
+        map.synchronized {
+          map.get(key) match {
+            case Some(edge) => saveEdge(edge, now)
+            case None => //do nothing
+          }
         }
       }).fork.runAsync.onComplete(p=>p match{
         case Success(e) => compressions.increment()
         case Failure(e) => {println("problem"+e); compressions.increment()}
       })
     })
+
   }
 
   def compressVertices(map : ParTrieMap[Int, Vertex]) = {
@@ -149,9 +153,11 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     map.keySet.foreach(key =>{
       startcompressioms.increment()
       Task.eval({
-        map.get(key) match {
-          case Some(vertex) => saveVertex(vertex, now)
-          case None => //do nothing
+        map.synchronized {
+          map.get(key) match {
+            case Some(vertex) => saveVertex(vertex, now)
+            case None => //do nothing
+          }
         }
       }).fork.runAsync.onComplete(p=>p match{
         case Success(e) => compressions.increment()
@@ -180,7 +186,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     if(startcompressioms.get <= compressions.get) {
       startcompressioms.set(0)
       compressions.set(0)
-      println("finished compressing")
+      println(s"finished total compression in ${(System.currentTimeMillis()-totalCompressionTime)/1000} seconds")
       canArchiveFlag = true
       lastSaved = newLastSaved
       EntityStorage.lastCompressedAt = lastSaved
@@ -252,14 +258,12 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
   def archiveEdges(map : ParTrieMap[Long, Edge],removalPoint:Long) = {
     map.foreach(e => {
-      if(! e._2.shouldBeWiped)
         checkMaximumHistory(e._2, KeyEnum.edges,removalPoint)
     })
   }
 
   def archiveVertices(map : ParTrieMap[Int, Vertex],removalPoint:Long) = {
     map.foreach(e => {
-      if(! e._2.shouldBeWiped)
         checkMaximumHistory(e._2, KeyEnum.vertices,removalPoint)
     })
   }
