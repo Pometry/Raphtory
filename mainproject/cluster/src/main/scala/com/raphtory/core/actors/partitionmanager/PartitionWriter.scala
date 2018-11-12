@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import akka.dispatch.{BoundedMessageQueueSemantics, RequiresMessageQueue}
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.model.communication._
 import com.raphtory.core.actors.RaphtoryActor
@@ -159,9 +160,10 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
 
   def vHandle(srcID : Int,msgTime:Long) : Unit = {
     storage.timings(msgTime)
-    if(srcID%managerCount!=id){
-      println(s"Received incorrect update $srcID with pm id $id")
-    }
+//
+//    if(srcID%managerCount!=id){
+//      println(s"Received incorrect update $srcID with pm id $id")
+//    }
     messageCount.incrementAndGet()
   }
 
@@ -171,9 +173,9 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   }
   def eHandle(srcID : Int, dstID : Int,msgTime:Long) : Unit = {
     storage.timings(msgTime)
-    if(srcID%managerCount!=id){
-      println(s"Received incorrect update $srcID with pm id $id")
-    }
+//    if(srcID%managerCount!=id){
+//      println(s"Received incorrect update $srcID with pm id $id")
+//    }
     messageCount.incrementAndGet()
   }
 
