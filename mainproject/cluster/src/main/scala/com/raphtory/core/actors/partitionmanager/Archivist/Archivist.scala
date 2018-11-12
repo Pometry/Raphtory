@@ -39,7 +39,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   var vertexCompressionTime:Long = 0L
   var edgeCompressionTime:Long = 0L
 
-  var startcompressioms = 0
+  var startcompressioms = AtomicInt(0)
   val compressions:AtomicInt =  AtomicInt(0)
 
   val propsRemoved:AtomicInt =  AtomicInt(0)
@@ -111,16 +111,32 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   }
 
 
+//  def compressEdges(map : ParTrieMap[Long, Edge]) = {
+//    val now = newLastSaved
+//    val past = lastSaved
+//    map.foreach(edge => {
+//      startcompressioms +=1
+//      Future {
+//        if(! edge._2.shouldBeWiped) {
+//          saveEdge(edge._2, now)
+//        }
+//      }.onComplete(p => p match {
+//        case Success(e) => compressions.increment()
+//        case Failure(e) => {println("problem"+e); compressions.increment()}
+//      })
+//    })
+//  }
   def compressEdges(map : ParTrieMap[Long, Edge]) = {
     val now = newLastSaved
     val past = lastSaved
-    map.foreach(edge => {
-      startcompressioms +=1
-      Future {
-        if(! edge._2.shouldBeWiped) {
-          saveEdge(edge._2, now)
+    map.keySet.foreach(key =>{
+      startcompressioms.increment()
+      Task.eval({
+        map.get(key) match {
+          case Some(edge) => saveEdge(edge, now)
+          case None => //do nothing
         }
-      }.onComplete(p => p match {
+      }).fork.runAsync.onComplete(p=>p match{
         case Success(e) => compressions.increment()
         case Failure(e) => {println("problem"+e); compressions.increment()}
       })
@@ -130,13 +146,14 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   def compressVertices(map : ParTrieMap[Int, Vertex]) = {
     val now = newLastSaved
     val past = lastSaved
-    map.foreach(vertex => {
-      startcompressioms +=1
-      Future{
-        if(! vertex._2.shouldBeWiped) {
-          saveVertex(vertex._2, now)
+    map.keySet.foreach(key =>{
+      startcompressioms.increment()
+      Task.eval({
+        map.get(key) match {
+          case Some(vertex) => saveVertex(vertex, now)
+          case None => //do nothing
         }
-      }.onComplete(p=>p match{
+      }).fork.runAsync.onComplete(p=>p match{
         case Success(e) => compressions.increment()
         case Failure(e) => {println("problem"+e); compressions.increment()}
       })
@@ -160,8 +177,8 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   }
 
   def compressCheck():Unit = {
-    if(startcompressioms<= compressions.get) {
-      startcompressioms = 0
+    if(startcompressioms.get <= compressions.get) {
+      startcompressioms.set(0)
       compressions.set(0)
       println("finished compressing")
       canArchiveFlag = true
@@ -285,19 +302,17 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     historyRemoved.add(removed.asInstanceOf[Int])
     //TODO syncronise
     if (allOld.asInstanceOf[Boolean]) {
-      e.shouldBeWiped = true
+      et match {
+        case KeyEnum.vertices => {
+          EntityStorage.vertices.remove(e.getId.toInt)
+          verticesRemoved.add(1)
+        }
+        case KeyEnum.edges    => {
+          EntityStorage.edges.remove(e.getId)
+          edgesRemoved.add(1)
+        }
+      }
     }
-//      et match {
-//        case KeyEnum.vertices => {
-//          EntityStorage.vertices.remove(e.getId.toInt)
-//          verticesRemoved.add(1)
-//        }
-//        case KeyEnum.edges    => {
-//          EntityStorage.edges.remove(e.getId)
-//          edgesRemoved.add(1)
-//        }
-//      }
-//    }
   }
 
 
