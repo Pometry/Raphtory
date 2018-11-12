@@ -13,15 +13,15 @@ import scala.util.Random
 class RandomSpout extends SpoutTrait {
 
   var totalCount      = 100
-  var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt    // (Updates/s) - Hz
+  var freq            = System.getenv().getOrDefault("UPDATES_FREQ", "10000").toInt    // (Updates/s) - Hz
   var increase        = System.getenv().getOrDefault("RAMP_FLAG", "false").toBoolean  // (Updates/s) - Hz
-  var pool            = System.getenv().getOrDefault("ENTITY_POOL", "100000").toInt
+  var pool            = System.getenv().getOrDefault("ENTITY_POOL", "1000000").toInt
   var msgID = 0
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
     println(s"Prestarting ($freq Hz) Entity pool = $pool Ramp flag = $increase")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "random")
-    context.system.scheduler.schedule(Duration(5, MINUTES), Duration(1, MINUTES), self, "increase")
+    context.system.scheduler.schedule(Duration(1, MINUTES), Duration(1, MINUTES), self, "increase")
     //context.system.scheduler.schedule(Duration(40, SECONDS), Duration(5, MINUTES), self, "stop")
 
   }
