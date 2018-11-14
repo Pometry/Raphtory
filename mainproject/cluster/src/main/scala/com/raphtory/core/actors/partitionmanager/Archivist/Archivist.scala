@@ -36,11 +36,21 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   var canArchiveFlag = false
   var lockerCounter = 0
   var archivelockerCounter = 0
+
+  var removePointGlobal:Long = 0L
+
   var vertexCompressionTime:Long = 0L
   var edgeCompressionTime:Long = 0L
   var totalCompressionTime:Long = 0L
+  var vertexArchiveTime:Long =0L
+  var edgeArchiveTime:Long = 0L
+  var totalArchiveTime:Long = 0L
+
   var startcompressioms = AtomicInt(0)
   val compressions:AtomicInt =  AtomicInt(0)
+
+  var startarchive = AtomicInt(0)
+  val archiveFinished:AtomicInt =  AtomicInt(0)
 
   val propsRemoved:AtomicInt =  AtomicInt(0)
   val historyRemoved:AtomicInt =  AtomicInt(0)
@@ -65,6 +75,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     case "compress" => compressGraph()
     case "compressCheck" => compressCheck()
     case "archive"=> archive()
+    case "archiveCheck" => archiveCheck()
   }
 
   var compressionPercent = 90f
@@ -248,8 +259,11 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       println("Archiving")
       val removalPoint = cutOff(false)
       archivelockerCounter += 2
-      Task.eval(archiveEdges(EntityStorage.edges, removalPoint)).runAsync.onComplete(_ => archiveEnder(removalPoint))
-      Task.eval(archiveVertices(EntityStorage.vertices, removalPoint)).runAsync.onComplete(_ => archiveEnder(removalPoint))
+      vertexArchiveTime = System.currentTimeMillis()
+      edgeArchiveTime = vertexArchiveTime
+      totalArchiveTime = vertexArchiveTime
+      Task.eval(archiveEdges(EntityStorage.edges, removalPoint)).runAsync.onComplete(_ => archiveEnder(removalPoint,"edge"))
+      Task.eval(archiveVertices(EntityStorage.vertices, removalPoint)).runAsync.onComplete(_ => archiveEnder(removalPoint,"Vertex"))
     }
     else {
       context.system.scheduler.scheduleOnce(5.seconds, self,"compress")
@@ -257,35 +271,81 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   }
 
   def archiveEdges(map : ParTrieMap[Long, Edge],removalPoint:Long) = {
-    map.foreach(e => {
-        checkMaximumHistory(e._2, KeyEnum.edges,removalPoint)
+    map.keySet.foreach(key =>{
+      startarchive.increment()
+      Task.eval({
+        map.synchronized {
+          map.get(key) match {
+            case Some(edge) => checkMaximumHistory(edge, KeyEnum.edges,removalPoint)
+            case None => //do nothing
+          }
+        }
+      }).fork.runAsync.onComplete(p=>p match{
+        case Success(e) => archiveFinished.increment()
+        case Failure(e) => {println("problem"+e); archiveFinished.increment()}
+      })
     })
   }
 
   def archiveVertices(map : ParTrieMap[Int, Vertex],removalPoint:Long) = {
-    map.foreach(e => {
-        checkMaximumHistory(e._2, KeyEnum.vertices,removalPoint)
+    map.keySet.foreach(key =>{
+      startarchive.increment()
+      Task.eval({
+        map.synchronized {
+          map.get(key) match {
+            case Some(vertex) => checkMaximumHistory(vertex, KeyEnum.vertices,removalPoint)
+            case None => //do nothing
+          }
+        }
+      }).fork.runAsync.onComplete(p=>p match{
+        case Success(e) => archiveFinished.increment()
+        case Failure(e) => {println("problem"+e); archiveFinished.increment()}
+      })
     })
   }
 
 
-  def archiveEnder(removalPoint:Long): Unit = {
+  def archiveEnder(removalPoint:Long,name:String): Unit = {
     archivelockerCounter -= 1
+    if(name equals("edge")){
+      println(s"finished $name archiving in ${(System.currentTimeMillis()-edgeArchiveTime)/1000} seconds")
+    }
+    if(name equals("vertex")){
+      println(s"finished $name archiving in ${(System.currentTimeMillis()-vertexArchiveTime)/1000}seconds")
+    }
+
     if (archivelockerCounter == 0) {
-      EntityStorage.oldestTime = removalPoint
+      removePointGlobal = removalPoint
+      context.system.scheduler.scheduleOnce(5.millisecond, self, "archiveCheck")
+
+    }
+
+  }
+
+  def archiveCheck():Unit = {
+    if(startarchive.get <= archiveFinished.get) {
+      startarchive.set(0)
+      archiveFinished.set(0)
+      println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
+      EntityStorage.oldestTime = removePointGlobal
       println(s"Removed ${verticesRemoved.get} vertices ${edgesRemoved.get} edges ${historyRemoved.get} history points and ${propsRemoved.get} property points")
       verticesRemoved.set(0)
       edgesRemoved.set(0)
       historyRemoved.set(0)
       propsRemoved.set(0)
       System.gc()
-      // if(!spaceForExtraHistory) {
+      //if(!spaceForExtraHistory) {
       //   archive()
-      // }
+      //}
       context.system.scheduler.scheduleOnce(10.millisecond, self, "compress") //restart archive to check if there is now enough space
-
     }
+    else{
+      context.system.scheduler.scheduleOnce(5.millisecond, self, "archiveCheck")
+    }
+
   }
+
+
 
 
   def spaceForExtraHistory = {
