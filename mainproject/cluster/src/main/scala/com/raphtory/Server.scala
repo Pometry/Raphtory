@@ -23,7 +23,7 @@ import scala.sys.process._
 object Go extends App {
   val conf          = ConfigFactory.load()
   val seedLoc       = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
-  val zookeeper     = s"${sys.env("ZOOKEEPER")}"
+ // val zookeeper     = s"${sys.env("ZOOKEEPER")}"
 
   val routerName    = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
   val updaterName   = s"${sys.env.getOrElse("UPDATERCLASS", classOf[RandomSpout].getClass.getName)}"
@@ -37,36 +37,36 @@ object Go extends App {
   args(0) match {
     case "seedNode" => {
       println("Creating seed node")
-      setConf(seedLoc, zookeeper)
+      setConf(seedLoc)
       SeedNode(seedLoc)
     }
     case "rest" => {
       println("Creating rest node")
-      RestNode(getConf(zookeeper))
+      RestNode(getConf())
     }
     case "router" => {
       println("Creating Router")
-      RouterNode(getConf(zookeeper),sys.env("PARTITION_MIN").toInt, routerName)
+      RouterNode(getConf(),sys.env("PARTITION_MIN").toInt, routerName)
     }
     case "partitionManager" => {
       println(s"Creating Patition Manager...")
-      ManagerNode(getConf(zookeeper),sys.env("PARTITION_MIN").toInt)
+      ManagerNode(getConf(),sys.env("PARTITION_MIN").toInt)
     }
 
     case "updater" => {
       println("Creating Update Generator")
-      UpdateNode(getConf(zookeeper), updaterName)
+      UpdateNode(getConf(), updaterName)
     }
 
     case "liveAnalysis" => {
       println("Creating Live Analysis Manager")
       //val LAM_Name = args(1) // TODO other ways (still env?): see issue #5 #6
 
-      LiveAnalysisNode(getConf(zookeeper), lamName)
+      LiveAnalysisNode(getConf(), lamName)
     }
     case "clusterUp" => {
       println("Cluster Up, informing Partition Managers and Routers")
-      WatchDogNode(getConf(zookeeper), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
+      WatchDogNode(getConf(), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
     }
 
     case "singleNodeSetup" => {
@@ -76,57 +76,12 @@ object Go extends App {
     }
   }
 
-  def setConf(seedLoc: String, zookeeper: String): Unit ={
+  def setConf(seedLoc: String): Unit ={
     println(s"I AM AT $seedLoc")
     prometheusReporter()
   }
 
-//  def setConf(seedLoc: String, zookeeper: String): Unit ={
-//    var zookeeperFailed = true
-//    while(zookeeperFailed){
-//      try {
-//        zookeeperFailed = setConfHelper(seedLoc, zookeeper)
-//      }
-//      catch {
-//        case e:Exception => println("Zookeeper Timeout")
-//      }
-//    }
-//  }
-
-  def setConfHelper(seedLoc: String, zookeeper: String): Boolean = {
-    try {
-      val retryPolicy = new ExponentialBackoffRetry(1000, 3)
-      val curatorZookeeperClient =
-        CuratorFrameworkFactory.newClient(zookeeper, retryPolicy)
-
-      val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
-      root.setLevel(Level.ERROR)
-
-
-      curatorZookeeperClient.start
-      curatorZookeeperClient.getZookeeperClient.blockUntilConnectedOrTimedOut
-      if (curatorZookeeperClient.checkExists().forPath("/seednode") == null) {
-        curatorZookeeperClient
-          .create()
-          .creatingParentsIfNeeded()
-          .forPath("/seednode", seedLoc.getBytes)
-      } else {
-        curatorZookeeperClient.setData().forPath("/seednode", seedLoc.getBytes)
-      }
-      val originalData = new String(
-        curatorZookeeperClient.getData.forPath("/seednode"))
-      curatorZookeeperClient.close()
-      false
-    }
-    catch {
-      case e:Exception => {
-        println("zookeeper currently unavailable, trying again in 10 seconds")
-        true
-      }
-    }
-  }
-
-  def getConf(zookeeper:String):String = {
+  def getConf():String = {
     while(!("nc seedNode 1600" !).equals(0)){
       println("Waiting for seednode to come online")
       Thread.sleep(3000)
@@ -134,49 +89,6 @@ object Go extends App {
     prometheusReporter()
     hostname2Ip("seedNode:1600")
 
-  }
-
-//  def getConf(zookeeper: String): String = {
-//    var zookeeperFailed = true
-//    var seedlocation = ""
-//    while(zookeeperFailed){
-//      try {
-//        val pair = getConfHelper(zookeeper)
-//        zookeeperFailed = pair._2
-//        seedlocation = pair._1
-//      }
-//      catch {
-//        case e:Exception => println("Zookeeper Timeout")
-//      }
-//    }
-//    seedlocation
-//  }
-
-  def getConfHelper(zookeeper: String): (String,Boolean) = {
-    try {
-      val retryPolicy = new ExponentialBackoffRetry(1000, 3)
-      val curatorZookeeperClient =
-        CuratorFrameworkFactory.newClient(zookeeper, retryPolicy)
-
-      val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
-      root.setLevel(Level.ERROR)
-
-      curatorZookeeperClient.start
-      curatorZookeeperClient.getZookeeperClient.blockUntilConnectedOrTimedOut
-      val originalData = new String(
-        curatorZookeeperClient.getData.forPath("/seednode"))
-      println(originalData)
-      prometheusReporter()
-      curatorZookeeperClient.close()
-      (hostname2Ip(originalData),false)
-    }
-    catch {
-      case e:Exception =>{
-        println("zookeeper currently unavailable, trying again in 10 seconds")
-        ("",true)
-      }
-
-    }
   }
   //https://blog.knoldus.com/2014/08/29/how-to-setup-and-use-zookeeper-in-scala-using-apache-curator/
 
