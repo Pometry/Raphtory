@@ -56,6 +56,15 @@ case class RequestPartitionCount()
 case class RequestPartitionId()
 case class RequestRouterId()
 
+case class CompressEdges(lastSaved:Long)
+case class CompressEdge(key:Long,time:Long)
+case class CompressVertices(lastSaved:Long)
+case class CompressVertex(key:Int,time:Long)
+case class FinishedEdgeCompression(key:Long)
+case class FinishedVertexCompression(key:Int)
+case class SetupSlave(children:Int)
+
+
 
 sealed trait RaphReadClasses
 

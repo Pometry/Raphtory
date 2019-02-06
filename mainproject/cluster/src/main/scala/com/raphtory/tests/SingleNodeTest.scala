@@ -51,11 +51,11 @@ object SingleNodeTest extends App {
 
 
 
-  Thread.sleep(60000)
-  println("hello there")
-  GraphRepoProxy.something
+  //Thread.sleep(60000)
+  //println("hello there")
+  //GraphRepoProxy.something
 
-  System.exit(0)
+  //System.exit(0)
   //system.actorOf(Props(Class.forName(LamClassName)), s"LiveAnalysisManager_$LamClassName")
 
 }
