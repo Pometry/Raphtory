@@ -34,8 +34,8 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
   println(s"Archivist compressing = $compressing, Saving = $saving")
   //Turn logging off
-  val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
-  root.setLevel(Level.ERROR)
+  //val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+  //root.setLevel(Level.ERROR)
   //get the runtime for memory usage
   val runtime = Runtime.getRuntime
 
@@ -95,11 +95,11 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
   def compressEnder(name:String): Unit = {
     if(name equals("edge")){
-      //println(s"finished $name compressing in ${(System.currentTimeMillis()-edgeCompressionTime)/1000} seconds")
+      println(s"finished $name compressing in ${(System.currentTimeMillis()-edgeCompressionTime)/1000} seconds")
       edgeCompressionFinished = true
     }
     if(name equals("vertex")){
-     // println(s"finished $name compressing in ${(System.currentTimeMillis()-vertexCompressionTime)/1000}seconds")
+      println(s"finished $name compressing in ${(System.currentTimeMillis()-vertexCompressionTime)/1000}seconds")
       vetexCompressionFinished = true
     }
 
@@ -110,7 +110,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       //context.system.scheduler.scheduleOnce(5.millisecond, self, "archive")
       vetexCompressionFinished = false
       edgeCompressionFinished = false
-      //context.system.scheduler.scheduleOnce(5.seconds, self, "compress")
+      context.system.scheduler.scheduleOnce(5.seconds, self, "compress")
     }
 
 

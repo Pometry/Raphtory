@@ -40,22 +40,19 @@ class CompressionSlave extends Actor{
   }
 
   def compressEdges() = {
-    lastMapsize = EntityStorage.edges.size
-    println(lastMapsize)
     val size = childMap.size
     EntityStorage.edges.keySet.foreach(key =>{
       startedCompressions +=1
-      childMap.getOrElse(startedCompressions%size,null) ! compressEdge(key,now)
+      childMap.getOrElse(startedCompressions%size,null) ! CompressEdge(key,now)
 
     })
   }
 
   def compressVertices() = {
-    lastMapsize = EntityStorage.vertices.size
     val size = childMap.size
     EntityStorage.vertices.keySet.foreach(key =>{
       startedCompressions +=1
-      childMap.getOrElse(startedCompressions%size,null) ! compressVertex(key,now)
+      childMap.getOrElse(startedCompressions%size,null) ! CompressVertex(key,now)
 
     })
     println(s"starting value $startedCompressions")
@@ -63,7 +60,7 @@ class CompressionSlave extends Actor{
 
   def finishedEdge(key: Long) = {
     finishedCompressions +=1
-    if(startedCompressions==finishedCompressions && finishedCompressions >= lastMapsize) {
+    if(startedCompressions==finishedCompressions) {
       context.parent ! FinishedEdgeCompression(finishedCompressions)
       finishedCompressions=0
       startedCompressions=0
@@ -72,7 +69,7 @@ class CompressionSlave extends Actor{
 
   def finishedVertex(key:Int)={
     finishedCompressions +=1
-    if(startedCompressions==finishedCompressions && finishedCompressions >= lastMapsize) {
+    if(startedCompressions==finishedCompressions) {
       context.parent ! FinishedVertexCompression(finishedCompressions)
       finishedCompressions=0
       startedCompressions=0
@@ -101,6 +98,8 @@ class CompressionSlave extends Actor{
         case None => //do nothing
       }
     }
+
+
     context.parent ! FinishedVertexCompression(key)
   }
 
