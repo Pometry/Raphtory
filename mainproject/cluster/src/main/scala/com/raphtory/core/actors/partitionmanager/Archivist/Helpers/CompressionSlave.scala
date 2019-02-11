@@ -25,11 +25,13 @@ class CompressionSlave extends Actor{
   override def receive:Receive = {
     case SetupSlave(children) => setup(children)
     case CompressEdges(ls) => {now = ls;compressEdges()}
-    case CompressEdge(key,time) => compressEdge(key,time)
-    case FinishedEdgeCompression(key) => finishedEdge(key)
     case CompressVertices(ls) => {now=ls;compressVertices()}
-    case CompressVertex(key,time) => compressVertex(key,time)
+    case FinishedEdgeCompression(key) => finishedEdge(key)
     case FinishedVertexCompression(key) => finishedVertex(key)
+
+    case CompressVertex(key,time) => compressVertex(key,time)
+    case CompressEdge(key,time) => compressEdge(key,time)
+
   }
 
   //////////MAIN GUY

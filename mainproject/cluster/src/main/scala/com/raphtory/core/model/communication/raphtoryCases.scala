@@ -62,6 +62,14 @@ case class CompressVertices(lastSaved:Long)
 case class CompressVertex(key:Int,time:Long)
 case class FinishedEdgeCompression(key:Long)
 case class FinishedVertexCompression(key:Int)
+
+case class ArchiveEdges(lastSaved:Long)
+case class ArchiveEdge(key:Long,time:Long)
+case class ArchiveVertices(lastSaved:Long)
+case class ArchiveVertex(key:Int,time:Long)
+case class FinishedEdgeArchiving(key:Long)
+case class FinishedVertexArchiving(key:Int)
+
 case class SetupSlave(children:Int)
 
 
