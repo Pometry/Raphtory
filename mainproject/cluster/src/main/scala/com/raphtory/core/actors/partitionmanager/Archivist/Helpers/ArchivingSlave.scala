@@ -14,7 +14,6 @@ class ArchivingSlave extends Actor{
 
   var childMap = ParTrieMap[Int,ActorRef]()
   var removalPoint = 0l
-  var archivePercentage = 30f
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
   val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
 
@@ -22,20 +21,20 @@ class ArchivingSlave extends Actor{
   var finishedArchiving = 0
   var percentcheck = 0
 
-  val propsRemoved =  0
-  val historyRemoved =  0
-  val verticesRemoved =  0
-  val edgesRemoved =  0
+  var propsRemoved =  0
+  var historyRemoved =  0
+  var verticesRemoved =  0
+  var edgesRemoved =  0
 
   override def receive:Receive = {
     case SetupSlave(children) => setup(children)
     case ArchiveEdges(ls) => {removalPoint = ls;archiveEdges()}
     case ArchiveVertices(ls) => {removalPoint=ls;archiveVertices()}
-    case FinishedEdgeArchiving(key) => finishedEdge(key)
-    case FinishedVertexArchiving(key) => finishedVertex(key)
+    case FinishedEdgeArchiving(key,archived) => finishedEdge(key,archived)
+    case FinishedVertexArchiving(key,archived) => finishedVertex(key,archived)
 
-    case ArchiveEdge(key,time) => compressEdge(key,time)
-    case ArchiveVertex(key,time) => compressVertex(key,time)
+    case ArchiveEdge(key,time) => archiveEdge(key,time)
+    case ArchiveVertex(key,time) => archiveVertex(key,time)
 
   }
 
@@ -52,11 +51,10 @@ class ArchivingSlave extends Actor{
     startedArchiving=0
     EntityStorage.edges.keySet.foreach(key => {
       startedArchiving +=1
-      EntityStorage.edges.synchronized {
-        startedArchiving +=1
-        childMap.getOrElse(startedArchiving%size,null) ! ArchiveEdge(key,now)
-      }
+      childMap.getOrElse(startedArchiving%size,null) ! ArchiveEdge(key,removalPoint)
     })
+    println(s"starting value edges for archiving at ${System.currentTimeMillis()/1000}: $startedArchiving")
+    percentcheck = startedArchiving/10
   }
 
   def archiveVertices() = {
@@ -65,82 +63,81 @@ class ArchivingSlave extends Actor{
     startedArchiving=0
     EntityStorage.vertices.keySet.foreach(key =>{
       startedArchiving +=1
-      EntityStorage.vertices.synchronized {
-        startedArchiving += 1
-        childMap.getOrElse(startedArchiving % size, null) ! ArchiveVertex(key, now)
-      }
+      childMap.getOrElse(startedArchiving % size, null) ! ArchiveVertex(key, removalPoint)
     })
+    println(s"starting value edges for archiving at ${System.currentTimeMillis()/1000}: $startedArchiving")
+    percentcheck = startedArchiving/10
   }
 
-  def finishedEdge(key: Long) = {
+  def finishedEdge(key: Long,archived: (Int,Int,Int)) = {
     finishedArchiving +=1
-    if(finishedArchiving%percentcheck==0){
-      if(finishedArchiving>0)
-        println(s"Edge compression ${(finishedArchiving * 100) / startedArchiving;}% Complete")
-    }
+    propsRemoved      += archived._1
+    historyRemoved    += archived._2
+    edgesRemoved      += archived._3
+    if(finishedArchiving%percentcheck==0 && startedArchiving>0)
+        println(s"Edge Archiving ${(finishedArchiving * 100) / startedArchiving;}% Complete")
     if(startedArchiving==finishedArchiving) {
-      finishedArchiving=0
-      startedArchiving=0
-      context.parent ! FinishedEdgeArchiving(finishedArchiving)
-
+      context.parent ! FinishedEdgeArchiving(finishedArchiving, (propsRemoved, historyRemoved, edgesRemoved))
+      propsRemoved = 0
+      historyRemoved = 0
+      edgesRemoved = 0
     }
   }
 
-  def finishedVertex(key:Int)={
+  def finishedVertex(key:Int,archived: (Int,Int,Int))={
     finishedArchiving +=1
-    if(finishedArchiving%percentcheck==0){
-      if(startedArchiving>0)
-        println(s"Vertex compression ${(finishedArchiving * 100) / startedArchiving;}% Complete")
-    }
-    if(startedArchiving==finishedArchiving) {
-      finishedArchiving=0
-      startedArchiving=0
-      context.parent ! FinishedVertexArchiving(finishedArchiving)
-
+    propsRemoved      += archived._1
+    historyRemoved    += archived._2
+    verticesRemoved   += archived._3
+    if(finishedArchiving%percentcheck==0 && startedArchiving>0)
+        println(s"Vertex Archiving ${(finishedArchiving * 100) / startedArchiving;}% Complete")
+    if(startedArchiving==finishedArchiving){
+      propsRemoved = 0
+      historyRemoved = 0
+      edgesRemoved = 0
+      context.parent ! FinishedVertexArchiving(finishedArchiving,(propsRemoved,historyRemoved,verticesRemoved))
     }
   }
 
 
   //SLAVE SLAVE
-
-  def compressEdge(key:Long,now:Long) = {
+  def archiveEdge(key:Long,now:Long) = {
     EntityStorage.edges.synchronized {
       EntityStorage.edges.get(key) match {
-        case Some(edge) => checkMaximumHistory(edge, KeyEnum.edges, removalPoint)
+        case Some(edge) => context.parent ! FinishedEdgeArchiving(key, edgeMaximumHistory(edge, removalPoint))
         case None => //do nothing
       }
     }
-    context.parent ! FinishedEdgeArchiving(key)
   }
-
-  def compressVertex(key:Int,now:Long) = {
+  def archiveVertex(key:Int,now:Long) = {
     EntityStorage.vertices.synchronized {
       EntityStorage.vertices.get(key) match {
-        case Some(vertex) => checkMaximumHistory(vertex, KeyEnum.vertices,removalPoint)
+        case Some(vertex) => context.parent ! FinishedVertexArchiving(key,vertexMaximumHistory(vertex,removalPoint))
         case None => //do nothing
       }
     }
-    context.parent ! FinishedVertexArchiving(key)
   }
 
-
-  def checkMaximumHistory(e:Entity, et : KeyEnum.Value,removalPoint:Long) = {
+  def vertexMaximumHistory(e:Vertex,removalPoint:Long):(Int,Int,Int) = {
     val (placeholder, allOld,removed,propremoved) = e.removeAncientHistory(removalPoint,compressing)
     if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
-    propsRemoved += propremoved.asInstanceOf[Int]
-    historyRemoved += removed.asInstanceOf[Int]
+    var total = 0
     if (allOld.asInstanceOf[Boolean]) {
-      et match {
-        case KeyEnum.vertices => {
-          EntityStorage.vertices.remove(e.getId.toInt)
-          verticesRemoved.add(1)
-        }
-        case KeyEnum.edges    => {
-          EntityStorage.edges.remove(e.getId)
-          edgesRemoved.add(1)
-        }
-      }
+      EntityStorage.vertices.remove(e.getId.toInt)
+      total +=1
     }
+    (propremoved.asInstanceOf[Int],removed.asInstanceOf[Int],total)
+  }
+
+  def edgeMaximumHistory(e:Edge,removalPoint:Long):(Int,Int,Int) = {
+    val (placeholder, allOld,removed,propremoved) = e.removeAncientHistory(removalPoint,compressing)
+    if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
+    var total = 0
+    if (allOld.asInstanceOf[Boolean]) {
+      EntityStorage.edges.remove(e.getId)
+      total +=1
+    }
+    (propremoved.asInstanceOf[Int],removed.asInstanceOf[Int],total)
   }
 
 }

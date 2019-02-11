@@ -12,7 +12,6 @@ class CompressionSlave extends Actor{
 
   //timestamps to make sure all entities are compressed to exactly the same point
   var now = 0l
-  var compressionPercent = 90f
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
   val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
 
