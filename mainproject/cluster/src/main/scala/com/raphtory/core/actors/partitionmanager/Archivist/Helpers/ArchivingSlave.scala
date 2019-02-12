@@ -20,6 +20,7 @@ class ArchivingSlave extends Actor{
   var startedArchiving = 0
   var finishedArchiving = 0
   var percentcheck = 0
+  var percenting = false
 
   var propsRemoved =  0
   var historyRemoved =  0
@@ -74,7 +75,7 @@ class ArchivingSlave extends Actor{
     propsRemoved      += archived._1
     historyRemoved    += archived._2
     edgesRemoved      += archived._3
-    if(finishedArchiving%percentcheck==0 && startedArchiving>0)
+    if((finishedArchiving%percentcheck==0) && startedArchiving>0 && percenting)
         println(s"Edge Archiving ${(finishedArchiving * 100) / startedArchiving;}% Complete")
     if(startedArchiving==finishedArchiving) {
       context.parent ! FinishedEdgeArchiving(finishedArchiving, (propsRemoved, historyRemoved, edgesRemoved))
@@ -89,13 +90,13 @@ class ArchivingSlave extends Actor{
     propsRemoved      += archived._1
     historyRemoved    += archived._2
     verticesRemoved   += archived._3
-    if(finishedArchiving%percentcheck==0 && startedArchiving>0)
+    if(finishedArchiving%percentcheck==0 && startedArchiving>0 && percenting)
         println(s"Vertex Archiving ${(finishedArchiving * 100) / startedArchiving;}% Complete")
     if(startedArchiving==finishedArchiving){
+      context.parent ! FinishedVertexArchiving(finishedArchiving,(propsRemoved,historyRemoved,verticesRemoved))
       propsRemoved = 0
       historyRemoved = 0
-      edgesRemoved = 0
-      context.parent ! FinishedVertexArchiving(finishedArchiving,(propsRemoved,historyRemoved,verticesRemoved))
+      verticesRemoved = 0
     }
   }
 

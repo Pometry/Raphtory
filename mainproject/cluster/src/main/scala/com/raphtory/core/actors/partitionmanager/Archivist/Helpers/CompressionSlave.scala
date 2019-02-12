@@ -20,6 +20,7 @@ class CompressionSlave extends Actor{
   var startedCompressions = 0
   var finishedCompressions = 0
   var percentcheck = 0
+  val percenting = false
 
   override def receive:Receive = {
     case SetupSlave(children) => setup(children)
@@ -69,10 +70,9 @@ class CompressionSlave extends Actor{
 
   def finishedEdge(key: Long) = {
     finishedCompressions +=1
-    if(finishedCompressions%percentcheck==0){
-      if(startedCompressions>0)
+    if(finishedCompressions%percentcheck==0 &&startedCompressions>0&& percenting)
         println(s"Edge compression ${(finishedCompressions * 100) / startedCompressions;}% Complete")
-    }
+
     if(startedCompressions==finishedCompressions) {
       finishedCompressions=0
       startedCompressions=0
@@ -83,10 +83,8 @@ class CompressionSlave extends Actor{
 
   def finishedVertex(key:Int)={
     finishedCompressions +=1
-    if(finishedCompressions%percentcheck==0){
-      if(startedCompressions>0)
+    if(finishedCompressions%percentcheck==0 &&startedCompressions>0&& percenting)
         println(s"Vertex compression ${(finishedCompressions * 100) / startedCompressions;}% Complete")
-    }
     if(startedCompressions==finishedCompressions) {
       finishedCompressions=0
       startedCompressions=0
@@ -128,12 +126,12 @@ class CompressionSlave extends Actor{
     val history = edge.compressAndReturnOldHistory(cutOff)
     if(saving) {
       if(history.size > 0) {
-        RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
+        //RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
       }
       edge.properties.foreach(property => {
         val propHistory = property._2.compressAndReturnOldHistory(cutOff)
         if(propHistory.size > 0) {
-          RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
+          //RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
         }
       })
     }
@@ -143,12 +141,12 @@ class CompressionSlave extends Actor{
     val history = vertex.compressAndReturnOldHistory(cutOff)
     if(saving) { //if we are saving data to cassandra
       if (history.size > 0) {
-        RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)
+        //RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)
       }
       vertex.properties.foreach(prop => {
         val propHistory = prop._2.compressAndReturnOldHistory(cutOff)
         if (propHistory.size > 0) {
-          RaphtoryDBWrite.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
+          //RaphtoryDBWrite.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
         }
       })
     }
