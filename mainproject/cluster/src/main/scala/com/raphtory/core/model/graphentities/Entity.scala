@@ -51,10 +51,8 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     */
   def revive(msgTime: Long): Unit = {
     checkOldestNewest(msgTime)
-    if(!addOnly) {
-      originalHistorySize.add(1)
-      previousState.put(msgTime, true)
-    }
+    originalHistorySize.add(1)
+    previousState.put(msgTime, true)
   }
 
   /** *
@@ -64,11 +62,10 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     */
   def kill(msgTime: Long): Unit = {
     checkOldestNewest(msgTime)
-    if (!addOnly) {
-      originalHistorySize.add(1)
-      removeList.put(msgTime, false)
-      previousState.put(msgTime, false)
-    }
+    originalHistorySize.add(1)
+    removeList.put(msgTime, false)
+    previousState.put(msgTime, false)
+
   }
 
   def checkOldestNewest(msgTime:Long) ={
