@@ -8,7 +8,8 @@ import com.raphtory.core.utils.Utils
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.actors.partitionmanager.Archivist.Archivist
-import com.raphtory.core.actors.partitionmanager.{PartitionReader, PartitionWriter}
+import com.raphtory.core.actors.partitionmanager.PartitionReader
+import com.raphtory.core.actors.partitionmanager.Writer.PartitionWriter
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
