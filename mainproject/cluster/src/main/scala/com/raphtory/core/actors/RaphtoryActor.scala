@@ -13,8 +13,10 @@ import kamon.Kamon
 import kamon.metric.MeasurementUnit
 
 import scala.collection.immutable.HashMap
+import akka.dispatch.RequiresMessageQueue
+import akka.dispatch.BoundedMessageQueueSemantics
 
-abstract class RaphtoryActor extends Actor {
+abstract class RaphtoryActor extends Actor{
 
   val bytesGauge     = Kamon.gauge("raphtory.heap.bytes", MeasurementUnit.information.bytes)
   val instancesGauge = Kamon.gauge("raphtory.heap.instances", MeasurementUnit.none)

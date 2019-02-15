@@ -1,5 +1,7 @@
 package com.raphtory.core.storage
 
+import java.util.NoSuchElementException
+
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
 
@@ -8,6 +10,7 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Property, RemoteEdge, RemotePos, Vertex}
 import com.raphtory.core.storage.controller.GraphRepoProxy
 import com.raphtory.core.utils.Utils
+import com.raphtory.core.utils.exceptions.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -15,26 +18,42 @@ import scala.collection.parallel.mutable.ParTrieMap
 /**
   * Singleton representing the Storage for the entities
   */
-object EntitiesStorage {
+//TODO add capacity function based on memory used and number of updates processed/stored in memory
+//TODO keep cached entities in a separate map which can be cleared once analysis is finished
+//TODO filter to set of entities, expand to x number of hop neighbours and retrieve history
+//TODO perhaps create a new map for each LAM, this way we can add the entities to this map and remove after
+//TODO workout what to do sub millisecond as currently overwrites
+//TODO retrieve edge on other partition manager -- decide how to propagate
+//TODO do we need an edge map?
+object EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager}
   /**
     * Map of vertices contained in the partition
     */
   val vertices = ParTrieMap[Int, Vertex]()
 
-   /**
+  /**
     * Map of edges contained in the partition
     */
   val edges    = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
 
-  var printing     : Boolean = false
-  var managerCount : Int     = -1
-  var managerID    : Int     = -1
+  var printing     : Boolean = true
+  var managerCount : Int     = 1
+  var managerID    : Int     = 0
   var mediator     : ActorRef= null
   var addOnlyVertex      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_VERTEX", "false").trim.toBoolean
   var addOnlyEdge      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_EDGE", "false").trim.toBoolean
   var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
 
+  //stuff for compression and archiving
+  var oldestTime:Long = Long.MaxValue
+  var newestTime:Long = Long.MinValue
+  var lastCompressedAt:Long = 0
+
+  def timings(updateTime:Long) ={
+    if (updateTime < oldestTime) oldestTime=updateTime
+    if(updateTime > newestTime) newestTime = updateTime //this isn't thread safe, but is only an approx for the archiving
+  }
 
   def apply(printing : Boolean, managerCount : Int, managerID : Int, mediator : ActorRef) = {
     this.printing     = printing
@@ -65,11 +84,11 @@ object EntitiesStorage {
           vertices put(srcId, value)
       }
     }
-
+    value.shouldBeWiped = false //TODO remove
     if (properties != null) {
       properties.foreach(prop => value.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
     }
-      //properties.foreach(l => value + (msgTime,l._1,l._2)) //add all properties
+    //properties.foreach(l => value + (msgTime,l._1,l._2)) //add all properties
     GraphRepoProxy.addVertex(value.getId)
     value
   }
@@ -94,23 +113,42 @@ object EntitiesStorage {
           vertices put(srcId, vertex)
         }
       }
+      vertex.shouldBeWiped = false //TODO remove
     }
 
-    vertex.associatedEdges.foreach(e => {
+    vertex.incomingEdges.values.foreach(e => {
       e kill msgTime
+      e.shouldBeWiped = false //TODO remove
       try {
-          val ee = e.asInstanceOf[RemoteEdge]
-          if (ee.remotePos == RemotePos.Destination) {
-            mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), RemoteEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
-          } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
-          else {
-            mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), ReturnEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
-          } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
+        val ee = e.asInstanceOf[RemoteEdge]
+        if (ee.remotePos == RemotePos.Destination) {
+          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), RemoteEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
+        } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
+        else {
+          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), ReturnEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
+        } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
 
       } catch {
         case _ : ClassCastException =>
       }
     })
+    vertex.outgoingEdges.values.foreach(e => {
+      e kill msgTime
+      e.shouldBeWiped = false //TODO remove
+      try {
+        val ee = e.asInstanceOf[RemoteEdge]
+        if (ee.remotePos == RemotePos.Destination) {
+          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), RemoteEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
+        } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
+        else {
+          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), ReturnEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
+        } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
+
+      } catch {
+        case _ : ClassCastException =>
+      }
+    })
+    //TODO: place this into a function instead of duplicating like this
   }
   //TODO: does the routerID effect vertices which are wiped
   def getVertexAndWipe(routerID : Int, id : Int, msgTime : Long) : Vertex = {
@@ -148,7 +186,7 @@ object EntitiesStorage {
           edges.put(index, edge)
       }
     }
-
+    edge.shouldBeWiped = false //TODO remove
     if (printing) println(s"Received an edge Add for $srcId --> $dstId (local: $local)")
 
     if (local && srcId != dstId) {
@@ -162,17 +200,17 @@ object EntitiesStorage {
     srcVertex addAssociatedEdge edge // add the edge to the associated edges of the source node
 
     if (present) {
-        edge revive msgTime
-        edge updateLatestRouter routerID
-        if (!local)
-          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAdd(routerID,msgTime, srcId, dstId, null),false) // inform the partition dealing with the destination node*/
+      edge revive msgTime
+      edge updateLatestRouter routerID
+      if (!local)
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAdd(routerID,msgTime, srcId, dstId, null),false) // inform the partition dealing with the destination node*/
     } else {
-        val deaths = srcVertex.removeList
-        edge killList deaths
-        if (!local)
-          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(routerID,msgTime, srcId, dstId, null, deaths), false)
+      val deaths = srcVertex.removeList
+      edge killList deaths
+      if (!local)
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(routerID,msgTime, srcId, dstId, null, deaths), false)
     }
-    GraphRepoProxy.addEdge(edge.getId)
+//i    GraphRepoProxy.addEdge(edge.getId)
     if (properties != null)
       properties.foreach(prop => edge.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
 
@@ -181,6 +219,7 @@ object EntitiesStorage {
   def updateEdgeProperties(msgTime : Long, edgeId : Long, key : String, value : String) : Unit = {
     edges.get(edgeId) match {
       case Some(e) => {
+        e.shouldBeWiped = false //TODO remove
         e + (msgTime, key, value)
       }
       case None =>
@@ -196,6 +235,7 @@ object EntitiesStorage {
     if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge already exists so just updating")
     val dstVertex = vertexAdd(routerID,msgTime,dstId) //create or revive the destination node
     val edge = edges(getEdgeIndex(srcId, dstId))
+    edge.shouldBeWiped = false //TODO remove
     edge updateLatestRouter routerID
     dstVertex addAssociatedEdge edge //again I think this can be removed
     edge revive msgTime //revive  the edge
@@ -212,6 +252,7 @@ object EntitiesStorage {
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
+    edge.shouldBeWiped = false //TODO remove
     properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the list
     mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgTime,srcId,dstId,deaths),false)
   }
@@ -239,7 +280,7 @@ object EntitiesStorage {
       case None =>
         edges.put(index, edge)
     }
-
+    edge.shouldBeWiped = false //TODO remove
     if (printing) println(s"Received an edge Add for $srcId --> $dstId (local: $local)")
     var dstVertex : Vertex = null
     var srcVertex : Vertex = null
@@ -260,10 +301,10 @@ object EntitiesStorage {
         mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemoval(routerID,msgTime,srcId,dstId),false) // inform the partition dealing with the destination node
     }
     else {
-        val deaths = srcVertex.removeList
-        edge killList deaths
-        if (!local)
-          mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths), false)
+      val deaths = srcVertex.removeList
+      edge killList deaths
+      if (!local)
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths), false)
     }
   }
 
@@ -273,6 +314,7 @@ object EntitiesStorage {
     edges.get(getEdgeIndex(srcId, dstId)) match {
       case Some(e) => {
         e kill msgTime
+        e.shouldBeWiped = false //TODO remove
         dstVertex addAssociatedEdge e
       }
       case None    => println("Didn't exist") //possibly need to fix when adding the priority box
@@ -289,6 +331,7 @@ object EntitiesStorage {
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
+    edge.shouldBeWiped = false //TODO remove
     mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgTime,srcId,dstId,deaths),false)
   }
 
@@ -299,10 +342,44 @@ object EntitiesStorage {
 
     srcVertex addAssociatedEdge edge //add the edge to the destination nodes associated list
     edge kill msgTime                  // if the edge already exists, kill it
+    edge.shouldBeWiped = false //TODO remove
   }
 
   def remoteReturnDeaths(msgTime:Long,srcId:Int,dstId:Int,dstDeaths:mutable.TreeMap[Long, Boolean]):Unit= {
     if(printing) println(s"Received deaths for $srcId --> $dstId from ${getManager(dstId, managerCount)}")
     edges(getEdgeIndex(srcId,dstId)) killList dstDeaths
   }
+
+  def compareMemoryToSaved() ={
+    vertices.foreach(pair=>{
+      val vertex = pair._2
+      //vertex.compareHistory()
+    })
+    edges.foreach(pair=>{
+      val edge = pair._2
+      // edge.compareHistory()
+    })
+  }
+
+  def createSnapshot(time:Long):ParTrieMap[Int, Vertex] = {
+    val snapshot:ParTrieMap[Int, Vertex] = ParTrieMap[Int, Vertex]()
+    var count = 0
+    for ((k,v) <- vertices) {
+      try {
+        val vertex =v.viewAt(time)
+        snapshot.put(k,vertex )
+        count +=1
+      }
+      catch {
+        case e:EntityRemovedAtTimeException => //println(e)
+        case e:PushedOutOfGraphException => println(e)
+        case e:StillWithinLiveGraphException => println(e)
+      }
+    }
+    println(s"$count entities in snapshot")
+    snapshot
+
+  }
+
+
 }

@@ -15,13 +15,26 @@ object VertexVisitor  {
 class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : Int) {
 
   private val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
-  def getOutgoingNeighborProp(vId: Int, key : String) : Option[String] = getNeighborProp(getOutgoingNeighbor(vId), key)
-  def getIngoingNeighborProp(vId : Int, key : String) : Option[String] = getNeighborProp(getIngoingNeighbor(vId), key)
+  def getOutgoingNeighborProp(vId: Int, key : String) : Option[String] = {
+    v.outgoingEdges.get(Utils.getEdgeIndex(v.vertexId,vId)) match {
+      case Some(e) => e.getPropertyCurrentValue(key)
+      case None    => None
+    }
+  }
+  def getIngoingNeighborProp(vId : Int, key : String) : Option[String] = {
+    v.incomingEdges.get(Utils.getEdgeIndex(vId,v.vertexId)) match {
+      case Some(e) => e.getPropertyCurrentValue(key)
+      case None    => None
+    }
+  }
 
   def getNeighborsProp(key : String) : Vector[String] = {
     var values = Vector.empty[String]
-    getNeighbors.foreach(e => {
-      values :+= e.getPropertyCurrentValue(key).get
+    v.incomingEdges.foreach(e => {
+      values :+= e._2.getPropertyCurrentValue(key).get
+    })
+    v.outgoingEdges.foreach(e => {
+      values :+= e._2.getPropertyCurrentValue(key).get
     })
     values
   }
@@ -32,12 +45,10 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
 
   }
 
-  def getOutgoingNeighbors : ParArray[Int] =
-    v.associatedEdges.filter(e => e.getSrcId == v.getId).map(e => e.getDstId).toParArray
+  def getOutgoingNeighbors : ParArray[Int] = v.outgoingEdges.values.map(e => e.getDstId).toParArray
 
 
-  def getIngoingNeighbors  : ParArray[Int] =
-    v.associatedEdges.filter(e => e.getDstId == v.getId).map(e => e.getSrcId).toParArray
+  def getIngoingNeighbors  : ParArray[Int] = v.incomingEdges.values.map(e => e.getSrcId).toParArray
 
   def getPropertyCurrentValue(key : String) : Option[String] =
     v.properties.get(key) match {
@@ -66,20 +77,14 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
   def pushToIngoingNeighbor(srcId : Int, key : String, value : String) : Unit =
     pushToNeighbor(Utils.getEdgeIndex(srcId, v.getId.toInt), key, value)
 
-  private def edgeFilter(srcId: Int, dstId: Int, edgeId : Long) : Boolean = Utils.getEdgeIndex(srcId, dstId) == edgeId
-  private def outgoingEdgeFilter(dstId : Int, edgeId : Long) : Boolean = edgeFilter(v.getId.toInt, dstId, edgeId)
-  private def ingoingEdgeFilter(srcId : Int, edgeId : Long) : Boolean = edgeFilter(srcId, v.getId.toInt, edgeId)
+//  private def edgeFilter(srcId: Int, dstId: Int, edgeId : Long) : Boolean = Utils.getEdgeIndex(srcId, dstId) == edgeId
+//  private def outgoingEdgeFilter(dstId : Int, edgeId : Long) : Boolean = edgeFilter(v.getId.toInt, dstId, edgeId)
+//  private def ingoingEdgeFilter(srcId : Int, edgeId : Long) : Boolean = edgeFilter(srcId, v.getId.toInt, edgeId)
+  //private def getNeighbor(f: Long => Boolean) : Option[Edge] = v.associatedEdges.values.find(e => f(e.getId))
+  //private def getOutgoingNeighbor(vId : Int) = getNeighbor(e => outgoingEdgeFilter(vId, e))
+  //private def getIngoingNeighbor(vId : Int) = getNeighbor(e => ingoingEdgeFilter(vId, e))
 
-  private def getNeighbor(f: Long => Boolean) : Option[Edge] = v.associatedEdges.find(e => f(e.getId))
-  private def getOutgoingNeighbor(vId : Int) = getNeighbor(e => outgoingEdgeFilter(vId, e))
-  private def getIngoingNeighbor(vId : Int) = getNeighbor(e => ingoingEdgeFilter(vId, e))
 
-  private def getNeighborProp(f : => Option[Edge], key : String) = {
-    f match {
-      case Some(e) => e.getPropertyCurrentValue(key)
-      case None    => None
-    }
-  }
 
-  private def getNeighbors = v.associatedEdges
+  //private def getNeighbors = v.associatedEdges
 }

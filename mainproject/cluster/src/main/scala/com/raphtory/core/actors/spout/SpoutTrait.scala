@@ -64,6 +64,8 @@ trait SpoutTrait extends RaphtoryActor with Timers {
   protected def running()
 
   final protected def isSafe() = safe
+  def start() = safe = true
+  def stop() = safe = false
 
   final override def receive : Receive = {
     case "stateCheck" => checkUp()

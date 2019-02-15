@@ -52,8 +52,11 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 // https://mvnrepository.com/artifact/com.twitter/util-eval
 	val twitter_eval 		= "com.twitter" %% "util-eval" % "6.43.0"
 // https://mvnrepository.com/artifact/org.mongodb.scala/mongo-scala-driver
-  //val mongo 					= "org.mongodb.scala" %% "mongo-scala-driver" % "2.4.0"
+  val mongo 					= "org.mongodb" % "mongo-java-driver" % "3.8.0"
 	val casbah 					= "org.mongodb" %% "casbah-core" % "3.1.1"
+	val lift 						= "net.liftweb" %% "lift-json" % "3.3.0"
+// https://mvnrepository.com/artifact/org.mongodb/mongo-java-driver
+	val phantom 				=  "com.outworkers"  %% "phantom-dsl" %  "2.24.10"
 
 // https://mvnrepository.com/artifact/org.mongodb/casbah-core
 
@@ -75,7 +78,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		//resolvers					  ++= kamon_repos,
 		scalacOptions				:= Seq("-feature", "-deprecation", "-encoding", "UTF8", "-unchecked"),
 		testOptions in Test += Tests.Argument("-oDF"),
-		version 					:= "latest"
+		version 					:= "ben"
 
 	)
 
@@ -112,7 +115,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 			dep_compile(
 				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_dist_data,
 				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
-				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval,casbah)
+				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval,casbah,mongo,lift,phantom)
 		)
 	  	.settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",

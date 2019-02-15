@@ -5,6 +5,7 @@ import com.raphtory.core.model.graphentities.{Edge, RemoteEdge, RemotePos}
 import com.typesafe.config.ConfigFactory
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 
 object Utils {
   val clusterSystemName = "dockerexp"
@@ -82,4 +83,26 @@ object Utils {
   }
 
 
+  def createHistory(history: mutable.TreeMap[Long, Boolean]):String = {
+    if(history.size==0){
+      return ""
+    }
+    var s = "{"
+    for((k,v) <- history){
+      s = s+ s"$k : $v, "
+    }
+    s.dropRight(2) + "}"
+  }
+
+  def createPropHistory(history: mutable.TreeMap[Long, String]):String = {
+    if(history.size==0){
+      return ""
+    }
+    var s = "{"
+    for((k,v) <- history){
+      s = s+ s"$k : '$v', "
+    }
+    s.dropRight(2) + "}"
+
+  }
 }

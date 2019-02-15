@@ -9,7 +9,7 @@ import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
 private object MemoryConnector extends ReaderConnector {
-  import EntitiesStorage.{edges,vertices}
+  import EntityStorage.{edges,vertices}
   //val entities = Map[KeyEnum.Value, TrieMap[_ <: AnyVal, _ <: Entity]]((KeyEnum.edges -> edges), (KeyEnum.vertices -> vertices))
 
   /**
@@ -58,19 +58,19 @@ private object MemoryConnector extends ReaderConnector {
   override def getEntities(entityType: KeyEnum.Value): ParSet[Long] = {
     entityType match { // Not needed method
       case KeyEnum.vertices => GraphRepoProxy.getVerticesSet()
-      case KeyEnum.edges    => GraphRepoProxy.getEdgesSet()
+//      case KeyEnum.edges    => GraphRepoProxy.getEdgesSet()
     }
   }
 
   override def getEntitiesObjs(entityType: KeyEnum.Value): ParTrieMap[_ <: AnyVal, _ <: Entity] = {
     entityType match {
-      case KeyEnum.vertices => EntitiesStorage.vertices
-      case KeyEnum.edges    => EntitiesStorage.edges
+      case KeyEnum.vertices => EntityStorage.vertices
+      case KeyEnum.edges    => EntityStorage.edges
     }
   }
 
-  override def getAssociatedEdges(entityId: Long): ParSet[Edge] = {
-    vertices(entityId.toInt).associatedEdges
+  override def getAssociatedEdges(entityId: Long): ParTrieMap[Long, Edge] = {
+    vertices(entityId.toInt).incomingEdges //TODO both, place holder whilst things are rewritten
   }
 
   private def lookupVertex(vertexId : Int) : Boolean = {

@@ -1,11 +1,12 @@
 package com.raphtory.core.model.graphentities
 
-
+import com.raphtory.core.actors.partitionmanager._
 import com.raphtory.core.utils.HistoryOrdering
 import monix.execution.atomic.AtomicLong
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.collection.mutable
+import spray.json._
 
 /** *
   * Represents Graph Entities (Edges and Vertices)
@@ -23,11 +24,18 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
 
   // History of that entity
   var previousState : mutable.TreeMap[Long, Boolean] = null
-  if (!addOnly)
+  var compressedState: mutable.TreeMap[Long, Boolean] = null
+  if (!addOnly) {
     previousState = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+    compressedState = mutable.TreeMap()(HistoryOrdering)
+  }
+  private var saved = false
+  var shouldBeWiped = false
 
   //track the oldest point for use in AddOnly mode
   var oldestPoint : AtomicLong=  AtomicLong(creationTime)
+  var newestPoint: AtomicLong = AtomicLong(creationTime)
+  var originalHistorySize : AtomicLong=  AtomicLong(0)
 
   // History of that entity
   var removeList: mutable.TreeMap[Long,Boolean] = null
@@ -42,14 +50,9 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     * @param msgTime
     */
   def revive(msgTime: Long): Unit = {
-    if(addOnly) {
-      // if we are in add only mode
-      if (oldestPoint.get > msgTime) //check if the current point in history is the oldest
-        oldestPoint.set(msgTime)
-    }
-    else {
-      previousState.put(msgTime, true)
-    }
+    checkOldestNewest(msgTime)
+    originalHistorySize.add(1)
+    previousState.put(msgTime, true)
   }
 
   /** *
@@ -58,9 +61,18 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     * @param msgTime
     */
   def kill(msgTime: Long): Unit = {
+    checkOldestNewest(msgTime)
+    originalHistorySize.add(1)
     removeList.put(msgTime, false)
-    if (!addOnly)
-      previousState.put(msgTime, false)
+    previousState.put(msgTime, false)
+
+  }
+
+  def checkOldestNewest(msgTime:Long) ={
+    if(msgTime>newestPoint.get)
+      newestPoint.set(msgTime)
+    if (oldestPoint.get > msgTime) //check if the current point in history is the oldest
+      oldestPoint.set(msgTime)
   }
 
   /** *
@@ -75,34 +87,49 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node and should not be interacted with
       return  mutable.TreeMap()(HistoryOrdering) //if the size is one, no need to compress
     }
-    var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
-    var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
-
-    val head = previousState.head
-    safeHistory += head // always keep at least one point in history
-
+    var toWrite : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+    var head = previousState.head
     var prev: (Long,Boolean) = head
     var swapped = false
-    for((k,v) <- previousState){
-      if(k<cutoff) {
-        if(swapped)
-          if (v == !prev._2) {
-            oldHistory += prev //if the current point differs from the val of the previous it means the prev was the last of its type
-            safeHistory += prev
+    if(getPreviousStateSize()>1) {
+      for ((k, v) <- previousState) {
+        if (k < cutoff) {
+          if (swapped) { //as we are adding prev skip the value on the pivot as it is already added
+            if (v == !prev._2) {
+              toWrite.put(prev._1, prev._2) //add to toWrite so this can be saved to cassandra
+              previousState.remove(prev._1)
+            }
+            else {
+              previousState.remove(prev._1)
+            }
           }
-        swapped=true
+          swapped = true
+        }
+        prev = (k, v)
       }
-      else
-        safeHistory += k -> v
-      prev = (k,v)
+    }
+    if((prev._1<cutoff)) { //if the last point is before the cut off
+      if (compressedState.size > 0) { //and their has been a previous save
+        if (compressedState.head._2 != prev._2) { //we need to compare it against the compressed state
+          toWrite.put(prev._1,prev._2) //add to toWrite so this can be saved to cassandra
+          previousState.remove(prev._1)
+        }
+        else {previousState.remove(prev._1)} //and just removing if not
+      }
+      else {
+        toWrite.put(prev._1,prev._2)
+        previousState.remove(prev._1)
+      }
     }
 
-    if(prev._1<cutoff) {
-      safeHistory += prev
-      oldHistory += prev //add the final history point to oldHistory as not done in loop
+    if(toWrite.size>0) {
+      compressedState = compressedState ++= toWrite
     }
-    previousState = safeHistory
-    oldHistory
+    toWrite
+  }
+
+  def compressionRate():Double ={
+    previousState.size.toDouble/originalHistorySize.get.toDouble
   }
 
   /** *
@@ -111,26 +138,25 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     * @param cutoff the histories time cutoff
     * @return (is it a place holder, is the full history holder than the cutoff, the old history)
     */
-  def returnAncientHistory(cutoff:Long): (Boolean, Boolean, mutable.TreeMap[Long, Boolean]) ={ //
+  def removeAncientHistory(cutoff:Long,compressing:Boolean): (Boolean, Boolean,Int,Int)={ //
     if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node inform the historian
-      return  (true,true,null)
+      return  (true,true,0,0)
     }
-    var safeHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering )
-    var oldHistory : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
-
-    var allOld = true
-    safeHistory += previousState.head // always keep at least one point in history
-    for((k,v) <- previousState){
-      if(k<cutoff)
-        oldHistory += k ->v
-      else {
-        allOld =false
-        safeHistory += k -> v
+    var removed = 0
+    var propRemoval = 0
+    val removeFrom = if(compressing) compressedState else previousState
+    for((k,v) <- removeFrom){
+      if(k<cutoff){
+        removed = removed +1
+        removeFrom.remove(k)
       }
     }
-    previousState = safeHistory
+    for ((propkey, propval) <- properties) {
+      propRemoval = propRemoval + propval.removeAncientHistory(cutoff,compressing)
+    } //do the same for all properties
 
-    (false,allOld,oldHistory)
+    val allOld = newestPoint.get<cutoff
+    (false,allOld,removed,propRemoval)
   }
 
   /** *
@@ -156,11 +182,42 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     }
   }
 
+  def beenSaved():Boolean=saved
+  def firstSave():Unit = saved =true
+
   def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter
 
   def updateLatestRouter(newRouter:Int):Unit = latestRouter = newRouter
 
-  //************* PRINT ENTITY DETAILS BLOCK *********************\\
+  def wipe() = {
+    if (addOnly)
+      oldestPoint.set(Long.MaxValue)
+    else
+      previousState = mutable.TreeMap()(HistoryOrdering)
+  }
+
+  def getPreviousStateSize() : Int = {
+    if (addOnly)
+      if(oldestPoint.get == Long.MaxValue)
+        0 //is a placeholder entity
+      else
+        1
+    else
+      previousState.size
+  }
+
+  def getId : Long
+  def getPropertyCurrentValue(key : String) : Option[String] =
+    properties.get(key) match {
+      case Some(p) => Some(p.currentValue)
+      case None => None
+    }
+
+
+}
+
+
+//************* PRINT ENTITY DETAILS BLOCK *********************\\
 /*  def printCurrent(): String = {
     var toReturn = s"MessageID ${previousState.head._1}: ${previousState.head._2} " + System.lineSeparator
     properties.foreach(p =>
@@ -191,29 +248,4 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     toReturn
   }*/
 
-  //************* END PRINT ENTITY DETAILS BLOCK *********************\\
-
-  def wipe() = {
-    if (addOnly)
-      oldestPoint.set(Long.MaxValue)
-    else
-      previousState = mutable.TreeMap()(HistoryOrdering)
-  }
-
-  def getPreviousStateSize() : Int = {
-    if (addOnly)
-      if(oldestPoint.get == Long.MaxValue)
-        0 //is a placeholder entity
-      else
-        1
-    else
-      previousState.size
-  }
-
-  def getId : Long
-  def getPropertyCurrentValue(key : String) : Option[String] =
-    properties.get(key) match {
-      case Some(p) => Some(p.currentValue)
-      case None => None
-    }
-}
+//************* END PRINT ENTITY DETAILS BLOCK *********************\\

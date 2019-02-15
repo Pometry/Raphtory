@@ -1,5 +1,18 @@
 package com.raphtory.core.utils.exceptions
 
+
+final case class StillWithinLiveGraphException(private val time: Long,
+                                              private val cause: Throwable = None.orNull)
+  extends Exception(s"$time not currently compressed", cause)
+
+final case class PushedOutOfGraphException(private val time: Long,
+                                               private val cause: Throwable = None.orNull)
+  extends Exception(s"$time not currently stored in memory", cause)
+
+final case class EntityRemovedAtTimeException(private val id: Long,
+                                           private val cause: Throwable = None.orNull)
+  extends Exception(s"EntityId $id was removed at the given time", cause)
+
 final case class EntityIdNotFoundException(private val id: Long,
                                  private val cause: Throwable = None.orNull)
                   extends Exception(s"EntityId $id not found in storage", cause)
