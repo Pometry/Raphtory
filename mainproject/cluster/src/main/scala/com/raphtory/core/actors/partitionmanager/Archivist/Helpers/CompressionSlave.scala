@@ -19,7 +19,7 @@ class CompressionSlave extends Actor{
 
   var startedCompressions = 0
   var finishedCompressions = 0
-  var percentcheck = 0
+  var percentcheck = 1
   val percenting = false
 
   override def receive:Receive = {
@@ -70,8 +70,8 @@ class CompressionSlave extends Actor{
 
   def finishedEdge(key: Long) = {
     finishedCompressions +=1
-    if(finishedCompressions%percentcheck==0 &&startedCompressions>0&& percenting)
-        println(s"Edge compression ${(finishedCompressions * 100) / startedCompressions;}% Complete")
+  //  if(finishedCompressions%percentcheck==0 &&startedCompressions>0&& percenting)
+  //      println(s"Edge compression ${(finishedCompressions * 100) / startedCompressions;}% Complete")
 
     if(startedCompressions==finishedCompressions) {
       finishedCompressions=0
@@ -83,8 +83,8 @@ class CompressionSlave extends Actor{
 
   def finishedVertex(key:Int)={
     finishedCompressions +=1
-    if(finishedCompressions%percentcheck==0 &&startedCompressions>0&& percenting)
-        println(s"Vertex compression ${(finishedCompressions * 100) / startedCompressions;}% Complete")
+    //if(finishedCompressions%percentcheck==0 &&startedCompressions>0&& percenting)
+    //    println(s"Vertex compression ${(finishedCompressions * 100) / startedCompressions;}% Complete")
     if(startedCompressions==finishedCompressions) {
       finishedCompressions=0
       startedCompressions=0

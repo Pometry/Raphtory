@@ -31,7 +31,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   var secondaryMessageCount : Int = 0
 
   var childMap              : ParTrieMap[Int,ActorRef] = ParTrieMap[Int,ActorRef]()
-  val children              : Int = 5
+  val children              : Int = 10
   val logChild              : ActorRef = context.actorOf(Props[LoggingSlave],s"logger")
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)

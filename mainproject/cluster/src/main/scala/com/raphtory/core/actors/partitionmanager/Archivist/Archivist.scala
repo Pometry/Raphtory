@@ -69,10 +69,10 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
 
   override def preStart() {
-    edgeCompressor   ! SetupSlave(5) //bring the slaves of all components online
-    vertexCompressor ! SetupSlave(5)
-    edgeArchiver     ! SetupSlave(5)
-    vertexArchiver   ! SetupSlave(5)
+    edgeCompressor   ! SetupSlave(10) //bring the slaves of all components online
+    vertexCompressor ! SetupSlave(10)
+    edgeArchiver     ! SetupSlave(10)
+    vertexArchiver   ! SetupSlave(10)
     context.system.scheduler.scheduleOnce(20.seconds, self,"compress") //start the compression process in 20 seconds
   }
 
@@ -142,6 +142,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       EntityStorage.oldestTime = removePointGlobal
       context.system.scheduler.scheduleOnce(10.millisecond, self, "compress") //restart archive to check if there is now enough space
     }
+    System.gc() //suggest a good time to garbage collect
 
   }
 
