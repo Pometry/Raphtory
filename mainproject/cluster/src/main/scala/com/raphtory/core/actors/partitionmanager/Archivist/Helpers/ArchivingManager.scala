@@ -10,7 +10,7 @@ import monix.eval.Task
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.util.{Failure, Success}
 
-class ArchivingSlave extends Actor{
+class ArchivingManager extends Actor{
 
   var childMap = ParTrieMap[Int,ActorRef]()
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
@@ -40,7 +40,7 @@ class ArchivingSlave extends Actor{
 
   def setup(children: Int) = {
     for(i <- 0 to children){
-      childMap.put(i,context.actorOf(Props[ArchivingSlave],s"child_$i"))
+      childMap.put(i,context.actorOf(Props[ArchivingManager],s"child_$i"))
     }
   }
 

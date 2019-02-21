@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 import akka.actor.Props
 import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.partitionmanager.Archivist.Helpers.{ArchivingSlave, CompressionSlave}
+import com.raphtory.core.actors.partitionmanager.Archivist.Helpers.{ArchivingManager, CompressionManager}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities._
 import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
@@ -62,10 +62,10 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   var removePointGlobal:Long      = 0L
   var removalPoint:Long           = 0L
   // children for distribution of compresssion and archiving
-  val edgeCompressor   =  context.actorOf(Props[CompressionSlave],"edgecompressor");
-  val vertexCompressor =  context.actorOf(Props[CompressionSlave],"vertexcompressor");
-  val edgeArchiver     =  context.actorOf(Props[ArchivingSlave],"edgearchiver");
-  val vertexArchiver   =  context.actorOf(Props[ArchivingSlave],"vertexarchiver");
+  val edgeCompressor   =  context.actorOf(Props[CompressionManager],"edgecompressor");
+  val vertexCompressor =  context.actorOf(Props[CompressionManager],"vertexcompressor");
+  val edgeArchiver     =  context.actorOf(Props[ArchivingManager],"edgearchiver");
+  val vertexArchiver   =  context.actorOf(Props[ArchivingManager],"vertexarchiver");
 
 
   override def preStart() {
@@ -106,7 +106,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
       vertexCompressionFinished = false //reset the compression vars
       edgeCompressionFinished = false
-      context.system.scheduler.scheduleOnce(5.millisecond, self, "archive") //start the archiving process
+      context.system.scheduler.scheduleOnce(1.second, self, "archive") //start the archiving process
     }
   }
 
@@ -118,7 +118,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       vertexArchiver ! ArchiveVertices(removalPoint)
     }
     else {
-      context.system.scheduler.scheduleOnce(5.millisecond, self,"compress") //if we are not archiving start the compression process again
+      context.system.scheduler.scheduleOnce(1.second, self,"compress") //if we are not archiving start the compression process again
     }
   }
 
@@ -137,12 +137,12 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     if (edgeArchivingFinished && vertexArchivingFinished) {
       vertexArchivingFinished = false
       edgeArchivingFinished = false
-      context.system.scheduler.scheduleOnce(5.millisecond, self, "archiveCheck")
       println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
       EntityStorage.oldestTime = removePointGlobal
-      context.system.scheduler.scheduleOnce(10.millisecond, self, "compress") //restart archive to check if there is now enough space
+      context.system.scheduler.scheduleOnce(1.second, self, "compress")
+      System.gc() //suggest a good time to garbage collect
     }
-    System.gc() //suggest a good time to garbage collect
+
 
   }
 
