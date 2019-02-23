@@ -147,7 +147,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     val removeFrom = if(compressing) compressedState else previousState
     for((k,v) <- removeFrom){
       if(k<cutoff){
-        removed = removed +1
+        removed +=1
         removeFrom.remove(k)
       }
     }

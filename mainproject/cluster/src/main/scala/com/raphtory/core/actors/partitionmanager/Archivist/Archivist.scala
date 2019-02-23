@@ -35,8 +35,8 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   println(s"Archivist compressing = $compressing, Saving = $saving")
 
   //Turn logging off
-  //val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
-  //root.setLevel(Level.ERROR)
+  val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+  root.setLevel(Level.ERROR)
 
   //get the runtime for memory usage
   val runtime = Runtime.getRuntime
@@ -106,7 +106,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
       vertexCompressionFinished = false //reset the compression vars
       edgeCompressionFinished = false
-      context.system.scheduler.scheduleOnce(5.millisecond, self, "archive") //start the archiving process
+      context.system.scheduler.scheduleOnce(1.second, self, "archive") //start the archiving process
     }
   }
 
@@ -137,10 +137,10 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     if (edgeArchivingFinished && vertexArchivingFinished) {
       vertexArchivingFinished = false
       edgeArchivingFinished = false
-      context.system.scheduler.scheduleOnce(5.millisecond, self, "archiveCheck")
+      context.system.scheduler.scheduleOnce(1.second, self, "archiveCheck")
       println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
       EntityStorage.oldestTime = removePointGlobal
-      context.system.scheduler.scheduleOnce(10.millisecond, self, "compress") //restart archive to check if there is now enough space
+      context.system.scheduler.scheduleOnce(1.second, self, "compress") //restart archive to check if there is now enough space
     }
 
   }
