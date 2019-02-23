@@ -10,16 +10,15 @@ import monix.eval.Task
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.util.{Failure, Success}
 
-class ArchivingSlave extends Actor{
+class ArchivingManager extends Actor{
 
   var childMap = ParTrieMap[Int,ActorRef]()
-  var removalPoint = 0l
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
   val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
 
   var startedArchiving = 0
   var finishedArchiving = 0
-  var percentcheck = 0
+  var percentcheck = 1
   var percenting = false
 
   var propsRemoved =  0
@@ -29,8 +28,8 @@ class ArchivingSlave extends Actor{
 
   override def receive:Receive = {
     case SetupSlave(children) => setup(children)
-    case ArchiveEdges(ls) => {removalPoint = ls;archiveEdges()}
-    case ArchiveVertices(ls) => {removalPoint=ls;archiveVertices()}
+    case ArchiveEdges(ls) => {archiveEdges(ls)}
+    case ArchiveVertices(ls) => {archiveVertices(ls)}
     case FinishedEdgeArchiving(key,archived) => finishedEdge(key,archived)
     case FinishedVertexArchiving(key,archived) => finishedVertex(key,archived)
 
@@ -41,12 +40,12 @@ class ArchivingSlave extends Actor{
 
   def setup(children: Int) = {
     for(i <- 0 to children){
-      childMap.put(i,context.actorOf(Props[ArchivingSlave],s"child_$i"))
+      childMap.put(i,context.actorOf(Props[ArchivingManager],s"child_$i"))
     }
   }
 
 
-  def archiveEdges() = {
+  def archiveEdges(removalPoint:Long) = {
     val size = childMap.size
     finishedArchiving=0
     startedArchiving=0
@@ -58,7 +57,7 @@ class ArchivingSlave extends Actor{
     percentcheck = startedArchiving/10
   }
 
-  def archiveVertices() = {
+  def archiveVertices(removalPoint:Long) = {
     val size = childMap.size
     finishedArchiving=0
     startedArchiving=0
@@ -75,8 +74,8 @@ class ArchivingSlave extends Actor{
     propsRemoved      += archived._1
     historyRemoved    += archived._2
     edgesRemoved      += archived._3
-    if((finishedArchiving%percentcheck==0) && startedArchiving>0 && percenting)
-        println(s"Edge Archiving ${(finishedArchiving * 100) / startedArchiving;}% Complete")
+    //if((finishedArchiving%percentcheck==0) && startedArchiving>0 && percenting)
+    //    println(s"Edge Archiving ${(finishedArchiving * 100) / startedArchiving;}% Complete")
     if(startedArchiving==finishedArchiving) {
       context.parent ! FinishedEdgeArchiving(finishedArchiving, (propsRemoved, historyRemoved, edgesRemoved))
       propsRemoved = 0
@@ -90,8 +89,8 @@ class ArchivingSlave extends Actor{
     propsRemoved      += archived._1
     historyRemoved    += archived._2
     verticesRemoved   += archived._3
-    if(finishedArchiving%percentcheck==0 && startedArchiving>0 && percenting)
-        println(s"Vertex Archiving ${(finishedArchiving * 100) / startedArchiving;}% Complete")
+//    if(finishedArchiving%percentcheck==0 && startedArchiving>0 && percenting)
+ //       println(s"Vertex Archiving ${(finishedArchiving * 100) / startedArchiving;}% Complete")
     if(startedArchiving==finishedArchiving){
       context.parent ! FinishedVertexArchiving(finishedArchiving,(propsRemoved,historyRemoved,verticesRemoved))
       propsRemoved = 0
@@ -105,7 +104,7 @@ class ArchivingSlave extends Actor{
   def archiveEdge(key:Long,now:Long) = {
     EntityStorage.edges.synchronized {
       EntityStorage.edges.get(key) match {
-        case Some(edge) => context.parent ! FinishedEdgeArchiving(key, edgeMaximumHistory(edge, removalPoint))
+        case Some(edge) => context.parent ! FinishedEdgeArchiving(key, edgeMaximumHistory(edge, now))
         case None => //do nothing
       }
     }
@@ -113,7 +112,7 @@ class ArchivingSlave extends Actor{
   def archiveVertex(key:Int,now:Long) = {
     EntityStorage.vertices.synchronized {
       EntityStorage.vertices.get(key) match {
-        case Some(vertex) => context.parent ! FinishedVertexArchiving(key,vertexMaximumHistory(vertex,removalPoint))
+        case Some(vertex) => context.parent ! FinishedVertexArchiving(key,vertexMaximumHistory(vertex,now))
         case None => //do nothing
       }
     }
