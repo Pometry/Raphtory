@@ -3,19 +3,34 @@ package com.raphtory.core.actors.partitionmanager.Archivist.Helpers
 import akka.actor.Actor
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
-import com.raphtory.core.storage.EntityStorage
+import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
 
-class CompressionSlave extends Actor {
+class CompressionSlave(id:Int) extends Actor {
   val compressing: Boolean = System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
   val saving: Boolean = System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
 
   override def receive: Receive = {
-    case CompressVertex(key, time) => compressVertex(key, time)
-    case CompressEdge(key, time) => compressEdge(key, time)
-
+    //case CompressVertex(key, time) => compressVertex(key, time)
+    //case CompressEdge(key, time) => compressEdge(key, time)
+    case CompressEdges(ls) => {compressEdges(ls)}
+    case CompressVertices(ls) => {compressVertices(ls)}
   }
 
   //SLAVE SLAVE
+
+  def compressEdges(now:Long) = {
+    EntityStorage.edgeKeys.get(id) match {
+      case Some(set) => set.foreach(key => compressEdge(key,now))
+    }
+    context.parent ! FinishedEdgeCompression(id)
+  }
+
+  def compressVertices(now:Long) = {
+    EntityStorage.vertexKeys.get(id) match {
+      case Some(set) => set.foreach(key => compressVertex(key,now))
+    }
+    context.parent ! FinishedVertexCompression(id)
+  }
 
   def compressEdge(key: Long, now: Long) = {
     EntityStorage.edges.synchronized {
@@ -24,7 +39,7 @@ class CompressionSlave extends Actor {
         case None => //do nothing
       }
     }
-    context.parent ! FinishedEdgeCompression(key)
+
   }
 
   def compressVertex(key: Int, now: Long) = {
@@ -34,9 +49,6 @@ class CompressionSlave extends Actor {
         case None => //do nothing
       }
     }
-
-
-    context.parent ! FinishedVertexCompression(key)
   }
 
 
@@ -44,12 +56,12 @@ class CompressionSlave extends Actor {
     val history = edge.compressAndReturnOldHistory(cutOff)
     if (saving) {
       if (history.size > 0) {
-        //RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
+        RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
       }
       edge.properties.foreach(property => {
         val propHistory = property._2.compressAndReturnOldHistory(cutOff)
         if (propHistory.size > 0) {
-          //RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
+          RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
         }
       })
     }
@@ -59,12 +71,12 @@ class CompressionSlave extends Actor {
     val history = vertex.compressAndReturnOldHistory(cutOff)
     if (saving) { //if we are saving data to cassandra
       if (history.size > 0) {
-        //RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)
+        RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)
       }
       vertex.properties.foreach(prop => {
         val propHistory = prop._2.compressAndReturnOldHistory(cutOff)
         if (propHistory.size > 0) {
-          //RaphtoryDBWrite.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
+          RaphtoryDBWrite.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
         }
       })
     }

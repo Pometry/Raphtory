@@ -34,48 +34,25 @@ class CompressionManager extends Actor{
   //////////MAIN GUY
   def setup(children: Int) = {
     slaveCount = children
-    for(i <- 0 to children){
-      childMap.put(i,context.actorOf(Props[CompressionSlave],s"child_$i"))
+    for(i <- 0 until children){
+      childMap.put(i,context.actorOf(Props(new CompressionSlave(i)),s"child_$i"))
     }
   }
 
   def compressEdges() = {
-    println("hello")
-    finishedCompressions=0
-    startedCompressions=0
-    var entityTotal = 0
-    //val keysets = EntityStorage.edges.keySet.groupBy(key => {
-    //  entityTotal +=1
-    //  entityTotal % slaveCount
-    //})
-    //println(keysets.foreach(k=>k._2.size))
-    EntityStorage.edges.keySet.foreach(key =>{
-      startedCompressions +=1
-      childMap.getOrElse(startedCompressions%slaveCount,null) ! CompressEdge(key,now)
-
-    })
-    println(s"starting value edges ${System.currentTimeMillis()/1000} $startedCompressions")
-    percentcheck = startedCompressions/10
+    startedCompressions = childMap.size
+    childMap.values.foreach(child => child ! CompressEdges(now))
   }
 
   def compressVertices() = {
-    val size = childMap.size
-    finishedCompressions=0
-    startedCompressions=0
-    EntityStorage.vertices.keySet.foreach(key =>{
-      startedCompressions +=1
-      childMap.getOrElse(startedCompressions%size,null) ! CompressVertex(key,now)
-
-    })
-    println(s"starting value vertices ${System.currentTimeMillis()/1000} $startedCompressions")
-    percentcheck = startedCompressions/10
+    startedCompressions = childMap.size
+    childMap.values.foreach(child => child ! CompressVertices(now))
   }
 
   def finishedEdge(key: Long) = {
     finishedCompressions +=1
     if(startedCompressions==finishedCompressions) {
       finishedCompressions=0
-      startedCompressions=0
       context.parent ! FinishedEdgeCompression(finishedCompressions)
 
     }
@@ -85,7 +62,6 @@ class CompressionManager extends Actor{
     finishedCompressions +=1
     if(startedCompressions==finishedCompressions) {
       finishedCompressions=0
-      startedCompressions=0
       context.parent ! FinishedVertexCompression(finishedCompressions)
 
     }

@@ -13,6 +13,7 @@ import com.raphtory.core.utils.Utils
 import com.raphtory.core.utils.exceptions.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
 
 import scala.collection.mutable
+import scala.collection.parallel.mutable.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
 /**
@@ -27,15 +28,28 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO do we need an edge map?
 object EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager}
+
+  val children = 10
   /**
     * Map of vertices contained in the partition
     */
   val vertices = ParTrieMap[Int, Vertex]()
 
+  val vertexKeys = ParTrieMap[Int,ParSet[Int]]()
+  for(i <- 0 until children){
+    val temp = ParSet[Int]()
+    vertexKeys put (i, temp)
+  }
   /**
     * Map of edges contained in the partition
     */
   val edges    = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
+  val edgeKeys = ParTrieMap[Int,ParSet[Long]]()
+  for(i <- 0 until children){
+    val temp = ParSet[Long]()
+    edgeKeys put (i,temp)
+  }
+
 
   var printing     : Boolean = true
   var managerCount : Int     = 1
@@ -67,6 +81,20 @@ object EntityStorage {
     this.managerCount = count
   }
 
+  def newVertexKey(id:Int) = {
+    val chosen = vertexKeys((System.currentTimeMillis()%children).toInt)
+    chosen.synchronized{
+      chosen += id
+    }
+  }
+
+  def newEdgeKey(id:Long) = {
+    val chosen = edgeKeys((System.currentTimeMillis()%children).toInt)
+    chosen.synchronized{
+      chosen += id
+    }
+  }
+
   /**
     * Vertices Methods
     */
@@ -80,8 +108,10 @@ object EntityStorage {
           v revive msgTime
           v updateLatestRouter routerID
           value = v
-        case None =>
+        case None => {
           vertices put(srcId, value)
+          newVertexKey(srcId)
+        }
       }
     }
     value.shouldBeWiped = false //TODO remove
@@ -89,7 +119,8 @@ object EntityStorage {
       properties.foreach(prop => value.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
     }
     //properties.foreach(l => value + (msgTime,l._1,l._2)) //add all properties
-    GraphRepoProxy.addVertex(value.getId)
+
+    //GraphRepoProxy.addVertex(value.getId) //TODO put back in when working on LAM
     value
   }
 
@@ -111,6 +142,7 @@ object EntityStorage {
         case None => {
           vertex = new Vertex(routerID,msgTime, srcId, initialValue = false, addOnly = addOnlyVertex)
           vertices put(srcId, vertex)
+          newVertexKey(srcId)
         }
       }
       vertex.shouldBeWiped = false //TODO remove
@@ -184,6 +216,7 @@ object EntityStorage {
         }
         case None =>
           edges.put(index, edge)
+          newEdgeKey(index)
       }
     }
     edge.shouldBeWiped = false //TODO remove
@@ -248,11 +281,13 @@ object EntityStorage {
     val dstVertex = vertexAdd(routerID,msgTime,dstId) //create or revive the destination node
     val edge = new RemoteEdge(routerID, msgTime, srcId, dstId, initialValue = true, addOnlyEdge,RemotePos.Source,getPartition(srcId, managerCount))
     dstVertex addAssociatedEdge edge //add the edge to the associated edges of the destination node
-    edges put(getEdgeIndex(srcId,dstId), edge) //create the new edge
+    val index = getEdgeIndex(srcId,dstId)
+    edges put(index, edge) //create the new edge
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
     edge.shouldBeWiped = false //TODO remove
+    newEdgeKey(index)
     properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the list
     mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgTime,srcId,dstId,deaths),false)
   }
@@ -277,8 +312,10 @@ object EntityStorage {
         }
         present = true
       }
-      case None =>
+      case None => {
         edges.put(index, edge)
+        newEdgeKey(index)
+      }
     }
     edge.shouldBeWiped = false //TODO remove
     if (printing) println(s"Received an edge Add for $srcId --> $dstId (local: $local)")
@@ -326,8 +363,9 @@ object EntityStorage {
     val dstVertex = getVertexAndWipe(routerID, dstId, msgTime)
     val edge = new RemoteEdge(routerID,msgTime,srcId, dstId, initialValue = false, addOnlyEdge, RemotePos.Source, getPartition(srcId, managerCount))
     dstVertex addAssociatedEdge edge  //add the edge to the destination nodes associated list
-    edges put(getEdgeIndex(srcId,dstId), edge) // otherwise create and initialise as false
-
+    val index = getEdgeIndex(srcId,dstId)
+    edges put(index, edge) // otherwise create and initialise as false
+    newEdgeKey(index)
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
