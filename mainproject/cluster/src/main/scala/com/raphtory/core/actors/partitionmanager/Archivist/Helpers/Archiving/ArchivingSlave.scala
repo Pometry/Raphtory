@@ -5,6 +5,8 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
 import com.raphtory.core.storage.EntityStorage
 
+import scala.collection.parallel.mutable.ParSet
+
 class ArchivingSlave(id:Int) extends Actor{
 
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
@@ -13,8 +15,8 @@ class ArchivingSlave(id:Int) extends Actor{
   override def receive:Receive = {
     case ArchiveEdges(ls) => archiveEdges(ls)
     case ArchiveVertices(ls) => archiveVertices(ls)
-    case ArchiveEdge(key,time) => archiveEdge(key,time)
-    case ArchiveVertex(key,time) => archiveVertex(key,time)
+   // case ArchiveEdge(key,time) => archiveEdge(key,time)
+   // case ArchiveVertex(key,time) => archiveVertex(key,time)
 
   }
 
@@ -39,7 +41,7 @@ class ArchivingSlave(id:Int) extends Actor{
     var historyRemoved = 0
     EntityStorage.vertexKeys.get(id) match {
       case Some(set) => set.foreach(key => {
-        val removed = archiveVertex(key,now)
+        val removed = archiveVertex(key,now,set)
         propsRemoved += removed._1
         historyRemoved += removed._2
         verticesRemoved += removed._3
@@ -57,16 +59,16 @@ class ArchivingSlave(id:Int) extends Actor{
       }
     }
   }
-  def archiveVertex(key:Int,now:Long) = {
+  def archiveVertex(key:Int,now:Long,set:ParSet[Int]) = {
     EntityStorage.vertices.synchronized {
       EntityStorage.vertices.get(key) match {
-        case Some(vertex) => vertexMaximumHistory(vertex,now)
+        case Some(vertex) => vertexMaximumHistory(vertex,now,set)
         case None => (0,0,0)//do nothing
       }
     }
   }
 
-  def vertexMaximumHistory(e:Vertex,removalPoint:Long):(Int,Int,Int) = {
+  def vertexMaximumHistory(e:Vertex,removalPoint:Long,set:ParSet[Int]):(Int,Int,Int) = {
     val (placeholder, allOld,removed,propremoved) = e.removeAncientHistory(removalPoint,compressing)
     if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
     var total = 0
@@ -83,7 +85,7 @@ class ArchivingSlave(id:Int) extends Actor{
     var total = 0
     if (allOld.asInstanceOf[Boolean]) {
       EntityStorage.edges.remove(e.getId)
-      total +=1
+      total += 1
     }
     (propremoved.asInstanceOf[Int],removed.asInstanceOf[Int],total)
   }

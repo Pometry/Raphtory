@@ -81,19 +81,11 @@ object EntityStorage {
     this.managerCount = count
   }
 
-  def newVertexKey(id:Int) = {
-    val chosen = vertexKeys((System.currentTimeMillis()%children).toInt)
-    chosen.synchronized{
-      chosen += id
-    }
-  }
+  def newVertexKey(id:Int) = vertexKeys(new scala.util.Random(id).nextInt(1000)%children) += id //generate a random number based on the id (as ID's have already been modulated to reach a PM and therefore will probably end in the same number
 
-  def newEdgeKey(id:Long) = {
-    val chosen = edgeKeys((System.currentTimeMillis()%children).toInt)
-    chosen.synchronized{
-      chosen += id
-    }
-  }
+
+  def newEdgeKey(id:Long) = edgeKeys(new scala.util.Random(id).nextInt(1000)%children) += id
+
 
   /**
     * Vertices Methods
