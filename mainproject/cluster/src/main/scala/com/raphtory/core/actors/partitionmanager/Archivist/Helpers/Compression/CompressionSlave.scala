@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.partitionmanager.Archivist.Helpers
+package com.raphtory.core.actors.partitionmanager.Archivist.Helpers.Compression
 
 import akka.actor.Actor
 import com.raphtory.core.model.communication._
@@ -10,8 +10,6 @@ class CompressionSlave(id:Int) extends Actor {
   val saving: Boolean = System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
 
   override def receive: Receive = {
-    //case CompressVertex(key, time) => compressVertex(key, time)
-    //case CompressEdge(key, time) => compressEdge(key, time)
     case CompressEdges(ls) => {compressEdges(ls)}
     case CompressVertices(ls) => {compressVertices(ls)}
   }

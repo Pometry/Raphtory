@@ -5,7 +5,8 @@ import java.util.concurrent.Executors
 import akka.actor.Props
 import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.partitionmanager.Archivist.Helpers.{ArchivingManager, CompressionManager}
+import com.raphtory.core.actors.partitionmanager.Archivist.Helpers.Archiving.ArchivingManager
+import com.raphtory.core.actors.partitionmanager.Archivist.Helpers.Compression.CompressionManager
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities._
 import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
@@ -15,6 +16,7 @@ import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.Scheduler
 import monix.execution.atomic.AtomicInt
 import org.slf4j.LoggerFactory
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future

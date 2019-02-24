@@ -1,10 +1,7 @@
-package com.raphtory.core.actors.partitionmanager.Archivist.Helpers
+package com.raphtory.core.actors.partitionmanager.Archivist.Helpers.Compression
 
 import akka.actor.{Actor, ActorRef, Props}
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.{Edge, Vertex}
-import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
-import monix.eval.Task
 
 import scala.collection.parallel.mutable.ParTrieMap
 class CompressionManager extends Actor{
@@ -66,7 +63,6 @@ class CompressionManager extends Actor{
 
     }
   }
-
 }
 //if(finishedCompressions%percentcheck==0 &&startedCompressions>0&& percenting)
 //    println(s"Vertex compression ${(finishedCompressions * 100) / startedCompressions;}% Complete")
