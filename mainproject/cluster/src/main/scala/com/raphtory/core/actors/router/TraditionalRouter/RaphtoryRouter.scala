@@ -37,17 +37,13 @@ class RaphtoryRouter(val routerId:Int, val initialManagerCount:Int, slaveType:St
     case "keep_alive" => keepAlive()
     case UpdatedCounter(newValue) => {newPmJoined(newValue);childMap.values.foreach(a => a ! UpdatedCounter(newValue))} //inform all children
     case e : Any => allocateRecord(e);
-    //case command:String =>  this.parseRecord(command) //swapped to individual instances
-
   }
-
   protected def allocateRecord(record:Any):Unit = {
     recordUpdate()
     childMap get(count%children) match {
       case Some(child) => child ! AllocateJob(record)
     }
   }
-
 
   private def recordUpdate() = {
     count += 1
