@@ -1,7 +1,7 @@
 package com.raphtory.examples.random.actors
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.router.WindowingRouters.MapQueueWindowingRaphtoryRouter
+import com.raphtory.core.actors.router.WindowingRouters.WindowingRaphtoryRouter
 import kamon.metric.GaugeMetric
 //import com.raphtory.core.actors.router.ToFixRouters.QueueWindowingRouter
 import com.raphtory.core.model.communication._
@@ -12,7 +12,7 @@ import spray.json._
 
 import scala.concurrent.duration.{Duration, SECONDS}
 
-final class RaphtoryMQWindowingRaphtoryRouter(override val routerId:Int, override val initialManagerCount:Int) extends MapQueueWindowingRaphtoryRouter {
+final class RaphtoryMQWindowingRaphtoryRouter(override val routerId:Int, override val initialManagerCount:Int) extends WindowingRaphtoryRouter {
   var count = 0
   var edgeCount: Long = 1
   var edgeTime: Long = 0
