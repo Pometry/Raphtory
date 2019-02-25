@@ -23,30 +23,37 @@ class CompressionSlave(id:Int) extends Actor {
     context.parent ! FinishedEdgeCompression(id)
   }
 
+  def compressEdge(key: Long, now: Long) = {
+    try {
+      EntityStorage.edges.synchronized {
+        EntityStorage.edges.get(key) match {
+          case Some(edge) => saveEdge(edge, now)
+          case None => //do nothing
+        }
+      }
+    }catch {
+      case e:ArrayIndexOutOfBoundsException => println(e + s"problem in edge compression, with key $key")
+    }
+  }
+
+
   def compressVertices(now:Long) = {
     EntityStorage.vertexKeys.get(id) match {
       case Some(set) => set.foreach(key => compressVertex(key,now))
     }
     context.parent ! FinishedVertexCompression(id)
   }
-
-  def compressEdge(key: Long, now: Long) = {
-    EntityStorage.edges.synchronized {
-      EntityStorage.edges.get(key) match {
-        case Some(edge) => saveEdge(edge, now)
-        case None => //do nothing
-      }
-    }
-
-  }
-
   def compressVertex(key: Int, now: Long) = {
-    EntityStorage.vertices.synchronized {
-      EntityStorage.vertices.get(key) match {
-        case Some(vertex) => saveVertex(vertex, now)
-        case None => //do nothing
+    try {
+      EntityStorage.vertices.synchronized {
+        EntityStorage.vertices.get(key) match {
+          case Some(vertex) => saveVertex(vertex, now)
+          case None => //do nothing
+        }
       }
-    }
+    }catch {
+    case e:ArrayIndexOutOfBoundsException => println(e + s"problem in vertex compression, with key $key")
+  }
   }
 
 

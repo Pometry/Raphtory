@@ -27,7 +27,7 @@ class RaphtoryRouter(val routerId:Int, val initialManagerCount:Int, slaveType:St
   override def preStart() {
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS),self,"tick")
     context.system.scheduler.schedule(Duration(8, SECONDS), Duration(10, SECONDS), self, "keep_alive")
-    for(i <- 0 to children){
+    for(i <- 0 until children){
       childMap.put(i,context.actorOf(Props(Class.forName(slaveType),routerId,initialManagerCount),s"child_$i"))
     }
   }
