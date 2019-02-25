@@ -44,7 +44,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   override def preStart() {
     println("starting writer")
     context.system.scheduler.schedule(Duration(10, SECONDS),
-      Duration(10, SECONDS), self, "tick")
+      Duration(1, SECONDS), self, "tick")
     context.system.scheduler.schedule(Duration(8, SECONDS),
       Duration(10, SECONDS), self, "keep_alive")
 

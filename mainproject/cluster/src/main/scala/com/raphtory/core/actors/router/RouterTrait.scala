@@ -26,10 +26,9 @@ trait RouterTrait extends RaphtoryActor {
 
   private var count = 0
   private var managerCount : Int = initialManagerCount
-  //private val checkList = Array(0,0,0,0)
   override def preStart() {
     context.system.scheduler.schedule(Duration(7, SECONDS),
-      Duration(5, SECONDS),self,"tick")
+      Duration(1, SECONDS),self,"tick")
     context.system.scheduler.schedule(Duration(8, SECONDS),
       Duration(10, SECONDS), self, "keep_alive")
   }
@@ -38,12 +37,6 @@ trait RouterTrait extends RaphtoryActor {
 
   private def tick() = {
     kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
-    //println(s"Router with $getManagerCount Sent to ${checkList(0)} ${checkList(1)} ${checkList(2)} ${checkList(3)}")
-    //checkList(0)=0
-    //checkList(1)=0
-    //checkList(2)=0
-    //checkList(3)=0
-    //println(s"Router send $count to Log")
     count = 0
   }
 

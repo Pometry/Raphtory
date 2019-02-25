@@ -77,7 +77,6 @@ trait SpoutTrait extends RaphtoryActor with Timers {
     val diff = currentMessage - previousMessage
     previousMessage = currentMessage
     counter = 0
-    //println(s"Spout sent $diff to Log")
     kGauge.refine("actor" -> "Updater", "name" -> "diff").set(diff)
   }
 
