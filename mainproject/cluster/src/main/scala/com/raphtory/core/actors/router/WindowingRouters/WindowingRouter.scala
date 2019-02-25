@@ -1,14 +1,13 @@
-package com.raphtory.core.actors.router
+package com.raphtory.core.actors.router.WindowingRouters
 
+import akka.cluster.pubsub.DistributedPubSubMediator
+import com.raphtory.core.actors.router.TraditionalRouter.RouterTrait
 import com.raphtory.core.model.communication._
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.utils.Utils.{getEdgeIndex, getManager}
-import monix.execution.{ExecutionModel, Scheduler}
+import com.raphtory.core.utils.Utils.{getEdgeIndex, getIndexHI, getIndexLO}
 import kamon.Kamon
-import monix.eval.Task
-import com.raphtory.core.utils.Utils._
 import kamon.metric.GaugeMetric
+import monix.eval.Task
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration.{Duration, SECONDS}
@@ -30,8 +29,8 @@ trait WindowingRouter extends  RouterTrait {
 
 
   // Let's call the super.parseJSON in the Router implementation to get Kamon Metrics
-  override def parseJSON(command: String) = {
-    super.parseJSON(command)
+  override def parseRecord(command: String) = {
+    super.parseRecord(command)
   }
 
   override def preStart() {
@@ -48,8 +47,8 @@ trait WindowingRouter extends  RouterTrait {
 
   def otherMessages(rcvdMessage : Any) = {
     rcvdMessage match {
-      case CheckVertex => Task.eval(checkVertex()).fork.runAsync
-      case CheckEdges => Task.eval(checkEdges()).fork.runAsync
+      case CheckVertex => checkVertex()
+      case CheckEdges => checkEdges()
 
       case EdgeAvgTrait => edgeTimeTraitAvg()
       case VertexAvgTrait => vertexTimeTraitAvg()

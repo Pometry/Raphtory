@@ -2,7 +2,7 @@ package com.raphtory.examples.random.actors
 
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.router.RouterTrait
+import com.raphtory.core.actors.router.TraditionalRouter.RouterTrait
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.getManager
 import kamon.Kamon
@@ -31,13 +31,13 @@ class RandomRouter(override val routerId:Int, override val initialManagerCount:I
 
   override def otherMessages(rcvdMessage : Any) = {
     rcvdMessage match {
-      case command:String =>  Task.eval(parseJSON(command)).fork.runAsync
+      case command:String =>  parseRecord(command)
       case e => println(s"message not recognized! ${e.getClass}")
     }
   }
 
-  override def parseJSON(command:String):Unit={
-    super.parseJSON(command)
+  override def parseRecord(command:String):Unit={
+    super.parseRecord(command)
    // println(s"received command: \n $command")
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type

@@ -1,20 +1,18 @@
-package com.raphtory.core.actors.router
+package com.raphtory.core.actors.router.WindowingRouters
 
+import akka.cluster.pubsub.DistributedPubSubMediator
+import com.raphtory.core.actors.router.TraditionalRouter.RouterTrait
 import com.raphtory.core.model.communication._
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.utils.Utils.{getEdgeIndex, getManager}
-import monix.execution.{ExecutionModel, Scheduler}
+import com.raphtory.core.utils.Utils.{getEdgeIndex, getIndexHI, getIndexLO}
+import scala.concurrent.ExecutionContext.Implicits.global
 import kamon.Kamon
-import monix.eval.Task
-import com.raphtory.core.utils.Utils._
 import kamon.metric.GaugeMetric
 
-import scala.collection.mutable.Queue
-import scala.collection.mutable.Set
+
+import scala.collection.mutable.{Queue, Set}
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration.{Duration, SECONDS}
-
+import scala.concurrent.ExecutionContext.Implicits.global
 trait MapQueueWindowingRouter extends  RouterTrait {
   protected val edgeQueue = new Queue[(Long, Long)]
   protected val vertexQueue = new Queue[(Int, Long)]
@@ -34,8 +32,8 @@ trait MapQueueWindowingRouter extends  RouterTrait {
   private val edgesGauge    : GaugeMetric = Kamon.gauge("raphtory.edgeCheckingTime")
 
   // Let's call the super.parseJSON in the Router implementation to get Kamon Metrics
-  override def parseJSON(command: String) = {
-    super.parseJSON(command)
+  override def parseRecord(command: String) = {
+    super.parseRecord(command)
   }
 
   override def preStart() {
@@ -230,7 +228,7 @@ trait MapQueueWindowingRouter extends  RouterTrait {
       moreToPop = false
     }
     //For each Id in set check if other instance in the queue by calling check function
-    uniqueIDs foreach(t => Task.eval(checkVertex(t)).fork.runAsync) //to become multi threaded
+    uniqueIDs foreach(t => checkVertex(t)) //to become multi threaded
 
     //Call the function again to keep peeking at the queue
     //context.system.scheduler.scheduleOnce(Duration(QueueCheckFr, SECONDS), self,msgType)
@@ -253,7 +251,7 @@ trait MapQueueWindowingRouter extends  RouterTrait {
       moreToPop = false
     }
     //For each index in set check if other instance in the queue by calling check function
-    uniqueIDs foreach(t => Task.eval(checkEdges(t)).fork.runAsync) //to become multi threaded
+    uniqueIDs foreach(t => checkEdges(t)) //to become multi threaded
 
     //Call the function again to keep peeking at the queue
     //context.system.scheduler.scheduleOnce(Duration(QueueCheckFr, SECONDS), self,msgType)

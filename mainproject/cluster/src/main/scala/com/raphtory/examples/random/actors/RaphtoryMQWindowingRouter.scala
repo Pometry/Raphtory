@@ -1,11 +1,12 @@
 package com.raphtory.examples.random.actors
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.router.MapQueueWindowingRouter
+import com.raphtory.core.actors.router.WindowingRouters.MapQueueWindowingRouter
 import kamon.metric.GaugeMetric
-//import com.raphtory.core.actors.router.QueueWindowingRouter
+//import com.raphtory.core.actors.router.ToFixRouters.QueueWindowingRouter
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.getManager
+import scala.concurrent.ExecutionContext.Implicits.global
 import kamon.Kamon
 import spray.json._
 
@@ -52,7 +53,7 @@ final class RaphtoryMQWindowingRouter(override val routerId:Int, override val in
 
   def keepAlive() = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RouterUp(routerId), false)
 
-  override def parseJSON(command:String):Unit={
+  override def parseRecord(command:String):Unit={
     count += 1
     kCounter.refine("actor" -> "Router", "name" -> "count").increment()
     Kamon.gauge("raphtory.router.countGauge").set(count)

@@ -1,7 +1,7 @@
 package com.raphtory.examples.bitcoin.actors
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.router.RouterTrait
+import com.raphtory.core.actors.router.TraditionalRouter.RouterTrait
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, RaphWriteClass, VertexAddWithProperties}
 import com.raphtory.core.utils.Utils.getManager
 import com.raphtory.examples.bitcoin.communications.BitcoinTransaction
@@ -16,7 +16,7 @@ class BitcoinRouter(override val routerId:Int, override val initialManagerCount:
   }
 
   def parseTransaction(value: BitcoinTransaction): Unit = {
-    recordUpdate()
+    parseRecord("")
 
     val transaction = value.transaction
     val time = value.time

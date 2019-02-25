@@ -3,11 +3,10 @@ package com.raphtory.examples.gab.actors
 import java.time.OffsetDateTime
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.router.RouterTrait
+import com.raphtory.core.actors.router.TraditionalRouter.RouterTrait
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
 import com.raphtory.core.utils.{CommandEnum, GabEntityType}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
-
 import spray.json._
 import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
 
@@ -27,8 +26,8 @@ final class RaphtoryGabRouter(override val routerId:Int, override val initialMan
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
   import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   private val nullStr = "null"
-  override def parseJSON(command:String) : Unit= {
-    super.parseJSON("")
+  override def parseRecord(command:String) : Unit= {
+    super.parseRecord("")
     val post = command.parseJson.convertTo[GabPost]
     sendPostToPartitions(post)
 
