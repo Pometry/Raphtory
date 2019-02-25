@@ -10,7 +10,7 @@ import akka.util.Timeout
 import com.raphtory.core.actors.partitionmanager.Archivist.Archivist
 import com.raphtory.core.actors.partitionmanager.PartitionReader
 import com.raphtory.core.actors.partitionmanager.Writer.PartitionWriter
-
+import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -74,7 +74,7 @@ class RaphtoryReplicator(actorType:String, initialManagerCount:Int, routerName :
       }
 
       case "Router" => {
-        actorRef = context.system.actorOf(Props(Class.forName(routerName), myId, currentCount), "router")
+        actorRef = context.system.actorOf(Props(new RaphtoryRouter(myId, currentCount,routerName)), "router")
       }
     }
   }

@@ -1,18 +1,17 @@
 package com.raphtory.examples.random.actors
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.router.WindowingRouters.MapQueueWindowingRouter
+import com.raphtory.core.actors.router.WindowingRouters.WindowingRaphtoryRouter
 import kamon.metric.GaugeMetric
 //import com.raphtory.core.actors.router.ToFixRouters.QueueWindowingRouter
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.getManager
-import scala.concurrent.ExecutionContext.Implicits.global
 import kamon.Kamon
 import spray.json._
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, SECONDS}
 
-final class RaphtoryMQWindowingRouter(override val routerId:Int, override val initialManagerCount:Int) extends MapQueueWindowingRouter {
+final class RaphtoryWindowingRaphtoryRouter(override val routerId:Int, override val initialManagerCount:Int) extends WindowingRaphtoryRouter {
   var count = 0
   var edgeCount: Long = 1
   var edgeTime: Long = 0
@@ -39,6 +38,7 @@ final class RaphtoryMQWindowingRouter(override val routerId:Int, override val in
     val avg = edgeTime/edgeCount
     //println(s"$avg")
     edgesGauge.refine("actor" -> "Router", "replica" -> routerId.toString, "name" -> "Adding Time Edges").set(avg)
+    //kGauge.refine("actor" -> "Router", "name" -> "edgeTime").set(avg)
     edgeTime = 0
     edgeCount = 1
   }
@@ -47,6 +47,7 @@ final class RaphtoryMQWindowingRouter(override val routerId:Int, override val in
     val avg = vertexTime/vertexCount
     //println(s"$avg")
     verticesGauge.refine("actor" -> "Router", "replica" -> routerId.toString, "name" -> "Adding Time Vertices").set(avg)
+    //kGauge.refine("actor" -> "Router", "name" -> "vertexTime").set(avg)
     vertexTime = 0
     vertexCount = 1
   }
@@ -88,7 +89,7 @@ final class RaphtoryMQWindowingRouter(override val routerId:Int, override val in
 
     //Add into our router map
     vertexTime = vertexTime + super.addVertex(srcId)
-    vertexCount = vertexCount + 1
+    vertexCount += 1
   }
 
   def vertexUpdateProperties(command:JsObject):Unit={

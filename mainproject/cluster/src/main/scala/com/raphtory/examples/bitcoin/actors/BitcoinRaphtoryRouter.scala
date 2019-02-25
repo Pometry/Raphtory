@@ -1,13 +1,13 @@
 package com.raphtory.examples.bitcoin.actors
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.router.TraditionalRouter.RouterTrait
+import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, RaphWriteClass, VertexAddWithProperties}
 import com.raphtory.core.utils.Utils.getManager
 import com.raphtory.examples.bitcoin.communications.BitcoinTransaction
 import spray.json.JsArray
 
-class BitcoinRouter(override val routerId:Int, override val initialManagerCount:Int) extends RouterTrait{
+class BitcoinRaphtoryRouter(override val routerId:Int, override val initialManagerCount:Int) extends RaphtoryRouter{
 
   override protected def otherMessages(rcvdMessage: Any): Unit = {
     rcvdMessage match {

@@ -53,8 +53,6 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
      }
    }
 
-
-
   override def receive : Receive = {
 
     //Forwarding of writes to writing slaves

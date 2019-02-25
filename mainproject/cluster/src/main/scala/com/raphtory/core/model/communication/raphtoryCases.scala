@@ -91,6 +91,7 @@ case class SetupNewAnalyser(analyser: String, name:String) extends RaphReadClass
 case class FailedToCompile (stackTrace:String) extends  RaphReadClasses
 case class NextStepNewAnalyser(name: String) extends RaphReadClasses
 
+case class AllocateJob(record:Any)
 
 case class CheckVertex()// extends CheckingFunction
 case class CheckEdges()// extends CheckingFunction

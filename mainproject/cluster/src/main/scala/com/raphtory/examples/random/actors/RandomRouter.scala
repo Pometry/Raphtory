@@ -2,15 +2,11 @@ package com.raphtory.examples.random.actors
 
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.router.TraditionalRouter.RouterTrait
+import com.raphtory.core.actors.router.TraditionalRouter.Helpers.RouterSlave
+import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.getManager
-import kamon.Kamon
-import monix.eval.Task
-import monix.execution.{ExecutionModel, Scheduler}
 import spray.json._
-
-import scala.concurrent.duration.{Duration, SECONDS}
 
 /**
   * The Graph Manager is the top level actor in this system (under the stream)
@@ -24,21 +20,13 @@ import scala.concurrent.duration.{Duration, SECONDS}
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-class RandomRouter(override val routerId:Int, override val initialManagerCount:Int) extends RouterTrait {
+class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends RouterSlave {
 
   //************* MESSAGE HANDLING BLOCK
   println(akka.serialization.Serialization.serializedActorPath(self))
 
-  override def otherMessages(rcvdMessage : Any) = {
-    rcvdMessage match {
-      case command:String =>  parseRecord(command)
-      case e => println(s"message not recognized! ${e.getClass}")
-    }
-  }
-
-  override def parseRecord(command:String):Unit={
-    super.parseRecord(command)
-   // println(s"received command: \n $command")
+  def parseRecord(record:Any):Unit={
+    val command = record.asInstanceOf[String]
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
     if(commandKey.contains("VertexAdd")) vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject)
@@ -51,8 +39,6 @@ class RandomRouter(override val routerId:Int, override val initialManagerCount:I
   }
 
   def vertexAdd(command:JsObject):Unit = {
-   // println("Inside add")
-
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt                 //extract the srcID
     if(command.fields.contains("properties")) {                          //if there are properties within the command
@@ -61,16 +47,11 @@ class RandomRouter(override val routerId:Int, override val initialManagerCount:I
         properties = properties updated (pair._1, pair._2.toString())
       })
       //send the srcID and properties to the graph manager
-
       toPartitionManager(VertexAddWithProperties(routerId,msgTime,srcId,properties))
-      // println(s"sending vertex add $srcId to Manager 1")
     }
     else {
       toPartitionManager(VertexAdd(routerId,msgTime,srcId))
-      // println(s"sending vertex add $srcId to Manager 1")
     } // if there are not any properties, just send the srcID
-
-
   }
 
   def vertexUpdateProperties(command:JsObject):Unit={
@@ -79,7 +60,6 @@ class RandomRouter(override val routerId:Int, override val initialManagerCount:I
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
     toPartitionManager(VertexUpdateProperties(routerId,msgTime,srcId,properties)) //send the srcID and properties to the graph parition
-
   }
 
   def vertexRemoval(command:JsObject):Unit={
@@ -97,7 +77,6 @@ class RandomRouter(override val routerId:Int, override val initialManagerCount:I
       command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
         properties = properties updated (pair._1,pair._2.toString())
       })
-
       toPartitionManager(EdgeAddWithProperties(routerId,msgTime,srcId,dstId,properties))
     }
     else toPartitionManager(EdgeAdd(routerId,msgTime,srcId,dstId))
@@ -118,5 +97,4 @@ class RandomRouter(override val routerId:Int, override val initialManagerCount:I
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
     toPartitionManager(EdgeRemoval(routerId,msgTime,srcId,dstId))
   }
-
 }

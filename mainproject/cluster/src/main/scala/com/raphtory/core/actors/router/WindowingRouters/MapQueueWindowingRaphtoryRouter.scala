@@ -1,7 +1,7 @@
 package com.raphtory.core.actors.router.WindowingRouters
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.router.TraditionalRouter.RouterTrait
+import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.{getEdgeIndex, getIndexHI, getIndexLO}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -13,7 +13,7 @@ import scala.collection.mutable.{Queue, Set}
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.concurrent.ExecutionContext.Implicits.global
-trait MapQueueWindowingRouter extends  RouterTrait {
+trait MapQueueWindowingRaphtoryRouter extends  RaphtoryRouter {
   protected val edgeQueue = new Queue[(Long, Long)]
   protected val vertexQueue = new Queue[(Int, Long)]
   protected val edgeWindow = ParTrieMap[Long, Int]()

@@ -1,7 +1,7 @@
 package com.raphtory.core.actors.router.WindowingRouters
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.router.TraditionalRouter.RouterTrait
+import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.{getEdgeIndex, getIndexHI, getIndexLO}
 import kamon.Kamon
@@ -12,7 +12,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration.{Duration, SECONDS}
 
-trait WindowingRouter extends  RouterTrait {
+trait WindowingRaphtoryRouter extends  RaphtoryRouter {
   protected val edgeWindow = ParTrieMap[Long, Long]()
   protected val vertexWindow = ParTrieMap[Int, Long]()
   protected var WindowSize = System.getenv().getOrDefault("WINDOW_SIZE", "5").toInt * 1000
