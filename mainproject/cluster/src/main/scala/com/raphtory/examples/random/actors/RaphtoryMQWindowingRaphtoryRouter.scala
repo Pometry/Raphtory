@@ -1,4 +1,4 @@
-package com.raphtory.examples.random.actors
+/*package com.raphtory.examples.random.actors
 
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.router.WindowingRouters.WindowingRaphtoryRouter
@@ -134,4 +134,4 @@ final class RaphtoryMQWindowingRaphtoryRouter(override val routerId:Int, overrid
     edgeCount += 1
   }
 
-}
+} */

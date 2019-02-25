@@ -3,6 +3,7 @@ package com.raphtory.examples.gab.actors
 import java.time.OffsetDateTime
 
 import akka.cluster.pubsub.DistributedPubSubMediator
+import com.raphtory.core.actors.router.TraditionalRouter.Helpers.RouterSlave
 import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
 import com.raphtory.core.utils.{CommandEnum, GabEntityType}
@@ -22,16 +23,14 @@ import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-final class RaphtoryGabRaphtoryRouter(override val routerId:Int, override val initialManagerCount:Int) extends RaphtoryRouter {
+final class RaphtoryGabRaphtoryRouter(val routerId:Int,val initialManagerCount:Int) extends RouterSlave {
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
   import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   private val nullStr = "null"
-  override def parseRecord(command:String) : Unit= {
-    super.parseRecord("")
+  override def parseRecord(record:Any) : Unit= {
+    val command = record.asInstanceOf[String]
     val post = command.parseJson.convertTo[GabPost]
     sendPostToPartitions(post)
-
-
     //val parsedOBJ: Command = command.parseJson.convertTo[Command]
     //val manager = getManager(parsedOBJ.value.srcId, getManagerCount)
     //mediator ! DistributedPubSubMediator.Send(manager, parsedOBJ.value, false)
@@ -110,10 +109,6 @@ final class RaphtoryGabRaphtoryRouter(override val routerId:Int, override val in
       case None =>
     }
 
-  }
-
-  override protected def otherMessages(rcvdMessage: Any): Unit = {
-    println(s"Message not recognized ${rcvdMessage.getClass}")
   }
 
 }

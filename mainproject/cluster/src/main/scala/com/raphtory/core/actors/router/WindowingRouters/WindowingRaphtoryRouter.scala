@@ -13,7 +13,7 @@ import scala.collection.mutable.{Queue, Set}
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.concurrent.ExecutionContext.Implicits.global
-trait WindowingRaphtoryRouter extends  RaphtoryRouter {
+class WindowingRaphtoryRouter(routerId:Int, initialManagerCount: Int,routerName:String) extends  RaphtoryRouter(routerId,initialManagerCount,routerName) {
   protected val edgeQueue = new Queue[(Long, Long)]
   protected val vertexQueue = new Queue[(Int, Long)]
   protected val edgeWindow = ParTrieMap[Long, Int]()
@@ -31,20 +31,13 @@ trait WindowingRaphtoryRouter extends  RaphtoryRouter {
   private val verticesGauge : GaugeMetric = Kamon.gauge("raphtory.vertexCheckingTime")
   private val edgesGauge    : GaugeMetric = Kamon.gauge("raphtory.edgeCheckingTime")
 
-  // Let's call the super.parseJSON in the Router implementation to get Kamon Metrics
-  override def parseRecord(command: String) = {
-    super.parseRecord(command)
-  }
 
   override def preStart() {
     super.preStart() //ASK BEN for SCHEDULES
     context.system.scheduler.scheduleOnce(Duration(QueueCheckFr, SECONDS),self,CheckVertex)
     context.system.scheduler.scheduleOnce(Duration(QueueCheckFr, SECONDS),self,CheckEdges)
-
-    context.system.scheduler.schedule(Duration(10, SECONDS),
-      Duration(1, SECONDS),self,EdgeAvgTrait)
-    context.system.scheduler.schedule(Duration(10, SECONDS),
-      Duration(1, SECONDS),self,VertexAvgTrait)
+    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, SECONDS),self,EdgeAvgTrait)
+    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, SECONDS),self,VertexAvgTrait)
     //context.system.scheduler.scheduleOnce(Duration(QueueCheckFr, SECONDS), self, "checkVertex")
     //context.system.scheduler.scheduleOnce(Duration(QueueCheckFr, SECONDS), self, "checkEdges")
   }
