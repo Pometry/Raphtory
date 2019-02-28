@@ -126,7 +126,6 @@ object EntityStorage {
         }
       }
     }
-    value.shouldBeWiped = false //TODO remove
     if (properties != null) {
       properties.foreach(prop => value.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
     }
@@ -157,12 +156,10 @@ object EntityStorage {
           newVertexKey(srcId)
         }
       }
-      vertex.shouldBeWiped = false //TODO remove
     }
 
     vertex.incomingEdges.values.foreach(e => {
       e kill msgTime
-      e.shouldBeWiped = false //TODO remove
       try {
         val ee = e.asInstanceOf[RemoteEdge]
         if (ee.remotePos == RemotePos.Destination) {
@@ -178,7 +175,6 @@ object EntityStorage {
     })
     vertex.outgoingEdges.values.foreach(e => {
       e kill msgTime
-      e.shouldBeWiped = false //TODO remove
       try {
         val ee = e.asInstanceOf[RemoteEdge]
         if (ee.remotePos == RemotePos.Destination) {
@@ -231,7 +227,6 @@ object EntityStorage {
           newEdgeKey(index)
       }
     }
-    edge.shouldBeWiped = false //TODO remove
     if (printing) println(s"Received an edge Add for $srcId --> $dstId (local: $local)")
 
     if (local && srcId != dstId) {
@@ -264,7 +259,6 @@ object EntityStorage {
   def updateEdgeProperties(msgTime : Long, edgeId : Long, key : String, value : String) : Unit = {
     edges.get(edgeId) match {
       case Some(e) => {
-        e.shouldBeWiped = false //TODO remove
         e + (msgTime, key, value)
       }
       case None =>
@@ -280,7 +274,6 @@ object EntityStorage {
     if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge already exists so just updating")
     val dstVertex = vertexAdd(routerID,msgTime,dstId) //create or revive the destination node
     val edge = edges(getEdgeIndex(srcId, dstId))
-    edge.shouldBeWiped = false //TODO remove
     edge updateLatestRouter routerID
     dstVertex addAssociatedEdge (srcId, false) //again I think this can be removed
     edge revive msgTime //revive  the edge
@@ -298,7 +291,6 @@ object EntityStorage {
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
-    edge.shouldBeWiped = false //TODO remove
     newEdgeKey(index)
     properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the list
     mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgTime,srcId,dstId,deaths),false)
@@ -329,7 +321,6 @@ object EntityStorage {
         newEdgeKey(index)
       }
     }
-    edge.shouldBeWiped = false //TODO remove
     if (printing) println(s"Received an edge Add for $srcId --> $dstId (local: $local)")
     var dstVertex : Vertex = null
     var srcVertex : Vertex = null
@@ -363,7 +354,6 @@ object EntityStorage {
     edges.get(getEdgeIndex(srcId, dstId)) match {
       case Some(e) => {
         e kill msgTime
-        e.shouldBeWiped = false //TODO remove
         dstVertex addAssociatedEdge (srcId,false)
       }
       case None    => println("Didn't exist") //possibly need to fix when adding the priority box
@@ -381,7 +371,6 @@ object EntityStorage {
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
-    edge.shouldBeWiped = false //TODO remove
     mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgTime,srcId,dstId,deaths),false)
   }
 
@@ -392,7 +381,6 @@ object EntityStorage {
 
     srcVertex addAssociatedEdge (dstId,true) //add the edge to the destination nodes associated list
     edge kill msgTime                  // if the edge already exists, kill it
-    edge.shouldBeWiped = false //TODO remove
   }
 
   def remoteReturnDeaths(msgTime:Long,srcId:Int,dstId:Int,dstDeaths:mutable.TreeMap[Long, Boolean]):Unit= {

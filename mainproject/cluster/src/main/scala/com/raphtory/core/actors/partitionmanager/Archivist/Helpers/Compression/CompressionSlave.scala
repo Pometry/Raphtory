@@ -37,7 +37,7 @@ class CompressionSlave(id:Int) extends Actor {
       //EntityStorage.edges.synchronized {
         EntityStorage.edges.get(key) match {
           case Some(edge) => saveEdge(edge, now)
-          case None => //do nothing
+          case None => println("none")
         }
       //}
     }catch {
@@ -65,7 +65,7 @@ class CompressionSlave(id:Int) extends Actor {
       //EntityStorage.vertices.synchronized {
         EntityStorage.vertices.get(key) match {
           case Some(vertex) => saveVertex(vertex, now)
-          case None => //do nothing
+          case None => println("none")
         }
       //}
     }catch {
