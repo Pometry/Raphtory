@@ -1,33 +1,21 @@
 package com.raphtory.core.actors.partitionmanager.Archivist
 
-import java.util.concurrent.Executors
-
 import akka.actor.Props
 import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.partitionmanager.Archivist.Helpers.Archiving.ArchivingManager
 import com.raphtory.core.actors.partitionmanager.Archivist.Helpers.Compression.CompressionManager
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities._
-import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
-import com.raphtory.core.utils.KeyEnum
-import monix.eval.Task
-import monix.execution.ExecutionModel.AlwaysAsyncExecution
-import monix.execution.Scheduler
-import monix.execution.atomic.AtomicInt
+import com.raphtory.core.storage.EntityStorage
+
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.collection.parallel.mutable.ParTrieMap
-import scala.concurrent.Future
+
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
-//TODO decide how to do shrinking window as graph expands
-//TODO work out general cutoff function
-//TODO don't resave history
+
 //TODO fix edges
-//TODO implement temporal/spacial profiles (future)
-//TODO join historian to cluster
+
 
 
 
@@ -68,13 +56,13 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   val vertexCompressor =  context.actorOf(Props[CompressionManager],"vertexcompressor");
   val edgeArchiver     =  context.actorOf(Props[ArchivingManager],"edgearchiver");
   val vertexArchiver   =  context.actorOf(Props[ArchivingManager],"vertexarchiver");
-
+  val children         =  10
 
   override def preStart() {
-    edgeCompressor   ! SetupSlave(10) //bring the slaves of all components online
-    vertexCompressor ! SetupSlave(10)
-    edgeArchiver     ! SetupSlave(10)
-    vertexArchiver   ! SetupSlave(10)
+    edgeCompressor   ! SetupSlave(children) //bring the slaves of all components online
+    vertexCompressor ! SetupSlave(children)
+    edgeArchiver     ! SetupSlave(children)
+    vertexArchiver   ! SetupSlave(children)
     context.system.scheduler.scheduleOnce(20.seconds, self,"compress") //start the compression process in 20 seconds
   }
 
@@ -108,7 +96,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
       vertexCompressionFinished = false //reset the compression vars
       edgeCompressionFinished = false
-      context.system.scheduler.scheduleOnce(1.second, self, "archive") //start the archiving process
+      context.system.scheduler.scheduleOnce(10.second, self, "archive") //start the archiving process
     }
   }
 
@@ -141,7 +129,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       edgeArchivingFinished = false
       println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
       EntityStorage.oldestTime = removePointGlobal
-      context.system.scheduler.scheduleOnce(1.second, self, "compress")
+      context.system.scheduler.scheduleOnce(10.second, self, "compress")
       System.gc() //suggest a good time to garbage collect
     }
 

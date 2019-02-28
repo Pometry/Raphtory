@@ -44,7 +44,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   override def preStart() {
     println("starting writer")
     context.system.scheduler.schedule(Duration(10, SECONDS),
-      Duration(1, SECONDS), self, "tick")
+      Duration(10, SECONDS), self, "tick")
     context.system.scheduler.schedule(Duration(8, SECONDS),
       Duration(10, SECONDS), self, "keep_alive")
 
@@ -56,21 +56,21 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   override def receive : Receive = {
 
     //Forwarding of writes to writing slaves
-    case VertexAdd(routerID,msgTime,srcId)                                => { getChild() ! VertexAdd(routerID,msgTime,srcId); vHandle(srcId,msgTime)}
-    case VertexRemoval(routerID,msgTime,srcId)                            => { getChild() ! VertexRemoval(routerID,msgTime,srcId); vHandle(srcId,msgTime)}
-    case VertexAddWithProperties(routerID,msgTime,srcId,properties)       => { getChild() ! VertexAddWithProperties(routerID,msgTime,srcId,properties); vHandle(srcId,msgTime)}
+    case message:VertexAdd                      => { getChild() ! message; vHandle(message.srcId,message.msgTime)}
+    case message:VertexRemoval                  => { getChild() ! message; vHandle(message.srcId,message.msgTime)}
+    case message:VertexAddWithProperties        => { getChild() ! message; vHandle(message.srcId,message.msgTime)}
 
-    case EdgeAdd(routerID,msgTime,srcId,dstId)                            => { getChild() ! EdgeAdd(routerID,msgTime,srcId,dstId); eHandle(srcId,dstId,msgTime)}
-    case RemoteEdgeAdd(routerID,msgTime,srcId,dstId,properties)           => { getChild() ! RemoteEdgeAdd(routerID,msgTime,srcId,dstId,properties);eHandleSecondary(srcId,dstId,msgTime)}
-    case RemoteEdgeAddNew(routerID,msgTime,srcId,dstId,properties,deaths) => { getChild() ! RemoteEdgeAddNew(routerID,msgTime,srcId,dstId,properties,deaths);eHandleSecondary(srcId,dstId,msgTime)}
-    case EdgeAddWithProperties(routerID,msgTime,srcId,dstId,properties)   => { getChild() ! EdgeAddWithProperties(routerID,msgTime,srcId,dstId,properties);eHandle(srcId,dstId,msgTime)}
+    case message:EdgeAdd                        => { getChild() ! message; eHandle(message.srcId,message.dstId,message.msgTime)}
+    case message:RemoteEdgeAdd                  => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
+    case message:RemoteEdgeAddNew               => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
+    case message:EdgeAddWithProperties          => { getChild() ! message;eHandle(message.srcId,message.dstId,message.msgTime)}
 
-    case EdgeRemoval(routerID,msgTime,srcId,dstId)                        => { getChild() ! EdgeRemoval(routerID,msgTime,srcId,dstId);eHandle(srcId,dstId,msgTime)}
-    case RemoteEdgeRemoval(routerID,msgTime,srcId,dstId)                  => { getChild() ! RemoteEdgeRemoval(routerID,msgTime,srcId,dstId);eHandleSecondary(srcId,dstId,msgTime)}
-    case RemoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths)        => { getChild() ! RemoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths);eHandleSecondary(srcId,dstId,msgTime)}
+    case message:EdgeRemoval                    => { getChild() ! message;eHandle(message.srcId,message.dstID,message.msgTime)}
+    case message:RemoteEdgeRemoval              => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
+    case message:RemoteEdgeRemovalNew           => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
 
-    case ReturnEdgeRemoval(routerID,msgTime,srcId,dstId)                  => { getChild() ! ReturnEdgeRemoval(routerID,msgTime,srcId,dstId);eHandleSecondary(srcId,dstId,msgTime)}
-    case RemoteReturnDeaths(msgTime,srcId,dstId,deaths)                   => { getChild() ! RemoteReturnDeaths(msgTime,srcId,dstId,deaths);eHandleSecondary(srcId,dstId,msgTime)}
+    case message:ReturnEdgeRemoval              => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
+    case message:RemoteReturnDeaths             => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
 
     //Logging block
     case "tick"                                                           => {logChild  ! ReportIntake(messageCount,secondaryMessageCount,managerID); resetCounters()}

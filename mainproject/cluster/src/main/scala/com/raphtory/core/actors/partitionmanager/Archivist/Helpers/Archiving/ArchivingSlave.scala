@@ -52,20 +52,20 @@ class ArchivingSlave(id:Int) extends Actor{
 
 
   def archiveEdge(key:Long,now:Long):(Int,Int,Int) = {
-    EntityStorage.edges.synchronized {
+    //EntityStorage.edges.synchronized {
       EntityStorage.edges.get(key) match {
         case Some(edge) =>  edgeMaximumHistory(edge, now)
         case None => (0,0,0)//do nothing
       }
-    }
+    //}
   }
   def archiveVertex(key:Int,now:Long,set:ParSet[Int]) = {
-    EntityStorage.vertices.synchronized {
+    //EntityStorage.vertices.synchronized {
       EntityStorage.vertices.get(key) match {
         case Some(vertex) => vertexMaximumHistory(vertex,now,set)
         case None => (0,0,0)//do nothing
       }
-    }
+    //}
   }
 
   def vertexMaximumHistory(e:Vertex,removalPoint:Long,set:ParSet[Int]):(Int,Int,Int) = {
@@ -73,7 +73,9 @@ class ArchivingSlave(id:Int) extends Actor{
     if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
     var total = 0
     if (allOld.asInstanceOf[Boolean]) {
-      EntityStorage.vertices.remove(e.getId.toInt)
+      EntityStorage.vertices.synchronized {
+        EntityStorage.vertices.remove(e.getId.toInt)
+      }
       total +=1
     }
     (propremoved.asInstanceOf[Int],removed.asInstanceOf[Int],total)
@@ -84,7 +86,9 @@ class ArchivingSlave(id:Int) extends Actor{
     if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
     var total = 0
     if (allOld.asInstanceOf[Boolean]) {
-      EntityStorage.edges.remove(e.getId)
+      EntityStorage.edges.synchronized {
+        EntityStorage.edges.remove(e.getId)
+      }
       total += 1
     }
     (propremoved.asInstanceOf[Int],removed.asInstanceOf[Int],total)

@@ -27,11 +27,11 @@ class LoggingSlave extends RaphtoryActor{
   }
 
   def getEntitiesPrevStates[T,U <: Entity](m : ParTrieMap[T, U]) : Int = {
-    var ret = new AtomicInteger(0)
+    var ret = 0
     m.foreach[Unit](e => {
-      ret.getAndAdd(e._2.getPreviousStateSize())
+      ret += e._2.getPreviousStateSize()
     })
-    ret.get
+    ret
   }
 
   def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map : ParTrieMap[T, U],id:Int) : Unit = {
@@ -52,13 +52,6 @@ class LoggingSlave extends RaphtoryActor{
       reportSizes(edgesGauge, EntityStorage.edges,id)
       reportSizes(verticesGauge, EntityStorage.vertices,id)
     }
-    // Heap benchmarking
-    //profile()
-    // Reset counters
   }
-  //def reportStdout() : Unit = {
-  //  if (stdoutLog)
-  //
-  // }
 
 }

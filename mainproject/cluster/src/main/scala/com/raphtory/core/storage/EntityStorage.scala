@@ -81,10 +81,30 @@ object EntityStorage {
     this.managerCount = count
   }
 
-  def newVertexKey(id:Int) = vertexKeys(new scala.util.Random(id).nextInt(1000)%children) += id //generate a random number based on the id (as ID's have already been modulated to reach a PM and therefore will probably end in the same number
+  def newVertexKey(id:Int):Unit = {
+    try {
+      vertexKeys(new scala.util.Random(id).nextInt(1000) % children) += id
+    }
+    catch {
+      case e:ArrayIndexOutOfBoundsException => {
+        println(s"Caught array error with Vertex Keys, for id $id accessing Set ${new scala.util.Random(id).nextInt(1000) % children}, rerunning")
+        newVertexKey(id)
+      }
+    }
+  } //generate a random number based on the id (as ID's have already been modulated to reach a PM and therefore will probably end in the same number
 
 
-  def newEdgeKey(id:Long) = edgeKeys(new scala.util.Random(id).nextInt(1000)%children) += id
+  def newEdgeKey(id:Long):Unit = {
+    try {
+      edgeKeys(new scala.util.Random(id).nextInt(1000)%children) += id
+    }
+    catch {
+      case e:ArrayIndexOutOfBoundsException => {
+        println(s"Caught array error with Edge Keys, for id $id accessing Set ${new scala.util.Random(id).nextInt(1000) % children}, rerunning")
+        newEdgeKey(id)
+      }
+    }
+  }
 
 
   /**
@@ -216,13 +236,13 @@ object EntityStorage {
 
     if (local && srcId != dstId) {
       val dstVertex = vertexAdd(routerID,msgTime, dstId) // do the same for the destination ID
-      dstVertex addAssociatedEdge edge // do the same for the destination node
+      dstVertex addAssociatedEdge (srcId, false) // do the same for the destination node
       if (!present)
         edge killList dstVertex.removeList
     }
 
     val srcVertex = vertexAdd(routerID,msgTime, srcId)                          // create or revive the source ID
-    srcVertex addAssociatedEdge edge // add the edge to the associated edges of the source node
+    srcVertex addAssociatedEdge (dstId, true) // add the edge to the associated edges of the source node
 
     if (present) {
       edge revive msgTime
@@ -262,7 +282,7 @@ object EntityStorage {
     val edge = edges(getEdgeIndex(srcId, dstId))
     edge.shouldBeWiped = false //TODO remove
     edge updateLatestRouter routerID
-    dstVertex addAssociatedEdge edge //again I think this can be removed
+    dstVertex addAssociatedEdge (srcId, false) //again I think this can be removed
     edge revive msgTime //revive  the edge
     if (properties != null)
       properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the list
@@ -272,7 +292,7 @@ object EntityStorage {
     if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge did not previously exist so sending back deaths")
     val dstVertex = vertexAdd(routerID,msgTime,dstId) //create or revive the destination node
     val edge = new RemoteEdge(routerID, msgTime, srcId, dstId, initialValue = true, addOnlyEdge,RemotePos.Source,getPartition(srcId, managerCount))
-    dstVertex addAssociatedEdge edge //add the edge to the associated edges of the destination node
+    dstVertex addAssociatedEdge (srcId,false) //add the edge to the associated edges of the destination node
     val index = getEdgeIndex(srcId,dstId)
     edges put(index, edge) //create the new edge
     val deaths = dstVertex.removeList //get the destination node deaths
@@ -317,12 +337,12 @@ object EntityStorage {
 
     if (local && srcId != dstId) {
       dstVertex = getVertexAndWipe(routerID,dstId, msgTime)
-      dstVertex addAssociatedEdge edge // do the same for the destination node
+      dstVertex addAssociatedEdge (srcId,false) // do the same for the destination node
       if (!present)
         edge killList dstVertex.removeList
     }
     srcVertex = getVertexAndWipe(routerID,srcId, msgTime)
-    srcVertex addAssociatedEdge edge // add the edge to the associated edges of the source node
+    srcVertex addAssociatedEdge (dstId,true) // add the edge to the associated edges of the source node
 
     if (present) {
       edge kill msgTime
@@ -344,7 +364,7 @@ object EntityStorage {
       case Some(e) => {
         e kill msgTime
         e.shouldBeWiped = false //TODO remove
-        dstVertex addAssociatedEdge e
+        dstVertex addAssociatedEdge (srcId,false)
       }
       case None    => println("Didn't exist") //possibly need to fix when adding the priority box
     }
@@ -354,7 +374,7 @@ object EntityStorage {
     if(printing) println(s"Received Remote Edge Removal with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge did not previously exist so sending back deaths ")
     val dstVertex = getVertexAndWipe(routerID, dstId, msgTime)
     val edge = new RemoteEdge(routerID,msgTime,srcId, dstId, initialValue = false, addOnlyEdge, RemotePos.Source, getPartition(srcId, managerCount))
-    dstVertex addAssociatedEdge edge  //add the edge to the destination nodes associated list
+    dstVertex addAssociatedEdge (srcId,false)  //add the edge to the destination nodes associated list
     val index = getEdgeIndex(srcId,dstId)
     edges put(index, edge) // otherwise create and initialise as false
     newEdgeKey(index)
@@ -370,7 +390,7 @@ object EntityStorage {
     val srcVertex = getVertexAndWipe(routerID,srcId, msgTime)
     val edge = edges(getEdgeIndex(srcId, dstId))
 
-    srcVertex addAssociatedEdge edge //add the edge to the destination nodes associated list
+    srcVertex addAssociatedEdge (dstId,true) //add the edge to the destination nodes associated list
     edge kill msgTime                  // if the edge already exists, kill it
     edge.shouldBeWiped = false //TODO remove
   }

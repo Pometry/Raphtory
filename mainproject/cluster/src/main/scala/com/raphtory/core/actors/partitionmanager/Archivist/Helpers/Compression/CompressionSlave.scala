@@ -17,42 +17,59 @@ class CompressionSlave(id:Int) extends Actor {
   //SLAVE SLAVE
 
   def compressEdges(now:Long) = {
-    EntityStorage.edgeKeys.get(id) match {
-      case Some(set) => set.foreach(key => compressEdge(key,now))
+    var key2 =0L
+    try {
+      EntityStorage.edgeKeys.get(id) match {
+        case Some(set) => set.foreach(key => {
+          key2 = key
+          compressEdge(key, now)
+        })
+      }
+    }
+    catch {
+      case e:Exception => println(s"Error in compress edge loop, with id $id and key $key2" )
     }
     context.parent ! FinishedEdgeCompression(id)
   }
 
   def compressEdge(key: Long, now: Long) = {
     try {
-      EntityStorage.edges.synchronized {
+      //EntityStorage.edges.synchronized {
         EntityStorage.edges.get(key) match {
           case Some(edge) => saveEdge(edge, now)
           case None => //do nothing
         }
-      }
+      //}
     }catch {
-      case e:ArrayIndexOutOfBoundsException => println(e + s"problem in edge compression, with key $key")
+      case e:Exception => println(e + s"problem in edge compression, with key $key")
     }
   }
 
 
   def compressVertices(now:Long) = {
-    EntityStorage.vertexKeys.get(id) match {
-      case Some(set) => set.foreach(key => compressVertex(key,now))
+    var key2=0
+    try {
+      EntityStorage.vertexKeys.get(id) match {
+        case Some(set) => set.foreach(key => {
+          key2 = key
+          compressVertex(key, now)
+        })
+      }
+    }catch {
+      case e:Exception => println(s"Error in compress edge loop, with id $id and key $key2" )
     }
     context.parent ! FinishedVertexCompression(id)
   }
   def compressVertex(key: Int, now: Long) = {
     try {
-      EntityStorage.vertices.synchronized {
+      //EntityStorage.vertices.synchronized {
         EntityStorage.vertices.get(key) match {
           case Some(vertex) => saveVertex(vertex, now)
           case None => //do nothing
         }
-      }
+      //}
     }catch {
-    case e:ArrayIndexOutOfBoundsException => println(e + s"problem in vertex compression, with key $key")
+    case e:Exception => println(e + s"problem in vertex compression, with key $key")
   }
   }
 

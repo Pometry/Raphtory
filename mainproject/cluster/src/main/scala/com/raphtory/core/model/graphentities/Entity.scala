@@ -205,7 +205,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
       else
         1
     else
-      previousState.size
+      previousState.size + compressedState.size
   }
 
   def getId : Long

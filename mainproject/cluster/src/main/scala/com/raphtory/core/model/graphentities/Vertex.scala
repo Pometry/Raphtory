@@ -4,7 +4,7 @@ import com.raphtory.core.storage.{EntityStorage, VertexHistoryPoint, VertexPrope
 import com.raphtory.core.utils.exceptions.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
 
 import scala.collection.mutable
-import scala.collection.parallel.ParSet
+import scala.collection.parallel.mutable.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
 /**
@@ -48,6 +48,9 @@ object Vertex {
 class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolean, addOnly:Boolean)
     extends Entity(routerID,msgTime, initialValue,addOnly) {
 
+  var incomingIDs = ParSet[Int]()
+  var outgoingIDs = ParSet[Int]()
+
   var incomingEdges  = ParTrieMap[Long, Edge]()
   var outgoingEdges  = ParTrieMap[Long, Edge]()
 
@@ -56,6 +59,12 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
       outgoingEdges.put(edge.getId,edge)
     else
       incomingEdges.put(edge.getId,edge)
+  }
+  def addAssociatedEdge(id: Int,outgoing:Boolean): Unit = {
+    if(outgoing)
+      outgoingIDs += id
+    else
+      incomingIDs += id
   }
 
   /*override def printProperties(): String =
