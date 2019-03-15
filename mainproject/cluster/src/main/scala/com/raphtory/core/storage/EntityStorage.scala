@@ -23,9 +23,6 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO keep cached entities in a separate map which can be cleared once analysis is finished
 //TODO filter to set of entities, expand to x number of hop neighbours and retrieve history
 //TODO perhaps create a new map for each LAM, this way we can add the entities to this map and remove after
-//TODO workout what to do sub millisecond as currently overwrites
-//TODO retrieve edge on other partition manager -- decide how to propagate
-//TODO do we need an edge map?
 object EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager}
 
@@ -129,9 +126,6 @@ object EntityStorage {
     if (properties != null) {
       properties.foreach(prop => value.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
     }
-    //properties.foreach(l => value + (msgTime,l._1,l._2)) //add all properties
-
-    //GraphRepoProxy.addVertex(value.getId) //TODO put back in when working on LAM
     value
   }
 

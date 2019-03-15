@@ -51,9 +51,16 @@ object Utils {
     (edge, local, present)
   }
 
-  def getPartition(ID:Int, managerCount : Int):Int = ID % managerCount //get the partition a vertex is stored in
+  def getPartition(ID:Int, managerCount : Int):Int = {
+    (ID % (managerCount *10)) /10
+  } //get the partition a vertex is stored in
   def checkDst(dstID:Int, managerCount:Int, managerID:Int):Boolean = (dstID % managerCount) == managerID //check if destination is also local
-  def getManager(srcId:Int, managerCount : Int):String = s"/user/Manager_${srcId % managerCount}" //simple srcID hash at the moment
+  def getManager(srcId:Int, managerCount : Int):String = {
+    val mod = srcId % (managerCount *10)
+    val manager = mod /10
+    val worker = mod % 10
+    s"/user/Manager_${manager}_child_$worker"
+  } //simple srcID hash at the moment
     /**
     * Shifter to get only one Long as Edges indexing
     * @param srcId

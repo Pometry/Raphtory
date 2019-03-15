@@ -37,40 +37,21 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   mediator ! DistributedPubSubMediator.Put(self)
 
   val storage= EntityStorage.apply(printing, managerCount, managerID, mediator)
-
+  println(akka.serialization.Serialization.serializedActorPath(self))
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
     */
   override def preStart() {
     println("starting writer")
-    context.system.scheduler.schedule(Duration(10, SECONDS),
-      Duration(10, SECONDS), self, "tick")
-    context.system.scheduler.schedule(Duration(8, SECONDS),
-      Duration(10, SECONDS), self, "keep_alive")
+    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "tick")
+    context.system.scheduler.schedule(Duration(8, SECONDS), Duration(10, SECONDS), self, "keep_alive")
 
      for(i <- 0 to children){ //create threads for writing
-       childMap.put(i,context.actorOf(Props[WritingSlave],s"child_$i"))
+       childMap.put(i,context.system.actorOf(Props(new WritingSlave()),s"Manager_${managerID}_child_$i"))
      }
    }
 
   override def receive : Receive = {
-
-    //Forwarding of writes to writing slaves
-    case message:VertexAdd                      => { getChild() ! message; vHandle(message.srcId,message.msgTime)}
-    case message:VertexRemoval                  => { getChild() ! message; vHandle(message.srcId,message.msgTime)}
-    case message:VertexAddWithProperties        => { getChild() ! message; vHandle(message.srcId,message.msgTime)}
-
-    case message:EdgeAdd                        => { getChild() ! message; eHandle(message.srcId,message.dstId,message.msgTime)}
-    case message:RemoteEdgeAdd                  => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
-    case message:RemoteEdgeAddNew               => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
-    case message:EdgeAddWithProperties          => { getChild() ! message;eHandle(message.srcId,message.dstId,message.msgTime)}
-
-    case message:EdgeRemoval                    => { getChild() ! message;eHandle(message.srcId,message.dstID,message.msgTime)}
-    case message:RemoteEdgeRemoval              => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
-    case message:RemoteEdgeRemovalNew           => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
-
-    case message:ReturnEdgeRemoval              => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
-    case message:RemoteReturnDeaths             => { getChild() ! message;eHandleSecondary(message.srcId,message.dstId,message.msgTime)}
 
     //Logging block
     case "tick"                                                           => {logChild  ! ReportIntake(messageCount,secondaryMessageCount,managerID); resetCounters()}
@@ -84,8 +65,6 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     case EdgeUpdateProperty(msgTime, edgeId, key, value)                  => storage.updateEdgeProperties(msgTime, edgeId, key, value)   //for data coming from the LAM
     //case LiveAnalysis(name,analyser)                                      => mediator ! DistributedPubSubMediator.Send(name, Results(analyser.analyse(vertices,edges)), false)
  }
-
-  def getChild():ActorRef = childMap.getOrElse((messageCount+1) % children, null)
 
   def resetCounters() = {
     messageCount = 0

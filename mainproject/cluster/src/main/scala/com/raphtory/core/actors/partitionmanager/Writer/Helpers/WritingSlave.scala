@@ -1,11 +1,14 @@
 package com.raphtory.core.actors.partitionmanager.Writer.Helpers
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 
 class WritingSlave extends Actor {
-
+  val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
+  mediator ! DistributedPubSubMediator.Put(self)
+  println(akka.serialization.Serialization.serializedActorPath(self))
   override def receive:Receive = {
     case VertexAdd(routerID,msgTime,srcId)                                => EntityStorage.vertexAdd(routerID,msgTime,srcId)
     case VertexRemoval(routerID,msgTime,srcId)                            => EntityStorage.vertexRemoval(routerID,msgTime,srcId)
