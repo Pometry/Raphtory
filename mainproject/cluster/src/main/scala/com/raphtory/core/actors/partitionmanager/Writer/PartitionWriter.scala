@@ -27,9 +27,6 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
 
   val printing              : Boolean = false                  // should the handled messages be printed to terminal
 
-  var messageCount          : Int = 0        // number of messages processed since last report to the benchmarker
-  var secondaryMessageCount : Int = 0
-
   var childMap              : ParTrieMap[Int,ActorRef] = ParTrieMap[Int,ActorRef]()
   val children              : Int = 10
   val logChild              : ActorRef = context.actorOf(Props[LoggingSlave],s"logger")
@@ -52,11 +49,8 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
    }
 
   override def receive : Receive = {
-
     //Logging block
-    case "tick"                                                           => {logChild  ! ReportIntake(messageCount,secondaryMessageCount,managerID); resetCounters()}
-
-
+    case "tick"                                                           => log()
     //misc and startup block
     case UpdatedCounter(newValue)                                         => {managerCount = newValue; storage.setManagerCount(managerCount)}
     case "keep_alive"                                                     =>  mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), localAffinity = false)
@@ -66,27 +60,13 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     //case LiveAnalysis(name,analyser)                                      => mediator ! DistributedPubSubMediator.Send(name, Results(analyser.analyse(vertices,edges)), false)
  }
 
-  def resetCounters() = {
-    messageCount = 0
-    secondaryMessageCount = 0
-  }
-  def vHandle(srcID : Int,msgTime:Long) : Unit = {
-    storage.timings(msgTime)
-    messageCount += 1
-  }
-
-  def vHandleSecondary(srcID : Int,msgTime:Long) : Unit = {
-    storage.timings(msgTime)
-    secondaryMessageCount +=1
-  }
-  def eHandle(srcID : Int, dstID : Int,msgTime:Long) : Unit = {
-    storage.timings(msgTime)
-    messageCount += 1
+  def log() = {
+    val messageCount = storage.messageCount.get()
+    storage.messageCount.set(0)
+    val secondaryMessageCount = storage.secondaryMessageCount.get()
+    storage.secondaryMessageCount.set(0)
+    logChild  ! ReportIntake(messageCount,secondaryMessageCount,managerID)
   }
 
-  def eHandleSecondary(srcID : Int, dstID : Int,msgTime:Long) : Unit = {
-    storage.timings(msgTime)
-    secondaryMessageCount += 1
-  }
 
 }

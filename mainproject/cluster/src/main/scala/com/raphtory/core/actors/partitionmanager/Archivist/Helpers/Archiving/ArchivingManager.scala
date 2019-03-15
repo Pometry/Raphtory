@@ -30,15 +30,11 @@ class ArchivingManager extends Actor{
   }
 
   def archiveEdges(removalPoint:Long) = {
-    startedArchiving = childMap.size
     childMap.values.foreach(child => child ! ArchiveEdges(removalPoint))
-    println(s"starting value edges for archiving at ${System.currentTimeMillis()/1000}: $startedArchiving")
   }
 
   def archiveVertices(removalPoint:Long) = {
-    startedArchiving= childMap.size
     childMap.values.foreach(child => child ! ArchiveVertices(removalPoint))
-    println(s"starting value vertices for archiving at ${System.currentTimeMillis()/1000}: $startedArchiving")
   }
 
   def finishedEdge(ID: Long,archived: (Int,Int,Int)) = {

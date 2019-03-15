@@ -1,6 +1,7 @@
 package com.raphtory.core.storage
 
 import java.util.NoSuchElementException
+import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
@@ -25,6 +26,9 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO perhaps create a new map for each LAM, this way we can add the entities to this map and remove after
 object EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager}
+
+  var messageCount          = new AtomicInteger(0)        // number of messages processed since last report to the benchmarker
+  var secondaryMessageCount = new AtomicInteger(0)
 
   val children = 10
   /**
