@@ -84,7 +84,7 @@ object EntityStorage {
 
   def newVertexKey(id:Int):Unit = {
     try {
-      vertexKeys(new scala.util.Random(id).nextInt(1000) % children) += id
+      vertexKeys(Utils.getWorker(id,managerCount)) += id
     }
     catch {
       case e:ArrayIndexOutOfBoundsException => {
@@ -97,7 +97,7 @@ object EntityStorage {
 
   def newEdgeKey(id:Long):Unit = {
     try {
-      edgeKeys(new scala.util.Random(id).nextInt(1000)%children) += id
+      edgeKeys(Utils.getWorker(Utils.getIndexHI(id),managerCount)) += id
     }
     catch {
       case e:ArrayIndexOutOfBoundsException => {

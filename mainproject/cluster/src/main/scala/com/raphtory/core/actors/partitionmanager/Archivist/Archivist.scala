@@ -106,6 +106,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       removalPoint = cutOff(false) // get the cut off for 10% of the compressed history
       edgeArchiver ! ArchiveEdges(removalPoint) //send the archive request to the children
       vertexArchiver ! ArchiveVertices(removalPoint)
+      println("here ")
     }
     else {
       context.system.scheduler.scheduleOnce(1.second, self,"compress") //if we are not archiving start the compression process again
