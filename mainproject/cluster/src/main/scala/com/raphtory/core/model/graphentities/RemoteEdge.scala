@@ -37,6 +37,7 @@ object RemoteEdge {
   * @param remotePartitionID
   */
 class RemoteEdge(routerID: Int,
+                 workerID:Int,
                       msgTime: Long,
                       srcID: Int,
                       dstID: Int,
@@ -44,7 +45,7 @@ class RemoteEdge(routerID: Int,
                       addOnly:Boolean,
                       remotepos: RemotePos.Value,
                       remotePartitionId: Int)
-    extends Edge(routerID,msgTime, srcID, dstID, initialValue, addOnly){
+    extends Edge(routerID,workerID,msgTime, srcID, dstID, initialValue, addOnly){
 
   def remotePos = remotepos
   def remotePartitionID =remotePartitionId
