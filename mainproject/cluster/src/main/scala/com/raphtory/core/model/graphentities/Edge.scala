@@ -11,14 +11,14 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Edge object (extended creator for storage loads)
   */
 object Edge {
-  def apply(routerID:Int,creationTime : Long, edgeId : Long,
+  def apply(routerID:Int,workerID:Int,creationTime : Long, edgeId : Long,
             previousState : mutable.TreeMap[Long, Boolean],
             properties : ParTrieMap[String, Property]) = {
 
     val srcId = Utils.getIndexHI(edgeId)
     val dstId = Utils.getIndexLO(edgeId)
 
-    val e = new Edge(routerID,creationTime, srcId, dstId, initialValue = true, addOnly = false)
+    val e = new Edge(routerID,workerID,creationTime, srcId, dstId, initialValue = true, addOnly = false)
     e.previousState   = previousState
     e.properties      = properties
     e
@@ -40,14 +40,14 @@ object Edge {
     if(!value){
       throw EntityRemovedAtTimeException(Utils.getEdgeIndex(src,dst))
     }
-    new Edge(-1,closestTime,src,dst,value,false)
+    new Edge(-1,-1,closestTime,src,dst,value,false)
   }
 }
 
 /**
   * Created by Mirate on 01/03/2017.
   */
-class Edge(routerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Boolean, addOnly:Boolean)
+class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Boolean, addOnly:Boolean)
     extends Entity(routerID,msgTime, initialValue,addOnly) {
 
   /*override def printProperties: String =
@@ -65,7 +65,7 @@ class Edge(routerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Bo
   override def getId: Long = Utils.getEdgeIndex(srcId, dstId)
   def getSrcId : Int = srcId
   def getDstId : Int = dstId
-
+  def getWorkerID:Int = workerID
 
   def viewAt(time:Long):Edge = {
 

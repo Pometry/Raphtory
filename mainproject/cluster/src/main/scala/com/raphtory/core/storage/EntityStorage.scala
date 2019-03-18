@@ -21,11 +21,8 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Singleton representing the Storage for the entities
   */
 //TODO add capacity function based on memory used and number of updates processed/stored in memory
-//TODO keep cached entities in a separate map which can be cleared once analysis is finished
-//TODO filter to set of entities, expand to x number of hop neighbours and retrieve history
-//TODO perhaps create a new map for each LAM, this way we can add the entities to this map and remove after
 object EntityStorage {
-  import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager}
+  import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager,checkWorker}
 
   var messageCount          = new AtomicInteger(0)        // number of messages processed since last report to the benchmarker
   var secondaryMessageCount = new AtomicInteger(0)
@@ -82,29 +79,13 @@ object EntityStorage {
     this.managerCount = count
   }
 
-  def newVertexKey(id:Int):Unit = {
-    try {
-      vertexKeys(Utils.getWorker(id,managerCount)) += id
-    }
-    catch {
-      case e:ArrayIndexOutOfBoundsException => {
-        println(s"Caught array error with Vertex Keys, for id $id accessing Set ${new scala.util.Random(id).nextInt(1000) % children}, rerunning")
-        newVertexKey(id)
-      }
-    }
+  def newVertexKey(workerID:Int,id:Int):Unit = {
+    vertexKeys(workerID) += id
   } //generate a random number based on the id (as ID's have already been modulated to reach a PM and therefore will probably end in the same number
 
 
-  def newEdgeKey(id:Long):Unit = {
-    try {
-      edgeKeys(Utils.getWorker(Utils.getIndexHI(id),managerCount)) += id
-    }
-    catch {
-      case e:ArrayIndexOutOfBoundsException => {
-        println(s"Caught array error with Edge Keys, for id $id accessing Set ${new scala.util.Random(id).nextInt(1000) % children}, rerunning")
-        newEdgeKey(id)
-      }
-    }
+  def newEdgeKey(workerID:Int,id:Long):Unit = {
+    edgeKeys(workerID) += id
   }
 
 
@@ -112,50 +93,55 @@ object EntityStorage {
     * Vertices Methods
     */
 
-  def vertexAdd(routerID:Int,msgTime : Long, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
-    if(printing) println(s"Received vertex add for $srcId with map: $properties")
-    var value : Vertex = new Vertex(routerID,msgTime, srcId, initialValue = true, addOnlyVertex)
-    vertices.synchronized {
-      vertices.get(srcId) match {
-        case Some(v) =>
-          v revive msgTime
-          v updateLatestRouter routerID
-          value = v
-        case None => {
-          vertices put(srcId, value)
-          newVertexKey(srcId)
-        }
+  def vertexAdd(workerID:Int,routerID:Int,msgTime : Long, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
+    var value : Vertex = null
+    vertices.get(srcId) match { //check if the vertex exists
+      case Some(v) => { //if it does
+        v revive msgTime //add the history point
+        v updateLatestRouter routerID // record the latest router for windowing
+        value = v
+      }
+      case None => { //if it does not exist
+        value = new Vertex(routerID,msgTime, srcId, initialValue = true, addOnlyVertex) //create a new vertex
+        vertices put(srcId, value) //put it in the map
+        newVertexKey(workerID,srcId) // and record its ID
       }
     }
-    if (properties != null) {
-      properties.foreach(prop => value.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
+    if (properties != null) { //if the add come with some properties
+      properties.foreach(prop => value.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties into the vertex
     }
-    value
+    value //return the vertex
   }
 
-  def vertexRemoval(routerID:Int,msgTime:Long,srcId:Int) : Unit = {
-    if (printing) println(s"Received vertex remove for $srcId, updating + informing all edges")
+  def vertexRemoval(workerID:Int,routerID:Int,msgTime:Long,srcId:Int) : Unit = {
     var vertex : Vertex = null
-    vertices.synchronized {
-      vertices.get(srcId) match {
-        case Some(v) => {
-          vertex = v
-          if(windowing) {
-            if (!(v latestRouterCheck routerID)) {
-              //if we are windowing we must check the latest Router for the vertex
-              return //if its not from the same router we ignore and return the function here
-            }
+    vertices.get(srcId) match {
+      case Some(v) => {
+       if(windowing) {
+          if (!(v latestRouterCheck routerID)) {//if we are windowing we must check the latest Router for the vertex
+            return //if its not from the same router we ignore and return the function here
           }
-          v kill msgTime //if we are not windowing we just run as normal or if it is the correct router we remove
         }
-        case None => {
-          vertex = new Vertex(routerID,msgTime, srcId, initialValue = false, addOnly = addOnlyVertex)
-          vertices put(srcId, vertex)
-          newVertexKey(srcId)
-        }
+        vertex = v
+        v kill msgTime //if we are not windowing we just run as normal or if it is the correct router we remove
+      }
+      case None => { //if the removal has arrived before the creation
+        vertex = new Vertex(routerID,msgTime, srcId, initialValue = false, addOnly = addOnlyVertex) //create a placeholder
+        vertices put(srcId, vertex) //add it to the map
+        newVertexKey(srcId) //and record the new key
       }
     }
+    vertex.incomingIDs.foreach(eID =>{ //incoming edges are not handled by this worker as the source vertex is in charge
+      edges.get(eID) match {
+        case Some(edge) => {
+          if(edge.getWorkerID = workerID) { //opperated by the same worker, therefore we can perform an action
+            e kill msgTime
+          }
+          el
+        }
+      }
 
+    })
     vertex.incomingEdges.values.foreach(e => {
       e kill msgTime
       try {
@@ -171,6 +157,7 @@ object EntityStorage {
         case _ : ClassCastException =>
       }
     })
+
     vertex.outgoingEdges.values.foreach(e => {
       e kill msgTime
       try {
@@ -186,7 +173,9 @@ object EntityStorage {
         case _ : ClassCastException =>
       }
     })
-    //TODO: place this into a function instead of duplicating like this
+
+
+
   }
   //TODO: does the routerID effect vertices which are wiped
   def getVertexAndWipe(routerID : Int, id : Int, msgTime : Long) : Vertex = {
@@ -204,38 +193,43 @@ object EntityStorage {
   /**
     * Edges Methods
     */
-  def edgeAdd(routerID:Int,msgTime : Long, srcId : Int, dstId : Int, properties : Map[String, String] = null) = {
-    val local       = checkDst(dstId, managerCount, managerID)
+  def edgeAdd(routerID:Int,workerID:Int,msgTime : Long, srcId : Int, dstId : Int, properties : Map[String, String] = null) = {
+    val local       = checkDst(dstId, managerCount, managerID) //is the dst on this machine
+    val sameWorker  = checkWorker(dstId,managerCount,workerID) // is the dst handled by the same worker
     var present     = false //if the vertex is new or not -- decides what update is sent when remote and if to add the source/destination removals
     var edge : Edge = null
     val index : Long= getEdgeIndex(srcId, dstId)
-    if (local)
-      edge = new Edge(routerID,msgTime, srcId, dstId, initialValue = true, addOnlyEdge)
-    else
-      edge = new RemoteEdge(routerID,msgTime, srcId, dstId, initialValue = true, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
 
-    edges.synchronized {
-      edges.get(index) match {
-        case Some(e) => {
-          edge = e
-          present = true
-        }
-        case None =>
-          edges.put(index, edge)
-          newEdgeKey(index)
+    edges.get(index) match {
+      case Some(e) => { //retrieve the
+        edge = e
+        present = true
       }
-    }
-    if (printing) println(s"Received an edge Add for $srcId --> $dstId (local: $local)")
-
-    if (local && srcId != dstId) {
-      val dstVertex = vertexAdd(routerID,msgTime, dstId) // do the same for the destination ID
-      dstVertex addAssociatedEdge (srcId, false) // do the same for the destination node
-      if (!present)
-        edge killList dstVertex.removeList
+      case None =>
+        if (local)
+          edge = new Edge(routerID,workerID,msgTime, srcId, dstId, initialValue = true, addOnlyEdge)
+        else
+          edge = new RemoteEdge(routerID,workerID,msgTime, srcId, dstId, initialValue = true, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+        edges.put(index, edge)
+        newEdgeKey(index)
     }
 
     val srcVertex = vertexAdd(routerID,msgTime, srcId)                          // create or revive the source ID
     srcVertex addAssociatedEdge (dstId, true) // add the edge to the associated edges of the source node
+
+    if (local && srcId != dstId) {
+      if(sameWorker){
+        val dstVertex = vertexAdd(routerID,msgTime, dstId) // do the same for the destination ID
+        dstVertex addAssociatedEdge (srcId, false) // do the same for the destination node
+        if (!present)
+          edge killList dstVertex.removeList
+      }
+      else{
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId,managerCount))
+      }
+    }
+
+
 
     if (present) {
       edge revive msgTime
@@ -248,25 +242,12 @@ object EntityStorage {
       if (!local)
         mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(routerID,msgTime, srcId, dstId, null, deaths), false)
     }
-//i    GraphRepoProxy.addEdge(edge.getId)
     if (properties != null)
       properties.foreach(prop => edge.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
 
   }
 
-  def updateEdgeProperties(msgTime : Long, edgeId : Long, key : String, value : String) : Unit = {
-    edges.get(edgeId) match {
-      case Some(e) => {
-        e + (msgTime, key, value)
-      }
-      case None =>
-    }
 
-    // If edge is split reroute the update to the remote position
-    if (Utils.getPartition(Utils.getIndexLO(edgeId), managerCount) != managerID) {
-      mediator ! DistributedPubSubMediator.Send(getManager(Utils.getIndexLO(edgeId), managerCount), EdgeUpdateProperty(msgTime, edgeId, key, value), false)
-    }
-  }
 
   def remoteEdgeAdd(routerID : Int, msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String] = null):Unit={
     if(printing) println(s"Received Remote Edge Add with properties for $srcId --> $dstId from ${getManager(srcId, managerCount)}. Edge already exists so just updating")
@@ -419,3 +400,28 @@ object EntityStorage {
 
 
 }
+
+//def updateEdgeProperties(msgTime : Long, edgeId : Long, key : String, value : String) : Unit = {
+//  edges.get(edgeId) match {
+//  case Some(e) => {
+//  e + (msgTime, key, value)
+//}
+//  case None =>
+//}
+//
+//  // If edge is split reroute the update to the remote position
+//  if (Utils.getPartition(Utils.getIndexLO(edgeId), managerCount) != managerID) {
+//  mediator ! DistributedPubSubMediator.Send(getManager(Utils.getIndexLO(edgeId), managerCount), EdgeUpdateProperty(msgTime, edgeId, key, value), false)
+//}
+//}
+
+//
+//try {
+//  vertexKeys(Utils.getWorker(id,managerCount)) += id
+//}
+//  catch {
+//  case e:ArrayIndexOutOfBoundsException => {
+//  println(s"Caught array error with Vertex Keys, for id $id accessing Set ${new scala.util.Random(id).nextInt(1000) % children}, rerunning")
+//  newVertexKey(id)
+//}
+//}

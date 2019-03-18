@@ -58,7 +58,8 @@ object Utils {
     (ID % (managerCount *10)) %10
   }
   //get the partition a vertex is stored in
-  def checkDst(dstID:Int, managerCount:Int, managerID:Int):Boolean = (dstID % managerCount) == managerID //check if destination is also local
+  def checkDst(dstID:Int, managerCount:Int, managerID:Int):Boolean = getPartition(dstID,managerCount) == managerID //check if destination is also local
+  def checkWorker(dstID:Int, managerCount:Int, workerID:Int):Boolean = getWorker(dstID,managerCount) == workerID //check if destination is also local
   def getManager(srcId:Int, managerCount : Int):String = {
     val mod = srcId % (managerCount *10)
     val manager = mod /10

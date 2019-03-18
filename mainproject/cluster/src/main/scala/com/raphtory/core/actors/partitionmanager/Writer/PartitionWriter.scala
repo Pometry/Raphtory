@@ -44,7 +44,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     context.system.scheduler.schedule(Duration(8, SECONDS), Duration(10, SECONDS), self, "keep_alive")
 
      for(i <- 0 to children){ //create threads for writing
-       childMap.put(i,context.system.actorOf(Props(new WritingSlave()),s"Manager_${managerID}_child_$i"))
+       childMap.put(i,context.system.actorOf(Props(new WritingSlave(i)),s"Manager_${managerID}_child_$i"))
      }
    }
 
