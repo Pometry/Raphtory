@@ -118,7 +118,6 @@ object EntityStorage {
 
   def vertexWorkerRequest(routerID:Int,workerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,present:Boolean) ={
     //if the worker creating an edge does not deal with
-    println("responding to request")
     val dstVertex = vertexAdd(routerID,workerID,msgTime, dstID) // do the same for the destination ID
     dstVertex addAssociatedEdge (srcForEdge, false) // do the same for the destination node
     if (!present)
@@ -128,7 +127,6 @@ object EntityStorage {
   }
   def vertexWipeWorkerRequest(routerID:Int,workerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,present:Boolean) ={
     //if the worker creating an edge does not deal with
-    println("responding to wipe request")
     val dstVertex = getVertexAndWipe(routerID,workerID,dstID, msgTime) // do the same for the destination ID
     dstVertex addAssociatedEdge (srcForEdge, false) // do the same for the destination node
     if (!present)
@@ -170,7 +168,7 @@ object EntityStorage {
     }
 
     vertex.incomingIDs.foreach(eID =>{ //incoming edges are not handled by this worker as the source vertex is in charge
-      edges.get(eID) match {
+      edges.get(Utils.getEdgeIndex(eID,srcId)) match {
         case Some(edge) => {
           if(edge.isInstanceOf[RemoteEdge]) {
             val remoteEdge = edge.asInstanceOf[RemoteEdge]
@@ -194,7 +192,7 @@ object EntityStorage {
       }
     })
     vertex.outgoingIDs.foreach(id =>{
-      edges.get(id) match {
+      edges.get(Utils.getEdgeIndex(srcId,id)) match {
         case Some(edge) => {
           edge kill msgTime//outgoing edge always opperated by the same worker, therefore we can perform an action
           if(edge.isInstanceOf[RemoteEdge]){
@@ -212,8 +210,7 @@ object EntityStorage {
     })
   }
 
-  def edgeRemovalFromOtherWorker(routerID:Int,msgTime:Int,srcID:Int,dstID:Int) = {
-    println("recived edge removal from other worker")
+  def edgeRemovalFromOtherWorker(routerID:Int,msgTime:Long,srcID:Int,dstID:Int) = {
     edges.get(Utils.getEdgeIndex(srcID,dstID)) match {
       case Some(edge) => {
         edge kill msgTime
