@@ -47,8 +47,10 @@ case class RemoteEdgeRemovalNew(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,ki
 case class RemoteReturnDeaths(msgTime:Long,srcId:Int,dstId:Int,kills:mutable.TreeMap[Long, Boolean])
 case class ReturnEdgeRemoval(routerID:Int,msgTime:Long,srcId:Int,dstId:Int)
 
+//BLOCK FROM WORKER SYNC
 case class DstAddForOtherWorker(routerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,present:Boolean)
 case class DstWipeForOtherWorker(routerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,present:Boolean)
+case class EdgeRemoveForOtherWorker(routerID:Int,msgTime:Long,srcID:Int,dstID:Int)
 
 case class UpdatedCounter(newValue : Int)
 case class AssignedId(id : Int)

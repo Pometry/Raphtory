@@ -15,8 +15,10 @@ class WritingSlave(workerID:Int) extends Actor {
     case VertexRemoval(routerID,msgTime,srcId)                            => {EntityStorage.vertexRemoval(routerID,workerID,msgTime,srcId);                              vHandle(srcId,msgTime)}
     case VertexAddWithProperties(routerID,msgTime,srcId,properties)       => {EntityStorage.vertexAdd(routerID,workerID,msgTime,srcId,properties);                       vHandle(srcId,msgTime)}
 
-    case DstAddForOtherWorker(routerID,msgTime,dstID,srcForEdge,present)  => {EntityStorage.vertexWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,present)}
-    case DstWipeForOtherWorker(routerID,msgTime,dstID,srcForEdge,present) => {EntityStorage.vertexWipeWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,present)}
+    case DstAddForOtherWorker(routerID,msgTime,dstID,srcForEdge,present)  => EntityStorage.vertexWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,present)
+    case DstWipeForOtherWorker(routerID,msgTime,dstID,srcForEdge,present) => EntityStorage.vertexWipeWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,present)
+
+    case EdgeRemoveForOtherWorker(routerID,msgTime,srcID,dstID)           => EntityStorage.edgeRemovalFromOtherWorker(routerID,msgTime,srcID,dstID)
 
     case EdgeAdd(routerID,msgTime,srcId,dstId)                            => {EntityStorage.edgeAdd(routerID,workerID,msgTime,srcId,dstId);                              eHandle(srcId,dstId,msgTime)}
     case EdgeAddWithProperties(routerID,msgTime,srcId,dstId,properties)   => {EntityStorage.edgeAdd(routerID,workerID,msgTime,srcId,dstId,properties);                   eHandle(srcId,dstId,msgTime)}

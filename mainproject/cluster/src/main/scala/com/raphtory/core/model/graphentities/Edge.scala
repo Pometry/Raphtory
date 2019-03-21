@@ -86,7 +86,7 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
     }
     if(value==false)
       throw EntityRemovedAtTimeException(getId)
-    val edge = new Edge(-1,closestTime,srcId,dstId,value,false)
+    val edge = new Edge(-1,workerID = -1,closestTime,srcId,dstId,value,false)
     for((k,p) <- properties) {
       val value = p.valueAt(time)
       if (!(value equals("default")))

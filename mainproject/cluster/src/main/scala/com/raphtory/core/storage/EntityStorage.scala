@@ -165,54 +165,60 @@ object EntityStorage {
       case None => { //if the removal has arrived before the creation
         vertex = new Vertex(routerID,msgTime, srcId, initialValue = false, addOnly = addOnlyVertex) //create a placeholder
         vertices put(srcId, vertex) //add it to the map
-        newVertexKey(srcId) //and record the new key
+        newVertexKey(workerID,srcId) //and record the new key
       }
     }
+
     vertex.incomingIDs.foreach(eID =>{ //incoming edges are not handled by this worker as the source vertex is in charge
       edges.get(eID) match {
         case Some(edge) => {
-          if(edge.getWorkerID == workerID) { //opperated by the same worker, therefore we can perform an action
-            e kill msgTime
+          if(edge.isInstanceOf[RemoteEdge]) {
+            val remoteEdge = edge.asInstanceOf[RemoteEdge]
+            if (remoteEdge.remotePos == RemotePos.Destination) {
+              mediator ! DistributedPubSubMediator.Send(getManager(remoteEdge.getSrcId,managerCount), RemoteEdgeRemoval(routerID,msgTime, remoteEdge.srcId, remoteEdge.dstId), false)
+            } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
+            else {
+              mediator ! DistributedPubSubMediator.Send(getManager(remoteEdge.getSrcId, managerCount), ReturnEdgeRemoval(routerID,msgTime, remoteEdge.srcId, remoteEdge.dstId), false)
+            } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
+
           }
-          el
+          else{ //if it is a local edge
+            if(edge.getWorkerID == workerID) { //opperated by the same worker, therefore we can perform an action
+              edge kill msgTime
+            }
+            else{ //we must inform the other local worker to handle this
+              mediator ! DistributedPubSubMediator.Send(getManager(edge.getSrcId, managerCount), EdgeRemoveForOtherWorker(routerID,msgTime,edge.getSrcId,edge.getDstId),false)
+            }
+          }
         }
       }
-
     })
-    vertex.incomingEdges.values.foreach(e => {
-      e kill msgTime
-      try {
-        val ee = e.asInstanceOf[RemoteEdge]
-        if (ee.remotePos == RemotePos.Destination) {
-          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), RemoteEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
-        } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
-        else {
-          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), ReturnEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
-        } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
+    vertex.outgoingIDs.foreach(id =>{
+      edges.get(id) match {
+        case Some(edge) => {
+          edge kill msgTime//outgoing edge always opperated by the same worker, therefore we can perform an action
+          if(edge.isInstanceOf[RemoteEdge]){
+            val remoteEdge = edge.asInstanceOf[RemoteEdge]
+            if (remoteEdge.remotePos == RemotePos.Destination) {
+              mediator ! DistributedPubSubMediator.Send(getManager(remoteEdge.remotePartitionID, managerCount), RemoteEdgeRemoval(routerID,msgTime, remoteEdge.srcId, remoteEdge.dstId), false)
+            } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
+            else {
+              mediator ! DistributedPubSubMediator.Send(getManager(remoteEdge.remotePartitionID, managerCount), ReturnEdgeRemoval(routerID,msgTime, remoteEdge.srcId, remoteEdge.dstId), false)
+            } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
+          }
 
-      } catch {
-        case _ : ClassCastException =>
+        }
       }
     })
+  }
 
-    vertex.outgoingEdges.values.foreach(e => {
-      e kill msgTime
-      try {
-        val ee = e.asInstanceOf[RemoteEdge]
-        if (ee.remotePos == RemotePos.Destination) {
-          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), RemoteEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
-        } //This is if the remote vertex (the one not handled) is the edge destination. In this case we handle with exactly the same function as above
-        else {
-          mediator ! DistributedPubSubMediator.Send(getManager(ee.remotePartitionID, managerCount), ReturnEdgeRemoval(routerID,msgTime, ee.srcId, ee.dstId), false)
-        } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
-
-      } catch {
-        case _ : ClassCastException =>
+  def edgeRemovalFromOtherWorker(routerID:Int,msgTime:Int,srcID:Int,dstID:Int) = {
+    println("recived edge removal from other worker")
+    edges.get(Utils.getEdgeIndex(srcID,dstID)) match {
+      case Some(edge) => {
+        edge kill msgTime
       }
-    })
-
-
-
+    }
   }
 
 

@@ -44,12 +44,12 @@ object JanitorTest extends App{
   vertex +(6,"prop2","val3")
   vertex +(7,"prop2","val3")
 
-  vertex addAssociatedEdge new Edge(1,1,1,2,true,false)
-  vertex addAssociatedEdge new Edge(1,2,1,3,true,false)
-  vertex addAssociatedEdge new Edge(1,3,1,4,false,false)
-  vertex addAssociatedEdge new Edge(1,4,1,5,true,false)
-  vertex addAssociatedEdge new Edge(1,1,2,1,true,false)
-  vertex addAssociatedEdge new Edge(1,2,3,1,true,false)
+//  vertex addAssociatedEdge new Edge(1,1,msgTime = 1,2,true,false)
+//  vertex addAssociatedEdge new Edge(1,2,1,3,true,false)
+//  vertex addAssociatedEdge new Edge(1,3,1,4,false,false)
+//  vertex addAssociatedEdge new Edge(1,4,1,5,true,false)
+//  vertex addAssociatedEdge new Edge(1,1,2,1,true,false)
+//  vertex addAssociatedEdge new Edge(1,2,3,1,true,false)
 //  for(edge <- vertex.associatedEdges.values){
 //    edge + (3,"prop","testValue")
 //  }
@@ -61,7 +61,7 @@ object JanitorTest extends App{
   vertex revive(8)
   vertex +(8,"prop2","dave")
   vertex +(9,"prop","bob")
-  vertex addAssociatedEdge new Edge(1,6,1,7,true,false)
+//  vertex addAssociatedEdge new Edge(1,6,1,7,true,false)
 //  for(edge <- vertex.associatedEdges.values){
 //    edge + (4,"prop","testValue2")
 //  }

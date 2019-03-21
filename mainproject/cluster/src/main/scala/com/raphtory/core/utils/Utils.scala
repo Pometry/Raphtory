@@ -29,27 +29,27 @@ object Utils {
     * @param edges
     * @return (Edge, Local, Present)
     */
-  def edgeCreator(routerID: Int, msgId : Int, srcId: Int, dstId: Int, managerCount : Int, managerId : Int,
-                  edges : TrieMap[Long, Edge], initialValue : Boolean = true, addOnly:Boolean) : (Edge, Boolean, Boolean) = {
-
-    val local       = checkDst(dstId, managerCount, managerId)
-    var present     = false
-    var edge : Edge = null
-
-    if (local)
-      edge = new Edge(routerID, msgId, srcId, dstId, initialValue, addOnly)
-    else
-      edge = new RemoteEdge(routerID, msgId, srcId, dstId, initialValue, addOnly, RemotePos.Destination, getPartition(dstId, managerCount))
-
-    edges.putIfAbsent(getEdgeIndex(srcId, dstId), edge) match {
-      case Some(e) => {
-        edge = e
-        present = true
-      }
-      case None => // All is set
-    }
-    (edge, local, present)
-  }
+//  def edgeCreator(routerID: Int, msgId : Int, srcId: Int, dstId: Int, managerCount : Int, managerId : Int,
+//                  edges : TrieMap[Long, Edge], initialValue : Boolean = true, addOnly:Boolean) : (Edge, Boolean, Boolean) = {
+//
+//    val local       = checkDst(dstId, managerCount, managerId)
+//    var present     = false
+//    var edge : Edge = null
+//
+//    if (local)
+//      edge = new Edge(routerID, msgId, srcId, dstId, initialValue, addOnly)
+//    else
+//      edge = new RemoteEdge(routerID, msgId, srcId, dstId, initialValue, addOnly, RemotePos.Destination, getPartition(dstId, managerCount))
+//
+//    edges.putIfAbsent(getEdgeIndex(srcId, dstId), edge) match {
+//      case Some(e) => {
+//        edge = e
+//        present = true
+//      }
+//      case None => // All is set
+//    }
+//    (edge, local, present)
+//  }
 
   def getPartition(ID:Int, managerCount : Int):Int = {
     (ID % (managerCount *10)) /10
