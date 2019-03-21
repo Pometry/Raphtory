@@ -10,7 +10,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 class ArchivingManager extends Actor{
 
   var childMap = ParTrieMap[Int,ActorRef]()
-  var startedArchiving = 0
+  var startedArchiving = 10
   var finishedArchiving = 0
 
   override def receive:Receive = {
@@ -30,6 +30,7 @@ class ArchivingManager extends Actor{
   }
 
   def archiveEdges(removalPoint:Long) = {
+    println("archiving edges")
     childMap.values.foreach(child => child ! ArchiveEdges(removalPoint))
   }
 
@@ -40,6 +41,7 @@ class ArchivingManager extends Actor{
   def finishedEdge(ID: Long,archived: (Int,Int,Int)) = {
     finishedArchiving +=1
     if(startedArchiving==finishedArchiving) {
+      println("edge arciving finished, responding to parent")
       context.parent ! FinishedEdgeArchiving(finishedArchiving, archived)
       finishedArchiving = 0
     }
@@ -48,6 +50,7 @@ class ArchivingManager extends Actor{
   def finishedVertex(ID:Int,archived: (Int,Int,Int))={
     finishedArchiving +=1
     if(startedArchiving==finishedArchiving){
+      println("vertex arciving finished, responding to parent")
       context.parent ! FinishedVertexArchiving(finishedArchiving,archived)
       finishedArchiving = 0
     }
