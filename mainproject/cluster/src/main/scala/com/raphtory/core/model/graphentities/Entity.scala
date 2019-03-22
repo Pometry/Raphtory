@@ -84,14 +84,14 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   def apply(property: String): Property = properties(property)
 
   def compressAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, Boolean] ={
-    if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node and should not be interacted with
+    if(getUncompressedSize()==0){ //if the state size is 0 it is a wiped node and should not be interacted with
       return  mutable.TreeMap()(HistoryOrdering) //if the size is one, no need to compress
     }
     var toWrite : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
     var head = previousState.head
     var prev: (Long,Boolean) = head
     var swapped = false
-    if(getPreviousStateSize()>1) {
+    if(getUncompressedSize()>1) {
       for ((k, v) <- previousState) {
         if (k < cutoff) {
           if (swapped) { //as we are adding prev skip the value on the pivot as it is already added
@@ -139,7 +139,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     * @return (is it a place holder, is the full history holder than the cutoff, the old history)
     */
   def removeAncientHistory(cutoff:Long,compressing:Boolean): (Boolean, Boolean,Int,Int)={ //
-    if(getPreviousStateSize==0){ //if the state size is 0 it is a wiped node inform the historian
+    if(getHistorySize==0){ //if the state size is 0 it is a wiped node inform the historian
       return  (true,true,0,0)
     }
     var removed = 0
@@ -198,7 +198,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
       previousState = mutable.TreeMap()(HistoryOrdering)
   }
 
-  def getPreviousStateSize() : Int = {
+  def getHistorySize() : Int = {
     if (addOnly)
       if(oldestPoint.get == Long.MaxValue)
         0 //is a placeholder entity
@@ -207,6 +207,17 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     else
       previousState.size + compressedState.size
   }
+
+  def getUncompressedSize() : Int = {
+    if (addOnly)
+      if(oldestPoint.get == Long.MaxValue)
+        0 //is a placeholder entity
+      else
+        1
+    else
+      previousState.size
+  }
+
 
   def getId : Long
   def getPropertyCurrentValue(key : String) : Option[String] =

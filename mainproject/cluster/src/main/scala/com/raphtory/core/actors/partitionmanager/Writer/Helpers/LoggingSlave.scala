@@ -29,7 +29,7 @@ class LoggingSlave extends RaphtoryActor{
   def getEntitiesPrevStates[T,U <: Entity](m : ParTrieMap[T, U]) : Int = {
     var ret = 0
     m.foreach[Unit](e => {
-      ret += e._2.getPreviousStateSize()
+      ret += e._2.getHistorySize()
     })
     ret
   }
