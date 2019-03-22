@@ -32,7 +32,7 @@ class CompressionSlave(id: Int) extends Actor {
   def compressEdge(key: Long, now: Long) = {
     EntityStorage.edges.get(key) match {
       case Some(edge) => saveEdge(edge, now)
-      case None => println("none")
+      case None => EntityStorage.checkEdgeDeleted(key)
     }
   }
 
@@ -49,7 +49,7 @@ class CompressionSlave(id: Int) extends Actor {
   def compressVertex(key: Int, now: Long) = {
     EntityStorage.vertices.get(key) match {
       case Some(vertex) => saveVertex(vertex, now)
-      case None => 
+      case None => EntityStorage.checkVertexDeleted(key)
     }
   }
 

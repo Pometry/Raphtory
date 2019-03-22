@@ -31,12 +31,13 @@ object EntityStorage {
   var secondaryMessageCount = new AtomicInteger(0)
 
   val children = 10
+
   /**
     * Map of vertices contained in the partition
     */
-  val vertices = ParTrieMap[Int, Vertex]()
-
-  val vertexKeys = ParTrieMap[Int,ParSet[Int]]()
+  val vertices        = ParTrieMap[Int, Vertex]()
+  val deletedVertices = ParSet[Int]()
+  val vertexKeys      = ParTrieMap[Int,ParSet[Int]]()
   for(i <- 0 until children){
     val temp = ParSet[Int]()
     vertexKeys put (i, temp)
@@ -44,8 +45,9 @@ object EntityStorage {
   /**
     * Map of edges contained in the partition
     */
-  val edges    = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
-  val edgeKeys = ParTrieMap[Int,ParSet[Long]]()
+  val edges        = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
+  val deletedEdges = ParSet[Long]()
+  val edgeKeys     = ParTrieMap[Int,ParSet[Long]]()
   for(i <- 0 until children){
     val temp = ParSet[Long]()
     edgeKeys put (i,temp)
@@ -56,7 +58,7 @@ object EntityStorage {
   var managerCount : Int     = 1
   var managerID    : Int     = 0
   var mediator     : ActorRef= null
-  var addOnlyVertex      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_VERTEX", "false").trim.toBoolean
+  var addOnlyVertex    : Boolean =  System.getenv().getOrDefault("ADD_ONLY_VERTEX", "false").trim.toBoolean
   var addOnlyEdge      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_EDGE", "false").trim.toBoolean
   var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
 
@@ -86,11 +88,28 @@ object EntityStorage {
     vertexKeys(workerID) += id
   } //generate a random number based on the id (as ID's have already been modulated to reach a PM and therefore will probably end in the same number
 
+  def deleteVertex(id:Int):Unit = {
+    deletedVertices += id
+  }
 
   def newEdgeKey(workerID:Int,id:Long):Unit = {
     edgeKeys(workerID) += id
   }
 
+  def deletedEdge(id:Long):Unit = {
+    deletedEdges += id
+  }
+
+
+  def checkVertexDeleted(key:Int) = {
+    if(!(deletedVertices.contains(key)))
+      println(s"vertex $key")
+  }
+
+  def checkEdgeDeleted(key:Long) = {
+    if(!(deletedEdges.contains(key)))
+      println(s"Edge $key")
+  }
 
   /**
     * Vertices Methods
