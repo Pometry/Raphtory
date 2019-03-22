@@ -19,6 +19,7 @@ class WritingSlave(workerID:Int) extends Actor {
     case DstWipeForOtherWorker(routerID,msgTime,dstID,srcForEdge,present) => EntityStorage.vertexWipeWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,present)
 
     case EdgeRemoveForOtherWorker(routerID,msgTime,srcID,dstID)           => EntityStorage.edgeRemovalFromOtherWorker(routerID,msgTime,srcID,dstID)
+    case EdgeRemovalAfterArchiving(routerID,msgTime,srcID,dstID)           => EntityStorage.edgeRemovalAfterArchiving(routerID,workerID,msgTime,srcID,dstID)
 
     case EdgeAdd(routerID,msgTime,srcId,dstId)                            => {EntityStorage.edgeAdd(routerID,workerID,msgTime,srcId,dstId);                              eHandle(srcId,dstId,msgTime)}
     case EdgeAddWithProperties(routerID,msgTime,srcId,dstId,properties)   => {EntityStorage.edgeAdd(routerID,workerID,msgTime,srcId,dstId,properties);                   eHandle(srcId,dstId,msgTime)}
@@ -31,7 +32,7 @@ class WritingSlave(workerID:Int) extends Actor {
     case RemoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths)        => {EntityStorage.remoteEdgeRemovalNew(routerID,workerID,msgTime,srcId,dstId,deaths);          eHandleSecondary(srcId,dstId,msgTime)}
 
     case ReturnEdgeRemoval(routerID,msgTime,srcId,dstId)                  => {EntityStorage.returnEdgeRemoval(routerID,workerID,msgTime,srcId,dstId);                    eHandleSecondary(srcId,dstId,msgTime)}
-    case RemoteReturnDeaths(msgTime,srcId,dstId,deaths)                   => {EntityStorage.remoteReturnDeaths(msgTime,srcId,dstId,deaths);                     eHandleSecondary(srcId,dstId,msgTime)}
+    case RemoteReturnDeaths(msgTime,srcId,dstId,deaths)                   => {EntityStorage.remoteReturnDeaths(msgTime,srcId,dstId,deaths);                              eHandleSecondary(srcId,dstId,msgTime)}
 
   }
 

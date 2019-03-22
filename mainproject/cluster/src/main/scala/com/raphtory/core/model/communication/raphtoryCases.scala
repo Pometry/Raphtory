@@ -51,6 +51,7 @@ case class ReturnEdgeRemoval(routerID:Int,msgTime:Long,srcId:Int,dstId:Int)
 case class DstAddForOtherWorker(routerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,present:Boolean)
 case class DstWipeForOtherWorker(routerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,present:Boolean)
 case class EdgeRemoveForOtherWorker(routerID:Int,msgTime:Long,srcID:Int,dstID:Int)
+case class EdgeRemovalAfterArchiving(routerID:Int,msgTime:Long,srcID:Int,dstID:Int)
 
 case class UpdatedCounter(newValue : Int)
 case class AssignedId(id : Int)

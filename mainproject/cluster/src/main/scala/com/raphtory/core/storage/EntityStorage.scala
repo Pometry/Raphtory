@@ -23,7 +23,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO add capacity function based on memory used and number of updates processed/stored in memory
 //TODO What happens when an edge which has been archived gets readded
 //TODO: does the routerID effect vertices which are wiped
-
+//TODO: Should vertices be aware of fully archived edges
 object EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager,checkWorker}
 
@@ -208,6 +208,22 @@ object EntityStorage {
             }
           }
         }
+        case None => { //edge has been archived and now needs to be brought back to have the remove added
+          val manager = Utils.getPartition(eID,managerCount)
+          val worker = Utils.getWorker(eID,managerCount)
+          if(manager== managerID) { //if it is local
+            if(worker == workerID) { //and the same worker
+              edgeRemovalAfterArchiving(routerID, workerID, msgTime, eID, srcId)
+            }
+            else{ //if it is a different worker on the same machine we must pass it to them to handle
+              mediator ! DistributedPubSubMediator.Send(getManager(eID, managerCount), EdgeRemovalAfterArchiving(routerID,msgTime,eID,srcId),false)
+            }
+          }
+          else{ //if it is not local then we also handle it
+            edgeRemovalAfterArchiving(routerID, workerID, msgTime, eID, srcId)
+          }
+
+        }
       }
     })
     vertex.outgoingIDs.foreach(id =>{
@@ -223,7 +239,9 @@ object EntityStorage {
               mediator ! DistributedPubSubMediator.Send(getManager(remoteEdge.remotePartitionID, managerCount), ReturnEdgeRemoval(routerID,msgTime, remoteEdge.srcId, remoteEdge.dstId), false)
             } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
           }
-
+        }
+        case None => { //edge has been archived and now needs to be brought back to have the remove added
+          outGoingEdgeRemovalAfterArchiving(routerID,workerID,msgTime,srcId,id)
         }
       }
     })
@@ -235,6 +253,33 @@ object EntityStorage {
         edge kill msgTime
       }
     }
+  }
+
+  def outGoingEdgeRemovalAfterArchiving(routerID:Int, workerID:Int, msgTime:Long, srcId:Int, dstId:Int) : Unit = {
+    val local       = checkDst(dstId, managerCount, managerID)
+    val sameWorker  = checkWorker(dstId,managerCount,workerID) // is the dst handled by the same worker
+
+    var present     = false
+    var edge : Edge = null
+    val index : Long= getEdgeIndex(srcId, dstId)
+    if (local) {
+      edge = new Edge(routerID, workerID, msgTime, srcId, dstId, initialValue = false, addOnlyEdge)
+      if(srcId != dstId){
+        if(sameWorker){ //if the dst is handled by the same worker
+          val dstVertex = getVertexAndWipe(routerID,workerID,dstId, msgTime) // do the same for the destination ID
+          dstVertex addAssociatedEdge (srcId, false) // do the same for the destination node
+          edge killList dstVertex.removeList //add the dst removes into the edge
+        }
+        else{ // if it is a different worker, ask that other worker to complete the dst part of the edge
+          mediator ! DistributedPubSubMediator.Send(getManager(dstId,managerCount),DstWipeForOtherWorker(routerID,msgTime,dstId,srcId,present),true)
+        }
+      }
+    }
+    else {
+      edge = new RemoteEdge(routerID, workerID, msgTime, srcId, dstId, initialValue = false, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+      mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeRemoval(routerID,msgTime,srcId,dstId),false) // inform the partition dealing with the destination node
+    }
+    edges.put(index, edge)
   }
 
 
