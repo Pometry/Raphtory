@@ -209,7 +209,7 @@ object EntityStorage {
           }
         }
         case None => { //edge has been archived and now needs to be brought back to have the remove added
-          incomingEdgeRemovalAfterArchiving(routerID,workerID,msgTime,eID,srcId)
+          //incomingEdgeRemovalAfterArchiving(routerID,workerID,msgTime,eID,srcId)
         }
       }
     })
@@ -228,7 +228,7 @@ object EntityStorage {
           }
         }
         case None => { //edge has been archived and now needs to be brought back to have the remove added
-          outGoingEdgeRemovalAfterArchiving(routerID,workerID,msgTime,srcId,id)
+          //outGoingEdgeRemovalAfterArchiving(routerID,workerID,msgTime,srcId,id)
         }
       }
     })
@@ -242,11 +242,13 @@ object EntityStorage {
     }
   }
 
- def incomingEdgeRemovalAfterArchiving(routerID:Int, workerID:Int, msgTime:Long, srcId:Int, dstId:Int) : Unit = {
-   val manager = Utils.getPartition(srcId, managerCount)
-   val worker = Utils.getWorker(srcId, managerCount)
-   if (manager == managerID) { //if it is local
-     if (worker == workerID) { //and the same worker
+ def incomingEdgeRemovalAfterArchiving(routerID:Int, workerID:Int, msgTime:Long, srcId:Int, dstId:Int) : Unit = { //turned off for now
+   val local       = checkDst(srcId, managerCount, managerID)
+   val sameWorker  = checkWorker(srcId,managerCount,workerID) // is the dst handled by the same worker
+   var present     = false
+   var edge : Edge = null
+   if (local) { //if it is local
+     if (sameWorker) { //and the same worker
        edge = new Edge(routerID, workerID, msgTime, srcId, dstId, initialValue = false, addOnlyEdge)
        if(srcId != dstId){
            val dstVertex = getVertexAndWipe(routerID,workerID,dstId, msgTime) // do the same for the destination ID
@@ -255,16 +257,15 @@ object EntityStorage {
        }
      }
      else { //if it is a different worker on the same machine we must pass it to them to handle
-       mediator ! DistributedPubSubMediator.Send(getManager(eID, managerCount), EdgeRemovalAfterArchiving(routerID, msgTime, eID, srcId), false)
+       mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount), EdgeRemovalAfterArchiving(routerID, msgTime, srcId, srcId), false)
      }
    }
    else { //if it is not local then we also handle it
-     edgeRemovalAfterArchiving(routerID, workerID, msgTime, eID, srcId)
    }
 
  }
 
-  def outGoingEdgeRemovalAfterArchiving(routerID:Int, workerID:Int, msgTime:Long, srcId:Int, dstId:Int) : Unit = {
+  def outGoingEdgeRemovalAfterArchiving(routerID:Int, workerID:Int, msgTime:Long, srcId:Int, dstId:Int) : Unit = {  //turned off for now
     val local       = checkDst(dstId, managerCount, managerID)
     val sameWorker  = checkWorker(dstId,managerCount,workerID) // is the dst handled by the same worker
 
