@@ -209,20 +209,7 @@ object EntityStorage {
           }
         }
         case None => { //edge has been archived and now needs to be brought back to have the remove added
-          val manager = Utils.getPartition(eID,managerCount)
-          val worker = Utils.getWorker(eID,managerCount)
-          if(manager== managerID) { //if it is local
-            if(worker == workerID) { //and the same worker
-              edgeRemovalAfterArchiving(routerID, workerID, msgTime, eID, srcId)
-            }
-            else{ //if it is a different worker on the same machine we must pass it to them to handle
-              mediator ! DistributedPubSubMediator.Send(getManager(eID, managerCount), EdgeRemovalAfterArchiving(routerID,msgTime,eID,srcId),false)
-            }
-          }
-          else{ //if it is not local then we also handle it
-            edgeRemovalAfterArchiving(routerID, workerID, msgTime, eID, srcId)
-          }
-
+          incomingEdgeRemovalAfterArchiving(routerID,workerID,msgTime,eID,srcId)
         }
       }
     })
@@ -254,6 +241,28 @@ object EntityStorage {
       }
     }
   }
+
+ def incomingEdgeRemovalAfterArchiving(routerID:Int, workerID:Int, msgTime:Long, srcId:Int, dstId:Int) : Unit = {
+   val manager = Utils.getPartition(srcId, managerCount)
+   val worker = Utils.getWorker(srcId, managerCount)
+   if (manager == managerID) { //if it is local
+     if (worker == workerID) { //and the same worker
+       edge = new Edge(routerID, workerID, msgTime, srcId, dstId, initialValue = false, addOnlyEdge)
+       if(srcId != dstId){
+           val dstVertex = getVertexAndWipe(routerID,workerID,dstId, msgTime) // do the same for the destination ID
+           dstVertex addAssociatedEdge (srcId, false) // do the same for the destination node
+           edge killList dstVertex.removeList //add the dst removes into the edge
+       }
+     }
+     else { //if it is a different worker on the same machine we must pass it to them to handle
+       mediator ! DistributedPubSubMediator.Send(getManager(eID, managerCount), EdgeRemovalAfterArchiving(routerID, msgTime, eID, srcId), false)
+     }
+   }
+   else { //if it is not local then we also handle it
+     edgeRemovalAfterArchiving(routerID, workerID, msgTime, eID, srcId)
+   }
+
+ }
 
   def outGoingEdgeRemovalAfterArchiving(routerID:Int, workerID:Int, msgTime:Long, srcId:Int, dstId:Int) : Unit = {
     val local       = checkDst(dstId, managerCount, managerID)
