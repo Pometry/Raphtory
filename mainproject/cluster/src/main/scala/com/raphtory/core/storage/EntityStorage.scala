@@ -68,7 +68,7 @@ object EntityStorage {
   var lastCompressedAt:Long = 0
 
   def timings(updateTime:Long) ={
-    if (updateTime < oldestTime) oldestTime=updateTime
+    if (updateTime < oldestTime && updateTime >0) oldestTime=updateTime
     if(updateTime > newestTime) newestTime = updateTime //this isn't thread safe, but is only an approx for the archiving
   }
 

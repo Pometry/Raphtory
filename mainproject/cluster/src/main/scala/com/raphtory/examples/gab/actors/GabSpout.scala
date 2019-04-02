@@ -30,7 +30,7 @@ final class GabSpout extends SpoutTrait {
 
   //val options: MongoClientOptions = MongoClientOptions.builder.addCommandListener(new LoggingClusterListener).build()
   //ddClusterListener(new LoggingClusterListener).build
-  private val mongoConn = MongoConnection("138.37.32.68", 27017)
+  private val mongoConn = MongoConnection("138.37.32.67", 27017)
   private val mongoColl = mongoConn("gab")("posts")
   private var postMin = 0
   private var postMax = 1001
@@ -53,24 +53,27 @@ final class GabSpout extends SpoutTrait {
 
   override def running(): Unit = {
     if (isSafe) {
-      getNextPosts()
+      val count = getNextPosts()
       postMin += 1000
       postMax += 1000
-      println(s"Current max post is $postMax")
+      println(s"Current min post is $postMin, max post is $postMax, last call retrieved $count posts")
     }
   }
 
-  private def getNextPosts(): Unit = {
+  private def getNextPosts():Int = {
+    var count =0
     for (x <- mongoColl.find("_id" $lt postMax $gt postMin)) {
       try {
         val data = x.get("data").toString.drop(2).dropRight(1).replaceAll("""\\"""", "").replaceAll("""\\""", "")
+        count +=1
         //println(data)
         sendCommand(data)
       } catch {
         case e: Throwable =>
-          println(e.toString)
+          println("Cannot parse record")
       }
     }
+    return count
   }
 
 }
