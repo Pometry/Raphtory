@@ -36,7 +36,7 @@ class RandomSpout extends SpoutTrait {
           println(s"Frequency increased, new frequency: $freq")
         }
       case "random" => {
-        if(isSafe) {
+        if(isSafe()) {
           genRandomCommands(freq/1000)
         }
       }

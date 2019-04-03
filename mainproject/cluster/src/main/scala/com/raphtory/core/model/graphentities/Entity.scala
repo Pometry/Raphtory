@@ -23,12 +23,8 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   var properties:ParTrieMap[String,Property] = ParTrieMap[String, Property]()
 
   // History of that entity
-  var previousState : mutable.TreeMap[Long, Boolean] = null
-  var compressedState: mutable.TreeMap[Long, Boolean] = null
-  if (!addOnly) {
-    previousState = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
-    compressedState = mutable.TreeMap()(HistoryOrdering)
-  }
+  var previousState : mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+  var compressedState: mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
   private var saved = false
   var shouldBeWiped = false
 
@@ -38,7 +34,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   var originalHistorySize : AtomicLong=  AtomicLong(0)
 
   // History of that entity
-  var removeList: mutable.TreeMap[Long,Boolean] = null
+  var removeList: mutable.TreeMap[Long,Boolean] = mutable.TreeMap()(HistoryOrdering)
 
   if(isInitialValue)
     removeList = mutable.TreeMap()(HistoryOrdering)
@@ -262,3 +258,8 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   }*/
 
 //************* END PRINT ENTITY DETAILS BLOCK *********************\\
+
+//if (!addOnly) {
+//  previousState = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+//  compressedState = mutable.TreeMap()(HistoryOrdering)
+// }

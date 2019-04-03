@@ -49,7 +49,7 @@ class LoggingSlave extends RaphtoryActor{
       kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount)
       reportSizes(edgesGauge, EntityStorage.edges,id)
       reportSizes(verticesGauge, EntityStorage.vertices,id)
-      
+
     }
   }
 
