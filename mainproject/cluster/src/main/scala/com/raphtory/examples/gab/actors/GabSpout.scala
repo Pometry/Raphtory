@@ -32,6 +32,7 @@ final class GabSpout extends SpoutTrait {
   //ddClusterListener(new LoggingClusterListener).build
   private val mongoConn = MongoConnection("138.37.32.67", 27017)
   private val mongoColl = mongoConn("gab")("posts")
+  private var window = 1000
   private var postMin = 0
   private var postMax = 1001
 
@@ -42,21 +43,27 @@ final class GabSpout extends SpoutTrait {
 
   override def preStart() {
     super.preStart()
-    sched = context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, SECONDS), self, "parsePost")
+    sched = context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "parsePost")
+    context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "required") //for setting the amount of messages
   }
 
   override protected def processChildMessages(rcvdMessage: Any): Unit = {
     rcvdMessage match {
       case "parsePost" => running()
+      case "required" => window = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt
     }
   }
 
   override def running(): Unit = {
     if (isSafe) {
       val count = getNextPosts()
-      postMin += 1000
-      postMax += 1000
+      postMin += window
+      postMax += window
       println(s"Current min post is $postMin, max post is $postMax, last call retrieved $count posts")
+      context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "parsePost")
+    }
+    else{
+      context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "parsePost")
     }
   }
 
