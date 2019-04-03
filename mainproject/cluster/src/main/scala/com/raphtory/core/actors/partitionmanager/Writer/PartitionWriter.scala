@@ -30,6 +30,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   var childMap              : ParTrieMap[Int,ActorRef] = ParTrieMap[Int,ActorRef]()
   val children              : Int = 10
   val logChild              : ActorRef = context.actorOf(Props[LoggingSlave],s"logger")
+  val logChildForSize       : ActorRef = context.actorOf(Props[LoggingSlave],s"logger2")
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
 
@@ -61,11 +62,12 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
  }
 
   def log() = {
-    val messageCount = storage.messageCount.get()
+    val messageCount = storage.messageCount.get()/10
     storage.messageCount.set(0)
-    val secondaryMessageCount = storage.secondaryMessageCount.get()
+    val secondaryMessageCount = storage.secondaryMessageCount.get()/10
     storage.secondaryMessageCount.set(0)
     logChild  ! ReportIntake(messageCount,secondaryMessageCount,managerID)
+    logChildForSize ! ReportSize(managerID)
   }
 
 
