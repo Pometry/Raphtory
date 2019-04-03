@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.Actor
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.model.communication.ReportIntake
+import com.raphtory.core.model.communication.{ReportIntake, ReportSize}
 import com.raphtory.core.model.graphentities.Entity
 import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
