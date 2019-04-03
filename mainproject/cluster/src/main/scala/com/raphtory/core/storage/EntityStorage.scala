@@ -309,7 +309,8 @@ object EntityStorage {
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
     newEdgeKey(workerID,index)
-    properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the list
+    if (properties != null)
+      properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the list
     mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgTime,srcId,dstId,deaths),false)
   }
 
