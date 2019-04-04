@@ -50,7 +50,10 @@ final class GabSpout extends SpoutTrait {
   override protected def processChildMessages(rcvdMessage: Any): Unit = {
     rcvdMessage match {
       case "parsePost" => running()
-      case "required" => {window = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt;postMax+=(window-1000);println("Hello")}
+      case "required" => {
+        window = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt
+        postMax+=(window-1000)
+        println(s"Warm-up finished, updater now running at ${window-1000} posts/s")}
     }
   }
 
