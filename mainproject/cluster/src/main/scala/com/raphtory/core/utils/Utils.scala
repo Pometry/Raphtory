@@ -93,7 +93,8 @@ object Utils {
     for((k,v) <- history){
       s = s+ s"$k : '${StringEscapeUtils.escapeJava(v)}', "
     }
-    s.dropRight(2) + "}"
-
+    s = s.dropRight(2) + "}"
+    println(s)
+    s
   }
 }
