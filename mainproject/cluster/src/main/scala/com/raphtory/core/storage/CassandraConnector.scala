@@ -16,7 +16,7 @@ import scala.collection.parallel.mutable._
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
-import org.apache.commons.lang.StringEscapeUtils
+
 
 
 class Connector {
