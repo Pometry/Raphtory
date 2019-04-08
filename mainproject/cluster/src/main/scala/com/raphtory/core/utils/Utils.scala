@@ -91,7 +91,7 @@ object Utils {
     }
     var s = "{"
     for((k,v) <- history){
-      s = s+ s"$k : '${StringEscapeUtils.escapeJava(v)}', "
+      s = s+ s"$k : '${StringEscapeUtils.escapeJava(v.replaceAll("'",""))}', "
     }
     s = s.dropRight(2) + "}"
     s
