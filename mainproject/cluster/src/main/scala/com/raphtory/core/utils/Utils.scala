@@ -94,7 +94,6 @@ object Utils {
       s = s+ s"$k : '${StringEscapeUtils.escapeJava(v)}', "
     }
     s = s.dropRight(2) + "}"
-    println(s)
     s
   }
 }

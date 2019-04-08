@@ -33,8 +33,8 @@ final class GabSpout extends SpoutTrait {
   private val mongoConn = MongoConnection("138.37.32.67", 27017)
   private val mongoColl = mongoConn("gab")("posts")
   private var window = 1000
-  private var postMin = 0
-  private var postMax = 1001
+  private var postMin = 10000000
+  private var postMax = 10001001
 
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
@@ -53,7 +53,7 @@ final class GabSpout extends SpoutTrait {
       case "required" => {
         window = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt
         postMax+=(window-1000)
-        println(s"Warm-up finished, updater now running at ${window-1000} posts/s")}
+        println(s"Warm-up finished, updater now running at ${window} posts/s")}
     }
   }
 

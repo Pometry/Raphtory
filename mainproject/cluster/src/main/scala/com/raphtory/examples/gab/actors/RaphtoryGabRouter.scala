@@ -30,6 +30,7 @@ final class RaphtoryGabRouter(val routerId:Int, val initialManagerCount:Int) ext
   override def parseRecord(record:Any) : Unit= {
     try{
       val command = record.asInstanceOf[String]
+   //   println(command)
       val post = command.parseJson.convertTo[GabPost]
       sendPostToPartitions(post)
     }
@@ -46,6 +47,10 @@ final class RaphtoryGabRouter(val routerId:Int, val initialManagerCount:Int) ext
   def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false, parent : Int = 0) : Unit = {
     val postUUID  = post.id.get.toInt
     val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
+    if(timestamp == 0) {
+      println("No timestamp")
+      return //Ignore posts without a timestamp
+    }
     toPartitionManager(VertexAddWithProperties(routerId,timestamp, postUUID, Map(
       "user"         -> {post.user match {
         case Some(u) => u.id.toString

@@ -104,6 +104,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     println("Try to archive")
     if(!spaceForExtraHistory) { //check if we need to archive
       removalPoint = cutOff(false) // get the cut off for 10% of the compressed history
+      removePointGlobal = removalPoint
       edgeArchiver ! ArchiveEdges(removalPoint) //send the archive request to the children
       vertexArchiver ! ArchiveVertices(removalPoint)
 

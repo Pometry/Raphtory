@@ -45,6 +45,7 @@ class Property(creationTime: Long,
     var swapped = false
     if (getPreviousStateSize() > 1) {
       for ((k, v) <- previousState) {
+        //println(cutoff + " " + k)
         if (k < cutoff) {
           if (swapped) { //as we are adding prev skip the value on the pivot as it is already added
             if (!(v equals prev._2)) {
