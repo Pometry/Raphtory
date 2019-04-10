@@ -42,7 +42,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   override def preStart() {
     println("starting writer")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "tick")
-    context.system.scheduler.schedule(Duration(8, SECONDS), Duration(10, SECONDS), self, "keep_alive")
+    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "keep_alive")
 
      for(i <- 0 to children){ //create threads for writing
        childMap.put(i,context.system.actorOf(Props(new WritingSlave(i)),s"Manager_${managerID}_child_$i"))
