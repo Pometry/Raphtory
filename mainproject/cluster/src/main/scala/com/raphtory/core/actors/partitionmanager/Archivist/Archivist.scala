@@ -90,17 +90,17 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   def compressEnder(name:String): Unit = {
     if(name equals("edge")){ //if the edge is finished, report this to the user and save the result
       println(s"finished $name compressing in ${(System.currentTimeMillis()-edgeCompressionTime)/1000} seconds")
-      archGauge.refine("actor" -> "Archivist", "name" -> "edgeCompressionTime").set((System.currentTimeMillis()-edgeCompressionTime)/1000).asInstanceOf[Long])
+      archGauge.refine("actor" -> "Archivist", "name" -> "edgeCompressionTime").set((System.currentTimeMillis()-edgeCompressionTime)/1000)
       edgeCompressionFinished = true
     }
     if(name equals("vertex")){ // if the vertices are finished, save this and report it to the user
       println(s"finished $name compressing in ${(System.currentTimeMillis()-vertexCompressionTime)/1000}seconds")
-      archGauge.refine("actor" -> "Archivist", "name" -> "vertexCompressionTime").set((System.currentTimeMillis()-vertexCompressionTime)/1000)/1000).asInstanceOf[Long])
+      archGauge.refine("actor" -> "Archivist", "name" -> "vertexCompressionTime").set((System.currentTimeMillis()-vertexCompressionTime)/1000)
       vertexCompressionFinished = true
     }
     if(edgeCompressionFinished && vertexCompressionFinished){ //if both are finished
       println(s"finished total compression in ${(System.currentTimeMillis()-totalCompressionTime)/1000} seconds") //report this to the user
-      archGauge.refine("actor" -> "Archivist", "name" -> "totalCompressionTime").set((System.currentTimeMillis()-totalCompressionTime)/1000)/1000)/1000).asInstanceOf[Long])
+      archGauge.refine("actor" -> "Archivist", "name" -> "totalCompressionTime").set((System.currentTimeMillis()-totalCompressionTime)/1000)
       lastSaved = newLastSaved
       EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
       vertexCompressionFinished = false //reset the compression vars
