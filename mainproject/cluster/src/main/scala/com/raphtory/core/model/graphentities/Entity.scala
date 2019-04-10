@@ -23,12 +23,8 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   var properties:ParTrieMap[String,Property] = ParTrieMap[String, Property]()
 
   // History of that entity
-  var previousState : mutable.TreeMap[Long, Boolean] = null
-  var compressedState: mutable.TreeMap[Long, Boolean] = null
-  if (!addOnly) {
-    previousState = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
-    compressedState = mutable.TreeMap()(HistoryOrdering)
-  }
+  var previousState : mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+  var compressedState: mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
   private var saved = false
   var shouldBeWiped = false
 
@@ -38,7 +34,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   var originalHistorySize : AtomicLong=  AtomicLong(0)
 
   // History of that entity
-  var removeList: mutable.TreeMap[Long,Boolean] = null
+  var removeList: mutable.TreeMap[Long,Boolean] = mutable.TreeMap()(HistoryOrdering)
 
   if(isInitialValue)
     removeList = mutable.TreeMap()(HistoryOrdering)
@@ -145,7 +141,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     var removed = 0
     var propRemoval = 0
     val removeFrom = if(compressing) compressedState else previousState
-    val removeFromSize = removeFrom.size
+    val head = removeFrom.head
     for((k,v) <- removeFrom){
       if(k<cutoff){
         removed +=1
@@ -157,7 +153,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     for ((propkey, propval) <- properties) {
       propRemoval = propRemoval + propval.removeAncientHistory(cutoff,compressing)
     } //do the same for all properties
-    val allOld = newestPoint.get<cutoff
+    val allOld = newestPoint.get<cutoff && !head._2 //all points older than cutoff and latest update is deletion
     (false,allOld,removed,propRemoval)
   }
 
@@ -262,3 +258,8 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   }*/
 
 //************* END PRINT ENTITY DETAILS BLOCK *********************\\
+
+//if (!addOnly) {
+//  previousState = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+//  compressedState = mutable.TreeMap()(HistoryOrdering)
+// }

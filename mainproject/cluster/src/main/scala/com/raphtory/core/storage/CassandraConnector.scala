@@ -12,9 +12,12 @@ import monix.execution.atomic.AtomicInt
 
 import scala.collection.{mutable, parallel}
 import scala.collection.parallel.mutable._
+
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+
+
 
 class Connector {
   val default: CassandraConnection = ContactPoint.local

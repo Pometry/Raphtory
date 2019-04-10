@@ -9,6 +9,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 	val Scala           = "2.12.4"
 	val Slf4j           = "1.7.7"
 	//val ScalaJack		    = "4.0"
+
 	val SbtPackager 	  = "1.2.0"
 
 
@@ -37,6 +38,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 	val logback			    = "ch.qos.logback" 			% "logback-classic"	    % Logback
 	val slf4j_simple 	  = "org.slf4j" 					% "slf4j-api" 					% "1.7.25"
 	val redis 					= "net.debasishg"       %% "redisclient"        % "3.5"
+	val apacheLang 			= "commons-lang" 				%  "commons-lang" 			% "2.6"
 
 	//Zookeeper tings
 	val curator1        = "org.apache.curator"  % "curator-framework"   % "2.12.0"
@@ -78,7 +80,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		//resolvers					  ++= kamon_repos,
 		scalacOptions				:= Seq("-feature", "-deprecation", "-encoding", "UTF8", "-unchecked"),
 		testOptions in Test += Tests.Argument("-oDF"),
-		version 					:= "ben"
+		version 					:= "dante"
 
 	)
 
@@ -115,7 +117,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 			dep_compile(
 				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_dist_data,
 				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
-				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval,casbah,mongo,lift,phantom)
+				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval,casbah,mongo,lift,phantom,
+				apacheLang)
 		)
 	  	.settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",

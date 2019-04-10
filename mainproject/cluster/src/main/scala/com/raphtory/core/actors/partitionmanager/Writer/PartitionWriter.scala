@@ -30,6 +30,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   var childMap              : ParTrieMap[Int,ActorRef] = ParTrieMap[Int,ActorRef]()
   val children              : Int = 10
   val logChild              : ActorRef = context.actorOf(Props[LoggingSlave],s"logger")
+  val logChildForSize       : ActorRef = context.actorOf(Props[LoggingSlave],s"logger2")
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
 
@@ -41,7 +42,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   override def preStart() {
     println("starting writer")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "tick")
-    context.system.scheduler.schedule(Duration(8, SECONDS), Duration(10, SECONDS), self, "keep_alive")
+    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "keep_alive")
 
      for(i <- 0 to children){ //create threads for writing
        childMap.put(i,context.system.actorOf(Props(new WritingSlave(i)),s"Manager_${managerID}_child_$i"))
@@ -61,11 +62,12 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
  }
 
   def log() = {
-    val messageCount = storage.messageCount.get()
+    val messageCount = storage.messageCount.get()/10
     storage.messageCount.set(0)
-    val secondaryMessageCount = storage.secondaryMessageCount.get()
+    val secondaryMessageCount = storage.secondaryMessageCount.get()/10
     storage.secondaryMessageCount.set(0)
     logChild  ! ReportIntake(messageCount,secondaryMessageCount,managerID)
+    logChildForSize ! ReportSize(managerID)
   }
 
 

@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.Actor
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.model.communication.ReportIntake
+import com.raphtory.core.model.communication.{ReportIntake, ReportSize}
 import com.raphtory.core.model.graphentities.Entity
 import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
@@ -23,6 +23,7 @@ class LoggingSlave extends RaphtoryActor{
 
   override def receive:Receive = {
     case ReportIntake(mainMessages,secondaryMessages,partitionId) => reportIntake(mainMessages,secondaryMessages,partitionId)
+    case ReportSize(partitionid) => {reportSizes(edgesGauge, EntityStorage.edges,partitionid);reportSizes(verticesGauge, EntityStorage.vertices,partitionid)}
 
   }
 
@@ -47,9 +48,8 @@ class LoggingSlave extends RaphtoryActor{
     if (kLogging) {
       kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount)
       kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount)
-      reportSizes(edgesGauge, EntityStorage.edges,id)
-      reportSizes(verticesGauge, EntityStorage.vertices,id)
-      
+
+
     }
   }
 

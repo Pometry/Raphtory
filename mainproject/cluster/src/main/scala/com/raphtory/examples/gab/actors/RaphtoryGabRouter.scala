@@ -23,14 +23,20 @@ import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-final class RaphtoryGabRaphtoryRouter(val routerId:Int,val initialManagerCount:Int) extends RouterSlave {
+final class RaphtoryGabRouter(val routerId:Int, val initialManagerCount:Int) extends RouterSlave {
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
   import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   private val nullStr = "null"
   override def parseRecord(record:Any) : Unit= {
-    val command = record.asInstanceOf[String]
-    val post = command.parseJson.convertTo[GabPost]
-    sendPostToPartitions(post)
+    try{
+      val command = record.asInstanceOf[String]
+      val post = command.parseJson.convertTo[GabPost]
+      sendPostToPartitions(post)
+    }
+    catch {
+      case e:Exception => println("Could not parse post")
+    }
+
     //val parsedOBJ: Command = command.parseJson.convertTo[Command]
     //val manager = getManager(parsedOBJ.value.srcId, getManagerCount)
     //mediator ! DistributedPubSubMediator.Send(manager, parsedOBJ.value, false)

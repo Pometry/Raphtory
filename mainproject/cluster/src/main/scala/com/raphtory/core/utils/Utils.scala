@@ -3,7 +3,7 @@ package com.raphtory.core.utils
 import akka.actor.ActorContext
 import com.raphtory.core.model.graphentities.{Edge, RemoteEdge, RemotePos}
 import com.typesafe.config.ConfigFactory
-
+import org.apache.commons.lang.StringEscapeUtils
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
@@ -91,9 +91,10 @@ object Utils {
     }
     var s = "{"
     for((k,v) <- history){
-      s = s+ s"$k : '$v', "
+      s = s+ s"$k : '${StringEscapeUtils.escapeJava(v)}', "
     }
-    s.dropRight(2) + "}"
-
+    s = s.dropRight(2) + "}"
+    println(s)
+    s
   }
 }

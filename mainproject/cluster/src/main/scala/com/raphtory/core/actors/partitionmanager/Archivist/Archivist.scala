@@ -14,6 +14,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.concurrent.duration._
 
+
+import kamon.Kamon
+import kamon.metric.MeasurementUnit
+
 //TODO fix edges
 
 
@@ -58,6 +62,8 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   val vertexArchiver   =  context.actorOf(Props[ArchivingManager],"vertexarchiver");
   val children         =  10
 
+  val archGauge         = Kamon.gauge("raphtory_archivist")
+
   override def preStart() {
     edgeCompressor   ! SetupSlave(children) //bring the slaves of all components online
     vertexCompressor ! SetupSlave(children)
@@ -84,14 +90,17 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   def compressEnder(name:String): Unit = {
     if(name equals("edge")){ //if the edge is finished, report this to the user and save the result
       println(s"finished $name compressing in ${(System.currentTimeMillis()-edgeCompressionTime)/1000} seconds")
+      archGauge.refine("actor" -> "Archivist", "name" -> "edgeCompressionTime").set((System.currentTimeMillis()-edgeCompressionTime)/1000).asInstanceOf[Long])
       edgeCompressionFinished = true
     }
     if(name equals("vertex")){ // if the vertices are finished, save this and report it to the user
       println(s"finished $name compressing in ${(System.currentTimeMillis()-vertexCompressionTime)/1000}seconds")
+      archGauge.refine("actor" -> "Archivist", "name" -> "vertexCompressionTime").set((System.currentTimeMillis()-vertexCompressionTime)/1000)/1000).asInstanceOf[Long])
       vertexCompressionFinished = true
     }
     if(edgeCompressionFinished && vertexCompressionFinished){ //if both are finished
       println(s"finished total compression in ${(System.currentTimeMillis()-totalCompressionTime)/1000} seconds") //report this to the user
+      archGauge.refine("actor" -> "Archivist", "name" -> "totalCompressionTime").set((System.currentTimeMillis()-totalCompressionTime)/1000)/1000)/1000).asInstanceOf[Long])
       lastSaved = newLastSaved
       EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
       vertexCompressionFinished = false //reset the compression vars
@@ -117,11 +126,17 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     if(name equals("edge")){
       println(s"finished $name archiving in ${(System.currentTimeMillis()-edgeArchiveTime)/1000} seconds")
       println(s"${archived._2} History points removed, ${archived._1} Property points removed, ${archived._3} Full Edges removed")
+      archGauge.refine("actor" -> "Archivist", "name" -> "edgeHistoryRemoved").set((archived._2).asInstanceOf[Long])
+      archGauge.refine("actor" -> "Archivist", "name" -> "edgePropertyRemoved").set((archived._1).asInstanceOf[Long])
+      archGauge.refine("actor" -> "Archivist", "name" -> "edgeEdgesRemoved").set((archived._3).asInstanceOf[Long])
       edgeArchivingFinished = true
     }
     if(name equals("vertex")){
       println(s"finished $name archiving in ${(System.currentTimeMillis()-vertexArchiveTime)/1000}seconds")
       println(s"${archived._2} History points removed, ${archived._1} Property points removed, ${archived._3} Full Vertices removed")
+      archGauge.refine("actor" -> "Archivist", "name" -> "vertexHistoryRemoved").set((archived._2).asInstanceOf[Long])
+      archGauge.refine("actor" -> "Archivist", "name" -> "vertexPropertyRemoved").set((archived._1).asInstanceOf[Long])
+      archGauge.refine("actor" -> "Archivist", "name" -> "vertexVerticesRemoved").set((archived._3).asInstanceOf[Long])
       vertexArchivingFinished = true
     }
 
@@ -129,6 +144,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       vertexArchivingFinished = false
       edgeArchivingFinished = false
       println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
+      archGauge.refine("actor" -> "Archivist", "name" -> "totalArchiveTime").set((((System.currentTimeMillis()-totalArchiveTime)/1000)).asInstanceOf[Long])
       EntityStorage.oldestTime = removePointGlobal
       context.system.scheduler.scheduleOnce(10.second, self, "compress")
       System.gc() //suggest a good time to garbage collect
@@ -144,6 +160,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     val total = usedMemory/(totalMemory).asInstanceOf[Float]
     //println(s"max ${runtime.maxMemory()} total ${runtime.totalMemory()} diff ${runtime.maxMemory()-runtime.totalMemory()} ")
     println(s"Memory usage at ${total*100}% of ${totalMemory/(1024*1024)}MB")
+    archGauge.refine("actor" -> "Archivist", "name" -> "memoryPercentage").set((total*100).asInstanceOf[Long])
     if(total < (1-maximumMem)) true else false
   } //check if used memory less than set maximum
 

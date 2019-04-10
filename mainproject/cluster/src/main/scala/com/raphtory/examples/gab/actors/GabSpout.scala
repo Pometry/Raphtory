@@ -30,8 +30,9 @@ final class GabSpout extends SpoutTrait {
 
   //val options: MongoClientOptions = MongoClientOptions.builder.addCommandListener(new LoggingClusterListener).build()
   //ddClusterListener(new LoggingClusterListener).build
-  private val mongoConn = MongoConnection("138.37.32.68", 27017)
+  private val mongoConn = MongoConnection("138.37.32.67", 27017)
   private val mongoColl = mongoConn("gab")("posts")
+  private var window = 1000
   private var postMin = 0
   private var postMax = 1001
 
@@ -42,35 +43,47 @@ final class GabSpout extends SpoutTrait {
 
   override def preStart() {
     super.preStart()
-    sched = context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, SECONDS), self, "parsePost")
+    sched = context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "parsePost")
+    context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "required") //for setting the amount of messages
   }
 
   override protected def processChildMessages(rcvdMessage: Any): Unit = {
     rcvdMessage match {
       case "parsePost" => running()
+      case "required" => {
+        window = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt
+        postMax+=(window-1000)
+        println(s"Warm-up finished, updater now running at ${window-1000} posts/s")}
     }
   }
 
   override def running(): Unit = {
     if (isSafe) {
-      getNextPosts()
-      postMin += 1000
-      postMax += 1000
-      println(s"Current max post is $postMax")
+      val count = getNextPosts()
+      postMin += window
+      postMax += window
+      println(s"Current min post is $postMin, max post is $postMax, last call retrieved $count posts")
+      context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "parsePost")
+    }
+    else{
+      context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "parsePost")
     }
   }
 
-  private def getNextPosts(): Unit = {
+  private def getNextPosts():Int = {
+    var count =0
     for (x <- mongoColl.find("_id" $lt postMax $gt postMin)) {
       try {
         val data = x.get("data").toString.drop(2).dropRight(1).replaceAll("""\\"""", "").replaceAll("""\\""", "")
+        count +=1
         //println(data)
         sendCommand(data)
       } catch {
         case e: Throwable =>
-          println(e.toString)
+          println("Cannot parse record")
       }
     }
+    return count
   }
 
 }
