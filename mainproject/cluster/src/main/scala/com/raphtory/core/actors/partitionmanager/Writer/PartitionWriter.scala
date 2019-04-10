@@ -41,7 +41,8 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     */
   override def preStart() {
     println("starting writer")
-    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "tick")
+    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "log")
+    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, SECONDS), self, "count")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "keep_alive")
 
      for(i <- 0 to children){ //create threads for writing
@@ -51,7 +52,8 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
 
   override def receive : Receive = {
     //Logging block
-    case "tick"                                                           => log()
+    case "log"                                                           => log()
+    case "count"                                                           => count()
     //misc and startup block
     case UpdatedCounter(newValue)                                         => {managerCount = newValue; storage.setManagerCount(managerCount)}
     case "keep_alive"                                                     =>  mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), localAffinity = false)
@@ -62,12 +64,14 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
  }
 
   def log() = {
-    val messageCount = storage.messageCount.get()/10
+    logChildForSize ! ReportSize(managerID)
+  }
+  def count() = {
+    val messageCount = storage.messageCount.get()
     storage.messageCount.set(0)
-    val secondaryMessageCount = storage.secondaryMessageCount.get()/10
+    val secondaryMessageCount = storage.secondaryMessageCount.get()
     storage.secondaryMessageCount.set(0)
     logChild  ! ReportIntake(messageCount,secondaryMessageCount,managerID)
-    logChildForSize ! ReportSize(managerID)
   }
 
 

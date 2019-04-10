@@ -24,7 +24,8 @@ object Go extends App {
   val conf          = ConfigFactory.load()
   val seedLoc       = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
  // val zookeeper     = s"${sys.env("ZOOKEEPER")}"
-
+ val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+  root.setLevel(Level.ERROR)
   val routerName    = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
   val updaterName   = s"${sys.env.getOrElse("UPDATERCLASS", classOf[RandomSpout].getClass.getName)}"
   val lamName       = s"${sys.env.getOrElse("LAMCLASS", classOf[LiveAnalysisManager].getClass.getName)}"

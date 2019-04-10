@@ -35,10 +35,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
 
   // History of that entity
   var removeList: mutable.TreeMap[Long,Boolean] = mutable.TreeMap()(HistoryOrdering)
-
-  if(isInitialValue)
-    removeList = mutable.TreeMap()(HistoryOrdering)
-  else
+  if(!isInitialValue)
     removeList = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
   /** *
     * Set the Entity has alive at a given time

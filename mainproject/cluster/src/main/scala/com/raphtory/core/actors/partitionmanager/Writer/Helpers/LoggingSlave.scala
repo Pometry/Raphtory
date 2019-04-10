@@ -46,10 +46,9 @@ class LoggingSlave extends RaphtoryActor{
   def reportIntake(messageCount:Int, secondaryMessageCount:Int, id:Int) : Unit = {
     // Kamon monitoring
     if (kLogging) {
+      println(s"id= $id message count  $messageCount")
       kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount)
       kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount)
-
-
     }
   }
 
