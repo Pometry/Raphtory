@@ -69,7 +69,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     vertexCompressor ! SetupSlave(children)
     edgeArchiver     ! SetupSlave(children)
     vertexArchiver   ! SetupSlave(children)
-    context.system.scheduler.scheduleOnce(20.seconds, self,"compress") //start the compression process in 20 seconds
+    context.system.scheduler.scheduleOnce(30.seconds, self,"compress") //start the compression process in 20 seconds
   }
 
   override def receive: Receive = {
@@ -105,7 +105,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
       vertexCompressionFinished = false //reset the compression vars
       edgeCompressionFinished = false
-      context.system.scheduler.scheduleOnce(10.second, self, "archive") //start the archiving process
+      context.system.scheduler.scheduleOnce(30.second, self, "archive") //start the archiving process
     }
   }
 
@@ -113,12 +113,13 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     println("Try to archive")
     if(!spaceForExtraHistory) { //check if we need to archive
       removalPoint = cutOff(false) // get the cut off for 10% of the compressed history
+      removePointGlobal = removalPoint
       edgeArchiver ! ArchiveEdges(removalPoint) //send the archive request to the children
       vertexArchiver ! ArchiveVertices(removalPoint)
 
     }
     else {
-      context.system.scheduler.scheduleOnce(1.second, self,"compress") //if we are not archiving start the compression process again
+      context.system.scheduler.scheduleOnce(10.second, self,"compress") //if we are not archiving start the compression process again
     }
   }
 

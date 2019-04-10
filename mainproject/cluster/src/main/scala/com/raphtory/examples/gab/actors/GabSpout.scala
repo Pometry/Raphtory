@@ -36,6 +36,7 @@ final class GabSpout extends SpoutTrait {
   private var postMin = 0
   private var postMax = 1001
 
+
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
   // private val mongoLogger = Logger.getLogger("org.mongodb.driver.cluster")
@@ -53,7 +54,7 @@ final class GabSpout extends SpoutTrait {
       case "required" => {
         window = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt
         postMax+=(window-1000)
-        println(s"Warm-up finished, updater now running at ${window-1000} posts/s")}
+        println(s"Warm-up finished, updater now running at ${window} posts/s")}
     }
   }
 

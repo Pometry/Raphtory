@@ -141,7 +141,9 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     var removed = 0
     var propRemoval = 0
     val removeFrom = if(compressing) compressedState else previousState
-    val head = removeFrom.head
+    var head = false
+    if(!removeFrom.isEmpty)
+      head = removeFrom.head._2
     for((k,v) <- removeFrom){
       if(k<cutoff){
         removed +=1
@@ -153,7 +155,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     for ((propkey, propval) <- properties) {
       propRemoval = propRemoval + propval.removeAncientHistory(cutoff,compressing)
     } //do the same for all properties
-    val allOld = newestPoint.get<cutoff && !head._2 //all points older than cutoff and latest update is deletion
+    val allOld = newestPoint.get<cutoff && !head //all points older than cutoff and latest update is deletion
     (false,allOld,removed,propRemoval)
   }
 
