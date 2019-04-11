@@ -19,17 +19,6 @@ object Utils {
     context.actorSelection(s"akka.tcp://$ip:${config.getString("settings.bport")}/user/WatchDog")
   }
 
-  /**
-    *
-    * @param msgId
-    * @param srcId
-    * @param dstId
-    * @param managerCount
-    * @param managerId
-    * @param edges
-    * @return (Edge, Local, Present)
-    */
-
   def getPartition(ID:Int, managerCount : Int):Int = {
     (ID % (managerCount *10)) /10
   }

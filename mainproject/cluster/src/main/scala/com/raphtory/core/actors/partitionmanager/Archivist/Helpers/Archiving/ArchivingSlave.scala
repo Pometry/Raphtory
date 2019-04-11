@@ -74,7 +74,6 @@ class ArchivingSlave(id:Int) extends Actor{
     var total = 0
     if (allOld.asInstanceOf[Boolean]) {
       EntityStorage.vertices.synchronized {
-        EntityStorage.deleteVertex(e.getId.toInt)
         EntityStorage.vertices.remove(e.getId.toInt)
       }
       total +=1
@@ -88,7 +87,6 @@ class ArchivingSlave(id:Int) extends Actor{
     var total = 0
     if (allOld.asInstanceOf[Boolean]) {
       EntityStorage.edges.synchronized {
-        EntityStorage.deletedEdge(e.getId)
         EntityStorage.edges.remove(e.getId)
       }
       total += 1

@@ -19,14 +19,14 @@ object SingleNodeTest extends App {
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
   RaphtoryDBWrite.clearDB()
-  val partitionNumber = 1
+  val partitionNumber = 2
   val minimumRouters = 1
 
   var routerClassName = "com.raphtory.examples.random.actors.RandomRouter"
-  routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
+  //routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
   //val LamClassName = "com.raphtory.examples.random.actors.TestLAM"
   var UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
-  UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
+  //UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
   //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
   //val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
   //val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
@@ -47,8 +47,9 @@ object SingleNodeTest extends App {
   val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
-  system.actorOf(Props(RaphtoryReplicator("Router",1, routerClassName)), s"Routers")
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager",1)), s"PartitionManager")
+  system.actorOf(Props(RaphtoryReplicator("Router",2, routerClassName)), s"Routers")
+  system.actorOf(Props(RaphtoryReplicator("Partition Manager",2)), s"PartitionManager")
+  system.actorOf(Props(RaphtoryReplicator("Partition Manager",2)), s"PartitionManager2")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
 

@@ -60,11 +60,13 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     else
       incomingEdges.put(edge.getId,edge)
   }
-  def addAssociatedEdge(id: Int,outgoing:Boolean): Unit = {
-    if(outgoing)
-      outgoingIDs += id
-    else
-      incomingIDs += id
+
+  def addIncomingEdge(id:Int) = {
+    incomingIDs += id
+  }
+
+  def addOutgoingEdge(id:Int) = {
+    outgoingIDs += id
   }
 
   /*override def printProperties(): String =
