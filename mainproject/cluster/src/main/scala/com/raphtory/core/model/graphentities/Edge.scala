@@ -57,9 +57,12 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
   */
 
   def killList(vKills: mutable.TreeMap[Long, Boolean]): Unit = {
+    if(vKills == null) {println("vKills"); return}
+    if(removeList == null) {println("removelist"); return}
+    if(previousState == null) {println("previousState"); return}
+      vKills.foreach(f=> if (f==null) {println("inner Null");return})
     removeList ++= vKills
-    if (!addOnly)
-      previousState ++= vKills
+    previousState ++= vKills
   }
 
   override def getId: Long = Utils.getEdgeIndex(srcId, dstId)

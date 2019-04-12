@@ -147,7 +147,7 @@ object EntityStorage {
     }
   }
 
-  def vertexRemoval(workerID:Int,routerID:Int,msgTime:Long,srcId:Int) : Unit = {
+  def vertexRemoval(routerID:Int,workerID:Int,msgTime:Long,srcId:Int) : Unit = {
     var vertex : Vertex = null
     vertices.get(srcId) match {
       case Some(v) => {
