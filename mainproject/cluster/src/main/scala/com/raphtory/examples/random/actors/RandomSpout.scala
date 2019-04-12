@@ -29,7 +29,7 @@ class RandomSpout extends SpoutTrait {
 
   protected def processChildMessages(rcvdMessage : Any): Unit ={
     rcvdMessage match {
-      case "required" => {freq = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt;println(s"Full start ($freq Hz) Entity pool = $pool Ramp flag = $increase")   } // (Updates/s) - Hz
+      case "required" => {freq = System.getenv().getOrDefault("UPDATES_FREQ", "10000").toInt;println(s"Full start ($freq Hz) Entity pool = $pool Ramp flag = $increase")   } // (Updates/s) - Hz
       case "increase" =>
         if (increase) {
           freq += 1000

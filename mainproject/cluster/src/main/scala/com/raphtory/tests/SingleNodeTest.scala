@@ -19,7 +19,7 @@ object SingleNodeTest extends App {
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
   RaphtoryDBWrite.clearDB()
-  val partitionNumber = 2
+  val partitionNumber = 1
   val minimumRouters = 1
 
   var routerClassName = "com.raphtory.examples.random.actors.RandomRouter"
@@ -47,9 +47,9 @@ object SingleNodeTest extends App {
   val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
-  system.actorOf(Props(RaphtoryReplicator("Router",2, routerClassName)), s"Routers")
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager",2)), s"PartitionManager")
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager",2)), s"PartitionManager2")
+  system.actorOf(Props(RaphtoryReplicator("Router",1, routerClassName)), s"Routers")
+  system.actorOf(Props(RaphtoryReplicator("Partition Manager",1)), s"PartitionManager")
+ // system.actorOf(Props(RaphtoryReplicator("Partition Manager",2)), s"PartitionManager2")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
 

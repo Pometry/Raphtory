@@ -17,7 +17,7 @@ class WritingSlave(workerID:Int) extends Actor {
 
     case DstAddForOtherWorker(routerID,msgTime,dstID,srcForEdge,present)  => EntityStorage.vertexWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,present)
     case DstWipeForOtherWorker(routerID,msgTime,dstID,srcForEdge,present) => EntityStorage.vertexWipeWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,present)
-
+    case DstResponseFromOtherWorker(srcForEdge,dstID,removeList)          => EntityStorage.vertexWorkerRequestEdgeHandler(srcForEdge,dstID,removeList)
     case EdgeRemoveForOtherWorker(routerID,msgTime,srcID,dstID)           => EntityStorage.edgeRemovalFromOtherWorker(routerID,msgTime,srcID,dstID)
     //case EdgeRemovalAfterArchiving(routerID,msgTime,srcID,dstID)           => EntityStorage.edgeRemovalAfterArchiving(routerID,workerID,msgTime,srcID,dstID) //disabled at the moment
 

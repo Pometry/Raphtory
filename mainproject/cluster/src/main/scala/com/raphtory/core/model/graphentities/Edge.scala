@@ -63,16 +63,37 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
     }
     catch {
       case e:java.lang.NullPointerException => {
-        if(vKills == null) println("vKills")
-        if(removeList == null) println("removelist")
-        if(previousState == null) println("previousState")
-        vKills.foreach(f=> if (f==null) println("inner Null"))
+        e.printStackTrace()
+        println(vKills)
+        println(removeList)
+        println(previousState)
         println(Utils.getManager(srcId,10))
         println(s"$srcId $dstId $workerID")
+        killList(vKills)
       }
     }
+  }
 
-
+  def killList2(vKills: mutable.TreeMap[Long, Boolean]): Unit = {
+    try{
+      removeList ++= vKills
+      previousState ++= vKills
+      println("retry")
+      println(vKills)
+      println(removeList)
+      println(previousState)
+    }
+    catch {
+      case e:java.lang.NullPointerException => {
+        e.printStackTrace()
+        println(vKills)
+        println(removeList)
+        println(previousState)
+        println(Utils.getManager(srcId,10))
+        println(s"$srcId $dstId $workerID")
+        killList(vKills)
+      }
+    }
   }
 
   override def getId: Long = Utils.getEdgeIndex(srcId, dstId)

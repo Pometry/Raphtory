@@ -120,18 +120,22 @@ object EntityStorage {
     val dstVertex = vertexAdd(routerID,workerID,msgTime, dstID) // do the same for the destination ID
     dstVertex addIncomingEdge(srcForEdge) // do the same for the destination node
     if (!present)
-      edges.get(getEdgeIndex(srcForEdge, dstID)) match {
-        case Some(edge) => edge killList dstVertex.removeList //add the dst removes into the edge
-      }
+      mediator ! DistributedPubSubMediator.Send(getManager(srcForEdge, managerCount), DstResponseFromOtherWorker(srcForEdge,dstID,dstVertex.removeList), false)
   }
+
   def vertexWipeWorkerRequest(routerID:Int,workerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,present:Boolean) ={
     //if the worker creating an edge does not deal with
     val dstVertex = getVertexAndWipe(routerID,workerID,dstID, msgTime) // do the same for the destination ID
     dstVertex addIncomingEdge(srcForEdge) // do the same for the destination node
     if (!present)
-      edges.get(getEdgeIndex(srcForEdge, dstID)) match {
-        case Some(edge) => edge killList dstVertex.removeList //add the dst removes into the edge
-      }
+      mediator ! DistributedPubSubMediator.Send(getManager(srcForEdge, managerCount), DstResponseFromOtherWorker(srcForEdge,dstID,dstVertex.removeList), false)
+  }
+
+  def vertexWorkerRequestEdgeHandler(srcForEdge:Int,dstID:Int,removeList: mutable.TreeMap[Long, Boolean]): Unit ={
+    edges.get(getEdgeIndex(srcForEdge, dstID)) match {
+      case Some(edge) => edge killList removeList //add the dst removes into the edge
+      case None => println("Oh no")
+    }
   }
 
   def getVertexAndWipe(routerID : Int, workerID:Int, id : Int, msgTime : Long) : Vertex = {
