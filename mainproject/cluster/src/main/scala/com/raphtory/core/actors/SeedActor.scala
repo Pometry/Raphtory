@@ -32,17 +32,17 @@ class SeedActor(svr:DocSvr) extends Actor {
 
     // cluster event sent when a cluster member is removed. Unregister the cluster member if it is the parent node
     case state: MemberRemoved => {
-      println("--2--")
+      println("--2--"+ state.member)
       svr.nodes.synchronized {
         svr.nodes -= state.member
       }
     }
 
     case state: UnreachableMember => {
-      println("--3--")
-      svr.nodes.synchronized {
-        svr.nodes -= state.member
-      }
+      println("--3--" + state.member)
+      //svr.nodes.synchronized {
+      //  svr.nodes -= state.member
+     // }
     }
 
     case state: MemberExited => {

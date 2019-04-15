@@ -13,14 +13,20 @@ import kamon.prometheus.PrometheusReporter
 import kamon.system.SystemMetrics
 import java.lang.management.ManagementFactory
 
+import akka.http.scaladsl.server.ExceptionHandler
 import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
 import com.raphtory.examples.random.actors.{RandomRouter, RandomSpout}
+
 import scala.language.postfixOps
 import scala.sys.process._
 //main function
+
+
+
 object Go extends App {
+
   val conf          = ConfigFactory.load()
   val seedLoc       = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
  // val zookeeper     = s"${sys.env("ZOOKEEPER")}"
