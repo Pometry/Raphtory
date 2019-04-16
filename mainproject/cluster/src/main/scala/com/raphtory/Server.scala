@@ -83,7 +83,7 @@ object Go extends App {
       prometheusReporter()
     }
   }
-}
+
   def setConf(seedLoc: String): Unit ={
     println(s"I AM AT $seedLoc")
     prometheusReporter()
@@ -128,8 +128,7 @@ object Go extends App {
 
       override def stop(): Unit = prom.stop()
     }
-
-    Kamon.addReporter(testLogger)
+    //Kamon.addReporter(testLogger)
   }
 
   def hostname2Ip(seedLoc: String): String = {

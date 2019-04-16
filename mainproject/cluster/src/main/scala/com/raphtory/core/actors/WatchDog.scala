@@ -83,20 +83,18 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
 
   def checkMapTime(map: TrieMap[Int,Long]) = map.foreach(pm =>
     if(pm._2 + maxTime <= System.currentTimeMillis())
-      if(debug)println(s"Manager ${pm._1} not responding since ${unixToTimeStamp(pm._2)}"))
+      if(debug)println(s"Manager ${pm._1} not responding since ${Utils.unixToTimeStamp(pm._2)}"))
 
   def mapHandler(id: Int, map:TrieMap[Int,Long], mapType:String) = {
     if(debug)println(s"Inside map handler for $mapType $id")
     map.putIfAbsent(id,System.currentTimeMillis()) match {
       case Some(time) => map.update(id,System.currentTimeMillis())
-      case _ => if(debug)println(s"$mapType $id has started sending keep alive messages at ${nowTimeStamp()}")
+      case _ => if(debug)println(s"$mapType $id has started sending keep alive messages at ${Utils.nowTimeStamp()}")
     }
   }
 
   def getManager(srcId:Int):String = s"/user/Manager_${srcId % managerCount}" //simple srcID hash at the moment
 
-  def unixToTimeStamp(unixTime:Long) = new SimpleDateFormat("dd-MM hh:mm:ss").format(unixTime)
-  def nowTimeStamp()= new SimpleDateFormat("dd-MM hh:mm:ss").format(System.currentTimeMillis())
 
 }
 

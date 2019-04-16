@@ -1,9 +1,12 @@
 package com.raphtory.core.utils
 
+import java.text.SimpleDateFormat
+
 import akka.actor.ActorContext
 import com.raphtory.core.model.graphentities.{Edge, RemoteEdge, RemotePos}
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.lang.StringEscapeUtils
+
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
@@ -84,4 +87,7 @@ object Utils {
     }
     s.dropRight(2) + "}"
   }
+
+  def nowTimeStamp()= new SimpleDateFormat("dd-MM hh:mm:ss").format(System.currentTimeMillis())
+  def unixToTimeStamp(unixTime:Long) = new SimpleDateFormat("dd-MM hh:mm:ss").format(unixTime)
 }

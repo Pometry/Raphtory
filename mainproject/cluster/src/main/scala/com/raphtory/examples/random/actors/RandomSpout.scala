@@ -1,8 +1,10 @@
 package com.raphtory.examples.random.actors
 
-import akka.cluster.pubsub.DistributedPubSubMediator
+import java.text.SimpleDateFormat
 
+import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.spout.SpoutTrait
+import com.raphtory.core.utils.Utils
 import kamon.Kamon
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -27,13 +29,14 @@ class RandomSpout extends SpoutTrait {
 
   }
 
+
   protected def processChildMessages(rcvdMessage : Any): Unit ={
     rcvdMessage match {
       case "required" => {freq = System.getenv().getOrDefault("UPDATES_FREQ", "10000").toInt;println(s"Full start ($freq Hz) Entity pool = $pool Ramp flag = $increase")   } // (Updates/s) - Hz
       case "increase" =>
         if (increase) {
           freq += 1000
-          println(s"Frequency increased, new frequency: $freq")
+          println(s"Frequency increased, new frequency: $freq at ${Utils.nowTimeStamp()}")
         }
       case "random" => {
         if(isSafe()) {
