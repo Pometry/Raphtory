@@ -4,11 +4,11 @@ import java.net.InetAddress
 
 import ch.qos.logback.classic.Level
 import com.raphtory.core.clustersetup._
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.retry.ExponentialBackoffRetry
 import org.slf4j.LoggerFactory
-import kamon.Kamon
+import kamon.{Kamon, MetricReporter}
 import kamon.prometheus.PrometheusReporter
 import kamon.system.SystemMetrics
 import java.lang.management.ManagementFactory
@@ -18,6 +18,7 @@ import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
 import com.raphtory.examples.random.actors.{RandomRouter, RandomSpout}
+import kamon.metric.PeriodSnapshot
 
 import scala.language.postfixOps
 import scala.sys.process._
@@ -40,7 +41,6 @@ object Go extends App {
   val arguments = runtimeMxBean.getInputArguments
 
   println(s"Current java options: ${arguments}")
-
   args(0) match {
     case "seedNode" => {
       println("Creating seed node")
@@ -53,11 +53,11 @@ object Go extends App {
     }
     case "router" => {
       println("Creating Router")
-      RouterNode(getConf(),sys.env("PARTITION_MIN").toInt, routerName)
+      RouterNode(getConf(), sys.env("PARTITION_MIN").toInt, routerName)
     }
     case "partitionManager" => {
       println(s"Creating Patition Manager...")
-      ManagerNode(getConf(),sys.env("PARTITION_MIN").toInt)
+      ManagerNode(getConf(), sys.env("PARTITION_MIN").toInt)
     }
 
     case "updater" => {
@@ -79,11 +79,11 @@ object Go extends App {
     case "singleNodeSetup" => {
       println("putting up cluster in one node")
       //setConf(seedLoc, zookeeper)
-      SingleNodeSetup(hostname2Ip(seedLoc),routerName,updaterName,lamName,sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
+      SingleNodeSetup(hostname2Ip(seedLoc), routerName, updaterName, lamName, sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
       prometheusReporter()
     }
   }
-
+}
   def setConf(seedLoc: String): Unit ={
     println(s"I AM AT $seedLoc")
     prometheusReporter()
@@ -102,11 +102,34 @@ object Go extends App {
 
   def prometheusReporter() = {
     try {
-      SystemMetrics.startCollecting()
+      //SystemMetrics.startCollecting()
     }catch {
       case e:Exception => println("Error in pro")
     }
-    Kamon.addReporter(new PrometheusReporter())
+    val prom = new PrometheusReporter()
+
+
+    val testLogger = new MetricReporter {
+
+      override def reportPeriodSnapshot(snapshot: PeriodSnapshot): Unit = {
+        try {
+          prom.reportPeriodSnapshot(snapshot)
+        }catch {
+          case e:Exception => {
+            println(e)
+            println("Hello I have broken and I cannot get up")
+          }
+        }
+      }
+
+      override def start(): Unit = prom.start()
+
+      override def reconfigure(config: Config): Unit = prom.reconfigure(config)
+
+      override def stop(): Unit = prom.stop()
+    }
+
+    Kamon.addReporter(testLogger)
   }
 
   def hostname2Ip(seedLoc: String): String = {

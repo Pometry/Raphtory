@@ -36,20 +36,36 @@ class LoggingSlave extends RaphtoryActor{
   }
 
   def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map : ParTrieMap[T, U],id:Int) : Unit = {
-    def getGauge(name : String) = {g.refine("actor" -> "PartitionManager", "replica" -> id.toString, "name" -> name)}
-    getGauge("Total number of entities").set(map.size)
-    getGauge("Total number of previous states").set(getEntitiesPrevStates(map))
-    // getGauge("Total number of properties") TODO
-    // getGauge("Number of props previous history") TODO
+    try {
+      def getGauge(name: String) = {
+        g.refine("actor" -> "PartitionManager", "replica" -> id.toString, "name" -> name)
+      }
+
+      getGauge("Total number of entities").set(map.size)
+      getGauge("Total number of previous states").set(getEntitiesPrevStates(map))
+      // getGauge("Total number of properties") TODO
+      // getGauge("Number of props previous history") TODO
+    }catch {
+      case e:Exception =>{
+        println(s"Caught exception in logging: $e")
+      }
+    }
   }
 
   def reportIntake(messageCount:Int, secondaryMessageCount:Int, id:Int) : Unit = {
-    // Kamon monitoring
-    if (kLogging) {
-      //println(s"id= $id message count  $messageCount")
-      kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount)
-      kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount)
+    try {
+      // Kamon monitoring
+      if (kLogging) {
+        //println(s"id= $id message count  $messageCount")
+        kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount)
+        kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount)
+      }
+    } catch {
+      case e: Exception => {
+        println(s"Caught exception in logging: $e")
+      }
     }
   }
+
 
 }
