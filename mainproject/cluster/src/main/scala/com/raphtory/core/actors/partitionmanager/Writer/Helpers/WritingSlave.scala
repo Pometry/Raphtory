@@ -10,10 +10,6 @@ class WritingSlave(workerID:Int) extends Actor {
   mediator ! DistributedPubSubMediator.Put(self)
   //println(akka.serialization.Serialization.serializedActorPath(self))
 
-  override def preStart(): Unit = {
-    println(s"Starting Child $workerID")
-  }
-
   override def receive:Receive = {
     case VertexAdd(routerID,msgTime,srcId)                                => {EntityStorage.vertexAdd(routerID,workerID,msgTime,srcId);                                  vHandle(srcId,msgTime)}
     case VertexRemoval(routerID,msgTime,srcId)                            => {EntityStorage.vertexRemoval(routerID,workerID,msgTime,srcId);                              vHandle(srcId,msgTime)}

@@ -128,7 +128,7 @@ object Go extends App {
 
       override def stop(): Unit = prom.stop()
     }
-    //Kamon.addReporter(testLogger)
+    Kamon.addReporter(testLogger)
   }
 
   def hostname2Ip(seedLoc: String): String = {

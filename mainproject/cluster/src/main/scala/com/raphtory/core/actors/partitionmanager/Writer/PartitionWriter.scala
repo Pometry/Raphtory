@@ -2,13 +2,16 @@ package com.raphtory.core.actors.partitionmanager.Writer
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import akka.actor.SupervisorStrategy.{Restart, Resume}
 import akka.actor.{ActorRef, OneForOneStrategy, Props, SupervisorStrategy, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import akka.japi.Util
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.partitionmanager.Writer.Helpers.{LoggingSlave, WritingSlave}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.Entity
 import com.raphtory.core.storage.EntityStorage
+import com.raphtory.core.utils.Utils
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.parallel.mutable.ParTrieMap
@@ -29,6 +32,12 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   val children              : Int = 10
   val logChild              : ActorRef = context.actorOf(Props[LoggingSlave],s"logger")
   val logChildForSize       : ActorRef = context.actorOf(Props[LoggingSlave],s"logger2")
+  for(i <- 0 to children){ //create threads for writing
+    val child = context.actorOf(Props(new WritingSlave(i)),s"child_$i")
+    context.watch(child)
+    childMap.put(i,child)
+
+  }
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
 
@@ -37,9 +46,13 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
     */
-  override val supervisorStrategy = OneForOneStrategy() {
-    case e: Exception => {e.printStackTrace(); SupervisorStrategy.Restart}
+  override def supervisorStrategy = OneForOneStrategy() {
+    case e: Exception => {e.printStackTrace(); Resume}
   }
+
+  import akka.actor.OneForOneStrategy
+  import akka.actor.SupervisorStrategy
+  import scala.concurrent.duration.Duration
 
   override def preStart() {
     println("starting writer")
@@ -47,12 +60,8 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, SECONDS), self, "count")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "keep_alive")
 
-     for(i <- 0 to children){ //create threads for writing
-       val child = context.system.actorOf(Props(new WritingSlave(i)),s"Manager_${managerID}_child_$i")
-       context.watch(child)
-       childMap.put(i,child)
 
-     }
+    println(context.children)
    }
 
   override def receive : Receive = {
@@ -62,7 +71,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     case Terminated(child)                                                  => println(s"manager $managerID ${child.path} has died")
     //misc and startup block
     case UpdatedCounter(newValue)                                           => {managerCount = newValue; storage.setManagerCount(managerCount)}
-    case "keep_alive"                                                       =>  mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), localAffinity = false)
+    case "keep_alive"                                                       =>  {mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), localAffinity = false);println(s"Manager $managerID sending update to watchdog at ${Utils.nowTimeStamp()}")}
     case e => println(s"Not handled message ${e.getClass} ${e.toString}")
 
 //    case EdgeUpdateProperty(msgTime, edgeId, key, value)                  => storage.updateEdgeProperties(msgTime, edgeId, key, value)   //for data coming from the LAM

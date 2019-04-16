@@ -31,7 +31,6 @@ class RaphtoryRouter(val routerId:Int, val initialManagerCount:Int, slaveType:St
       childMap.put(i,context.actorOf(Props(Class.forName(slaveType),routerId,initialManagerCount),s"child_$i"))
     }
   }
-
   override def receive: Receive = {
     case "tick" => tick()
     case "keep_alive" => keepAlive()
