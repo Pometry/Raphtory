@@ -2,7 +2,7 @@ package com.raphtory.core.actors.partitionmanager.Writer
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorRef, OneForOneStrategy, Props, SupervisorStrategy, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.partitionmanager.Writer.Helpers.{LoggingSlave, WritingSlave}
@@ -10,9 +10,7 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.Entity
 import com.raphtory.core.storage.EntityStorage
 
-
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration._
 
@@ -39,6 +37,10 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
     */
+  override val supervisorStrategy = OneForOneStrategy() {
+    case e: Exception => {e.printStackTrace(); SupervisorStrategy.Restart}
+  }
+
   override def preStart() {
     println("starting writer")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "log")
@@ -46,17 +48,21 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "keep_alive")
 
      for(i <- 0 to children){ //create threads for writing
-       childMap.put(i,context.system.actorOf(Props(new WritingSlave(i)),s"Manager_${managerID}_child_$i"))
+       val child = context.system.actorOf(Props(new WritingSlave(i)),s"Manager_${managerID}_child_$i")
+       context.watch(child)
+       childMap.put(i,child)
+
      }
    }
 
   override def receive : Receive = {
     //Logging block
-    case "log"                                                           => log()
-    case "count"                                                           => count()
+    case "log"                                                              => log()
+    case "count"                                                            => count()
+    case Terminated(child)                                                  => println(s"manager $managerID ${child.path} has died")
     //misc and startup block
-    case UpdatedCounter(newValue)                                         => {managerCount = newValue; storage.setManagerCount(managerCount)}
-    case "keep_alive"                                                     =>  mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), localAffinity = false)
+    case UpdatedCounter(newValue)                                           => {managerCount = newValue; storage.setManagerCount(managerCount)}
+    case "keep_alive"                                                       =>  mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), localAffinity = false)
     case e => println(s"Not handled message ${e.getClass} ${e.toString}")
 
 //    case EdgeUpdateProperty(msgTime, edgeId, key, value)                  => storage.updateEdgeProperties(msgTime, edgeId, key, value)   //for data coming from the LAM

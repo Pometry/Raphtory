@@ -378,7 +378,7 @@ object EntityStorage {
       case Some(e) => {
         e kill msgTime
       }
-      case None    => println(s"Worker ID $workerID Manager ID $managerID")
+      case None    => //println(s"Worker ID $workerID Manager ID $managerID")
     }
   }
 
