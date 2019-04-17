@@ -40,6 +40,7 @@ trait SpoutTrait extends RaphtoryActor with Timers {
     currentMessage+=1
     Kamon.counter("raphtory.updateGen.commandsSent").increment()
     kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
+    currentMessage % 10
   }
 
   //TODO: Need to move Gab parsing to router
@@ -51,8 +52,8 @@ trait SpoutTrait extends RaphtoryActor with Timers {
   }
 
   protected def sendCommand(command: String) : Unit = {
-    recordUpdate()
-    mediator ! DistributedPubSubMediator.Send("/user/router", command /*Command(command, value)*/, false)
+    val child = recordUpdate()
+    mediator ! DistributedPubSubMediator.Send(s"/user/router", command /*Command(command, value)*/, false)
   }
 
   protected def sendCommand[T <: SpoutGoing](command:T): Unit = {

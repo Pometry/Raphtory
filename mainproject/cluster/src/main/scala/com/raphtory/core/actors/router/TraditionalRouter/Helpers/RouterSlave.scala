@@ -18,7 +18,7 @@ trait RouterSlave extends Actor {
 
   override def receive = {
     case UpdatedCounter(newValue) => newPmJoined(newValue)
-    case AllocateJob(record) => parseRecord(record)
+    case AllocateJob(record) => {parseRecord(record)}
   }
 
   def toPartitionManager[T <: RaphWriteClass](message:T): Unit = mediator ! DistributedPubSubMediator.Send(getManager(message.srcId, getManagerCount), message , false)
