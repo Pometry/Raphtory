@@ -69,7 +69,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     vertexCompressor ! SetupSlave(children)
     edgeArchiver     ! SetupSlave(children)
     vertexArchiver   ! SetupSlave(children)
-    //context.system.scheduler.scheduleOnce(30.seconds, self,"compress") //start the compression process in 20 seconds
+    context.system.scheduler.scheduleOnce(30.seconds, self,"compress") //start the compression process in 20 seconds
   }
 
   override def receive: Receive = {

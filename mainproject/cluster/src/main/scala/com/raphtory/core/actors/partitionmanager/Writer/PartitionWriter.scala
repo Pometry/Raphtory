@@ -71,7 +71,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     case Terminated(child)                                                  => println(s"manager $managerID ${child.path} has died")
     //misc and startup block
     case UpdatedCounter(newValue)                                           => {managerCount = newValue; storage.setManagerCount(managerCount)}
-    case "keep_alive"                                                       =>  {mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), localAffinity = false);println(s"Manager $managerID sending update to watchdog at ${Utils.nowTimeStamp()}")}
+    case "keep_alive"                                                       =>  mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), localAffinity = false)
     case e => println(s"Not handled message ${e.getClass} ${e.toString}")
 
 //    case EdgeUpdateProperty(msgTime, edgeId, key, value)                  => storage.updateEdgeProperties(msgTime, edgeId, key, value)   //for data coming from the LAM
