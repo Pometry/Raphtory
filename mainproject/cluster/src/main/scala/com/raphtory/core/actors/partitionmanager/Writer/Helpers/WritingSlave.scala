@@ -15,10 +15,10 @@ class WritingSlave(workerID:Int) extends Actor {
     case VertexRemoval(routerID,msgTime,srcId)                            => {EntityStorage.vertexRemoval(routerID,workerID,msgTime,srcId);                              vHandle(srcId,msgTime)}
     case VertexAddWithProperties(routerID,msgTime,srcId,properties)       => {EntityStorage.vertexAdd(routerID,workerID,msgTime,srcId,properties);                       vHandle(srcId,msgTime)}
 
-    case DstAddForOtherWorker(routerID,msgTime,dstID,srcForEdge,present)  => EntityStorage.vertexWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,present)
-    case DstWipeForOtherWorker(routerID,msgTime,dstID,srcForEdge,present) => EntityStorage.vertexWipeWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,present)
-    case DstResponseFromOtherWorker(srcForEdge,dstID,removeList)          => EntityStorage.vertexWorkerRequestEdgeHandler(srcForEdge,dstID,removeList)
-    case EdgeRemoveForOtherWorker(routerID,msgTime,srcID,dstID)           => EntityStorage.edgeRemovalFromOtherWorker(routerID,msgTime,srcID,dstID)
+    case DstAddForOtherWorker(routerID,msgTime,dstID,srcForEdge,present)  => {EntityStorage.vertexWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,present);      wHandle()}
+    case DstWipeForOtherWorker(routerID,msgTime,dstID,srcForEdge,present) => {EntityStorage.vertexWipeWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,present);  wHandle()}
+    case DstResponseFromOtherWorker(srcForEdge,dstID,removeList)          => {EntityStorage.vertexWorkerRequestEdgeHandler(srcForEdge,dstID,removeList);                  wHandle()}
+    case EdgeRemoveForOtherWorker(routerID,msgTime,srcID,dstID)           => {EntityStorage.edgeRemovalFromOtherWorker(routerID,msgTime,srcID,dstID);                     wHandle()}
     //case EdgeRemovalAfterArchiving(routerID,msgTime,srcID,dstID)           => EntityStorage.edgeRemovalAfterArchiving(routerID,workerID,msgTime,srcID,dstID) //disabled at the moment
 
     case EdgeAdd(routerID,msgTime,srcId,dstId)                            => {EntityStorage.edgeAdd(routerID,workerID,msgTime,srcId,dstId);                              eHandle(srcId,dstId,msgTime)}
@@ -40,19 +40,16 @@ class WritingSlave(workerID:Int) extends Actor {
     EntityStorage.timings(msgTime)
     EntityStorage.messageCount.incrementAndGet()
   }
-
-  def vHandleSecondary(srcID : Int,msgTime:Long) : Unit = {
-    EntityStorage.timings(msgTime)
-    EntityStorage.secondaryMessageCount.incrementAndGet()
-  }
   def eHandle(srcID : Int, dstID : Int,msgTime:Long) : Unit = {
     EntityStorage.timings(msgTime)
     EntityStorage.messageCount.incrementAndGet()
   }
-
   def eHandleSecondary(srcID : Int, dstID : Int,msgTime:Long) : Unit = {
     EntityStorage.timings(msgTime)
-    EntityStorage.messageCount.incrementAndGet()
+    EntityStorage.secondaryMessageCount.incrementAndGet()
+  }
+  def wHandle(): Unit ={
+    EntityStorage.workerMessageCount.incrementAndGet()
   }
 
 }

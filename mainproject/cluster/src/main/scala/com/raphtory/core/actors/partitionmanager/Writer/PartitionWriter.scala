@@ -57,7 +57,7 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
   override def preStart() {
     println("starting writer")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "log")
-    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, SECONDS), self, "count")
+    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "count")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "keep_alive")
 
 
@@ -82,11 +82,10 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     logChildForSize ! ReportSize(managerID)
   }
   def count() = {
-    val messageCount = storage.messageCount.get()
-    storage.messageCount.set(0)
-    val secondaryMessageCount = storage.secondaryMessageCount.get()
-    storage.secondaryMessageCount.set(0)
-    logChild  ! ReportIntake(messageCount,secondaryMessageCount,managerID)
+    val messageCount = storage.messageCount.getAndSet(0)/10
+    val secondaryMessageCount = storage.secondaryMessageCount.getAndSet(0)/10
+    val workerMessageCount = storage.workerMessageCount.getAndSet(0)/10
+    logChild  ! ReportIntake(messageCount,secondaryMessageCount,workerMessageCount,managerID)
   }
 
 

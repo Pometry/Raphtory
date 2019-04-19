@@ -82,9 +82,14 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   }
 
   def compressGraph() : Unit = {
-    newLastSaved = cutOff(true) //get the cut off boundry for 90% of history in meme
-    edgeCompressor   ! CompressEdges(newLastSaved) //forward compression request to children
-    vertexCompressor ! CompressVertices(newLastSaved)
+    if(compressing) {
+      newLastSaved = cutOff(true) //get the cut off boundry for 90% of history in meme
+      edgeCompressor ! CompressEdges(newLastSaved) //forward compression request to children
+      vertexCompressor ! CompressVertices(newLastSaved)
+    }
+    else {
+      context.system.scheduler.scheduleOnce(10.second, self, "archive")
+    }
   }
 
   def compressEnder(name:String): Unit = {

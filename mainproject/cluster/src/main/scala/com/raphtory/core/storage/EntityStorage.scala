@@ -29,6 +29,7 @@ object EntityStorage {
 
   var messageCount          = new AtomicInteger(0)        // number of messages processed since last report to the benchmarker
   var secondaryMessageCount = new AtomicInteger(0)
+  var workerMessageCount    = new AtomicInteger(0)
 
   val children = 10
 

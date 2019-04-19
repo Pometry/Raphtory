@@ -20,9 +20,12 @@ class LoggingSlave extends RaphtoryActor{
 
   val kLogging              : Boolean = System.getenv().getOrDefault("PROMETHEUS", "true").trim().toBoolean // should the state of the vertex/edge map be output to Kamon/Prometheus
   val stdoutLog             : Boolean = System.getenv().getOrDefault("STDOUT_LOG", "true").trim().toBoolean // A slower logging for the state of vertices/edges maps to Stdout
+  val mainMessages         = Kamon.gauge("raphtory.mainMessages")
+  val secondaryMessages    = Kamon.gauge("raphtory.secondaryMessages")
+  val workerMessages       = Kamon.gauge("raphtory.workerMessages")
 
   override def receive:Receive = {
-    case ReportIntake(mainMessages,secondaryMessages,partitionId) => reportIntake(mainMessages,secondaryMessages,partitionId)
+    case ReportIntake(mainMessages,secondaryMessages,workerMessages,partitionId) => reportIntake(mainMessages,secondaryMessages,workerMessages,partitionId)
     case ReportSize(partitionid) => {reportSizes(edgesGauge, EntityStorage.edges,partitionid);reportSizes(verticesGauge, EntityStorage.vertices,partitionid)}
 
   }
@@ -52,13 +55,15 @@ class LoggingSlave extends RaphtoryActor{
     }
   }
 
-  def reportIntake(messageCount:Int, secondaryMessageCount:Int, id:Int) : Unit = {
+  def reportIntake(messageCount:Int, secondaryMessageCount:Int, workerMessageCount:Int, id:Int) : Unit = {
     try {
       // Kamon monitoring
       if (kLogging) {
         //println(s"id= $id message count  $messageCount")
         kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount)
-        kGauge.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount)
+        mainMessages.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount)
+        secondaryMessages.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount)
+        workerMessages.refine("actor" -> "PartitionManager", "name" -> "workerMessageCount", "replica" -> id.toString).set(workerMessageCount)
       }
     } catch {
       case e: Exception => {
