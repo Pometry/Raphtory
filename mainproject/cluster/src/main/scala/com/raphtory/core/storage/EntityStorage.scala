@@ -196,7 +196,7 @@ object EntityStorage {
             }
           }
         }
-        case None => { println("none 2") /*edge has been archived */}
+        case None => { /*edge has been archived */}
       }
     })
     vertex.outgoingIDs.foreach(id =>{
@@ -214,15 +214,21 @@ object EntityStorage {
             } //This is the case if the remote vertex is the source of the edge. In this case we handle it with the specialised function below
           }
         }
-        case None => { println("none 1")/*edge has been archived */}
+        case None => {/*edge has been archived */}
       }
     })
   }
 
   def returnEdgeRemoval(routerID:Int,workerID:Int,msgTime:Long,srcId:Int,dstId:Int):Unit={ //for the source getting an update abou
     val srcVertex = getVertexAndWipe(routerID,workerID,srcId, msgTime)
-    val edge = edges(getEdgeIndex(srcId, dstId))
-    edge kill msgTime
+    edges.get(getEdgeIndex(srcId, dstId)) match {
+      case Some(edge)=>{
+        edge kill msgTime
+      }
+      case None => {
+        //todo should this happen
+      }
+    }
   }
 
 
@@ -230,6 +236,9 @@ object EntityStorage {
     edges.get(Utils.getEdgeIndex(srcID,dstID)) match {
       case Some(edge) => {
         edge kill msgTime
+      }
+      case None => {
+        //todo should this happen?
       }
     }
   }
@@ -308,12 +317,18 @@ object EntityStorage {
 
   def remoteEdgeAdd(routerID : Int,workerID:Int, msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String] = null):Unit={
     val dstVertex = vertexAdd(routerID,workerID,msgTime,dstId) // revive the destination node
-    val edge = edges(getEdgeIndex(srcId, dstId))
-    edge updateLatestRouter routerID
-    dstVertex addIncomingEdge(srcId) //again I think this can be removed
-    edge revive msgTime //revive the edge
-    if (properties != null)
-      properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the list
+    edges.get(getEdgeIndex(srcId, dstId)) match {
+      case Some(edge) => {
+        edge updateLatestRouter routerID
+        dstVertex addIncomingEdge(srcId) //again I think this can be removed
+        edge revive msgTime //revive the edge
+        if (properties != null)
+          properties.foreach(prop => edge + (msgTime,prop._1,prop._2)) // add all passed properties onto the list
+      }
+      case None =>{
+        //todo should this happen
+      }
+    }
   }
 
 
@@ -401,7 +416,15 @@ object EntityStorage {
 
   def remoteReturnDeaths(msgTime:Long,srcId:Int,dstId:Int,dstDeaths:mutable.TreeMap[Long, Boolean]):Unit= {
     if(printing) println(s"Received deaths for $srcId --> $dstId from ${getManager(dstId, managerCount)}")
-    edges(getEdgeIndex(srcId,dstId)) killList dstDeaths
+    edges.get(getEdgeIndex(srcId,dstId)) match {
+      case Some(edge) => {
+        edge killList dstDeaths
+      }
+      case None => {
+        //todo Should this happen
+      }
+    }
+
   }
 
   def compareMemoryToSaved() ={

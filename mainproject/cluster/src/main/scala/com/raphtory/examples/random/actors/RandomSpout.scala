@@ -35,7 +35,7 @@ class RandomSpout extends SpoutTrait {
       case "required" => {freq = System.getenv().getOrDefault("UPDATES_FREQ", "10000").toInt;println(s"Full start ($freq Hz) Entity pool = $pool Ramp flag = $increase")   } // (Updates/s) - Hz
       case "increase" =>
         if (increase) {
-          freq += 5000
+          freq += 1000
           println(s"Frequency increased, new frequency: $freq at ${Utils.nowTimeStamp()}")
         }
       case "random" => {

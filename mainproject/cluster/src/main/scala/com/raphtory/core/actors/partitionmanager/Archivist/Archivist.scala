@@ -110,7 +110,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
       EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
       vertexCompressionFinished = false //reset the compression vars
       edgeCompressionFinished = false
-      context.system.scheduler.scheduleOnce(30.second, self, "archive") //start the archiving process
+      context.system.scheduler.scheduleOnce(10.second, self, "archive") //start the archiving process
     }
   }
 
@@ -124,7 +124,7 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
     }
     else {
-      context.system.scheduler.scheduleOnce(10.second, self,"compress") //if we are not archiving start the compression process again
+      context.system.scheduler.scheduleOnce(20.second, self,"compress") //if we are not archiving start the compression process again
     }
   }
 
