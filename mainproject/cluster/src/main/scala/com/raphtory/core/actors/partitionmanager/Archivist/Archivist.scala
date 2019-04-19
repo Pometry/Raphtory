@@ -26,7 +26,8 @@ import kamon.metric.MeasurementUnit
 class Archivist(maximumMem:Double) extends RaphtoryActor {
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
   val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
-  println(s"Archivist compressing = $compressing, Saving = $saving")
+  val archiving : Boolean =  System.getenv().getOrDefault("ARCHIVING", "true").trim.toBoolean
+  println(s"Archivist compressing = $compressing, Saving = $saving, Archiving = $archiving")
 
   //Turn logging off
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
@@ -116,15 +117,16 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
 
   def archiveGraph() : Unit = {
     println("Try to archive")
-    if(!spaceForExtraHistory) { //check if we need to archive
-      removalPoint = cutOff(false) // get the cut off for 10% of the compressed history
-      removePointGlobal = removalPoint
-      edgeArchiver ! ArchiveEdges(removalPoint) //send the archive request to the children
-      vertexArchiver ! ArchiveVertices(removalPoint)
-
-    }
-    else {
-      context.system.scheduler.scheduleOnce(20.second, self,"compress") //if we are not archiving start the compression process again
+    if(archiving){
+      if(!spaceForExtraHistory) { //check if we need to archive
+        removalPoint = cutOff(false) // get the cut off for 10% of the compressed history
+        removePointGlobal = removalPoint
+        edgeArchiver ! ArchiveEdges(removalPoint) //send the archive request to the children
+        vertexArchiver ! ArchiveVertices(removalPoint)
+      }
+      else {
+        context.system.scheduler.scheduleOnce(20.second, self,"compress") //if we are not archiving start the compression process again
+      }
     }
   }
 
