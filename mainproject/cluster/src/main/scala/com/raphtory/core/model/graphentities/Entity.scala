@@ -121,6 +121,46 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     toWrite
   }
 
+  def compressAndReturnOldHistoryNew(cutoff:Long): mutable.TreeMap[Long, Boolean] ={
+    if(! shouldICompress()) return mutable.TreeMap()(HistoryOrdering)
+    var toWrite : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+    val oldestPoint = if(getUncompressedSize()>1) compress(cutoff,toWrite) else previousState.head
+    if((oldestPoint._1<cutoff))  //if the last point is before the cut off
+      if (compressedState.isEmpty || (compressedState.head._2 != oldestPoint._2)) //if compressedState is empty or the head of the compressed state is different to the final point of the uncompressed state then write
+        toWrite.put(oldestPoint._1,oldestPoint._2) //add to toWrite so this can be saved to cassandra
+    if(toWrite nonEmpty)
+      compressedState ++= toWrite
+    toWrite
+  }
+  def compress(cutoff:Long, toWrite:mutable.TreeMap[Long, Boolean]):(Long,Boolean) ={
+    var newPreviousState : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+    var prev: (Long,Boolean) = previousState.head
+    var swapped = false
+    previousState.foreach{case (k,v)=>{
+      if(k >= cutoff) //still in read write space
+        newPreviousState.put(k,v) //add to new uncompressed history
+      else {
+        if (swapped) { //as we are adding prev skip the value on the pivot as it is already added
+          if (v != prev._2)
+            toWrite.put(prev._1, prev._2) //add to toWrite so this can be saved to cassandra
+        }
+        swapped = true
+      }
+      prev = (k, v)
+    }}
+    previousState = newPreviousState
+    prev
+  }
+
+  def shouldICompress():Boolean ={
+    if(getUncompressedSize()==0){ //if the state size is 0 it is a wiped node and should not be interacted with
+      false
+    }
+    else{
+      true
+    }
+  }
+
   def compressionRate():Double ={
     previousState.size.toDouble/originalHistorySize.get.toDouble
   }
