@@ -23,6 +23,7 @@ class LoggingSlave extends RaphtoryActor{
   val mainMessages         = Kamon.gauge("raphtory.mainMessages")
   val secondaryMessages    = Kamon.gauge("raphtory.secondaryMessages")
   val workerMessages       = Kamon.gauge("raphtory.workerMessages")
+  var lastmessage          = System.currentTimeMillis()/1000
 
   override def receive:Receive = {
     case ReportIntake(mainMessages,secondaryMessages,workerMessages,partitionId) => reportIntake(mainMessages,secondaryMessages,workerMessages,partitionId)
@@ -59,11 +60,13 @@ class LoggingSlave extends RaphtoryActor{
     try {
       // Kamon monitoring
       if (kLogging) {
-        //println(s"id= $id message count  $messageCount")
-        kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount)
-        mainMessages.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount)
-        secondaryMessages.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount)
-        workerMessages.refine("actor" -> "PartitionManager", "name" -> "workerMessageCount", "replica" -> id.toString).set(workerMessageCount)
+        val newTime = System.currentTimeMillis()/1000
+        val diff = newTime-lastmessage
+        lastmessage = newTime
+        kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount/diff)
+        mainMessages.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount/diff)
+        secondaryMessages.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount/diff)
+        workerMessages.refine("actor" -> "PartitionManager", "name" -> "workerMessageCount", "replica" -> id.toString).set(workerMessageCount/diff)
       }
     } catch {
       case e: Exception => {
