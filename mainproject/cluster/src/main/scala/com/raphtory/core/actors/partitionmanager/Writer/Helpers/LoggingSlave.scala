@@ -62,6 +62,8 @@ class LoggingSlave extends RaphtoryActor{
       if (kLogging) {
         val newTime = System.currentTimeMillis()/1000
         val diff = newTime-lastmessage
+        if(diff ==0)
+          diff ==1
         lastmessage = newTime
         kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount/diff)
         mainMessages.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount/diff)
