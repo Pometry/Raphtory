@@ -61,6 +61,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
 
   def compressHistory(cutoff:Long): mutable.TreeMap[Long, Boolean] ={
     if(previousState.isEmpty) return mutable.TreeMap()(HistoryOrdering) //if we have no need to compress, return an empty list
+    if (previousState.takeRight(1).head._1>=cutoff) return mutable.TreeMap()(HistoryOrdering) //if the oldest point is younger than the cut off no need to do anything
     var toWrite : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering) //data which needs to be saved to cassandra
     var newPreviousState : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering) //map which will replace the current history
 
@@ -89,31 +90,19 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   }
 
   //val removeFrom = if(compressing) compressedState else previousState
-  def removeAncientHistory(cutoff:Long,compressing:Boolean): (Boolean, Boolean,Int,Int)={ //
-    if(getHistorySize==0){ //if the state size is 0 it is a wiped node inform the historian
-      return  (true,true,0,0)
+  def archive(cutoff:Long, compressing:Boolean): Boolean={ //
+    if(previousState.isEmpty && compressedState.isEmpty) return false //blank node, decide what to do later
+    if(compressedState.nonEmpty){
+      if (compressedState.takeRight(1).head._1>=cutoff) return false //if the oldest point is younger than the cut off no need to do anything
+      var head = compressedState.head._2 //get the head of later
+      val newCompressedState: mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+      compressedState.foreach{case (k,v) => {if(k>=cutoff) newCompressedState put(k,v)}} //for each point if it is safe then keep it
+      compressedState = newCompressedState //overwrite the compressed state
+      properties.foreach{case ((propkey, property)) =>{property.archive(cutoff,compressing)}}//do the same for all properties
+      newestPoint.get<cutoff && !head //return all points older than cutoff and latest update is deletion
     }
-    var removed = 0
-    var propRemoval = 0
-
-    var head = false
-    if(!compressedState.isEmpty)
-      head = compressedState.head._2
-    for((k,v) <- compressedState){
-      if(k<cutoff){
-        removed +=1
-        compressedState.remove(k)
-
-      }
-    }
-
-    for ((propkey, propval) <- properties) {
-      propRemoval = propRemoval + propval.removeAncientHistory(cutoff,compressing)
-    } //do the same for all properties
-    val allOld = newestPoint.get<cutoff && !head //all points older than cutoff and latest update is deletion
-    (false,allOld,removed,propRemoval)
+    false
   }
-
 
   /** *
     * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties

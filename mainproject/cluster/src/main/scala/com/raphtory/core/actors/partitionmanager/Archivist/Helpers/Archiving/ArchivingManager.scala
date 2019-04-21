@@ -17,8 +17,8 @@ class ArchivingManager extends Actor{
     case SetupSlave(children) => setup(children)
     case ArchiveEdges(ls) => {archiveEdges(ls)}
     case ArchiveVertices(ls) => {archiveVertices(ls)}
-    case FinishedEdgeArchiving(key,archived) => finishedEdge(key,archived)
-    case FinishedVertexArchiving(key,archived) => finishedVertex(key,archived)
+    case FinishedEdgeArchiving(key) => finishedEdge(key)
+    case FinishedVertexArchiving(key) => finishedVertex(key)
 
   }
 
@@ -38,20 +38,20 @@ class ArchivingManager extends Actor{
     childMap.values.foreach(child => child ! ArchiveVertices(removalPoint))
   }
 
-  def finishedEdge(ID: Long,archived: (Int,Int,Int)) = {
+  def finishedEdge(ID: Long) = {
     finishedArchiving +=1
     if(startedArchiving==finishedArchiving) {
       println("edge arciving finished, responding to parent")
-      context.parent ! FinishedEdgeArchiving(finishedArchiving, archived)
+      context.parent ! FinishedEdgeArchiving(finishedArchiving)
       finishedArchiving = 0
     }
   }
 
-  def finishedVertex(ID:Int,archived: (Int,Int,Int))={
+  def finishedVertex(ID:Int)={
     finishedArchiving +=1
     if(startedArchiving==finishedArchiving){
       println("vertex arciving finished, responding to parent")
-      context.parent ! FinishedVertexArchiving(finishedArchiving,archived)
+      context.parent ! FinishedVertexArchiving(finishedArchiving)
       finishedArchiving = 0
     }
   }

@@ -15,85 +15,35 @@ class ArchivingSlave(id:Int) extends Actor{
   override def receive:Receive = {
     case ArchiveEdges(ls) => archiveEdges(ls)
     case ArchiveVertices(ls) => archiveVertices(ls)
-   // case ArchiveEdge(key,time) => archiveEdge(key,time)
-   // case ArchiveVertex(key,time) => archiveVertex(key,time)
-
   }
 
   def archiveEdges(now:Long) = {
-    var edgesRemoved = 0
-    var propsRemoved = 0
-    var historyRemoved = 0
     EntityStorage.edgeKeys.get(id) match {
-      case Some(set) => set.foreach(key => {
-        val removed = archiveEdge(key,now)
-        propsRemoved += removed._1
-        historyRemoved += removed._2
-        edgesRemoved += removed._3
-      })
+      case Some(set) => set.foreach(key => {archiveEdge(key,now)})
     }
-    context.parent ! FinishedEdgeArchiving(id,(propsRemoved,historyRemoved,edgesRemoved))
+    context.parent ! FinishedEdgeArchiving(id)
   }
 
   def archiveVertices(now:Long) = {
-    var verticesRemoved = 0
-    var propsRemoved = 0
-    var historyRemoved = 0
     EntityStorage.vertexKeys.get(id) match {
       case Some(set) => set.foreach(key => {
-        val removed = archiveVertex(key,now,set)
-        propsRemoved += removed._1
-        historyRemoved += removed._2
-        verticesRemoved += removed._3
+        archiveVertex(key,now)
       })
     }
-    context.parent ! FinishedVertexArchiving(id,(propsRemoved,historyRemoved,verticesRemoved))
+    context.parent ! FinishedVertexArchiving(id)
   }
 
-
-  def archiveEdge(key:Long,now:Long):(Int,Int,Int) = {
-    //EntityStorage.edges.synchronized {
+  //TODO decide what to do with placeholders (future)*
+  def archiveEdge(key:Long, cutoff:Long) = {
       EntityStorage.edges.get(key) match {
-        case Some(edge) =>  edgeMaximumHistory(edge, now)
-        case None => (0,0,0)//do nothing
+        case Some(edge) => if (edge.archive(cutoff,compressing)) EntityStorage.edges.remove(e.getId)//if all old then remove the edge
+        case None => {}//do nothing
       }
-    //}
   }
-  def archiveVertex(key:Int,now:Long,set:ParSet[Int]) = {
-    //EntityStorage.vertices.synchronized {
+  def archiveVertex(key:Int,cutoff:Long) = {
       EntityStorage.vertices.get(key) match {
-        case Some(vertex) => vertexMaximumHistory(vertex,now,set)
-        case None => (0,0,0)//do nothing
+        case Some(vertex) => if (vertex.archive(cutoff,compressing)) EntityStorage.vertices.remove(vertex.getId.toInt) //if all old then remove the vertex
+        case None => {}//do nothing
       }
-    //}
   }
-
-  def vertexMaximumHistory(e:Vertex,removalPoint:Long,set:ParSet[Int]):(Int,Int,Int) = {
-    val (placeholder, allOld,removed,propremoved) = e.removeAncientHistory(removalPoint,compressing)
-    if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
-    var total = 0
-    if (allOld.asInstanceOf[Boolean]) {
-      EntityStorage.vertices.synchronized {
-        EntityStorage.vertices.remove(e.getId.toInt)
-      }
-      total +=1
-    }
-    (propremoved.asInstanceOf[Int],removed.asInstanceOf[Int],total)
-  }
-
-  def edgeMaximumHistory(e:Edge,removalPoint:Long):(Int,Int,Int) = {
-    val (placeholder, allOld,removed,propremoved) = e.removeAncientHistory(removalPoint,compressing)
-    if (placeholder.asInstanceOf[Boolean]) {/*TODO decide what to do with placeholders (future)*/}
-    var total = 0
-    if (allOld.asInstanceOf[Boolean]) {
-      EntityStorage.edges.synchronized {
-        EntityStorage.edges.remove(e.getId)
-      }
-      total += 1
-    }
-    (propremoved.asInstanceOf[Int],removed.asInstanceOf[Int],total)
-  }
-
-
-
 }

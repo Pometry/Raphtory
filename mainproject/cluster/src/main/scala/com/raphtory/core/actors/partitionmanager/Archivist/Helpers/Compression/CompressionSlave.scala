@@ -71,7 +71,6 @@ class CompressionSlave(id: Int) extends Actor {
 
   def saveVertex(vertex: Vertex, cutOff: Long) = {
     val history = vertex.compressHistory(cutOff)
-    //println(history)
     if (saving) { //if we are saving data to cassandra
       if (history.size > 0) {
         RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)

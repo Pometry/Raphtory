@@ -39,7 +39,7 @@ object JanitorTest extends App{
 
   //vertex.previousState.foreach(println(_))
   val first = System.currentTimeMillis()
-  vertex.compressHistory(10000)
+  vertex.compressHistory(0)
   val second = (System.currentTimeMillis()-first)
   println(second)
 //  val second = System.currentTimeMillis()

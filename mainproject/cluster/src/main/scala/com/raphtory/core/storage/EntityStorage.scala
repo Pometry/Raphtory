@@ -27,6 +27,11 @@ object EntityStorage {
   var secondaryMessageCount = new AtomicInteger(0)
   var workerMessageCount    = new AtomicInteger(0)
 
+  var historyDeletionCount   = new AtomicInteger(0)
+  var propertyDeletionCount  = new AtomicInteger(0)
+  var edgeDeletionCount      = new AtomicInteger(0)
+  var vertexDeletionCount    = new AtomicInteger(0)
+
   val children = 10
 
   /**
@@ -134,13 +139,15 @@ object EntityStorage {
 
   def getVertexAndWipe(routerID : Int, workerID:Int, id : Int, msgTime : Long) : Vertex = {
     vertices.get(id) match {
-      case Some(value) => value
+      case Some(vertex) => {
+        vertex
+      }
       case None => {
-        val x  = new Vertex(routerID, msgTime,id,initialValue = true)
-        vertices put(id, x)
-        x wipe()
+        val vertex  = new Vertex(routerID, msgTime,id,initialValue = true)
+        vertices put(id, vertex)
+        vertex wipe()
         newVertexKey(workerID,id) //and record the new key
-        x
+        vertex
       }
     }
   }

@@ -85,7 +85,7 @@ class Property(creationTime: Long,
     toWrite
   }
 
-  def removeAncientHistory(cutoff:Long,compressing:Boolean):Int={ //
+  def archive(cutoff:Long, compressing:Boolean)={ //
     var removed = 0
     val removeFrom = if(compressing) compressedState else previousState
     for((k,v) <- removeFrom){
@@ -97,6 +97,7 @@ class Property(creationTime: Long,
     removed
   }
 
+  
 
   def getPreviousStateSize() : Int = {
       previousState.size
