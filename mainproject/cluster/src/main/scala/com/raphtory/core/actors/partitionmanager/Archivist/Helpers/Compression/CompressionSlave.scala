@@ -55,7 +55,7 @@ class CompressionSlave(id: Int) extends Actor {
 
 
   def saveEdge(edge: Edge, cutOff: Long) = {
-    val history = edge.compressAndReturnOldHistory(cutOff)
+    val history = edge.compressHistory(cutOff)
     if (saving) {
       if (history.size > 0) {
         RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
@@ -70,7 +70,7 @@ class CompressionSlave(id: Int) extends Actor {
   }
 
   def saveVertex(vertex: Vertex, cutOff: Long) = {
-    val history = vertex.compressAndReturnOldHistory(cutOff)
+    val history = vertex.compressHistory(cutOff)
     //println(history)
     if (saving) { //if we are saving data to cassandra
       if (history.size > 0) {

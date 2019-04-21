@@ -36,15 +36,15 @@ object JanitorTest extends App{
     }
   }
 
+
   //vertex.previousState.foreach(println(_))
   val first = System.currentTimeMillis()
-  vertex.compressAndReturnOldHistoryNew(100000)
-  println((System.currentTimeMillis()-first))
-
-
-  val second = System.currentTimeMillis()
-  vertex2.compressAndReturnOldHistory(100000)
-  println((System.currentTimeMillis()-second))
+  vertex.compressHistory(10000)
+  val second = (System.currentTimeMillis()-first)
+  println(second)
+//  val second = System.currentTimeMillis()
+//  vertex2.compressAndReturnOldHistory(100000)
+//  println((System.currentTimeMillis()-second))
 //  vertex +(1,"prop","val1")
 //  vertex +(2,"prop","val2")
 //  vertex +(3,"prop","val2")

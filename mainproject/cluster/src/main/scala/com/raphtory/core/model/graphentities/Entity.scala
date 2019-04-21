@@ -76,89 +76,33 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     */
   def apply(property: String): Property = properties(property)
 
-  def compressAndReturnOldHistory(cutoff:Long): mutable.TreeMap[Long, Boolean] ={
-    if(getUncompressedSize()==0){ //if the state size is 0 it is a wiped node and should not be interacted with
-      return  mutable.TreeMap()(HistoryOrdering) //if the size is one, no need to compress
-    }
-    var toWrite : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
-    var head = previousState.head
-    var prev: (Long,Boolean) = head
-    var swapped = false
-    if(getUncompressedSize()>1) {
-      for ((k, v) <- previousState) {
-        if (k < cutoff) {
-          if (swapped) { //as we are adding prev skip the value on the pivot as it is already added
-            if (v == !prev._2) {
-              toWrite.put(prev._1, prev._2) //add to toWrite so this can be saved to cassandra
-              previousState.remove(prev._1)
-            }
-            else {
-              previousState.remove(prev._1)
-            }
-          }
-          swapped = true
-        }
-        prev = (k, v)
-      }
-    }
-    if((prev._1<cutoff)) { //if the last point is before the cut off
-      if (compressedState.size > 0) { //and their has been a previous save
-        if (compressedState.head._2 != prev._2) { //we need to compare it against the compressed state
-          toWrite.put(prev._1,prev._2) //add to toWrite so this can be saved to cassandra
-          previousState.remove(prev._1)
-        }
-        else {previousState.remove(prev._1)} //and just removing if not
-      }
-      else {
-        toWrite.put(prev._1,prev._2)
-        previousState.remove(prev._1)
-      }
-    }
+  def compressHistory(cutoff:Long): mutable.TreeMap[Long, Boolean] ={
+    if(previousState.isEmpty) return mutable.TreeMap()(HistoryOrdering) //if we have no need to compress, return an empty list
+    var toWrite : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering) //data which needs to be saved to cassandra
+    var newPreviousState : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering) //map which will replace the current history
 
-    if(toWrite.size>0) {
-      compressedState = compressedState ++= toWrite
-    }
-    toWrite
-  }
-
-  def compressAndReturnOldHistoryNew(cutoff:Long): mutable.TreeMap[Long, Boolean] ={
-    if(! shouldICompress()) return mutable.TreeMap()(HistoryOrdering)
-    var toWrite : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
-    val oldestPoint = if(getUncompressedSize()>1) compress(cutoff,toWrite) else previousState.head
-    if((oldestPoint._1<cutoff))  //if the last point is before the cut off
-      if (compressedState.isEmpty || (compressedState.head._2 != oldestPoint._2)) //if compressedState is empty or the head of the compressed state is different to the final point of the uncompressed state then write
-        toWrite.put(oldestPoint._1,oldestPoint._2) //add to toWrite so this can be saved to cassandra
-    if(toWrite nonEmpty)
-      compressedState ++= toWrite
-    toWrite
-  }
-  def compress(cutoff:Long, toWrite:mutable.TreeMap[Long, Boolean]):(Long,Boolean) ={
-    var newPreviousState : mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
-    var prev: (Long,Boolean) = previousState.head
-    var swapped = false
+    var PriorPoint: (Long,Boolean) = previousState.head
+    var swapped = false //specify pivot point when crossing over the cutoff as you don't want to compare to historic points which are still changing
     previousState.foreach{case (k,v)=>{
-      if(k >= cutoff) //still in read write space
+      if(k >= cutoff) //still in read write space so
         newPreviousState.put(k,v) //add to new uncompressed history
-      else {
-        if (swapped) { //as we are adding prev skip the value on the pivot as it is already added
-          if (v != prev._2)
-            toWrite.put(prev._1, prev._2) //add to toWrite so this can be saved to cassandra
+      else { //reached the history which should be compressed
+        if(swapped && (v != PriorPoint._2)) { //if we have skipped the pivot and the types are different
+          toWrite.put(PriorPoint._1, PriorPoint._2) //add to toWrite so this can be saved to cassandra
+          compressedState.put(PriorPoint._1, PriorPoint._2) //add to compressedState in-mem
         }
         swapped = true
       }
-      prev = (k, v)
+      PriorPoint = (k, v)
     }}
+    if((PriorPoint._1<cutoff)) { //
+      if (compressedState.isEmpty || (compressedState.head._2 != PriorPoint._2)) //if the last point is before the cut off --if compressedState is empty or the head of the compressed state is different to the final point of the uncompressed state then write
+        toWrite.put(PriorPoint._1, PriorPoint._2) //add to toWrite so this can be saved to cassandra
+    }
+    else
+      newPreviousState.put(PriorPoint._1,PriorPoint._2) //if the last point in the uncompressed history wasn't past the cutoff it needs to go back into the new uncompressed history
     previousState = newPreviousState
-    prev
-  }
-
-  def shouldICompress():Boolean ={
-    if(getUncompressedSize()==0){ //if the state size is 0 it is a wiped node and should not be interacted with
-      false
-    }
-    else{
-      true
-    }
+    toWrite
   }
 
   def compressionRate():Double ={
@@ -171,13 +115,14 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     * @param cutoff the histories time cutoff
     * @return (is it a place holder, is the full history holder than the cutoff, the old history)
     */
+  //val removeFrom = if(compressing) compressedState else previousState
   def removeAncientHistory(cutoff:Long,compressing:Boolean): (Boolean, Boolean,Int,Int)={ //
     if(getHistorySize==0){ //if the state size is 0 it is a wiped node inform the historian
       return  (true,true,0,0)
     }
     var removed = 0
     var propRemoval = 0
-    val removeFrom = if(compressing) compressedState else previousState
+
     var head = false
     if(!removeFrom.isEmpty)
       head = removeFrom.head._2
@@ -195,6 +140,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     val allOld = newestPoint.get<cutoff && !head //all points older than cutoff and latest update is deletion
     (false,allOld,removed,propRemoval)
   }
+
 
   /** *
     * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
@@ -223,7 +169,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   def firstSave():Unit = saved =true
 
   def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter
-
   def updateLatestRouter(newRouter:Int):Unit = latestRouter = newRouter
 
   def wipe() = {
