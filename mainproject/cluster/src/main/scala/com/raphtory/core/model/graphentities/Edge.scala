@@ -18,7 +18,7 @@ object Edge {
     val srcId = Utils.getIndexHI(edgeId)
     val dstId = Utils.getIndexLO(edgeId)
 
-    val e = new Edge(routerID,workerID,creationTime, srcId, dstId, initialValue = true, addOnly = false)
+    val e = new Edge(routerID,workerID,creationTime, srcId, dstId, initialValue = true)
     e.previousState   = previousState
     e.properties      = properties
     e
@@ -40,21 +40,15 @@ object Edge {
     if(!value){
       throw EntityRemovedAtTimeException(Utils.getEdgeIndex(src,dst))
     }
-    new Edge(-1,-1,closestTime,src,dst,value,false)
+    new Edge(-1,-1,closestTime,src,dst,value)
   }
 }
 
 /**
   * Created by Mirate on 01/03/2017.
   */
-class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Boolean, addOnly:Boolean)
-    extends Entity(routerID,msgTime, initialValue,addOnly) {
+class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Boolean) extends Entity(routerID,msgTime, initialValue) {
 
-  /*override def printProperties: String =
-    s"Edge between $srcId and $dstId: with properties: " + System
-      .lineSeparator() +
-      super.printProperties()
-  */
 
   def killList(vKills: mutable.TreeMap[Long, Boolean]): Unit = {
     try{
@@ -64,33 +58,6 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
     catch {
       case e:java.lang.NullPointerException => {
         e.printStackTrace()
-        println(vKills)
-        println(removeList)
-        println(previousState)
-        println(Utils.getManager(srcId,10))
-        println(s"$srcId $dstId $workerID")
-        killList(vKills)
-      }
-    }
-  }
-
-  def killList2(vKills: mutable.TreeMap[Long, Boolean]): Unit = {
-    try{
-      removeList ++= vKills
-      previousState ++= vKills
-      println("retry")
-      println(vKills)
-      println(removeList)
-      println(previousState)
-    }
-    catch {
-      case e:java.lang.NullPointerException => {
-        e.printStackTrace()
-        println(vKills)
-        println(removeList)
-        println(previousState)
-        println(Utils.getManager(srcId,10))
-        println(s"$srcId $dstId $workerID")
         killList(vKills)
       }
     }
@@ -120,7 +87,7 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
     }
     if(value==false)
       throw EntityRemovedAtTimeException(getId)
-    val edge = new Edge(-1,workerID = -1,closestTime,srcId,dstId,value,false)
+    val edge = new Edge(-1,workerID = -1,closestTime,srcId,dstId,value)
     for((k,p) <- properties) {
       val value = p.valueAt(time)
       if (!(value equals("default")))

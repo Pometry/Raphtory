@@ -17,7 +17,7 @@ object RemoteEdge {
     val srcId = Utils.getIndexHI(edgeId)
     val dstId = Utils.getIndexLO(edgeId)
 
-    val e = new RemoteEdge(routerID,workerID:Int,creationTime, srcId, dstId, initialValue = true, addOnly = false, remotePos, remotePartitionId)
+    val e = new RemoteEdge(routerID,workerID:Int,creationTime, srcId, dstId, initialValue = true, remotePos, remotePartitionId)
     e.previousState   = previousState
     e.properties      = properties
     e
@@ -42,10 +42,9 @@ class RemoteEdge(routerID: Int,
                       srcID: Int,
                       dstID: Int,
                       initialValue: Boolean,
-                      addOnly:Boolean,
                       remotepos: RemotePos.Value,
                       remotePartitionId: Int)
-    extends Edge(routerID,workerID,msgTime, srcID, dstID, initialValue, addOnly){
+    extends Edge(routerID,workerID,msgTime, srcID, dstID, initialValue){
 
   def remotePos = remotepos
   def remotePartitionID =remotePartitionId

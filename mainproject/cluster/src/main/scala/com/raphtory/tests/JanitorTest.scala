@@ -22,8 +22,8 @@ object JanitorTest extends App{
   //RaphtoryDBWrite.createDB()
  // RaphtoryDBWrite.clearDB()
 
-  val vertex = new Vertex(1,1,1,true,false)
-  val vertex2 = new Vertex(1,1,1,true,false)
+  val vertex = new Vertex(1,1,1,true)
+  val vertex2 = new Vertex(1,1,1,true)
   val random = new Random()
   for(x <- 1 to 10000){
     if(random.nextBoolean()){

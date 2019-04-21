@@ -1,15 +1,12 @@
 package com.raphtory.core.storage
 
-import java.util.NoSuchElementException
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
 
-import scala.collection.concurrent.TrieMap
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Property, RemoteEdge, RemotePos, Vertex}
-import com.raphtory.core.storage.controller.GraphRepoProxy
 import com.raphtory.core.utils.Utils
 import com.raphtory.core.utils.exceptions.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
 
@@ -23,7 +20,6 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO add capacity function based on memory used and number of updates processed/stored in memory
 //TODO What happens when an edge which has been archived gets readded
 //TODO: does the routerID effect vertices which are wiped
-//TODO: Should vertices be aware of fully archived edges
 object EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager,checkWorker}
 
@@ -37,7 +33,6 @@ object EntityStorage {
     * Map of vertices contained in the partition
     */
   val vertices        = ParTrieMap[Int, Vertex]()
-  val deletedVertices = ParSet[Int]()
   val vertexKeys      = ParTrieMap[Int,ParSet[Int]]()
   for(i <- 0 until children){
     val temp = ParSet[Int]()
@@ -58,8 +53,6 @@ object EntityStorage {
   var managerCount : Int     = 1
   var managerID    : Int     = 0
   var mediator     : ActorRef= null
-  var addOnlyVertex    : Boolean =  System.getenv().getOrDefault("ADD_ONLY_VERTEX", "false").trim.toBoolean
-  var addOnlyEdge      : Boolean =  System.getenv().getOrDefault("ADD_ONLY_EDGE", "false").trim.toBoolean
   var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
 
   //stuff for compression and archiving
@@ -105,7 +98,7 @@ object EntityStorage {
         value = v
       }
       case None => { //if it does not exist
-        value = new Vertex(routerID,msgTime, srcId, initialValue = true, addOnlyVertex) //create a new vertex
+        value = new Vertex(routerID,msgTime, srcId, initialValue = true) //create a new vertex
         vertices put(srcId, value) //put it in the map
         newVertexKey(workerID,srcId) // and record its ID
       }
@@ -143,7 +136,7 @@ object EntityStorage {
     vertices.get(id) match {
       case Some(value) => value
       case None => {
-        val x  = new Vertex(routerID, msgTime,id,initialValue = true, addOnlyVertex)
+        val x  = new Vertex(routerID, msgTime,id,initialValue = true)
         vertices put(id, x)
         x wipe()
         newVertexKey(workerID,id) //and record the new key
@@ -165,7 +158,7 @@ object EntityStorage {
         v kill msgTime //if we are not windowing we just run as normal or if it is the correct router we remove
       }
       case None => { //if the removal has arrived before the creation
-        vertex = new Vertex(routerID,msgTime, srcId, initialValue = false, addOnly = addOnlyVertex) //create a placeholder
+        vertex = new Vertex(routerID,msgTime, srcId, initialValue = false) //create a placeholder
         vertices put(srcId, vertex) //add it to the map
         newVertexKey(workerID,srcId) //and record the new key
       }
@@ -261,9 +254,9 @@ object EntityStorage {
       }
       case None => //if it does not
         if (local)
-          edge = new Edge(routerID,workerID,msgTime, srcId, dstId, initialValue = true, addOnlyEdge) //create the new edge, local or remote
+          edge = new Edge(routerID,workerID,msgTime, srcId, dstId, initialValue = true) //create the new edge, local or remote
         else
-          edge = new RemoteEdge(routerID,workerID,msgTime, srcId, dstId, initialValue = true, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+          edge = new RemoteEdge(routerID,workerID,msgTime, srcId, dstId, initialValue = true, RemotePos.Destination, getPartition(dstId, managerCount))
         edges.put(index, edge) //add this edge to the map
         newEdgeKey(workerID,index) //and record its ID for the compressor
     }
@@ -302,7 +295,7 @@ object EntityStorage {
 
   def remoteEdgeAddNew(routerID : Int, workerID:Int, msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String],srcDeaths:mutable.TreeMap[Long, Boolean]):Unit={
     val dstVertex = vertexAdd(routerID,workerID,msgTime,dstId) //create or revive the destination node
-    val edge = new RemoteEdge(routerID, workerID, msgTime, srcId, dstId, initialValue = true, addOnlyEdge,RemotePos.Source,getPartition(srcId, managerCount))
+    val edge = new RemoteEdge(routerID, workerID, msgTime, srcId, dstId, initialValue = true,RemotePos.Source,getPartition(srcId, managerCount))
     dstVertex addIncomingEdge(srcId) //add the edge to the associated edges of the destination node
     val index = getEdgeIndex(srcId,dstId)
     edges put(index, edge) //create the new edge
@@ -352,9 +345,9 @@ object EntityStorage {
       }
       case None => {
         if (local)
-          edge = new Edge(routerID,workerID, msgTime, srcId, dstId, initialValue = false, addOnlyEdge)
+          edge = new Edge(routerID,workerID, msgTime, srcId, dstId, initialValue = false)
         else
-          edge = new RemoteEdge(routerID, workerID, msgTime,srcId, dstId, initialValue = false, addOnlyEdge, RemotePos.Destination, getPartition(dstId, managerCount))
+          edge = new RemoteEdge(routerID, workerID, msgTime,srcId, dstId, initialValue = false, RemotePos.Destination, getPartition(dstId, managerCount))
         edges.put(index, edge)
         newEdgeKey(workerID,index)
       }
@@ -401,7 +394,7 @@ object EntityStorage {
 
   def remoteEdgeRemovalNew(routerID : Int,workerID:Int,msgTime:Long,srcId:Int,dstId:Int,srcDeaths:mutable.TreeMap[Long, Boolean]):Unit={
     val dstVertex = getVertexAndWipe(routerID, workerID,dstId, msgTime)
-    val edge = new RemoteEdge(routerID,workerID,msgTime,srcId, dstId, initialValue = false, addOnlyEdge, RemotePos.Source, getPartition(srcId, managerCount))
+    val edge = new RemoteEdge(routerID,workerID,msgTime,srcId, dstId, initialValue = false, RemotePos.Source, getPartition(srcId, managerCount))
     dstVertex addIncomingEdge(srcId)  //add the edge to the destination nodes associated list
     val index = getEdgeIndex(srcId,dstId)
     edges put(index, edge) // otherwise create and initialise as false

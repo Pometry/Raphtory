@@ -17,7 +17,7 @@ import spray.json._
   * @param isInitialValue  Is the first moment this entity is referenced
   */
 
-abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialValue: Boolean, addOnly: Boolean) {
+abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialValue: Boolean) {
 
   // Properties from that entity
   var properties:ParTrieMap[String,Property] = ParTrieMap[String, Property]()
@@ -28,37 +28,23 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   private var saved = false
   var shouldBeWiped = false
 
-  //track the oldest point for use in AddOnly mode
   var oldestPoint : AtomicLong=  AtomicLong(creationTime)
   var newestPoint: AtomicLong = AtomicLong(creationTime)
-  var originalHistorySize : AtomicLong=  AtomicLong(0)
 
   // History of that entity
   var removeList: mutable.TreeMap[Long,Boolean] = mutable.TreeMap()(HistoryOrdering)
   if(!isInitialValue)
     removeList = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
-  /** *
-    * Set the Entity has alive at a given time
-    *
-    * @param msgTime
-    */
+
   def revive(msgTime: Long): Unit = {
     checkOldestNewest(msgTime)
-    originalHistorySize.add(1)
     previousState.put(msgTime, true)
   }
 
-  /** *
-    * Set the entity absent in a given time
-    *
-    * @param msgTime
-    */
   def kill(msgTime: Long): Unit = {
     checkOldestNewest(msgTime)
-    originalHistorySize.add(1)
     removeList.put(msgTime, false)
     previousState.put(msgTime, false)
-
   }
 
   def checkOldestNewest(msgTime:Long) ={
@@ -70,9 +56,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
 
   /** *
     * override the apply method so that we can do edge/vertex("key") to easily retrieve properties
-    *
-    * @param property property key
-    * @return property value
     */
   def apply(property: String): Property = properties(property)
 
@@ -105,16 +88,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     toWrite
   }
 
-  def compressionRate():Double ={
-    previousState.size.toDouble/originalHistorySize.get.toDouble
-  }
-
-  /** *
-    * check what part of the history is outside of the historians time window
-    *
-    * @param cutoff the histories time cutoff
-    * @return (is it a place holder, is the full history holder than the cutoff, the old history)
-    */
   //val removeFrom = if(compressing) compressedState else previousState
   def removeAncientHistory(cutoff:Long,compressing:Boolean): (Boolean, Boolean,Int,Int)={ //
     if(getHistorySize==0){ //if the state size is 0 it is a wiped node inform the historian
@@ -124,12 +97,12 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     var propRemoval = 0
 
     var head = false
-    if(!removeFrom.isEmpty)
-      head = removeFrom.head._2
-    for((k,v) <- removeFrom){
+    if(!compressedState.isEmpty)
+      head = compressedState.head._2
+    for((k,v) <- compressedState){
       if(k<cutoff){
         removed +=1
-        removeFrom.remove(k)
+        compressedState.remove(k)
 
       }
     }
@@ -171,33 +144,11 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter
   def updateLatestRouter(newRouter:Int):Unit = latestRouter = newRouter
 
-  def wipe() = {
-    if (addOnly)
-      oldestPoint.set(Long.MaxValue)
-    else
-      previousState = mutable.TreeMap()(HistoryOrdering)
-  }
+  def wipe() = {previousState = mutable.TreeMap()(HistoryOrdering)}
 
-  def getHistorySize() : Int = {
-    if (addOnly)
-      if(oldestPoint.get == Long.MaxValue)
-        0 //is a placeholder entity
-      else
-        1
-    else
-      previousState.size + compressedState.size
-  }
+  def getHistorySize() : Int = {previousState.size + compressedState.size}
 
-  def getUncompressedSize() : Int = {
-    if (addOnly)
-      if(oldestPoint.get == Long.MaxValue)
-        0 //is a placeholder entity
-      else
-        1
-    else
-      previousState.size
-  }
-
+  def getUncompressedSize() : Int = {previousState.size}
 
   def getId : Long
   def getPropertyCurrentValue(key : String) : Option[String] =
@@ -205,45 +156,4 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
       case Some(p) => Some(p.currentValue)
       case None => None
     }
-
-
 }
-
-
-//************* PRINT ENTITY DETAILS BLOCK *********************\\
-/*  def printCurrent(): String = {
-    var toReturn = s"MessageID ${previousState.head._1}: ${previousState.head._2} " + System.lineSeparator
-    properties.foreach(p =>
-      toReturn = s"$toReturn      ${p._2.toStringCurrent} " + System.lineSeparator)
-    toReturn
-    ""
-  }
-
-  /** *
-    * Returns string with previous state of entity + properties -- title left off as will be done in subclass
-    *
-    * @return
-    */
-  def printHistory(): String = {
-    var toReturn = "Previous state of entity: " + System.lineSeparator
-    if (!addOnly)
-      previousState.foreach(p =>
-       toReturn = s"$toReturn MessageID ${p._1}: ${p._2} " + System.lineSeparator)
-      s"$toReturn \n $printProperties"
-      ""
-  }
-
-  def printProperties(): String = { //test function to make sure the properties are being added to the correct vertices
-    var toReturn = "" //indent to be inside the entity
-    properties.toSeq
-      .sortBy(_._1)
-      .foreach(p => toReturn = s"$toReturn      ${p._2.toString} \n")
-    toReturn
-  }*/
-
-//************* END PRINT ENTITY DETAILS BLOCK *********************\\
-
-//if (!addOnly) {
-//  previousState = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
-//  compressedState = mutable.TreeMap()(HistoryOrdering)
-// }

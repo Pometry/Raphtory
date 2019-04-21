@@ -12,7 +12,7 @@ import scala.collection.parallel.mutable.ParTrieMap
   */
 object Vertex {
   def apply(routerID:Int, creationTime : Long, vertexId : Int, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property]) = {
-    val v = new Vertex(routerID,creationTime, vertexId, initialValue = true, addOnly = false)
+    val v = new Vertex(routerID,creationTime, vertexId, initialValue = true)
     v.previousState   = previousState
     //v.associatedEdges = associatedEdges
     v.properties      = properties
@@ -31,7 +31,7 @@ object Vertex {
           value = v
         }
     }
-    new Vertex(-1,closestTime,id.toInt,value,false)
+    new Vertex(-1,closestTime,id.toInt,value)
   }
 
 }
@@ -43,10 +43,8 @@ object Vertex {
   * @param msgTime
   * @param vertexId
   * @param initialValue
-  * @param addOnly
   */
-class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolean, addOnly:Boolean)
-    extends Entity(routerID,msgTime, initialValue,addOnly) {
+class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolean) extends Entity(routerID,msgTime, initialValue) {
 
   var incomingIDs = ParSet[Int]()
   var outgoingIDs = ParSet[Int]()
@@ -106,7 +104,7 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     }
     if(!value)
       throw EntityRemovedAtTimeException(vertexId)
-    val vertex = new Vertex(-1,closestTime,vertexId,value,false)
+    val vertex = new Vertex(-1,closestTime,vertexId,value)
     for((k,p) <- properties) {
       val value = p.valueAt(time)
       if (!(value equals("default")))
