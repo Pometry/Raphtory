@@ -1,6 +1,6 @@
 package com.raphtory.core.actors.partitionmanager.Archivist
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.partitionmanager.Archivist.Managers.{ArchivingManager, CompressionManager}
@@ -13,12 +13,14 @@ import scala.concurrent.duration._
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
 
+import scala.collection.parallel.mutable.ParTrieMap
+
 //TODO fix edges
 
 
 
 
-class Archivist(maximumMem:Double) extends RaphtoryActor {
+class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends RaphtoryActor {
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
   val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
   val archiving : Boolean =  System.getenv().getOrDefault("ARCHIVING", "true").trim.toBoolean
@@ -52,29 +54,24 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
   var removePointGlobal:Long      = 0L
   var removalPoint:Long           = 0L
   // children for distribution of compresssion and archiving
-  val edgeCompressor   =  context.actorOf(Props[CompressionManager],"edgecompressor");
-  val vertexCompressor =  context.actorOf(Props[CompressionManager],"vertexcompressor");
-  val edgeArchiver     =  context.actorOf(Props[ArchivingManager],"edgearchiver");
-  val vertexArchiver   =  context.actorOf(Props[ArchivingManager],"vertexarchiver");
-  val children         =  10
+  val edgeCompressor   =  context.actorOf(Props(new CompressionManager(workers)),"edgecompressor");
+  val vertexCompressor =  context.actorOf(Props(new CompressionManager(workers)),"vertexcompressor");
+  val edgeArchiver     =  context.actorOf(Props(new ArchivingManager(workers)),"edgearchiver");
+  val vertexArchiver   =  context.actorOf(Props(new ArchivingManager(workers)),"vertexarchiver");
 
   val archGauge         = Kamon.gauge("raphtory_archivist")
 
   override def preStart() {
-    edgeCompressor   ! SetupSlave(children) //bring the slaves of all components online
-    vertexCompressor ! SetupSlave(children)
-    edgeArchiver     ! SetupSlave(children)
-    vertexArchiver   ! SetupSlave(children)
     context.system.scheduler.scheduleOnce(30.seconds, self,"compress") //start the compression process in 20 seconds
   }
 
   override def receive: Receive = {
     case "compress"                               => compressGraph()
     case "archive"                                => archiveGraph()
-    case FinishedEdgeCompression(total)           => compressEnder("edge")
-    case FinishedVertexCompression(total)         => compressEnder("vertex")
-    case FinishedEdgeArchiving(total,archived)    => archiveEnder("edge",archived)
-    case FinishedVertexArchiving(total,archived)  => archiveEnder("vertex",archived)
+    case FinishedEdgeCompression(key)           => compressEnder("edge")
+    case FinishedVertexCompression(key)         => compressEnder("vertex")
+    case FinishedEdgeArchiving(key)    => archiveEnder("edge")
+    case FinishedVertexArchiving(key)  => archiveEnder("vertex")
   }
 
   def compressGraph() : Unit = {
@@ -125,32 +122,41 @@ class Archivist(maximumMem:Double) extends RaphtoryActor {
     }
   }
 
-  def archiveEnder(name:String,archived:(Int,Int,Int)): Unit = {
+  def archiveEnder(name:String): Unit = {
     if(name equals("edge")){
-      println(s"finished $name archiving in ${(System.currentTimeMillis()-edgeArchiveTime)/1000} seconds")
-      println(s"${archived._2} History points removed, ${archived._1} Property points removed, ${archived._3} Full Edges removed")
-      archGauge.refine("actor" -> "Archivist", "name" -> "edgeHistoryRemoved").set((archived._2).asInstanceOf[Long])
-      archGauge.refine("actor" -> "Archivist", "name" -> "edgePropertyRemoved").set((archived._1).asInstanceOf[Long])
-      archGauge.refine("actor" -> "Archivist", "name" -> "edgeEdgesRemoved").set((archived._3).asInstanceOf[Long])
+      val edgeRemovals = EntityStorage.edgeDeletionCount.getAndSet(0)
+      val propertyRemovals = EntityStorage.edgePropertyDeletionCount.getAndSet(0)
+      val historyRemovals = EntityStorage.edgeHistoryDeletionCount.getAndSet(0)
+      archGauge.refine("actor" -> "Archivist", "name" -> "edgeHistoryRemoved").set(historyRemovals)
+      archGauge.refine("actor" -> "Archivist", "name" -> "edgePropertyRemoved").set(propertyRemovals)
+      archGauge.refine("actor" -> "Archivist", "name" -> "edgeEdgesRemoved").set(edgeRemovals)
       edgeArchivingFinished = true
+
+      println(s"finished $name archiving in ${(System.currentTimeMillis()-edgeArchiveTime)/1000} seconds")
+      println(s"$historyRemovals History points removed, propertyRemovals Property points removed, $edgeRemovals Full Edges removed")
     }
     if(name equals("vertex")){
-      println(s"finished $name archiving in ${(System.currentTimeMillis()-vertexArchiveTime)/1000}seconds")
-      println(s"${archived._2} History points removed, ${archived._1} Property points removed, ${archived._3} Full Vertices removed")
-      archGauge.refine("actor" -> "Archivist", "name" -> "vertexHistoryRemoved").set((archived._2).asInstanceOf[Long])
-      archGauge.refine("actor" -> "Archivist", "name" -> "vertexPropertyRemoved").set((archived._1).asInstanceOf[Long])
-      archGauge.refine("actor" -> "Archivist", "name" -> "vertexVerticesRemoved").set((archived._3).asInstanceOf[Long])
+      val vertexRemovals = EntityStorage.vertexDeletionCount.getAndSet(0)
+      val propertyRemovals = EntityStorage.vertexPropertyDeletionCount.getAndSet(0)
+      val historyRemovals = EntityStorage.vertexHistoryDeletionCount.getAndSet(0)
+      archGauge.refine("actor" -> "Archivist", "name" -> "vertexHistoryRemoved").set(historyRemovals)
+      archGauge.refine("actor" -> "Archivist", "name" -> "vertexPropertyRemoved").set(propertyRemovals)
+      archGauge.refine("actor" -> "Archivist", "name" -> "vertexVerticesRemoved").set(vertexRemovals)
       vertexArchivingFinished = true
+
+      println(s"finished $name archiving in ${(System.currentTimeMillis()-vertexArchiveTime)/1000}seconds")
+      println(s"$historyRemovals History points removed, $propertyRemovals Property points removed, $vertexRemovals Full Vertices removed")
     }
 
     if (edgeArchivingFinished && vertexArchivingFinished) {
       vertexArchivingFinished = false
       edgeArchivingFinished = false
-      println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
-      archGauge.refine("actor" -> "Archivist", "name" -> "totalArchiveTime").set((((System.currentTimeMillis()-totalArchiveTime)/1000)).asInstanceOf[Long])
+      archGauge.refine("actor" -> "Archivist", "name" -> "totalArchiveTime").set((System.currentTimeMillis()-totalArchiveTime)/1000)
       EntityStorage.oldestTime = removePointGlobal
       context.system.scheduler.scheduleOnce(10.second, self, "compress")
       System.gc() //suggest a good time to garbage collect
+
+      println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
     }
 
 

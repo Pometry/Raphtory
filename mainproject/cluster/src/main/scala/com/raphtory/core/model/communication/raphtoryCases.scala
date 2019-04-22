@@ -78,7 +78,7 @@ case class FinishedVertexArchiving(key:Int)
 
 case class SetupSlave(children:Int)
 
-case class ReportIntake(mainMessages:Int,secondaryMessages:Int,workerMessages:Int,partitionId:Int)
+case class ReportIntake(mainMessages:Int,secondaryMessages:Int,workerMessages:Int,partitionId:Int,timeDifference:Long)
 case class ReportSize(partitionID:Int)
 
 sealed trait RaphReadClasses

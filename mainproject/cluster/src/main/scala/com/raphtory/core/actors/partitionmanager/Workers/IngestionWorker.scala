@@ -2,12 +2,16 @@ package com.raphtory.core.actors.partitionmanager.Workers
 
 import akka.actor.{Actor, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.datastax.driver.core.exceptions.WriteTimeoutException
 import com.raphtory.core.model.communication._
-import com.raphtory.core.storage.EntityStorage
+import com.raphtory.core.model.graphentities.{Edge, Vertex}
+import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
 
 class IngestionWorker(workerID:Int) extends Actor {
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
+  val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
+  val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
   //println(akka.serialization.Serialization.serializedActorPath(self))
 
   override def receive:Receive = {
@@ -34,7 +38,17 @@ class IngestionWorker(workerID:Int) extends Actor {
     case ReturnEdgeRemoval(routerID,msgTime,srcId,dstId)                  => {EntityStorage.returnEdgeRemoval(routerID,workerID,msgTime,srcId,dstId);                    eHandleSecondary(srcId,dstId,msgTime)}
     case RemoteReturnDeaths(msgTime,srcId,dstId,deaths)                   => {EntityStorage.remoteReturnDeaths(msgTime,srcId,dstId,deaths);                              eHandleSecondary(srcId,dstId,msgTime)}
 
+    case CompressEdges(ls) => compressEdges(ls)
+    case CompressVertices(ls) => compressVertices(ls)
+
+    case ArchiveEdges(ls) => archiveEdges(ls)
+    case ArchiveVertices(ls) => archiveVertices(ls)
+
   }
+
+  /*************************************************************
+    *                 LOG HANDLING SECTION                     *
+    ************************************************************/
 
   def vHandle(srcID : Int,msgTime:Long) : Unit = {
     EntityStorage.timings(msgTime)
@@ -51,5 +65,124 @@ class IngestionWorker(workerID:Int) extends Actor {
   def wHandle(): Unit ={
     EntityStorage.workerMessageCount.incrementAndGet()
   }
+
+  /*************************************************************
+    *                   COMPRESSION SECTION                    *
+    ************************************************************/
+
+  def compressEdges(now: Long) = {
+    EntityStorage.edgeKeys.get(workerID) match {
+      case Some(set) => set.foreach(key => {
+        compressEdge(key, now)
+      })
+    }
+    context.sender ! FinishedEdgeCompression(workerID)
+  }
+
+  def compressEdge(key: Long, now: Long) = {
+    EntityStorage.edges.get(key) match {
+      case Some(edge) => saveEdge(edge, now)
+      case None =>
+    }
+  }
+
+
+  def compressVertices(now: Long) = {
+    EntityStorage.vertexKeys.get(workerID) match {
+      case Some(set) => set.foreach(key => {
+        compressVertex(key, now)
+      })
+    }
+    context.sender ! FinishedVertexCompression(workerID)
+  }
+
+  def compressVertex(key: Int, now: Long) = {
+    EntityStorage.vertices.get(key) match {
+      case Some(vertex) => saveVertex(vertex, now)
+      case None =>
+    }
+  }
+
+
+  def saveEdge(edge: Edge, cutOff: Long) = {
+    val history = edge.compressHistory(cutOff)
+    if (saving) {
+      if (history.size > 0) {
+        RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
+      }
+      edge.properties.foreach(property => {
+        val propHistory = property._2.compressHistory(cutOff)
+        if (propHistory.size > 0) {
+          try{
+            RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
+          }
+          catch {
+            case e:WriteTimeoutException => {println("saving error")}
+          }
+        }
+      })
+    }
+  }
+
+  def saveVertex(vertex: Vertex, cutOff: Long) = {
+    val history = vertex.compressHistory(cutOff)
+    if (saving) { //if we are saving data to cassandra
+      if (history.size > 0) {
+        RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)
+      }
+      vertex.properties.foreach(prop => {
+        val propHistory = prop._2.compressHistory(cutOff)
+        if (propHistory.size > 0) {
+          try{
+          RaphtoryDBWrite.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
+          }
+          catch {
+            case e:WriteTimeoutException => {println("saving error")}
+          }
+        }
+      })
+    }
+  }
+
+
+
+
+
+  /*************************************************************
+    *                   ARCHIVING SECTION                      *
+    ************************************************************/
+
+
+  def archiveEdges(now:Long) = {
+    EntityStorage.edgeKeys.get(workerID) match {
+      case Some(set) => set.foreach(key => {archiveEdge(key,now)})
+    }
+    context.sender ! FinishedEdgeArchiving(workerID)
+  }
+
+  def archiveVertices(now:Long) = { 
+    EntityStorage.vertexKeys.get(workerID) match {
+      case Some(set) => set.foreach(key => {
+        archiveVertex(key,now)
+      })
+    }
+    context.sender ! FinishedVertexArchiving(workerID)
+  }
+
+  //TODO decide what to do with placeholders (future)*
+  def archiveEdge(key:Long, cutoff:Long) = {
+    EntityStorage.edges.get(key) match {
+      case Some(edge) => if (edge.archive(cutoff,compressing)) EntityStorage.edges.remove(edge.getId)//if all old then remove the edge
+      case None => {}//do nothing
+    }
+  }
+  def archiveVertex(key:Int,cutoff:Long) = {
+    EntityStorage.vertices.get(key) match {
+      case Some(vertex) => if (vertex.archive(cutoff,compressing)) EntityStorage.vertices.remove(vertex.getId.toInt) //if all old then remove the vertex
+      case None => {}//do nothing
+    }
+  }
+
+
 
 }

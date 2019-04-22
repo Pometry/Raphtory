@@ -19,10 +19,9 @@ class WriterLogger extends RaphtoryActor{
   val mainMessages         = Kamon.gauge("raphtory.mainMessages")
   val secondaryMessages    = Kamon.gauge("raphtory.secondaryMessages")
   val workerMessages       = Kamon.gauge("raphtory.workerMessages")
-  var lastmessage          = System.currentTimeMillis()/1000
 
   override def receive:Receive = {
-    case ReportIntake(mainMessages,secondaryMessages,workerMessages,partitionId) => reportIntake(mainMessages,secondaryMessages,workerMessages,partitionId)
+    case ReportIntake(mainMessages,secondaryMessages,workerMessages,partitionId,timeDifference) => reportIntake(mainMessages,secondaryMessages,workerMessages,partitionId,timeDifference)
     case ReportSize(partitionid) => {reportSizes(edgesGauge, EntityStorage.edges,partitionid);reportSizes(verticesGauge, EntityStorage.vertices,partitionid)}
 
   }
@@ -52,19 +51,14 @@ class WriterLogger extends RaphtoryActor{
     }
   }
 
-  def reportIntake(messageCount:Int, secondaryMessageCount:Int, workerMessageCount:Int, id:Int) : Unit = {
+  def reportIntake(messageCount:Int, secondaryMessageCount:Int, workerMessageCount:Int, id:Int,timeDifference:Long) : Unit = {
     try {
       // Kamon monitoring
       if (kLogging) {
-        val newTime = System.currentTimeMillis()/1000
-        val diff = newTime-lastmessage
-        if(diff ==0)
-          diff ==1
-        lastmessage = newTime
-        kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount/diff)
-        mainMessages.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount/diff)
-        secondaryMessages.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount/diff)
-        workerMessages.refine("actor" -> "PartitionManager", "name" -> "workerMessageCount", "replica" -> id.toString).set(workerMessageCount/diff)
+        kGauge.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount/timeDifference)
+        mainMessages.refine("actor" -> "PartitionManager", "name" -> "messageCount", "replica" -> id.toString).set(messageCount/timeDifference)
+        secondaryMessages.refine("actor" -> "PartitionManager", "name" -> "secondaryMessageCount", "replica" -> id.toString).set(secondaryMessageCount/timeDifference)
+        workerMessages.refine("actor" -> "PartitionManager", "name" -> "workerMessageCount", "replica" -> id.toString).set(workerMessageCount/timeDifference)
       }
     } catch {
       case e: Exception => {

@@ -22,23 +22,17 @@ import scala.concurrent.duration._
   * Is sent commands which have been processed by the command Processor
   * Will process these, storing information in graph entities which may be updated if they already exist
   * */
-class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends RaphtoryActor {
+class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMap[Int,ActorRef]) extends RaphtoryActor {
   var managerCount          : Int = managerCountVal
   val managerID             : Int = id                   //ID which refers to the partitions position in the graph manager map
 
   val printing              : Boolean = false                  // should the handled messages be printed to terminal
 
-  var childMap              : ParTrieMap[Int,ActorRef] = ParTrieMap[Int,ActorRef]()
   val children              : Int = 10
   val logChild              : ActorRef = context.actorOf(Props[WriterLogger],s"logger")
   val logChildForSize       : ActorRef = context.actorOf(Props[WriterLogger],s"logger2")
-  for(i <- 0 to children){ //create threads for writing
-    val child = context.actorOf(Props(new IngestionWorker(i)),s"child_$i")
-    context.watch(child)
-    childMap.put(i,child)
-
-  }
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
+  var lastLogTime           = System.currentTimeMillis()
   mediator ! DistributedPubSubMediator.Put(self)
 
   val storage= EntityStorage.apply(printing, managerCount, managerID, mediator)
@@ -82,10 +76,14 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
     logChildForSize ! ReportSize(managerID)
   }
   def count() = {
-    val messageCount = storage.messageCount.getAndSet(0)/1
-    val secondaryMessageCount = storage.secondaryMessageCount.getAndSet(0)/1
-    val workerMessageCount = storage.workerMessageCount.getAndSet(0)/1
-    logChild  ! ReportIntake(messageCount,secondaryMessageCount,workerMessageCount,managerID)
+    val newTime = System.currentTimeMillis()
+    var timeDifference = (newTime-lastLogTime)
+    if(timeDifference ==0) timeDifference =1
+    lastLogTime = newTime
+    val messageCount = storage.messageCount.getAndSet(0)*1000 //to match the milliseconds
+    val secondaryMessageCount = storage.secondaryMessageCount.getAndSet(0)*1000
+    val workerMessageCount = storage.workerMessageCount.getAndSet(0)*1000
+    logChild  ! ReportIntake(messageCount,secondaryMessageCount,workerMessageCount,managerID,timeDifference)
   }
 
 

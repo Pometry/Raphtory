@@ -23,7 +23,6 @@ import spray.json._
 class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends RouterSlave {
 
   //************* MESSAGE HANDLING BLOCK
-  println(akka.serialization.Serialization.serializedActorPath(self))
 
   def parseRecord(record:Any):Unit={
     val command = record.asInstanceOf[String]

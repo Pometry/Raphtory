@@ -9,9 +9,11 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.actors.partitionmanager.Archivist.Archivist
 import com.raphtory.core.actors.partitionmanager.Reader.PartitionReader
+import com.raphtory.core.actors.partitionmanager.Workers.IngestionWorker
 import com.raphtory.core.actors.partitionmanager.Writer.PartitionWriter
 import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
 
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -68,10 +70,14 @@ class RaphtoryReplicator(actorType:String, initialManagerCount:Int, routerName :
     println(s"MyId is $assignedId")
     actorType match {
       case "Partition Manager" => {
-
-        actorRef = context.system.actorOf(Props(new PartitionWriter(myId, false, currentCount)), s"Manager_$myId")
+        var workers: ParTrieMap[Int,ActorRef] = new ParTrieMap[Int,ActorRef]()
+        for(i <- 0 until 10){ //create threads for writing
+          val child = context.system.actorOf(Props(new IngestionWorker(i)),s"Manager_${assignedId}_child_$i")
+          workers.put(i,child)
+        }
+        actorRef = context.system.actorOf(Props(new PartitionWriter(myId, false, currentCount,workers)), s"Manager_$myId")
         actorRefReader = context.system.actorOf(Props(new PartitionReader(myId, false, currentCount)), s"ManagerReader_$myId")
-        context.system.actorOf(Props(new Archivist(0.3)))
+        context.system.actorOf(Props(new Archivist(0.3,workers)))
       }
 
       case "Router" => {

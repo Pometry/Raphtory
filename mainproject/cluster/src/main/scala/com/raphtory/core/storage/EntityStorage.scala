@@ -23,14 +23,18 @@ import scala.collection.parallel.mutable.ParTrieMap
 object EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager,checkWorker}
 
-  var messageCount          = new AtomicInteger(0)        // number of messages processed since last report to the benchmarker
-  var secondaryMessageCount = new AtomicInteger(0)
-  var workerMessageCount    = new AtomicInteger(0)
+  var messageCount                = new AtomicInteger(0)        // number of messages processed since last report to the benchmarker
+  var secondaryMessageCount       = new AtomicInteger(0)
+  var workerMessageCount          = new AtomicInteger(0)
 
-  var historyDeletionCount   = new AtomicInteger(0)
-  var propertyDeletionCount  = new AtomicInteger(0)
-  var edgeDeletionCount      = new AtomicInteger(0)
-  var vertexDeletionCount    = new AtomicInteger(0)
+  var vertexDeletionCount         = new AtomicInteger(0)
+  var vertexHistoryDeletionCount  = new AtomicInteger(0)
+  var vertexPropertyDeletionCount = new AtomicInteger(0)
+
+  var edgeDeletionCount           = new AtomicInteger(0)
+  var edgeHistoryDeletionCount    = new AtomicInteger(0)
+  var edgePropertyDeletionCount   = new AtomicInteger(0)
+
 
   val children = 10
 
