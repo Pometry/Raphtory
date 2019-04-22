@@ -1,13 +1,11 @@
-package com.raphtory.core.storage.controller
+package com.raphtory.core.storage
 
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.VertexVisitor
-import com.raphtory.core.model.graphentities.{Edge, Vertex}
-import com.raphtory.core.storage._
-import com.raphtory.core.utils.KeyEnum
+import com.raphtory.core.model.graphentities.Vertex
 import monix.execution.atomic.AtomicInt
 
-import scala.collection.{mutable, parallel}
+import scala.collection.parallel
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 object GraphRepoProxy {

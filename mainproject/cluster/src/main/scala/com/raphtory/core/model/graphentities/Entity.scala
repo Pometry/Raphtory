@@ -88,7 +88,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     else
       newPreviousState.put(PriorPoint._1,PriorPoint._2) //if the last point in the uncompressed history wasn't past the cutoff it needs to go back into the new uncompressed history
     previousState = newPreviousState
-    properties.foreach{case (key,property) => property.compressHistory(cutoff)}
     toWrite
   }
 

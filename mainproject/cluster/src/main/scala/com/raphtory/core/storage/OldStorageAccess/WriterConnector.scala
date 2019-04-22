@@ -1,4 +1,5 @@
-package com.raphtory.core.storage
+package com.raphtory.core.storage.OldStorageAccess
+
 import com.raphtory.core.utils.KeyEnum
 
 trait WriterConnector {

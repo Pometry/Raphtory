@@ -1,8 +1,8 @@
-package com.raphtory.core.storage
+package com.raphtory.core.storage.OldStorageAccess
+
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property}
 import com.raphtory.core.utils.KeyEnum
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap

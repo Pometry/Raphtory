@@ -3,18 +3,13 @@ package com.raphtory.core.actors.partitionmanager.Archivist
 import akka.actor.Props
 import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.partitionmanager.Archivist.Helpers.Archiving.ArchivingManager
-import com.raphtory.core.actors.partitionmanager.Archivist.Helpers.Compression.CompressionManager
+import com.raphtory.core.actors.partitionmanager.Archivist.Managers.{ArchivingManager, CompressionManager}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
-
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import scala.concurrent.duration._
-
-
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
 

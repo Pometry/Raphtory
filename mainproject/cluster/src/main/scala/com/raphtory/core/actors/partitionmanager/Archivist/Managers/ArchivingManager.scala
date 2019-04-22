@@ -1,9 +1,8 @@
-package com.raphtory.core.actors.partitionmanager.Archivist.Helpers.Archiving
+package com.raphtory.core.actors.partitionmanager.Archivist.Managers
 
 import akka.actor.{Actor, ActorRef, Props}
+import com.raphtory.core.actors.partitionmanager.Archivist.Managers.Archiving.ArchivingSlave
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.{Edge, Vertex}
-import com.raphtory.core.storage.EntityStorage
 
 import scala.collection.parallel.mutable.ParTrieMap
 

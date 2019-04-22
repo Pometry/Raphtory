@@ -1,15 +1,15 @@
-package com.raphtory.core.storage
-import com.raphtory.core.storage.controller.GraphRepoProxy
+package com.raphtory.core.storage.OldStorageAccess
+
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property}
+import com.raphtory.core.storage.{EntityStorage, GraphRepoProxy}
 import com.raphtory.core.utils.KeyEnum
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
 private object MemoryConnector extends ReaderConnector {
-  import EntityStorage.{edges,vertices}
+  import EntityStorage.{edges, vertices}
   //val entities = Map[KeyEnum.Value, TrieMap[_ <: AnyVal, _ <: Entity]]((KeyEnum.edges -> edges), (KeyEnum.vertices -> vertices))
 
   /**

@@ -2,7 +2,7 @@ package com.raphtory.examples.gab.analysis
 
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.Analyser
-import com.raphtory.core.storage.controller.GraphRepoProxy
+import com.raphtory.core.storage.GraphRepoProxy
 import monix.execution.atomic.AtomicDouble
 
 class GabMostUsedTopics(networkSize : Int, dumplingFactor : Float) extends Analyser {

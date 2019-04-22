@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.partitionmanager.Archivist.Helpers.Archiving
+package com.raphtory.core.actors.partitionmanager.Archivist.Managers.Archiving
 
 import akka.actor.Actor
 import com.raphtory.core.model.communication._

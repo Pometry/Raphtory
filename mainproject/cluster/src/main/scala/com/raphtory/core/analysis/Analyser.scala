@@ -1,7 +1,7 @@
 package com.raphtory.core.analysis
 
-import akka.actor.{ActorContext}
-import com.raphtory.core.storage.controller.GraphRepoProxy
+import akka.actor.ActorContext
+import com.raphtory.core.storage.GraphRepoProxy
 abstract class Analyser extends java.io.Serializable {
   implicit var context : ActorContext
   implicit var managerCount : Int

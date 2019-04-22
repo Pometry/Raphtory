@@ -1,11 +1,11 @@
-package com.raphtory.core.actors.partitionmanager.Writer.Helpers
+package com.raphtory.core.actors.partitionmanager.Workers
 
 import akka.actor.{Actor, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 
-class WritingSlave(workerID:Int) extends Actor {
+class IngestionWorker(workerID:Int) extends Actor {
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
   //println(akka.serialization.Serialization.serializedActorPath(self))

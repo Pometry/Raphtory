@@ -7,7 +7,7 @@ import akka.actor.{ActorRef, OneForOneStrategy, Props, SupervisorStrategy, Termi
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.japi.Util
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.partitionmanager.Writer.Helpers.{LoggingSlave, WritingSlave}
+import com.raphtory.core.actors.partitionmanager.Workers.IngestionWorker
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.Entity
 import com.raphtory.core.storage.EntityStorage
@@ -30,10 +30,10 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int) extends R
 
   var childMap              : ParTrieMap[Int,ActorRef] = ParTrieMap[Int,ActorRef]()
   val children              : Int = 10
-  val logChild              : ActorRef = context.actorOf(Props[LoggingSlave],s"logger")
-  val logChildForSize       : ActorRef = context.actorOf(Props[LoggingSlave],s"logger2")
+  val logChild              : ActorRef = context.actorOf(Props[WriterLogger],s"logger")
+  val logChildForSize       : ActorRef = context.actorOf(Props[WriterLogger],s"logger2")
   for(i <- 0 to children){ //create threads for writing
-    val child = context.actorOf(Props(new WritingSlave(i)),s"child_$i")
+    val child = context.actorOf(Props(new IngestionWorker(i)),s"child_$i")
     context.watch(child)
     childMap.put(i,child)
 

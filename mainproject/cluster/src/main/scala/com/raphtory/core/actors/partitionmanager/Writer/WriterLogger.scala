@@ -1,19 +1,15 @@
-package com.raphtory.core.actors.partitionmanager.Writer.Helpers
+package com.raphtory.core.actors.partitionmanager.Writer
 
-import java.util.concurrent.atomic.AtomicInteger
-
-import akka.actor.Actor
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.communication.{ReportIntake, ReportSize}
 import com.raphtory.core.model.graphentities.Entity
 import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
 import kamon.metric.GaugeMetric
-import monix.eval.Task
 
 import scala.collection.parallel.mutable.ParTrieMap
 
-class LoggingSlave extends RaphtoryActor{
+class WriterLogger extends RaphtoryActor{
 
   val verticesGauge         : GaugeMetric = Kamon.gauge("raphtory.vertices")
   val edgesGauge            : GaugeMetric = Kamon.gauge("raphtory.edges")

@@ -1,6 +1,7 @@
-package com.raphtory.core.actors.partitionmanager.Archivist.Helpers.Compression
+package com.raphtory.core.actors.partitionmanager.Archivist.Managers
 
 import akka.actor.{Actor, ActorRef, Props}
+import com.raphtory.core.actors.partitionmanager.Archivist.Managers.Compression.CompressionSlave
 import com.raphtory.core.model.communication._
 
 import scala.collection.parallel.mutable.ParTrieMap

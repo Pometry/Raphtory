@@ -11,7 +11,8 @@ import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import com.raphtory.core.analysis.Analyser
-import com.raphtory.core.storage.controller.GraphRepoProxy
+import com.raphtory.core.storage.GraphRepoProxy
+
 import scala.sys.process._
 import scala.io.Source
 
