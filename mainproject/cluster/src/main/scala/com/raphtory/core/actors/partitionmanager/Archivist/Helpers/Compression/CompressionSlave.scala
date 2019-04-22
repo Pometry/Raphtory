@@ -61,7 +61,7 @@ class CompressionSlave(id: Int) extends Actor {
         RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
       }
       edge.properties.foreach(property => {
-        val propHistory = property._2.compressAndReturnOldHistory(cutOff)
+        val propHistory = property._2.compress(cutOff)
         if (propHistory.size > 0) {
           RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
         }
@@ -76,7 +76,7 @@ class CompressionSlave(id: Int) extends Actor {
         RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)
       }
       vertex.properties.foreach(prop => {
-        val propHistory = prop._2.compressAndReturnOldHistory(cutOff)
+        val propHistory = prop._2.compress(cutOff)
         if (propHistory.size > 0) {
           RaphtoryDBWrite.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
         }

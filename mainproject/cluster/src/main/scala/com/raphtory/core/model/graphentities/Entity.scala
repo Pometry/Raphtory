@@ -80,12 +80,15 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
       PriorPoint = (k, v)
     }}
     if((PriorPoint._1<cutoff)) { //
-      if (compressedState.isEmpty || (compressedState.head._2 != PriorPoint._2)) //if the last point is before the cut off --if compressedState is empty or the head of the compressed state is different to the final point of the uncompressed state then write
+      if (compressedState.isEmpty || (compressedState.head._2 != PriorPoint._2)) { //if the last point is before the cut off --if compressedState is empty or the head of the compressed state is different to the final point of the uncompressed state then write
         toWrite.put(PriorPoint._1, PriorPoint._2) //add to toWrite so this can be saved to cassandra
+        compressedState.put(PriorPoint._1, PriorPoint._2) //add to compressedState in-mem
+      }
     }
     else
       newPreviousState.put(PriorPoint._1,PriorPoint._2) //if the last point in the uncompressed history wasn't past the cutoff it needs to go back into the new uncompressed history
     previousState = newPreviousState
+    properties.foreach{case (key,property) => property.compressHistory(cutoff)}
     toWrite
   }
 

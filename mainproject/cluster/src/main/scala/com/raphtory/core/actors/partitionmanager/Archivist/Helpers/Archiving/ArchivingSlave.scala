@@ -36,7 +36,7 @@ class ArchivingSlave(id:Int) extends Actor{
   //TODO decide what to do with placeholders (future)*
   def archiveEdge(key:Long, cutoff:Long) = {
       EntityStorage.edges.get(key) match {
-        case Some(edge) => if (edge.archive(cutoff,compressing)) EntityStorage.edges.remove(e.getId)//if all old then remove the edge
+        case Some(edge) => if (edge.archive(cutoff,compressing)) EntityStorage.edges.remove(edge.getId)//if all old then remove the edge
         case None => {}//do nothing
       }
   }

@@ -3,7 +3,9 @@ package com.raphtory.core.clustersetup.singlenode
 import akka.actor.Props
 import com.raphtory.core.actors.{RaphtoryReplicator, SeedActor, WatchDog}
 import com.raphtory.core.clustersetup.DocSvr
+import com.raphtory.core.storage.RaphtoryDBWrite
 import com.typesafe.config.{Config, ConfigFactory}
+
 import scala.language.postfixOps
 import scala.sys.process._
 
@@ -13,6 +15,7 @@ case class SingleNodeSetup(seedLoc:String,routerClassName:String,UpdaterName:Str
   //"redis-server --daemonize yes" ! //start redis running on manager partition
   Process("cassandra").lineStream //run cassandara in background on manager
   Thread.sleep(5000)
+  RaphtoryDBWrite.createDB()
   system.actorOf(Props(new SeedActor(this)), "cluster")
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
   system.actorOf(Props(RaphtoryReplicator("Router",1, routerClassName)), s"Routers")
