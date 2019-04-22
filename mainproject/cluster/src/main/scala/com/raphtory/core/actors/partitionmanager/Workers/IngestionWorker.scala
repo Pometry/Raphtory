@@ -160,7 +160,7 @@ class IngestionWorker(workerID:Int) extends Actor {
     context.sender ! FinishedEdgeArchiving(workerID)
   }
 
-  def archiveVertices(now:Long) = { 
+  def archiveVertices(now:Long) = {
     EntityStorage.vertexKeys.get(workerID) match {
       case Some(set) => set.foreach(key => {
         archiveVertex(key,now)
