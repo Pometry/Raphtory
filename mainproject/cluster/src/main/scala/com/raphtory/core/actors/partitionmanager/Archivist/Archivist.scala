@@ -81,7 +81,7 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Raph
       vertexCompressor ! CompressVertices(newLastSaved)
     }
     else {
-      context.system.scheduler.scheduleOnce(10.second, self, "archive")
+      context.system.scheduler.scheduleOnce(60.second, self, "archive")
     }
   }
 
@@ -103,7 +103,7 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Raph
       EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
       vertexCompressionFinished = false //reset the compression vars
       edgeCompressionFinished = false
-      context.system.scheduler.scheduleOnce(10.second, self, "archive") //start the archiving process
+      context.system.scheduler.scheduleOnce(60.second, self, "archive") //start the archiving process
     }
   }
 
@@ -153,9 +153,8 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Raph
       edgeArchivingFinished = false
       archGauge.refine("actor" -> "Archivist", "name" -> "totalArchiveTime").set((System.currentTimeMillis()-totalArchiveTime)/1000)
       EntityStorage.oldestTime = removePointGlobal
-      context.system.scheduler.scheduleOnce(10.second, self, "compress")
       System.gc() //suggest a good time to garbage collect
-
+      context.system.scheduler.scheduleOnce(60.second, self, "compress")
       println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
     }
 
