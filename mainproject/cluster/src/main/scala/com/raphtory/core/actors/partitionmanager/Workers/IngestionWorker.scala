@@ -11,7 +11,7 @@ class IngestionWorker(workerID:Int) extends Actor {
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
-  val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
+  val saving    : Boolean =  false
   //println(akka.serialization.Serialization.serializedActorPath(self))
 
   override def receive:Receive = {
@@ -172,17 +172,21 @@ class IngestionWorker(workerID:Int) extends Actor {
   //TODO decide what to do with placeholders (future)*
   def archiveEdge(key:Long, cutoff:Long) = {
     EntityStorage.edges.get(key) match {
-      case Some(edge) => if (edge.archive(cutoff,compressing)) EntityStorage.edges.remove(edge.getId)//if all old then remove the edge
+      case Some(edge) => if (edge.archive(cutoff,compressing,false)) {
+        EntityStorage.edges.remove(edge.getId)
+        EntityStorage.edgeDeletionCount.incrementAndGet()
+      }//if all old then remove the edge
       case None => {}//do nothing
     }
   }
   def archiveVertex(key:Int,cutoff:Long) = {
     EntityStorage.vertices.get(key) match {
-      case Some(vertex) => if (vertex.archive(cutoff,compressing)) EntityStorage.vertices.remove(vertex.getId.toInt) //if all old then remove the vertex
+      case Some(vertex) => if (vertex.archive(cutoff,compressing,true)) {
+        EntityStorage.vertices.remove(vertex.getId.toInt)
+        EntityStorage.vertexDeletionCount.incrementAndGet()
+      } //if all old then remove the vertex
       case None => {}//do nothing
     }
   }
-
-
 
 }

@@ -133,7 +133,7 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Raph
       edgeArchivingFinished = true
 
       println(s"finished $name archiving in ${(System.currentTimeMillis()-edgeArchiveTime)/1000} seconds")
-      println(s"$historyRemovals History points removed, propertyRemovals Property points removed, $edgeRemovals Full Edges removed")
+      println(s"$historyRemovals History points removed, $propertyRemovals Property points removed, $edgeRemovals Full Edges removed")
     }
     if(name equals("vertex")){
       val vertexRemovals = EntityStorage.vertexDeletionCount.getAndSet(0)

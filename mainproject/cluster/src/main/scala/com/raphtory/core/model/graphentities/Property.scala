@@ -1,5 +1,6 @@
 package com.raphtory.core.model.graphentities
 
+import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.HistoryOrdering
 
 import scala.collection.mutable
@@ -61,17 +62,30 @@ class Property(creationTime: Long,
   }
 
 
-  def archive(cutoff:Long, compressing:Boolean):Unit={ //
+  def archive(cutoff:Long, compressing:Boolean,entityType:Boolean):Unit={ //
     if(previousState.isEmpty && compressedState.isEmpty) return  //blank node, decide what to do later
     if(compressedState.nonEmpty){
       if (compressedState.takeRight(1).head._1>=cutoff) return  //if the oldest point is younger than the cut off no need to do anything
       val head = compressedState.head //get the head for later
       val newCompressedState: mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
-      compressedState.foreach{case (k,v) => {if(k>=cutoff) newCompressedState put(k,v)}} //for each point if it is safe then keep it
+      compressedState.foreach{case (k,v) => {
+        if(k>=cutoff)
+          newCompressedState put(k,v)
+        else
+          recordRemoval(entityType)
+      }} //for each point if it is safe then keep it
       compressedState = newCompressedState //overwrite the compressed state
       if(compressedState isEmpty) compressedState put(head._1,head._2) //if everything was removed, keep the latest value
     }
   }
+
+  def recordRemoval(entityType:Boolean) = {
+    if(entityType)
+      EntityStorage.vertexPropertyDeletionCount.incrementAndGet()
+    else
+      EntityStorage.edgePropertyDeletionCount.incrementAndGet()
+  }
+
 
   def getPreviousStateSize() : Int = {
       previousState.size
