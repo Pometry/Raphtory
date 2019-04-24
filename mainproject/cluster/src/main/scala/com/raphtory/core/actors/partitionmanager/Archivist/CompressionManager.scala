@@ -1,6 +1,6 @@
-package com.raphtory.core.actors.partitionmanager.Archivist.Managers
+package com.raphtory.core.actors.partitionmanager.Archivist
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorRef}
 import com.raphtory.core.model.communication._
 
 import scala.collection.parallel.mutable.ParTrieMap

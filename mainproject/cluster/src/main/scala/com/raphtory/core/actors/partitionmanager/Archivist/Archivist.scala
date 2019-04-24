@@ -3,7 +3,6 @@ package com.raphtory.core.actors.partitionmanager.Archivist
 import akka.actor.{ActorRef, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.partitionmanager.Archivist.Managers.{ArchivingManager, CompressionManager}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import org.slf4j.LoggerFactory
