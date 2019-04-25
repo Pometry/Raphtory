@@ -3,7 +3,7 @@ package com.raphtory.examples.random.actors
 import java.text.SimpleDateFormat
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.spout.SpoutTrait
+import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.utils.Utils
 import kamon.Kamon
 

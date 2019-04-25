@@ -1,8 +1,8 @@
 package com.raphtory.examples.random.actors
 
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.router.TraditionalRouter.Helpers.RouterSlave
-import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
+import com.raphtory.core.components.Router.TraditionalRouter.Helpers.RouterSlave
+import com.raphtory.core.components.Router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.getManager
 import spray.json._

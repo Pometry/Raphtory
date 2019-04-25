@@ -1,7 +1,7 @@
 package com.raphtory.core.clustersetup
 
 import akka.actor.Props
-import com.raphtory.core.actors.RaphtoryReplicator
+import com.raphtory.core.components.RaphtoryReplicator
 import com.raphtory.core.storage.RaphtoryDBWrite
 
 import scala.language.postfixOps

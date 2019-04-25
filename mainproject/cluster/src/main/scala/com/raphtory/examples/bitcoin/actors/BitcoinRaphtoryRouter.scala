@@ -1,8 +1,8 @@
 package com.raphtory.examples.bitcoin.actors
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.router.TraditionalRouter.Helpers.RouterSlave
-import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
+import com.raphtory.core.components.Router.TraditionalRouter.Helpers.RouterSlave
+import com.raphtory.core.components.Router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, RaphWriteClass, VertexAddWithProperties}
 import com.raphtory.core.utils.Utils.getManager
 import com.raphtory.examples.bitcoin.communications.BitcoinTransaction

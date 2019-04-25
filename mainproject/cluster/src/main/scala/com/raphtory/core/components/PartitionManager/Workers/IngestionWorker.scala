@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.partitionmanager.Workers
+package com.raphtory.core.components.PartitionManager.Workers
 
 import akka.actor.{Actor, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}

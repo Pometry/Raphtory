@@ -1,4 +1,4 @@
-package com.raphtory.core.actors
+package com.raphtory.core.components
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
@@ -7,9 +7,9 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.core.actors.partitionmanager.{Archivist, Reader, Writer}
-import com.raphtory.core.actors.partitionmanager.Workers.IngestionWorker
-import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
+import com.raphtory.core.components.PartitionManager.{Archivist, Reader, Writer}
+import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
+import com.raphtory.core.components.Router.TraditionalRouter.RaphtoryRouter
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.{Await, Future}

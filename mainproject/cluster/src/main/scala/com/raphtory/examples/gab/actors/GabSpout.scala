@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.Cancellable
 import com.mongodb.casbah.Imports.{DBObject, MongoConnection, MongoDBObject}
-import com.raphtory.core.actors.spout.SpoutTrait
+import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
 import com.raphtory.core.utils.CommandEnum
 import com.raphtory.examples.gab.rawgraphmodel.GabPost

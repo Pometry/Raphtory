@@ -1,6 +1,6 @@
 package com.raphtory.examples.gab.actors
 
-import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
+import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.examples.gab.analysis.GabMostUsedTopics
 

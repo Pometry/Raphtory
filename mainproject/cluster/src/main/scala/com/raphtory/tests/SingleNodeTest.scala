@@ -4,7 +4,8 @@ package com.raphtory.tests
 
 import akka.actor.{ActorSystem, Props}
 import ch.qos.logback.classic.Level
-import com.raphtory.core.actors.{RaphtoryReplicator, WatchDog}
+import com.raphtory.core.components.ClusterManagement.WatchDog
+import com.raphtory.core.components.RaphtoryReplicator
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.{EntityStorage, GraphRepoProxy, RaphtoryDBWrite}
 import monix.execution.atomic.AtomicInt

@@ -1,6 +1,6 @@
 package com.raphtory.examples.bitcoin.actors;
 
-import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
+import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.examples.bitcoin.analysis.BitcoinAnalyser
 import com.raphtory.examples.bitcoin.communications.CoinsAquiredPayload

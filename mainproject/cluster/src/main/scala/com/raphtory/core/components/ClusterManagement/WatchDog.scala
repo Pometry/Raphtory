@@ -1,10 +1,8 @@
-package com.raphtory.core.actors
+package com.raphtory.core.components.ClusterManagement
 
 /**
   * Created by Mirate on 11/07/2017.
   */
-import java.text.SimpleDateFormat
-
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.model.communication._

@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.spout
+package com.raphtory.core.components.Spout
 
 import akka.actor.{Actor, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}

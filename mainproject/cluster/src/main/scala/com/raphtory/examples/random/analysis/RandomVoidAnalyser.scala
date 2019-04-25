@@ -1,6 +1,6 @@
 package com.raphtory.examples.random.analysis
 
-import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
+import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
 
 class RandomVoidAnalyser extends LiveAnalysisManager {

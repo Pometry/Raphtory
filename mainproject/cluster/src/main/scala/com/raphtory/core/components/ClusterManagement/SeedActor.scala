@@ -1,9 +1,9 @@
-package com.raphtory.core.actors
+package com.raphtory.core.components.ClusterManagement
 
-import com.raphtory.core.clustersetup.DocSvr
 import akka.actor.Actor
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
+import com.raphtory.core.clustersetup.DocSvr
 
 import scala.collection.concurrent.TrieMap
 

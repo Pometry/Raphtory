@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.analysismanager
+package com.raphtory.core.components.AnalysisManager
 
 import java.io.FileNotFoundException
 

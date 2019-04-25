@@ -1,6 +1,6 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.actors.partitionmanager._
+import com.raphtory.core.components.PartitionManager._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.HistoryOrdering
 import monix.execution.atomic.AtomicLong

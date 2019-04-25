@@ -1,7 +1,8 @@
 package com.raphtory.core.clustersetup.singlenode
 
 import akka.actor.Props
-import com.raphtory.core.actors.{RaphtoryReplicator, SeedActor, WatchDog}
+import com.raphtory.core.components.ClusterManagement.{SeedActor, WatchDog}
+import com.raphtory.core.components.RaphtoryReplicator
 import com.raphtory.core.clustersetup.DocSvr
 import com.raphtory.core.storage.RaphtoryDBWrite
 import com.typesafe.config.{Config, ConfigFactory}

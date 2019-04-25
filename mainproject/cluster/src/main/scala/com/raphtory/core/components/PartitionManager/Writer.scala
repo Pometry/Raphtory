@@ -1,9 +1,9 @@
-package com.raphtory.core.actors.partitionmanager
+package com.raphtory.core.components.PartitionManager
 
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.partitionmanager.Workers.WriterLogger
+import com.raphtory.core.components.PartitionManager.Workers.WriterLogger
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 

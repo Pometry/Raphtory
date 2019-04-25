@@ -1,6 +1,6 @@
 package com.raphtory.examples.random.actors
 
-import com.raphtory.core.actors.analysismanager.LiveAnalysisManager
+import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis._
 import com.raphtory.examples.random.analysis.TestAnalyser
 

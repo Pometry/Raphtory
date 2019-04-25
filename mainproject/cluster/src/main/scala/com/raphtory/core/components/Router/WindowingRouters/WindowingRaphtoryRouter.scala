@@ -1,7 +1,7 @@
-package com.raphtory.core.actors.router.WindowingRouters
+package com.raphtory.core.components.Router.WindowingRouters
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
+import com.raphtory.core.components.Router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.{getEdgeIndex, getIndexHI, getIndexLO}
 import scala.concurrent.ExecutionContext.Implicits.global

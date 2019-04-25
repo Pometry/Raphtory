@@ -1,7 +1,7 @@
 package com.raphtory.core.clustersetup
 
 import akka.actor.Props
-import com.raphtory.core.actors.SeedActor
+import com.raphtory.core.components.ClusterManagement.SeedActor
 import com.typesafe.config.{Config, ConfigFactory}
 
 case class SeedNode(seedLoc:String) extends DocSvr {

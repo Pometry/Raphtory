@@ -1,8 +1,8 @@
-package com.raphtory.core.actors.partitionmanager
+package com.raphtory.core.components.PartitionManager
 
 import akka.actor.{Actor, ActorRef, Props}
 import ch.qos.logback.classic.Level
-import com.raphtory.core.actors.partitionmanager.Workers.ArchivistWorker
+import com.raphtory.core.components.PartitionManager.Workers.ArchivistWorker
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
