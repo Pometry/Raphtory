@@ -59,6 +59,7 @@ trait SpoutTrait extends Actor with Timers {
 
   protected def sendCommand[T <: SpoutGoing](command:T): Unit = {
     recordUpdate()
+
     mediator ! DistributedPubSubMediator.Send("/user/router", command , false)
   }
 
