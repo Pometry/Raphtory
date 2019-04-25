@@ -6,7 +6,7 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.router.TraditionalRouter.Helpers.RouterSlave
 import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
-import com.raphtory.core.utils.{CommandEnum, GabEntityType}
+import com.raphtory.core.utils.CommandEnum
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
 import com.raphtory.core.model.communication.RaphtoryJsonProtocol._

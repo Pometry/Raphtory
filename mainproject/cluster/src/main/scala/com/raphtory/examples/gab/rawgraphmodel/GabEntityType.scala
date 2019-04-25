@@ -1,4 +1,4 @@
-package com.raphtory.core.utils
+package com.raphtory.examples.gab.rawgraphmodel
 
 object GabEntityType extends Enumeration {
   val post : Value = Value("post")

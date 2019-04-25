@@ -35,7 +35,6 @@ object EntityStorage {
   var edgeHistoryDeletionCount    = new AtomicInteger(0)
   var edgePropertyDeletionCount   = new AtomicInteger(0)
 
-
   val children = 10
 
   /**

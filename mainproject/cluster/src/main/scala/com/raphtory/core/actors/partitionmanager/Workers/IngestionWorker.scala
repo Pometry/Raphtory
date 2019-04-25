@@ -38,11 +38,11 @@ class IngestionWorker(workerID:Int) extends Actor {
     case ReturnEdgeRemoval(routerID,msgTime,srcId,dstId)                  => {EntityStorage.returnEdgeRemoval(routerID,workerID,msgTime,srcId,dstId);                    eHandleSecondary(srcId,dstId,msgTime)}
     case RemoteReturnDeaths(msgTime,srcId,dstId,deaths)                   => {EntityStorage.remoteReturnDeaths(msgTime,srcId,dstId,deaths);                              eHandleSecondary(srcId,dstId,msgTime)}
 
-    case CompressEdges(ls) => compressEdges(ls)
-    case CompressVertices(ls) => compressVertices(ls)
+    case CompressEdge(id,time)                                            => compressEdge(id,time)
+    case CompressVertex(id,time)                                          => compressVertex(id,time)
 
-    case ArchiveEdges(ls) => archiveEdges(ls)
-    case ArchiveVertices(ls) => archiveVertices(ls)
+    case ArchiveEdge(id,time)                                             => archiveEdge(id,time)
+    case ArchiveVertex(id,time)                                           => archiveVertex(id,time)
 
   }
 
@@ -70,30 +70,12 @@ class IngestionWorker(workerID:Int) extends Actor {
     *                   COMPRESSION SECTION                    *
     ************************************************************/
 
-  def compressEdges(now: Long) = {
-    EntityStorage.edgeKeys.get(workerID) match {
-      case Some(set) => set.foreach(key => {
-        compressEdge(key, now)
-      })
-    }
-    context.sender ! FinishedEdgeCompression(workerID)
-  }
-
   def compressEdge(key: Long, now: Long) = {
     EntityStorage.edges.get(key) match {
       case Some(edge) => saveEdge(edge, now)
       case None =>
     }
-  }
-
-
-  def compressVertices(now: Long) = {
-    EntityStorage.vertexKeys.get(workerID) match {
-      case Some(set) => set.foreach(key => {
-        compressVertex(key, now)
-      })
-    }
-    context.sender ! FinishedVertexCompression(workerID)
+    sender() ! FinishedEdgeCompression(key)
   }
 
   def compressVertex(key: Int, now: Long) = {
@@ -101,6 +83,7 @@ class IngestionWorker(workerID:Int) extends Actor {
       case Some(vertex) => saveVertex(vertex, now)
       case None =>
     }
+    sender() ! FinishedVertexCompression(key)
   }
 
 
@@ -144,30 +127,9 @@ class IngestionWorker(workerID:Int) extends Actor {
     }
   }
 
-
-
-
-
   /*************************************************************
     *                   ARCHIVING SECTION                      *
     ************************************************************/
-
-
-  def archiveEdges(now:Long) = {
-    EntityStorage.edgeKeys.get(workerID) match {
-      case Some(set) => set.foreach(key => {archiveEdge(key,now)})
-    }
-    context.sender ! FinishedEdgeArchiving(workerID)
-  }
-
-  def archiveVertices(now:Long) = {
-    EntityStorage.vertexKeys.get(workerID) match {
-      case Some(set) => set.foreach(key => {
-        archiveVertex(key,now)
-      })
-    }
-    context.sender ! FinishedVertexArchiving(workerID)
-  }
 
   //TODO decide what to do with placeholders (future)*
   def archiveEdge(key:Long, cutoff:Long) = {
@@ -178,7 +140,9 @@ class IngestionWorker(workerID:Int) extends Actor {
       }//if all old then remove the edge
       case None => {}//do nothing
     }
+    sender() ! FinishedEdgeArchiving(key)
   }
+
   def archiveVertex(key:Int,cutoff:Long) = {
     EntityStorage.vertices.get(key) match {
       case Some(vertex) => if (vertex.archive(cutoff,compressing,true)) {
@@ -187,6 +151,6 @@ class IngestionWorker(workerID:Int) extends Actor {
       } //if all old then remove the vertex
       case None => {}//do nothing
     }
+    sender() ! FinishedVertexArchiving(key)
   }
-
 }

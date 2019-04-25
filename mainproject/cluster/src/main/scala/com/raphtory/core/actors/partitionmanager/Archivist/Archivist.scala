@@ -55,8 +55,8 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Raph
   // children for distribution of compresssion and archiving
   val edgeCompressor   =  context.actorOf(Props(new CompressionManager(workers)),"edgecompressor");
   val vertexCompressor =  context.actorOf(Props(new CompressionManager(workers)),"vertexcompressor");
-  val edgeArchiver     =  context.actorOf(Props(new ArchivingManager(workers)),"edgearchiver");
-  val vertexArchiver   =  context.actorOf(Props(new ArchivingManager(workers)),"vertexarchiver");
+  val edgeArchiver     =  context.actorOf(Props(new CompressionManager(workers)),"edgearchiver");
+  val vertexArchiver   =  context.actorOf(Props(new CompressionManager(workers)),"vertexarchiver");
 
   val archGauge         = Kamon.gauge("raphtory_archivist")
 
@@ -80,7 +80,7 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Raph
       vertexCompressor ! CompressVertices(newLastSaved)
     }
     else {
-      context.system.scheduler.scheduleOnce(60.second, self, "archive")
+      context.system.scheduler.scheduleOnce(10.second, self, "archive")
     }
   }
 

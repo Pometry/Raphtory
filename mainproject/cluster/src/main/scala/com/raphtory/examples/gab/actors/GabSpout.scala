@@ -6,7 +6,7 @@ import akka.actor.Cancellable
 import com.mongodb.casbah.Imports.{DBObject, MongoConnection, MongoDBObject}
 import com.raphtory.core.actors.spout.SpoutTrait
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
-import com.raphtory.core.utils.{CommandEnum, GabEntityType}
+import com.raphtory.core.utils.CommandEnum
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import com.redis.{RedisClient, RedisConnectionException}
 import spray.json._
