@@ -1,6 +1,6 @@
 package com.raphtory.core.actors.spout
 
-import akka.actor.Timers
+import akka.actor.{Actor, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.util.Timeout
 import akka.pattern.ask
@@ -11,20 +11,21 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import com.raphtory.core.model.communication._
-import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.utils.CommandEnum
+import kamon.metric.MeasurementUnit
 
 import scala.language.postfixOps
 
-trait SpoutTrait extends RaphtoryActor with Timers {
+trait SpoutTrait extends Actor with Timers {
   import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   private var currentMessage  = 0
   private var previousMessage = 0
   private var safe            = false
   private var counter         = 0
 
+  val kGauge         = Kamon.gauge("raphtory.benchmarker")
+  val kCounter       = Kamon.counter("raphtory.counters")
 
   protected final val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)

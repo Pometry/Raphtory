@@ -1,15 +1,20 @@
-package com.raphtory.core.actors.partitionmanager.Writer
+package com.raphtory.core.actors.partitionmanager.Workers
 
-import com.raphtory.core.actors.RaphtoryActor
+import akka.actor.Actor
 import com.raphtory.core.model.communication.{ReportIntake, ReportSize}
 import com.raphtory.core.model.graphentities.Entity
 import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
-import kamon.metric.GaugeMetric
+import kamon.metric.{GaugeMetric, MeasurementUnit}
 
 import scala.collection.parallel.mutable.ParTrieMap
 
-class WriterLogger extends RaphtoryActor{
+class WriterLogger extends Actor{
+
+  val bytesGauge     = Kamon.gauge("raphtory.heap.bytes", MeasurementUnit.information.bytes)
+  val instancesGauge = Kamon.gauge("raphtory.heap.instances", MeasurementUnit.none)
+  val kGauge         = Kamon.gauge("raphtory.benchmarker")
+  val kCounter       = Kamon.counter("raphtory.counters")
 
   val verticesGauge         : GaugeMetric = Kamon.gauge("raphtory.vertices")
   val edgesGauge            : GaugeMetric = Kamon.gauge("raphtory.edges")

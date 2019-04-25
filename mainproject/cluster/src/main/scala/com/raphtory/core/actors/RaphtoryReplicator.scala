@@ -7,10 +7,8 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.core.actors.partitionmanager.Archivist.Archivist
-import com.raphtory.core.actors.partitionmanager.Reader.PartitionReader
+import com.raphtory.core.actors.partitionmanager.{Archivist, Reader, Writer}
 import com.raphtory.core.actors.partitionmanager.Workers.IngestionWorker
-import com.raphtory.core.actors.partitionmanager.Writer.PartitionWriter
 import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
 
 import scala.collection.parallel.mutable.ParTrieMap
@@ -75,8 +73,8 @@ class RaphtoryReplicator(actorType:String, initialManagerCount:Int, routerName :
           val child = context.system.actorOf(Props(new IngestionWorker(i)),s"Manager_${assignedId}_child_$i")
           workers.put(i,child)
         }
-        actorRef = context.system.actorOf(Props(new PartitionWriter(myId, false, currentCount,workers)), s"Manager_$myId")
-        actorRefReader = context.system.actorOf(Props(new PartitionReader(myId, false, currentCount)), s"ManagerReader_$myId")
+        actorRef = context.system.actorOf(Props(new Writer(myId, false, currentCount,workers)), s"Manager_$myId")
+        actorRefReader = context.system.actorOf(Props(new Reader(myId, false, currentCount)), s"ManagerReader_$myId")
         context.system.actorOf(Props(new Archivist(0.3,workers)))
       }
 

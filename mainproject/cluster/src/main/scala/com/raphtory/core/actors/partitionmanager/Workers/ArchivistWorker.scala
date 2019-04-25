@@ -1,10 +1,9 @@
-package com.raphtory.core.actors.partitionmanager.Archivist
+package com.raphtory.core.actors.partitionmanager.Workers
 
 import akka.actor.{Actor, ActorRef}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
+
 import scala.collection.parallel.mutable.ParTrieMap
 class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
 

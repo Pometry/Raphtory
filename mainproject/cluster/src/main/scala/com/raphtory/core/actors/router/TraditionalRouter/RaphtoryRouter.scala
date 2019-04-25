@@ -1,18 +1,20 @@
 package com.raphtory.core.actors.router.TraditionalRouter
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.getManager
 import kamon.Kamon
+import kamon.metric.MeasurementUnit
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration.{Duration, SECONDS}
 
-class RaphtoryRouter(val routerId:Int, val initialManagerCount:Int, slaveType:String) extends RaphtoryActor {
+class RaphtoryRouter(val routerId:Int, val initialManagerCount:Int, slaveType:String) extends Actor {
+  val kGauge         = Kamon.gauge("raphtory.benchmarker")
+  val kCounter       = Kamon.counter("raphtory.counters")
 
   private val children = 10
   private var childMap              : ParTrieMap[Int,ActorRef] = ParTrieMap[Int,ActorRef]()

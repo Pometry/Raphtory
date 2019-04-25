@@ -6,7 +6,6 @@ import akka.actor._
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.spout.SpoutTrait
 import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse, SpoutGoing}
 import com.raphtory.examples.bitcoin.communications.BitcoinTransaction

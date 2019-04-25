@@ -6,13 +6,11 @@ import com.outworkers.phantom.connectors.CassandraConnection
 import com.outworkers.phantom.database.Database
 import com.outworkers.phantom.dsl._
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
-import com.raphtory.core.utils.Utils
-import com.raphtory.core.utils.exceptions.EntityRemovedAtTimeException
+import com.raphtory.core.utils.{EntityRemovedAtTimeException, Utils}
 import monix.execution.atomic.AtomicInt
 
 import scala.collection.{mutable, parallel}
 import scala.collection.parallel.mutable._
-
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
 import scala.util.{Failure, Success}

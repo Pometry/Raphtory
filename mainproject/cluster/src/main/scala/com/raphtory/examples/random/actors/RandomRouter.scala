@@ -1,7 +1,6 @@
 package com.raphtory.examples.random.actors
 
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.router.TraditionalRouter.Helpers.RouterSlave
 import com.raphtory.core.actors.router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication._

@@ -4,12 +4,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
-
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Property, RemoteEdge, RemotePos, Vertex}
-import com.raphtory.core.utils.Utils
-import com.raphtory.core.utils.exceptions.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
-
+import com.raphtory.core.utils.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException, Utils}
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParSet
 import scala.collection.parallel.mutable.ParTrieMap

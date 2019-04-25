@@ -4,8 +4,7 @@ import ch.qos.logback.classic.Level
 import com.outworkers.phantom.dsl.KeySpace
 import com.raphtory.core.model.graphentities.{Edge, Entity, Property, Vertex}
 import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
-import com.raphtory.core.utils.Utils
-import com.raphtory.core.utils.exceptions.EntityRemovedAtTimeException
+import com.raphtory.core.utils.{EntityRemovedAtTimeException, Utils}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future

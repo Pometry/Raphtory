@@ -1,8 +1,7 @@
 package com.raphtory.core.model.graphentities
 
 import com.raphtory.core.storage.{EdgeHistoryPoint, EdgePropertyPoint, EntityStorage}
-import com.raphtory.core.utils.Utils
-import com.raphtory.core.utils.exceptions.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
+import com.raphtory.core.utils.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException, Utils}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable

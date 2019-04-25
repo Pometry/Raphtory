@@ -1,20 +1,14 @@
-package com.raphtory.core.actors.partitionmanager.Writer
+package com.raphtory.core.actors.partitionmanager
 
-import java.util.concurrent.atomic.AtomicInteger
-
-import akka.actor.SupervisorStrategy.{Restart, Resume}
-import akka.actor.{ActorRef, OneForOneStrategy, Props, SupervisorStrategy, Terminated}
+import akka.actor.SupervisorStrategy.Resume
+import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import akka.japi.Util
-import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.partitionmanager.Workers.IngestionWorker
+import com.raphtory.core.actors.partitionmanager.Workers.WriterLogger
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.Entity
 import com.raphtory.core.storage.EntityStorage
-import com.raphtory.core.utils.Utils
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.parallel.mutable.ParTrieMap
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 /**
@@ -22,7 +16,7 @@ import scala.concurrent.duration._
   * Is sent commands which have been processed by the command Processor
   * Will process these, storing information in graph entities which may be updated if they already exist
   * */
-class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMap[Int,ActorRef]) extends RaphtoryActor {
+class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMap[Int,ActorRef]) extends Actor {
   var managerCount          : Int = managerCountVal
   val managerID             : Int = id                   //ID which refers to the partitions position in the graph manager map
 
@@ -44,8 +38,6 @@ class PartitionWriter(id : Int, test : Boolean, managerCountVal : Int, workers: 
     case e: Exception => {e.printStackTrace(); Resume}
   }
 
-  import akka.actor.OneForOneStrategy
-  import akka.actor.SupervisorStrategy
   import scala.concurrent.duration.Duration
 
   override def preStart() {

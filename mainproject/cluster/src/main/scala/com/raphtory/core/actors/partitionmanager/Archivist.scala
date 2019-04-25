@@ -1,25 +1,23 @@
-package com.raphtory.core.actors.partitionmanager.Archivist
+package com.raphtory.core.actors.partitionmanager
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import ch.qos.logback.classic.Level
-import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.partitionmanager.Workers.ArchivistWorker
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
+import kamon.Kamon
 import org.slf4j.LoggerFactory
 
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import kamon.Kamon
-import kamon.metric.MeasurementUnit
-
-import scala.collection.parallel.mutable.ParTrieMap
 
 //TODO fix edges
 
 
 
 
-class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends RaphtoryActor {
+class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Actor {
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
   val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
   val archiving : Boolean =  System.getenv().getOrDefault("ARCHIVING", "true").trim.toBoolean
@@ -192,13 +190,6 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Raph
   }
 
 }
-
-
-
-
-
-
-
 
 //export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.8.0_162.jdk/Contents/Home/
 //JAVA_OPTS=-XX:+UseConcMarkSweepGC -XX:+DisableExplicitGC -XX:+UseParNewGC -Xms10g -Xmx10g -XX:NewRatio=3
