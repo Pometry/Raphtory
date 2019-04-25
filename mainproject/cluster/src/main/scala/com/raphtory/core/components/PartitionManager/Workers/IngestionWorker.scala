@@ -115,11 +115,6 @@ class IngestionWorker(workerID:Int) extends Actor {
     sender() ! FinishedVertexArchiving(key)
   }
 
-
-
-
-
-
   def saveEdge(edge: Edge, cutOff: Long) = {
     val history = edge.compressHistory(cutOff)
     if (saving) {
@@ -127,7 +122,7 @@ class IngestionWorker(workerID:Int) extends Actor {
         RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
       }
       edge.properties.foreach(property => {
-        val propHistory = property._2.compressHistory(cutOff)
+        val propHistory = property._2.compressHistory(cutOff,true)
         if (propHistory.size > 0) {
           try{
             RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
@@ -147,7 +142,7 @@ class IngestionWorker(workerID:Int) extends Actor {
         RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)
       }
       vertex.properties.foreach(prop => {
-        val propHistory = prop._2.compressHistory(cutOff)
+        val propHistory = prop._2.compressHistory(cutOff,false)
         if (propHistory.size > 0) {
           try{
           RaphtoryDBWrite.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)

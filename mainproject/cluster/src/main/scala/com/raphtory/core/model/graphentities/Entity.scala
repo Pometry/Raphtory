@@ -105,7 +105,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
         else recordRemoval(entityType)
       }} //for each point if it is safe then keep it
       compressedState = newCompressedState //overwrite the compressed state
-      properties.foreach{case ((propkey, property)) =>{property.archive(cutoff,compressing,entityType)}}//do the same for all properties
+      //properties.foreach{case ((propkey, property)) =>{property.archive(cutoff,compressing,entityType)}}//do the same for all properties //currently properties should exist until entity removed
       newestPoint.get<cutoff && !head //return all points older than cutoff and latest update is deletion
     }
     false

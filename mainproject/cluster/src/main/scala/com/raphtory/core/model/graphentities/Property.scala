@@ -29,7 +29,7 @@ class Property(creationTime: Long,
     previousState.put(msgTime, newValue)
   }
 
-  def compressHistory(cutoff:Long): mutable.TreeMap[Long, String] ={
+  def compressHistory(cutoff:Long,entityType:Boolean): mutable.TreeMap[Long, String] ={
     if(previousState.isEmpty) return mutable.TreeMap()(HistoryOrdering) //if we have no need to compress, return an empty list
     if (previousState.takeRight(1).head._1>=cutoff) return mutable.TreeMap()(HistoryOrdering) //if the oldest point is younger than the cut off no need to do anything
     var toWrite : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering) //data which needs to be saved to cassandra
@@ -45,6 +45,9 @@ class Property(creationTime: Long,
           toWrite.put(PriorPoint._1, PriorPoint._2) //add to toWrite so this can be saved to cassandra
           compressedState.put(PriorPoint._1, PriorPoint._2) //add to compressedState in-mem
         }
+        else{
+          recordRemoval(entityType)
+        }
         swapped = true
       }
       PriorPoint = (k, v)
@@ -54,29 +57,13 @@ class Property(creationTime: Long,
         toWrite.put(PriorPoint._1, PriorPoint._2) //add to toWrite so this can be saved to cassandra
         compressedState.put(PriorPoint._1, PriorPoint._2) //add to compressedState in-mem
       }
+      else
+        recordRemoval(entityType)
     }
     else
       newPreviousState.put(PriorPoint._1,PriorPoint._2) //if the last point in the uncompressed history wasn't past the cutoff it needs to go back into the new uncompressed history
     previousState = newPreviousState
     toWrite
-  }
-
-
-  def archive(cutoff:Long, compressing:Boolean,entityType:Boolean):Unit={ //
-    if(previousState.isEmpty && compressedState.isEmpty) return  //blank node, decide what to do later
-    if(compressedState.nonEmpty){
-      if (compressedState.takeRight(1).head._1>=cutoff) return  //if the oldest point is younger than the cut off no need to do anything
-      val head = compressedState.head //get the head for later
-      val newCompressedState: mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
-      compressedState.foreach{case (k,v) => {
-        if(k>=cutoff)
-          newCompressedState put(k,v)
-        else
-          recordRemoval(entityType)
-      }} //for each point if it is safe then keep it
-      compressedState = newCompressedState //overwrite the compressed state
-      if(compressedState isEmpty) compressedState put(head._1,head._2) //if everything was removed, keep the latest value
-    }
   }
 
   def recordRemoval(entityType:Boolean) = {
