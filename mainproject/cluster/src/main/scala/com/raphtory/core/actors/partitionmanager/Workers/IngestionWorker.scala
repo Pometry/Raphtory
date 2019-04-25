@@ -41,8 +41,8 @@ class IngestionWorker(workerID:Int) extends Actor {
     case CompressEdge(id,time)                                            => compressEdge(id,time)
     case CompressVertex(id,time)                                          => compressVertex(id,time)
 
-    case ArchiveEdge(id,time)                                             => archiveEdge(id,time)
-    case ArchiveVertex(id,time)                                           => archiveVertex(id,time)
+    case ArchiveEdge(id,compressTime,archiveTime)                         => archiveEdge(id,compressTime,archiveTime)
+    case ArchiveVertex(id,compressTime,archiveTime)                       => archiveVertex(id,compressTime,archiveTime)
 
   }
 
@@ -86,6 +86,39 @@ class IngestionWorker(workerID:Int) extends Actor {
     sender() ! FinishedVertexCompression(key)
   }
 
+  //TODO decide what to do with placeholders (future)*
+  def archiveEdge(key:Long, compressTime:Long,archiveTime:Long) = {
+    EntityStorage.edges.get(key) match {
+      case Some(edge) => {
+        saveEdge(edge, compressTime)
+        if (edge.archive(archiveTime,compressing,false)) {
+          EntityStorage.edges.remove(edge.getId)
+          EntityStorage.edgeDeletionCount.incrementAndGet()
+        }
+      }//if all old then remove the edge
+      case None => {}//do nothing
+    }
+    sender() ! FinishedEdgeArchiving(key)
+  }
+
+  def archiveVertex(key:Int,compressTime:Long,archiveTime:Long) = {
+    EntityStorage.vertices.get(key) match {
+      case Some(vertex) => {
+        saveVertex(vertex,compressTime)
+        if (vertex.archive(archiveTime,compressing,true)) {
+          EntityStorage.vertices.remove(vertex.getId.toInt)
+          EntityStorage.vertexDeletionCount.incrementAndGet()
+        }
+      } //if all old then remove the vertex
+      case None => {}//do nothing
+    }
+    sender() ! FinishedVertexArchiving(key)
+  }
+
+
+
+
+
 
   def saveEdge(edge: Edge, cutOff: Long) = {
     val history = edge.compressHistory(cutOff)
@@ -126,31 +159,9 @@ class IngestionWorker(workerID:Int) extends Actor {
       })
     }
   }
-
+}
   /*************************************************************
     *                   ARCHIVING SECTION                      *
     ************************************************************/
 
-  //TODO decide what to do with placeholders (future)*
-  def archiveEdge(key:Long, cutoff:Long) = {
-    EntityStorage.edges.get(key) match {
-      case Some(edge) => if (edge.archive(cutoff,compressing,false)) {
-        EntityStorage.edges.remove(edge.getId)
-        EntityStorage.edgeDeletionCount.incrementAndGet()
-      }//if all old then remove the edge
-      case None => {}//do nothing
-    }
-    sender() ! FinishedEdgeArchiving(key)
-  }
 
-  def archiveVertex(key:Int,cutoff:Long) = {
-    EntityStorage.vertices.get(key) match {
-      case Some(vertex) => if (vertex.archive(cutoff,compressing,true)) {
-        EntityStorage.vertices.remove(vertex.getId.toInt)
-        EntityStorage.vertexDeletionCount.incrementAndGet()
-      } //if all old then remove the vertex
-      case None => {}//do nothing
-    }
-    sender() ! FinishedVertexArchiving(key)
-  }
-}

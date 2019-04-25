@@ -6,7 +6,7 @@ import com.raphtory.core.storage.EntityStorage
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.parallel.mutable.ParTrieMap
-class CompressionManager(workers:ParTrieMap[Int,ActorRef]) extends Actor{
+class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
 
   //timestamps to make sure all entities are compressed to exactly the same point
 
@@ -24,8 +24,8 @@ class CompressionManager(workers:ParTrieMap[Int,ActorRef]) extends Actor{
     case FinishedEdgeCompression(key) => finishedEdgeCompression(key)
     case FinishedVertexCompression(key) => finishedVertexCompression(key)
 
-    case ArchiveEdges(archiveTime) => {archiveEdges(archiveTime)}
-    case ArchiveVertices(archiveTime) => {archiveVertices(archiveTime)}
+    case ArchiveEdges(compressTime,archiveTime) => {archiveEdges(compressTime,archiveTime)}
+    case ArchiveVertices(compressTime,archiveTime) => {archiveVertices(compressTime,archiveTime)}
     case FinishedEdgeArchiving(key) => finishedEdgeArchiving(key)
     case FinishedVertexArchiving(key) => finishedVertexArchiving(key)
 
@@ -51,21 +51,21 @@ class CompressionManager(workers:ParTrieMap[Int,ActorRef]) extends Actor{
     }
   }
 
-  def archiveEdges(archiveTime:Long) = {
+  def archiveEdges(compressTime:Long,archiveTime:Long) = {
     for (workerID <- 0 until 10){
       val worker = workers(workerID)
       EntityStorage.edgeKeys(workerID) foreach( key => {
-        worker ! ArchiveEdge(key,archiveTime)
+        worker ! ArchiveEdge(key,compressTime,archiveTime)
         startedArchiving+=1
       })
     }
   }
 
-  def archiveVertices(archiveTime:Long) = {
+  def archiveVertices(compressTime:Long,archiveTime:Long) = {
     for (workerID <- 0 until 10) {
       val worker = workers(workerID)
       EntityStorage.vertexKeys(workerID) foreach( key => {
-        worker ! ArchiveVertex(key,archiveTime)
+        worker ! ArchiveVertex(key,compressTime,archiveTime)
         startedArchiving+=1
       })
     }

@@ -53,34 +53,42 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Raph
   var removePointGlobal:Long      = 0L
   var removalPoint:Long           = 0L
   // children for distribution of compresssion and archiving
-  val edgeCompressor   =  context.actorOf(Props(new CompressionManager(workers)),"edgecompressor");
-  val vertexCompressor =  context.actorOf(Props(new CompressionManager(workers)),"vertexcompressor");
-  val edgeArchiver     =  context.actorOf(Props(new CompressionManager(workers)),"edgearchiver");
-  val vertexArchiver   =  context.actorOf(Props(new CompressionManager(workers)),"vertexarchiver");
+  val edgeManager   =  context.actorOf(Props(new ArchivistWorker(workers)),"edgecompressor");
+  val vertexManager =  context.actorOf(Props(new ArchivistWorker(workers)),"vertexcompressor");
 
   val archGauge         = Kamon.gauge("raphtory_archivist")
 
   override def preStart() {
-    context.system.scheduler.scheduleOnce(30.seconds, self,"compress") //start the compression process in 20 seconds
+    context.system.scheduler.scheduleOnce(30.seconds, self,"archive") //start the compression process in 20 seconds
   }
 
   override def receive: Receive = {
-    case "compress"                               => compressGraph()
-    case "archive"                                => archiveGraph()
+    case "archive"                              => archive()
     case FinishedEdgeCompression(key)           => compressEnder("edge")
     case FinishedVertexCompression(key)         => compressEnder("vertex")
-    case FinishedEdgeArchiving(key)    => archiveEnder("edge")
-    case FinishedVertexArchiving(key)  => archiveEnder("vertex")
+    case FinishedEdgeArchiving(key)             => archiveEnder("edge")
+    case FinishedVertexArchiving(key)           => archiveEnder("vertex")
   }
 
-  def compressGraph() : Unit = {
-    if(compressing) {
-      newLastSaved = cutOff(true) //get the cut off boundry for 90% of history in meme
-      edgeCompressor ! CompressEdges(newLastSaved) //forward compression request to children
-      vertexCompressor ! CompressVertices(newLastSaved)
-    }
-    else {
-      context.system.scheduler.scheduleOnce(10.second, self, "archive")
+  def archive() : Unit = {
+    if(archiving){
+      if(spaceForExtraHistory) { //check if we need to archive
+        if(compressing) {
+          newLastSaved = cutOff(true) //get the cut off boundry for 90% of history in meme
+          edgeManager ! CompressEdges(newLastSaved) //forward compression request to children
+          vertexManager ! CompressVertices(newLastSaved)
+        }
+        else{
+          context.system.scheduler.scheduleOnce(10.second, self, "archive")
+        }
+      }
+      else {
+        removalPoint = cutOff(false) // get the cut off for 10% of the compressed history
+        removePointGlobal = removalPoint
+        newLastSaved = cutOff(true)
+        edgeManager ! ArchiveEdges(newLastSaved,removalPoint) //send the archive request to the children
+        vertexManager ! ArchiveVertices(newLastSaved,removalPoint)
+      }
     }
   }
 
@@ -102,22 +110,7 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Raph
       EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
       vertexCompressionFinished = false //reset the compression vars
       edgeCompressionFinished = false
-      context.system.scheduler.scheduleOnce(60.second, self, "archive") //start the archiving process
-    }
-  }
-
-  def archiveGraph() : Unit = {
-    println("Try to archive")
-    if(archiving){
-      if(!spaceForExtraHistory) { //check if we need to archive
-        removalPoint = cutOff(false) // get the cut off for 10% of the compressed history
-        removePointGlobal = removalPoint
-        edgeArchiver ! ArchiveEdges(removalPoint) //send the archive request to the children
-        vertexArchiver ! ArchiveVertices(removalPoint)
-      }
-      else {
-        context.system.scheduler.scheduleOnce(20.second, self,"compress") //if we are not archiving start the compression process again
-      }
+      context.system.scheduler.scheduleOnce(10.second, self, "archive") //start the archiving process
     }
   }
 
@@ -153,7 +146,7 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Raph
       archGauge.refine("actor" -> "Archivist", "name" -> "totalArchiveTime").set((System.currentTimeMillis()-totalArchiveTime)/1000)
       EntityStorage.oldestTime = removePointGlobal
       System.gc() //suggest a good time to garbage collect
-      context.system.scheduler.scheduleOnce(60.second, self, "compress")
+      context.system.scheduler.scheduleOnce(10.second, self, "archive")
       println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
     }
 
@@ -173,11 +166,12 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Raph
 
   def toCompress(newestPoint:Long,oldestPoint:Long):Long =  (((newestPoint-oldestPoint) / 100f) * compressionPercent).asInstanceOf[Long]
   def toArchive(newestPoint:Long,oldestPoint:Long):Long =  (((newestPoint-oldestPoint) / 100f) * archivePercentage).asInstanceOf[Long]
+
   def cutOff(compress:Boolean) = {
     val oldestPoint = EntityStorage.oldestTime
     val newestPoint = EntityStorage.newestTime
     setActionTime(compress)
-    println(s" Difference between oldest $oldestPoint to newest point $newestPoint --- ${((newestPoint-oldestPoint)/1000)}, ${(toCompress(newestPoint,oldestPoint))/1000} seconds compressed")
+    if(compress)println(s" Difference between oldest $oldestPoint to newest point $newestPoint --- ${((newestPoint-oldestPoint)/1000)}, ${(toCompress(newestPoint,oldestPoint))/1000} seconds compressed")
     if(oldestPoint != Long.MaxValue) {
       if (compress) oldestPoint + toCompress(newestPoint, oldestPoint) //oldestpoint + halfway to the newest point == always keep half of in memory stuff compressed
       else oldestPoint + toArchive(newestPoint, oldestPoint)
