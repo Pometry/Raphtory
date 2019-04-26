@@ -76,6 +76,9 @@ case class ArchiveVertex(key:Int,compressTime:Long,archiveTime:Long)
 case class FinishedEdgeArchiving(key:Long)
 case class FinishedVertexArchiving(key:Int)
 
+case class ArchiveOnlyEdge(key:Long,archiveTime:Long)
+case class ArchiveOnlyVertex(key:Int,archiveTime:Long)
+
 case class SetupSlave(children:Int)
 
 case class ReportIntake(mainMessages:Int,secondaryMessages:Int,workerMessages:Int,partitionId:Int,timeDifference:Long)

@@ -54,10 +54,11 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
   val edgeManager   =  context.actorOf(Props(new ArchivistWorker(workers)),"edgecompressor");
   val vertexManager =  context.actorOf(Props(new ArchivistWorker(workers)),"vertexcompressor");
 
+  var debug = false
   val archGauge         = Kamon.gauge("raphtory_archivist")
 
   override def preStart() {
-    context.system.scheduler.scheduleOnce(30.seconds, self,"archive") //start the compression process in 20 seconds
+    context.system.scheduler.scheduleOnce(60.seconds, self,"archive") //start the compression process in 20 seconds
   }
 
   override def receive: Receive = {
@@ -77,7 +78,7 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
           vertexManager ! CompressVertices(newLastSaved)
         }
         else{
-          context.system.scheduler.scheduleOnce(10.second, self, "archive")
+          context.system.scheduler.scheduleOnce(60.second, self, "archive")
         }
       }
       else {
@@ -92,23 +93,23 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
 
   def compressEnder(name:String): Unit = {
     if(name equals("edge")){ //if the edge is finished, report this to the user and save the result
-      println(s"finished $name compressing in ${(System.currentTimeMillis()-edgeCompressionTime)/1000} seconds")
+      if(debug)println(s"finished $name compressing in ${(System.currentTimeMillis()-edgeCompressionTime)/1000} seconds")
       archGauge.refine("actor" -> "Archivist", "name" -> "edgeCompressionTime").set((System.currentTimeMillis()-edgeCompressionTime)/1000)
       edgeCompressionFinished = true
     }
     if(name equals("vertex")){ // if the vertices are finished, save this and report it to the user
-      println(s"finished $name compressing in ${(System.currentTimeMillis()-vertexCompressionTime)/1000}seconds")
+      if(debug)println(s"finished $name compressing in ${(System.currentTimeMillis()-vertexCompressionTime)/1000}seconds")
       archGauge.refine("actor" -> "Archivist", "name" -> "vertexCompressionTime").set((System.currentTimeMillis()-vertexCompressionTime)/1000)
       vertexCompressionFinished = true
     }
     if(edgeCompressionFinished && vertexCompressionFinished){ //if both are finished
-      println(s"finished total compression in ${(System.currentTimeMillis()-totalCompressionTime)/1000} seconds") //report this to the user
+      if(debug)println(s"finished total compression in ${(System.currentTimeMillis()-totalCompressionTime)/1000} seconds") //report this to the user
       archGauge.refine("actor" -> "Archivist", "name" -> "totalCompressionTime").set((System.currentTimeMillis()-totalCompressionTime)/1000)
       lastSaved = newLastSaved
       EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
       vertexCompressionFinished = false //reset the compression vars
       edgeCompressionFinished = false
-      context.system.scheduler.scheduleOnce(10.second, self, "archive") //start the archiving process
+      context.system.scheduler.scheduleOnce(60.second, self, "archive") //start the archiving process
     }
   }
 
@@ -122,8 +123,8 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
       archGauge.refine("actor" -> "Archivist", "name" -> "edgeEdgesRemoved").set(edgeRemovals)
       edgeArchivingFinished = true
 
-      println(s"finished $name archiving in ${(System.currentTimeMillis()-edgeArchiveTime)/1000} seconds")
-      println(s"$historyRemovals History points removed, $propertyRemovals Property points removed, $edgeRemovals Full Edges removed")
+      if(debug)println(s"finished $name archiving in ${(System.currentTimeMillis()-edgeArchiveTime)/1000} seconds")
+      if(debug)println(s"$historyRemovals History points removed, $propertyRemovals Property points removed, $edgeRemovals Full Edges removed")
     }
     if(name equals("vertex")){
       val vertexRemovals = EntityStorage.vertexDeletionCount.getAndSet(0)
@@ -134,8 +135,8 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
       archGauge.refine("actor" -> "Archivist", "name" -> "vertexVerticesRemoved").set(vertexRemovals)
       vertexArchivingFinished = true
 
-      println(s"finished $name archiving in ${(System.currentTimeMillis()-vertexArchiveTime)/1000}seconds")
-      println(s"$historyRemovals History points removed, $propertyRemovals Property points removed, $vertexRemovals Full Vertices removed")
+      if(debug)println(s"finished $name archiving in ${(System.currentTimeMillis()-vertexArchiveTime)/1000}seconds")
+      if(debug)println(s"$historyRemovals History points removed, $propertyRemovals Property points removed, $vertexRemovals Full Vertices removed")
     }
 
     if (edgeArchivingFinished && vertexArchivingFinished) {
@@ -144,8 +145,8 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
       archGauge.refine("actor" -> "Archivist", "name" -> "totalArchiveTime").set((System.currentTimeMillis()-totalArchiveTime)/1000)
       EntityStorage.oldestTime = removePointGlobal
       System.gc() //suggest a good time to garbage collect
-      context.system.scheduler.scheduleOnce(10.second, self, "archive")
-      println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
+      context.system.scheduler.scheduleOnce(60.second, self, "archive")
+      if(debug)println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
     }
 
 

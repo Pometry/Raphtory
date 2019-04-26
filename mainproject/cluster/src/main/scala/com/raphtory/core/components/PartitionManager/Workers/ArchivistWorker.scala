@@ -54,7 +54,11 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
     for (workerID <- 0 until 10){
       val worker = workers(workerID)
       EntityStorage.edgeKeys(workerID) foreach( key => {
-        worker ! ArchiveEdge(key,compressTime,archiveTime)
+        if(compressing)
+          worker ! ArchiveEdge(key,compressTime,archiveTime)
+        else
+          worker ! ArchiveOnlyEdge(key,archiveTime)
+
         startedArchiving+=1
       })
     }
@@ -64,7 +68,10 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
     for (workerID <- 0 until 10) {
       val worker = workers(workerID)
       EntityStorage.vertexKeys(workerID) foreach( key => {
-        worker ! ArchiveVertex(key,compressTime,archiveTime)
+        if(compressing)
+          worker ! ArchiveVertex(key,compressTime,archiveTime)
+        else
+          worker ! ArchiveOnlyVertex(key,archiveTime)
         startedArchiving+=1
       })
     }

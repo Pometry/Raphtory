@@ -23,7 +23,7 @@ class RandomSpout extends SpoutTrait {
     super.preStart()
     println(s"Prestarting ($freq Hz) Entity pool = $pool Ramp flag = $increase")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "random")
-    context.system.scheduler.schedule(Duration(1, MINUTES), Duration(1, MINUTES), self, "increase")
+    context.system.scheduler.schedule(Duration(90, SECONDS), Duration(30, SECONDS), self, "increase")
     context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "required")
     //context.system.scheduler.schedule(Duration(40, SECONDS), Duration(5, MINUTES), self, "stop")
 

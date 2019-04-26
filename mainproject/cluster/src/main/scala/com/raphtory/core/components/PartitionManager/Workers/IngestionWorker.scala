@@ -44,6 +44,8 @@ class IngestionWorker(workerID:Int) extends Actor {
     case ArchiveEdge(id,compressTime,archiveTime)                         => archiveEdge(id,compressTime,archiveTime)
     case ArchiveVertex(id,compressTime,archiveTime)                       => archiveVertex(id,compressTime,archiveTime)
 
+    case ArchiveOnlyEdge(id,archiveTime)                                  => archiveOnlyEdge(id,archiveTime)
+    case ArchiveOnlyVertex(id,archiveTime)                                => archiveOnlyVertex(id,archiveTime)
   }
 
   /*************************************************************
@@ -154,6 +156,36 @@ class IngestionWorker(workerID:Int) extends Actor {
       })
     }
   }
+
+
+  //TODO decide what to do with placeholders (future)*
+  def archiveOnlyEdge(key:Long, archiveTime:Long) = {
+    EntityStorage.edges.get(key) match {
+      case Some(edge) => {
+        if (edge.archiveOnly(archiveTime,false)) {
+          EntityStorage.edges.remove(edge.getId)
+          EntityStorage.edgeDeletionCount.incrementAndGet()
+        }
+      }//if all old then remove the edge
+      case None => {}//do nothing
+    }
+    sender() ! FinishedEdgeArchiving(key)
+  }
+
+  def archiveOnlyVertex(key:Int,archiveTime:Long) = {
+    EntityStorage.vertices.get(key) match {
+      case Some(vertex) => {
+        if (vertex.archiveOnly(archiveTime,true)) {
+          EntityStorage.vertices.remove(vertex.getId.toInt)
+          EntityStorage.vertexDeletionCount.incrementAndGet()
+        }
+      } //if all old then remove the vertex
+      case None => {}//do nothing
+    }
+    sender() ! FinishedVertexArchiving(key)
+  }
+
+
 }
   /*************************************************************
     *                   ARCHIVING SECTION                      *

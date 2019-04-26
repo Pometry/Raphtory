@@ -118,6 +118,23 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
       EntityStorage.edgeHistoryDeletionCount.incrementAndGet()
   }
 
+  def archiveOnly(cutoff:Long, entityType:Boolean): Boolean={ //
+    if(previousState.isEmpty) return false //blank node, decide what to do later
+    if (previousState.takeRight(1).head._1>=cutoff) return false //if the oldest point is younger than the cut off no need to do anything
+
+    var head = previousState.head._2 //get the head of later
+    val newPreviousState: mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
+    previousState.foreach{case (k,v) => {
+      if(k>=cutoff)
+        newPreviousState put(k,v)
+      else
+        recordRemoval(entityType)
+    }} //for each point if it is safe then keep it
+    previousState = newPreviousState //overwrite the compressed state
+      newestPoint.get<cutoff && !head //return all points older than cutoff and latest update is deletion
+    false
+  }
+
   /** *
     * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
     *
