@@ -102,7 +102,7 @@ object Go extends App {
 
   def prometheusReporter() = {
     try {
-      //SystemMetrics.startCollecting()
+      SystemMetrics.startCollecting()
     }catch {
       case e:Exception => println("Error in pro")
     }
