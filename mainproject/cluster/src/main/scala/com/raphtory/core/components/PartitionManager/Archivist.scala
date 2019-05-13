@@ -115,9 +115,9 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
 
   def archiveEnder(name:String): Unit = {
     if(name equals("edge")){
-      val edgeRemovals = EntityStorage.edgeDeletionCount.getAndSet(0)
-      val propertyRemovals = EntityStorage.edgePropertyDeletionCount.getAndSet(0)
-      val historyRemovals = EntityStorage.edgeHistoryDeletionCount.getAndSet(0)
+      val edgeRemovals = EntityStorage.edgeDeletionCount.sum
+      val propertyRemovals = EntityStorage.edgePropertyDeletionCount.sum
+      val historyRemovals = EntityStorage.edgeHistoryDeletionCount.sum
       archGauge.refine("actor" -> "Archivist", "name" -> "edgeHistoryRemoved").set(historyRemovals)
       archGauge.refine("actor" -> "Archivist", "name" -> "edgePropertyRemoved").set(propertyRemovals)
       archGauge.refine("actor" -> "Archivist", "name" -> "edgeEdgesRemoved").set(edgeRemovals)
@@ -127,9 +127,9 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
       if(debug)println(s"$historyRemovals History points removed, $propertyRemovals Property points removed, $edgeRemovals Full Edges removed")
     }
     if(name equals("vertex")){
-      val vertexRemovals = EntityStorage.vertexDeletionCount.getAndSet(0)
-      val propertyRemovals = EntityStorage.vertexPropertyDeletionCount.getAndSet(0)
-      val historyRemovals = EntityStorage.vertexHistoryDeletionCount.getAndSet(0)
+      val vertexRemovals = EntityStorage.vertexDeletionCount.sum
+      val propertyRemovals = EntityStorage.vertexPropertyDeletionCount.sum
+      val historyRemovals = EntityStorage.vertexHistoryDeletionCount.sum
       archGauge.refine("actor" -> "Archivist", "name" -> "vertexHistoryRemoved").set(historyRemovals)
       archGauge.refine("actor" -> "Archivist", "name" -> "vertexPropertyRemoved").set(propertyRemovals)
       archGauge.refine("actor" -> "Archivist", "name" -> "vertexVerticesRemoved").set(vertexRemovals)

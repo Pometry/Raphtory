@@ -54,18 +54,18 @@ class IngestionWorker(workerID:Int) extends Actor {
 
   def vHandle(srcID : Int,msgTime:Long) : Unit = {
     EntityStorage.timings(msgTime)
-    EntityStorage.messageCount.incrementAndGet()
+    EntityStorage.messageCount(workerID)+=1
   }
   def eHandle(srcID : Int, dstID : Int,msgTime:Long) : Unit = {
     EntityStorage.timings(msgTime)
-    EntityStorage.messageCount.incrementAndGet()
+    EntityStorage.messageCount(workerID)+=1
   }
   def eHandleSecondary(srcID : Int, dstID : Int,msgTime:Long) : Unit = {
     EntityStorage.timings(msgTime)
-    EntityStorage.secondaryMessageCount.incrementAndGet()
+    EntityStorage.secondaryMessageCount(workerID)+=1
   }
   def wHandle(): Unit ={
-    EntityStorage.workerMessageCount.incrementAndGet()
+    EntityStorage.workerMessageCount(workerID)+=1
   }
 
   /*************************************************************
@@ -93,9 +93,9 @@ class IngestionWorker(workerID:Int) extends Actor {
     EntityStorage.edges.get(key) match {
       case Some(edge) => {
         saveEdge(edge, compressTime)
-        if (edge.archive(archiveTime,compressing,false)) {
+        if (edge.archive(archiveTime,compressing,false,workerID)) {
           EntityStorage.edges.remove(edge.getId)
-          EntityStorage.edgeDeletionCount.incrementAndGet()
+          EntityStorage.edgeDeletionCount(workerID)+=1
         }
       }//if all old then remove the edge
       case None => {}//do nothing
@@ -107,9 +107,9 @@ class IngestionWorker(workerID:Int) extends Actor {
     EntityStorage.vertices.get(key) match {
       case Some(vertex) => {
         saveVertex(vertex,compressTime)
-        if (vertex.archive(archiveTime,compressing,true)) {
+        if (vertex.archive(archiveTime,compressing,true,workerID)) {
           EntityStorage.vertices.remove(vertex.getId.toInt)
-          EntityStorage.vertexDeletionCount.incrementAndGet()
+          EntityStorage.vertexDeletionCount(workerID)+=1
         }
       } //if all old then remove the vertex
       case None => {}//do nothing
@@ -124,7 +124,7 @@ class IngestionWorker(workerID:Int) extends Actor {
         RaphtoryDBWrite.edgeHistory.save(edge.getSrcId, edge.getDstId, history)
       }
       edge.properties.foreach(property => {
-        val propHistory = property._2.compressHistory(cutOff,true)
+        val propHistory = property._2.compressHistory(cutOff,true,workerID)
         if (propHistory.size > 0) {
           try{
             RaphtoryDBWrite.edgePropertyHistory.save(edge.getSrcId, edge.getDstId, property._1, propHistory)
@@ -144,7 +144,7 @@ class IngestionWorker(workerID:Int) extends Actor {
         RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)
       }
       vertex.properties.foreach(prop => {
-        val propHistory = prop._2.compressHistory(cutOff,false)
+        val propHistory = prop._2.compressHistory(cutOff,false,workerID)
         if (propHistory.size > 0) {
           try{
           RaphtoryDBWrite.vertexPropertyHistory.save(vertex.getId, prop._1, propHistory)
@@ -162,9 +162,9 @@ class IngestionWorker(workerID:Int) extends Actor {
   def archiveOnlyEdge(key:Long, archiveTime:Long) = {
     EntityStorage.edges.get(key) match {
       case Some(edge) => {
-        if (edge.archiveOnly(archiveTime,false)) {
+        if (edge.archiveOnly(archiveTime,false,workerID)) {
           EntityStorage.edges.remove(edge.getId)
-          EntityStorage.edgeDeletionCount.incrementAndGet()
+          EntityStorage.edgeDeletionCount(workerID)+=1
         }
       }//if all old then remove the edge
       case None => {}//do nothing
@@ -175,9 +175,9 @@ class IngestionWorker(workerID:Int) extends Actor {
   def archiveOnlyVertex(key:Int,archiveTime:Long) = {
     EntityStorage.vertices.get(key) match {
       case Some(vertex) => {
-        if (vertex.archiveOnly(archiveTime,true)) {
+        if (vertex.archiveOnly(archiveTime,true,workerID)) {
           EntityStorage.vertices.remove(vertex.getId.toInt)
-          EntityStorage.vertexDeletionCount.incrementAndGet()
+          EntityStorage.vertexDeletionCount(workerID)+=1
         }
       } //if all old then remove the vertex
       case None => {}//do nothing

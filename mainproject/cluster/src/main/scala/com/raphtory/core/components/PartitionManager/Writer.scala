@@ -26,7 +26,13 @@ class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMa
   val logChild              : ActorRef = context.actorOf(Props[WriterLogger],s"logger")
   val logChildForSize       : ActorRef = context.actorOf(Props[WriterLogger],s"logger2")
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
-  var lastLogTime           = System.currentTimeMillis()
+  var lastLogTime           = System.currentTimeMillis()/1000
+
+  var messageCount = 0
+  var secondaryMessageCount = 0
+  var workerMessageCount = 0
+
+
   mediator ! DistributedPubSubMediator.Put(self)
 
   val storage= EntityStorage.apply(printing, managerCount, managerID, mediator)
@@ -68,14 +74,20 @@ class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMa
     logChildForSize ! ReportSize(managerID)
   }
   def count() = {
-    val newTime = System.currentTimeMillis()
+    val newTime = System.currentTimeMillis()/1000
     var timeDifference = (newTime-lastLogTime)
     if(timeDifference ==0) timeDifference =1
     lastLogTime = newTime
-    val messageCount = storage.messageCount.getAndSet(0)*1000 //to match the milliseconds
-    val secondaryMessageCount = storage.secondaryMessageCount.getAndSet(0)*1000
-    val workerMessageCount = storage.workerMessageCount.getAndSet(0)*1000
-    logChild  ! ReportIntake(messageCount,secondaryMessageCount,workerMessageCount,managerID,timeDifference)
+    var newMessageCount = 0
+    var newSecondaryMessageCount = 0
+    var newWorkerMessageCount = 0
+    EntityStorage.messageCount.foreach(i => {newMessageCount +=i})
+    EntityStorage.secondaryMessageCount.foreach(i => newSecondaryMessageCount +=i)
+    EntityStorage.workerMessageCount.foreach(i => newWorkerMessageCount +=i)
+    logChild  ! ReportIntake((newMessageCount-messageCount),(newSecondaryMessageCount-secondaryMessageCount),(newWorkerMessageCount-workerMessageCount),managerID,timeDifference)
+    messageCount = newMessageCount
+    secondaryMessageCount = newSecondaryMessageCount
+    workerMessageCount = newWorkerMessageCount
   }
 
 

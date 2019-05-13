@@ -1,5 +1,6 @@
 package com.raphtory.core.storage
 
+import java.util
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorRef
@@ -7,7 +8,9 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Property, RemoteEdge, RemotePos, Vertex}
 import com.raphtory.core.utils.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException, Utils}
+
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
@@ -20,17 +23,17 @@ import scala.collection.parallel.mutable.ParTrieMap
 object EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager,checkWorker}
 
-  var messageCount                = new AtomicInteger(0)        // number of messages processed since last report to the benchmarker
-  var secondaryMessageCount       = new AtomicInteger(0)
-  var workerMessageCount          = new AtomicInteger(0)
+  var messageCount                = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)       // number of messages processed since last report to the benchmarker
+  var secondaryMessageCount       = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)
+  var workerMessageCount          = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)
 
-  var vertexDeletionCount         = new AtomicInteger(0)
-  var vertexHistoryDeletionCount  = new AtomicInteger(0)
-  var vertexPropertyDeletionCount = new AtomicInteger(0)
+  var vertexDeletionCount         = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)
+  var vertexHistoryDeletionCount  = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)
+  var vertexPropertyDeletionCount = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)
 
-  var edgeDeletionCount           = new AtomicInteger(0)
-  var edgeHistoryDeletionCount    = new AtomicInteger(0)
-  var edgePropertyDeletionCount   = new AtomicInteger(0)
+  var edgeDeletionCount           = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)
+  var edgeHistoryDeletionCount    = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)
+  var edgePropertyDeletionCount   = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)
 
   val children = 10
 

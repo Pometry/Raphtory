@@ -29,7 +29,7 @@ class Property(creationTime: Long,
     previousState.put(msgTime, newValue)
   }
 
-  def compressHistory(cutoff:Long,entityType:Boolean): mutable.TreeMap[Long, String] ={
+  def compressHistory(cutoff:Long,entityType:Boolean,workerID:Int): mutable.TreeMap[Long, String] ={
     if(previousState.isEmpty) return mutable.TreeMap()(HistoryOrdering) //if we have no need to compress, return an empty list
     if (previousState.takeRight(1).head._1>=cutoff) return mutable.TreeMap()(HistoryOrdering) //if the oldest point is younger than the cut off no need to do anything
     var toWrite : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering) //data which needs to be saved to cassandra
@@ -46,7 +46,7 @@ class Property(creationTime: Long,
           compressedState.put(PriorPoint._1, PriorPoint._2) //add to compressedState in-mem
         }
         else{
-          recordRemoval(entityType)
+          recordRemoval(entityType,workerID)
         }
         swapped = true
       }
@@ -58,7 +58,7 @@ class Property(creationTime: Long,
         compressedState.put(PriorPoint._1, PriorPoint._2) //add to compressedState in-mem
       }
       else
-        recordRemoval(entityType)
+        recordRemoval(entityType,workerID)
     }
     else
       newPreviousState.put(PriorPoint._1,PriorPoint._2) //if the last point in the uncompressed history wasn't past the cutoff it needs to go back into the new uncompressed history
@@ -66,11 +66,11 @@ class Property(creationTime: Long,
     toWrite
   }
 
-  def recordRemoval(entityType:Boolean) = {
+  def recordRemoval(entityType:Boolean,workerID:Int) = {
     if(entityType)
-      EntityStorage.vertexPropertyDeletionCount.incrementAndGet()
+      EntityStorage.vertexPropertyDeletionCount(workerID)+=1
     else
-      EntityStorage.edgePropertyDeletionCount.incrementAndGet()
+      EntityStorage.edgePropertyDeletionCount(workerID)+=1
   }
 
 
