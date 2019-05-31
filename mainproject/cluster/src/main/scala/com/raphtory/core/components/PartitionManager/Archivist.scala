@@ -51,8 +51,8 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
   var removePointGlobal:Long      = 0L
   var removalPoint:Long           = 0L
   // children for distribution of compresssion and archiving
-  val edgeManager   =  context.actorOf(Props(new ArchivistWorker(workers)),"edgecompressor");
-  val vertexManager =  context.actorOf(Props(new ArchivistWorker(workers)),"vertexcompressor");
+  val edgeManager   =  context.actorOf(Props(new ArchivistWorker(workers)).withDispatcher("archivist-dispatcher"),"edgecompressor");
+  val vertexManager =  context.actorOf(Props(new ArchivistWorker(workers)).withDispatcher("archivist-dispatcher"),"vertexcompressor");
 
   var debug = false
   val archGauge         = Kamon.gauge("raphtory_archivist")

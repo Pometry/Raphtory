@@ -1,11 +1,12 @@
 package com.raphtory.core.components.PartitionManager
 
 import akka.actor.SupervisorStrategy.Resume
-import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, Terminated}
+import akka.actor.{Actor, ActorRef, ActorSystem, OneForOneStrategy, Props, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.PartitionManager.Workers.WriterLogger
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
+import com.typesafe.config.ConfigFactory
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -23,8 +24,8 @@ class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMa
   val printing              : Boolean = false                  // should the handled messages be printed to terminal
 
   val children              : Int = 10
-  val logChild              : ActorRef = context.actorOf(Props[WriterLogger],s"logger")
-  val logChildForSize       : ActorRef = context.actorOf(Props[WriterLogger],s"logger2")
+  val logChild              : ActorRef = context.actorOf(Props[WriterLogger].withDispatcher("logging-dispatcher"),s"logger")
+  val logChildForSize       : ActorRef = context.actorOf(Props[WriterLogger].withDispatcher("logging-dispatcher"),s"logger2")
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   var lastLogTime           = System.currentTimeMillis()/1000
 
@@ -78,12 +79,9 @@ class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMa
     var timeDifference = (newTime-lastLogTime)
     if(timeDifference ==0) timeDifference =1
     lastLogTime = newTime
-    var newMessageCount = 0
-    var newSecondaryMessageCount = 0
-    var newWorkerMessageCount = 0
-    EntityStorage.messageCount.foreach(i => {newMessageCount +=i})
-    EntityStorage.secondaryMessageCount.foreach(i => newSecondaryMessageCount +=i)
-    EntityStorage.workerMessageCount.foreach(i => newWorkerMessageCount +=i)
+    var newMessageCount = EntityStorage.messageCount.sum
+    var newSecondaryMessageCount = EntityStorage.secondaryMessageCount.sum
+    var newWorkerMessageCount = EntityStorage.workerMessageCount.sum
     logChild  ! ReportIntake((newMessageCount-messageCount),(newSecondaryMessageCount-secondaryMessageCount),(newWorkerMessageCount-workerMessageCount),managerID,timeDifference)
     messageCount = newMessageCount
     secondaryMessageCount = newSecondaryMessageCount

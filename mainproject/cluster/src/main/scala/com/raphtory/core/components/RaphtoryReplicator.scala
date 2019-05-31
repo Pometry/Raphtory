@@ -70,10 +70,10 @@ class RaphtoryReplicator(actorType:String, initialManagerCount:Int, routerName :
       case "Partition Manager" => {
         var workers: ParTrieMap[Int,ActorRef] = new ParTrieMap[Int,ActorRef]()
         for(i <- 0 until 10){ //create threads for writing
-          val child = context.system.actorOf(Props(new IngestionWorker(i)),s"Manager_${assignedId}_child_$i")
+          val child = context.system.actorOf(Props(new IngestionWorker(i)).withDispatcher("worker-dispatcher"),s"Manager_${assignedId}_child_$i")
           workers.put(i,child)
         }
-        actorRef = context.system.actorOf(Props(new Writer(myId, false, currentCount,workers)), s"Manager_$myId")
+        actorRef = context.system.actorOf(Props(new Writer(myId, false, currentCount,workers)).withDispatcher("logging-dispatcher"), s"Manager_$myId")
         actorRefReader = context.system.actorOf(Props(new Reader(myId, false, currentCount)), s"ManagerReader_$myId")
         context.system.actorOf(Props(new Archivist(0.3,workers)))
       }
