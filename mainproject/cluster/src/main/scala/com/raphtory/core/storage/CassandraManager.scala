@@ -15,15 +15,13 @@ import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-
-
 class Connector {
-  val default: CassandraConnection = ContactPoint.local
+  val default: CassandraConnection = ContactPoint.embedded
     .withClusterBuilder(_.withSocketOptions(
       new SocketOptions()
         .setConnectTimeoutMillis(20000)
         .setReadTimeoutMillis(20000)
-    )
+    ).addContactPoint("raphtoryCassandra_cassandra.1")
     ).noHeartbeat().keySpace(
     KeySpace("raphtory").ifNotExists().`with`(
       replication eqs SimpleStrategy.replication_factor(1)
