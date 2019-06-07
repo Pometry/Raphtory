@@ -10,7 +10,7 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
   //timestamps to make sure all entities are compressed to exactly the same point
 
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
-  val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
+  val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
 
   var startedCompressions   = 0
   var finishedCompressions  = 0

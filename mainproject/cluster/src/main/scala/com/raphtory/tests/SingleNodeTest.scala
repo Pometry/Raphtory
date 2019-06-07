@@ -18,7 +18,7 @@ import scala.sys.process._
 object SingleNodeTest extends App {
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
-  RaphtoryDBWrite.clearDB()
+  //RaphtoryDBWrite.clearDB()
   val partitionNumber = 1
   val minimumRouters = 1
 

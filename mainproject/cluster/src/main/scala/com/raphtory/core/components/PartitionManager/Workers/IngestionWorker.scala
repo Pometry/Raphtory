@@ -11,7 +11,7 @@ class IngestionWorker(workerID:Int) extends Actor {
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
-  val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
+  val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
   //println(akka.serialization.Serialization.serializedActorPath(self))
 
   override def receive:Receive = {
