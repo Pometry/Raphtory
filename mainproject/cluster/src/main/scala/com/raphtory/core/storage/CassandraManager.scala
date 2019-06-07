@@ -1,5 +1,7 @@
 package com.raphtory.core.storage
 
+import java.net.InetAddress
+
 import com.datastax.driver.core.SocketOptions
 import com.datastax.driver.core.exceptions.NoHostAvailableException
 import com.outworkers.phantom.connectors.CassandraConnection
@@ -21,7 +23,7 @@ class Connector {
       new SocketOptions()
         .setConnectTimeoutMillis(20000)
         .setReadTimeoutMillis(20000)
-    ).addContactPoint("raphtoryCassandra_cassandra.1")
+    ).addContactPoint(InetAddress.getByName("raphtoryCassandra_cassandra").getHostAddress())
     ).noHeartbeat().keySpace(
     KeySpace("raphtory").ifNotExists().`with`(
       replication eqs SimpleStrategy.replication_factor(1)
