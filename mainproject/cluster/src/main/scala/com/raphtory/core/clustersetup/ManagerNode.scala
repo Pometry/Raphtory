@@ -18,6 +18,7 @@ case class ManagerNode(seedLoc: String,partitionCount:Int)
     //Process("cassandra").lineStream //run cassandara in background on manager
     Thread.sleep(5000)
     RaphtoryDBWrite.createDB()
+    RaphtoryDBWrite.clearDB()
   }
 
 
