@@ -32,7 +32,7 @@ class RandomSpout extends SpoutTrait {
 
   protected def processChildMessages(rcvdMessage : Any): Unit ={
     rcvdMessage match {
-      case "required" => {freq = System.getenv().getOrDefault("UPDATES_FREQ", "20000").toInt;println(s"Full start ($freq Hz) Entity pool = $pool Ramp flag = $increase")   } // (Updates/s) - Hz
+      case "required" => {freq = System.getenv().getOrDefault("UPDATES_FREQ", "10000").toInt;println(s"Full start ($freq Hz) Entity pool = $pool Ramp flag = $increase")   } // (Updates/s) - Hz
       case "increase" =>
         if (increase) {
           freq += 1000
@@ -53,10 +53,9 @@ class RandomSpout extends SpoutTrait {
   def distribution() : String = {
     val random = Random.nextFloat()
     if (random <= 0.3)      genVertexAdd()
-    else if (random <= 0.7)
-      genEdgeAdd()
-    else if (random <= 0.8) genVertexRemoval()
-    else                    genEdgeRemoval()
+    else genEdgeAdd()
+    //else if (random <= 0.8) genVertexRemoval()
+    //else                    genEdgeRemoval()
   }
 
   def genRandomCommands(number : Int) : Unit = {
