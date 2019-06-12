@@ -25,7 +25,7 @@ object SingleNodeTest extends App {
   var routerClassName = "com.raphtory.examples.random.actors.RandomRouter"
   //routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
   //val LamClassName = "com.raphtory.examples.random.actors.TestLAM"
-  var UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
+    var UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
   //UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
   //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
   //val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"

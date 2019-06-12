@@ -30,7 +30,7 @@ class Connector {
     )
   )
 }
-  
+
 class RaphtoryDatabase(override val connector: CassandraConnection) extends Database[RaphtoryDatabase](connector) {
 
   object vertexHistory extends VertexHistory with Connector
