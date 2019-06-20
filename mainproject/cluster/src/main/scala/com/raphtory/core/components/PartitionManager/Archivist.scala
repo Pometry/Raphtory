@@ -5,6 +5,7 @@ import ch.qos.logback.classic.Level
 import com.raphtory.core.components.PartitionManager.Workers.ArchivistWorker
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
+import com.raphtory.core.utils.Utils
 import kamon.Kamon
 import org.slf4j.LoggerFactory
 
@@ -18,9 +19,9 @@ import scala.concurrent.duration._
 
 
 class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Actor {
-  val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
-  val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
-  val archiving : Boolean =  System.getenv().getOrDefault("ARCHIVING", "true").trim.toBoolean
+  val compressing    : Boolean =  Utils.compressing
+  val saving    : Boolean =  Utils.saving
+  val archiving: Boolean = Utils.archiving
   println(s"Archivist compressing = $compressing, Saving = $saving, Archiving = $archiving")
 
   //Turn logging off

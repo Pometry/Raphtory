@@ -6,12 +6,13 @@ import com.datastax.driver.core.exceptions.WriteTimeoutException
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
 import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
+import com.raphtory.core.utils.Utils
 
 class IngestionWorker(workerID:Int) extends Actor {
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
-  val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
-  val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "true").trim.toBoolean
+  val compressing    : Boolean =  Utils.compressing
+  val saving    : Boolean =  Utils.saving
   //println(akka.serialization.Serialization.serializedActorPath(self))
 
   override def receive:Receive = {
