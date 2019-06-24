@@ -153,9 +153,10 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
       vertexArchivingFinished = false
       edgeArchivingFinished = false
       archGauge.refine("actor" -> "Archivist", "name" -> "totalArchiveTime").set((System.currentTimeMillis()-totalArchiveTime)/1000)
-      if(currentWorker == 9)
+      if(currentWorker == 9) {
         EntityStorage.oldestTime = removePointGlobal
-      System.gc() //suggest a good time to garbage collect
+        System.gc() //suggest a good time to garbage collect
+      }
       nextWorker()
       if(debug)println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
     }

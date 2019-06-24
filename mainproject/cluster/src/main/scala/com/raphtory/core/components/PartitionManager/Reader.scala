@@ -102,9 +102,6 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
   }
 
 
-
-
-
   def nextStep(analyzer: Analyser): Unit = {
     try {
       if(debug)println(s"Received new step for pm_$managerID")
