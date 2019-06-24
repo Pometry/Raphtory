@@ -19,54 +19,46 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
   var finishedArchiving     = 0
 
   override def receive:Receive = {
-    case CompressEdges(compressTime) => {compressEdges(compressTime)}
-    case CompressVertices(compressTime) => {compressVertices(compressTime)}
+    case CompressEdges(compressTime,workerID) => {compressEdges(compressTime,workerID)}
+    case CompressVertices(compressTime,workerID) => {compressVertices(compressTime,workerID)}
     case FinishedEdgeCompression(key) => finishedEdgeCompression(key)
     case FinishedVertexCompression(key) => finishedVertexCompression(key)
 
-    case ArchiveEdges(compressTime,archiveTime) => {archiveEdges(compressTime,archiveTime)}
-    case ArchiveVertices(compressTime,archiveTime) => {archiveVertices(compressTime,archiveTime)}
+    case ArchiveEdges(compressTime,archiveTime,workerID) => {archiveEdges(compressTime,archiveTime,workerID)}
+    case ArchiveVertices(compressTime,archiveTime,workerID) => {archiveVertices(compressTime,archiveTime,workerID)}
     case FinishedEdgeArchiving(key) => finishedEdgeArchiving(key)
     case FinishedVertexArchiving(key) => finishedVertexArchiving(key)
 
   }
 
-  def compressEdges(compressTime:Long) = {
-    for (workerID <- 0 until 10) {
+  def compressEdges(compressTime:Long,workerID:Int) = {
       val worker = workers(workerID)
       EntityStorage.edgeKeys(workerID) foreach(key => {
         worker ! CompressEdge(key,compressTime)
         startedCompressions+=1
       })
-    }
   }
 
-  def compressVertices(compressTime:Long) = {
-    for (workerID <- 0 until 10){
+  def compressVertices(compressTime:Long,workerID:Int) = {
      val worker = workers(workerID)
       EntityStorage.vertexKeys(workerID) foreach( key => {
         worker ! CompressVertex(key,compressTime)
         startedCompressions+=1
       })
-    }
-  }
+   }
 
-  def archiveEdges(compressTime:Long,archiveTime:Long) = {
-    for (workerID <- 0 until 10){
+  def archiveEdges(compressTime:Long,archiveTime:Long,workerID:Int) = {
       val worker = workers(workerID)
       EntityStorage.edgeKeys(workerID) foreach( key => {
         if(compressing)
           worker ! ArchiveEdge(key,compressTime,archiveTime)
         else
           worker ! ArchiveOnlyEdge(key,archiveTime)
-
         startedArchiving+=1
       })
-    }
   }
 
-  def archiveVertices(compressTime:Long,archiveTime:Long) = {
-    for (workerID <- 0 until 10) {
+  def archiveVertices(compressTime:Long,archiveTime:Long,workerID:Int) = {
       val worker = workers(workerID)
       EntityStorage.vertexKeys(workerID) foreach( key => {
         if(compressing)
@@ -75,7 +67,6 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
           worker ! ArchiveOnlyVertex(key,archiveTime)
         startedArchiving+=1
       })
-    }
   }
 
   def finishedEdgeCompression(key: Long) = {
