@@ -99,11 +99,11 @@ class RaphtoryReplicator(actorType:String, initialManagerCount:Int, routerName :
       }
     }
     case "tick" => getNewId
-    case GetNetworkSize() => {
-      println("GetNetworkSize" + actorRefReader != null)
-      if (actorRefReader != null)
-        sender() ! actorRefReader ? GetNetworkSize
-    }
+//    case GetNetworkSize() => {
+//      println("GetNetworkSize" + actorRefReader != null)
+//      if (actorRefReader != null)
+//        sender() ! actorRefReader ? GetNetworkSize
+//    }
     case e => println(s"Received not handled message ${e.getClass}")
   }
 }

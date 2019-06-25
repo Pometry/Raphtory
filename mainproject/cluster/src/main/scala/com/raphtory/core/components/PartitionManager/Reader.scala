@@ -8,10 +8,6 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.GraphRepoProxy
 import com.raphtory.core.utils.Utils
 import com.twitter.util.Eval
-import monix.eval.Task
-import monix.execution.Scheduler
-
-import scala.collection.concurrent.TrieMap
 import scala.collection.parallel.mutable.ParTrieMap
 
 class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
@@ -35,9 +31,9 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
   }
 
   override def receive: Receive = {
+    case ReaderWorkersOnline() => sender() ! ReaderWorkersACK
     case AnalyserPresentCheck(classname) => presentCheck(classname)
     case CompileNewAnalyser(analyser, name) => compileNewAnalyser(analyser, name)
-    case GetNetworkSize() => sender() ! NetworkSize(GraphRepoProxy.getVerticesSet().size)
     case UpdatedCounter(newValue) => managerCount = newValue; readers.foreach(x=> x._2 ! UpdatedCounter(newValue))
     case e => println(s"[READER] not handled message " + e)
   }

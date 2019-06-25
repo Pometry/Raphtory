@@ -93,8 +93,8 @@ case class NextStepNewAnalyser(name: String) extends RaphReadClasses
 case class EndStep(results : Any) extends RaphReadClasses // TODO Define results
 case class ExceptionInAnalysis(e:String) extends RaphReadClasses
 
-case class GetNetworkSize() extends RaphReadClasses
-case class NetworkSize(size : Int) extends RaphReadClasses
+case class ReaderWorkersOnline() extends RaphReadClasses
+case class ReaderWorkersACK() extends RaphReadClasses
 
 case class AnalyserPresentCheck(classname:String) extends  RaphReadClasses
 case class AnalyserPresent() extends  RaphReadClasses

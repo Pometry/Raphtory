@@ -16,6 +16,7 @@ object Utils {
   val config            = ConfigFactory.load
   val partitionsTopic   = "/partitionsCount"
   val readersTopic      = "/readers"
+  val readersWorkerTopic      = "/readerWorkers"
   val liveAnalysisTopic      = "/liveanalysis"
   val saving: Boolean = System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean

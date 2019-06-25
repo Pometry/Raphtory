@@ -12,7 +12,7 @@ class GabLiveAnalyserManager extends LiveAnalysisManager {
   private var epsilon        = 1
   private val dumplingFactor = 0.85F
   private var firstStep      = true
-
+  private var getNetworkSize = 0
   override protected def processResults(result: Any): Unit = println(
     result.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten.sortBy(f => f._2)(Ordering[Double].reverse))/*.asInstanceOf[Vector[Vector[(Long, Double)]]]
       .flatMap(e => e).sortBy(f => f._2)(Ordering[Double])
