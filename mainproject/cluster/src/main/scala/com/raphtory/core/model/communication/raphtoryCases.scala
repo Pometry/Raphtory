@@ -86,20 +86,23 @@ case class ReportSize(partitionID:Int)
 
 sealed trait RaphReadClasses
 
-case class AnalyserPresentCheck(classname:String) extends  RaphReadClasses
-case class AnalyserPresent() extends  RaphReadClasses
 case class Setup(analyzer : Analyser) extends RaphReadClasses
 case class Ready() extends RaphReadClasses
 case class NextStep(analyzer : Analyser) extends RaphReadClasses
+case class NextStepNewAnalyser(name: String) extends RaphReadClasses
 case class EndStep(results : Any) extends RaphReadClasses // TODO Define results
+case class ExceptionInAnalysis(e:String) extends RaphReadClasses
+
 case class GetNetworkSize() extends RaphReadClasses
 case class NetworkSize(size : Int) extends RaphReadClasses
 
-
+case class AnalyserPresentCheck(classname:String) extends  RaphReadClasses
+case class AnalyserPresent() extends  RaphReadClasses
 case class ClassMissing() extends RaphReadClasses
-case class SetupNewAnalyser(analyser: String, name:String) extends RaphReadClasses
 case class FailedToCompile (stackTrace:String) extends  RaphReadClasses
-case class NextStepNewAnalyser(name: String) extends RaphReadClasses
+case class CompileNewAnalyser(analyser: String, name:String) extends RaphReadClasses
+case class ClassCompiled() extends RaphReadClasses
+
 
 case class AllocateJob(record:Any)
 

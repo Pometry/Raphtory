@@ -3,6 +3,7 @@ package com.raphtory.core.utils
 import java.text.SimpleDateFormat
 
 import akka.actor.ActorContext
+import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.model.graphentities.{Edge, RemoteEdge, RemotePos}
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.lang.StringEscapeUtils
@@ -20,6 +21,8 @@ object Utils {
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
   val archiving : Boolean =  System.getenv().getOrDefault("ARCHIVING", "true").trim.toBoolean
   var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
+
+  val analyserMap: TrieMap[String, Analyser] = TrieMap[String, Analyser]()
 
   def watchDogSelector(context : ActorContext, ip : String) = {
     // IP $clusterSystemName@${InetAddress.getByName("watchDog").getHostAddress()}

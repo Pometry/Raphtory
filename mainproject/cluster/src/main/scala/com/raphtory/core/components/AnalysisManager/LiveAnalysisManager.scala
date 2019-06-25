@@ -56,6 +56,85 @@ abstract class LiveAnalysisManager extends Actor {
 
   protected final def getNetworkSize  : Int = networkSize
   protected final def getManagerCount : Int = managerCount
+
+  override def receive: Receive = {
+    case PartitionsCount(newValue) => managerCount = newValue
+
+    case "start" => checkClusterSize
+    case PartitionsCountResponse(newValue)=> watchdogResponse(newValue)
+    case "restart" => mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$","")))
+
+
+    case NetworkSize(size) => networkSizeResponse(size)
+    case "networkSizeTimeout" => networkSizeFail()
+
+
+    case AnalyserPresent() => sender() !  Setup(this.generateAnalyzer)
+    case Ready() => ready()
+    case EndStep(result) => endStep(result)
+    case ClassMissing() => classMissing()
+    case FailedToCompile(stackTrace) => failedToCompile(stackTrace)
+
+
+
+    case _ => processOtherMessages(_)
+  }
+
+  def watchdogResponse(newValue: Int)= {
+    if(debug)println(s"received watchdog response")
+    managerCount = newValue
+    sendGetNetworkSize()
+  }
+
+  def checkClusterSize ={
+    mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
+  }
+
+  def ready() = {
+    if(debug)println("Received ready")
+    readyCounter += 1
+    if(debug)println(s"$readyCounter / ${getManagerCount}")
+    if (readyCounter == getManagerCount) {
+      readyCounter = 0
+      currentStep = 1
+      results = Vector.empty[Any]
+      if(debug)println(s"Sending analyzer")
+      if(newAnalyser)
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStepNewAnalyser(analyserName))
+      else
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStep(this.generateAnalyzer))
+    }
+  }
+
+  def endStep(result:Any) = {
+    if(debug)println("EndStep")
+    currentStepCounter += 1
+    results +:= results
+    if(debug)println(s"$currentStepCounter / $getManagerCount : $currentStep / $steps")
+    if (currentStepCounter == getManagerCount) {
+      if (currentStep == steps || this.checkProcessEnd()) {
+        // Process results
+        this.processResults(results)
+        currentStepCounter = 0
+        currentStep = 0
+        context.system.scheduler.scheduleOnce(Duration(20, SECONDS), self, "restart")
+      }
+      else {
+        if(debug)println(s"Sending new step")
+        oldResults = results
+        results = Vector.empty[Any]
+        currentStep += 1
+        currentStepCounter = 0
+        if(newAnalyser)
+          mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStepNewAnalyser(analyserName))
+        else
+          mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStep(this.generateAnalyzer))
+      }
+    }
+  }
+
+
+  /////HERE BE DRAGONS, GO NO FURTHER
   protected final def sendGetNetworkSize() : Unit = {
     networkSize        = 0
     networkSizeReplies = 0
@@ -63,108 +142,30 @@ abstract class LiveAnalysisManager extends Actor {
     mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, GetNetworkSize())
   }
 
-  override def receive: Receive = {
-    //case "analyse" => analyse()
-    case PartitionsCount(newValue) => {
-      if(debug)println(s"received new count of $newValue")
-      managerCount = newValue
-    }
-
-    case "start" => {
-      println("Starting")
-      checkClusterSize
-    }
-
-    case "restart" => {
-      println("restarting")
-      mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$","")))
-    }
-
-    case PartitionsCountResponse(newValue)=>{
-      if(debug)println(s"received watchdog response")
-      managerCount = newValue
-      sendGetNetworkSize()
-    }
-
-    case "networkSizeTimeout" => {
-      sendGetNetworkSize()
-      if(debug)println("Timeout networkSize")
-    }
-
-    case NetworkSize(size) => {
-      if(debug)println("Received NetworkSize packet")
-        networkSize += size
-        networkSizeReplies += 1
-        if (networkSizeReplies == getManagerCount) {
-          networkSizeTimeout.cancel()
-          //if(debug)println(steps)
-          //if(debug)println(networkSize)
-          mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$","")))
-        }
-      }
-
-    case AnalyserPresent() => {
-      sender() !  Setup(this.generateAnalyzer)
-    }
-
-    case ClassMissing() => {
-      if(debug)println(s"$sender does not have analyser, sending now")
-      var code = missingCode()
-      newAnalyser = true
-      sender() ! SetupNewAnalyser(code,analyserName)
-    }
-
-    case FailedToCompile(stackTrace) => {
-      if(debug)println(s"${sender} failed to compiled, stacktrace returned: \n $stackTrace")
-    }
-
-    case Ready() => {
-      if(debug)println("Received ready")
-      readyCounter += 1
-      if(debug)println(s"$readyCounter / ${getManagerCount}")
-      if (readyCounter == getManagerCount) {
-        readyCounter = 0
-        currentStep = 1
-        results = Vector.empty[Any]
-        if(debug)println(s"Sending analyzer")
-        if(newAnalyser)
-          mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStepNewAnalyser(analyserName))
-        else
-          mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStep(this.generateAnalyzer))
-      }
-    }
-    case EndStep(res) => {
-      if(debug)println("EndStep")
-      currentStepCounter += 1
-      results +:= res
-      if(debug)println(s"$currentStepCounter / $getManagerCount : $currentStep / $steps")
-      if (currentStepCounter == getManagerCount) {
-        if (currentStep == steps || this.checkProcessEnd()) {
-          // Process results
-          this.processResults(results)
-          currentStepCounter = 0
-          currentStep = 0
-          context.system.scheduler.scheduleOnce(Duration(20, SECONDS), self, "restart")
-        }
-        else {
-          if(debug)println(s"Sending new step")
-          oldResults = results
-          results = Vector.empty[Any]
-          currentStep += 1
-          currentStepCounter = 0
-          if(newAnalyser)
-            mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStepNewAnalyser(analyserName))
-          else
-            mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, NextStep(this.generateAnalyzer))
-        }
-      }
-    }
-    case _ => processOtherMessages(_)
+  def networkSizeFail() {
+    sendGetNetworkSize()
+    if(debug)println("Timeout networkSize")
   }
 
-  def checkClusterSize ={
-    if(debug)println("LAM SENDING REQUEST TO WATCHDOG")
-      mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
+  def networkSizeResponse(size:Int) ={
+    if(debug)println("Received NetworkSize packet")
+    networkSize += size
+    networkSizeReplies += 1
+    if (networkSizeReplies == getManagerCount) {
+      networkSizeTimeout.cancel()
+      mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$","")))
+    }
+  }
+
+  def classMissing() {
+    if(debug)println(s"$sender does not have analyser, sending now")
+    var code = missingCode()
+    newAnalyser = true
+    sender() ! CompileNewAnalyser(code,analyserName)
+  }
+  def failedToCompile(stackTrace:String): Unit = {
+    if(debug)println(s"${sender} failed to compiled, stacktrace returned: \n $stackTrace")
+
   }
 
   def missingCode() : String = {
@@ -191,14 +192,4 @@ abstract class LiveAnalysisManager extends Actor {
     bufferedSource.close
     code
   }
-
-  //  private final def analyse() ={
-  //      for(i <- 0 until managerCount){
-  //        mediator ! DistributedPubSubMediator.Send(s"/user/Manager_$i",
-  //          LiveAnalysis(
-  //            Class.forName(sys.env.getOrElse("ANALYSISTASK", classOf[GabPageRank].getClass.getName))
-  //              .newInstance().asInstanceOf[Analyser]),
-  //          false)
-  //      }
-  //  }
 }
