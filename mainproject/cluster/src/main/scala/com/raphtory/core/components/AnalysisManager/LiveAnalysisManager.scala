@@ -9,8 +9,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
-import com.raphtory.core.analysis.Analyser
-import com.raphtory.core.storage.GraphRepoProxy
+import com.raphtory.core.analysis.{Analyser, GraphRepoProxy}
 
 import scala.sys.process._
 import scala.io.Source

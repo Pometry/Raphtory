@@ -1,8 +1,7 @@
 package com.raphtory.examples.gab.analysis
 
 import akka.actor.{ActorContext, ActorRef}
-import com.raphtory.core.analysis.Analyser
-import com.raphtory.core.storage.GraphRepoProxy
+import com.raphtory.core.analysis.{Analyser, GraphRepoProxy}
 
 import scala.collection.concurrent.TrieMap
 import scala.util.Random

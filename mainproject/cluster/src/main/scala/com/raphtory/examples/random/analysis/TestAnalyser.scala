@@ -5,7 +5,7 @@ import com.raphtory.core.analysis.Analyser
 class TestAnalyser extends Analyser {
 
   import akka.actor.ActorContext
-  import com.raphtory.core.storage.GraphRepoProxy
+  import com.raphtory.core.analysis.GraphRepoProxy
 
   override implicit var context: ActorContext = _
   override implicit var managerCount: Int = _

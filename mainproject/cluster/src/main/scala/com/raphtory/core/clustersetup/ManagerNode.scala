@@ -1,7 +1,7 @@
 package com.raphtory.core.clustersetup
 
 import akka.actor.Props
-import com.raphtory.core.components.RaphtoryReplicator
+import com.raphtory.core.components.ClusterManagement.RaphtoryReplicator
 import com.raphtory.core.storage.RaphtoryDBWrite
 import com.raphtory.core.utils.Utils
 

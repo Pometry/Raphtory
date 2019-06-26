@@ -1,12 +1,12 @@
 package com.raphtory.core.analysis
 
 import akka.actor.ActorContext
-import com.raphtory.core.storage.GraphRepoProxy
 abstract class Analyser extends java.io.Serializable {
   implicit var context : ActorContext
   implicit var managerCount : Int
+  implicit  val workerID: Int
 
-  final def sysSetup()(implicit context : ActorContext, managerCount : Int) = {
+  final def sysSetup()(implicit context : ActorContext, managerCount : Int, workerID:Int) = {
     this.context = context
     this.managerCount = managerCount
   }

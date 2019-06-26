@@ -1,8 +1,7 @@
 package com.raphtory.examples.bitcoin.analysis
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.Analyser
-import com.raphtory.core.storage.GraphRepoProxy
+import com.raphtory.core.analysis.{Analyser, GraphRepoProxy}
 import com.raphtory.examples.bitcoin.communications.CoinsAquiredPayload
 
 class BitcoinAnalyser extends Analyser {
