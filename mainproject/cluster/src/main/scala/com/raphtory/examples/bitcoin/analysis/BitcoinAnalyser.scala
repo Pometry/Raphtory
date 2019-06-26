@@ -8,7 +8,7 @@ class BitcoinAnalyser extends Analyser {
   override implicit var context: ActorContext = _
   override implicit var managerCount: Int = _
 
-  override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int): Any = {
+  override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int,workerID:Int): Any = {
     var results = Vector.empty[(String, Double)]
     var currentBlock = 0
     var hash = ""

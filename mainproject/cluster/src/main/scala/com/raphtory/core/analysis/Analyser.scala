@@ -11,8 +11,8 @@ abstract class Analyser extends java.io.Serializable {
     this.managerCount = managerCount
   }
 
-  def analyse()(implicit proxy : GraphRepoProxy.type, managerCount : Int) : Any
-  def setup()(implicit proxy : GraphRepoProxy.type) : Any
+  def analyse()(implicit proxy : GraphRepoProxy.type, managerCount : Int, workerID:Int) : Any
+  def setup()(implicit proxy : GraphRepoProxy.type, managerCount : Int, workerID:Int) : Any
 
 
 }

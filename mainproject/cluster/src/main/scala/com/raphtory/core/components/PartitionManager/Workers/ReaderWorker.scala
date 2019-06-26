@@ -25,12 +25,12 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   def setup(analyzer: Analyser) {
     analyzer.sysSetup()(context,managerCount,workerID)
-    analyzer.setup()
+    analyzer.setup()(GraphRepoProxy,managerCount,workerID)
     sender() ! Ready()
   }
 
   private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
-    val value = analyzer.analyse()
+    val value = analyzer.analyse()(GraphRepoProxy,managerCount,workerID)
     if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
     if(debug)println(value)
     mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value), false)
