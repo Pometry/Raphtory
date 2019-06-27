@@ -22,10 +22,20 @@ object SingleNodeTest extends App {
   val partitionNumber = 1
   val minimumRouters = 1
 
-  var routerClassName = "com.raphtory.examples.random.actors.RandomRouter"
+
+
+ // var routerClassName = "com.raphtory.examples.TestPackage.TestRouter"
+ // var UpdaterName = "com.raphtory.examples.TestPackage.TestSpout"
+
+  var UpdaterName = "com.raphtory.examples.gabMining.GabMiningSpout"
+
+  var routerClassName = "com.raphtory.examples.gabMining.GabMiningRouter"
+
+
+
   //routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
   //val LamClassName = "com.raphtory.examples.random.actors.TestLAM"
-  var UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
+
   //UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
   //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
   //val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"

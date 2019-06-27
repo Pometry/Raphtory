@@ -1,4 +1,4 @@
-package com.raphtory.examples.TestPackage
+package com.raphtory.examples.gabMining
 
 import java.text.SimpleDateFormat
 
@@ -13,18 +13,18 @@ import scala.language.postfixOps
 import scala.util.Random
 import scala.io
 
-class TestSpout extends SpoutTrait {
+class GabMiningSpout extends SpoutTrait {
 
   //file is read. Please note that the first line is dropped, this in case the file has headers
-  val fileLines = io.Source.fromFile("/Users/lagordamotoneta/Scala/small.csv").getLines.drop(1).toArray
-  var position=0
+  val fileLines = io.Source.fromFile("/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets/gabNetwork500short.csv").getLines.drop(1).toArray
+  var position = 0
   var linesNumber=fileLines.length
   println(linesNumber)
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
 
-      context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "newLine")
+    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "newLine")
 
   }
 
@@ -52,9 +52,10 @@ class TestSpout extends SpoutTrait {
 
 
   def running(): Unit = {
-      //genRandomCommands(totalCount)
-      //totalCount+=1000
-    }
-
+    //genRandomCommands(totalCount)
+    //totalCount+=1000
   }
+
+}
+
 
