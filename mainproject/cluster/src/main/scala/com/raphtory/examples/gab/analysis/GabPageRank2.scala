@@ -14,7 +14,7 @@ class GabPageRank2(networkSize : Int, epsilon : Float, delta1 : Float) extends A
   private val defaultPR = "1"
   private def getPageRankStr(srcId : Int, dstId : Int) : String = s"${prStr}_${srcId}_${dstId}"
 
-  override def setup()(implicit proxy : GraphRepoProxy.type) = {
+  override def setup() = {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       vertex.updateProperty(prStr, defaultPR)
@@ -23,7 +23,7 @@ class GabPageRank2(networkSize : Int, epsilon : Float, delta1 : Float) extends A
     })
   }
 
-  override def analyse()(implicit proxy : GraphRepoProxy.type, managerCount : Int) : Vector[(Long, Double)] = {
+  override def analyse() : Vector[(Long, Double)] = {
     println("Analyzing")
     var results = Vector.empty[(Long, Double)]
     proxy.getVerticesSet().foreach(v => {
@@ -45,13 +45,10 @@ class GabPageRank2(networkSize : Int, epsilon : Float, delta1 : Float) extends A
       outgoings.foreach(u =>
         vertex.pushToOutgoingNeighbor(u, getPageRankStr(v.toInt, u), pageRank.toString)
       )
-      results +:= (v, pageRank.toDouble)
+      results +:= (v.toLong, pageRank.toDouble)
     })
     println("Sending step end")
     println(results)
     results.sortBy(f => f._2)(Ordering[Double]).take(10)
   }
-
-  override implicit var context: ActorContext = _
-  override implicit var managerCount: Int = _
 }

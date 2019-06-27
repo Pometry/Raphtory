@@ -24,13 +24,13 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   }
 
   def setup(analyzer: Analyser) {
-    analyzer.sysSetup()(context,managerCount,workerID)
-    analyzer.setup()(GraphRepoProxy,managerCount,workerID)
+    analyzer.sysSetup(context,managerCount,workerID.toShort,GraphRepoProxy)
+    analyzer.setup()
     sender() ! Ready()
   }
 
   private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
-    val value = analyzer.analyse()(GraphRepoProxy,managerCount,workerID)
+    val value = analyzer.analyse()
     if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
     if(debug)println(value)
     mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value), false)
@@ -40,7 +40,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   def nextStep(analyzer: Analyser): Unit = {
     try {
       if(debug)println(s"Received new step for pm_$managerID")
-      analyzer.sysSetup()(context,managerCount,workerID)
+      analyzer.sysSetup(context,managerCount,workerID.toShort,GraphRepoProxy)
       val senderPath = sender().path
       this.analyze(analyzer, senderPath)
     }

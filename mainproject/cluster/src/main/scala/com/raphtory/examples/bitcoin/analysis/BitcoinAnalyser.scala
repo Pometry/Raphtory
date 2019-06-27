@@ -5,10 +5,9 @@ import com.raphtory.core.analysis.{Analyser, GraphRepoProxy}
 import com.raphtory.examples.bitcoin.communications.CoinsAquiredPayload
 
 class BitcoinAnalyser extends Analyser {
-  override implicit var context: ActorContext = _
-  override implicit var managerCount: Int = _
 
-  override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int,workerID:Int): Any = {
+  //(implicit proxy: GraphRepoProxy.type, managerCount: Int,workerID:Int):
+  override def analyse(): Any = {
     var results = Vector.empty[(String, Double)]
     var currentBlock = 0
     var hash = ""
@@ -37,7 +36,7 @@ class BitcoinAnalyser extends Analyser {
     CoinsAquiredPayload(results.sortBy(f => f._2)(Ordering[Double].reverse).take(10),currentBlock,hash)
   }
 
-  override def setup()(implicit proxy: GraphRepoProxy.type): Any = {
+  override def setup(): Any = {
 
   }
 }

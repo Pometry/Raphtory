@@ -19,7 +19,7 @@ class GabPageRank3(networkSize : Int, dumplingFactor : Float) extends Analyser {
 
   private def getPageRankStr(srcId : Int, dstId : Int) : String = s"${prStr}_${srcId}_$dstId"
 
-  override def setup()(implicit proxy : GraphRepoProxy.type) = {
+  override def setup() = {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       vertex.updateProperty(prStr, defaultPR)
@@ -31,7 +31,7 @@ class GabPageRank3(networkSize : Int, dumplingFactor : Float) extends Analyser {
     })
   }
 
-  override def analyse()(implicit proxy : GraphRepoProxy.type, managerCount : Int) : Vector[(Long, Double)] = {
+  override def analyse() : Vector[(Long, Double)] = {
     println("Analyzing")
     var results = Vector.empty[(Long, Double)]
     proxy.getVerticesSet().foreach(v => {
@@ -54,7 +54,7 @@ class GabPageRank3(networkSize : Int, dumplingFactor : Float) extends Analyser {
       })
       results.synchronized {
         results
-        results +:= (v, pageRank.get)
+        results +:= (v.toLong, pageRank.get)
         if (results.size > 10) {
           results = results.sortBy(_._2)(Ordering[Double].reverse).take(10)
         }
@@ -63,7 +63,4 @@ class GabPageRank3(networkSize : Int, dumplingFactor : Float) extends Analyser {
     println("Sending step end")
     results
   }
-
-  override implicit var context: ActorContext = _
-  override implicit var managerCount: Int = _
 }

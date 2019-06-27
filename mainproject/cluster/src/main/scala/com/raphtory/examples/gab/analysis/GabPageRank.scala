@@ -17,13 +17,13 @@ class GabPageRank(networkSize : Int, epsilon : Float, delta1 : Float) extends An
 
   private def getRandomWalkString(v : Long, u : Long) = s"${randomWalksStr}_${v}_${u}"
 
-  override def setup()(implicit proxy : GraphRepoProxy.type) = {
+  override def setup() = {
     proxy.getVerticesSet().foreach(v => {
       proxy.getVertex(v).updateProperty(visitsCountStr, K.toString) // Row 2 : Set Cv = K
     })
   }
 
-  override def analyse()(implicit proxy : GraphRepoProxy.type, managerCount : Int) : Vector[(Long, Double)] = {
+  override def analyse(): Vector[(Long, Double)] = {
     println("Analyzing")
     var results = Vector.empty[(Long, Double)]
     proxy.getVerticesSet().foreach(v => {
@@ -51,13 +51,10 @@ class GabPageRank(networkSize : Int, epsilon : Float, delta1 : Float) extends An
         vertex.updateProperty(couponCountStr, totalNumberOfVisitsInRound.toString)
         pageRank = (couponCount + totalNumberOfVisitsInRound) * epsilon / (c*networkSize * Math.log(networkSize))
       }
-      results :+= (v, pageRank)
+      results :+= (v.toLong, pageRank)
     })
     println("Sending step end")
     println(results)
     results.sortBy(f => f._2)(Ordering[Double]).take(10)
   }
-
-  override implicit var context: ActorContext = _
-  override implicit var managerCount: Int = _
 }

@@ -6,9 +6,9 @@ import monix.execution.atomic.AtomicDouble
 
 class GabMostUsedTopics(networkSize : Int, dumplingFactor : Float) extends Analyser {
 
-  override def setup()(implicit proxy : GraphRepoProxy.type) = {}
+  override def setup() = {}
 
-  override def analyse()(implicit proxy : GraphRepoProxy.type, managerCount : Int) : Vector[(String, Int, String)] = {
+  override def analyse() : Vector[(String, Int, String)] = {
     //println("Analyzing")
     var results = Vector.empty[(String, Int, String)]
     proxy.getVerticesSet().foreach(v => {
@@ -29,7 +29,4 @@ class GabMostUsedTopics(networkSize : Int, dumplingFactor : Float) extends Analy
     //println("Sending step end")
     results
   }
-
-  override implicit var context: ActorContext = _
-  override implicit var managerCount: Int = _
 }

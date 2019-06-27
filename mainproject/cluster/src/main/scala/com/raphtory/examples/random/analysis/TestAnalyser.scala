@@ -7,10 +7,7 @@ class TestAnalyser extends Analyser {
   import akka.actor.ActorContext
   import com.raphtory.core.analysis.GraphRepoProxy
 
-  override implicit var context: ActorContext = _
-  override implicit var managerCount: Int = _
+  override def analyse(): Any = "Test Analysis"
 
-  override def analyse()(implicit proxy: GraphRepoProxy.type, managerCount: Int): Any = "Test Analysis"
-
-  override def setup()(implicit proxy: GraphRepoProxy.type): Any = ""
+  override def setup(): Any = ""
 }
