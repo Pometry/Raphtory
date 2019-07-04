@@ -31,6 +31,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
     val value = analyzer.analyse()
+    println(value)
     if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
     if(debug)println(value)
     mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value), false)

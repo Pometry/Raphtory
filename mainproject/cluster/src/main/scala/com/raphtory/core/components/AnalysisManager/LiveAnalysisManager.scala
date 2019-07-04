@@ -118,7 +118,7 @@ abstract class LiveAnalysisManager extends Actor {
   def endStep(result:Any) = {
     if(debug)println("EndStep")
     currentStepCounter += 1
-    results +:= results
+    results +:= result
     if(debug)println(s"$currentStepCounter / $getWorkerCount : $currentStep / $steps")
     if (currentStepCounter == getWorkerCount) {
       if (currentStep == steps || this.checkProcessEnd()) {

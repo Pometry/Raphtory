@@ -21,7 +21,7 @@ import scalaj.http.{Http, HttpRequest}
 class BitcoinExampleSpout extends SpoutTrait {
 
   var blockcount = 1
-
+  var folder =  System.getenv().getOrDefault("BITCOIN_DIRECTORY", "/app/blocks/").trim
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
     context.system.scheduler.schedule(Duration(1, SECONDS), Duration(1, SECONDS), self, "parseBlock")
@@ -54,7 +54,7 @@ class BitcoinExampleSpout extends SpoutTrait {
   }
 
   def readNextBlock():String={
-    val bufferedSource = Source.fromFile(s"/app/blocks/$blockcount.txt")
+      val bufferedSource = Source.fromFile(s"$folder/$blockcount.txt")
     var block =""
     for (line <- bufferedSource.getLines) {
       block +=line

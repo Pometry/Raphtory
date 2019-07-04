@@ -21,10 +21,10 @@ object SingleNodeTest extends App {
   val partitionNumber = 1
   val minimumRouters = 1
 
-  var routerClassName = "com.raphtory.examples.random.actors.RandomRouter"
+  //var routerClassName = "com.raphtory.examples.random.actors.RandomRouter"
   //routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
   //val LamClassName = "com.raphtory.examples.random.actors.TestLAM"
-  var UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
+  //var UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
   //UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
   //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
   //val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
@@ -35,11 +35,12 @@ object SingleNodeTest extends App {
  // val LamClassName = "com.raphtory.core.actors.analysismanager.TestLAM"
  // val UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
 
-  //val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRouter"
-  val LamClassName = "com.raphtory.examples.random.actors.RandomLAM"
-  //val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinSpout"
+  val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRaphtoryRouter"
+  //val LamClassName = "com.raphtory.examples.random.actors.RandomLAM"
+  val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinExampleSpout"
   //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
  // val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
+ val LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
  // val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
 
 
