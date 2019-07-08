@@ -18,8 +18,8 @@ class GabPageRank2(networkSize : Int, epsilon : Float, delta1 : Float) extends A
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       vertex.updateProperty(prStr, defaultPR)
-      vertex.getOutgoingNeighbors.foreach(u =>
-        vertex.pushToOutgoingNeighbor(u, getPageRankStr(v.toInt, u), defaultPR))
+      //vertex.getOutgoingNeighbors.foreach(u =>
+      //  vertex.pushToOutgoingNeighbor(u, getPageRankStr(v.toInt, u), defaultPR))
     })
   }
 

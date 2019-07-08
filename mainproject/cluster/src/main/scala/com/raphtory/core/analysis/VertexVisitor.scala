@@ -64,7 +64,7 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
     }
   }
 
-  def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount), message, false)}
+  def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount), (vertexID,message), false)}
 
   def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingIDs.foreach(vID => messageNeighbour(vID,message))
 

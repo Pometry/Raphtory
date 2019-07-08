@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorPath, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.analysis.{Analyser, GraphRepoProxy}
 import com.raphtory.core.model.communication._
+import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Actor{
@@ -21,6 +22,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     case Setup(analyzer) => setup(analyzer)
     case NextStep(analyzer) => nextStep(analyzer)
     case NextStepNewAnalyser(name) => nextStepNewAnalyser(name)
+    case message:(Int,VertexMessage) => {println("hello");EntityStorage.vertices(message._1).receiveMessage(message._2)}
   }
 
   def setup(analyzer: Analyser) {

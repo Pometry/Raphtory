@@ -29,21 +29,21 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
     })
   }
 
-  override def analyse() : Vector[(Long, Double)] = {
-    var results = Vector.empty[(Long, Double)]
+  override def analyse() : Vector[(Long, Float)] = {
+    var results = Vector.empty[(Long, Float)]
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       var neighbourScores = 0F
       while(vertex moreMessages)
         neighbourScores += vertex.nextMessage().asInstanceOf[PageRankScore].value
-      val newPR = neighbourScores/vertex.getIngoingNeighbors.size
+      val newPR:Float = neighbourScores/vertex.getIngoingNeighbors.size
       vertex.updateProperty(prStr, newPR.toString)
       vertex messageAllOutgoingNeighbors(PageRankScore(newPR))
       results +:= (v.toLong, newPR)
       })
 
     if (results.size > 10) {
-      results = results.sortBy(_._2)(Ordering[Double].reverse).take(10)
+      results = results.sortBy(_._2)(Ordering[Float].reverse).take(10)
     }
     results
   }
