@@ -23,7 +23,7 @@ class Connector {
       new SocketOptions()
         .setConnectTimeoutMillis(20000)
         .setReadTimeoutMillis(20000)
-    ).addContactPoint("raphtoryCassandra_cassandra-1").withPort(9042).addContactPoint("rapheeeeeeetoryCassandra_cassandra-2").withPort(9042)
+    ).addContactPoint("raphtoryCassandra_cassandra-1").withPort(9042).addContactPoint("raphtoryCassandra_cassandra-2").withPort(9042)
     ).noHeartbeat().keySpace(
     KeySpace("raphtory").ifNotExists().`with`(
       replication eqs SimpleStrategy.replication_factor(1)

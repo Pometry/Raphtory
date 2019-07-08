@@ -19,6 +19,8 @@ class RandomSpout extends SpoutTrait {
   var increase        = System.getenv().getOrDefault("RAMP_FLAG", "false").toBoolean  // (Updates/s) - Hz
   var pool            = System.getenv().getOrDefault("ENTITY_POOL", "1000000").toInt
   var msgID = 0
+
+
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
     println(s"Prestarting ($freq Hz) Entity pool = $pool Ramp flag = $increase")

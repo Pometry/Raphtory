@@ -3,6 +3,7 @@ package com.raphtory.core.utils
 import java.text.SimpleDateFormat
 
 import akka.actor.ActorContext
+import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.model.graphentities.{Edge, RemoteEdge, RemotePos}
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.lang.StringEscapeUtils
@@ -15,7 +16,14 @@ object Utils {
   val config            = ConfigFactory.load
   val partitionsTopic   = "/partitionsCount"
   val readersTopic      = "/readers"
+  val readersWorkerTopic      = "/readerWorkers"
   val liveAnalysisTopic      = "/liveanalysis"
+  val saving: Boolean = System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
+  val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
+  val archiving : Boolean =  System.getenv().getOrDefault("ARCHIVING", "true").trim.toBoolean
+  var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
+
+  val analyserMap: TrieMap[String, Analyser] = TrieMap[String, Analyser]()
 
   def watchDogSelector(context : ActorContext, ip : String) = {
     // IP $clusterSystemName@${InetAddress.getByName("watchDog").getHostAddress()}
@@ -37,6 +45,13 @@ object Utils {
     val worker = mod % 10
     s"/user/Manager_${manager}_child_$worker"
   } //simple srcID hash at the moment
+  def getReader(srcId:Int, managerCount : Int):String = {
+    val mod = srcId % (managerCount *10)
+    val manager = mod /10
+    val worker = mod % 10
+
+    s"/user/Manager_${manager}_reader_$worker"
+  }
     /**
     * Shifter to get only one Long as Edges indexing
     * @param srcId

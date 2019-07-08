@@ -2,7 +2,7 @@ package com.raphtory.examples.gab.actors
 
 import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
-import com.raphtory.examples.gab.analysis.{GabPageRank, GabPageRank2, GabPageRank3}
+import com.raphtory.examples.gab.analysis.ExamplePageRank
 
 class GabLiveAnalyserManager extends LiveAnalysisManager {
   /*private val B       : Int   = 100 // TODO set
@@ -12,7 +12,7 @@ class GabLiveAnalyserManager extends LiveAnalysisManager {
   private var epsilon        = 1
   private val dumplingFactor = 0.85F
   private var firstStep      = true
-
+  private var getNetworkSize = 0
   override protected def processResults(result: Any): Unit = println(
     result.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten.sortBy(f => f._2)(Ordering[Double].reverse))/*.asInstanceOf[Vector[Vector[(Long, Double)]]]
       .flatMap(e => e).sortBy(f => f._2)(Ordering[Double])
@@ -27,7 +27,7 @@ class GabLiveAnalyserManager extends LiveAnalysisManager {
     50
   }
 
-  override protected def generateAnalyzer : Analyser = new GabPageRank3(getNetworkSize, dumplingFactor)
+  override protected def generateAnalyzer : Analyser = new ExamplePageRank(getNetworkSize, dumplingFactor)
   override protected def processOtherMessages(value: Any) : Unit = {println ("Not handled message" + value.toString)}
 
   override protected def checkProcessEnd() : Boolean = {

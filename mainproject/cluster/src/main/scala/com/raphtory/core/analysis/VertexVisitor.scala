@@ -1,8 +1,9 @@
 package com.raphtory.core.analysis
 import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.model.communication.EdgeUpdateProperty
+import com.raphtory.core.model.communication.{EdgeUpdateProperty, VertexMessage}
 import com.raphtory.core.model.graphentities.{Edge, Property, Vertex}
+import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 import scala.collection.parallel.ParSet
@@ -15,14 +16,18 @@ object VertexVisitor  {
 class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : Int) {
 
   private val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
+
+  def getOutgoingNeighbors : ParArray[Int] = v.outgoingIDs.toParArray
+  def getIngoingNeighbors  : ParArray[Int] = v.incomingIDs.toParArray
+
   def getOutgoingNeighborProp(vId: Int, key : String) : Option[String] = {
-    v.outgoingEdges.get(Utils.getEdgeIndex(v.vertexId,vId)) match {
+    EntityStorage.edges.get(Utils.getEdgeIndex(v.vertexId,vId)) match {
       case Some(e) => e.getPropertyCurrentValue(key)
       case None    => None
     }
   }
   def getIngoingNeighborProp(vId : Int, key : String) : Option[String] = {
-    v.incomingEdges.get(Utils.getEdgeIndex(vId,v.vertexId)) match {
+    EntityStorage.edges.get(Utils.getEdgeIndex(vId,v.vertexId)) match {
       case Some(e) => e.getPropertyCurrentValue(key)
       case None    => None
     }
@@ -39,16 +44,9 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
     values
   }
 
-  private def pushToNeighbor(edgeId : Long, key: String, value : String) : Unit = {
-    mediator ! DistributedPubSubMediator.Send(Utils.getManager(Utils.getIndexHI(edgeId), managerCount),
-      EdgeUpdateProperty(System.currentTimeMillis(), edgeId, key, value), false)
-
+  def getPropertySet():ParSet[String] = {
+    v.properties.keySet
   }
-
-  def getOutgoingNeighbors : ParArray[Int] = v.outgoingEdges.values.map(e => e.getDstId).toParArray
-
-
-  def getIngoingNeighbors  : ParArray[Int] = v.incomingEdges.values.map(e => e.getSrcId).toParArray
 
   def getPropertyCurrentValue(key : String) : Option[String] =
     v.properties.get(key) match {
@@ -66,16 +64,14 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
     }
   }
 
-  def getPropertySet():ParSet[String] = {
-    v.properties.keySet
-  }
+  def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount), (vertexID,message), false)}
 
+  def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingIDs.foreach(vID => messageNeighbour(vID,message))
 
-  def pushToOutgoingNeighbor(dstId : Int, key : String, value : String) : Unit =
-    pushToNeighbor(Utils.getEdgeIndex(v.getId.toInt, dstId), key, value)
+  def messageAllIngoingNeighbors(message: VertexMessage) : Unit = v.incomingIDs.foreach(vID => messageNeighbour(vID,message))
 
-  def pushToIngoingNeighbor(srcId : Int, key : String, value : String) : Unit =
-    pushToNeighbor(Utils.getEdgeIndex(srcId, v.getId.toInt), key, value)
+  def moreMessages():Boolean = v.messageQueue.isEmpty
+  def nextMessage():VertexMessage = v.messageQueue.pop()
 
 //  private def edgeFilter(srcId: Int, dstId: Int, edgeId : Long) : Boolean = Utils.getEdgeIndex(srcId, dstId) == edgeId
 //  private def outgoingEdgeFilter(dstId : Int, edgeId : Long) : Boolean = edgeFilter(v.getId.toInt, dstId, edgeId)
@@ -88,3 +84,19 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
 
   //private def getNeighbors = v.associatedEdges
 }
+
+//def getOutgoingNeighbors : ParArray[Int] = v.outgoingEdges.values.map(e => e.getDstId).toParArray
+//def getIngoingNeighbors  : ParArray[Int] = v.incomingEdges.values.map(e => e.getSrcId).toParArray
+
+//  def getOutgoingNeighborProp(vId: Int, key : String) : Option[String] = {
+//    v.outgoingEdges.get(Utils.getEdgeIndex(v.vertexId,vId)) match {
+//      case Some(e) => e.getPropertyCurrentValue(key)
+//      case None    => None
+//    }
+//  }
+//  def getIngoingNeighborProp(vId : Int, key : String) : Option[String] = {
+//    v.incomingEdges.get(Utils.getEdgeIndex(vId,v.vertexId)) match {
+//      case Some(e) => e.getPropertyCurrentValue(key)
+//      case None    => None
+//    }
+//  }

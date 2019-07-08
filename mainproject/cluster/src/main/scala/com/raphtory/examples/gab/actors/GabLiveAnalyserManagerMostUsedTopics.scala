@@ -31,7 +31,7 @@ class GabLiveAnalyserManagerMostUsedTopics extends LiveAnalysisManager {
     1
   }
 
-  override protected def generateAnalyzer : Analyser = new GabMostUsedTopics(getNetworkSize, dumplingFactor)
+  override protected def generateAnalyzer : Analyser = new GabMostUsedTopics(0, dumplingFactor)
   override protected def processOtherMessages(value: Any) : Unit = {println ("Not handled message" + value.toString)}
 
   override protected def checkProcessEnd() : Boolean = {
