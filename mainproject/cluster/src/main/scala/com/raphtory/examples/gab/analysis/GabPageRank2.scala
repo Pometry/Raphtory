@@ -42,9 +42,9 @@ class GabPageRank2(networkSize : Int, epsilon : Float, delta1 : Float) extends A
         x = 1
       println(s"  Dividing $pageRank by $x")
       pageRank /= x
-      outgoings.foreach(u =>
-        vertex.pushToOutgoingNeighbor(u, getPageRankStr(v.toInt, u), pageRank.toString)
-      )
+      //outgoings.foreach(u =>
+      //  vertex.pushToOutgoingNeighbor(u, getPageRankStr(v.toInt, u), pageRank.toString)
+     // )
       results +:= (v.toLong, pageRank.toDouble)
     })
     println("Sending step end")

@@ -42,7 +42,7 @@ class BitcoinExampleSpout extends SpoutTrait {
   }
 
   def getTransactions():Unit = {
-    if(blockcount>20000) return 
+    if(blockcount>20000) return
     val result = readNextBlock().parseJson.asJsObject
     val time = result.fields("time")
     val blockID = result.fields("hash")

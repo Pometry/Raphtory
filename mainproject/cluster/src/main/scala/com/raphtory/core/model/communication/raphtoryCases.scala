@@ -86,6 +86,8 @@ case class ReportSize(partitionID:Int)
 
 sealed trait RaphReadClasses
 
+trait VertexMessage
+
 case class Setup(analyzer : Analyser) extends RaphReadClasses
 case class Ready() extends RaphReadClasses
 case class NextStep(analyzer : Analyser) extends RaphReadClasses

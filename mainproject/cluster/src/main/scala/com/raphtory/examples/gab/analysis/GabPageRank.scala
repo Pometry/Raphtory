@@ -7,6 +7,7 @@ import scala.collection.concurrent.TrieMap
 import scala.util.Random
 
 class GabPageRank(networkSize : Int, epsilon : Float, delta1 : Float) extends Analyser {
+
   private val c : Float = 2 / (delta1 * epsilon)
   private val K = c * Math.log(networkSize)
 
@@ -44,8 +45,8 @@ class GabPageRank(networkSize : Int, epsilon : Float, delta1 : Float) extends An
             case None        => Tvu.put(u, 1)
           }
         }
-        outgoingNeighbors.foreach(u =>
-          vertex.pushToOutgoingNeighbor(u, getRandomWalkString(v, u), Tvu.getOrElse(u, 0).toString))
+        //outgoingNeighbors.foreach(u =>
+         // vertex.pushToOutgoingNeighbor(u, getRandomWalkString(v, u), Tvu.getOrElse(u, 0).toString))
         val totalNumberOfVisitsInRound = Tvu.map(e => e._2).sum
         vertex.updateProperty(visitsCountStr, (couponCount + totalNumberOfVisitsInRound).toString)
         vertex.updateProperty(couponCountStr, totalNumberOfVisitsInRound.toString)
