@@ -1,5 +1,7 @@
 package com.raphtory.core.storage
 
+import java.net.InetAddress
+
 import com.datastax.driver.core.SocketOptions
 import com.datastax.driver.core.exceptions.NoHostAvailableException
 import com.outworkers.phantom.connectors.CassandraConnection
@@ -15,15 +17,13 @@ import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-
-
 class Connector {
-  val default: CassandraConnection = ContactPoint.local
+  val default: CassandraConnection = ContactPoint.embedded
     .withClusterBuilder(_.withSocketOptions(
       new SocketOptions()
         .setConnectTimeoutMillis(20000)
         .setReadTimeoutMillis(20000)
-    )
+    ).addContactPoint("raphtoryCassandra_cassandra-1").withPort(9042).addContactPoint("raphtoryCassandra_cassandra-2").withPort(9042)
     ).noHeartbeat().keySpace(
     KeySpace("raphtory").ifNotExists().`with`(
       replication eqs SimpleStrategy.replication_factor(1)
@@ -142,7 +142,7 @@ abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
 
   def save(id:Long,history:mutable.TreeMap[Long,Boolean]) = {
 //    session.executeAsync(s"UPDATE raphtory.vertexHistory SET history = history + ${Utils.createHistory(history)} WHERE id = $id;")
-    session.execute(s"UPDATE raphtory.vertexHistory SET history = history + ${Utils.createHistory(history)} WHERE id = $id;")
+    session.executeAsync(s"UPDATE raphtory.vertexHistory SET history = history + ${Utils.createHistory(history)} WHERE id = $id;")
   }
   def createKeySpace() = {
    try{session.execute("create keyspace raphtory with replication = {'class':'SimpleStrategy','replication_factor':1};")}
@@ -175,7 +175,7 @@ abstract class VertexPropertyHistory extends Table[VertexPropertyHistory, Vertex
  // }
 
   def save(id:Long,name:String,history:mutable.TreeMap[Long,String]) = {
-    session.execute(s"UPDATE raphtory.vertexPropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE id = $id AND name = '$name';")
+    session.executeAsync(s"UPDATE raphtory.vertexPropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE id = $id AND name = '$name';")
   }
 
   def createTable() = {
@@ -210,7 +210,7 @@ abstract class EdgeHistory extends Table[EdgeHistory, EdgeHistoryPoint] {
 
   def save(src:Int,dst:Int,history:mutable.TreeMap[Long,Boolean]) = {
    // session.executeAsync(s"UPDATE raphtory.edgeHistory SET history = history + ${Utils.createHistory(history)} WHERE src = $src AND dst = $dst;")
-    session.execute(s"UPDATE raphtory.edgeHistory SET history = history + ${Utils.createHistory(history)} WHERE src = $src AND dst = $dst;")
+    session.executeAsync(s"UPDATE raphtory.edgeHistory SET history = history + ${Utils.createHistory(history)} WHERE src = $src AND dst = $dst;")
   }
   def createTable() = {
     try{
@@ -255,7 +255,7 @@ abstract class EdgePropertyHistory extends Table[EdgePropertyHistory, EdgeProper
  // }
 
   def save(src: Int, dst: Int, name: String, history: mutable.TreeMap[Long, String]) = {
-    session.execute(s"UPDATE raphtory.EdgePropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE src = $src AND dst = $dst AND name = '$name';")
+    session.executeAsync(s"UPDATE raphtory.EdgePropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE src = $src AND dst = $dst AND name = '$name';")
     //session.executeAsync(s"UPDATE raphtory.EdgePropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE src = $src AND dst = $dst AND name = '$name';")
   }
 

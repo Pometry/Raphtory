@@ -54,7 +54,7 @@ class BitcoinExampleSpout extends SpoutTrait {
   }
 
   def readNextBlock():String={
-    val bufferedSource = Source.fromFile(s"/app/blocks/$blockcount.txt")
+    val bufferedSource = Source.fromFile(s"/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets/blocks/$blockcount.txt")
     var block =""
     for (line <- bufferedSource.getLines) {
       block +=line

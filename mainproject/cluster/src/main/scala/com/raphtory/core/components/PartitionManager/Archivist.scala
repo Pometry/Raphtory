@@ -5,6 +5,7 @@ import ch.qos.logback.classic.Level
 import com.raphtory.core.components.PartitionManager.Workers.ArchivistWorker
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
+import com.raphtory.core.utils.Utils
 import kamon.Kamon
 import org.slf4j.LoggerFactory
 
@@ -18,9 +19,15 @@ import scala.concurrent.duration._
 
 
 class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Actor {
-  val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
-  val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
-  val archiving : Boolean =  System.getenv().getOrDefault("ARCHIVING", "true").trim.toBoolean
+//<<<<<<< HEAD
+ // val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
+  //val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
+  //val archiving : Boolean =  System.getenv().getOrDefault("ARCHIVING", "true").trim.toBoolean
+//=======
+  val compressing    : Boolean =  Utils.compressing
+  val saving    : Boolean =  Utils.saving
+  val archiving: Boolean = Utils.archiving
+//>>>>>>> upstream/master
   println(s"Archivist compressing = $compressing, Saving = $saving, Archiving = $archiving")
 
   //Turn logging off
@@ -50,6 +57,10 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
   //var for the new oldest point after archiving
   var removePointGlobal:Long      = 0L
   var removalPoint:Long           = 0L
+
+  var currentWorker             = 0
+  var currentState:Boolean              = false
+
   // children for distribution of compresssion and archiving
   val edgeManager   =  context.actorOf(Props(new ArchivistWorker(workers)).withDispatcher("archivist-dispatcher"),"edgecompressor");
   val vertexManager =  context.actorOf(Props(new ArchivistWorker(workers)).withDispatcher("archivist-dispatcher"),"vertexcompressor");
@@ -70,23 +81,27 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
   }
 
   def archive() : Unit = {
+    println(s"Currently archiving worker $currentWorker")
     if(archiving){
       if(spaceForExtraHistory) { //check if we need to archive
         if(compressing) {
-          newLastSaved = cutOff(true) //get the cut off boundry for 90% of history in meme
-          edgeManager ! CompressEdges(newLastSaved) //forward compression request to children
-          vertexManager ! CompressVertices(newLastSaved)
+          if(currentWorker==0)
+            newLastSaved = cutOff(true) //get the cut off boundry for 90% of history in meme
+          edgeManager ! CompressEdges(newLastSaved,workerID = currentWorker) //forward compression request to children
+          vertexManager ! CompressVertices(newLastSaved,workerID = currentWorker)
         }
         else{
           context.system.scheduler.scheduleOnce(60.second, self, "archive")
         }
       }
       else {
-        removalPoint = cutOff(false) // get the cut off for 10% of the compressed history
-        removePointGlobal = removalPoint
-        newLastSaved = cutOff(true)
-        edgeManager ! ArchiveEdges(newLastSaved,removalPoint) //send the archive request to the children
-        vertexManager ! ArchiveVertices(newLastSaved,removalPoint)
+        if(currentWorker==0) {
+          removalPoint = cutOff(false) // get the cut off for 10% of the compressed history
+          removePointGlobal = removalPoint
+          newLastSaved = cutOff(true)
+        }
+        edgeManager ! ArchiveEdges(newLastSaved,removalPoint,workerID = currentWorker) //send the archive request to the children
+        vertexManager ! ArchiveVertices(newLastSaved,removalPoint,workerID = currentWorker)
       }
     }
   }
@@ -105,11 +120,12 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
     if(edgeCompressionFinished && vertexCompressionFinished){ //if both are finished
       if(debug)println(s"finished total compression in ${(System.currentTimeMillis()-totalCompressionTime)/1000} seconds") //report this to the user
       archGauge.refine("actor" -> "Archivist", "name" -> "totalCompressionTime").set((System.currentTimeMillis()-totalCompressionTime)/1000)
-      lastSaved = newLastSaved
+      if(currentWorker==9)
+        lastSaved = newLastSaved
       EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
       vertexCompressionFinished = false //reset the compression vars
       edgeCompressionFinished = false
-      context.system.scheduler.scheduleOnce(60.second, self, "archive") //start the archiving process
+      nextWorker()
     }
   }
 
@@ -143,24 +159,41 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
       vertexArchivingFinished = false
       edgeArchivingFinished = false
       archGauge.refine("actor" -> "Archivist", "name" -> "totalArchiveTime").set((System.currentTimeMillis()-totalArchiveTime)/1000)
-      EntityStorage.oldestTime = removePointGlobal
-      System.gc() //suggest a good time to garbage collect
-      context.system.scheduler.scheduleOnce(60.second, self, "archive")
+      if(currentWorker == 9) {
+        EntityStorage.oldestTime = removePointGlobal
+        System.gc() //suggest a good time to garbage collect
+      }
+      nextWorker()
       if(debug)println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
     }
 
 
   }
 
-  def spaceForExtraHistory = {
-    val totalMemory = runtime.maxMemory
-    val freeMemory = runtime.freeMemory
-    val usedMemory = (totalMemory - freeMemory)
-    val total = usedMemory/(totalMemory).asInstanceOf[Float]
-    //println(s"max ${runtime.maxMemory()} total ${runtime.totalMemory()} diff ${runtime.maxMemory()-runtime.totalMemory()} ")
-    println(s"Memory usage at ${total*100}% of ${totalMemory/(1024*1024)}MB")
-    archGauge.refine("actor" -> "Archivist", "name" -> "memoryPercentage").set((total*100).asInstanceOf[Long])
-    if(total < (1-maximumMem)) true else false
+  def nextWorker()={
+    if(currentWorker == 9){
+      currentWorker = 0
+      context.system.scheduler.scheduleOnce(60.second, self, "archive") //start the archiving process
+    }
+    else{
+      currentWorker+=1
+      context.system.scheduler.scheduleOnce(1.millisecond, self, "archive") //start the archiving process
+    }
+
+  }
+
+  def spaceForExtraHistory:Boolean = {
+    if(currentWorker==0) {
+      val totalMemory = runtime.maxMemory
+      val freeMemory = runtime.freeMemory
+      val usedMemory = (totalMemory - freeMemory)
+      val total = usedMemory / (totalMemory).asInstanceOf[Float]
+      //println(s"max ${runtime.maxMemory()} total ${runtime.totalMemory()} diff ${runtime.maxMemory()-runtime.totalMemory()} ")
+      println(s"Memory usage at ${total * 100}% of ${totalMemory / (1024 * 1024)}MB")
+      archGauge.refine("actor" -> "Archivist", "name" -> "memoryPercentage").set((total * 100).asInstanceOf[Long])
+      if (total < (1 - maximumMem)) currentState = true else currentState = false
+    }
+    currentState
   } //check if used memory less than set maximum
 
   def toCompress(newestPoint:Long,oldestPoint:Long):Long =  (((newestPoint-oldestPoint) / 100f) * compressionPercent).asInstanceOf[Long]

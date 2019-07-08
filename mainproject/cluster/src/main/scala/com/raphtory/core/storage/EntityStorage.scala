@@ -61,7 +61,7 @@ object EntityStorage {
   var managerCount : Int     = 1
   var managerID    : Int     = 0
   var mediator     : ActorRef= null
-  var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
+  var windowing        : Boolean =  Utils.windowing
 
   //stuff for compression and archiving
   var oldestTime:Long = Long.MaxValue

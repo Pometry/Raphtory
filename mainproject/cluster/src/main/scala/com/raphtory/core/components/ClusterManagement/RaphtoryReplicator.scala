@@ -1,20 +1,19 @@
-package com.raphtory.core.components
+package com.raphtory.core.components.ClusterManagement
 
 import akka.actor.{Actor, ActorRef, Props}
-import akka.cluster.pubsub.DistributedPubSubMediator
-import akka.cluster.pubsub.DistributedPubSub
-import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.Utils
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.core.components.PartitionManager.{Archivist, Reader, Writer}
 import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
+import com.raphtory.core.components.PartitionManager.{Archivist, Reader, Writer}
 import com.raphtory.core.components.Router.TraditionalRouter.RaphtoryRouter
+import com.raphtory.core.model.communication._
+import com.raphtory.core.utils.Utils
 
 import scala.collection.parallel.mutable.ParTrieMap
-import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 object RaphtoryReplicator {
 
@@ -99,11 +98,11 @@ class RaphtoryReplicator(actorType:String, initialManagerCount:Int, routerName :
       }
     }
     case "tick" => getNewId
-    case GetNetworkSize() => {
-      println("GetNetworkSize" + actorRefReader != null)
-      if (actorRefReader != null)
-        sender() ! actorRefReader ? GetNetworkSize
-    }
+//    case GetNetworkSize() => {
+//      println("GetNetworkSize" + actorRefReader != null)
+//      if (actorRefReader != null)
+//        sender() ! actorRefReader ? GetNetworkSize
+//    }
     case e => println(s"Received not handled message ${e.getClass}")
   }
 }

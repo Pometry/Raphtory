@@ -48,7 +48,9 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
   def getOutgoingNeighbors : ParArray[Int] = v.outgoingEdges.values.map(e => e.getDstId).toParArray
 
 
-  def getIngoingNeighbors  : ParArray[Int] = v.incomingEdges.values.map(e => e.getSrcId).toParArray
+  //def getIngoingNeighbors  : ParArray[Int] = v.incomingEdges.values.map(e => e.getSrcId).toParArray
+  def getIngoingNeighbors  : ParSet[Int] = v.incomingIDs
+
 
   def getPropertyCurrentValue(key : String) : Option[String] =
     v.properties.get(key) match {

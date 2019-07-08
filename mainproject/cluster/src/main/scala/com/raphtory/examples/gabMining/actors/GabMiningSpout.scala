@@ -1,22 +1,16 @@
-package com.raphtory.examples.gabMining
+package com.raphtory.examples.gabMining.actors
 
-import java.text.SimpleDateFormat
-
-import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.Spout.SpoutTrait
-import com.raphtory.core.utils.Utils
-import kamon.Kamon
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.language.postfixOps
-import scala.util.Random
 import scala.io
+import scala.language.postfixOps
 
 class GabMiningSpout extends SpoutTrait {
 
   //file is read. Please note that the first line is dropped, this in case the file has headers
-  val fileLines = io.Source.fromFile("/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets/gabNetwork500short.csv").getLines.drop(1).toArray
+  val fileLines = io.Source.fromFile("/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets/gabNetwork500short2.csv").getLines.drop(1).toArray
   var position = 0
   var linesNumber=fileLines.length
   println(linesNumber)
@@ -34,7 +28,7 @@ class GabMiningSpout extends SpoutTrait {
       message match {
         case "newLine" => {
           if (isSafe()) {
-            println(fileLines(position))
+           // println(fileLines(position))
             var line = fileLines(position)
             sendCommand(line)
             position += 1

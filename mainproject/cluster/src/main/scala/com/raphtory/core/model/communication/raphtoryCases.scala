@@ -62,16 +62,16 @@ case class RequestPartitionCount()
 case class RequestPartitionId()
 case class RequestRouterId()
 
-case class CompressEdges(lastSaved:Long)
+case class CompressEdges(lastSaved:Long,workerID:Int)
 case class CompressEdge(key:Long,time:Long)
-case class CompressVertices(lastSaved:Long)
+case class CompressVertices(lastSaved:Long,workerID:Int)
 case class CompressVertex(key:Int,time:Long)
 case class FinishedEdgeCompression(key:Long)
 case class FinishedVertexCompression(key:Int)
 
-case class ArchiveEdges(compressTime:Long,archiveTime:Long)
+case class ArchiveEdges(compressTime:Long,archiveTime:Long,workerID:Int)
 case class ArchiveEdge(key:Long,compressTime:Long,archiveTime:Long)
-case class ArchiveVertices(compressTime:Long,archiveTime:Long)
+case class ArchiveVertices(compressTime:Long,archiveTime:Long,workerID:Int)
 case class ArchiveVertex(key:Int,compressTime:Long,archiveTime:Long)
 case class FinishedEdgeArchiving(key:Long)
 case class FinishedVertexArchiving(key:Int)
@@ -86,20 +86,23 @@ case class ReportSize(partitionID:Int)
 
 sealed trait RaphReadClasses
 
-case class AnalyserPresentCheck(classname:String) extends  RaphReadClasses
-case class AnalyserPresent() extends  RaphReadClasses
 case class Setup(analyzer : Analyser) extends RaphReadClasses
 case class Ready() extends RaphReadClasses
 case class NextStep(analyzer : Analyser) extends RaphReadClasses
-case class EndStep(results : Any) extends RaphReadClasses // TODO Define results
-case class GetNetworkSize() extends RaphReadClasses
-case class NetworkSize(size : Int) extends RaphReadClasses
-
-
-case class ClassMissing() extends RaphReadClasses
-case class SetupNewAnalyser(analyser: String, name:String) extends RaphReadClasses
-case class FailedToCompile (stackTrace:String) extends  RaphReadClasses
 case class NextStepNewAnalyser(name: String) extends RaphReadClasses
+case class EndStep(results : Any) extends RaphReadClasses // TODO Define results
+case class ExceptionInAnalysis(e:String) extends RaphReadClasses
+
+case class ReaderWorkersOnline() extends RaphReadClasses
+case class ReaderWorkersACK() extends RaphReadClasses
+
+case class AnalyserPresentCheck(classname:String) extends  RaphReadClasses
+case class AnalyserPresent() extends  RaphReadClasses
+case class ClassMissing() extends RaphReadClasses
+case class FailedToCompile (stackTrace:String) extends  RaphReadClasses
+case class CompileNewAnalyser(analyser: String, name:String) extends RaphReadClasses
+case class ClassCompiled() extends RaphReadClasses
+
 
 case class AllocateJob(record:Any)
 
