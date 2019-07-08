@@ -26,7 +26,7 @@ class RandomSpout extends SpoutTrait {
     context.system.scheduler.schedule(Duration(90, SECONDS), Duration(30, SECONDS), self, "increase")
     context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "required")
     //context.system.scheduler.schedule(Duration(40, SECONDS), Duration(5, MINUTES), self, "stop")
-
+    println("Only sending adds")
   }
 
 
