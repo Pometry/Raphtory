@@ -2,7 +2,7 @@ package com.raphtory.examples.gab.actors
 
 import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
-import com.raphtory.examples.gab.analysis.{GabPageRank, GabPageRank2, ExamplePageRank}
+import com.raphtory.examples.gab.analysis.ExamplePageRank
 
 class GabLiveAnalyserManager extends LiveAnalysisManager {
   /*private val B       : Int   = 100 // TODO set
