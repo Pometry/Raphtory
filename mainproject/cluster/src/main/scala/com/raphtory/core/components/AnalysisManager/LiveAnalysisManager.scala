@@ -25,7 +25,7 @@ abstract class LiveAnalysisManager extends Actor {
   private var toSetup            = true
   protected def analyserName:String = generateAnalyzer.getClass.getName
 
-  private val debug = true
+  private val debug = false
   private var newAnalyser:Boolean = false
 
   protected val mediator     = DistributedPubSub(context.system).mediator

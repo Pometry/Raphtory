@@ -14,9 +14,6 @@ object GraphRepoProxy {
   def getVerticesSet()(implicit workerID:Short): ParSet[Int] = {
     EntityStorage.vertexKeys(workerID)
   }
-  def getTotalVerticesSet() : ParSet[Int] = {
-    EntityStorage.vertices.keySet
-  }
 
   def getVertex(id : Long)(implicit context : ActorContext, managerCount : Int) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(id.toInt))
 
@@ -34,6 +31,9 @@ object GraphRepoProxy {
 
 
 
+  def getTotalVerticesSet() : ParSet[Int] = {
+    EntityStorage.vertices.keySet
+  }
 
 
 //HERE BE DRAGONS please ignore
