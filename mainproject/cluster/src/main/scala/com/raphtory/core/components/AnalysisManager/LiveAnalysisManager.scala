@@ -126,7 +126,7 @@ abstract class LiveAnalysisManager extends Actor {
         this.processResults(results)
         currentStepCounter = 0
         currentStep = 0
-        context.system.scheduler.scheduleOnce(Duration(20, SECONDS), self, "restart")
+        context.system.scheduler.scheduleOnce(Duration(2, SECONDS), self, "restart")
       }
       else {
         if(debug)println(s"Sending new step")
