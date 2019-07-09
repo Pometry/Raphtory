@@ -12,11 +12,11 @@ class GabMiningAnalyser extends Analyser{
 
       val vertex = proxy.getVertex(v)
       var totalEdges: Int = vertex.getIngoingNeighbors.size
-      results.+=( (v, totalEdges))
+      results+=((v, totalEdges))
       println(" **********Total edges :" + results)
     })
 
-    return results
+    results
 
   }
 

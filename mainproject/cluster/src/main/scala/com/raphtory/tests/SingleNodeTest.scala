@@ -67,6 +67,9 @@ object SingleNodeTest extends App {
   //val LamClassName = "com.raphtory.examples.random.actors.RandomLAM"
   //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
  // val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
+ //val
+// var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
+// LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
  // val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
 
 

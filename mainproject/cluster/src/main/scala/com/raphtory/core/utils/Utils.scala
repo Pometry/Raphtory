@@ -45,6 +45,13 @@ object Utils {
     val worker = mod % 10
     s"/user/Manager_${manager}_child_$worker"
   } //simple srcID hash at the moment
+  def getReader(srcId:Int, managerCount : Int):String = {
+    val mod = srcId % (managerCount *10)
+    val manager = mod /10
+    val worker = mod % 10
+
+    s"/user/Manager_${manager}_reader_$worker"
+  }
     /**
     * Shifter to get only one Long as Edges indexing
     * @param srcId

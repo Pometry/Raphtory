@@ -4,9 +4,10 @@ import akka.actor.ActorContext
 
 class GabMiningVandE extends Analyser {
   override def analyse(): Any = {
-    println("*********INSIDE ANALYSER: ")
+  //  println("*********INSIDE ANALYSER: ")
    //println( proxy.getVerticesSet())
-    proxy.getTotalEdgesSet().size
+    proxy.getTotalVerticesSet().size
+   // proxy.getTotalEdgesSet().size
 //    proxy.getTotalVerticesSet().foreach(v => {
 //
 //      val vertex = proxy.getVertex(v)

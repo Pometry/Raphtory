@@ -1,7 +1,7 @@
 package com.raphtory.core.analysis
 import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.model.communication.EdgeUpdateProperty
+import com.raphtory.core.model.communication.{EdgeUpdateProperty, VertexMessage}
 import com.raphtory.core.model.graphentities.{Edge, Property, Vertex}
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
@@ -76,18 +76,14 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
     }
   }
 
+  def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount), (vertexID,message), false)}
 
-  def pushToOutgoingNeighbor(dstId : Int, key : String, value : String) : Unit =
-    pushToNeighbor(Utils.getEdgeIndex(v.getId.toInt, dstId), key, value)
+  def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingIDs.foreach(vID => messageNeighbour(vID,message))
 
-  def pushToIngoingNeighbor(srcId : Int, key : String, value : String) : Unit =
-    pushToNeighbor(Utils.getEdgeIndex(srcId, v.getId.toInt), key, value)
+  def messageAllIngoingNeighbors(message: VertexMessage) : Unit = v.incomingIDs.foreach(vID => messageNeighbour(vID,message))
 
-  private def pushToNeighbor(edgeId : Long, key: String, value : String) : Unit = {
-    mediator ! DistributedPubSubMediator.Send(Utils.getManager(Utils.getIndexHI(edgeId), managerCount),
-      EdgeUpdateProperty(System.currentTimeMillis(), edgeId, key, value), false)
-
-  }
+  def moreMessages():Boolean = v.messageQueue.isEmpty
+  def nextMessage():VertexMessage = v.messageQueue.pop()
 
 //  private def edgeFilter(srcId: Int, dstId: Int, edgeId : Long) : Boolean = Utils.getEdgeIndex(srcId, dstId) == edgeId
 //  private def outgoingEdgeFilter(dstId : Int, edgeId : Long) : Boolean = edgeFilter(v.getId.toInt, dstId, edgeId)
