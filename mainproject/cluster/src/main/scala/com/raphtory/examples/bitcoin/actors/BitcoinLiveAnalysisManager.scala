@@ -6,7 +6,6 @@ import com.raphtory.examples.bitcoin.analysis.BitcoinAnalyser
 import com.raphtory.examples.bitcoin.communications.CoinsAquiredPayload
 
 class BitcoinLiveAnalysisManager extends LiveAnalysisManager {
-
     override protected def defineMaxSteps(): Int = 1
 
     override protected def generateAnalyzer: Analyser = new BitcoinAnalyser()

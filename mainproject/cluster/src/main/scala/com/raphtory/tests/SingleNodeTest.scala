@@ -27,6 +27,7 @@ object SingleNodeTest extends App {
 
 
 
+
  // var routerClassName = "com.raphtory.examples.TestPackage.TestRouter"
  // var UpdaterName = "com.raphtory.examples.TestPackage.TestSpout"
 
@@ -34,9 +35,9 @@ object SingleNodeTest extends App {
 
   var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
 
-  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningLAM"
+  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningLAM"
 
-  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningVandELAM"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningVandELAM"
 
 //  val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinExampleSpout"
 //  val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRaphtoryRouter"
@@ -44,6 +45,7 @@ object SingleNodeTest extends App {
 
   //routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
   //val LamClassName = "com.raphtory.examples.random.actors.TestLAM"
+
 
   //UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
   //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
@@ -55,10 +57,16 @@ object SingleNodeTest extends App {
  // val LamClassName = "com.raphtory.core.actors.analysismanager.TestLAM"
  // val UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
 
-  //val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRouter"
- // val LamClassName = "com.raphtory.examples.random.actors.RandomLAM"
+
+//  val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRaphtoryRouter"
+//
+//  val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinExampleSpout"
+//  val LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
 
 
+  //val LamClassName = "com.raphtory.examples.random.actors.RandomLAM"
+  //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
+ // val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
  // val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
 
 

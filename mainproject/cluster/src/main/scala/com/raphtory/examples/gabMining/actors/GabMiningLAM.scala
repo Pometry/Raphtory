@@ -15,7 +15,7 @@ class GabMiningLAM extends LiveAnalysisManager {
   override protected def processResults(result: Any): Unit = {
     val results:Vector[Any] = result.asInstanceOf[(Vector[(Int,Int)])]
     var max=0
-   // println("LAM RECEIVED RESULTS: "+ results)
+    println("LAM RECEIVED RESULTS: "+ results)
     for ((a, b) <- results){
 
      // println("********SUUBBBB LAAAMMM Vertex: "+ a +"Edges : "+ b)
