@@ -1,13 +1,13 @@
 package com.raphtory.examples.random.analysis
 
-import com.raphtory.core.analysis.Analyser
+import com.raphtory.core.analysis.{Analyser, Worker}
 
 class TestAnalyser extends Analyser {
 
   import akka.actor.ActorContext
   import com.raphtory.core.analysis.GraphRepoProxy
 
-  override def analyse(): Any = "Test Analysis"
+  override def analyse()(implicit workerID:Worker): Any = "Test Analysis"
 
-  override def setup(): Any = ""
+  override def setup()(implicit workerID:Worker): Any = ""
 }

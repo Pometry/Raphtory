@@ -2,7 +2,7 @@ package com.raphtory.core.components.PartitionManager.Workers
 
 import akka.actor.{Actor, ActorPath, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy}
+import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, ManagerCount, Worker}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
@@ -26,13 +26,14 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   }
 
   def setup(analyzer: Analyser) {
-    analyzer.sysSetup(context,managerCount,workerID.toShort,GraphRepoProxy)
-    analyzer.setup()
+    analyzer.sysSetup(context,ManagerCount(managerCount),GraphRepoProxy)
+    analyzer.setup()(new Worker(workerID))
     sender() ! Ready()
   }
 
   private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
-    val value = analyzer.analyse()
+
+    val value = analyzer.analyse()(new Worker(workerID))
     println(value)
     if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
     if(debug)println(value)
@@ -43,7 +44,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   def nextStep(analyzer: Analyser): Unit = {
     try {
       if(debug)println(s"Received new step for pm_$managerID")
-      analyzer.sysSetup(context,managerCount,workerID.toShort,GraphRepoProxy)
+      analyzer.sysSetup(context,ManagerCount(managerCount),GraphRepoProxy)
       val senderPath = sender().path
       this.analyze(analyzer, senderPath)
     }
