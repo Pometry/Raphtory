@@ -31,6 +31,7 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
 
   override def analyse()(implicit workerID: Worker) : Vector[(Long, Float)] = {
     var results = Vector.empty[(Long, Float)]
+    println(proxy.getVerticesSet().size)
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       var neighbourScores = 0F
@@ -45,6 +46,7 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
     if (results.size > 10) {
       results = results.sortBy(_._2)(Ordering[Float].reverse).take(10)
     }
+
     results
   }
 }
