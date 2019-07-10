@@ -16,7 +16,7 @@ object VertexVisitor  {
 class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : ManagerCount) {
 
   private val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
-
+  val vert:Vertex = v
   def getOutgoingNeighbors : ParArray[Int] = v.outgoingIDs.toParArray
   def getIngoingNeighbors  : ParArray[Int] = v.incomingIDs.toParArray
 
@@ -82,7 +82,7 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
 
   def messageAllIngoingNeighbors(message: VertexMessage) : Unit = v.incomingIDs.foreach(vID => messageNeighbour(vID,message))
 
-  def moreMessages():Boolean = v.messageQueue.isEmpty
+  def moreMessages():Boolean = v.messageQueue.nonEmpty
   def nextMessage():VertexMessage = v.messageQueue.pop()
 
 //  private def edgeFilter(srcId: Int, dstId: Int, edgeId : Long) : Boolean = Utils.getEdgeIndex(srcId, dstId) == edgeId

@@ -81,8 +81,8 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
   }
 
   def archive() : Unit = {
-    println(s"Currently archiving worker $currentWorker")
     if(archiving){
+      println(s"Currently archiving worker $currentWorker")
       if(spaceForExtraHistory) { //check if we need to archive
         if(compressing) {
           if(currentWorker==0)

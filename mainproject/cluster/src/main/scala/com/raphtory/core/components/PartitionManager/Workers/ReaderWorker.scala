@@ -22,7 +22,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     case Setup(analyzer) => setup(analyzer)
     case NextStep(analyzer) => nextStep(analyzer)
     case NextStepNewAnalyser(name) => nextStepNewAnalyser(name)
-    case message:(Int,VertexMessage) => {println("hello");EntityStorage.vertices(message._1).receiveMessage(message._2)}
+    case message:(Int,VertexMessage) => EntityStorage.vertices(message._1).receiveMessage(message._2)
   }
 
   def setup(analyzer: Analyser) {
@@ -34,7 +34,6 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
 
     val value = analyzer.analyse()(new Worker(workerID))
-    println(value)
     if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
     if(debug)println(value)
     mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value), false)

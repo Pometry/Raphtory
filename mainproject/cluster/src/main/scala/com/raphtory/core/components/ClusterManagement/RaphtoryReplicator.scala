@@ -1,6 +1,7 @@
 package com.raphtory.core.components.ClusterManagement
 
 import akka.actor.{Actor, ActorRef, Props}
+import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -103,6 +104,7 @@ class RaphtoryReplicator(actorType:String, initialManagerCount:Int, routerName :
 //      if (actorRefReader != null)
 //        sender() ! actorRefReader ? GetNetworkSize
 //    }
+    case e:SubscribeAck =>
     case e => println(s"Received not handled message ${e.getClass}")
   }
 }

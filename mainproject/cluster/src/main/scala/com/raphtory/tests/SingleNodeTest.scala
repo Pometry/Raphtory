@@ -68,6 +68,7 @@ object SingleNodeTest extends App {
   //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
  // val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
  //val
+<<<<<<< HEAD
 
 // var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
 // LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
@@ -75,6 +76,10 @@ object SingleNodeTest extends App {
  //var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
  //LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
 
+=======
+ var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
+ LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
+>>>>>>> upstream/master
  // val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
 
 

@@ -36,7 +36,7 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
       var neighbourScores = 0F
       while(vertex moreMessages)
         neighbourScores += vertex.nextMessage().asInstanceOf[PageRankScore].value
-      val newPR:Float = neighbourScores/vertex.getIngoingNeighbors.size
+      val newPR:Float = neighbourScores/math.max(vertex.getOutgoingNeighbors.size,1)
       vertex.updateProperty(prStr, newPR.toString)
       vertex messageAllOutgoingNeighbors(PageRankScore(newPR))
       results +:= (v.toLong, newPR)
