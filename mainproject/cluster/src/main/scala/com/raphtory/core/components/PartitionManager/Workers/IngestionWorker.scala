@@ -11,8 +11,13 @@ import com.raphtory.core.utils.Utils
 class IngestionWorker(workerID:Int) extends Actor {
   val mediator              : ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
+//<<<<<<< HEAD
+//  val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
+//  val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
+//=======
   val compressing    : Boolean =  Utils.compressing
   val saving    : Boolean =  Utils.saving
+//>>>>>>> upstream/master
   //println(akka.serialization.Serialization.serializedActorPath(self))
 
   override def receive:Receive = {

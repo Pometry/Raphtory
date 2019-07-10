@@ -17,14 +17,36 @@ import scala.sys.process._
 object SingleNodeTest extends App {
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
+//<<<<<<< HEAD
+  //RaphtoryDBWrite.clearDB()
+//=======
  /// RaphtoryDBWrite.clearDB()
+//>>>>>>> upstream/master
   val partitionNumber = 1
   val minimumRouters = 1
 
-  //var routerClassName = "com.raphtory.examples.random.actors.RandomRouter"
+
+
+
+ // var routerClassName = "com.raphtory.examples.TestPackage.TestRouter"
+ // var UpdaterName = "com.raphtory.examples.TestPackage.TestSpout"
+
+  var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
+
+  var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
+
+ // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningLAM"
+
+  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningVerticesLAM"
+
+//  val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinExampleSpout"
+//  val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRaphtoryRouter"
+//  val LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
+
   //routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
   //val LamClassName = "com.raphtory.examples.random.actors.TestLAM"
-  //var UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
+
+
   //UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
   //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
   //val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
@@ -35,14 +57,29 @@ object SingleNodeTest extends App {
  // val LamClassName = "com.raphtory.core.actors.analysismanager.TestLAM"
  // val UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
 
-  val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRaphtoryRouter"
+
+//  val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRaphtoryRouter"
+//
+//  val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinExampleSpout"
+//  val LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
+
+
   //val LamClassName = "com.raphtory.examples.random.actors.RandomLAM"
-  val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinExampleSpout"
   //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
  // val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
  //val
+<<<<<<< HEAD
+
+// var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
+// LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
+
+ //var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
+ //LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
+
+=======
  var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
  LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
+>>>>>>> upstream/master
  // val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
 
 
@@ -53,6 +90,7 @@ object SingleNodeTest extends App {
   system.actorOf(Props(RaphtoryReplicator("Partition Manager",1)), s"PartitionManager")
  // system.actorOf(Props(RaphtoryReplicator("Partition Manager",2)), s"PartitionManager2")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
+  system.actorOf(Props(Class.forName(LamClassName)), s"LiveAnalysisManager_$LamClassName")
 
 
 
@@ -61,7 +99,6 @@ object SingleNodeTest extends App {
   //GraphRepoProxy.something
 
   //System.exit(0)
-  system.actorOf(Props(Class.forName(LamClassName)), s"LiveAnalysisManager_$LamClassName")
 
 }
 

@@ -15,6 +15,7 @@ object GraphRepoProxy {
     EntityStorage.vertexKeys(workerID.ID)
   }
 
+
   def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(id.toInt))
 
   def getTotalVerticesSet() : ParSet[Int] = {

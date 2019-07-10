@@ -40,7 +40,7 @@ abstract class LiveAnalysisManager extends Actor {
   protected def generateAnalyzer : Analyser
   protected def processResults(result : Any) : Unit
   protected def processOtherMessages(value : Any) : Unit
-  protected def checkProcessEnd() : Boolean = false
+  protected def checkProcessEnd() : Boolean = true
   /******************** STUFF TO DEFINE *********************/
 
   mediator ! DistributedPubSubMediator.Put(self)
@@ -48,6 +48,7 @@ abstract class LiveAnalysisManager extends Actor {
   mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
 
   override def preStart(): Unit = {
+
     context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "start")
     steps = defineMaxSteps()
     //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
