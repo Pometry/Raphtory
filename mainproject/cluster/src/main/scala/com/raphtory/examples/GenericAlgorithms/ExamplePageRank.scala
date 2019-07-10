@@ -1,12 +1,7 @@
-package com.raphtory.examples.gab.analysis
+package com.raphtory.examples.GenericAlgorithms
 
-import akka.actor.ActorContext
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, Worker}
+import com.raphtory.core.analysis.{Analyser, Worker}
 import com.raphtory.core.model.communication.VertexMessage
-import monix.execution.atomic.AtomicDouble
-
-import scala.concurrent.Await
-import scala.util.Random
 
 class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyser {
 

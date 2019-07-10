@@ -5,7 +5,7 @@ import akka.actor.ActorContext
 class GabMiningVerticesAnalyser extends Analyser {
   override def analyse()(implicit workerID:Worker): Any = {
 
-    (proxy.getVerticesSet().size,proxy.getEdgesSet().size)
+   // (proxy.getVerticesSet().size,proxy.getEdgesSet().size)
 
 
   }
