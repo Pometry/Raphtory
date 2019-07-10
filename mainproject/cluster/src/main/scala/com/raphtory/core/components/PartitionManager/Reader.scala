@@ -1,6 +1,7 @@
 package com.raphtory.core.components.PartitionManager
 
 import akka.actor.{Actor, ActorPath, ActorRef, Props}
+import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.analysis.{Analyser, GraphRepoProxy}
 import com.raphtory.core.components.PartitionManager.Workers.{IngestionWorker, ReaderWorker}
@@ -35,7 +36,8 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
     case AnalyserPresentCheck(classname) => presentCheck(classname)
     case CompileNewAnalyser(analyser, name) => compileNewAnalyser(analyser, name)
     case UpdatedCounter(newValue) => managerCount = newValue; readers.foreach(x=> x._2 ! UpdatedCounter(newValue))
-    case e => //println(s"[READER] not handled message " + e)
+    case SubscribeAck =>   
+    case e => println(s"[READER] not handled message " + e)
   }
 
   def presentCheck(classname:String) = {
