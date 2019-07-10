@@ -40,7 +40,7 @@ abstract class LiveAnalysisManager extends Actor {
   protected def generateAnalyzer : Analyser
   protected def processResults(result : Any) : Unit
   protected def processOtherMessages(value : Any) : Unit
-  protected def checkProcessEnd() : Boolean = true
+  protected def checkProcessEnd() : Boolean = false
   /******************** STUFF TO DEFINE *********************/
 
   mediator ! DistributedPubSubMediator.Put(self)
