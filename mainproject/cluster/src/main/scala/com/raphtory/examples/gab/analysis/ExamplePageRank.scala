@@ -1,7 +1,7 @@
 package com.raphtory.examples.gab.analysis
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy}
+import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, Worker}
 import com.raphtory.core.model.communication.VertexMessage
 import monix.execution.atomic.AtomicDouble
 
@@ -20,7 +20,7 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
 
   private def getPageRankStr(srcId : Int, dstId : Int) : String = s"${prStr}_${srcId}_$dstId"
 
-  override def setup() = {
+  override def setup()(implicit workerID: Worker) = {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       vertex.updateProperty(prStr, defaultPR.toString)
@@ -29,7 +29,7 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
     })
   }
 
-  override def analyse() : Vector[(Long, Float)] = {
+  override def analyse()(implicit workerID: Worker) : Vector[(Long, Float)] = {
     var results = Vector.empty[(Long, Float)]
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)

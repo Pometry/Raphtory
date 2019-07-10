@@ -11,29 +11,12 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 object GraphRepoProxy {
 
-  def getVerticesSet()(implicit workerID:Short): ParSet[Int] = {
-    EntityStorage.vertexKeys(workerID)
-  }
-
-  def getVertex(id : Long)(implicit context : ActorContext, managerCount : Int) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(id.toInt))
-
-  def getTotalEdgesSet() : ParSet[Long] = {
-    EntityStorage.edges.keySet
+  def getVerticesSet()(implicit workerID:Worker): ParSet[Int] = {
+    EntityStorage.vertexKeys(workerID.ID)
   }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+  def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(id.toInt))
 
   def getTotalVerticesSet() : ParSet[Int] = {
     EntityStorage.vertices.keySet

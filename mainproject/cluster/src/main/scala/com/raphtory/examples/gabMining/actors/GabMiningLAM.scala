@@ -14,16 +14,22 @@ class GabMiningLAM extends LiveAnalysisManager {
 
   override protected def processResults(result: Any): Unit = {
     val results:Vector[Any] = result.asInstanceOf[(Vector[(Int,Int)])]
-    var max=0
-    println("LAM RECEIVED RESULTS: "+ results)
+    var maxInDegree=0
+    var maxVertex=0
+   // println("LAM RECEIVED RESULTS: "+ results)
+
     for ((a, b) <- results){
-
-     // println("********SUUBBBB LAAAMMM Vertex: "+ a +"Edges : "+ b)
-      if(b.toString.toInt>max) max= b.toString.toInt
-
+      // println("********SUUBBBB LAAAMMM Vertex: "+ a +"Edges : "+ b)
+      if(b.toString.toInt>maxInDegree) {
+        maxInDegree= b.toString.toInt
+        maxVertex=a.toString.toInt
+      }
+//      else{
+//        maxInDegree= b.toString.toInt
+//        maxVertex=a.toString.toInt
+//      }
     }
-    print("****Max indegree: " + max)
-    return max
+    println(" Vertex : " +maxVertex + " is a star with " +maxInDegree+" incoming edges")
   }
 
   override protected def processOtherMessages(value: Any): Unit = ""
