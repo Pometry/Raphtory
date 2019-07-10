@@ -21,6 +21,7 @@ object GraphRepoProxy {
   def getTotalVerticesSet() : ParSet[Int] = {
     EntityStorage.vertices.keySet
   }
+  def latestTime:Long = EntityStorage.newestTime
 
 
 //HERE BE DRAGONS please ignore

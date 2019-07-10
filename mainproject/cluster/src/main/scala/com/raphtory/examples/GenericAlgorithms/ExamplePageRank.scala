@@ -24,7 +24,7 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
     })
   }
 
-  override def analyse()(implicit workerID: Worker) : Vector[(Long, Float)] = {
+  override def analyse()(implicit workerID: Worker) : (Long,Vector[(Long, Float)]) = {
     var results = Vector.empty[(Long, Float)]
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
@@ -37,9 +37,9 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
       results +:= (v.toLong, newPR)
       })
 
-    if (results.size > 10) {
-      results = results.sortBy(_._2)(Ordering[Float].reverse).take(10)
+    if (results.size > 5) {
+      results = results.sortBy(_._2)(Ordering[Float].reverse).take(5)
     }
-    results
+    (proxy.latestTime,results)
   }
 }

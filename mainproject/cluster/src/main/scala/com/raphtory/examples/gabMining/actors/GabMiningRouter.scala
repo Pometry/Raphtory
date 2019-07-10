@@ -32,9 +32,9 @@ class GabMiningRouter (routerId:Int,override val initialManagerCount:Int) extend
     //println(sdf)
     val dt = sdf.parse(timestamp)
     //println(dt)
-    val epoch = dt.getTime()
+    val epoch = dt.getTime
    // println(epoch)
-    epoch / 1000
+    epoch
 
   }
 }
