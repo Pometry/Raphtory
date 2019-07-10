@@ -13,7 +13,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
-  val debug = true
+  val debug = false
   implicit val workerID: Int = workerId
 
 

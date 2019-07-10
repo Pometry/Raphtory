@@ -36,7 +36,7 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
     case AnalyserPresentCheck(classname) => presentCheck(classname)
     case CompileNewAnalyser(analyser, name) => compileNewAnalyser(analyser, name)
     case UpdatedCounter(newValue) => managerCount = newValue; readers.foreach(x=> x._2 ! UpdatedCounter(newValue))
-    case SubscribeAck =>   
+    case SubscribeAck =>
     case e => println(s"[READER] not handled message " + e)
   }
 
