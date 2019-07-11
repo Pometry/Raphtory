@@ -1,6 +1,6 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.model.communication.VertexMessage
+import com.raphtory.core.model.communication.{VertexMessage, VertexMutliQueue}
 import com.raphtory.core.storage.{EntityStorage, VertexHistoryPoint, VertexPropertyPoint}
 import com.raphtory.core.utils.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
 
@@ -53,8 +53,7 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   var incomingEdges  = ParTrieMap[Long, Edge]()
   var outgoingEdges  = ParTrieMap[Long, Edge]()
 
-  val messageQueue = mutable.Stack[VertexMessage]()
-  def receiveMessage(message: VertexMessage) = messageQueue.push(message)
+  val vertexMultiQueue = new VertexMutliQueue()
 
   def addAssociatedEdge(edge: Edge): Unit = {
     if(edge.getSrcId==vertexId)

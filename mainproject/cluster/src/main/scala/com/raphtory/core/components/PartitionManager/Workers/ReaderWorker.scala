@@ -8,7 +8,6 @@ import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Actor{
-  implicit val proxy = GraphRepoProxy
   implicit var managerCount: Int = managerCountVal
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
@@ -19,14 +18,14 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
-    case Setup(analyzer) => setup(analyzer)
-    case NextStep(analyzer) => nextStep(analyzer)
-    case NextStepNewAnalyser(name) => nextStepNewAnalyser(name)
-    case message:(Int,VertexMessage) => EntityStorage.vertices(message._1).receiveMessage(message._2)
+    case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
+    case NextStep(analyzer,jobID,superStep) => nextStep(analyzer,jobID,superStep)
+    case NextStepNewAnalyser(name,jobID,currentStep) => nextStepNewAnalyser(name,jobID,currentStep)
+    case handler:MessageHandler => EntityStorage.vertices(handler.vertexID).vertexMultiQueue.receiveMessage(handler)
   }
 
-  def setup(analyzer: Analyser) {
-    analyzer.sysSetup(context,ManagerCount(managerCount),GraphRepoProxy)
+  def setup(analyzer: Analyser,jobID:String,superStep:Int) {
+    analyzer.sysSetup(context,ManagerCount(managerCount),new GraphRepoProxy(jobID,superStep))
     analyzer.setup()(new Worker(workerID))
     sender() ! Ready()
   }
@@ -40,10 +39,10 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   }
 
-  def nextStep(analyzer: Analyser): Unit = {
+  def nextStep(analyzer: Analyser,jobID:String,superStep:Int): Unit = {
     try {
       if(debug)println(s"Received new step for pm_$managerID")
-      analyzer.sysSetup(context,ManagerCount(managerCount),GraphRepoProxy)
+      analyzer.sysSetup(context,ManagerCount(managerCount),new GraphRepoProxy(jobID,superStep))
       val senderPath = sender().path
       this.analyze(analyzer, senderPath)
     }
@@ -54,8 +53,8 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     }
   }
 
-  def nextStepNewAnalyser(name: String) = {
-    nextStep(Utils.analyserMap(name))
+  def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int) = {
+    nextStep(Utils.analyserMap(name),jobID,currentStep)
   }
 
 

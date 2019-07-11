@@ -9,18 +9,19 @@ import scala.collection.parallel
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
-object GraphRepoProxy {
+class GraphRepoProxy(jobID:String,superstep:Int) {
 
   def getVerticesSet()(implicit workerID:Worker): ParSet[Int] = {
     EntityStorage.vertexKeys(workerID.ID)
   }
 
 
-  def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(id.toInt))
+  def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(id.toInt),jobID,superstep)
 
   def getTotalVerticesSet() : ParSet[Int] = {
     EntityStorage.vertices.keySet
   }
+
   def latestTime:Long = EntityStorage.newestTime
 
 

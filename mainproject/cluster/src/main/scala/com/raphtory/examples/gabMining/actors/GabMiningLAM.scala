@@ -6,7 +6,7 @@ import com.raphtory.examples.gabMining.analysis.GabMiningAnalyser
 import com.raphtory.examples.gabMining.communications.VertexAndItsEdges
 
 
-class GabMiningLAM extends LiveAnalysisManager {
+class GabMiningLAM(jobID:String) extends LiveAnalysisManager(jobID) {
 
   override protected def defineMaxSteps(): Int = 1
 

@@ -17,7 +17,6 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersTopic, self)
-  implicit val proxy = GraphRepoProxy
 
   val debug = false
 

@@ -4,7 +4,7 @@ import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.examples.gabMining.analysis.GabMiningVerticesAnalyser
 
-class GabMiningVerticesLAM extends LiveAnalysisManager{
+class GabMiningVerticesLAM(jobID:String) extends LiveAnalysisManager(jobID) {
 
   override protected def defineMaxSteps(): Int = 1
 

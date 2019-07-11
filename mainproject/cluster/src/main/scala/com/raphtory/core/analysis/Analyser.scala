@@ -6,9 +6,9 @@ case class Worker(ID:Int)
 abstract class Analyser extends java.io.Serializable {
   implicit var context : ActorContext = null
   implicit var managerCount:ManagerCount = null
-  implicit var proxy: GraphRepoProxy.type = GraphRepoProxy
+  implicit var proxy: GraphRepoProxy = null
 
-  final def sysSetup(context : ActorContext, managerCount : ManagerCount,proxy: GraphRepoProxy.type) = {
+  final def sysSetup(context : ActorContext, managerCount : ManagerCount,proxy: GraphRepoProxy) = {
     this.context = context
     this.managerCount = managerCount
     this.proxy = proxy

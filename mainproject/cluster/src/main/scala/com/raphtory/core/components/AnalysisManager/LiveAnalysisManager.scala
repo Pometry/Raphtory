@@ -14,9 +14,9 @@ import com.raphtory.core.analysis.{Analyser, GraphRepoProxy}
 import scala.sys.process._
 import scala.io.Source
 
-abstract class LiveAnalysisManager extends Actor {
+abstract class LiveAnalysisManager(jobID:String) extends Actor {
   private var managerCount : Int = 0
-  private var currentStep  = 0L
+  private var currentStep  = 0
   private var ReaderACKS = 0
   private var ReaderAnalysersPresent = 0
   private var networkSizeTimeout : Cancellable = null
@@ -32,8 +32,6 @@ abstract class LiveAnalysisManager extends Actor {
   protected var steps  : Long= 0L
   protected var results      = Vector.empty[Any]
   protected var oldResults      = Vector.empty[Any]
-
-  implicit val proxy : GraphRepoProxy.type = null
 
  /******************** STUFF TO DEFINE *********************/
   protected def defineMaxSteps() : Int
@@ -96,7 +94,7 @@ abstract class LiveAnalysisManager extends Actor {
     ReaderAnalysersPresent += 1
     if (ReaderACKS == getManagerCount) {
       networkSizeTimeout.cancel()
-      mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, Setup(this.generateAnalyzer))
+      mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, Setup(this.generateAnalyzer,jobID,currentStep))
     }
   }
 
@@ -110,9 +108,9 @@ abstract class LiveAnalysisManager extends Actor {
       results = Vector.empty[Any]
       if(debug)println(s"Sending analyzer")
       if(newAnalyser)
-        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStepNewAnalyser(analyserName))
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStepNewAnalyser(analyserName,jobID,currentStep))
       else
-        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer))
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
     }
   }
 
@@ -136,9 +134,9 @@ abstract class LiveAnalysisManager extends Actor {
         currentStep += 1
         currentStepCounter = 0
         if(newAnalyser)
-          mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStepNewAnalyser(analyserName))
+          mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStepNewAnalyser(analyserName,jobID,currentStep))
         else
-          mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer))
+          mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
       }
     }
   }

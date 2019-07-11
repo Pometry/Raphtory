@@ -1,7 +1,7 @@
 package com.raphtory.core.analysis
 import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.model.communication.{EdgeUpdateProperty, VertexMessage}
+import com.raphtory.core.model.communication.{EdgeUpdateProperty, MessageHandler, VertexMessage}
 import com.raphtory.core.model.graphentities.{Edge, Property, Vertex}
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
@@ -9,14 +9,15 @@ import com.raphtory.core.utils.Utils
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParArray
 object VertexVisitor  {
-  def apply(v : Vertex)(implicit context : ActorContext, managerCount : ManagerCount) = {
-    new VertexVisitor(v)
+  def apply(v : Vertex,jobID:String,superStep:Int)(implicit context : ActorContext, managerCount : ManagerCount) = {
+    new VertexVisitor(v,jobID:String,superStep:Int)
   }
 }
-class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : ManagerCount) {
+class VertexVisitor(v : Vertex,jobID:String,superStep:Int)(implicit context : ActorContext, managerCount : ManagerCount) {
 
   private val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   val vert:Vertex = v
+  val messageQueue = v.vertexMultiQueue.getMessageQueue(jobID,superStep)
   def getOutgoingNeighbors : ParArray[Int] = v.outgoingIDs.toParArray
   def getIngoingNeighbors  : ParArray[Int] = v.incomingIDs.toParArray
 
@@ -63,14 +64,14 @@ class VertexVisitor(v : Vertex)(implicit context : ActorContext, managerCount : 
     }
   }
 
-  def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count), (vertexID,message), false)}
+  def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(vertexID,jobID,superStep,message), false)}
 
   def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingIDs.foreach(vID => messageNeighbour(vID,message))
 
   def messageAllIngoingNeighbors(message: VertexMessage) : Unit = v.incomingIDs.foreach(vID => messageNeighbour(vID,message))
 
-  def moreMessages():Boolean = v.messageQueue.nonEmpty
-  def nextMessage():VertexMessage = v.messageQueue.pop()
+  def moreMessages():Boolean = messageQueue.nonEmpty
+  def nextMessage():VertexMessage = messageQueue.pop()
 
 //  private def edgeFilter(srcId: Int, dstId: Int, edgeId : Long) : Boolean = Utils.getEdgeIndex(srcId, dstId) == edgeId
 //  private def outgoingEdgeFilter(dstId : Int, edgeId : Long) : Boolean = edgeFilter(v.getId.toInt, dstId, edgeId)
