@@ -9,11 +9,11 @@ import com.raphtory.core.utils.Utils
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParArray
 object VertexVisitor  {
-  def apply(v : Vertex,jobID:String,superStep:Int)(implicit context : ActorContext, managerCount : ManagerCount) = {
-    new VertexVisitor(v,jobID:String,superStep:Int)
+  def apply(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(implicit context : ActorContext, managerCount : ManagerCount) = {
+    new VertexVisitor(v,jobID,superStep,proxy)
   }
 }
-class VertexVisitor(v : Vertex,jobID:String,superStep:Int)(implicit context : ActorContext, managerCount : ManagerCount) {
+class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(implicit context : ActorContext, managerCount : ManagerCount) {
 
   private val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   val vert:Vertex = v
@@ -64,7 +64,10 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int)(implicit context : Ac
     }
   }
 
-  def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(vertexID,jobID,superStep,message), false)}
+  def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {
+    proxy.recordMessage()
+    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(vertexID,jobID,superStep,message), false)
+  }
 
   def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingIDs.foreach(vID => messageNeighbour(vID,message))
 

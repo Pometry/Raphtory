@@ -23,6 +23,9 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   private var readyCounter       = 0
   private var currentStepCounter = 0
   private var toSetup            = true
+  private var messageCounter = 0
+  private var totalReceivedMessages = 0
+  private var totalSentMessages = 0
   protected def analyserName:String = generateAnalyzer.getClass.getName
 
   private val debug = false
@@ -47,7 +50,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
 
   override def preStart(): Unit = {
 
-    context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "start")
+    context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
     steps = defineMaxSteps()
     //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
@@ -60,15 +63,36 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     case PartitionsCountResponse(newValue)=> watchdogResponse(newValue) //when the watchdog responds, set the new value and message each Reader Worker
     case ReaderWorkersACK() => readerACK() //count up number of acks and if == number of workers, check if analyser present
     case AnalyserPresent() => analyserPresent() //analyser confirmed to be present within workers, send setup request to workers
-    case Ready() => ready() //worker has completed setup and is ready to roll -- send nextstep
-    case EndStep(result) => endStep(result) //worker has finished the step
+    case Ready(messagesSent) => ready(messagesSent) //worker has completed setup and is ready to roll -- send nextstep
+    case EndStep(result,messages) => endStep(result,messages) //worker has finished the step
     case "restart" => restart()
+
+    case MessagesReceived(receivedMessages) => messagesReceieved(receivedMessages)
 
     case "networkSizeTimeout" => networkSizeFail() //restart contact with readers
     case ClassMissing() => classMissing() //If the class is missing, send the raw source file
     case FailedToCompile(stackTrace) => failedToCompile(stackTrace) //Your code is broke scrub
     case PartitionsCount(newValue) => managerCount = newValue //for when managerCount is republished
     case _ => processOtherMessages(_) //incase some random stuff comes through
+  }
+
+  def messagesReceieved(receivedMessages: Int) = {
+    messageCounter +=1
+    totalReceivedMessages += receivedMessages
+    //println("messages Received "+totalReceivedMessages)
+    if(messageCounter == getWorkerCount) {
+      messageCounter =0
+      println(s"checking, $totalReceivedMessages/$totalSentMessages")
+      if(totalReceivedMessages >= totalSentMessages){
+        totalSentMessages = 0
+        totalReceivedMessages = 0
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
+      }
+      else {
+        totalReceivedMessages =0
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages())
+      }
+    }
   }
 
   def checkClusterSize =
@@ -98,23 +122,31 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     }
   }
 
-  def ready() = {
+  def ready(messages:Int) = {
     if(debug)println("Received ready")
     readyCounter += 1
+    totalSentMessages += messages
+    //println("Messages sent"+ totalSentMessages)
     if(debug)println(s"$readyCounter / ${getWorkerCount}")
     if (readyCounter == getWorkerCount) {
       readyCounter = 0
       currentStep = 1
       results = Vector.empty[Any]
-      if(debug)println(s"Sending analyzer")
-      if(newAnalyser)
-        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStepNewAnalyser(analyserName,jobID,currentStep))
-      else
-        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
+      if(totalSentMessages == 0){
+        if(newAnalyser)
+          mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStepNewAnalyser(analyserName,jobID,currentStep))
+        else
+          mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
+      }
+      else{
+        if(debug)println("Sending check Messages")
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages())
+
+      }
     }
   }
 
-  def endStep(result:Any) = {
+  def endStep(result:Any,messages:Int) = {
     if(debug)println("EndStep")
     currentStepCounter += 1
     results +:= result
@@ -133,10 +165,14 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         results = Vector.empty[Any]
         currentStep += 1
         currentStepCounter = 0
-        if(newAnalyser)
-          mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStepNewAnalyser(analyserName,jobID,currentStep))
+        if(totalSentMessages == 0){
+          if(newAnalyser)
+            mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStepNewAnalyser(analyserName,jobID,currentStep))
+          else
+            mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
+        }
         else
-          mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
+          mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages())
       }
     }
   }

@@ -14,37 +14,43 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
   val debug = false
   implicit val workerID: Int = workerId
-
+  var receivedMessages = 0
 
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
     case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
+    case CheckMessages() => sender() ! MessagesReceived(receivedMessages)
     case NextStep(analyzer,jobID,superStep) => nextStep(analyzer,jobID,superStep)
     case NextStepNewAnalyser(name,jobID,currentStep) => nextStepNewAnalyser(name,jobID,currentStep)
-    case handler:MessageHandler => EntityStorage.vertices(handler.vertexID).vertexMultiQueue.receiveMessage(handler)
+    case handler:MessageHandler => {
+      receivedMessages+=1
+      EntityStorage.vertices(handler.vertexID).vertexMultiQueue.receiveMessage(handler)
+    }
   }
 
   def setup(analyzer: Analyser,jobID:String,superStep:Int) {
-    analyzer.sysSetup(context,ManagerCount(managerCount),new GraphRepoProxy(jobID,superStep))
+    val repo = new GraphRepoProxy(jobID,superStep)
+    analyzer.sysSetup(context,ManagerCount(managerCount),repo)
     analyzer.setup()(new Worker(workerID))
-    sender() ! Ready()
+    sender() ! Ready(repo.getMessages())
   }
 
-  private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
-
+  private def analyze(analyzer: Analyser, senderPath: ActorPath,messages:Int) = {
     val value = analyzer.analyse()(new Worker(workerID))
     if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
     if(debug)println(value)
-    mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value), false)
+    mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value,messages), false)
 
   }
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int): Unit = {
     try {
+      receivedMessages=0
       if(debug)println(s"Received new step for pm_$managerID")
-      analyzer.sysSetup(context,ManagerCount(managerCount),new GraphRepoProxy(jobID,superStep))
+      val repo = new GraphRepoProxy(jobID,superStep)
+      analyzer.sysSetup(context,ManagerCount(managerCount),repo)
       val senderPath = sender().path
-      this.analyze(analyzer, senderPath)
+      this.analyze(analyzer, senderPath,repo.getMessages())
     }
     catch {
       case e: Exception => {
