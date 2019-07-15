@@ -1,12 +1,12 @@
 package com.raphtory.examples.gabMining.analysis
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, VertexVisitor, Worker}
+import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, VertexVisitor, WorkerID}
 import akka.actor.ActorContext
 
 import scala.collection.mutable.ArrayBuffer
 
 class GabMiningAnalyser extends Analyser{
 
-  override def analyse()(implicit workerID:Worker): Any = {
+  override def analyse()(implicit workerID:WorkerID): Any = {
     var results = ArrayBuffer[(Int,Int)]()
     var maxInDegree=0
     var maxVertex=0
@@ -35,7 +35,7 @@ class GabMiningAnalyser extends Analyser{
 
   }
 
-  override def setup()(implicit workerID:Worker): Any = {
+  override def setup()(implicit workerID:WorkerID): Any = {
 
   }
 

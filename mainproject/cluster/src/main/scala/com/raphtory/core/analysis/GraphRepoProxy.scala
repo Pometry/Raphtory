@@ -11,7 +11,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 class GraphRepoProxy(jobID:String,superstep:Int) {
   private var messages = 0
-  def getVerticesSet()(implicit workerID:Worker): ParSet[Int] = {
+  def getVerticesSet()(implicit workerID:WorkerID): ParSet[Int] = {
     EntityStorage.vertexKeys(workerID.ID)
   }
 

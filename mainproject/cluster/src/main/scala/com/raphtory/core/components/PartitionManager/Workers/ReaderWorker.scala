@@ -2,7 +2,7 @@ package com.raphtory.core.components.PartitionManager.Workers
 
 import akka.actor.{Actor, ActorPath, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, ManagerCount, Worker}
+import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, ManagerCount, WorkerID}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
@@ -31,12 +31,13 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   def setup(analyzer: Analyser,jobID:String,superStep:Int) {
     val repo = new GraphRepoProxy(jobID,superStep)
     analyzer.sysSetup(context,ManagerCount(managerCount),repo)
-    analyzer.setup()(new Worker(workerID))
+    analyzer.setup()(new WorkerID(workerID))
     sender() ! Ready(repo.getMessages())
   }
 
   private def analyze(analyzer: Analyser, senderPath: ActorPath,messages:Int) = {
-    val value = analyzer.analyse()(new Worker(workerID))
+    val value = analyzer.analyse()(new WorkerID(workerID))
+    //    val value = new ExamplePageRank(1,0).analyse()(new WorkerID(workerID))
     if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
     if(debug)println(value)
     mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value,messages), false)

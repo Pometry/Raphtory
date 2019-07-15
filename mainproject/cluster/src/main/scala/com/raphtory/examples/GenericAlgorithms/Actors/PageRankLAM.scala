@@ -1,10 +1,10 @@
-package com.raphtory.examples.gab.actors
+package com.raphtory.examples.GenericAlgorithms.Actors
 
-import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
+import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.examples.GenericAlgorithms.ExamplePageRank
 
-class GabLiveAnalyserManager(jobID:String) extends LiveAnalysisManager(jobID) {
+class PageRankLAM(jobID:String) extends LiveAnalysisManager(jobID) {
   /*private val B       : Int   = 100 // TODO set
   private val epsilon : Float = 0.85F
   private val delta1  : Float = 1F*/

@@ -2,7 +2,7 @@ package com.raphtory.core.analysis
 
 import akka.actor.ActorContext
 case class ManagerCount(count:Int)
-case class Worker(ID:Int)
+case class WorkerID(ID:Int)
 abstract class Analyser extends java.io.Serializable {
   implicit var context : ActorContext = null
   implicit var managerCount:ManagerCount = null
@@ -14,8 +14,8 @@ abstract class Analyser extends java.io.Serializable {
     this.proxy = proxy
   }
 
-  def analyse()(implicit worker: Worker): Any
-  def setup()(implicit workerID: Worker) : Any
+  def analyse()(implicit worker: WorkerID): Any
+  def setup()(implicit workerID: WorkerID) : Any
 
 
 }

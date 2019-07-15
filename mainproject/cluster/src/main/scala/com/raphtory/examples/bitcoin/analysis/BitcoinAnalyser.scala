@@ -1,13 +1,13 @@
 package com.raphtory.examples.bitcoin.analysis
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, Worker}
+import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, WorkerID}
 import com.raphtory.examples.bitcoin.communications.CoinsAquiredPayload
 
 class BitcoinAnalyser extends Analyser {
 
   //(implicit proxy: GraphRepoProxy.type, managerCount: Int,workerID:Int):
-  override def analyse()(implicit workerID:Worker): Any = {
+  override def analyse()(implicit workerID:WorkerID): Any = {
     var results = Vector.empty[(String, Double)]
     var currentBlock = 0
     var hash = ""
@@ -36,7 +36,7 @@ class BitcoinAnalyser extends Analyser {
     CoinsAquiredPayload(workerID,results.sortBy(f => f._2)(Ordering[Double].reverse).take(10),currentBlock,hash)
   }
 
-  override def setup()(implicit workerID:Worker): Any = {
+  override def setup()(implicit workerID:WorkerID): Any = {
 
   }
 }

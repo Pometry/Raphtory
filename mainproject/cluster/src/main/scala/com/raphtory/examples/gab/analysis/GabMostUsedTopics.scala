@@ -1,14 +1,14 @@
 package com.raphtory.examples.gab.analysis
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, Worker}
+import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, WorkerID}
 import monix.execution.atomic.AtomicDouble
 
 class GabMostUsedTopics(networkSize : Int, dumplingFactor : Float) extends Analyser {
 
-  override def setup()(implicit workerID:Worker) = {}
+  override def setup()(implicit workerID:WorkerID) = {}
 
-  override def analyse()(implicit workerID: Worker) : Vector[(String, Int, String)] = {
+  override def analyse()(implicit workerID: WorkerID) : Vector[(String, Int, String)] = {
     //println("Analyzing")
     var results = Vector.empty[(String, Int, String)]
     proxy.getVerticesSet().foreach(v => {

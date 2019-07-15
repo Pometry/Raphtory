@@ -1,6 +1,6 @@
 package com.raphtory.examples.GenericAlgorithms
 
-import com.raphtory.core.analysis.{Analyser, Worker}
+import com.raphtory.core.analysis.{Analyser, WorkerID}
 import com.raphtory.core.model.communication.VertexMessage
 
 class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyser {
@@ -15,7 +15,7 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
 
   private def getPageRankStr(srcId : Int, dstId : Int) : String = s"${prStr}_${srcId}_$dstId"
 
-  override def setup()(implicit workerID: Worker) = {
+  override def setup()(implicit workerID: WorkerID) = {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       vertex.updateProperty(prStr, defaultPR.toString)
@@ -24,7 +24,7 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
     })
   }
 
-  override def analyse()(implicit workerID: Worker) : (Long,Vector[(Long, Float)]) = {
+  override def analyse()(implicit workerID: WorkerID) : (Long,Vector[(Long, Float)]) = {
     var results = Vector.empty[(Long, Float)]
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
