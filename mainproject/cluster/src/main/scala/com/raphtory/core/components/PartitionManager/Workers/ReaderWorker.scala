@@ -6,6 +6,7 @@ import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, ManagerCount, Worke
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
+import com.raphtory.examples.GenericAlgorithms.ExamplePageRank
 
 class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Actor{
   implicit var managerCount: Int = managerCountVal
@@ -30,14 +31,15 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   def setup(analyzer: Analyser,jobID:String,superStep:Int) {
     val repo = new GraphRepoProxy(jobID,superStep)
-    analyzer.sysSetup(context,ManagerCount(managerCount),repo)
-    analyzer.setup()(new WorkerID(workerID))
+    val analyzer2 = new ExamplePageRank(1,0)
+    analyzer2.sysSetup(context,ManagerCount(managerCount),repo)
+    analyzer2.setup()(new WorkerID(workerID))
     sender() ! Ready(repo.getMessages())
   }
 
   private def analyze(analyzer: Analyser, senderPath: ActorPath,messages:Int) = {
     val value = analyzer.analyse()(new WorkerID(workerID))
-    //    val value = new ExamplePageRank(1,0).analyse()(new WorkerID(workerID))
+    //    val value
     if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
     if(debug)println(value)
     mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value,messages), false)
@@ -49,9 +51,10 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
       receivedMessages=0
       if(debug)println(s"Received new step for pm_$managerID")
       val repo = new GraphRepoProxy(jobID,superStep)
-      analyzer.sysSetup(context,ManagerCount(managerCount),repo)
+      val analyzer2 = new ExamplePageRank(1,0)
+      analyzer2.sysSetup(context,ManagerCount(managerCount),repo)
       val senderPath = sender().path
-      this.analyze(analyzer, senderPath,repo.getMessages())
+      this.analyze(analyzer2, senderPath,repo.getMessages())
     }
     catch {
       case e: Exception => {
