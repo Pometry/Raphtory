@@ -97,7 +97,7 @@ case class NextStepNewAnalyser(name: String,jobID:String,superStep:Int) extends 
 case class EndStep(results : Any,messages:Int) extends RaphReadClasses // TODO Define results
 case class ExceptionInAnalysis(e:String) extends RaphReadClasses
 
-case class MessagesReceived(receivedMessages:Int) extends RaphReadClasses
+case class MessagesReceived(receivedMessages:Int,sentMessages:Int) extends RaphReadClasses
 case class CheckMessages() extends RaphReadClasses
 
 case class ReaderWorkersOnline() extends RaphReadClasses

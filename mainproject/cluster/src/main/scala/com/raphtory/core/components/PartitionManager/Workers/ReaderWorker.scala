@@ -6,7 +6,6 @@ import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, ManagerCount, Worke
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
-import com.raphtory.examples.GenericAlgorithms.ExamplePageRank
 
 class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Actor{
   implicit var managerCount: Int = managerCountVal
@@ -16,11 +15,12 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   val debug = false
   implicit val workerID: Int = workerId
   var receivedMessages = 0
+  var tempProxy:GraphRepoProxy = null
 
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
     case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
-    case CheckMessages() => sender() ! MessagesReceived(receivedMessages)
+    case CheckMessages() => sender() ! MessagesReceived(receivedMessages,tempProxy.getMessages())
     case NextStep(analyzer,jobID,superStep) => nextStep(analyzer,jobID,superStep)
     case NextStepNewAnalyser(name,jobID,currentStep) => nextStepNewAnalyser(name,jobID,currentStep)
     case handler:MessageHandler => {
@@ -30,38 +30,40 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   }
 
   def setup(analyzer: Analyser,jobID:String,superStep:Int) {
-    val repo = new GraphRepoProxy(jobID,superStep)
-    val analyzer2 = new ExamplePageRank(1,0)
-    analyzer2.sysSetup(context,ManagerCount(managerCount),repo)
-    analyzer2.setup()(new WorkerID(workerID))
-    sender() ! Ready(repo.getMessages())
-  }
-
-  private def analyze(analyzer: Analyser, senderPath: ActorPath,messages:Int) = {
-    val value = analyzer.analyse()(new WorkerID(workerID))
-    //    val value
-    if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
-    if(debug)println(value)
-    mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value,messages), false)
-
+    val rebuildAnalyser = Utils.deserialise(Utils.serialise(analyzer)).asInstanceOf[Analyser]
+    receivedMessages = 0
+    tempProxy = new GraphRepoProxy(jobID,superStep)
+    rebuildAnalyser.sysSetup(context,ManagerCount(managerCount),tempProxy)
+    rebuildAnalyser.setup()(new WorkerID(workerID))
+    sender() ! Ready(tempProxy.getMessages())
   }
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int): Unit = {
+    if(debug)println(s"Received new step for pm_$managerID")
     try {
+      val rebuildAnalyser = Utils.deserialise(Utils.serialise(analyzer)).asInstanceOf[Analyser]
       receivedMessages=0
-      if(debug)println(s"Received new step for pm_$managerID")
-      val repo = new GraphRepoProxy(jobID,superStep)
-      val analyzer2 = new ExamplePageRank(1,0)
-      analyzer2.sysSetup(context,ManagerCount(managerCount),repo)
+      tempProxy = new GraphRepoProxy(jobID,superStep)
+      rebuildAnalyser.sysSetup(context,ManagerCount(managerCount),tempProxy)
       val senderPath = sender().path
-      this.analyze(analyzer2, senderPath,repo.getMessages())
+      analyze(rebuildAnalyser,senderPath)
     }
     catch {
       case e: Exception => {
+        println(e)
         sender() ! ExceptionInAnalysis(e.toString)
       }
     }
   }
+
+  private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
+    val value = analyzer.analyse()(new WorkerID(workerID))
+    if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
+    if(debug)println(value)
+    mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value,tempProxy.getMessages()), false)
+
+  }
+
 
   def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int) = {
     nextStep(Utils.analyserMap(name),jobID,currentStep)

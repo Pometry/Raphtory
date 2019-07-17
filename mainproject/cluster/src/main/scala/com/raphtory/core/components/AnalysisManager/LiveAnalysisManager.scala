@@ -67,32 +67,13 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     case EndStep(result,messages) => endStep(result,messages) //worker has finished the step
     case "restart" => restart()
 
-    case MessagesReceived(receivedMessages) => messagesReceieved(receivedMessages)
+    case MessagesReceived(receivedMessages,sentMessages) => messagesReceieved(receivedMessages,sentMessages)
 
     case "networkSizeTimeout" => networkSizeFail() //restart contact with readers
     case ClassMissing() => classMissing() //If the class is missing, send the raw source file
     case FailedToCompile(stackTrace) => failedToCompile(stackTrace) //Your code is broke scrub
     case PartitionsCount(newValue) => managerCount = newValue //for when managerCount is republished
     case _ => processOtherMessages(_) //incase some random stuff comes through
-  }
-
-  def messagesReceieved(receivedMessages: Int) = {
-    messageCounter +=1
-    totalReceivedMessages += receivedMessages
-    //println("messages Received "+totalReceivedMessages)
-    if(messageCounter == getWorkerCount) {
-      messageCounter =0
-      println(s"checking, $totalReceivedMessages/$totalSentMessages")
-      if(totalReceivedMessages >= totalSentMessages){
-        totalSentMessages = 0
-        totalReceivedMessages = 0
-        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
-      }
-      else {
-        totalReceivedMessages =0
-        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages())
-      }
-    }
   }
 
   def checkClusterSize =
@@ -126,7 +107,6 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     if(debug)println("Received ready")
     readyCounter += 1
     totalSentMessages += messages
-    //println("Messages sent"+ totalSentMessages)
     if(debug)println(s"$readyCounter / ${getWorkerCount}")
     if (readyCounter == getWorkerCount) {
       readyCounter = 0
@@ -139,6 +119,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
           mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
       }
       else{
+        totalSentMessages = 0
+        totalReceivedMessages = 0
         if(debug)println("Sending check Messages")
         mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages())
 
@@ -147,9 +129,9 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   }
 
   def endStep(result:Any,messages:Int) = {
-    if(debug)println("EndStep")
     currentStepCounter += 1
     results +:= result
+    totalSentMessages += messages
     if(debug)println(s"$currentStepCounter / $getWorkerCount : $currentStep / $steps")
     if (currentStepCounter == getWorkerCount) {
       if (currentStep == steps || this.checkProcessEnd()) {
@@ -158,6 +140,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         currentStepCounter = 0
         currentStep = 0
         context.system.scheduler.scheduleOnce(Duration(2, SECONDS), self, "restart")
+        totalSentMessages = 0
+        totalReceivedMessages =0
       }
       else {
         if(debug)println(s"Sending new step")
@@ -171,8 +155,34 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
           else
             mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
         }
-        else
+        else {
+          totalSentMessages = 0
+          totalReceivedMessages = 0
           mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages())
+        }
+      }
+    }
+  }
+
+  def messagesReceieved(receivedMessages: Int,sentMessages:Int) = {
+    messageCounter +=1
+    totalReceivedMessages += receivedMessages
+    totalSentMessages += sentMessages
+    //println("messages Received "+totalReceivedMessages)
+    if(messageCounter == getWorkerCount) {
+      messageCounter =0
+
+      if(totalReceivedMessages == totalSentMessages){
+        totalSentMessages = 0
+        totalReceivedMessages = 0
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
+      }
+      else {
+        println(s"checking, $totalReceivedMessages/$totalSentMessages")
+        totalReceivedMessages =0
+        totalSentMessages = 0
+        Thread.sleep(100)
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages())
       }
     }
   }
