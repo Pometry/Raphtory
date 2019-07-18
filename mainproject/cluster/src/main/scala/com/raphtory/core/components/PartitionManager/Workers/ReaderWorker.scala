@@ -8,6 +8,8 @@ import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 import monix.execution.atomic.AtomicInt
 
+import scala.collection.mutable
+
 class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Actor{
   implicit var managerCount: Int = managerCountVal
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
@@ -21,11 +23,16 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
     case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
-    case CheckMessages() => sender() ! MessagesReceived(receivedMessages.get,tempProxy.getMessages())
+    case CheckMessages(superstep) => {
+      var count = 0
+      //tempProxy.getVerticesSet()(WorkerID(workerID)).foreach(v => count+=EntityStorage.vertices.get(v).get.vertexMultiQueue.evenMessageQueueMap.getOrElseUpdate("testName",mutable.ArrayStack[VertexMessage]()).size)
+      tempProxy.getVerticesSet()(WorkerID(workerID)).foreach(v => count+=EntityStorage.vertices.get(v).get.vertexMultiQueue.oddMessageQueueMap.getOrElseUpdate("testName",mutable.ArrayStack[VertexMessage]()).size)
+      sender() ! MessagesReceived(workerID,count,receivedMessages.get,tempProxy.getMessages())
+    }
     case NextStep(analyzer,jobID,superStep) => nextStep(analyzer,jobID,superStep)
     case NextStepNewAnalyser(name,jobID,currentStep) => nextStepNewAnalyser(name,jobID,currentStep)
     case handler:MessageHandler => {
-      receivedMessages.increment()
+      receivedMessages.add(1)
       EntityStorage.vertices(handler.vertexID).vertexMultiQueue.receiveMessage(handler)
     }
   }
@@ -48,6 +55,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
       rebuildAnalyser.sysSetup(context,ManagerCount(managerCount),tempProxy)
       val senderPath = sender().path
       analyze(rebuildAnalyser,senderPath)
+
     }
     catch {
       case e: Exception => {
@@ -60,7 +68,6 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
     val value = analyzer.analyse()(new WorkerID(workerID))
     if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
-    if(debug)println(value)
     mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value,tempProxy.getMessages()), false)
 
   }

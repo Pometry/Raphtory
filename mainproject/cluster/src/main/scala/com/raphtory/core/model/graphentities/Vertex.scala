@@ -54,7 +54,7 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   var outgoingEdges  = ParTrieMap[Long, Edge]()
 
   val vertexMultiQueue = new VertexMutliQueue()
-
+  def mutliQueue = vertexMultiQueue
   var computationValues = ParTrieMap[String, Any]()
 
   def addAssociatedEdge(edge: Edge): Unit = {

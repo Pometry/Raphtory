@@ -28,7 +28,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   private var totalSentMessages = 0
   protected def analyserName:String = generateAnalyzer.getClass.getName
 
-  private val debug = true
+  private val debug = false
   private var newAnalyser:Boolean = false
 
   protected val mediator     = DistributedPubSub(context.system).mediator
@@ -67,7 +67,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     case EndStep(result,messages) => endStep(result,messages) //worker has finished the step
     case "restart" => restart()
 
-    case MessagesReceived(receivedMessages,sentMessages) => messagesReceieved(receivedMessages,sentMessages)
+    case MessagesReceived(workerID,real,receivedMessages,sentMessages) => messagesReceieved(workerID,real,receivedMessages,sentMessages)
 
     case "networkSizeTimeout" => networkSizeFail() //restart contact with readers
     case ClassMissing() => classMissing() //If the class is missing, send the raw source file
@@ -122,7 +122,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         totalSentMessages = 0
         totalReceivedMessages = 0
         if(debug)println("Sending check Messages")
-        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages())
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages(currentStep))
 
       }
     }
@@ -158,18 +158,20 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         else {
           totalSentMessages = 0
           totalReceivedMessages = 0
-          mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages())
+          mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages(currentStep))
         }
       }
     }
   }
 
-  def messagesReceieved(receivedMessages: Int,sentMessages:Int) = {
+  def messagesReceieved(workerID:Int,real:Int,receivedMessages: Int,sentMessages:Int) = {
     messageCounter +=1
     totalReceivedMessages += receivedMessages
     totalSentMessages += sentMessages
-    //println("messages Received "+totalReceivedMessages)
+    if(real != receivedMessages)
+      println(s"superstep $currentStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
     if(messageCounter == getWorkerCount) {
+      println()
       messageCounter =0
 
       if(totalReceivedMessages == totalSentMessages){
@@ -181,8 +183,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         println(s"checking, $totalReceivedMessages/$totalSentMessages")
         totalReceivedMessages =0
         totalSentMessages = 0
-        Thread.sleep(100)
-        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages())
+        Thread.sleep(1000)
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages(currentStep))
       }
     }
   }
