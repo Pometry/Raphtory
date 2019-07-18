@@ -55,6 +55,8 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
 
   val vertexMultiQueue = new VertexMutliQueue()
 
+  var computationValues = ParTrieMap[String, Any]()
+
   def addAssociatedEdge(edge: Edge): Unit = {
     if(edge.getSrcId==vertexId)
       outgoingEdges.put(edge.getId,edge)
@@ -69,6 +71,22 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   def addOutgoingEdge(id:Int) = {
     outgoingIDs += id
   }
+
+  def addCompValue(key:String,value:Any):Unit = {
+    computationValues += ((key,value))
+  }
+  def getCompValue(key:String) = {
+    computationValues(key)
+  }
+  def getOrSet(key:String,value:Any) ={
+    if(computationValues.contains(key))
+      computationValues(key)
+    else{
+      computationValues += ((key,value))
+      value
+    }
+  }
+
 
   /*override def printProperties(): String =
     s"Vertex $vertexId with properties: \n" + super.printProperties()*/

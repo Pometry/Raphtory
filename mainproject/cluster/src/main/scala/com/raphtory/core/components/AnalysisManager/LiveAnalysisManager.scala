@@ -28,7 +28,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   private var totalSentMessages = 0
   protected def analyserName:String = generateAnalyzer.getClass.getName
 
-  private val debug = false
+  private val debug = true
   private var newAnalyser:Boolean = false
 
   protected val mediator     = DistributedPubSub(context.system).mediator
@@ -197,7 +197,6 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     ReaderACKS = 0
     networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "networkSizeTimeout")
     mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, ReaderWorkersOnline())
-
   }
 
   def classMissing() {

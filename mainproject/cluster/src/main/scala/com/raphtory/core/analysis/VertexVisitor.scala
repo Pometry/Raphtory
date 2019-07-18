@@ -54,16 +54,16 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
       case None => None
     }
 
-  def updateProperty(key : String, value : String) = {
-    v.synchronized {
-      v.properties.get(key) match {
-        case None =>
-          v.properties.put(key, new Property(System.currentTimeMillis(), key, value))
-        case Some(oldProp) => oldProp.update(System.currentTimeMillis(), value)
-      }
-    }
+  def setCompValue(key:String,value:Any):Unit = {
+    v.addCompValue(key,value)
   }
-
+  def getCompValue(key:String) = {
+    v.getCompValue(key)
+  }
+  def getOrSetCompValue(key:String,value:Any) ={
+    v.getOrSet(key,value)
+  }
+3
   def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {
     proxy.recordMessage()
     mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(vertexID,jobID,superStep,message), false)
@@ -101,5 +101,15 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
 //    v.incomingEdges.get(Utils.getEdgeIndex(vId,v.vertexId)) match {
 //      case Some(e) => e.getPropertyCurrentValue(key)
 //      case None    => None
+//    }
+//  }
+
+//  def updateProperty(key : String, value : String) = {
+//    v.synchronized {
+//      v.properties.get(key) match {
+//        case None =>
+//          v.properties.put(key, new Property(System.currentTimeMillis(), key, value))
+//        case Some(oldProp) => oldProp.update(System.currentTimeMillis(), value)
+//      }
 //    }
 //  }

@@ -25,7 +25,7 @@ class PageRankLAM(jobID:String) extends LiveAnalysisManager(jobID) {
     steps = 50 //Int.MaxValue
     if (getNetworkSize != 0)
       epsilon = 1/(100*getNetworkSize)
-    10
+    100
   }
 
   override protected def generateAnalyzer : Analyser = new ExamplePageRank(getNetworkSize, dumplingFactor)

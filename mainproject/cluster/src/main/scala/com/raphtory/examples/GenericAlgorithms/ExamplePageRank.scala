@@ -18,9 +18,10 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
   override def setup()(implicit workerID: WorkerID) = {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
-      vertex.updateProperty(prStr, defaultPR.toString)
-      val outgoings = vertex.getOutgoingNeighbors
-      vertex.messageAllOutgoingNeighbors(PageRankScore(defaultPR))
+//      if(vertex.messageQueue.nonEmpty)
+//        println(vertex.messageQueue)
+      val toSend = vertex.getOrSetCompValue(prStr, defaultPR).asInstanceOf[Float]
+      vertex.messageAllOutgoingNeighbors(PageRankScore(toSend))
     })
   }
 
@@ -32,11 +33,10 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
       while(vertex moreMessages)
         neighbourScores += vertex.nextMessage().asInstanceOf[PageRankScore].value
       val newPR:Float = neighbourScores/math.max(vertex.getOutgoingNeighbors.size,1)
-      vertex.updateProperty(prStr, newPR.toString)
+      vertex.setCompValue(prStr, newPR)
       vertex messageAllOutgoingNeighbors(PageRankScore(newPR))
       results +:= (v.toLong, newPR)
       })
-
     if (results.size > 5) {
       results = results.sortBy(_._2)(Ordering[Float].reverse).take(5)
     }

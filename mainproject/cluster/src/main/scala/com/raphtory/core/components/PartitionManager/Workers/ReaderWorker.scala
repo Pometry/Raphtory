@@ -6,6 +6,7 @@ import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, ManagerCount, Worke
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
+import monix.execution.atomic.AtomicInt
 
 class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Actor{
   implicit var managerCount: Int = managerCountVal
@@ -14,24 +15,24 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
   val debug = false
   implicit val workerID: Int = workerId
-  var receivedMessages = 0
+  var receivedMessages = AtomicInt(0)
   var tempProxy:GraphRepoProxy = null
 
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
     case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
-    case CheckMessages() => sender() ! MessagesReceived(receivedMessages,tempProxy.getMessages())
+    case CheckMessages() => sender() ! MessagesReceived(receivedMessages.get,tempProxy.getMessages())
     case NextStep(analyzer,jobID,superStep) => nextStep(analyzer,jobID,superStep)
     case NextStepNewAnalyser(name,jobID,currentStep) => nextStepNewAnalyser(name,jobID,currentStep)
     case handler:MessageHandler => {
-      receivedMessages+=1
+      receivedMessages.increment()
       EntityStorage.vertices(handler.vertexID).vertexMultiQueue.receiveMessage(handler)
     }
   }
 
   def setup(analyzer: Analyser,jobID:String,superStep:Int) {
     val rebuildAnalyser = Utils.deserialise(Utils.serialise(analyzer)).asInstanceOf[Analyser]
-    receivedMessages = 0
+    receivedMessages.set(0)
     tempProxy = new GraphRepoProxy(jobID,superStep)
     rebuildAnalyser.sysSetup(context,ManagerCount(managerCount),tempProxy)
     rebuildAnalyser.setup()(new WorkerID(workerID))
@@ -42,7 +43,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     if(debug)println(s"Received new step for pm_$managerID")
     try {
       val rebuildAnalyser = Utils.deserialise(Utils.serialise(analyzer)).asInstanceOf[Analyser]
-      receivedMessages=0
+      receivedMessages.set(0)
       tempProxy = new GraphRepoProxy(jobID,superStep)
       rebuildAnalyser.sysSetup(context,ManagerCount(managerCount),tempProxy)
       val senderPath = sender().path
@@ -68,6 +69,5 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int) = {
     nextStep(Utils.analyserMap(name),jobID,currentStep)
   }
-
 
 }
