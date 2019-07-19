@@ -20,6 +20,7 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
   val messageQueue = v.vertexMultiQueue.getMessageQueue(jobID,superStep)
   def getOutgoingNeighbors : ParArray[Int] = v.outgoingIDs.toParArray
   def getIngoingNeighbors  : ParArray[Int] = v.incomingIDs.toParArray
+  def getAllNeighbors: ParArray[Int] = v.incomingIDs.union(v.outgoingIDs).toParArray
 
   def getOutgoingNeighborProp(vId: Int, key : String) : Option[String] = {
     EntityStorage.edges.get(Utils.getEdgeIndex(v.vertexId,vId)) match {
@@ -71,10 +72,16 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
 
   def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingIDs.foreach(vID => messageNeighbour(vID,message))
 
+  def messageAllNeighbours(message:VertexMessage) = v.outgoingIDs.union(v.incomingIDs).foreach(vID => messageNeighbour(vID,message))
+
   def messageAllIngoingNeighbors(message: VertexMessage) : Unit = v.incomingIDs.foreach(vID => messageNeighbour(vID,message))
 
   def moreMessages():Boolean = messageQueue.nonEmpty
   def nextMessage():VertexMessage = messageQueue.pop()
+
+  def voteToHalt() = {
+
+  }
 
 //  private def edgeFilter(srcId: Int, dstId: Int, edgeId : Long) : Boolean = Utils.getEdgeIndex(srcId, dstId) == edgeId
 //  private def outgoingEdgeFilter(dstId : Int, edgeId : Long) : Boolean = edgeFilter(v.getId.toInt, dstId, edgeId)
