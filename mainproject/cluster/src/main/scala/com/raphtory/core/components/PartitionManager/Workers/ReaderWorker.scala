@@ -48,7 +48,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int): Unit = {
     if(debug)println(s"Received new step for pm_$managerID")
-    try {
+    //try {
       val rebuildAnalyser = Utils.deserialise(Utils.serialise(analyzer)).asInstanceOf[Analyser]
       receivedMessages.set(0)
       tempProxy = new GraphRepoProxy(jobID,superStep)
@@ -56,13 +56,13 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
       val senderPath = sender().path
       analyze(rebuildAnalyser,senderPath)
 
-    }
-    catch {
-      case e: Exception => {
-        println(e)
-        sender() ! ExceptionInAnalysis(e.toString)
-      }
-    }
+    //}
+   // catch {
+   //   case e: Exception => {
+   //     println(e)
+   //     sender() ! ExceptionInAnalysis(e.toString)
+   //   }
+  //  }
   }
 
   private def analyze(analyzer: Analyser, senderPath: ActorPath) = {

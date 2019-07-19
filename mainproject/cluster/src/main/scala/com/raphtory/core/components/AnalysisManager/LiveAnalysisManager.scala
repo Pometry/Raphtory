@@ -50,7 +50,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
 
   override def preStart(): Unit = {
 
-    context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
+    context.system.scheduler.scheduleOnce(Duration(40, SECONDS), self, "start")
     steps = defineMaxSteps()
     //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
@@ -168,24 +168,24 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     messageCounter +=1
     totalReceivedMessages += receivedMessages
     totalSentMessages += sentMessages
-    if(real != receivedMessages)
+    //if(real != receivedMessages)
       println(s"superstep $currentStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
     if(messageCounter == getWorkerCount) {
       println()
       messageCounter =0
 
-      if(totalReceivedMessages == totalSentMessages){
+      //if(totalReceivedMessages == totalSentMessages){
         totalSentMessages = 0
         totalReceivedMessages = 0
         mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
-      }
-      else {
-        println(s"checking, $totalReceivedMessages/$totalSentMessages")
-        totalReceivedMessages =0
-        totalSentMessages = 0
-        Thread.sleep(1000)
-        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages(currentStep))
-      }
+     // }
+//      else {
+//        println(s"checking, $totalReceivedMessages/$totalSentMessages")
+//        totalReceivedMessages =0
+//        totalSentMessages = 0
+//        Thread.sleep(1000)
+//        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages(currentStep))
+//      }
     }
   }
 

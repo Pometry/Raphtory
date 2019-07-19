@@ -1,9 +1,9 @@
-package com.raphtory.examples.GenericAlgorithms
+package com.raphtory.examples.GenericAlgorithms.PageRank
 
 import com.raphtory.core.analysis.{Analyser, WorkerID}
 import com.raphtory.core.model.communication.VertexMessage
 
-class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyser {
+class PageRankAnalyser(networkSize : Int, dumplingFactor : Float) extends Analyser {
 
   private val prStr              = "_pageRank"
   private val outgoingCounterStr = "_outgoingCounter"
