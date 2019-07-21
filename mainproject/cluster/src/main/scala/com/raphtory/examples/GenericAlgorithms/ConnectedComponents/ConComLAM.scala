@@ -11,7 +11,14 @@ class ConComLAM(jobID:String) extends LiveAnalysisManager(jobID)  {
   override protected def processResults(result: Any): Unit = {
     val endResults = result.asInstanceOf[Vector[mutable.HashMap[Int, Int]]]
     var results = mutable.HashMap[Int, Int]()
-    //endResults.foreach(f => )
+    endResults.foreach(pmap => {
+      pmap.foreach(f => {results.get(f._1) match {
+        case Some(previousTotal) => results(f._1) = previousTotal + f._2
+        case None => results(f._1) = f._2
+      }})
+
+    })
+    results.foreach(f=> if(f._2>1) print(f+" "))
   }
   override protected def defineMaxSteps(): Int = {
     100

@@ -26,7 +26,7 @@ class ConComAnalyser extends Analyser {
       var label = v
       while (vertex moreMessages)
         label = math.min(label, vertex.nextMessage().asInstanceOf[ClusterLabel].value)
-      var currentLabel = vertex.getCompValue("cclabel").asInstanceOf[Int]
+      var currentLabel = vertex.getOrSetCompValue("cclabel",v).asInstanceOf[Int]
       if (label < currentLabel) {
         vertex.setCompValue("cclabel", label)
         vertex messageAllOutgoingNeighbors (ClusterLabel(label))
