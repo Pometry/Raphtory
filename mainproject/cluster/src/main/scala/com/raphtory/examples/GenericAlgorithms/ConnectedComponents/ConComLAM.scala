@@ -14,13 +14,13 @@ class ConComLAM(jobID:String) extends LiveAnalysisManager(jobID)  {
     //endResults.foreach(f => )
   }
   override protected def defineMaxSteps(): Int = {
-    1000
+    100
   }
 
   override protected def generateAnalyzer : Analyser = new ConComAnalyser()
   override protected def processOtherMessages(value: Any) : Unit = {println ("Not handled message" + value.toString)}
 
   override protected def checkProcessEnd() : Boolean = {
-    false
+    partitionsHalting()
   }
 }

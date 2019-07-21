@@ -25,7 +25,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
     case CheckMessages(superstep) => {
       var count = 0
-      //tempProxy.getVerticesSet()(WorkerID(workerID)).foreach(v => count+=EntityStorage.vertices.get(v).get.vertexMultiQueue.evenMessageQueueMap.getOrElseUpdate("testName",mutable.ArrayStack[VertexMessage]()).size)
+      tempProxy.getVerticesSet()(WorkerID(workerID)).foreach(v => count+=EntityStorage.vertices.get(v).get.vertexMultiQueue.evenMessageQueueMap.getOrElseUpdate("testName",mutable.ArrayStack[VertexMessage]()).size)
       tempProxy.getVerticesSet()(WorkerID(workerID)).foreach(v => count+=EntityStorage.vertices.get(v).get.vertexMultiQueue.oddMessageQueueMap.getOrElseUpdate("testName",mutable.ArrayStack[VertexMessage]()).size)
       sender() ! MessagesReceived(workerID,count,receivedMessages.get,tempProxy.getMessages())
     }
@@ -68,7 +68,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
     val value = analyzer.analyse()(new WorkerID(workerID))
     if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
-    mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value,tempProxy.getMessages()), false)
+    mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerID)), false)
 
   }
 

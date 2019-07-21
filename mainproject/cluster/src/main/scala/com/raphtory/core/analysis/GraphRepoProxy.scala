@@ -11,6 +11,8 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 class GraphRepoProxy(jobID:String,superstep:Int) {
   private var messages = AtomicInt(0)
+  private var voteCount = 0
+  def job() = jobID
   def getVerticesSet()(implicit workerID:WorkerID): ParSet[Int] = {
     EntityStorage.vertexKeys(workerID.ID)
   }
@@ -18,6 +20,7 @@ class GraphRepoProxy(jobID:String,superstep:Int) {
   def recordMessage() = messages.increment()
   def getMessages() = messages.get
   def clearMessages() = messages.set(0)
+
 
   def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(id.toInt),jobID,superstep,this)
 
@@ -27,6 +30,14 @@ class GraphRepoProxy(jobID:String,superstep:Int) {
 
   def latestTime:Long = EntityStorage.newestTime
 
+  def vertexVoted() = voteCount +=1
+
+  def checkVotes(workerID: Int):Boolean = {
+    println(s"$workerID ${EntityStorage.vertexKeys(workerID).size} $voteCount")
+    if(EntityStorage.vertexKeys(workerID).size == voteCount)
+      true
+    else false
+  }
 
 //HERE BE DRAGONS please ignore
 //  def something= {

@@ -12,7 +12,8 @@ class ConComAnalyser extends Analyser {
   override def setup()(implicit workerID: WorkerID) = {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
-      var min = math.min(v, vertex.getOutgoingNeighbors.union(vertex.getIngoingNeighbors).min)
+      var min = v
+      //math.min(v, vertex.getOutgoingNeighbors.union(vertex.getIngoingNeighbors).min)
       val toSend = vertex.getOrSetCompValue("cclabel", min).asInstanceOf[Int]
       vertex.messageAllNeighbours(ClusterLabel(toSend))
     })

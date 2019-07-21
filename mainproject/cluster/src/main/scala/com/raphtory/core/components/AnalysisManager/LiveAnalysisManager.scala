@@ -26,6 +26,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   private var messageCounter = 0
   private var totalReceivedMessages = 0
   private var totalSentMessages = 0
+  private var voteToHalt = true
   protected def analyserName:String = generateAnalyzer.getClass.getName
 
   private val debug = false
@@ -64,7 +65,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     case ReaderWorkersACK() => readerACK() //count up number of acks and if == number of workers, check if analyser present
     case AnalyserPresent() => analyserPresent() //analyser confirmed to be present within workers, send setup request to workers
     case Ready(messagesSent) => ready(messagesSent) //worker has completed setup and is ready to roll -- send nextstep
-    case EndStep(result,messages) => endStep(result,messages) //worker has finished the step
+    case EndStep(result,messages,voteToHalt) => endStep(result,messages,voteToHalt) //worker has finished the step
     case "restart" => restart()
 
     case MessagesReceived(workerID,real,receivedMessages,sentMessages) => messagesReceieved(workerID,real,receivedMessages,sentMessages)
@@ -128,13 +129,16 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     }
   }
 
-  def endStep(result:Any,messages:Int) = {
+  def endStep(result:Any,messages:Int,voteToHalt:Boolean) = {
     currentStepCounter += 1
     results +:= result
     totalSentMessages += messages
+    if (!voteToHalt) this.voteToHalt = false
     if(debug)println(s"$currentStepCounter / $getWorkerCount : $currentStep / $steps")
     if (currentStepCounter == getWorkerCount) {
+      println(s"Superstep $currentStep: $partitionsHalting")
       if (currentStep == steps || this.checkProcessEnd()) {
+
         // Process results
         this.processResults(results)
         currentStepCounter = 0
@@ -144,6 +148,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         totalReceivedMessages =0
       }
       else {
+        this.voteToHalt = true
         if(debug)println(s"Sending new step")
         oldResults = results
         results = Vector.empty[Any]
@@ -191,6 +196,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
 
   def restart() =
     mediator ! DistributedPubSubMediator.Publish(Utils.readersTopic, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$","")))
+
+  def partitionsHalting() = voteToHalt
 
 
   /////HERE BE DRAGONS, GO NO FURTHER

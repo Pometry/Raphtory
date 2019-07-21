@@ -80,7 +80,7 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
   def nextMessage():VertexMessage = messageQueue.pop()
 
   def voteToHalt() = {
-
+    proxy.vertexVoted()
   }
 
 //  private def edgeFilter(srcId: Int, dstId: Int, edgeId : Long) : Boolean = Utils.getEdgeIndex(srcId, dstId) == edgeId

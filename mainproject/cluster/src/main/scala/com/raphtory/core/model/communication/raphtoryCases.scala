@@ -94,7 +94,7 @@ case class Setup(analyzer : Analyser,jobID:String,superStep:Int) extends RaphRea
 case class Ready(messages:Int) extends RaphReadClasses
 case class NextStep(analyzer : Analyser,jobID:String,superStep:Int) extends RaphReadClasses
 case class NextStepNewAnalyser(name: String,jobID:String,superStep:Int) extends RaphReadClasses
-case class EndStep(results : Any,messages:Int) extends RaphReadClasses // TODO Define results
+case class EndStep(results : Any,messages:Int,voteToHalt:Boolean) extends RaphReadClasses // TODO Define results
 case class ExceptionInAnalysis(e:String) extends RaphReadClasses
 
 case class MessagesReceived(workerID:Int,real:Int,receivedMessages:Int,sentMessages:Int) extends RaphReadClasses
