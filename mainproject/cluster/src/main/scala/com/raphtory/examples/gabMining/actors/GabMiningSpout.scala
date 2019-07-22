@@ -10,7 +10,7 @@ import scala.language.postfixOps
 class GabMiningSpout extends SpoutTrait {
 
   //file is read. Please note that the first line is dropped, this in case the file has headers
-  val fileLines = io.Source.fromFile("/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets/gabNetwork500short2.csv").getLines.drop(1).toArray
+  val fileLines = io.Source.fromFile("/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets/gab.csv").getLines.drop(1).toArray
   var position = 0
   var linesNumber=fileLines.length
   println(linesNumber)

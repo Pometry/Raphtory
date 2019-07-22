@@ -35,9 +35,9 @@ object SingleNodeTest extends App {
 
   var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
 
- // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningLAM"
+//  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningLAM"
 
-  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningVerticesLAM"
+  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
 
 //  val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinExampleSpout"
 //  val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRaphtoryRouter"
@@ -68,7 +68,7 @@ object SingleNodeTest extends App {
   //val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
  // val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
  //val
-<<<<<<< HEAD
+
 
 // var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
 // LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
@@ -76,10 +76,10 @@ object SingleNodeTest extends App {
  //var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
  //LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
 
-=======
- var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
- LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
->>>>>>> upstream/master
+//
+// var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
+// LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
+
  // val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
 
 

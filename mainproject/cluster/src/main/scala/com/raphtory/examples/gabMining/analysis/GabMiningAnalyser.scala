@@ -26,10 +26,10 @@ class GabMiningAnalyser extends Analyser{
         maxInDegree= b.toString.toInt
         maxVertex=a.toString.toInt
       }
-      else{
-        maxInDegree= b.toString.toInt
-        maxVertex=a.toString.toInt
-      }
+//      else{
+//        maxInDegree= b.toString.toInt
+//        maxVertex=a.toString.toInt
+//      }
     }
     (maxVertex,maxInDegree)
 

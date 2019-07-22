@@ -21,7 +21,9 @@ object GraphRepoProxy {
   def getTotalVerticesSet() : ParSet[Int] = {
     EntityStorage.vertices.keySet
   }
-
+  def getEdgesSet()(implicit workerID:Worker): ParSet[Long] = {
+    EntityStorage.edgeKeys(workerID.ID)
+  }
 
 //HERE BE DRAGONS please ignore
 //  def something= {
