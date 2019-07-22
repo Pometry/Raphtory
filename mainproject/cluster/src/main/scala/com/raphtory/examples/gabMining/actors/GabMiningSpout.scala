@@ -8,6 +8,12 @@ import scala.io
 import scala.language.postfixOps
 
 class GabMiningSpout extends SpoutTrait {
+//  2016-08-17T18:40:20+00:00;3509;752;;3504;292
+//  2016-08-17T18:46:56+00:00;3512;810;;3440;741
+//  2016-08-17T18:48:37+00:00;3514;810;;3444;741
+//  2016-08-17T19:32:21+00:00;3573;721;;3565;31
+//  2016-08-17T19:46:22+00:00;3595;759;;3587;709
+//  2016-08-17T19:47:06+00:00;3596;759;;3585;817
 
   //file is read. Please note that the first line is dropped, this in case the file has headers
   val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets").trim

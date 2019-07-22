@@ -8,6 +8,7 @@ import com.raphtory.core.components.PartitionManager.Workers.{IngestionWorker, R
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import com.twitter.util.Eval
+import akka.actor.Terminated
 
 import scala.collection.parallel.mutable.ParTrieMap
 
@@ -23,6 +24,7 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
   var readers: ParTrieMap[Int,ActorRef] = new ParTrieMap[Int,ActorRef]()
   for(i <- 0 until 10){ //create threads for writing
     val child = context.system.actorOf(Props(new ReaderWorker(managerCount,managerID,i)).withDispatcher("reader-dispatcher"),s"Manager_${id}_reader_$i")
+    context.watch(child)
     readers.put(i,child)
   }
 
@@ -36,6 +38,7 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
     case CompileNewAnalyser(analyser, name) => compileNewAnalyser(analyser, name)
     case UpdatedCounter(newValue) => managerCount = newValue; readers.foreach(x=> x._2 ! UpdatedCounter(newValue))
     case SubscribeAck =>
+    case e:Terminated => println(e)
     case e => println(s"[READER] not handled message " + e)
   }
 

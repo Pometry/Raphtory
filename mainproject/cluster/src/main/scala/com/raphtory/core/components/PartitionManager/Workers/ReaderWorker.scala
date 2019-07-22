@@ -25,11 +25,11 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   override def preStart(): Unit = {
     //context.system.scheduler.schedule(Duration(40, SECONDS), self, "start")
 
-    context.system.scheduler.schedule(Duration(5, SECONDS), Duration(5, SECONDS), self, "start") // Refresh networkSize and restart analysis currently
+    //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(5, SECONDS), self, "start") // Refresh networkSize and restart analysis currently
   }
 
   override def receive: Receive = {
-    case "start" => println(s"Worker $workerID: $this")
+    //case "start" => println(s"Worker $workerID: $this")
     case UpdatedCounter(newValue) => managerCount = newValue
     case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
     case CheckMessages(superstep) => {

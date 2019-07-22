@@ -130,6 +130,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   }
 
   def endStep(result:Any,messages:Int,voteToHalt:Boolean) = {
+    //println(result )
     currentStepCounter += 1
     results +:= result
     totalSentMessages += messages
@@ -140,7 +141,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
       if (currentStep == steps || this.checkProcessEnd()) {
 
         // Process results
-        this.processResults(results)
+        try{this.processResults(results)}catch {case e:Exception => println(e)}
+        results = Vector.empty[Any]
         currentStepCounter = 0
         currentStep = 0
         context.system.scheduler.scheduleOnce(Duration(2, SECONDS), self, "restart")

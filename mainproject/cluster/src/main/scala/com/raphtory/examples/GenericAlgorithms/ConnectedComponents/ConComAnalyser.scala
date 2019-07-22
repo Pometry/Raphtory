@@ -23,9 +23,13 @@ class ConComAnalyser extends Analyser {
     var results = mutable.HashMap[Int, Int]()
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
+      val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
       var label = v
-      while (vertex moreMessages)
-        label = math.min(label, vertex.nextMessage().asInstanceOf[ClusterLabel].value)
+      if(queue.nonEmpty)
+        label = queue.min
+      vertex.messageQueue.clear
+      //while (vertex moreMessages)
+       // label = math.min(label, vertex.nextMessage().asInstanceOf[ClusterLabel].value)
       var currentLabel = vertex.getOrSetCompValue("cclabel",v).asInstanceOf[Int]
       if (label < currentLabel) {
         vertex.setCompValue("cclabel", label)
@@ -33,13 +37,14 @@ class ConComAnalyser extends Analyser {
         currentLabel = label
       }
       else{
-        vertex.voteToHalt()
+        //vertex.voteToHalt()
       }
       results.get(currentLabel) match {
         case Some(currentCount) => results(currentLabel) = currentCount +1
         case None => results(currentLabel) = 1
       }
     })
+    //println(s"analyse $results")
     results
   }
 

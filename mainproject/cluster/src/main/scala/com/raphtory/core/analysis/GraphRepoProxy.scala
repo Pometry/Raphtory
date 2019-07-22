@@ -24,7 +24,7 @@ class GraphRepoProxy(jobID:String,superstep:Int) {
 
   def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(id.toInt),jobID,superstep,this)
 
-  def getTotalVerticesSet() : ParSet[Int] = {
+  def getTotalVerticesSet()  = {
     EntityStorage.vertices.keySet
   }
 
@@ -34,9 +34,7 @@ class GraphRepoProxy(jobID:String,superstep:Int) {
 
   def checkVotes(workerID: Int):Boolean = {
     println(s"$workerID ${EntityStorage.vertexKeys(workerID).size} $voteCount")
-    if(EntityStorage.vertexKeys(workerID).size == voteCount)
-      true
-    else false
+    EntityStorage.vertexKeys(workerID).size == voteCount
   }
 
 //HERE BE DRAGONS please ignore

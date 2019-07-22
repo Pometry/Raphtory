@@ -64,7 +64,7 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
   def getOrSetCompValue(key:String,value:Any) ={
     v.getOrSet(key,value)
   }
-3
+
   def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {
     proxy.recordMessage()
     mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(vertexID,jobID,superStep,message), false)
