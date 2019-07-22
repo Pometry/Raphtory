@@ -7,8 +7,10 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 import monix.execution.atomic.AtomicInt
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.collection.mutable
+import scala.concurrent.duration.{Duration, SECONDS}
 
 class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Actor{
   implicit var managerCount: Int = managerCountVal
@@ -20,7 +22,14 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   var receivedMessages = AtomicInt(0)
   var tempProxy:GraphRepoProxy = null
 
+  override def preStart(): Unit = {
+    //context.system.scheduler.schedule(Duration(40, SECONDS), self, "start")
+
+    context.system.scheduler.schedule(Duration(5, SECONDS), Duration(5, SECONDS), self, "start") // Refresh networkSize and restart analysis currently
+  }
+
   override def receive: Receive = {
+    case "start" => println(s"Worker $workerID: $this")
     case UpdatedCounter(newValue) => managerCount = newValue
     case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
     case CheckMessages(superstep) => {
