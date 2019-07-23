@@ -21,6 +21,7 @@ class ConComAnalyser extends Analyser {
 
   override def analyse()(implicit workerID: WorkerID): Any= {
     var results = mutable.HashMap[Int, Int]()
+    println(s"Worker $workerID "+proxy.getVerticesSet().size)
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
