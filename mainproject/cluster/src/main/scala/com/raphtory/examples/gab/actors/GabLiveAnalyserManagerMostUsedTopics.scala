@@ -4,6 +4,9 @@ import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.examples.gab.analysis.GabMostUsedTopics
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+
 class GabLiveAnalyserManagerMostUsedTopics(jobID:String) extends LiveAnalysisManager(jobID) {
   /*private val B       : Int   = 100 // TODO set
   private val epsilon : Float = 0.85F
@@ -16,7 +19,7 @@ class GabLiveAnalyserManagerMostUsedTopics(jobID:String) extends LiveAnalysisMan
   override protected def processResults(result: Any): Unit = {
     println()
     println("Current top topics")
-    result.asInstanceOf[Vector[Vector[(String, Int, String)]]].flatten.sortBy(f => f._2)(Ordering[Int].reverse).foreach(
+    result.asInstanceOf[ArrayBuffer[ArrayBuffer[(String, Int, String)]]].flatten.sortBy(f => f._2)(Ordering[Int].reverse).foreach(
       topic => println(s"Topic: ${topic._3} with ID ${topic._1} and total uses of ${topic._2}")
     )
     }
@@ -36,8 +39,8 @@ class GabLiveAnalyserManagerMostUsedTopics(jobID:String) extends LiveAnalysisMan
 
   override protected def checkProcessEnd() : Boolean = {
     try {
-      val _newResults = results.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten
-      val _oldResults = oldResults.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten
+      val _newResults = results.asInstanceOf[ArrayBuffer[ArrayBuffer[(Long, Double)]]].flatten
+      val _oldResults = oldResults.asInstanceOf[ArrayBuffer[ArrayBuffer[(Long, Double)]]].flatten
       println(s"newResults: ${_newResults.size} => ${_oldResults.size}")
 
       if (firstStep) {

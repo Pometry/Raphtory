@@ -32,7 +32,7 @@ class WriterLogger extends Actor{
 
   }
 
-  def getEntitiesPrevStates[T,U <: Entity](m : mutable.Map[T, U]) : Int = {
+  def getEntitiesPrevStates[T,U <: Entity](m :ParTrieMap[T, U]) : Int = {
     var ret = 0
     m.foreach[Unit](e => {
       ret += e._2.getHistorySize()
@@ -40,7 +40,7 @@ class WriterLogger extends Actor{
     ret
   }
 
-  def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map : mutable.Map[T, U], id:Int) : Unit = {
+  def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map :ParTrieMap[T, U], id:Int) : Unit = {
     try {
       def getGauge(name: String) = {
         g.refine("actor" -> "PartitionManager", "replica" -> id.toString, "name" -> name)

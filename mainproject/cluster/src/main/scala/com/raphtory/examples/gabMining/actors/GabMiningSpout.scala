@@ -17,9 +17,12 @@ class GabMiningSpout extends SpoutTrait {
 
   //file is read. Please note that the first line is dropped, this in case the file has headers
   val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets").trim
-  val fileLines = io.Source.fromFile(directory+"/gabNetwork500.csv").getLines.drop(1).toArray
+  val fileLines = io.Source.fromFile(directory+"/gabNetwork1000.csv").getLines.drop(1).toArray
   var position = 0
   var linesNumber=fileLines.length
+  println(fileLines.map(_.split(";")(2).trim.toInt).toSet.size)
+  println(fileLines.map(_.split(";")(2).trim.toInt).contains(-1))
+
   println(linesNumber)
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds

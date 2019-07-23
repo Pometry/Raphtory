@@ -11,6 +11,8 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import com.raphtory.core.analysis.{Analyser, GraphRepoProxy}
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.sys.process._
 import scala.io.Source
 
@@ -34,8 +36,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
 
   protected val mediator     = DistributedPubSub(context.system).mediator
   protected var steps  : Long= 0L
-  protected var results      = Vector.empty[Any]
-  protected var oldResults      = Vector.empty[Any]
+  protected var results:ArrayBuffer[Any]      = mutable.ArrayBuffer[Any]()
+  protected var oldResults:ArrayBuffer[Any]   = mutable.ArrayBuffer[Any]()
 
  /******************** STUFF TO DEFINE *********************/
   protected def defineMaxSteps() : Int
@@ -112,7 +114,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     if (readyCounter == getWorkerCount) {
       readyCounter = 0
       currentStep = 1
-      results = Vector.empty[Any]
+      results = mutable.ArrayBuffer[Any]()
       if(totalSentMessages == 0){
         if(newAnalyser)
           mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStepNewAnalyser(analyserName,jobID,currentStep))
@@ -132,17 +134,17 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   def endStep(result:Any,messages:Int,voteToHalt:Boolean) = {
     //println(result )
     currentStepCounter += 1
-    results +:= result
+    results += result
     totalSentMessages += messages
     if (!voteToHalt) this.voteToHalt = false
     if(debug)println(s"$currentStepCounter / $getWorkerCount : $currentStep / $steps")
     if (currentStepCounter == getWorkerCount) {
-      println(s"Superstep $currentStep: $partitionsHalting")
       if (currentStep == steps || this.checkProcessEnd()) {
-
+        println(results)
+        println(s"Superstep $currentStep: $partitionsHalting")
         // Process results
         try{this.processResults(results)}catch {case e:Exception => println(e)}
-        results = Vector.empty[Any]
+        results = mutable.ArrayBuffer[Any]()
         currentStepCounter = 0
         currentStep = 0
         context.system.scheduler.scheduleOnce(Duration(2, SECONDS), self, "restart")
@@ -153,7 +155,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         this.voteToHalt = true
         if(debug)println(s"Sending new step")
         oldResults = results
-        results = Vector.empty[Any]
+        results = mutable.ArrayBuffer[Any]()
         currentStep += 1
         currentStepCounter = 0
         if(totalSentMessages == 0){
@@ -181,18 +183,18 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
       println()
       messageCounter =0
 
-      //if(totalReceivedMessages == totalSentMessages){
+      if(totalReceivedMessages == totalSentMessages){
         totalSentMessages = 0
         totalReceivedMessages = 0
         mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
-     // }
-//      else {
-//        println(s"checking, $totalReceivedMessages/$totalSentMessages")
-//        totalReceivedMessages =0
-//        totalSentMessages = 0
-//        Thread.sleep(1000)
-//        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages(currentStep))
-//      }
+      }
+      else {
+        println(s"checking, $totalReceivedMessages/$totalSentMessages")
+        totalReceivedMessages =0
+        totalSentMessages = 0
+        Thread.sleep(1000)
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages(currentStep))
+      }
     }
   }
 

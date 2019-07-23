@@ -44,7 +44,7 @@ class ConComAnalyser extends Analyser {
         case None => results(currentLabel) = 1
       }
     })
-    //println(s"analyse $results")
+    //println(s"Worker $workerID $results")
     results
   }
 

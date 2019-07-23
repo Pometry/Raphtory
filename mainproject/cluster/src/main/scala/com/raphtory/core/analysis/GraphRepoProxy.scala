@@ -33,7 +33,7 @@ class GraphRepoProxy(jobID:String,superstep:Int) {
   def vertexVoted() = voteCount +=1
 
   def checkVotes(workerID: Int):Boolean = {
-    println(s"$workerID ${EntityStorage.vertexKeys(workerID).size} $voteCount")
+    //println(s"$workerID ${EntityStorage.vertexKeys(workerID).size} $voteCount")
     EntityStorage.vertexKeys(workerID).size == voteCount
   }
 

@@ -6,6 +6,8 @@ import com.raphtory.core.model.graphentities.{Edge, Property, Vertex}
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParArray
 object VertexVisitor  {
@@ -35,13 +37,13 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
     }
   }
 
-  def getNeighborsProp(key : String) : Vector[String] = {
-    var values = Vector.empty[String]
+  def getNeighborsProp(key : String) : ArrayBuffer[String] = {
+    var values = mutable.ArrayBuffer[String]()
     v.incomingEdges.foreach(e => {
-      values :+= e._2.getPropertyCurrentValue(key).get
+      values += e._2.getPropertyCurrentValue(key).get
     })
     v.outgoingEdges.foreach(e => {
-      values :+= e._2.getPropertyCurrentValue(key).get
+      values += e._2.getPropertyCurrentValue(key).get
     })
     values
   }
