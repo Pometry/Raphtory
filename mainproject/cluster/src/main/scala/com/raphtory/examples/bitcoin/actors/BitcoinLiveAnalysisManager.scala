@@ -12,12 +12,11 @@ class BitcoinLiveAnalysisManager(jobID:String) extends LiveAnalysisManager(jobID
 
     override protected def generateAnalyzer: Analyser = new BitcoinAnalyser()
 
-    override protected def processResults(result: Any): Unit = {
-        val results:ArrayBuffer[CoinsAquiredPayload] = result.asInstanceOf[(ArrayBuffer[CoinsAquiredPayload])]
+    override protected def processResults(): Unit = {
         var finalResults = ArrayBuffer[(String, Double)]()
         var highestBlock = 0
         var blockHash = ""
-        for(indiResult <- results){
+        for(indiResult <- results.asInstanceOf[(ArrayBuffer[CoinsAquiredPayload])]){
             for (pair <- indiResult.wallets){
                finalResults :+= pair
             }

@@ -42,7 +42,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
  /******************** STUFF TO DEFINE *********************/
   protected def defineMaxSteps() : Int
   protected def generateAnalyzer : Analyser
-  protected def processResults(result : Any) : Unit
+  protected def processResults() : Unit
   protected def processOtherMessages(value : Any) : Unit
   protected def checkProcessEnd() : Boolean = false
   /******************** STUFF TO DEFINE *********************/
@@ -132,9 +132,12 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   }
 
   def endStep(result:Any,messages:Int,voteToHalt:Boolean) = {
-    //println(result )
+    println("inside")
     currentStepCounter += 1
+    println(result.asInstanceOf[mutable.HashMap[Int,Int]].size)
+    println(results.size)
     results += result
+    println(results.size)
     totalSentMessages += messages
     if (!voteToHalt) this.voteToHalt = false
     if(debug)println(s"$currentStepCounter / $getWorkerCount : $currentStep / $steps")
@@ -143,8 +146,9 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         println(results)
         println(s"Superstep $currentStep: $partitionsHalting")
         // Process results
-        try{this.processResults(results)}catch {case e:Exception => println(e)}
+        try{this.processResults()}catch {case e:Exception => println(e)}
         results = mutable.ArrayBuffer[Any]()
+        oldResults = mutable.ArrayBuffer[Any]()
         currentStepCounter = 0
         currentStep = 0
         context.system.scheduler.scheduleOnce(Duration(2, SECONDS), self, "restart")
@@ -153,7 +157,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
       }
       else {
         this.voteToHalt = true
-        if(debug)println(s"Sending new step")
+        //if(debug)
+          println(s"Sending new step")
         oldResults = results
         results = mutable.ArrayBuffer[Any]()
         currentStep += 1
@@ -161,8 +166,9 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         if(totalSentMessages == 0){
           if(newAnalyser)
             mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStepNewAnalyser(analyserName,jobID,currentStep))
-          else
-            mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
+          else {
+            mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer, jobID, currentStep))
+          }
         }
         else {
           totalSentMessages = 0
@@ -171,6 +177,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         }
       }
     }
+    else
+      println("end of workerResult "+currentStepCounter)
   }
 
   def messagesReceieved(workerID:Int,real:Int,receivedMessages: Int,sentMessages:Int) = {

@@ -16,10 +16,10 @@ class GabLiveAnalyserManagerMostUsedTopics(jobID:String) extends LiveAnalysisMan
   private val dumplingFactor = 0.85F
   private var firstStep      = true
 
-  override protected def processResults(result: Any): Unit = {
+  override protected def processResults(): Unit = {
     println()
     println("Current top topics")
-    result.asInstanceOf[ArrayBuffer[ArrayBuffer[(String, Int, String)]]].flatten.sortBy(f => f._2)(Ordering[Int].reverse).foreach(
+    results.asInstanceOf[ArrayBuffer[ArrayBuffer[(String, Int, String)]]].flatten.sortBy(f => f._2)(Ordering[Int].reverse).foreach(
       topic => println(s"Topic: ${topic._3} with ID ${topic._1} and total uses of ${topic._2}")
     )
     }

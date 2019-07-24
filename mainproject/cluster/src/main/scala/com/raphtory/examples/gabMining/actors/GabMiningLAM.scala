@@ -12,13 +12,12 @@ class GabMiningLAM(jobID:String) extends LiveAnalysisManager(jobID) {
 
   override protected def generateAnalyzer: Analyser = new GabMiningAnalyser()
 
-  override protected def processResults(result: Any): Unit = {
-    val results:Vector[Any] = result.asInstanceOf[(Vector[(Int,Int)])]
+  override protected def processResults(): Unit = {
     var maxInDegree=0
     var maxVertex=0
    // println("LAM RECEIVED RESULTS: "+ results)
 
-    for ((a, b) <- results){
+    for ((a, b) <- results.asInstanceOf[(Vector[(Int,Int)])]){
       // println("********SUUBBBB LAAAMMM Vertex: "+ a +"Edges : "+ b)
       if(b.toString.toInt>maxInDegree) {
         maxInDegree= b.toString.toInt

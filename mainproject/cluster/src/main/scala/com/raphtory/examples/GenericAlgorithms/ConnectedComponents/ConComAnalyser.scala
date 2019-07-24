@@ -21,9 +21,14 @@ class ConComAnalyser extends Analyser {
 
   override def analyse()(implicit workerID: WorkerID): Any= {
     var results = mutable.HashMap[Int, Int]()
-    println(s"Worker $workerID "+proxy.getVerticesSet().size)
+    ///println(s"Worker $workerID "+proxy.getVerticesSet().size)
     proxy.getVerticesSet().foreach(v => {
+
+      if(workerID.ID==1)
+        println(s"Trying to get vertex ${v}")
       val vertex = proxy.getVertex(v)
+      if(workerID.ID==1)
+        println(s"Trying to get message queue")
       val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
       var label = v
       if(queue.nonEmpty)
@@ -38,14 +43,18 @@ class ConComAnalyser extends Analyser {
         currentLabel = label
       }
       else{
+        vertex messageAllOutgoingNeighbors (ClusterLabel(label))
         //vertex.voteToHalt()
       }
-      results.get(currentLabel) match {
-        case Some(currentCount) => results(currentLabel) = currentCount +1
-        case None => results(currentLabel) = 1
-      }
+      results.put(v, 1+results.getOrElse(v,0))
+//      results.get(currentLabel) match {
+//        case Some(currentCount) => results(currentLabel) = currentCount +1
+//        case None => results(currentLabel) = 1
+//      }
+      if(workerID.ID==1)
+        println(s"Finished vertex ${v}")
     })
-    //println(s"Worker $workerID $results")
+    println(s"Worker $workerID")
     results
   }
 

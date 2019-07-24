@@ -14,8 +14,8 @@ class PageRankLAM(jobID:String) extends LiveAnalysisManager(jobID) {
   private val dumplingFactor = 0.85F
   private var firstStep      = true
   private var getNetworkSize = 0
-  override protected def processResults(result: Any): Unit = {
-    val endResults = result.asInstanceOf[ArrayBuffer[(Long,ArrayBuffer[(Long, Float)])]]
+  override protected def processResults(): Unit = {
+    val endResults = results.asInstanceOf[ArrayBuffer[(Long,ArrayBuffer[(Long, Float)])]]
     val top5 = endResults.map(x => x._2).flatten.sortBy(f => f._2)(Ordering[Float].reverse).take(5)
     val topTime = new java.util.Date(endResults.map(x => x._1).max)
     println (s"At $topTime the Users with the highest rank were $top5")
