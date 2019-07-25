@@ -20,7 +20,7 @@ class GabMiningSpout extends SpoutTrait {
   val fileLines = io.Source.fromFile(directory+"/gabNetwork1000.csv").getLines.drop(1).toArray
   var position = 0
   var linesNumber=fileLines.length
-  println(fileLines.map(_.split(";")(2).trim.toInt).toSet.size)
+  println(fileLines.map(_.split(";")(2).trim.toInt).toSet.union(fileLines.map(_.split(";")(5).trim.toInt).toSet).size)
   println(fileLines.map(_.split(";")(2).trim.toInt).contains(-1))
 
   println(linesNumber)

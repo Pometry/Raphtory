@@ -24,7 +24,7 @@ class ConComLAM(jobID:String) extends LiveAnalysisManager(jobID)  {
 //      }})
 
 //    })
-    println(endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum).size)//.foreach(f=> print(f+" "))
+    println(endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum))//.foreach(f=> print(f+" "))
     println()
   }
 

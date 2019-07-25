@@ -34,10 +34,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
     case CheckMessages(superstep) => {
       var count = 0
-      if(superstep%2 == 1)
-        tempProxy.getVerticesSet()(WorkerID(workerID)).foreach(v => count+=EntityStorage.vertices.get(v).get.vertexMultiQueue.evenMessageQueueMap.getOrElseUpdate("testName",mutable.ArrayStack[VertexMessage]()).size)
-      else
-        tempProxy.getVerticesSet()(WorkerID(workerID)).foreach(v => count+=EntityStorage.vertices.get(v).get.vertexMultiQueue.oddMessageQueueMap.getOrElseUpdate("testName",mutable.ArrayStack[VertexMessage]()).size)
+      tempProxy.getVerticesSet()(WorkerID(workerID)).foreach(v => count += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue.size)
       sender() ! MessagesReceived(workerID,count,receivedMessages.get,tempProxy.getMessages())
     }
     case NextStep(analyzer,jobID,superStep) => nextStep(analyzer,jobID,superStep)

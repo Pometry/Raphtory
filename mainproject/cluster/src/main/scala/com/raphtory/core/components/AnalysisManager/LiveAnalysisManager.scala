@@ -13,6 +13,7 @@ import com.raphtory.core.analysis.{Analyser, GraphRepoProxy}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.sys.process._
 import scala.io.Source
 
@@ -132,18 +133,13 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   }
 
   def endStep(result:Any,messages:Int,voteToHalt:Boolean) = {
-    println("inside")
     currentStepCounter += 1
-    println(result.asInstanceOf[mutable.HashMap[Int,Int]].size)
-    println(results.size)
     results += result
-    println(results.size)
     totalSentMessages += messages
     if (!voteToHalt) this.voteToHalt = false
     if(debug)println(s"$currentStepCounter / $getWorkerCount : $currentStep / $steps")
     if (currentStepCounter == getWorkerCount) {
       if (currentStep == steps || this.checkProcessEnd()) {
-        println(results)
         println(s"Superstep $currentStep: $partitionsHalting")
         // Process results
         try{this.processResults()}catch {case e:Exception => println(e)}
@@ -151,13 +147,13 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         oldResults = mutable.ArrayBuffer[Any]()
         currentStepCounter = 0
         currentStep = 0
-        context.system.scheduler.scheduleOnce(Duration(2, SECONDS), self, "restart")
+        context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "restart")
         totalSentMessages = 0
         totalReceivedMessages =0
       }
       else {
         this.voteToHalt = true
-        //if(debug)
+        if(debug)
           println(s"Sending new step")
         oldResults = results
         results = mutable.ArrayBuffer[Any]()
@@ -177,18 +173,16 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         }
       }
     }
-    else
-      println("end of workerResult "+currentStepCounter)
   }
 
   def messagesReceieved(workerID:Int,real:Int,receivedMessages: Int,sentMessages:Int) = {
     messageCounter +=1
     totalReceivedMessages += receivedMessages
     totalSentMessages += sentMessages
-    //if(real != receivedMessages)
+    if(real != receivedMessages)
       println(s"superstep $currentStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
     if(messageCounter == getWorkerCount) {
-      println()
+      //println()
       messageCounter =0
 
       if(totalReceivedMessages == totalSentMessages){
@@ -200,8 +194,9 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         println(s"checking, $totalReceivedMessages/$totalSentMessages")
         totalReceivedMessages =0
         totalSentMessages = 0
-        Thread.sleep(1000)
-        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages(currentStep))
+        mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, NextStep(this.generateAnalyzer,jobID,currentStep))
+        //Thread.sleep(1000)
+        //mediator ! DistributedPubSubMediator.Publish(Utils.readersWorkerTopic, CheckMessages(currentStep))
       }
     }
   }
