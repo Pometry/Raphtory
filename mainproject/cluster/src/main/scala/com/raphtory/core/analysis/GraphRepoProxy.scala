@@ -13,8 +13,8 @@ class GraphRepoProxy(jobID:String,superstep:Int) {
   private var messages = AtomicInt(0)
   private var voteCount = 0
   def job() = jobID
-  def getVerticesSet()(implicit workerID:WorkerID): ParSet[Int] = {
-    EntityStorage.vertexKeys(workerID.ID)
+  def getVerticesSet()(implicit workerID:WorkerID): Array[Int] = {
+    EntityStorage.vertexKeys(workerID.ID).toArray
   }
 
   def recordMessage() = messages.increment()

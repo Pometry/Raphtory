@@ -20,6 +20,17 @@ class VertexMutliQueue {
     }
   }
 
+  def clearQueues(jobID:String) = {
+    evenMessageQueueMap.get(jobID) match {
+      case Some(q) => q.clear()
+      case None =>
+    }
+    oddMessageQueueMap.get(jobID) match {
+      case Some(q) => q.clear()
+      case None =>
+    }
+  }
+
   def receiveMessage(handler: MessageHandler) = getMessageQueue(handler.jobID,handler.superStep+1).push(handler.message)
 
 

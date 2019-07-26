@@ -73,7 +73,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
 
   override def preStart(): Unit = {
 
-    context.system.scheduler.scheduleOnce(Duration(40, SECONDS), self, "start")
+    context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
     steps = defineMaxSteps()
     //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
@@ -151,6 +151,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         try{this.processResults()}catch {case e:Exception => println(e)}
         results = mutable.ArrayBuffer[Any]()
         oldResults = mutable.ArrayBuffer[Any]()
+       // for(worker <- Utils.getAllReaderWorkers(managerCount))
+       //   mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer,jobID,currentSuperStep),false)
         resetCounters()
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "restart")
       }

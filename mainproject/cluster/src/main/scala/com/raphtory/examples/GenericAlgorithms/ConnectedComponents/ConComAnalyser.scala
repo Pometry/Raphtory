@@ -22,7 +22,9 @@ class ConComAnalyser extends Analyser {
 
   override def analyse()(implicit workerID: WorkerID): Any= {
     var results = ParTrieMap[Int, Int]()
-    proxy.getVerticesSet().foreach(v => {
+    var verts = Set[Int]()
+    //println(s"$workerID ${proxy.getVerticesSet().size}")
+    for(v <- proxy.getVerticesSet()){
 
       val vertex = proxy.getVertex(v)
       val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
@@ -33,16 +35,18 @@ class ConComAnalyser extends Analyser {
       var currentLabel = vertex.getOrSetCompValue("cclabel",v).asInstanceOf[Int]
       if (label < currentLabel) {
         vertex.setCompValue("cclabel", label)
-        vertex messageAllOutgoingNeighbors (ClusterLabel(label))
+        vertex messageAllNeighbours  (ClusterLabel(label))
         currentLabel = label
       }
       else{
-        vertex messageAllOutgoingNeighbors (ClusterLabel(currentLabel))
+        vertex messageAllNeighbours (ClusterLabel(currentLabel))
         //vertex.voteToHalt()
       }
       results.put(currentLabel, 1+results.getOrElse(currentLabel,0))
-
-    })
+      verts+=v
+    }
+    if(verts.size!=proxy.getVerticesSet().size)
+      println(println(s"$workerID ${proxy.getVerticesSet().size} ${verts.size} $verts"))
     results
   }
 

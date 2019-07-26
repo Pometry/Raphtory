@@ -7,29 +7,16 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 import monix.execution.atomic.AtomicInt
-import scala.concurrent.ExecutionContext.Implicits.global
-
-import scala.collection.mutable
-import scala.concurrent.duration.{Duration, SECONDS}
 
 class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Actor{
   implicit var managerCount: Int = managerCountVal
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
-  val debug = false
-  implicit val workerID: Int = workerId
   var receivedMessages = AtomicInt(0)
   var tempProxy:GraphRepoProxy = null
 
-  override def preStart(): Unit = {
-    //context.system.scheduler.schedule(Duration(40, SECONDS), self, "start")
-
-    //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(5, SECONDS), self, "start") // Refresh networkSize and restart analysis currently
-  }
-
   override def receive: Receive = {
-    //case "start" => println(s"Worker $workerID: $this")
     case UpdatedCounter(newValue) => managerCount = newValue
     case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
     case CheckMessages(superstep) => checkMessages()
@@ -45,45 +32,32 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   def checkMessages() ={
     var count = 0
-    tempProxy.getVerticesSet()(WorkerID(workerID)).foreach(v => count += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue2.size)
-    sender() ! MessagesReceived(workerID,count,receivedMessages.get,tempProxy.getMessages())
+    tempProxy.getVerticesSet()(WorkerID(workerId)).foreach(v => count += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue2.size)
+    var count2 = 0
+    tempProxy.getVerticesSet()(WorkerID(workerId)).foreach(v => count2 += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue.size)
+    //println(s"queue next $count queue now $count2")
+    sender() ! MessagesReceived(workerId,count,receivedMessages.get,tempProxy.getMessages())
   }
 
   def setup(analyzer: Analyser,jobID:String,superStep:Int) {
-    //val rebuildAnalyser = Utils.deserialise(Utils.serialise(analyzer)).asInstanceOf[Analyser]
+    EntityStorage.vertexKeys(workerId).foreach(v=> EntityStorage.vertices(v).vertexMultiQueue.clearQueues(jobID))
     receivedMessages.set(0)
     tempProxy = new GraphRepoProxy(jobID,superStep)
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
-    analyzer.setup()(new WorkerID(workerID))
+    analyzer.setup()(new WorkerID(workerId))
     sender() ! Ready(tempProxy.getMessages())
+
   }
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int): Unit = {
-    if(debug)println(s"Received new step for pm_$managerID")
-    //try {
-      //val rebuildAnalyser = Utils.deserialise(Utils.serialise(analyzer)).asInstanceOf[Analyser]
-      receivedMessages.set(0)
-      tempProxy = new GraphRepoProxy(jobID,superStep)
+    //println(analyzer)
+    receivedMessages.set(0)
+    tempProxy = new GraphRepoProxy(jobID,superStep)
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
-      val senderPath = sender().path
-      analyze(analyzer,senderPath)
-
-    //}
-   // catch {
-   //   case e: Exception => {
-   //     println(e)
-   //     sender() ! ExceptionInAnalysis(e.toString)
-   //   }
-  //  }
-  }
-
-  private def analyze(analyzer: Analyser, senderPath: ActorPath) = {
-    val value = analyzer.analyse()(new WorkerID(workerID))
-    if(debug)println("StepEnd success. Sending to " + senderPath.toStringWithoutAddress)
-    mediator ! DistributedPubSubMediator.Send(senderPath.toStringWithoutAddress, EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerID)), false)
+    val value = analyzer.analyse()(new WorkerID(workerId))
+    sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
 
   }
-
 
   def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int) = {
     nextStep(Utils.analyserMap(name),jobID,currentStep)
