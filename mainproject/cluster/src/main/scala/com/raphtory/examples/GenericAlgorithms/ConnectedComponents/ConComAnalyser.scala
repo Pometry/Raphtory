@@ -45,8 +45,8 @@ class ConComAnalyser extends Analyser {
       results.put(currentLabel, 1+results.getOrElse(currentLabel,0))
       verts+=v
     }
-    if(verts.size!=proxy.getVerticesSet().size)
-      println(println(s"$workerID ${proxy.getVerticesSet().size} ${verts.size} $verts"))
+    //if(verts.size!=proxy.getVerticesSet().size)
+    //  println(println(s"$workerID ${proxy.getVerticesSet().size} ${verts.size} $verts"))
     results
   }
 

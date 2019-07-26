@@ -207,7 +207,9 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         totalSentMessages = 0
         Thread.sleep(1000)
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep),false)
+
+       // mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
       }
     }
   }
