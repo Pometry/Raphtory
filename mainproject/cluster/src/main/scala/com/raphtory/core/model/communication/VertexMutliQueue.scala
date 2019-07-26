@@ -20,7 +20,7 @@ class VertexMutliQueue {
     }
   }
 
-  def receiveMessage(handler: MessageHandler) = getMessageQueue(handler.jobID,handler.superStep).push(handler.message)
+  def receiveMessage(handler: MessageHandler) = getMessageQueue(handler.jobID,handler.superStep+1).push(handler.message)
 
 
 }

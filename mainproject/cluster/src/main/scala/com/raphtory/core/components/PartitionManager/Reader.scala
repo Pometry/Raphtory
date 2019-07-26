@@ -18,7 +18,6 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersTopic, self)
-
   val debug = false
 
   var readers: ParTrieMap[Int,ActorRef] = new ParTrieMap[Int,ActorRef]()
@@ -33,7 +32,7 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
   }
 
   override def receive: Receive = {
-    case ReaderWorkersOnline() => sender() ! ReaderWorkersACK()
+    case ReaderWorkersOnline() =>sender() ! ReaderWorkersACK()
     case AnalyserPresentCheck(classname) => presentCheck(classname)
     case CompileNewAnalyser(analyser, name) => compileNewAnalyser(analyser, name)
     case UpdatedCounter(newValue) => managerCount = newValue; readers.foreach(x=> x._2 ! UpdatedCounter(newValue))

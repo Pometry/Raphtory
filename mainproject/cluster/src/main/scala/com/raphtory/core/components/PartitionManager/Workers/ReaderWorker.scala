@@ -32,37 +32,41 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     //case "start" => println(s"Worker $workerID: $this")
     case UpdatedCounter(newValue) => managerCount = newValue
     case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
-    case CheckMessages(superstep) => {
-      var count = 0
-      tempProxy.getVerticesSet()(WorkerID(workerID)).foreach(v => count += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue.size)
-      sender() ! MessagesReceived(workerID,count,receivedMessages.get,tempProxy.getMessages())
-    }
+    case CheckMessages(superstep) => checkMessages()
     case NextStep(analyzer,jobID,superStep) => nextStep(analyzer,jobID,superStep)
     case NextStepNewAnalyser(name,jobID,currentStep) => nextStepNewAnalyser(name,jobID,currentStep)
-    case handler:MessageHandler => {
-      receivedMessages.add(1)
-      EntityStorage.vertices(handler.vertexID).vertexMultiQueue.receiveMessage(handler)
-    }
+    case handler:MessageHandler => receivedMessage(handler)
+  }
+
+  def receivedMessage(handler:MessageHandler) = {
+    receivedMessages.add(1)
+    EntityStorage.vertices(handler.vertexID).vertexMultiQueue.receiveMessage(handler)
+  }
+
+  def checkMessages() ={
+    var count = 0
+    tempProxy.getVerticesSet()(WorkerID(workerID)).foreach(v => count += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue2.size)
+    sender() ! MessagesReceived(workerID,count,receivedMessages.get,tempProxy.getMessages())
   }
 
   def setup(analyzer: Analyser,jobID:String,superStep:Int) {
-    val rebuildAnalyser = Utils.deserialise(Utils.serialise(analyzer)).asInstanceOf[Analyser]
+    //val rebuildAnalyser = Utils.deserialise(Utils.serialise(analyzer)).asInstanceOf[Analyser]
     receivedMessages.set(0)
     tempProxy = new GraphRepoProxy(jobID,superStep)
-    rebuildAnalyser.sysSetup(context,ManagerCount(managerCount),tempProxy)
-    rebuildAnalyser.setup()(new WorkerID(workerID))
+    analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
+    analyzer.setup()(new WorkerID(workerID))
     sender() ! Ready(tempProxy.getMessages())
   }
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int): Unit = {
     if(debug)println(s"Received new step for pm_$managerID")
     //try {
-      val rebuildAnalyser = Utils.deserialise(Utils.serialise(analyzer)).asInstanceOf[Analyser]
+      //val rebuildAnalyser = Utils.deserialise(Utils.serialise(analyzer)).asInstanceOf[Analyser]
       receivedMessages.set(0)
       tempProxy = new GraphRepoProxy(jobID,superStep)
-      rebuildAnalyser.sysSetup(context,ManagerCount(managerCount),tempProxy)
+    analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
       val senderPath = sender().path
-      analyze(rebuildAnalyser,senderPath)
+      analyze(analyzer,senderPath)
 
     //}
    // catch {
