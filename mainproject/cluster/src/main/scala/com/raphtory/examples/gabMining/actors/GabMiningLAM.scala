@@ -7,8 +7,12 @@ import com.raphtory.examples.gabMining.communications.VertexAndItsEdges
 import com.raphtory.examples.gabMining.utils.writeToFile
 
 
-class GabMiningLAM extends LiveAnalysisManager {
+//<<<<<<< HEAD
+class GabMiningLAM (jobID:String)extends LiveAnalysisManager (jobID)  {
   val writing=new writeToFile()
+//=======
+//class GabMiningLAM(jobID:String) extends LiveAnalysisManager(jobID) {
+//>>>>>>> upstream/master
 
   override protected def defineMaxSteps(): Int = 1
 
@@ -26,14 +30,14 @@ class GabMiningLAM extends LiveAnalysisManager {
         maxInDegree= degree.toString.toInt
         maxVertex=vertex.toString.toInt
       }
-//      else{
-//        maxInDegree= b.toString.toInt
-//        maxVertex=a.toString.toInt
-//      }
+
     }
-    println(" Vertex : " +maxVertex + " is a star with " +maxInDegree+" incoming edges")
-    var text=maxVertex +","+maxInDegree
-    writing.writeLines("stars.csv",text)
+    if (maxInDegree>100) {
+      println(" Vertex : " + maxVertex + " is a star with " + maxInDegree + " incoming edges")
+      var text = maxVertex + "," + maxInDegree
+      writing.writeLines("stars.csv", text)
+
+    }
   }
 
   override protected def processOtherMessages(value: Any): Unit = ""

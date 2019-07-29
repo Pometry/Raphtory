@@ -88,12 +88,17 @@ sealed trait RaphReadClasses
 
 trait VertexMessage
 
-case class Setup(analyzer : Analyser) extends RaphReadClasses
-case class Ready() extends RaphReadClasses
-case class NextStep(analyzer : Analyser) extends RaphReadClasses
-case class NextStepNewAnalyser(name: String) extends RaphReadClasses
-case class EndStep(results : Any) extends RaphReadClasses // TODO Define results
+case class MessageHandler(vertexID:Int,jobID:String,superStep:Int,message: VertexMessage)
+
+case class Setup(analyzer : Analyser,jobID:String,superStep:Int) extends RaphReadClasses
+case class Ready(messages:Int) extends RaphReadClasses
+case class NextStep(analyzer : Analyser,jobID:String,superStep:Int) extends RaphReadClasses
+case class NextStepNewAnalyser(name: String,jobID:String,superStep:Int) extends RaphReadClasses
+case class EndStep(results : Any,messages:Int,voteToHalt:Boolean) extends RaphReadClasses // TODO Define results
 case class ExceptionInAnalysis(e:String) extends RaphReadClasses
+
+case class MessagesReceived(workerID:Int,real:Int,receivedMessages:Int,sentMessages:Int) extends RaphReadClasses
+case class CheckMessages(superstep:Int) extends RaphReadClasses
 
 case class ReaderWorkersOnline() extends RaphReadClasses
 case class ReaderWorkersACK() extends RaphReadClasses

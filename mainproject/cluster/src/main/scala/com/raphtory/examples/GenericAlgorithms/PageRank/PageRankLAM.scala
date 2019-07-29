@@ -1,10 +1,9 @@
-package com.raphtory.examples.gab.actors
+package com.raphtory.examples.GenericAlgorithms.PageRank
 
-import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
-import com.raphtory.examples.gab.analysis.ExamplePageRank
+import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 
-class GabLiveAnalyserManager extends LiveAnalysisManager {
+class PageRankLAM(jobID:String) extends LiveAnalysisManager(jobID) {
   /*private val B       : Int   = 100 // TODO set
   private val epsilon : Float = 0.85F
   private val delta1  : Float = 1F*/
@@ -13,21 +12,22 @@ class GabLiveAnalyserManager extends LiveAnalysisManager {
   private val dumplingFactor = 0.85F
   private var firstStep      = true
   private var getNetworkSize = 0
-  override protected def processResults(result: Any): Unit = println(
-    result.asInstanceOf[Vector[Vector[(Long, Float)]]].flatten.sortBy(f => f._2)(Ordering[Float].reverse))/*.asInstanceOf[Vector[Vector[(Long, Double)]]]
-      .flatMap(e => e).sortBy(f => f._2)(Ordering[Double])
-      .reverse
-  )*/
+  override protected def processResults(result: Any): Unit = {
+    val endResults = result.asInstanceOf[Vector[(Long,Vector[(Long, Float)])]]
+    val top5 = endResults.map(x => x._2).flatten.sortBy(f => f._2)(Ordering[Float].reverse).take(5)
+    val topTime = new java.util.Date(endResults.map(x => x._1).max)
+    println (s"At $topTime the Users with the highest rank were $top5")
 
+  }
   override protected def defineMaxSteps(): Int = {
     //steps =  (B * Math.log(getNetworkSize/epsilon)).round
     steps = 50 //Int.MaxValue
     if (getNetworkSize != 0)
       epsilon = 1/(100*getNetworkSize)
-    10
+    100
   }
 
-  override protected def generateAnalyzer : Analyser = new ExamplePageRank(getNetworkSize, dumplingFactor)
+  override protected def generateAnalyzer : Analyser = new PageRankAnalyser(getNetworkSize, dumplingFactor)
   override protected def processOtherMessages(value: Any) : Unit = {println ("Not handled message" + value.toString)}
 
   override protected def checkProcessEnd() : Boolean = {

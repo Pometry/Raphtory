@@ -3,7 +3,7 @@ package com.raphtory.examples.random.analysis
 import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
 
-class RandomVoidAnalyser extends LiveAnalysisManager {
+class RandomVoidAnalyser(jobID:String) extends LiveAnalysisManager(jobID) {
 
   override def preStart(): Unit = {}
   override protected def processResults(result: Any): Unit = {}

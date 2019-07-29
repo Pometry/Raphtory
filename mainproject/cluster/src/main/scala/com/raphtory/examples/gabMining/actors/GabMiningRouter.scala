@@ -18,10 +18,12 @@ class GabMiningRouter (routerId:Int,override val initialManagerCount:Int) extend
     toPartitionManager(VertexAdd(routerId, creationDate, sourceNode))
     //create destinationNode
     //create edge
+//<<<<<<< HEAD
     if (targetNode>0) {
       toPartitionManager(VertexAdd(routerId, creationDate, targetNode))
       toPartitionManager(EdgeAdd(routerId, creationDate, sourceNode, targetNode))
     }
+
   }
 
   def dateToUnixTime(timestamp: => String): Long = {
@@ -31,10 +33,15 @@ class GabMiningRouter (routerId:Int,override val initialManagerCount:Int) extend
     val sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
     //println(sdf)
     val dt = sdf.parse(timestamp)
-    //println(dt)
+
     val epoch = dt.getTime()
     //println("*******EPOCH: "+epoch)
-    epoch / 1000
+    epoch
+//=======
+//    val epoch = dt.getTime
+//   // println(epoch)
+//    epoch
+//>>>>>>> upstream/master
 
   }
 }

@@ -1,6 +1,6 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.model.communication.VertexMessage
+import com.raphtory.core.model.communication.{VertexMessage, VertexMutliQueue}
 import com.raphtory.core.storage.{EntityStorage, VertexHistoryPoint, VertexPropertyPoint}
 import com.raphtory.core.utils.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
 
@@ -53,8 +53,9 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   var incomingEdges  = ParTrieMap[Long, Edge]()
   var outgoingEdges  = ParTrieMap[Long, Edge]()
 
-  val messageQueue = mutable.Stack[VertexMessage]()
-  def receiveMessage(message: VertexMessage) = messageQueue.push(message)
+  val vertexMultiQueue = new VertexMutliQueue()
+  def mutliQueue = vertexMultiQueue
+  var computationValues = ParTrieMap[String, Any]()
 
   def addAssociatedEdge(edge: Edge): Unit = {
     if(edge.getSrcId==vertexId)
@@ -70,6 +71,22 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   def addOutgoingEdge(id:Int) = {
     outgoingIDs += id
   }
+
+  def addCompValue(key:String,value:Any):Unit = {
+    computationValues += ((key,value))
+  }
+  def getCompValue(key:String) = {
+    computationValues(key)
+  }
+  def getOrSet(key:String,value:Any) ={
+    if(computationValues.contains(key))
+      computationValues(key)
+    else{
+      computationValues += ((key,value))
+      value
+    }
+  }
+
 
   /*override def printProperties(): String =
     s"Vertex $vertexId with properties: \n" + super.printProperties()*/

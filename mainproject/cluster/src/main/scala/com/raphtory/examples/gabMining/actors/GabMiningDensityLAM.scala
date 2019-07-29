@@ -6,7 +6,7 @@ import com.raphtory.examples.gabMining.analysis.GabMiningDensityAnalyser
 
 import com.raphtory.examples.gabMining.utils.writeToFile
 
-class GabMiningDensityLAM extends LiveAnalysisManager{
+class GabMiningDensityLAM(jobID: String) extends LiveAnalysisManager(jobID){
   val writing=new writeToFile()
   override protected def defineMaxSteps(): Int = 1
 
@@ -18,7 +18,7 @@ class GabMiningDensityLAM extends LiveAnalysisManager{
     var totalVertices=0
     var totalEdges=0
 
-    println("*********INSIDE LAM: " + results)
+   // println("*********INSIDE LAM: " + results)
     for ((vertices,edges) <- results){
       totalVertices+=vertices.toString.toInt
       totalEdges+=edges.toString.toInt
@@ -27,7 +27,7 @@ class GabMiningDensityLAM extends LiveAnalysisManager{
     println(f"Total vertices: "+ totalVertices + " Total edges: "+ totalEdges + " Density: "+density)
     var text= totalVertices + ","+ totalEdges + ","+density
 
-    writing.writeLines("Density2.csv",text)
+    writing.writeLines("Density3.csv",text)
 
 
   }

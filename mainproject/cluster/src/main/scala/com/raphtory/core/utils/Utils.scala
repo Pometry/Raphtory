@@ -11,6 +11,9 @@ import org.apache.commons.lang.StringEscapeUtils
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
+import java.io._
+import java.util.Base64
+import java.nio.charset.StandardCharsets.UTF_8
 object Utils {
   val clusterSystemName = "dockerexp"
   val config            = ConfigFactory.load
@@ -31,22 +34,23 @@ object Utils {
   }
 
   def getPartition(ID:Int, managerCount : Int):Int = {
-    (ID % (managerCount *10)) /10
+    (ID.abs % (managerCount *10)) /10
   }
   def getWorker(ID:Int, managerCount : Int):Int = {
-    (ID % (managerCount *10)) %10
+    (ID.abs % (managerCount *10)) %10
   }
   //get the partition a vertex is stored in
   def checkDst(dstID:Int, managerCount:Int, managerID:Int):Boolean = getPartition(dstID,managerCount) == managerID //check if destination is also local
   def checkWorker(dstID:Int, managerCount:Int, workerID:Int):Boolean = getWorker(dstID,managerCount) == workerID //check if destination is also local
+
   def getManager(srcId:Int, managerCount : Int):String = {
-    val mod = srcId % (managerCount *10)
+    val mod = srcId.abs % (managerCount *10)
     val manager = mod /10
     val worker = mod % 10
     s"/user/Manager_${manager}_child_$worker"
   } //simple srcID hash at the moment
   def getReader(srcId:Int, managerCount : Int):String = {
-    val mod = srcId % (managerCount *10)
+    val mod = srcId.abs % (managerCount *10)
     val manager = mod /10
     val worker = mod % 10
 
@@ -105,4 +109,25 @@ object Utils {
 
   def nowTimeStamp()= new SimpleDateFormat("dd-MM hh:mm:ss").format(System.currentTimeMillis())
   def unixToTimeStamp(unixTime:Long) = new SimpleDateFormat("dd-MM hh:mm:ss").format(unixTime)
+
+
+
+  def serialise(value: Any): String = {
+    val stream: ByteArrayOutputStream = new ByteArrayOutputStream()
+    val oos = new ObjectOutputStream(stream)
+    oos.writeObject(value)
+    oos.close
+    new String(
+      Base64.getEncoder().encode(stream.toByteArray),
+      UTF_8
+    )
+  }
+
+  def deserialise(str: String): Any = {
+    val bytes = Base64.getDecoder().decode(str.getBytes(UTF_8))
+    val ois = new ObjectInputStream(new ByteArrayInputStream(bytes))
+    val value = ois.readObject
+    ois.close
+    value
+  }
 }

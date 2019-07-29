@@ -1,14 +1,9 @@
-package com.raphtory.examples.gab.analysis
+package com.raphtory.examples.GenericAlgorithms.PageRank
 
-import akka.actor.ActorContext
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, Worker}
+import com.raphtory.core.analysis.{Analyser, WorkerID}
 import com.raphtory.core.model.communication.VertexMessage
-import monix.execution.atomic.AtomicDouble
 
-import scala.concurrent.Await
-import scala.util.Random
-
-class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyser {
+class PageRankAnalyser(networkSize : Int, dumplingFactor : Float) extends Analyser {
 
   private val prStr              = "_pageRank"
   private val outgoingCounterStr = "_outgoingCounter"
@@ -20,31 +15,32 @@ class ExamplePageRank(networkSize : Int, dumplingFactor : Float) extends Analyse
 
   private def getPageRankStr(srcId : Int, dstId : Int) : String = s"${prStr}_${srcId}_$dstId"
 
-  override def setup()(implicit workerID: Worker) = {
+  override def setup()(implicit workerID: WorkerID) = {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
-      vertex.updateProperty(prStr, defaultPR.toString)
-      val outgoings = vertex.getOutgoingNeighbors
-      vertex.messageAllOutgoingNeighbors(PageRankScore(defaultPR))
+//      if(vertex.messageQueue.nonEmpty)
+//        println(vertex.messageQueue)
+      val toSend = vertex.getOrSetCompValue(prStr, defaultPR).asInstanceOf[Float]
+      vertex.messageAllOutgoingNeighbors(PageRankScore(toSend))
     })
   }
 
-  override def analyse()(implicit workerID: Worker) : Vector[(Long, Float)] = {
+  override def analyse()(implicit workerID: WorkerID) : (Long,Vector[(Long, Float)]) = {
     var results = Vector.empty[(Long, Float)]
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       var neighbourScores = 0F
       while(vertex moreMessages)
         neighbourScores += vertex.nextMessage().asInstanceOf[PageRankScore].value
+
       val newPR:Float = neighbourScores/math.max(vertex.getOutgoingNeighbors.size,1)
-      vertex.updateProperty(prStr, newPR.toString)
+      vertex.setCompValue(prStr, newPR)
       vertex messageAllOutgoingNeighbors(PageRankScore(newPR))
       results +:= (v.toLong, newPR)
       })
-
-    if (results.size > 10) {
-      results = results.sortBy(_._2)(Ordering[Float].reverse).take(10)
+    if (results.size > 5) {
+      results = results.sortBy(_._2)(Ordering[Float].reverse).take(5)
     }
-    results
+    (proxy.latestTime,results)
   }
 }

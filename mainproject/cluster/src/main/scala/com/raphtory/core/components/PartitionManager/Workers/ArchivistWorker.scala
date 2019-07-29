@@ -9,14 +9,8 @@ import scala.collection.parallel.mutable.ParTrieMap
 class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
 
   //timestamps to make sure all entities are compressed to exactly the same point
-
-//<<<<<<< HEAD
- // val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "true").trim.toBoolean
-  //val saving    : Boolean =  System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
-//=======
   val compressing    : Boolean =  Utils.compressing
   val saving    : Boolean = Utils.saving
-//>>>>>>> upstream/master
 
   var startedCompressions   = 0
   var finishedCompressions  = 0
