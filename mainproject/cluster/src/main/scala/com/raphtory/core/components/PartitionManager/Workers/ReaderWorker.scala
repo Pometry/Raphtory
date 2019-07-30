@@ -27,26 +27,22 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   def receivedMessage(handler:MessageHandler) = {
     receivedMessages.add(1)
-    EntityStorage.vertices(handler.vertexID).vertexMultiQueue.receiveMessage(handler)
+    EntityStorage.vertices(handler.vertexID).mutliQueue.receiveMessage(handler)
   }
 
   def checkMessages() ={
     var count = 0
     tempProxy.getVerticesSet()(WorkerID(workerId)).foreach(v => count += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue2.size)
-    var count2 = 0
-    tempProxy.getVerticesSet()(WorkerID(workerId)).foreach(v => count2 += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue.size)
-    //println(s"queue next $count queue now $count2")
     sender() ! MessagesReceived(workerId,count,receivedMessages.get,tempProxy.getMessages())
   }
 
   def setup(analyzer: Analyser,jobID:String,superStep:Int) {
-    EntityStorage.vertexKeys(workerId).foreach(v=> EntityStorage.vertices(v).vertexMultiQueue.clearQueues(jobID))
+    EntityStorage.vertexKeys(workerId).foreach(v=> EntityStorage.vertices(v).mutliQueue.clearQueues(jobID))
     receivedMessages.set(0)
     tempProxy = new GraphRepoProxy(jobID,superStep)
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
     analyzer.setup()(new WorkerID(workerId))
     sender() ! Ready(tempProxy.getMessages())
-
   }
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int): Unit = {
