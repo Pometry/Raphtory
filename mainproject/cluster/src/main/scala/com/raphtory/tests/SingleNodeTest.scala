@@ -46,9 +46,8 @@ object SingleNodeTest extends App {
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
   val cl = Class.forName(LamClassName)
-  val cons = cl.getConstructor(classOf[String],classOf[Long])
-  system.actorOf(Props(cons.newInstance("testName",1471459626000L.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
-
+  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long])
+  system.actorOf(Props(cons.newInstance("testName",1470801546000L.asInstanceOf[AnyRef],1471459626000L.asInstanceOf[AnyRef],86400000.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 
   //Thread.sleep(60000)
   //println("hello there")

@@ -1,13 +1,13 @@
 package com.raphtory.examples.GenericAlgorithms.ConnectedComponents
 
 import com.raphtory.core.analysis.Analyser
-import com.raphtory.core.components.AnalysisManager.{LiveAnalysisManager, ViewAnalysisManager}
+import com.raphtory.core.components.AnalysisManager.{LiveAnalysisManager, RangeAnalysisManager, ViewAnalysisManager}
 import com.raphtory.examples.GenericAlgorithms.PageRank.PageRankAnalyser
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class ConComLAM(jobID:String,time:Long) extends ViewAnalysisManager(jobID,time)  {
+class ConComLAM(jobID:String,start:Long,end:Long,hop:Long) extends RangeAnalysisManager(jobID,start,end,hop)  {
 
   override protected def processResults(): Unit = {
 
@@ -24,7 +24,8 @@ class ConComLAM(jobID:String,time:Long) extends ViewAnalysisManager(jobID,time) 
 //      }})
 
 //    })
-    println(endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum))//.foreach(f=> print(f+" "))
+    print(s"At ${timestamp()} the connected components were: ")
+    println("   " + endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum))//.foreach(f=> print(f+" "))
     println()
   }
 

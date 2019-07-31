@@ -18,7 +18,7 @@ import scala.sys.process._
 import scala.io.Source
 
 abstract class LiveAnalysisManager(jobID:String) extends Actor {
-  private var managerCount : Int = 0 //Number of Managers in the Raphtory Cluster
+  protected var managerCount : Int = 0 //Number of Managers in the Raphtory Cluster
   private var currentSuperStep  = 0 //SuperStep the algorithm is currently on
 
   //Communication Counters
@@ -75,7 +75,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
 
   override def preStart(): Unit = {
 
-    context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
+    context.system.scheduler.scheduleOnce(Duration(100, SECONDS), self, "start")
     steps = defineMaxSteps()
     //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
@@ -156,7 +156,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
        // for(worker <- Utils.getAllReaderWorkers(managerCount))
        //   mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer,jobID,currentSuperStep),false)
         resetCounters()
-        context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "restart")
+        context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "restart")
       }
       else {
         this.voteToHalt = true

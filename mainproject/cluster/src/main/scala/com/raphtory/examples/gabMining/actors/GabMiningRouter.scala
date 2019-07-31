@@ -13,7 +13,6 @@ class GabMiningRouter (routerId:Int,override val initialManagerCount:Int) extend
     val targetNode=fileLine(5).toInt
 
     val creationDate = dateToUnixTime(timestamp=fileLine(0).slice(0,19))
-
     //create sourceNode
     toPartitionManager(VertexAdd(routerId, creationDate, sourceNode))
     //create destinationNode
