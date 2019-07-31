@@ -16,10 +16,12 @@ class GabMiningRouter (routerId:Int,override val initialManagerCount:Int) extend
     //create sourceNode
     toPartitionManager(VertexAdd(routerId, creationDate, sourceNode))
     //create destinationNode
-    toPartitionManager(VertexAdd(routerId, creationDate, targetNode))
+
     //create edge
-    //if (targetNode>0)
-    toPartitionManager(EdgeAdd(routerId, creationDate, sourceNode, targetNode))
+    if (targetNode>0) {
+      toPartitionManager(VertexAdd(routerId, creationDate, targetNode))
+      toPartitionManager(EdgeAdd(routerId, creationDate, sourceNode, targetNode))
+    }
 
   }
 

@@ -1,5 +1,7 @@
 package com.raphtory.examples.GenericAlgorithms.ConnectedComponents
 
+import java.util.Date
+
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.components.AnalysisManager.{LiveAnalysisManager, RangeAnalysisManager, ViewAnalysisManager}
 import com.raphtory.examples.GenericAlgorithms.PageRank.PageRankAnalyser
@@ -24,8 +26,9 @@ class ConComLAM(jobID:String,start:Long,end:Long,hop:Long) extends RangeAnalysis
 //      }})
 
 //    })
-    print(s"At ${timestamp()} the connected components were: ")
-    println("   " + endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum))//.foreach(f=> print(f+" "))
+    println(s"At ${new Date(timestamp())} there were ${endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum).size } connected components")
+    //println()
+    //endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum).foreach(f=> println(s"  Group ${f._1} with size ${f._2} "))
     println()
   }
 
