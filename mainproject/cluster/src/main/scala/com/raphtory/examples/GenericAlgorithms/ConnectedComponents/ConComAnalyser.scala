@@ -25,7 +25,6 @@ class ConComAnalyser extends Analyser {
     var verts = Set[Int]()
     //println(s"$workerID ${proxy.getVerticesSet().size}")
     for(v <- proxy.getVerticesSet()){
-
       val vertex = proxy.getVertex(v)
       val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
       var label = v

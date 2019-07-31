@@ -19,8 +19,8 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
 
   private val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   val vert:Vertex = v
-  val messageQueue = v.vertexMultiQueue.getMessageQueue(jobID,superStep)
-  val messageQueue2 = v.vertexMultiQueue.getMessageQueue(jobID,superStep+1)
+  val messageQueue = v.mutliQueue.getMessageQueue(jobID,superStep)
+  val messageQueue2 = v.mutliQueue.getMessageQueue(jobID,superStep+1)
   def getOutgoingNeighbors : ParArray[Int] = v.outgoingIDs.toParArray
   def getIngoingNeighbors  : ParArray[Int] = v.incomingIDs.toParArray
   def getAllNeighbors: ParArray[Int] = v.incomingIDs.union(v.outgoingIDs).toParArray

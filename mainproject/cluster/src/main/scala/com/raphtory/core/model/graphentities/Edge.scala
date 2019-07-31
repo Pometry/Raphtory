@@ -70,7 +70,7 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
   def aliveAt(time:Long):Boolean = {
     var closestTime:Long = 0
     var value = false
-    for((k,v) <- compressedState){
+    for((k,v) <- previousState){
       if(k<=time)
         if((time-k)<(time-closestTime)) {
           closestTime = k
@@ -90,7 +90,7 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
     }
     var closestTime:Long = 0
     var value = false
-    for((k,v) <- compressedState){
+    for((k,v) <- previousState){
       if(k<=time)
         if((time-k)<(time-closestTime)) {
           closestTime = k

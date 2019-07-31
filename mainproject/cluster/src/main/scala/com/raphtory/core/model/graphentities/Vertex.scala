@@ -2,7 +2,7 @@ package com.raphtory.core.model.graphentities
 
 import com.raphtory.core.model.communication.{VertexMessage, VertexMutliQueue}
 import com.raphtory.core.storage.{EntityStorage, VertexHistoryPoint, VertexPropertyPoint}
-import com.raphtory.core.utils.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
+import com.raphtory.core.utils.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException, Utils}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParSet
@@ -92,8 +92,6 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   }
 
 
-  /*override def printProperties(): String =
-    s"Vertex $vertexId with properties: \n" + super.printProperties()*/
   override def getId = vertexId
 
   def addSavedProperty(property:VertexPropertyPoint,time:Long): Unit ={
@@ -117,7 +115,7 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
       false
     var closestTime:Long = 0
     var value = false
-    for((k,v) <- compressedState){
+    for((k,v) <- previousState){
       if(k<=time)
         if((time-k)<(time-closestTime)) {
           closestTime = k
@@ -136,7 +134,7 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     }
     var closestTime:Long = 0
     var value = false
-    for((k,v) <- compressedState){
+    for((k,v) <- previousState){
       if(k<=time)
         if((time-k)<(time-closestTime)) {
           closestTime = k
@@ -155,12 +153,12 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
       if (!(value equals("default")))
         vertex  + (time,k,value)
     }
-    for(e <- incomingIDs){
-      if(EntityStorage.edges(e).aliveAt(time))
+    for(e <- incomingIDs.toArray){
+      if(EntityStorage.edges(Utils.getEdgeIndex(e,vertexId)).aliveAt(time))
         vertex.addIncomingEdge(e)
     }
-    for(e <- outgoingIDs){
-      if(EntityStorage.edges(e).aliveAt(time))
+    for(e <- outgoingIDs.toArray){
+      if(EntityStorage.edges(Utils.getEdgeIndex(vertexId,e)).aliveAt(time))
         vertex.addIncomingEdge(e)
     }
     vertex
