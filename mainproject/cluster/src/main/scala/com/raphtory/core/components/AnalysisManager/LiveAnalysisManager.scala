@@ -59,7 +59,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
 
 
   protected var steps  : Long= 0L // number of supersteps before returning
-  protected var timestamp: Long = 1471459626000L
+  def timestamp(): Long = -1L
 
   /******************** STUFF TO DEFINE *********************/
   protected def defineMaxSteps() : Int

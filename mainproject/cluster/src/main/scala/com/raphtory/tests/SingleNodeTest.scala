@@ -4,6 +4,7 @@ package com.raphtory.tests
 
 import akka.actor.{Actor, ActorSystem, Props}
 import ch.qos.logback.classic.Level
+import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog}
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
@@ -44,11 +45,9 @@ object SingleNodeTest extends App {
  // system.actorOf(Props(RaphtoryReplicator("Partition Manager",2)), s"PartitionManager2")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
-  import java.lang.reflect.Constructor
-
   val cl = Class.forName(LamClassName)
-  val cons = cl.getConstructor(classOf[String])
-  system.actorOf(Props( cons.newInstance("testName").asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
+  val cons = cl.getConstructor(classOf[String],classOf[Long])
+  system.actorOf(Props(cons.newInstance("testName",1471459626000L.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 
 
   //Thread.sleep(60000)

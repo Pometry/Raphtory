@@ -1,13 +1,13 @@
 package com.raphtory.examples.GenericAlgorithms.ConnectedComponents
 
 import com.raphtory.core.analysis.Analyser
-import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
+import com.raphtory.core.components.AnalysisManager.{LiveAnalysisManager, ViewAnalysisManager}
 import com.raphtory.examples.GenericAlgorithms.PageRank.PageRankAnalyser
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class ConComLAM(jobID:String) extends LiveAnalysisManager(jobID)  {
+class ConComLAM(jobID:String,time:Long) extends ViewAnalysisManager(jobID,time)  {
 
   override protected def processResults(): Unit = {
 
