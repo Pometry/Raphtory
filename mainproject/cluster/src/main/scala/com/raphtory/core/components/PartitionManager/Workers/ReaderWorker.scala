@@ -38,9 +38,9 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   }
 
   def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long) {
-    EntityStorage.vertexKeys(workerId).foreach(v=> EntityStorage.vertices(v).mutliQueue.clearQueues(jobID))
     receivedMessages.set(0)
     setProxy(jobID,superStep,timestamp)
+    EntityStorage.vertexKeys(workerId).foreach(v=> EntityStorage.vertices(v).mutliQueue.clearQueues(tempProxy.job()))
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
     analyzer.setup()(new WorkerID(workerId))
     sender() ! Ready(tempProxy.getMessages())
