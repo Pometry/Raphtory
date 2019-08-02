@@ -9,6 +9,7 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import com.twitter.util.Eval
 import akka.actor.Terminated
+import com.raphtory.core.storage.EntityStorage
 
 import scala.collection.parallel.mutable.ParTrieMap
 
@@ -34,6 +35,7 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
   override def receive: Receive = {
     case ReaderWorkersOnline() =>sender() ! ReaderWorkersACK()
     case AnalyserPresentCheck(classname) => presentCheck(classname)
+    case TimeCheck(timestamp) => timeCheck(timestamp)
     case CompileNewAnalyser(analyser, name) => compileNewAnalyser(analyser, name)
     case UpdatedCounter(newValue) => managerCount = newValue; readers.foreach(x=> x._2 ! UpdatedCounter(newValue))
     case SubscribeAck =>
@@ -53,6 +55,13 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
         sender() ! ClassMissing()
       }
     }
+  }
+
+  def timeCheck(timestamp: Long) = {
+    if(timestamp < EntityStorage.newestTime)
+      sender() ! TimeResponse(true)
+    else
+      sender() ! TimeResponse(false)
   }
 
   def compileNewAnalyser(analyserString: String, name: String) = {

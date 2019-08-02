@@ -109,7 +109,8 @@ case class ClassMissing() extends RaphReadClasses
 case class FailedToCompile (stackTrace:String) extends  RaphReadClasses
 case class CompileNewAnalyser(analyser: String, name:String) extends RaphReadClasses
 case class ClassCompiled() extends RaphReadClasses
-
+case class TimeCheck(timestamp:Long) extends RaphReadClasses
+case class TimeResponse(ok:Boolean) extends RaphReadClasses
 
 case class AllocateJob(record:Any)
 
