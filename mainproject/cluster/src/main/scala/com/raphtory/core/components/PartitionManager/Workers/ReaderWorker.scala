@@ -2,7 +2,7 @@ package com.raphtory.core.components.PartitionManager.Workers
 
 import akka.actor.{Actor, ActorPath, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, ManagerCount, WorkerID}
+import com.raphtory.core.analysis._
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
@@ -18,49 +18,53 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
-    case Setup(analyzer,jobID,superStep) => setup(analyzer,jobID,superStep)
+
+    case Setup(analyzer,jobID,superStep,timestamp) => setup(analyzer,jobID,superStep,timestamp)
     case CheckMessages(superstep) => checkMessages()
-    case NextStep(analyzer,jobID,superStep) => nextStep(analyzer,jobID,superStep)
-    case NextStepNewAnalyser(name,jobID,currentStep) => nextStepNewAnalyser(name,jobID,currentStep)
+    case NextStep(analyzer,jobID,superStep,timestamp) => nextStep(analyzer,jobID,superStep,timestamp)
+    case NextStepNewAnalyser(name,jobID,currentStep,timestamp) => nextStepNewAnalyser(name,jobID,currentStep,timestamp)
     case handler:MessageHandler => receivedMessage(handler)
   }
 
   def receivedMessage(handler:MessageHandler) = {
     receivedMessages.add(1)
-    EntityStorage.vertices(handler.vertexID).vertexMultiQueue.receiveMessage(handler)
+    EntityStorage.vertices(handler.vertexID).mutliQueue.receiveMessage(handler)
   }
 
   def checkMessages() ={
     var count = 0
     tempProxy.getVerticesSet()(WorkerID(workerId)).foreach(v => count += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue2.size)
-    var count2 = 0
-    tempProxy.getVerticesSet()(WorkerID(workerId)).foreach(v => count2 += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue.size)
-    //println(s"queue next $count queue now $count2")
     sender() ! MessagesReceived(workerId,count,receivedMessages.get,tempProxy.getMessages())
   }
 
-  def setup(analyzer: Analyser,jobID:String,superStep:Int) {
-    EntityStorage.vertexKeys(workerId).foreach(v=> EntityStorage.vertices(v).vertexMultiQueue.clearQueues(jobID))
+  def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long) {
     receivedMessages.set(0)
-    tempProxy = new GraphRepoProxy(jobID,superStep)
+    setProxy(jobID,superStep,timestamp)
+    EntityStorage.vertexKeys(workerId).foreach(v=> EntityStorage.vertices(v).mutliQueue.clearQueues(tempProxy.job()))
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
     analyzer.setup()(new WorkerID(workerId))
     sender() ! Ready(tempProxy.getMessages())
-
   }
 
-  def nextStep(analyzer: Analyser,jobID:String,superStep:Int): Unit = {
+  def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long): Unit = {
     //println(analyzer)
     receivedMessages.set(0)
-    tempProxy = new GraphRepoProxy(jobID,superStep)
+    setProxy(jobID,superStep,timestamp)
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
     val value = analyzer.analyse()(new WorkerID(workerId))
     sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
 
   }
 
-  def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int) = {
-    nextStep(Utils.analyserMap(name),jobID,currentStep)
+  def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int,timestamp:Long) = {
+    nextStep(Utils.analyserMap(name),jobID,currentStep,timestamp)
+  }
+
+  private def setProxy(jobID:String,superStep:Int,timestamp:Long):Unit = {
+    if(timestamp == -1)
+      tempProxy = new GraphRepoProxy(jobID,superStep)
+    else
+      tempProxy = new GraphViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
   }
 
 }

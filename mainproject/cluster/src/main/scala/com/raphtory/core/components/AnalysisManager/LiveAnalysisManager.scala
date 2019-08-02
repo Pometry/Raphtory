@@ -1,6 +1,7 @@
 package com.raphtory.core.components.AnalysisManager
 
 import java.io.FileNotFoundException
+import java.util.Date
 
 import scala.concurrent.duration._
 import akka.actor.{Actor, Cancellable}
@@ -18,12 +19,14 @@ import scala.sys.process._
 import scala.io.Source
 
 abstract class LiveAnalysisManager(jobID:String) extends Actor {
-  private var managerCount : Int = 0 //Number of Managers in the Raphtory Cluster
+  protected var managerCount : Int = 0 //Number of Managers in the Raphtory Cluster
   private var currentSuperStep  = 0 //SuperStep the algorithm is currently on
 
   //Communication Counters
   private var ReaderACKS = 0 //Acks from the readers to say they are online
   private var ReaderAnalyserACKS = 0 //Ack to show that the chosen analyser is present within the partition
+  private var TimeOKFlag = true //flag to specify if the job is ok to run if temporal
+  private var TimeOKACKS = 0 //counter to see that all partitions have responded
   private var workersFinishedSetup = 0 //Acks from workers to see how many have finished the setup stage of analysis
   private var workersFinishedSuperStep = 0 //Acks from workers to say they have finished the superstep
   private var messageLogACKS = 0 //Acks from Workers with the amount of messages they have sent and received
@@ -59,6 +62,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
 
 
   protected var steps  : Long= 0L // number of supersteps before returning
+  def timestamp(): Long = -1L
+
   /******************** STUFF TO DEFINE *********************/
   protected def defineMaxSteps() : Int
   protected def generateAnalyzer : Analyser
@@ -86,6 +91,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     case PartitionsCountResponse(newValue)=> watchdogResponse(newValue) //when the watchdog responds, set the new value and message each Reader Worker
     case ReaderWorkersACK() => readerACK() //count up number of acks and if == number of workers, check if analyser present
     case AnalyserPresent() => analyserPresent() //analyser confirmed to be present within workers, send setup request to workers
+    case TimeResponse(ok) => timeResponse(ok)   //checking if the timestamps are ok within all partitions
+    case "recheckTime" => timeRecheck()  //if the time was previous out of scope, wait and then recheck
     case Ready(messagesSent) => ready(messagesSent) //worker has completed setup and is ready to roll -- send nextstep
     case EndStep(result,messages,voteToHalt) => endStep(result,messages,voteToHalt) //worker has finished the step
     case "restart" => restart()
@@ -124,10 +131,33 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     ReaderAnalyserACKS += 1
     if (ReaderAnalyserACKS == getManagerCount) {
       networkSizeTimeout.cancel()
-      for(worker <- Utils.getAllReaderWorkers(managerCount))
-        mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer,jobID,currentSuperStep),false)
+      for(worker <- Utils.getAllReaders(managerCount))
+        mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp),false)
     }
   }
+
+  def timeResponse(ok:Boolean) = {
+    if(!ok)
+      TimeOKFlag =false
+    TimeOKACKS +=1
+    if(TimeOKACKS==getManagerCount) {
+      if (TimeOKFlag)
+        for (worker <- Utils.getAllReaderWorkers(managerCount))
+          mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep, timestamp), false)
+      else
+        context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "recheckTime")
+      TimeOKACKS = 0
+      TimeOKFlag =true
+    }
+  }
+
+  def timeRecheck() = {
+    println(s"${new Date(timestamp())} is yet to be ingested. Backing off to 10 seconds and retrying")
+    for(worker <- Utils.getAllReaders(managerCount))
+      mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp),false)
+  }
+
+
 
   def ready(messages:Int) = {
     if(debug)println("Received ready")
@@ -154,7 +184,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
        // for(worker <- Utils.getAllReaderWorkers(managerCount))
        //   mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer,jobID,currentSuperStep),false)
         resetCounters()
-        context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "restart")
+        context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "restart")
       }
       else {
         this.voteToHalt = true
@@ -172,10 +202,10 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
       currentSuperStep += 1
       if(newAnalyser)
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(analyserName,jobID,currentSuperStep),false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(analyserName,jobID,currentSuperStep,timestamp),false)
       else {
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, currentSuperStep),false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, currentSuperStep,timestamp),false)
       }
     }
     else {
@@ -199,7 +229,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         totalSentMessages = 0
         totalReceivedMessages = 0
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep),false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp),false)
       }
       else {
         println(s"checking, $totalReceivedMessages/$totalSentMessages")
@@ -207,9 +237,9 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         totalSentMessages = 0
         Thread.sleep(1000)
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep),false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp),false)
 
-       // mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
+       //` mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
       }
     }
   }

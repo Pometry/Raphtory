@@ -90,10 +90,10 @@ trait VertexMessage
 
 case class MessageHandler(vertexID:Int,jobID:String,superStep:Int,message: VertexMessage)
 
-case class Setup(analyzer : Analyser,jobID:String,superStep:Int) extends RaphReadClasses
+case class Setup(analyzer : Analyser,jobID:String,superStep:Int, timestamp:Long) extends RaphReadClasses
 case class Ready(messages:Int) extends RaphReadClasses
-case class NextStep(analyzer : Analyser,jobID:String,superStep:Int) extends RaphReadClasses
-case class NextStepNewAnalyser(name: String,jobID:String,superStep:Int) extends RaphReadClasses
+case class NextStep(analyzer : Analyser,jobID:String,superStep:Int, timestamp:Long) extends RaphReadClasses
+case class NextStepNewAnalyser(name: String,jobID:String,superStep:Int, timestamp:Long) extends RaphReadClasses
 case class EndStep(results : Any,messages:Int,voteToHalt:Boolean) extends RaphReadClasses // TODO Define results
 case class ExceptionInAnalysis(e:String) extends RaphReadClasses
 
@@ -109,7 +109,8 @@ case class ClassMissing() extends RaphReadClasses
 case class FailedToCompile (stackTrace:String) extends  RaphReadClasses
 case class CompileNewAnalyser(analyser: String, name:String) extends RaphReadClasses
 case class ClassCompiled() extends RaphReadClasses
-
+case class TimeCheck(timestamp:Long) extends RaphReadClasses
+case class TimeResponse(ok:Boolean) extends RaphReadClasses
 
 case class AllocateJob(record:Any)
 

@@ -2,7 +2,7 @@ package com.raphtory.core.model.graphentities
 
 import com.raphtory.core.model.communication.{VertexMessage, VertexMutliQueue}
 import com.raphtory.core.storage.{EntityStorage, VertexHistoryPoint, VertexPropertyPoint}
-import com.raphtory.core.utils.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException}
+import com.raphtory.core.utils.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException, Utils}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParSet
@@ -54,9 +54,12 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   var incomingEdges  = ParTrieMap[Long, Edge]()
   var outgoingEdges  = ParTrieMap[Long, Edge]()
 
-  val vertexMultiQueue = new VertexMutliQueue()
+  private var vertexMultiQueue = new VertexMutliQueue()
   def mutliQueue = vertexMultiQueue
+  def setmutliQueue(establishedQueue:VertexMutliQueue) = vertexMultiQueue = establishedQueue
+
   var computationValues = ParTrieMap[String, Any]()
+  def setCompMap(establishedMap:ParTrieMap[String,Any]) = computationValues = establishedMap
 
   def addAssociatedEdge(edge: Edge): Unit = {
     if(edge.getSrcId==vertexId)
@@ -65,11 +68,11 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
       incomingEdges.put(edge.getId,edge)
   }
 
-  def addIncomingEdge(id:Int) = {
+  def addIncomingEdge(id:Int):Unit = {
     incomingIDs += id
   }
 
-  def addOutgoingEdge(id:Int) = {
+  def addOutgoingEdge(id:Int):Unit = {
     outgoingIDs += id
   }
 
@@ -89,8 +92,6 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   }
 
 
-  /*override def printProperties(): String =
-    s"Vertex $vertexId with properties: \n" + super.printProperties()*/
   override def getId = vertexId
 
   def addSavedProperty(property:VertexPropertyPoint,time:Long): Unit ={
@@ -108,16 +109,32 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
       this + (time,property.name,value)
   }
 
-  def viewAt(time:Long):Vertex = {
-    if(time > EntityStorage.lastCompressedAt){
-      throw StillWithinLiveGraphException(time)
+
+  def aliveAt(time:Long):Boolean = {
+    if(time < EntityStorage.oldestTime)
+      false
+    var closestTime:Long = 0
+    var value = false
+    for((k,v) <- previousState){
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
     }
+    value
+  }
+
+  def viewAt(time:Long):Vertex = {
+    //    if(time > EntityStorage.lastCompressedAt){
+    //      throw StillWithinLiveGraphException(time)
+    //    }
     if(time < EntityStorage.oldestTime){
       throw PushedOutOfGraphException(time)
     }
     var closestTime:Long = 0
     var value = false
-    for((k,v) <- compressedState){
+    for((k,v) <- previousState){
       if(k<=time)
         if((time-k)<(time-closestTime)) {
           closestTime = k
@@ -126,19 +143,23 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     }
     if(!value)
       throw EntityRemovedAtTimeException(vertexId)
+
+
     val vertex = new Vertex(-1,closestTime,vertexId,value)
+    vertex.setCompMap(this.computationValues)
+    vertex.setmutliQueue(this.vertexMultiQueue)
     for((k,p) <- properties) {
       val value = p.valueAt(time)
       if (!(value equals("default")))
         vertex  + (time,k,value)
     }
-    for((k,e) <- incomingEdges){
-      try{vertex   addAssociatedEdge(e.viewAt(time))}
-      catch {case e:EntityRemovedAtTimeException => }
+    for(e <- incomingIDs.toArray){
+      if(EntityStorage.edges(Utils.getEdgeIndex(e,vertexId)).aliveAt(time))
+        vertex.addIncomingEdge(e)
     }
-    for((k,e) <- outgoingEdges){
-      try{vertex   addAssociatedEdge(e.viewAt(time))}
-      catch {case e:EntityRemovedAtTimeException => }
+    for(e <- outgoingIDs.toArray){
+      if(EntityStorage.edges(Utils.getEdgeIndex(vertexId,e)).aliveAt(time))
+        vertex.addIncomingEdge(e)
     }
     vertex
   }
@@ -200,7 +221,7 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   }
 
   override def toString: String = {
-//    s"Vertex ID $vertexId \n History $previousState \n Properties:\n $properties \n Associated Edges: $associatedEdges"
+    //    s"Vertex ID $vertexId \n History $previousState \n Properties:\n $properties \n Associated Edges: $associatedEdges"
     s"Vertex ID $vertexId \n History $previousState \n //Properties:\n $properties \n"
   }
 

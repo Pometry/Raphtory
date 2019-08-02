@@ -67,6 +67,19 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
   def getDstId : Int = dstId
   def getWorkerID:Int = workerID
 
+  def aliveAt(time:Long):Boolean = {
+    var closestTime:Long = 0
+    var value = false
+    for((k,v) <- previousState){
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
+    }
+    value
+  }
+
   def viewAt(time:Long):Edge = {
 
     if(time > EntityStorage.lastCompressedAt){
@@ -77,7 +90,7 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
     }
     var closestTime:Long = 0
     var value = false
-    for((k,v) <- compressedState){
+    for((k,v) <- previousState){
       if(k<=time)
         if((time-k)<(time-closestTime)) {
           closestTime = k

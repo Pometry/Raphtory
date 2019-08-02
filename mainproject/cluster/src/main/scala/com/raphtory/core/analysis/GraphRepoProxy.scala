@@ -11,8 +11,8 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 class GraphRepoProxy(jobID:String,superstep:Int) {
   private var messages = AtomicInt(0)
-  private var voteCount = 0
 
+  protected var voteCount = 0
   def job() = jobID
 
   def getVerticesSet()(implicit workerID:WorkerID): Array[Int] = {
