@@ -1,15 +1,11 @@
-package com.raphtory.core.analysis
+package com.raphtory.core.analysis.GraphRepositoryProxies
 
 import akka.actor.ActorContext
-import com.raphtory.core.model.graphentities.Vertex
-import com.raphtory.core.storage.{EntityStorage, RaphtoryDBRead}
+import com.raphtory.core.analysis.{ManagerCount, VertexVisitor, WorkerID}
+import com.raphtory.core.storage.EntityStorage
 import monix.execution.atomic.AtomicInt
 
-import scala.collection.parallel
-import scala.collection.parallel.ParSet
-import scala.collection.parallel.mutable.ParTrieMap
-
-class GraphRepoProxy(jobID:String,superstep:Int) {
+class GraphProxy(jobID:String, superstep:Int) {
   private var messages = AtomicInt(0)
   protected var voteCount = 0
   def job() = jobID

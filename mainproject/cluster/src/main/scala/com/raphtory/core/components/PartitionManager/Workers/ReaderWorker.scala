@@ -2,6 +2,7 @@ package com.raphtory.core.components.PartitionManager.Workers
 
 import akka.actor.{Actor, ActorPath, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.analysis.GraphRepositoryProxies.{GraphProxy, ViewProxy, WindowProxy}
 import com.raphtory.core.analysis._
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
@@ -14,7 +15,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
   var receivedMessages = AtomicInt(0)
-  var tempProxy:GraphRepoProxy = null
+  var tempProxy:GraphProxy = null
 
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
@@ -62,11 +63,11 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   private def setProxy(jobID:String,superStep:Int,timestamp:Long,window:Long):Unit = {
     if(timestamp == -1)
-      tempProxy = new GraphRepoProxy(jobID,superStep)
+      tempProxy = new GraphProxy(jobID,superStep)
     else if (window == -1)
-      tempProxy = new GraphViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
+      tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
     else
-      tempProxy = new GraphWindowProxy(jobID,superStep,timestamp,window,WorkerID(workerId))
+      tempProxy = new WindowProxy(jobID,superStep,timestamp,window,WorkerID(workerId))
   }
 
 }

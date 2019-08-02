@@ -1,5 +1,5 @@
 package com.raphtory.examples.gabMining.analysis
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, VertexVisitor, WorkerID}
+import com.raphtory.core.analysis.{Analyser, VertexVisitor, WorkerID}
 import akka.actor.ActorContext
 
 import scala.collection.mutable
