@@ -34,7 +34,7 @@ object SingleNodeTest extends App {
   var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
 //var LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
   //var LamClassName="com.raphtory.examples.gabMining.actors.GabMiningDiameterLAM"
-  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningLAM"
+  val LamClassName = "com.raphtory.examples.gabMining.actors.GabRangeLAM"
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribLAM"
 
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
