@@ -50,9 +50,13 @@ object SingleNodeTest extends App {
  // system.actorOf(Props(RaphtoryReplicator("Partition Manager",2)), s"PartitionManager2")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
+  val start = 1470801546000L
+  val end = 1471459626000L
+  val jump = 86400000
+
   val cl = Class.forName(LamClassName)
   val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long])
-  system.actorOf(Props(cons.newInstance("testName",1470801546000L.asInstanceOf[AnyRef],1471459626000L.asInstanceOf[AnyRef],86400000.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
+  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 
   //Thread.sleep(60000)
   //println("hello there")
