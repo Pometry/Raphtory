@@ -3,13 +3,13 @@ package com.raphtory.examples.GenericAlgorithms.ConnectedComponents
 import java.util.Date
 
 import com.raphtory.core.analysis.Analyser
-import com.raphtory.core.components.AnalysisManager.{LiveAnalysisManager, RangeAnalysisManager, ViewAnalysisManager}
+import com.raphtory.core.components.AnalysisManager.{LiveAnalysisManager, RangeAnalysisManager, ViewAnalysisManager, WindowRangeAnalysisManager}
 import com.raphtory.examples.GenericAlgorithms.PageRank.PageRankAnalyser
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class ConComLAM(jobID:String,start:Long,end:Long,hop:Long) extends RangeAnalysisManager(jobID,start,end,hop)  {
+class ConComLAM(jobID:String,start:Long,end:Long,hop:Long,window:Long) extends WindowRangeAnalysisManager(jobID,start,end,hop,window)  {
 
   override protected def processResults(): Unit = {
 
@@ -26,7 +26,7 @@ class ConComLAM(jobID:String,start:Long,end:Long,hop:Long) extends RangeAnalysis
 //      }})
 
 //    })
-    println(s"At ${new Date(timestamp())} there were ${endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum).size } connected components")
+    println(s"At ${new Date(timestamp())} with a window of ${windowSize()/1000/3600} hour(s) there were ${endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum).size } connected components. The biggest being ${endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum).maxBy(_._2)}")
     //println()
     //endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum).foreach(f=> println(s"  Group ${f._1} with size ${f._2} "))
     println()

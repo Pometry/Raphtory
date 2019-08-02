@@ -48,10 +48,11 @@ object SingleNodeTest extends App {
   val start = 1470801546000L
   val end = 1471459626000L
   val jump = 86400000
+  val window = 86400000
 
   val cl = Class.forName(LamClassName)
-  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long])
-  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
+  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long],classOf[Long])
+  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef],window.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 
   //Thread.sleep(60000)
   //println("hello there")
