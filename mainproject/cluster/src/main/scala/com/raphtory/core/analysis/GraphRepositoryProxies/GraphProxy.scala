@@ -5,7 +5,7 @@ import com.raphtory.core.analysis.{ManagerCount, VertexVisitor, WorkerID}
 import com.raphtory.core.storage.EntityStorage
 import monix.execution.atomic.AtomicInt
 
-class GraphProxy(jobID:String, superstep:Int) {
+class GraphProxy(jobID:String, superstep:Int,timestamp:Long,windowsize:Long) {
   private var messages = AtomicInt(0)
   protected var voteCount = 0
   def job() = jobID
@@ -18,7 +18,7 @@ class GraphProxy(jobID:String, superstep:Int) {
   def clearMessages() = messages.set(0)
 
 
-  def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(id.toInt),jobID,superstep,this)
+  def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(id.toInt),jobID,superstep,this,timestamp,windowsize)
 
   def getTotalVerticesSet()  = {
     EntityStorage.vertices.keySet

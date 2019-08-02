@@ -63,7 +63,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   private def setProxy(jobID:String,superStep:Int,timestamp:Long,window:Long):Unit = {
     if(timestamp == -1)
-      tempProxy = new GraphProxy(jobID,superStep)
+      tempProxy = new GraphProxy(jobID,superStep,timestamp,window)
     else if (window == -1)
       tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
     else
