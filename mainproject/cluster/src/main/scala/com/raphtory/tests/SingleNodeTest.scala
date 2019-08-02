@@ -47,7 +47,7 @@ object SingleNodeTest extends App {
 
   val start = 1470801546000L
   val end = 1471459626000L
-  val jump = 86400000
+  val jump = 3600000
   val window = 86400000
 
   val cl = Class.forName(LamClassName)
