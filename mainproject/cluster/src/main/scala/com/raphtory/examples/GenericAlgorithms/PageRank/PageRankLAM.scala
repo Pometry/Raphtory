@@ -3,6 +3,8 @@ package com.raphtory.examples.GenericAlgorithms.PageRank
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 
+import scala.collection.mutable.ArrayBuffer
+
 class PageRankLAM(jobID:String) extends LiveAnalysisManager(jobID) {
   /*private val B       : Int   = 100 // TODO set
   private val epsilon : Float = 0.85F
@@ -12,8 +14,8 @@ class PageRankLAM(jobID:String) extends LiveAnalysisManager(jobID) {
   private val dumplingFactor = 0.85F
   private var firstStep      = true
   private var getNetworkSize = 0
-  override protected def processResults(result: Any): Unit = {
-    val endResults = result.asInstanceOf[Vector[(Long,Vector[(Long, Float)])]]
+  override protected def processResults(): Unit = {
+    val endResults = results.asInstanceOf[ArrayBuffer[(Long,ArrayBuffer[(Long, Float)])]]
     val top5 = endResults.map(x => x._2).flatten.sortBy(f => f._2)(Ordering[Float].reverse).take(5)
     val topTime = new java.util.Date(endResults.map(x => x._1).max)
     println (s"At $topTime the Users with the highest rank were $top5")
@@ -32,8 +34,8 @@ class PageRankLAM(jobID:String) extends LiveAnalysisManager(jobID) {
 
   override protected def checkProcessEnd() : Boolean = {
     try {
-      val _newResults = results.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten
-      val _oldResults = oldResults.asInstanceOf[Vector[Vector[(Long, Double)]]].flatten
+      val _newResults = results.asInstanceOf[ArrayBuffer[ArrayBuffer[(Long, Double)]]].flatten
+      val _oldResults = oldResults.asInstanceOf[ArrayBuffer[ArrayBuffer[(Long, Double)]]].flatten
       //println(s"newResults: ${_newResults.size} => ${_oldResults.size}")
 
       if (firstStep) {

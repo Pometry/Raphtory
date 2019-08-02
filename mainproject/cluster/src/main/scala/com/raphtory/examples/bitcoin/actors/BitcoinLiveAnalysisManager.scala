@@ -5,17 +5,18 @@ import com.raphtory.core.analysis.Analyser
 import com.raphtory.examples.bitcoin.analysis.BitcoinAnalyser
 import com.raphtory.examples.bitcoin.communications.CoinsAquiredPayload
 
+import scala.collection.mutable.ArrayBuffer
+
 class BitcoinLiveAnalysisManager(jobID:String) extends LiveAnalysisManager(jobID) {
     override protected def defineMaxSteps(): Int = 1
 
     override protected def generateAnalyzer: Analyser = new BitcoinAnalyser()
 
-    override protected def processResults(result: Any): Unit = {
-        val results:Vector[CoinsAquiredPayload] = result.asInstanceOf[(Vector[CoinsAquiredPayload])]
-        var finalResults = Vector.empty[(String, Double)]
+    override protected def processResults(): Unit = {
+        var finalResults = ArrayBuffer[(String, Double)]()
         var highestBlock = 0
         var blockHash = ""
-        for(indiResult <- results){
+        for(indiResult <- results.asInstanceOf[(ArrayBuffer[CoinsAquiredPayload])]){
             for (pair <- indiResult.wallets){
                finalResults :+= pair
             }
@@ -31,6 +32,6 @@ class BitcoinLiveAnalysisManager(jobID:String) extends LiveAnalysisManager(jobID
 
     }
 
-    override protected def processOtherMessages(value: Any): Unit = ""
+    override protected def processOtherMessages(value: Any): Unit = Unit
 
 }

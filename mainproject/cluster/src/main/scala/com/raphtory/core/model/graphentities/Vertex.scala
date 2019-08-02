@@ -47,6 +47,7 @@ object Vertex {
   */
 class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolean) extends Entity(routerID,msgTime, initialValue) {
 
+
   var incomingIDs = ParSet[Int]()
   var outgoingIDs = ParSet[Int]()
 

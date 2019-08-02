@@ -6,6 +6,8 @@ import com.raphtory.core.model.graphentities.{Edge, Property, Vertex}
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParArray
 object VertexVisitor  {
@@ -18,6 +20,7 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
   private val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   val vert:Vertex = v
   val messageQueue = v.vertexMultiQueue.getMessageQueue(jobID,superStep)
+  val messageQueue2 = v.vertexMultiQueue.getMessageQueue(jobID,superStep+1)
   def getOutgoingNeighbors : ParArray[Int] = v.outgoingIDs.toParArray
   def getIngoingNeighbors  : ParArray[Int] = v.incomingIDs.toParArray
   def getAllNeighbors: ParArray[Int] = v.incomingIDs.union(v.outgoingIDs).toParArray
@@ -35,13 +38,13 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
     }
   }
 
-  def getNeighborsProp(key : String) : Vector[String] = {
-    var values = Vector.empty[String]
+  def getNeighborsProp(key : String) : ArrayBuffer[String] = {
+    var values = mutable.ArrayBuffer[String]()
     v.incomingEdges.foreach(e => {
-      values :+= e._2.getPropertyCurrentValue(key).get
+      values += e._2.getPropertyCurrentValue(key).get
     })
     v.outgoingEdges.foreach(e => {
-      values :+= e._2.getPropertyCurrentValue(key).get
+      values += e._2.getPropertyCurrentValue(key).get
     })
     values
   }
@@ -67,7 +70,7 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
 
   def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {
     proxy.recordMessage()
-    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(vertexID,jobID,superStep,message), false)
+    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(vertexID,jobID,superStep,message),false)
   }
 
   def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingIDs.foreach(vID => messageNeighbour(vID,message))

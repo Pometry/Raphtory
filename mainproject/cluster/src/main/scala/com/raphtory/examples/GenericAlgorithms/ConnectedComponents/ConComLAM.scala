@@ -5,19 +5,16 @@ import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.examples.GenericAlgorithms.PageRank.PageRankAnalyser
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class ConComLAM(jobID:String) extends LiveAnalysisManager(jobID)  {
 
-  override protected def processResults(result: Any): Unit = {
+  override protected def processResults(): Unit = {
+
     //println("starting processing")
-    val endResults = result.asInstanceOf[Vector[mutable.HashMap[Int, Int]]]
+    val endResults = results.asInstanceOf[ArrayBuffer[mutable.HashMap[Int, Int]]]
     //println("as instance of")
     //endResults.foreach(println(_))
-    val results = endResults.flatten
-    //println("flattern")
-    val results2 = results.groupBy(f=> f._1)
-    //println("groupby")
-    val results3 = results2.mapValues(x=> x.map(_._2).sum)
     //println("mapvalues")
     //var results = mutable.HashMap[Int, Int]()
 //    endResults.foreach(pmap => {
@@ -27,7 +24,7 @@ class ConComLAM(jobID:String) extends LiveAnalysisManager(jobID)  {
 //      }})
 
 //    })
-    results3.foreach(f=> print(f+" "))
+    println(endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum))//.foreach(f=> print(f+" "))
     println()
   }
 

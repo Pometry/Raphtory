@@ -4,11 +4,13 @@ import akka.actor.ActorContext
 import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, WorkerID}
 import com.raphtory.examples.bitcoin.communications.CoinsAquiredPayload
 
+import scala.collection.mutable.ArrayBuffer
+
 class BitcoinAnalyser extends Analyser {
 
   //(implicit proxy: GraphRepoProxy.type, managerCount: Int,workerID:Int):
   override def analyse()(implicit workerID:WorkerID): Any = {
-    var results = Vector.empty[(String, Double)]
+    var results = ArrayBuffer[(String, Double)]()
     var currentBlock = 0
     var hash = ""
     proxy.getVerticesSet().foreach(v => {

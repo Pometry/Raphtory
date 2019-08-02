@@ -3,6 +3,8 @@ package com.raphtory.examples.GenericAlgorithms.PageRank
 import com.raphtory.core.analysis.{Analyser, WorkerID}
 import com.raphtory.core.model.communication.VertexMessage
 
+import scala.collection.mutable.ArrayBuffer
+
 class PageRankAnalyser(networkSize : Int, dumplingFactor : Float) extends Analyser {
 
   private val prStr              = "_pageRank"
@@ -25,8 +27,8 @@ class PageRankAnalyser(networkSize : Int, dumplingFactor : Float) extends Analys
     })
   }
 
-  override def analyse()(implicit workerID: WorkerID) : (Long,Vector[(Long, Float)]) = {
-    var results = Vector.empty[(Long, Float)]
+  override def analyse()(implicit workerID: WorkerID) : (Long,ArrayBuffer[(Long, Float)]) = {
+    var results = ArrayBuffer[(Long, Float)]()
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       var neighbourScores = 0F

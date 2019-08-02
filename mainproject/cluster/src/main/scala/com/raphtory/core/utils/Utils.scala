@@ -48,13 +48,29 @@ object Utils {
     val manager = mod /10
     val worker = mod % 10
     s"/user/Manager_${manager}_child_$worker"
-  } //simple srcID hash at the moment
+  }
+
   def getReader(srcId:Int, managerCount : Int):String = {
     val mod = srcId.abs % (managerCount *10)
     val manager = mod /10
     val worker = mod % 10
 
     s"/user/Manager_${manager}_reader_$worker"
+  }
+
+  def getAllReaders(managerCount:Int):Array[String] = {
+    val workers = mutable.ArrayBuffer[String]()
+    for(i <- 0 until managerCount)
+        workers += s"/user/ManagerReader_${i}"
+    workers.toArray
+  }
+
+  def getAllReaderWorkers(managerCount:Int):Array[String] = {
+    val workers = mutable.ArrayBuffer[String]()
+    for(i <- 0 until managerCount)
+      for(j <- 0 until 10)
+        workers += s"/user/Manager_${i}_reader_$j"
+    workers.toArray
   }
     /**
     * Shifter to get only one Long as Edges indexing

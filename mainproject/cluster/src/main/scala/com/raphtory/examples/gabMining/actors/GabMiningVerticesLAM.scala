@@ -6,22 +6,13 @@ import com.raphtory.examples.gabMining.analysis.GabMiningAnalyser
 
 class GabMiningVerticesLAM(jobID:String) extends LiveAnalysisManager(jobID) {
 
-  override protected def defineMaxSteps(): Int = 1
+  override protected def defineMaxSteps(): Int = 2
 
   override protected def generateAnalyzer: Analyser = new GabMiningAnalyser()
 
-  override protected def processResults(result: Any): Unit = {
-
-    val results:Vector[Any] = result.asInstanceOf[(Vector[(Int,Long)])]
+  override protected def processResults(): Unit = {
     var totalVertices=0
-
-    println("*********INSIDE LAM: " + results)
-//    for (a <- results){
-//      totalVertices+=a.toString.toInt
-//    }
-//
-//    println("Total vertices: "+ totalVertices )
-
+    println("*********INSIDE LAM: " + results.asInstanceOf[(Vector[Set[Int]])].flatten)
   }
 
   override protected def processOtherMessages(value: Any): Unit = ""

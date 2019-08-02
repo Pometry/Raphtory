@@ -9,7 +9,7 @@ class RandomLAM(jobID:String) extends LiveAnalysisManager(jobID) {
 
   override protected def generateAnalyzer: Analyser = new TestAnalyser()
 
-  override protected def processResults(result: Any): Unit = println(result)
+  override protected def processResults(): Unit = println(results)
 
   override protected def processOtherMessages(value: Any): Unit = ""
 

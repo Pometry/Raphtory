@@ -12,14 +12,13 @@ class GabMiningDensityLAM(jobID: String) extends LiveAnalysisManager(jobID){
 
   override protected def generateAnalyzer: Analyser = new GabMiningDensityAnalyser()
 
-  override protected def processResults(result: Any): Unit = {
+  override protected def processResults(): Unit = {
 
-    val results:Vector[Any] = result.asInstanceOf[(Vector[(Int,Long)])]
     var totalVertices=0
     var totalEdges=0
 
    // println("*********INSIDE LAM: " + results)
-    for ((vertices,edges) <- results){
+    for ((vertices,edges) <- results.asInstanceOf[(Vector[(Int,Long)])]){
       totalVertices+=vertices.toString.toInt
       totalEdges+=edges.toString.toInt
     }

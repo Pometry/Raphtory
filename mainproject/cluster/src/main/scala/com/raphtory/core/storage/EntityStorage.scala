@@ -40,8 +40,8 @@ object EntityStorage {
   /**
     * Map of vertices contained in the partition
     */
-  val vertices        = mutable.Map[Int, Vertex]()
-  val vertexKeys      = mutable.Map[Int,ParSet[Int]]()
+  val vertices        = ParTrieMap[Int, Vertex]()
+  val vertexKeys      = ParTrieMap[Int,ParSet[Int]]()
   for(i <- 0 until children){
     val temp = ParSet[Int]()
     vertexKeys put (i, temp)
@@ -49,10 +49,10 @@ object EntityStorage {
   /**
     * Map of edges contained in the partition
     */
-  val edges        = mutable.Map[Long, Edge]()  // Map of Edges contained in the partition
-//  val edges        = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
-  val edgeKeys     = mutable.Map[Int,ParSet[Long]]()
-//  val edgeKeys     = ParTrieMap[Int,ParSet[Long]]()
+ // val edges        = mutable.Map[Long, Edge]()  // Map of Edges contained in the partition
+  val edges        = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
+//  val edgeKeys     = mutable.Map[Int,ParSet[Long]]()
+  val edgeKeys     = ParTrieMap[Int,ParSet[Long]]()
   for(i <- 0 until children){
     val temp = ParSet[Long]()
     edgeKeys put (i,temp)

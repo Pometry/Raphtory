@@ -4,6 +4,7 @@ import com.raphtory.core.analysis.{Analyser, WorkerID}
 import com.raphtory.core.model.communication.VertexMessage
 
 import scala.collection.mutable
+import scala.collection.parallel.mutable.ParTrieMap
 
 class ConComAnalyser extends Analyser {
 
@@ -20,31 +21,32 @@ class ConComAnalyser extends Analyser {
   }
 
   override def analyse()(implicit workerID: WorkerID): Any= {
-    var results = mutable.HashMap[Int, Int]()
-    proxy.getVerticesSet().foreach(v => {
+    var results = ParTrieMap[Int, Int]()
+    var verts = Set[Int]()
+    //println(s"$workerID ${proxy.getVerticesSet().size}")
+    for(v <- proxy.getVerticesSet()){
+
       val vertex = proxy.getVertex(v)
       val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
       var label = v
       if(queue.nonEmpty)
         label = queue.min
       vertex.messageQueue.clear
-      //while (vertex moreMessages)
-       // label = math.min(label, vertex.nextMessage().asInstanceOf[ClusterLabel].value)
       var currentLabel = vertex.getOrSetCompValue("cclabel",v).asInstanceOf[Int]
       if (label < currentLabel) {
         vertex.setCompValue("cclabel", label)
-        vertex messageAllOutgoingNeighbors (ClusterLabel(label))
+        vertex messageAllNeighbours  (ClusterLabel(label))
         currentLabel = label
       }
       else{
+        vertex messageAllNeighbours (ClusterLabel(currentLabel))
         //vertex.voteToHalt()
       }
-      results.get(currentLabel) match {
-        case Some(currentCount) => results(currentLabel) = currentCount +1
-        case None => results(currentLabel) = 1
-      }
-    })
-    //println(s"analyse $results")
+      results.put(currentLabel, 1+results.getOrElse(currentLabel,0))
+      verts+=v
+    }
+    //if(verts.size!=proxy.getVerticesSet().size)
+    //  println(println(s"$workerID ${proxy.getVerticesSet().size} ${verts.size} $verts"))
     results
   }
 

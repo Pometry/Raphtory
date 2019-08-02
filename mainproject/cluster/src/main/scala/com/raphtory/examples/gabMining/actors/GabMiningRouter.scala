@@ -9,8 +9,13 @@ class GabMiningRouter (routerId:Int,override val initialManagerCount:Int) extend
 
   def parseRecord(record: Any): Unit = {
     val fileLine = record.asInstanceOf[String].split(";").map(_.trim)
-    val sourceNode=fileLine(2).toInt
-    val targetNode=fileLine(5).toInt
+    //user wise
+    // val sourceNode=fileLine(2).toInt
+    // val targetNode=fileLine(5).
+
+    //comment wise
+     val sourceNode=fileLine(1).toInt
+     val targetNode=fileLine(4).toInt
 
     val creationDate = dateToUnixTime(timestamp=fileLine(0).slice(0,19))
 
@@ -18,7 +23,6 @@ class GabMiningRouter (routerId:Int,override val initialManagerCount:Int) extend
     toPartitionManager(VertexAdd(routerId, creationDate, sourceNode))
     //create destinationNode
     //create edge
-//<<<<<<< HEAD
     if (targetNode>0) {
       toPartitionManager(VertexAdd(routerId, creationDate, targetNode))
       toPartitionManager(EdgeAdd(routerId, creationDate, sourceNode, targetNode))
@@ -33,8 +37,8 @@ class GabMiningRouter (routerId:Int,override val initialManagerCount:Int) extend
     val sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
     //println(sdf)
     val dt = sdf.parse(timestamp)
-
-    val epoch = dt.getTime()
+    //println(dt)
+    val epoch = dt.getTime
     //println("*******EPOCH: "+epoch)
     epoch
 //=======
