@@ -144,15 +144,16 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
       if (TimeOKFlag)
         for (worker <- Utils.getAllReaderWorkers(managerCount))
           mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep, timestamp), false)
-      else
+      else {
+        println(s"${new Date(timestamp())} is yet to be ingested. Backing off to 10 seconds and retrying")
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "recheckTime")
+      }
       TimeOKACKS = 0
       TimeOKFlag =true
     }
   }
 
   def timeRecheck() = {
-    println(s"${new Date(timestamp())} is yet to be ingested. Backing off to 10 seconds and retrying")
     for(worker <- Utils.getAllReaders(managerCount))
       mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp),false)
   }
