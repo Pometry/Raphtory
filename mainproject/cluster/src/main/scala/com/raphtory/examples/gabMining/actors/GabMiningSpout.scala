@@ -24,10 +24,12 @@ class GabMiningSpout extends SpoutTrait {
 // upstream/master
   var position = 0
   var linesNumber=fileLines.length
-  println(fileLines.map(_.split(";")(2).trim.toInt).toSet.union(fileLines.map(_.split(";")(5).trim.toInt).toSet).size)
-  println(fileLines.map(_.split(";")(2).trim.toInt).contains(-1))
+  println("Vertices "+fileLines.map(_.split(";")(2).trim.toInt).toSet.union(fileLines.map(_.split(";")(5).trim.toInt).toSet).size)
+  //println("2 "+fileLines.map(_.split(";")(5).trim.toInt).contains(-1) )
+  println("Edges "+fileLines.filter(line => line.contains("-1")).length )
 
-  println(linesNumber)
+
+  println("4 "+linesNumber)
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()

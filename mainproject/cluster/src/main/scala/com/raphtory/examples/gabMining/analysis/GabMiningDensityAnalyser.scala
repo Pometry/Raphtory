@@ -7,6 +7,9 @@ import monix.execution.atomic.AtomicLong
 class GabMiningDensityAnalyser extends Analyser {
   override def analyse()(implicit workerID:WorkerID): Any = {
 
+   // println("Here :"+proxy.getVerticesSet().size+" "+proxy.getEdgesSet().size)
+
+
     (proxy.getVerticesSet().size,proxy.getEdgesSet().size)
 
 

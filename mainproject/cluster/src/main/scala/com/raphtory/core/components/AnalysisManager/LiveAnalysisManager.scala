@@ -185,7 +185,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
        // for(worker <- Utils.getAllReaderWorkers(managerCount))
        //   mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer,jobID,currentSuperStep),false)
         resetCounters()
-        context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "restart")
+        context.system.scheduler.scheduleOnce(Duration(5, SECONDS), self, "restart")
       }
       else {
         this.voteToHalt = true
