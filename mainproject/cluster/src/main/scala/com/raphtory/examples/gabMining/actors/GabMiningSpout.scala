@@ -34,11 +34,9 @@ class GabMiningSpout extends SpoutTrait {
 
   protected def processChildMessages(message: Any): Unit = {
     if (position<linesNumber) {
-
       message match {
         case "newLine" => {
           if (isSafe()) {
-           // println(fileLines(position))
             var line = fileLines(position)
             sendCommand(line)
             position += 1
