@@ -16,7 +16,7 @@ class GabMiningSpout extends SpoutTrait {
 //  2016-08-17T19:47:06+00:00;3596;759;;3585;817
 
   //file is read. Please note that the first line is dropped, this in case the file has headers
-  val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets").trim
+  val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/app").trim
   val fileLines = io.Source.fromFile(directory+"/gabNetwork500.csv").getLines.drop(1).toArray
   var position = 0
   var linesNumber=fileLines.length
@@ -34,11 +34,9 @@ class GabMiningSpout extends SpoutTrait {
 
   protected def processChildMessages(message: Any): Unit = {
     if (position<linesNumber) {
-
       message match {
         case "newLine" => {
           if (isSafe()) {
-           // println(fileLines(position))
             var line = fileLines(position)
             sendCommand(line)
             position += 1
