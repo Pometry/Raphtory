@@ -79,7 +79,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
 
   override def preStart(): Unit = {
 
-    context.system.scheduler.scheduleOnce(Duration(100, SECONDS), self, "start")
+    context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
     steps = defineMaxSteps()
     //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
@@ -239,9 +239,10 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         totalSentMessages = 0
         Thread.sleep(1000)
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,windowSize(),windowSet()),false)
+          mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
+          //mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,windowSize(),windowSet()),false)
 
-       //` mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
+       //`
       }
     }
   }

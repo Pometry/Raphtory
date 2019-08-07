@@ -28,9 +28,8 @@ object SingleNodeTest extends App {
  // var routerClassName = "com.raphtory.examples.TestPackage.TestRouter"
  // var UpdaterName = "com.raphtory.examples.TestPackage.TestSpout"
 
-  var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
-
-  var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
+ var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
+ var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
  var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
  LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
 
