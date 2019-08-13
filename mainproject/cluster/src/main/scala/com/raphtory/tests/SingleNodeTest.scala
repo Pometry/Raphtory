@@ -24,16 +24,39 @@ object SingleNodeTest extends App {
 
   var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
   var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
+
+ // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityRange"
+ // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityWindow"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
+
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeIn"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeOut"
+
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsWindow"
+   // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsRange"
+
+   // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindow"\
+   val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
+
   //var LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
   //var LamClassName="com.raphtory.examples.gabMining.actors.GabMiningDiameterLAM"
 
-  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningLAM"
-  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
-  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityRange"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsLAM"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningLAMOptim"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribLAM"
 
 
 
-  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabRangeLAM"
+
+//  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindow"
+ // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindowHr"
+//  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
+
+  // val LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
+
+
+
+
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribLAM"
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
 
@@ -46,23 +69,34 @@ object SingleNodeTest extends App {
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
 
-
+//LAM
 //  val cl = Class.forName(LamClassName)
 //  val cons = cl.getConstructor(classOf[String])
 //
 //  system.actorOf(Props( cons.newInstance("testName").asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 
-
-    val start = 1470801546000L
-  val end = 1471459626000L
-  val jump = 86400000
+//window//
+//val start = 1470783600000L
+//  val end = 1525368897000L
+//  val jump =    3600000
+//  val window =    3600000
+//
+//
+//  val cl = Class.forName(LamClassName)
+//  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long],classOf[Long])
+//  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef],window.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
+////////////////
+////
+////  //range////
+  val start = 1470783600000L
+  //val end =   1471459626000L
+  val end=1525368897000L
+  val jump = 3600000*24
 
   val cl = Class.forName(LamClassName)
   val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long])
   system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 
 
-
 }
-
 

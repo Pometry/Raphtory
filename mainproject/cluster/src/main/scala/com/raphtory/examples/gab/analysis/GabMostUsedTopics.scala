@@ -1,7 +1,7 @@
 package com.raphtory.examples.gab.analysis
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, WorkerID}
+import com.raphtory.core.analysis.{Analyser, WorkerID}
 import monix.execution.atomic.AtomicDouble
 
 import scala.collection.mutable.ArrayBuffer

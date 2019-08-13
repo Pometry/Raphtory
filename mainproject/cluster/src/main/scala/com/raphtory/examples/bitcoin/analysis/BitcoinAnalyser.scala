@@ -1,7 +1,7 @@
 package com.raphtory.examples.bitcoin.analysis
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.{Analyser, GraphRepoProxy, WorkerID}
+import com.raphtory.core.analysis.{Analyser, WorkerID}
 import com.raphtory.examples.bitcoin.communications.CoinsAquiredPayload
 
 import scala.collection.mutable.ArrayBuffer

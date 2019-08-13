@@ -3,21 +3,23 @@ import com.raphtory.core.analysis.{Analyser, WorkerID}
 
 import scala.collection.mutable.ArrayBuffer
 
-class GabMiningDistribAnalyser extends Analyser{
+class GabMiningDistribAnalyserOut extends Analyser{
 
   override def analyse()(implicit workerID:WorkerID): Any = {
     var results = ArrayBuffer[Int]()
-    var maxInDegree=0
     proxy.getVerticesSet().foreach(v => {
 
       val vertex = proxy.getVertex(v)
-      val totalEdges= vertex.getIngoingNeighbors.size
+      val totalEdges= vertex.getOutgoingNeighbors.size
+    //  println("Total edges for V "+v+" "+vertex.getOutgoingNeighbors + " "+vertex.getIngoingNeighbors )
       results+=totalEdges
     })
-   results
+    // println("THIS IS HOW RESULTS LOOK: "+ results.groupBy(identity).mapValues(_.size))
+    results.groupBy(identity).mapValues(_.size).toList
   }
   override def setup()(implicit workerID:WorkerID): Any = {
 
   }
 
 }
+

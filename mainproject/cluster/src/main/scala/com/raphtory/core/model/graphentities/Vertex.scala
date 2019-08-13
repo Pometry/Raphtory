@@ -124,6 +124,23 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     }
     value
   }
+  def aliveAtWithWindow(time:Long,windowSize:Long):Boolean = {
+    if(time < EntityStorage.oldestTime)
+      false
+    var closestTime:Long = 0
+    var value = false
+    for((k,v) <- previousState){
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
+    }
+    if(time-closestTime<=windowSize)
+      value
+    else
+      false
+  }
 
   def viewAt(time:Long):Vertex = {
     //    if(time > EntityStorage.lastCompressedAt){
@@ -159,6 +176,45 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     }
     for(e <- outgoingIDs.toArray){
       if(EntityStorage.edges(Utils.getEdgeIndex(vertexId,e)).aliveAt(time))
+        vertex.addIncomingEdge(e)
+    }
+    vertex
+  }
+
+  def viewAtWithWindow(time:Long,windowSize:Long):Vertex = {
+    //    if(time > EntityStorage.lastCompressedAt){
+    //      throw StillWithinLiveGraphException(time)
+    //    }
+    if(time < EntityStorage.oldestTime){
+      throw PushedOutOfGraphException(time)
+    }
+    var closestTime:Long = 0
+    var value = false
+    for((k,v) <- previousState){
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
+    }
+    if(!value)
+      throw EntityRemovedAtTimeException(vertexId)
+
+
+    val vertex = new Vertex(-1,closestTime,vertexId,value)
+    vertex.setCompMap(this.computationValues)
+    vertex.setmutliQueue(this.vertexMultiQueue)
+    for((k,p) <- properties) {
+      val value = p.valueAt(time)
+      if (!(value equals("default")))
+        vertex  + (time,k,value)
+    }
+    for(e <- incomingIDs.toArray){
+      if(EntityStorage.edges(Utils.getEdgeIndex(e,vertexId)).aliveAtWithWindow(time,windowSize))
+        vertex.addIncomingEdge(e)
+    }
+    for(e <- outgoingIDs.toArray){
+      if(EntityStorage.edges(Utils.getEdgeIndex(vertexId,e)).aliveAtWithWindow(time,windowSize))
         vertex.addIncomingEdge(e)
     }
     vertex

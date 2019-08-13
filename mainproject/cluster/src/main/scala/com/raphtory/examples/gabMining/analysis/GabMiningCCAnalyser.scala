@@ -1,4 +1,6 @@
-package com.raphtory.examples.GenericAlgorithms.ConnectedComponents
+
+
+package com.raphtory.examples.gabMining.analysis
 
 import com.raphtory.core.analysis.{Analyser, WorkerID}
 import com.raphtory.core.model.communication.VertexMessage
@@ -6,7 +8,7 @@ import com.raphtory.core.model.communication.VertexMessage
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 
-class ConComAnalyser extends Analyser {
+class GabMiningCCAnalyser extends Analyser {
 
   case class ClusterLabel(value: Int) extends VertexMessage
 
@@ -23,7 +25,7 @@ class ConComAnalyser extends Analyser {
   override def analyse()(implicit workerID: WorkerID): Any= {
     var results = ParTrieMap[Int, Int]()
     var verts = Set[Int]()
-    println(s"Here !!! $workerID ${proxy.getVerticesSet().size}")
+    //println(s"Here !!! $workerID ${proxy.getVerticesSet().size}")
     for(v <- proxy.getVerticesSet()){
       val vertex = proxy.getVertex(v)
       val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)

@@ -2,6 +2,7 @@ package com.raphtory.core.components.PartitionManager.Workers
 
 import akka.actor.{Actor, ActorPath, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.analysis.GraphRepositoryProxies.{GraphProxy, ViewProxy, WindowProxy}
 import com.raphtory.core.analysis._
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
@@ -14,15 +15,15 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
   var receivedMessages = AtomicInt(0)
-  var tempProxy:GraphRepoProxy = null
+  var tempProxy:GraphProxy = null
 
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
 
-    case Setup(analyzer,jobID,superStep,timestamp) => setup(analyzer,jobID,superStep,timestamp)
+    case Setup(analyzer,jobID,superStep,timestamp,window) => setup(analyzer,jobID,superStep,timestamp,window)
     case CheckMessages(superstep) => checkMessages()
-    case NextStep(analyzer,jobID,superStep,timestamp) => nextStep(analyzer,jobID,superStep,timestamp)
-    case NextStepNewAnalyser(name,jobID,currentStep,timestamp) => nextStepNewAnalyser(name,jobID,currentStep,timestamp)
+    case NextStep(analyzer,jobID,superStep,timestamp,window) => nextStep(analyzer,jobID,superStep,timestamp,window)
+    case NextStepNewAnalyser(name,jobID,currentStep,timestamp,window) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,window)
     case handler:MessageHandler => receivedMessage(handler)
   }
 
@@ -37,34 +38,36 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     sender() ! MessagesReceived(workerId,count,receivedMessages.get,tempProxy.getMessages())
   }
 
-  def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long) {
+  def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,window:Long) {
     receivedMessages.set(0)
-    setProxy(jobID,superStep,timestamp)
+    setProxy(jobID,superStep,timestamp,window)
     EntityStorage.vertexKeys(workerId).foreach(v=> EntityStorage.vertices(v).mutliQueue.clearQueues(tempProxy.job()))
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
     analyzer.setup()(new WorkerID(workerId))
     sender() ! Ready(tempProxy.getMessages())
   }
 
-  def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long): Unit = {
+  def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,window:Long): Unit = {
     //println(analyzer)
     receivedMessages.set(0)
-    setProxy(jobID,superStep,timestamp)
+    setProxy(jobID,superStep,timestamp,window)
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
     val value = analyzer.analyse()(new WorkerID(workerId))
     sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
 
   }
 
-  def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int,timestamp:Long) = {
-    nextStep(Utils.analyserMap(name),jobID,currentStep,timestamp)
+  def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int,timestamp:Long,window:Long) = {
+    nextStep(Utils.analyserMap(name),jobID,currentStep,timestamp,window)
   }
 
-  private def setProxy(jobID:String,superStep:Int,timestamp:Long):Unit = {
+  private def setProxy(jobID:String,superStep:Int,timestamp:Long,window:Long):Unit = {
     if(timestamp == -1)
-      tempProxy = new GraphRepoProxy(jobID,superStep)
+      tempProxy = new GraphProxy(jobID,superStep,timestamp,window)
+    else if (window == -1)
+      tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
     else
-      tempProxy = new GraphViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
+      tempProxy = new WindowProxy(jobID,superStep,timestamp,window,WorkerID(workerId))
   }
 
 }

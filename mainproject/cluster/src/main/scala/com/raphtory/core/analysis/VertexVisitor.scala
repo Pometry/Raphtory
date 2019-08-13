@@ -1,6 +1,7 @@
 package com.raphtory.core.analysis
 import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.analysis.GraphRepositoryProxies.GraphProxy
 import com.raphtory.core.model.communication.{EdgeUpdateProperty, MessageHandler, VertexMessage}
 import com.raphtory.core.model.graphentities.{Edge, Property, Vertex}
 import com.raphtory.core.storage.EntityStorage
@@ -11,11 +12,11 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParArray
 object VertexVisitor  {
-  def apply(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(implicit context : ActorContext, managerCount : ManagerCount) = {
-    new VertexVisitor(v,jobID,superStep,proxy)
+  def apply(v : Vertex,jobID:String,superStep:Int,proxy:GraphProxy,timestamp:Long,window:Long)(implicit context : ActorContext, managerCount : ManagerCount) = {
+    new VertexVisitor(v,jobID,superStep,proxy,timestamp,window)
   }
 }
-class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(implicit context : ActorContext, managerCount : ManagerCount) {
+class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphProxy,timestamp:Long,window:Long)(implicit context : ActorContext, managerCount : ManagerCount) {
 
   private val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   val vert:Vertex = v
@@ -59,13 +60,16 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphRepoProxy)(
     }
 
   def setCompValue(key:String,value:Any):Unit = {
-    v.addCompValue(key,value)
+    val realkey = key+timestamp+window
+    v.addCompValue(realkey,value)
   }
   def getCompValue(key:String) = {
-    v.getCompValue(key)
+    val realkey = key+timestamp+window
+    v.getCompValue(realkey)
   }
   def getOrSetCompValue(key:String,value:Any) ={
-    v.getOrSet(key,value)
+    val realkey = key+timestamp+window
+    v.getOrSet(realkey,value)
   }
 
   def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {
