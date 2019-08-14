@@ -6,6 +6,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.io
 import scala.language.postfixOps
+import java.time.LocalDateTime
 
 class GabMiningSpout extends SpoutTrait {
 //  2016-08-17T18:40:20+00:00;3509;752;;3504;292
@@ -16,14 +17,24 @@ class GabMiningSpout extends SpoutTrait {
 //  2016-08-17T19:47:06+00:00;3596;759;;3585;817
 
   //file is read. Please note that the first line is dropped, this in case the file has headers
+
+//  val fileLines = io.Source.fromFile("/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets/gab.csv").getLines.drop(1).toArray
+
+ // val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets").trim
+
   val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/app").trim
+
   val fileLines = io.Source.fromFile(directory+"/gabNetwork500.csv").getLines.drop(1).toArray
+// upstream/master
   var position = 0
   var linesNumber=fileLines.length
-  println(fileLines.map(_.split(";")(2).trim.toInt).toSet.union(fileLines.map(_.split(";")(5).trim.toInt).toSet).size)
-  println(fileLines.map(_.split(";")(2).trim.toInt).contains(-1))
+  println("Start: "+ LocalDateTime.now())
+  println("Vertices "+fileLines.map(_.split(";")(2).trim.toInt).toSet.union(fileLines.map(_.split(";")(5).trim.toInt).toSet).size)
+  //println("2 "+fileLines.map(_.split(";")(5).trim.toInt).contains(-1) )
+  println("Edges "+fileLines.filter(line => line.contains("-1")).length )
 
-  println(linesNumber)
+
+  println("Lines "+linesNumber)
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()

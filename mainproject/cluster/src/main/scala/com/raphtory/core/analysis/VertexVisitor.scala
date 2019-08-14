@@ -90,6 +90,8 @@ class VertexVisitor(v : Vertex,jobID:String,superStep:Int,proxy:GraphProxy,times
     proxy.vertexVoted()
   }
 
+
+
 //  private def edgeFilter(srcId: Int, dstId: Int, edgeId : Long) : Boolean = Utils.getEdgeIndex(srcId, dstId) == edgeId
 //  private def outgoingEdgeFilter(dstId : Int, edgeId : Long) : Boolean = edgeFilter(v.getId.toInt, dstId, edgeId)
 //  private def ingoingEdgeFilter(srcId : Int, edgeId : Long) : Boolean = edgeFilter(srcId, v.getId.toInt, edgeId)

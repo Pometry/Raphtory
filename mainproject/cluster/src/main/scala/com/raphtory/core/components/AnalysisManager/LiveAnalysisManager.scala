@@ -78,8 +78,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
 
   override def preStart(): Unit = {
-
     context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
+
     steps = defineMaxSteps()
     //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }

@@ -1,7 +1,5 @@
 package com.raphtory.tests
 
-
-
 import akka.actor.{Actor, ActorSystem, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
@@ -33,71 +31,79 @@ object SingleNodeTest extends App {
  var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
  LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
 
- // val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
 
+ // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityRange"
+ // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityWindow"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
+
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeIn"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeOut"
+
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsWindow"
+   // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsRange"
+
+   // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindow"\
+  LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
+
+  //var LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
+  //var LamClassName="com.raphtory.examples.gabMining.actors.GabMiningDiameterLAM"
+
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsLAM"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningLAMOptim"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribLAM"
+
+
+
+
+//  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindow"
+ // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindowHr"
+//  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
+
+  // val LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
+
+
+
+
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribLAM"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
 
   val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
   system.actorOf(Props(RaphtoryReplicator("Router",1, routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager",1)), s"PartitionManager")
- // system.actorOf(Props(RaphtoryReplicator("Partition Manager",2)), s"PartitionManager2")
+  // system.actorOf(Props(RaphtoryReplicator("Partition Manager",2)), s"PartitionManager2")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
-  val start = 1470801546000L
-  val end = 1471459626000L
-  val jump = 3600000
-  val window = 86400000
+
+//LAM
+//  val cl = Class.forName(LamClassName)
+//  val cons = cl.getConstructor(classOf[String])
+//
+//  system.actorOf(Props( cons.newInstance("testName").asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
+
+//window//
+//val start = 1470783600000L
+//  val end = 1525368897000L
+//  val jump =    3600000
+//  val window =    3600000
+//
+//
+//  val cl = Class.forName(LamClassName)
+//  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long],classOf[Long])
+//  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef],window.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
+////////////////
+////
+////  //range////
+  val start = 1470783600000L
+  //val end =   1471459626000L
+  val end=1525368897000L
+  val jump = 3600000*24
 
   val cl = Class.forName(LamClassName)
-  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long],classOf[Long])
-  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef],window.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
+  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long])
+  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 
-  //Thread.sleep(60000)
-  //println("hello there")
-  //GraphRepoProxy.something
-
-  //System.exit(0)
 
 }
-
-// val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningLAM"
-
-//val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningVerticesLAM"
-
-//  val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinExampleSpout"
-//  val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRaphtoryRouter"
-//  val LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
-
-//routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
-//val LamClassName = "com.raphtory.examples.random.actors.TestLAM"
-
-
-//UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
-//val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
-//val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
-//val UpdaterName = "com.raphtory.examples.gab.actors.GabSpout"
-
-
-//val routerClassName = "com.raphtory.examples.random.actors.RaphtoryWindowingRouter"
-// val LamClassName = "com.raphtory.core.actors.analysismanager.TestLAM"
-// val UpdaterName = "com.raphtory.examples.random.actors.RandomSpout"
-
-
-//  val routerClassName = "com.raphtory.examples.bitcoin.actors.BitcoinRaphtoryRouter"
-//
-//  val UpdaterName = "com.raphtory.examples.bitcoin.actors.BitcoinExampleSpout"
-//  val LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
-
-
-//val LamClassName = "com.raphtory.examples.random.actors.RandomLAM"
-//val routerClassName = "com.raphtory.examples.gab.actors.RaphtoryGabRouter"
-// val LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManagerMostUsedTopics"
-
-
-// var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
-// LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
-
-//var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
-//LamClassName = "com.raphtory.examples.gab.actors.GabLiveAnalyserManager"
 
