@@ -64,6 +64,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   protected var steps  : Long= 0L // number of supersteps before returning
   def timestamp(): Long = -1L
   def windowSize(): Long = -1L
+  def windowSet(): Array[Long] = Array.empty
   /******************** STUFF TO DEFINE *********************/
   protected def defineMaxSteps() : Int
   protected def generateAnalyzer : Analyser
@@ -78,7 +79,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
 
   override def preStart(): Unit = {
 
-    context.system.scheduler.scheduleOnce(Duration(60, SECONDS), self, "start")
+    context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
+
     steps = defineMaxSteps()
     //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
   }
@@ -143,7 +145,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     if(TimeOKACKS==getManagerCount) {
       if (TimeOKFlag)
         for (worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep, timestamp,windowSize()), false)
+          mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep, timestamp,windowSize(),windowSet()), false)
       else {
         println(s"${new Date(timestamp())} is yet to be ingested. Backing off to 10 seconds and retrying")
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "recheckTime")
@@ -203,10 +205,10 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
       currentSuperStep += 1
       if(newAnalyser)
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(analyserName,jobID,currentSuperStep,timestamp,windowSize()),false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(analyserName,jobID,currentSuperStep,timestamp,windowSize(),windowSet()),false)
       else {
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, currentSuperStep,timestamp,windowSize()),false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, currentSuperStep,timestamp,windowSize(),windowSet()),false)
       }
     }
     else {
@@ -230,7 +232,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         totalSentMessages = 0
         totalReceivedMessages = 0
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,windowSize()),false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,windowSize(),windowSet()),false)
       }
       else {
         println(s"checking, $totalReceivedMessages/$totalSentMessages")
@@ -238,9 +240,10 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
         totalSentMessages = 0
         Thread.sleep(1000)
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,windowSize()),false)
+          mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
+          //mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,windowSize(),windowSet()),false)
 
-       //` mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
+       //`
       }
     }
   }

@@ -25,7 +25,11 @@ object SingleNodeTest extends App {
   var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
   var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
 
- // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityRange"
+
+ // var routerClassName = "com.raphtory.examples.TestPackage.TestRouter"
+ // var UpdaterName = "com.raphtory.examples.TestPackage.TestSpout"
+
+  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityRange"
  // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityWindow"
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
 
@@ -36,7 +40,7 @@ object SingleNodeTest extends App {
    // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsRange"
 
    // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindow"\
-   val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
+  // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
 
   //var LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
   //var LamClassName="com.raphtory.examples.gabMining.actors.GabMiningDiameterLAM"

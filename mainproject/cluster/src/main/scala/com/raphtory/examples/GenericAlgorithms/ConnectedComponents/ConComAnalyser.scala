@@ -5,10 +5,10 @@ import com.raphtory.core.model.communication.VertexMessage
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
-
+case class ClusterLabel(value: Int) extends VertexMessage
 class ConComAnalyser extends Analyser {
 
-  case class ClusterLabel(value: Int) extends VertexMessage
+
 
   override def setup()(implicit workerID: WorkerID) = {
     proxy.getVerticesSet().foreach(v => {
