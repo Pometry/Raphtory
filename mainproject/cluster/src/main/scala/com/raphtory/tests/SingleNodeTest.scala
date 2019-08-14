@@ -28,22 +28,21 @@ object SingleNodeTest extends App {
 
  var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
  var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
- var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
- LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
+// var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
+// LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
 
-
- // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityRange"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityRange"
  // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityWindow"
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
 
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeIn"
-  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeOut"
+  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeOut"
 
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsWindow"
    // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsRange"
 
    // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindow"\
-  LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
+  //LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
 
   //var LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
   //var LamClassName="com.raphtory.examples.gabMining.actors.GabMiningDiameterLAM"
@@ -52,17 +51,10 @@ object SingleNodeTest extends App {
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningLAMOptim"
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribLAM"
 
-
-
-
 //  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindow"
  // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindowHr"
 //  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
-
   // val LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
-
-
-
 
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribLAM"
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
