@@ -6,6 +6,7 @@ import com.raphtory.core.model.graphentities.Entity
 import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
 import kamon.metric.{GaugeMetric, MeasurementUnit}
+import monix.execution.atomic.AtomicInt
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -33,11 +34,11 @@ class WriterLogger extends Actor{
   }
 
   def getEntitiesPrevStates[T,U <: Entity](m :ParTrieMap[T, U]) : Int = {
-    var ret = 0
+    var ret = AtomicInt(0)
     m.foreach[Unit](e => {
-      ret += e._2.getHistorySize()
+      ret.add(e._2.getHistorySize())
     })
-    ret
+    ret.get
   }
 
   def reportSizes[T, U <: Entity](g : kamon.metric.GaugeMetric, map :ParTrieMap[T, U], id:Int) : Unit = {

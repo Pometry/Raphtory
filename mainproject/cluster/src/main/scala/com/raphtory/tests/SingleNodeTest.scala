@@ -22,8 +22,15 @@ object SingleNodeTest extends App {
 
 
 
-  var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
-  var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
+
+ // var routerClassName = "com.raphtory.examples.TestPackage.TestRouter"
+ // var UpdaterName = "com.raphtory.examples.TestPackage.TestSpout"
+
+ var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
+ var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
+ var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
+ LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
+
 
  // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityRange"
  // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityWindow"
@@ -36,7 +43,7 @@ object SingleNodeTest extends App {
    // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsRange"
 
    // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindow"\
-   val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
+  LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
 
   //var LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
   //var LamClassName="com.raphtory.examples.gabMining.actors.GabMiningDiameterLAM"
