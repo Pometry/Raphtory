@@ -31,9 +31,9 @@ class GabMiningDensityRange (jobID:String,start:Long,end:Long,jump:Long)extends 
   override protected def generateAnalyzer: Analyser = new GabMiningDensityAnalyser()
 
   override protected def processResults(): Unit = {
+
     var totalVertices=0
     var totalEdges=0
-    var density2="0"
 
     var allResults=results.asInstanceOf[ArrayBuffer[(Int,Int)]]
     //  println("WHAT CAME FROM ANALYSER: "+allResults)
@@ -42,25 +42,17 @@ class GabMiningDensityRange (jobID:String,start:Long,end:Long,jump:Long)extends 
       totalEdges+=verticesAndEdges._2
 
     }
-    // println("Total vertices: "+ totalVertices+" Total Edges: "+ totalEdges)
-
-
-    if(totalVertices<2 && totalEdges==0){
-      density2="0"
-    }
-    if(totalVertices>=2 && totalEdges>=0){
-      val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
-      density2 = new java.math.BigDecimal(density).toPlainString
-    }
-
+    //println(f"T`otal vertices: "+ totalVertices + " Total edges: "+ totalEdges + " Density: "+density)
+    val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
     //println(f"Total vertices: "+ totalVertices + " Total edges: "+ totalEdges + " Density: "+density)
     val currentDate=new Date(timestamp())
     val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
-    val time = inputFormat.parse(currentDate.toString).getTime()
-    //println (s"The density at ${formattedDate} is : "+ density2)
-    val text= time+","+formattedDate + ","+ totalVertices + ","+ totalEdges + ","+ density2
+    var time = inputFormat.parse(currentDate.toString).getTime()
+    val density2=new java.math.BigDecimal(density).toPlainString
+    println (s"The density at ${formattedDate} is : "+ density2)
+    val text= time+","+formattedDate + ","+ totalVertices + ","+ totalEdges + ","+density2
     writing.writeLines(output_file,text)
-    println(println("End: "+ text))
+    println(println("End: "+ LocalDateTime.now()))
 
   }
 
