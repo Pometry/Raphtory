@@ -29,7 +29,7 @@ object SingleNodeTest extends App {
  var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
  var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
 // var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
- val LamClassName = "com.raphtory.examples.GenericAlgorithms.Density.DensityRAM"
+ val LamClassName = "com.raphtory.examples.GenericAlgorithms.Density.DensityWAM"
 
   //val LamClassName = "com.raphtory.examples.GenericAlgorithms.Density.GabMiningDensityRange"
  // val LamClassName = "com.raphtory.examples.GenericAlgorithms.Density.GabMiningDensityWindow"
@@ -75,15 +75,14 @@ object SingleNodeTest extends App {
 //  system.actorOf(Props( cons.newInstance("testName").asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 
 //window//
-//val start = 1470783600000L
-//  val end = 1525368897000L
-//  val jump =    3600000
-//  val window =    3600000
-//
-//
-//  val cl = Class.forName(LamClassName)
-//  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long],classOf[Long])
-//  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef],window.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
+  val start = 1470783600000L
+  val end = 1471891600000L
+  val jump =    3600000
+  val window =    3600000
+
+  val cl = Class.forName(LamClassName)
+  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long],classOf[Long])
+  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef],window.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 ////////////////
 //View//
 //  val start = 1471459626000L
@@ -93,14 +92,16 @@ object SingleNodeTest extends App {
 ////////////////
 ////
 ////  //range////
-  val start = 1470783600000L
-  //val end =   1471459626000L
-  val end=1525368897000L
-  val jump = 3600000*24
-
-  val cl = Class.forName(LamClassName)
-  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long])
-  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
+//  val start = 1470783600000L
+//  //val end =   1471459626000L
+//  //
+//  val end=1471891600000L
+//  //val end=1525368897000L
+//  val jump = 3600000*24
+//
+//  val cl = Class.forName(LamClassName)
+//  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long])
+//  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 
 
 }

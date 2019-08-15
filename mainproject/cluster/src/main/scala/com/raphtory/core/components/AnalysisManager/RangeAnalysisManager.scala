@@ -14,12 +14,10 @@ abstract class RangeAnalysisManager(jobID:String,start:Long,end:Long,jump:Long) 
       println(s"Range Analaysis manager for $jobID between ${new Date(start)} and ${new Date(end)} finished")
       System.exit(0)
     }
-
-
     currentTimestamp = currentTimestamp +jump
 
     if(currentTimestamp>end)
-      currentTimestamp==end
+      currentTimestamp=end
 
     for(worker <- Utils.getAllReaders(managerCount))
       mediator ! DistributedPubSubMediator.Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$","")),false)
