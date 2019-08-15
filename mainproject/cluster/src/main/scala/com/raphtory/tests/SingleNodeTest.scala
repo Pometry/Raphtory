@@ -29,14 +29,14 @@ object SingleNodeTest extends App {
  var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
  var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
 // var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
-// LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
+ val LamClassName = "com.raphtory.examples.GenericAlgorithms.Density.DensityRAM"
 
-  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityRange"
- // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityWindow"
-  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
+  //val LamClassName = "com.raphtory.examples.GenericAlgorithms.Density.GabMiningDensityRange"
+ // val LamClassName = "com.raphtory.examples.GenericAlgorithms.Density.GabMiningDensityWindow"
+  //val LamClassName = "com.raphtory.examples.GenericAlgorithms.Density.GabMiningDensityLAM"
 
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeIn"
-  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeOut"
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeOut"
 
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsWindow"
    // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsRange"
@@ -57,7 +57,7 @@ object SingleNodeTest extends App {
   // val LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
 
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribLAM"
-  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
+  //val LamClassName = "com.raphtory.examples.GenericAlgorithms.Density.GabMiningDensityLAM"
 
   val system = ActorSystem("Single-Node-test")
 
@@ -84,6 +84,12 @@ object SingleNodeTest extends App {
 //  val cl = Class.forName(LamClassName)
 //  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long],classOf[Long])
 //  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef],window.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
+////////////////
+//View//
+//  val start = 1471459626000L
+//  val cl = Class.forName(LamClassName)
+//  val cons = cl.getConstructor(classOf[String],classOf[Long])
+//  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 ////////////////
 ////
 ////  //range////

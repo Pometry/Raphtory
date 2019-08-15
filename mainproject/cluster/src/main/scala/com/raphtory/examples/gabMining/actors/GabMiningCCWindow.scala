@@ -6,18 +6,17 @@ import java.util.Date
 
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.components.AnalysisManager.{LiveAnalysisManager, RangeAnalysisManager, ViewAnalysisManager, WindowRangeAnalysisManager}
+import com.raphtory.core.utils.Utils
 import com.raphtory.examples.gabMining.analysis.GabMiningCCAnalyser
-import com.raphtory.examples.gabMining.utils.writeToFile
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class GabMiningCCWindow(jobID:String,start:Long,end:Long,hop:Long,window:Long) extends WindowRangeAnalysisManager(jobID,start,end,hop,window)  {
   val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
-  val writing=new writeToFile()
   val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
   val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-  writing.writeLines(output_file,"Date,ConnectedComponents,Vertex,Size")
+  Utils.writeLines(output_file,"Date,ConnectedComponents,Vertex,Size")
 
   override protected def processResults(): Unit = {
 
@@ -43,7 +42,7 @@ class GabMiningCCWindow(jobID:String,start:Long,end:Long,hop:Long,window:Long) e
     //println()
 
     val text= s"${formattedDate},${connectedComponents},${biggest._1},${biggest._2}"
-    writing.writeLines(output_file,text)
+    Utils.writeLines(output_file,text)
   }
 
 

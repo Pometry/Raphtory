@@ -5,16 +5,15 @@ import java.util.Date
 
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.components.AnalysisManager.RangeAnalysisManager
+import com.raphtory.core.utils.Utils
 import com.raphtory.examples.gabMining.analysis.GabMiningStarsAnalyser
-import com.raphtory.examples.gabMining.utils.writeToFile
 
 import scala.collection.parallel.mutable.ParTrieMap
 
 class GabMiningStarsRange(jobID:String, start:Long, end:Long, jump:Long)extends RangeAnalysisManager (jobID,start,end,jump){
-  val writing=new writeToFile()
   val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
   val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-  writing.writeLines("results/Stars/starsRange.csv","Date,Vertex,InDegree")
+  Utils.writeLines("results/Stars/starsRange.csv","Date,Vertex,InDegree")
 
 
 
@@ -39,7 +38,7 @@ class GabMiningStarsRange(jobID:String, start:Long, end:Long, jump:Long)extends 
 
     var printfinalResults=finalResults.maxBy(_._2)
     val text= s"${formattedDate},${printfinalResults._1},${printfinalResults._2}"
-    writing.writeLines("results/Stars/starsRange.csv",text)
+    Utils.writeLines("results/Stars/starsRange.csv",text)
     // println (s"The star at ${new Date(timestamp())} is : ${finalResults.maxBy(_._2)}")
 
   }

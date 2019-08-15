@@ -6,8 +6,8 @@ import java.util.Date
 
 import com.raphtory.core.components.AnalysisManager.{LiveAnalysisManager, RangeAnalysisManager, WindowRangeAnalysisManager}
 import com.raphtory.core.analysis.Analyser
+import com.raphtory.core.utils.Utils
 import com.raphtory.examples.gabMining.analysis.GabMiningStarsAnalyser
-import com.raphtory.examples.gabMining.utils.writeToFile
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -15,10 +15,9 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 class GabMiningStarsWindow(jobID:String, start:Long, end:Long, jump:Long, window:Long)extends WindowRangeAnalysisManager (jobID,start,end,jump,window){
   val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
-  val writing=new writeToFile()
   val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
   val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-  writing.writeLines(output_file,"Date,Vertex,InDegree")
+  Utils.writeLines(output_file,"Date,Vertex,InDegree")
 
   override protected def defineMaxSteps(): Int = 1
 
@@ -41,7 +40,7 @@ class GabMiningStarsWindow(jobID:String, start:Long, end:Long, jump:Long, window
 
     var printfinalResults=finalResults.maxBy(_._2)
     val text= s"${formattedDate},${printfinalResults._1},${printfinalResults._2}"
-    writing.writeLines(output_file,text)
+    Utils.writeLines(output_file,text)
     // println (s"The star at ${new Date(timestamp())} is : ${finalResults.maxBy(_._2)}")
 
   }
