@@ -1,4 +1,4 @@
-package com.raphtory.examples.GenericAlgorithms.PageRank
+package com.raphtory.core.analysis.Algorithms.PageRank
 
 import com.raphtory.core.analysis.{Analyser, WorkerID}
 import com.raphtory.core.model.communication.VertexMessage

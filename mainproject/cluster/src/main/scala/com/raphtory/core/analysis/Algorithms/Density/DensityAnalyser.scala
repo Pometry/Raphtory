@@ -1,4 +1,4 @@
-package com.raphtory.examples.GenericAlgorithms.Density
+package com.raphtory.core.analysis.Algorithms.Density
 
 import com.raphtory.core.analysis.{Analyser, WorkerID}
 

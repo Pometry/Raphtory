@@ -1,4 +1,4 @@
-package com.raphtory.examples.GenericAlgorithms.PageRank
+package com.raphtory.core.analysis.Algorithms.PageRank
 
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
