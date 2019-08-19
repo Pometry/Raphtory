@@ -104,9 +104,9 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
     if(time > EntityStorage.lastCompressedAt){
       throw StillWithinLiveGraphException(time)
     }
-    if(time < EntityStorage.oldestTime){
-      throw PushedOutOfGraphException(time)
-    }
+    //if(time < EntityStorage.oldestTime){
+    //  throw PushedOutOfGraphException(time)
+    //}
     var closestTime:Long = 0
     var value = false
     for((k,v) <- previousState){
