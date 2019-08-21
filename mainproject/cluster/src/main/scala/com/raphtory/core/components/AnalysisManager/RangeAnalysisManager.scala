@@ -7,7 +7,7 @@ import com.raphtory.core.model.communication.AnalyserPresentCheck
 import com.raphtory.core.utils.Utils
 
 abstract class RangeAnalysisManager(jobID:String,start:Long,end:Long,jump:Long) extends LiveAnalysisManager(jobID:String) {
-  private var currentTimestamp = start
+  protected var currentTimestamp = start
   override def timestamp(): Long = currentTimestamp
   override def restart(): Unit = {
     if(currentTimestamp==end){

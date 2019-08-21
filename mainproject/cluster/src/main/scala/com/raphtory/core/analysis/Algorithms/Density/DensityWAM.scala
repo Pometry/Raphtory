@@ -55,7 +55,7 @@ class DensityWAM(jobID:String, start:Long, end:Long, jump:Long, window:Long)exte
     //println (s"The density at ${formattedDate} is : "+ density2)
     val text= time+","+formattedDate + ","+ totalVertices + ","+ totalEdges + ","+ density2
     Utils.writeLines(output_file,text)
-    println(println("End: "+ LocalDateTime.now()))
+    println("End: "+ new Date(currentTimestamp))
 
 
   }

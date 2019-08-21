@@ -24,7 +24,7 @@ class GabMiningSpout extends SpoutTrait {
 
   val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/app").trim
 
-  val fileLines = io.Source.fromFile(directory+"/gabNetwork500.csv").getLines.drop(1).toArray
+  val fileLines = io.Source.fromFile(directory+"/gab.csv").getLines.drop(1).toArray
 // upstream/master
   var position = 0
   var linesNumber=fileLines.length
