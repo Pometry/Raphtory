@@ -11,7 +11,7 @@ import kafka.serializer.DefaultDecoder
 import kafka.utils.Whitelist
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration.{Duration, NANOSECONDS, SECONDS}
+import scala.concurrent.duration.{Duration, MILLISECONDS, SECONDS}
 import scala.util.Random
 class GabKafkaSpout extends SpoutTrait{
   val x = new Random().nextLong()
@@ -27,7 +27,7 @@ class GabKafkaSpout extends SpoutTrait{
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
 
-    context.system.scheduler.schedule( Duration(10, SECONDS),Duration(100000, NANOSECONDS), self, "newLine")
+    context.system.scheduler.schedule( Duration(10, SECONDS),Duration(200, MILLISECONDS), self, "newLine")
 
   }
 
