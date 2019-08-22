@@ -9,24 +9,24 @@ import scala.language.postfixOps
 import java.time.LocalDateTime
 
 class GabMiningSpout extends SpoutTrait {
-//  2016-08-17T18:40:20+00:00;3509;752;;3504;292
-//  2016-08-17T18:46:56+00:00;3512;810;;3440;741
-//  2016-08-17T18:48:37+00:00;3514;810;;3444;741
-//  2016-08-17T19:32:21+00:00;3573;721;;3565;31
-//  2016-08-17T19:46:22+00:00;3595;759;;3587;709
-//  2016-08-17T19:47:06+00:00;3596;759;;3585;817
 
   //file is read. Please note that the first line is dropped, this in case the file has headers
+  //the directories of where the datasets are located are initialised. Either by harcoding the value or by setting
+  // an environment variable in the system. The fle is read line by line , and the line is sent to the Router to
+  // be further processed.
+  // In the case of this spout, Akka scheduler is used control the number of lines read and sent to the router with an
+  //scheduler.
   val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets").trim
 
- // val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/app").trim
+
 
   val fileLines = io.Source.fromFile(directory+"/gabNetwork500.csv").getLines.drop(1).toArray
 // upstream/master
   var position = 0
   var linesNumber=fileLines.length
   println("Start: "+ LocalDateTime.now())
-  println("Vertices "+fileLines.map(_.split(";")(2).trim.toInt).toSet.union(fileLines.map(_.split(";")(5).trim.toInt).toSet).size)
+  println("Vertices Users "+fileLines.map(_.split(";")(2).trim.toInt).toSet.union(fileLines.map(_.split(";")(5).trim.toInt).toSet).size)
+  println("Vertices Comments "+fileLines.map(_.split(";")(1).trim.toInt).toSet.union(fileLines.map(_.split(";")(4).trim.toInt).toSet).size)
   //println("2 "+fileLines.map(_.split(";")(5).trim.toInt).contains(-1) )
   println("Edges "+fileLines.filter(line => line.contains("-1")).length )
 

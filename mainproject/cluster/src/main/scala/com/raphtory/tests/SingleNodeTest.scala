@@ -2,16 +2,11 @@ package com.raphtory.tests
 
 import akka.actor.{Actor, ActorSystem, Props}
 import ch.qos.logback.classic.Level
-import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog}
-import com.raphtory.core.model.graphentities.Vertex
-import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
-import monix.execution.atomic.AtomicInt
 import org.slf4j.LoggerFactory
 
-import scala.collection.parallel.mutable.ParTrieMap
 import scala.language.postfixOps
-import scala.sys.process._
+
 //this class creates an actor system with all of the required components for a Raphtory cluster
 object SingleNodeTest extends App {
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
@@ -21,26 +16,25 @@ object SingleNodeTest extends App {
   val minimumRouters = 1
 
 
+  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityRange"
+ var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
+ //var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
+  var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouterUser"
 
-  var UpdaterName = "com.raphtory.examples.gabMining.actors.GabMiningSpout"
-  var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
-
-
- // var routerClassName = "com.raphtory.examples.TestPackage.TestRouter"
- // var UpdaterName = "com.raphtory.examples.TestPackage.TestSpout"
-
+  //Density
   val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityRange"
  // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityWindow"
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDensityLAM"
-
-  //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeIn"
+//Distribution
+ // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeIn"
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningDistribRangeOut"
 
   //val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsWindow"
    // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningStarsRange"
 
-   // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindow"\
-  // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
+   // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindow"
+ //  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
+ // LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
 
   //var LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
   //var LamClassName="com.raphtory.examples.gabMining.actors.GabMiningDiameterLAM"
@@ -54,7 +48,7 @@ object SingleNodeTest extends App {
 
 //  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindow"
  // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCWindowHr"
-//  val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
+ // val LamClassName = "com.raphtory.examples.gabMining.actors.GabMiningCCRange"
 
   // val LamClassName = "com.raphtory.examples.GenericAlgorithms.ConnectedComponents.ConComLAM"
 
@@ -79,19 +73,17 @@ object SingleNodeTest extends App {
 //
 //  system.actorOf(Props( cons.newInstance("testName").asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 
-//window//
-//val start = 1470783600000L
+////window//
+//  val start = 1470783600000L
 //  val end = 1525368897000L
 //  val jump =    3600000
 //  val window =    3600000
-//
-//
 //  val cl = Class.forName(LamClassName)
 //  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long],classOf[Long])
 //  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef],window.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
 ////////////////
 ////
-////  //range////
+////////  //range////
   val start = 1470783600000L
   //val end =   1471459626000L
   val end=1525368897000L

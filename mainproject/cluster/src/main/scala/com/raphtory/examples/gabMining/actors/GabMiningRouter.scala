@@ -5,6 +5,14 @@ import java.text.SimpleDateFormat
 import com.raphtory.core.components.Router.TraditionalRouter.Helpers.RouterSlave
 import com.raphtory.core.model.communication._
 
+
+// The lines sent by the Gab mining spout are read and processed accordingly.
+//In this router we needed to transform the data that was sent by the spout by turning it into a epoch value (long value)
+// in order to be accepted by Raphtory to create the corresponding entity.
+// for the gab dataset, a filter is applied to exclude those lines in where the parent post id ir the parent user id
+// is equal to -1. Columns 1 and 4 correspond to the postId and parentPostid in the file.
+// Then either the vertex or the edge are created accordingly.
+
 class GabMiningRouter (routerId:Int,override val initialManagerCount:Int) extends RouterSlave {
 
   def parseRecord(record: Any): Unit = {

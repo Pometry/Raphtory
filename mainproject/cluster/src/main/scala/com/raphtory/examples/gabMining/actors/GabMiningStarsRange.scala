@@ -10,11 +10,21 @@ import com.raphtory.examples.gabMining.utils.writeToFile
 
 import scala.collection.parallel.mutable.ParTrieMap
 
+
+//Initialisation of the file in where the output will be written is done.
+// the stars identified in the GabMiningStarsAnalyser are received and then , analysed one more time to obtain
+//only the real star from all the ones that were sent.
+//So from the list sent, we perform another maxBy_._ to get the higest in-degree value (which came in the position 2 of
+//the tuple)
+//the final value is written to the file.
+
 class GabMiningStarsRange(jobID:String, start:Long, end:Long, jump:Long)extends RangeAnalysisManager (jobID,start,end,jump){
   val writing=new writeToFile()
+  val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+
   val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
   val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-  writing.writeLines("results/Stars/starsRange.csv","Date,Vertex,InDegree")
+  writing.writeLines(output_file,"Date,Vertex,InDegree")
 
 
 
@@ -39,7 +49,7 @@ class GabMiningStarsRange(jobID:String, start:Long, end:Long, jump:Long)extends 
 
     var printfinalResults=finalResults.maxBy(_._2)
     val text= s"${formattedDate},${printfinalResults._1},${printfinalResults._2}"
-    writing.writeLines("results/Stars/starsRange.csv",text)
+    writing.writeLines(output_file,text)
     // println (s"The star at ${new Date(timestamp())} is : ${finalResults.maxBy(_._2)}")
 
   }

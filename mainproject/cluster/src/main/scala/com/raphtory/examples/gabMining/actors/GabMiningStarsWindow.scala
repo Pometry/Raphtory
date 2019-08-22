@@ -13,6 +13,13 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParTrieMap
 
+//Initialisation of the file in where the output will be written is done.
+// the stars identified in the GabMiningStarsAnalyser are received and then , analysed one more time to obtain
+//only the real star from all the ones that were sent.
+//So from the list sent, we perform another maxBy_._ to get the higest in-degree value (which came in the position 2 of
+//the tuple)
+//the final value is written to the file.
+
 class GabMiningStarsWindow(jobID:String, start:Long, end:Long, jump:Long, window:Long)extends WindowRangeAnalysisManager (jobID,start,end,jump,window){
   val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
   val writing=new writeToFile()

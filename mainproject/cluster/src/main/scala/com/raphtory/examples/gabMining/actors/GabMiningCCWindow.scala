@@ -12,6 +12,13 @@ import com.raphtory.examples.gabMining.utils.writeToFile
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
+//Initialisation of the file in where the output will be written is done.
+//The partial results sent from the analyser are received and assigned to an equivalent data structure they had in
+//the analyser. Then by means of Scala functionality, only the connected component that had the higher number of members
+//is written to the file.
+// In this class the number of supersteps in the connectec component algorithm is set.
+// The number of rows in the output will depend on the dates stated for the window analysis.
+
 class GabMiningCCWindow(jobID:String,start:Long,end:Long,hop:Long,window:Long) extends WindowRangeAnalysisManager(jobID,start,end,hop,window)  {
   val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
   val writing=new writeToFile()
@@ -47,7 +54,7 @@ class GabMiningCCWindow(jobID:String,start:Long,end:Long,hop:Long,window:Long) e
   }
 
 
-  override protected def defineMaxSteps(): Int = 10
+  override protected def defineMaxSteps(): Int = 5
   override protected def generateAnalyzer : Analyser = new GabMiningCCAnalyser()
   override protected def processOtherMessages(value: Any) : Unit = {println ("Not handled message" + value.toString)}
 

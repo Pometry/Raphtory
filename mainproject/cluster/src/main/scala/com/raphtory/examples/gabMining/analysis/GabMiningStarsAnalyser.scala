@@ -5,6 +5,12 @@ import akka.actor.ActorContext
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParTrieMap
 
+
+//A star is about to find the maximum in degree and the node that has it at a given time . For this we need to
+//parse the vertices that currently exist in the system and get the number of their ingoingNeighbours and we
+//sent to the analyser only the vertex  that had the maximum in-degree value. We sent it as a key value pair to
+// the analyser.
+//
 class GabMiningStarsAnalyser extends Analyser{
 
   override def analyse()(implicit workerID:WorkerID): Any = {
