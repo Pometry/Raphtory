@@ -6,18 +6,18 @@ import java.util.Date
 
 import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
+import com.raphtory.core.utils.Utils
 import com.raphtory.examples.gabMining.analysis.GabMiningStarsAnalyser
-import com.raphtory.examples.gabMining.utils.writeToFile
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParTrieMap
 
 class GabMiningStarsLAM(jobID:String)extends LiveAnalysisManager (jobID)  {
-  val writing=new writeToFile()
+
   val inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
   val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-  writing.writeLines("results/Stars/starsRange.csv","Date,Vertex,InDegree")
+  Utils.writeLines("results/Stars/starsRange.csv","Date,Vertex,InDegree")
 
 
   override protected def defineMaxSteps(): Int = 1
@@ -36,7 +36,7 @@ class GabMiningStarsLAM(jobID:String)extends LiveAnalysisManager (jobID)  {
         val stars=result.asInstanceOf[(Int,Int)]
         println (s"The star at ${formattedDate} is : ${stars._1} with ${stars._2} in degree")
         val text= s"${formattedDate},${stars._1}, ${stars._2}"
-        writing.writeLines("results/Stars/starsLive.csv",text)
+        Utils.writeLines("results/Stars/starsLive.csv",text)
         //finalResults.put(stars._1,stars._2)
       }
     }

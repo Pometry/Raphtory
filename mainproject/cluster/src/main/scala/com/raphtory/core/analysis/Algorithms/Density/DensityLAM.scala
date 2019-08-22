@@ -1,24 +1,20 @@
-package com.raphtory.examples.gabMining.actors
+package com.raphtory.core.analysis.Algorithms.Density
 
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
-import java.util.Date
 
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
-import com.raphtory.examples.gabMining.analysis.GabMiningDensityAnalyser
-import com.raphtory.examples.gabMining.utils.writeToFile
 
 import scala.collection.mutable.ArrayBuffer
 
-class GabMiningDensityLAM(jobID: String) extends LiveAnalysisManager(jobID){
-  val writing=new writeToFile()
+class DensityLAM(jobID: String) extends LiveAnalysisManager(jobID){
   //Wed Aug 10 04:59:06 BST 2016
   val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
   val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
   override protected def defineMaxSteps(): Int = 1
 
-  override protected def generateAnalyzer: Analyser = new GabMiningDensityAnalyser()
+  override protected def generateAnalyzer: Analyser = new DensityAnalyser()
 
   override protected def processResults(): Unit = {
 

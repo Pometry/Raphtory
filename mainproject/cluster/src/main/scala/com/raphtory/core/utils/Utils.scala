@@ -146,4 +146,15 @@ object Utils {
     ois.close
     value
   }
+
+  def writeLines(fileName: String , line: String) : Unit = {
+    val f = new File(fileName)
+    if(!f.exists())
+      f.createNewFile()
+    val file=new FileWriter(fileName, true)
+    var bw =new BufferedWriter(file)
+    bw.write(line)
+    bw.newLine()
+    bw.flush()
+  }
 }

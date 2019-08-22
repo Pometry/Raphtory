@@ -22,9 +22,9 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
 
-    case Setup(analyzer,jobID,superStep,timestamp,window,windowSet) => setup(analyzer,jobID,superStep,timestamp,window,windowSet)
-    case CheckMessages(superstep) => checkMessages()
-    case NextStep(analyzer,jobID,superStep,timestamp,window,windowSet) => nextStep(analyzer,jobID,superStep,timestamp,window,windowSet)
+    case Setup(analyzer,jobID,superStep,timestamp,window,windowSet) => try{setup(analyzer,jobID,superStep,timestamp,window,windowSet)}catch {case e:Exception => self ! Setup(analyzer,jobID,superStep,timestamp,window,windowSet)}
+    case CheckMessages(superstep) => try{checkMessages() }catch {case e:Exception => self ! CheckMessages(superstep)}
+    case NextStep(analyzer,jobID,superStep,timestamp,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,window,windowSet) }catch {case e:Exception => self !NextStep(analyzer,jobID,superStep,timestamp,window,windowSet)}
     case NextStepNewAnalyser(name,jobID,currentStep,timestamp,window,windowSet) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,window,windowSet)
     case handler:MessageHandler => receivedMessage(handler)
   }

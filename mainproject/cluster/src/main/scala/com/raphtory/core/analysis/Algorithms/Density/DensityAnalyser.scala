@@ -1,9 +1,6 @@
-package com.raphtory.examples.gabMining.analysis
-import com.raphtory.core.analysis.{Analyser, GraphRepositoryProxies, VertexVisitor, WorkerID}
-import akka.actor.ActorContext
-import monix.execution.atomic.AtomicLong
+package com.raphtory.core.analysis.Algorithms.Density
 
-import scala.collection.parallel.mutable.ParTrieMap
+import com.raphtory.core.analysis.{Analyser, WorkerID}
 
 // to obtain the density of the network we need to obtain the degree and the number of vertices to plug in the
 // formula that is executed by the Live Analysis.
@@ -11,7 +8,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 //we need to get the number of its neighbours so we can obtain the number of edges to be sent.
 //the values are sent in a simple array tuple formed by two integers
 
-class GabMiningDensityAnalyser extends Analyser {
+class DensityAnalyser extends Analyser {
   override def analyse()(implicit workerID:WorkerID): Any = {
     var totalDegree: Int = 0
     var totalNodes: Int = 0

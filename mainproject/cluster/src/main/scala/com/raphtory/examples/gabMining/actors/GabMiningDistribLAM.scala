@@ -6,8 +6,8 @@ import java.util.Date
 
 import com.raphtory.core.components.AnalysisManager.LiveAnalysisManager
 import com.raphtory.core.analysis.Analyser
+import com.raphtory.core.utils.Utils
 import com.raphtory.examples.gabMining.analysis.GabMiningDistribAnalyserIn
-import com.raphtory.examples.gabMining.utils.writeToFile
 
 import scala.collection.MapLike
 import scala.collection.mutable.ArrayBuffer
@@ -15,7 +15,6 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 
 class GabMiningDistribLAM (jobID:String) extends LiveAnalysisManager (jobID)  {
-  val writing=new writeToFile()
   //Wed Aug 10 04:59:06 BST 2016
   val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
   val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
@@ -40,7 +39,7 @@ class GabMiningDistribLAM (jobID:String) extends LiveAnalysisManager (jobID)  {
     var degrees=finalResults.groupBy(_._1).mapValues(seq => seq.map(_._2).reduce(_ + _)).toList.sortBy(_._1)//.foreach(println)
     for ((degree,total)<- degrees){
       var text=currentDate+","+degree+","+total
-      writing.writeLines("results/distribLAM.csv",text)
+      Utils.writeLines("results/distribLAM.csv",text)
 
     }
 

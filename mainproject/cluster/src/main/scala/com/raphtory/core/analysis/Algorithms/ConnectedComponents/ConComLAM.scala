@@ -1,10 +1,10 @@
-package com.raphtory.examples.GenericAlgorithms.ConnectedComponents
+package com.raphtory.core.analysis.Algorithms.ConnectedComponents
 
 import java.util.Date
 
 import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.components.AnalysisManager.{LiveAnalysisManager, RangeAnalysisManager, ViewAnalysisManager, WindowRangeAnalysisManager}
-import com.raphtory.examples.GenericAlgorithms.PageRank.PageRankAnalyser
+import com.raphtory.core.analysis.Algorithms.PageRank.PageRankAnalyser
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

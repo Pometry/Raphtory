@@ -1,4 +1,4 @@
-package com.raphtory.examples.GenericAlgorithms.ConnectedComponents
+package com.raphtory.core.analysis.Algorithms.ConnectedComponents
 
 import com.raphtory.core.analysis.{Analyser, WorkerID}
 import com.raphtory.core.model.communication.VertexMessage

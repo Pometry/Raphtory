@@ -43,6 +43,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 	//Zookeeper tings
 	val curator1        = "org.apache.curator"  % "curator-framework"   % "2.12.0"
 	val curator2        = "org.apache.curator"  % "curator-recipes"     % "2.12.0"
+	val kafka						= "org.apache.kafka" 	 %% "kafka" 							% "2.3.0"
+	val kafkac 			  	= "org.apache.kafka"    % "kafka-clients" 			% "2.3.0"
 
 	val kamon						= "io.kamon"					 %% "kamon-core"					% "1.1.0"
 	val kamon_prometheus= "io.kamon"					 %% "kamon-prometheus"		% "1.0.0"
@@ -86,7 +88,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 
 	lazy val dockerStuff = Seq(
 		maintainer := "Ben Steer <b.a.steer@qmul.ac.uk>",
-		dockerBaseImage := "miratepuffin/raphtory-redis",
+		dockerBaseImage := "miratepuffin/raphtory-redis:latest",
         dockerRepository := Some("miratepuffin"),
 		dockerExposedPorts := Seq(2551,8080,2552, 1600, 11600)
 
@@ -118,7 +120,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_dist_data,
 				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
 				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval,casbah,mongo,lift,phantom,
-				apacheLang)
+				apacheLang,kafka,kafkac)
 		)
 	  	.settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",

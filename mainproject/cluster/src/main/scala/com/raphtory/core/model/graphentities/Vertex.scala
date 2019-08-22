@@ -146,9 +146,9 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     //    if(time > EntityStorage.lastCompressedAt){
     //      throw StillWithinLiveGraphException(time)
     //    }
-    if(time < EntityStorage.oldestTime){
-      throw PushedOutOfGraphException(time)
-    }
+//    if(time < EntityStorage.oldestTime){
+//      throw PushedOutOfGraphException(time)
+//    }
     var closestTime:Long = 0
     var value = false
     for((k,v) <- previousState){
@@ -185,9 +185,9 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     //    if(time > EntityStorage.lastCompressedAt){
     //      throw StillWithinLiveGraphException(time)
     //    }
-    if(time < EntityStorage.oldestTime){
-      throw PushedOutOfGraphException(time)
-    }
+//    if(time < EntityStorage.oldestTime){
+//      throw PushedOutOfGraphException(time)
+//    }
     var closestTime:Long = 0
     var value = false
     for((k,v) <- previousState){
