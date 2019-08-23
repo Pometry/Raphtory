@@ -18,7 +18,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 import scala.sys.process._
 import scala.io.Source
 
-abstract class LiveAnalysisManager(jobID:String) extends Actor {
+abstract class LiveAnalysisManager(jobID:String,analyser: Analyser) extends Actor {
   protected var managerCount : Int = 0 //Number of Managers in the Raphtory Cluster
   private var currentSuperStep  = 0 //SuperStep the algorithm is currently on
 
@@ -37,8 +37,6 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   private var voteToHalt = true // If the workers have decided to halt
 
   private var newAnalyser:Boolean = false //if the analyser is not present in the readers
-  protected def analyserName:String = generateAnalyzer.getClass.getName
-
 
   private var networkSizeTimeout : Cancellable = null //for restarting the analysers if it joins too quickly
   private val debug = false //for printing debug messages
@@ -48,6 +46,20 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   protected var results:ArrayBuffer[Any]      = mutable.ArrayBuffer[Any]()
   protected var oldResults:ArrayBuffer[Any]   = mutable.ArrayBuffer[Any]()
 
+
+
+  protected var steps  : Long= 0L // number of supersteps before returning
+  def timestamp(): Long = -1L //for view
+  def windowSize(): Long = -1L //for windowing
+  def windowSet(): Array[Long] = Array.empty //for sets of windows
+
+
+  private def processOtherMessages(value : Any) : Unit = {println ("Not handled message" + value.toString)}
+
+  protected def generateAnalyzer : Analyser = analyser
+  protected def analyserName:String = generateAnalyzer.getClass.getName
+  protected final def getManagerCount : Int = managerCount
+  protected final def getWorkerCount : Int = managerCount*10
 
   private def resetCounters() = {
     ReaderACKS = 0 //Acks from the readers to say they are online
@@ -61,32 +73,14 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   }
 
 
-  protected var steps  : Long= 0L // number of supersteps before returning
-  def timestamp(): Long = -1L
-  def windowSize(): Long = -1L
-  def windowSet(): Array[Long] = Array.empty
-  /******************** STUFF TO DEFINE *********************/
-  protected def defineMaxSteps() : Int
-  protected def generateAnalyzer : Analyser
-  protected def processResults() : Unit
-  protected def processOtherMessages(value : Any) : Unit
-  protected def checkProcessEnd() : Boolean = false
-  /******************** STUFF TO DEFINE *********************/
-
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
 
   override def preStart(): Unit = {
-
     context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
-
-    steps = defineMaxSteps()
-    //context.system.scheduler.schedule(Duration(5, SECONDS), Duration(10, MINUTES), self, "start") // Refresh networkSize and restart analysis currently
+    steps = analyser.defineMaxSteps()
   }
-
-  protected final def getManagerCount : Int = managerCount
-  protected final def getWorkerCount : Int = managerCount*10
 
   override def receive: Receive = {
     case "start" => checkClusterSize //first ask the watchdog what the size of the cluster is
@@ -108,7 +102,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     case _ => processOtherMessages(_) //incase some random stuff comes through
   }
 
-  def checkClusterSize = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
+  protected def checkClusterSize: Unit = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
 
   def watchdogResponse(newValue: Int)= {
     managerCount = newValue
@@ -160,8 +154,6 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
       mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp),false)
   }
 
-
-
   def ready(messages:Int) = {
     if(debug)println("Received ready")
     workersFinishedSetup += 1
@@ -180,8 +172,8 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
     if (!voteToHalt) this.voteToHalt = false
     if(debug)println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
     if (workersFinishedSuperStep == getWorkerCount) {
-      if (currentSuperStep == steps || this.checkProcessEnd()) {
-        try{this.processResults()}catch {case e:Exception => println(e)}
+      if (currentSuperStep == steps || analyser.checkProcessEnd(results,oldResults)) {
+        try{analyser.processResults(results,oldResults,timestamp(),windowSize())} catch {case e:Exception => println(e)}
         results = mutable.ArrayBuffer[Any]()
         oldResults = mutable.ArrayBuffer[Any]()
        // for(worker <- Utils.getAllReaderWorkers(managerCount))
