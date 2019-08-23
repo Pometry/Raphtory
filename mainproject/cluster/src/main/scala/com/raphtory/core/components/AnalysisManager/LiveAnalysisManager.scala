@@ -78,6 +78,7 @@ abstract class LiveAnalysisManager(jobID:String) extends Actor {
   mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
 
   override def preStart(): Unit = {
+
     context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
 
     steps = defineMaxSteps()

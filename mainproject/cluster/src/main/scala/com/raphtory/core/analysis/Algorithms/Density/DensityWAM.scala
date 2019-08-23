@@ -12,6 +12,13 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
+//Initialisation of the file in where the output will be written is done.
+//The partial results sent from the GabMiningDensityAnalyser are read and store in a data structure similar
+//to the one used by the analyser. This is, an array of tuples of two Int values.
+//for each of the values sent by the analyser, we sum their values so we can get the final summarisation
+//for the total of the values of how many vertices and edges are in the system.
+// Then we plug these values into the final formula to output the density to file that is written.
+
 
 class DensityWAM(jobID:String, start:Long, end:Long, jump:Long, window:Long)extends WindowRangeAnalysisManager (jobID,start,end,jump,window){
   val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim

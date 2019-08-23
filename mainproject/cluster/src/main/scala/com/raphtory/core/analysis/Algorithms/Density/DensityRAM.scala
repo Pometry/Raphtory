@@ -11,12 +11,20 @@ import com.raphtory.core.utils.Utils
 import scala.collection.mutable.ArrayBuffer
 
 
+//Initialisation of the file in where the output will be written is done.
+//The partial results sent from the GabMiningDensityAnalyser are read and store in a data structure similar
+//to the one used by the analyser. This is, an array of tuples of two Int values.
+//for each of the values sent by the analyser, we sum their values so we can get the final summarisation
+//for the total of the values of how many vertices and edges are in the system.
+// Then we plug these values into the final formula to output the density to file that is written.
+
 class DensityRAM(jobID:String, start:Long, end:Long, jump:Long)extends RangeAnalysisManager (jobID,start,end,jump){
 
   val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
   //Wed Aug 10 04:59:06 BST 2016
   val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
   val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
+
   Utils.writeLines(output_file,"Time,Date,TotalVertices,TotalEdges,Density")
 //  val writing=new writeToFile()
 //  //Wed Aug 10 04:59:06 BST 2016
@@ -49,6 +57,7 @@ class DensityRAM(jobID:String, start:Long, end:Long, jump:Long)extends RangeAnal
     val density2=new java.math.BigDecimal(density).toPlainString
     println (s"The density at ${formattedDate} is : "+ density2)
     val text= time+","+formattedDate + ","+ totalVertices + ","+ totalEdges + ","+density2
+
     Utils.writeLines(output_file,text)
     println(println("End: "+ LocalDateTime.now()))
 

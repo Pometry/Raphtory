@@ -14,6 +14,14 @@ import com.raphtory.examples.gabMining.analysis.GabMiningCCAnalyser
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
+
+//Initialisation of the file in where the output will be written is done.
+//The partial results sent from the analyser are received and assigned to an equivalent data structure they had in
+//the analyser. Then by means of Scala functionality, only the connected component that had the higher number of members
+//is written to the file.
+// In this class the number of supersteps in the connectec component algorithm is set.
+// The number of rows in the output will depend on the dates stated for the range analysis.
+
 class GabMiningCCRange(jobID:String,start:Long,end:Long,hop:Long) extends RangeAnalysisManager(jobID,start,end,hop)  {
   val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
   val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
@@ -31,7 +39,7 @@ class GabMiningCCRange(jobID:String,start:Long,end:Long,hop:Long) extends RangeA
   }
 
 
-  override protected def defineMaxSteps(): Int = 10
+  override protected def defineMaxSteps(): Int = 5
   override protected def generateAnalyzer : Analyser = new GabMiningCCAnalyser()
   override protected def processOtherMessages(value: Any) : Unit = {println ("Not handled message" + value.toString)}
 

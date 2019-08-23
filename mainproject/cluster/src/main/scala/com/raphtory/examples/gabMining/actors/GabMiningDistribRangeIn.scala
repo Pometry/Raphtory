@@ -11,6 +11,13 @@ import com.raphtory.examples.gabMining.analysis.GabMiningDistribAnalyserIn
 
 import scala.collection.mutable.ArrayBuffer
 
+//Initialisation of the file in where the output will be written is done.
+//the resulys sent by the GabMiningDistribAnalyserIn, as received and parsed to get the tuples sent.
+//in where something like (2,10) will be received, meaning the degree 2 had 10 occurences.
+
+//then a reducer is performed to get all the other tuples containing the occurences of the in-degree 2. Then the final
+// list is written to the file.
+
 class GabMiningDistribRangeIn(jobID:String, start:Long, end:Long, jump:Long)extends RangeAnalysisManager (jobID,start,end,jump){
   val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
   Utils.writeLines(output_file,"Date,InDegree,Total")
