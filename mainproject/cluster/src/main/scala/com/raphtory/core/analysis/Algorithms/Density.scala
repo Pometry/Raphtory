@@ -57,7 +57,7 @@ class Density extends Analyser {
     println (s"The density at ${currentDate} is : "+ density2)
   }
 
-  override protected def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {
+  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {
     val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     //Wed Aug 10 04:59:06 BST 2016
     val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")

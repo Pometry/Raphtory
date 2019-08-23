@@ -48,15 +48,18 @@ class ConComAnalyser extends Analyser {
     }
     results
   }
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any]): Unit = {}
 
-  override protected def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timestamp:Long,windowSize:Long): Unit = {
+  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {}
+
+  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timestamp:Long,windowSize:Long): Unit = {
   val endResults = results.asInstanceOf[ArrayBuffer[mutable.HashMap[Int, Int]]]
   println(s"At ${new Date(timestamp)} with a window of ${windowSize / 1000 / 3600} hour(s) there were ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).size} connected components. The biggest being ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).maxBy(_._2)}")
   println()
-}
+  }
 
   override def defineMaxSteps(): Int = 10
-  override protected def checkProcessEnd(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any]) : Boolean = {false
+  override def checkProcessEnd(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any]) : Boolean = {false
     // move to LAM partitionsHalting()
   }
 }

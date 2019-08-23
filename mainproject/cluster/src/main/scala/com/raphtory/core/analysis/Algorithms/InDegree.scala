@@ -85,7 +85,7 @@ override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuff
 
       }
 
-      val currentDate = new Date(timestamp())
+      val currentDate = new Date(timestamp)
       val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
       var degrees = finalResults.groupBy(_._1).mapValues(seq => seq.map(_._2).reduce(_ + _)).toList.sortBy(_._1) //.foreach(println)
       for ((degree, total) <- degrees) {
