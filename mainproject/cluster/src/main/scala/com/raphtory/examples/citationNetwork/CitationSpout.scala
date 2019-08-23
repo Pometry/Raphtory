@@ -1,4 +1,4 @@
-package com.raphtory.examples.TestPackage
+package com.raphtory.examples.citationNetwork
 
 import java.text.SimpleDateFormat
 
@@ -13,7 +13,7 @@ import scala.language.postfixOps
 import scala.util.Random
 import scala.io
 
-class TestSpout extends SpoutTrait {
+class CitationSpout extends SpoutTrait {
 
   //file is read. Please note that the first line is dropped, this in case the file has headers
   val fileLines = io.Source.fromFile("/Users/lagordamotoneta/Scala/small.csv").getLines.drop(1).toArray

@@ -1,4 +1,4 @@
-package com.raphtory.examples.gabMining.actors
+package com.raphtory.examples.gab.actors
 
 import java.text.SimpleDateFormat
 
@@ -13,7 +13,7 @@ import com.raphtory.core.model.communication._
 // is equal to -1. Columns 1 and 4 correspond to the postId and parentPostid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabMiningRouter (routerId:Int,override val initialManagerCount:Int) extends RouterSlave {
+class GabPostGraphRouter(routerId:Int, override val initialManagerCount:Int) extends RouterSlave {
 
   def parseRecord(record: Any): Unit = {
     val fileLine = record.asInstanceOf[String].split(";").map(_.trim)

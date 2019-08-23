@@ -24,4 +24,6 @@ abstract class RangeAnalysisManager(jobID:String,analyser:Analyser,start:Long,en
       mediator ! DistributedPubSubMediator.Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$","")),false)
 
   }
+
+  override def processResults(): Unit = analyser.processViewResults(results,oldResults,timestamp())
 }

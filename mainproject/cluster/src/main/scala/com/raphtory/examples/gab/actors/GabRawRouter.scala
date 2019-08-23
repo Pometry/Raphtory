@@ -23,7 +23,7 @@ import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-final class RaphtoryGabRouter(val routerId:Int, val initialManagerCount:Int) extends RouterSlave {
+final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends RouterSlave {
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
   import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   private val nullStr = "null"

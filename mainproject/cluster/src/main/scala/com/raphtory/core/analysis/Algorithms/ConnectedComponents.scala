@@ -1,4 +1,4 @@
-package com.raphtory.core.analysis.Algorithms.ConnectedComponents
+package com.raphtory.core.analysis.Algorithms
 
 import java.util.Date
 

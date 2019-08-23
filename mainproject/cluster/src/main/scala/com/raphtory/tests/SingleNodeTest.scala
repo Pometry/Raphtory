@@ -2,9 +2,11 @@ package com.raphtory.tests
 
 import akka.actor.{Actor, ActorSystem, Props}
 import ch.qos.logback.classic.Level
+import com.raphtory.core.analysis.WorkerID
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog}
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
 
 //this class creates an actor system with all of the required components for a Raphtory cluster
@@ -22,8 +24,8 @@ object SingleNodeTest extends App {
  // var routerClassName = "com.raphtory.examples.TestPackage.TestRouter"
  // var UpdaterName = "com.raphtory.examples.TestPackage.TestSpout"
 
- var UpdaterName = "com.raphtory.examples.gabMining.actors.GabKafkaSpout"
- var routerClassName = "com.raphtory.examples.gabMining.actors.GabMiningRouter"
+ var UpdaterName = "com.raphtory.examples.gab.actors.GabKafkaSpout"
+ var routerClassName = "com.raphtory.examples.gab.actors.GabMiningRouter"
 // var LamClassName = "com.raphtory.examples.bitcoin.actors.BitcoinLiveAnalysisManager"
  val LamClassName = "com.raphtory.core.analysis.Algorithms.Density.DensityWAM"
 
@@ -91,8 +93,5 @@ object SingleNodeTest extends App {
 //  val cl = Class.forName(LamClassName)
 //  val cons = cl.getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long])
 //  system.actorOf(Props(cons.newInstance("testName",start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$LamClassName")
-
-
-
 }
 

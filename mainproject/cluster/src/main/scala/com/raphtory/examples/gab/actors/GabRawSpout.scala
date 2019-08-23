@@ -20,7 +20,7 @@ import scala.language.postfixOps
 import ch.qos.logback.classic.Level
 import org.slf4j.LoggerFactory
 
-final class GabSpout extends SpoutTrait {
+final class GabRawSpout extends SpoutTrait {
 
   //private val redis    = new RedisClient("moe", 6379)
   //private val redisKey = "gab-posts"

@@ -21,6 +21,8 @@ abstract class Analyser extends java.io.Serializable {
   def setup()(implicit workerID: WorkerID) : Any
 
   def defineMaxSteps() : Int
-  def processResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any],timestamp:Long,windowSize:Long) : Unit
+  def processResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any]) : Unit
+  def processViewResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any],timestamp:Long) : Unit
+  def processWindowResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any],timestamp:Long,windowSize:Long) : Unit
   def checkProcessEnd(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any]) : Boolean = false
 }

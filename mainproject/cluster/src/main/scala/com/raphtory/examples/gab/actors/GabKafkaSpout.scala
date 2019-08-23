@@ -1,16 +1,13 @@
-package com.raphtory.examples.gabMining.actors
+package com.raphtory.examples.gab.actors
 
 import java.util
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import org.apache.kafka.clients.consumer.{Consumer, ConsumerConfig, KafkaConsumer}
 import java.util.Properties
 
 import com.raphtory.core.components.Spout.SpoutTrait
-import kafka.serializer.DefaultDecoder
-import kafka.utils.Whitelist
+import org.apache.kafka.clients.consumer.KafkaConsumer
 
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, MILLISECONDS, SECONDS}
 import scala.util.Random
 class GabKafkaSpout extends SpoutTrait{

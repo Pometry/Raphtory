@@ -1,8 +1,6 @@
 package com.raphtory.examples.bitcoin.analysis
 
-import akka.actor.ActorContext
 import com.raphtory.core.analysis.{Analyser, WorkerID}
-import com.raphtory.examples.bitcoin.communications.CoinsAquiredPayload
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -38,9 +36,37 @@ class BitcoinAnalyser extends Analyser {
     CoinsAquiredPayload(workerID,results.sortBy(f => f._2)(Ordering[Double].reverse).take(10),currentBlock,hash)
   }
 
+
+
   override def setup()(implicit workerID:WorkerID): Any = {
 
   }
+
+  override def defineMaxSteps(): Int = 1
+
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any]): Unit = {
+    var finalResults = ArrayBuffer[(String, Double)]()
+    var highestBlock = 0
+    var blockHash = ""
+    for(indiResult <- results.asInstanceOf[(ArrayBuffer[CoinsAquiredPayload])]){
+      for (pair <- indiResult.wallets){
+        finalResults :+= pair
+      }
+      if(indiResult.highestBlock>highestBlock){
+        highestBlock = indiResult.highestBlock
+        blockHash = indiResult.blockhash
+      }
+    }
+    println(s"Current top three wallets at block $highestBlock ($blockHash)")
+    finalResults.sortBy(f => f._2)(Ordering[Double].reverse).take(3).foreach(pair =>{
+      println(s"${pair._1} has acquired a total of ${pair._2} bitcoins ")
+    })
+
+  }
+
+  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {}
+
+  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long): Unit = {}
 }
 
 

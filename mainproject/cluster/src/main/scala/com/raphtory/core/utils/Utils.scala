@@ -157,4 +157,20 @@ object Utils {
     bw.newLine()
     bw.flush()
   }
+
+
+
+   object resultNumeric extends Numeric[(Long, Double)] {
+    override def plus(x: (Long, Double), y: (Long, Double)) = (x._1 + y._1, x._2 + y._2)
+    override def minus(x: (Long, Double), y: (Long, Double)) = (x._1 - y._1, x._2 - y._2)
+    override def times(x: (Long, Double), y: (Long, Double)) = (x._1 * y._1, x._2 * y._2)
+    override def negate(x: (Long, Double)) = (-x._1, -x._2)
+    override def fromInt(x: Int) = (x, x)
+    override def toInt(x: (Long, Double)) = x._1.toInt
+    override def toLong(x: (Long, Double)) = x._1
+    override def toFloat(x: (Long, Double)) = x._2.toFloat
+    override def toDouble(x: (Long, Double)) = x._2
+    override def compare(x: (Long, Double), y: (Long, Double)) = x._2.compare(y._2)
+  }
+
 }

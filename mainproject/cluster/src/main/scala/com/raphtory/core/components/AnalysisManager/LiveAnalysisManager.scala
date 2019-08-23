@@ -60,6 +60,7 @@ abstract class LiveAnalysisManager(jobID:String,analyser: Analyser) extends Acto
   protected def analyserName:String = generateAnalyzer.getClass.getName
   protected final def getManagerCount : Int = managerCount
   protected final def getWorkerCount : Int = managerCount*10
+  protected def processResults() = analyser.processResults(results,oldResults)
 
   private def resetCounters() = {
     ReaderACKS = 0 //Acks from the readers to say they are online
@@ -173,7 +174,7 @@ abstract class LiveAnalysisManager(jobID:String,analyser: Analyser) extends Acto
     if(debug)println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
     if (workersFinishedSuperStep == getWorkerCount) {
       if (currentSuperStep == steps || analyser.checkProcessEnd(results,oldResults)) {
-        try{analyser.processResults(results,oldResults,timestamp(),windowSize())} catch {case e:Exception => println(e)}
+        try{processResults()} catch {case e:Exception => println(e)}
         results = mutable.ArrayBuffer[Any]()
         oldResults = mutable.ArrayBuffer[Any]()
        // for(worker <- Utils.getAllReaderWorkers(managerCount))

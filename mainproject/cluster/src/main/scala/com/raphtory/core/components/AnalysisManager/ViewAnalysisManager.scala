@@ -14,6 +14,8 @@ abstract class ViewAnalysisManager(jobID:String,analyser:Analyser,time:Long) ext
     println(s"View Analaysis manager for $jobID at ${new Date(time)} finished")
     System.exit(0)
   }
+
+  override def processResults(): Unit = analyser.processViewResults(results,oldResults,timestamp())
 }
 //1471459626000L
 

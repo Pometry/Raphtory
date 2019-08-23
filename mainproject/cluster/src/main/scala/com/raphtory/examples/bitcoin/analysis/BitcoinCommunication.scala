@@ -1,4 +1,4 @@
-package com.raphtory.examples.bitcoin.communications
+package com.raphtory.examples.bitcoin.analysis
 
 import com.raphtory.core.analysis.WorkerID
 import com.raphtory.core.model.communication.SpoutGoing

@@ -1,4 +1,6 @@
-package com.raphtory.examples.gabMining.actors
+package com.raphtory.examples.gab.actors
+
+import java.time.LocalDateTime
 
 import com.raphtory.core.components.Spout.SpoutTrait
 
@@ -6,9 +8,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.io
 import scala.language.postfixOps
-import java.time.LocalDateTime
 
-class GabMiningSpout extends SpoutTrait {
+class GabExampleSpout extends SpoutTrait {
 
   //file is read. Please note that the first line is dropped, this in case the file has headers
   //the directories of where the datasets are located are initialised. Either by harcoding the value or by setting

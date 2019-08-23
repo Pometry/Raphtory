@@ -5,7 +5,7 @@ import com.raphtory.core.components.Router.TraditionalRouter.Helpers.RouterSlave
 import com.raphtory.core.components.Router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, RaphWriteClass, VertexAddWithProperties}
 import com.raphtory.core.utils.Utils.getManager
-import com.raphtory.examples.bitcoin.communications.BitcoinTransaction
+import com.raphtory.examples.bitcoin.analysis.BitcoinTransaction
 import spray.json.JsArray
 
 class BitcoinRaphtoryRouter(val routerId:Int,val initialManagerCount:Int) extends RouterSlave{

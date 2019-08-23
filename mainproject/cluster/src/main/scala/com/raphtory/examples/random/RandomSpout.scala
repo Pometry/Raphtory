@@ -1,4 +1,4 @@
-package com.raphtory.examples.random.actors
+package com.raphtory.examples.random
 
 import java.text.SimpleDateFormat
 
