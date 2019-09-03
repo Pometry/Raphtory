@@ -5,7 +5,7 @@ package com.raphtory.examples.gab.analysis
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import com.raphtory.core.analysis.{Analyser, WorkerID}
+import com.raphtory.core.analysis.API.{Analyser, WorkerID}
 import com.raphtory.core.model.communication.VertexMessage
 import com.raphtory.core.utils.Utils
 

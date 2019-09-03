@@ -3,7 +3,8 @@ package com.raphtory.core.components.PartitionManager.Workers
 import akka.actor.{Actor, ActorPath, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.analysis.API.GraphRepositoryProxies.{LiveProxy, ViewProxy, WindowProxy}
-import com.raphtory.core.analysis._
+import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.analysis.API._
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils

@@ -10,7 +10,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
-import com.raphtory.core.analysis.Analyser
+import com.raphtory.core.analysis.API.Analyser
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

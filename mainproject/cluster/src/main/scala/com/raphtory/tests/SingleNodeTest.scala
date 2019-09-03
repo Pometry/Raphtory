@@ -3,7 +3,7 @@ package com.raphtory.tests
 import akka.actor.{Actor, ActorSystem, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.Managers.RangeManagers.WindowedRangeAnalysisManager
-import com.raphtory.core.analysis.{Analyser, WorkerID}
+import com.raphtory.core.analysis.API.{Analyser, WorkerID}
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog}
 import org.slf4j.LoggerFactory
 

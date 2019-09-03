@@ -1,6 +1,6 @@
 package com.raphtory.core.analysis.Algorithms
 
-import com.raphtory.core.analysis.{Analyser, WorkerID}
+import com.raphtory.core.analysis.API.{Analyser, WorkerID}
 import com.raphtory.core.model.communication.VertexMessage
 import com.raphtory.core.utils.Utils.resultNumeric
 

@@ -1,6 +1,6 @@
 package com.raphtory.core.model.communication
 
-import com.raphtory.core.analysis.Analyser
+import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.utils.CommandEnum
 
 import scala.collection.mutable

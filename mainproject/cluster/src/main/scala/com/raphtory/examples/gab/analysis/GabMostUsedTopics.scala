@@ -1,7 +1,7 @@
 package com.raphtory.examples.gab.analysis
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.{Analyser, WorkerID}
+import com.raphtory.core.analysis.API.{Analyser, WorkerID}
 import com.raphtory.core.utils.Utils.resultNumeric
 import monix.execution.atomic.AtomicDouble
 

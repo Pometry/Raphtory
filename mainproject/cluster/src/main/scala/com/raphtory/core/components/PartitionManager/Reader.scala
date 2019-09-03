@@ -3,7 +3,7 @@ package com.raphtory.core.components.PartitionManager
 import akka.actor.{Actor, ActorPath, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.analysis.Analyser
+import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.components.PartitionManager.Workers.{IngestionWorker, ReaderWorker}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils

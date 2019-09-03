@@ -4,10 +4,10 @@ package com.raphtory.core.clustersetup
   * Created by Mirate on 29/09/2017.
   */
 import akka.actor.{Actor, Props}
-import com.raphtory.core.analysis.Analyser
+import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.Managers.RangeManagers.{RangeAnalysisManager, WindowedRangeAnalysisManager}
 import com.raphtory.core.analysis.Managers.ViewManagers.ViewAnalysisManager
-import com.raphtory.core.analysis.Managers.AnalysisManager
+import com.raphtory.core.analysis.Managers.LiveManagers.LiveAnalysisManager
 
 case class LiveAnalysisNode(seedLoc: String, name:String)
     extends DocSvr {
@@ -19,7 +19,7 @@ case class LiveAnalysisNode(seedLoc: String, name:String)
 
   sys.env.getOrElse("LAMTYPE", "LAM").toString match {
     case "LAM" => { // live graph
-      system.actorOf(Props(new AnalysisManager(jobID,analyser)), s"LiveAnalysisManager_$name")
+      system.actorOf(Props(new LiveAnalysisManager(jobID,analyser)), s"LiveAnalysisManager_$name")
     }
     case "VAM" => { //view of the graph
       val time = sys.env.getOrElse("TIMESTAMP", "0").toLong

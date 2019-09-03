@@ -3,7 +3,7 @@ package com.raphtory.core.analysis.Algorithms
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import com.raphtory.core.analysis.{Analyser, WorkerID}
+import com.raphtory.core.analysis.API.{Analyser, WorkerID}
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer

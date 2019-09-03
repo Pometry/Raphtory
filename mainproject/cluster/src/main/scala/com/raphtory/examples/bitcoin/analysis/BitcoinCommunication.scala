@@ -1,6 +1,6 @@
 package com.raphtory.examples.bitcoin.analysis
 
-import com.raphtory.core.analysis.WorkerID
+import com.raphtory.core.analysis.API.WorkerID
 import com.raphtory.core.model.communication.SpoutGoing
 import spray.json.JsValue
 
