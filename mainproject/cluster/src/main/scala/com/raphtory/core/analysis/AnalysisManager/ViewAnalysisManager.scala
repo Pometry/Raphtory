@@ -1,4 +1,4 @@
-package com.raphtory.core.components.AnalysisManager
+package com.raphtory.core.analysis.AnalysisManager
 
 import java.util.Date
 

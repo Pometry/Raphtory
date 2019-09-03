@@ -1,4 +1,4 @@
-package com.raphtory.core.components.AnalysisManager
+package com.raphtory.core.analysis.AnalysisManager
 
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.analysis.Analyser
