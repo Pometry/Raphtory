@@ -1,10 +1,11 @@
-package com.raphtory.core.analysis.GraphRepositoryProxies
+package com.raphtory.core.analysis.API.GraphRepositoryProxies
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.{ManagerCount, VertexVisitor, WorkerID}
+import com.raphtory.core.analysis.API.VertexVisitor
+import com.raphtory.core.analysis.API.{ManagerCount, WorkerID}
 import com.raphtory.core.storage.EntityStorage
 
-class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:WorkerID) extends GraphProxy(jobID,superstep,timestamp,-1) {
+class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:WorkerID) extends LiveProxy(jobID,superstep,timestamp,-1) {
   private val keySet:Array[Int] = EntityStorage.vertexKeys(workerID.ID).filter(v=> EntityStorage.vertices(v).aliveAt(timestamp)).toArray
 
 

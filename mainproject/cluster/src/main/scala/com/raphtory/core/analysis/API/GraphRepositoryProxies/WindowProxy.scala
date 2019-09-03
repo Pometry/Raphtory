@@ -1,10 +1,11 @@
-package com.raphtory.core.analysis.GraphRepositoryProxies
+package com.raphtory.core.analysis.API.GraphRepositoryProxies
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.{ManagerCount, VertexVisitor, WorkerID}
+import com.raphtory.core.analysis.API.VertexVisitor
+import com.raphtory.core.analysis.API.{ManagerCount, WorkerID}
 import com.raphtory.core.storage.EntityStorage
 
-class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:WorkerID) extends GraphProxy(jobID,superstep,timestamp,windowSize) {
+class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:WorkerID) extends LiveProxy(jobID,superstep,timestamp,windowSize) {
 
   private var setWindow = windowSize
 

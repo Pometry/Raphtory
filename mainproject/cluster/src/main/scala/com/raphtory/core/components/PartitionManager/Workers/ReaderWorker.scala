@@ -2,7 +2,7 @@ package com.raphtory.core.components.PartitionManager.Workers
 
 import akka.actor.{Actor, ActorPath, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.analysis.GraphRepositoryProxies.{GraphProxy, ViewProxy, WindowProxy}
+import com.raphtory.core.analysis.API.GraphRepositoryProxies.{LiveProxy, ViewProxy, WindowProxy}
 import com.raphtory.core.analysis._
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
@@ -17,7 +17,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
   var receivedMessages = AtomicInt(0)
-  var tempProxy:GraphProxy = null
+  var tempProxy:LiveProxy = null
 
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
@@ -83,7 +83,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     else if (timestamp != -1) //we are only interested in a singular view
       tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
     else //we are running on the live graph
-      tempProxy = new GraphProxy(jobID,superStep,timestamp,window)
+      tempProxy = new LiveProxy(jobID,superStep,timestamp,window)
 
   }
 

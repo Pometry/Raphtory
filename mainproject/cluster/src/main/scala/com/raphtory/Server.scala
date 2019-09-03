@@ -14,7 +14,7 @@ import kamon.system.SystemMetrics
 import java.lang.management.ManagementFactory
 
 import akka.http.scaladsl.server.ExceptionHandler
-import com.raphtory.core.analysis.AnalysisManager.LiveAnalysisManager
+import com.raphtory.core.analysis.Managers.AnalysisManager
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
 import com.raphtory.examples.random.{RandomRouter, RandomSpout}
@@ -35,7 +35,7 @@ object Go extends App {
   root.setLevel(Level.ERROR)
   val routerName    = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
   val updaterName   = s"${sys.env.getOrElse("UPDATERCLASS", classOf[RandomSpout].getClass.getName)}"
-  val lamName       = s"${sys.env.getOrElse("LAMCLASS", classOf[LiveAnalysisManager].getClass.getName)}"
+  val lamName       = s"${sys.env.getOrElse("LAMCLASS", classOf[AnalysisManager].getClass.getName)}"
 
   val runtimeMxBean = ManagementFactory.getRuntimeMXBean
   val arguments = runtimeMxBean.getInputArguments

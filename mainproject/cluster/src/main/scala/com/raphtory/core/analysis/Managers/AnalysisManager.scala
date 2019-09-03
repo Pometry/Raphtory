@@ -1,4 +1,4 @@
-package com.raphtory.core.analysis.AnalysisManager
+package com.raphtory.core.analysis.Managers
 
 import java.io.FileNotFoundException
 import java.util.Date
@@ -18,7 +18,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 import scala.sys.process._
 import scala.io.Source
 
-class LiveAnalysisManager(jobID:String,analyser: Analyser) extends Actor {
+abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   protected var managerCount : Int = 0 //Number of Managers in the Raphtory Cluster
   private var currentSuperStep  = 0 //SuperStep the algorithm is currently on
 

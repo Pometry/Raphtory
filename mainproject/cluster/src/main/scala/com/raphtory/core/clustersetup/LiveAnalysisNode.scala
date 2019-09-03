@@ -5,7 +5,9 @@ package com.raphtory.core.clustersetup
   */
 import akka.actor.{Actor, Props}
 import com.raphtory.core.analysis.Analyser
-import com.raphtory.core.analysis.AnalysisManager.{LiveAnalysisManager, RangeAnalysisManager, ViewAnalysisManager, WindowRangeAnalysisManager}
+import com.raphtory.core.analysis.Managers.RangeManagers.{RangeAnalysisManager, WindowedRangeAnalysisManager}
+import com.raphtory.core.analysis.Managers.ViewManagers.ViewAnalysisManager
+import com.raphtory.core.analysis.Managers.AnalysisManager
 
 case class LiveAnalysisNode(seedLoc: String, name:String)
     extends DocSvr {
@@ -17,7 +19,7 @@ case class LiveAnalysisNode(seedLoc: String, name:String)
 
   sys.env.getOrElse("LAMTYPE", "LAM").toString match {
     case "LAM" => { // live graph
-      system.actorOf(Props(new LiveAnalysisManager(jobID,analyser)), s"LiveAnalysisManager_$name")
+      system.actorOf(Props(new AnalysisManager(jobID,analyser)), s"LiveAnalysisManager_$name")
     }
     case "VAM" => { //view of the graph
       val time = sys.env.getOrElse("TIMESTAMP", "0").toLong
@@ -34,7 +36,7 @@ case class LiveAnalysisNode(seedLoc: String, name:String)
       val end = sys.env.getOrElse("END", "0").toLong
       val jump = sys.env.getOrElse("JUMP", "0").toLong
       val window = sys.env.getOrElse("WINDOW", "0").toLong
-      system.actorOf(Props(new WindowRangeAnalysisManager(jobID,analyser,start,end,jump,window)), s"WindowAnalysisManager_$name")
+      system.actorOf(Props(new WindowedRangeAnalysisManager(jobID,analyser,start,end,jump,window)), s"WindowAnalysisManager_$name")
     }
 
   }
