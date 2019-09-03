@@ -4,7 +4,8 @@ package com.raphtory.core.clustersetup
   * Created by Mirate on 29/09/2017.
   */
 import akka.actor.{Actor, Props}
-import com.raphtory.core.analysis.AnalysisManager.LiveAnalysisManager
+import com.raphtory.core.analysis.Analyser
+import com.raphtory.core.analysis.AnalysisManager.{LiveAnalysisManager, RangeAnalysisManager, ViewAnalysisManager, WindowRangeAnalysisManager}
 
 case class LiveAnalysisNode(seedLoc: String, name:String)
     extends DocSvr {
@@ -12,30 +13,28 @@ case class LiveAnalysisNode(seedLoc: String, name:String)
 
 
   val jobID = sys.env.getOrElse("JOBID", "Default").toString
+  val analyser = Class.forName(name).newInstance().asInstanceOf[Analyser]
+
   sys.env.getOrElse("LAMTYPE", "LAM").toString match {
     case "LAM" => { // live graph
-      val cons = Class.forName(name).getConstructor(classOf[String])
-      system.actorOf(Props(cons.newInstance(jobID).asInstanceOf[Actor]), s"LiveAnalysisManager_$name")
+      system.actorOf(Props(new LiveAnalysisManager(jobID,analyser)), s"LiveAnalysisManager_$name")
     }
     case "VAM" => { //view of the graph
       val time = sys.env.getOrElse("TIMESTAMP", "0").toLong
-      val cons = Class.forName(name).getConstructor(classOf[String],classOf[Long])
-      system.actorOf(Props(cons.newInstance(jobID,time.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$name")
+      system.actorOf(Props(new ViewAnalysisManager(jobID,analyser,time)), s"ViewAnalysisManager_$name")
     }
     case "RAM" => { //range query through history
       val start = sys.env.getOrElse("START", "0").toLong
       val end = sys.env.getOrElse("END", "0").toLong
       val jump = sys.env.getOrElse("JUMP", "0").toLong
-      val cons = Class.forName(name).getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long])
-      system.actorOf(Props(cons.newInstance(jobID,start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$name")
+      system.actorOf(Props(new RangeAnalysisManager(jobID,analyser,start,end,jump)), s"RangeAnalysisManager_$name")
     }
     case "WAM" => { // windowed range query through history
       val start = sys.env.getOrElse("START", "0").toLong
       val end = sys.env.getOrElse("END", "0").toLong
       val jump = sys.env.getOrElse("JUMP", "0").toLong
       val window = sys.env.getOrElse("WINDOW", "0").toLong
-      val cons = Class.forName(name).getConstructor(classOf[String],classOf[Long],classOf[Long],classOf[Long],classOf[Long])
-      system.actorOf(Props(cons.newInstance(jobID,start.asInstanceOf[AnyRef],end.asInstanceOf[AnyRef],jump.asInstanceOf[AnyRef],window.asInstanceOf[AnyRef]).asInstanceOf[Actor]), s"LiveAnalysisManager_$name")
+      system.actorOf(Props(new WindowRangeAnalysisManager(jobID,analyser,start,end,jump,window)), s"WindowAnalysisManager_$name")
     }
 
   }
