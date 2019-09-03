@@ -18,7 +18,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 import scala.sys.process._
 import scala.io.Source
 
-abstract class LiveAnalysisManager(jobID:String,analyser: Analyser) extends Actor {
+class LiveAnalysisManager(jobID:String,analyser: Analyser) extends Actor {
   protected var managerCount : Int = 0 //Number of Managers in the Raphtory Cluster
   private var currentSuperStep  = 0 //SuperStep the algorithm is currently on
 

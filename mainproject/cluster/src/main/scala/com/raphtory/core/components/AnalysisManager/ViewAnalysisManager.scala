@@ -7,7 +7,7 @@ import com.raphtory.core.analysis.Analyser
 import com.raphtory.core.model.communication.AnalyserPresentCheck
 import com.raphtory.core.utils.Utils
 
-abstract class ViewAnalysisManager(jobID:String,analyser:Analyser,time:Long) extends LiveAnalysisManager(jobID:String,analyser) {
+class ViewAnalysisManager(jobID:String,analyser:Analyser,time:Long) extends LiveAnalysisManager(jobID:String,analyser) {
   override def timestamp():Long = time
 
   override def restart() = {
