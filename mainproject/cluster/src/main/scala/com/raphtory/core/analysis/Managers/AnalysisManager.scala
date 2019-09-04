@@ -46,6 +46,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   protected var results:ArrayBuffer[Any]      = mutable.ArrayBuffer[Any]()
   protected var oldResults:ArrayBuffer[Any]   = mutable.ArrayBuffer[Any]()
 
+  protected def analysisType():AnalysisType.Value
 
 
   protected var steps  : Long= 0L // number of supersteps before returning
@@ -140,7 +141,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     if(TimeOKACKS==getManagerCount) {
       if (TimeOKFlag)
         for (worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep, timestamp,windowSize(),windowSet()), false)
+          mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep,timestamp,analysisType(),windowSize(),windowSet()), false)
       else {
         println(s"${new Date(timestamp())} is yet to be ingested. Backing off to 10 seconds and retrying")
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "recheckTime")
@@ -198,10 +199,10 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
       currentSuperStep += 1
       if(newAnalyser)
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(analyserName,jobID,currentSuperStep,timestamp,windowSize(),windowSet()),false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(analyserName,jobID,currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
       else {
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, currentSuperStep,timestamp,windowSize(),windowSet()),false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
       }
     }
     else {
@@ -225,7 +226,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
         totalSentMessages = 0
         totalReceivedMessages = 0
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,windowSize(),windowSet()),false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
       }
       else {
         println(s"checking, $totalReceivedMessages/$totalSentMessages")

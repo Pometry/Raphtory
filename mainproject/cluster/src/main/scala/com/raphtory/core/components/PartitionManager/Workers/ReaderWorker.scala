@@ -23,10 +23,10 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
 
-    case Setup(analyzer,jobID,superStep,timestamp,window,windowSet) => try{setup(analyzer,jobID,superStep,timestamp,window,windowSet)}catch {case e:Exception => self ! Setup(analyzer,jobID,superStep,timestamp,window,windowSet)}
+    case Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => self ! Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}
     case CheckMessages(superstep) => try{checkMessages() }catch {case e:Exception => self ! CheckMessages(superstep)}
-    case NextStep(analyzer,jobID,superStep,timestamp,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,window,windowSet) }catch {case e:Exception => self !NextStep(analyzer,jobID,superStep,timestamp,window,windowSet)}
-    case NextStepNewAnalyser(name,jobID,currentStep,timestamp,window,windowSet) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,window,windowSet)
+    case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) }catch {case e:Exception => self !NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}
+    case NextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet)
     case handler:MessageHandler => receivedMessage(handler)
   }
 
@@ -41,9 +41,9 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     sender() ! MessagesReceived(workerId,count,receivedMessages.get,tempProxy.getMessages())
   }
 
-  def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,window:Long,windowSet:Array[Long]) {
+  def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) {
     receivedMessages.set(0)
-    setProxy(jobID,superStep,timestamp,window,windowSet)
+    setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
     EntityStorage.vertexKeys(workerId).foreach(v=> EntityStorage.vertices(v).mutliQueue.clearQueues(tempProxy.job()))
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
     if(windowSet.isEmpty) {
@@ -62,30 +62,47 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     }
   }
 
-  def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,window:Long,windowSet:Array[Long]): Unit = {
+  def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]): Unit = {
     //println(analyzer)
     receivedMessages.set(0)
-    setProxy(jobID,superStep,timestamp,window,windowSet)
+    setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
     val value = analyzer.analyse()(new WorkerID(workerId))
     sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
 
   }
 
-  def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int,timestamp:Long,window:Long,windowSet:Array[Long]) = {
-    nextStep(Utils.analyserMap(name),jobID,currentStep,timestamp,window,windowSet)
+  def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) = {
+    nextStep(Utils.analyserMap(name),jobID,currentStep,timestamp,analysisType,window,windowSet)
   }
 
-  private def setProxy(jobID:String,superStep:Int,timestamp:Long,window:Long,windowSet:Array[Long]):Unit = {
-    if(windowSet.nonEmpty) //we have a set of windows to run
-      tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),WorkerID(workerId))
-    else if(window != -1) // we only have one window to run
-      tempProxy = new WindowProxy(jobID,superStep,timestamp,window,WorkerID(workerId))
-    else if (timestamp != -1) //we are only interested in a singular view
-      tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
-    else //we are running on the live graph
-      tempProxy = new LiveProxy(jobID,superStep,timestamp,window)
-
+  private def setProxy(jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]):Unit = {
+    analysisType match {
+      case AnalysisType.live => {
+        if(windowSet.nonEmpty) //we have a set of windows to run
+          tempProxy = new WindowProxy(jobID,superStep,EntityStorage.newestTime,windowSet(0),WorkerID(workerId))
+        else if(window != -1) // we only have one window to run
+          tempProxy = new WindowProxy(jobID,superStep,EntityStorage.newestTime,window,WorkerID(workerId))
+        else
+          tempProxy = new LiveProxy(jobID,superStep,timestamp,window)
+      }
+      case AnalysisType.view  => {
+        if(windowSet.nonEmpty) //we have a set of windows to run
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),WorkerID(workerId))
+        else if(window != -1) // we only have one window to run
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,WorkerID(workerId))
+        else
+          tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
+      }
+      case AnalysisType.range  => {
+        if(windowSet.nonEmpty) //we have a set of windows to run
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),WorkerID(workerId))
+        else if(window != -1) // we only have one window to run
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,WorkerID(workerId))
+        else
+          tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
+      }
+    }
   }
 
 }
