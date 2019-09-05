@@ -7,6 +7,7 @@ import java.util.Date
 import com.raphtory.core.analysis.API.{Analyser, WorkerID}
 import com.raphtory.core.utils.Utils
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 // to obtain the density of the network we need to obtain the degree and the number of vertices to plug in the
@@ -112,6 +113,24 @@ class Density extends Analyser {
     val text= time+","+formattedDate + ","+ totalVertices + ","+ totalEdges + ","+ density2
     Utils.writeLines(output_file,text)
     println("End: "+ new Date(timestamp))
+  }
+
+  override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long]): Unit = {
+    for(i <- windowSet.indices){
+      var totalVertices = 0L
+      var totalEdges = 0L
+      results.asInstanceOf[ArrayBuffer[mutable.HashMap[Long,Any]]].foreach(window => {
+        val pair = window(i).asInstanceOf[(Long,Long)]
+        totalVertices += pair._1
+        totalEdges += pair._2
+      })
+      val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
+      val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
+      val currentDate=new Date(timestamp)
+      val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
+      val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
+      println(s"Density at $formattedDate with a windowSize of ${windowSet(i.toInt)} is $density")
+    }
+  }
 
   }
-}

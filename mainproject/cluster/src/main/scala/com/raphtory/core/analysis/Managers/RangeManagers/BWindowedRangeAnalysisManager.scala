@@ -6,4 +6,5 @@ import com.raphtory.core.model.communication.AnalysisType
 class BWindowedRangeAnalysisManager(jobID:String, analyser:Analyser, start:Long, end:Long, jump:Long, windows:Array[Long]) extends RangeAnalysisManager(jobID,analyser,start,end,jump) {
   override def windowSet(): Array[Long] = windows
   override protected def analysisType(): AnalysisType.Value = AnalysisType.range
+  override def processResults(): Unit = analyser.processBatchWindowResults(results,oldResults,timestamp(),windowSet())
 }

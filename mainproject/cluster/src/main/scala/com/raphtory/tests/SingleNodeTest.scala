@@ -2,7 +2,7 @@ package com.raphtory.tests
 
 import akka.actor.{Actor, ActorSystem, Props}
 import ch.qos.logback.classic.Level
-import com.raphtory.core.analysis.Managers.RangeManagers.WindowedRangeAnalysisManager
+import com.raphtory.core.analysis.Managers.RangeManagers.{BWindowedRangeAnalysisManager, WindowedRangeAnalysisManager}
 import com.raphtory.core.analysis.API.{Analyser, WorkerID}
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog}
 import org.slf4j.LoggerFactory
@@ -38,7 +38,8 @@ object SingleNodeTest extends App {
   val end = 1471891600000L
   val jump =    3600000
   val window =    3600000
-  system.actorOf(Props(new WindowedRangeAnalysisManager("testname",analyser,start,end,jump,window)), s"LiveAnalysisManager_$Analyser")
+  val windowset:Array[Long] = Array(604800000,86400000,3600000)
+  system.actorOf(Props(new BWindowedRangeAnalysisManager("testname",analyser,start,end,jump,windowset)), s"LiveAnalysisManager_$Analyser")
 
 ////////////////
 

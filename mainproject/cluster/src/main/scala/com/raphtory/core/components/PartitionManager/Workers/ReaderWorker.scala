@@ -55,11 +55,13 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
       analyzer.setup()(new WorkerID(workerId))
       var currentWindow = 1
       while(currentWindow<windowSet.size){
-        //filter
+        tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(currentWindow))
         analyzer.setup()(new WorkerID(workerId))
         currentWindow +=1
       }
+      sender() ! Ready(tempProxy.getMessages())
     }
+
   }
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]): Unit = {
@@ -67,8 +69,23 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     receivedMessages.set(0)
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
-    val value = analyzer.analyse()(new WorkerID(workerId))
-    sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
+    if(windowSet.isEmpty) {
+      val value = analyzer.analyse()(new WorkerID(workerId))
+      sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
+    }
+    else{
+      val individualResults:mutable.HashMap[Long,Any] = mutable.HashMap[Long,Any]()
+      individualResults.put(0,analyzer.analyse()(new WorkerID(workerId)))
+      var currentWindow = 1
+      while(currentWindow<windowSet.size) {
+        tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(currentWindow))
+        individualResults.put(currentWindow,analyzer.analyse()(new WorkerID(workerId)))
+        currentWindow +=1
+      }
+      sender() ! EndStep(individualResults,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
+    }
+
+
 
   }
 
