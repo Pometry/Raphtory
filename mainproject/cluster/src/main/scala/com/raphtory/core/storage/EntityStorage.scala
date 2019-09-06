@@ -51,7 +51,6 @@ object EntityStorage {
     */
  // val edges        = mutable.Map[Long, Edge]()  // Map of Edges contained in the partition
   val edges        = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
-//  val edgeKeys     = mutable.Map[Int,ParSet[Long]]()
   val edgeKeys     = ParTrieMap[Int,ParSet[Long]]()
   for(i <- 0 until children){
     val temp = ParSet[Long]()
@@ -59,16 +58,15 @@ object EntityStorage {
   }
 
 
-  var printing     : Boolean = true
-  var managerCount : Int     = 1
-  var managerID    : Int     = 0
-  var mediator     : ActorRef= null
-  var windowing        : Boolean =  Utils.windowing
-
+  var printing          : Boolean     = true
+  var managerCount      : Int         = 1
+  var managerID         : Int         = 0
+  var mediator          : ActorRef    = null
+  var windowing         : Boolean     =  Utils.windowing
   //stuff for compression and archiving
-  var oldestTime:Long = Long.MaxValue
-  var newestTime:Long = Long.MinValue
-  var lastCompressedAt:Long = 0
+  var oldestTime        :Long         = Long.MaxValue
+  var newestTime        :Long         = Long.MinValue
+  var lastCompressedAt  :Long         = 0
 
   def timings(updateTime:Long) ={
     if (updateTime < oldestTime && updateTime >0) oldestTime=updateTime
@@ -89,7 +87,7 @@ object EntityStorage {
 
   def newVertexKey(workerID:Int,id:Int):Unit = {
     vertexKeys(workerID) += id
-  } //generate a random number based on the id (as ID's have already been modulated to reach a PM and therefore will probably end in the same number
+  }
 
   def newEdgeKey(workerID:Int,id:Long):Unit = {
     edgeKeys(workerID) += id
