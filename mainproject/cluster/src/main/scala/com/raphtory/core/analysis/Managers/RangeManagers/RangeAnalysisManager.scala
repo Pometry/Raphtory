@@ -27,5 +27,5 @@ class RangeAnalysisManager(jobID:String,analyser:Analyser,start:Long,end:Long,ju
 
   }
 
-  override def processResults(): Unit = analyser.processViewResults(results,oldResults,timestamp())
+  override def processResults(): Unit = analyser.processViewResults(result,oldResult,timestamp())
 }

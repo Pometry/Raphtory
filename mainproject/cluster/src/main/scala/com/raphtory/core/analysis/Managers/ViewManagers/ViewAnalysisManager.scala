@@ -16,7 +16,7 @@ class ViewAnalysisManager(jobID:String,analyser:Analyser,time:Long) extends Anal
     System.exit(0)
   }
 
-  override def processResults(): Unit = analyser.processViewResults(results,oldResults,timestamp())
+  override def processResults(): Unit = analyser.processViewResults(result,oldResult,timestamp())
 }
 //1471459626000L
 

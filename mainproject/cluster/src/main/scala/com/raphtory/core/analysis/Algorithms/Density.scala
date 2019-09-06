@@ -116,21 +116,21 @@ class Density extends Analyser {
   }
 
   override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long]): Unit = {
-    for(i <- windowSet.indices){
-      var totalVertices = 0L
-      var totalEdges = 0L
-      results.asInstanceOf[ArrayBuffer[mutable.HashMap[Long,Any]]].foreach(window => {
-        val pair = window(i).asInstanceOf[(Long,Long)]
-        totalVertices += pair._1
-        totalEdges += pair._2
-      })
-      val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
-      val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-      val currentDate=new Date(timestamp)
-      val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
-      val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
-      println(s"Density at $formattedDate with a windowSize of ${windowSet(i.toInt)} is $density")
-    }
+//    for(i <- windowSet.indices){
+//      var totalVertices = 0L
+//      var totalEdges = 0L
+//      results.asInstanceOf[ArrayBuffer[mutable.HashMap[Long,Any]]].foreach(window => {
+//        val pair = window(i).asInstanceOf[(Long,Long)]
+//        totalVertices += pair._1
+//        totalEdges += pair._2
+//      })
+//      val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
+//      val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
+//      val currentDate=new Date(timestamp)
+//      val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
+//      val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
+//      println(s"Density at $formattedDate with a windowSize of ${windowSet(i.toInt)} is $density")
+//    }
   }
 
   }

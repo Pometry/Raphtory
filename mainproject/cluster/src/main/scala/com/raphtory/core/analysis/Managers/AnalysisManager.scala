@@ -43,8 +43,11 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
 
   protected val mediator     = DistributedPubSub(context.system).mediator
 
-  protected var results:ArrayBuffer[Any]      = mutable.ArrayBuffer[Any]()
-  protected var oldResults:ArrayBuffer[Any]   = mutable.ArrayBuffer[Any]()
+  private var results:ArrayBuffer[Any]      = mutable.ArrayBuffer[Any]()
+  private var oldResults:ArrayBuffer[Any]   = mutable.ArrayBuffer[Any]()
+
+  def result() = results
+  def oldResult() = oldResults
 
   protected def analysisType():AnalysisType.Value
 

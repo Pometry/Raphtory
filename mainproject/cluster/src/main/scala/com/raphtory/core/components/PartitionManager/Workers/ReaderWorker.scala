@@ -11,6 +11,7 @@ import com.raphtory.core.utils.Utils
 import monix.execution.atomic.AtomicInt
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Actor{
   implicit var managerCount: Int = managerCountVal
@@ -74,12 +75,12 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
       sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
     }
     else{
-      val individualResults:mutable.HashMap[Long,Any] = mutable.HashMap[Long,Any]()
-      individualResults.put(0,analyzer.analyse()(new WorkerID(workerId)))
+      val individualResults:mutable.ArrayBuffer[Any] = ArrayBuffer[Any]()
+      individualResults += analyzer.analyse()(new WorkerID(workerId))
       var currentWindow = 1
       while(currentWindow<windowSet.size) {
         tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(currentWindow))
-        individualResults.put(currentWindow,analyzer.analyse()(new WorkerID(workerId)))
+        individualResults += analyzer.analyse()(new WorkerID(workerId))
         currentWindow +=1
       }
       sender() ! EndStep(individualResults,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
