@@ -40,8 +40,8 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
 
   def compressVertices(compressTime:Long,workerID:Int) = {
      val worker = workers(workerID)
-      EntityStorage.vertexKeys(workerID) foreach( key => {
-        worker ! CompressVertex(key,compressTime)
+      EntityStorage.vertices(workerID) foreach( pair => {
+        worker ! CompressVertex(pair._1,compressTime)
         startedCompressions+=1
       })
    }
@@ -59,11 +59,11 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
 
   def archiveVertices(compressTime:Long,archiveTime:Long,workerID:Int) = {
       val worker = workers(workerID)
-      EntityStorage.vertexKeys(workerID) foreach( key => {
+      EntityStorage.vertices(workerID) foreach( key => {
         if(compressing)
-          worker ! ArchiveVertex(key,compressTime,archiveTime)
+          worker ! ArchiveVertex(key._1,compressTime,archiveTime)
         else
-          worker ! ArchiveOnlyVertex(key,archiveTime)
+          worker ! ArchiveOnlyVertex(key._1,archiveTime)
         startedArchiving+=1
       })
   }

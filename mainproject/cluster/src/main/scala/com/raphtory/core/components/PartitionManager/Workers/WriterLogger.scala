@@ -2,7 +2,7 @@ package com.raphtory.core.components.PartitionManager.Workers
 
 import akka.actor.Actor
 import com.raphtory.core.model.communication.{ReportIntake, ReportSize}
-import com.raphtory.core.model.graphentities.Entity
+import com.raphtory.core.model.graphentities.{Entity, Vertex}
 import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
 import kamon.metric.{GaugeMetric, MeasurementUnit}
@@ -29,7 +29,7 @@ class WriterLogger extends Actor{
 
   override def receive:Receive = {
     case ReportIntake(mainMessages,secondaryMessages,workerMessages,partitionId,timeDifference) => reportIntake(mainMessages,secondaryMessages,workerMessages,partitionId,timeDifference)
-    case ReportSize(partitionid) => {reportSizes(edgesGauge, EntityStorage.edges,partitionid);reportSizes(verticesGauge, EntityStorage.vertices,partitionid)}
+    case ReportSize(partitionid) => //{reportSizes(edgesGauge, EntityStorage.edges,partitionid);reportSizes(verticesGauge, EntityStorage.vertices,partitionid)}
 
   }
 
@@ -57,6 +57,23 @@ class WriterLogger extends Actor{
       }
     }
   }
+  //todo fix
+//  def reportSizesVertex(g : kamon.metric.GaugeMetric, map :ParTrieMap[Int,ParTrieMap[Int,Vertex]], id:Int) : Unit = {
+//    try {
+//      def getGauge(name: String) = {
+//        g.refine("actor" -> "PartitionManager", "replica" -> id.toString, "name" -> name)
+//      }
+//
+//      getGauge("Total number of entities").set(map.size)
+//      getGauge("Total number of previous states").set(getEntitiesPrevStates(map))
+//      // getGauge("Total number of properties") TODO
+//      // getGauge("Number of props previous history") TODO
+//    }catch {
+//      case e:Exception =>{
+//        println(s"Caught exception in logging: $e")
+//      }
+//    }
+//  }
 
   def reportIntake(messageCount:Int, secondaryMessageCount:Int, workerMessageCount:Int, id:Int,timeDifference:Long) : Unit = {
     try {

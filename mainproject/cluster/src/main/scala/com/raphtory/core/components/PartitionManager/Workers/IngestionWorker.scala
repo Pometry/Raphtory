@@ -81,7 +81,7 @@ class IngestionWorker(workerID:Int) extends Actor {
   }
 
   def compressVertex(key: Int, now: Long) = {
-    EntityStorage.vertices.get(key) match {
+    EntityStorage.vertices(workerID).get(key) match {
       case Some(vertex) => saveVertex(vertex, now)
       case None =>
     }
@@ -104,7 +104,7 @@ class IngestionWorker(workerID:Int) extends Actor {
   }
 
   def archiveVertex(key:Int,compressTime:Long,archiveTime:Long) = {
-    EntityStorage.vertices.get(key) match {
+    EntityStorage.vertices(workerID).get(key) match {
       case Some(vertex) => {
         saveVertex(vertex,compressTime)
         if (vertex.archive(archiveTime,compressing,true,workerID)) {
@@ -173,7 +173,7 @@ class IngestionWorker(workerID:Int) extends Actor {
   }
 
   def archiveOnlyVertex(key:Int,archiveTime:Long) = {
-    EntityStorage.vertices.get(key) match {
+    EntityStorage.vertices(workerID).get(key) match {
       case Some(vertex) => {
         if (vertex.archiveOnly(archiveTime,true,workerID)) {
           EntityStorage.vertices.remove(vertex.getId.toInt)

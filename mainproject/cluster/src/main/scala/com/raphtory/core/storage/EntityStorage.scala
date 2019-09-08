@@ -40,11 +40,9 @@ object EntityStorage {
   /**
     * Map of vertices contained in the partition
     */
-  val vertices        = ParTrieMap[Int, Vertex]()
-  val vertexKeys      = ParTrieMap[Int,ParSet[Int]]()
+  val vertices  = ParTrieMap[Int,ParTrieMap[Int, Vertex]]()
   for(i <- 0 until children){
-    val temp = ParSet[Int]()
-    vertexKeys put (i, temp)
+    vertices put (i, ParTrieMap[Int, Vertex]())
   }
   /**
     * Map of edges contained in the partition
@@ -85,10 +83,6 @@ object EntityStorage {
     this.managerCount = count
   }
 
-  def newVertexKey(workerID:Int,id:Int):Unit = {
-    vertexKeys(workerID) += id
-  }
-
   def newEdgeKey(workerID:Int,id:Long):Unit = {
     edgeKeys(workerID) += id
   }
@@ -99,7 +93,7 @@ object EntityStorage {
 
   def vertexAdd(routerID:Int,workerID:Int,msgTime : Long, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
     var value : Vertex = null
-    vertices.get(srcId) match { //check if the vertex exists
+    vertices(workerID).get(srcId) match { //check if the vertex exists
       case Some(v) => { //if it does
         v revive msgTime //add the history point
         v updateLatestRouter routerID // record the latest router for windowing
@@ -107,8 +101,7 @@ object EntityStorage {
       }
       case None => { //if it does not exist
         value = new Vertex(routerID,msgTime, srcId, initialValue = true) //create a new vertex
-        vertices put(srcId, value) //put it in the map
-        newVertexKey(workerID,srcId) // and record its ID
+        vertices(workerID) put(srcId, value) //put it in the map
       }
     }
     if (properties != null) { //if the add come with some properties
@@ -141,15 +134,15 @@ object EntityStorage {
   }
 
   def getVertexAndWipe(routerID : Int, workerID:Int, id : Int, msgTime : Long) : Vertex = {
-    vertices.get(id) match {
+    vertices(workerID).get(id) match {
       case Some(vertex) => {
         vertex
       }
       case None => {
         val vertex  = new Vertex(routerID, msgTime,id,initialValue = true)
-        vertices put(id, vertex)
+        vertices(workerID) put(id, vertex)
         vertex wipe()
-        newVertexKey(workerID,id) //and record the new key
+        //newVertexKey(workerID,id) //and record the new key
         vertex
       }
     }
@@ -157,7 +150,7 @@ object EntityStorage {
 
   def vertexRemoval(routerID:Int,workerID:Int,msgTime:Long,srcId:Int) : Unit = {
     var vertex : Vertex = null
-    vertices.get(srcId) match {
+    vertices(workerID).get(srcId) match {
       case Some(v) => {
         if(windowing) {
           if (!(v latestRouterCheck routerID)) {//if we are windowing we must check the latest Router for the vertex
@@ -169,8 +162,8 @@ object EntityStorage {
       }
       case None => { //if the removal has arrived before the creation
         vertex = new Vertex(routerID,msgTime, srcId, initialValue = false) //create a placeholder
-        vertices put(srcId, vertex) //add it to the map
-        newVertexKey(workerID,srcId) //and record the new key
+        vertices(workerID) put(srcId, vertex) //add it to the map
+        //newVertexKey(workerID,srcId) //and record the new key
       }
     }
 
@@ -441,28 +434,27 @@ object EntityStorage {
     })
   }
 
-  def createSnapshot(time:Long):ParTrieMap[Int, Vertex] = {
-    val snapshot:ParTrieMap[Int, Vertex] = ParTrieMap[Int, Vertex]()
-    var count = 0
-    for ((k,v) <- vertices) {
-      try {
-        val vertex =v.viewAt(time)
-        snapshot.put(k,vertex )
-        count +=1
-      }
-      catch {
-        case e:EntityRemovedAtTimeException => //println(e)
-        case e:PushedOutOfGraphException => println(e)
-        case e:StillWithinLiveGraphException => println(e)
-      }
-    }
-    println(s"$count entities in snapshot")
-    snapshot
-
-  }
-
-
 }
+
+//  def createSnapshot(time:Long):ParTrieMap[Int, Vertex] = {
+//    val snapshot:ParTrieMap[Int, Vertex] = ParTrieMap[Int, Vertex]()
+//    var count = 0
+//    for ((k,v) <- vertices) {
+//      try {
+//        val vertex =v.viewAt(time)
+//        snapshot.put(k,vertex )
+//        count +=1
+//      }
+//      catch {
+//        case e:EntityRemovedAtTimeException => //println(e)
+//        case e:PushedOutOfGraphException => println(e)
+//        case e:StillWithinLiveGraphException => println(e)
+//      }
+//    }
+//    println(s"$count entities in snapshot")
+//    snapshot
+//
+//  }
 
 //def updateEdgeProperties(msgTime : Long, edgeId : Long, key : String, value : String) : Unit = {
 //  edges.get(edgeId) match {

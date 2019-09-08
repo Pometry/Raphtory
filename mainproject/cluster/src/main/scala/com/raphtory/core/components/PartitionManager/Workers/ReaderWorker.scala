@@ -24,16 +24,16 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
 
-    case Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => self ! Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}
+    case Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => e.printStackTrace()}
     case CheckMessages(superstep) => try{checkMessages() }catch {case e:Exception => self ! CheckMessages(superstep)}
-    case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) }catch {case e:Exception => self !NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}
+    case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) }catch {case e:Exception => e.printStackTrace()}
     case NextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet)
     case handler:MessageHandler => receivedMessage(handler)
   }
 
   def receivedMessage(handler:MessageHandler) = {
     receivedMessages.add(1)
-    EntityStorage.vertices(handler.vertexID).mutliQueue.receiveMessage(handler)
+    EntityStorage.vertices(workerId)(handler.vertexID).mutliQueue.receiveMessage(handler)
   }
 
   def checkMessages() ={
@@ -45,7 +45,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) {
     receivedMessages.set(0)
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
-    EntityStorage.vertexKeys(workerId).foreach(v=> EntityStorage.vertices(v).mutliQueue.clearQueues(tempProxy.job()))
+    EntityStorage.vertices(workerId).foreach(v=> (v._2).mutliQueue.clearQueues(tempProxy.job()))
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
     if(windowSet.isEmpty) {
       analyzer.setup()(new WorkerID(workerId))
@@ -102,7 +102,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
         else if(window != -1) // we only have one window to run
           tempProxy = new WindowProxy(jobID,superStep,EntityStorage.newestTime,window,WorkerID(workerId))
         else
-          tempProxy = new LiveProxy(jobID,superStep,timestamp,window)
+          tempProxy = new LiveProxy(jobID,superStep,timestamp,window,WorkerID(workerId))
       }
       case AnalysisType.view  => {
         if(windowSet.nonEmpty) //we have a set of windows to run

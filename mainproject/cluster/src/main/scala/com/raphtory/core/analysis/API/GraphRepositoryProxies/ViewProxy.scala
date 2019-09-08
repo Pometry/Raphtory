@@ -3,18 +3,26 @@ package com.raphtory.core.analysis.API.GraphRepositoryProxies
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.VertexVisitor
 import com.raphtory.core.analysis.API.{ManagerCount, WorkerID}
+import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 
-class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:WorkerID) extends LiveProxy(jobID,superstep,timestamp,-1) {
-  private val keySet:Array[Int] = EntityStorage.vertexKeys(workerID.ID).filter(v=> EntityStorage.vertices(v).aliveAt(timestamp)).toArray
+import scala.collection.parallel.mutable.ParTrieMap
 
+class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:WorkerID) extends LiveProxy(jobID,superstep,timestamp,-1,workerID) {
 
+  private val keySet:ParTrieMap[Int,Vertex] = EntityStorage.vertices(workerID.ID).filter(v=> v._2.aliveAt(timestamp))
+  println(keySet)
   override  def job() = jobID+timestamp
 
-  override def getVerticesSet()(implicit workerID:WorkerID): Array[Int] = keySet
+  override def getVerticesSet()(implicit workerID:WorkerID): Array[Int] = keySet.keys.toArray
 
-  override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(id.toInt).viewAt(timestamp),job(),superstep,this,timestamp,-1)
-
+  //override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(keySet(id.toInt).viewAt(timestamp),job(),superstep,this,timestamp,-1)
+  override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = {
+    keySet.get(id.toInt) match {
+      case Some(v) => new VertexVisitor(keySet(id.toInt).viewAt(timestamp),job(),superstep,this,timestamp,-1)
+      case None => println(keySet);throw new Exception()
+    }
+  }
   override def latestTime:Long = timestamp
 
   override def checkVotes(workerID: Int):Boolean = {
