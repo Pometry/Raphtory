@@ -10,7 +10,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class OutDegree extends Analyser{
 
-  override def analyse()(implicit workerID:WorkerID): Any = {
+  override def analyse(): Any = {
     var results = ArrayBuffer[Int]()
     proxy.getVerticesSet().foreach(v => {
 
@@ -22,7 +22,7 @@ class OutDegree extends Analyser{
     // println("THIS IS HOW RESULTS LOOK: "+ results.groupBy(identity).mapValues(_.size))
     results.groupBy(identity).mapValues(_.size).toList
   }
-  override def setup()(implicit workerID:WorkerID): Any = {
+  override def setup(): Any = {
 
   }
 

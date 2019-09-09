@@ -12,7 +12,7 @@ case class ClusterLabel(value: Int) extends VertexMessage
 class ConComAnalyser extends Analyser {
 
 
-  override def setup()(implicit workerID: WorkerID) = {
+  override def setup() = {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       var min = v
@@ -22,7 +22,7 @@ class ConComAnalyser extends Analyser {
     })
   }
 
-  override def analyse()(implicit workerID: WorkerID): Any = {
+  override def analyse(): Any = {
     val results = ParTrieMap[Int, Int]()
     var verts = Set[Int]()
     println(s"Here !!! $workerID ${proxy.getVerticesSet().size}")

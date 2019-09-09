@@ -26,7 +26,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
     case Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => e.printStackTrace()}
     case CheckMessages(superstep) => try{checkMessages() }catch {case e:Exception => self ! CheckMessages(superstep)}
-    case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) }catch {case e:Exception => e.printStackTrace()}
+    case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) }catch {case e:Exception => e.printStackTrace(); println(workerId)}
     case NextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet)
     case handler:MessageHandler => receivedMessage(handler)
   }
@@ -38,7 +38,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   def checkMessages() ={
     var count = 0
-    tempProxy.getVerticesSet()(WorkerID(workerId)).foreach(v => count += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue2.size)
+    tempProxy.getVerticesSet().foreach(v => count += tempProxy.getVertex(v)(context,ManagerCount(1)).messageQueue2.size)
     sender() ! MessagesReceived(workerId,count,receivedMessages.get,tempProxy.getMessages())
   }
 
@@ -46,18 +46,18 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     receivedMessages.set(0)
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
     EntityStorage.vertices(workerId).foreach(v=> (v._2).mutliQueue.clearQueues(tempProxy.job()))
-    analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
+    analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy,workerId)
     if(windowSet.isEmpty) {
-      analyzer.setup()(new WorkerID(workerId))
+      analyzer.setup()
       sender() ! Ready(tempProxy.getMessages())
     }
     else{
       //val individualResults:mutable.HashMap[Long,Any] = mutable.HashMap[Long,Any]()
-      analyzer.setup()(new WorkerID(workerId))
+      analyzer.setup()
       var currentWindow = 1
       while(currentWindow<windowSet.size){
         tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(currentWindow))
-        analyzer.setup()(new WorkerID(workerId))
+        analyzer.setup()
         currentWindow +=1
       }
       sender() ! Ready(tempProxy.getMessages())
@@ -69,18 +69,18 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     //println(analyzer)
     receivedMessages.set(0)
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
-    analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy)
+    analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy,workerId)
     if(windowSet.isEmpty) {
-      val value = analyzer.analyse()(new WorkerID(workerId))
+      val value = analyzer.analyse()
       sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
     }
     else{
       val individualResults:mutable.ArrayBuffer[Any] = ArrayBuffer[Any]()
-      individualResults += analyzer.analyse()(new WorkerID(workerId))
+      individualResults += analyzer.analyse()
       var currentWindow = 1
       while(currentWindow<windowSet.size) {
         tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(currentWindow))
-        individualResults += analyzer.analyse()(new WorkerID(workerId))
+        individualResults += analyzer.analyse()
         currentWindow +=1
       }
       sender() ! EndStep(individualResults,tempProxy.getMessages(),tempProxy.checkVotes(workerId))

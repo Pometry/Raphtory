@@ -14,7 +14,7 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
   protected var voteCount = 0
   def job() = jobID
 
-  def getVerticesSet()(implicit workerID:WorkerID): Array[Int] = {
+  def getVerticesSet(): Array[Int] = {
     EntityStorage.vertices(workerID.ID).keys.toArray
   }
 

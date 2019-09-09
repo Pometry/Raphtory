@@ -15,7 +15,7 @@ class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, 
 
   override  def job() = jobID+timestamp+windowSize
 
-  override def getVerticesSet()(implicit workerID:WorkerID): Array[Int] = keySet.keys.toArray
+  override def getVerticesSet(): Array[Int] = keySet.keys.toArray
 
   override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = {
     keySet.get(id.toInt) match {

@@ -18,7 +18,6 @@ class BWindowedViewAnalysisManager(jobID:String, analyser:Analyser, time:Long, w
           invertedArray(j) += internal(j)
         }
       })
-      println(original + " hihihi" + invertedArray)
       invertedArray.asInstanceOf[ArrayBuffer[Any]]
 
     }
@@ -36,7 +35,6 @@ class BWindowedViewAnalysisManager(jobID:String, analyser:Analyser, time:Long, w
           invertedArray(j) += internal(j)
         }
       })
-      println(original + " hihihi" + invertedArray)
       invertedArray.asInstanceOf[ArrayBuffer[Any]]
 
     }

@@ -18,7 +18,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 //
 class StarNode extends Analyser{
 
-  override def analyse()(implicit workerID:WorkerID): Any = {
+  override def analyse(): Any = {
     val results = ParTrieMap[Int, Int]()
 
     for(v <- proxy.getVerticesSet()){
@@ -35,7 +35,7 @@ class StarNode extends Analyser{
 
   }
 
-  override def setup()(implicit workerID: WorkerID) = {
+  override def setup() = {
 
   }
 

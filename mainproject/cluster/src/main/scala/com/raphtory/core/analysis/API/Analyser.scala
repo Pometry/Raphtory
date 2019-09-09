@@ -10,15 +10,17 @@ abstract class Analyser extends java.io.Serializable {
   implicit var context : ActorContext = null
   implicit var managerCount:ManagerCount = null
   implicit var proxy: LiveProxy = null
+  var workerID:Int = 0
 
-  final def sysSetup(context : ActorContext, managerCount : ManagerCount,proxy: LiveProxy) = {
+  final def sysSetup(context : ActorContext, managerCount : ManagerCount,proxy: LiveProxy,ID:Int) = {
     this.context = context
     this.managerCount = managerCount
     this.proxy = proxy
+    this.workerID = ID
   }
 
-  def analyse()(implicit worker: WorkerID): Any
-  def setup()(implicit workerID: WorkerID) : Any
+  def analyse(): Any
+  def setup()  : Any
 
   def defineMaxSteps() : Int
   def processResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any]) : Unit

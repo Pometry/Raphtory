@@ -12,9 +12,9 @@ class GabMostUsedTopics extends Analyser {
   private val dumplingFactor = 0.85F
   private var firstStep      = true
 
-  override def setup()(implicit workerID:WorkerID) = {}
+  override def setup() = {}
 
-  override def analyse()(implicit workerID: WorkerID) : ArrayBuffer[(String, Int, String)] = {
+  override def analyse() : ArrayBuffer[(String, Int, String)] = {
     //println("Analyzing")
     var results = ArrayBuffer[(String, Int, String)]()
     proxy.getVerticesSet().foreach(v => {

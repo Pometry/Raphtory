@@ -7,7 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 class BitcoinAnalyser extends Analyser {
 
   //(implicit proxy: GraphRepoProxy.type, managerCount: Int,workerID:Int):
-  override def analyse()(implicit workerID:WorkerID): Any = {
+  override def analyse(): Any = {
     var results = ArrayBuffer[(String, Double)]()
     var currentBlock = 0
     var hash = ""
@@ -33,12 +33,12 @@ class BitcoinAnalyser extends Analyser {
     })
     //println("Sending step end")
 
-    CoinsAquiredPayload(workerID,results.sortBy(f => f._2)(Ordering[Double].reverse).take(10),currentBlock,hash)
+    CoinsAquiredPayload(WorkerID(workerID),results.sortBy(f => f._2)(Ordering[Double].reverse).take(10),currentBlock,hash)
   }
 
 
 
-  override def setup()(implicit workerID:WorkerID): Any = {
+  override def setup(): Any = {
 
   }
 

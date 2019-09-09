@@ -25,7 +25,7 @@ import scala.collection.mutable.ArrayBuffer
 
 
 class Density extends Analyser {
-  override def analyse()(implicit workerID:WorkerID): Any = {
+  override def analyse(): Any = {
     var totalDegree: Int = 0
     var totalNodes: Int = 0
 
@@ -40,7 +40,7 @@ class Density extends Analyser {
     (totalNodes,totalDegree)
 
   }
-  override def setup()(implicit workerID:WorkerID): Any = {}
+  override def setup(): Any = {}
 
   override def defineMaxSteps(): Int = 1
 

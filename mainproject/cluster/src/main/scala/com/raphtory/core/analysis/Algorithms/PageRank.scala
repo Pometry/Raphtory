@@ -20,7 +20,7 @@ class PageRank extends Analyser {
 
   private def getPageRankStr(srcId : Int, dstId : Int) : String = s"${prStr}_${srcId}_$dstId"
 
-  override def setup()(implicit workerID: WorkerID) = {
+  override def setup() = {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       val toSend = vertex.getOrSetCompValue(prStr, defaultPR).asInstanceOf[Float]
@@ -28,7 +28,7 @@ class PageRank extends Analyser {
     })
   }
 
-  override def analyse()(implicit workerID: WorkerID) : (Long,ArrayBuffer[(Long, Float)]) = {
+  override def analyse() : (Long,ArrayBuffer[(Long, Float)]) = {
     var results = ArrayBuffer[(Long, Float)]()
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)

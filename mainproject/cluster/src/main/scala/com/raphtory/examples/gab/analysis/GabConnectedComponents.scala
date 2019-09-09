@@ -19,7 +19,7 @@ class GabConnectedComponents extends Analyser {
 
   //Definition of a Pregel-like superstep=0 . In Raphtory is called setup. All the vertices are initiallized to its own id.
 
-  override def setup()(implicit workerID: WorkerID) = {
+  override def setup() = {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v)
       var min = v
@@ -33,7 +33,7 @@ class GabConnectedComponents extends Analyser {
   // and message this value to their neighbours
   //In this function we can observe that in order to maintain the state of the value of the vertex, the getOrSetCompValue is used.
   // the result is passed to the Live Analyser as in a key value pair structure
-  override def analyse()(implicit workerID: WorkerID): Any= {
+  override def analyse(): Any= {
     var results = ParTrieMap[Int, Int]()
     var verts = Set[Int]()
     //println(s"Here !!! $workerID ${proxy.getVerticesSet().size}")
