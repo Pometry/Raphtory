@@ -35,7 +35,7 @@ object SingleNodeTest extends App {
 //  val end = 1525368897000L
 //window//
   val start = 1470783600000L
-  val end = 1471891600000L
+  val end = 1525368897000L
   val jump =    3600000
   val window =    3600000
   val windowset:Array[Long] = Array(604800000,86400000,3600000)

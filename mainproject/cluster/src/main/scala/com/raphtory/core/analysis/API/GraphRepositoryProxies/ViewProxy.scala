@@ -10,14 +10,15 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:WorkerID) extends LiveProxy(jobID,superstep,timestamp,-1,workerID) {
 
-  private val keySet:ParTrieMap[Int,Vertex] = EntityStorage.vertices(workerID.ID).filter(v=> v._2.aliveAt(timestamp))
+  private val keySet:Array[Int] = EntityStorage.vertices(workerID.ID).filter(v=> v._2.aliveAt(timestamp)).keySet.toArray
   override  def job() = jobID+timestamp
 
-  override def getVerticesSet(): Array[Int] = keySet.keys.toArray
+  override def getVerticesSet(): Array[Int] = keySet
 
   //override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(keySet(id.toInt).viewAt(timestamp),job(),superstep,this,timestamp,-1)
   override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = {
-    keySet.get(id.toInt) match {
+    println(id)
+    EntityStorage.vertices(workerID.ID).get(id.toInt) match {
       case Some(v) => new VertexVisitor(v.viewAt(timestamp),job(),superstep,this,timestamp,-1)
       case None => throw new Exception()
     }
