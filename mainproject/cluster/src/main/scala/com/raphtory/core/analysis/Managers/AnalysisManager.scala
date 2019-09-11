@@ -221,8 +221,8 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     messageLogACKS +=1
     totalReceivedMessages += receivedMessages
     totalSentMessages += sentMessages
-    if(real != receivedMessages)
-      println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
+    //if(real != receivedMessages)
+    //  println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
     if(messageLogACKS == getWorkerCount) {
       messageLogACKS =0
       if(totalReceivedMessages == totalSentMessages){

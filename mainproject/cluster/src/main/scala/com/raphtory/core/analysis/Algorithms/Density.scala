@@ -83,18 +83,7 @@ class Density extends Analyser {
   override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long): Unit = processResults(results,oldResults)
 
   override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long]): Unit = {
-    for(i <- results.indices){
-      for(j<- results(i).asInstanceOf[ArrayBuffer[(Int,Int)]]) {
-        totalVertices += j._1
-        totalEdges += j._2
-      }
-      if(totalVertices>=2){
-        val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
-        density2 = new java.math.BigDecimal(density).toPlainString
-      }
-      print(s" Density at $timestamp with window of ${windowSet(i)} is $density2")
-    }
-    println()
+
   }
 
   }

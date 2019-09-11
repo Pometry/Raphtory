@@ -21,7 +21,7 @@ object SingleNodeTest extends App {
 
  var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
  var routerClassName = "com.raphtory.examples.gab.actors.GabPostGraphRouter"
- val Analyser = "com.raphtory.core.analysis.Algorithms.Density"
+ val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
 
   val system = ActorSystem("Single-Node-test")
 

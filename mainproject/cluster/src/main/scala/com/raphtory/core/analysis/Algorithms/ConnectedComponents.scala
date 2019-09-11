@@ -9,7 +9,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParTrieMap
 case class ClusterLabel(value: Int) extends VertexMessage
-class ConComAnalyser extends Analyser {
+class ConnectedComponents extends Analyser {
 
 
   override def setup() = {
@@ -25,7 +25,6 @@ class ConComAnalyser extends Analyser {
   override def analyse(): Any = {
     val results = ParTrieMap[Int, Int]()
     var verts = Set[Int]()
-    println(s"Here !!! $workerID ${proxy.getVerticesSet().size}")
     for (v <- proxy.getVerticesSet()) {
       val vertex = proxy.getVertex(v)
       val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
@@ -56,6 +55,12 @@ class ConComAnalyser extends Analyser {
   val endResults = results.asInstanceOf[ArrayBuffer[mutable.HashMap[Int, Int]]]
   println(s"At ${new Date(timestamp)} with a window of ${windowSize / 1000 / 3600} hour(s) there were ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).size} connected components. The biggest being ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).maxBy(_._2)}")
   println()
+  }
+
+  override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long]): Unit = {
+    val endResults = results.asInstanceOf[ArrayBuffer[mutable.HashMap[Int, Int]]]
+    println(s"At ${new Date(timestamp)} with a window of ${windowSize / 3600000} hour(s) there were ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).size} connected components. The biggest being ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).maxBy(_._2)}")
+    println()
   }
 
   override def defineMaxSteps(): Int = 10
