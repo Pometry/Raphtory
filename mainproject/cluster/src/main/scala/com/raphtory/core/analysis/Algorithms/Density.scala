@@ -25,6 +25,12 @@ import scala.collection.mutable.ArrayBuffer
 
 
 class Density extends Analyser {
+  val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+  val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
+  val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
+
+
+
   override def analyse(): Any = {
     var totalDegree: Int = 0
     var totalNodes: Int = 0
@@ -43,77 +49,39 @@ class Density extends Analyser {
   override def setup(): Any = {}
 
   override def defineMaxSteps(): Int = 1
-
+  var totalVertices=0
+  var totalEdges=0
   override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any]): Unit = {
-    var totalVertices=0
-    var totalEdges=0
-    val allResults=results.asInstanceOf[ArrayBuffer[(Int,Int)]]
-    for (verticesAndEdges <- allResults){
+    var density2="0"
+    for (verticesAndEdges <- results.asInstanceOf[ArrayBuffer[(Int,Int)]]){
       totalVertices+=verticesAndEdges._1
       totalEdges+=verticesAndEdges._2
     }
-    val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
+    if(totalVertices>=2){
+      val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
+      density2 = new java.math.BigDecimal(density).toPlainString
+    }
     val currentDate=LocalDateTime.now()
-    val density2=new java.math.BigDecimal(density).toPlainString
     println (s"The density at ${currentDate} is : "+ density2)
   }
-
   override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {
-    val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
-    //Wed Aug 10 04:59:06 BST 2016
-    val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
-    val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
     Utils.writeLines(output_file,"Time,Date,TotalVertices,TotalEdges,Density")
-    var totalVertices=0
-    var totalEdges=0
-    var allResults=results.asInstanceOf[ArrayBuffer[(Int,Int)]]
-    for (verticesAndEdges <- allResults){
+    var density2="0"
+    for (verticesAndEdges <- results.asInstanceOf[ArrayBuffer[(Int,Int)]]){
       totalVertices+=verticesAndEdges._1
       totalEdges+=verticesAndEdges._2
     }
-    val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
+    if(totalVertices>=2){
+      val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
+      density2 = new java.math.BigDecimal(density).toPlainString
+    }
     val currentDate=new Date(timestamp)
-    val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
-    var time = inputFormat.parse(currentDate.toString).getTime()
-    val density2=new java.math.BigDecimal(density).toPlainString
-    println (s"The density at ${formattedDate} is : "+ density2)
-    val text= time+","+formattedDate + ","+ totalVertices + ","+ totalEdges + ","+density2
+    val text= inputFormat.parse(currentDate.toString).getTime()+","+outputFormat.format(inputFormat.parse(currentDate.toString)) + ","+ totalVertices + ","+ totalEdges + ","+density2
     Utils.writeLines(output_file,text)
     println(println("End: "+ LocalDateTime.now()))
   }
 
-
-
-  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long): Unit = {
-    val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
-    //Wed Aug 10 04:59:06 BST 2016
-    val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
-    val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-    Utils.writeLines(output_file,"Time,Date,TotalVertices,TotalEdges,Density")
-    var totalVertices=0
-    var totalEdges=0
-    var density2="0"
-    var allResults=results.asInstanceOf[ArrayBuffer[(Int,Int)]]
-    for (verticesAndEdges <- allResults){
-      totalVertices+=verticesAndEdges._1
-      totalEdges+=verticesAndEdges._2
-
-    }
-    if(totalVertices<2 && totalEdges==0){
-      density2="0"
-    }
-    if(totalVertices>=2 && totalEdges>=0){
-      val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
-      density2 = new java.math.BigDecimal(density).toPlainString
-    }
-
-    val currentDate=new Date(timestamp)
-    val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
-    val time = inputFormat.parse(currentDate.toString).getTime()
-    val text= time+","+formattedDate + ","+ totalVertices + ","+ totalEdges + ","+ density2
-    Utils.writeLines(output_file,text)
-    println("End: "+ new Date(timestamp))
-  }
+  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long): Unit = processResults(results,oldResults)
 
   override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long]): Unit = {
 //    for(i <- windowSet.indices){

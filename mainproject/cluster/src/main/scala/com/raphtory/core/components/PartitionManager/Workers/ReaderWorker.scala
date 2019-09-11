@@ -66,10 +66,11 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   }
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]): Unit = {
+    println(s"worker $workerId starting step $timestamp")
     //println(analyzer)
     receivedMessages.set(0)
-    setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy,workerId)
+    setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
     if(windowSet.isEmpty) {
       val value = analyzer.analyse()
       sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
@@ -84,7 +85,9 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
         currentWindow +=1
       }
       sender() ! EndStep(individualResults,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
+
     }
+
 
 
 
@@ -121,6 +124,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
           tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
       }
     }
+    println(s"worker $workerId sent end proxy")
   }
 
 }

@@ -39,7 +39,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   private var newAnalyser:Boolean = false //if the analyser is not present in the readers
 
   private var networkSizeTimeout : Cancellable = null //for restarting the analysers if it joins too quickly
-  private val debug = false //for printing debug messages
+  private val debug = true //for printing debug messages
 
   protected val mediator     = DistributedPubSub(context.system).mediator
 
@@ -178,7 +178,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     if(debug)println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
     if (workersFinishedSuperStep == getWorkerCount) {
       if (currentSuperStep == steps || analyser.checkProcessEnd(results,oldResults)) {
-        try{processResults()} catch {case e:Exception => println(e)}
+        processResults()
         results = mutable.ArrayBuffer[Any]()
         oldResults = mutable.ArrayBuffer[Any]()
        // for(worker <- Utils.getAllReaderWorkers(managerCount))
