@@ -6,7 +6,7 @@ import com.raphtory.core.analysis.API.{ManagerCount, WorkerID}
 import com.raphtory.core.storage.EntityStorage
 import monix.execution.atomic.AtomicInt
 
-import scala.collection.parallel.ParSet
+import scala.collection.parallel.{ParIterable, ParSet}
 
 class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,workerID: WorkerID) {
   private var messages = AtomicInt(0)
@@ -14,8 +14,11 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
   protected var voteCount = 0
   def job() = jobID
 
-  def getVerticesSet(): Array[Int] = {
-    EntityStorage.vertices(workerID.ID).keys.toArray
+  def getVerticesSet(): Iterator[Int] = {
+    val map = EntityStorage.vertices(workerID.ID)
+      val key = map.keys
+        val arrau = key.toIterator
+    arrau
   }
 
   def recordMessage() = messages.increment()

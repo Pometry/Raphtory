@@ -6,6 +6,7 @@ import com.raphtory.core.analysis.API.{ManagerCount, WorkerID}
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 
+import scala.collection.parallel.{ParIterable, ParSet}
 import scala.collection.parallel.mutable.ParTrieMap
 
 class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:WorkerID) extends LiveProxy(jobID,superstep,timestamp,windowSize,workerID) {
@@ -15,7 +16,7 @@ class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, 
 
   override  def job() = jobID+timestamp+windowSize
 
-  override def getVerticesSet(): Array[Int] = keySet.keys.toArray
+  override def getVerticesSet(): Iterator[Int] = keySet.keys.toIterator
 
   override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = {
     keySet.get(id.toInt) match {

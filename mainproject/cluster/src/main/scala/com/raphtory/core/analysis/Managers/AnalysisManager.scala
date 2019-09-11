@@ -39,7 +39,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   private var newAnalyser:Boolean = false //if the analyser is not present in the readers
 
   private var networkSizeTimeout : Cancellable = null //for restarting the analysers if it joins too quickly
-  private val debug = true //for printing debug messages
+  private val debug = false //for printing debug messages
 
   protected val mediator     = DistributedPubSub(context.system).mediator
 
@@ -199,13 +199,15 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
 
   private def syncMessages() = {
     if(totalSentMessages == 0){
+      println("inside")
       currentSuperStep += 1
       if(newAnalyser)
         for(worker <- Utils.getAllReaderWorkers(managerCount))
           mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(analyserName,jobID,currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
       else {
-        for(worker <- Utils.getAllReaderWorkers(managerCount))
+        for(worker <- Utils.getAllReaderWorkers(managerCount)){
           mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
+        }
       }
     }
     else {

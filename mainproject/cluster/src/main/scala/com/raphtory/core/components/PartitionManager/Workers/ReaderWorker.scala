@@ -12,6 +12,8 @@ import monix.execution.atomic.AtomicInt
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.{Duration, SECONDS}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Actor{
   implicit var managerCount: Int = managerCountVal
@@ -21,14 +23,18 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   var receivedMessages = AtomicInt(0)
   var tempProxy:LiveProxy = null
 
+  override def preStart(): Unit = {
+    context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
+  }
+
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
-
-    case Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => e.printStackTrace()}
-    case CheckMessages(superstep) => try{checkMessages() }catch {case e:Exception => self ! CheckMessages(superstep)}
-    case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) }catch {case e:Exception => e.printStackTrace(); println(workerId)}
+    case Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)
+    case CheckMessages(superstep) => checkMessages()
+    case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)
     case NextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet)
     case handler:MessageHandler => receivedMessage(handler)
+    case "start" => println(workerId)
   }
 
   def receivedMessage(handler:MessageHandler) = {
@@ -61,12 +67,12 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
         currentWindow +=1
       }
       sender() ! Ready(tempProxy.getMessages())
-    }
 
+
+    }
   }
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]): Unit = {
-    println(s"worker $workerId starting step $timestamp")
     //println(analyzer)
     receivedMessages.set(0)
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy,workerId)
@@ -87,10 +93,6 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
       sender() ! EndStep(individualResults,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
 
     }
-
-
-
-
   }
 
   def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) = {
@@ -124,7 +126,6 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
           tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
       }
     }
-    println(s"worker $workerId sent end proxy")
   }
 
 }
