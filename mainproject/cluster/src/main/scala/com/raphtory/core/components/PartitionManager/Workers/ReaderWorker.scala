@@ -23,10 +23,6 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   var receivedMessages = AtomicInt(0)
   var tempProxy:LiveProxy = null
 
-  override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
-  }
-
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
     case Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)
@@ -34,7 +30,6 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)
     case NextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet)
     case handler:MessageHandler => receivedMessage(handler)
-    case "start" => println(workerId)
   }
 
   def receivedMessage(handler:MessageHandler) = {

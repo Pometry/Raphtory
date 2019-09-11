@@ -199,7 +199,6 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
 
   private def syncMessages() = {
     if(totalSentMessages == 0){
-      println("inside")
       currentSuperStep += 1
       if(newAnalyser)
         for(worker <- Utils.getAllReaderWorkers(managerCount))

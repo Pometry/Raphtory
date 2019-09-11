@@ -51,8 +51,8 @@ class Density extends Analyser {
   override def defineMaxSteps(): Int = 1
   var totalVertices=0
   var totalEdges=0
+  var density2="0"
   override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any]): Unit = {
-    var density2="0"
     for (verticesAndEdges <- results.asInstanceOf[ArrayBuffer[(Int,Int)]]){
       totalVertices+=verticesAndEdges._1
       totalEdges+=verticesAndEdges._2
@@ -66,7 +66,6 @@ class Density extends Analyser {
   }
   override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {
     Utils.writeLines(output_file,"Time,Date,TotalVertices,TotalEdges,Density")
-    var density2="0"
     for (verticesAndEdges <- results.asInstanceOf[ArrayBuffer[(Int,Int)]]){
       totalVertices+=verticesAndEdges._1
       totalEdges+=verticesAndEdges._2
@@ -84,21 +83,18 @@ class Density extends Analyser {
   override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long): Unit = processResults(results,oldResults)
 
   override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long]): Unit = {
-//    for(i <- windowSet.indices){
-//      var totalVertices = 0L
-//      var totalEdges = 0L
-//      results.asInstanceOf[ArrayBuffer[mutable.HashMap[Long,Any]]].foreach(window => {
-//        val pair = window(i).asInstanceOf[(Long,Long)]
-//        totalVertices += pair._1
-//        totalEdges += pair._2
-//      })
-//      val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
-//      val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-//      val currentDate=new Date(timestamp)
-//      val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
-//      val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
-//      println(s"Density at $formattedDate with a windowSize of ${windowSet(i.toInt)} is $density")
-//    }
+    for(i <- results.indices){
+      for(j<- results(i).asInstanceOf[ArrayBuffer[(Int,Int)]]) {
+        totalVertices += j._1
+        totalEdges += j._2
+      }
+      if(totalVertices>=2){
+        val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
+        density2 = new java.math.BigDecimal(density).toPlainString
+      }
+      print(s" Density at $timestamp with window of ${windowSet(i)} is $density2")
+    }
+    println()
   }
 
   }

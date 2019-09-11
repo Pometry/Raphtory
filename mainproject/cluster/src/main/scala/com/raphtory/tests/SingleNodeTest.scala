@@ -40,7 +40,7 @@ object SingleNodeTest extends App {
   val jump =    3600000
   val window =    3600000
   val windowset:Array[Long] = Array(604800000,86400000,3600000)
-  system.actorOf(Props(new LiveAnalysisManager("testname",analyser)), s"LiveAnalysisManager_$Analyser")
+  system.actorOf(Props(new BWindowedRangeAnalysisManager("testname",analyser,start,end,jump,windowset)), s"LiveAnalysisManager_$Analyser")
 
 ////////////////
 
