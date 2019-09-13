@@ -25,9 +25,6 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
 
   def getMessages() = messages.get
 
-  def clearMessages() = messages.set(0)
-
-
   def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(workerID.ID)(id.toInt),jobID,superstep,this,timestamp,windowsize)
 
   def getTotalVerticesSet() = {

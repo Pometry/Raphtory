@@ -58,9 +58,18 @@ class ConnectedComponents extends Analyser {
   }
 
   override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long]): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[mutable.HashMap[Int, Int]]]
-    println(s"At ${new Date(timestamp)} with a window of ${windowSize / 3600000} hour(s) there were ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).size} connected components. The biggest being ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).maxBy(_._2)}")
-    println()
+    val endResults = results.asInstanceOf[ArrayBuffer[ArrayBuffer[mutable.HashMap[Int, Int]]]]
+    for(i <- endResults.indices){
+      val window = endResults(i)
+      val windowSize = windowSet(i)
+      try {
+        println(s"At ${new Date(timestamp)} with a window of ${windowSize / 3600000} hour(s) there were ${window.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).size} connected components. The biggest being ${window.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).maxBy(_._2)}")
+        println()
+      }catch {
+        case e:UnsupportedOperationException => println("empty.maxby")
+      }
+    }
+
   }
 
   override def defineMaxSteps(): Int = 10

@@ -34,7 +34,7 @@ class OutDegree extends Analyser{
 
   override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {
     val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
-    Utils.writeLines(output_file,"Date,OutDegree,Total")
+
     val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
     var finalResults = ArrayBuffer[(Int, Int)]()
@@ -52,7 +52,7 @@ class OutDegree extends Analyser{
     var degrees = finalResults.groupBy(_._1).mapValues(seq => seq.map(_._2).reduce(_ + _)).toList.sortBy(_._1) //.foreach(println)
     for ((degree, total) <- degrees) {
       var text = formattedDate + "," + degree + "," + total
-      Utils.writeLines(output_file, text)
+      Utils.writeLines(output_file, text,"Date,OutDegree,Total")
 
     }
   }

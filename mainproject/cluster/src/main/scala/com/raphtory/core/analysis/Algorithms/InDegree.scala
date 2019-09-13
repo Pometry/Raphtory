@@ -60,7 +60,7 @@ class InDegree extends Analyser {
     var degrees = finalResults.groupBy(_._1).mapValues(seq => seq.map(_._2).reduce(_ + _)).toList.sortBy(_._1) //.foreach(println)
     for ((degree, total) <- degrees) {
       var text = currentDate + "," + degree + "," + total
-      Utils.writeLines("results/distribLAM.csv", text)
+      Utils.writeLines("results/distribLAM.csv", text,"Date,InDegree,Total")
 
     }
 
@@ -69,8 +69,6 @@ class InDegree extends Analyser {
 
 override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {
       val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
-      Utils.writeLines(output_file,"Date,InDegree,Total")
-
       //Wed Aug 10 04:59:06 BST 2016
       val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
       val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
@@ -90,7 +88,7 @@ override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuff
       var degrees = finalResults.groupBy(_._1).mapValues(seq => seq.map(_._2).reduce(_ + _)).toList.sortBy(_._1) //.foreach(println)
       for ((degree, total) <- degrees) {
         var text = formattedDate + "," + degree + "," + total
-        Utils.writeLines(output_file, text)
+        Utils.writeLines(output_file, text,"Date,InDegree,Total")
 
       }
     }

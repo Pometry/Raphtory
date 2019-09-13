@@ -44,7 +44,6 @@ class StarNode extends Analyser{
   override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any]): Unit = {
     val inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-    Utils.writeLines("results/Stars/starsRange.csv","Date,Vertex,InDegree")
     //val finalResults=ParTrieMap[Int, Int]()
     val currentDate= LocalDateTime.now()
     val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
@@ -55,7 +54,7 @@ class StarNode extends Analyser{
         val stars=result.asInstanceOf[(Int,Int)]
         println (s"The star at ${formattedDate} is : ${stars._1} with ${stars._2} in degree")
         val text= s"${formattedDate},${stars._1}, ${stars._2}"
-        Utils.writeLines("results/Stars/starsLive.csv",text)
+        Utils.writeLines("results/Stars/starsLive.csv",text,"Date,Vertex,InDegree")
         //finalResults.put(stars._1,stars._2)
       }
     }
@@ -69,7 +68,6 @@ class StarNode extends Analyser{
   override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {
     val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-    Utils.writeLines("results/Stars/starsRange.csv","Date,Vertex,InDegree")
     val finalResults=ParTrieMap[Int, Int]()
     val currentDate=new Date(timestamp)
     val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
@@ -86,7 +84,7 @@ class StarNode extends Analyser{
     var printfinalResults=finalResults.maxBy(_._2)
     val text= s"${formattedDate},${printfinalResults._1},${printfinalResults._2}"
 
-    Utils.writeLines("results/Stars/starsRange.csv",text)
+    Utils.writeLines("results/Stars/starsRange.csv",text,"Date,Vertex,InDegree")
   }
 
   //Initialisation of the file in where the output will be written is done.
@@ -100,7 +98,6 @@ class StarNode extends Analyser{
     val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-    Utils.writeLines(output_file,"Date,Vertex,InDegree")
     val finalResults=ParTrieMap[Int, Int]()
     val currentDate=new Date(timestamp)
     val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
@@ -116,7 +113,7 @@ class StarNode extends Analyser{
 
     var printfinalResults=finalResults.maxBy(_._2)
     val text= s"${formattedDate},${printfinalResults._1},${printfinalResults._2}"
-    Utils.writeLines(output_file,text)
+    Utils.writeLines(output_file,text,"Date,Vertex,InDegree")
     // println (s"The star at ${new Date(timestamp())} is : ${finalResults.maxBy(_._2)}")
 
   }

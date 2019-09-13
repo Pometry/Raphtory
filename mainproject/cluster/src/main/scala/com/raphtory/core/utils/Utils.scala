@@ -10,10 +10,10 @@ import org.apache.commons.lang.StringEscapeUtils
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-
 import java.io._
 import java.util.Base64
 import java.nio.charset.StandardCharsets.UTF_8
+
 object Utils {
   val clusterSystemName = "dockerexp"
   val config            = ConfigFactory.load
@@ -147,15 +147,29 @@ object Utils {
     value
   }
 
-  def writeLines(fileName: String , line: String) : Unit = {
+  def writeLines(fileName: String , line: String,header:String) : Unit = {
     val f = new File(fileName)
-    if(!f.exists())
+    if(!f.exists()) {
       f.createNewFile()
-    val file=new FileWriter(fileName, true)
-    var bw =new BufferedWriter(file)
-    bw.write(line)
-    bw.newLine()
-    bw.flush()
+      val file=new FileWriter(fileName, true)
+      var bw =new BufferedWriter(file)
+      bw.write(header)
+      bw.newLine()
+      bw.write(line)
+      bw.newLine()
+      bw.flush()
+    }
+    else{
+      val file=new FileWriter(fileName, true)
+      var bw =new BufferedWriter(file)
+      bw.write(line)
+      bw.newLine()
+      bw.flush()
+    }
+
+  }
+  def windowOutut(outputFile:String,windowSize: Long) = {
+    outputFile.substring(0,outputFile.length-4)+(windowSize/3600000)+".csv"
   }
 
 

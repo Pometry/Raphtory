@@ -76,14 +76,13 @@ class GabConnectedComponents extends Analyser {
     val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-    Utils.writeLines(output_file,"Date,ConnectedComponents,Vertex,Size")
     val currentDate=new Date(timestamp)
     val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
     val endResults = results.asInstanceOf[ArrayBuffer[mutable.HashMap[Int, Int]]]
     var connectedComponents=endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum).size
     var biggest=endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum).maxBy(_._2)
     val text= s"${formattedDate},${connectedComponents},${biggest._1},${biggest._2}"
-    Utils.writeLines(output_file,text)
+    Utils.writeLines(output_file,text,"")
   }
 
   //Initialisation of the file in where the output will be written is done.
@@ -97,13 +96,13 @@ class GabConnectedComponents extends Analyser {
     val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-    Utils.writeLines(output_file,"Date,ConnectedComponents,Vertex,Size")
+    Utils.writeLines(output_file,"Date,ConnectedComponents,Vertex,Size","Date,ConnectedComponents,Vertex,Size")
     val currentDate=new Date(timestamp)
     val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
     val endResults = results.asInstanceOf[ArrayBuffer[mutable.HashMap[Int, Int]]]
     var connectedComponents=endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum).size
     var biggest=endResults.flatten.groupBy(f=> f._1).mapValues(x=> x.map(_._2).sum).maxBy(_._2)
     val text= s"${formattedDate},${connectedComponents},${biggest._1},${biggest._2}"
-    Utils.writeLines(output_file,text)
+    Utils.writeLines(output_file,text,"")
   }
 }
