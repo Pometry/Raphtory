@@ -79,15 +79,15 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     else{
       val individualResults:mutable.ArrayBuffer[Any] = ArrayBuffer[Any]()
       individualResults += analyzer.analyse()
-      var currentWindow = 1
-      while(currentWindow<windowSet.size) {
-        tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(currentWindow))
-        individualResults += analyzer.analyse()
-        currentWindow +=1
-      }
+      for(i<- windowSet.indices)
+        if(i!=0) {
+          tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(i))
+          //individualResults += analyzer.analyse()
+          if(workerId == 1)
+            println(s"$timestamp,${windowSet(i)} $individualResults")
+        }
       sender() ! EndStep(individualResults,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
-
-    }
+      }
   }
 
   def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) = {

@@ -34,10 +34,9 @@ class Density extends Analyser {
   override def analyse(): Any = {
     var totalDegree: Int = 0
     var totalNodes: Int = 0
-
     for(v <- proxy.getVerticesSet()){
       val vertex = proxy.getVertex(v)
-      val degree= vertex.getAllNeighbors.size
+      val degree= vertex.getIngoingNeighbors.size
 
       totalDegree += degree
       totalNodes+=1
@@ -88,15 +87,17 @@ class Density extends Analyser {
       val totals = endResults(i).fold(0,0)(pariFold)
       totalVertices = totals._1
       totalEdges = totals._2
+      println(s"$timestamp $totalEdges $totalVertices")
       if(totalVertices>=2){
         val density : Float= (totalEdges.toFloat/(totalVertices.toFloat*(totalVertices.toFloat-1)))
         density2 = new java.math.BigDecimal(density).toPlainString
       }
       val currentDate=new Date(timestamp)
-      val text= inputFormat.parse(currentDate.toString).getTime()+","+outputFormat.format(inputFormat.parse(currentDate.toString)) + ","+ totalVertices + ","+ totalEdges + ","+density2
-      Utils.writeLines(Utils.windowOutut(output_file,windowSet(i)),text,"Time,Date,TotalVertices,TotalEdges,Density")
-      println(println("End: "+ LocalDateTime.now()))
+      val text= s"{time:$timestamp,windowsize:${windowSet(i)},density:$density2},"
+      Utils.writeLines(output_file,text,"{views:[")
+
+      }
+      //println(println("End: "+ LocalDateTime.now()))
     }
-  }
 
   }

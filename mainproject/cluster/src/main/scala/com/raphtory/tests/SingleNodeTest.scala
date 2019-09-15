@@ -21,7 +21,7 @@ object SingleNodeTest extends App {
 
  var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
  var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
- val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
+ val Analyser = "com.raphtory.core.analysis.Algorithms.Density"
 
   val system = ActorSystem("Single-Node-test")
 
@@ -39,7 +39,7 @@ object SingleNodeTest extends App {
   val end = 1525368897000L
   val jump =    3600000
   val window =    3600000
-  val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
+  val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,1)
   system.actorOf(Props(new BWindowedRangeAnalysisManager("testname",analyser,start,end,jump,windowset)), s"LiveAnalysisManager_$Analyser")
 
 ////////////////

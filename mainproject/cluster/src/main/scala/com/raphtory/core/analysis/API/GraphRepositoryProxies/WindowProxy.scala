@@ -31,8 +31,7 @@ class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, 
     setWindow = newWindowSize
     val x = keySet.size
     keySet = keySet.filter(v=> (v._2).aliveAtWithWindow(timestamp,setWindow))
-    if(keySet.size>x)
-      println(s"$workerID $timestamp $newWindowSize keyset prior $x keyset after ${keySet.size}")
+    println(s"$workerID $timestamp $newWindowSize keyset prior $x keyset after ${keySet.size}")
   }
 
   override def checkVotes(workerID: Int):Boolean = {

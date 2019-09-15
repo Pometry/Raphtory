@@ -168,6 +168,7 @@ object Utils {
     }
 
   }
+
   def windowOutut(outputFile:String,windowSize: Long) = {
     outputFile.substring(0,outputFile.length-4)+(windowSize/3600000)+".csv"
   }
