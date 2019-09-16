@@ -62,16 +62,14 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
         currentWindow +=1
       }
       sender() ! Ready(tempProxy.getMessages())
-
-
     }
+    tempProxy=null
   }
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]): Unit = {
-    //println(analyzer)
     receivedMessages.set(0)
-    analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy,workerId)
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
+    analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy,workerId)
     if(windowSet.isEmpty) {
       val value = analyzer.analyse()
       sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
@@ -82,12 +80,14 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
       for(i<- windowSet.indices)
         if(i!=0) {
           tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(i))
-          //individualResults += analyzer.analyse()
+          individualResults += analyzer.analyse()
           if(workerId == 1)
             println(s"$timestamp,${windowSet(i)} $individualResults")
         }
       sender() ! EndStep(individualResults,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
       }
+    tempProxy=null
+
   }
 
   def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) = {
