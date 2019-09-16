@@ -81,8 +81,6 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
         if(i!=0) {
           tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(i))
           individualResults += analyzer.analyse()
-          if(workerId == 1)
-            println(s"$timestamp,${windowSet(i)} $individualResults")
         }
       sender() ! EndStep(individualResults,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
       }

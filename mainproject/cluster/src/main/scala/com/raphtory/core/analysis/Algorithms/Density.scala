@@ -34,7 +34,6 @@ class Density extends Analyser {
   override def analyse(): Any = {
     var totalDegree: Int = 0
     var totalNodes: Int = 0
-    println(proxy.getVerticesSet().size)
     for(v <- proxy.getVerticesSet()){
       val vertex = proxy.getVertex(v)
       val degree= vertex.getIngoingNeighbors.size
@@ -94,8 +93,8 @@ class Density extends Analyser {
         density2 = new java.math.BigDecimal(density).toPlainString
       }
       val currentDate=new Date(timestamp)
-      val text= s"{time:$timestamp,windowsize:${windowSet(i)},density:$density2},"
-      Utils.writeLines(output_file,text,"{views:[")
+      val text= s"{\"time\":$timestamp,\"windowsize\":${windowSet(i)},\"density\":$density2},"
+      Utils.writeLines(output_file,text,"{\"views:[\"")
       density2="0"
 
       }
