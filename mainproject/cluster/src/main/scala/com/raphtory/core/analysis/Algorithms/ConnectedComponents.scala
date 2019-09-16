@@ -68,7 +68,7 @@ class ConnectedComponents extends Analyser {
       val total = window.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).size
       println(s"$timestamp $biggest $total")
       try {
-        val text= s"{\"time\":$timestamp,\"windowsize\":${windowSet(i)},\"biggest\":$biggest,\"total\":$total},"
+        val text =s"{\"time\":$timestamp,\"windowsize\":${windowSet(i)},\"biggest\":$biggest,\"total\":$total},"
         Utils.writeLines(output_file,text,"{\"views:[\"")
         //println(s"At ${new Date(timestamp)} with a window of ${windowSize / 3600000} hour(s) there were ${} connected components. The biggest being ${}")
       }catch {
