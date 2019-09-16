@@ -64,12 +64,15 @@ class ConnectedComponents extends Analyser {
     for(i <- endResults.indices){
       val window = endResults(i)
       val windowSize = windowSet(i)
-      val biggest = window.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).maxBy(_._2)
-      val total = window.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).size
-      println(s"$timestamp $biggest $total")
+      var biggest = (0,0)
+      var total = 0
+
       try {
-        val text =s"{\"time\":$timestamp,\"windowsize\":${windowSet(i)},\"biggest\":$biggest,\"total\":$total},"
-        Utils.writeLines(output_file,text,"{\"views:[\"")
+        biggest = window.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).maxBy(_._2)
+        total = window.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).size
+        //println(s"$timestamp $windowSize $biggest $total $window")
+        val text = s"""{"time":$timestamp,"windowsize":$windowSize,"biggest":${biggest._2},"total":$total},"""
+        Utils.writeLines(output_file,text,"{\"views\":[")
         //println(s"At ${new Date(timestamp)} with a window of ${windowSize / 3600000} hour(s) there were ${} connected components. The biggest being ${}")
       }catch {
         case e:UnsupportedOperationException => println("empty.maxby")

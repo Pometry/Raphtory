@@ -14,7 +14,7 @@ class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, 
   private var setWindow = windowSize
   private var keySet:ParTrieMap[Int,Vertex] = EntityStorage.vertices(workerID.ID).filter(v=> v._2.aliveAtWithWindow(timestamp,windowSize))
 
-  override  def job() = jobID+timestamp+windowSize
+  override def job() = jobID+timestamp+setWindow
 
   override def getVerticesSet(): Iterator[Int] = keySet.keys.toIterator
 

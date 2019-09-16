@@ -63,7 +63,6 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
       }
       sender() ! Ready(tempProxy.getMessages())
     }
-    tempProxy=null
   }
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]): Unit = {
@@ -84,7 +83,6 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
         }
       sender() ! EndStep(individualResults,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
       }
-    tempProxy=null
 
   }
 

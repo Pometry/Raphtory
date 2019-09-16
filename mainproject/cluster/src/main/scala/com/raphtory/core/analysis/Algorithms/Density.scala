@@ -73,8 +73,7 @@ class Density extends Analyser {
       density2 = new java.math.BigDecimal(density).toPlainString
     }
     val currentDate=new Date(timestamp)
-    val text= inputFormat.parse(currentDate.toString).getTime()+","+outputFormat.format(inputFormat.parse(currentDate.toString)) + ","+ totalVertices + ","+ totalEdges + ","+density2
-    Utils.writeLines(output_file,text,"Time,Date,TotalVertices,TotalEdges,Density")
+    Utils.writeLines(output_file,inputFormat.parse(currentDate.toString).getTime()+","+outputFormat.format(inputFormat.parse(currentDate.toString)) + ","+ totalVertices + ","+ totalEdges + ","+density2,"Time,Date,TotalVertices,TotalEdges,Density")
     println(println("End: "+ LocalDateTime.now()))
   }
 
@@ -93,7 +92,7 @@ class Density extends Analyser {
         density2 = new java.math.BigDecimal(density).toPlainString
       }
       val currentDate=new Date(timestamp)
-      val text= s"{\"time\":$timestamp,\"windowsize\":${windowSet(i)},\"density\":$density2},"
+      val text= s"""{"time":$timestamp,"windowsize":${windowSet(i)},"density":$density2},"""
       Utils.writeLines(output_file,text,"{\"views:[\"")
       density2="0"
 
