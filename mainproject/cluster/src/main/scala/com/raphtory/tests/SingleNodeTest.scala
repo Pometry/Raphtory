@@ -21,21 +21,20 @@ object SingleNodeTest extends App {
 
  var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
  var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
- val Analyser = "com.raphtory.core.analysis.Algorithms.Density"
-
-  val system = ActorSystem("Single-Node-test")
+ val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
+ val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
   system.actorOf(Props(RaphtoryReplicator("Router",1, routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager",1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
-
   val analyser = Class.forName(Analyser).newInstance().asInstanceOf[Analyser]
 
 //  val end = 1525368897000L
+  //1470783600000L
 //window//
-  val start = 1470783600000L
+  val start = 1471388400000L
   val end = 1525368897000L
   val jump =    3600000
   val window =    3600000
