@@ -43,6 +43,6 @@ class BWindowedViewAnalysisManager(jobID:String, analyser:Analyser, time:Long, w
 
 
   override def windowSet(): Array[Long] = windows
-  override def processResults(): Unit = analyser.processBatchWindowResults(result,oldResult,timestamp(),windowSet())
+  override def processResults(): Unit = analyser.processBatchWindowResults(result,oldResult,timestamp(),windowSet(),viewCompleteTime)
   override protected def analysisType(): AnalysisType.Value = AnalysisType.view
 }

@@ -49,7 +49,7 @@ class PageRank extends Analyser {
 
   override def defineMaxSteps(): Int = 10
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any]): Unit = {
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Long,ArrayBuffer[(Long, Float)])]]
     val top5 = endResults.map(x => x._2).flatten.sortBy(f => f._2)(Ordering[Float].reverse).take(5)
     val topTime = new java.util.Date(endResults.map(x => x._1).max)
@@ -57,9 +57,9 @@ class PageRank extends Analyser {
 
   }
 
-  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {}
+  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {}
 
-  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long): Unit = {}
+  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long,viewCompleteTime:Long): Unit = {}
 
   override def checkProcessEnd(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any]) : Boolean = {
     try {

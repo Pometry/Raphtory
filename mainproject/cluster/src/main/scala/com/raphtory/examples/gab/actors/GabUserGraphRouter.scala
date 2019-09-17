@@ -25,9 +25,14 @@ class GabUserGraphRouter(routerId:Int, override val initialManagerCount:Int) ext
     //comment wise
    // val sourceNode=fileLine(1).toInt
     //val targetNode=fileLine(4).toInt
+
+    val creationDate = dateToUnixTime(timestamp=fileLine(0).slice(0,19))
+    //create sourceNode
+    toPartitionManager(VertexAdd(routerId, creationDate, sourceNode))
+    //create destinationNode
+
+    //create edge
     if (targetNode>0) {
-      val creationDate = dateToUnixTime(timestamp=fileLine(0).slice(0,19))
-      toPartitionManager(VertexAdd(routerId, creationDate, sourceNode))
       toPartitionManager(VertexAdd(routerId, creationDate, targetNode))
       toPartitionManager(EdgeAdd(routerId, creationDate, sourceNode, targetNode))
     }

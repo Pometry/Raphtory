@@ -45,12 +45,12 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) {
     receivedMessages.set(0)
-    val setProx = System.currentTimeMillis()
+    //val setProx = System.currentTimeMillis()
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
-    println(s"$workerId took ${System.currentTimeMillis()-setProx} to setProxy}")
-    val queueClear = System.currentTimeMillis()
+    //println(s"$workerId took ${System.currentTimeMillis()-setProx} to setProxy}")
+    //val queueClear = System.currentTimeMillis()
     EntityStorage.vertices(workerId).foreach(v=> (v._2).mutliQueue.clearQueues(tempProxy.job()))
-    println(s"$workerId took ${System.currentTimeMillis()-queueClear} to clear queue}")
+    //println(s"$workerId took ${System.currentTimeMillis()-queueClear} to clear queue}")
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy,workerId)
     if(windowSet.isEmpty) {
       analyzer.setup()
@@ -71,9 +71,9 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]): Unit = {
     receivedMessages.set(0)
-    val setProx = System.currentTimeMillis()
+    //val setProx = System.currentTimeMillis()
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
-    println(s"$workerId took ${System.currentTimeMillis()-setProx} to setProxy in next step}")
+    //println(s"$workerId took ${System.currentTimeMillis()-setProx} to setProxy in next step}")
     analyzer.sysSetup(context,ManagerCount(managerCount),tempProxy,workerId)
     if(windowSet.isEmpty) {
       val value = analyzer.analyse()
@@ -81,9 +81,9 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     }
     else{
       val individualResults:mutable.ArrayBuffer[Any] = ArrayBuffer[Any]()
-      val analysisTime = System.currentTimeMillis()
+      //val analysisTime = System.currentTimeMillis()
       individualResults += analyzer.analyse()
-      println(s"$workerId took ${System.currentTimeMillis()-analysisTime} to analyise in next step}")
+      //println(s"$workerId took ${System.currentTimeMillis()-analysisTime} to analyise in next step}")
       for(i<- windowSet.indices)
         if(i!=0) {
           tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(i))

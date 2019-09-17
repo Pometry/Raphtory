@@ -51,6 +51,13 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
 
   protected def analysisType():AnalysisType.Value
 
+  private var lastTime = System.currentTimeMillis()
+  def viewCompleteTime():Long = {
+    val newTime = System.currentTimeMillis()
+    val totalTime = newTime-lastTime
+    lastTime=newTime
+    totalTime
+  }
 
   protected var steps  : Long= 0L // number of supersteps before returning
   def timestamp(): Long = -1L //for view
@@ -64,7 +71,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   protected def analyserName:String = generateAnalyzer.getClass.getName
   protected final def getManagerCount : Int = managerCount
   protected final def getWorkerCount : Int = managerCount*10
-  protected def processResults() = analyser.processResults(results,oldResults)
+  protected def processResults() = analyser.processResults(results,oldResults,viewCompleteTime())
 
   private def resetCounters() = {
     ReaderACKS = 0 //Acks from the readers to say they are online

@@ -62,7 +62,7 @@ class GabConnectedComponents extends Analyser {
 
   override def defineMaxSteps(): Int = 10
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any]): Unit = ???
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = ???
 
 
   //Initialisation of the file in where the output will be written is done.
@@ -72,7 +72,7 @@ class GabConnectedComponents extends Analyser {
   // In this class the number of supersteps in the connectec component algorithm is set.
   // The number of rows in the output will depend on the dates stated for the range analysis.
 
-  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {
+  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {
     val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
@@ -92,7 +92,7 @@ class GabConnectedComponents extends Analyser {
   // In this class the number of supersteps in the connectec component algorithm is set.
   // The number of rows in the output will depend on the dates stated for the window analysis.
 
-  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long): Unit = {
+  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long,viewCompleteTime:Long): Unit = {
     val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")

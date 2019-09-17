@@ -48,32 +48,35 @@ class ConnectedComponents extends Analyser {
     }
     results
   }
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any]): Unit = {}
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {}
 
-  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long): Unit = {}
+  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {}
 
-  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timestamp:Long,windowSize:Long): Unit = {
+  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timestamp:Long,windowSize:Long,viewCompleteTime:Long): Unit = {
   val endResults = results.asInstanceOf[ArrayBuffer[mutable.HashMap[Int, Int]]]
   println(s"At ${new Date(timestamp)} with a window of ${windowSize / 1000 / 3600} hour(s) there were ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).size} connected components. The biggest being ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).maxBy(_._2)}")
   println()
   }
 
-  override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long]): Unit = {
+  override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long],viewCompleteTime:Long): Unit = {
     var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val endResults = results.asInstanceOf[ArrayBuffer[ArrayBuffer[mutable.HashMap[Int, Int]]]]
     for(i <- endResults.indices){
+      val startTime = System.currentTimeMillis()
       val window = endResults(i)
       val windowSize = windowSet(i)
-
-
       try {
         val grouped = window.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
+        val groupedNonIslands = grouped.filter(x=>x._2>1)
         val biggest = grouped.maxBy(_._2)._2
         val total = grouped.size
-        val proportion = biggest/grouped.map(x=> x._2).sum
+        val totalWithoutIslands = groupedNonIslands.size
+        val totalIslands = total-totalWithoutIslands
+        val proportion = biggest.toFloat/grouped.map(x=> x._2).sum
+        val proportionWithoutIslands = biggest.toFloat/groupedNonIslands.map(x=> x._2).sum
         val totalGT2 = grouped.filter(x=> x._2>2).size
         //println(s"$timestamp $windowSize $biggest $total $window")
-        val text = s"""{"time":$timestamp,"windowsize":$windowSize,"biggest":$biggest,"total":$total,"proportion":$proportion,"clustersGT2":$totalGT2},"""
+        val text = s"""{"time":$timestamp,"windowsize":$windowSize,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
         Utils.writeLines(output_file,text,"{\"views\":[")
         //println(s"At ${new Date(timestamp)} with a window of ${windowSize / 3600000} hour(s) there were ${} connected components. The biggest being ${}")
       }catch {

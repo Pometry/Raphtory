@@ -34,7 +34,7 @@ object SingleNodeTest extends App {
 //  val end = 1525368897000L
   //1470783600000L 1471388400000L
 //window//
-  val start = 1474556400000L
+  val start = 1471388400000L
   val end = 1525368897000L
   val jump =    3600000
   val window =    3600000
