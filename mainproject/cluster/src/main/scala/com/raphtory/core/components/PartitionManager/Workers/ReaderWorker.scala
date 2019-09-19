@@ -25,9 +25,9 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = newValue
-    case Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => }
+    case Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => println(e)}
     case CheckMessages(superstep) => checkMessages()
-    case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => }
+    case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => println(e)}
     case NextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet)
     case handler:MessageHandler => receivedMessage(handler)
   }
@@ -83,6 +83,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
       val individualResults:mutable.ArrayBuffer[Any] = ArrayBuffer[Any]()
       //val analysisTime = System.currentTimeMillis()
       individualResults += analyzer.analyse()
+      println(workerId+ "    " +tempProxy.asInstanceOf[WindowProxy].timeTest.sum/tempProxy.asInstanceOf[WindowProxy].timeTest.size)
       //println(s"$workerId took ${System.currentTimeMillis()-analysisTime} to analyise in next step}")
       for(i<- windowSet.indices)
         if(i!=0) {
