@@ -8,22 +8,31 @@ import com.raphtory.core.storage.EntityStorage
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.{ParIterable, ParSet}
-import scala.collection.parallel.ParMap
+import scala.collection.parallel.mutable.ParTrieMap
 
-class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:WorkerID,context : ActorContext, managerCount : ManagerCount) extends LiveProxy(jobID,superstep,timestamp,windowSize,workerID,context,managerCount) {
+class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:WorkerID) extends LiveProxy(jobID,superstep,timestamp,windowSize,workerID) {
 
   private var setWindow = windowSize
-  var keySet:ParMap[Int,VertexVisitor] = EntityStorage.vertices(workerID.ID).filter(v=> v._2.aliveAtWithWindow(timestamp,windowSize))
-                                                                                    .mapValues(x=>new VertexVisitor(x.viewAtWithWindow(timestamp,setWindow),job(),superstep,this,timestamp,setWindow))
+  private var keySet:ParTrieMap[Int,Vertex] = EntityStorage.vertices(workerID.ID).filter(v=> v._2.aliveAtWithWindow(timestamp,windowSize))
+  var timeTest = ArrayBuffer[Long]()
+
   override def job() = jobID+timestamp+setWindow
 
-  override def getVerticesSet(): ParSet[Int] = keySet.keySet
+  override def getVerticesSet(): Iterator[Int] = keySet.keys.toIterator
 
-  override def getVertex(id : Long) : VertexVisitor = {
+  override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = {
+    val startTime = System.nanoTime()
     keySet.get(id.toInt) match {
-      case Some(v) => v
-      case None => println("howdy");throw new Exception()
+      case Some(v) => {
+        val x = new VertexVisitor(keySet(id.toInt).viewAtWithWindow(timestamp,setWindow),job(),superstep,this,timestamp,setWindow)
+        //println(System.nanoTime()-startTime)
+        timeTest += (System.nanoTime()-startTime)/1000
+        x
+      }
+      case None => println(keySet);throw new Exception()
     }
+    //
+
   }
 
   override def latestTime:Long = timestamp

@@ -15,34 +15,41 @@ class ConnectedComponents extends Analyser {
 
 
   override def setup() = {
-    proxy.asInstanceOf[WindowProxy].keySet.foreach(vertex => {
-      var min = vertex._1
+    proxy.getVerticesSet().foreach(v => {
+      var min = v
+      val vertex = proxy.getVertex(v)
       //math.min(v, vertex.getOutgoingNeighbors.union(vertex.getIngoingNeighbors).min)
-      val toSend = vertex._2.getOrSetCompValue("cclabel", min).asInstanceOf[Int]
-      vertex._2.messageAllNeighbours(ClusterLabel(toSend))
+      val toSend = vertex.getOrSetCompValue("cclabel", min).asInstanceOf[Int]
+      vertex.messageAllNeighbours(ClusterLabel(toSend))
     })
   }
-  override def analyse(): Any = {
-    val x = proxy.asInstanceOf[WindowProxy].keySet.foreach(vertex => {
 
-      val queue = vertex._2.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
-      var label = vertex._1
-      if (queue.nonEmpty)
-        label = queue.min
-      vertex._2.messageQueue.clear
-      var currentLabel = vertex._2.getOrSetCompValue("cclabel", label).asInstanceOf[Int]
-      if (label < currentLabel) {
-        vertex._2.setCompValue("cclabel", label)
-        vertex._2 messageAllNeighbours (ClusterLabel(label))
-        currentLabel = label
+    override def analyse(): Any = {
+      val results = ParTrieMap[Int, Int]()
+      var verts = Set[Int]()
+      for (v <- proxy.getVerticesSet()) {
+        val vertex = proxy.getVertex(v)
+        val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
+        var label = v
+        if (queue.nonEmpty)
+          label = queue.min
+        vertex.messageQueue.clear
+        var currentLabel = vertex.getOrSetCompValue("cclabel", v).asInstanceOf[Int]
+        if (label < currentLabel) {
+          vertex.setCompValue("cclabel", label)
+          vertex messageAllNeighbours (ClusterLabel(label))
+          currentLabel = label
+        }
+        else {
+          vertex messageAllNeighbours (ClusterLabel(currentLabel))
+          //vertex.voteToHalt()
+        }
+        results.put(currentLabel, 1 + results.getOrElse(currentLabel, 0))
+        verts += v
       }
-      else {
-        vertex._2.messageAllNeighbours (ClusterLabel(currentLabel))
-        //vertex.voteToHalt()
-      }
-      currentLabel
-    })
-  }
+      results
+    }
+
   override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {}
 
   override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {}
@@ -87,29 +94,27 @@ class ConnectedComponents extends Analyser {
     // move to LAM partitionsHalting()
   }
 
+
+//
 //  override def analyse(): Any = {
-//    val results = ParTrieMap[Int, Int]()
-//    var verts = Set[Int]()
-//    for (v <- proxy.getVerticesSet()) {
-//      val vertex = proxy.getVertex(v)
-//      val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
-//      var label = v
+//    val x = proxy.asInstanceOf[WindowProxy].keySet.foreach(vertex => {
+//
+//      val queue = vertex._2.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
+//      var label = vertex._1
 //      if (queue.nonEmpty)
 //        label = queue.min
-//      vertex.messageQueue.clear
-//      var currentLabel = vertex.getOrSetCompValue("cclabel", v).asInstanceOf[Int]
+//      vertex._2.messageQueue.clear
+//      var currentLabel = vertex._2.getOrSetCompValue("cclabel", label).asInstanceOf[Int]
 //      if (label < currentLabel) {
-//        vertex.setCompValue("cclabel", label)
-//        vertex messageAllNeighbours (ClusterLabel(label))
+//        vertex._2.setCompValue("cclabel", label)
+//        vertex._2 messageAllNeighbours (ClusterLabel(label))
 //        currentLabel = label
 //      }
 //      else {
-//        vertex messageAllNeighbours (ClusterLabel(currentLabel))
+//        vertex._2.messageAllNeighbours (ClusterLabel(currentLabel))
 //        //vertex.voteToHalt()
 //      }
-//      results.put(currentLabel, 1 + results.getOrElse(currentLabel, 0))
-//      verts += v
-//    }
-//    results
+//      currentLabel
+//    })
 //  }
 }
