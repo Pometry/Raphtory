@@ -67,35 +67,8 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
   def getDstId : Int = dstId
   def getWorkerID:Int = workerID
 
-  def aliveAt(time:Long):Boolean = {
-    var closestTime:Long = 0
-    var value = false
-    for((k,v) <- previousState){
-      if(k<=time)
-        if((time-k)<(time-closestTime)) {
-          closestTime = k
-          value = v
-        }
-    }
 
-    value
-  }
 
-  def aliveAtWithWindow(time:Long,windowSize:Long):Boolean = {
-    var closestTime:Long = 0
-    var value = false
-    for((k,v) <- previousState){
-      if(k<=time)
-        if((time-k)<(time-closestTime)) {
-          closestTime = k
-          value = v
-        }
-    }
-    if(time-closestTime<=windowSize)
-      value
-    else
-      false
-  }
 
 
 

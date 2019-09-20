@@ -23,10 +23,11 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
   val vert:Vertex = v
   val messageQueue = v.mutliQueue.getMessageQueue(jobID,superStep)
   val messageQueue2 = v.mutliQueue.getMessageQueue(jobID,superStep+1)
-  def getOutgoingNeighbors : ParArray[Int] = v.outgoingIDs.toParArray
-  def getIngoingNeighbors  : ParArray[Int] = v.incomingIDs.toParArray
-  def getAllNeighbors: ParArray[Int] = v.incomingIDs.union(v.outgoingIDs).toParArray
+  def getOutgoingNeighbors : ParSet[Int] = v.outgoingProcessing
+  def getIngoingNeighbors  : ParSet[Int] = v.incomingProcessing
+  def getAllNeighbors: ParSet[Int] = v.incomingProcessing.union(v.outgoingProcessing)
 
+  //TODO fix properties
   def getOutgoingNeighborProp(vId: Int, key : String) : Option[String] = {
     EntityStorage.edges.get(Utils.getEdgeIndex(v.vertexId,vId)) match {
       case Some(e) => e.getPropertyCurrentValue(key)
@@ -39,18 +40,6 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
       case None    => None
     }
   }
-
-  def getNeighborsProp(key : String) : ArrayBuffer[String] = {
-    var values = mutable.ArrayBuffer[String]()
-    v.incomingEdges.foreach(e => {
-      values += e._2.getPropertyCurrentValue(key).get
-    })
-    v.outgoingEdges.foreach(e => {
-      values += e._2.getPropertyCurrentValue(key).get
-    })
-    values
-  }
-
   def getPropertySet():ParSet[String] = {
     v.properties.keySet
   }
@@ -78,11 +67,11 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
     mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(vertexID,jobID,superStep,message),false)
   }
 
-  def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingIDs.foreach(vID => messageNeighbour(vID,message))
+  def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID,message))
 
-  def messageAllNeighbours(message:VertexMessage) = v.outgoingIDs.union(v.incomingIDs).foreach(vID => messageNeighbour(vID,message))
+  def messageAllNeighbours(message:VertexMessage) = v.outgoingProcessing.union(v.incomingProcessing).foreach(vID => messageNeighbour(vID,message))
 
-  def messageAllIngoingNeighbors(message: VertexMessage) : Unit = v.incomingIDs.foreach(vID => messageNeighbour(vID,message))
+  def messageAllIngoingNeighbors(message: VertexMessage) : Unit = v.incomingProcessing.foreach(vID => messageNeighbour(vID,message))
 
   def moreMessages():Boolean = messageQueue.nonEmpty
   def nextMessage():VertexMessage = messageQueue.pop()
@@ -90,6 +79,8 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
   def voteToHalt() = {
     proxy.vertexVoted()
   }
+  def aliveAt(time:Long):Boolean = v.aliveAt(time)
+  def aliveAtWithWindow(time:Long,window:Long):Boolean = v.aliveAtWithWindow(time,window)
 
 
 

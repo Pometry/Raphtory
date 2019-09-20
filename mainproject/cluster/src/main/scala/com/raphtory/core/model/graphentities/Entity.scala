@@ -176,4 +176,48 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
       case Some(p) => Some(p.currentValue)
       case None => None
     }
+
+
+  protected val stateCache = ParTrieMap[Long, Long]()
+
+  protected def closestTime(time:Long):(Long,Boolean)  = {
+    var closestTime:Long = -1
+    var value = false
+    for((k,v) <- previousState)
+      if(k<=time)
+        if((time-k)<(time-closestTime)) {
+          closestTime = k
+          value = v
+        }
+    (closestTime,value)
+  }
+
+  def aliveAt(time:Long):Boolean = {
+    if(time < EntityStorage.oldestTime || time < oldestPoint.get)
+      false
+    else if(stateCache contains time)
+      previousState(stateCache(time))
+    else {
+      val closest = closestTime(time)
+      stateCache += ((time, closest._1))
+      closest._2
+    }
+  }
+
+  def aliveAtWithWindow(time:Long,windowSize:Long):Boolean = {
+    if(time < EntityStorage.oldestTime || time < oldestPoint.get)
+      false
+    else if(stateCache contains time) {
+      val casheVal = stateCache(time)
+      if(time-casheVal<=windowSize)
+        previousState(casheVal)
+      else false
+    }
+    else{
+      val closest = closestTime(time)
+      if(time-closest._1<=windowSize)
+        closest._2
+      else false
+    }
+  }
 }

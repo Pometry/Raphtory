@@ -8,24 +8,22 @@ import monix.execution.atomic.AtomicInt
 
 import scala.collection.parallel.{ParIterable, ParSet}
 
-class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,workerID: WorkerID) {
+class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,workerID: WorkerID,context : ActorContext, managerCount : ManagerCount) {
   private var messages = AtomicInt(0)
-
+  implicit val actorContext:ActorContext = context
+  implicit val mancount:ManagerCount = managerCount
   protected var voteCount = 0
   def job() = jobID
 
-  def getVerticesSet(): Iterator[Int] = {
-    val map = EntityStorage.vertices(workerID.ID)
-      val key = map.keys
-        val arrau = key.toIterator
-    arrau
+  def getVerticesSet(): ParSet[Int] = {
+    EntityStorage.vertices(workerID.ID).keySet
   }
 
   def recordMessage() = messages.increment()
 
   def getMessages() = messages.get
 
-  def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(workerID.ID)(id.toInt),jobID,superstep,this,timestamp,windowsize)
+  def getVertex(id : Long) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(workerID.ID)(id.toInt),jobID,superstep,this,timestamp,windowsize)
 
   def getTotalVerticesSet() = {
     EntityStorage.vertices.keySet
