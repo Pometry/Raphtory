@@ -240,7 +240,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
           mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
       }
       else {
-        //println(s"checking, $totalReceivedMessages/$totalSentMessages")
+        println(s"checking, $totalReceivedMessages/$totalSentMessages")
         totalReceivedMessages =0
         totalSentMessages = 0
         Thread.sleep(10)

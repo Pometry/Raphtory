@@ -33,14 +33,14 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
   }
 
   def receivedMessage(handler:MessageHandler) = {
-    receivedMessages.add(1)
+    receivedMessages.increment()
     EntityStorage.vertices(workerId)(handler.vertexID).mutliQueue.receiveMessage(handler)
   }
 
   def checkMessages() ={
-    var count = 0
-    tempProxy.getVerticesSet().foreach(v => count += tempProxy.getVertex(v._2).messageQueue2.size)
-    sender() ! MessagesReceived(workerId,count,receivedMessages.get,tempProxy.getMessages())
+    var count = AtomicInt(0)
+    //tempProxy.getVerticesSet().foreach(v => count.add(tempProxy.getVertex(v._2).messageQueue2.size))
+    sender() ! MessagesReceived(workerId,count.get,receivedMessages.get,tempProxy.getMessages())
   }
 
   def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) {
