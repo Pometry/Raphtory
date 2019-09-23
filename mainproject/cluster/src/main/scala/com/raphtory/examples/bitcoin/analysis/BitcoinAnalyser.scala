@@ -12,7 +12,7 @@ class BitcoinAnalyser extends Analyser {
     var currentBlock = 0
     var hash = ""
     proxy.getVerticesSet().foreach(v => {
-      val vertex = proxy.getVertex(v)
+      val vertex = proxy.getVertex(v._2)
       val vertexType = vertex.getPropertyCurrentValue("type").getOrElse("no-type")
       if(vertexType.equals("address")) {
         val address = vertex.getPropertyCurrentValue("address").getOrElse("no address")

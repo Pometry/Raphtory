@@ -184,7 +184,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     if (!voteToHalt) this.voteToHalt = false
     if(debug)println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
     if (workersFinishedSuperStep == getWorkerCount) {
-      if (currentSuperStep == steps || analyser.checkProcessEnd(results,oldResults)) {
+      if (currentSuperStep == steps || analyser.checkProcessEnd(results,oldResults) || voteToHalt) {
         processResults()
         results = mutable.ArrayBuffer[Any]()
         oldResults = mutable.ArrayBuffer[Any]()

@@ -22,10 +22,10 @@ class StarNode extends Analyser{
     val results = ParTrieMap[Int, Int]()
 
     for(v <- proxy.getVerticesSet()){
-      val vertex = proxy.getVertex(v)
+      val vertex = proxy.getVertex(v._2)
       val inDegree= vertex.getIngoingNeighbors.size
       //println("CHeck this out:"+v.toInt+" "+ inDegree.toInt)
-        results.put(v.toInt, inDegree.toInt)
+        results.put(v._1.toInt, inDegree.toInt)
 
     }
     if (results.nonEmpty) {

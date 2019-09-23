@@ -15,23 +15,13 @@ class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, 
   private var setWindow = windowSize
   private var keySet:ParTrieMap[Int,Vertex] = EntityStorage.vertices(workerID.ID).filter(v=> v._2.aliveAtWithWindow(timestamp,windowSize))
   var timeTest = ArrayBuffer[Long]()
-
+  private var TotalKeySize = keySet.size
   override def job() = jobID+timestamp+setWindow
 
-  override def getVerticesSet(): Iterator[Int] = keySet.keys.toIterator
+  override def getVerticesSet(): ParTrieMap[Int,Vertex] = keySet
 
-  override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = {
-    val startTime = System.nanoTime()
-    keySet.get(id.toInt) match {
-      case Some(v) => {
-        val x = new VertexVisitor(keySet(id.toInt).viewAtWithWindow(timestamp,setWindow),job(),superstep,this,timestamp,setWindow)
-        //println(System.nanoTime()-startTime)
-        timeTest += (System.nanoTime()-startTime)/1000
-        x
-      }
-      case None => println(keySet);throw new Exception()
-    }
-    //
+  override def getVertex(v : Vertex)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = {
+     new VertexVisitor(v.viewAtWithWindow(timestamp,setWindow),job(),superstep,this,timestamp,setWindow)
 
   }
 
@@ -39,13 +29,13 @@ class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, 
 
   def shrinkWindow(newWindowSize:Long) = {
     setWindow = newWindowSize
-    val x = keySet.size
     keySet = keySet.filter(v=> (v._2).aliveAtWithWindow(timestamp,setWindow))
+    TotalKeySize += keySet.size
     //println(s"$workerID $timestamp $newWindowSize keyset prior $x keyset after ${keySet.size}")
   }
 
   override def checkVotes(workerID: Int):Boolean = {
     //println(s"$workerID ${EntityStorage.vertexKeys(workerID).size} $voteCount")
-    keySet.size == voteCount
+    TotalKeySize == voteCount
   }
 }

@@ -28,7 +28,7 @@ class InDegree extends Analyser {
     var results = ArrayBuffer[Int]()
     proxy.getVerticesSet().foreach(v => {
 
-      val vertex = proxy.getVertex(v)
+      val vertex = proxy.getVertex(v._2)
       val totalEdges = vertex.getIngoingNeighbors.size
       results += totalEdges
     })

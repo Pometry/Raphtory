@@ -35,7 +35,7 @@ class Density extends Analyser {
     var totalDegree: Int = 0
     var totalNodes: Int = 0
     for(v <- proxy.getVerticesSet()){
-      val vertex = proxy.getVertex(v)
+      val vertex = proxy.getVertex(v._2)
       val degree= vertex.getIngoingNeighbors.size
 
       totalDegree += degree

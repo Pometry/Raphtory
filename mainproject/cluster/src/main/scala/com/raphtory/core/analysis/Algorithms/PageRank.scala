@@ -22,7 +22,7 @@ class PageRank extends Analyser {
 
   override def setup() = {
     proxy.getVerticesSet().foreach(v => {
-      val vertex = proxy.getVertex(v)
+      val vertex = proxy.getVertex(v._2)
       val toSend = vertex.getOrSetCompValue(prStr, defaultPR).asInstanceOf[Float]
       vertex.messageAllOutgoingNeighbors(PageRankScore(toSend))
     })
@@ -31,7 +31,7 @@ class PageRank extends Analyser {
   override def analyse() : (Long,ArrayBuffer[(Long, Float)]) = {
     var results = ArrayBuffer[(Long, Float)]()
     proxy.getVerticesSet().foreach(v => {
-      val vertex = proxy.getVertex(v)
+      val vertex = proxy.getVertex(v._2)
       var neighbourScores = 0F
       while(vertex moreMessages)
         neighbourScores += vertex.nextMessage().asInstanceOf[PageRankScore].value
@@ -39,7 +39,7 @@ class PageRank extends Analyser {
       val newPR:Float = neighbourScores/math.max(vertex.getOutgoingNeighbors.size,1)
       vertex.setCompValue(prStr, newPR)
       vertex messageAllOutgoingNeighbors(PageRankScore(newPR))
-      results +:= (v.toLong, newPR)
+      results +:= (v._1.toLong, newPR)
     })
     if (results.size > 5) {
       results = results.sortBy(_._2)(Ordering[Float].reverse).take(5)

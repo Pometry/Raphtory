@@ -9,6 +9,7 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.ParTrieMap
 case class ClusterLabel(value: Int) extends VertexMessage
 class ConnectedComponents extends Analyser {
@@ -16,39 +17,36 @@ class ConnectedComponents extends Analyser {
 
   override def setup() = {
     proxy.getVerticesSet().foreach(v => {
-      var min = v
-      val vertex = proxy.getVertex(v)
+      var min = v._1
+      val vertex = proxy.getVertex(v._2)
       //math.min(v, vertex.getOutgoingNeighbors.union(vertex.getIngoingNeighbors).min)
       val toSend = vertex.getOrSetCompValue("cclabel", min).asInstanceOf[Int]
       vertex.messageAllNeighbours(ClusterLabel(toSend))
     })
   }
 
-    override def analyse(): Any = {
-      val results = ParTrieMap[Int, Int]()
-      var verts = Set[Int]()
-      for (v <- proxy.getVerticesSet()) {
-        val vertex = proxy.getVertex(v)
-        val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
-        var label = v
-        if (queue.nonEmpty)
-          label = queue.min
+  override def analyse(): Any = {
+    proxy.getVerticesSet().map(vert=>{
+      var label = vert._1
+      val vertex = proxy.getVertex(vert._2)
+      val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
+      if (queue.nonEmpty) {
+        label = queue.min
         vertex.messageQueue.clear
-        var currentLabel = vertex.getOrSetCompValue("cclabel", v).asInstanceOf[Int]
-        if (label < currentLabel) {
-          vertex.setCompValue("cclabel", label)
-          vertex messageAllNeighbours (ClusterLabel(label))
-          currentLabel = label
-        }
-        else {
-          vertex messageAllNeighbours (ClusterLabel(currentLabel))
-          //vertex.voteToHalt()
-        }
-        results.put(currentLabel, 1 + results.getOrElse(currentLabel, 0))
-        verts += v
       }
-      results
-    }
+      var currentLabel = vertex.getOrSetCompValue("cclabel", label).asInstanceOf[Int]
+      if (label < currentLabel) {
+        vertex.setCompValue("cclabel", label)
+        vertex messageAllNeighbours (ClusterLabel(label))
+        currentLabel = label
+      }
+      else {
+        //vertex messageAllNeighbours (ClusterLabel(currentLabel))
+        vertex.voteToHalt()
+      }
+      currentLabel
+    }).groupBy(f=> f).map(f=> (f._1,f._2.size))
+  }
 
   override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {}
 
@@ -62,7 +60,7 @@ class ConnectedComponents extends Analyser {
 
   override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long],viewCompleteTime:Long): Unit = {
     var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
-    val endResults = results.asInstanceOf[ArrayBuffer[ArrayBuffer[mutable.HashMap[Int, Int]]]]
+    val endResults = results.asInstanceOf[ArrayBuffer[ArrayBuffer[immutable.ParHashMap[Int, Int]]]]
     for(i <- endResults.indices){
       val startTime = System.currentTimeMillis()
       val window = endResults(i)
@@ -83,7 +81,6 @@ class ConnectedComponents extends Analyser {
         //println(s"At ${new Date(timestamp)} with a window of ${windowSize / 3600000} hour(s) there were ${} connected components. The biggest being ${}")
       }catch {
         case e:UnsupportedOperationException => println("empty.maxby")
-        case e:Exception  => println(e.getStackTrace)
       }
     }
 
@@ -96,6 +93,31 @@ class ConnectedComponents extends Analyser {
 
 
 //
+//override def analyse(): Any = {
+//  val results = ParTrieMap[Int, Int]()
+//  var verts = Set[Int]()
+//  for (v <- proxy.getVerticesSet()) {
+//    val vertex = proxy.getVertex(v)
+//    val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
+//    var label = v
+//    if (queue.nonEmpty)
+//      label = queue.min
+//    vertex.messageQueue.clear
+//    var currentLabel = vertex.getOrSetCompValue("cclabel", v).asInstanceOf[Int]
+//    if (label < currentLabel) {
+//      vertex.setCompValue("cclabel", label)
+//      vertex messageAllNeighbours (ClusterLabel(label))
+//      currentLabel = label
+//    }
+//    else {
+//      vertex messageAllNeighbours (ClusterLabel(currentLabel))
+//      vertex.voteToHalt()
+//    }
+//    results.put(currentLabel, 1 + results.getOrElse(currentLabel, 0))
+//    verts += v
+//  }
+//  results
+//}
 //  override def analyse(): Any = {
 //    val x = proxy.asInstanceOf[WindowProxy].keySet.foreach(vertex => {
 //

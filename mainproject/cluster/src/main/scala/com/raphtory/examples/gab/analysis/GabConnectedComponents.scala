@@ -21,7 +21,7 @@ class GabConnectedComponents extends Analyser {
 
   override def setup() = {
     proxy.getVerticesSet().foreach(v => {
-      val vertex = proxy.getVertex(v)
+      val vertex = proxy.getVertex(v._2)
       var min = v
       //math.min(v, vertex.getOutgoingNeighbors.union(vertex.getIngoingNeighbors).min)
       val toSend = vertex.getOrSetCompValue("cclabel", min).asInstanceOf[Int]
@@ -38,9 +38,9 @@ class GabConnectedComponents extends Analyser {
     var verts = Set[Int]()
     //println(s"Here !!! $workerID ${proxy.getVerticesSet().size}")
     for(v <- proxy.getVerticesSet()){
-      val vertex = proxy.getVertex(v)
+      val vertex = proxy.getVertex(v._2)
       val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
-      var label = v
+      var label = v._1
       if(queue.nonEmpty)
         label = queue.min
       vertex.messageQueue.clear
@@ -55,7 +55,7 @@ class GabConnectedComponents extends Analyser {
         //vertex.voteToHalt()
       }
       results.put(currentLabel, 1+results.getOrElse(currentLabel,0))
-      verts+=v
+      verts+=v._1
     }
     results
   }

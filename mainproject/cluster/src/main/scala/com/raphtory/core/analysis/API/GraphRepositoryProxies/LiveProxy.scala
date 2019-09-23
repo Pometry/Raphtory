@@ -3,29 +3,26 @@ package com.raphtory.core.analysis.API.GraphRepositoryProxies
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.VertexVisitor
 import com.raphtory.core.analysis.API.{ManagerCount, WorkerID}
+import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 import monix.execution.atomic.AtomicInt
 
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.collection.parallel.{ParIterable, ParSet}
 
 class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,workerID: WorkerID) {
   private var messages = AtomicInt(0)
 
-  protected var voteCount = 0
+  protected var voteCount = AtomicInt(0)
   def job() = jobID
 
-  def getVerticesSet(): Iterator[Int] = {
-    val map = EntityStorage.vertices(workerID.ID)
-    val key = map.keys
-    val arrau = key.toIterator
-    arrau
-  }
+  def getVerticesSet(): ParTrieMap[Int,Vertex] = EntityStorage.vertices(workerID.ID)
 
   def recordMessage() = messages.increment()
 
   def getMessages() = messages.get
 
-  def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(EntityStorage.vertices(workerID.ID)(id.toInt),jobID,superstep,this,timestamp,windowsize)
+  def getVertex(v : Vertex)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(v,jobID,superstep,this,timestamp,windowsize)
 
   def getTotalVerticesSet() = {
     EntityStorage.vertices.keySet
@@ -38,11 +35,11 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
 
   def latestTime:Long = EntityStorage.newestTime
 
-  def vertexVoted() = voteCount +=1
+  def vertexVoted() = voteCount.increment()
 
   def checkVotes(workerID: Int):Boolean = {
     //println(s"$workerID ${EntityStorage.vertexKeys(workerID).size} $voteCount")
-    EntityStorage.vertices(workerID).size == voteCount
+    EntityStorage.vertices(workerID).size == voteCount.get
   }
 
   //HERE BE DRAGONS please ignore
