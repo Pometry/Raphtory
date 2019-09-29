@@ -1,6 +1,7 @@
 package com.raphtory.core.model.communication
 
 import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.model.graphentities.Edge
 import com.raphtory.core.utils.CommandEnum
 
 import scala.collection.mutable
@@ -44,13 +45,13 @@ case class RemoteEdgeUpdatePropertiesNew(routerID:Int,msgTime:Long,srcId:Int,dst
 case class RemoteEdgeAddNew(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,properties: Map[String,String],kills:mutable.TreeMap[Long, Boolean])
 case class RemoteEdgeRemovalNew(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,kills:mutable.TreeMap[Long, Boolean])
 
-case class RemoteReturnDeaths(msgTime:Long,srcId:Int,dstId:Int,kills:mutable.TreeMap[Long, Boolean])
+case class RemoteReturnDeaths(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,kills:mutable.TreeMap[Long, Boolean])
 case class ReturnEdgeRemoval(routerID:Int,msgTime:Long,srcId:Int,dstId:Int)
 
 //BLOCK FROM WORKER SYNC
-case class DstAddForOtherWorker(routerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,present:Boolean)
-case class DstWipeForOtherWorker(routerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,present:Boolean)
-case class DstResponseFromOtherWorker(srcForEdge:Int,dstID:Int,removeList:mutable.TreeMap[Long, Boolean])
+case class DstAddForOtherWorker(routerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,edge:Edge,present:Boolean)
+case class DstWipeForOtherWorker(routerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,edge:Edge,present:Boolean)
+case class DstResponseFromOtherWorker(routerID:Int,msgTime:Long,srcForEdge:Int,dstID:Int,removeList:mutable.TreeMap[Long, Boolean])
 case class EdgeRemoveForOtherWorker(routerID:Int,msgTime:Long,srcID:Int,dstID:Int)
 case class EdgeRemovalAfterArchiving(routerID:Int,msgTime:Long,srcID:Int,dstID:Int)
 
