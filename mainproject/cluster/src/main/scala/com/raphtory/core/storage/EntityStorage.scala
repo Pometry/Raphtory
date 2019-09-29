@@ -19,7 +19,7 @@ import scala.collection.parallel.mutable.ParTrieMap
   */
 //TODO add capacity function based on memory used and number of updates processed/stored in memory
 //TODO What happens when an edge which has been archived gets readded
-//TODO: does the routerID effect vertices which are wiped
+
 object EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager,checkWorker}
 
@@ -43,16 +43,6 @@ object EntityStorage {
   val vertices  = ParTrieMap[Int,ParTrieMap[Int, Vertex]]()
   for(i <- 0 until children){
     vertices put (i, ParTrieMap[Int, Vertex]())
-  }
-  /**
-    * Map of edges contained in the partition
-    */
- // val edges        = mutable.Map[Long, Edge]()  // Map of Edges contained in the partition
-  val edges        = ParTrieMap[Long, Edge]()  // Map of Edges contained in the partition
-  val edgeKeys     = ParTrieMap[Int,ParSet[Long]]()
-  for(i <- 0 until children){
-    val temp = ParSet[Long]()
-    edgeKeys put (i,temp)
   }
 
 

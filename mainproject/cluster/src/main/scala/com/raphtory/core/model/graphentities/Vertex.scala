@@ -38,53 +38,26 @@ object Vertex {
 
 }
 
-
-/** *
-  * Class representing Graph Vertices
-  *
-  * @param msgTime
-  * @param vertexId
-  * @param initialValue
-  */
 class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolean) extends Entity(routerID,msgTime, initialValue) {
-  var incomingIDs = ParSet[Int]()
-  var outgoingIDs = ParSet[Int]()
+  var incomingProcessing =  ParTrieMap[Long, Edge]() //Map of edges for the current view of the vertex
+  var outgoingProcessing=  ParTrieMap[Long, Edge]()
 
-  var incomingProcessing = ParSet[Int]()
-  var outgoingProcessing= ParSet[Int]()
-
-  var incomingEdges  = ParTrieMap[Long, Edge]()
+  var incomingEdges  = ParTrieMap[Long, Edge]() //Map of all edges associated with the vertex
   var outgoingEdges  = ParTrieMap[Long, Edge]()
 
-  private var vertexMultiQueue = new VertexMutliQueue()
-  def mutliQueue = vertexMultiQueue
-  def setmutliQueue(establishedQueue:VertexMutliQueue) = vertexMultiQueue = establishedQueue
+  var multiQueue = new VertexMutliQueue() //Map of queues for all ongoing processing
+  var computationValues = ParTrieMap[String, Any]() //Partial results kept between supersteps in calculation
 
-  var computationValues = ParTrieMap[String, Any]()
-  def setCompMap(establishedMap:ParTrieMap[String,Any]) = computationValues = establishedMap
+  override def getId = vertexId //get the vertexID
 
+  //Functions for adding associated edges to this vertex
+  def addIncomingEdge(edge:Edge):Unit = incomingEdges.put(edge.getId,edge)
+  def addOutgoingEdge(edge:Edge):Unit = outgoingEdges.put(edge.getId,edge)
+  def addAssociatedEdge(edge: Edge): Unit = if(edge.getSrcId==vertexId) addOutgoingEdge(edge) else addIncomingEdge(edge)
 
-  def addAssociatedEdge(edge: Edge): Unit = {
-    if(edge.getSrcId==vertexId)
-      outgoingEdges.put(edge.getId,edge)
-    else
-      incomingEdges.put(edge.getId,edge)
-  }
-
-  def addIncomingEdge(id:Int):Unit = {
-    incomingIDs += id
-  }
-
-  def addOutgoingEdge(id:Int):Unit = {
-    outgoingIDs += id
-  }
-
-  def addCompValue(key:String,value:Any):Unit = {
-    computationValues += ((key,value))
-  }
-  def getCompValue(key:String) = {
-    computationValues(key)
-  }
+  //Getters and setters for processing results
+  def addCompValue(key:String,value:Any):Unit = computationValues += ((key,value))
+  def getCompValue(key:String) = computationValues(key)
   def getOrSet(key:String,value:Any) ={
     if(computationValues.contains(key))
       computationValues(key)
@@ -94,36 +67,35 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     }
   }
 
-
-  override def getId = vertexId
-
   def viewAt(time:Long):Vertex = {
-    incomingProcessing = incomingIDs.filter(e=> EntityStorage.edges(Utils.getEdgeIndex(e,vertexId)).aliveAt(time))
-    outgoingProcessing = outgoingIDs.filter(e=> EntityStorage.edges(Utils.getEdgeIndex(vertexId,e)).aliveAt(time))
+    incomingProcessing = incomingEdges.filter(e=> e._2.aliveAt(time))
+    outgoingProcessing = outgoingEdges.filter(e=> e._2.aliveAt(time))
     this
   }
 
   def viewAtWithWindow(time:Long,windowSize:Long):Vertex = {
-    incomingProcessing = incomingIDs.filter(e=> EntityStorage.edges(Utils.getEdgeIndex(e,vertexId)).aliveAtWithWindow(time,windowSize))
-    outgoingProcessing = outgoingIDs.filter(e=> EntityStorage.edges(Utils.getEdgeIndex(vertexId,e)).aliveAtWithWindow(time,windowSize))
+    incomingProcessing = incomingEdges.filter(e=> e._2.aliveAtWithWindow(time,windowSize))
+    outgoingProcessing = outgoingEdges.filter(e=> e._2.aliveAtWithWindow(time,windowSize))
     this
   }
 
   override def equals(obj: scala.Any): Boolean = {
     if(obj.isInstanceOf[Vertex]){
       val v2 = obj.asInstanceOf[Vertex] //add associated edges
-      if(!(vertexId == v2.vertexId) || !(previousState.equals(v2.previousState)) || !(oldestPoint.get == v2.oldestPoint.get) || !(newestPoint.get == newestPoint.get) || !(properties.equals(v2.properties)) || !(incomingEdges.equals(v2.incomingEdges)) || !(outgoingEdges.equals(v2.outgoingEdges)))
+      if(!(vertexId == v2.vertexId)                ||
+         !(previousState.equals(v2.previousState)) ||
+         !(oldestPoint.get == v2.oldestPoint.get)  ||
+         !(newestPoint.get == newestPoint.get)     ||
+         !(properties.equals(v2.properties))       ||
+         !(incomingEdges.equals(v2.incomingEdges)) ||
+         !(outgoingEdges.equals(v2.outgoingEdges)))
         false
       else true
     }
     else false
-
   }
 
-  override def toString: String = {
-    //    s"Vertex ID $vertexId \n History $previousState \n Properties:\n $properties \n Associated Edges: $associatedEdges"
-    s"Vertex ID $vertexId \n History $previousState \n //Properties:\n $properties \n"
-  }
+  override def toString: String = s"Vertex ID $vertexId \n History $previousState \n //Properties:\n $properties \n"
 
   def addSavedProperty(property:VertexPropertyPoint,time:Long): Unit ={
     val history = property.history
@@ -139,18 +111,4 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
     if(!(value.equals("default")))
       this + (time,property.name,value)
   }
-
 }
-
-//    if(time > EntityStorage.lastCompressedAt){
-//      throw StillWithinLiveGraphException(time)
-//    }
-//    if(time < EntityStorage.oldestTime){
-//      throw PushedOutOfGraphException(time)
-//    }
-
-//        for((key,prop) <- properties){
-//          if(!prop.equals(v2.properties.getOrElse(key,null))){
-//            return false
-//          }
-//        }
