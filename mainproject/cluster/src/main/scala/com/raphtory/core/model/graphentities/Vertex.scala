@@ -9,9 +9,7 @@ import scala.collection.mutable
 import scala.collection.parallel.mutable.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
-/**
-  * Companion Vertex object (extended creator for storage loads)
-  */
+/** Companion Vertex object (extended creator for storage loads) */
 object Vertex {
   def apply(routerID:Int, creationTime : Long, vertexId : Int, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property]) = {
     val v = new Vertex(routerID,creationTime, vertexId, initialValue = true)
@@ -54,6 +52,8 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   def addIncomingEdge(edge:Edge):Unit = incomingEdges.put(edge.getId,edge)
   def addOutgoingEdge(edge:Edge):Unit = outgoingEdges.put(edge.getId,edge)
   def addAssociatedEdge(edge: Edge): Unit = if(edge.getSrcId==vertexId) addOutgoingEdge(edge) else addIncomingEdge(edge)
+  def getOutgoingEdge(id:Long): Option[Edge] = outgoingEdges.get(id)
+  def getIncomingEdge(id:Long): Option[Edge] = incomingEdges.get(id)
 
   //Getters and setters for processing results
   def addCompValue(key:String,value:Any):Unit = computationValues += ((key,value))

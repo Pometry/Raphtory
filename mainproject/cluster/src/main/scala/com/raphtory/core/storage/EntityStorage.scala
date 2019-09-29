@@ -35,16 +35,13 @@ object EntityStorage {
   var edgeHistoryDeletionCount    = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)
   var edgePropertyDeletionCount   = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)
 
-  val children = 10
-
   /**
     * Map of vertices contained in the partition
     */
   val vertices  = ParTrieMap[Int,ParTrieMap[Int, Vertex]]()
-  for(i <- 0 until children){
-    vertices put (i, ParTrieMap[Int, Vertex]())
-  }
 
+  for(i <- 0 until 10)
+    vertices put (i, ParTrieMap[Int, Vertex]())
 
   var printing          : Boolean     = true
   var managerCount      : Int         = 1
@@ -69,14 +66,7 @@ object EntityStorage {
     this
   }
 
-  def setManagerCount(count : Int) = {
-    this.managerCount = count
-  }
-
-  def newEdgeKey(workerID:Int,id:Long):Unit = {
-    edgeKeys(workerID) += id
-  }
-
+  def setManagerCount(count : Int) = this.managerCount = count
   /**
     * Vertices Methods
     */
@@ -237,10 +227,11 @@ object EntityStorage {
     val local       = checkDst(dstId, managerCount, managerID) //is the dst on this machine
     val sameWorker  = checkWorker(dstId,managerCount,workerID) // is the dst handled by the same worker
     var present     = false //if the vertex is new or not -- decides what update is sent when remote and if to add the source/destination removals
-    var edge : Edge = null
     val index : Long= getEdgeIndex(srcId, dstId)
 
-    edges.get(index) match {
+    val srcVertex = vertexAdd(routerID,workerID,msgTime, srcId) // create or revive the source ID
+    var edge : Edge = null
+    srcVertex.getOutgoingEdge(index) match {
       case Some(e) => { //retrieve the edge if it exists
         edge = e
         present = true
@@ -250,23 +241,18 @@ object EntityStorage {
           edge = new Edge(routerID,workerID,msgTime, srcId, dstId, initialValue = true) //create the new edge, local or remote
         else
           edge = new RemoteEdge(routerID,workerID,msgTime, srcId, dstId, initialValue = true, RemotePos.Destination, getPartition(dstId, managerCount))
-        edges.put(index, edge) //add this edge to the map
-        newEdgeKey(workerID,index) //and record its ID for the compressor
+        srcVertex.addOutgoingEdge(edge) //add this edge to the vertex
     }
-
-    val srcVertex = vertexAdd(routerID,workerID,msgTime, srcId) // create or revive the source ID
-    srcVertex addOutgoingEdge(dstId) // add the edge to the associated edges of the source node
-
     if (local && srcId != dstId) {
       if(sameWorker){ //if the dst is handled by the same worker
         val dstVertex = vertexAdd(routerID,workerID,msgTime, dstId) // do the same for the destination ID
-        dstVertex addIncomingEdge(srcId) // do the same for the destination node
-        if (!present)
+        if (!present) {
+          dstVertex addIncomingEdge(edge) // add it to the dst as would not have been seen
           edge killList dstVertex.removeList //add the dst removes into the edge
+        }
       }
-      else{ // if it is a different worker, ask that other worker to complete the dst part of the edge
+      else // if it is a different worker, ask that other worker to complete the dst part of the edge
         mediator ! DistributedPubSubMediator.Send(getManager(dstId,managerCount),DstAddForOtherWorker(routerID,msgTime,dstId,srcId,present),true)
-      }
     }
 
     if (present) {
@@ -280,9 +266,7 @@ object EntityStorage {
       if (!local) // and if not local sync with the other partition
         mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(routerID,msgTime, srcId, dstId, properties, deaths), false)
     }
-
-    if (properties != null)
-      properties.foreach(prop => edge.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
+    if (properties != null) properties.foreach(prop => edge.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
 
   }
 
@@ -413,19 +397,18 @@ object EntityStorage {
 
   }
 
-  def compareMemoryToSaved() ={
-    vertices.foreach(pair=>{
-      val vertex = pair._2
-      //vertex.compareHistory()
-    })
-    edges.foreach(pair=>{
-      val edge = pair._2
-      // edge.compareHistory()
-    })
-  }
-
 }
 
+//  def compareMemoryToSaved() ={
+//    vertices.foreach(pair=>{
+//      val vertex = pair._2
+//      //vertex.compareHistory()
+//    })
+//    edges.foreach(pair=>{
+//      val edge = pair._2
+//      // edge.compareHistory()
+//    })
+//  }
 //  def createSnapshot(time:Long):ParTrieMap[Int, Vertex] = {
 //    val snapshot:ParTrieMap[Int, Vertex] = ParTrieMap[Int, Vertex]()
 //    var count = 0
