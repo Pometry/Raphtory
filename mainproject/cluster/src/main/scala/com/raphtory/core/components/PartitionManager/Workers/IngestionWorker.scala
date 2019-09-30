@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.datastax.driver.core.exceptions.WriteTimeoutException
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.{Edge, Vertex}
+import com.raphtory.core.model.graphentities.{Edge, RemoteEdge, Vertex}
 import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
 import com.raphtory.core.utils.Utils
 
@@ -15,33 +15,62 @@ class IngestionWorker(workerID:Int) extends Actor {
   val saving    : Boolean =  Utils.saving
 
   override def receive:Receive = {
-    case VertexAdd(routerID,msgTime,srcId)                                => {EntityStorage.vertexAdd(routerID,workerID,msgTime,srcId);                                  vHandle(srcId,msgTime)}
-    case VertexRemoval(routerID,msgTime,srcId)                            => {EntityStorage.vertexRemoval(routerID,workerID,msgTime,srcId);                              vHandle(srcId,msgTime)}
-    case VertexAddWithProperties(routerID,msgTime,srcId,properties)       => {EntityStorage.vertexAdd(routerID,workerID,msgTime,srcId,properties);                       vHandle(srcId,msgTime)}
+    case VertexAdd(routerID,msgTime,srcId) =>
+      EntityStorage.vertexAdd(routerID,workerID,msgTime,srcId)
+      vHandle(srcId,msgTime)
+    case VertexRemoval(routerID,msgTime,srcId) =>
+      EntityStorage.vertexRemoval(routerID,workerID,msgTime,srcId)
+      vHandle(srcId,msgTime)
+    case VertexAddWithProperties(routerID,msgTime,srcId,properties) =>
+      EntityStorage.vertexAdd(routerID,workerID,msgTime,srcId,properties)
+      vHandle(srcId,msgTime)
 
-    case DstAddForOtherWorker(routerID,msgTime,dstID,srcForEdge,edge,present) => {EntityStorage.vertexWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,edge,present); wHandle()}
-    case DstWipeForOtherWorker(routerID,msgTime,dstID,srcForEdge,edge,present) => {EntityStorage.vertexWipeWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,edge,present);  wHandle()}
-    case DstResponseFromOtherWorker(routerID,msgTime,srcForEdge,dstID,removeList)          => {EntityStorage.vertexWorkerRequestEdgeHandler(routerID,workerID,msgTime,srcForEdge,dstID,removeList);                  wHandle()}
-    case EdgeRemoveForOtherWorker(routerID,msgTime,srcID,dstID)           => {EntityStorage.edgeRemovalFromOtherWorker(routerID,workerID,msgTime,srcID,dstID);                     wHandle()}
+    case DstAddForOtherWorker(routerID,msgTime,dstID,srcForEdge,edge,present) =>
+      EntityStorage.vertexWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,edge,present)
+      wHandle()
+    case DstWipeForOtherWorker(routerID,msgTime,dstID,srcForEdge,edge,present) =>
+      EntityStorage.vertexWipeWorkerRequest(routerID,workerID,msgTime,dstID,srcForEdge,edge,present)
+      wHandle()
+    case DstResponseFromOtherWorker(routerID,msgTime,srcForEdge,dstID,removeList) =>
+      EntityStorage.vertexWorkerRequestEdgeHandler(routerID,workerID,msgTime,srcForEdge,dstID,removeList)
+      wHandle()
+    case EdgeRemoveForOtherWorker(routerID,msgTime,srcID,dstID) =>
+      EntityStorage.edgeRemovalFromOtherWorker(routerID,workerID,msgTime,srcID,dstID)
+      wHandle()
     //case EdgeRemovalAfterArchiving(routerID,msgTime,srcID,dstID)           => EntityStorage.edgeRemovalAfterArchiving(routerID,workerID,msgTime,srcID,dstID) //disabled at the moment
 
-    case EdgeAdd(routerID,msgTime,srcId,dstId)                            => {EntityStorage.edgeAdd(routerID,workerID,msgTime,srcId,dstId);                              eHandle(srcId,dstId,msgTime)}
-    case EdgeAddWithProperties(routerID,msgTime,srcId,dstId,properties)   => {EntityStorage.edgeAdd(routerID,workerID,msgTime,srcId,dstId,properties);                   eHandle(srcId,dstId,msgTime)}
+    case EdgeAdd(routerID,msgTime,srcId,dstId) =>
+      EntityStorage.edgeAdd(routerID,workerID,msgTime,srcId,dstId)
+      eHandle(srcId,dstId,msgTime)
+    case EdgeAddWithProperties(routerID,msgTime,srcId,dstId,properties) =>
+      EntityStorage.edgeAdd(routerID,workerID,msgTime,srcId,dstId,properties)
+      eHandle(srcId,dstId,msgTime)
 
-    case RemoteEdgeAdd(routerID,msgTime,srcId,dstId,properties)           => {EntityStorage.remoteEdgeAdd(routerID,workerID,msgTime,srcId,dstId,properties);             eHandleSecondary(srcId,dstId,msgTime)}
-    case RemoteEdgeAddNew(routerID,msgTime,srcId,dstId,properties,deaths) => {EntityStorage.remoteEdgeAddNew(routerID,workerID,msgTime,srcId,dstId,properties,deaths);   eHandleSecondary(srcId,dstId,msgTime)}
+    case RemoteEdgeAdd(routerID,msgTime,srcId,dstId,properties) =>
+      EntityStorage.remoteEdgeAdd(routerID,workerID,msgTime,srcId,dstId,properties)
+      eHandleSecondary(srcId,dstId,msgTime)
+    case RemoteEdgeAddNew(routerID,msgTime,srcId,dstId,properties,deaths) =>
+      EntityStorage.remoteEdgeAddNew(routerID,workerID,msgTime,srcId,dstId,properties,deaths)
+      eHandleSecondary(srcId,dstId,msgTime)
 
-    case EdgeRemoval(routerID,msgTime,srcId,dstId)                        => {EntityStorage.edgeRemoval(routerID,workerID,msgTime,srcId,dstId);                          eHandle(srcId,dstId,msgTime)}
-    case RemoteEdgeRemoval(routerID,msgTime,srcId,dstId)                  => {EntityStorage.remoteEdgeRemoval(routerID,workerID,msgTime,srcId,dstId);                    eHandleSecondary(srcId,dstId,msgTime)}
-    case RemoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths)        => {EntityStorage.remoteEdgeRemovalNew(routerID,workerID,msgTime,srcId,dstId,deaths);          eHandleSecondary(srcId,dstId,msgTime)}
+    case EdgeRemoval(routerID,msgTime,srcId,dstId) =>
+      EntityStorage.edgeRemoval(routerID,workerID,msgTime,srcId,dstId)
+      eHandle(srcId,dstId,msgTime)
+    case RemoteEdgeRemoval(routerID,msgTime,srcId,dstId) =>
+      EntityStorage.remoteEdgeRemoval(routerID,workerID,msgTime,srcId,dstId)
+      eHandleSecondary(srcId,dstId,msgTime)
+    case RemoteEdgeRemovalNew(routerID,msgTime,srcId,dstId,deaths) =>
+      EntityStorage.remoteEdgeRemovalNew(routerID,workerID,msgTime,srcId,dstId,deaths)
+      eHandleSecondary(srcId,dstId,msgTime)
 
-    case ReturnEdgeRemoval(routerID,msgTime,srcId,dstId)                  => {EntityStorage.returnEdgeRemoval(routerID,workerID,msgTime,srcId,dstId);                    eHandleSecondary(srcId,dstId,msgTime)}
-    case RemoteReturnDeaths(routerID,msgTime,srcId,dstId,deaths)          => {EntityStorage.remoteReturnDeaths(routerID,workerID,msgTime,srcId,dstId,deaths);            eHandleSecondary(srcId,dstId,msgTime)}
+    case ReturnEdgeRemoval(routerID,msgTime,srcId,dstId) =>
+      EntityStorage.returnEdgeRemoval(routerID,workerID,msgTime,srcId,dstId)
+      eHandleSecondary(srcId,dstId,msgTime)
+    case RemoteReturnDeaths(routerID,msgTime,srcId,dstId,deaths) =>
+      EntityStorage.remoteReturnDeaths(routerID,workerID,msgTime,srcId,dstId,deaths)
+      eHandleSecondary(srcId,dstId,msgTime)
 
-    case CompressEdge(id,time)                                            => compressEdge(id,time)
     case CompressVertex(id,time)                                          => compressVertex(id,time)
-
-    case ArchiveEdge(id,compressTime,archiveTime)                         => archiveEdge(id,compressTime,archiveTime)
     case ArchiveVertex(id,compressTime,archiveTime)                       => archiveVertex(id,compressTime,archiveTime)
 
     case ArchiveOnlyEdge(id,archiveTime)                                  => archiveOnlyEdge(id,archiveTime)
@@ -71,14 +100,6 @@ class IngestionWorker(workerID:Int) extends Actor {
   /*************************************************************
     *                   COMPRESSION SECTION                    *
     ************************************************************/
-
-  def compressEdge(key: Long, now: Long) = {
-    EntityStorage.edges.get(key) match {
-      case Some(edge) => saveEdge(edge, now)
-      case None =>
-    }
-    sender() ! FinishedEdgeCompression(key)
-  }
 
   def compressVertex(key: Int, now: Long) = {
     EntityStorage.vertices(workerID).get(key) match {
@@ -143,6 +164,8 @@ class IngestionWorker(workerID:Int) extends Actor {
       if (history.size > 0) {
         RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)
       }
+      vertex.outgoingEdges.foreach(e=> saveEdge(e._2, cutOff))
+      vertex.incomingEdges.foreach(e=> if(e._2.isInstanceOf[RemoteEdge])saveEdge(e._2, cutOff))
       vertex.properties.foreach(prop => {
         val propHistory = prop._2.compressHistory(cutOff,false,workerID)
         if (propHistory.size > 0) {
