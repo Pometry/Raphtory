@@ -22,11 +22,11 @@ class VertexMutliQueue {
 
   def clearQueues(jobID:String) = {
     evenMessageQueueMap.get(jobID) match {
-      case Some(q) => q.clear()
+      case Some(q) => evenMessageQueueMap(jobID) = mutable.ArrayStack[VertexMessage]()
       case None =>
     }
     oddMessageQueueMap.get(jobID) match {
-      case Some(q) => q.clear()
+      case Some(q) => oddMessageQueueMap(jobID) = mutable.ArrayStack[VertexMessage]()
       case None =>
     }
   }
