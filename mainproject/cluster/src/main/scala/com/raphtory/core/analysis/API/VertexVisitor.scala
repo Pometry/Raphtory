@@ -4,14 +4,14 @@ import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.analysis.API.GraphRepositoryProxies.LiveProxy
 import com.raphtory.core.model.communication.{MessageHandler, VertexMessage}
-import com.raphtory.core.model.graphentities.Vertex
+import com.raphtory.core.model.graphentities.{Edge, Vertex}
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ParSet
-import scala.collection.parallel.mutable.ParArray
+import scala.collection.parallel.mutable.{ParArray, ParTrieMap}
 object VertexVisitor  {
   def apply(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, timestamp:Long, window:Long)(implicit context : ActorContext, managerCount : ManagerCount) = {
     new VertexVisitor(v,jobID,superStep,proxy,timestamp,window)
@@ -23,19 +23,18 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
   val vert:Vertex = v
   val messageQueue = v.multiQueue.getMessageQueue(jobID,superStep)
   val messageQueue2 = v.multiQueue.getMessageQueue(jobID,superStep+1)
-  def getOutgoingNeighbors : ParSet[Int] = v.outgoingProcessing
-  def getIngoingNeighbors  : ParSet[Int] = v.incomingProcessing
-  def getAllNeighbors: ParSet[Int] = v.incomingProcessing.union(v.outgoingProcessing)
+  def getOutgoingNeighbors : ParTrieMap[Long,Edge]= v.outgoingProcessing
+  def getIngoingNeighbors  : ParTrieMap[Long,Edge] = v.incomingProcessing
 
   //TODO fix properties
   def getOutgoingNeighborProp(vId: Int, key : String) : Option[String] = {
-    EntityStorage.edges.get(Utils.getEdgeIndex(v.vertexId,vId)) match {
+    getOutgoingNeighbors.get(Utils.getEdgeIndex(v.vertexId,vId)) match {
       case Some(e) => e.getPropertyCurrentValue(key)
       case None    => None
     }
   }
   def getIngoingNeighborProp(vId : Int, key : String) : Option[String] = {
-    EntityStorage.edges.get(Utils.getEdgeIndex(vId,v.vertexId)) match {
+    getIngoingNeighbors.get(Utils.getEdgeIndex(vId,v.vertexId)) match {
       case Some(e) => e.getPropertyCurrentValue(key)
       case None    => None
     }
@@ -67,11 +66,11 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
     mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(vertexID,jobID,superStep,message),false)
   }
 
-  def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID,message))
+  def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
 
-  def messageAllNeighbours(message:VertexMessage) = v.outgoingProcessing.union(v.incomingProcessing).foreach(vID => messageNeighbour(vID,message))
+  def messageAllNeighbours(message:VertexMessage) = v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt,message))
 
-  def messageAllIngoingNeighbors(message: VertexMessage) : Unit = v.incomingProcessing.foreach(vID => messageNeighbour(vID,message))
+  def messageAllIngoingNeighbors(message: VertexMessage) : Unit = v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
 
   def moreMessages():Boolean = messageQueue.nonEmpty
   def nextMessage():VertexMessage = messageQueue.pop()
