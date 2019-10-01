@@ -28,11 +28,6 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
     EntityStorage.vertices.keySet
   }
 
-
-  def getEdgesSet()(implicit workerID: WorkerID): ParSet[Long] =
-    EntityStorage.edgeKeys(workerID.ID)
-
-
   def latestTime:Long = EntityStorage.newestTime
 
   def vertexVoted() = voteCount.increment()

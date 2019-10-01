@@ -31,17 +31,8 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
   //get the runtime for memory usage
   val runtime = Runtime.getRuntime
   //times to track how long compression and archiving takes
-  var vertexCompressionTime:Long  = 0L
-  var edgeCompressionTime:Long    = 0L
   var totalCompressionTime:Long   = 0L
-  var vertexArchiveTime:Long      = 0L
-  var edgeArchiveTime:Long        = 0L
   var totalArchiveTime:Long       = 0L
-  // bools to decide when to swap between compressing and archiving
-  var vertexCompressionFinished  = false
-  var edgeCompressionFinished   = false
-  var vertexArchivingFinished    = false
-  var edgeArchivingFinished     = false
   // percent of history to be compressed/archived
   var compressionPercent        = 90f
   var archivePercentage         = 10f
@@ -56,7 +47,6 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
   var currentState:Boolean              = false
 
   // children for distribution of compresssion and archiving
-  val edgeManager   =  context.actorOf(Props(new ArchivistWorker(workers)).withDispatcher("archivist-dispatcher"),"edgecompressor");
   val vertexManager =  context.actorOf(Props(new ArchivistWorker(workers)).withDispatcher("archivist-dispatcher"),"vertexcompressor");
 
   var debug = false
@@ -68,9 +58,7 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
 
   override def receive: Receive = {
     case "archive"                              => archive()
-    case FinishedEdgeCompression(key)           => compressEnder("edge")
     case FinishedVertexCompression(key)         => compressEnder("vertex")
-    case FinishedEdgeArchiving(key)             => archiveEnder("edge")
     case FinishedVertexArchiving(key)           => archiveEnder("vertex")
   }
 
@@ -81,7 +69,6 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
         if(compressing) {
           if(currentWorker==0)
             newLastSaved = cutOff(true) //get the cut off boundry for 90% of history in meme
-          edgeManager ! CompressEdges(newLastSaved,workerID = currentWorker) //forward compression request to children
           vertexManager ! CompressVertices(newLastSaved,workerID = currentWorker)
         }
         else{
@@ -94,64 +81,28 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
           removePointGlobal = removalPoint
           newLastSaved = cutOff(true)
         }
-        edgeManager ! ArchiveEdges(newLastSaved,removalPoint,workerID = currentWorker) //send the archive request to the children
         vertexManager ! ArchiveVertices(newLastSaved,removalPoint,workerID = currentWorker)
       }
     }
   }
 
   def compressEnder(name:String): Unit = {
-    if(name equals("edge")){ //if the edge is finished, report this to the user and save the result
-      if(debug)println(s"finished $name compressing in ${(System.currentTimeMillis()-edgeCompressionTime)/1000} seconds")
-      archGauge.refine("actor" -> "Archivist", "name" -> "edgeCompressionTime").set((System.currentTimeMillis()-edgeCompressionTime)/1000)
-      edgeCompressionFinished = true
-    }
-    if(name equals("vertex")){ // if the vertices are finished, save this and report it to the user
-      if(debug)println(s"finished $name compressing in ${(System.currentTimeMillis()-vertexCompressionTime)/1000}seconds")
-      archGauge.refine("actor" -> "Archivist", "name" -> "vertexCompressionTime").set((System.currentTimeMillis()-vertexCompressionTime)/1000)
-      vertexCompressionFinished = true
-    }
-    if(edgeCompressionFinished && vertexCompressionFinished){ //if both are finished
       if(debug)println(s"finished total compression in ${(System.currentTimeMillis()-totalCompressionTime)/1000} seconds") //report this to the user
       archGauge.refine("actor" -> "Archivist", "name" -> "totalCompressionTime").set((System.currentTimeMillis()-totalCompressionTime)/1000)
-      if(currentWorker==9)
+      if(currentWorker==9) {
         lastSaved = newLastSaved
-      EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to
-      vertexCompressionFinished = false //reset the compression vars
-      edgeCompressionFinished = false
+        EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to ??????????????????????????????
+      }
       nextWorker()
-    }
   }
 
   def archiveEnder(name:String): Unit = {
-    if(name equals("edge")){
-      val edgeRemovals = EntityStorage.edgeDeletionCount.sum
-      val propertyRemovals = EntityStorage.edgePropertyDeletionCount.sum
-      val historyRemovals = EntityStorage.edgeHistoryDeletionCount.sum
-      archGauge.refine("actor" -> "Archivist", "name" -> "edgeHistoryRemoved").set(historyRemovals)
-      archGauge.refine("actor" -> "Archivist", "name" -> "edgePropertyRemoved").set(propertyRemovals)
-      archGauge.refine("actor" -> "Archivist", "name" -> "edgeEdgesRemoved").set(edgeRemovals)
-      edgeArchivingFinished = true
-
-      if(debug)println(s"finished $name archiving in ${(System.currentTimeMillis()-edgeArchiveTime)/1000} seconds")
-      if(debug)println(s"$historyRemovals History points removed, $propertyRemovals Property points removed, $edgeRemovals Full Edges removed")
-    }
-    if(name equals("vertex")){
-      val vertexRemovals = EntityStorage.vertexDeletionCount.sum
-      val propertyRemovals = EntityStorage.vertexPropertyDeletionCount.sum
-      val historyRemovals = EntityStorage.vertexHistoryDeletionCount.sum
-      archGauge.refine("actor" -> "Archivist", "name" -> "vertexHistoryRemoved").set(historyRemovals)
-      archGauge.refine("actor" -> "Archivist", "name" -> "vertexPropertyRemoved").set(propertyRemovals)
-      archGauge.refine("actor" -> "Archivist", "name" -> "vertexVerticesRemoved").set(vertexRemovals)
-      vertexArchivingFinished = true
-
-      if(debug)println(s"finished $name archiving in ${(System.currentTimeMillis()-vertexArchiveTime)/1000}seconds")
-      if(debug)println(s"$historyRemovals History points removed, $propertyRemovals Property points removed, $vertexRemovals Full Vertices removed")
-    }
-
-    if (edgeArchivingFinished && vertexArchivingFinished) {
-      vertexArchivingFinished = false
-      edgeArchivingFinished = false
+      archGauge.refine("actor" -> "Archivist", "name" -> "edgeHistoryRemoved").set(EntityStorage.edgeHistoryDeletionCount.sum)
+      archGauge.refine("actor" -> "Archivist", "name" -> "edgePropertyRemoved").set(EntityStorage.edgePropertyDeletionCount.sum)
+      archGauge.refine("actor" -> "Archivist", "name" -> "edgeEdgesRemoved").set(EntityStorage.edgeDeletionCount.sum)
+      archGauge.refine("actor" -> "Archivist", "name" -> "vertexHistoryRemoved").set(EntityStorage.vertexHistoryDeletionCount.sum)
+      archGauge.refine("actor" -> "Archivist", "name" -> "vertexPropertyRemoved").set(EntityStorage.vertexPropertyDeletionCount.sum)
+      archGauge.refine("actor" -> "Archivist", "name" -> "vertexVerticesRemoved").set(EntityStorage.vertexDeletionCount.sum)
       archGauge.refine("actor" -> "Archivist", "name" -> "totalArchiveTime").set((System.currentTimeMillis()-totalArchiveTime)/1000)
       if(currentWorker == 9) {
         EntityStorage.oldestTime = removePointGlobal
@@ -159,9 +110,6 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
       }
       nextWorker()
       if(debug)println(s"finished total archiving in ${(System.currentTimeMillis()-totalArchiveTime)/1000} seconds")
-    }
-
-
   }
 
   def nextWorker()={
@@ -173,7 +121,6 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
       currentWorker+=1
       context.system.scheduler.scheduleOnce(1.millisecond, self, "archive") //start the archiving process
     }
-
   }
 
   def spaceForExtraHistory:Boolean = {
@@ -204,17 +151,10 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
     }
     else newestPoint
   }
+
   def setActionTime(CorA:Boolean) ={
-    if(CorA){
-      vertexCompressionTime = System.currentTimeMillis()
-      edgeCompressionTime = vertexCompressionTime
-      totalCompressionTime = vertexCompressionTime
-    }
-    else{
-      vertexArchiveTime = System.currentTimeMillis()
-      edgeArchiveTime = vertexArchiveTime
-      totalArchiveTime = vertexArchiveTime
-    }
+    if(CorA)totalCompressionTime = System.currentTimeMillis()
+    else totalArchiveTime = System.currentTimeMillis()
   }
 
 }

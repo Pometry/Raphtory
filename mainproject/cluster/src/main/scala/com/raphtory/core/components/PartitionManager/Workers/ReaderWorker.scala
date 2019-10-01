@@ -34,7 +34,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   def receivedMessage(handler:MessageHandler) = {
     receivedMessages.increment()
-    EntityStorage.vertices(workerId)(handler.vertexID).mutliQueue.receiveMessage(handler)
+    EntityStorage.vertices(workerId)(handler.vertexID).multiQueue.receiveMessage(handler)
   }
 
   def checkMessages() ={
@@ -49,7 +49,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
     //println(s"$workerId took ${System.currentTimeMillis()-setProx} to setProxy}")
     //val queueClear = System.currentTimeMillis()
-    EntityStorage.vertices(workerId).foreach(v=> (v._2).mutliQueue.clearQueues(tempProxy.job()))
+    EntityStorage.vertices(workerId).foreach(v=> (v._2).multiQueue.clearQueues(tempProxy.job()))
     //println(s"$workerId took ${System.currentTimeMillis()-queueClear} to clear queue}")
     analyzer.sysSetup(context,managerCount,tempProxy,workerId)
     if(windowSet.isEmpty) {
