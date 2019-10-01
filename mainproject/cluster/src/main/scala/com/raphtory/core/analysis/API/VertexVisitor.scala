@@ -27,21 +27,23 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
   def getIngoingNeighbors  : ParTrieMap[Long,Edge] = v.incomingProcessing
 
   //TODO fix properties
-  def getOutgoingNeighborProp(vId: Int, key : String) : Option[String] = {
-    getOutgoingNeighbors.get(Utils.getEdgeIndex(v.vertexId,vId)) match {
+  def getOutgoingNeighborProp(ID: Long, key : String) : Option[String] = {
+    getOutgoingNeighbors.get(ID) match {
       case Some(e) => e.getPropertyCurrentValue(key)
       case None    => None
     }
   }
-  def getIngoingNeighborProp(vId : Int, key : String) : Option[String] = {
-    getIngoingNeighbors.get(Utils.getEdgeIndex(vId,v.vertexId)) match {
+  def getIngoingNeighborProp(ID : Long, key : String) : Option[String] = {
+    getIngoingNeighbors.get(ID) match {
       case Some(e) => e.getPropertyCurrentValue(key)
       case None    => None
     }
   }
+
   def getPropertySet():ParSet[String] = {
     v.properties.keySet
   }
+
   def getPropertyCurrentValue(key : String) : Option[String] =
     v.properties.get(key) match {
       case Some(p) => Some(p.currentValue)
