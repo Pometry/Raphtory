@@ -22,6 +22,8 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   protected var managerCount : Int = 0 //Number of Managers in the Raphtory Cluster
   private var currentSuperStep  = 0 //SuperStep the algorithm is currently on
 
+  private var local:Boolean = Utils.local
+
   //Communication Counters
   private var ReaderACKS = 0 //Acks from the readers to say they are online
   private var ReaderAnalyserACKS = 0 //Ack to show that the chosen analyser is present within the partition
@@ -67,7 +69,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
 
   private def processOtherMessages(value : Any) : Unit = {println ("Not handled message" + value.toString)}
 
-  protected def generateAnalyzer : Analyser = analyser
+  protected def generateAnalyzer : Analyser = if(local)Class.forName("com.raphtory.core.analysis.Algorithms.ConnectedComponents").newInstance().asInstanceOf[Analyser] else analyser
   protected def analyserName:String = generateAnalyzer.getClass.getName
   protected final def getManagerCount : Int = managerCount
   protected final def getWorkerCount : Int = managerCount*10

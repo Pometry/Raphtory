@@ -25,6 +25,7 @@ object Utils {
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "false").trim.toBoolean
   val archiving : Boolean =  System.getenv().getOrDefault("ARCHIVING", "false").trim.toBoolean
   var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
+  var local        : Boolean =  System.getenv().getOrDefault("LOCAL", "false").trim.toBoolean
 
   val analyserMap: TrieMap[String, Analyser] = TrieMap[String, Analyser]()
 
