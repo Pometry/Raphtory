@@ -29,7 +29,7 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
   }
 
   override def preStart() = {
-   if(debug)println("Starting reader")
+   if(debug)println("Starting reader "+id)
   }
 
   override def receive: Receive = {

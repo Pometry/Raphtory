@@ -121,7 +121,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   def watchdogResponse(newValue: Int)= {
     managerCount = newValue
     ReaderACKS = 0
-    networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "networkSizeTimeout")
+    networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(300, SECONDS), self, "networkSizeTimeout")
     for(worker <- Utils.getAllReaders(managerCount)) {
       mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline(), false)
     }
@@ -267,7 +267,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     if(debug)println("Timeout networkSize")
     ReaderACKS = 0
     networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "networkSizeTimeout")
-    for(worker <- Utils.getAllReaderWorkers(managerCount))
+    for(worker <- Utils.getAllReaders(managerCount))
       mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline(),false)
   }
 
