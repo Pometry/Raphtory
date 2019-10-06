@@ -35,10 +35,10 @@ class ConnectedComponents extends Analyser {
         vertex messageAllNeighbours (ClusterLabel(label))
         currentLabel = label
       }
-      else {
+      //else {
         //vertex messageAllNeighbours (ClusterLabel(currentLabel))
-        vertex.voteToHalt()
-      }
+      //  vertex.voteToHalt()
+      //}
       currentLabel
     }).groupBy(f=> f).map(f=> (f._1,f._2.size))
   }
@@ -59,7 +59,7 @@ class ConnectedComponents extends Analyser {
       val proportion = biggest.toFloat/grouped.map(x=> x._2).sum
       val proportionWithoutIslands = biggest.toFloat/groupedNonIslands.map(x=> x._2).sum
       val totalGT2 = grouped.filter(x=> x._2>2).size
-      val text = s"""{"time":$timestamp,"windowsize":9999999999,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
+      val text = s"""{"time":$timestamp,"windowsize":9999999999 ,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
       Utils.writeLines(output_file,text,"{\"views\":[")
     }catch {
       case e:UnsupportedOperationException => println("empty.maxby")
