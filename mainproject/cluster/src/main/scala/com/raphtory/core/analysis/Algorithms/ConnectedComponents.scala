@@ -45,9 +45,29 @@ class ConnectedComponents extends Analyser {
 
   override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {}
 
-  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {}
+  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {
+    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
+    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+    val startTime = System.currentTimeMillis()
+    try {
+      val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
+      val groupedNonIslands = grouped.filter(x=>x._2>1)
+      val biggest = grouped.maxBy(_._2)._2
+      val total = grouped.size
+      val totalWithoutIslands = groupedNonIslands.size
+      val totalIslands = total-totalWithoutIslands
+      val proportion = biggest.toFloat/grouped.map(x=> x._2).sum
+      val proportionWithoutIslands = biggest.toFloat/groupedNonIslands.map(x=> x._2).sum
+      val totalGT2 = grouped.filter(x=> x._2>2).size
+      val text = s"""{"time":$timestamp,"windowsize":9999999999,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
+      Utils.writeLines(output_file,text,"{\"views\":[")
+    }catch {
+      case e:UnsupportedOperationException => println("empty.maxby")
+    }
+  }
 
   override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timestamp:Long,windowSize:Long,viewCompleteTime:Long): Unit = {
+
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
     var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val startTime = System.currentTimeMillis()
