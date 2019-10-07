@@ -195,6 +195,26 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   def aliveAt(time:Long):Boolean = {
     if(time < EntityStorage.oldestTime || time < oldestPoint.get)
       false
+    else {
+      val closest = closestTime(time)
+      closest._2
+    }
+  }
+
+  def aliveAtWithWindow(time:Long,windowSize:Long):Boolean = {
+    if(time < EntityStorage.oldestTime || time < oldestPoint.get)
+      false
+    else{
+      val closest = closestTime(time)
+      if(time-closest._1<=windowSize)
+        closest._2
+      else false
+    }
+  }
+
+  def aliveAtCache(time:Long):Boolean = {
+    if(time < EntityStorage.oldestTime || time < oldestPoint.get)
+      false
     else if(stateCache contains time)
       previousState(stateCache(time))
     else {
@@ -204,7 +224,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     }
   }
 
-  def aliveAtWithWindow(time:Long,windowSize:Long):Boolean = {
+  def aliveAtWithWindowCache(time:Long,windowSize:Long):Boolean = {
     if(time < EntityStorage.oldestTime || time < oldestPoint.get)
       false
     else if(stateCache contains time) {
