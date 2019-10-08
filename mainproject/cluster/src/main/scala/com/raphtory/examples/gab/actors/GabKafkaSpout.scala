@@ -24,7 +24,7 @@ class GabKafkaSpout extends SpoutTrait{
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
 
-    context.system.scheduler.schedule( Duration(10, SECONDS),Duration(200, MILLISECONDS), self, "newLine")
+    context.system.scheduler.scheduleOnce( Duration(10, SECONDS), self, "newLine")
 
   }
 
@@ -35,6 +35,9 @@ class GabKafkaSpout extends SpoutTrait{
             //sendCommand(line)
             //println("hello")
             consumeFromKafka()
+          }
+          else {
+            context.system.scheduler.scheduleOnce( Duration(1, MILLISECONDS), self, "newLine")
           }
         }
         case "stop" => stop()
@@ -50,6 +53,7 @@ class GabKafkaSpout extends SpoutTrait{
       for (data <- record.iterator)
         sendCommand(data.value())
     //}
+    context.system.scheduler.scheduleOnce( Duration(1, MILLISECONDS), self, "newLine")
   }
   def running(): Unit = {
     //genRandomCommands(totalCount)

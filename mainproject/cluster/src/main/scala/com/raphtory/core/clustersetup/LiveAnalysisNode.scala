@@ -17,8 +17,8 @@ case class LiveAnalysisNode(seedLoc: String, name:String)
   val jobID = sys.env.getOrElse("JOBID", "Default").toString
   val analyser = Class.forName(name).newInstance().asInstanceOf[Analyser]
 
-  sys.env.getOrElse("LAMTYPE", "LAM").toString match {
-    case "LAM" => { // live graph
+  sys.env.getOrElse("LAMTYPE", "Live").toString match {
+    case "Live" => { // live graph
       sys.env.getOrElse("WINDOWTYPE", "false") match {
         case "false" => {
           system.actorOf(Props(new LiveAnalysisManager(jobID,analyser)), s"LiveAnalysisManager_$name")
@@ -31,7 +31,7 @@ case class LiveAnalysisNode(seedLoc: String, name:String)
         }
       }
     }
-    case "VAM" => { //view of the graph
+    case "View" => { //view of the graph
       val time = sys.env.getOrElse("TIMESTAMP", "0").toLong
       sys.env.getOrElse("WINDOWTYPE", "false") match {
         case "false" => {
@@ -46,7 +46,7 @@ case class LiveAnalysisNode(seedLoc: String, name:String)
           system.actorOf(Props(new BWindowedViewAnalysisManager(jobID,analyser,time,windowset)), s"ViewAnalysisManager_$name")        }
       }
     }
-    case "RAM" => { // windowed range query through history
+    case "Range" => { // windowed range query through history
       val start = sys.env.getOrElse("START", "0").toLong
       val end = sys.env.getOrElse("END", "0").toLong
       val jump = sys.env.getOrElse("JUMP", "0").toLong

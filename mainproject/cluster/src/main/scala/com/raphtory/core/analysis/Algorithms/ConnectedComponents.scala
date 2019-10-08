@@ -1,16 +1,11 @@
 package com.raphtory.core.analysis.Algorithms
 
-import java.util.Date
-
-import com.raphtory.core.analysis.API.GraphRepositoryProxies.WindowProxy
-import com.raphtory.core.analysis.API.{Analyser, WorkerID}
+import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.model.communication.VertexMessage
 import com.raphtory.core.utils.Utils
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
-import scala.collection.parallel.mutable.ParTrieMap
 case class ClusterLabel(value: Int) extends VertexMessage
 class ConnectedComponents extends Analyser {
 
@@ -40,22 +35,61 @@ class ConnectedComponents extends Analyser {
         vertex messageAllNeighbours (ClusterLabel(label))
         currentLabel = label
       }
-      else {
+      //else {
         //vertex messageAllNeighbours (ClusterLabel(currentLabel))
-        vertex.voteToHalt()
-      }
+      //  vertex.voteToHalt()
+      //}
       currentLabel
     }).groupBy(f=> f).map(f=> (f._1,f._2.size))
   }
 
   override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {}
 
-  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {}
+  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {
+    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
+    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+    val startTime = System.currentTimeMillis()
+    try {
+      val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
+      val groupedNonIslands = grouped.filter(x=>x._2>1)
+      val biggest = grouped.maxBy(_._2)._2
+      val total = grouped.size
+      val totalWithoutIslands = groupedNonIslands.size
+      val totalIslands = total-totalWithoutIslands
+      val proportion = biggest.toFloat/grouped.map(x=> x._2).sum
+      val proportionWithoutIslands = biggest.toFloat/groupedNonIslands.map(x=> x._2).sum
+      val totalGT2 = grouped.filter(x=> x._2>2).size
+      val text = s"""{"time":$timestamp,"windowsize":9999999999 ,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
+      //Utils.writeLines(output_file,text,"{\"views\":[")
+      println(text)
+    }catch {
+      case e:UnsupportedOperationException => println("empty.maxby")
+    }
+  }
 
   override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timestamp:Long,windowSize:Long,viewCompleteTime:Long): Unit = {
-  val endResults = results.asInstanceOf[ArrayBuffer[mutable.HashMap[Int, Int]]]
-  println(s"At ${new Date(timestamp)} with a window of ${windowSize / 1000 / 3600} hour(s) there were ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).size} connected components. The biggest being ${endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum).maxBy(_._2)}")
-  println()
+
+    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
+    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+    val startTime = System.currentTimeMillis()
+    try {
+      val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
+      val groupedNonIslands = grouped.filter(x=>x._2>1)
+      val biggest = grouped.maxBy(_._2)._2
+      val total = grouped.size
+      val totalWithoutIslands = groupedNonIslands.size
+      val totalIslands = total-totalWithoutIslands
+      val proportion = biggest.toFloat/grouped.map(x=> x._2).sum
+      val proportionWithoutIslands = biggest.toFloat/groupedNonIslands.map(x=> x._2).sum
+      val totalGT2 = grouped.filter(x=> x._2>2).size
+      val text = s"""{"time":$timestamp,"windowsize":$windowSize,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
+      //Utils.writeLines(output_file,text,"{\"views\":[")
+      println(text)
+    }catch {
+      case e:UnsupportedOperationException => println("empty.maxby")
+    }
+
+
   }
 
   override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long],viewCompleteTime:Long): Unit = {

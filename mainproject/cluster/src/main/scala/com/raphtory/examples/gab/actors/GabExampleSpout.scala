@@ -11,13 +11,8 @@ import scala.language.postfixOps
 
 class GabExampleSpout extends SpoutTrait {
 
-  //file is read. Please note that the first line is dropped, this in case the file has headers
-  //the directories of where the datasets are located are initialised. Either by harcoding the value or by setting
-  // an environment variable in the system. The fle is read line by line , and the line is sent to the Router to
-  // be further processed.
-  // In the case of this spout, Akka scheduler is used control the number of lines read and sent to the router with an
-  //scheduler.
-  val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets").trim
+
+  val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/app").trim
 
 
 
