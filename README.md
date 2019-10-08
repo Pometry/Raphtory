@@ -13,8 +13,4 @@ As Raphtory inserts updates into an ordered history, and no entities are actuall
 
 ##To run Raphtory please refer to the [Raphtory-Deployment](https://github.com/miratepuffin/Raphtory-Deployment) repository.
 
-project which contains all of the yml files required for running. Once this is cloned and you have docker installed, run: 
-
-
-To make Raphtory as easy to run as possible it has been containerised within docker. This means that you only have to [install docker](https://docs.docker.com/engine/installation/) and you will be able to run raphtory on your machine. 
 
