@@ -11,6 +11,6 @@ As Raphtory inserts updates into an ordered history, and no entities are actuall
   <img src="readmepics/Raphtory-comp.png" alt="Raphtory diagram"/>
 </p>
 
-##To run Raphtory please refer to the [Raphtory-Deployment](https://github.com/miratepuffin/Raphtory-Deployment) repository.
+## To run Raphtory please refer to the [Raphtory-Deployment](https://github.com/miratepuffin/Raphtory-Deployment) repository.
 
 
