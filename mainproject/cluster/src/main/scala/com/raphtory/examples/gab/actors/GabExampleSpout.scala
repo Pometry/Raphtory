@@ -12,7 +12,7 @@ import scala.language.postfixOps
 class GabExampleSpout extends SpoutTrait {
 
 
-  val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/Users/lagordamotoneta/Documents/QMUL/QMUL/project/Datasets").trim
+  val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/app").trim
 
 
 

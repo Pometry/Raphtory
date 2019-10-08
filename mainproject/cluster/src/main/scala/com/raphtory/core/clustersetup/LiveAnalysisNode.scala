@@ -17,7 +17,7 @@ case class LiveAnalysisNode(seedLoc: String, name:String)
   val jobID = sys.env.getOrElse("JOBID", "Default").toString
   val analyser = Class.forName(name).newInstance().asInstanceOf[Analyser]
 
-  sys.env.getOrElse("LAMTYPE", "LAM").toString match {
+  sys.env.getOrElse("LAMTYPE", "Live").toString match {
     case "Live" => { // live graph
       sys.env.getOrElse("WINDOWTYPE", "false") match {
         case "false" => {
