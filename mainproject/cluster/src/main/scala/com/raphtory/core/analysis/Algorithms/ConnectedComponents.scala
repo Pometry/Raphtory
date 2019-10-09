@@ -60,10 +60,10 @@ class ConnectedComponents extends Analyser {
       val proportionWithoutIslands = biggest.toFloat/groupedNonIslands.map(x=> x._2).sum
       val totalGT2 = grouped.filter(x=> x._2>2).size
       val text = s"""{"time":$timestamp,"windowsize":9999999999 ,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
-      //Utils.writeLines(output_file,text,"{\"views\":[")
+      Utils.writeLines(output_file,text,"{\"views\":[")
       println(text)
     }catch {
-      case e:UnsupportedOperationException => println("empty.maxby")
+      case e:UnsupportedOperationException => println(s"No activity for  view at $timestamp")
     }
   }
 
@@ -83,10 +83,10 @@ class ConnectedComponents extends Analyser {
       val proportionWithoutIslands = biggest.toFloat/groupedNonIslands.map(x=> x._2).sum
       val totalGT2 = grouped.filter(x=> x._2>2).size
       val text = s"""{"time":$timestamp,"windowsize":$windowSize,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
-      //Utils.writeLines(output_file,text,"{\"views\":[")
+      Utils.writeLines(output_file,text,"{\"views\":[")
       println(text)
     }catch {
-      case e:UnsupportedOperationException => println("empty.maxby")
+      case e:UnsupportedOperationException => println(s"No activity for  view at $timestamp with window $windowSize")
     }
 
 
@@ -114,7 +114,7 @@ class ConnectedComponents extends Analyser {
         Utils.writeLines(output_file,text,"{\"views\":[")
         //println(s"At ${new Date(timestamp)} with a window of ${windowSize / 3600000} hour(s) there were ${} connected components. The biggest being ${}")
       }catch {
-        case e:UnsupportedOperationException => println("empty.maxby")
+        case e:UnsupportedOperationException => println(s"No activity for  view at $timestamp with window $windowSize")
       }
     }
 

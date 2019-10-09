@@ -28,7 +28,7 @@ case class SingleNodeSetup(seedLoc:String,routerClassName:String,UpdaterName:Str
   val jobID = sys.env.getOrElse("JOBID", "Default").toString
   val analyser = Class.forName(LAMName).newInstance().asInstanceOf[Analyser]
 
-  Thread.sleep(15000)
+  Thread.sleep(30000)
 
   sys.env.getOrElse("LAMTYPE", "Live").toString match {
     case "Live" => { // live graph
