@@ -59,9 +59,9 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
 
   def timeCheck(timestamp: Long) = {
     if(timestamp < EntityStorage.newestTime)
-      sender() ! TimeResponse(true)
+      sender() ! TimeResponse(true,EntityStorage.newestTime)
     else
-      sender() ! TimeResponse(false)
+      sender() ! TimeResponse(false,EntityStorage.newestTime)
   }
 
   def compileNewAnalyser(analyserString: String, name: String) = {

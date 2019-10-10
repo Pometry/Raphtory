@@ -11,6 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.storage.EntityStorage
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -99,7 +100,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     case PartitionsCountResponse(newValue)=> watchdogResponse(newValue) //when the watchdog responds, set the new value and message each Reader Worker
     case ReaderWorkersACK() => readerACK() //count up number of acks and if == number of workers, check if analyser present
     case AnalyserPresent() => analyserPresent() //analyser confirmed to be present within workers, send setup request to workers
-    case TimeResponse(ok) => timeResponse(ok)   //checking if the timestamps are ok within all partitions
+    case TimeResponse(ok,time) => timeResponse(ok,time)   //checking if the timestamps are ok within all partitions
     case "recheckTime" => timeRecheck()  //if the time was previous out of scope, wait and then recheck
     case Ready(messagesSent) => ready(messagesSent) //worker has completed setup and is ready to roll -- send nextstep
     case EndStep(result,messages,voteToHalt) => endStep(result,messages,voteToHalt) //worker has finished the step
@@ -144,7 +145,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     }
   }
 
-  def timeResponse(ok:Boolean) = {
+  def timeResponse(ok:Boolean,time:Long) = {
     if(!ok)
       TimeOKFlag =false
     TimeOKACKS +=1
@@ -153,7 +154,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
         for (worker <- Utils.getAllReaderWorkers(managerCount))
           mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep,timestamp,analysisType(),windowSize(),windowSet()), false)
       else {
-        println(s"${new Date(timestamp())} is yet to be ingested. Backing off to 10 seconds and retrying")
+        println(s"${new Date(timestamp())} is yet to be ingested, currently at ${new Date(time)} Backing off to 10 seconds and retrying")
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "recheckTime")
       }
       TimeOKACKS = 0
