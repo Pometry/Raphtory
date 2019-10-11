@@ -78,6 +78,24 @@ Once everything has booted up the Analysis Manager will kick in and begin report
   <img src="readmepics/localrunning.png" alt="Raphtory diagram"/>
 </p>
 
+In this instance the data that is being output specifies the time the analysis took place (i.e. the view), how large the window was and then metrics that seemed interesting for Connected Components: Biggest Component, Total components, Biggest components proportion of the graph etc. If you are interested in seeing how this output comes to be, you can check the algorithm [here](https://github.com/miratepuffin/raphtory/blob/master/mainproject/cluster/src/main/scala/com/raphtory/core/analysis/Algorithms/ConnectedComponents.scala). 
+
+```json
+{	
+	"time": 1514502000000,
+    "windowsize": 2592000000,
+    "biggest": 22046,
+    "total": 589,
+    "totalWithoutIslands": 283,
+    "totalIslands": 306,
+    "proportion": 0.9600662,
+    "proportionWithoutIslands": 0.9730326,
+    "clustersGT2": 32,
+    "viewTime": 12056,
+    "concatTime": 2
+}
+```
+
 If you have selected a Range or View query once the query has been completed Raphtory will close down and report a success to the user. If you have chosen Live analysis this will continue to run forever until the user decides to stop it. In either case, once you are happy that the example has run its course you can take down Raphtory by pressing ctrl+c:
 
 <p align="center">
