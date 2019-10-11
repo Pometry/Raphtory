@@ -21,7 +21,7 @@ object SingleNodeTest extends App {
 
  var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
  var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
- val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
+ val Analyser = "com.raphtory.core.analysis.Algorithms.DegreeRanking"
  val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
