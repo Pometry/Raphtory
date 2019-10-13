@@ -42,7 +42,7 @@ class DegreeRanking extends Analyser {
     bestUserArray =bestUserArray.dropRight(1)+"]"
     val text = s"""{"time":${EntityStorage.newestTime},"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":${bestUserArray},"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
     Utils.writeLines(output_file,text,"{\"views\":[")
-    println(text)
+    //println(text)
   }
 
   override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {
@@ -58,7 +58,7 @@ class DegreeRanking extends Analyser {
     bestUserArray =bestUserArray.dropRight(1)+"]"
     val text = s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":${bestUserArray},"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
     Utils.writeLines(output_file,text,"{\"views\":[")
-    println(text)
+    //println(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timestamp:Long,windowSize:Long,viewCompleteTime:Long): Unit = {
@@ -74,7 +74,7 @@ class DegreeRanking extends Analyser {
     bestUserArray =bestUserArray.dropRight(1)+"]"
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":${bestUserArray},"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
     Utils.writeLines(output_file,text,"{\"views\":[")
-    println(text)
+    //println(text)
   }
 
   override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long],viewCompleteTime:Long): Unit = {
