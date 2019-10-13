@@ -2,6 +2,7 @@ package com.raphtory.core.analysis.Algorithms
 
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.model.communication.VertexMessage
+import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
@@ -43,7 +44,27 @@ class ConnectedComponents extends Analyser {
     }).groupBy(f=> f).map(f=> (f._1,f._2.size))
   }
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {}
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {
+    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
+    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+    val startTime = System.currentTimeMillis()
+    try {
+      val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
+      val groupedNonIslands = grouped.filter(x=>x._2>1)
+      val biggest = grouped.maxBy(_._2)._2
+      val total = grouped.size
+      val totalWithoutIslands = groupedNonIslands.size
+      val totalIslands = total-totalWithoutIslands
+      val proportion = biggest.toFloat/grouped.map(x=> x._2).sum
+      val proportionWithoutIslands = biggest.toFloat/groupedNonIslands.map(x=> x._2).sum
+      val totalGT2 = grouped.filter(x=> x._2>2).size
+      val text = s"""{"time":${EntityStorage.newestTime},"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
+      Utils.writeLines(output_file,text,"{\"views\":[")
+      println(text)
+    }catch {
+      case e:UnsupportedOperationException => println(s"No activity for  view at ${EntityStorage.newestTime}")
+    }
+  }
 
   override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
@@ -59,11 +80,11 @@ class ConnectedComponents extends Analyser {
       val proportion = biggest.toFloat/grouped.map(x=> x._2).sum
       val proportionWithoutIslands = biggest.toFloat/groupedNonIslands.map(x=> x._2).sum
       val totalGT2 = grouped.filter(x=> x._2>2).size
-      val text = s"""{"time":$timestamp,"windowsize":9999999999 ,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
-      //Utils.writeLines(output_file,text,"{\"views\":[")
+      val text = s"""{"time":$timestamp,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
+      Utils.writeLines(output_file,text,"{\"views\":[")
       println(text)
     }catch {
-      case e:UnsupportedOperationException => println("empty.maxby")
+      case e:UnsupportedOperationException => println(s"No activity for  view at $timestamp")
     }
   }
 
@@ -83,10 +104,10 @@ class ConnectedComponents extends Analyser {
       val proportionWithoutIslands = biggest.toFloat/groupedNonIslands.map(x=> x._2).sum
       val totalGT2 = grouped.filter(x=> x._2>2).size
       val text = s"""{"time":$timestamp,"windowsize":$windowSize,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
-      //Utils.writeLines(output_file,text,"{\"views\":[")
+      Utils.writeLines(output_file,text,"{\"views\":[")
       println(text)
     }catch {
-      case e:UnsupportedOperationException => println("empty.maxby")
+      case e:UnsupportedOperationException => println(s"No activity for  view at $timestamp with window $windowSize")
     }
 
 
@@ -112,9 +133,10 @@ class ConnectedComponents extends Analyser {
         //println(s"$timestamp $windowSize $biggest $total $window")
         val text = s"""{"time":$timestamp,"windowsize":$windowSize,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
         Utils.writeLines(output_file,text,"{\"views\":[")
+        println(text)
         //println(s"At ${new Date(timestamp)} with a window of ${windowSize / 3600000} hour(s) there were ${} connected components. The biggest being ${}")
       }catch {
-        case e:UnsupportedOperationException => println("empty.maxby")
+        case e:UnsupportedOperationException => println(s"No activity for  view at $timestamp with window $windowSize")
       }
     }
 
