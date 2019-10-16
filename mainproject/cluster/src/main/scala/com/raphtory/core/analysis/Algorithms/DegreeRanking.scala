@@ -39,7 +39,7 @@ class DegreeRanking extends Analyser {
     val degree = try{totalEdge/totalVert}catch {case e:ArithmeticException => 0}
     var bestUserArray = "["
     val bestUsers = endResults.map(x=>x._4).flatten.sortBy(x=> x._3)(sortOrdering).take(20).map(x=> s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""").foreach(x=> bestUserArray+=x+",")
-    bestUserArray =bestUserArray.dropRight(1)+"]"
+    bestUserArray = if(bestUserArray.length>1) bestUserArray.dropRight(1)+"]" else bestUserArray+"]"
     val text = s"""{"time":${EntityStorage.newestTime},"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":${bestUserArray},"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
     Utils.writeLines(output_file,text,"{\"views\":[")
     //println(text)
@@ -55,7 +55,7 @@ class DegreeRanking extends Analyser {
     val degree = try{totalEdge/totalVert}catch {case e:ArithmeticException => 0}
     var bestUserArray = "["
     val bestUsers = endResults.map(x=>x._4).flatten.sortBy(x=> x._3)(sortOrdering).take(20).map(x=> s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""").foreach(x=> bestUserArray+=x+",")
-    bestUserArray =bestUserArray.dropRight(1)+"]"
+    bestUserArray = if(bestUserArray.length>1) bestUserArray.dropRight(1)+"]" else bestUserArray+"]"
     val text = s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":${bestUserArray},"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
     Utils.writeLines(output_file,text,"{\"views\":[")
     //println(text)
@@ -71,7 +71,7 @@ class DegreeRanking extends Analyser {
     val degree = try{totalEdge/totalVert}catch {case e:ArithmeticException => 0}
     var bestUserArray = "["
     val bestUsers = endResults.map(x=>x._4).flatten.sortBy(x=> x._3)(sortOrdering).take(20).map(x=> s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""").foreach(x=> bestUserArray+=x+",")
-    bestUserArray =bestUserArray.dropRight(1)+"]"
+    bestUserArray = if(bestUserArray.length>1) bestUserArray.dropRight(1)+"]" else bestUserArray+"]"
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":${bestUserArray},"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
     Utils.writeLines(output_file,text,"{\"views\":[")
     //println(text)
