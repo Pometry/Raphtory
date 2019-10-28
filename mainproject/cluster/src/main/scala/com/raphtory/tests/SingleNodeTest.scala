@@ -19,8 +19,8 @@ object SingleNodeTest extends App {
   val minimumRouters = 1
 
 
- var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
- var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+ var UpdaterName = "com.raphtory.examples.ethereum.actors.EthereumPostgresSpout"
+ var routerClassName = "com.raphtory.examples.ethereum.actors.EthereumTransactionRouter"
  val Analyser = "com.raphtory.core.analysis.Algorithms.DegreeRanking"
  val system = ActorSystem("Single-Node-test")
 
@@ -34,8 +34,8 @@ object SingleNodeTest extends App {
 //  val end = 1525368897000L
   //1470783600000L 1471388400000L
 //window//
-  val start = 1471388400000L
-  val end = 1525368897000L
+  val start = 1439311261000L
+  val end =   31525368897000L
   val jump =    3600000
   val window =    3600000
   val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
