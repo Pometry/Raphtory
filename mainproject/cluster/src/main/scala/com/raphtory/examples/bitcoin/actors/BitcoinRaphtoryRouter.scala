@@ -43,21 +43,21 @@ class BitcoinRaphtoryRouter(val routerId:Int,val initialManagerCount:Int) extend
       toPartitionManager(VertexAddWithProperties(
                           routerId,
                           msgTime = timeAsLong,
-                          srcId = address.hashCode,
+                          srcID = address.hashCode,
                           properties = Map[String,String](("type","address"),("address",address))))
       //creates edge between the transaction and the wallet
       toPartitionManager(EdgeAddWithProperties(
                           routerId,
                           msgTime = timeAsLong,
-                          srcId = txid.hashCode,
-                          dstId = address.hashCode,
+                          srcID = txid.hashCode,
+                          dstID = address.hashCode,
                           properties = Map[String,String](("n",n),("value",value))))
 
     }
     toPartitionManager(VertexAddWithProperties(
                         routerId,
                         msgTime = timeAsLong,
-                        srcId = txid.hashCode,
+                        srcID = txid.hashCode,
                         properties = Map[String,String](
                               ("type","transaction"),
                               ("time",timeAsString),
@@ -71,15 +71,15 @@ class BitcoinRaphtoryRouter(val routerId:Int,val initialManagerCount:Int) extend
       toPartitionManager(VertexAddWithProperties(
         routerId,
         msgTime = timeAsLong,
-        srcId = "coingen".hashCode,
+        srcID = "coingen".hashCode,
         properties = Map[String,String](("type","coingen"))))
 
       //creates edge between coingen and the transaction
       toPartitionManager(EdgeAdd(
         routerId,
         msgTime = timeAsLong,
-        srcId = "coingen".hashCode,
-        dstId = txid.hashCode))
+        srcID = "coingen".hashCode,
+        dstID = txid.hashCode))
     }
     else{
       for(vin <- vins.asInstanceOf[JsArray].elements){
@@ -91,8 +91,8 @@ class BitcoinRaphtoryRouter(val routerId:Int,val initialManagerCount:Int) extend
         toPartitionManager(EdgeAddWithProperties(
                             routerId,
                             msgTime = timeAsLong,
-                            srcId = prevtxid.hashCode,
-                            dstId = txid.hashCode,
+                            srcID = prevtxid.hashCode,
+                            dstID = txid.hashCode,
                             properties = Map[String,String](("vout",prevVout))))
         }
     }

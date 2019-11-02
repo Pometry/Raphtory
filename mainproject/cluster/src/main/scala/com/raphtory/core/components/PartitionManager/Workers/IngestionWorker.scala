@@ -63,17 +63,17 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
     * LOG HANDLING SECTION                     *
     * ***********************************************************/
 
-  def vHandle(srcID: Int, msgTime: Long): Unit = {
+  def vHandle(srcID: Long, msgTime: Long): Unit = {
     storage.timings(msgTime)
     storage.messageCount(workerID) += 1
   }
 
-  def eHandle(srcID: Int, dstID: Int, msgTime: Long): Unit = {
+  def eHandle(srcID: Long, dstID: Long, msgTime: Long): Unit = {
     storage.timings(msgTime)
     storage.messageCount(workerID) += 1
   }
 
-  def eHandleSecondary(srcID: Int, dstID: Int, msgTime: Long): Unit = {
+  def eHandleSecondary(srcID: Long, dstID: Long, msgTime: Long): Unit = {
     storage.timings(msgTime)
     storage.secondaryMessageCount(workerID) += 1
   }

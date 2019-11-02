@@ -7,7 +7,7 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
-case class ClusterLabel(value: Int) extends VertexMessage
+case class ClusterLabel(value: Long) extends VertexMessage
 class ConnectedComponents extends Analyser {
 
 
@@ -16,7 +16,7 @@ class ConnectedComponents extends Analyser {
       var min = v._1
       val vertex = proxy.getVertex(v._2)
       //math.min(v, vertex.getOutgoingNeighbors.union(vertex.getIngoingNeighbors).min)
-      val toSend = vertex.getOrSetCompValue("cclabel", min).asInstanceOf[Int]
+      val toSend = vertex.getOrSetCompValue("cclabel", min).asInstanceOf[Long]
       vertex.messageAllNeighbours(ClusterLabel(toSend))
     })
   }
@@ -31,7 +31,7 @@ class ConnectedComponents extends Analyser {
         label = queue.min
         vertex.clearQueue
       }
-      var currentLabel = vertex.getOrSetCompValue("cclabel", label).asInstanceOf[Int]
+      var currentLabel = vertex.getOrSetCompValue("cclabel", label).asInstanceOf[Long]
       if (label < currentLabel) {
         vertex.setCompValue("cclabel", label)
         vertex messageAllOutgoingNeighbors (ClusterLabel(label))
@@ -42,14 +42,14 @@ class ConnectedComponents extends Analyser {
       //vertex messageAllNeighbours (ClusterLabel(currentLabel))
       //  vertex.voteToHalt()
       //}
-      if (currentLabel == vert._1)
-        println(s"${vert._1} ${vertex.getIngoingNeighbors.values} ${vertex.getOutgoingNeighbors.values}")
+      //if (currentLabel == vert._1)
+        //println(s"${vert._1} ${vertex.getIngoingNeighbors.values} ${vertex.getOutgoingNeighbors.values}")
       currentLabel
     }).groupBy(f=> f).map(f=> (f._1,f._2.size))
   }
 
   override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
+    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
     var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val startTime = System.currentTimeMillis()
     try {
@@ -72,7 +72,7 @@ class ConnectedComponents extends Analyser {
   }
 
   override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
+    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
     var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val startTime = System.currentTimeMillis()
     try {
@@ -95,7 +95,7 @@ class ConnectedComponents extends Analyser {
 
   override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timestamp:Long,windowSize:Long,viewCompleteTime:Long): Unit = {
 
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
+    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
     var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val startTime = System.currentTimeMillis()
     try {
@@ -120,7 +120,7 @@ class ConnectedComponents extends Analyser {
 
   override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long],viewCompleteTime:Long): Unit = {
     var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
-    val endResults = results.asInstanceOf[ArrayBuffer[ArrayBuffer[immutable.ParHashMap[Int, Int]]]]
+    val endResults = results.asInstanceOf[ArrayBuffer[ArrayBuffer[immutable.ParHashMap[Long, Int]]]]
     for(i <- endResults.indices){
       val startTime = System.currentTimeMillis()
       val window = endResults(i)

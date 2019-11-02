@@ -128,8 +128,8 @@ object RaphtoryDBRead extends RaphtoryDatabase(new Connector().default){
 
 case class VertexPropertyPoint (id: Long, name:String, history:Map[Long, String])
 case class VertexHistoryPoint (id: Long, history:Map[Long, Boolean])
-case class EdgePropertyPoint (src: Int, dst:Int, name:String, history:Map[Long, String])
-case class EdgeHistoryPoint (src: Int, dst:Int, history:Map[Long, Boolean])
+case class EdgePropertyPoint (src: Long, dst:Long, name:String, history:Map[Long, String])
+case class EdgeHistoryPoint (src: Long, dst:Long, history:Map[Long, Boolean])
 
 abstract class VertexHistory extends Table[VertexHistory, VertexHistoryPoint] {
   object id extends LongColumn with PartitionKey
@@ -208,7 +208,7 @@ abstract class EdgeHistory extends Table[EdgeHistory, EdgeHistoryPoint] {
  //   session.executeAsync(s"INSERT INTO raphtory.edgeHistory (src, dst, oldestpoint,remote, history) VALUES (${src},$dst,${oldestPoint},$remote,${Utils.createHistory(history)});")
  // }
 
-  def save(src:Int,dst:Int,history:mutable.TreeMap[Long,Boolean]) = {
+  def save(src:Long,dst:Long,history:mutable.TreeMap[Long,Boolean]) = {
    // session.executeAsync(s"UPDATE raphtory.edgeHistory SET history = history + ${Utils.createHistory(history)} WHERE src = $src AND dst = $dst;")
     session.executeAsync(s"UPDATE raphtory.edgeHistory SET history = history + ${Utils.createHistory(history)} WHERE src = $src AND dst = $dst;")
   }
@@ -254,7 +254,7 @@ abstract class EdgePropertyHistory extends Table[EdgePropertyHistory, EdgeProper
  //   session.executeAsync(s"INSERT INTO raphtory.EdgePropertyHistory (src, dst, name, oldestpoint,remote, history) VALUES (${src},$dst,'$name',${oldestPoint},$remote,${Utils.createPropHistory(history)});")
  // }
 
-  def save(src: Int, dst: Int, name: String, history: mutable.TreeMap[Long, String]) = {
+  def save(src: Long, dst: Long, name: String, history: mutable.TreeMap[Long, String]) = {
     session.executeAsync(s"UPDATE raphtory.EdgePropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE src = $src AND dst = $dst AND name = '$name';")
     //session.executeAsync(s"UPDATE raphtory.EdgePropertyHistory SET history = history + ${Utils.createPropHistory(history)} WHERE src = $src AND dst = $dst AND name = '$name';")
   }

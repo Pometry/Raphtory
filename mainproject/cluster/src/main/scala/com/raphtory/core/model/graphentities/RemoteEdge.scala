@@ -11,14 +11,9 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Edge object (extended creator for storage loads)
   */
 object RemoteEdge {
-  def apply(routerID : Int, workerID:Int,creationTime : Long, edgeId : Long,
-            previousState : mutable.TreeMap[Long, Boolean],
-            properties : ParTrieMap[String, Property], remotePos : RemotePos.Value, remotePartitionId : Int,storage:EntityStorage)= {
+  def apply(routerID : Int, workerID:Int,creationTime : Long, srcID:Long,dstID:Long, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property], remotePos : RemotePos.Value, remotePartitionId : Int,storage:EntityStorage)= {
 
-    val srcId = Utils.getIndexHI(edgeId)
-    val dstId = Utils.getIndexLO(edgeId)
-
-    val e = new RemoteEdge(routerID,workerID:Int,creationTime, srcId, dstId, initialValue = true, remotePos, remotePartitionId,storage)
+    val e = new RemoteEdge(routerID,workerID:Int,creationTime, srcID, dstID, initialValue = true, remotePos, remotePartitionId,storage)
     e.previousState   = previousState
     e.properties      = properties
     e
@@ -31,7 +26,7 @@ object RemoteEdge {
   * and which partition this other half is stored in
   *
   */
-class RemoteEdge(routerID: Int, workerID:Int, msgTime: Long, srcID: Int, dstID: Int, initialValue: Boolean, remotepos: RemotePos.Value, remotePartitionId: Int, storage:EntityStorage)
+class RemoteEdge(routerID: Int, workerID:Int, msgTime: Long, srcID: Long, dstID: Long, initialValue: Boolean, remotepos: RemotePos.Value, remotePartitionId: Int, storage:EntityStorage)
     extends Edge(routerID,workerID,msgTime, srcID, dstID, initialValue,storage){
 
   def remotePos = remotepos

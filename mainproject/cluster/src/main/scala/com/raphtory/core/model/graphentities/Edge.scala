@@ -10,14 +10,9 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Edge object (extended creator for storage loads)
   */
 object Edge {
-  def apply(routerID:Int,workerID:Int,creationTime : Long, edgeId : Long,
-            previousState : mutable.TreeMap[Long, Boolean],
-            properties : ParTrieMap[String, Property],storage:EntityStorage) = {
+  def apply(routerID:Int,workerID:Int,creationTime : Long, srcID:Long,dstID:Long, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property],storage:EntityStorage) = {
 
-    val srcId = Utils.getIndexHI(edgeId)
-    val dstId = Utils.getIndexLO(edgeId)
-
-    val e = new Edge(routerID,workerID,creationTime, srcId, dstId, initialValue = true,storage )
+    val e = new Edge(routerID,workerID,creationTime, srcID, dstID, initialValue = true,storage )
     e.previousState   = previousState
     e.properties      = properties
     e
@@ -37,7 +32,7 @@ object Edge {
         }
     }
     if(!value){
-      throw EntityRemovedAtTimeException(Utils.getEdgeIndex(src,dst))
+      //throw EntityRemovedAtTimeException()
     }
     new Edge(-1,-1,closestTime,src,dst,value,storage)
   }
@@ -46,7 +41,7 @@ object Edge {
 /**
   * Created by Mirate on 01/03/2017.
   */
-class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Boolean,storage:EntityStorage) extends Entity(routerID,msgTime, initialValue,storage) {
+class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean,storage:EntityStorage) extends Entity(routerID,msgTime, initialValue,storage) {
 
 
   def killList(vKills: mutable.TreeMap[Long, Boolean]): Unit = {
@@ -62,9 +57,9 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
     }
   }
 
-  override def getId: Long = Utils.getEdgeIndex(srcId, dstId)
-  def getSrcId : Int = srcId
-  def getDstId : Int = dstId
+  def getId: Long = dstId //todo remove
+  def getSrcId : Long = srcId
+  def getDstId : Long= dstId
   def getWorkerID:Int = workerID
 
 
@@ -89,8 +84,8 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
           value = v
         }
     }
-    if(value==false)
-      throw EntityRemovedAtTimeException(getId)
+    //if(value==false)
+    //  throw EntityRemovedAtTimeException(getId)
     val edge = new Edge(-1,workerID = -1,closestTime,srcId,dstId,value,storage)
     for((k,p) <- properties) {
       val value = p.valueAt(time)

@@ -16,7 +16,7 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
   protected var voteCount = AtomicInt(0)
   def job() = jobID
 
-  def getVerticesSet(): ParTrieMap[Int,Vertex] = storage.vertices
+  def getVerticesSet(): ParTrieMap[Long,Vertex] = storage.vertices
 
   def recordMessage() = messages.increment()
 

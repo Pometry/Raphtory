@@ -36,7 +36,7 @@ object Vertex {
 
 }
 
-class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolean,storage:EntityStorage) extends Entity(routerID,msgTime, initialValue,storage) {
+class Vertex(routerID:Int,msgTime: Long, val vertexId: Long, initialValue: Boolean,storage:EntityStorage) extends Entity(routerID,msgTime, initialValue,storage) {
   var incomingProcessing =  ParTrieMap[Long, Edge]() //Map of edges for the current view of the vertex
   var outgoingProcessing=  ParTrieMap[Long, Edge]()
 
@@ -49,8 +49,8 @@ class Vertex(routerID:Int,msgTime: Long, val vertexId: Int, initialValue: Boolea
   override def getId = vertexId //get the vertexID
 
   //Functions for adding associated edges to this vertex
-  def addIncomingEdge(edge:Edge):Unit = incomingEdges.put(edge.getId,edge)
-  def addOutgoingEdge(edge:Edge):Unit = outgoingEdges.put(edge.getId,edge)
+  def addIncomingEdge(edge:Edge):Unit = incomingEdges.put(edge.getSrcId,edge)
+  def addOutgoingEdge(edge:Edge):Unit = outgoingEdges.put(edge.getDstId,edge)
   def addAssociatedEdge(edge: Edge): Unit = if(edge.getSrcId==vertexId) addOutgoingEdge(edge) else addIncomingEdge(edge)
   def getOutgoingEdge(id:Long): Option[Edge] = outgoingEdges.get(id)
   def getIncomingEdge(id:Long): Option[Edge] = incomingEdges.get(id)

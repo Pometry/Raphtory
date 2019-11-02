@@ -232,8 +232,9 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     totalReceivedMessages += receivedMessages
     totalSentMessages += sentMessages
     //if(real != receivedMessages)
-    //  println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
+    // println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
     if(messageLogACKS == getWorkerCount) {
+      println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$sentMessages $totalReceivedMessages/$totalSentMessages")
       messageLogACKS =0
       if(totalReceivedMessages == totalSentMessages){
         currentSuperStep+=1
@@ -243,7 +244,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
           mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
       }
       else {
-        //println(s"checking, $totalReceivedMessages/$totalSentMessages")
+        println(s"checking, $totalReceivedMessages/$totalSentMessages")
         totalReceivedMessages =0
         totalSentMessages = 0
         Thread.sleep(10)
