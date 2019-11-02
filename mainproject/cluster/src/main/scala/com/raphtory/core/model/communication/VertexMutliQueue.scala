@@ -20,6 +20,11 @@ class VertexMutliQueue {
     }
   }
 
+  def clearQueue(jobID:String,superStep:Int)= {
+    val queueMap = if (superStep % 2 ==0) evenMessageQueueMap else oddMessageQueueMap
+    queueMap(jobID) = mutable.ArrayBuffer[VertexMessage]()
+  }
+
   def clearQueues(jobID:String) = {
     evenMessageQueueMap.get(jobID) match {
       case Some(q) => evenMessageQueueMap(jobID) = mutable.ArrayBuffer[VertexMessage]()

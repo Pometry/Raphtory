@@ -26,10 +26,10 @@ class ConnectedComponents extends Analyser {
     proxy.getVerticesSet().map(vert=>{
       var label = vert._1
       val vertex = proxy.getVertex(vert._2)
-      val queue = vertex.messageQueue
+      val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
       if (queue.nonEmpty) {
-        label = queue.map(_.asInstanceOf[ClusterLabel].value).min
-        //vertex.messageQueue.clear()
+        label = queue.min
+        vertex.clearQueue
       }
       var currentLabel = vertex.getOrSetCompValue("cclabel", label).asInstanceOf[Int]
       if (label < currentLabel) {
