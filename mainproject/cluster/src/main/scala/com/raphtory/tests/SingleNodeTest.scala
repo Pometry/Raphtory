@@ -35,7 +35,7 @@ object SingleNodeTest extends App {
 //  val end = 1525368897000L
   //1470783600000L 1471388400000L
 //window//
-  Thread.sleep(60000)
+  Thread.sleep(30000)
   println("starting")
   //val start = 1471388400000L
   val start = 1474326000000L
@@ -47,6 +47,10 @@ object SingleNodeTest extends App {
   system.actorOf(Props(new BWindowedViewAnalysisManager("testname",analyser,start,windowset)), s"LiveAnalysisManager_$Analyser")
 
 ////////////////
+// {"time":1474326000000,"windowsize":31536000000,"biggest":3984,"total":63,"totalWithoutIslands":24,"totalIslands":39,"proportion":0.97911036,"proportionWithoutIslands":0.9885856,"clustersGT2":1,"viewTime":1403,"concatTime":1},
+// {"time":1474326000000,"windowsize":2592000000,"biggest":3943,"total":62,"totalWithoutIslands":24,"totalIslands":38,"proportion":0.9791408,"proportionWithoutIslands":0.9884683,"clustersGT2":1,"viewTime":1403,"concatTime":1},
+// {"time":1474326000000,"windowsize":604800000,"biggest":1956,"total":46,"totalWithoutIslands":26,"totalIslands":20,"proportion":0.96497285,"proportionWithoutIslands":0.97458893,"clustersGT2":2,"viewTime":1403,"concatTime":0},
+// {"time":1474326000000,"windowsize":86400000,"biggest":659,"total":31,"totalWithoutIslands":24,"totalIslands":7,"proportion":0.92296916,"proportionWithoutIslands":0.9321075,"clustersGT2":3,"viewTime":1403,"concatTime":1},
 
 
 //////////  //range////

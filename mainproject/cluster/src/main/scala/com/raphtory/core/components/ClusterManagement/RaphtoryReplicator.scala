@@ -72,7 +72,7 @@ class RaphtoryReplicator(actorType:String, initialManagerCount:Int, routerName :
         var workers: ParTrieMap[Int,ActorRef] = new ParTrieMap[Int,ActorRef]()
         var storages: ParTrieMap[Int,EntityStorage] = new ParTrieMap[Int,EntityStorage]()
         for(i <- 0 until 10){ //create threads for writing
-          val storage = new EntityStorage()
+          val storage = new EntityStorage(i)
           storages.put(i,storage)
           workers.put(i,context.system.actorOf(Props(new IngestionWorker(i,storage)).withDispatcher("worker-dispatcher"),s"Manager_${assignedId}_child_$i"))
         }

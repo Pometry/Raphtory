@@ -34,8 +34,7 @@ class ConnectedComponents extends Analyser {
       var currentLabel = vertex.getOrSetCompValue("cclabel", label).asInstanceOf[Long]
       if (label < currentLabel) {
         vertex.setCompValue("cclabel", label)
-        vertex messageAllOutgoingNeighbors (ClusterLabel(label))
-        vertex messageAllIngoingNeighbors ClusterLabel(label)
+        vertex messageAllNeighbours ClusterLabel(label)
         currentLabel = label
       }
       //else {
