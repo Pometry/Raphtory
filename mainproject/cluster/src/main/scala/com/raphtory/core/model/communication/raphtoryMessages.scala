@@ -26,34 +26,34 @@ case class ClusterStatusResponse(clusterUp: Boolean)
 case class LiveAnalysis(analyser: Analyser)
 case class Results(result:Object)
 
-case class VertexAdd(routerID:Int,msgTime:Long, override val srcID:Long) extends RaphWriteClass //add a vertex (or add/update a property to an existing vertex)
-case class VertexAddWithProperties(routerID:Int,msgTime:Long, override val srcID:Long, properties: Map[String,String]) extends RaphWriteClass
-case class VertexUpdateProperties(routerID:Int,msgTime:Long,override val srcID:Long, propery:Map[String,String]) extends  RaphWriteClass
-case class VertexRemoval(routerID:Int,msgTime:Long,override val srcID:Long) extends RaphWriteClass
+case class VertexAdd(msgTime:Long, override val srcID:Long) extends RaphWriteClass //add a vertex (or add/update a property to an existing vertex)
+case class VertexAddWithProperties(msgTime:Long, override val srcID:Long, properties: Map[String,String]) extends RaphWriteClass
+case class VertexUpdateProperties(msgTime:Long,override val srcID:Long, propery:Map[String,String]) extends  RaphWriteClass
+case class VertexRemoval(msgTime:Long,override val srcID:Long) extends RaphWriteClass
 
-case class EdgeAdd(routerID:Int,msgTime:Long,srcID:Long,dstID:Long) extends RaphWriteClass
-case class EdgeAddWithProperties(routerID:Int,msgTime:Long, override val srcID:Long,dstID:Long, properties: Map[String,String]) extends RaphWriteClass
-case class EdgeUpdateProperties(routerID:Int,msgTime:Long,override val srcID:Long,dstID:Long,property:Map[String,String]) extends RaphWriteClass
-case class EdgeRemoval(routerID:Int,msgTime:Long,override val srcID:Long,dstID:Long) extends RaphWriteClass
+case class EdgeAdd(msgTime:Long,srcID:Long,dstID:Long) extends RaphWriteClass
+case class EdgeAddWithProperties(msgTime:Long, override val srcID:Long,dstID:Long, properties: Map[String,String]) extends RaphWriteClass
+case class EdgeUpdateProperties(msgTime:Long,override val srcID:Long,dstID:Long,property:Map[String,String]) extends RaphWriteClass
+case class EdgeRemoval(msgTime:Long,override val srcID:Long,dstID:Long) extends RaphWriteClass
 
 case class EdgeUpdateProperty(msgTime : Long, edgeId : Long, key : String, value : String) //for data coming from the LAM
-case class RemoteEdgeUpdateProperties(routerID:Int,msgTime:Long,srcID:Long,dstID:Long,properties:Map[String,String])
-case class RemoteEdgeAdd(routerID:Int,msgTime:Long, srcID:Long, dstID:Long, properties: Map[String,String])
-case class RemoteEdgeRemoval(routerID:Int,msgTime:Long,srcID:Long,dstID:Long)
+case class RemoteEdgeUpdateProperties(msgTime:Long,srcID:Long,dstID:Long,properties:Map[String,String])
+case class RemoteEdgeAdd(msgTime:Long, srcID:Long, dstID:Long, properties: Map[String,String])
+case class RemoteEdgeRemoval(msgTime:Long,srcID:Long,dstID:Long)
 
-case class RemoteEdgeUpdatePropertiesNew(routerID:Int,msgTime:Long,srcID:Long,dstID:Long,properties:Map[String,String],kills:mutable.TreeMap[Long, Boolean])
-case class RemoteEdgeAddNew(routerID:Int,msgTime:Long,srcID:Long,dstID:Long,properties: Map[String,String],kills:mutable.TreeMap[Long, Boolean])
-case class RemoteEdgeRemovalNew(routerID:Int,msgTime:Long,srcID:Long,dstID:Long,kills:mutable.TreeMap[Long, Boolean])
+case class RemoteEdgeUpdatePropertiesNew(msgTime:Long,srcID:Long,dstID:Long,properties:Map[String,String],kills:mutable.TreeMap[Long, Boolean])
+case class RemoteEdgeAddNew(msgTime:Long,srcID:Long,dstID:Long,properties: Map[String,String],kills:mutable.TreeMap[Long, Boolean])
+case class RemoteEdgeRemovalNew(msgTime:Long,srcID:Long,dstID:Long,kills:mutable.TreeMap[Long, Boolean])
 
-case class RemoteReturnDeaths(routerID:Int,msgTime:Long,srcID:Long,dstID:Long,kills:mutable.TreeMap[Long, Boolean])
-case class ReturnEdgeRemoval(routerID:Int,msgTime:Long,srcID:Long,dstID:Long)
+case class RemoteReturnDeaths(msgTime:Long,srcID:Long,dstID:Long,kills:mutable.TreeMap[Long, Boolean])
+case class ReturnEdgeRemoval(msgTime:Long,srcID:Long,dstID:Long)
 
 //BLOCK FROM WORKER SYNC
-case class DstAddForOtherWorker(routerID:Int,msgTime:Long,dstID:Long,srcForEdge:Long,edge:Edge,present:Boolean)
-case class DstWipeForOtherWorker(routerID:Int,msgTime:Long,dstID:Long,srcForEdge:Long,edge:Edge,present:Boolean)
-case class DstResponseFromOtherWorker(routerID:Int,msgTime:Long,srcForEdge:Long,dstID:Long,removeList:mutable.TreeMap[Long, Boolean])
-case class EdgeRemoveForOtherWorker(routerID:Int,msgTime:Long,srcID:Long,dstID:Long)
-case class EdgeRemovalAfterArchiving(routerID:Int,msgTime:Long,srcID:Long,dstID:Long)
+case class DstAddForOtherWorker(msgTime:Long,dstID:Long,srcForEdge:Long,edge:Edge,present:Boolean)
+case class DstWipeForOtherWorker(msgTime:Long,dstID:Long,srcForEdge:Long,edge:Edge,present:Boolean)
+case class DstResponseFromOtherWorker(msgTime:Long,srcForEdge:Long,dstID:Long,removeList:mutable.TreeMap[Long, Boolean])
+case class EdgeRemoveForOtherWorker(msgTime:Long,srcID:Long,dstID:Long)
+case class EdgeRemovalAfterArchiving(msgTime:Long,srcID:Long,dstID:Long)
 
 case class UpdatedCounter(newValue : Int)
 case class AssignedId(id : Int)

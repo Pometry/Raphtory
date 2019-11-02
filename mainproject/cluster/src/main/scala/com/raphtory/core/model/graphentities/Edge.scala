@@ -10,9 +10,9 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Edge object (extended creator for storage loads)
   */
 object Edge {
-  def apply(routerID:Int,workerID:Int,creationTime : Long, srcID:Long,dstID:Long, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property],storage:EntityStorage) = {
+  def apply(workerID:Int,creationTime : Long, srcID:Long,dstID:Long, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property],storage:EntityStorage) = {
 
-    val e = new Edge(routerID,workerID,creationTime, srcID, dstID, initialValue = true,storage )
+    val e = new Edge(workerID,creationTime, srcID, dstID, initialValue = true,storage )
     e.previousState   = previousState
     e.properties      = properties
     e
@@ -34,14 +34,14 @@ object Edge {
     if(!value){
       //throw EntityRemovedAtTimeException()
     }
-    new Edge(-1,-1,closestTime,src,dst,value,storage)
+    new Edge(-1,closestTime,src,dst,value,storage)
   }
 }
 
 /**
   * Created by Mirate on 01/03/2017.
   */
-class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean,storage:EntityStorage) extends Entity(routerID,msgTime, initialValue,storage) {
+class Edge(workerID:Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean,storage:EntityStorage) extends Entity(msgTime, initialValue,storage) {
 
 
   def killList(vKills: mutable.TreeMap[Long, Boolean]): Unit = {
@@ -86,7 +86,7 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Long, dstId: Long, 
     }
     //if(value==false)
     //  throw EntityRemovedAtTimeException(getId)
-    val edge = new Edge(-1,workerID = -1,closestTime,srcId,dstId,value,storage)
+    val edge = new Edge(-1,closestTime,srcId,dstId,value,storage)
     for((k,p) <- properties) {
       val value = p.valueAt(time)
       if (!(value equals("default")))

@@ -11,8 +11,8 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 /** Companion Vertex object (extended creator for storage loads) */
 object Vertex {
-  def apply(routerID:Int, creationTime : Long, vertexId : Int, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property],storage:EntityStorage) = {
-    val v = new Vertex(routerID,creationTime, vertexId, initialValue = true,storage)
+  def apply(creationTime : Long, vertexId : Int, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property],storage:EntityStorage) = {
+    val v = new Vertex(creationTime, vertexId, initialValue = true,storage)
     v.previousState   = previousState
     //v.associatedEdges = associatedEdges
     v.properties      = properties
@@ -31,12 +31,12 @@ object Vertex {
           value = v
         }
     }
-    new Vertex(-1,closestTime,id.toInt,value,storage)
+    new Vertex(closestTime,id.toInt,value,storage)
   }
 
 }
 
-class Vertex(routerID:Int,msgTime: Long, val vertexId: Long, initialValue: Boolean,storage:EntityStorage) extends Entity(routerID,msgTime, initialValue,storage) {
+class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean,storage:EntityStorage) extends Entity(msgTime, initialValue,storage) {
   var incomingProcessing =  ParTrieMap[Long, Edge]() //Map of edges for the current view of the vertex
   var outgoingProcessing=  ParTrieMap[Long, Edge]()
 

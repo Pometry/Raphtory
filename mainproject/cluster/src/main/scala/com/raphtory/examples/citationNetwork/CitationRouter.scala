@@ -20,14 +20,14 @@ class CitationRouter(routerId:Int, override val initialManagerCount:Int) extends
     val targetLastCitedOn =  dateToUnixTime(timestamp=fileLine(4))
 
     //create sourceNode
-    toPartitionManager(VertexAdd(routerId, sourceCitedTargetOn, sourceNode))
+    toPartitionManager(VertexAdd(sourceCitedTargetOn, sourceNode))
     //create destinationNode
-    toPartitionManager(VertexAdd(routerId, targetCreationDate, targetNode))
+    toPartitionManager(VertexAdd(targetCreationDate, targetNode))
     //create edge
-    toPartitionManager(EdgeAdd(routerId, sourceCitedTargetOn, sourceNode, targetNode))
+    toPartitionManager(EdgeAdd(sourceCitedTargetOn, sourceNode, targetNode))
 
     if (sourceCitedTargetOn == targetLastCitedOn) {
-      toPartitionManager(EdgeRemoval(routerId, targetLastCitedOn, sourceNode, targetNode))
+      toPartitionManager(EdgeRemoval(targetLastCitedOn, sourceNode, targetNode))
     }
 
 

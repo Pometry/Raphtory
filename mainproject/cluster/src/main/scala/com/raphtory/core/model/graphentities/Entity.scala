@@ -18,7 +18,7 @@ import spray.json._
   * @param isInitialValue  Is the first moment this entity is referenced
   */
 
-abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialValue: Boolean,storage:EntityStorage) {
+abstract class Entity(val creationTime: Long, isInitialValue: Boolean,storage:EntityStorage) {
 
   // Properties from that entity
   var properties:ParTrieMap[String,Property] = ParTrieMap[String, Property]()
@@ -161,8 +161,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   def beenSaved():Boolean=saved
   def firstSave():Unit = saved =true
 
-  def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter
-  def updateLatestRouter(newRouter:Int):Unit = latestRouter = newRouter
 
   def wipe() = {previousState = mutable.TreeMap()(HistoryOrdering)}
 
@@ -241,3 +239,8 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     }
   }
 }
+
+
+
+//def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter
+//def updateLatestRouter(newRouter:Int):Unit = latestRouter = newRouter

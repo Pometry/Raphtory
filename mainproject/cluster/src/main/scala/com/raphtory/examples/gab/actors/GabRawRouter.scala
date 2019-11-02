@@ -46,7 +46,7 @@ final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends 
   def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false, parent : Int = 0) : Unit = {
     val postUUID  = post.id.get.toInt
     val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
-    toPartitionManager(VertexAddWithProperties(routerId,timestamp, postUUID, Map(
+    toPartitionManager(VertexAddWithProperties(timestamp, postUUID, Map(
       "user"         -> {post.user match {
         case Some(u) => u.id.toString
         case None => nullStr
@@ -69,7 +69,7 @@ final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends 
     post.user match {
       case Some(user) =>{
         val userUUID:Int = "user".hashCode() + user.id //TODO improve in case of clashes
-        toPartitionManager(VertexAddWithProperties(routerId,timestamp,userUUID,Map(
+        toPartitionManager(VertexAddWithProperties(timestamp,userUUID,Map(
           "type" -> "user",
           "id" ->user.id.toString,
           "name" -> user.name,
@@ -77,8 +77,8 @@ final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends 
           "verified" -> user.verified.toString
         )))
 
-        toPartitionManager(EdgeAddWithProperties(routerId,timestamp,userUUID,postUUID,Map("type"->"userToPost")))
-        toPartitionManager(EdgeAddWithProperties(routerId,timestamp,postUUID,userUUID,Map("type"->"postToUser")))
+        toPartitionManager(EdgeAddWithProperties(timestamp,userUUID,postUUID,Map("type"->"userToPost")))
+        toPartitionManager(EdgeAddWithProperties(timestamp,postUUID,userUUID,Map("type"->"postToUser")))
       }
       case None =>
     }
@@ -86,7 +86,7 @@ final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends 
     post.topic match {
       case Some(topic) => {
         val topicUUID : Int = Math.pow(2,24).toInt+ (topic.id.hashCode())
-        toPartitionManager(VertexAddWithProperties(routerId,timestamp, topicUUID, Map(
+        toPartitionManager(VertexAddWithProperties(timestamp, topicUUID, Map(
           "created_at" -> topic.created_at,
           "category"   -> topic.category.toString,
           "title"      -> topic.title.getOrElse("null"),
@@ -95,7 +95,7 @@ final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends 
         )
         ))
 
-        toPartitionManager(EdgeAddWithProperties(routerId,timestamp, postUUID, topicUUID,Map("type"->"postToTopic")))
+        toPartitionManager(EdgeAddWithProperties(timestamp, postUUID, topicUUID,Map("type"->"postToTopic")))
       }
       case None =>
     }
@@ -103,7 +103,7 @@ final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends 
 
     // Edge from child to parent post
     if (recursiveCall && parent != 0) {
-      toPartitionManager(EdgeAddWithProperties(routerId,timestamp, postUUID, parent,Map("type"->"childToParent")))
+      toPartitionManager(EdgeAddWithProperties(timestamp, postUUID, parent,Map("type"->"childToParent")))
     }
     post.parent match {
       case Some(p) => {

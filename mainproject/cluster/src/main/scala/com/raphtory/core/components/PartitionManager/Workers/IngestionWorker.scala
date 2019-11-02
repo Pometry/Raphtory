@@ -15,44 +15,28 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
   val saving: Boolean = Utils.saving
 
   override def receive: Receive = {
-    case VertexAdd(routerID, msgTime, srcId) => storage.vertexAdd(routerID, msgTime, srcId)
-      vHandle(srcId, msgTime)
-    case VertexRemoval(routerID, msgTime, srcId) => storage.vertexRemoval(routerID, msgTime, srcId)
-      vHandle(srcId, msgTime)
-    case VertexAddWithProperties(routerID, msgTime, srcId, properties) => storage.vertexAdd(routerID, msgTime, srcId, properties)
-      vHandle(srcId, msgTime)
+    case VertexAdd( msgTime, srcId) => storage.vertexAdd( msgTime, srcId); vHandle(srcId, msgTime)
+    case VertexRemoval( msgTime, srcId) => storage.vertexRemoval( msgTime, srcId); vHandle(srcId, msgTime)
+    case VertexAddWithProperties( msgTime, srcId, properties) => storage.vertexAdd( msgTime, srcId, properties);vHandle(srcId, msgTime)
 
-    case DstAddForOtherWorker(routerID, msgTime, dstID, srcForEdge, edge, present) => storage.vertexWorkerRequest(routerID, msgTime, dstID, srcForEdge, edge, present)
-      wHandle()
-    case DstWipeForOtherWorker(routerID, msgTime, dstID, srcForEdge, edge, present) => storage.vertexWipeWorkerRequest(routerID, msgTime, dstID, srcForEdge, edge, present)
-      wHandle()
-    case DstResponseFromOtherWorker(routerID, msgTime, srcForEdge, dstID, removeList) => storage.vertexWorkerRequestEdgeHandler(routerID, msgTime, srcForEdge, dstID, removeList)
-      wHandle()
-    case EdgeRemoveForOtherWorker(routerID, msgTime, srcID, dstID) => storage.edgeRemovalFromOtherWorker(routerID, msgTime, srcID, dstID)
-      wHandle()
-    //case EdgeRemovalAfterArchiving(routerID,msgTime,srcID,dstID)           => EntityStorage.edgeRemovalAfterArchiving(routerID,workerID,msgTime,srcID,dstID) //disabled at the moment
+    case DstAddForOtherWorker( msgTime, dstID, srcForEdge, edge, present) => storage.vertexWorkerRequest( msgTime, dstID, srcForEdge, edge, present);wHandle()
+    case DstWipeForOtherWorker( msgTime, dstID, srcForEdge, edge, present) => storage.vertexWipeWorkerRequest( msgTime, dstID, srcForEdge, edge, present);wHandle()
+    case DstResponseFromOtherWorker( msgTime, srcForEdge, dstID, removeList) => storage.vertexWorkerRequestEdgeHandler( msgTime, srcForEdge, dstID, removeList);wHandle()
+    case EdgeRemoveForOtherWorker( msgTime, srcID, dstID) => storage.edgeRemovalFromOtherWorker( msgTime, srcID, dstID);wHandle()
+    //case EdgeRemovalAfterArchiving(msgTime,srcID,dstID)           => EntityStorage.edgeRemovalAfterArchiving(workerID,msgTime,srcID,dstID) //disabled at the moment
 
-    case EdgeAdd(routerID, msgTime, srcId, dstId) => storage.edgeAdd(routerID, msgTime, srcId, dstId)
-      eHandle(srcId, dstId, msgTime)
-    case EdgeAddWithProperties(routerID, msgTime, srcId, dstId, properties) => storage.edgeAdd(routerID, msgTime, srcId, dstId, properties)
-      eHandle(srcId, dstId, msgTime)
+    case EdgeAdd( msgTime, srcId, dstId) => storage.edgeAdd( msgTime, srcId, dstId);eHandle(srcId, dstId, msgTime)
+    case EdgeAddWithProperties( msgTime, srcId, dstId, properties) => storage.edgeAdd( msgTime, srcId, dstId, properties);eHandle(srcId, dstId, msgTime)
 
-    case RemoteEdgeAdd(routerID, msgTime, srcId, dstId, properties) => storage.remoteEdgeAdd(routerID, msgTime, srcId, dstId, properties)
-      eHandleSecondary(srcId, dstId, msgTime)
-    case RemoteEdgeAddNew(routerID, msgTime, srcId, dstId, properties, deaths) => storage.remoteEdgeAddNew(routerID, msgTime, srcId, dstId, properties, deaths)
-      eHandleSecondary(srcId, dstId, msgTime)
+    case RemoteEdgeAdd( msgTime, srcId, dstId, properties) => storage.remoteEdgeAdd( msgTime, srcId, dstId, properties);eHandleSecondary(srcId, dstId, msgTime)
+    case RemoteEdgeAddNew( msgTime, srcId, dstId, properties, deaths) => storage.remoteEdgeAddNew( msgTime, srcId, dstId, properties, deaths);eHandleSecondary(srcId, dstId, msgTime)
 
-    case EdgeRemoval(routerID, msgTime, srcId, dstId) => storage.edgeRemoval(routerID, msgTime, srcId, dstId)
-      eHandle(srcId, dstId, msgTime)
-    case RemoteEdgeRemoval(routerID, msgTime, srcId, dstId) => storage.remoteEdgeRemoval(routerID, msgTime, srcId, dstId)
-      eHandleSecondary(srcId, dstId, msgTime)
-    case RemoteEdgeRemovalNew(routerID, msgTime, srcId, dstId, deaths) => storage.remoteEdgeRemovalNew(routerID, msgTime, srcId, dstId, deaths)
-      eHandleSecondary(srcId, dstId, msgTime)
+    case EdgeRemoval( msgTime, srcId, dstId) => storage.edgeRemoval( msgTime, srcId, dstId);eHandle(srcId, dstId, msgTime)
+    case RemoteEdgeRemoval( msgTime, srcId, dstId) => storage.remoteEdgeRemoval( msgTime, srcId, dstId);eHandleSecondary(srcId, dstId, msgTime)
+    case RemoteEdgeRemovalNew( msgTime, srcId, dstId, deaths) => storage.remoteEdgeRemovalNew( msgTime, srcId, dstId, deaths);eHandleSecondary(srcId, dstId, msgTime)
 
-    case ReturnEdgeRemoval(routerID, msgTime, srcId, dstId) => storage.returnEdgeRemoval(routerID, msgTime, srcId, dstId)
-      eHandleSecondary(srcId, dstId, msgTime)
-    case RemoteReturnDeaths(routerID, msgTime, srcId, dstId, deaths) => storage.remoteReturnDeaths(routerID, msgTime, srcId, dstId, deaths)
-      eHandleSecondary(srcId, dstId, msgTime)
+    case ReturnEdgeRemoval( msgTime, srcId, dstId) => storage.returnEdgeRemoval( msgTime, srcId, dstId);eHandleSecondary(srcId, dstId, msgTime)
+    case RemoteReturnDeaths( msgTime, srcId, dstId, deaths) => storage.remoteReturnDeaths( msgTime, srcId, dstId, deaths);eHandleSecondary(srcId, dstId, msgTime)
 
     case CompressVertex(id, time) => compressVertex(id, time)
     case ArchiveVertex(id, compressTime, archiveTime) => archiveVertex(id, compressTime, archiveTime)
