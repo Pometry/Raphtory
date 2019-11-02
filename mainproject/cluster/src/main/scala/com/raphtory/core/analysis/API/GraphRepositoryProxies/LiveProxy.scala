@@ -10,7 +10,7 @@ import monix.execution.atomic.AtomicInt
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.collection.parallel.{ParIterable, ParSet}
 
-class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,workerID: WorkerID,storage:EntityStorage) {
+class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,workerID: Int,storage:EntityStorage) {
   private var messages = AtomicInt(0)
 
   protected var voteCount = AtomicInt(0)

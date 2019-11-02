@@ -69,7 +69,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
 
 
   private def processOtherMessages(value : Any) : Unit = {println ("Not handled message" + value.toString)}
-
+  //todo make this the same as single node test
   protected def generateAnalyzer : Analyser = if(local)Class.forName("com.raphtory.core.analysis.Algorithms.ConnectedComponents").newInstance().asInstanceOf[Analyser] else analyser
   protected def analyserName:String = generateAnalyzer.getClass.getName
   protected final def getManagerCount : Int = managerCount

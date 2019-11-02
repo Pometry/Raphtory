@@ -10,7 +10,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.{ParIterable, ParSet}
 import scala.collection.parallel.mutable.ParTrieMap
 
-class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:WorkerID,storage:EntityStorage) extends LiveProxy(jobID,superstep,timestamp,windowSize,workerID,storage) {
+class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:Int,storage:EntityStorage) extends LiveProxy(jobID,superstep,timestamp,windowSize,workerID,storage) {
 
   private var setWindow = windowSize
   private var keySet:ParTrieMap[Int,Vertex] = storage.vertices.filter(v=> v._2.aliveAtWithWindow(timestamp,windowSize))

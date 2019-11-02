@@ -5,6 +5,7 @@ import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.Managers.RangeManagers.{BWindowedRangeAnalysisManager, RangeAnalysisManager, WindowedRangeAnalysisManager}
 import com.raphtory.core.analysis.API.{Analyser, WorkerID}
 import com.raphtory.core.analysis.Managers.LiveManagers.LiveAnalysisManager
+import com.raphtory.core.analysis.Managers.ViewManagers.BWindowedViewAnalysisManager
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog}
 import org.slf4j.LoggerFactory
 
@@ -36,13 +37,14 @@ object SingleNodeTest extends App {
 //window//
   Thread.sleep(60000)
   println("starting")
-  val start = 1471388400000L
+  //val start = 1471388400000L
+  val start = 1474326000000L
   val end = 1476113855000L
  //val end = 1525368897000L
   val jump =    86400000
   val window =    86400000
   val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
-  system.actorOf(Props(new BWindowedRangeAnalysisManager("testname",analyser,start,end,jump,windowset)), s"LiveAnalysisManager_$Analyser")
+  system.actorOf(Props(new BWindowedViewAnalysisManager("testname",analyser,start,windowset)), s"LiveAnalysisManager_$Analyser")
 
 ////////////////
 

@@ -46,6 +46,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
   def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) {
     receivedMessages.set(0)
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
+
     //EntityStorage.vertices(workerId).foreach(v=> (v._2).multiQueue.clearQueues(tempProxy.job()))
     analyzer.sysSetup(context,managerCount,tempProxy,workerId)
     if(windowSet.isEmpty) {
@@ -99,27 +100,27 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
     analysisType match {
       case AnalysisType.live => {
         if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,storage.newestTime,windowSet(0),WorkerID(workerId),storage)
+          tempProxy = new WindowProxy(jobID,superStep,storage.newestTime,windowSet(0),workerId,storage)
         else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,storage.newestTime,window,WorkerID(workerId),storage)
+          tempProxy = new WindowProxy(jobID,superStep,storage.newestTime,window,workerId,storage)
         else
-          tempProxy = new LiveProxy(jobID,superStep,timestamp,window,WorkerID(workerId),storage)
+          tempProxy = new LiveProxy(jobID,superStep,timestamp,window,workerId,storage)
       }
       case AnalysisType.view  => {
         if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),WorkerID(workerId),storage)
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),workerId,storage)
         else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,WorkerID(workerId),storage)
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,workerId,storage)
         else
-          tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId),storage)
+          tempProxy = new ViewProxy(jobID,superStep,timestamp,workerId,storage)
       }
       case AnalysisType.range  => {
         if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),WorkerID(workerId),storage)
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),workerId,storage)
         else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,WorkerID(workerId),storage)
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,workerId,storage)
         else
-          tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId),storage)
+          tempProxy = new ViewProxy(jobID,superStep,timestamp,workerId,storage)
       }
     }
   }

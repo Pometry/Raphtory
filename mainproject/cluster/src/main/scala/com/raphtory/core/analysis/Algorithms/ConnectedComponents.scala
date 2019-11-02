@@ -42,6 +42,8 @@ class ConnectedComponents extends Analyser {
       //vertex messageAllNeighbours (ClusterLabel(currentLabel))
       //  vertex.voteToHalt()
       //}
+      if (currentLabel == vert._1)
+        println(s"${vert._1} ${vertex.getIngoingNeighbors.values} ${vertex.getOutgoingNeighbors.values}")
       currentLabel
     }).groupBy(f=> f).map(f=> (f._1,f._2.size))
   }
