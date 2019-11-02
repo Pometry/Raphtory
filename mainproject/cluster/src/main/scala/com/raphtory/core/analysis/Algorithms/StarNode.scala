@@ -41,7 +41,7 @@ class StarNode extends Analyser{
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long): Unit = {
     val inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
     //val finalResults=ParTrieMap[Int, Int]()

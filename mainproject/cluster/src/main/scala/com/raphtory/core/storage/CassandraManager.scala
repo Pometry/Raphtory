@@ -63,62 +63,62 @@ object RaphtoryDBWrite extends RaphtoryDatabase(new Connector().default){
 
 object RaphtoryDBRead extends RaphtoryDatabase(new Connector().default){
 
-  def retrieveVertex(id:Long,time:Long,vertexMap:ParTrieMap[Int, Vertex],completeCount:AtomicInt,retryQueue:parallel.mutable.ParHashSet[Long]):Unit={
-
-    val x = for {
-      vertexHistory <- RaphtoryDBRead.vertexHistory.allVertexHistory(id)
-      vertexPropertyHistory <- RaphtoryDBRead.vertexPropertyHistory.allPropertyHistory(id)
-      incomingedgehistory <- RaphtoryDBRead.edgeHistory.allIncomingHistory(id.toInt)
-      incomingedgePropertyHistory <- RaphtoryDBRead.edgePropertyHistory.allIncomingHistory(id.toInt)
-      outgoingedgehistory <- RaphtoryDBRead.edgeHistory.allOutgoingHistory(id.toInt)
-      outgoingedgePropertyHistory <- RaphtoryDBRead.edgePropertyHistory.allOutgoingHistory(id.toInt)
-    } yield {
-      val vertex = Vertex(vertexHistory.head,time)
-      if(!vertex.previousState.head._2) {
-        //println(s"${vertex.getId} apparently old at time $time $vertexHistory}")
-        throw EntityRemovedAtTimeException(vertex.getId)
-      }
-      for(property <-  vertexPropertyHistory){
-        vertex.addSavedProperty(property,time)
-      }
-      for(edgepoint <- incomingedgehistory){
-        try{vertex.addAssociatedEdge(Edge(edgepoint,time))}
-        catch {case e:EntityRemovedAtTimeException => } // edge was not alive at this point in time
-      }
-      for(edgepropertypoint <- incomingedgePropertyHistory){
-        vertex.incomingEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
-          case Some(edge) =>edge.addSavedProperty(edgepropertypoint,time)
-          case None => //it was false at given point in time
-        }
-      }
-      for(edgepoint <- outgoingedgehistory){
-        try{vertex.addAssociatedEdge(Edge(edgepoint,time))}
-        catch {case e:EntityRemovedAtTimeException => } // edge was not alive at this point in time
-      }
-      for(edgepropertypoint <- outgoingedgePropertyHistory){
-        vertex.outgoingEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
-          case Some(edge) =>edge.addSavedProperty(edgepropertypoint,time)
-          case None => //it was false at given point in time
-        }
-      }
-      vertex
-    }
-
-    x.onComplete(p => p match {
-      case Success(v)=> {
-        vertexMap.put(v.vertexId,v);
-        completeCount.increment()
-      }
-      case Failure(e) => {
-        e match {
-          case e:EntityRemovedAtTimeException => completeCount.increment()
-          case e:NoSuchElementException => completeCount.increment()
-          case e:NoHostAvailableException =>{retryQueue += id; completeCount.increment()}
-        }
-      } //do nothing
-    })
-
-  }
+//  def retrieveVertex(id:Long,time:Long,vertexMap:ParTrieMap[Int, Vertex],completeCount:AtomicInt,retryQueue:parallel.mutable.ParHashSet[Long]):Unit={
+//
+//    val x = for {
+//      vertexHistory <- RaphtoryDBRead.vertexHistory.allVertexHistory(id)
+//      vertexPropertyHistory <- RaphtoryDBRead.vertexPropertyHistory.allPropertyHistory(id)
+//      incomingedgehistory <- RaphtoryDBRead.edgeHistory.allIncomingHistory(id.toInt)
+//      incomingedgePropertyHistory <- RaphtoryDBRead.edgePropertyHistory.allIncomingHistory(id.toInt)
+//      outgoingedgehistory <- RaphtoryDBRead.edgeHistory.allOutgoingHistory(id.toInt)
+//      outgoingedgePropertyHistory <- RaphtoryDBRead.edgePropertyHistory.allOutgoingHistory(id.toInt)
+//    } yield {
+//      val vertex = Vertex(vertexHistory.head,time)
+//      if(!vertex.previousState.head._2) {
+//        //println(s"${vertex.getId} apparently old at time $time $vertexHistory}")
+//        throw EntityRemovedAtTimeException(vertex.getId)
+//      }
+//      for(property <-  vertexPropertyHistory){
+//        vertex.addSavedProperty(property,time)
+//      }
+//      for(edgepoint <- incomingedgehistory){
+//        try{vertex.addAssociatedEdge(Edge(edgepoint,time))}
+//        catch {case e:EntityRemovedAtTimeException => } // edge was not alive at this point in time
+//      }
+//      for(edgepropertypoint <- incomingedgePropertyHistory){
+//        vertex.incomingEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
+//          case Some(edge) =>edge.addSavedProperty(edgepropertypoint,time)
+//          case None => //it was false at given point in time
+//        }
+//      }
+//      for(edgepoint <- outgoingedgehistory){
+//        try{vertex.addAssociatedEdge(Edge(edgepoint,time))}
+//        catch {case e:EntityRemovedAtTimeException => } // edge was not alive at this point in time
+//      }
+//      for(edgepropertypoint <- outgoingedgePropertyHistory){
+//        vertex.outgoingEdges.get(Utils.getEdgeIndex(edgepropertypoint.src,edgepropertypoint.dst)) match {
+//          case Some(edge) =>edge.addSavedProperty(edgepropertypoint,time)
+//          case None => //it was false at given point in time
+//        }
+//      }
+//      vertex
+//    }
+//
+//    x.onComplete(p => p match {
+//      case Success(v)=> {
+//        vertexMap.put(v.vertexId,v);
+//        completeCount.increment()
+//      }
+//      case Failure(e) => {
+//        e match {
+//          case e:EntityRemovedAtTimeException => completeCount.increment()
+//          case e:NoSuchElementException => completeCount.increment()
+//          case e:NoHostAvailableException =>{retryQueue += id; completeCount.increment()}
+//        }
+//      } //do nothing
+//    })
+//
+//  }
 
 
 }

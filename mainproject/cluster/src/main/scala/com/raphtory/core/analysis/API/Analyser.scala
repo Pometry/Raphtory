@@ -23,9 +23,9 @@ abstract class Analyser extends java.io.Serializable {
   def setup()  : Any
 
   def defineMaxSteps() : Int
-  def processResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any],viewCompleteTime:Long) : Unit
-  def processViewResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any],timestamp:Long,viewCompleteTime:Long) : Unit = processResults(results,oldResults,viewCompleteTime:Long)
-  def processWindowResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any],timestamp:Long,windowSize:Long,viewCompleteTime:Long) : Unit = processResults(results,oldResults,viewCompleteTime:Long)
-  def processBatchWindowResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any],timestamp:Long,windowSet:Array[Long],viewCompleteTime:Long): Unit = processResults(results,oldResults,viewCompleteTime:Long)
+  def processResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long) : Unit
+  def processViewResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any],timestamp:Long,viewCompleteTime:Long) : Unit = processResults(results,oldResults,timestamp:Long,viewCompleteTime:Long)
+  def processWindowResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any],timestamp:Long,windowSize:Long,viewCompleteTime:Long) : Unit = processResults(results,oldResults,timestamp:Long,viewCompleteTime:Long)
+  def processBatchWindowResults(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any],timestamp:Long,windowSet:Array[Long],viewCompleteTime:Long): Unit = processResults(results,oldResults,timestamp:Long,viewCompleteTime:Long)
   def checkProcessEnd(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any]) : Boolean = false
 }

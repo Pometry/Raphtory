@@ -6,7 +6,7 @@ import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 import scala.collection.parallel.mutable.ParTrieMap
-class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
+class ArchivistWorker(workers:ParTrieMap[Int,ActorRef],storages:ParTrieMap[Int,EntityStorage]) extends Actor{
 
   //timestamps to make sure all entities are compressed to exactly the same point
   val compressing    : Boolean =  Utils.compressing
@@ -26,7 +26,7 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
 
   def compressVertices(compressTime:Long,workerID:Int) = {
      val worker = workers(workerID)
-      EntityStorage.vertices(workerID) foreach( pair => {
+      storages(workerID).vertices foreach( pair => {
         worker ! CompressVertex(pair._1,compressTime)
         startedCompressions+=1
       })
@@ -34,7 +34,7 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef]) extends Actor{
 
   def archiveVertices(compressTime:Long,archiveTime:Long,workerID:Int) = {
       val worker = workers(workerID)
-      EntityStorage.vertices(workerID) foreach( key => {
+      storages(workerID).vertices foreach( key => {
         if(compressing) worker ! ArchiveVertex(key._1,compressTime,archiveTime)
         else worker ! ArchiveOnlyVertex(key._1,archiveTime)
         startedArchiving+=1

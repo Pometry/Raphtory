@@ -44,7 +44,7 @@ class BitcoinAnalyser extends Analyser {
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long): Unit = {
     var finalResults = ArrayBuffer[(String, Double)]()
     var highestBlock = 0
     var blockHash = ""

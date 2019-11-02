@@ -20,7 +20,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO add capacity function based on memory used and number of updates processed/stored in memory
 //TODO What happens when an edge which has been archived gets readded
 
-object EntityStorage {
+class EntityStorage {
   import com.raphtory.core.utils.Utils.{checkDst, getEdgeIndex, getPartition, getManager,checkWorker}
 
   var messageCount                = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)       // number of messages processed since last report to the benchmarker
@@ -38,10 +38,7 @@ object EntityStorage {
   /**
     * Map of vertices contained in the partition
     */
-  val vertices  = ParTrieMap[Int,ParTrieMap[Int, Vertex]]()
-
-  for(i <- 0 until 10)
-    vertices put (i, ParTrieMap[Int, Vertex]())
+  val vertices  = ParTrieMap[Int, Vertex]()
 
   var printing          : Boolean     = true
   var managerCount      : Int         = 1
@@ -73,19 +70,19 @@ object EntityStorage {
 
   def vertexAdd(routerID:Int,workerID:Int,msgTime : Long, srcId : Int, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
     var value : Vertex = null
-    vertices(workerID).get(srcId) match { //check if the vertex exists
+    vertices.get(srcId) match { //check if the vertex exists
       case Some(v) => { //if it does
         v revive msgTime //add the history point
         v updateLatestRouter routerID // record the latest router for windowing
         value = v
       }
       case None => { //if it does not exist
-        value = new Vertex(routerID,msgTime, srcId, initialValue = true) //create a new vertex
-        vertices(workerID) put(srcId, value) //put it in the map
+        value = new Vertex(routerID,msgTime, srcId, initialValue = true,this) //create a new vertex
+        vertices put(srcId, value) //put it in the map
       }
     }
     if (properties != null) { //if the add come with some properties
-      properties.foreach(prop => value.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties into the vertex
+      properties.foreach(prop => value.updateProp(prop._1, new Property(msgTime, prop._1, prop._2,this))) // add all passed properties into the vertex
     }
     value //return the vertex
   }
@@ -114,13 +111,13 @@ object EntityStorage {
   }
 
   def getVertexOrPlaceholder(routerID : Int, workerID:Int, id : Int, msgTime : Long) : Vertex = {
-    vertices(workerID).get(id) match {
+    vertices.get(id) match {
       case Some(vertex) => {
         vertex
       }
       case None => {
-        val vertex  = new Vertex(routerID, msgTime,id,initialValue = true)
-        vertices(workerID) put(id, vertex)
+        val vertex  = new Vertex(routerID, msgTime,id,initialValue = true,this)
+        vertices put(id, vertex)
         vertex wipe()
         //newVertexKey(workerID,id) //and record the new key
         vertex
@@ -130,7 +127,7 @@ object EntityStorage {
 
   def vertexRemoval(routerID:Int,workerID:Int,msgTime:Long,srcId:Int) : Unit = {
     var vertex : Vertex = null
-    vertices(workerID).get(srcId) match {
+    vertices.get(srcId) match {
       case Some(v) => {
         if(windowing) {
           if (!(v latestRouterCheck routerID)) {//if we are windowing we must check the latest Router for the vertex
@@ -141,8 +138,8 @@ object EntityStorage {
         v kill msgTime //if we are not windowing we just run as normal or if it is the correct router we remove
       }
       case None => { //if the removal has arrived before the creation
-        vertex = new Vertex(routerID,msgTime, srcId, initialValue = false) //create a placeholder
-        vertices(workerID) put(srcId, vertex) //add it to the map
+        vertex = new Vertex(routerID,msgTime, srcId, initialValue = false,this) //create a placeholder
+        vertices put(srcId, vertex) //add it to the map
       }
     }
     vertex.incomingEdges.foreach(e =>{ //incoming edges are not handled by this worker as the source vertex is in charge
@@ -185,9 +182,9 @@ object EntityStorage {
       }
       case None => //if it does not
         if (local)
-          edge = new Edge(routerID,workerID,msgTime, srcId, dstId, initialValue = true) //create the new edge, local or remote
+          edge = new Edge(routerID,workerID,msgTime, srcId, dstId, initialValue = true,this) //create the new edge, local or remote
         else
-          edge = new RemoteEdge(routerID,workerID,msgTime, srcId, dstId, initialValue = true, RemotePos.Destination, getPartition(dstId, managerCount))
+          edge = new RemoteEdge(routerID,workerID,msgTime, srcId, dstId, initialValue = true, RemotePos.Destination, getPartition(dstId, managerCount),this)
         srcVertex.addOutgoingEdge(edge) //add this edge to the vertex
     }
     if (local && srcId != dstId) {
@@ -213,13 +210,13 @@ object EntityStorage {
       if (!local) // and if not local sync with the other partition
         mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(routerID,msgTime, srcId, dstId, properties, deaths), false)
     }
-    if (properties != null) properties.foreach(prop => edge.updateProp(prop._1, new Property(msgTime, prop._1, prop._2))) // add all passed properties onto the edge
+    if (properties != null) properties.foreach(prop => edge.updateProp(prop._1, new Property(msgTime, prop._1, prop._2,this))) // add all passed properties onto the edge
 
   }
 
   def remoteEdgeAddNew(routerID : Int, workerID:Int, msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String],srcDeaths:mutable.TreeMap[Long, Boolean]):Unit={
     val dstVertex = vertexAdd(routerID,workerID,msgTime,dstId) //create or revive the destination node
-    val edge = new RemoteEdge(routerID, workerID, msgTime, srcId, dstId, initialValue = true,RemotePos.Source,getPartition(srcId, managerCount))
+    val edge = new RemoteEdge(routerID, workerID, msgTime, srcId, dstId, initialValue = true,RemotePos.Source,getPartition(srcId, managerCount),this)
     dstVertex addIncomingEdge(edge) //add the edge to the associated edges of the destination node
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
@@ -263,9 +260,9 @@ object EntityStorage {
       }
       case None => {
         if (local)
-          edge = new Edge(routerID,workerID, msgTime, srcId, dstId, initialValue = false)
+          edge = new Edge(routerID,workerID, msgTime, srcId, dstId, initialValue = false,this)
         else
-          edge = new RemoteEdge(routerID, workerID, msgTime,srcId, dstId, initialValue = false, RemotePos.Destination, getPartition(dstId, managerCount))
+          edge = new RemoteEdge(routerID, workerID, msgTime,srcId, dstId, initialValue = false, RemotePos.Destination, getPartition(dstId, managerCount),this)
         srcVertex addOutgoingEdge(edge) // add the edge to the associated edges of the source node
       }
     }
@@ -319,7 +316,7 @@ object EntityStorage {
 
   def remoteEdgeRemovalNew(routerID : Int,workerID:Int,msgTime:Long,srcId:Int,dstId:Int,srcDeaths:mutable.TreeMap[Long, Boolean]):Unit={
     val dstVertex = getVertexOrPlaceholder(routerID, workerID,dstId, msgTime)
-    val edge = new RemoteEdge(routerID,workerID,msgTime,srcId, dstId, initialValue = false, RemotePos.Source, getPartition(srcId, managerCount))
+    val edge = new RemoteEdge(routerID,workerID,msgTime,srcId, dstId, initialValue = false, RemotePos.Source, getPartition(srcId, managerCount),this)
     dstVertex addIncomingEdge(edge)  //add the edge to the destination nodes associated list
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge

@@ -1,5 +1,6 @@
 package com.raphtory.core.model.graphentities
 
+import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 import scala.collection.concurrent.TrieMap
@@ -12,12 +13,12 @@ import scala.collection.parallel.mutable.ParTrieMap
 object RemoteEdge {
   def apply(routerID : Int, workerID:Int,creationTime : Long, edgeId : Long,
             previousState : mutable.TreeMap[Long, Boolean],
-            properties : ParTrieMap[String, Property], remotePos : RemotePos.Value, remotePartitionId : Int)= {
+            properties : ParTrieMap[String, Property], remotePos : RemotePos.Value, remotePartitionId : Int,storage:EntityStorage)= {
 
     val srcId = Utils.getIndexHI(edgeId)
     val dstId = Utils.getIndexLO(edgeId)
 
-    val e = new RemoteEdge(routerID,workerID:Int,creationTime, srcId, dstId, initialValue = true, remotePos, remotePartitionId)
+    val e = new RemoteEdge(routerID,workerID:Int,creationTime, srcId, dstId, initialValue = true, remotePos, remotePartitionId,storage)
     e.previousState   = previousState
     e.properties      = properties
     e
@@ -29,22 +30,9 @@ object RemoteEdge {
   * currently only stores what end of the edge is remote
   * and which partition this other half is stored in
   *
-  * @param msgTime
-  * @param initialValue
-  * @param srcId
-  * @param dstId
-  * @param remotePos
-  * @param remotePartitionID
   */
-class RemoteEdge(routerID: Int,
-                 workerID:Int,
-                      msgTime: Long,
-                      srcID: Int,
-                      dstID: Int,
-                      initialValue: Boolean,
-                      remotepos: RemotePos.Value,
-                      remotePartitionId: Int)
-    extends Edge(routerID,workerID,msgTime, srcID, dstID, initialValue){
+class RemoteEdge(routerID: Int, workerID:Int, msgTime: Long, srcID: Int, dstID: Int, initialValue: Boolean, remotepos: RemotePos.Value, remotePartitionId: Int, storage:EntityStorage)
+    extends Edge(routerID,workerID,msgTime, srcID, dstID, initialValue,storage){
 
   def remotePos = remotepos
   def remotePartitionID =remotePartitionId

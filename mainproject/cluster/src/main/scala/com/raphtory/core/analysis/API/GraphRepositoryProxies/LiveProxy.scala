@@ -10,13 +10,13 @@ import monix.execution.atomic.AtomicInt
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.collection.parallel.{ParIterable, ParSet}
 
-class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,workerID: WorkerID) {
+class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,workerID: WorkerID,storage:EntityStorage) {
   private var messages = AtomicInt(0)
 
   protected var voteCount = AtomicInt(0)
   def job() = jobID
 
-  def getVerticesSet(): ParTrieMap[Int,Vertex] = EntityStorage.vertices(workerID.ID)
+  def getVerticesSet(): ParTrieMap[Int,Vertex] = storage.vertices
 
   def recordMessage() = messages.increment()
 
@@ -25,16 +25,16 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
   def getVertex(v : Vertex)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(v,jobID,superstep,this,timestamp,windowsize)
 
   def getTotalVerticesSet() = {
-    EntityStorage.vertices.keySet
+    storage.vertices.keySet
   }
 
-  def latestTime:Long = EntityStorage.newestTime
+  def latestTime:Long = storage.newestTime
 
   def vertexVoted() = voteCount.increment()
 
   def checkVotes(workerID: Int):Boolean = {
     //println(s"$workerID ${EntityStorage.vertexKeys(workerID).size} $voteCount")
-    EntityStorage.vertices(workerID).size == voteCount.get
+    storage.vertices.size == voteCount.get
   }
 
   //HERE BE DRAGONS please ignore

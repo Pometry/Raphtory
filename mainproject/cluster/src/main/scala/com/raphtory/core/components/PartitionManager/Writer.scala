@@ -17,7 +17,7 @@ import scala.concurrent.duration._
   * Is sent commands which have been processed by the command Processor
   * Will process these, storing information in graph entities which may be updated if they already exist
   * */
-class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMap[Int,ActorRef]) extends Actor {
+class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMap[Int,ActorRef],storage:ParTrieMap[Int,EntityStorage]) extends Actor {
   var managerCount          : Int = managerCountVal
   val managerID             : Int = id                   //ID which refers to the partitions position in the graph manager map
 
@@ -36,7 +36,6 @@ class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMa
 
   mediator ! DistributedPubSubMediator.Put(self)
 
-  val storage= EntityStorage.apply(printing, managerCount, managerID, mediator)
   println(akka.serialization.Serialization.serializedActorPath(self))
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
@@ -63,7 +62,7 @@ class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMa
     case "count"                                                            => count()
     case Terminated(child)                                                  => println(s"manager $managerID ${child.path} has died")
     //misc and startup block
-    case UpdatedCounter(newValue)                                           => {managerCount = newValue; storage.setManagerCount(managerCount)}
+    case UpdatedCounter(newValue)                                           => {managerCount = newValue; storage.foreach(s=> s._2.setManagerCount(managerCount))}
     case "keep_alive"                                                       =>  mediator ! DistributedPubSubMediator.Send("/user/WatchDog", PartitionUp(managerID), localAffinity = false)
     case e => println(s"Not handled message ${e.getClass} ${e.toString}")
 
@@ -78,14 +77,14 @@ class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMa
     val newTime = System.currentTimeMillis()/1000
     var timeDifference = (newTime-lastLogTime)
     if(timeDifference ==0) timeDifference =1
-    lastLogTime = newTime
-    var newMessageCount = EntityStorage.messageCount.sum
-    var newSecondaryMessageCount = EntityStorage.secondaryMessageCount.sum
-    var newWorkerMessageCount = EntityStorage.workerMessageCount.sum
-    logChild  ! ReportIntake((newMessageCount-messageCount),(newSecondaryMessageCount-secondaryMessageCount),(newWorkerMessageCount-workerMessageCount),managerID,timeDifference)
-    messageCount = newMessageCount
-    secondaryMessageCount = newSecondaryMessageCount
-    workerMessageCount = newWorkerMessageCount
+//    lastLogTime = newTime
+//    var newMessageCount = EntityStorage.messageCount.sum
+//    var newSecondaryMessageCount = EntityStorage.secondaryMessageCount.sum
+//    var newWorkerMessageCount = EntityStorage.workerMessageCount.sum
+//    logChild  ! ReportIntake((newMessageCount-messageCount),(newSecondaryMessageCount-secondaryMessageCount),(newWorkerMessageCount-workerMessageCount),managerID,timeDifference)
+//    messageCount = newMessageCount
+//    secondaryMessageCount = newSecondaryMessageCount
+//    workerMessageCount = newWorkerMessageCount
   }
 
 

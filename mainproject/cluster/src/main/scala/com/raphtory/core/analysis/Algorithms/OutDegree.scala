@@ -28,7 +28,7 @@ class OutDegree extends Analyser{
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long): Unit = {
 
   }
 

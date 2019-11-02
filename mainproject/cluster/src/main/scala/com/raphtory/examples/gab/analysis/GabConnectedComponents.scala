@@ -62,7 +62,7 @@ class GabConnectedComponents extends Analyser {
 
   override def defineMaxSteps(): Int = 10
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = ???
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long): Unit = ???
 
 
   //Initialisation of the file in where the output will be written is done.

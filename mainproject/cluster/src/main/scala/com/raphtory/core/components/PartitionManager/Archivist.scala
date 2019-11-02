@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 
 
 
-class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Actor {
+class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef],storages:ParTrieMap[Int,EntityStorage]) extends Actor {
   val compressing    : Boolean =  Utils.compressing
   val saving    : Boolean =  Utils.saving
   val archiving: Boolean = Utils.archiving
@@ -47,7 +47,7 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
   var currentState:Boolean              = false
 
   // children for distribution of compresssion and archiving
-  val vertexManager =  context.actorOf(Props(new ArchivistWorker(workers)).withDispatcher("archivist-dispatcher"),"vertexcompressor");
+  val vertexManager =  context.actorOf(Props(new ArchivistWorker(workers,storages)).withDispatcher("archivist-dispatcher"),"vertexcompressor");
 
   var debug = false
   val archGauge         = Kamon.gauge("raphtory_archivist")
@@ -91,21 +91,21 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
       archGauge.refine("actor" -> "Archivist", "name" -> "totalCompressionTime").set((System.currentTimeMillis()-totalCompressionTime)/1000)
       if(currentWorker==9) {
         lastSaved = newLastSaved
-        EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to ??????????????????????????????
+        //EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to ??????????????????????????????
       }
       nextWorker()
   }
 
   def archiveEnder(name:String): Unit = {
-      archGauge.refine("actor" -> "Archivist", "name" -> "edgeHistoryRemoved").set(EntityStorage.edgeHistoryDeletionCount.sum)
-      archGauge.refine("actor" -> "Archivist", "name" -> "edgePropertyRemoved").set(EntityStorage.edgePropertyDeletionCount.sum)
-      archGauge.refine("actor" -> "Archivist", "name" -> "edgeEdgesRemoved").set(EntityStorage.edgeDeletionCount.sum)
-      archGauge.refine("actor" -> "Archivist", "name" -> "vertexHistoryRemoved").set(EntityStorage.vertexHistoryDeletionCount.sum)
-      archGauge.refine("actor" -> "Archivist", "name" -> "vertexPropertyRemoved").set(EntityStorage.vertexPropertyDeletionCount.sum)
-      archGauge.refine("actor" -> "Archivist", "name" -> "vertexVerticesRemoved").set(EntityStorage.vertexDeletionCount.sum)
-      archGauge.refine("actor" -> "Archivist", "name" -> "totalArchiveTime").set((System.currentTimeMillis()-totalArchiveTime)/1000)
+     // archGauge.refine("actor" -> "Archivist", "name" -> "edgeHistoryRemoved").set(storage.edgeHistoryDeletionCount.sum)
+     // archGauge.refine("actor" -> "Archivist", "name" -> "edgePropertyRemoved").set(EntityStorage.edgePropertyDeletionCount.sum)
+     // archGauge.refine("actor" -> "Archivist", "name" -> "edgeEdgesRemoved").set(EntityStorage.edgeDeletionCount.sum)
+     // archGauge.refine("actor" -> "Archivist", "name" -> "vertexHistoryRemoved").set(EntityStorage.vertexHistoryDeletionCount.sum)
+     // archGauge.refine("actor" -> "Archivist", "name" -> "vertexPropertyRemoved").set(EntityStorage.vertexPropertyDeletionCount.sum)
+     // archGauge.refine("actor" -> "Archivist", "name" -> "vertexVerticesRemoved").set(EntityStorage.vertexDeletionCount.sum)
+     // archGauge.refine("actor" -> "Archivist", "name" -> "totalArchiveTime").set((System.currentTimeMillis()-totalArchiveTime)/1000)
       if(currentWorker == 9) {
-        EntityStorage.oldestTime = removePointGlobal
+     //   EntityStorage.oldestTime = removePointGlobal
         System.gc() //suggest a good time to garbage collect
       }
       nextWorker()
@@ -141,8 +141,8 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef]) extends Acto
   def toArchive(newestPoint:Long,oldestPoint:Long):Long =  (((newestPoint-oldestPoint) / 100f) * archivePercentage).asInstanceOf[Long]
 
   def cutOff(compress:Boolean) = {
-    val oldestPoint = EntityStorage.oldestTime
-    val newestPoint = EntityStorage.newestTime
+    val oldestPoint = storages.map(s=> s._2.oldestTime).max
+    val newestPoint = storages.map(s=> s._2.newestTime).max
     setActionTime(compress)
     if(compress)println(s" Difference between oldest $oldestPoint to newest point $newestPoint --- ${((newestPoint-oldestPoint)/1000)}, ${(toCompress(newestPoint,oldestPoint))/1000} seconds compressed")
     if(oldestPoint != Long.MaxValue) {

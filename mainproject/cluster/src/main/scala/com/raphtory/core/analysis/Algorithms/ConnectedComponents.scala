@@ -46,7 +46,7 @@ class ConnectedComponents extends Analyser {
     }).groupBy(f=> f).map(f=> (f._1,f._2.size))
   }
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
     var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val startTime = System.currentTimeMillis()
@@ -60,11 +60,12 @@ class ConnectedComponents extends Analyser {
       val proportion = biggest.toFloat/grouped.map(x=> x._2).sum
       val proportionWithoutIslands = biggest.toFloat/groupedNonIslands.map(x=> x._2).sum
       val totalGT2 = grouped.filter(x=> x._2>2).size
-      val text = s"""{"time":${EntityStorage.newestTime},"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
+      //todo fix
+      val text = s"""{"time":$timeStamp,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
       Utils.writeLines(output_file,text,"{\"views\":[")
       println(text)
     }catch {
-      case e:UnsupportedOperationException => println(s"No activity for  view at ${EntityStorage.newestTime}")
+      case e:UnsupportedOperationException => println(s"No activity for  view at $timeStamp")
     }
   }
 
