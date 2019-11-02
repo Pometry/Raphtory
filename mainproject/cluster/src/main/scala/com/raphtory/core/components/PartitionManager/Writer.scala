@@ -32,7 +32,7 @@ class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMa
   var messageCount = 0
   var secondaryMessageCount = 0
   var workerMessageCount = 0
-
+  storage.foreach(s=> s._2.apply(printing,managerCount,managerID,mediator))
 
   mediator ! DistributedPubSubMediator.Put(self)
 
