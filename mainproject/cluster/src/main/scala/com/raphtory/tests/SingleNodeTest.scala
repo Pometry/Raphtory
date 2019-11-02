@@ -34,10 +34,11 @@ object SingleNodeTest extends App {
 //  val end = 1525368897000L
   //1470783600000L 1471388400000L
 //window//
-  Thread.sleep(10000)
+  Thread.sleep(60000)
   println("starting")
   val start = 1471388400000L
-  val end = 1525368897000L
+  val end = 1476113855000L
+ //val end = 1525368897000L
   val jump =    86400000
   val window =    86400000
   val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
