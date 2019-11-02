@@ -21,8 +21,8 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
 
   private val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   val vert:Vertex = v
-  val messageQueue = v.multiQueue.getMessageQueue(jobID,superStep)
-  val messageQueue2 = v.multiQueue.getMessageQueue(jobID,superStep+1)
+  def messageQueue = v.multiQueue.getMessageQueue(jobID,superStep)
+  //val messageQueue2 = v.multiQueue.getMessageQueue(jobID,superStep+1)
   def getOutgoingNeighbors : ParTrieMap[Long,Edge]= v.outgoingProcessing
   def getIngoingNeighbors  : ParTrieMap[Long,Edge] = v.incomingProcessing
 
@@ -75,7 +75,6 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
   def messageAllIngoingNeighbors(message: VertexMessage) : Unit = v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
 
   def moreMessages():Boolean = messageQueue.nonEmpty
-  def nextMessage():VertexMessage = messageQueue.pop()
 
   def voteToHalt() = {
     proxy.vertexVoted()

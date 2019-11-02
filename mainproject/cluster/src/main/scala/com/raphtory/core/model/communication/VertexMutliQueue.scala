@@ -5,15 +5,15 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 class VertexMutliQueue {
 
-  val evenMessageQueueMap = ParTrieMap[String,mutable.ArrayStack[VertexMessage]]()
-  val oddMessageQueueMap = ParTrieMap[String,mutable.ArrayStack[VertexMessage]]()
+  val evenMessageQueueMap = ParTrieMap[String,mutable.ArrayBuffer[VertexMessage]]()
+  val oddMessageQueueMap = ParTrieMap[String,mutable.ArrayBuffer[VertexMessage]]()
 
-  def getMessageQueue(jobID:String,superStep:Int):mutable.ArrayStack[VertexMessage] = {
+  def getMessageQueue(jobID:String,superStep:Int):mutable.ArrayBuffer[VertexMessage] = {
     val queueMap = if (superStep % 2 ==0) evenMessageQueueMap else oddMessageQueueMap
     queueMap.get(jobID) match {
       case Some(stack) => stack
       case None =>  {
-        val newStack = mutable.ArrayStack[VertexMessage]()
+        val newStack = mutable.ArrayBuffer[VertexMessage]()
         queueMap(jobID) = newStack
         newStack
       }
@@ -22,16 +22,17 @@ class VertexMutliQueue {
 
   def clearQueues(jobID:String) = {
     evenMessageQueueMap.get(jobID) match {
-      case Some(q) => evenMessageQueueMap(jobID) = mutable.ArrayStack[VertexMessage]()
+      case Some(q) => evenMessageQueueMap(jobID) = mutable.ArrayBuffer[VertexMessage]()
       case None =>
     }
     oddMessageQueueMap.get(jobID) match {
-      case Some(q) => oddMessageQueueMap(jobID) = mutable.ArrayStack[VertexMessage]()
+      case Some(q) => oddMessageQueueMap(jobID) = mutable.ArrayBuffer[VertexMessage]()
       case None =>
     }
   }
 
-  def receiveMessage(handler: MessageHandler) = getMessageQueue(handler.jobID,handler.superStep+1).push(handler.message)
+
+  def receiveMessage(handler: MessageHandler) = getMessageQueue(handler.jobID,handler.superStep+1) +=(handler.message)
 
 
 }

@@ -22,22 +22,24 @@ class ConnectedComponents extends Analyser {
   }
 
   override def analyse(): Any = {
+
     proxy.getVerticesSet().map(vert=>{
       var label = vert._1
       val vertex = proxy.getVertex(vert._2)
-      val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
+      val queue = vertex.messageQueue
       if (queue.nonEmpty) {
-        label = queue.min
-        vertex.messageQueue.clear
+        label = queue.map(_.asInstanceOf[ClusterLabel].value).min
+        //vertex.messageQueue.clear()
       }
       var currentLabel = vertex.getOrSetCompValue("cclabel", label).asInstanceOf[Int]
       if (label < currentLabel) {
         vertex.setCompValue("cclabel", label)
-        vertex messageAllNeighbours (ClusterLabel(label))
+        vertex messageAllOutgoingNeighbors (ClusterLabel(label))
+        vertex messageAllIngoingNeighbors ClusterLabel(label)
         currentLabel = label
       }
       //else {
-        //vertex messageAllNeighbours (ClusterLabel(currentLabel))
+      //vertex messageAllNeighbours (ClusterLabel(currentLabel))
       //  vertex.voteToHalt()
       //}
       currentLabel
@@ -148,51 +150,51 @@ class ConnectedComponents extends Analyser {
   }
 
 
-//
-//override def analyse(): Any = {
-//  val results = ParTrieMap[Int, Int]()
-//  var verts = Set[Int]()
-//  for (v <- proxy.getVerticesSet()) {
-//    val vertex = proxy.getVertex(v)
-//    val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
-//    var label = v
-//    if (queue.nonEmpty)
-//      label = queue.min
-//    vertex.messageQueue.clear
-//    var currentLabel = vertex.getOrSetCompValue("cclabel", v).asInstanceOf[Int]
-//    if (label < currentLabel) {
-//      vertex.setCompValue("cclabel", label)
-//      vertex messageAllNeighbours (ClusterLabel(label))
-//      currentLabel = label
-//    }
-//    else {
-//      vertex messageAllNeighbours (ClusterLabel(currentLabel))
-//      vertex.voteToHalt()
-//    }
-//    results.put(currentLabel, 1 + results.getOrElse(currentLabel, 0))
-//    verts += v
-//  }
-//  results
-//}
-//  override def analyse(): Any = {
-//    val x = proxy.asInstanceOf[WindowProxy].keySet.foreach(vertex => {
-//
-//      val queue = vertex._2.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
-//      var label = vertex._1
-//      if (queue.nonEmpty)
-//        label = queue.min
-//      vertex._2.messageQueue.clear
-//      var currentLabel = vertex._2.getOrSetCompValue("cclabel", label).asInstanceOf[Int]
-//      if (label < currentLabel) {
-//        vertex._2.setCompValue("cclabel", label)
-//        vertex._2 messageAllNeighbours (ClusterLabel(label))
-//        currentLabel = label
-//      }
-//      else {
-//        vertex._2.messageAllNeighbours (ClusterLabel(currentLabel))
-//        //vertex.voteToHalt()
-//      }
-//      currentLabel
-//    })
-//  }
+  //
+  //override def analyse(): Any = {
+  //  val results = ParTrieMap[Int, Int]()
+  //  var verts = Set[Int]()
+  //  for (v <- proxy.getVerticesSet()) {
+  //    val vertex = proxy.getVertex(v)
+  //    val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
+  //    var label = v
+  //    if (queue.nonEmpty)
+  //      label = queue.min
+  //    vertex.messageQueue.clear
+  //    var currentLabel = vertex.getOrSetCompValue("cclabel", v).asInstanceOf[Int]
+  //    if (label < currentLabel) {
+  //      vertex.setCompValue("cclabel", label)
+  //      vertex messageAllNeighbours (ClusterLabel(label))
+  //      currentLabel = label
+  //    }
+  //    else {
+  //      vertex messageAllNeighbours (ClusterLabel(currentLabel))
+  //      vertex.voteToHalt()
+  //    }
+  //    results.put(currentLabel, 1 + results.getOrElse(currentLabel, 0))
+  //    verts += v
+  //  }
+  //  results
+  //}
+  //  override def analyse(): Any = {
+  //    val x = proxy.asInstanceOf[WindowProxy].keySet.foreach(vertex => {
+  //
+  //      val queue = vertex._2.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
+  //      var label = vertex._1
+  //      if (queue.nonEmpty)
+  //        label = queue.min
+  //      vertex._2.messageQueue.clear
+  //      var currentLabel = vertex._2.getOrSetCompValue("cclabel", label).asInstanceOf[Int]
+  //      if (label < currentLabel) {
+  //        vertex._2.setCompValue("cclabel", label)
+  //        vertex._2 messageAllNeighbours (ClusterLabel(label))
+  //        currentLabel = label
+  //      }
+  //      else {
+  //        vertex._2.messageAllNeighbours (ClusterLabel(currentLabel))
+  //        //vertex.voteToHalt()
+  //      }
+  //      currentLabel
+  //    })
+  //  }
 }

@@ -33,8 +33,8 @@ class PageRank extends Analyser {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v._2)
       var neighbourScores = 0F
-      while(vertex moreMessages)
-        neighbourScores += vertex.nextMessage().asInstanceOf[PageRankScore].value
+     // while(vertex moreMessages)
+    //    neighbourScores += vertex.nextMessage().asInstanceOf[PageRankScore].value
 
       val newPR:Float = neighbourScores/math.max(vertex.getOutgoingNeighbors.size,1)
       vertex.setCompValue(prStr, newPR)

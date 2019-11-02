@@ -21,7 +21,7 @@ object SingleNodeTest extends App {
 
  var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
  var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
- val Analyser = "com.raphtory.core.analysis.Algorithms.DegreeRanking"
+ val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
  val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
@@ -34,6 +34,8 @@ object SingleNodeTest extends App {
 //  val end = 1525368897000L
   //1470783600000L 1471388400000L
 //window//
+  Thread.sleep(10000)
+  println("starting")
   val start = 1471388400000L
   val end = 1525368897000L
   val jump =    3600000
