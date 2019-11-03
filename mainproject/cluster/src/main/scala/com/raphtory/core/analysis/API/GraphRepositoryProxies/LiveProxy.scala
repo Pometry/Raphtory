@@ -34,7 +34,8 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
 
   def checkVotes(workerID: Int):Boolean = {
     //println(s"$workerID ${EntityStorage.vertexKeys(workerID).size} $voteCount")
-    storage.vertices.size == voteCount.get
+    false
+    //storage.vertices.size == voteCount.get
   }
 
   //HERE BE DRAGONS please ignore

@@ -187,7 +187,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     if (!voteToHalt) this.voteToHalt = false
     if(debug)println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
     if (workersFinishedSuperStep == getWorkerCount) {
-      if (currentSuperStep == steps || analyser.checkProcessEnd(results,oldResults) || voteToHalt) {
+      if (currentSuperStep == steps || analyser.checkProcessEnd(results,oldResults) || this.voteToHalt) {
         processResults(timestamp())
         results = mutable.ArrayBuffer[Any]()
         oldResults = mutable.ArrayBuffer[Any]()
@@ -234,7 +234,8 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     //if(real != receivedMessages)
     // println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
     if(messageLogACKS == getWorkerCount) {
-      println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$sentMessages $totalReceivedMessages/$totalSentMessages")
+      if(totalReceivedMessages!=totalSentMessages)
+        println(s"superstep $currentSuperStep workerID: $workerID -- $receivedMessages/$sentMessages $totalReceivedMessages/$totalSentMessages")
       messageLogACKS =0
       if(totalReceivedMessages == totalSentMessages){
         currentSuperStep+=1
@@ -252,7 +253,6 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
         for(worker <- Utils.getAllReaderWorkers(managerCount))
           //mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
           mediator   ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
-       //`
       }
     }
   }
