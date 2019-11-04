@@ -17,8 +17,8 @@ class BitcoinAnalyser extends Analyser {
       if(vertexType.equals("address")) {
         val address = vertex.getPropertyCurrentValue("address").getOrElse("no address")
         var total: Double = 0
-        for (edge <- vertex.getIngoingNeighbors) {
-          val edgeValue = vertex.getIngoingNeighborProp(edge, "value").getOrElse("0")
+        for ((id,edge) <- vertex.getIngoingNeighbors) {
+          val edgeValue = vertex.getIngoingNeighborProp(id, "value").getOrElse("0")
           total += edgeValue.toDouble
         }
         results :+= (address, total)
@@ -44,7 +44,7 @@ class BitcoinAnalyser extends Analyser {
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],viewCompleteTime:Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long): Unit = {
     var finalResults = ArrayBuffer[(String, Double)]()
     var highestBlock = 0
     var blockHash = ""

@@ -23,6 +23,8 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   protected var managerCount : Int = 0 //Number of Managers in the Raphtory Cluster
   private var currentSuperStep  = 0 //SuperStep the algorithm is currently on
 
+  private var local:Boolean = Utils.local
+
   //Communication Counters
   private var ReaderACKS = 0 //Acks from the readers to say they are online
   private var ReaderAnalyserACKS = 0 //Ack to show that the chosen analyser is present within the partition
@@ -67,12 +69,12 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
 
 
   private def processOtherMessages(value : Any) : Unit = {println ("Not handled message" + value.toString)}
-
-  protected def generateAnalyzer : Analyser = analyser
+  //todo make this the same as single node test
+  protected def generateAnalyzer : Analyser = if(local)Class.forName("com.raphtory.core.analysis.Algorithms.ConnectedComponents").newInstance().asInstanceOf[Analyser] else analyser
   protected def analyserName:String = generateAnalyzer.getClass.getName
   protected final def getManagerCount : Int = managerCount
   protected final def getWorkerCount : Int = managerCount*10
-  protected def processResults() = analyser.processResults(results,oldResults,viewCompleteTime())
+  protected def processResults(timeStamp:Long) = analyser.processResults(results,oldResults,viewCompleteTime(),timeStamp)
 
   private def resetCounters() = {
     ReaderACKS = 0 //Acks from the readers to say they are online
@@ -120,7 +122,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   def watchdogResponse(newValue: Int)= {
     managerCount = newValue
     ReaderACKS = 0
-    networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "networkSizeTimeout")
+    networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(300, SECONDS), self, "networkSizeTimeout")
     for(worker <- Utils.getAllReaders(managerCount)) {
       mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline(), false)
     }
@@ -185,8 +187,8 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     if (!voteToHalt) this.voteToHalt = false
     if(debug)println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
     if (workersFinishedSuperStep == getWorkerCount) {
-      if (currentSuperStep == steps || analyser.checkProcessEnd(results,oldResults) || voteToHalt) {
-        processResults()
+      if (currentSuperStep == steps || analyser.checkProcessEnd(results,oldResults) || this.voteToHalt) {
+        processResults(timestamp())
         results = mutable.ArrayBuffer[Any]()
         oldResults = mutable.ArrayBuffer[Any]()
        // for(worker <- Utils.getAllReaderWorkers(managerCount))
@@ -230,8 +232,10 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     totalReceivedMessages += receivedMessages
     totalSentMessages += sentMessages
     //if(real != receivedMessages)
-    //  println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
+    // println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
     if(messageLogACKS == getWorkerCount) {
+      if(totalReceivedMessages!=totalSentMessages)
+        println(s"superstep $currentSuperStep workerID: $workerID -- $receivedMessages/$sentMessages $totalReceivedMessages/$totalSentMessages")
       messageLogACKS =0
       if(totalReceivedMessages == totalSentMessages){
         currentSuperStep+=1
@@ -241,7 +245,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
           mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
       }
       else {
-        //println(s"checking, $totalReceivedMessages/$totalSentMessages")
+        println(s"checking, $totalReceivedMessages/$totalSentMessages")
         totalReceivedMessages =0
         totalSentMessages = 0
         Thread.sleep(10)
@@ -249,7 +253,6 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
         for(worker <- Utils.getAllReaderWorkers(managerCount))
           //mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
           mediator   ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
-       //`
       }
     }
   }
@@ -266,7 +269,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     if(debug)println("Timeout networkSize")
     ReaderACKS = 0
     networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "networkSizeTimeout")
-    for(worker <- Utils.getAllReaderWorkers(managerCount))
+    for(worker <- Utils.getAllReaders(managerCount))
       mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline(),false)
   }
 

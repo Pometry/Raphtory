@@ -1,6 +1,7 @@
 package com.raphtory.core.analysis.Algorithms
 
 import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.analysis.API.GraphRepositoryProxies.WindowProxy
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.{HistoryOrdering, Utils}
 
@@ -29,7 +30,7 @@ class DegreeRanking extends Analyser {
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], viewCompleteTime: Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int,Int,Int,Array[(Int,Int,Int)])]]
     var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val startTime = System.currentTimeMillis()
@@ -40,7 +41,7 @@ class DegreeRanking extends Analyser {
     var bestUserArray = "["
     val bestUsers = endResults.map(x=>x._4).flatten.sortBy(x=> x._3)(sortOrdering).take(20).map(x=> s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""").foreach(x=> bestUserArray+=x+",")
     bestUserArray = if(bestUserArray.length>1) bestUserArray.dropRight(1)+"]" else bestUserArray+"]"
-    val text = s"""{"time":${EntityStorage.newestTime},"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":${bestUserArray},"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
+    val text = s"""{"time":$timeStamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":${bestUserArray},"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
     Utils.writeLines(output_file,text,"{\"views\":[")
     //println(text)
   }

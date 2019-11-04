@@ -41,9 +41,11 @@ class GabExampleSpout extends SpoutTrait {
       message match {
         case "newLine" => {
           if (isSafe()) {
-            var line = fileLines(position)
-            sendCommand(line)
-            position += 1
+            for(i <- 1 to 100){
+              var line = fileLines(position)
+              sendCommand(line)
+              position += 1
+            }
           }
         }
         case "stop" => stop()

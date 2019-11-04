@@ -11,16 +11,16 @@ class EthereumTransactionRouter(val routerId:Int, val initialManagerCount:Int) e
     val components = value.toString.drop(1).dropRight(1).split(",")
     val creationDate = components(3).toLong*1000 //seconds to miliseconds
     val sourceNode = MurmurHash3.stringHash(components(0)) //hash the id to get a vertex ID
-    toPartitionManager(VertexAddWithProperties(routerId, creationDate, sourceNode,properties = Map("id"->components(0))))//create the source node and add the wallet ID as a property
+    toPartitionManager(VertexAddWithProperties(creationDate, sourceNode,properties = Map("id"->components(0))))//create the source node and add the wallet ID as a property
     if(components(1).nonEmpty) { //money being sent to an actual user
       val targetNode = MurmurHash3.stringHash(components(1)) //hash the id of the to wallet to get a vertex ID
-      toPartitionManager(VertexAddWithProperties(routerId, creationDate, targetNode,properties = Map("id"->components(1)))) //create the destination vertex
-      toPartitionManager(EdgeAddWithProperties(routerId, creationDate, sourceNode, targetNode,properties = Map("value"->components(2)))) //create the edge between them adding the value as a property
+      toPartitionManager(VertexAddWithProperties(creationDate, targetNode,properties = Map("id"->components(1)))) //create the destination vertex
+      toPartitionManager(EdgeAddWithProperties( creationDate, sourceNode, targetNode,properties = Map("value"->components(2)))) //create the edge between them adding the value as a property
     }
     else{ //burnt cash
       val targetNode = MurmurHash3.stringHash("null")
-      toPartitionManager(VertexAddWithProperties(routerId, creationDate, targetNode,properties = Map("id"->"null")))
-      toPartitionManager(EdgeAddWithProperties(routerId, creationDate, sourceNode, targetNode,properties = Map("value"->components(2))))
+      toPartitionManager(VertexAddWithProperties(creationDate, targetNode,properties = Map("id"->"null")))
+      toPartitionManager(EdgeAddWithProperties(creationDate, sourceNode, targetNode,properties = Map("value"->components(2))))
     }
 
   }

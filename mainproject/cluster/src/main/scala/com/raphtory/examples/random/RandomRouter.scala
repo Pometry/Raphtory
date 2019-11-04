@@ -45,10 +45,10 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
         properties = properties updated (pair._1, pair._2.toString())
       })
       //send the srcID and properties to the graph manager
-      toPartitionManager(VertexAddWithProperties(routerId,msgTime,srcId,properties))
+      toPartitionManager(VertexAddWithProperties(msgTime,srcId,properties))
     }
     else {
-      toPartitionManager(VertexAdd(routerId,msgTime,srcId))
+      toPartitionManager(VertexAdd(msgTime,srcId))
     } // if there are not any properties, just send the srcID
   }
 
@@ -57,13 +57,13 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    toPartitionManager(VertexUpdateProperties(routerId,msgTime,srcId,properties)) //send the srcID and properties to the graph parition
+    toPartitionManager(VertexUpdateProperties(msgTime,srcId,properties)) //send the srcID and properties to the graph parition
   }
 
   def vertexRemoval(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
-    toPartitionManager(VertexRemoval(routerId,msgTime,srcId))
+    toPartitionManager(VertexRemoval(msgTime,srcId))
   }
 
   def edgeAdd(command:JsObject):Unit = {
@@ -75,9 +75,9 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
       command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
         properties = properties updated (pair._1,pair._2.toString())
       })
-      toPartitionManager(EdgeAddWithProperties(routerId,msgTime,srcId,dstId,properties))
+      toPartitionManager(EdgeAddWithProperties(msgTime,srcId,dstId,properties))
     }
-    else toPartitionManager(EdgeAdd(routerId,msgTime,srcId,dstId))
+    else toPartitionManager(EdgeAdd(msgTime,srcId,dstId))
   }
 
   def edgeUpdateProperties(command:JsObject):Unit={
@@ -86,13 +86,13 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    toPartitionManager(EdgeUpdateProperties(routerId,msgTime,srcId,dstId,properties))//send the srcID, dstID and properties to the graph manager
+    toPartitionManager(EdgeUpdateProperties(msgTime,srcId,dstId,properties))//send the srcID, dstID and properties to the graph manager
   }
 
   def edgeRemoval(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
-    toPartitionManager(EdgeRemoval(routerId,msgTime,srcId,dstId))
+    toPartitionManager(EdgeRemoval(msgTime,srcId,dstId))
   }
 }

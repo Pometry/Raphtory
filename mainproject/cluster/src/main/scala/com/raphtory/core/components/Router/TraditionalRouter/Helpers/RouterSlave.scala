@@ -21,7 +21,7 @@ trait RouterSlave extends Actor {
     case AllocateJob(record) => {parseRecord(record)}
   }
 
-  def toPartitionManager[T <: RaphWriteClass](message:T): Unit = mediator ! DistributedPubSubMediator.Send(getManager(message.srcId, getManagerCount), message , false)
+  def toPartitionManager[T <: RaphWriteClass](message:T): Unit = mediator ! DistributedPubSubMediator.Send(getManager(message.srcID, getManagerCount), message , false)
   private def newPmJoined(newValue : Int) = if (managerCount < newValue) managerCount = newValue
 
 

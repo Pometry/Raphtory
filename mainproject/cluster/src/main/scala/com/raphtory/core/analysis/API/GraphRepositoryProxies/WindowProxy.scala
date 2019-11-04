@@ -10,15 +10,15 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.{ParIterable, ParSet}
 import scala.collection.parallel.mutable.ParTrieMap
 
-class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:WorkerID) extends LiveProxy(jobID,superstep,timestamp,windowSize,workerID) {
+class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:Int,storage:EntityStorage) extends LiveProxy(jobID,superstep,timestamp,windowSize,workerID,storage) {
 
   private var setWindow = windowSize
-  private var keySet:ParTrieMap[Int,Vertex] = EntityStorage.vertices(workerID.ID).filter(v=> v._2.aliveAtWithWindow(timestamp,windowSize))
+  private var keySet:ParTrieMap[Long,Vertex] = storage.vertices.filter(v=> v._2.aliveAtWithWindow(timestamp,windowSize))
   var timeTest = ArrayBuffer[Long]()
   private var TotalKeySize = keySet.size
   override def job() = jobID+timestamp+setWindow
 
-  override def getVerticesSet(): ParTrieMap[Int,Vertex] = keySet
+  override def getVerticesSet(): ParTrieMap[Long,Vertex] = keySet
 
   override def getVertex(v : Vertex)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = {
      new VertexVisitor(v.viewAtWithWindow(timestamp,setWindow),job(),superstep,this,timestamp,setWindow)
@@ -36,6 +36,7 @@ class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, 
 
   override def checkVotes(workerID: Int):Boolean = {
     //println(s"$workerID ${EntityStorage.vertexKeys(workerID).size} $voteCount")
-    TotalKeySize == voteCount
+    false
+    //TotalKeySize == voteCount
   }
 }
