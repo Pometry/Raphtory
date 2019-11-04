@@ -51,6 +51,9 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
   val kamon_akka      = "io.kamon"					 %% "kamon-akka-2.5"		  % "1.0.1"
 	val kamon_system 		= "io.kamon" 					 %% "kamon-system-metrics"% "1.0.0"
   val monix						= "io.monix" 					 %% "monix" 						  % "3.0.0-RC1"
+
+	val doobie 					= "org.tpolecat" 			 %% "doobie-core"      		% "0.8.4"
+  val doobiepostgres  = "org.tpolecat" 			 %% "doobie-postgres"  		% "0.8.4"          // Postgres driver 42.2.8 + type mappings.
 // https://mvnrepository.com/artifact/wf.bitcoin/JavaBitcoindRpcClient
 	val bitcoin 			  = "org.scalaj" %% "scalaj-http" % "2.3.0"
 // https://mvnrepository.com/artifact/com.twitter/util-eval
@@ -120,7 +123,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_dist_data,
 				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
 				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval,casbah,mongo,lift,phantom,
-				apacheLang,kafka,kafkac)
+				apacheLang,kafka,kafkac,doobie,doobiepostgres)
 		)
 	  	.settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
