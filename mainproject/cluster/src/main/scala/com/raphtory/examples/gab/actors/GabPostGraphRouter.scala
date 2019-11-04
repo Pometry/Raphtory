@@ -27,9 +27,9 @@ class GabPostGraphRouter(routerId:Int, override val initialManagerCount:Int) ext
 
     if (targetNode>0) {
       val creationDate = dateToUnixTime(timestamp=fileLine(0).slice(0,19))
-      toPartitionManager(VertexAdd(routerId, creationDate, sourceNode))
-      toPartitionManager(VertexAdd(routerId, creationDate, targetNode))
-      toPartitionManager(EdgeAdd(routerId, creationDate, sourceNode, targetNode))
+      toPartitionManager(VertexAdd(creationDate, sourceNode))
+      toPartitionManager(VertexAdd(creationDate, targetNode))
+      toPartitionManager(EdgeAdd(creationDate, sourceNode, targetNode))
     }
 
   }

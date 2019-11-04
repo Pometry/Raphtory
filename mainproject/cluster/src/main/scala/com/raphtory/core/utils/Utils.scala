@@ -4,7 +4,7 @@ import java.text.SimpleDateFormat
 
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.model.graphentities.{Edge, RemoteEdge, RemotePos}
+import com.raphtory.core.model.graphentities.{Edge, RemoteEdge}
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.lang.StringEscapeUtils
 
@@ -25,6 +25,7 @@ object Utils {
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "false").trim.toBoolean
   val archiving : Boolean =  System.getenv().getOrDefault("ARCHIVING", "false").trim.toBoolean
   var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
+  var local        : Boolean =  System.getenv().getOrDefault("LOCAL", "false").trim.toBoolean
 
   val analyserMap: TrieMap[String, Analyser] = TrieMap[String, Analyser]()
 
@@ -33,17 +34,17 @@ object Utils {
     context.actorSelection(s"akka.tcp://$ip:${config.getString("settings.bport")}/user/WatchDog")
   }
 
-  def getPartition(ID:Int, managerCount : Int):Int = {
-    (ID.abs % (managerCount *10)) /10
+  def getPartition(ID:Long, managerCount : Int):Int = {
+    ((ID.abs % (managerCount *10)) /10).toInt
   }
-  def getWorker(ID:Int, managerCount : Int):Int = {
-    (ID.abs % (managerCount *10)) %10
+  def getWorker(ID:Long, managerCount : Int):Int = {
+    ((ID.abs % (managerCount *10)) %10).toInt
   }
   //get the partition a vertex is stored in
-  def checkDst(dstID:Int, managerCount:Int, managerID:Int):Boolean = getPartition(dstID,managerCount) == managerID //check if destination is also local
-  def checkWorker(dstID:Int, managerCount:Int, workerID:Int):Boolean = getWorker(dstID,managerCount) == workerID //check if destination is also local
+  def checkDst(dstID:Long, managerCount:Int, managerID:Int):Boolean = getPartition(dstID,managerCount) == managerID //check if destination is also local
+  def checkWorker(dstID:Long, managerCount:Int, workerID:Int):Boolean = getWorker(dstID,managerCount) == workerID //check if destination is also local
 
-  def getManager(srcId:Int, managerCount : Int):String = {
+  def getManager(srcId:Long, managerCount : Int):String = {
     val mod = srcId.abs % (managerCount *10)
     val manager = mod /10
     val worker = mod % 10
@@ -72,33 +73,33 @@ object Utils {
         workers += s"/user/Manager_${i}_reader_$j"
     workers.toArray
   }
-    /**
-    * Shifter to get only one Long as Edges indexing
-    * @param srcId
-    * @param dstId
-    * @return
-    */
-  def getEdgeIndex(srcId : Int, dstId : Int): Long = {
-    (srcId.toLong << 32) + dstId
-  }
-
-  /**
-    * Get lowest (32 bit) part of a Binary string representing two Int numbers (used for Edges indexing) - The dstId of a given edgeId
-    * @param index the Long representing the two Int numbers
-    * @return the rightmost 32bit as an Int
-    */
-  def getIndexLO(index : Long) : Int = {
-    ((index << 32) >> 32).toInt
-  }
-
-  /**
-    * Get highest (32 bit) part of a binary string representing two Int number (used for Edges indexing)
-    * @param index
-    * @return the leftmost 32 bit as an Int
-    */
-  def getIndexHI(index : Long) : Int = {
-    (index >> 32).toInt
-  }
+//    /**
+//    * Shifter to get only one Long as Edges indexing
+//    * @param srcId
+//    * @param dstId
+//    * @return
+//    */
+//  def getEdgeIndex(srcId : Int, dstId : Int): Long = {
+//    (srcId.toLong << 32) + dstId
+//  }
+//
+//  /**
+//    * Get lowest (32 bit) part of a Binary string representing two Int numbers (used for Edges indexing) - The dstId of a given edgeId
+//    * @param index the Long representing the two Int numbers
+//    * @return the rightmost 32bit as an Int
+//    */
+//  def getIndexLO(index : Long) : Int = {
+//    ((index << 32) >> 32).toInt
+//  }
+//
+//  /**
+//    * Get highest (32 bit) part of a binary string representing two Int number (used for Edges indexing)
+//    * @param index
+//    * @return the leftmost 32 bit as an Int
+//    */
+//  def getIndexHI(index : Long) : Int = {
+//    (index >> 32).toInt
+//  }
 
 
   def createHistory(history: mutable.TreeMap[Long, Boolean]):String = {

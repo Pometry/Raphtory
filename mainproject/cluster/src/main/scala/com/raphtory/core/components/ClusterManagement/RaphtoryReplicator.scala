@@ -9,6 +9,7 @@ import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
 import com.raphtory.core.components.PartitionManager.{Archivist, Reader, Writer}
 import com.raphtory.core.components.Router.TraditionalRouter.RaphtoryRouter
 import com.raphtory.core.model.communication._
+import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 import scala.collection.parallel.mutable.ParTrieMap
@@ -69,13 +70,15 @@ class RaphtoryReplicator(actorType:String, initialManagerCount:Int, routerName :
     actorType match {
       case "Partition Manager" => {
         var workers: ParTrieMap[Int,ActorRef] = new ParTrieMap[Int,ActorRef]()
+        var storages: ParTrieMap[Int,EntityStorage] = new ParTrieMap[Int,EntityStorage]()
         for(i <- 0 until 10){ //create threads for writing
-          val child = context.system.actorOf(Props(new IngestionWorker(i)).withDispatcher("worker-dispatcher"),s"Manager_${assignedId}_child_$i")
-          workers.put(i,child)
+          val storage = new EntityStorage(i)
+          storages.put(i,storage)
+          workers.put(i,context.system.actorOf(Props(new IngestionWorker(i,storage)).withDispatcher("worker-dispatcher"),s"Manager_${assignedId}_child_$i"))
         }
-        actorRef = context.system.actorOf(Props(new Writer(myId, false, currentCount,workers)).withDispatcher("logging-dispatcher"), s"Manager_$myId")
-        actorRefReader = context.system.actorOf(Props(new Reader(myId, false, currentCount)), s"ManagerReader_$myId")
-        context.system.actorOf(Props(new Archivist(0.3,workers)))
+        actorRef = context.system.actorOf(Props(new Writer(myId, false, currentCount,workers,storages)).withDispatcher("logging-dispatcher"), s"Manager_$myId")
+        actorRefReader = context.system.actorOf(Props(new Reader(myId, false, currentCount,storages)), s"ManagerReader_$myId")
+        context.system.actorOf(Props(new Archivist(0.3,workers,storages)))
       }
 
       case "Router" => {

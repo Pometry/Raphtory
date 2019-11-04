@@ -52,7 +52,7 @@ class RaphtoryRouter(val routerId:Int, val initialManagerCount:Int, slaveType:St
     Kamon.gauge("raphtory.router.countGauge").set(count)
   }
 
-  def toPartitionManager[T <: RaphWriteClass](message:T): Unit = mediator ! DistributedPubSubMediator.Send(getManager(message.srcId, getManagerCount), message , false)
+  def toPartitionManager[T <: RaphWriteClass](message:T): Unit = mediator ! DistributedPubSubMediator.Send(getManager(message.srcID, getManagerCount), message , false)
   private def newPmJoined(newValue : Int) = if (managerCount < newValue) managerCount = newValue
   private def keepAlive()                 = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RouterUp(routerId), false)
   private def tick()                      = {kGauge.refine("actor" -> "Router", "name" -> "count").set(count);count = 0}

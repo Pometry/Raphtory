@@ -18,7 +18,7 @@ import spray.json._
   * @param isInitialValue  Is the first moment this entity is referenced
   */
 
-abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialValue: Boolean) {
+abstract class Entity(val creationTime: Long, isInitialValue: Boolean,storage:EntityStorage) {
 
   // Properties from that entity
   var properties:ParTrieMap[String,Property] = ParTrieMap[String, Property]()
@@ -113,9 +113,9 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
 
   def recordRemoval(entityType:Boolean,workerID:Int) = {
     if(entityType)
-      EntityStorage.vertexHistoryDeletionCount(workerID)+=1
+      storage.vertexHistoryDeletionCount(workerID)+=1
     else
-      EntityStorage.edgeHistoryDeletionCount(workerID)+=1
+      storage.edgeHistoryDeletionCount(workerID)+=1
   }
 
   def archiveOnly(cutoff:Long, entityType:Boolean,workerID:Int): Boolean={ //
@@ -145,7 +145,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   def +(msgTime: Long, key: String, value: String): Unit = {
     properties.get(key) match {
       case Some(v) => v update(msgTime, value)
-      case None => properties.put(key, new Property(msgTime, key, value))
+      case None => properties.put(key, new Property(msgTime, key, value,storage))
     }
   }
 
@@ -161,8 +161,6 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   def beenSaved():Boolean=saved
   def firstSave():Unit = saved =true
 
-  def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter
-  def updateLatestRouter(newRouter:Int):Unit = latestRouter = newRouter
 
   def wipe() = {previousState = mutable.TreeMap()(HistoryOrdering)}
 
@@ -193,7 +191,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   }
 
   def aliveAt(time:Long):Boolean = {
-    if(time < EntityStorage.oldestTime || time < oldestPoint.get)
+    if(time < oldestPoint.get)
       false
     else {
       val closest = closestTime(time)
@@ -202,7 +200,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   }
 
   def aliveAtWithWindow(time:Long,windowSize:Long):Boolean = {
-    if(time < EntityStorage.oldestTime || time < oldestPoint.get)
+    if(time < oldestPoint.get)
       false
     else{
       val closest = closestTime(time)
@@ -213,7 +211,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   }
 
   def aliveAtCache(time:Long):Boolean = {
-    if(time < EntityStorage.oldestTime || time < oldestPoint.get)
+    if( time < oldestPoint.get)
       false
     else if(stateCache contains time)
       previousState(stateCache(time))
@@ -225,7 +223,7 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
   }
 
   def aliveAtWithWindowCache(time:Long,windowSize:Long):Boolean = {
-    if(time < EntityStorage.oldestTime || time < oldestPoint.get)
+    if(time < oldestPoint.get)
       false
     else if(stateCache contains time) {
       val casheVal = stateCache(time)
@@ -241,3 +239,8 @@ abstract class Entity(var latestRouter:Int, val creationTime: Long, isInitialVal
     }
   }
 }
+
+
+
+//def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter
+//def updateLatestRouter(newRouter:Int):Unit = latestRouter = newRouter

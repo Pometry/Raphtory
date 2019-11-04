@@ -11,9 +11,7 @@ import scala.collection.mutable
   * @param key           Property name
   * @param value         Property value
   */
-class Property(creationTime: Long,
-               key: String,
-               value: String) {
+class Property(creationTime: Long, key: String, value: String,storage:EntityStorage) {
   private var saved = false
 
   // Initialize the TreeMap
@@ -68,9 +66,9 @@ class Property(creationTime: Long,
 
   def recordRemoval(entityType:Boolean,workerID:Int) = {
     if(entityType)
-      EntityStorage.vertexPropertyDeletionCount(workerID)+=1
+      storage.vertexPropertyDeletionCount(workerID)+=1
     else
-      EntityStorage.edgePropertyDeletionCount(workerID)+=1
+      storage.edgePropertyDeletionCount(workerID)+=1
   }
 
 

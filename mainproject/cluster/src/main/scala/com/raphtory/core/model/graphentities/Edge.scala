@@ -10,20 +10,15 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Edge object (extended creator for storage loads)
   */
 object Edge {
-  def apply(routerID:Int,workerID:Int,creationTime : Long, edgeId : Long,
-            previousState : mutable.TreeMap[Long, Boolean],
-            properties : ParTrieMap[String, Property]) = {
+  def apply(workerID:Int,creationTime : Long, srcID:Long,dstID:Long, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property],storage:EntityStorage) = {
 
-    val srcId = Utils.getIndexHI(edgeId)
-    val dstId = Utils.getIndexLO(edgeId)
-
-    val e = new Edge(routerID,workerID,creationTime, srcId, dstId, initialValue = true)
+    val e = new Edge(workerID,creationTime, srcID, dstID, initialValue = true,storage )
     e.previousState   = previousState
     e.properties      = properties
     e
   }
 
-  def apply(saved:EdgeHistoryPoint, time:Long) = {
+  def apply(saved:EdgeHistoryPoint, time:Long,storage:EntityStorage) = {
     val src = saved.src
     val dst = saved.dst
     val history = saved.history
@@ -37,16 +32,16 @@ object Edge {
         }
     }
     if(!value){
-      throw EntityRemovedAtTimeException(Utils.getEdgeIndex(src,dst))
+      //throw EntityRemovedAtTimeException()
     }
-    new Edge(-1,-1,closestTime,src,dst,value)
+    new Edge(-1,closestTime,src,dst,value,storage)
   }
 }
 
 /**
   * Created by Mirate on 01/03/2017.
   */
-class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, initialValue: Boolean) extends Entity(routerID,msgTime, initialValue) {
+class Edge(workerID:Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean,storage:EntityStorage) extends Entity(msgTime, initialValue,storage) {
 
 
   def killList(vKills: mutable.TreeMap[Long, Boolean]): Unit = {
@@ -62,9 +57,9 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
     }
   }
 
-  override def getId: Long = Utils.getEdgeIndex(srcId, dstId)
-  def getSrcId : Int = srcId
-  def getDstId : Int = dstId
+  def getId: Long = dstId //todo remove
+  def getSrcId : Long = srcId
+  def getDstId : Long= dstId
   def getWorkerID:Int = workerID
 
 
@@ -74,9 +69,9 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
 
   def viewAt(time:Long):Edge = {
 
-    if(time > EntityStorage.lastCompressedAt){
-      throw StillWithinLiveGraphException(time)
-    }
+//    if(time > EntityStorage.lastCompressedAt){
+//      throw StillWithinLiveGraphException(time)
+//    }
     //if(time < EntityStorage.oldestTime){
     //  throw PushedOutOfGraphException(time)
     //}
@@ -89,9 +84,9 @@ class Edge(routerID:Int, workerID:Int, msgTime: Long, srcId: Int, dstId: Int, in
           value = v
         }
     }
-    if(value==false)
-      throw EntityRemovedAtTimeException(getId)
-    val edge = new Edge(-1,workerID = -1,closestTime,srcId,dstId,value)
+    //if(value==false)
+    //  throw EntityRemovedAtTimeException(getId)
+    val edge = new Edge(-1,closestTime,srcId,dstId,value,storage)
     for((k,p) <- properties) {
       val value = p.valueAt(time)
       if (!(value equals("default")))

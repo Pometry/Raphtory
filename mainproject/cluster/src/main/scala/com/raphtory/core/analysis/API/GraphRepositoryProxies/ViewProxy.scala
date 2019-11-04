@@ -9,12 +9,12 @@ import com.raphtory.core.storage.EntityStorage
 import scala.collection.parallel.{ParIterable, ParSet}
 import scala.collection.parallel.mutable.ParTrieMap
 
-class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:WorkerID) extends LiveProxy(jobID,superstep,timestamp,-1,workerID) {
+class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:Int,storage:EntityStorage) extends LiveProxy(jobID,superstep,timestamp,-1,workerID,storage) {
 
-  private val keySet:ParTrieMap[Int,Vertex] = EntityStorage.vertices(workerID.ID).filter(v=> v._2.aliveAt(timestamp))
+  private val keySet:ParTrieMap[Long,Vertex] = storage.vertices.filter(v=> v._2.aliveAt(timestamp))
   override  def job() = jobID+timestamp
 
-  override def getVerticesSet(): ParTrieMap[Int,Vertex] = keySet
+  override def getVerticesSet(): ParTrieMap[Long,Vertex] = keySet
 
   //override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(keySet(id.toInt).viewAt(timestamp),job(),superstep,this,timestamp,-1)
   override def getVertex(v : Vertex)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = {
@@ -24,6 +24,7 @@ class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:WorkerID) 
 
   override def checkVotes(workerID: Int):Boolean = {
     //println(s"$workerID ${EntityStorage.vertexKeys(workerID).size} $voteCount")
-    keySet.size == voteCount.get
+    false
+    //keySet.size == voteCount.get
   }
 }

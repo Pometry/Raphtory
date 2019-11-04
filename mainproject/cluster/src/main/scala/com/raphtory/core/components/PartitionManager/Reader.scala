@@ -13,7 +13,7 @@ import com.raphtory.core.storage.EntityStorage
 
 import scala.collection.parallel.mutable.ParTrieMap
 
-class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
+class Reader(id : Int, test : Boolean, managerCountVal : Int,storages:ParTrieMap[Int,EntityStorage]) extends Actor {
   implicit var managerCount: Int = managerCountVal
   val managerID: Int = id //ID which refers to the partitions position in the graph manager map
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
@@ -23,13 +23,13 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
 
   var readers: ParTrieMap[Int,ActorRef] = new ParTrieMap[Int,ActorRef]()
   for(i <- 0 until 10){ //create threads for writing
-    val child = context.system.actorOf(Props(new ReaderWorker(managerCount,managerID,i)).withDispatcher("reader-dispatcher"),s"Manager_${id}_reader_$i")
+    val child = context.system.actorOf(Props(new ReaderWorker(managerCount,managerID,i,storages(i))).withDispatcher("reader-dispatcher"),s"Manager_${id}_reader_$i")
     context.watch(child)
     readers.put(i,child)
   }
 
   override def preStart() = {
-   if(debug)println("Starting reader")
+   if(debug)println("Starting reader "+id)
   }
 
   override def receive: Receive = {
@@ -58,10 +58,11 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int) extends Actor {
   }
 
   def timeCheck(timestamp: Long) = {
-    if(timestamp < EntityStorage.newestTime)
-      sender() ! TimeResponse(true,EntityStorage.newestTime)
+    val newest = storages.map(s=> s._2.newestTime).max
+    if(timestamp < newest)
+      sender() ! TimeResponse(true,newest)
     else
-      sender() ! TimeResponse(false,EntityStorage.newestTime)
+      sender() ! TimeResponse(false,newest)
   }
 
   def compileNewAnalyser(analyserString: String, name: String) = {

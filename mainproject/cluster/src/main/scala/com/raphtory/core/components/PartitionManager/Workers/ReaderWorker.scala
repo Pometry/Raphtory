@@ -15,7 +15,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Actor{
+class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:EntityStorage)  extends Actor{
   implicit var managerCount: ManagerCount = ManagerCount(managerCountVal)
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
@@ -34,7 +34,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   def receivedMessage(handler:MessageHandler) = {
     receivedMessages.increment()
-    EntityStorage.vertices(workerId)(handler.vertexID).mutliQueue.receiveMessage(handler)
+    storage.vertices(handler.vertexID).multiQueue.receiveMessage(handler)
   }
 
   def checkMessages() ={
@@ -45,12 +45,9 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
 
   def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) {
     receivedMessages.set(0)
-    //val setProx = System.currentTimeMillis()
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
-    //println(s"$workerId took ${System.currentTimeMillis()-setProx} to setProxy}")
-    //val queueClear = System.currentTimeMillis()
-    EntityStorage.vertices(workerId).foreach(v=> (v._2).mutliQueue.clearQueues(tempProxy.job()))
-    //println(s"$workerId took ${System.currentTimeMillis()-queueClear} to clear queue}")
+
+    //EntityStorage.vertices(workerId).foreach(v=> (v._2).multiQueue.clearQueues(tempProxy.job()))
     analyzer.sysSetup(context,managerCount,tempProxy,workerId)
     if(windowSet.isEmpty) {
       analyzer.setup()
@@ -103,27 +100,27 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int)  extends Acto
     analysisType match {
       case AnalysisType.live => {
         if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,EntityStorage.newestTime,windowSet(0),WorkerID(workerId))
+          tempProxy = new WindowProxy(jobID,superStep,storage.newestTime,windowSet(0),workerId,storage)
         else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,EntityStorage.newestTime,window,WorkerID(workerId))
+          tempProxy = new WindowProxy(jobID,superStep,storage.newestTime,window,workerId,storage)
         else
-          tempProxy = new LiveProxy(jobID,superStep,timestamp,window,WorkerID(workerId))
+          tempProxy = new LiveProxy(jobID,superStep,timestamp,window,workerId,storage)
       }
       case AnalysisType.view  => {
         if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),WorkerID(workerId))
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),workerId,storage)
         else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,WorkerID(workerId))
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,workerId,storage)
         else
-          tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
+          tempProxy = new ViewProxy(jobID,superStep,timestamp,workerId,storage)
       }
       case AnalysisType.range  => {
         if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),WorkerID(workerId))
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),workerId,storage)
         else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,WorkerID(workerId))
+          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,workerId,storage)
         else
-          tempProxy = new ViewProxy(jobID,superStep,timestamp,WorkerID(workerId))
+          tempProxy = new ViewProxy(jobID,superStep,timestamp,workerId,storage)
       }
     }
   }

@@ -6,7 +6,7 @@ import com.raphtory.core.model.communication.AnalysisType
 
 class WindowedViewAnalysisManager(jobID:String,analyser:Analyser,time:Long,window:Long) extends ViewAnalysisManager(jobID:String,analyser,time:Long) {
   override def windowSize(): Long = window
-  override def processResults() = analyser.processWindowResults(result,oldResult,timestamp(),windowSize(),viewCompleteTime)
+  override def processResults(time:Long) = analyser.processWindowResults(result,oldResult,timestamp(),windowSize(),viewCompleteTime)
   override protected def analysisType(): AnalysisType.Value = AnalysisType.view
 
 }

@@ -1,6 +1,7 @@
 package com.raphtory.core.model.communication
 
 import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.model.graphentities.Edge
 import com.raphtory.core.utils.CommandEnum
 
 import scala.collection.mutable
@@ -9,7 +10,7 @@ import scala.collection.mutable
   * Created by Mirate on 30/05/2017.
   */
 sealed trait RaphWriteClass {
-  def srcId:Int
+  def srcID:Long
 }
 
 trait SpoutGoing
@@ -25,34 +26,34 @@ case class ClusterStatusResponse(clusterUp: Boolean)
 case class LiveAnalysis(analyser: Analyser)
 case class Results(result:Object)
 
-case class VertexAdd(routerID:Int,msgTime:Long, override val srcId:Int) extends RaphWriteClass //add a vertex (or add/update a property to an existing vertex)
-case class VertexAddWithProperties(routerID:Int,msgTime:Long, override val srcId:Int, properties: Map[String,String]) extends RaphWriteClass
-case class VertexUpdateProperties(routerID:Int,msgTime:Long,override val srcId:Int, propery:Map[String,String]) extends  RaphWriteClass
-case class VertexRemoval(routerID:Int,msgTime:Long,override val srcId:Int) extends RaphWriteClass
+case class VertexAdd(msgTime:Long, override val srcID:Long) extends RaphWriteClass //add a vertex (or add/update a property to an existing vertex)
+case class VertexAddWithProperties(msgTime:Long, override val srcID:Long, properties: Map[String,String]) extends RaphWriteClass
+case class VertexUpdateProperties(msgTime:Long,override val srcID:Long, propery:Map[String,String]) extends  RaphWriteClass
+case class VertexRemoval(msgTime:Long,override val srcID:Long) extends RaphWriteClass
 
-case class EdgeAdd(routerID:Int,msgTime:Long,srcId:Int,dstId:Int) extends RaphWriteClass
-case class EdgeAddWithProperties(routerID:Int,msgTime:Long, override val srcId:Int,dstId:Int, properties: Map[String,String]) extends RaphWriteClass
-case class EdgeUpdateProperties(routerID:Int,msgTime:Long,override val srcId:Int,dstId:Int,property:Map[String,String]) extends RaphWriteClass
-case class EdgeRemoval(routerID:Int,msgTime:Long,override val srcId:Int,dstID:Int) extends RaphWriteClass
+case class EdgeAdd(msgTime:Long,srcID:Long,dstID:Long) extends RaphWriteClass
+case class EdgeAddWithProperties(msgTime:Long, override val srcID:Long,dstID:Long, properties: Map[String,String]) extends RaphWriteClass
+case class EdgeUpdateProperties(msgTime:Long,override val srcID:Long,dstID:Long,property:Map[String,String]) extends RaphWriteClass
+case class EdgeRemoval(msgTime:Long,override val srcID:Long,dstID:Long) extends RaphWriteClass
 
 case class EdgeUpdateProperty(msgTime : Long, edgeId : Long, key : String, value : String) //for data coming from the LAM
-case class RemoteEdgeUpdateProperties(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String])
-case class RemoteEdgeAdd(routerID:Int,msgTime:Long, srcId:Int, dstId:Int, properties: Map[String,String])
-case class RemoteEdgeRemoval(routerID:Int,msgTime:Long,srcId:Int,dstId:Int)
+case class RemoteEdgeUpdateProperties(msgTime:Long,srcID:Long,dstID:Long,properties:Map[String,String])
+case class RemoteEdgeAdd(msgTime:Long, srcID:Long, dstID:Long, properties: Map[String,String])
+case class RemoteEdgeRemoval(msgTime:Long,srcID:Long,dstID:Long)
 
-case class RemoteEdgeUpdatePropertiesNew(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,properties:Map[String,String],kills:mutable.TreeMap[Long, Boolean])
-case class RemoteEdgeAddNew(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,properties: Map[String,String],kills:mutable.TreeMap[Long, Boolean])
-case class RemoteEdgeRemovalNew(routerID:Int,msgTime:Long,srcId:Int,dstId:Int,kills:mutable.TreeMap[Long, Boolean])
+case class RemoteEdgeUpdatePropertiesNew(msgTime:Long,srcID:Long,dstID:Long,properties:Map[String,String],kills:mutable.TreeMap[Long, Boolean])
+case class RemoteEdgeAddNew(msgTime:Long,srcID:Long,dstID:Long,properties: Map[String,String],kills:mutable.TreeMap[Long, Boolean])
+case class RemoteEdgeRemovalNew(msgTime:Long,srcID:Long,dstID:Long,kills:mutable.TreeMap[Long, Boolean])
 
-case class RemoteReturnDeaths(msgTime:Long,srcId:Int,dstId:Int,kills:mutable.TreeMap[Long, Boolean])
-case class ReturnEdgeRemoval(routerID:Int,msgTime:Long,srcId:Int,dstId:Int)
+case class RemoteReturnDeaths(msgTime:Long,srcID:Long,dstID:Long,kills:mutable.TreeMap[Long, Boolean])
+case class ReturnEdgeRemoval(msgTime:Long,srcID:Long,dstID:Long)
 
 //BLOCK FROM WORKER SYNC
-case class DstAddForOtherWorker(routerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,present:Boolean)
-case class DstWipeForOtherWorker(routerID:Int,msgTime:Long,dstID:Int,srcForEdge:Int,present:Boolean)
-case class DstResponseFromOtherWorker(srcForEdge:Int,dstID:Int,removeList:mutable.TreeMap[Long, Boolean])
-case class EdgeRemoveForOtherWorker(routerID:Int,msgTime:Long,srcID:Int,dstID:Int)
-case class EdgeRemovalAfterArchiving(routerID:Int,msgTime:Long,srcID:Int,dstID:Int)
+case class DstAddForOtherWorker(msgTime:Long,dstID:Long,srcForEdge:Long,edge:Edge,present:Boolean)
+case class DstWipeForOtherWorker(msgTime:Long,dstID:Long,srcForEdge:Long,edge:Edge,present:Boolean)
+case class DstResponseFromOtherWorker(msgTime:Long,srcForEdge:Long,dstID:Long,removeList:mutable.TreeMap[Long, Boolean])
+case class EdgeRemoveForOtherWorker(msgTime:Long,srcID:Long,dstID:Long)
+case class EdgeRemovalAfterArchiving(msgTime:Long,srcID:Long,dstID:Long)
 
 case class UpdatedCounter(newValue : Int)
 case class AssignedId(id : Int)
@@ -62,22 +63,15 @@ case class RequestPartitionCount()
 case class RequestPartitionId()
 case class RequestRouterId()
 
-case class CompressEdges(lastSaved:Long,workerID:Int)
-case class CompressEdge(key:Long,time:Long)
 case class CompressVertices(lastSaved:Long,workerID:Int)
-case class CompressVertex(key:Int,time:Long)
-case class FinishedEdgeCompression(key:Long)
-case class FinishedVertexCompression(key:Int)
+case class CompressVertex(key:Long,time:Long)
+case class FinishedVertexCompression(key:Long)
 
-case class ArchiveEdges(compressTime:Long,archiveTime:Long,workerID:Int)
-case class ArchiveEdge(key:Long,compressTime:Long,archiveTime:Long)
 case class ArchiveVertices(compressTime:Long,archiveTime:Long,workerID:Int)
-case class ArchiveVertex(key:Int,compressTime:Long,archiveTime:Long)
-case class FinishedEdgeArchiving(key:Long)
-case class FinishedVertexArchiving(key:Int)
+case class ArchiveVertex(key:Long,compressTime:Long,archiveTime:Long)
+case class ArchiveOnlyVertex(key:Long,archiveTime:Long)
+case class FinishedVertexArchiving(key:Long)
 
-case class ArchiveOnlyEdge(key:Long,archiveTime:Long)
-case class ArchiveOnlyVertex(key:Int,archiveTime:Long)
 
 case class SetupSlave(children:Int)
 

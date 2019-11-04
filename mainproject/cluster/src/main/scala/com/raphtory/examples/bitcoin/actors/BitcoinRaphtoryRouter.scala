@@ -40,25 +40,12 @@ class BitcoinRaphtoryRouter(val routerId:Int,val initialManagerCount:Int) extend
 
       //println(s"Edge $timeAsLong, ${txid.hashCode}, ${address.hashCode}, $n, $value")
       //creates vertex for the receiving wallet
-      toPartitionManager(VertexAddWithProperties(
-                          routerId,
-                          msgTime = timeAsLong,
-                          srcId = address.hashCode,
-                          properties = Map[String,String](("type","address"),("address",address))))
+      toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = address.hashCode, properties = Map[String,String](("type","address"),("address",address))))
       //creates edge between the transaction and the wallet
-      toPartitionManager(EdgeAddWithProperties(
-                          routerId,
-                          msgTime = timeAsLong,
-                          srcId = txid.hashCode,
-                          dstId = address.hashCode,
-                          properties = Map[String,String](("n",n),("value",value))))
+      toPartitionManager(EdgeAddWithProperties( msgTime = timeAsLong, srcID = txid.hashCode, dstID = address.hashCode, properties = Map[String,String](("n",n),("value",value))))
 
     }
-    toPartitionManager(VertexAddWithProperties(
-                        routerId,
-                        msgTime = timeAsLong,
-                        srcId = txid.hashCode,
-                        properties = Map[String,String](
+    toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = txid.hashCode, properties = Map[String,String](
                               ("type","transaction"),
                               ("time",timeAsString),
                               ("id",txid),
@@ -68,18 +55,10 @@ class BitcoinRaphtoryRouter(val routerId:Int,val initialManagerCount:Int) extend
 
     if(vins.toString().contains("coinbase")){
       //creates the coingen node //TODO change so only added once
-      toPartitionManager(VertexAddWithProperties(
-        routerId,
-        msgTime = timeAsLong,
-        srcId = "coingen".hashCode,
-        properties = Map[String,String](("type","coingen"))))
+      toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = "coingen".hashCode, properties = Map[String,String](("type","coingen"))))
 
       //creates edge between coingen and the transaction
-      toPartitionManager(EdgeAdd(
-        routerId,
-        msgTime = timeAsLong,
-        srcId = "coingen".hashCode,
-        dstId = txid.hashCode))
+      toPartitionManager(EdgeAdd(msgTime = timeAsLong, srcID = "coingen".hashCode, dstID = txid.hashCode))
     }
     else{
       for(vin <- vins.asInstanceOf[JsArray].elements){
@@ -88,12 +67,7 @@ class BitcoinRaphtoryRouter(val routerId:Int,val initialManagerCount:Int) extend
         val prevtxid = vinOBJ.fields("txid").toString
         //no need to create node for prevtxid as should already exist
         //creates edge between the prev transaction and current transaction
-        toPartitionManager(EdgeAddWithProperties(
-                            routerId,
-                            msgTime = timeAsLong,
-                            srcId = prevtxid.hashCode,
-                            dstId = txid.hashCode,
-                            properties = Map[String,String](("vout",prevVout))))
+        toPartitionManager(EdgeAddWithProperties(msgTime = timeAsLong, srcID = prevtxid.hashCode, dstID = txid.hashCode, properties = Map[String,String](("vout",prevVout))))
         }
     }
   }
