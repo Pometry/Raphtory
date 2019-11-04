@@ -70,7 +70,7 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
     * COMPRESSION SECTION                    *
     * ***********************************************************/
 //TODO compress into one function
-  def compressVertex(key: Int, now: Long) = {
+  def compressVertex(key: Long, now: Long) = {
     storage.vertices.get(key) match {
       case Some(vertex) => {
         saveVertex(vertex, now)
@@ -81,7 +81,7 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
     sender() ! FinishedVertexCompression(key)
   }
 
-  def archiveVertex(key: Int, compressTime: Long, archiveTime: Long) = {
+  def archiveVertex(key: Long, compressTime: Long, archiveTime: Long) = {
     storage.vertices.get(key) match {
       case Some(vertex) => {
         saveVertex(vertex, compressTime)
@@ -96,7 +96,7 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
     sender() ! FinishedVertexArchiving(key)
   }
 
-  def archiveOnlyVertex(key: Int, archiveTime: Long) = {
+  def archiveOnlyVertex(key: Long, archiveTime: Long) = {
     storage.vertices.get(key) match {
       case Some(vertex) => {
         if (vertex.archiveOnly(archiveTime, true, workerID)) {

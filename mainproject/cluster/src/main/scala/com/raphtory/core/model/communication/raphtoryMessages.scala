@@ -64,13 +64,13 @@ case class RequestPartitionId()
 case class RequestRouterId()
 
 case class CompressVertices(lastSaved:Long,workerID:Int)
-case class CompressVertex(key:Int,time:Long)
-case class FinishedVertexCompression(key:Int)
+case class CompressVertex(key:Long,time:Long)
+case class FinishedVertexCompression(key:Long)
 
 case class ArchiveVertices(compressTime:Long,archiveTime:Long,workerID:Int)
-case class ArchiveVertex(key:Int,compressTime:Long,archiveTime:Long)
-case class ArchiveOnlyVertex(key:Int,archiveTime:Long)
-case class FinishedVertexArchiving(key:Int)
+case class ArchiveVertex(key:Long,compressTime:Long,archiveTime:Long)
+case class ArchiveOnlyVertex(key:Long,archiveTime:Long)
+case class FinishedVertexArchiving(key:Long)
 
 
 case class SetupSlave(children:Int)

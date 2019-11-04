@@ -41,7 +41,7 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef],storages:ParTrieMap[Int,E
       })
   }
 
-  def finishedVertexCompression(key:Int)={
+  def finishedVertexCompression(key:Long)={
     finishedCompressions+=1
     if(startedCompressions==finishedCompressions) {
       context.parent ! FinishedVertexCompression(startedCompressions)
@@ -50,7 +50,7 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef],storages:ParTrieMap[Int,E
     }
   }
 
-  def finishedVertexArchiving(ID:Int)={
+  def finishedVertexArchiving(ID:Long)={
     finishedArchiving+=1
     if(startedArchiving==finishedArchiving){
       context.parent ! FinishedVertexArchiving(startedArchiving)

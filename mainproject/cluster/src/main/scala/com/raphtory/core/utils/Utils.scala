@@ -4,7 +4,7 @@ import java.text.SimpleDateFormat
 
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.model.graphentities.{Edge, RemoteEdge, RemotePos}
+import com.raphtory.core.model.graphentities.{Edge, RemoteEdge}
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.lang.StringEscapeUtils
 
