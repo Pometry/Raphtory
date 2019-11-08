@@ -52,6 +52,26 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
       case None => None
     }
 
+  private def getEdgePropertyValuesAfterTime(edge:Edge,key : String,time:Long,window:Long) : Option[mutable.TreeMap[Long,String]] = {
+    if (window == -1L)
+      edge.properties.get(key) match {
+        case Some(p) => Some(p.previousState.filter(x => x._1 <= time))
+        case None => None
+      }
+    else
+      edge.properties.get(key) match {
+        case Some(p) => Some(p.previousState.filter(x => x._1 <= time && time - x._1 <= window))
+        case None => None
+      }
+  }
+
+  def getOutgoingEdgePropertyValues(key : String) = {
+    v.outgoingEdges.map(e => getEdgePropertyValuesAfterTime(e._2,key,timestamp,window).get.values)
+  }
+  def getIncomingEdgePropertyValues(key : String) = {
+    v.incomingEdges.map(e => getEdgePropertyValuesAfterTime(e._2,key,timestamp,window).get.values)
+  }
+
   def setCompValue(key:String,value:Any):Unit = {
     val realkey = key+timestamp+window
     v.addCompValue(realkey,value)
