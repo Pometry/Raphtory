@@ -41,7 +41,7 @@ object SingleNodeTest extends App {
   Thread.sleep(30000)
   println("starting")
   //val start = 1476113850000L
- val start = 1475794800000L
+ val start = 1474326000000L
   //val end = 1476113855000L
  val end = 1525368897000L
   val jump =    86400000
