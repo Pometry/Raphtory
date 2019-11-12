@@ -73,34 +73,6 @@ object Utils {
         workers += s"/user/Manager_${i}_reader_$j"
     workers.toArray
   }
-//    /**
-//    * Shifter to get only one Long as Edges indexing
-//    * @param srcId
-//    * @param dstId
-//    * @return
-//    */
-//  def getEdgeIndex(srcId : Int, dstId : Int): Long = {
-//    (srcId.toLong << 32) + dstId
-//  }
-//
-//  /**
-//    * Get lowest (32 bit) part of a Binary string representing two Int numbers (used for Edges indexing) - The dstId of a given edgeId
-//    * @param index the Long representing the two Int numbers
-//    * @return the rightmost 32bit as an Int
-//    */
-//  def getIndexLO(index : Long) : Int = {
-//    ((index << 32) >> 32).toInt
-//  }
-//
-//  /**
-//    * Get highest (32 bit) part of a binary string representing two Int number (used for Edges indexing)
-//    * @param index
-//    * @return the leftmost 32 bit as an Int
-//    */
-//  def getIndexHI(index : Long) : Int = {
-//    (index >> 32).toInt
-//  }
-
 
   def createHistory(history: mutable.TreeMap[Long, Boolean]):String = {
     if(history.size==0){
@@ -127,27 +99,6 @@ object Utils {
   def nowTimeStamp()= new SimpleDateFormat("dd-MM hh:mm:ss").format(System.currentTimeMillis())
   def unixToTimeStamp(unixTime:Long) = new SimpleDateFormat("dd-MM hh:mm:ss").format(unixTime)
 
-
-
-  def serialise(value: Any): String = {
-    val stream: ByteArrayOutputStream = new ByteArrayOutputStream()
-    val oos = new ObjectOutputStream(stream)
-    oos.writeObject(value)
-    oos.close
-    new String(
-      Base64.getEncoder().encode(stream.toByteArray),
-      UTF_8
-    )
-  }
-
-  def deserialise(str: String): Any = {
-    val bytes = Base64.getDecoder().decode(str.getBytes(UTF_8))
-    val ois = new ObjectInputStream(new ByteArrayInputStream(bytes))
-    val value = ois.readObject
-    ois.close
-    value
-  }
-
   def writeLines(fileName: String , line: String,header:String) : Unit = {
     val f = new File(fileName)
     if(!f.exists()) {
@@ -173,7 +124,6 @@ object Utils {
   def windowOutut(outputFile:String,windowSize: Long) = {
     outputFile.substring(0,outputFile.length-4)+(windowSize/3600000)+".csv"
   }
-
 
 
    object resultNumeric extends Numeric[(Long, Double)] {
