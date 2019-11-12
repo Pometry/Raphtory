@@ -3,6 +3,7 @@ package com.raphtory.core.analysis.API.GraphRepositoryProxies
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.VertexVisitor
 import com.raphtory.core.analysis.API.{ManagerCount, WorkerID}
+import com.raphtory.core.model.communication.{MessageHandler, VertexMessage}
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 import monix.execution.atomic.AtomicInt
@@ -18,7 +19,9 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
 
   def getVerticesSet(): ParTrieMap[Long,Vertex] = storage.vertices
 
-  def recordMessage() = messages.increment()
+  def getVerticesWithMessages(): ParTrieMap[Long,Vertex] = storage.vertices.filter{case (id:Long,vertex:Vertex) => vertex.multiQueue.getMessageQueue(job(),superstep).nonEmpty}
+
+  def recordMessage(message:MessageHandler) = messages.increment()
 
   def getMessages() = messages.get
 
@@ -33,9 +36,8 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
   def vertexVoted() = voteCount.increment()
 
   def checkVotes(workerID: Int):Boolean = {
-    //println(s"$workerID ${EntityStorage.vertexKeys(workerID).size} $voteCount")
-    false
-    //storage.vertices.size == voteCount.get
+    //
+   storage.vertices.size == voteCount.get
   }
 
   //HERE BE DRAGONS please ignore

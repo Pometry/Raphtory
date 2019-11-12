@@ -82,7 +82,7 @@ sealed trait RaphReadClasses
 
 abstract class VertexMessage extends java.io.Serializable
 
-case class MessageHandler(vertexID:Int,jobID:String,superStep:Int,message: VertexMessage)
+case class MessageHandler(source:Long,vertexID:Long,jobID:String,superStep:Int,message: VertexMessage)
 
 case class Setup(analyzer : Analyser,jobID:String,superStep:Int, timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) extends RaphReadClasses
 case class Ready(messages:Int) extends RaphReadClasses

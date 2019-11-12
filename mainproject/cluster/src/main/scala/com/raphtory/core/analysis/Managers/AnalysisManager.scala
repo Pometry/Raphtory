@@ -62,6 +62,14 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     totalTime
   }
 
+  private var timetakenpersuperstep = System.currentTimeMillis()
+  def stepCompleteTime():Long = {
+    val newTime = System.currentTimeMillis()
+    val totalTime = newTime-timetakenpersuperstep
+    timetakenpersuperstep=newTime
+    totalTime
+  }
+
   protected var steps  : Long= 0L // number of supersteps before returning
   def timestamp(): Long = -1L //for view
   def windowSize(): Long = -1L //for windowing
@@ -69,7 +77,6 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
 
 
   private def processOtherMessages(value : Any) : Unit = {println ("Not handled message" + value.toString)}
-  //todo make this the same as single node test
   protected def generateAnalyzer : Analyser = if(local)Class.forName(analyser.getClass.getCanonicalName).newInstance().asInstanceOf[Analyser] else analyser
   protected def analyserName:String = generateAnalyzer.getClass.getName
   protected final def getManagerCount : Int = managerCount
@@ -117,7 +124,11 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     case _ => processOtherMessages(_) //incase some random stuff comes through
   }
 
-  protected def checkClusterSize: Unit = mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
+  protected def checkClusterSize: Unit = {
+    viewCompleteTime()
+    stepCompleteTime()
+    mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
+  }
 
   def watchdogResponse(newValue: Int)= {
     managerCount = newValue
@@ -152,6 +163,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
       TimeOKFlag =false
     TimeOKACKS +=1
     if(TimeOKACKS==getManagerCount) {
+      stepCompleteTime() //reset step counter
       if (TimeOKFlag)
         for (worker <- Utils.getAllReaderWorkers(managerCount))
           mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep,timestamp,analysisType(),windowSize(),windowSet()), false)
@@ -175,6 +187,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     totalSentMessages += messages
     if(debug)println(s"$workersFinishedSetup / ${getWorkerCount}")
     if (workersFinishedSetup == getWorkerCount) {
+      //println(s"Setup complete in ${stepCompleteTime()}")
       workersFinishedSetup = 0
       syncMessages()
     }
@@ -187,6 +200,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     if (!voteToHalt) this.voteToHalt = false
     if(debug)println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
     if (workersFinishedSuperStep == getWorkerCount) {
+      //println(s"Step $currentSuperStep complete in ${stepCompleteTime()}")
       if (currentSuperStep == steps || analyser.checkProcessEnd(results,oldResults) || this.voteToHalt) {
         processResults(timestamp())
         results = mutable.ArrayBuffer[Any]()
@@ -234,7 +248,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     //if(real != receivedMessages)
     // println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
     if(messageLogACKS == getWorkerCount) {
-      if(totalReceivedMessages!=totalSentMessages)
+        if(totalReceivedMessages!=totalSentMessages)
         println(s"superstep $currentSuperStep workerID: $workerID -- $receivedMessages/$sentMessages $totalReceivedMessages/$totalSentMessages")
       messageLogACKS =0
       if(totalReceivedMessages == totalSentMessages){
