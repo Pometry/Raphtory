@@ -10,9 +10,7 @@ import scala.collection.concurrent.TrieMap
 class SeedActor(svr:DocSvr) extends Actor {
   val cluster = Cluster(context.system)
 
-  val clusterMap : TrieMap[Set[String], Int] = TrieMap()
-
-  // subscribe to cluster events
+ // subscribe to cluster events
   override def preStart() : Unit = {
     println("== Starting cluster listener 2 ==")
     cluster.subscribe(self, initialStateMode = InitialStateAsEvents, classOf[MemberEvent], classOf[UnreachableMember])
