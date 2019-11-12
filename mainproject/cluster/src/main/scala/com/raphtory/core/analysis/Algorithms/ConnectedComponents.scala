@@ -38,10 +38,10 @@ class ConnectedComponents extends Analyser {
         vertex messageAllNeighbours ClusterLabel(label)
         currentLabel = label
       }
-      //else {
+      else {
       //vertex messageAllNeighbours (ClusterLabel(currentLabel))
-      //  vertex.voteToHalt()
-      //}
+        vertex.voteToHalt()
+      }
       //if (currentLabel == vert._1)
         //println(s"${vert._1} ${vertex.getIngoingNeighbors.values} ${vertex.getOutgoingNeighbors.values}")
       currentLabel
@@ -147,7 +147,7 @@ class ConnectedComponents extends Analyser {
 
   }
 
-  override def defineMaxSteps(): Int = 10
+  override def defineMaxSteps(): Int = 100
   override def checkProcessEnd(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any]) : Boolean = {false
     // move to LAM partitionsHalting()
   }

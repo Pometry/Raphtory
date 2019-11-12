@@ -51,7 +51,7 @@ object Utils {
     s"/user/Manager_${manager}_child_$worker"
   }
 
-  def getReader(srcId:Int, managerCount : Int):String = {
+  def getReader(srcId:Long, managerCount : Int):String = {
     val mod = srcId.abs % (managerCount *10)
     val manager = mod /10
     val worker = mod % 10

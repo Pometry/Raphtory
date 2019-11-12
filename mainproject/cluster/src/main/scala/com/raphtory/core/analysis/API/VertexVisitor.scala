@@ -85,9 +85,9 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
     v.getOrSet(realkey,value)
   }
 
-  def messageNeighbour(vertexID : Int, message:VertexMessage) : Unit = {
-    proxy.recordMessage()
-    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(vertexID,jobID,superStep,message),false)
+  def messageNeighbour(vertexID : Long, message:VertexMessage) : Unit = {
+    proxy.recordMessage(MessageHandler(v.getId,vertexID,jobID,superStep,message))
+    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(v.getId,vertexID,jobID,superStep,message),false)
   }
 
   def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
