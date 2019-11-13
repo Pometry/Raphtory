@@ -58,6 +58,12 @@ object Utils {
 
     s"/user/Manager_${manager}_reader_$worker"
   }
+  def getReaderInt(srcId:Long, managerCount : Int):(Long,Long) = {
+    val mod = srcId.abs % (managerCount *10)
+    val manager = mod /10
+    val worker = mod % 10
+    (manager,worker)
+  }
 
   def getAllReaders(managerCount:Int):Array[String] = {
     val workers = mutable.ArrayBuffer[String]()

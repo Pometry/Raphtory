@@ -1,5 +1,7 @@
 package com.raphtory.core.model.communication
 
+import java.util.concurrent.ConcurrentHashMap
+
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.model.graphentities.Edge
 import com.raphtory.core.utils.CommandEnum
@@ -85,6 +87,8 @@ case class VertexMessageString(source:Long,vertexID:Long,jobID:String,superStep:
 case class VertexMessageLong(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Long) extends VertexMessage
 case class VertexMessageInt(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Int) extends VertexMessage
 case class VertexMessageFloat(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Float) extends VertexMessage
+case class VertexMessageBatch(jobID:String,superStep:Int,data:ConcurrentHashMap.KeySetView[(Long,Long,Any),java.lang.Boolean]) extends VertexMessage
+
 
 case class Setup(analyzer : Analyser,jobID:String,superStep:Int, timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) extends RaphReadClasses
 case class Ready(messages:Int) extends RaphReadClasses

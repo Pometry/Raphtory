@@ -87,9 +87,9 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
 
   //Send String
   def messageNeighbour(vertexID : Long, data:String) : Unit = {
-    val message = VertexMessageString(v.getId,vertexID,jobID,superStep,data)
-    proxy.recordMessage(message)
-    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
+    //val message = VertexMessageString(v.getId,vertexID,jobID,superStep,data)
+    proxy.recordMessage(v.getId,vertexID,data)
+    //mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
   }
   def messageAllOutgoingNeighbors(message: String) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
   def messageAllNeighbours(message:String) = v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt,message))
@@ -97,9 +97,9 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
 
   //Send Long
   def messageNeighbour(vertexID : Long, data:Long) : Unit = {
-    val message = VertexMessageLong(v.getId,vertexID,jobID,superStep,data)
-    proxy.recordMessage(message)
-    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
+    //val message = VertexMessageLong(v.getId,vertexID,jobID,superStep,data)
+    proxy.recordMessage(v.getId,vertexID,data)
+    //mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
   }
   def messageAllOutgoingNeighbors(message: Long) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
   def messageAllNeighbours(message:Long) = v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt,message))
@@ -107,9 +107,9 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
 
   //send int
   def messageNeighbour(vertexID : Long, data:Int) : Unit = {
-    val message = VertexMessageInt(v.getId,vertexID,jobID,superStep,data)
-    proxy.recordMessage(message)
-    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
+    //val message = VertexMessageInt(v.getId,vertexID,jobID,superStep,data)
+    proxy.recordMessage(v.getId,vertexID,data)
+    //mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
   }
   def messageAllOutgoingNeighbors(message: Int) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
   def messageAllNeighbours(message:Int) = v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt,message))
@@ -117,9 +117,9 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
 
   //send float
   def messageNeighbour(vertexID : Long, data:Float) : Unit = {
-    val message = VertexMessageFloat(v.getId,vertexID,jobID,superStep,data)
-    proxy.recordMessage(message)
-    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
+    //val message = VertexMessageFloat(v.getId,vertexID,jobID,superStep,data)
+    proxy.recordMessage(v.getId,vertexID,data)
+    //mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
   }
   def messageAllOutgoingNeighbors(message: Float) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
   def messageAllNeighbours(message:Float) = v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt,message))
