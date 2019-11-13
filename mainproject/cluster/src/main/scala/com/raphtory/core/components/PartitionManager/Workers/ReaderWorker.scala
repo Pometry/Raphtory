@@ -29,12 +29,16 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
     case CheckMessages(superstep) => checkMessages()
     case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => e.printStackTrace()}
     case NextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet)
-    case handler:MessageHandler => receivedMessage(handler)
+    //case handler:VertexMessage => receivedMessage(handler)
+    case VertexMessageFloat(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Float) => receivedMessage(vertexID,jobID,superStep,data)
+    case VertexMessageString(source:Long,vertexID:Long,jobID:String,superStep:Int,data:String) => receivedMessage(vertexID,jobID,superStep,data)
+    case VertexMessageInt(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Int) => receivedMessage(vertexID,jobID,superStep,data)
+    case VertexMessageLong(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Long) => receivedMessage(vertexID,jobID,superStep,data)
   }
 
-  def receivedMessage(handler:MessageHandler) = {
+  def receivedMessage(vertexID:Long,jobID:String,superStep:Int,data:Any) = {
     receivedMessages.increment()
-    storage.vertices(handler.vertexID).multiQueue.receiveMessage(handler)
+    storage.vertices(vertexID).multiQueue.receiveMessage(jobID,superStep,data)
   }
 
   def checkMessages() ={

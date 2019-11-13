@@ -16,7 +16,6 @@ class PageRank extends Analyser {
   private val defaultPR          = (1F)          // Initial PR for t = 0
   private val defaultOC          = "1"                                // Default outgoing links counter to be used as divisor
   //private val constantPRop       = (1 - dumplingFactor) / networkSize // Constant to be added for each iteration in the PR
-  case class PageRankScore(value:Float) extends VertexMessage
 
   private def getPageRankStr(srcId : Int, dstId : Int) : String = s"${prStr}_${srcId}_$dstId"
 
@@ -24,7 +23,7 @@ class PageRank extends Analyser {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v._2)
       val toSend = vertex.getOrSetCompValue(prStr, defaultPR).asInstanceOf[Float]
-      vertex.messageAllOutgoingNeighbors(PageRankScore(toSend))
+      vertex.messageAllOutgoingNeighbors(toSend)
     })
   }
 
@@ -38,7 +37,7 @@ class PageRank extends Analyser {
 
       val newPR:Float = neighbourScores/math.max(vertex.getOutgoingNeighbors.size,1)
       vertex.setCompValue(prStr, newPR)
-      vertex messageAllOutgoingNeighbors(PageRankScore(newPR))
+      vertex messageAllOutgoingNeighbors(newPR)
       results +:= (v._1.toLong, newPR)
     })
     if (results.size > 5) {
