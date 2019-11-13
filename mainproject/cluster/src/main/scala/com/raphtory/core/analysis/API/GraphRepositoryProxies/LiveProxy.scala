@@ -3,7 +3,7 @@ package com.raphtory.core.analysis.API.GraphRepositoryProxies
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.VertexVisitor
 import com.raphtory.core.analysis.API.{ManagerCount, WorkerID}
-import com.raphtory.core.model.communication.{MessageHandler, VertexMessage}
+import com.raphtory.core.model.communication.VertexMessage
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 import monix.execution.atomic.AtomicInt
@@ -21,7 +21,7 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
 
   def getVerticesWithMessages(): ParTrieMap[Long,Vertex] = storage.vertices.filter{case (id:Long,vertex:Vertex) => vertex.multiQueue.getMessageQueue(job(),superstep).nonEmpty}
 
-  def recordMessage(message:MessageHandler) = messages.increment()
+  def recordMessage(message:VertexMessage) = messages.increment()
 
   def getMessages() = messages.get
 

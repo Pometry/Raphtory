@@ -7,7 +7,6 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
-case class ClusterLabel(value: Long) extends VertexMessage
 class ConnectedComponents extends Analyser {
 
 
@@ -17,7 +16,7 @@ class ConnectedComponents extends Analyser {
       val vertex = proxy.getVertex(v._2)
       //math.min(v, vertex.getOutgoingNeighbors.union(vertex.getIngoingNeighbors).min)
       val toSend = vertex.getOrSetCompValue("cclabel", min).asInstanceOf[Long]
-      vertex.messageAllNeighbours(ClusterLabel(toSend))
+      vertex.messageAllNeighbours(toSend)
     })
   }
 
@@ -27,7 +26,7 @@ class ConnectedComponents extends Analyser {
       var label = vert._1
       val vertex = proxy.getVertex(vert._2)
 
-      val queue = vertex.messageQueue.map(_.asInstanceOf[ClusterLabel].value)
+      val queue = vertex.messageQueue.map(_.asInstanceOf[Long])
       if (queue.nonEmpty) {
         label = queue.min
         vertex.clearQueue
@@ -35,7 +34,7 @@ class ConnectedComponents extends Analyser {
       var currentLabel = vertex.getOrSetCompValue("cclabel", label).asInstanceOf[Long]
       if (label < currentLabel) {
         vertex.setCompValue("cclabel", label)
-        vertex messageAllNeighbours ClusterLabel(label)
+        vertex messageAllNeighbours label
         currentLabel = label
       }
       else {

@@ -3,7 +3,7 @@ package com.raphtory.core.analysis.API
 import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.analysis.API.GraphRepositoryProxies.LiveProxy
-import com.raphtory.core.model.communication.{MessageHandler, VertexMessage}
+import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
@@ -85,16 +85,49 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
     v.getOrSet(realkey,value)
   }
 
-  def messageNeighbour(vertexID : Long, message:VertexMessage) : Unit = {
-    proxy.recordMessage(MessageHandler(v.getId,vertexID,jobID,superStep,message))
-    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),MessageHandler(v.getId,vertexID,jobID,superStep,message),false)
+  //Send String
+  def messageNeighbour(vertexID : Long, data:String) : Unit = {
+    val message = VertexMessageString(v.getId,vertexID,jobID,superStep,data)
+    proxy.recordMessage(message)
+    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
   }
+  def messageAllOutgoingNeighbors(message: String) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
+  def messageAllNeighbours(message:String) = v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt,message))
+  def messageAllIngoingNeighbors(message: String) : Unit = v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
 
-  def messageAllOutgoingNeighbors(message: VertexMessage) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
+  //Send Long
+  def messageNeighbour(vertexID : Long, data:Long) : Unit = {
+    val message = VertexMessageLong(v.getId,vertexID,jobID,superStep,data)
+    proxy.recordMessage(message)
+    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
+  }
+  def messageAllOutgoingNeighbors(message: Long) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
+  def messageAllNeighbours(message:Long) = v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt,message))
+  def messageAllIngoingNeighbors(message: Long) : Unit = v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
 
-  def messageAllNeighbours(message:VertexMessage) = v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt,message))
+  //send int
+  def messageNeighbour(vertexID : Long, data:Int) : Unit = {
+    val message = VertexMessageInt(v.getId,vertexID,jobID,superStep,data)
+    proxy.recordMessage(message)
+    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
+  }
+  def messageAllOutgoingNeighbors(message: Int) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
+  def messageAllNeighbours(message:Int) = v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt,message))
+  def messageAllIngoingNeighbors(message: Int) : Unit = v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
 
-  def messageAllIngoingNeighbors(message: VertexMessage) : Unit = v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
+  //send float
+  def messageNeighbour(vertexID : Long, data:Float) : Unit = {
+    val message = VertexMessageFloat(v.getId,vertexID,jobID,superStep,data)
+    proxy.recordMessage(message)
+    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count),message,false)
+  }
+  def messageAllOutgoingNeighbors(message: Float) : Unit = v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
+  def messageAllNeighbours(message:Float) = v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt,message))
+  def messageAllIngoingNeighbors(message: Float) : Unit = v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt,message))
+
+
+
+
 
   def moreMessages():Boolean = messageQueue.nonEmpty
 
