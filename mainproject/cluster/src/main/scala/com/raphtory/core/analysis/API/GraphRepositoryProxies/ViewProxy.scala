@@ -9,7 +9,7 @@ import com.raphtory.core.storage.EntityStorage
 import scala.collection.parallel.{ParIterable, ParSet}
 import scala.collection.parallel.mutable.ParTrieMap
 
-class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:Int,storage:EntityStorage) extends LiveProxy(jobID,superstep,timestamp,-1,workerID,storage) {
+class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:Int,storage:EntityStorage,managerCount:ManagerCount) extends LiveProxy(jobID,superstep,timestamp,-1,workerID,storage,managerCount) {
 
   override  def job() = jobID+timestamp
   private var keySet:ParTrieMap[Long,Vertex] = storage.vertices.filter(v=> v._2.aliveAt(timestamp))
