@@ -56,7 +56,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
     analyzer.sysSetup(context,managerCount,tempProxy,workerId)
     if(windowSet.isEmpty) {
       analyzer.setup()
-      tempProxy.messageQueues.foreach(q =>  mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false))
+      //tempProxy.messageQueues.foreach(q =>  mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false))
       sender() ! Ready(tempProxy.getMessages())
     }
     else{
@@ -68,10 +68,8 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
         analyzer.setup()
         currentWindow +=1
       }
-      tempProxy.messageQueues.foreach(q =>  {
-        println(q._1)
-        mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false)
-      })
+      //tempProxy.messageQueues.foreach(q =>  mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false))
+
       sender() ! Ready(tempProxy.getMessages())
     }
   }
@@ -84,7 +82,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
     analyzer.sysSetup(context,managerCount,tempProxy,workerId)
     if(windowSet.isEmpty) {
       val value = analyzer.analyse()
-      tempProxy.messageQueues.foreach(q =>  mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false))
+      //tempProxy.messageQueues.foreach(q =>  mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false))
       sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
     }
     else{
@@ -98,7 +96,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
           tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(i))
           individualResults += analyzer.analyse()
         }
-      tempProxy.messageQueues.foreach(q =>  mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false))
+      //tempProxy.messageQueues.foreach(q =>  mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false))
       sender() ! EndStep(individualResults,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
       }
 
