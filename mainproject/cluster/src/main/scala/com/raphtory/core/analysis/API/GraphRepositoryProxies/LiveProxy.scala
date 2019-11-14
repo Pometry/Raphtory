@@ -16,10 +16,8 @@ import scala.collection.parallel.{ParIterable, ParSet, mutable}
 
 class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,workerID: Int,storage:EntityStorage,managerCount: ManagerCount) {
   private var messages = AtomicInt(0)
-  val messageQueues:ParTrieMap[String,ConcurrentHashMap.KeySetView[(Long,Long,Any),java.lang.Boolean]] = ParTrieMap[String,ConcurrentHashMap.KeySetView[(Long,Long,Any),java.lang.Boolean]]()
-  for (i <- 0 until managerCount.count)
-    for(j <- 0 until 10)
-      messageQueues put (s"/user/Manager_${i}_reader_$j",java.util.concurrent.ConcurrentHashMap.newKeySet[(Long,Long,Any)]())
+  //val messageQueues:ParTrieMap[String,ConcurrentHashMap.KeySetView[(Long,Long,Any),java.lang.Boolean]] = ParTrieMap[String,ConcurrentHashMap.KeySetView[(Long,Long,Any),java.lang.Boolean]]()
+  //Utils.getAllReaders(managerCount.count).foreach(reader => messageQueues put (reader,java.util.concurrent.ConcurrentHashMap.newKeySet[(Long,Long,Any)]()))
 
   protected var voteCount = AtomicInt(0)
   def job() = jobID
@@ -29,7 +27,7 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
   def getVerticesWithMessages(): ParTrieMap[Long,Vertex] = storage.vertices.filter{case (id:Long,vertex:Vertex) => vertex.multiQueue.getMessageQueue(job(),superstep).nonEmpty}
 
   def recordMessage(sourceID:Long,vertexID:Long,data:Any) = {
-    messageQueues(Utils.getReader(vertexID, managerCount.count)) add ((sourceID,vertexID,data))
+    //messageQueues(Utils.getReader(vertexID, managerCount.count)) add ((sourceID,vertexID,data))
     messages.increment()
   }
 
