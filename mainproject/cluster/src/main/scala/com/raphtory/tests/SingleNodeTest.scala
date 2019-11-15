@@ -20,12 +20,12 @@ object SingleNodeTest extends App {
   val minimumRouters = 1
 
 
- var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
- var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
- val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
- //var UpdaterName = "com.raphtory.examples.ethereum.actors.EthereumPostgresSpout"
- //var routerClassName = "com.raphtory.examples.ethereum.actors.EthereumTransactionRouter"
- //val Analyser = "com.raphtory.examples.ethereum.analysis.DegreeRanking"
+ //var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+ //var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+ //val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
+ var UpdaterName = "com.raphtory.examples.ethereum.actors.EthereumPostgresSpout"
+ var routerClassName = "com.raphtory.examples.ethereum.actors.EthereumTransactionRouter"
+ val Analyser = "com.raphtory.examples.ethereum.analysis.DegreeRanking"
  val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
@@ -41,16 +41,16 @@ object SingleNodeTest extends App {
   Thread.sleep(30000)
   println("starting")
   //val start = 1476113850000L
- val start = 1474326000000L
+ //val start = 1474326000000L
   //val end = 1476113855000L
- val end = 1525368897000L
-  val jump =    86400000
-  val window =    86400000
+// val end = 1525368897000L
+//  val jump =    86400000
+//  val window =    86400000
 
-//  val start = 1439311261000L
-//  val end =   31525368897000L
-//  val jump =    3600000
-//  val window =    3600000
+  val start = 1439311261000L
+  val end =   31525368897000L
+  val jump =    3600000
+  val window =    3600000
 //
   val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
   system.actorOf(Props(new BWindowedViewAnalysisManager("testname",analyser,start,windowset)), s"LiveAnalysisManager_$Analyser")
