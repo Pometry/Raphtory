@@ -7,7 +7,7 @@ import scala.collection.parallel.immutable
 import scala.util.Random
 
 class BinaryDefusion extends Analyser{
-  val infectedNode = 6585
+  val infectedNode = 31
   override def setup(): Unit = {
     proxy.getVerticesSet().foreach(v => {
       if(v._1 == infectedNode) {
