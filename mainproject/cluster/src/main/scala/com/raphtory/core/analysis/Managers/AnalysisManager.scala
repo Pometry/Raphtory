@@ -32,6 +32,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   private var TimeOKACKS = 0 //counter to see that all partitions have responded
   private var workersFinishedSetup = 0 //Acks from workers to see how many have finished the setup stage of analysis
   private var workersFinishedSuperStep = 0 //Acks from workers to say they have finished the superstep
+  private var workerResultsReceived = 0 //Acks from workers when sending results back to analysis manager
   private var messageLogACKS = 0 //Acks from Workers with the amount of messages they have sent and received
 
   private var totalReceivedMessages = 0 //Total number of messages received by the workers
@@ -89,7 +90,9 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     messageLogACKS = 0 //Acks from Workers with the amount of messages they have sent and received
     totalReceivedMessages = 0 //Total number of messages received by the workers
     totalSentMessages = 0 //Total number of messages sent by the workers
+    workerResultsReceived = 0 //Total number of acks from worker when they are sending results back
     currentSuperStep = 0
+    results = mutable.ArrayBuffer[Any]()
   }
 
 
@@ -111,6 +114,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     case "recheckTime" => timeRecheck()  //if the time was previous out of scope, wait and then recheck
     case Ready(messagesSent) => ready(messagesSent) //worker has completed setup and is ready to roll -- send nextstep
     case EndStep(messages,voteToHalt) => endStep(messages,voteToHalt) //worker has finished the step
+    case ReturnResults(results) => finaliseJob(results) //worker has finished teh job and is returned the results
     case "restart" => restart()
 
     case MessagesReceived(workerID,real,receivedMessages,sentMessages) => messagesReceieved(workerID,real,receivedMessages,sentMessages)
@@ -185,7 +189,6 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     totalSentMessages += messages
     if(debug)println(s"$workersFinishedSetup / ${getWorkerCount}")
     if (workersFinishedSetup == getWorkerCount) {
-      //println(s"Setup complete in ${stepCompleteTime()}")
       workersFinishedSetup = 0
       syncMessages()
     }
@@ -198,8 +201,8 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     if(debug)println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
     if (workersFinishedSuperStep == getWorkerCount) {
       if (currentSuperStep == steps || this.voteToHalt) {
-        //for(worker <- Utils.getAllReaderWorkers(managerCount))
-        //  mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer,jobID,currentSuperStep),false)
+        for(worker <- Utils.getAllReaderWorkers(managerCount))
+          mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
       }
       else {
         this.voteToHalt = true
@@ -209,10 +212,14 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     }
   }
 
-  def finish() ={
-    processResults(timestamp())
-    resetCounters()
-    context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "restart")
+  def finaliseJob(result:Any) ={
+    results += result
+    workerResultsReceived += 1
+    if (workerResultsReceived == getWorkerCount) {
+      processResults(timestamp())
+      resetCounters()
+      context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "restart")
+    }
   }
 
 

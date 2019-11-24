@@ -29,6 +29,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
     case CheckMessages(superstep) => checkMessages()
     case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => e.printStackTrace()}
     case NextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet)
+    case Finish(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) =>   try{returnResults(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => e.printStackTrace()}
     //case handler:VertexMessage => receivedMessage(handler)
     case VertexMessageFloat(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Float) => receivedMessage(vertexID,jobID,superStep,data)
     case VertexMessageString(source:Long,vertexID:Long,jobID:String,superStep:Int,data:String) => receivedMessage(vertexID,jobID,superStep,data)
@@ -92,6 +93,29 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
   def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) = {
     nextStep(Utils.analyserMap(name),jobID,currentStep,timestamp,analysisType,window,windowSet)
   }
+
+  def returnResults(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]): Unit = {
+    setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
+    analyzer.sysSetup(context,managerCount,tempProxy,workerId)
+    if(windowSet.isEmpty) {
+      val result = analyzer.returnResults()
+      sender() ! ReturnResults(result)
+    }
+    else{
+      val individualResults:mutable.ArrayBuffer[Any] = ArrayBuffer[Any]()
+      individualResults += analyzer.returnResults()
+      for(i<- windowSet.indices)
+        if(i!=0) {
+          tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(i))
+          individualResults += analyzer.returnResults()
+        }
+      sender() ! ReturnResults(individualResults)
+    }
+  }
+
+
+
+
 
   private def setProxy(jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]):Unit = {
     analysisType match {
