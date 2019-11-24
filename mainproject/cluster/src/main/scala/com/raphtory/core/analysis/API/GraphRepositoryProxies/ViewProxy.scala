@@ -12,20 +12,27 @@ import scala.collection.parallel.mutable.ParTrieMap
 class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:Int,storage:EntityStorage,managerCount:ManagerCount) extends LiveProxy(jobID,superstep,timestamp,-1,workerID,storage,managerCount) {
 
   override  def job() = jobID+timestamp
-  private var keySet:ParTrieMap[Long,Vertex] = storage.vertices.filter(v=> v._2.aliveAt(timestamp))
+  private var keySet:ParTrieMap[Long,Vertex] = _
   private var keySetMessages:ParTrieMap[Long,Vertex] = _
   private var messageFilter = false
+  private var firstRun = true
 
   override def getVerticesWithMessages(): ParTrieMap[Long,Vertex] = {
     if(!messageFilter) {
-      keySetMessages = keySet.filter { case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(job(), superstep).nonEmpty }
+      keySetMessages = storage.vertices.filter { case (id: Long, vertex: Vertex) => vertex.aliveAt(timestamp) && vertex.multiQueue.getMessageQueue(job(), superstep).nonEmpty }
       messageFilter = true
     }
     keySetMessages
   }
 
 
-  override def getVerticesSet(): ParTrieMap[Long,Vertex] = keySet
+  override def getVerticesSet(): ParTrieMap[Long,Vertex] = {
+    if(firstRun){
+      keySet = storage.vertices.filter(v=> v._2.aliveAt(timestamp))
+      firstRun=false
+    }
+    keySet
+  }
   //override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(keySet(id.toInt).viewAt(timestamp),job(),superstep,this,timestamp,-1)
   override def getVertex(v : Vertex)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = {
      new VertexVisitor(v.viewAt(timestamp),job(),superstep,this,timestamp,-1)
