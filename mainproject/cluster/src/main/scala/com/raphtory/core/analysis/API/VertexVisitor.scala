@@ -80,6 +80,10 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, ti
     val realkey = key+timestamp+window
     v.getCompValue(realkey)
   }
+  def containsCompValue(key:String):Boolean = {
+    val realkey = key+timestamp+window
+    v.containsCompvalue(realkey)
+  }
   def getOrSetCompValue(key:String,value:Any) ={
     val realkey = key+timestamp+window
     v.getOrSet(realkey,value)

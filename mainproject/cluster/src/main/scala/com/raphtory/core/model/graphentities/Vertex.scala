@@ -57,6 +57,7 @@ class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean,storage:En
 
   //Getters and setters for processing results
   def addCompValue(key:String,value:Any):Unit = computationValues += ((key,value))
+  def containsCompvalue(key:String):Boolean = computationValues contains(key)
   def getCompValue(key:String) = computationValues(key)
   def getOrSet(key:String,value:Any) ={
     if(computationValues.contains(key))

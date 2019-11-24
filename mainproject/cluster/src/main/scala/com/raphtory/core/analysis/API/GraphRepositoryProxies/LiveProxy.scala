@@ -21,7 +21,7 @@ class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,wor
 
   protected var voteCount = AtomicInt(0)
   def job() = jobID
-
+  def superStep() = superstep
   def getVerticesSet(): ParTrieMap[Long,Vertex] = storage.vertices
 
   def getVerticesWithMessages(): ParTrieMap[Long,Vertex] = storage.vertices.filter{case (id:Long,vertex:Vertex) => vertex.multiQueue.getMessageQueue(job(),superstep).nonEmpty}
