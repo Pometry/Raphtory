@@ -1,8 +1,6 @@
-package com.raphtory.core.analysis.Algorithms
+package com.raphtory.examples.random.depricated
 
-import com.raphtory.core.analysis.API.{Analyser, WorkerID}
-import com.raphtory.core.model.communication.VertexMessage
-import com.raphtory.core.utils.Utils.resultNumeric
+import com.raphtory.core.analysis.API.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 

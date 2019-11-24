@@ -1,10 +1,10 @@
-package com.raphtory.core.analysis.Algorithms
+package com.raphtory.examples.random.depricated
 
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.util.Date
 
-import com.raphtory.core.analysis.API.{Analyser, WorkerID}
+import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
