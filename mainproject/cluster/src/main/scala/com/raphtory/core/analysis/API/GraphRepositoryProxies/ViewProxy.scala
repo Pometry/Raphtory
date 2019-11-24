@@ -13,6 +13,17 @@ class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:Int,storag
 
   override  def job() = jobID+timestamp
   private var keySet:ParTrieMap[Long,Vertex] = storage.vertices.filter(v=> v._2.aliveAt(timestamp))
+  private var keySetMessages:ParTrieMap[Long,Vertex] = _
+  private var messageFilter = false
+
+  override def getVerticesWithMessages(): ParTrieMap[Long,Vertex] = {
+    if(!messageFilter) {
+      keySetMessages = keySet.filter { case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(job(), superstep).nonEmpty }
+      messageFilter = true
+    }
+    keySetMessages
+  }
+
 
   override def getVerticesSet(): ParTrieMap[Long,Vertex] = keySet
   //override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(keySet(id.toInt).viewAt(timestamp),job(),superstep,this,timestamp,-1)
@@ -22,6 +33,9 @@ class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:Int,storag
   override def latestTime:Long = timestamp
 
   override def checkVotes(workerID: Int):Boolean = {
-    keySet.size == voteCount.get
+    if(messageFilter)
+      keySetMessages.size == voteCount.get
+    else
+      keySet.size == voteCount.get
   }
 }
