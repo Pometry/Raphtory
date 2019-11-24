@@ -14,10 +14,29 @@ class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, 
 
   private var setWindow = windowSize
   private var keySet:ParTrieMap[Long,Vertex] = storage.vertices.filter(v=> v._2.aliveAtWithWindow(timestamp,windowSize))
-  private var TotalKeySize = keySet.size
+  private var TotalKeySize = 0
+  private var firstCall = true
   var timeTest = ArrayBuffer[Long]()
 
-  override def getVerticesSet(): ParTrieMap[Long,Vertex] = keySet
+  override def getVerticesSet(): ParTrieMap[Long,Vertex] = {
+    if(firstCall){
+      TotalKeySize +=keySet.size
+      firstCall=false
+    }
+    keySet
+  }
+
+  private var keySetMessages:ParTrieMap[Long,Vertex] = null
+  private var messageFilter = false
+
+  override def getVerticesWithMessages(): ParTrieMap[Long,Vertex] = {
+    if(!messageFilter) {
+      keySetMessages = keySet.filter { case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(job(), superstep).nonEmpty }
+      TotalKeySize = keySet.size + TotalKeySize
+      messageFilter = true
+    }
+    keySetMessages
+  }
 
 
   override def job() = jobID+timestamp+setWindow
@@ -33,7 +52,8 @@ class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, 
   def shrinkWindow(newWindowSize:Long) = {
     setWindow = newWindowSize
     keySet = keySet.filter(v=> (v._2).aliveAtWithWindow(timestamp,setWindow))
-    TotalKeySize = keySet.size + TotalKeySize
+    messageFilter = false
+    firstCall = true
     //println(s"$workerID $timestamp $newWindowSize keyset prior $x keyset after ${keySet.size}")
   }
 
