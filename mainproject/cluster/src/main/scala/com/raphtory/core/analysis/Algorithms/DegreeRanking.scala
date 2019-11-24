@@ -86,6 +86,6 @@ class DegreeRanking extends Analyser {
     }
   }
 
-  override def finish(): Any = ???
+  override def returnResults(): Any = ???
 }
 

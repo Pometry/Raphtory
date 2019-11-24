@@ -60,5 +60,5 @@ class PageRank extends Analyser {
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {}
 
-  override def finish(): Any = ???
+  override def returnResults(): Any = ???
 }

@@ -49,5 +49,5 @@ class GabMostUsedTopics extends Analyser {
   override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {}
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {}
 
-  override def finish(): Any = ???
+  override def returnResults(): Any = ???
 }
