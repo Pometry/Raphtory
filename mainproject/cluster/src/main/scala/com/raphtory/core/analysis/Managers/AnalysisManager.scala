@@ -200,8 +200,6 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
       if (currentSuperStep == steps || this.voteToHalt) {
         //for(worker <- Utils.getAllReaderWorkers(managerCount))
         //  mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer,jobID,currentSuperStep),false)
-
-
       }
       else {
         this.voteToHalt = true

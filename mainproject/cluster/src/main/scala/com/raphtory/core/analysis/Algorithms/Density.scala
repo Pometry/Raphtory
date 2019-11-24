@@ -100,5 +100,5 @@ class Density extends Analyser {
       //println(println("End: "+ LocalDateTime.now()))
     }
 
-  override def finish(): Any = ???
+  override def returnResults(): Any = ???
 }

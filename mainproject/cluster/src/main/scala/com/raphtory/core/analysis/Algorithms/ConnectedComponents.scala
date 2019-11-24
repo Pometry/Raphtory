@@ -196,5 +196,5 @@ class ConnectedComponents extends Analyser {
   //      currentLabel
   //    })
   //  }
-  override def finish(): Any = ???
+  override def returnResults(): Any = ???
 }

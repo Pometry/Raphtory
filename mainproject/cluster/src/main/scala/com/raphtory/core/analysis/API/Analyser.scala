@@ -21,7 +21,7 @@ abstract class Analyser extends java.io.Serializable {
 
   def analyse(): Unit
   def setup()  : Unit
-  def finish() : Any
+  def returnResults() : Any
 
   def defineMaxSteps() : Int
   def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit
