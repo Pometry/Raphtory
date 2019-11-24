@@ -12,9 +12,9 @@ class GabMostUsedTopics extends Analyser {
   private val dumplingFactor = 0.85F
   private var firstStep      = true
 
-  override def setup() = {}
+  override def setup(): Unit = {}
 
-  override def analyse() : ArrayBuffer[(String, Int, String)] = {
+  override def analyse() : Unit = {
     //println("Analyzing")
     var results = ArrayBuffer[(String, Int, String)]()
     proxy.getVerticesSet().foreach(v => {
@@ -49,4 +49,5 @@ class GabMostUsedTopics extends Analyser {
   override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {}
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {}
 
+  override def finish(): Any = ???
 }

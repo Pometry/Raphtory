@@ -10,7 +10,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class OutDegree extends Analyser{
 
-  override def analyse(): Any = {
+  override def analyse(): Unit = {
     var results = ArrayBuffer[Int]()
     proxy.getVerticesSet().foreach(v => {
 
@@ -22,7 +22,7 @@ class OutDegree extends Analyser{
     // println("THIS IS HOW RESULTS LOOK: "+ results.groupBy(identity).mapValues(_.size))
     results.groupBy(identity).mapValues(_.size).toList
   }
-  override def setup(): Any = {
+  override def setup(): Unit = {
 
   }
 
@@ -58,5 +58,7 @@ class OutDegree extends Analyser{
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = ???
+
+  override def finish(): Any = ???
 }
 

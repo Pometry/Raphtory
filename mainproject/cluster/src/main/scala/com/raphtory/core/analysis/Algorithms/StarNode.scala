@@ -18,7 +18,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 //
 class StarNode extends Analyser{
 
-  override def analyse(): Any = {
+  override def analyse(): Unit = {
     val results = ParTrieMap[Int, Int]()
 
     for(v <- proxy.getVerticesSet()){
@@ -35,7 +35,7 @@ class StarNode extends Analyser{
 
   }
 
-  override def setup() = {
+  override def setup(): Unit = {
 
   }
 
@@ -117,4 +117,6 @@ class StarNode extends Analyser{
     // println (s"The star at ${new Date(timestamp())} is : ${finalResults.maxBy(_._2)}")
 
   }
+
+  override def finish(): Any = ???
 }

@@ -19,8 +19,9 @@ abstract class Analyser extends java.io.Serializable {
     this.workerID = ID
   }
 
-  def analyse(): Any
-  def setup()  : Any
+  def analyse(): Unit
+  def setup()  : Unit
+  def finish() : Any
 
   def defineMaxSteps() : Int
   def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit

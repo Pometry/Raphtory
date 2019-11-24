@@ -47,10 +47,8 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   protected val mediator     = DistributedPubSub(context.system).mediator
 
   private var results:ArrayBuffer[Any]      = mutable.ArrayBuffer[Any]()
-  private var oldResults:ArrayBuffer[Any]   = mutable.ArrayBuffer[Any]()
 
   def result() = results
-  def oldResult() = oldResults
 
   protected def analysisType():AnalysisType.Value
 
@@ -112,7 +110,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     case TimeResponse(ok,time) => timeResponse(ok,time)   //checking if the timestamps are ok within all partitions
     case "recheckTime" => timeRecheck()  //if the time was previous out of scope, wait and then recheck
     case Ready(messagesSent) => ready(messagesSent) //worker has completed setup and is ready to roll -- send nextstep
-    case EndStep(result,messages,voteToHalt) => endStep(result,messages,voteToHalt) //worker has finished the step
+    case EndStep(messages,voteToHalt) => endStep(messages,voteToHalt) //worker has finished the step
     case "restart" => restart()
 
     case MessagesReceived(workerID,real,receivedMessages,sentMessages) => messagesReceieved(workerID,real,receivedMessages,sentMessages)
@@ -193,31 +191,30 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     }
   }
 
-  def endStep(result:Any,messages:Int,voteToHalt:Boolean) = {
+  def endStep(messages:Int,voteToHalt:Boolean) = {
     workersFinishedSuperStep += 1
-    results += result
     totalSentMessages += messages
     if (!voteToHalt) this.voteToHalt = false
     if(debug)println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
     if (workersFinishedSuperStep == getWorkerCount) {
-      //println(s"Step $currentSuperStep complete in ${stepCompleteTime()}")
       if (currentSuperStep == steps || this.voteToHalt) {
-        processResults(timestamp())
-        results = mutable.ArrayBuffer[Any]()
-        oldResults = mutable.ArrayBuffer[Any]()
-       // for(worker <- Utils.getAllReaderWorkers(managerCount))
-       //   mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer,jobID,currentSuperStep),false)
-        resetCounters()
-        context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "restart")
+        //for(worker <- Utils.getAllReaderWorkers(managerCount))
+        //  mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer,jobID,currentSuperStep),false)
+
+
       }
       else {
         this.voteToHalt = true
         workersFinishedSuperStep = 0
-        oldResults = results
-        results = mutable.ArrayBuffer[Any]()
         syncMessages()
       }
     }
+  }
+
+  def finish() ={
+    processResults(timestamp())
+    resetCounters()
+    context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "restart")
   }
 
 

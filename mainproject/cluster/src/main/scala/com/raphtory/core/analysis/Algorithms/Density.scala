@@ -31,7 +31,7 @@ class Density extends Analyser {
 
 
 
-  override def analyse(): Any = {
+  override def analyse(): Unit = {
     var totalDegree: Int = 0
     var totalNodes: Int = 0
     for(v <- proxy.getVerticesSet()){
@@ -45,7 +45,7 @@ class Density extends Analyser {
     (totalNodes,totalDegree)
 
   }
-  override def setup(): Any = {}
+  override def setup(): Unit = {}
 
   override def defineMaxSteps(): Int = 1
   var totalVertices=0
@@ -100,4 +100,5 @@ class Density extends Analyser {
       //println(println("End: "+ LocalDateTime.now()))
     }
 
-  }
+  override def finish(): Any = ???
+}

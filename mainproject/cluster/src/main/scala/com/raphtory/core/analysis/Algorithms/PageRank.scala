@@ -19,7 +19,7 @@ class PageRank extends Analyser {
 
   private def getPageRankStr(srcId : Int, dstId : Int) : String = s"${prStr}_${srcId}_$dstId"
 
-  override def setup() = {
+  override def setup(): Unit = {
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v._2)
       val toSend = vertex.getOrSetCompValue(prStr, defaultPR).asInstanceOf[Float]
@@ -27,7 +27,7 @@ class PageRank extends Analyser {
     })
   }
 
-  override def analyse() : (Long,ArrayBuffer[(Long, Float)]) = {
+  override def analyse() : Unit = {
     var results = ArrayBuffer[(Long, Float)]()
     proxy.getVerticesSet().foreach(v => {
       val vertex = proxy.getVertex(v._2)
@@ -60,4 +60,5 @@ class PageRank extends Analyser {
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {}
 
+  override def finish(): Any = ???
 }
