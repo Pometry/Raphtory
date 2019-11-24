@@ -21,11 +21,9 @@ class ConnectedComponents extends Analyser {
   }
 
   override def analyse(): Unit = {
-
-    proxy.getVerticesSet().map(vert=>{
+    proxy.getVerticesWithMessages().foreach(vert=>{
       var label = vert._1
       val vertex = proxy.getVertex(vert._2)
-
       val queue = vertex.messageQueue.map(_.asInstanceOf[Long])
       if (queue.nonEmpty) {
         label = queue.min
@@ -37,17 +35,16 @@ class ConnectedComponents extends Analyser {
         vertex messageAllNeighbours label
         currentLabel = label
       }
-      else {
-      //vertex messageAllNeighbours (ClusterLabel(currentLabel))
+      else
         vertex.voteToHalt()
-      }
-      //if (currentLabel == vert._1)
-        //println(s"${vert._1} ${vertex.getIngoingNeighbors.values} ${vertex.getOutgoingNeighbors.values}")
-      currentLabel
-    }).groupBy(f=> f).map(f=> (f._1,f._2.size))
+    })
   }
 
-  override def returnResults(): Any = ???
+  override def returnResults(): Any = {
+    proxy.getVerticesSet().map(vert=>{
+      proxy.getVertex(vert._2).getOrSetCompValue("cclabel", vert._1).asInstanceOf[Long]
+    }).groupBy(f=> f).map(f=> (f._1,f._2.size))
+  }
 
 
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
