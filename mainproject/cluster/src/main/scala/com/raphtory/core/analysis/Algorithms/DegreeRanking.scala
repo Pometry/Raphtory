@@ -12,7 +12,9 @@ class DegreeRanking extends Analyser {
   object sortOrdering extends Ordering[Int]{
     def compare(key1:Int, key2:Int) = key2.compareTo(key1)
   }
-  override def analyse(): Unit = {
+  override def analyse(): Unit = {}
+  override def setup(): Unit = {}
+  override def returnResults(): Any = {
     val degree =proxy.getVerticesSet().map(vert=>{
       val vertex = proxy.getVertex(vert._2)
       val outDegree = vertex.getOutgoingNeighbors.size
@@ -25,8 +27,6 @@ class DegreeRanking extends Analyser {
     val topUsers =degree.toArray.sortBy(x=> x._3)(sortOrdering).take(20)
     (totalV,totalOut,totalIn,topUsers)
   }
-
-  override def setup(): Unit = {}
 
   override def defineMaxSteps(): Int = 1
 
@@ -75,7 +75,7 @@ class DegreeRanking extends Analyser {
     bestUserArray = if(bestUserArray.length>1) bestUserArray.dropRight(1)+"]" else bestUserArray+"]"
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":${bestUserArray},"viewTime":$viewCompleteTime,"concatTime":${System.currentTimeMillis()-startTime}},"""
     Utils.writeLines(output_file,text,"{\"views\":[")
-    //println(text)
+    println(text)
   }
 
   override def processBatchWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long], viewCompleteTime: Long): Unit = {
@@ -86,6 +86,5 @@ class DegreeRanking extends Analyser {
     }
   }
 
-  override def returnResults(): Any = ???
 }
 
