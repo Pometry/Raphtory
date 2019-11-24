@@ -14,6 +14,7 @@ class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, 
 
   private var setWindow = windowSize
   private var keySet:ParTrieMap[Long,Vertex] = storage.vertices.filter(v=> v._2.aliveAtWithWindow(timestamp,windowSize))
+
   private var TotalKeySize = 0
   private var firstCall = true
   var timeTest = ArrayBuffer[Long]()
@@ -32,7 +33,7 @@ class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, 
   override def getVerticesWithMessages(): ParTrieMap[Long,Vertex] = {
     if(!messageFilter) {
       keySetMessages = keySet.filter { case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(job(), superstep).nonEmpty }
-      TotalKeySize = keySet.size + TotalKeySize
+      TotalKeySize = keySetMessages.size + TotalKeySize
       messageFilter = true
     }
     keySetMessages
