@@ -32,14 +32,14 @@ class DegreeRanking extends Analyser {
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long, viewCompleteTime: Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
 
   }
 
-  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {
+  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timestamp:Long,windowSize:Long,viewCompleteTime:Long): Unit = {
+  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int,Int,Int,Array[(Int,Int,Int)])]]
     var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val startTime = System.currentTimeMillis()
@@ -55,11 +55,11 @@ class DegreeRanking extends Analyser {
     println(text)
   }
 
-  override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long],viewCompleteTime:Long): Unit = {
+  override def processBatchWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long], viewCompleteTime: Long): Unit = {
     for(i <- results.indices) {
       val window = results(i).asInstanceOf[ArrayBuffer[Any]]
       val windowSize = windowSet(i)
-      processWindowResults(window,window,timestamp,windowSize,viewCompleteTime)
+      processWindowResults(window, timestamp, windowSize, viewCompleteTime)
     }
   }
 }

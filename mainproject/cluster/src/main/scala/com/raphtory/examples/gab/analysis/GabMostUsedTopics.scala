@@ -38,7 +38,7 @@ class GabMostUsedTopics extends Analyser {
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long): Unit =  {
+  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit =  {
     println()
     println("Current top topics")
     results.asInstanceOf[ArrayBuffer[ArrayBuffer[(String, Int, String)]]].flatten.sortBy(f => f._2)(Ordering[Int].reverse).foreach(
@@ -46,30 +46,7 @@ class GabMostUsedTopics extends Analyser {
     )
     println()
   }
-  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {}
-  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long,viewCompleteTime:Long): Unit = {}
-
-
-  override def checkProcessEnd(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any]) : Boolean = {
-    try {
-      val _newResults = results.asInstanceOf[ArrayBuffer[ArrayBuffer[(Long, Double)]]].flatten
-      val _oldResults = oldResults.asInstanceOf[ArrayBuffer[ArrayBuffer[(Long, Double)]]].flatten
-      println(s"newResults: ${_newResults.size} => ${_oldResults.size}")
-
-      if (firstStep) {
-        firstStep = false
-        return false
-      }
-
-      val newSum = _newResults.sum(resultNumeric)._2
-      val oldSum = _oldResults.sum(resultNumeric)._2
-
-      println(s"newSum = $newSum - oldSum = $oldSum - diff = ${newSum - oldSum}")
-      //results = _newResults
-      Math.abs(newSum - oldSum) / _newResults.size < epsilon
-    } catch {
-      case _ : Exception => false
-    }
-  }
+  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {}
+  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {}
 
 }

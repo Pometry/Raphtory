@@ -41,7 +41,7 @@ class StarNode extends Analyser{
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
     //val finalResults=ParTrieMap[Int, Int]()
@@ -65,7 +65,7 @@ class StarNode extends Analyser{
   //So from the list sent, we perform another maxBy_._ to get the higest in-degree value (which came in the position 2 of
   //the tuple)
   //the final value is written to the file.
-  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {
+  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
     val finalResults=ParTrieMap[Int, Int]()
@@ -94,7 +94,7 @@ class StarNode extends Analyser{
   //the tuple)
   //the final value is written to the file.
 
-  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long,viewCompleteTime:Long): Unit = {
+  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
     val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")

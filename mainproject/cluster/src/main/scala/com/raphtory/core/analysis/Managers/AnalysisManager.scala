@@ -81,7 +81,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   protected def analyserName:String = generateAnalyzer.getClass.getName
   protected final def getManagerCount : Int = managerCount
   protected final def getWorkerCount : Int = managerCount*10
-  protected def processResults(timeStamp:Long) = analyser.processResults(results,oldResults,viewCompleteTime(),timeStamp)
+  protected def processResults(timeStamp:Long) = analyser.processResults(results, viewCompleteTime(), timeStamp)
 
   private def resetCounters() = {
     ReaderACKS = 0 //Acks from the readers to say they are online
@@ -201,7 +201,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     if(debug)println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
     if (workersFinishedSuperStep == getWorkerCount) {
       //println(s"Step $currentSuperStep complete in ${stepCompleteTime()}")
-      if (currentSuperStep == steps || analyser.checkProcessEnd(results,oldResults) || this.voteToHalt) {
+      if (currentSuperStep == steps || this.voteToHalt) {
         processResults(timestamp())
         results = mutable.ArrayBuffer[Any]()
         oldResults = mutable.ArrayBuffer[Any]()
