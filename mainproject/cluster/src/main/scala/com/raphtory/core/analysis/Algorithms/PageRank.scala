@@ -48,7 +48,7 @@ class PageRank extends Analyser {
 
   override def defineMaxSteps(): Int = 10
 
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Long,ArrayBuffer[(Long, Float)])]]
     val top5 = endResults.map(x => x._2).flatten.sortBy(f => f._2)(Ordering[Float].reverse).take(5)
     val topTime = new java.util.Date(endResults.map(x => x._1).max)
@@ -56,24 +56,8 @@ class PageRank extends Analyser {
 
   }
 
-  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {}
+  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {}
 
-  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long,viewCompleteTime:Long): Unit = {}
-
-  override def checkProcessEnd(results:ArrayBuffer[Any],oldResults:ArrayBuffer[Any]) : Boolean = {
-    try {
-      val _newResults = results.asInstanceOf[ArrayBuffer[ArrayBuffer[(Long, Double)]]].flatten
-      val _oldResults = oldResults.asInstanceOf[ArrayBuffer[ArrayBuffer[(Long, Double)]]].flatten
-      val epsilon : Float = 0.85F
-      val newSum = _newResults.sum(resultNumeric)._2
-      val oldSum = _oldResults.sum(resultNumeric)._2
-
-      println(s"newSum = $newSum - oldSum = $oldSum - diff = ${newSum - oldSum}")
-      //results = _newResults
-      Math.abs(newSum - oldSum) / _newResults.size < epsilon
-    } catch {
-      case _ : Exception => false
-    }
-  }
+  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {}
 
 }

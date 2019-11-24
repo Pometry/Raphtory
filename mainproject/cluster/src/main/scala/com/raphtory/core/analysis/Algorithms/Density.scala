@@ -51,7 +51,7 @@ class Density extends Analyser {
   var totalVertices=0
   var totalEdges=0
   var density2="0"
-  override def processResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any],timeStamp:Long,viewCompleteTime:Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     for (verticesAndEdges <- results.asInstanceOf[ArrayBuffer[(Int,Int)]]){
       totalVertices+=verticesAndEdges._1
       totalEdges+=verticesAndEdges._2
@@ -63,7 +63,7 @@ class Density extends Analyser {
     val currentDate=LocalDateTime.now()
     println (s"The density at ${currentDate} is : "+ density2)
   }
-  override def processViewResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long,viewCompleteTime:Long): Unit = {
+  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     for (verticesAndEdges <- results.asInstanceOf[ArrayBuffer[(Int,Int)]]){
       totalVertices+=verticesAndEdges._1
       totalEdges+=verticesAndEdges._2
@@ -77,9 +77,9 @@ class Density extends Analyser {
     println(println("End: "+ LocalDateTime.now()))
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSize: Long,viewCompleteTime:Long): Unit = processResults(results,oldResults,timestamp,viewCompleteTime)
+  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = processResults(results, timestamp, viewCompleteTime)
 
-  override def processBatchWindowResults(results: ArrayBuffer[Any], oldResults: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long],viewCompleteTime:Long): Unit = {
+  override def processBatchWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long], viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[ArrayBuffer[(Int,Int)]]]
     val pariFold:((Int,Int),(Int,Int)) => (Int,Int) = (a,b) => (a._1+b._1,a._2+b._2)
     for(i <- endResults.indices) {
