@@ -24,7 +24,7 @@ class InDegree extends Analyser {
   //then a reducer is performed to get all the other tuples containing the occurences of the in-degree 2. Then the final
   // list is written to the file.
 
-  override def analyse(): Any = {
+  override def analyse(): Unit = {
     var results = ArrayBuffer[Int]()
     proxy.getVerticesSet().foreach(v => {
 
@@ -36,7 +36,7 @@ class InDegree extends Analyser {
     results.groupBy(identity).mapValues(_.size).toList
   }
 
-  override def setup(): Any = {
+  override def setup(): Unit = {
 
   }
 
@@ -94,5 +94,7 @@ override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, view
     }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {}
+
+  override def finish(): Any = ???
 }
 

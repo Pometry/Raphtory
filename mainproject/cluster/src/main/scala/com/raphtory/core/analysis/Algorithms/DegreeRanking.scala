@@ -12,7 +12,7 @@ class DegreeRanking extends Analyser {
   object sortOrdering extends Ordering[Int]{
     def compare(key1:Int, key2:Int) = key2.compareTo(key1)
   }
-  override def analyse(): Any = {
+  override def analyse(): Unit = {
     val degree =proxy.getVerticesSet().map(vert=>{
       val vertex = proxy.getVertex(vert._2)
       val outDegree = vertex.getOutgoingNeighbors.size
@@ -26,7 +26,7 @@ class DegreeRanking extends Analyser {
     (totalV,totalOut,totalIn,topUsers)
   }
 
-  override def setup(): Any = {}
+  override def setup(): Unit = {}
 
   override def defineMaxSteps(): Int = 1
 
@@ -85,5 +85,7 @@ class DegreeRanking extends Analyser {
       processWindowResults(window, timestamp, windowSize, viewCompleteTime)
     }
   }
+
+  override def finish(): Any = ???
 }
 

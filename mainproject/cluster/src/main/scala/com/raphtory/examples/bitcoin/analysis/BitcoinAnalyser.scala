@@ -7,7 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 class BitcoinAnalyser extends Analyser {
 
   //(implicit proxy: GraphRepoProxy.type, managerCount: Int,workerID:Int):
-  override def analyse(): Any = {
+  override def analyse(): Unit = {
     var results = ArrayBuffer[(String, Double)]()
     var currentBlock = 0
     var hash = ""
@@ -38,7 +38,7 @@ class BitcoinAnalyser extends Analyser {
 
 
 
-  override def setup(): Any = {
+  override def setup(): Unit = {
 
   }
 
@@ -67,6 +67,8 @@ class BitcoinAnalyser extends Analyser {
   override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {}
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {}
+
+  override def finish(): Any = ???
 }
 
 

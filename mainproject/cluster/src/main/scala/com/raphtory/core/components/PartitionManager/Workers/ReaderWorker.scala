@@ -51,16 +51,12 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
   def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) {
     receivedMessages.set(0)
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
-
-    //EntityStorage.vertices(workerId).foreach(v=> (v._2).multiQueue.clearQueues(tempProxy.job()))
     analyzer.sysSetup(context,managerCount,tempProxy,workerId)
     if(windowSet.isEmpty) {
       analyzer.setup()
-      //tempProxy.messageQueues.foreach(q =>  mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false))
       sender() ! Ready(tempProxy.getMessages())
     }
     else{
-      //val individualResults:mutable.HashMap[Long,Any] = mutable.HashMap[Long,Any]()
       analyzer.setup()
       var currentWindow = 1
       while(currentWindow<windowSet.size){
@@ -68,36 +64,27 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
         analyzer.setup()
         currentWindow +=1
       }
-      //tempProxy.messageQueues.foreach(q =>  mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false))
-
       sender() ! Ready(tempProxy.getMessages())
     }
   }
 
   def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]): Unit = {
     receivedMessages.set(0)
-    //val setProx = System.currentTimeMillis()
     setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
-    //println(s"$workerId took ${System.currentTimeMillis()-setProx} to setProxy in next step}")
     analyzer.sysSetup(context,managerCount,tempProxy,workerId)
     if(windowSet.isEmpty) {
-      val value = analyzer.analyse()
-      //tempProxy.messageQueues.foreach(q =>  mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false))
-      sender() ! EndStep(value,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
+      analyzer.analyse()
+      sender() ! EndStep(tempProxy.getMessages(),tempProxy.checkVotes(workerId))
     }
     else{
       val individualResults:mutable.ArrayBuffer[Any] = ArrayBuffer[Any]()
-      //val analysisTime = System.currentTimeMillis()
-      individualResults += analyzer.analyse()
-      //println(workerId+ "    " +tempProxy.asInstanceOf[WindowProxy].timeTest.sum/tempProxy.asInstanceOf[WindowProxy].timeTest.size)
-      //println(s"$workerId took ${System.currentTimeMillis()-analysisTime} to analyise in next step}")
+      analyzer.analyse()
       for(i<- windowSet.indices)
         if(i!=0) {
           tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(i))
-          individualResults += analyzer.analyse()
+          analyzer.analyse()
         }
-      //tempProxy.messageQueues.foreach(q =>  mediator ! DistributedPubSubMediator.Send(q._1,VertexMessageBatch(jobID,superStep,q._2),false))
-      sender() ! EndStep(individualResults,tempProxy.getMessages(),tempProxy.checkVotes(workerId))
+      sender() ! EndStep(tempProxy.getMessages(),tempProxy.checkVotes(workerId))
       }
 
   }

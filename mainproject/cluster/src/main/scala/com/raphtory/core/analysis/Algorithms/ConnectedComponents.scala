@@ -10,7 +10,7 @@ import scala.collection.parallel.immutable
 class ConnectedComponents extends Analyser {
 
 
-  override def setup() = {
+  override def setup(): Unit = {
     proxy.getVerticesSet().foreach(v => {
       var min = v._1
       val vertex = proxy.getVertex(v._2)
@@ -20,7 +20,7 @@ class ConnectedComponents extends Analyser {
     })
   }
 
-  override def analyse(): Any = {
+  override def analyse(): Unit = {
 
     proxy.getVerticesSet().map(vert=>{
       var label = vert._1
@@ -196,4 +196,5 @@ class ConnectedComponents extends Analyser {
   //      currentLabel
   //    })
   //  }
+  override def finish(): Any = ???
 }
