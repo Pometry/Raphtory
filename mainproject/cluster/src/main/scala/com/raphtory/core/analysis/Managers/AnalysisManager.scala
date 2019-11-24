@@ -166,10 +166,16 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     TimeOKACKS +=1
     if(TimeOKACKS==getManagerCount) {
       stepCompleteTime() //reset step counter
-      if (TimeOKFlag)
-        for (worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep,timestamp,analysisType(),windowSize(),windowSet()), false)
-      else {
+      if (TimeOKFlag) {
+        if(analyser.defineMaxSteps()>1)
+          for (worker <- Utils.getAllReaderWorkers(managerCount))
+            mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep,timestamp,analysisType(),windowSize(),windowSet()), false)
+        else {
+          println("howdy")
+          for (worker <- Utils.getAllReaderWorkers(managerCount))
+            mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, currentSuperStep,timestamp,analysisType(),windowSize(),windowSet()), false)
+        }
+      } else {
         println(s"${new Date(timestamp())} is yet to be ingested, currently at ${new Date(time)} Backing off to 10 seconds and retrying")
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "recheckTime")
       }
