@@ -1,5 +1,4 @@
-package com.raphtory.examples.ethereum.analysis
-
+package com.raphtory.examples.blockchain.ethereum.analysis
 
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.API.GraphRepositoryProxies.WindowProxy
