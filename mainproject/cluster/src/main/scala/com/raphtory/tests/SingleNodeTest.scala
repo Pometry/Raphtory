@@ -20,8 +20,8 @@ object SingleNodeTest extends App {
   val minimumRouters = 1
 
 
- var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
- var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+ var UpdaterName = "com.raphtory.examples.blockchain.litecoin.actors.LitecoinSpout"
+ var routerClassName = "com.raphtory.examples.blockchain.litecoin.actors.LitecoinRouter"
  val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
  //var UpdaterName = "com.raphtory.examples.ethereum.actors.EthereumPostgresSpout"
  //var routerClassName = "com.raphtory.examples.ethereum.actors.EthereumTransactionRouter"

@@ -1,6 +1,7 @@
-package com.raphtory.examples.bitcoin.analysis
+package com.raphtory.examples.blockchain.bitcoin.analysis
 
 import com.raphtory.core.analysis.API.{Analyser, WorkerID}
+import com.raphtory.examples.blockchain.CoinsAquiredPayload
 
 import scala.collection.mutable.ArrayBuffer
 
