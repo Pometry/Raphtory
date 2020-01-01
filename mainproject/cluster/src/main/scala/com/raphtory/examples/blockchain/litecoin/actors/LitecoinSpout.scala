@@ -47,6 +47,7 @@ class LitecoinSpout extends SpoutTrait {
       getTransactions()
       blockcount +=1
       context.system.scheduler.scheduleOnce(Duration(1, NANOSECONDS), self, "parseBlock")
+      if(blockcount %100 == 0) println(s"Currently Calling for block $blockcount")
     }
     catch {
       case e:java.net.SocketTimeoutException =>

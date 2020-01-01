@@ -44,9 +44,13 @@ class DashcoinSpout extends SpoutTrait {
 
   def running() : Unit = if(isSafe()) {
     try {
-      getTransactions()
-      blockcount +=1
+      for(i<- 1 to 10) {
+        getTransactions()
+        blockcount += 1
+        if (blockcount % 100 == 0) println(s"Currently Calling for block $blockcount")
+      }
       context.system.scheduler.scheduleOnce(Duration(1, NANOSECONDS), self, "parseBlock")
+
     }
     catch {
       case e:java.net.SocketTimeoutException =>
