@@ -3,7 +3,7 @@ package com.raphtory.examples.blockchain.dashcoin.actors
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.Router.TraditionalRouter.Helpers.RouterSlave
 import com.raphtory.core.components.Router.TraditionalRouter.RaphtoryRouter
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, RaphWriteClass, VertexAddWithProperties}
+import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, RaphWriteClass, VertexAdd, VertexAddWithProperties}
 import com.raphtory.core.utils.Utils.getManager
 import com.raphtory.examples.blockchain.{BitcoinTransaction, LitecoinTransaction}
 import spray.json.JsArray
@@ -43,24 +43,27 @@ class DashcoinRouter(val routerId:Int, val initialManagerCount:Int) extends Rout
       else value = "0" //TODO deal with people burning money
 
       //creates vertex for the receiving wallet
-      toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash(address), properties = Map[String,String](("type","address"),("address",address),("outputType",outputType))))
+      toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash(address), properties = Map[String,String](
+        //("type","address"),
+        ("address",address),
+        ("outputType",outputType))))
       //creates edge between the transaction and the wallet
       toPartitionManager(EdgeAddWithProperties( msgTime = timeAsLong, srcID = MurmurHash3.stringHash(txid), dstID = MurmurHash3.stringHash(address), properties = Map[String,String](("n",n),("value",value))))
 
     }
     toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash(txid), properties = Map[String,String](
-      ("type","transaction"),
-      ("time",timeAsString),
+      //("type","transaction"),
       ("id",txid),
       ("total",total.toString),
-      ("lockTime",locktime.toString),
-      ("version",version.toString),
-      ("blockhash",blockID.toString),
+      //("lockTime",locktime.toString),
+      //("version",version.toString),
+     // ("blockhash",blockID.toString),
       ("block",block.toString))))
 
     if(vins.toString().contains("coinbase")){
       //creates the coingen node
-      toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen"), properties = Map[String,String](("type","coingen"))))
+      //toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen"), properties = Map[String,String](("type","coingen"))))
+      toPartitionManager(VertexAdd(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen")))
 
       //creates edge between coingen and the transaction
       toPartitionManager(EdgeAdd(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen"), dstID =  MurmurHash3.stringHash(txid)))

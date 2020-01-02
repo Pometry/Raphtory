@@ -10,6 +10,7 @@ import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse, SpoutGoing}
 import com.raphtory.examples.blockchain.{BitcoinTransaction, LitecoinTransaction}
 import kamon.Kamon
+import org.joda.time.{DateTime, DateTimeZone}
 import spray.json._
 
 import scala.collection.mutable
@@ -47,7 +48,7 @@ class DashcoinSpout extends SpoutTrait {
       for(i<- 1 to 10) {
         getTransactions()
         blockcount += 1
-        if (blockcount % 100 == 0) println(s"Currently Calling for block $blockcount")
+        if (blockcount % 1000 == 0) println(s"Parsed block $blockcount at ${DateTime.now(DateTimeZone.UTC).getMillis}")
       }
       context.system.scheduler.scheduleOnce(Duration(1, NANOSECONDS), self, "parseBlock")
 
