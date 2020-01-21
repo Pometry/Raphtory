@@ -19,7 +19,7 @@ class GabKafkaSpout extends SpoutTrait{
   props.put("auto.offset.reset", "earliest")
   props.put("group.id", "group"+x)
   val consumer: KafkaConsumer[String, String] = new KafkaConsumer[String, String](props)
-  consumer.subscribe(util.Arrays.asList("gabGraph"))
+  consumer.subscribe(util.Arrays.asList("gabResortedGraph"))
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
