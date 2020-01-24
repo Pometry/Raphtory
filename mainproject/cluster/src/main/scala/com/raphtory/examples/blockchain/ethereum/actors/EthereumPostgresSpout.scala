@@ -1,4 +1,4 @@
-package com.raphtory.examples.ethereum.actors
+package com.raphtory.examples.blockchain.ethereum.actors
 
 import cats.effect.{Blocker, IO}
 import com.raphtory.core.components.Spout.SpoutTrait

@@ -82,7 +82,7 @@ case class ReportSize(partitionID:Int)
 
 sealed trait RaphReadClasses
 
-sealed trait VertexMessage
+sealed trait VertexMessage extends java.io.Serializable
 case class VertexMessageString(source:Long,vertexID:Long,jobID:String,superStep:Int,data:String) extends VertexMessage
 case class VertexMessageLong(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Long) extends VertexMessage
 case class VertexMessageInt(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Int) extends VertexMessage

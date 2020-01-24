@@ -12,8 +12,8 @@ import scala.collection.parallel.mutable.ParTrieMap
 class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:Int,storage:EntityStorage,managerCount:ManagerCount) extends LiveProxy(jobID,superstep,timestamp,-1,workerID,storage,managerCount) {
 
   override  def job() = jobID+timestamp
-  private var keySet:ParTrieMap[Long,Vertex] = _
-  private var keySetMessages:ParTrieMap[Long,Vertex] = _
+  private var keySet:ParTrieMap[Long,Vertex] = ParTrieMap[Long,Vertex]()
+  private var keySetMessages:ParTrieMap[Long,Vertex] = ParTrieMap[Long,Vertex]()
   private var messageFilter = false
   private var firstRun = true
 
@@ -40,6 +40,7 @@ class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:Int,storag
   override def latestTime:Long = timestamp
 
   override def checkVotes(workerID: Int):Boolean = {
+//    println(workerID +" "+ messageFilter)
     if(messageFilter)
       keySetMessages.size == voteCount.get
     else

@@ -1,4 +1,4 @@
-import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
+	import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 
 
