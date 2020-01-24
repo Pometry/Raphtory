@@ -49,7 +49,8 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef],storages:ParT
   // children for distribution of compresssion and archiving
   val vertexManager =  context.actorOf(Props(new ArchivistWorker(workers,storages)).withDispatcher("archivist-dispatcher"),"vertexcompressor");
 
-  var debug = false
+  val debug = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
+
   val archGauge         = Kamon.gauge("raphtory_archivist")
 
   override def preStart() {

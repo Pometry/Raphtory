@@ -20,12 +20,16 @@ object SingleNodeTest extends App {
   val minimumRouters = 1
 
 
- var UpdaterName = "com.raphtory.examples.blockchain.dashcoin.actors.DashcoinSpout"
- var routerClassName = "com.raphtory.examples.blockchain.dashcoin.actors.DashcoinRouter"
- val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
+ //var UpdaterName = "com.raphtory.examples.blockchain.dashcoin.actors.DashcoinSpout"
+ //var routerClassName = "com.raphtory.examples.blockchain.dashcoin.actors.DashcoinRouter"
+ //val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
  //var UpdaterName = "com.raphtory.examples.ethereum.actors.EthereumPostgresSpout"
  //var routerClassName = "com.raphtory.examples.ethereum.actors.EthereumTransactionRouter"
  //val Analyser = "com.raphtory.examples.ethereum.analysis.DegreeRanking"
+ var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+ var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+ val Analyser = "com.raphtory.core.analysis.Algorithms.DegreeRanking"
+
  val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
