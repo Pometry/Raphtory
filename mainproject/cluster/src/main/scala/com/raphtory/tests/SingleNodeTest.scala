@@ -20,9 +20,9 @@ object SingleNodeTest extends App {
   val minimumRouters = 1
 
 
- var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
- var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
- val Analyser = "com.raphtory.core.analysis.Algorithms.BinaryDefusion"
+ var UpdaterName = "com.raphtory.examples.blockchain.dashcoin.actors.DashcoinSpout"
+ var routerClassName = "com.raphtory.examples.blockchain.dashcoin.actors.DashcoinRouter"
+ val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
  //var UpdaterName = "com.raphtory.examples.ethereum.actors.EthereumPostgresSpout"
  //var routerClassName = "com.raphtory.examples.ethereum.actors.EthereumTransactionRouter"
  //val Analyser = "com.raphtory.examples.ethereum.analysis.DegreeRanking"
@@ -54,7 +54,8 @@ object SingleNodeTest extends App {
   //val window =    3600000
 //
   val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
-  system.actorOf(Props(new WindowedViewAnalysisManager("testname",analyser,start,window)), s"LiveAnalysisManager_$Analyser")
+
+  system.actorOf(Props(new BWindowedRangeAnalysisManager("testname",analyser,start,end,jump,windowset)), s"LiveAnalysisManager_$Analyser")
 
 ////////////////
 //  {"time":1474326000000,"windowsize":31536000000,"biggest":3990,"total":64,"totalWithoutIslands":24,"totalIslands":40,"proportion":0.9789009,"proportionWithoutIslands":0.9886026,"clustersGT2":1,"viewTime":2391,"concatTime":7},
