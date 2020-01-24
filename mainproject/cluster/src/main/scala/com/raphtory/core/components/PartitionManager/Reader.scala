@@ -19,7 +19,8 @@ class Reader(id : Int, test : Boolean, managerCountVal : Int,storages:ParTrieMap
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersTopic, self)
-  val debug = false
+  val debug = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
+
 
   var readers: ParTrieMap[Int,ActorRef] = new ParTrieMap[Int,ActorRef]()
   for(i <- 0 until 10){ //create threads for writing
