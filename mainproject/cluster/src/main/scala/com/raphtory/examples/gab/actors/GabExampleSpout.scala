@@ -13,10 +13,8 @@ class GabExampleSpout extends SpoutTrait {
 
 
   val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/app").trim
-
-
-
-  val fileLines = io.Source.fromFile(directory+"/gabNetwork500.csv").getLines.drop(1).toArray
+  val file_name = System.getenv().getOrDefault("GAB_FILE_NAME", "gabNetwork500.csv").trim
+  val fileLines = io.Source.fromFile(directory+"/"+file_name).getLines.drop(1).toArray
 // upstream/master
   var position = 0
   var linesNumber=fileLines.length
