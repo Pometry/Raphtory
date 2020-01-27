@@ -21,7 +21,7 @@ object Utils {
   val readersTopic      = "/readers"
   val readersWorkerTopic      = "/readerWorkers"
   val liveAnalysisTopic      = "/liveanalysis"
-  val saving: Boolean = System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
+  val persistenceEnabled: Boolean = System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
   val compressing    : Boolean =  System.getenv().getOrDefault("COMPRESSING", "false").trim.toBoolean
   val archiving : Boolean =  System.getenv().getOrDefault("ARCHIVING", "false").trim.toBoolean
   var windowing        : Boolean =  System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean

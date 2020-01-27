@@ -10,7 +10,7 @@ class ArchivistWorker(workers:ParTrieMap[Int,ActorRef],storages:ParTrieMap[Int,E
 
   //timestamps to make sure all entities are compressed to exactly the same point
   val compressing    : Boolean =  Utils.compressing
-  val saving    : Boolean = Utils.saving
+  val saving    : Boolean = Utils.persistenceEnabled
 
   var startedCompressions   = 0
   var finishedCompressions  = 0
