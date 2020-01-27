@@ -59,7 +59,7 @@ class WatchDog(managerCount:Int,minimumRouters:Int) extends Actor{
   }
 
   def newPMReqest() ={
-    if(debug)println("Sending Id for new PM to Replicator")
+    if(debug)println("Sending Id for ne w PM to Replicator")
     sender() ! AssignedId(pmCounter)
     pmCounter += 1
     if(debug)println("Sending new total Partition managers to all the subscribers")
