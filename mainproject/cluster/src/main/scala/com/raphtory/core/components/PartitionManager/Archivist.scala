@@ -20,7 +20,7 @@ import scala.concurrent.duration._
 
 class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef],storages:ParTrieMap[Int,EntityStorage]) extends Actor {
   val compressing    : Boolean =  Utils.compressing
-  val saving    : Boolean =  Utils.saving
+  val saving    : Boolean =  Utils.persistenceEnabled
   val archiving: Boolean = Utils.archiving
   println(s"Archivist compressing = $compressing, Saving = $saving, Archiving = $archiving")
 

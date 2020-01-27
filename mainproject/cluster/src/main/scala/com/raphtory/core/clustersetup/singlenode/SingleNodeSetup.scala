@@ -14,7 +14,7 @@ import scala.sys.process._
 
 case class SingleNodeSetup(seedLoc:String,routerClassName:String,UpdaterName:String,LAMName:String,partitionNumber:Int,minimumRouters:Int) extends DocSvr {
   val conf : Config = ConfigFactory.load()
-  implicit val system = init(List(seedLoc))
+  implicit val system = initialiseActorSystem(List(seedLoc))
   //"redis-server --daemonize yes" ! //start redis running on manager partition
   //Process("cassandra").lineStream //run cassandara in background on manager
   //Thread.sleep(5000)

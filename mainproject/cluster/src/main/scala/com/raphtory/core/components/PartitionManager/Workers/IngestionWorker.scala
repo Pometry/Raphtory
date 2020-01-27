@@ -12,7 +12,7 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   mediator ! DistributedPubSubMediator.Put(self)
   val compressing: Boolean = Utils.compressing
-  val saving: Boolean = Utils.saving
+  val saving: Boolean = Utils.persistenceEnabled
 
   override def receive: Receive = {
     case VertexAdd( msgTime, srcId) => storage.vertexAdd( msgTime, srcId); vHandle(srcId, msgTime)
