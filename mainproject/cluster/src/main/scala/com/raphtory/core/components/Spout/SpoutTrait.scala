@@ -12,7 +12,6 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.CommandEnum
 import kamon.metric.MeasurementUnit
 
 import scala.language.postfixOps
