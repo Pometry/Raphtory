@@ -1,14 +1,11 @@
-package com.raphtory.examples.blockchain.bitcoin.actors
+package com.raphtory.examples.blockchain.routers
 
-import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.Router.Helpers.RouterSlave
-import com.raphtory.core.components.Router.RaphtoryRouter
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, RaphWriteClass, VertexAddWithProperties}
-import com.raphtory.core.utils.Utils.getManager
+import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAddWithProperties}
 import com.raphtory.examples.blockchain.BitcoinTransaction
 import spray.json.JsArray
 
-class BitcoinRaphtoryRouter(val routerId:Int,val initialManagerCount:Int) extends RouterSlave{
+class BitcoinRouter(val routerId:Int, val initialManagerCount:Int) extends RouterSlave{
 
 
   def parseRecord(record: Any): Unit = {

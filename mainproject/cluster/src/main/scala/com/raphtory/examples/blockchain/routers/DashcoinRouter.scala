@@ -1,11 +1,8 @@
-package com.raphtory.examples.blockchain.dashcoin.actors
+package com.raphtory.examples.blockchain.routers
 
-import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.Router.Helpers.RouterSlave
-import com.raphtory.core.components.Router.RaphtoryRouter
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, RaphWriteClass, VertexAdd, VertexAddWithProperties}
-import com.raphtory.core.utils.Utils.getManager
-import com.raphtory.examples.blockchain.{BitcoinTransaction, LitecoinTransaction}
+import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
+import com.raphtory.examples.blockchain.LitecoinTransaction
 import spray.json.JsArray
 
 import scala.util.hashing.MurmurHash3

@@ -1,24 +1,13 @@
-package com.raphtory.examples.blockchain.litecoin.actors
+package com.raphtory.examples.blockchain.spouts
 
-import java.io.{File, PrintWriter}
-
-import akka.actor._
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import akka.pattern.ask
-import akka.util.Timeout
 import com.raphtory.core.components.Spout.SpoutTrait
-import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse, SpoutGoing}
-import com.raphtory.examples.blockchain.{BitcoinTransaction, LitecoinTransaction}
-import kamon.Kamon
+import com.raphtory.examples.blockchain.LitecoinTransaction
+import scalaj.http.{Http, HttpRequest}
 import spray.json._
 
-import scala.collection.mutable
-import scala.sys.process._
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scalaj.http.{Http, HttpRequest}
 
 class LitecoinSpout extends SpoutTrait {
 
