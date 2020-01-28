@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.datastax.driver.core.exceptions.WriteTimeoutException
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.{Edge, RemoteEdge, Vertex}
+import com.raphtory.core.model.graphentities.{Edge, SplitEdge, Vertex}
 import com.raphtory.core.storage.{EntityStorage, RaphtoryDBWrite}
 import com.raphtory.core.utils.Utils
 
@@ -114,7 +114,7 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
     for ((id, edge) <- vertex.outgoingEdges)
       edgeHelper(saving, archiving, edge, vertex, compressTime, archiveTime)
     for ((id, edge) <- vertex.incomingEdges)
-      if (edge.isInstanceOf[RemoteEdge])
+      if (edge.isInstanceOf[SplitEdge])
         edgeHelper(saving, archiving, edge, vertex, compressTime, archiveTime)
   }
 
@@ -158,7 +158,7 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
         RaphtoryDBWrite.vertexHistory.save(vertex.getId, history)
       }
       vertex.outgoingEdges.foreach(e => saveEdge(e._2, cutOff))
-      vertex.incomingEdges.foreach(e => if (e._2.isInstanceOf[RemoteEdge]) saveEdge(e._2, cutOff))
+      vertex.incomingEdges.foreach(e => if (e._2.isInstanceOf[SplitEdge]) saveEdge(e._2, cutOff))
       vertex.properties.foreach(prop => {
         val propHistory = prop._2.compressHistory(cutOff, false, workerID)
         if (propHistory.size > 0)

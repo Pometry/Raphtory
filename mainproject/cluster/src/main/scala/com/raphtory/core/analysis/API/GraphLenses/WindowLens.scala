@@ -1,4 +1,4 @@
-package com.raphtory.core.analysis.API.GraphRepositoryProxies
+package com.raphtory.core.analysis.API.GraphLenses
 
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.VertexVisitor
@@ -10,7 +10,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.{ParIterable, ParSet}
 import scala.collection.parallel.mutable.ParTrieMap
 
-class WindowProxy(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:Int,storage:EntityStorage,managerCount:ManagerCount) extends LiveProxy(jobID,superstep,timestamp,windowSize,workerID,storage,managerCount) {
+class WindowLens(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:Int, storage:EntityStorage, managerCount:ManagerCount) extends LiveLens(jobID,superstep,timestamp,windowSize,workerID,storage,managerCount) {
 
   private var setWindow = windowSize
   private var keySet:ParTrieMap[Long,Vertex] = storage.vertices.filter(v=> v._2.aliveAtWithWindow(timestamp,windowSize))

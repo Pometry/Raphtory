@@ -1,6 +1,6 @@
 package com.raphtory.examples.random.actors
 
-import com.raphtory.core.components.Router.Helpers.RouterSlave
+import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication._
 import spray.json._
 
@@ -16,7 +16,7 @@ import spray.json._
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends RouterSlave {
+class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends RouterWorker {
 
   //************* MESSAGE HANDLING BLOCK
 

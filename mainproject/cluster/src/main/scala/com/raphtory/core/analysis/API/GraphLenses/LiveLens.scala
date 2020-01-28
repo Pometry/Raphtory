@@ -1,4 +1,4 @@
-package com.raphtory.core.analysis.API.GraphRepositoryProxies
+package com.raphtory.core.analysis.API.GraphLenses
 
 import java.util.concurrent.ConcurrentHashMap
 
@@ -14,7 +14,7 @@ import monix.execution.atomic.AtomicInt
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.collection.parallel.{ParIterable, ParSet, mutable}
 
-class LiveProxy(jobID:String, superstep:Int, timestamp:Long, windowsize:Long,workerID: Int,storage:EntityStorage,managerCount: ManagerCount) {
+class LiveLens(jobID:String, superstep:Int, timestamp:Long, windowsize:Long, workerID: Int, storage:EntityStorage, managerCount: ManagerCount) {
   private var messages = AtomicInt(0)
   //val messageQueues:ParTrieMap[String,ConcurrentHashMap.KeySetView[(Long,Long,Any),java.lang.Boolean]] = ParTrieMap[String,ConcurrentHashMap.KeySetView[(Long,Long,Any),java.lang.Boolean]]()
   //Utils.getAllReaders(managerCount.count).foreach(reader => messageQueues put (reader,java.util.concurrent.ConcurrentHashMap.newKeySet[(Long,Long,Any)]()))

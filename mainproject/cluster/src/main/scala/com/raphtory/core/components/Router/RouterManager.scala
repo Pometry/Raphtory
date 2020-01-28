@@ -12,7 +12,7 @@ import kamon.metric.MeasurementUnit
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration.{Duration, SECONDS}
 
-class RaphtoryRouter(val routerId:Int, val initialManagerCount:Int, slaveType:String) extends Actor {
+class RouterManager(val routerId:Int, val initialManagerCount:Int, slaveType:String) extends Actor {
   val kGauge         = Kamon.gauge("raphtory.benchmarker")
   val kCounter       = Kamon.counter("raphtory.counters")
 

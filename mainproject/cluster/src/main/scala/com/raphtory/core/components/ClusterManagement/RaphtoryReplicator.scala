@@ -12,7 +12,7 @@ import com.raphtory.core.components.PartitionManager.Archivist
 import com.raphtory.core.components.PartitionManager.Reader
 import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
 import com.raphtory.core.components.PartitionManager.Writer
-import com.raphtory.core.components.Router.RaphtoryRouter
+import com.raphtory.core.components.Router.RouterManager
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
@@ -90,7 +90,7 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
       }
 
       case "Router" => {
-        actorRef = context.system.actorOf(Props(new RaphtoryRouter(myId, currentCount, routerName)), "router")
+        actorRef = context.system.actorOf(Props(new RouterManager(myId, currentCount, routerName)), "router")
       }
     }
   }

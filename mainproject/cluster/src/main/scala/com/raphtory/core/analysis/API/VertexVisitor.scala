@@ -2,7 +2,7 @@ package com.raphtory.core.analysis.API
 
 import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.analysis.API.GraphRepositoryProxies.LiveProxy
+import com.raphtory.core.analysis.API.GraphLenses.LiveLens
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
 import com.raphtory.core.storage.EntityStorage
@@ -13,11 +13,11 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.{ParArray, ParTrieMap}
 object VertexVisitor  {
-  def apply(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, timestamp:Long, window:Long)(implicit context : ActorContext, managerCount : ManagerCount) = {
+  def apply(v : Vertex, jobID:String, superStep:Int, proxy:LiveLens, timestamp:Long, window:Long)(implicit context : ActorContext, managerCount : ManagerCount) = {
     new VertexVisitor(v,jobID,superStep,proxy,timestamp,window)
   }
 }
-class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveProxy, timestamp:Long, window:Long)(implicit context : ActorContext, managerCount : ManagerCount) {
+class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveLens, timestamp:Long, window:Long)(implicit context : ActorContext, managerCount : ManagerCount) {
 
   private val mediator : ActorRef   = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   val vert:Vertex = v

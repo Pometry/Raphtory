@@ -1,11 +1,11 @@
 package com.raphtory.examples.blockchain.routers
 
-import com.raphtory.core.components.Router.Helpers.RouterSlave
+import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAddWithProperties}
 import com.raphtory.examples.blockchain.BitcoinTransaction
 import spray.json.JsArray
 
-class BitcoinRouter(val routerId:Int, val initialManagerCount:Int) extends RouterSlave{
+class BitcoinRouter(val routerId:Int, val initialManagerCount:Int) extends RouterWorker{
 
 
   def parseRecord(record: Any): Unit = {

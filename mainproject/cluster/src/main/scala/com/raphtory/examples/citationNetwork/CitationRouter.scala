@@ -3,10 +3,10 @@ package com.raphtory.examples.citationNetwork
 import com.raphtory.core.model.communication._
 import java.text.SimpleDateFormat
 
-import com.raphtory.core.components.Router.Helpers.RouterSlave
+import com.raphtory.core.components.Router.RouterWorker
 
 
-class CitationRouter(routerId:Int, override val initialManagerCount:Int) extends RouterSlave {
+class CitationRouter(routerId:Int, override val initialManagerCount:Int) extends RouterWorker {
 
 
   def parseRecord(record: Any): Unit = {
