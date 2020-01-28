@@ -7,7 +7,7 @@ import akka.util.Timeout
 import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse, SpoutGoing}
 import com.raphtory.examples.blockchain.BitcoinTransaction
-import com.raphtory.tests.bitcointest.blockcount
+
 import kamon.Kamon
 import spray.json._
 
