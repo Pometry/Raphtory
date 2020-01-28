@@ -171,7 +171,6 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
           for (worker <- Utils.getAllReaderWorkers(managerCount))
             mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep,timestamp,analysisType(),windowSize(),windowSet()), false)
         else {
-          println("howdy")
           for (worker <- Utils.getAllReaderWorkers(managerCount))
             mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, currentSuperStep,timestamp,analysisType(),windowSize(),windowSet()), false)
         }
