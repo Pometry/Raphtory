@@ -21,10 +21,6 @@ case class PartitionUp(id:Int)
 case class ClusterStatusRequest()
 case class ClusterStatusResponse(clusterUp: Boolean)
 
-//The following block are all case classes (commands) which the manager can handle
-case class LiveAnalysis(analyser: Analyser)
-case class Results(result:Object)
-
 case class VertexAdd(msgTime:Long, override val srcID:Long) extends RaphWriteClass //add a vertex (or add/update a property to an existing vertex)
 case class VertexAddWithProperties(msgTime:Long, override val srcID:Long, properties: Map[String,String]) extends RaphWriteClass
 case class VertexUpdateProperties(msgTime:Long,override val srcID:Long, propery:Map[String,String]) extends  RaphWriteClass
@@ -112,15 +108,3 @@ case class TimeCheck(timestamp:Long) extends RaphReadClasses
 case class TimeResponse(ok:Boolean,time:Long) extends RaphReadClasses
 
 case class AllocateJob(record:Any)
-
-case class CheckVertex()// extends CheckingFunction
-case class CheckEdges()// extends CheckingFunction
-
-case class EdgeAvgTrait()
-case class VertexAvgTrait()
-
-case class EdgeAvg()
-case class VertexAvg()
-//sealed trait CheckingFunction
-//case class WatchDogIp(ip: String)
-
