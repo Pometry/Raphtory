@@ -47,10 +47,6 @@ object Go extends App {
       setConf(seedLoc)
       SeedNode(seedLoc)
     }
-    case "rest" => {
-      println("Creating rest node")
-      RestNode(getConf())
-    }
     case "router" => {
       println("Creating Router")
       RouterNode(getConf(), sys.env("PARTITION_MIN").toInt, routerName)
