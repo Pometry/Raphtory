@@ -2,7 +2,6 @@ package com.raphtory.examples.blockchain.ethereum.actors
 
 import cats.effect.{Blocker, IO}
 import com.raphtory.core.components.Spout.SpoutTrait
-import com.raphtory.tests.doobietest.xa
 import doobie.implicits._
 import doobie.util.ExecutionContexts
 import doobie.util.transactor.Transactor
