@@ -1,14 +1,11 @@
-package com.raphtory.examples.blockchain.ethereum.analysis
+package com.raphtory.examples.blockchain.analysers
 
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.API.GraphRepositoryProxies.WindowProxy
-import com.raphtory.core.storage.EntityStorage
-import com.raphtory.core.utils.{HistoryOrdering, Utils}
+import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.immutable
 
-class DegreeRanking extends Analyser {
+class EthereumDegreeRanking extends Analyser {
   object sortOrdering extends Ordering[Int]{
     def compare(key1:Int, key2:Int) = key2.compareTo(key1)
   }
