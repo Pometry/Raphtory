@@ -12,7 +12,7 @@ import com.raphtory.core.components.PartitionManager.Archivist
 import com.raphtory.core.components.PartitionManager.Reader
 import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
 import com.raphtory.core.components.PartitionManager.Writer
-import com.raphtory.core.components.Router.TraditionalRouter.RaphtoryRouter
+import com.raphtory.core.components.Router.RaphtoryRouter
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils

@@ -2,7 +2,7 @@ package com.raphtory.examples.gab.actors
 
 import java.text.SimpleDateFormat
 
-import com.raphtory.core.components.Router.TraditionalRouter.Helpers.RouterSlave
+import com.raphtory.core.components.Router.Helpers.RouterSlave
 import com.raphtory.core.model.communication._
 
 

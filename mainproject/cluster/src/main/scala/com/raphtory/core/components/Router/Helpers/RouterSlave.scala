@@ -1,4 +1,4 @@
-package com.raphtory.core.components.Router.TraditionalRouter.Helpers
+package com.raphtory.core.components.Router.Helpers
 
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
