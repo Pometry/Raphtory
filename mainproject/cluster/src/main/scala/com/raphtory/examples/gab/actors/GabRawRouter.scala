@@ -3,8 +3,8 @@ package com.raphtory.examples.gab.actors
 import java.time.OffsetDateTime
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.components.Router.TraditionalRouter.Helpers.RouterSlave
-import com.raphtory.core.components.Router.TraditionalRouter.RaphtoryRouter
+import com.raphtory.core.components.Router.Helpers.RouterSlave
+import com.raphtory.core.components.Router.RaphtoryRouter
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
 import com.raphtory.core.utils.CommandEnum
 import com.raphtory.examples.gab.rawgraphmodel.GabPost

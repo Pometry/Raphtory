@@ -1,6 +1,6 @@
 package com.raphtory.examples.blockchain.ethereum.actors
 
-import com.raphtory.core.components.Router.TraditionalRouter.Helpers.RouterSlave
+import com.raphtory.core.components.Router.Helpers.RouterSlave
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
 
 import scala.util.hashing.MurmurHash3
