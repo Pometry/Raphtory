@@ -6,8 +6,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.{Edge, Entity, Property, RemoteEdge, Vertex}
-import com.raphtory.core.utils.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException, Utils}
+import com.raphtory.core.model.graphentities.{Edge, Entity, Property, SplitEdge, Vertex}
+import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -133,7 +133,7 @@ class EntityStorage(workerID:Int) {
       }
     }
     vertex.incomingEdges.values.foreach {
-      case edge@(remoteEdge: RemoteEdge) =>
+      case edge@(remoteEdge: SplitEdge) =>
         edge kill msgTime
         mediator ! DistributedPubSubMediator.Send(getManager(remoteEdge.getSrcId, managerCount), ReturnEdgeRemoval(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId), false) //inform the other partition to do the same
       case edge => //if it is a local edge -- opperated by the same worker, therefore we can perform an action -- otherwise we must inform the other local worker to handle this
@@ -141,7 +141,7 @@ class EntityStorage(workerID:Int) {
         else mediator ! DistributedPubSubMediator.Send(getManager(edge.getSrcId, managerCount), EdgeRemoveForOtherWorker(msgTime, edge.getSrcId, edge.getDstId), false) //
     }
     vertex.outgoingEdges.values.foreach {
-      case edge@(remoteEdge: RemoteEdge) =>
+      case edge@(remoteEdge: SplitEdge) =>
         edge kill msgTime//outgoing edge always opperated by the same worker, therefore we can perform an action
         mediator ! DistributedPubSubMediator.Send(getManager(edge.getDstId, managerCount), RemoteEdgeRemoval(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId), false)
       case edge => edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
@@ -164,7 +164,7 @@ class EntityStorage(workerID:Int) {
         present = true
       case None => //if it does not
         if (local) edge = new Edge(workerID,msgTime, srcId, dstId, initialValue = true,this) //create the new edge, local or remote
-        else edge = new RemoteEdge(workerID,msgTime, srcId, dstId, initialValue = true, getPartition(dstId, managerCount),this)
+        else edge = new SplitEdge(workerID,msgTime, srcId, dstId, initialValue = true, getPartition(dstId, managerCount),this)
         srcVertex.addOutgoingEdge(edge) //add this edge to the vertex
     }
     if (local && srcId != dstId) {
@@ -194,7 +194,7 @@ class EntityStorage(workerID:Int) {
 
   def remoteEdgeAddNew(msgTime:Long,srcId:Long,dstId:Long,properties:Map[String,String],srcDeaths:mutable.TreeMap[Long, Boolean]):Unit={
     val dstVertex = vertexAdd(msgTime,dstId) //create or revive the destination node
-    val edge = new RemoteEdge( workerID, msgTime, srcId, dstId, initialValue = true,getPartition(srcId, managerCount),this)
+    val edge = new SplitEdge( workerID, msgTime, srcId, dstId, initialValue = true,getPartition(srcId, managerCount),this)
     dstVertex addIncomingEdge(edge) //add the edge to the associated edges of the destination node
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
@@ -231,7 +231,7 @@ class EntityStorage(workerID:Int) {
         if (local)
           edge = new Edge(workerID, msgTime, srcId, dstId, initialValue = false,this)
         else
-          edge = new RemoteEdge(workerID, msgTime,srcId, dstId, initialValue = false, getPartition(dstId, managerCount),this)
+          edge = new SplitEdge(workerID, msgTime,srcId, dstId, initialValue = false, getPartition(dstId, managerCount),this)
         srcVertex addOutgoingEdge(edge) // add the edge to the associated edges of the source node
       }
     }
@@ -285,7 +285,7 @@ class EntityStorage(workerID:Int) {
 
   def remoteEdgeRemovalNew(msgTime:Long,srcId:Long,dstId:Long,srcDeaths:mutable.TreeMap[Long, Boolean]):Unit={
     val dstVertex = getVertexOrPlaceholder(msgTime,dstId)
-    val edge = new RemoteEdge(workerID,msgTime,srcId, dstId, initialValue = false, getPartition(srcId, managerCount),this)
+    val edge = new SplitEdge(workerID,msgTime,srcId, dstId, initialValue = false, getPartition(srcId, managerCount),this)
     dstVertex addIncomingEdge(edge)  //add the edge to the destination nodes associated list
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge

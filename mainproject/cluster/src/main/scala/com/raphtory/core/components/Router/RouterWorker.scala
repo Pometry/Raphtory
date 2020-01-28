@@ -1,11 +1,11 @@
-package com.raphtory.core.components.Router.Helpers
+package com.raphtory.core.components.Router
 
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.model.communication.{AllocateJob, RaphWriteClass, UpdatedCounter}
 import com.raphtory.core.utils.Utils.getManager
 
-trait RouterSlave extends Actor {
+trait RouterWorker extends Actor {
   protected final val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 

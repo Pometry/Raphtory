@@ -1,11 +1,11 @@
 package com.raphtory.examples.blockchain.routers
 
-import com.raphtory.core.components.Router.Helpers.RouterSlave
+import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.{EdgeAddWithProperties, VertexAddWithProperties}
 
 import scala.util.hashing.MurmurHash3
 
-class EthereumTransactionRouter(val routerId:Int, val initialManagerCount:Int) extends RouterSlave{
+class EthereumTransactionRouter(val routerId:Int, val initialManagerCount:Int) extends RouterWorker{
 
   override protected def parseRecord(value: Any): Unit = {
     val components = value.toString.drop(1).dropRight(1).split(",")

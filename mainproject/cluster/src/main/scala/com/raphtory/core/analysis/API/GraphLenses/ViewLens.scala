@@ -1,4 +1,4 @@
-package com.raphtory.core.analysis.API.GraphRepositoryProxies
+package com.raphtory.core.analysis.API.GraphLenses
 
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.VertexVisitor
@@ -9,7 +9,7 @@ import com.raphtory.core.storage.EntityStorage
 import scala.collection.parallel.{ParIterable, ParSet}
 import scala.collection.parallel.mutable.ParTrieMap
 
-class ViewProxy(jobID:String, superstep:Int, timestamp:Long, workerID:Int,storage:EntityStorage,managerCount:ManagerCount) extends LiveProxy(jobID,superstep,timestamp,-1,workerID,storage,managerCount) {
+class ViewLens(jobID:String, superstep:Int, timestamp:Long, workerID:Int, storage:EntityStorage, managerCount:ManagerCount) extends LiveLens(jobID,superstep,timestamp,-1,workerID,storage,managerCount) {
 
   override  def job() = jobID+timestamp
   private var keySet:ParTrieMap[Long,Vertex] = ParTrieMap[Long,Vertex]()

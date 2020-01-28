@@ -3,8 +3,7 @@ package com.raphtory.examples.gab.actors
 import java.time.OffsetDateTime
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.components.Router.Helpers.RouterSlave
-import com.raphtory.core.components.Router.RaphtoryRouter
+import com.raphtory.core.components.Router.{RouterManager, RouterWorker}
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
 import com.raphtory.core.utils.CommandEnum
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
@@ -22,7 +21,7 @@ import spray.json._
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 
-final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends RouterSlave {
+final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends RouterWorker {
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
   private val nullStr = "null"
   override def parseRecord(record:Any) : Unit= {

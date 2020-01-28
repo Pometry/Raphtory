@@ -4,7 +4,7 @@ package com.raphtory.examples.gab.actors
 
 import java.text.SimpleDateFormat
 
-import com.raphtory.core.components.Router.Helpers.RouterSlave
+import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication._
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
@@ -14,7 +14,7 @@ import com.raphtory.core.model.communication._
 // is equal to -1. Columns 2 and 5 correspond to the userid and parentUserid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabUserGraphRouter(routerId:Int, override val initialManagerCount:Int) extends RouterSlave {
+class GabUserGraphRouter(routerId:Int, override val initialManagerCount:Int) extends RouterWorker {
 
   def parseRecord(record: Any): Unit = {
     val fileLine = record.asInstanceOf[String].split(";").map(_.trim)

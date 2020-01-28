@@ -1,13 +1,13 @@
 package com.raphtory.examples.blockchain.routers
 
-import com.raphtory.core.components.Router.Helpers.RouterSlave
+import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
 import com.raphtory.examples.blockchain.LitecoinTransaction
 import spray.json.JsArray
 
 import scala.util.hashing.MurmurHash3
 
-class DashcoinRouter(val routerId:Int, val initialManagerCount:Int) extends RouterSlave{
+class DashcoinRouter(val routerId:Int, val initialManagerCount:Int) extends RouterWorker{
 
   def parseRecord(record: Any): Unit = {
     val value = record.asInstanceOf[LitecoinTransaction]

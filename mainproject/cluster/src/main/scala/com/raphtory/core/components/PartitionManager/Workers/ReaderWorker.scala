@@ -2,7 +2,7 @@ package com.raphtory.core.components.PartitionManager.Workers
 
 import akka.actor.{Actor, ActorPath, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.analysis.API.GraphRepositoryProxies.{LiveProxy, ViewProxy, WindowProxy}
+import com.raphtory.core.analysis.API.GraphLenses.{LiveLens, ViewLens, WindowLens}
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.API._
 import com.raphtory.core.model.communication._
@@ -21,7 +21,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
   var receivedMessages = AtomicInt(0)
-  var tempProxy:LiveProxy = null
+  var tempProxy:LiveLens = null
 
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = ManagerCount(newValue)
@@ -61,7 +61,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
       analyzer.setup()
       var currentWindow = 1
       while(currentWindow<windowSet.size){
-        tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(currentWindow))
+        tempProxy.asInstanceOf[WindowLens].shrinkWindow(windowSet(currentWindow))
         analyzer.setup()
         currentWindow +=1
       }
@@ -82,7 +82,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
       analyzer.analyse()
       for(i<- windowSet.indices)
         if(i!=0) {
-          tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(i))
+          tempProxy.asInstanceOf[WindowLens].shrinkWindow(windowSet(i))
           analyzer.analyse()
         }
       sender() ! EndStep(tempProxy.getMessages(),tempProxy.checkVotes(workerId))
@@ -106,7 +106,7 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
       individualResults += analyzer.returnResults()
       for(i<- windowSet.indices)
         if(i!=0) {
-          tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(i))
+          tempProxy.asInstanceOf[WindowLens].shrinkWindow(windowSet(i))
           individualResults += analyzer.returnResults()
         }
       sender() ! ReturnResults(individualResults)
@@ -121,27 +121,27 @@ class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:Entity
     analysisType match {
       case AnalysisType.live => {
         if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,storage.newestTime,windowSet(0),workerId,storage,managerCount)
+          tempProxy = new WindowLens(jobID,superStep,storage.newestTime,windowSet(0),workerId,storage,managerCount)
         else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,storage.newestTime,window,workerId,storage,managerCount)
+          tempProxy = new WindowLens(jobID,superStep,storage.newestTime,window,workerId,storage,managerCount)
         else
-          tempProxy = new LiveProxy(jobID,superStep,timestamp,window,workerId,storage,managerCount)
+          tempProxy = new LiveLens(jobID,superStep,timestamp,window,workerId,storage,managerCount)
       }
       case AnalysisType.view  => {
         if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),workerId,storage,managerCount)
+          tempProxy = new WindowLens(jobID,superStep,timestamp,windowSet(0),workerId,storage,managerCount)
         else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,workerId,storage,managerCount)
+          tempProxy = new WindowLens(jobID,superStep,timestamp,window,workerId,storage,managerCount)
         else
-          tempProxy = new ViewProxy(jobID,superStep,timestamp,workerId,storage,managerCount)
+          tempProxy = new ViewLens(jobID,superStep,timestamp,workerId,storage,managerCount)
       }
       case AnalysisType.range  => {
         if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),workerId,storage,managerCount)
+          tempProxy = new WindowLens(jobID,superStep,timestamp,windowSet(0),workerId,storage,managerCount)
         else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,workerId,storage,managerCount)
+          tempProxy = new WindowLens(jobID,superStep,timestamp,window,workerId,storage,managerCount)
         else
-          tempProxy = new ViewProxy(jobID,superStep,timestamp,workerId,storage,managerCount)
+          tempProxy = new ViewLens(jobID,superStep,timestamp,workerId,storage,managerCount)
       }
     }
   }
