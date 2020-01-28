@@ -9,7 +9,6 @@ import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, Ve
 import com.raphtory.core.utils.CommandEnum
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
-import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
 
 /**
   * The Graph Manager is the top level actor in this system (under the stream)
@@ -25,7 +24,6 @@ import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
 
 final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends RouterSlave {
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
-  import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   private val nullStr = "null"
   override def parseRecord(record:Any) : Unit= {
     try{

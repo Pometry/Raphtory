@@ -17,7 +17,7 @@ import akka.http.scaladsl.server.ExceptionHandler
 import com.raphtory.core.analysis.Managers.AnalysisManager
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
-import com.raphtory.examples.random.{RandomRouter, RandomSpout}
+import com.raphtory.examples.random.actors.{RandomRouter, RandomSpout}
 import kamon.metric.PeriodSnapshot
 
 import scala.language.postfixOps

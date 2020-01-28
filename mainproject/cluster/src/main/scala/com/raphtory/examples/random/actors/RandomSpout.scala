@@ -1,11 +1,7 @@
-package com.raphtory.examples.random
+package com.raphtory.examples.random.actors
 
-import java.text.SimpleDateFormat
-
-import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.utils.Utils
-import kamon.Kamon
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

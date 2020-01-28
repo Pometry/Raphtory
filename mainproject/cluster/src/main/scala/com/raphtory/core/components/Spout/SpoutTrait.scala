@@ -18,7 +18,6 @@ import kamon.metric.MeasurementUnit
 import scala.language.postfixOps
 
 trait SpoutTrait extends Actor with Timers {
-  import com.raphtory.core.model.communication.RaphtoryJsonProtocol._
   private var currentMessage  = 0
   private var previousMessage = 0
   private var safe            = false
@@ -41,15 +40,6 @@ trait SpoutTrait extends Actor with Timers {
     currentMessage+=1
     Kamon.counter("raphtory.updateGen.commandsSent").increment()
     kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
-    currentMessage % 10
-  }
-
-  //TODO: Need to move Gab parsing to router
-  protected def sendCommand[T <: RaphWriteClass](command: CommandEnum.Value, value: T) : String = {
-    recordUpdate()
-    val jsonCommand = Command(command, value).toJson.toString
-    mediator ! DistributedPubSubMediator.Send("/user/router", jsonCommand, false)
-    jsonCommand
   }
 
   protected def sendCommand(command: String) : Unit = {
