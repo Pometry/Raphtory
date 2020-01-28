@@ -4,7 +4,6 @@ import java.util.concurrent.ConcurrentHashMap
 
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.model.graphentities.Edge
-import com.raphtory.core.utils.CommandEnum
 
 import scala.collection.mutable
 
@@ -16,8 +15,6 @@ sealed trait RaphWriteClass {
 }
 
 trait SpoutGoing
-
-case class Command(command: CommandEnum.Value, value: RaphWriteClass)
 
 case class RouterUp(id:Int)
 case class PartitionUp(id:Int)

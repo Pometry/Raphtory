@@ -1,5 +1,4 @@
 package com.raphtory.core.model.communication
-import com.raphtory.core.utils.KeyEnum.Value
 
 object AnalysisType extends Enumeration {
   val live : Value = Value("live")
