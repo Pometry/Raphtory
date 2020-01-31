@@ -1,16 +1,15 @@
 package com.raphtory.core.clustersetup.singlenode
 
 import akka.actor.Props
-import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog}
-import com.raphtory.core.clustersetup.DocSvr
-import com.raphtory.core.storage.RaphtoryDBWrite
-import com.typesafe.config.{Config, ConfigFactory}
 import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.analysis.Managers.LiveManagers.{BWindowedLiveAnalysisManager, LiveAnalysisManager, WindowedLiveAnalysisManager}
 import com.raphtory.core.analysis.Managers.RangeManagers.{BWindowedRangeAnalysisManager, RangeAnalysisManager, WindowedRangeAnalysisManager}
 import com.raphtory.core.analysis.Managers.ViewManagers.{BWindowedViewAnalysisManager, ViewAnalysisManager, WindowedViewAnalysisManager}
-import com.raphtory.core.analysis.Managers.LiveManagers.{BWindowedLiveAnalysisManager, LiveAnalysisManager, WindowedLiveAnalysisManager}
+import com.raphtory.core.clustersetup.DocSvr
+import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog}
+import com.typesafe.config.{Config, ConfigFactory}
+
 import scala.language.postfixOps
-import scala.sys.process._
 
 case class SingleNodeSetup(seedLoc:String,routerClassName:String,UpdaterName:String,LAMName:String,partitionNumber:Int,minimumRouters:Int) extends DocSvr {
   val conf : Config = ConfigFactory.load()

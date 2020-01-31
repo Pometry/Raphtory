@@ -1,8 +1,6 @@
 package com.raphtory.core.analysis.Algorithms
 
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.model.communication.VertexMessage
-import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer

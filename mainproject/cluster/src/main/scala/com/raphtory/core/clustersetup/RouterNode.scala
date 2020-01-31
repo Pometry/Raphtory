@@ -4,8 +4,7 @@ package com.raphtory.core.clustersetup
   * Created by Mirate on 31/05/2017.
   */
 
-import akka.actor.ActorSystem
-import akka.actor.Props
+import akka.actor.{ActorSystem, Props}
 import com.raphtory.core.components.ClusterManagement.RaphtoryReplicator
 
 case class RouterNode(seedLoc: String, partitionCount: Int, className: String) extends DocSvr {

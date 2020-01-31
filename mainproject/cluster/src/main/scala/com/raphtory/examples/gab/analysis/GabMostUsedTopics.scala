@@ -1,8 +1,6 @@
 package com.raphtory.examples.gab.analysis
 
-import akka.actor.ActorContext
-import com.raphtory.core.analysis.API.{Analyser, WorkerID}
-import monix.execution.atomic.AtomicDouble
+import com.raphtory.core.analysis.API.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 

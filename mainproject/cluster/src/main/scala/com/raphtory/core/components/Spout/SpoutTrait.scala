@@ -2,18 +2,14 @@ package com.raphtory.core.components.Spout
 
 import akka.actor.{Actor, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import akka.util.Timeout
 import akka.pattern.ask
-import spray.json._
+import akka.util.Timeout
+import com.raphtory.core.model.communication._
 import kamon.Kamon
 
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-import com.raphtory.core.model.communication._
-import kamon.metric.MeasurementUnit
-
+import scala.concurrent.duration.{Duration, _}
 import scala.language.postfixOps
 
 trait SpoutTrait extends Actor with Timers {

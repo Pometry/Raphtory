@@ -1,24 +1,19 @@
 package com.raphtory
 
+import java.lang.management.ManagementFactory
 import java.net.InetAddress
 
 import ch.qos.logback.classic.Level
-import com.raphtory.core.clustersetup._
-import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.curator.framework.CuratorFrameworkFactory
-import org.apache.curator.retry.ExponentialBackoffRetry
-import org.slf4j.LoggerFactory
-import kamon.{Kamon, MetricReporter}
-import kamon.prometheus.PrometheusReporter
-import kamon.system.SystemMetrics
-import java.lang.management.ManagementFactory
-
-import akka.http.scaladsl.server.ExceptionHandler
 import com.raphtory.core.analysis.Managers.AnalysisManager
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
 import com.raphtory.examples.random.actors.{RandomRouter, RandomSpout}
+import com.typesafe.config.{Config, ConfigFactory}
 import kamon.metric.PeriodSnapshot
+import kamon.prometheus.PrometheusReporter
+import kamon.system.SystemMetrics
+import kamon.{Kamon, MetricReporter}
+import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
 import scala.sys.process._

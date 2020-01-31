@@ -2,13 +2,11 @@ package com.raphtory.core.components.PartitionManager.Workers
 
 import akka.actor.Actor
 import com.raphtory.core.model.communication.{ReportIntake, ReportSize}
-import com.raphtory.core.model.graphentities.{Entity, Vertex}
-import com.raphtory.core.storage.EntityStorage
+import com.raphtory.core.model.graphentities.Entity
 import kamon.Kamon
 import kamon.metric.{GaugeMetric, MeasurementUnit}
 import monix.execution.atomic.AtomicInt
 
-import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 
 class WriterLogger extends Actor{

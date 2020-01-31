@@ -1,13 +1,11 @@
 package com.raphtory.core.analysis.API.GraphLenses
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.API.VertexVisitor
-import com.raphtory.core.analysis.API.{ManagerCount, WorkerID}
+import com.raphtory.core.analysis.API.{ManagerCount, VertexVisitor}
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.{ParIterable, ParSet}
 import scala.collection.parallel.mutable.ParTrieMap
 
 class WindowLens(jobID:String, superstep:Int, timestamp:Long, windowSize:Long, workerID:Int, storage:EntityStorage, managerCount:ManagerCount) extends LiveLens(jobID,superstep,timestamp,windowSize,workerID,storage,managerCount) {

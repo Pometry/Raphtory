@@ -3,8 +3,7 @@ package com.raphtory.core.clustersetup
 /**
   * Created by Mirate on 13/06/2017.
   */
-import akka.actor.ActorSystem
-import akka.actor.Props
+import akka.actor.{ActorSystem, Props}
 
 import scala.language.postfixOps
 

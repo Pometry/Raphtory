@@ -1,18 +1,15 @@
 package com.raphtory.core.utils
 
+import java.io._
 import java.text.SimpleDateFormat
 
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.model.graphentities.{Edge, SplitEdge}
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.lang.StringEscapeUtils
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-import java.io._
-import java.util.Base64
-import java.nio.charset.StandardCharsets.UTF_8
 
 object Utils {
   val clusterSystemName = "dockerexp"

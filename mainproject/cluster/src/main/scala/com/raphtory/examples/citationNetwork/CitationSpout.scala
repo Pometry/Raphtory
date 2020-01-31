@@ -1,17 +1,11 @@
 package com.raphtory.examples.citationNetwork
 
-import java.text.SimpleDateFormat
-
-import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.Spout.SpoutTrait
-import com.raphtory.core.utils.Utils
-import kamon.Kamon
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.language.postfixOps
-import scala.util.Random
 import scala.io
+import scala.language.postfixOps
 
 class CitationSpout extends SpoutTrait {
 

@@ -1,7 +1,7 @@
 package com.raphtory.core.clustersetup.util
 
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigValue
+import com.typesafe.config.{Config, ConfigValue}
+
 import scala.collection.JavaConversions._
 
 object ConfigUtils {

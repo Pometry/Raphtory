@@ -1,12 +1,9 @@
 package com.raphtory.core.analysis.Algorithms
 
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.API.GraphLenses.WindowLens
-import com.raphtory.core.storage.EntityStorage
-import com.raphtory.core.utils.{HistoryOrdering, Utils}
+import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.immutable
 
 class DegreeRanking extends Analyser {
   object sortOrdering extends Ordering[Int]{

@@ -1,26 +1,20 @@
 package com.raphtory.core.components.ClusterManagement
 
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.actor.{Actor, ActorRef, Props}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.core.components.PartitionManager.Archivist
-import com.raphtory.core.components.PartitionManager.Reader
 import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
-import com.raphtory.core.components.PartitionManager.Writer
+import com.raphtory.core.components.PartitionManager.{Archivist, Reader, Writer}
 import com.raphtory.core.components.Router.RouterManager
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 import scala.collection.parallel.mutable.ParTrieMap
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
