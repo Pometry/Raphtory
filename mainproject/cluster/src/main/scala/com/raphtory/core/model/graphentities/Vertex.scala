@@ -3,7 +3,6 @@ package com.raphtory.core.model.graphentities
 import com.raphtory.core.analysis.API.VertexVisitor
 import com.raphtory.core.model.communication.{VertexMessage, VertexMutliQueue}
 import com.raphtory.core.storage.{EntityStorage, VertexHistoryPoint, VertexPropertyPoint}
-import com.raphtory.core.utils.{EntityRemovedAtTimeException, PushedOutOfGraphException, StillWithinLiveGraphException, Utils}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParSet

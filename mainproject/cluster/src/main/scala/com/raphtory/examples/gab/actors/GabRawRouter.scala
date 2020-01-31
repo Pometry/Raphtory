@@ -5,7 +5,6 @@ import java.time.OffsetDateTime
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.Router.{RouterManager, RouterWorker}
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
-import com.raphtory.core.utils.CommandEnum
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
 
