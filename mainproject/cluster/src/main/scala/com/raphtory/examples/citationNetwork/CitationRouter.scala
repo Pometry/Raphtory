@@ -1,9 +1,9 @@
 package com.raphtory.examples.citationNetwork
 
-import com.raphtory.core.model.communication._
 import java.text.SimpleDateFormat
 
 import com.raphtory.core.components.Router.RouterWorker
+import com.raphtory.core.model.communication._
 
 
 class CitationRouter(routerId:Int, override val initialManagerCount:Int) extends RouterWorker {

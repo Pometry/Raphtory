@@ -1,17 +1,13 @@
 package com.raphtory.core.storage
 
-import java.util
-import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.{Edge, Entity, Property, SplitEdge, Vertex}
+import com.raphtory.core.model.graphentities.{Edge, Entity, SplitEdge, Vertex}
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.mutable.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
 /**
@@ -21,7 +17,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO What happens when an edge which has been archived gets readded
 
 class EntityStorage(workerID:Int) {
-  import com.raphtory.core.utils.Utils.{checkDst, getPartition, getManager,checkWorker}
+  import com.raphtory.core.utils.Utils.{checkDst, checkWorker, getManager, getPartition}
 
   var messageCount                = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)       // number of messages processed since last report to the benchmarker
   var secondaryMessageCount       = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)

@@ -1,31 +1,20 @@
 package com.raphtory.examples.gab.actors
 
-import java.time.OffsetDateTime
-
 import akka.actor.Cancellable
-import com.mongodb.casbah.Imports.{DBObject, MongoConnection, MongoDBObject}
+import ch.qos.logback.classic.Level
+import com.mongodb.casbah.Imports.{MongoConnection, _}
 import com.raphtory.core.components.Spout.SpoutTrait
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
-import com.raphtory.examples.gab.rawgraphmodel.GabPost
-import com.redis.{RedisClient, RedisConnectionException}
-import spray.json._
-import org.apache.log4j.LogManager
-import com.mongodb.casbah.Imports._
-
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import ch.qos.logback.classic.Level
-import org.slf4j.LoggerFactory
 
 final class GabRawSpout extends SpoutTrait {
 
   //private val redis    = new RedisClient("moe", 6379)
   //private val redisKey = "gab-posts"
   private var sched: Cancellable = null
-
-  import com.mongodb.MongoClientOptions
 
   //val options: MongoClientOptions = MongoClientOptions.builder.addCommandListener(new LoggingClusterListener).build()
   //ddClusterListener(new LoggingClusterListener).build

@@ -1,12 +1,10 @@
 package com.raphtory.core.analysis.API.GraphLenses
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.API.VertexVisitor
-import com.raphtory.core.analysis.API.{ManagerCount, WorkerID}
+import com.raphtory.core.analysis.API.{ManagerCount, VertexVisitor}
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 
-import scala.collection.parallel.{ParIterable, ParSet}
 import scala.collection.parallel.mutable.ParTrieMap
 
 class ViewLens(jobID:String, superstep:Int, timestamp:Long, workerID:Int, storage:EntityStorage, managerCount:ManagerCount) extends LiveLens(jobID,superstep,timestamp,-1,workerID,storage,managerCount) {

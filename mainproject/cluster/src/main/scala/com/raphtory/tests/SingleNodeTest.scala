@@ -1,15 +1,12 @@
 package com.raphtory.tests
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{ActorSystem, Props}
 import ch.qos.logback.classic.Level
-import com.raphtory.core.analysis.Managers.RangeManagers.{BWindowedRangeAnalysisManager, RangeAnalysisManager, WindowedRangeAnalysisManager}
-import com.raphtory.core.analysis.API.{Analyser, WorkerID}
-import com.raphtory.core.analysis.Managers.LiveManagers.LiveAnalysisManager
-import com.raphtory.core.analysis.Managers.ViewManagers.{BWindowedViewAnalysisManager, ViewAnalysisManager, WindowedViewAnalysisManager}
+import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.analysis.Managers.RangeManagers.BWindowedRangeAnalysisManager
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog}
 import org.slf4j.LoggerFactory
 
-import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
 
 object SingleNodeTest extends App {

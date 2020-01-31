@@ -5,8 +5,6 @@ import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
 import com.raphtory.core.clustersetup.DocSvr
 
-import scala.collection.concurrent.TrieMap
-
 class SeedActor(svr:DocSvr) extends Actor {
   val cluster = Cluster(context.system)
 

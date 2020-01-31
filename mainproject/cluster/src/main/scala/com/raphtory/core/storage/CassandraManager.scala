@@ -1,21 +1,13 @@
 package com.raphtory.core.storage
 
-import java.net.InetAddress
-
 import com.datastax.driver.core.SocketOptions
-import com.datastax.driver.core.exceptions.NoHostAvailableException
 import com.outworkers.phantom.connectors.CassandraConnection
 import com.outworkers.phantom.database.Database
 import com.outworkers.phantom.dsl._
-import com.raphtory.core.model.graphentities.{Edge, Vertex}
 import com.raphtory.core.utils.Utils
-import monix.execution.atomic.AtomicInt
 
-import scala.collection.{mutable, parallel}
-import scala.collection.parallel.mutable._
-import scala.collection.parallel.mutable.ParTrieMap
+import scala.collection.mutable
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
 
 class Connector {
   val default: CassandraConnection = ContactPoint.embedded

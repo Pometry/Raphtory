@@ -2,9 +2,8 @@ package com.raphtory.examples.gab.actors
 
 import java.time.OffsetDateTime
 
-import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.components.Router.{RouterManager, RouterWorker}
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
+import com.raphtory.core.components.Router.RouterWorker
+import com.raphtory.core.model.communication.{EdgeAddWithProperties, VertexAddWithProperties}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
 

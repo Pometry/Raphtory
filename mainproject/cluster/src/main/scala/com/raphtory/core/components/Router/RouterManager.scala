@@ -2,14 +2,12 @@ package com.raphtory.core.components.Router
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils.getManager
 import kamon.Kamon
-import kamon.metric.MeasurementUnit
 
 import scala.collection.parallel.mutable.ParTrieMap
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, SECONDS}
 
 class RouterManager(val routerId:Int, val initialManagerCount:Int, slaveType:String) extends Actor {

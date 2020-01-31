@@ -1,10 +1,9 @@
 package com.raphtory.core.components.PartitionManager.Workers
 
-import akka.actor.{Actor, ActorPath, ActorRef}
+import akka.actor.{Actor, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.analysis.API.GraphLenses.{LiveLens, ViewLens, WindowLens}
-import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.API._
+import com.raphtory.core.analysis.API.{Analyser, _}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
@@ -12,8 +11,6 @@ import monix.execution.atomic.AtomicInt
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration.{Duration, SECONDS}
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:EntityStorage)  extends Actor{
   implicit var managerCount: ManagerCount = ManagerCount(managerCountVal)

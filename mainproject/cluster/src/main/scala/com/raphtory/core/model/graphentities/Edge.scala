@@ -2,7 +2,6 @@ package com.raphtory.core.model.graphentities
 
 import com.raphtory.core.storage.{EdgeHistoryPoint, EdgePropertyPoint, EntityStorage}
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 /**

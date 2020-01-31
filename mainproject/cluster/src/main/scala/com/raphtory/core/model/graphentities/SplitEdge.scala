@@ -1,9 +1,7 @@
 package com.raphtory.core.model.graphentities
 
 import com.raphtory.core.storage.EntityStorage
-import com.raphtory.core.utils.Utils
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 

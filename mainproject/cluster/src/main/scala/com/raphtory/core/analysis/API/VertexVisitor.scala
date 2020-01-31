@@ -5,13 +5,11 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.analysis.API.GraphLenses.LiveLens
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
-import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ParSet
-import scala.collection.parallel.mutable.{ParArray, ParTrieMap}
+import scala.collection.parallel.mutable.ParTrieMap
 object VertexVisitor  {
   def apply(v : Vertex, jobID:String, superStep:Int, proxy:LiveLens, timestamp:Long, window:Long)(implicit context : ActorContext, managerCount : ManagerCount) = {
     new VertexVisitor(v,jobID,superStep,proxy,timestamp,window)

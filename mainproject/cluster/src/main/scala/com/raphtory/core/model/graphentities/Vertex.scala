@@ -1,11 +1,9 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.analysis.API.VertexVisitor
-import com.raphtory.core.model.communication.{VertexMessage, VertexMutliQueue}
+import com.raphtory.core.model.communication.VertexMutliQueue
 import com.raphtory.core.storage.{EntityStorage, VertexHistoryPoint, VertexPropertyPoint}
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
 /** Companion Vertex object (extended creator for storage loads) */

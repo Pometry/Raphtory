@@ -1,13 +1,11 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.components.PartitionManager._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.HistoryOrdering
 import monix.execution.atomic.AtomicLong
 
-import scala.collection.parallel.mutable.ParTrieMap
 import scala.collection.mutable
-import spray.json._
+import scala.collection.parallel.mutable.ParTrieMap
 
 /** *
   * Represents Graph Entities (Edges and Vertices)
