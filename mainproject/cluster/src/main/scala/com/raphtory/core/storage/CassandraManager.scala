@@ -8,7 +8,7 @@ import com.outworkers.phantom.connectors.CassandraConnection
 import com.outworkers.phantom.database.Database
 import com.outworkers.phantom.dsl._
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
-import com.raphtory.core.utils.{EntityRemovedAtTimeException, Utils}
+import com.raphtory.core.utils.Utils
 import monix.execution.atomic.AtomicInt
 
 import scala.collection.{mutable, parallel}
