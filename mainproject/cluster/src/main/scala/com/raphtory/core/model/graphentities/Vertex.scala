@@ -1,7 +1,7 @@
 package com.raphtory.core.model.graphentities
 
 import com.raphtory.core.model.communication.VertexMutliQueue
-import com.raphtory.core.storage.{EntityStorage, VertexHistoryPoint, VertexPropertyPoint}
+import com.raphtory.core.storage.{EntityStorage}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -14,21 +14,6 @@ object Vertex {
     //v.associatedEdges = associatedEdges
     v.properties      = properties
     v
-  }
-
-  def apply(saved:VertexHistoryPoint,time:Long,storage:EntityStorage) = {
-    val id = saved.id
-    val history = saved.history
-    var closestTime:Long = 0
-    var value = false
-    for((k,v) <- history){
-      if(k<=time)
-        if((time-k)<(time-closestTime)) {
-          closestTime = k
-          value = v
-        }
-    }
-    new Vertex(closestTime,id.toInt,value,storage)
   }
 
 }
@@ -95,18 +80,4 @@ class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean,storage:En
 
   override def toString: String = s"Vertex ID $vertexId \n History $previousState \n //Properties:\n $properties \n"
 
-  def addSavedProperty(property:VertexPropertyPoint,time:Long): Unit ={
-    val history = property.history
-    var closestTime:Long = 0
-    var value = "default"
-    for((k,v) <- history){
-      if(k<=time)
-        if((time-k)<(time-closestTime)) {
-          closestTime = k
-          value = v
-        }
-    }
-    if(!(value.equals("default")))
-      this + (time,property.name,value)
-  }
 }

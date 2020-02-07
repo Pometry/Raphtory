@@ -29,10 +29,12 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 	val akka_cluster	  = "com.typesafe.akka" 	%% "akka-cluster" 	    % Akka
 	val akka_tools 		  = "com.typesafe.akka"		%% "akka-cluster-tools" % Akka
 	val akka_dist_data  = "com.typesafe.akka" 	%% "akka-distributed-data" % Akka
-  val akka_http       = "com.typesafe.akka"   % "akka-http_2.12"      % "10.0.7"
-	val akka_actor_typed= "com.typesafe.akka"   %% "akka-actor-typed"   % Akka
-	val akka_cluster_typed = "com.typesafe.akka" %% "akka-cluster-typed" % Akka
-	val akka_management = "com.lightbend.akka.management" %% "akka-management" % "1.0.5"
+//  val akka_http       = "com.typesafe.akka"   % "akka-http_2.12"      % "10.0.7"
+	//val akka_actor_typed= "com.typesafe.akka"   %% "akka-actor-typed"   % Akka
+	//val akka_cluster_typed = "com.typesafe.akka" %% "akka-cluster-typed" % Akka
+	//val akka_management = "com.lightbend.akka.management" %% "akka-management" % "1.0.5"
+	//val akka_management2= "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % "1.0.5"
+
 
 	val typesafe_config	= "com.typesafe"			  %  "config"			        % Config
 
@@ -42,6 +44,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 	val logback			    = "ch.qos.logback" 			% "logback-classic"	    % Logback
 	val slf4j_simple 	  = "org.slf4j" 					% "slf4j-api" 					% "1.7.25"
 	val apacheLang 			= "commons-lang" 				%  "commons-lang" 			% "2.6"
+	val joda 					  = "joda-time"           % "joda-time"           % "2.10.5"
 
 	val kafka						= "org.apache.kafka" 	 %% "kafka" 							% "2.3.0"
 	val kafkac 			  	= "org.apache.kafka"    % "kafka-clients" 			% "2.3.0"
@@ -51,6 +54,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
   val kamon_akka      = "io.kamon"					 %% "kamon-akka-2.5"		  % "1.0.1"
 	val kamon_system 		= "io.kamon" 					 %% "kamon-system-metrics"% "1.0.0"
   val monix						= "io.monix" 					 %% "monix" 						  % "3.0.0-RC1"
+	val mongo 					= "org.mongodb" % "mongo-java-driver" % "3.8.0"
+	val casbah 					= "org.mongodb" %% "casbah-core" % "3.1.1"
 
 	val doobie 					= "org.tpolecat" 			 %% "doobie-core"      		% "0.8.4"
   val doobiepostgres  = "org.tpolecat" 			 %% "doobie-postgres"  		% "0.8.4"          // Postgres driver 42.2.8 + type mappings.
@@ -109,8 +114,9 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		.settings(basicSettings: _*)
 		.settings(libraryDependencies ++=
 			dep_compile(
-				typesafe_config, akka_http, akka_actor, akka_cluster, akka_tools, akka_dist_data, akka_remote,akka_cluster_typed, akka_slf4j,akka_actor_typed, logback,spray_json,
-				akka_management,kamon, kamon_akka, kamon_prometheus, kamon_system, monix,bitcoin,twitter_eval,lift, apacheLang,kafka,kafkac,doobie,doobiepostgres)
+				typesafe_config, akka_actor, akka_cluster, akka_tools, akka_dist_data, akka_remote, akka_slf4j, logback,spray_json,
+				kamon, kamon_akka, kamon_prometheus, kamon_system, monix,bitcoin,twitter_eval,lift, apacheLang,kafka,kafkac,doobie,doobiepostgres,joda,
+				casbah,mongo)
 		)
 	  	.settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",

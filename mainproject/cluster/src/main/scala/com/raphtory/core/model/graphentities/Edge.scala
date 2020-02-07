@@ -1,6 +1,6 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.storage.{EdgeHistoryPoint, EdgePropertyPoint, EntityStorage}
+import com.raphtory.core.storage.{EntityStorage}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -16,24 +16,6 @@ object Edge {
     e
   }
 
-  def apply(saved:EdgeHistoryPoint, time:Long,storage:EntityStorage) = {
-    val src = saved.src
-    val dst = saved.dst
-    val history = saved.history
-    var closestTime:Long = 0
-    var value = false
-    for((k,v) <- history){
-      if(k<=time)
-        if((time-k)<(time-closestTime)) {
-          closestTime = k
-          value = v
-        }
-    }
-    if(!value){
-      //throw EntityRemovedAtTimeException()
-    }
-    new Edge(-1,closestTime,src,dst,value,storage)
-  }
 }
 
 /**
@@ -116,20 +98,6 @@ class Edge(workerID:Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: 
     false
   }
 
-  def addSavedProperty(property:EdgePropertyPoint, time:Long): Unit ={
-    val history = property.history
-    var closestTime:Long = 0
-    var value = "default"
-    for((k,v) <- history){
-      if(k<=time)
-        if((time-k)<(time-closestTime)) {
-          closestTime = k
-          value = v
-        }
-    }
-    if(!(value equals ("default")))
-      this + (time,property.name,value)
-  }
 
   override def toString: String = {
     s"Edge srcID $srcId dstID $dstId \n History $previousState \n Properties:\n $properties"

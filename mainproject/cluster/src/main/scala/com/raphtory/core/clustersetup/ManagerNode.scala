@@ -2,7 +2,6 @@ package com.raphtory.core.clustersetup
 
 import akka.actor.{ActorSystem, Props}
 import com.raphtory.core.components.ClusterManagement.RaphtoryReplicator
-import com.raphtory.core.storage.RaphtoryDBWrite
 import com.raphtory.core.utils.Utils
 
 import scala.language.postfixOps
@@ -23,7 +22,6 @@ case class ManagerNode(seedLoc: String, partitionCount: Int) extends DocSvr {
   if (persistenceEnabled) {
     //Process("cassandra").lineStream //run cassandara in background on manager
     Thread.sleep(5000)
-    RaphtoryDBWrite.createDB()
-    RaphtoryDBWrite.clearDB()
+
   }
 }
