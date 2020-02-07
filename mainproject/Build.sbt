@@ -2,7 +2,7 @@
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 
 
-	val Akka            = "2.5.2"
+	val Akka            = "2.6.3"
 	val Config          = "1.2.1"
 	val JodaT           = "2.3"
 	val Logback         = "1.1.2"
@@ -27,22 +27,22 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 	val akka_slf4j 		  = "com.typesafe.akka" 	%% "akka-slf4j"		      % Akka
 	val akka_remote		  = "com.typesafe.akka" 	%% "akka-remote"	      % Akka
 	val akka_cluster	  = "com.typesafe.akka" 	%% "akka-cluster" 	    % Akka
-	val akka_contrib	  = "com.typesafe.akka" 	%% "akka-contrib" 	    % Akka
 	val akka_tools 		  = "com.typesafe.akka"		%% "akka-cluster-tools" % Akka
 	val akka_dist_data  = "com.typesafe.akka" 	%% "akka-distributed-data" % Akka
-  val akka_streams    = "com.typesafe.akka"   %  "akka-stream_2.12"   % "2.5.2"
   val akka_http       = "com.typesafe.akka"   % "akka-http_2.12"      % "10.0.7"
+	val akka_actor_typed= "com.typesafe.akka"   %% "akka-actor-typed"   % Akka
+	val akka_cluster_typed = "com.typesafe.akka" %% "akka-cluster-typed" % Akka
+	val akka_management = "com.lightbend.akka.management" %% "akka-management" % "1.0.5"
+
 	val typesafe_config	= "com.typesafe"			  %  "config"			        % Config
+
+
 	val spray_json      = "io.spray"            % "spray-json_2.12"     % "1.3.3"
 	//val scalajack		    = "co.blocke"           % "scalajack_2.12"      % "4.1"
 	val logback			    = "ch.qos.logback" 			% "logback-classic"	    % Logback
 	val slf4j_simple 	  = "org.slf4j" 					% "slf4j-api" 					% "1.7.25"
-	val redis 					= "net.debasishg"       %% "redisclient"        % "3.5"
 	val apacheLang 			= "commons-lang" 				%  "commons-lang" 			% "2.6"
 
-	//Zookeeper tings
-	val curator1        = "org.apache.curator"  % "curator-framework"   % "2.12.0"
-	val curator2        = "org.apache.curator"  % "curator-recipes"     % "2.12.0"
 	val kafka						= "org.apache.kafka" 	 %% "kafka" 							% "2.3.0"
 	val kafkac 			  	= "org.apache.kafka"    % "kafka-clients" 			% "2.3.0"
 
@@ -54,23 +54,12 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 
 	val doobie 					= "org.tpolecat" 			 %% "doobie-core"      		% "0.8.4"
   val doobiepostgres  = "org.tpolecat" 			 %% "doobie-postgres"  		% "0.8.4"          // Postgres driver 42.2.8 + type mappings.
+	val lift 						= "net.liftweb" %% "lift-json" % "3.3.0"
+
 // https://mvnrepository.com/artifact/wf.bitcoin/JavaBitcoindRpcClient
 	val bitcoin 			  = "org.scalaj" %% "scalaj-http" % "2.3.0"
 // https://mvnrepository.com/artifact/com.twitter/util-eval
 	val twitter_eval 		= "com.twitter" %% "util-eval" % "6.43.0"
-// https://mvnrepository.com/artifact/org.mongodb.scala/mongo-scala-driver
-  val mongo 					= "org.mongodb" % "mongo-java-driver" % "3.8.0"
-	val casbah 					= "org.mongodb" %% "casbah-core" % "3.1.1"
-	val lift 						= "net.liftweb" %% "lift-json" % "3.3.0"
-// https://mvnrepository.com/artifact/org.mongodb/mongo-java-driver
-	val phantom 				=  "com.outworkers"  %% "phantom-dsl" %  "2.24.10"
-
-// https://mvnrepository.com/artifact/org.mongodb/casbah-core
-
-
-
-//val kamon_repos     = Seq(Resolver.bintrayRepo("kamon-io", "snapshots"))
-
 
 	val IP = java.net.InetAddress.getLocalHost().getHostAddress()
 
@@ -120,10 +109,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		.settings(basicSettings: _*)
 		.settings(libraryDependencies ++=
 			dep_compile(
-				typesafe_config, akka_http, akka_streams, akka_actor, akka_cluster, akka_tools, akka_dist_data,
-				akka_contrib, akka_remote, akka_slf4j, logback,spray_json,curator1,curator2,
-				kamon, kamon_akka, kamon_prometheus, kamon_system,redis, monix,bitcoin,twitter_eval,casbah,mongo,lift,phantom,
-				apacheLang,kafka,kafkac,doobie,doobiepostgres)
+				typesafe_config, akka_http, akka_actor, akka_cluster, akka_tools, akka_dist_data, akka_remote,akka_cluster_typed, akka_slf4j,akka_actor_typed, logback,spray_json,
+				akka_management,kamon, kamon_akka, kamon_prometheus, kamon_system, monix,bitcoin,twitter_eval,lift, apacheLang,kafka,kafkac,doobie,doobiepostgres)
 		)
 	  	.settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
