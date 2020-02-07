@@ -61,9 +61,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
   val doobiepostgres  = "org.tpolecat" 			 %% "doobie-postgres"  		% "0.8.4"          // Postgres driver 42.2.8 + type mappings.
 	val lift 						= "net.liftweb" %% "lift-json" % "3.3.0"
 
-// https://mvnrepository.com/artifact/wf.bitcoin/JavaBitcoindRpcClient
 	val bitcoin 			  = "org.scalaj" %% "scalaj-http" % "2.3.0"
-// https://mvnrepository.com/artifact/com.twitter/util-eval
 	val twitter_eval 		= "com.twitter" %% "util-eval" % "6.43.0"
 
 	val IP = java.net.InetAddress.getLocalHost().getHostAddress()
