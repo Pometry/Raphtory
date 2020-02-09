@@ -81,13 +81,13 @@ object Go extends App {
   }
 
   def getConf():String = {
-    while(!("nc seedNode 1600" !).equals(0)){
-      println("Waiting for seednode to come online")
-      Thread.sleep(3000)
-    }
-    prometheusReporter()
-    hostname2Ip("seedNode:1600")
-
+//    while(!("nc seedNode 1600" !).equals(0)){
+//      println("Waiting for seednode to come online")
+//      Thread.sleep(3000)
+//    }
+//    prometheusReporter()
+    //hostname2Ip("seedNode:1600")
+  "127.0.0.1"
   }
   //https://blog.knoldus.com/2014/08/29/how-to-setup-and-use-zookeeper-in-scala-using-apache-curator/
 

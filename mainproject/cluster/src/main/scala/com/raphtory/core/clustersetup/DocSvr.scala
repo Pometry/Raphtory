@@ -1,8 +1,10 @@
 package com.raphtory.core.clustersetup
 
 import akka.actor.{ActorSystem, Address, ExtendedActorSystem}
-import akka.cluster.Member
+import akka.cluster.{Cluster, Member}
 import akka.event.LoggingAdapter
+import akka.management.cluster.bootstrap.ClusterBootstrap
+import akka.management.javadsl.AkkaManagement
 import com.raphtory.core.clustersetup.util.ConfigUtils._
 import com.raphtory.core.utils.Utils
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
@@ -30,15 +32,17 @@ trait DocSvr {
     */
   def initialiseActorSystem(seeds: List[String]): ActorSystem = {
     val config = ConfigFactory.load()
-      .withValue("akka.cluster.seed-nodes",
-        ConfigValueFactory.fromIterable(
-          JavaConversions.asJavaIterable(
-            seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
-          )
-        )
-      )
+//      .withValue("akka.cluster.seed-nodes",
+//        ConfigValueFactory.fromIterable(
+//          JavaConversions.asJavaIterable(
+//            seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
+//          )
+//        )
+//     )
 
     val actorSystem = ActorSystem(clusterSystemName, config)
+    AkkaManagement.get(actorSystem).start()
+    ClusterBootstrap.get(actorSystem).start()
     printConfigInfo(config, actorSystem)
     actorSystem
   }
