@@ -2,7 +2,7 @@
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 
 
-	val Akka            = "2.6.3"
+	val Akka            = "2.5.23"
 	val Config          = "1.2.1"
 	val JodaT           = "2.3"
 	val Logback         = "1.1.2"
@@ -29,11 +29,12 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 	val akka_cluster	  = "com.typesafe.akka" 	%% "akka-cluster" 	    % Akka
 	val akka_tools 		  = "com.typesafe.akka"		%% "akka-cluster-tools" % Akka
 	val akka_dist_data  = "com.typesafe.akka" 	%% "akka-distributed-data" % Akka
-//  val akka_http       = "com.typesafe.akka"   % "akka-http_2.12"      % "10.0.7"
-	//val akka_actor_typed= "com.typesafe.akka"   %% "akka-actor-typed"   % Akka
-	//val akka_cluster_typed = "com.typesafe.akka" %% "akka-cluster-typed" % Akka
-	//val akka_management = "com.lightbend.akka.management" %% "akka-management" % "1.0.5"
-	//val akka_management2= "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % "1.0.5"
+	val akka_actor_typed= "com.typesafe.akka"   %% "akka-actor-typed"   % Akka
+	val akka_cluster_typed = "com.typesafe.akka" %% "akka-cluster-typed" % Akka
+	val akka_management = "com.lightbend.akka.management" %% "akka-management" % "1.0.5"
+	val akka_management2= "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % "1.0.5"
+	val kube = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % "1.0.5"
+
 
 
 	val typesafe_config	= "com.typesafe"			  %  "config"			        % Config
@@ -112,8 +113,8 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		.settings(basicSettings: _*)
 		.settings(libraryDependencies ++=
 			dep_compile(
-				typesafe_config, akka_actor, akka_cluster, akka_tools, akka_dist_data, akka_remote, akka_slf4j, logback,spray_json,
-				kamon, kamon_akka, kamon_prometheus, kamon_system, monix,bitcoin,twitter_eval,lift, apacheLang,kafka,kafkac,doobie,doobiepostgres,joda,
+				typesafe_config, akka_actor, akka_cluster, akka_tools, akka_dist_data, akka_remote, akka_slf4j, logback,spray_json,akka_management,akka_management2,
+				kube,kamon, kamon_akka, kamon_prometheus, kamon_system, monix,bitcoin,twitter_eval,lift, apacheLang,kafka,kafkac,doobie,doobiepostgres,joda,
 				casbah,mongo)
 		)
 	  	.settings(
