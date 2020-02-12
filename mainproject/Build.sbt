@@ -31,6 +31,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 	val akka_dist_data  = "com.typesafe.akka" 	%% "akka-distributed-data" % Akka
 	val akka_actor_typed= "com.typesafe.akka"   %% "akka-actor-typed"   % Akka
 	val akka_cluster_typed = "com.typesafe.akka" %% "akka-cluster-typed" % Akka
+	val akka_http       =  "com.typesafe.akka" %% "akka-http" % "10.1.11"
 	val akka_management = "com.lightbend.akka.management" %% "akka-management" % "1.0.5"
 	val akka_management2= "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % "1.0.5"
 	val kube = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % "1.0.5"
@@ -113,7 +114,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 		.settings(basicSettings: _*)
 		.settings(libraryDependencies ++=
 			dep_compile(
-				typesafe_config, akka_actor, akka_cluster, akka_tools, akka_dist_data, akka_remote, akka_slf4j, logback,spray_json,akka_management,akka_management2,
+				typesafe_config, akka_actor, akka_cluster, akka_tools, akka_dist_data, akka_http, akka_remote, akka_slf4j, logback,spray_json,akka_management,akka_management2,
 				kube,kamon, kamon_akka, kamon_prometheus, kamon_system, monix,bitcoin,twitter_eval,lift, apacheLang,kafka,kafkac,doobie,doobiepostgres,joda,
 				casbah,mongo)
 		)
