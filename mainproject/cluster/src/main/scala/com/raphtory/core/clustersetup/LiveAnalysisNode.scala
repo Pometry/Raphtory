@@ -11,67 +11,69 @@ import com.raphtory.core.analysis.Managers.LiveManagers.{BWindowedLiveAnalysisMa
 import com.raphtory.core.analysis.Managers.RangeManagers.{BWindowedRangeAnalysisManager, RangeAnalysisManager, WindowedRangeAnalysisManager}
 import com.raphtory.core.analysis.Managers.ViewManagers.{BWindowedViewAnalysisManager, ViewAnalysisManager, WindowedViewAnalysisManager}
 
-case class LiveAnalysisNode(seedLoc: String, name: String) extends DocSvr {
+import akka.actor.{Actor, Props}
+import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.analysis.Managers.RangeManagers.{BWindowedRangeAnalysisManager, RangeAnalysisManager, WindowedRangeAnalysisManager}
+import com.raphtory.core.analysis.Managers.ViewManagers.{BWindowedViewAnalysisManager, ViewAnalysisManager, WindowedViewAnalysisManager}
+import com.raphtory.core.analysis.Managers.LiveManagers.{BWindowedLiveAnalysisManager, LiveAnalysisManager, WindowedLiveAnalysisManager}
 
-  implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
+case class LiveAnalysisNode(seedLoc: String, name:String)
+  extends DocSvr {
+  implicit val system = initialiseActorSystem(List(seedLoc))
 
-  private val jobID = sys.env.getOrElse("JOBID", "Default").toString
-  private val analyser = Class.forName(this.name).newInstance().asInstanceOf[Analyser]
 
-  // FIXME: Need to make this neater, extract the type checks into constants,
-  //        and have the default fall back strategy better defined
+  val jobID = sys.env.getOrElse("JOBID", "Default").toString
+  val analyser = Class.forName(name).newInstance().asInstanceOf[Analyser]
+
   sys.env.getOrElse("LAMTYPE", "Live").toString match {
-    case "Live" => createLiveAnalyst(this.name)
-    case "View" => createViewAnalyst(this.name)
-    case "Range" => createRangeAnalyst(this.name)
-  }
-
-  def createLiveAnalyst(nodeName: String): ActorRef = {
-    val analysisManager: AnalysisManager = sys.env.getOrElse("WINDOWTYPE", "false") match {
-      case "false" => new LiveAnalysisManager(jobID = jobID, analyser = analyser)
-      case "true" => new WindowedLiveAnalysisManager(jobID = jobID, analyser = analyser)
-      case "batched" => new BWindowedLiveAnalysisManager(jobID = jobID, analyser = analyser)
+    case "Live" => { // live graph
+      sys.env.getOrElse("WINDOWTYPE", "false") match {
+        case "false" => {
+          system.actorOf(Props(new LiveAnalysisManager(jobID, analyser)), s"LiveAnalysisManager_$name")
+        }
+        case "true" => {
+          system.actorOf(Props(new WindowedLiveAnalysisManager(jobID, analyser)), s"LiveAnalysisManager_$name")
+        }
+        case "batched" => {
+          system.actorOf(Props(new BWindowedLiveAnalysisManager(jobID, analyser)), s"LiveAnalysisManager_$name")
+        }
+      }
+    }
+    case "View" => { //view of the graph
+      val time = sys.env.getOrElse("TIMESTAMP", "0").toLong
+      sys.env.getOrElse("WINDOWTYPE", "false") match {
+        case "false" => {
+          system.actorOf(Props(new ViewAnalysisManager(jobID, analyser, time)), s"ViewAnalysisManager_$name")
+        }
+        case "true" => {
+          val window = sys.env.getOrElse("WINDOW", "0").toLong
+          system.actorOf(Props(new WindowedViewAnalysisManager(jobID, analyser, time, window)), s"ViewAnalysisManager_$name")
+        }
+        case "batched" => {
+          val windowset = sys.env.getOrElse("WINDOWSET", "0").split(",").map(f => f.toLong)
+          system.actorOf(Props(new BWindowedViewAnalysisManager(jobID, analyser, time, windowset)), s"ViewAnalysisManager_$name")
+        }
+      }
+    }
+    case "Range" => { // windowed range query through history
+      val start = sys.env.getOrElse("START", "0").toLong
+      val end = sys.env.getOrElse("END", "0").toLong
+      val jump = sys.env.getOrElse("JUMP", "0").toLong
+      sys.env.getOrElse("WINDOWTYPE", "false") match {
+        case "false" => {
+          system.actorOf(Props(new RangeAnalysisManager(jobID, analyser, start, end, jump)), s"RangeAnalysisManager_$name")
+        }
+        case "true" => {
+          val window = sys.env.getOrElse("WINDOW", "0").toLong
+          system.actorOf(Props(new WindowedRangeAnalysisManager(jobID, analyser, start, end, jump, window)), s"RangeAnalysisManager_$name")
+        }
+        case "batched" => {
+          val windowset = sys.env.getOrElse("WINDOWSET", "0").split(",").map(f => f.toLong)
+          system.actorOf(Props(new BWindowedRangeAnalysisManager(jobID, analyser, start, end, jump, windowset)), s"RangeAnalysisManager_$name")
+        }
+      }
     }
 
-    val actorName = s"LiveAnalysisManager_$name"
-    system.actorOf(Props(analysisManager), actorName)
   }
 
-  def createViewAnalyst(nodeName: String): ActorRef = {
-    val time = sys.env.getOrElse("TIMESTAMP", "0").toLong
-
-    val analysisManager: ViewAnalysisManager = sys.env.getOrElse("WINDOWTYPE", "false") match {
-      case "false" =>
-        new ViewAnalysisManager(jobID = jobID, analyser = analyser, time = time)
-      case "true" =>
-        val window = sys.env.getOrElse("WINDOW", "0").toLong
-        new WindowedViewAnalysisManager(jobID = jobID, analyser = analyser, time = time, window = window)
-      case "batched" =>
-        val windowSet = sys.env.getOrElse("WINDOWSET", "0").split(",").map(f => f.toLong)
-        new BWindowedViewAnalysisManager(jobID = jobID, analyser = analyser, time = time, windows = windowSet)
-    }
-
-    val actorName = s"ViewAnalysisManager_$name"
-    system.actorOf(Props(analysisManager), actorName)
-  }
-
-  def createRangeAnalyst(nodeName: String): ActorRef = {
-    val start = sys.env.getOrElse("START", "0").toLong
-    val end = sys.env.getOrElse("END", "0").toLong
-    val jump = sys.env.getOrElse("JUMP", "0").toLong
-
-    val analysisManager: RangeAnalysisManager = sys.env.getOrElse("WINDOWTYPE", "false") match {
-      case "false" =>
-        new RangeAnalysisManager(jobID = jobID, analyser = analyser, start = start, end = end, jump = jump)
-      case "true" =>
-        val window = sys.env.getOrElse("WINDOW", "0").toLong
-        new WindowedRangeAnalysisManager(jobID = jobID, analyser = analyser, start = start, end = end, jump = jump, window = window)
-      case "batched" =>
-        val windowSet = sys.env.getOrElse("WINDOWSET", "0").split(",").map(f => f.toLong)
-        new BWindowedRangeAnalysisManager(jobID = jobID, analyser = analyser, start = start, end = end, jump = jump, windows = windowSet)
-    }
-
-    val actorName = s"RangeAnalysisManager_$name"
-    system.actorOf(Props(analysisManager), actorName)
-  }
 }
