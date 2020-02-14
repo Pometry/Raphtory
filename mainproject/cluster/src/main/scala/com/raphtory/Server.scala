@@ -25,12 +25,12 @@ object Go extends App {
 
   val conf          = ConfigFactory.load()
   val seedLoc       = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
- // val zookeeper     = s"${sys.env("ZOOKEEPER")}"
- val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+  val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
   val routerName    = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
   val updaterName   = s"${sys.env.getOrElse("UPDATERCLASS", classOf[RandomSpout].getClass.getName)}"
   val lamName       = s"${sys.env.getOrElse("LAMCLASS", classOf[AnalysisManager].getClass.getName)}"
+  val docker        =  System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
   val runtimeMxBean = ManagementFactory.getRuntimeMXBean
   val arguments = runtimeMxBean.getInputArguments
@@ -58,8 +58,6 @@ object Go extends App {
 
     case "liveAnalysis" => {
       println("Creating Live Analysis Manager")
-      //val LAM_Name = args(1) // TODO other ways (still env?): see issue #5 #6
-
       LiveAnalysisNode(getConf(), lamName)
     }
     case "clusterUp" => {
@@ -69,7 +67,6 @@ object Go extends App {
 
     case "singleNodeSetup" => {
       println("putting up cluster in one node")
-      //setConf(seedLoc, zookeeper)
       SingleNodeSetup(hostname2Ip(seedLoc), routerName, updaterName, lamName, sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
       prometheusReporter()
     }
@@ -81,15 +78,15 @@ object Go extends App {
   }
 
   def getConf():String = {
-//    while(!("nc seedNode 1600" !).equals(0)){
-//      println("Waiting for seednode to come online")
-//      Thread.sleep(3000)
-//    }
-//    prometheusReporter()
-    //hostname2Ip("seedNode:1600")
-  "127.0.0.1"
+   if(docker) {
+     while (!("nc seedNode 1600" !).equals(0)) {
+       println("Waiting for seednode to come online")
+       Thread.sleep(3000)
+     }
+     prometheusReporter()
+     hostname2Ip("seedNode:1600")
+   }else "127.0.0.1"
   }
-  //https://blog.knoldus.com/2014/08/29/how-to-setup-and-use-zookeeper-in-scala-using-apache-curator/
 
   def prometheusReporter() = {
     try {
@@ -125,6 +122,6 @@ object Go extends App {
   def hostname2Ip(seedLoc: String): String = {
     // hostname_asd_1:port
     val t = seedLoc.split(":")
-    return InetAddress.getByName(t(0)).getHostAddress() + ":" + t(1)
+    InetAddress.getByName(t(0)).getHostAddress() + ":" + t(1)
   }
 }

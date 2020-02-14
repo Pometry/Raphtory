@@ -2,7 +2,7 @@
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 
 
-	val Akka            = "2.5.23"
+	val Akka            = "2.5.26"
 	val Config          = "1.2.1"
 	val JodaT           = "2.3"
 	val Logback         = "1.1.2"

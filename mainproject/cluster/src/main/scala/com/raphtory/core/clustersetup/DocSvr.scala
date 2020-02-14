@@ -17,6 +17,7 @@ trait DocSvr {
   def seedLoc: String
 
   implicit val system: ActorSystem
+  val docker        =  System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
   val clusterSystemName: String = Utils.clusterSystemName
   val ssn: String = java.util.UUID.randomUUID.toString
@@ -31,18 +32,20 @@ trait DocSvr {
     *         as determined by the ${seeds} parameter
     */
   def initialiseActorSystem(seeds: List[String]): ActorSystem = {
-    val config = ConfigFactory.load()
-//      .withValue("akka.cluster.seed-nodes",
-//        ConfigValueFactory.fromIterable(
-//          JavaConversions.asJavaIterable(
-//            seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
-//          )
-//        )
-//     )
+    var config = ConfigFactory.load()
+    if(docker) config = config.withValue("akka.cluster.seed-nodes",
+        ConfigValueFactory.fromIterable(
+          JavaConversions.asJavaIterable(
+            seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
+          )
+        )
+     )
 
     val actorSystem = ActorSystem(clusterSystemName, config)
-    AkkaManagement.get(actorSystem).start()
-    ClusterBootstrap.get(actorSystem).start()
+    if(!docker) {
+      AkkaManagement.get(actorSystem).start()
+      ClusterBootstrap.get(actorSystem).start()
+    }
     printConfigInfo(config, actorSystem)
     actorSystem
   }

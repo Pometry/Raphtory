@@ -18,6 +18,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 class EntityStorage(workerID:Int) {
   import com.raphtory.core.utils.Utils.{checkDst, checkWorker, getManager, getPartition}
+  val debug = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
 
   var messageCount                = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)       // number of messages processed since last report to the benchmarker
   var secondaryMessageCount       = ArrayBuffer[Int](0,0,0,0,0,0,0,0,0,0)
@@ -65,6 +66,7 @@ class EntityStorage(workerID:Int) {
 
 
   def vertexAdd(msgTime : Long, srcId : Long, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
+    if(debug)println(s"Adding $srcId")
     val vertex : Vertex = vertices.get(srcId) match { //check if the vertex exists
       case Some(v) => { //if it does
         v revive msgTime //add the history point
