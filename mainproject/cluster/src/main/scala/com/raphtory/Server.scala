@@ -78,14 +78,15 @@ object Go extends App {
   }
 
   def getConf():String = {
-   if(docker) {
-     while (!("nc seedNode 1600" !).equals(0)) {
-       println("Waiting for seednode to come online")
-       Thread.sleep(3000)
-     }
-     prometheusReporter()
-     hostname2Ip("seedNode:1600")
-   }else "127.0.0.1"
+//   if(docker) {
+//     while (!("nc seedNode 1600" !).equals(0)) {
+//       println("Waiting for seednode to come online")
+//       Thread.sleep(3000)
+//     }
+//     prometheusReporter()
+//     hostname2Ip("seedNode:1600")
+//   }else "127.0.0.1"
+    "127.0.0.1"
   }
 
   def prometheusReporter() = {

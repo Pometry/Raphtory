@@ -32,20 +32,20 @@ trait DocSvr {
     *         as determined by the ${seeds} parameter
     */
   def initialiseActorSystem(seeds: List[String]): ActorSystem = {
-    var config = ConfigFactory.load()
-    if(docker) config = config.withValue("akka.cluster.seed-nodes",
-        ConfigValueFactory.fromIterable(
-          JavaConversions.asJavaIterable(
-            seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
-          )
-        )
-     )
+    val config = ConfigFactory.load()
+//    if(docker) config = config.withValue("akka.cluster.seed-nodes",
+//        ConfigValueFactory.fromIterable(
+//          JavaConversions.asJavaIterable(
+//            seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
+//          )
+//        )
+//     )
 
     val actorSystem = ActorSystem(clusterSystemName, config)
-    if(!docker) {
-      AkkaManagement.get(actorSystem).start()
-      ClusterBootstrap.get(actorSystem).start()
-    }
+
+    AkkaManagement.get(actorSystem).start()
+    ClusterBootstrap.get(actorSystem).start()
+
     printConfigInfo(config, actorSystem)
     actorSystem
   }
