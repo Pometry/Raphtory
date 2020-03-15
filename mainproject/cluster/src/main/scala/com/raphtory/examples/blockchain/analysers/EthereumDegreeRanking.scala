@@ -9,7 +9,12 @@ class EthereumDegreeRanking extends Analyser {
   object sortOrdering extends Ordering[Int]{
     def compare(key1:Int, key2:Int) = key2.compareTo(key1)
   }
+
+  override def setup(): Unit = {}
   override def analyse(): Unit = {
+
+  }
+  override def returnResults(): Any = {
     val degree =proxy.getVerticesSet().map(vert=>{
       val vertex = proxy.getVertex(vert._2)
       val outDegree = vertex.getOutgoingNeighbors.size
@@ -24,7 +29,6 @@ class EthereumDegreeRanking extends Analyser {
     (totalV,totalOut,totalIn,topUsers)
   }
 
-  override def setup(): Unit = {}
 
   override def defineMaxSteps(): Int = 1
 
@@ -33,6 +37,15 @@ class EthereumDegreeRanking extends Analyser {
   }
 
   override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+    val endResults = results.asInstanceOf[ArrayBuffer[(Int,Int,Int,Array[(Int,Int,Int)])]]
+    val totalVert = endResults.map(x=>x._1).sum
+    val totalEdge = endResults.map(x=>x._3).sum
+    val degree = try{totalEdge/totalVert}catch {case e:ArithmeticException => 0}
+    var bestUserArray = "["
+    val bestUsers = endResults.map(x=>x._4).flatten.sortBy(x=> x._3)(sortOrdering).take(20).map(x=> s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""").foreach(x=> bestUserArray+=x+",")
+    bestUserArray = if(bestUserArray.length>1) bestUserArray.dropRight(1)+"]" else bestUserArray+"]"
+    val text = s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":${bestUserArray},"viewTime":$viewCompleteTime},"""
+    println(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
@@ -59,6 +72,6 @@ class EthereumDegreeRanking extends Analyser {
     }
   }
 
-  override def returnResults(): Any = ???
+
 }
 

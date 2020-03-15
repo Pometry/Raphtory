@@ -19,7 +19,6 @@ class EthereumGethRouter(val routerId:Int, val initialManagerCount:Int) extends 
     val sourceNode = MurmurHash3.stringHash(from) //hash the id to get a vertex ID
     val destinationNode = MurmurHash3.stringHash(to) //hash the id to get a vertex ID
 
-    println(s"$blockNumber $from $to $sent")
     toPartitionManager(VertexAddWithProperties(blockNumber, sourceNode,properties = Map("id"->from)))
     toPartitionManager(VertexAddWithProperties(blockNumber, destinationNode,properties = Map("id"->to)))
     toPartitionManager(EdgeAddWithProperties(blockNumber, sourceNode, destinationNode,properties = Map("value"->sent)))
