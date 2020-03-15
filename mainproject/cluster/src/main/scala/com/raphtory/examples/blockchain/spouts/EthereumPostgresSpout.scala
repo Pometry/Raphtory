@@ -39,7 +39,7 @@ class EthereumPostgresSpout extends SpoutTrait{
     }
   }
 
-  override protected def running(): Unit = {
+  protected def running(): Unit = {
     sql"select from_address, to_address, value,block_timestamp from transactions where block_number >= ${startBlock} AND block_number < ${startBlock + batchSize} ".query[(String,String,String,String)] //get the to,from,value and time for transactions within the set block batch
       .to[List]         // ConnectionIO[List[String]]
       .transact(dbconnector)     // IO[List[String]]

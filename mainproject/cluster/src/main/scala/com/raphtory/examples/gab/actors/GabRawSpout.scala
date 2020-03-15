@@ -46,7 +46,7 @@ final class GabRawSpout extends SpoutTrait {
     }
   }
 
-  override def running(): Unit = {
+  def running(): Unit = {
     if (isSafe) {
       val count = getNextPosts()
       postMin += window

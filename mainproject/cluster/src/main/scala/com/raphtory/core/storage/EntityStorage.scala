@@ -40,7 +40,7 @@ class EntityStorage(workerID:Int) {
   var printing          : Boolean     = true
   var managerCount      : Int         = 1
   var managerID         : Int         = 0
-  var mediator          : ActorRef    = nulls
+  var mediator          : ActorRef    = null
   var windowing         : Boolean     =  Utils.windowing
   //stuff for compression and archiving
   var oldestTime        :Long         = Long.MaxValue

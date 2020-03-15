@@ -30,7 +30,6 @@ class GabExampleSpout extends SpoutTrait {
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
     context.system.scheduler.schedule(Duration(1, SECONDS), Duration(100, NANOSECONDS), self, "newLine")
-
   }
 
   protected def processChildMessages(message: Any): Unit = {
@@ -52,12 +51,6 @@ class GabExampleSpout extends SpoutTrait {
     else{
       stop()
     }
-  }
-
-
-  def running(): Unit = {
-    //genRandomCommands(totalCount)
-    //totalCount+=1000
   }
 
 }
