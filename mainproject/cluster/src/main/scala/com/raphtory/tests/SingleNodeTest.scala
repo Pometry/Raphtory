@@ -3,7 +3,7 @@ package com.raphtory.tests
 import akka.actor.{ActorSystem, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.Managers.RangeManagers.BWindowedRangeAnalysisManager
+import com.raphtory.core.analysis.Managers.RangeManagers.{BWindowedRangeAnalysisManager, RangeAnalysisManager}
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog}
 import org.slf4j.LoggerFactory
 
@@ -43,20 +43,20 @@ object SingleNodeTest extends App {
   println("starting")
   //val start = 1476113850000L
 // val start = 1474326000000L
-  val start = 1474326000000L
-  val end = 1476113855000L
+  val start = 5000000L
+  val end = 6000000L
  //val end = 1525368897000L
-  val jump =    86400000
-  val window =    86400000
+  val jump =    1
+  //val window =    86400000
 
   //val start = 1439311261000L
   //val end =   31525368897000L
   //val jump =    3600000
   //val window =    3600000
 //
-  val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
+  //val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
 
-  system.actorOf(Props(new BWindowedRangeAnalysisManager("testname",analyser,start,end,jump,windowset)), s"LiveAnalysisManager_$Analyser")
+  system.actorOf(Props(new RangeAnalysisManager("testname",analyser,start,end,jump)), s"LiveAnalysisManager_$Analyser")
 
 ////////////////
 //  {"time":1474326000000,"windowsize":31536000000,"biggest":3990,"total":64,"totalWithoutIslands":24,"totalIslands":40,"proportion":0.9789009,"proportionWithoutIslands":0.9886026,"clustersGT2":1,"viewTime":2391,"concatTime":7},
