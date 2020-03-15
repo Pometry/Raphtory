@@ -23,17 +23,13 @@ class GabKafkaSpout extends SpoutTrait{
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
-
     context.system.scheduler.scheduleOnce( Duration(10, SECONDS), self, "newLine")
-
   }
 
   protected def processChildMessages(message: Any): Unit = {
       message match {
         case "newLine" => {
           if (isSafe()) {
-            //sendCommand(line)
-            //println("hello")
             consumeFromKafka()
           }
           else {
