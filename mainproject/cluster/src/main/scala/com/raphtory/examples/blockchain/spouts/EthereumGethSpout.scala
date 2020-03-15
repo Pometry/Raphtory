@@ -11,7 +11,7 @@ import scalaj.http.{Http, HttpRequest}
 import spray.json._
 
 class EthereumGethSpout extends SpoutTrait {
-  var currentBlock = System.getenv().getOrDefault("ETHEREUM_START_BLOCK_INDEX", "0").trim.toInt
+  var currentBlock = System.getenv().getOrDefault("ETHEREUM_START_BLOCK_INDEX", "5000000").trim.toInt
   var highestBlock = System.getenv().getOrDefault("ETHEREUM_MAXIMUM_BLOCK_INDEX", "999999999").trim.toInt
   val nodeIP = System.getenv().getOrDefault("ETHEREUM_IP_ADDRESS", "http://127.0.0.1").trim
   val nodePort = System.getenv().getOrDefault("ETHEREUM_PORT", "8545").trim
@@ -47,6 +47,7 @@ class EthereumGethSpout extends SpoutTrait {
     for(i <- 0 until transactionCount) {
        sendCommand(executeRequest("eth_getTransactionByBlockNumberAndIndex",s""""0x${currentBlock.toHexString}","0x${i.toHexString}"""").toString())
     }
+    currentBlock+=1
   }
 
 }
