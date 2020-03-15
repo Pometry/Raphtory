@@ -29,7 +29,6 @@ class GabExampleSpout extends SpoutTrait {
 
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
-
     context.system.scheduler.schedule(Duration(1, SECONDS), Duration(100, NANOSECONDS), self, "newLine")
 
   }
@@ -50,7 +49,6 @@ class GabExampleSpout extends SpoutTrait {
         case _ => println("message not recognized!")
       }
     }
-
     else{
       stop()
     }
