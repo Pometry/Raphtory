@@ -49,7 +49,6 @@ trait SpoutTrait extends Actor with Timers {
   }
 
   protected def processChildMessages(rcvdMessage : Any)
-  protected def running()
 
   final protected def isSafe() = safe
   def start() = safe = true

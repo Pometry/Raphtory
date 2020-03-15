@@ -51,9 +51,5 @@ class GabKafkaSpout extends SpoutTrait{
     //}
     context.system.scheduler.scheduleOnce( Duration(1, MILLISECONDS), self, "newLine")
   }
-  def running(): Unit = {
-    //genRandomCommands(totalCount)
-    //totalCount+=1000
-  }
 }
 
