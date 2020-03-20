@@ -15,7 +15,7 @@ class GabExampleSpout extends SpoutTrait {
   val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/app").trim
   val file_name = System.getenv().getOrDefault("GAB_FILE_NAME", "gabNetwork500.csv").trim
   val fileLines = io.Source.fromFile(directory+"/"+file_name).getLines.drop(1).toArray
-// upstream/master
+  // upstream/master
   var position = 0
   var linesNumber=fileLines.length
   println("Start: "+ LocalDateTime.now())
@@ -27,32 +27,21 @@ class GabExampleSpout extends SpoutTrait {
 
   println("Lines "+linesNumber)
 
-  override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
-    super.preStart()
-    context.system.scheduler.schedule(Duration(1, SECONDS), Duration(100, NANOSECONDS), self, "newLine")
-  }
 
-  protected def processChildMessages(message: Any): Unit = {
-    if (position<linesNumber) {
-      message match {
-        case "newLine" => {
-          if (isSafe()) {
-            for(i <- 1 to 100){
-              var line = fileLines(position)
-              sendCommand(line)
-              position += 1
-            }
-          }
+  protected def ProcessSpoutTask(message: Any): Unit = message match {
+    case StartSpout => AllocateSpoutTask(Duration(1,NANOSECONDS),"newLine")
+    case "newLine" => {
+      if (position<linesNumber) {
+        for(i <- 1 to 100){
+          var line = fileLines(position)
+          sendTuple(line)
+          position += 1
         }
-        case "stop" => stop()
-        case _ => println("message not recognized!")
+        AllocateSpoutTask(Duration(1,NANOSECONDS),"newLine")
       }
     }
-    else{
-      stop()
-    }
+    case _ => println("message not recognized!")
   }
-
 }
 
 

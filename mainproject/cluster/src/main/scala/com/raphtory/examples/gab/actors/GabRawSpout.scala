@@ -30,33 +30,18 @@ final class GabRawSpout extends SpoutTrait {
   // private val mongoLogger = Logger.getLogger("org.mongodb.driver.cluster")
   // mongoLogger.setLevel(Level.OFF)
 
-  override def preStart() {
-    super.preStart()
-    sched = context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "parsePost")
-    context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "required") //for setting the amount of messages
-  }
-
-  override protected def processChildMessages(rcvdMessage: Any): Unit = {
-    rcvdMessage match {
-      case "parsePost" => running()
-      case "required" => {
-        window = System.getenv().getOrDefault("UPDATES_FREQ", "1000").toInt
-        postMax+=(window-1000)
-        println(s"Warm-up finished, updater now running at ${window} posts/s")}
-    }
+  override protected def ProcessSpoutTask(message: Any): Unit = message match {
+    case StartSpout => AllocateSpoutTask(Duration(1,MILLISECONDS),"parsePost")
+    case "parsePost" => running()
   }
 
   def running(): Unit = {
-    if (isSafe) {
-      val count = getNextPosts()
-      postMin += window
-      postMax += window
-      println(s"Current min post is $postMin, max post is $postMax, last call retrieved $count posts")
-      context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "parsePost")
-    }
-    else{
-      context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "parsePost")
-    }
+    val count = getNextPosts()
+    postMin += window
+    postMax += window
+    println(s"Current min post is $postMin, max post is $postMax, last call retrieved $count posts")
+    AllocateSpoutTask(Duration(10, MILLISECONDS), "parsePost")
+
   }
 
   private def getNextPosts():Int = {
@@ -66,7 +51,7 @@ final class GabRawSpout extends SpoutTrait {
         val data = x.get("data").toString.drop(2).dropRight(1).replaceAll("""\\"""", "").replaceAll("""\\""", "")
         count +=1
         //println(data)
-        sendCommand(data)
+        sendTuple(data)
       } catch {
         case e: Throwable =>
           println("Cannot parse record")
