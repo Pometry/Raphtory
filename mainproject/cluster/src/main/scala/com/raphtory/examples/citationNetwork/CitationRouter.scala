@@ -9,7 +9,7 @@ import com.raphtory.core.model.communication._
 class CitationRouter(routerId:Int, override val initialManagerCount:Int) extends RouterWorker {
 
 
-  def parseRecord(record: Any): Unit = {
+  def parseTuple(record: Any): Unit = {
 
     val fileLine = record.asInstanceOf[String].split(",").map(_.trim)
     //extract the values from the data source in the form of:
@@ -21,14 +21,14 @@ class CitationRouter(routerId:Int, override val initialManagerCount:Int) extends
     val targetLastCitedOn =  dateToUnixTime(timestamp=fileLine(4))
 
     //create sourceNode
-    toPartitionManager(VertexAdd(sourceCitedTargetOn, sourceNode))
+    sendGraphUpdate(VertexAdd(sourceCitedTargetOn, sourceNode))
     //create destinationNode
-    toPartitionManager(VertexAdd(targetCreationDate, targetNode))
+    sendGraphUpdate(VertexAdd(targetCreationDate, targetNode))
     //create edge
-    toPartitionManager(EdgeAdd(sourceCitedTargetOn, sourceNode, targetNode))
+    sendGraphUpdate(EdgeAdd(sourceCitedTargetOn, sourceNode, targetNode))
 
     if (sourceCitedTargetOn == targetLastCitedOn) {
-      toPartitionManager(EdgeRemoval(targetLastCitedOn, sourceNode, targetNode))
+      sendGraphUpdate(EdgeRemoval(targetLastCitedOn, sourceNode, targetNode))
     }
 
 

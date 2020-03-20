@@ -22,7 +22,8 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef],storages:ParT
   val compressing    : Boolean =  Utils.compressing
   val saving    : Boolean =  Utils.persistenceEnabled
   val archiving: Boolean = Utils.archiving
-  println(s"Archivist compressing = $compressing, Saving = $saving, Archiving = $archiving")
+  val debug = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
+  if(debug) println(s"Archivist compressing = $compressing, Saving = $saving, Archiving = $archiving")
 
   //Turn logging off
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
@@ -48,8 +49,6 @@ class Archivist(maximumMem:Double,workers:ParTrieMap[Int,ActorRef],storages:ParT
 
   // children for distribution of compresssion and archiving
   val vertexManager =  context.actorOf(Props(new ArchivistWorker(workers,storages)).withDispatcher("archivist-dispatcher"),"vertexcompressor");
-
-  val debug = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
 
   val archGauge         = Kamon.gauge("raphtory_archivist")
 

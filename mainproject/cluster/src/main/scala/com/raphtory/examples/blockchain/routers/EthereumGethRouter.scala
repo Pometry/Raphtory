@@ -8,7 +8,7 @@ import scala.util.hashing.MurmurHash3
 class EthereumGethRouter(val routerId:Int, val initialManagerCount:Int) extends RouterWorker{
   def hexToInt(hex:String) = Integer.parseInt(hex.drop(3).dropRight(1),16)
   //
-  override protected def parseRecord(value: Any): Unit = {
+  override protected def parseTuple(value: Any): Unit = {
     val transaction = value.toString.parseJson.asJsObject.fields("result").asJsObject
     val blockNumber = hexToInt(transaction.fields("blockNumber").toString())
 
@@ -19,9 +19,9 @@ class EthereumGethRouter(val routerId:Int, val initialManagerCount:Int) extends 
     val sourceNode = MurmurHash3.stringHash(from) //hash the id to get a vertex ID
     val destinationNode = MurmurHash3.stringHash(to) //hash the id to get a vertex ID
 
-    toPartitionManager(VertexAddWithProperties(blockNumber, sourceNode,properties = Map("id"->from)))
-    toPartitionManager(VertexAddWithProperties(blockNumber, destinationNode,properties = Map("id"->to)))
-    toPartitionManager(EdgeAddWithProperties(blockNumber, sourceNode, destinationNode,properties = Map("value"->sent)))
+    sendGraphUpdate(VertexAddWithProperties(blockNumber, sourceNode,properties = Map("id"->from)))
+    sendGraphUpdate(VertexAddWithProperties(blockNumber, destinationNode,properties = Map("id"->to)))
+    sendGraphUpdate(EdgeAddWithProperties(blockNumber, sourceNode, destinationNode,properties = Map("value"->sent)))
 
   }
 }

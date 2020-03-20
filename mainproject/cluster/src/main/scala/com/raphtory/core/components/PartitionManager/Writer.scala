@@ -35,7 +35,6 @@ class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMa
 
   mediator ! DistributedPubSubMediator.Put(self)
 
-  println(akka.serialization.Serialization.serializedActorPath(self))
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
     */
@@ -46,14 +45,10 @@ class Writer(id : Int, test : Boolean, managerCountVal : Int, workers: ParTrieMa
   import scala.concurrent.duration.Duration
 
   override def preStart() {
-    println("starting writer")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "log")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, SECONDS), self, "count")
     context.system.scheduler.schedule(Duration(10, SECONDS), Duration(10, SECONDS), self, "keep_alive")
-
-
-    println(context.children)
-   }
+  }
 
   override def receive : Receive = {
     //Logging block
