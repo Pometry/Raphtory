@@ -55,12 +55,6 @@ class EthereumGethSpout extends SpoutTrait {
     }catch {case e:Exception => println(executeRequest("eth_getBlockTransactionCountByNumber", "\"0x" + currentBlock.toHexString + "\""))}
   }
 
-  def hostname2Ip(seedLoc: String): String = {
-    // hostname_asd_1:port
-    val t = seedLoc.split(":")
-    InetAddress.getByName(t(0)).getHostAddress() + ":" + t(1)
-  }
-
-
+  def hostname2Ip(hostname: String): String = InetAddress.getByName(hostname).getHostAddress()
 
 }
