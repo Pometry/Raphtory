@@ -20,33 +20,27 @@ class RandomSpout extends SpoutTrait {
   override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
     super.preStart()
     println(s"Prestarting ($freq Hz) Entity pool = $pool Ramp flag = $increase")
-    context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "random")
-    context.system.scheduler.schedule(Duration(90, SECONDS), Duration(30, SECONDS), self, "increase")
-    context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "required")
+
+
     //context.system.scheduler.schedule(Duration(40, SECONDS), Duration(5, MINUTES), self, "stop")
     println("Only sending adds")
   }
 
 
-  protected def processChildMessages(rcvdMessage : Any): Unit ={
-    rcvdMessage match {
-      case "required" => {freq = System.getenv().getOrDefault("UPDATES_FREQ", "10000").toInt;println(s"Full start ($freq Hz) Entity pool = $pool Ramp flag = $increase")   } // (Updates/s) - Hz
-      case "increase" =>
-        if (increase) {
-          freq += 1000
-          println(s"Frequency increased, new frequency: $freq at ${Utils.nowTimeStamp()}")
-        }
-      case "random" => {
-        if(isSafe()) {
-          genRandomCommands(freq/1000)
-        }
-      }
-      case "stop" => stop()
-      case _ => println("message not recognized!")
-
+  protected def ProcessSpoutTask(message : Any): Unit =message match {
+    case StartSpout => AllocateSpoutTask(Duration(1,MILLISECONDS),"random")
+    case "required" => {freq = System.getenv().getOrDefault("UPDATES_FREQ", "10000").toInt;println(s"Full start ($freq Hz) Entity pool = $pool Ramp flag = $increase")   } // (Updates/s) - Hz
+    case "increase" => if (increase) {
+      freq += 1000
+      println(s"Frequency increased, new frequency: $freq at ${Utils.nowTimeStamp()}")
     }
-
+    case "random" => genRandomCommands(freq/1000)
+    case "stop" => stop()
+    case _ => println("message not recognized!")
   }
+  //context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "required")
+  //context.system.scheduler.schedule(Duration(90, SECONDS), Duration(30, SECONDS), self, "increase")
+  //context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "random")
 
   def distribution() : String = {
     val random = Random.nextFloat()
@@ -58,8 +52,9 @@ class RandomSpout extends SpoutTrait {
 
   def genRandomCommands(number : Int) : Unit = {
     (1 to number) foreach (_ => {
-      sendCommand(distribution())
+      sendTuple(distribution())
     })
+    AllocateSpoutTask(Duration(1,NANOSECONDS),"random")
   }
 
   def genVertexAdd():String={

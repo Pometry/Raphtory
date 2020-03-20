@@ -21,30 +21,21 @@ class BitcoinSpout extends SpoutTrait {
   val id = "scala-jsonrpc"
   val baseRequest = Http(serverAddress).auth(rpcuser, rpcpassword).header("content-type", "text/plain")
 
-  override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
-    super.preStart()
-    context.system.scheduler.schedule(Duration(1, SECONDS),Duration(10, MILLISECONDS), self, "parseBlock")
-
-  }
-
   //************* MESSAGE HANDLING BLOCK
-  override def processChildMessages(message:Any): Unit = {
-    message match {
-      case "parseBlock" => running()
-      case _ => println("message not recognized!")
+  override def ProcessSpoutTask(message:Any): Unit = message match {
+    case StartSpout => AllocateSpoutTask(Duration(1,MILLISECONDS),"parseBlock")
+    case "parseBlock" => {
+      try {
+        getTransactions()
+        blockcount +=1
+        AllocateSpoutTask(Duration(1,MILLISECONDS),"parseBlock")
+      }
+      catch {
+        case e:java.net.SocketTimeoutException => AllocateSpoutTask(Duration(1,MILLISECONDS),"parseBlock")
+      }
     }
+    case _ => println("message not recognized!")
   }
-
-  def running() : Unit = if(isSafe()) {
-    try {
-      getTransactions()
-      blockcount +=1
-    }
-    catch {
-      case e:java.net.SocketTimeoutException => "do nothing"
-    }
-  }
-
 
   def outputScript()={
     val pw = new PrintWriter(new File("bitcoin.sh"))
@@ -71,7 +62,7 @@ class BitcoinSpout extends SpoutTrait {
     val time = result.asJsObject.fields("time")
     for(transaction <- result.asJsObject().fields("tx").asInstanceOf[JsArray].elements){
 
-      sendCommand(BitcoinTransaction(time,blockcount,blockID,transaction))
+      sendTuple(BitcoinTransaction(time,blockcount,blockID,transaction))
       //val time = transaction.asJsObject.fields("time")
 
     }

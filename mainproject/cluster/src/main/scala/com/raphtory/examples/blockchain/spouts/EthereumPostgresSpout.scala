@@ -22,21 +22,10 @@ class EthereumPostgresSpout extends SpoutTrait{
   implicit val cs = IO.contextShift(ExecutionContexts.synchronous)
   val dbconnector= Transactor.fromDriverManager[IO]("org.postgresql.Driver",dbURL, dbUSER, dbPASSWORD, Blocker.liftExecutionContext(ExecutionContexts.synchronous))
 
-  override def preStart() {
-    super.preStart()
-    context.system.scheduler.scheduleOnce( Duration(10, SECONDS), self, "nextBatch") //wait a little bit of time before attempting to start sending updates
-  }
-
-  override protected def processChildMessages(message: Any): Unit = {
-    message match {
-      case "nextBatch" => {
-        if (isSafe()) //if the watchdog has reported that all components are up and alive
-          running()
-        else
-          context.system.scheduler.scheduleOnce( Duration(10, MILLISECONDS), self, "nextBatch") //if not safe yet, retry
-      }
-      case _ => println("message not recognized!")
-    }
+  override def ProcessSpoutTask(message:Any): Unit = message match {
+    case StartSpout => AllocateSpoutTask(Duration(1,MILLISECONDS),"nextBatch")
+    case "parseBlock" => running()
+    case _ => println("message not recognized!")
   }
 
   protected def running(): Unit = {
@@ -44,10 +33,10 @@ class EthereumPostgresSpout extends SpoutTrait{
       .to[List]         // ConnectionIO[List[String]]
       .transact(dbconnector)     // IO[List[String]]
       .unsafeRunSync    // List[String]
-      .foreach(x=> sendCommand(x.toString())) //send each transaction to the routers
+      .foreach(x=> sendTuple(x.toString())) //send each transaction to the routers
 
     startBlock += batchSize //increment batch for the next query
     if(startBlock> maxblock) stop() //if we have reached the max block we stop querying the database
-    context.system.scheduler.scheduleOnce( Duration(1, MILLISECONDS), self, "nextBatch") // line up the next batch
+    AllocateSpoutTask( Duration(1, MILLISECONDS), "nextBatch") // line up the next batch
   }
 }

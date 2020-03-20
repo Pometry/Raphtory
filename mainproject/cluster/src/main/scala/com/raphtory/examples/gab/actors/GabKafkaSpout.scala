@@ -21,35 +21,17 @@ class GabKafkaSpout extends SpoutTrait{
   val consumer: KafkaConsumer[String, String] = new KafkaConsumer[String, String](props)
   consumer.subscribe(util.Arrays.asList("gabResortedGraph"))
 
-  override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
-    super.preStart()
-    context.system.scheduler.scheduleOnce( Duration(10, SECONDS), self, "newLine")
+  protected def ProcessSpoutTask(message: Any): Unit = message match {
+    case StartSpout => AllocateSpoutTask(Duration(1,MILLISECONDS),"newLine")
+    case "newLine" => consumeFromKafka()
+    case _ => println("message not recognized!")
   }
-
-  protected def processChildMessages(message: Any): Unit = {
-      message match {
-        case "newLine" => {
-          if (isSafe()) {
-            consumeFromKafka()
-          }
-          else {
-            context.system.scheduler.scheduleOnce( Duration(1, MILLISECONDS), self, "newLine")
-          }
-        }
-        case "stop" => stop()
-        case _ => println("message not recognized!")
-      }
-  }
-
 
   def consumeFromKafka() = {
-
-    //for(i <- 1 to 10) {
-      val record = consumer.poll(1000).asScala
-      for (data <- record.iterator)
-        sendCommand(data.value())
-    //}
-    context.system.scheduler.scheduleOnce( Duration(1, MILLISECONDS), self, "newLine")
+    val record = consumer.poll(1000).asScala
+    for (data <- record.iterator)
+      sendTuple(data.value())
+    AllocateSpoutTask(Duration(1,MILLISECONDS),"newLine")
   }
 }
 

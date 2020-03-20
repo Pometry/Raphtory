@@ -15,40 +15,18 @@ class CitationSpout extends SpoutTrait {
   var linesNumber=fileLines.length
   println(linesNumber)
 
-  override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
-    super.preStart()
-
-      context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "newLine")
-
-  }
-
-  protected def processChildMessages(message: Any): Unit = {
-    if (position<linesNumber) {
-
-      message match {
-        case "newLine" => {
-          if (isSafe()) {
-            println(fileLines(position))
-            var line = fileLines(position)
-            sendCommand(line)
-            position += 1
-          }
-        }
-        case "stop" => stop()
-        case _ => println("message not recognized!")
+  protected def ProcessSpoutTask(message: Any): Unit = message match {
+    case StartSpout => AllocateSpoutTask(Duration(1,MILLISECONDS),"newLine")
+    case "newLine" => {
+      if (position<linesNumber) {
+        var line = fileLines(position)
+        sendTuple(line)
+        position += 1
+        AllocateSpoutTask( Duration(1, MILLISECONDS), "newLine")
       }
     }
-
-    else{
-      stop()
-    }
+    case _ => println("message not recognized!")
   }
 
-
-  def running(): Unit = {
-      //genRandomCommands(totalCount)
-      //totalCount+=1000
-    }
-
-  }
+}
 

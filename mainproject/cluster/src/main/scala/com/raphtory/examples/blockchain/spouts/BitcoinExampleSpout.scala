@@ -13,24 +13,17 @@ class BitcoinExampleSpout extends SpoutTrait {
 
   var blockcount = 1
   var folder =  System.getenv().getOrDefault("BITCOIN_DIRECTORY", "/app/blocks/").trim
-  override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
-    super.preStart()
-    context.system.scheduler.schedule(Duration(1, SECONDS), Duration(1, MILLISECONDS), self, "parseBlock")
-
-  }
 
   //************* MESSAGE HANDLING BLOCK
-  override def processChildMessages(message:Any): Unit = {
-    message match {
-      case "parseBlock" => running()
+  override def ProcessSpoutTask(message:Any): Unit = message match {
+      case StartSpout => AllocateSpoutTask(Duration(1,MILLISECONDS),"parseBlock")
+      case "parseBlock" => {
+        getTransactions()
+        blockcount +=1
+      }
       case _ => println("message not recognized!")
     }
-  }
 
-  def running() : Unit = if(isSafe()) {
-    getTransactions()
-    blockcount +=1
-  }
 
   def getTransactions():Unit = {
     if(blockcount>20000) return
@@ -39,10 +32,11 @@ class BitcoinExampleSpout extends SpoutTrait {
     val blockID = result.fields("hash")
     for(transaction <- result.asJsObject().fields("tx").asInstanceOf[JsArray].elements){
 
-      sendCommand(BitcoinTransaction(time,blockcount,blockID,transaction))
+      sendTuple(BitcoinTransaction(time,blockcount,blockID,transaction))
       //val time = transaction.asJsObject.fields("time")
 
     }
+    AllocateSpoutTask(Duration(1,MILLISECONDS),"parseBlock")
   }
 
   def readNextBlock():String={

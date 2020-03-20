@@ -17,7 +17,7 @@ trait SpoutTrait extends Actor with Timers {
   private var previousMessage = 0
   private var safe            = false
   private var counter         = 0
-
+  case class StartSpout()
   val kGauge         = Kamon.gauge("raphtory.benchmarker")
   val kCounter       = Kamon.counter("raphtory.counters")
 
@@ -27,8 +27,10 @@ trait SpoutTrait extends Actor with Timers {
   override def preStart() {
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"benchmark")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"stateCheck")
+    context.system.scheduler.scheduleOnce( Duration(1, SECONDS), self, "isSafe")
   }
 
+  def AllocateSpoutTask(duration:Duration, task:Any) = context.system.scheduler.scheduleOnce( Duration(duration._1,duration._2), self, task)
 
   protected def recordUpdate(): Unit ={
     counter       += 1
@@ -37,27 +39,32 @@ trait SpoutTrait extends Actor with Timers {
     kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
   }
 
-  protected def sendCommand(command: String) : Unit = {
-    val child = recordUpdate()
-    mediator ! DistributedPubSubMediator.Send(s"/user/router", command /*Command(command, value)*/, false)
+  protected def sendTuple(command: String) : Unit = {
+   recordUpdate()
+   mediator ! DistributedPubSubMediator.Send(s"/user/router", command /*Command(command, value)*/, false)
   }
 
-  protected def sendCommand[T <: SpoutGoing](command:T): Unit = {
+  protected def sendTuple[T <: SpoutGoing](command:T): Unit = {
     recordUpdate()
-
     mediator ! DistributedPubSubMediator.Send("/user/router", command , false)
   }
 
-  protected def processChildMessages(rcvdMessage : Any)
+  protected def ProcessSpoutTask(rcvdMessage : Any)
 
-  final protected def isSafe() = safe
+  private def isSafe() = {
+    if(safe)
+      context.system.scheduler.scheduleOnce( Duration(1, MILLISECONDS), self, StartSpout )
+    else
+      context.system.scheduler.scheduleOnce( Duration(1, SECONDS), self, "isSafe")
+  }
   def start() = safe = true
   def stop() = safe = false
 
   final override def receive : Receive = {
     case "stateCheck" => checkUp()
     case "benchmark" => benchmark()
-    case other : Any => processChildMessages(other)
+    case "isSafe"  => isSafe()
+    case other : Any => ProcessSpoutTask(other)
   }
 
   private def benchmark() : Unit = {

@@ -18,32 +18,24 @@ class LitecoinSpout extends SpoutTrait {
   val id = "scala-jsonrpc"
   val baseRequest = Http(serverAddress).auth(rpcuser, rpcpassword).header("content-type", "text/plain")
 
-  override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
-    super.preStart()
-    context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "parseBlock")
+   //************* MESSAGE HANDLING BLOCK
+  override def ProcessSpoutTask(message:Any): Unit = message match {
+    case StartSpout => AllocateSpoutTask(Duration(1,MILLISECONDS),"parseBlock")
+    case "parseBlock" => running()
+    case _ => println("message not recognized!")
   }
 
-  //************* MESSAGE HANDLING BLOCK
-  override def processChildMessages(message:Any): Unit = {
-    message match {
-      case "parseBlock" => running()
-      case _ => println("message not recognized!")
-    }
-  }
-
-  def running() : Unit = if(isSafe()) {
+  def running() : Unit =
     try {
       getTransactions()
       blockcount +=1
-      context.system.scheduler.scheduleOnce(Duration(1, NANOSECONDS), self, "parseBlock")
+      AllocateSpoutTask(Duration(1, NANOSECONDS), "parseBlock")
       if(blockcount %100 == 0) println("Currently Calling for block $blockcount")
     }
     catch {
       case e:java.net.SocketTimeoutException =>
-      case e:spray.json.DeserializationException => context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "parseBlock")
+      case e:spray.json.DeserializationException => AllocateSpoutTask(Duration(10, SECONDS),  "parseBlock")
     }
-  }
-  else context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "parseBlock")
 
   def getTransactions():Unit = {
     val re = request("getblockhash",blockcount.toString).execute().body.toString.parseJson.asJsObject
@@ -52,7 +44,7 @@ class LitecoinSpout extends SpoutTrait {
     val result = blockData.fields("result")
     val time = result.asJsObject.fields("time")
     for(transaction <- result.asJsObject().fields("tx").asInstanceOf[JsArray].elements){
-      sendCommand(LitecoinTransaction(time,blockcount,blockID,transaction))
+      sendTuple(LitecoinTransaction(time,blockcount,blockID,transaction))
       //val time = transaction.asJsObject.fields("time")
     }
   }
