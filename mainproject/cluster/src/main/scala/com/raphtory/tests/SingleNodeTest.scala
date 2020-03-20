@@ -40,7 +40,7 @@ object SingleNodeTest extends App {
   //1470783600000L 1471388400000L
 //window//
   Thread.sleep(30000)
-  println("starting")
+  println("Starting Analysis")
   //val start = 1476113850000L
 // val start = 1474326000000L
   val start = 5000000L

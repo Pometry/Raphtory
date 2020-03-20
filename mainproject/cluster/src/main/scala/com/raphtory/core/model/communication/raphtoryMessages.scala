@@ -10,7 +10,7 @@ import scala.collection.mutable
 /**
   * Created by Mirate on 30/05/2017.
   */
-sealed trait RaphWriteClass {
+sealed trait GraphUpdate {
   def srcID:Long
 }
 
@@ -21,15 +21,15 @@ case class PartitionUp(id:Int)
 case class ClusterStatusRequest()
 case class ClusterStatusResponse(clusterUp: Boolean)
 
-case class VertexAdd(msgTime:Long, override val srcID:Long) extends RaphWriteClass //add a vertex (or add/update a property to an existing vertex)
-case class VertexAddWithProperties(msgTime:Long, override val srcID:Long, properties: Map[String,String]) extends RaphWriteClass
-case class VertexUpdateProperties(msgTime:Long,override val srcID:Long, propery:Map[String,String]) extends  RaphWriteClass
-case class VertexRemoval(msgTime:Long,override val srcID:Long) extends RaphWriteClass
+case class VertexAdd(msgTime:Long, override val srcID:Long) extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
+case class VertexAddWithProperties(msgTime:Long, override val srcID:Long, properties: Map[String,String]) extends GraphUpdate
+case class VertexUpdateProperties(msgTime:Long,override val srcID:Long, propery:Map[String,String]) extends  GraphUpdate
+case class VertexRemoval(msgTime:Long,override val srcID:Long) extends GraphUpdate
 
-case class EdgeAdd(msgTime:Long,srcID:Long,dstID:Long) extends RaphWriteClass
-case class EdgeAddWithProperties(msgTime:Long, override val srcID:Long,dstID:Long, properties: Map[String,String]) extends RaphWriteClass
-case class EdgeUpdateProperties(msgTime:Long,override val srcID:Long,dstID:Long,property:Map[String,String]) extends RaphWriteClass
-case class EdgeRemoval(msgTime:Long,override val srcID:Long,dstID:Long) extends RaphWriteClass
+case class EdgeAdd(msgTime:Long,srcID:Long,dstID:Long) extends GraphUpdate
+case class EdgeAddWithProperties(msgTime:Long, override val srcID:Long,dstID:Long, properties: Map[String,String]) extends GraphUpdate
+case class EdgeUpdateProperties(msgTime:Long,override val srcID:Long,dstID:Long,property:Map[String,String]) extends GraphUpdate
+case class EdgeRemoval(msgTime:Long,override val srcID:Long,dstID:Long) extends GraphUpdate
 
 case class EdgeUpdateProperty(msgTime : Long, edgeId : Long, key : String, value : String) //for data coming from the LAM
 case class RemoteEdgeUpdateProperties(msgTime:Long,srcID:Long,dstID:Long,properties:Map[String,String])

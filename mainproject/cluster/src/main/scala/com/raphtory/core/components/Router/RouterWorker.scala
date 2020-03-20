@@ -2,7 +2,7 @@ package com.raphtory.core.components.Router
 
 import akka.actor.Actor
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.model.communication.{AllocateJob, RaphWriteClass, UpdatedCounter}
+import com.raphtory.core.model.communication.{AllocateJob, GraphUpdate, UpdatedCounter}
 import com.raphtory.core.utils.Utils.getManager
 
 trait RouterWorker extends Actor {
@@ -10,7 +10,7 @@ trait RouterWorker extends Actor {
   mediator ! DistributedPubSubMediator.Put(self)
 
   protected def       initialManagerCount : Int
-  protected def parseRecord(value: Any)
+  protected def parseTuple(value: Any)
 
   private   var       managerCount : Int = initialManagerCount
   protected final def getManagerCount = managerCount
@@ -18,10 +18,10 @@ trait RouterWorker extends Actor {
 
   override def receive = {
     case UpdatedCounter(newValue) => newPmJoined(newValue)
-    case AllocateJob(record) => {parseRecord(record)}
+    case AllocateJob(record) => {parseTuple(record)}
   }
 
-  def toPartitionManager[T <: RaphWriteClass](message:T): Unit = mediator ! DistributedPubSubMediator.Send(getManager(message.srcID, getManagerCount), message , false)
+  def sendGraphUpdate[T <: GraphUpdate](message:T): Unit = mediator ! DistributedPubSubMediator.Send(getManager(message.srcID, getManagerCount), message , false)
   private def newPmJoined(newValue : Int) = if (managerCount < newValue) managerCount = newValue
 
 

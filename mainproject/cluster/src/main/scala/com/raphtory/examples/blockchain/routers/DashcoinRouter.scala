@@ -9,7 +9,7 @@ import scala.util.hashing.MurmurHash3
 
 class DashcoinRouter(val routerId:Int, val initialManagerCount:Int) extends RouterWorker{
 
-  def parseRecord(record: Any): Unit = {
+  def parseTuple(record: Any): Unit = {
     val value = record.asInstanceOf[LitecoinTransaction]
     val transaction = value.transaction
     val time = value.time
@@ -40,15 +40,15 @@ class DashcoinRouter(val routerId:Int, val initialManagerCount:Int) extends Rout
       else value = "0" //TODO deal with people burning money
 
       //creates vertex for the receiving wallet
-      toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash(address), properties = Map[String,String](
+      sendGraphUpdate(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash(address), properties = Map[String,String](
         //("type","address"),
         ("address",address),
         ("outputType",outputType))))
       //creates edge between the transaction and the wallet
-      toPartitionManager(EdgeAddWithProperties( msgTime = timeAsLong, srcID = MurmurHash3.stringHash(txid), dstID = MurmurHash3.stringHash(address), properties = Map[String,String](("n",n),("value",value))))
+      sendGraphUpdate(EdgeAddWithProperties( msgTime = timeAsLong, srcID = MurmurHash3.stringHash(txid), dstID = MurmurHash3.stringHash(address), properties = Map[String,String](("n",n),("value",value))))
 
     }
-    toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash(txid), properties = Map[String,String](
+    sendGraphUpdate(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash(txid), properties = Map[String,String](
       //("type","transaction"),
       ("id",txid),
       ("total",total.toString),
@@ -60,10 +60,10 @@ class DashcoinRouter(val routerId:Int, val initialManagerCount:Int) extends Rout
     if(vins.toString().contains("coinbase")){
       //creates the coingen node
       //toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen"), properties = Map[String,String](("type","coingen"))))
-      toPartitionManager(VertexAdd(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen")))
+      sendGraphUpdate(VertexAdd(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen")))
 
       //creates edge between coingen and the transaction
-      toPartitionManager(EdgeAdd(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen"), dstID =  MurmurHash3.stringHash(txid)))
+      sendGraphUpdate(EdgeAdd(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen"), dstID =  MurmurHash3.stringHash(txid)))
     }
     else{
       for(vin <- vins.asInstanceOf[JsArray].elements){
@@ -73,7 +73,7 @@ class DashcoinRouter(val routerId:Int, val initialManagerCount:Int) extends Rout
         val sequence = vinOBJ.fields("sequence").toString
         //no need to create node for prevtxid as should already exist
         //creates edge between the prev transaction and current transaction
-        toPartitionManager(EdgeAddWithProperties(msgTime = timeAsLong, srcID =  MurmurHash3.stringHash(prevtxid), dstID =  MurmurHash3.stringHash(txid), properties = Map[String,String](("vout",prevVout),("sequence",sequence))))
+        sendGraphUpdate(EdgeAddWithProperties(msgTime = timeAsLong, srcID =  MurmurHash3.stringHash(prevtxid), dstID =  MurmurHash3.stringHash(txid), properties = Map[String,String](("vout",prevVout),("sequence",sequence))))
       }
     }
   }

@@ -68,9 +68,10 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
   }
 
   def giveBirth(assignedId: Int): Unit = {
-    println(s"MyId is $assignedId")
+
     actorType match {
       case "Partition Manager" => {
+        println(s"Partition Manager $assignedId has come online" )
         var workers: ParTrieMap[Int, ActorRef] = new ParTrieMap[Int, ActorRef]()
         var storages: ParTrieMap[Int, EntityStorage] = new ParTrieMap[Int, EntityStorage]()
         for (i <- 0 until 10) { //create threads for writing
@@ -84,6 +85,7 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
       }
 
       case "Router" => {
+        println(s"Router $assignedId has come online" )
         actorRef = context.system.actorOf(Props(new RouterManager(myId, currentCount, routerName)), "router")
       }
     }

@@ -16,7 +16,7 @@ import com.raphtory.core.model.communication._
 
 class GabUserGraphRouter(routerId:Int, override val initialManagerCount:Int) extends RouterWorker {
 
-  def parseRecord(record: Any): Unit = {
+  def parseTuple(record: Any): Unit = {
     val fileLine = record.asInstanceOf[String].split(";").map(_.trim)
     //user wise
          val sourceNode=fileLine(2).toInt
@@ -27,9 +27,9 @@ class GabUserGraphRouter(routerId:Int, override val initialManagerCount:Int) ext
     //val targetNode=fileLine(4).toInt
     if (targetNode>0) {
       val creationDate = dateToUnixTime(timestamp=fileLine(0).slice(0,19))
-      toPartitionManager(VertexAdd(creationDate, sourceNode))
-      toPartitionManager(VertexAdd(creationDate, targetNode))
-      toPartitionManager(EdgeAdd(creationDate, sourceNode, targetNode))
+      sendGraphUpdate(VertexAdd(creationDate, sourceNode))
+      sendGraphUpdate(VertexAdd(creationDate, targetNode))
+      sendGraphUpdate(EdgeAdd(creationDate, sourceNode, targetNode))
     }
 
   }
