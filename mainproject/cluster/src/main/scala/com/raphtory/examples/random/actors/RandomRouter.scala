@@ -60,7 +60,7 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
   def vertexRemoval(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
-    sendGraphUpdate(VertexRemoval(msgTime,srcId))
+    sendGraphUpdate(VertexDelete(msgTime,srcId))
   }
 
   def edgeAdd(command:JsObject):Unit = {
@@ -90,6 +90,6 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
-    sendGraphUpdate(EdgeRemoval(msgTime,srcId,dstId))
+    sendGraphUpdate(EdgeDelete(msgTime,srcId,dstId))
   }
 }

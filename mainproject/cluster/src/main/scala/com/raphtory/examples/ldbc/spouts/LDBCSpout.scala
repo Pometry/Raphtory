@@ -18,7 +18,7 @@ class LDBCSpout extends SpoutTrait {
   val peopleFile = io.Source.fromFile(directory+"/"+"person_0_0.csv").getLines.drop(1).toArray
   val friendFile = io.Source.fromFile(directory+"/"+"person_knows_person_0_0.csv").getLines.drop(1).toArray
   // upstream/master
-  var position = 0
+  var position = 1
   var people=peopleFile.length
   var friends=friendFile.length
   println("Start: "+ LocalDateTime.now())
@@ -26,9 +26,11 @@ class LDBCSpout extends SpoutTrait {
   protected def ProcessSpoutTask(message: Any): Unit = message match {
     case StartSpout => AllocateSpoutTask(Duration(1,NANOSECONDS),"newLine")
     case "newLine" => {
-      if (position<=people) sendTuple("person|"+peopleFile(position))
-      if (position<=friends) sendTuple("person_knows_person|"+friendFile(position))
-      position += 1
+      for(i<-1 to 100) {
+        if (position < people) sendTuple("person|" + peopleFile(position))
+        if (position < friends) sendTuple("person_knows_person|" + friendFile(position))
+        position += 1
+      }
       if(position>friends)
         println("ingestion Finished")
       else

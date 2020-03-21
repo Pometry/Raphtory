@@ -5,6 +5,8 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.model.communication.{AllocateJob, GraphUpdate, UpdatedCounter}
 import com.raphtory.core.utils.Utils.getManager
 
+import scala.util.hashing.MurmurHash3
+
 trait RouterWorker extends Actor {
   protected final val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -20,7 +22,7 @@ trait RouterWorker extends Actor {
     case UpdatedCounter(newValue) => newPmJoined(newValue)
     case AllocateJob(record) => {parseTuple(record)}
   }
-
+  def assignID(uniqueChars:String):Long = MurmurHash3.stringHash(uniqueChars)
   def sendGraphUpdate[T <: GraphUpdate](message:T): Unit = mediator ! DistributedPubSubMediator.Send(getManager(message.srcID, getManagerCount), message , false)
   private def newPmJoined(newValue : Int) = if (managerCount < newValue) managerCount = newValue
 

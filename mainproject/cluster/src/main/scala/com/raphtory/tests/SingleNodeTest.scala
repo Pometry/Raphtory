@@ -17,15 +17,34 @@ object SingleNodeTest extends App {
   val minimumRouters = 1
 
 
- //var UpdaterName = "com.raphtory.examples.blockchain.spouts.DashcoinSpout"
- //var routerClassName = "com.raphtory.examples.blockchain.routers.DashcoinRouter"
- val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
+
+ var Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
+ Analyser = "com.raphtory.core.analysis.Algorithms.DegreeRanking"
+
+ var UpdaterName = "com.raphtory.examples.ldbc.spouts.LDBCSpout"
+ var routerClassName = "com.raphtory.examples.ldbc.routers.LDBCRouter"
+ val start = 1262307661000L
+ val end =   1357002061000L
+ val jump =    86400000
+
+ //ether test
+ //val start = 5000000L
+ //val end = 6000000L
+ //val jump =    1
  //var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
  //var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
  //val Analyser = "com.raphtory.examples.blockchain.analysers.EthereumDegreeRanking"
- var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
- var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
-// val Analyser = "com.raphtory.core.analysis.Algorithms.DegreeRanking"
+
+ //Gab test
+ //  val start = 1470837600000L
+ //  val end =   31525368897000L
+ //  val jump =    3600000
+ //var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+ //var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+
+
+
+
 
  val system = ActorSystem("Single-Node-test")
 
@@ -36,24 +55,16 @@ object SingleNodeTest extends App {
 
   val analyser = Class.forName(Analyser).newInstance().asInstanceOf[Analyser]
 
-//  val end = 1525368897000L
-  //1470783600000L 1471388400000L
-//window//
-  Thread.sleep(30000)
+  Thread.sleep(360000)
   println("Starting Analysis")
-  //val start = 1476113850000L
-// val start = 1474326000000L
-  //val start = 5000000L
-  //val end = 6000000L
- //val end = 1525368897000L
-  //val jump =    1
-  //val window =    86400000
 
-  val start = 1470837600000L
-  val end =   31525368897000L
-  val jump =    3600000
-  //val window =    3600000
-//
+
+
+
+
+
+
+
   //val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
 
   system.actorOf(Props(new RangeAnalysisManager("testname",analyser,start,end,jump)), s"LiveAnalysisManager_$Analyser")
