@@ -19,12 +19,12 @@ object SingleNodeTest extends App {
 
  //var UpdaterName = "com.raphtory.examples.blockchain.spouts.DashcoinSpout"
  //var routerClassName = "com.raphtory.examples.blockchain.routers.DashcoinRouter"
- //val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
- var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
- var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
- val Analyser = "com.raphtory.examples.blockchain.analysers.EthereumDegreeRanking"
- //var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
- //var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+ val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
+ //var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
+ //var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
+ //val Analyser = "com.raphtory.examples.blockchain.analysers.EthereumDegreeRanking"
+ var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+ var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
 // val Analyser = "com.raphtory.core.analysis.Algorithms.DegreeRanking"
 
  val system = ActorSystem("Single-Node-test")
@@ -43,15 +43,15 @@ object SingleNodeTest extends App {
   println("Starting Analysis")
   //val start = 1476113850000L
 // val start = 1474326000000L
-  val start = 5000000L
-  val end = 6000000L
+  //val start = 5000000L
+  //val end = 6000000L
  //val end = 1525368897000L
-  val jump =    1
+  //val jump =    1
   //val window =    86400000
 
-  //val start = 1470837600000L
-  //val end =   31525368897000L
-  //val jump =    3600000
+  val start = 1470837600000L
+  val end =   31525368897000L
+  val jump =    3600000
   //val window =    3600000
 //
   //val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)

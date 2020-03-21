@@ -19,6 +19,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 abstract class Entity(val creationTime: Long, isInitialValue: Boolean,storage:EntityStorage) {
 
   // Properties from that entity
+  private var entityType:String = null
   var properties:ParTrieMap[String,Property] = ParTrieMap[String, Property]()
 
   // History of that entity
@@ -34,6 +35,9 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean,storage:En
   var removeList: mutable.TreeMap[Long,Boolean] = mutable.TreeMap()(HistoryOrdering)
   if(!isInitialValue)
     removeList = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+
+  def setType(newType:String): Unit = if(entityType ==(null)) entityType=newType
+  def getType:String = if(entityType == null) "" else entityType
 
   def revive(msgTime: Long): Unit = {
     checkOldestNewest(msgTime)

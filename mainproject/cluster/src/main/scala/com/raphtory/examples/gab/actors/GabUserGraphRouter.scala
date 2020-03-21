@@ -5,7 +5,7 @@ package com.raphtory.examples.gab.actors
 import java.text.SimpleDateFormat
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication._
+import com.raphtory.core.model.communication.{Type, _}
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
 //In this router we needed to transform the data that was sent by the spout by turning it into a epoch value (long value)
@@ -27,9 +27,9 @@ class GabUserGraphRouter(routerId:Int, override val initialManagerCount:Int) ext
     //val targetNode=fileLine(4).toInt
     if (targetNode>0) {
       val creationDate = dateToUnixTime(timestamp=fileLine(0).slice(0,19))
-      sendGraphUpdate(VertexAdd(creationDate, sourceNode))
-      sendGraphUpdate(VertexAdd(creationDate, targetNode))
-      sendGraphUpdate(EdgeAdd(creationDate, sourceNode, targetNode))
+      sendGraphUpdate(VertexAdd(creationDate, sourceNode,Type("User")))
+      sendGraphUpdate(VertexAdd(creationDate, targetNode,Type("User")))
+      sendGraphUpdate(EdgeAdd(creationDate, sourceNode, targetNode,Type("User")))
     }
 
   }

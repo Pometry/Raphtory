@@ -74,7 +74,7 @@ class EntityStorage(workerID:Int) {
   } // if the add come with some properties add all passed properties into the entity
 
 
-  def vertexAdd(msgTime : Long, srcId : Long, properties : Properties = null) : Vertex = { //Vertex add handler function
+  def vertexAdd(msgTime : Long, srcId : Long, properties : Properties = null,vertexType:Type) : Vertex = { //Vertex add handler function
     //if(debug)println(s"Adding $srcId")
     val vertex : Vertex = vertices.get(srcId) match { //check if the vertex exists
       case Some(v) => { //if it does
@@ -83,11 +83,13 @@ class EntityStorage(workerID:Int) {
       }
       case None => { //if it does not exist
         val v = new Vertex(msgTime, srcId, initialValue = true,storage=this) //create a new vertex
+        if(!(vertexType == null)) v.setType(vertexType.name)
         vertices put(srcId, v) //put it in the map
         v
       }
     }
     addProperties(msgTime,vertex,properties)
+
     vertex //return the vertex
   }
 
@@ -104,7 +106,7 @@ class EntityStorage(workerID:Int) {
 
 
   def vertexWorkerRequest(msgTime:Long, dstID:Long, srcID:Long, edge:Edge, present:Boolean) ={
-    val dstVertex = vertexAdd(msgTime, dstID) //if the worker creating an edge does not deal with the destination
+    val dstVertex = vertexAdd(msgTime, dstID,vertexType =null) //if the worker creating an edge does not deal with the destination
     if (!present) {
       dstVertex addIncomingEdge edge // do the same for the destination node
       mediator ! DistributedPubSubMediator.Send(getManager(srcID, managerCount), DstResponseFromOtherWorker(msgTime,srcID, dstID, dstVertex.removeList), false)
@@ -158,10 +160,10 @@ class EntityStorage(workerID:Int) {
   /**
     * Edges Methods
     */
-  def edgeAdd(msgTime : Long, srcId : Long, dstId : Long, properties : Properties = null) = {
+  def edgeAdd(msgTime : Long, srcId : Long, dstId : Long, properties : Properties = null,edgeType:Type) = {
     val local       = checkDst(dstId, managerCount, managerID) //is the dst on this machine
     val sameWorker  = checkWorker(dstId,managerCount,workerID) // is the dst handled by the same worker
-    val srcVertex = vertexAdd(msgTime, srcId) // create or revive the source ID
+    val srcVertex = vertexAdd(msgTime, srcId,vertexType = null) // create or revive the source ID
 
     var present     = false //if the vertex is new or not -- decides what update is sent when remote and if to add the source/destination removals
     var edge : Edge = null
@@ -172,11 +174,12 @@ class EntityStorage(workerID:Int) {
       case None => //if it does not
         if (local) edge = new Edge(workerID,msgTime, srcId, dstId, initialValue = true,this) //create the new edge, local or remote
         else edge = new SplitEdge(workerID,msgTime, srcId, dstId, initialValue = true, getPartition(dstId, managerCount),this)
+        if(!(edgeType == null)) edge.setType(edgeType.name)
         srcVertex.addOutgoingEdge(edge) //add this edge to the vertex
     }
     if (local && srcId != dstId) {
       if(sameWorker){ //if the dst is handled by the same worker
-        val dstVertex = vertexAdd(msgTime, dstId) // do the same for the destination ID
+        val dstVertex = vertexAdd(msgTime, dstId,vertexType=null) // do the same for the destination ID
         if (!present) {
           dstVertex addIncomingEdge(edge) // add it to the dst as would not have been seen
           edge killList dstVertex.removeList //add the dst removes into the edge
@@ -189,29 +192,30 @@ class EntityStorage(workerID:Int) {
     if (present) {
       edge revive msgTime //if the edge was previously created we need to revive it
       if (!local) // if it is a remote edge we
-        mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAdd(msgTime, srcId, dstId, properties),false) // inform the partition dealing with the destination node*/
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAdd(msgTime, srcId, dstId, properties,edgeType),false) // inform the partition dealing with the destination node*/
     } else { // if this is the first time we have seen the edge
       val deaths = srcVertex.removeList //we extract the removals from the src
       edge killList deaths // add them to the edge
       if (!local) // and if not local sync with the other partition
-        mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths), false)
+        mediator ! DistributedPubSubMediator.Send(getManager(dstId, managerCount), RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths,edgeType), false)
     }
     addProperties(msgTime,edge,properties)
   }
 
-  def remoteEdgeAddNew(msgTime:Long,srcId:Long,dstId:Long,properties:Properties,srcDeaths:mutable.TreeMap[Long, Boolean]):Unit={
-    val dstVertex = vertexAdd(msgTime,dstId) //create or revive the destination node
+  def remoteEdgeAddNew(msgTime:Long,srcId:Long,dstId:Long,properties:Properties,srcDeaths:mutable.TreeMap[Long, Boolean],edgeType:Type):Unit={
+    val dstVertex = vertexAdd(msgTime,dstId,vertexType=null) //create or revive the destination node
     val edge = new SplitEdge( workerID, msgTime, srcId, dstId, initialValue = true,getPartition(srcId, managerCount),this)
     dstVertex addIncomingEdge(edge) //add the edge to the associated edges of the destination node
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths  // pass destination node death lists to the edge
     addProperties(msgTime,edge,properties)
+    if(!(edgeType == null)) edge.setType(edgeType.name)
     mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgTime,srcId,dstId,deaths),false)
   }
 
-  def remoteEdgeAdd(msgTime:Long,srcId:Long,dstId:Long,properties:Properties = null):Unit={
-    val dstVertex = vertexAdd(msgTime,dstId) // revive the destination node
+  def remoteEdgeAdd(msgTime:Long,srcId:Long,dstId:Long,properties:Properties = null,edgeType:Type):Unit={
+    val dstVertex = vertexAdd(msgTime,dstId,vertexType=null) // revive the destination node
     dstVertex.getIncomingEdge(srcId) match {
       case Some(edge) => {
         edge revive msgTime //revive the edge
