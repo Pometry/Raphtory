@@ -21,23 +21,36 @@ case class PartitionUp(id:Int)
 case class ClusterStatusRequest()
 case class ClusterStatusResponse(clusterUp: Boolean)
 
+sealed trait Property {
+  def key:String
+  def value:Any
+}
+
+case class Type(name:String)
+case class ImmutableProperty(override val key:String, override val value:String) extends Property
+case class StringProperty(override val key:String,override val value:String) extends Property
+case class LongProperty(override val key:String,override val value:Long) extends Property
+case class DoubleProperty(override val key:String,override val value:Long) extends Property
+
+case class Properties(property:Property*)
+
 case class VertexAdd(msgTime:Long, override val srcID:Long) extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
-case class VertexAddWithProperties(msgTime:Long, override val srcID:Long, properties: Map[String,String]) extends GraphUpdate
-case class VertexUpdateProperties(msgTime:Long,override val srcID:Long, propery:Map[String,String]) extends  GraphUpdate
+case class VertexAddWithProperties(msgTime:Long, override val srcID:Long, properties:Properties) extends GraphUpdate
+case class VertexUpdateProperties(msgTime:Long,override val srcID:Long, propery:Properties) extends  GraphUpdate
 case class VertexRemoval(msgTime:Long,override val srcID:Long) extends GraphUpdate
 
 case class EdgeAdd(msgTime:Long,srcID:Long,dstID:Long) extends GraphUpdate
-case class EdgeAddWithProperties(msgTime:Long, override val srcID:Long,dstID:Long, properties: Map[String,String]) extends GraphUpdate
-case class EdgeUpdateProperties(msgTime:Long,override val srcID:Long,dstID:Long,property:Map[String,String]) extends GraphUpdate
+case class EdgeAddWithProperties(msgTime:Long, override val srcID:Long,dstID:Long, properties: Properties) extends GraphUpdate
+case class EdgeUpdateProperties(msgTime:Long,override val srcID:Long,dstID:Long,property:Properties) extends GraphUpdate
 case class EdgeRemoval(msgTime:Long,override val srcID:Long,dstID:Long) extends GraphUpdate
 
 case class EdgeUpdateProperty(msgTime : Long, edgeId : Long, key : String, value : String) //for data coming from the LAM
-case class RemoteEdgeUpdateProperties(msgTime:Long,srcID:Long,dstID:Long,properties:Map[String,String])
-case class RemoteEdgeAdd(msgTime:Long, srcID:Long, dstID:Long, properties: Map[String,String])
+case class RemoteEdgeUpdateProperties(msgTime:Long,srcID:Long,dstID:Long,properties:Properties)
+case class RemoteEdgeAdd(msgTime:Long, srcID:Long, dstID:Long, properties: Properties)
 case class RemoteEdgeRemoval(msgTime:Long,srcID:Long,dstID:Long)
 
-case class RemoteEdgeUpdatePropertiesNew(msgTime:Long,srcID:Long,dstID:Long,properties:Map[String,String],kills:mutable.TreeMap[Long, Boolean])
-case class RemoteEdgeAddNew(msgTime:Long,srcID:Long,dstID:Long,properties: Map[String,String],kills:mutable.TreeMap[Long, Boolean])
+case class RemoteEdgeUpdatePropertiesNew(msgTime:Long,srcID:Long,dstID:Long,properties:Properties,kills:mutable.TreeMap[Long, Boolean])
+case class RemoteEdgeAddNew(msgTime:Long,srcID:Long,dstID:Long,properties: Properties,kills:mutable.TreeMap[Long, Boolean])
 case class RemoteEdgeRemovalNew(msgTime:Long,srcID:Long,dstID:Long,kills:mutable.TreeMap[Long, Boolean])
 
 case class RemoteReturnDeaths(msgTime:Long,srcID:Long,dstID:Long,kills:mutable.TreeMap[Long, Boolean])

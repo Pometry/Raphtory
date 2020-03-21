@@ -27,13 +27,13 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveLens, tim
   def getIngoingNeighbors  : ParTrieMap[Long,Edge] = v.incomingProcessing
 
   //TODO fix properties
-  def getOutgoingNeighborProp(ID: Long, key : String) : Option[String] = {
+  def getOutgoingNeighborProp(ID: Long, key : String) : Option[Any] = {
     getOutgoingNeighbors.get(ID) match {
       case Some(e) => e.getPropertyCurrentValue(key)
       case None    => None
     }
   }
-  def getIngoingNeighborProp(ID : Long, key : String) : Option[String] = {
+  def getIngoingNeighborProp(ID : Long, key : String) : Option[Any] = {
     getIngoingNeighbors.get(ID) match {
       case Some(e) => e.getPropertyCurrentValue(key)
       case None    => None
@@ -44,13 +44,13 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveLens, tim
     v.properties.keySet
   }
 
-  def getPropertyCurrentValue(key : String) : Option[String] =
+  def getPropertyCurrentValue(key : String) : Option[Any] =
     v.properties.get(key) match {
       case Some(p) => Some(p.currentValue)
       case None => None
     }
 
-  private def getEdgePropertyValuesAfterTime(edge:Edge,key : String,time:Long,window:Long) : Option[mutable.TreeMap[Long,String]] = {
+  private def getEdgePropertyValuesAfterTime(edge:Edge,key : String,time:Long,window:Long) : Option[mutable.TreeMap[Long,Any]] = {
     if (window == -1L)
       edge.properties.get(key) match {
         case Some(p) => Some(p.previousState.filter(x => x._1 <= time))

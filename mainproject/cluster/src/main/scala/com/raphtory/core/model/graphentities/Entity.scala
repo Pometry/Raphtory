@@ -140,7 +140,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean,storage:En
     * @param key   property key
     * @param value property value
     */
-  def +(msgTime: Long, key: String, value: String): Unit = {
+  def +(msgTime: Long, key: String, value: Any): Unit = {
     properties.get(key) match {
       case Some(v) => v update(msgTime, value)
       case None => properties.put(key, new Property(msgTime, key, value,storage))
@@ -167,7 +167,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean,storage:En
   def getUncompressedSize() : Int = {previousState.size}
 
   def getId : Long
-  def getPropertyCurrentValue(key : String) : Option[String] =
+  def getPropertyCurrentValue(key : String) : Option[Any] =
     properties.get(key) match {
       case Some(p) => Some(p.currentValue)
       case None => None

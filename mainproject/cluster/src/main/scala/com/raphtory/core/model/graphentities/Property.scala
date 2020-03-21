@@ -11,29 +11,29 @@ import scala.collection.mutable
   * @param key           Property name
   * @param value         Property value
   */
-class Property(creationTime: Long, key: String, value: String,storage:EntityStorage) {
+class Property(creationTime: Long, key: String, value: Any,storage:EntityStorage) {
   private var saved = false
 
   // Initialize the TreeMap
-  var previousState: mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
-  var compressedState: mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering)
+  var previousState: mutable.TreeMap[Long, Any] = mutable.TreeMap()(HistoryOrdering)
+  var compressedState: mutable.TreeMap[Long, Any] = mutable.TreeMap()(HistoryOrdering)
 
 
   // add in the initial information
   update(creationTime, value)
   def name = key
 
-  def update(msgTime: Long, newValue: String): Unit = {
+  def update(msgTime: Long, newValue: Any): Unit = {
     previousState.put(msgTime, newValue)
   }
 
-  def compressHistory(cutoff:Long,entityType:Boolean,workerID:Int): mutable.TreeMap[Long, String] ={
+  def compressHistory(cutoff:Long,entityType:Boolean,workerID:Int): mutable.TreeMap[Long, Any] ={
     if(previousState.isEmpty) return mutable.TreeMap()(HistoryOrdering) //if we have no need to compress, return an empty list
     if (previousState.takeRight(1).head._1>=cutoff) return mutable.TreeMap()(HistoryOrdering) //if the oldest point is younger than the cut off no need to do anything
-    var toWrite : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering) //data which needs to be saved to cassandra
-    var newPreviousState : mutable.TreeMap[Long, String] = mutable.TreeMap()(HistoryOrdering) //map which will replace the current history
+    var toWrite : mutable.TreeMap[Long, Any] = mutable.TreeMap()(HistoryOrdering) //data which needs to be saved to cassandra
+    var newPreviousState : mutable.TreeMap[Long, Any] = mutable.TreeMap()(HistoryOrdering) //map which will replace the current history
 
-    var PriorPoint: (Long,String) = previousState.head
+    var PriorPoint: (Long,Any) = previousState.head
     var swapped = false //specify pivot point when crossing over the cutoff as you don't want to compare to historic points which are still changing
     previousState.foreach{case (k,v)=>{
       if(k >= cutoff) //still in read write space so
@@ -87,9 +87,9 @@ class Property(creationTime: Long, key: String, value: String,storage:EntityStor
     false
   }
 
-  def valueAt(time:Long): String = {
+  def valueAt(time:Long): Any = {
     var closestTime:Long = 0
-    var value = "default"
+    var value: Any = "Default"
     for((k,v) <- compressedState){
       if(k<=time)
         if((time-k)<(time-closestTime)) {
@@ -116,7 +116,7 @@ class Property(creationTime: Long, key: String, value: String,storage:EntityStor
     s"Property: ${key} ----- Current State: $toReturn"
   }
 
-  def currentValue : String = previousState.head._2
+  def currentValue : Any = previousState.head._2
   def currentTime : Long    = previousState.head._1
   def beenSaved():Boolean=saved
 

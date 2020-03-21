@@ -44,7 +44,7 @@ class Edge(workerID:Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: 
 
 
 
-  def getPropertyValuesAfterTime(key : String,time:Long,window:Long) : Option[mutable.TreeMap[Long,String]] = {
+  def getPropertyValuesAfterTime(key : String,time:Long,window:Long) : Option[mutable.TreeMap[Long,Any]] = {
     if (window == -1L)
       properties.get(key) match {
         case Some(p) => Some(p.previousState.filter(x => x._1 <= time))

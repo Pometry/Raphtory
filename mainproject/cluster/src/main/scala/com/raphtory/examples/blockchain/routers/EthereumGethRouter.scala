@@ -1,7 +1,7 @@
 package com.raphtory.examples.blockchain.routers
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{EdgeAddWithProperties, VertexAddWithProperties}
+import com.raphtory.core.model.communication.{EdgeAddWithProperties, Properties, StringProperty, VertexAddWithProperties}
 import spray.json._
 
 import scala.util.hashing.MurmurHash3
@@ -19,9 +19,9 @@ class EthereumGethRouter(val routerId:Int, val initialManagerCount:Int) extends 
     val sourceNode = MurmurHash3.stringHash(from) //hash the id to get a vertex ID
     val destinationNode = MurmurHash3.stringHash(to) //hash the id to get a vertex ID
 
-    sendGraphUpdate(VertexAddWithProperties(blockNumber, sourceNode,properties = Map("id"->from)))
-    sendGraphUpdate(VertexAddWithProperties(blockNumber, destinationNode,properties = Map("id"->to)))
-    sendGraphUpdate(EdgeAddWithProperties(blockNumber, sourceNode, destinationNode,properties = Map("value"->sent)))
+    sendGraphUpdate(VertexAddWithProperties(blockNumber, sourceNode,properties = Properties(StringProperty("id",from))))
+    sendGraphUpdate(VertexAddWithProperties(blockNumber, destinationNode,properties = Properties(StringProperty("id",to))))
+    sendGraphUpdate(EdgeAddWithProperties(blockNumber, sourceNode, destinationNode,properties = Properties(StringProperty("value",sent))))
 
   }
 }
