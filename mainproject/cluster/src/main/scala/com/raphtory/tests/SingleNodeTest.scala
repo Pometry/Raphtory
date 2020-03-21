@@ -19,10 +19,10 @@ object SingleNodeTest extends App {
 
  //var UpdaterName = "com.raphtory.examples.blockchain.spouts.DashcoinSpout"
  //var routerClassName = "com.raphtory.examples.blockchain.routers.DashcoinRouter"
- val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
+ //val Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
  var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
- //val Analyser = "com.raphtory.examples.blockchain.analysers.EthereumDegreeRanking"
+ val Analyser = "com.raphtory.examples.blockchain.analysers.EthereumDegreeRanking"
  //var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
  //var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
 // val Analyser = "com.raphtory.core.analysis.Algorithms.DegreeRanking"

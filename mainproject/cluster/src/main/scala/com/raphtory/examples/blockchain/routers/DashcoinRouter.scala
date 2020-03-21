@@ -1,7 +1,7 @@
 package com.raphtory.examples.blockchain.routers
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, VertexAdd, VertexAddWithProperties}
+import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, Properties, StringProperty, VertexAdd, VertexAddWithProperties}
 import com.raphtory.examples.blockchain.LitecoinTransaction
 import spray.json.JsArray
 
@@ -40,22 +40,22 @@ class DashcoinRouter(val routerId:Int, val initialManagerCount:Int) extends Rout
       else value = "0" //TODO deal with people burning money
 
       //creates vertex for the receiving wallet
-      sendGraphUpdate(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash(address), properties = Map[String,String](
+      sendGraphUpdate(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash(address), properties = Properties(
         //("type","address"),
-        ("address",address),
-        ("outputType",outputType))))
+        StringProperty("address",address),
+        StringProperty("outputType",outputType))))
       //creates edge between the transaction and the wallet
-      sendGraphUpdate(EdgeAddWithProperties( msgTime = timeAsLong, srcID = MurmurHash3.stringHash(txid), dstID = MurmurHash3.stringHash(address), properties = Map[String,String](("n",n),("value",value))))
+      sendGraphUpdate(EdgeAddWithProperties( msgTime = timeAsLong, srcID = MurmurHash3.stringHash(txid), dstID = MurmurHash3.stringHash(address), properties = Properties(StringProperty("n",n),StringProperty("value",value))))
 
     }
-    sendGraphUpdate(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash(txid), properties = Map[String,String](
+    sendGraphUpdate(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash(txid), properties = Properties(
       //("type","transaction"),
-      ("id",txid),
-      ("total",total.toString),
+      StringProperty("id",txid),
+      StringProperty("total",total.toString),
       //("lockTime",locktime.toString),
       //("version",version.toString),
      // ("blockhash",blockID.toString),
-      ("block",block.toString))))
+      StringProperty("block",block.toString))))
 
     if(vins.toString().contains("coinbase")){
       //creates the coingen node
@@ -73,7 +73,7 @@ class DashcoinRouter(val routerId:Int, val initialManagerCount:Int) extends Rout
         val sequence = vinOBJ.fields("sequence").toString
         //no need to create node for prevtxid as should already exist
         //creates edge between the prev transaction and current transaction
-        sendGraphUpdate(EdgeAddWithProperties(msgTime = timeAsLong, srcID =  MurmurHash3.stringHash(prevtxid), dstID =  MurmurHash3.stringHash(txid), properties = Map[String,String](("vout",prevVout),("sequence",sequence))))
+        sendGraphUpdate(EdgeAddWithProperties(msgTime = timeAsLong, srcID =  MurmurHash3.stringHash(prevtxid), dstID =  MurmurHash3.stringHash(txid), properties = Properties(StringProperty("vout",prevVout),StringProperty("sequence",sequence))))
       }
     }
   }

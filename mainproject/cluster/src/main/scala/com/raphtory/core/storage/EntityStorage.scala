@@ -62,11 +62,11 @@ class EntityStorage(workerID:Int) {
 
   def setManagerCount(count : Int) = this.managerCount = count
 
-  def addProperties(msgTime:Long,entity:Entity,properties:Map[String,String]) = if (properties != null) properties.foreach(prop => entity +(msgTime,prop._1, prop._2)) // if the add come with some properties add all passed properties into the entity
+  def addProperties(msgTime:Long,entity:Entity,properties:Properties) = if (properties != null) properties.property.foreach(prop => entity +(msgTime,prop.key, prop.value)) // if the add come with some properties add all passed properties into the entity
 
 
-  def vertexAdd(msgTime : Long, srcId : Long, properties : Map[String,String] = null) : Vertex = { //Vertex add handler function
-    if(debug)println(s"Adding $srcId")
+  def vertexAdd(msgTime : Long, srcId : Long, properties : Properties = null) : Vertex = { //Vertex add handler function
+    //if(debug)println(s"Adding $srcId")
     val vertex : Vertex = vertices.get(srcId) match { //check if the vertex exists
       case Some(v) => { //if it does
         v revive msgTime //add the history point
@@ -149,7 +149,7 @@ class EntityStorage(workerID:Int) {
   /**
     * Edges Methods
     */
-  def edgeAdd(msgTime : Long, srcId : Long, dstId : Long, properties : Map[String, String] = null) = {
+  def edgeAdd(msgTime : Long, srcId : Long, dstId : Long, properties : Properties = null) = {
     val local       = checkDst(dstId, managerCount, managerID) //is the dst on this machine
     val sameWorker  = checkWorker(dstId,managerCount,workerID) // is the dst handled by the same worker
     val srcVertex = vertexAdd(msgTime, srcId) // create or revive the source ID
@@ -190,7 +190,7 @@ class EntityStorage(workerID:Int) {
     addProperties(msgTime,edge,properties)
   }
 
-  def remoteEdgeAddNew(msgTime:Long,srcId:Long,dstId:Long,properties:Map[String,String],srcDeaths:mutable.TreeMap[Long, Boolean]):Unit={
+  def remoteEdgeAddNew(msgTime:Long,srcId:Long,dstId:Long,properties:Properties,srcDeaths:mutable.TreeMap[Long, Boolean]):Unit={
     val dstVertex = vertexAdd(msgTime,dstId) //create or revive the destination node
     val edge = new SplitEdge( workerID, msgTime, srcId, dstId, initialValue = true,getPartition(srcId, managerCount),this)
     dstVertex addIncomingEdge(edge) //add the edge to the associated edges of the destination node
@@ -201,7 +201,7 @@ class EntityStorage(workerID:Int) {
     mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount),RemoteReturnDeaths(msgTime,srcId,dstId,deaths),false)
   }
 
-  def remoteEdgeAdd(msgTime:Long,srcId:Long,dstId:Long,properties:Map[String,String] = null):Unit={
+  def remoteEdgeAdd(msgTime:Long,srcId:Long,dstId:Long,properties:Properties = null):Unit={
     val dstVertex = vertexAdd(msgTime,dstId) // revive the destination node
     dstVertex.getIncomingEdge(srcId) match {
       case Some(edge) => {

@@ -37,10 +37,10 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt                 //extract the srcID
     if(command.fields.contains("properties")) {                          //if there are properties within the command
-      var properties = Map[String,String]()                              //create a vertex map
-      command.fields("properties").asJsObject.fields.foreach( pair => {  //add all of the pairs to the map
-        properties = properties updated (pair._1, pair._2.toString())
-      })
+      var properties = Properties()                            //create a vertex map
+      //command.fields("properties").asJsObject.fields.foreach( pair => {  //add all of the pairs to the map
+     //   properties = properties updated (pair._1, pair._2.toString())
+     // })
       //send the srcID and properties to the graph manager
       sendGraphUpdate(VertexAddWithProperties(msgTime,srcId,properties))
     }
@@ -52,8 +52,8 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
   def vertexUpdateProperties(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
-    var properties = Map[String,String]() //create a vertex map
-    command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
+    var properties = Properties() //create a vertex map
+    //command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
     sendGraphUpdate(VertexUpdateProperties(msgTime,srcId,properties)) //send the srcID and properties to the graph parition
   }
 
@@ -68,10 +68,10 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
     if(command.fields.contains("properties")){ //if there are properties within the command
-    var properties = Map[String,String]() //create a vertex map
-      command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
-        properties = properties updated (pair._1,pair._2.toString())
-      })
+    var properties = Properties() //create a vertex map
+//      command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
+//        properties = properties updated (pair._1,pair._2.toString())
+//      })
       sendGraphUpdate(EdgeAddWithProperties(msgTime,srcId,dstId,properties))
     }
     else sendGraphUpdate(EdgeAdd(msgTime,srcId,dstId))
@@ -81,8 +81,8 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
     val msgTime = command.fields("messageID").toString().toLong
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
-    var properties = Map[String,String]() //create a vertex map
-    command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
+    var properties =Properties() //create a vertex map
+    //command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
     sendGraphUpdate(EdgeUpdateProperties(msgTime,srcId,dstId,properties))//send the srcID, dstID and properties to the graph manager
   }
 

@@ -3,7 +3,7 @@ package com.raphtory.examples.gab.actors
 import java.time.OffsetDateTime
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{EdgeAddWithProperties, VertexAddWithProperties}
+import com.raphtory.core.model.communication.{EdgeAddWithProperties, Properties, StringProperty, VertexAddWithProperties}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
 
@@ -41,39 +41,39 @@ final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends 
   def sendPostToPartitions(post : GabPost, recursiveCall : Boolean = false, parent : Int = 0) : Unit = {
     val postUUID  = post.id.get.toInt
     val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
-    sendGraphUpdate(VertexAddWithProperties(timestamp, postUUID, Map(
-      "user"         -> {post.user match {
+    sendGraphUpdate(VertexAddWithProperties(timestamp, postUUID, Properties(
+      StringProperty("user", {post.user match {
         case Some(u) => u.id.toString
         case None => nullStr
-      }},
-      "likeCount"    -> {post.like_count match {
+      }}),
+      StringProperty("likeCount",{post.like_count match {
         case Some(likeCount) => likeCount.toString
         case None => nullStr
-      }},
-      "score"        -> {post.score match {
+      }}),
+      StringProperty("score" ,{post.score match {
         case Some(score) => score.toString
         case None => nullStr
-      }},
-      "topic"        -> {post.topic match {
+      }}),
+      StringProperty("topic",{post.topic match {
         case Some(topic) => topic.id
         case None => nullStr
-      }},
-      "type"         -> "post"
+      }}),
+      StringProperty("type" ,"post")
     )))
 
     post.user match {
       case Some(user) =>{
         val userUUID:Int = "user".hashCode() + user.id //TODO improve in case of clashes
-        sendGraphUpdate(VertexAddWithProperties(timestamp,userUUID,Map(
-          "type" -> "user",
-          "id" ->user.id.toString,
-          "name" -> user.name,
-          "username" -> user.username,
-          "verified" -> user.verified.toString
+        sendGraphUpdate(VertexAddWithProperties(timestamp,userUUID,Properties(
+          StringProperty("type" , "user"),
+            StringProperty("id" ,user.id.toString),
+              StringProperty("name" , user.name),
+                StringProperty("username" , user.username),
+                  StringProperty("verified" , user.verified.toString)
         )))
 
-        sendGraphUpdate(EdgeAddWithProperties(timestamp,userUUID,postUUID,Map("type"->"userToPost")))
-        sendGraphUpdate(EdgeAddWithProperties(timestamp,postUUID,userUUID,Map("type"->"postToUser")))
+        sendGraphUpdate(EdgeAddWithProperties(timestamp,userUUID,postUUID,Properties((StringProperty("type","userToPost")))))
+        sendGraphUpdate(EdgeAddWithProperties(timestamp,postUUID,userUUID,Properties(StringProperty("type","postToUser"))))
       }
       case None =>
     }
@@ -81,16 +81,16 @@ final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends 
     post.topic match {
       case Some(topic) => {
         val topicUUID : Int = Math.pow(2,24).toInt+ (topic.id.hashCode())
-        sendGraphUpdate(VertexAddWithProperties(timestamp, topicUUID, Map(
-          "created_at" -> topic.created_at,
-          "category"   -> topic.category.toString,
-          "title"      -> topic.title.getOrElse("null"),
-          "type"       -> "topic",
-          "id"         -> topic.id
+        sendGraphUpdate(VertexAddWithProperties(timestamp, topicUUID, Properties(
+          StringProperty( "created_at" , topic.created_at),
+            StringProperty( "category"   , topic.category.toString),
+              StringProperty( "title"      , topic.title.getOrElse("null")),
+                StringProperty("type"       , "topic"),
+                  StringProperty("id"         , topic.id)
         )
         ))
 
-        sendGraphUpdate(EdgeAddWithProperties(timestamp, postUUID, topicUUID,Map("type"->"postToTopic")))
+        sendGraphUpdate(EdgeAddWithProperties(timestamp, postUUID, topicUUID,Properties(StringProperty("type","postToTopic"))))
       }
       case None =>
     }
@@ -98,7 +98,7 @@ final class GabRawRouter(val routerId:Int, val initialManagerCount:Int) extends 
 
     // Edge from child to parent post
     if (recursiveCall && parent != 0) {
-      sendGraphUpdate(EdgeAddWithProperties(timestamp, postUUID, parent,Map("type"->"childToParent")))
+      sendGraphUpdate(EdgeAddWithProperties(timestamp, postUUID, parent,Properties(StringProperty("type","childToParent"))))
     }
     post.parent match {
       case Some(p) => {
