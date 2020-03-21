@@ -8,7 +8,7 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Edge object (extended creator for storage loads)
   */
 object Edge {
-  def apply(workerID:Int,creationTime : Long, srcID:Long,dstID:Long, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property],storage:EntityStorage) = {
+  def apply(workerID:Int, creationTime : Long, srcID:Long, dstID:Long, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property], storage:EntityStorage) = {
 
     val e = new Edge(workerID,creationTime, srcID, dstID, initialValue = true,storage )
     e.previousState   = previousState
@@ -44,18 +44,18 @@ class Edge(workerID:Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: 
 
 
 
-  def getPropertyValuesAfterTime(key : String,time:Long,window:Long) : Option[mutable.TreeMap[Long,Any]] = {
-    if (window == -1L)
-      properties.get(key) match {
-        case Some(p) => Some(p.previousState.filter(x => x._1 <= time))
-        case None => None
-      }
-    else
-      properties.get(key) match {
-        case Some(p) => Some(p.previousState.filter(x => x._1 <= time && time - x._1 <= window))
-        case None => None
-      }
-  }
+//  def getPropertyValuesAfterTime(key : String,time:Long,window:Long) : Option[mutable.TreeMap[Long,Any]] = {
+//    if (window == -1L)
+//      properties.get(key) match {
+//        case Some(p) => Some(p.previousState.filter(x => x._1 <= time))
+//        case None => None
+//      }
+//    else
+//      properties.get(key) match {
+//        case Some(p) => Some(p.previousState.filter(x => x._1 <= time && time - x._1 <= window))
+//        case None => None
+//      }
+//  }
 
 
   def viewAt(time:Long):Edge = {
@@ -80,8 +80,8 @@ class Edge(workerID:Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: 
     val edge = new Edge(-1,closestTime,srcId,dstId,value,storage)
     for((k,p) <- properties) {
       val value = p.valueAt(time)
-      if (!(value equals("default")))
-        edge  + (time,k,value)
+      if (!(value equals("")))
+        edge + (time,false,k,value)
     }
     edge
   }

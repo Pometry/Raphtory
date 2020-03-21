@@ -140,21 +140,14 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean,storage:En
     * @param key   property key
     * @param value property value
     */
-  def +(msgTime: Long, key: String, value: Any): Unit = {
+  def +(msgTime: Long,immutable: Boolean, key: String, value: Any): Unit = {
     properties.get(key) match {
-      case Some(v) => v update(msgTime, value)
-      case None => properties.put(key, new Property(msgTime, key, value,storage))
+      case Some(p) => p update(msgTime, value)
+      case None => if(immutable) properties.put(key, new MutableProperty(msgTime, key, value,storage)) else properties.put(key, new ImmutableProperty(msgTime, key, value,storage))
     }
   }
 
-  def updateProp(key: String, p : Property) = {
-    properties.synchronized {
-      properties.get(key) match {
-        case Some(v) => v update(p.currentTime, p.currentValue)
-        case None => properties.put(key, p)
-      }
-    }
-  }
+
 
   def beenSaved():Boolean=saved
   def firstSave():Unit = saved =true

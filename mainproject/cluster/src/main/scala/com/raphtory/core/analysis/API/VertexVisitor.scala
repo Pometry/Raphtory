@@ -4,7 +4,7 @@ import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.analysis.API.GraphLenses.LiveLens
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.{Edge, Vertex}
+import com.raphtory.core.model.graphentities.{Edge, MutableProperty, Vertex}
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
@@ -53,12 +53,14 @@ class VertexVisitor(v : Vertex, jobID:String, superStep:Int, proxy:LiveLens, tim
   private def getEdgePropertyValuesAfterTime(edge:Edge,key : String,time:Long,window:Long) : Option[mutable.TreeMap[Long,Any]] = {
     if (window == -1L)
       edge.properties.get(key) match {
-        case Some(p) => Some(p.previousState.filter(x => x._1 <= time))
+        case Some(p:MutableProperty) => Some(p.previousState.filter(x => x._1 <= time))
+        case Some(p:ImmutableProperty) => Some(mutable.TreeMap[Long,Any]((-1L -> p.currentValue)))
         case None => None
       }
     else
       edge.properties.get(key) match {
-        case Some(p) => Some(p.previousState.filter(x => x._1 <= time && time - x._1 <= window))
+        case Some(p:MutableProperty) => Some(p.previousState.filter(x => x._1 <= time && time - x._1 <= window))
+        case Some(p:ImmutableProperty) => Some(mutable.TreeMap[Long,Any]((-1L -> p.currentValue)))
         case None => None
       }
   }

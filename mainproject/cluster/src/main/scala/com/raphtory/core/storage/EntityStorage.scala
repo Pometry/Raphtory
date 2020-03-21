@@ -62,7 +62,16 @@ class EntityStorage(workerID:Int) {
 
   def setManagerCount(count : Int) = this.managerCount = count
 
-  def addProperties(msgTime:Long,entity:Entity,properties:Properties) = if (properties != null) properties.property.foreach(prop => entity +(msgTime,prop.key, prop.value)) // if the add come with some properties add all passed properties into the entity
+  def addProperties(msgTime:Long,entity:Entity,properties:Properties) = {
+    if (properties != null) {
+      properties.property.foreach {
+        case StringProperty(key, value) => entity + (msgTime, false,key, value)
+        case LongProperty(key, value) => entity + (msgTime,false, key, value)
+        case DoubleProperty(key, value) => entity + (msgTime,false, key, value)
+        case ImmutableProperty(key, value) => entity + (msgTime,true, key, value)
+      }
+    }
+  } // if the add come with some properties add all passed properties into the entity
 
 
   def vertexAdd(msgTime : Long, srcId : Long, properties : Properties = null) : Vertex = { //Vertex add handler function
