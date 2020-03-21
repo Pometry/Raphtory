@@ -13,7 +13,7 @@ class ViewAnalysisManager(jobID: String, analyser: Analyser, time: Long) extends
 
 
   override def restart() = {
-    println(s"View Analaysis manager for $jobID at ${new Date(time)} finished")
+    println(s"View Analysis manager for $jobID at ${new Date(time)} finished")
     System.exit(0)
   }
 
