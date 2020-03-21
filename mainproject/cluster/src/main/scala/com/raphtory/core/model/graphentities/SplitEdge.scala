@@ -9,7 +9,7 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Edge object (extended creator for storage loads)
   */
 object SplitEdge {
-  def apply(workerID:Int,creationTime : Long, srcID:Long,dstID:Long, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property], remotePartitionId : Int,storage:EntityStorage)= {
+  def apply(workerID:Int, creationTime : Long, srcID:Long, dstID:Long, previousState : mutable.TreeMap[Long, Boolean], properties : ParTrieMap[String, Property], remotePartitionId : Int, storage:EntityStorage)= {
     val e = new SplitEdge(workerID:Int,creationTime, srcID, dstID, initialValue = true, remotePartitionId,storage)
     e.previousState   = previousState
     e.properties      = properties
