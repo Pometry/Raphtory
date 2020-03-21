@@ -15,7 +15,7 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
 
   override def receive: Receive = {
     case VertexAdd(msgTime, srcId,vType) => storage.vertexAdd(msgTime, srcId,vertexType = vType); vHandle(srcId, msgTime)
-    case VertexRemoval(msgTime, srcId) => storage.vertexRemoval(msgTime, srcId); vHandle(srcId, msgTime)
+    case VertexDelete(msgTime, srcId) => storage.vertexRemoval(msgTime, srcId); vHandle(srcId, msgTime)
     case VertexAddWithProperties(msgTime, srcId, properties,vType) => storage.vertexAdd(msgTime, srcId, properties,vertexType = vType); vHandle(srcId, msgTime)
 
     case DstAddForOtherWorker(msgTime, dstID, srcForEdge, edge, present) => storage.vertexWorkerRequest(msgTime, dstID, srcForEdge, edge, present); wHandle()
@@ -30,7 +30,7 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
     case RemoteEdgeAdd(msgTime, srcId, dstId, properties,eType) => storage.remoteEdgeAdd(msgTime, srcId, dstId, properties,edgeType = eType); eHandleSecondary(srcId, dstId, msgTime)
     case RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths,eType) => storage.remoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths,edgeType = eType); eHandleSecondary(srcId, dstId, msgTime)
 
-    case EdgeRemoval(msgTime, srcId, dstId) => storage.edgeRemoval(msgTime, srcId, dstId); eHandle(srcId, dstId, msgTime)
+    case EdgeDelete(msgTime, srcId, dstId) => storage.edgeRemoval(msgTime, srcId, dstId); eHandle(srcId, dstId, msgTime)
     case RemoteEdgeRemoval(msgTime, srcId, dstId) => storage.remoteEdgeRemoval(msgTime, srcId, dstId); eHandleSecondary(srcId, dstId, msgTime)
     case RemoteEdgeRemovalNew(msgTime, srcId, dstId, deaths) => storage.remoteEdgeRemovalNew(msgTime, srcId, dstId, deaths); eHandleSecondary(srcId, dstId, msgTime)
 

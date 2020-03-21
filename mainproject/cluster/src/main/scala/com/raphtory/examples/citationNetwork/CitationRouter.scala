@@ -28,7 +28,7 @@ class CitationRouter(routerId:Int, override val initialManagerCount:Int) extends
     sendGraphUpdate(EdgeAdd(sourceCitedTargetOn, sourceNode, targetNode))
 
     if (sourceCitedTargetOn == targetLastCitedOn) {
-      sendGraphUpdate(EdgeRemoval(targetLastCitedOn, sourceNode, targetNode))
+      sendGraphUpdate(EdgeDelete(targetLastCitedOn, sourceNode, targetNode))
     }
 
 

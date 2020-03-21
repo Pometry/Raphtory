@@ -37,12 +37,12 @@ case class Properties(property:Property*)
 case class VertexAdd(msgTime:Long, override val srcID:Long,vType:Type =null) extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
 case class VertexAddWithProperties(msgTime:Long, override val srcID:Long, properties:Properties,vType:Type =null) extends GraphUpdate
 case class VertexUpdateProperties(msgTime:Long,override val srcID:Long, propery:Properties,vType:Type =null) extends  GraphUpdate
-case class VertexRemoval(msgTime:Long,override val srcID:Long) extends GraphUpdate
+case class VertexDelete(msgTime:Long, override val srcID:Long) extends GraphUpdate
 
 case class EdgeAdd(msgTime:Long,srcID:Long,dstID:Long,eType:Type =null) extends GraphUpdate
 case class EdgeAddWithProperties(msgTime:Long, override val srcID:Long,dstID:Long, properties: Properties,eType:Type =null) extends GraphUpdate
 case class EdgeUpdateProperties(msgTime:Long,override val srcID:Long,dstID:Long,property:Properties,eType:Type =null) extends GraphUpdate
-case class EdgeRemoval(msgTime:Long,override val srcID:Long,dstID:Long) extends GraphUpdate
+case class EdgeDelete(msgTime:Long, override val srcID:Long, dstID:Long) extends GraphUpdate
 
 case class RemoteEdgeUpdateProperties(msgTime:Long,srcID:Long,dstID:Long,properties:Properties,eType:Type)
 case class RemoteEdgeAdd(msgTime:Long, srcID:Long, dstID:Long, properties: Properties,eType:Type)

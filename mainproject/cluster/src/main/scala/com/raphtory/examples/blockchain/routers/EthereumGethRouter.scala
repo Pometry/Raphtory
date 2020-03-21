@@ -16,8 +16,8 @@ class EthereumGethRouter(val routerId:Int, val initialManagerCount:Int) extends 
     val to = transaction.fields("to").toString()
     val sent = transaction.fields("value").toString()
 
-    val sourceNode = MurmurHash3.stringHash(from) //hash the id to get a vertex ID
-    val destinationNode = MurmurHash3.stringHash(to) //hash the id to get a vertex ID
+    val sourceNode = assignID(from) //hash the id to get a vertex ID
+    val destinationNode = assignID(to) //hash the id to get a vertex ID
 
     sendGraphUpdate(VertexAddWithProperties(blockNumber, sourceNode,properties = Properties(ImmutableProperty("id",from))))
     sendGraphUpdate(VertexAddWithProperties(blockNumber, destinationNode,properties = Properties(ImmutableProperty("id",to))))
