@@ -14,9 +14,9 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
   val saving: Boolean = Utils.persistenceEnabled
 
   override def receive: Receive = {
-    case VertexAdd(msgTime, srcId) => storage.vertexAdd(msgTime, srcId); vHandle(srcId, msgTime)
+    case VertexAdd(msgTime, srcId,vType) => storage.vertexAdd(msgTime, srcId,vertexType = vType); vHandle(srcId, msgTime)
     case VertexRemoval(msgTime, srcId) => storage.vertexRemoval(msgTime, srcId); vHandle(srcId, msgTime)
-    case VertexAddWithProperties(msgTime, srcId, properties) => storage.vertexAdd(msgTime, srcId, properties); vHandle(srcId, msgTime)
+    case VertexAddWithProperties(msgTime, srcId, properties,vType) => storage.vertexAdd(msgTime, srcId, properties,vertexType = vType); vHandle(srcId, msgTime)
 
     case DstAddForOtherWorker(msgTime, dstID, srcForEdge, edge, present) => storage.vertexWorkerRequest(msgTime, dstID, srcForEdge, edge, present); wHandle()
     case DstWipeForOtherWorker(msgTime, dstID, srcForEdge, edge, present) => storage.vertexWipeWorkerRequest(msgTime, dstID, srcForEdge, edge, present); wHandle()
@@ -24,11 +24,11 @@ class IngestionWorker(workerID:Int,storage:EntityStorage) extends Actor {
     case EdgeRemoveForOtherWorker(msgTime, srcID, dstID) => storage.edgeRemovalFromOtherWorker(msgTime, srcID, dstID); wHandle()
     //case EdgeRemovalAfterArchiving(msgTime,srcID,dstID)           => EntityStorage.edgeRemovalAfterArchiving(workerID,msgTime,srcID,dstID) //disabled at the moment
 
-    case EdgeAdd(msgTime, srcId, dstId) => storage.edgeAdd(msgTime, srcId, dstId); eHandle(srcId, dstId, msgTime)
-    case EdgeAddWithProperties(msgTime, srcId, dstId, properties) => storage.edgeAdd(msgTime, srcId, dstId, properties); eHandle(srcId, dstId, msgTime)
+    case EdgeAdd(msgTime, srcId, dstId,eType) => storage.edgeAdd(msgTime, srcId, dstId,edgeType = eType); eHandle(srcId, dstId, msgTime)
+    case EdgeAddWithProperties(msgTime, srcId, dstId, properties,eType) => storage.edgeAdd(msgTime, srcId, dstId, properties,edgeType = eType); eHandle(srcId, dstId, msgTime)
 
-    case RemoteEdgeAdd(msgTime, srcId, dstId, properties) => storage.remoteEdgeAdd(msgTime, srcId, dstId, properties); eHandleSecondary(srcId, dstId, msgTime)
-    case RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths) => storage.remoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths); eHandleSecondary(srcId, dstId, msgTime)
+    case RemoteEdgeAdd(msgTime, srcId, dstId, properties,eType) => storage.remoteEdgeAdd(msgTime, srcId, dstId, properties,edgeType = eType); eHandleSecondary(srcId, dstId, msgTime)
+    case RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths,eType) => storage.remoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths,edgeType = eType); eHandleSecondary(srcId, dstId, msgTime)
 
     case EdgeRemoval(msgTime, srcId, dstId) => storage.edgeRemoval(msgTime, srcId, dstId); eHandle(srcId, dstId, msgTime)
     case RemoteEdgeRemoval(msgTime, srcId, dstId) => storage.remoteEdgeRemoval(msgTime, srcId, dstId); eHandleSecondary(srcId, dstId, msgTime)

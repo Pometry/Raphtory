@@ -25,10 +25,10 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
     if(commandKey.contains("VertexAdd")) vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject)
-    else if(commandKey.contains("VertexUpdateProperties")) vertexUpdateProperties(parsedOBJ.getFields("VertexUpdateProperties").head.asJsObject)
+    //else if(commandKey.contains("VertexUpdateProperties")) vertexUpdateProperties(parsedOBJ.getFields("VertexUpdateProperties").head.asJsObject)
     else if(commandKey.contains("VertexRemoval")) vertexRemoval(parsedOBJ.getFields("VertexRemoval").head.asJsObject)
     else if(commandKey.contains("EdgeAdd")) edgeAdd(parsedOBJ.getFields("EdgeAdd").head.asJsObject) //if addVertex, parse to handling function
-    else if(commandKey.contains("EdgeUpdateProperties")) edgeUpdateProperties(parsedOBJ.getFields("EdgeUpdateProperties").head.asJsObject)
+ //   else if(commandKey.contains("EdgeUpdateProperties")) edgeUpdateProperties(parsedOBJ.getFields("EdgeUpdateProperties").head.asJsObject)
     else if(commandKey.contains("EdgeRemoval")) edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject)
     else println(command)
   }
@@ -49,13 +49,13 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
     } // if there are not any properties, just send the srcID
   }
 
-  def vertexUpdateProperties(command:JsObject):Unit={
-    val msgTime = command.fields("messageID").toString().toLong
-    val srcId = command.fields("srcID").toString().toInt //extract the srcID
-    var properties = Properties() //create a vertex map
-    //command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    sendGraphUpdate(VertexUpdateProperties(msgTime,srcId,properties)) //send the srcID and properties to the graph parition
-  }
+//  def vertexUpdateProperties(command:JsObject):Unit={
+//    val msgTime = command.fields("messageID").toString().toLong
+//    val srcId = command.fields("srcID").toString().toInt //extract the srcID
+//    var properties = Properties() //create a vertex map
+//    //command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
+//    sendGraphUpdate(VertexUpdateProperties(msgTime,srcId,properties)) //send the srcID and properties to the graph parition
+//  }
 
   def vertexRemoval(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong
@@ -77,14 +77,14 @@ class RandomRouter(routerId:Int,override val initialManagerCount:Int) extends Ro
     else sendGraphUpdate(EdgeAdd(msgTime,srcId,dstId))
   }
 
-  def edgeUpdateProperties(command:JsObject):Unit={
-    val msgTime = command.fields("messageID").toString().toLong
-    val srcId = command.fields("srcID").toString().toInt //extract the srcID
-    val dstId = command.fields("dstID").toString().toInt //extract the dstID
-    var properties =Properties() //create a vertex map
-    //command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    sendGraphUpdate(EdgeUpdateProperties(msgTime,srcId,dstId,properties))//send the srcID, dstID and properties to the graph manager
-  }
+//  def edgeUpdateProperties(command:JsObject):Unit={
+//    val msgTime = command.fields("messageID").toString().toLong
+//    val srcId = command.fields("srcID").toString().toInt //extract the srcID
+//    val dstId = command.fields("dstID").toString().toInt //extract the dstID
+//    var properties =Properties() //create a vertex map
+//    //command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
+//    sendGraphUpdate(EdgeUpdateProperties(msgTime,srcId,dstId,properties))//send the srcID, dstID and properties to the graph manager
+//  }
 
   def edgeRemoval(command:JsObject):Unit={
     val msgTime = command.fields("messageID").toString().toLong

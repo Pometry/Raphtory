@@ -39,17 +39,17 @@ case class VertexAddWithProperties(msgTime:Long, override val srcID:Long, proper
 case class VertexUpdateProperties(msgTime:Long,override val srcID:Long, propery:Properties,vType:Type =null) extends  GraphUpdate
 case class VertexRemoval(msgTime:Long,override val srcID:Long) extends GraphUpdate
 
-case class EdgeAdd(msgTime:Long,srcID:Long,dstID:Long,vType:Type =null) extends GraphUpdate
-case class EdgeAddWithProperties(msgTime:Long, override val srcID:Long,dstID:Long, properties: Properties,vType:Type =null) extends GraphUpdate
-case class EdgeUpdateProperties(msgTime:Long,override val srcID:Long,dstID:Long,property:Properties,vType:Type =null) extends GraphUpdate
+case class EdgeAdd(msgTime:Long,srcID:Long,dstID:Long,eType:Type =null) extends GraphUpdate
+case class EdgeAddWithProperties(msgTime:Long, override val srcID:Long,dstID:Long, properties: Properties,eType:Type =null) extends GraphUpdate
+case class EdgeUpdateProperties(msgTime:Long,override val srcID:Long,dstID:Long,property:Properties,eType:Type =null) extends GraphUpdate
 case class EdgeRemoval(msgTime:Long,override val srcID:Long,dstID:Long) extends GraphUpdate
 
-case class RemoteEdgeUpdateProperties(msgTime:Long,srcID:Long,dstID:Long,properties:Properties,vType:Type =null)
-case class RemoteEdgeAdd(msgTime:Long, srcID:Long, dstID:Long, properties: Properties,vType:Type =null)
+case class RemoteEdgeUpdateProperties(msgTime:Long,srcID:Long,dstID:Long,properties:Properties,eType:Type)
+case class RemoteEdgeAdd(msgTime:Long, srcID:Long, dstID:Long, properties: Properties,eType:Type)
 case class RemoteEdgeRemoval(msgTime:Long,srcID:Long,dstID:Long)
 
-case class RemoteEdgeUpdatePropertiesNew(msgTime:Long,srcID:Long,dstID:Long,properties:Properties,kills:mutable.TreeMap[Long, Boolean],vType:Type =null)
-case class RemoteEdgeAddNew(msgTime:Long,srcID:Long,dstID:Long,properties: Properties,kills:mutable.TreeMap[Long, Boolean],vType:Type =null)
+case class RemoteEdgeUpdatePropertiesNew(msgTime:Long,srcID:Long,dstID:Long,properties:Properties,kills:mutable.TreeMap[Long, Boolean],vType:Type)
+case class RemoteEdgeAddNew(msgTime:Long,srcID:Long,dstID:Long,properties: Properties,kills:mutable.TreeMap[Long, Boolean],vType:Type)
 case class RemoteEdgeRemovalNew(msgTime:Long,srcID:Long,dstID:Long,kills:mutable.TreeMap[Long, Boolean])
 
 case class RemoteReturnDeaths(msgTime:Long,srcID:Long,dstID:Long,kills:mutable.TreeMap[Long, Boolean])
