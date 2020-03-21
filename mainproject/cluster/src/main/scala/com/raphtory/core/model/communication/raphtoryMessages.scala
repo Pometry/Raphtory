@@ -94,7 +94,6 @@ case class VertexMessageInt(source:Long,vertexID:Long,jobID:String,superStep:Int
 case class VertexMessageFloat(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Float) extends VertexMessage
 case class VertexMessageBatch(jobID:String,superStep:Int,data:ConcurrentHashMap.KeySetView[(Long,Long,Any),java.lang.Boolean]) extends VertexMessage
 
-
 case class Setup(analyzer : Analyser,jobID:String,superStep:Int, timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) extends RaphReadClasses
 case class Ready(messages:Int) extends RaphReadClasses
 case class NextStep(analyzer : Analyser,jobID:String,superStep:Int, timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) extends RaphReadClasses
