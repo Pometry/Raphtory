@@ -18,11 +18,13 @@ class LDBCRouter(routerId:Int, override val initialManagerCount:Int) extends Rou
     fileLine(0) match {
       case "person" => {
         sendGraphUpdate(VertexAdd(creationDate, assignID("person"+fileLine(3)),Type("person")))
-        sendGraphUpdate(VertexDelete(creationDate, assignID("person"+fileLine(3))))
+        //sendGraphUpdate(VertexAdd(creationDate, fileLine(3).toLong,Type("person")))
+        sendGraphUpdate(VertexDelete(deletionDate, assignID("person"+fileLine(3))))
       }
       case "person_knows_person" => {
+        //sendGraphUpdate(EdgeAdd(creationDate, fileLine(3).toLong,fileLine(4).toLong,Type("person_knows_person")))
         sendGraphUpdate(EdgeAdd(creationDate, assignID("person"+fileLine(3)),assignID("person"+fileLine(4)),Type("person_knows_person")))
-        sendGraphUpdate(EdgeDelete(creationDate, assignID("person"+fileLine(3)),assignID("person"+fileLine(4))))
+        sendGraphUpdate(EdgeDelete(deletionDate, assignID("person"+fileLine(3)),assignID("person"+fileLine(4))))
       }
     }
   }
