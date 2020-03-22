@@ -55,7 +55,7 @@ object SingleNodeTest extends App {
 
   val analyser = Class.forName(Analyser).newInstance().asInstanceOf[Analyser]
 
-  Thread.sleep(360000)
+  Thread.sleep(60000)
   println("Starting Analysis")
 
 
