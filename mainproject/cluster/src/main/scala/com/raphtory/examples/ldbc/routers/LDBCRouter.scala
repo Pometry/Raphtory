@@ -24,8 +24,9 @@ class LDBCRouter(routerId:Int, override val initialManagerCount:Int) extends Rou
       case "person_knows_person" => {
         //sendGraphUpdate(EdgeAdd(creationDate, fileLine(3).toLong,fileLine(4).toLong,Type("person_knows_person")))
         sendGraphUpdate(EdgeAdd(creationDate, assignID("person"+fileLine(3)),assignID("person"+fileLine(4)),Type("person_knows_person")))
-        sendGraphUpdate(EdgeDelete(deletionDate, assignID("person"+fileLine(3)),assignID("person"+fileLine(4))))
+        //sendGraphUpdate(EdgeDelete(deletionDate, assignID("person"+fileLine(3)),assignID("person"+fileLine(4))))
       }
     }
   }
 }
+//2012-11-01T09:28:01.185+00:00|2019-07-22T11:24:24.362+00:00|35184372093644|Jose|Garcia|female|1988-05-20|111.68.47.44|Firefox

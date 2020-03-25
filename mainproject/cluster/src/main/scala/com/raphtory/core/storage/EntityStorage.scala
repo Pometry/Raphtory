@@ -75,7 +75,7 @@ class EntityStorage(workerID:Int) {
 
 
   def vertexAdd(msgTime : Long, srcId : Long, properties : Properties = null,vertexType:Type) : Vertex = { //Vertex add handler function
-    //if(debug)println(s"Adding $srcId")
+    if(debug)println(s"Adding $srcId")
     val vertex : Vertex = vertices.get(srcId) match { //check if the vertex exists
       case Some(v) => { //if it does
         v revive msgTime //add the history point

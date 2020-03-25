@@ -24,7 +24,7 @@ class EthereumPostgresSpout extends SpoutTrait{
 
   override def ProcessSpoutTask(message:Any): Unit = message match {
     case StartSpout => AllocateSpoutTask(Duration(1,MILLISECONDS),"nextBatch")
-    case "parseBlock" => running()
+    case "nextBatch" => running()
     case _ => println("message not recognized!")
   }
 
