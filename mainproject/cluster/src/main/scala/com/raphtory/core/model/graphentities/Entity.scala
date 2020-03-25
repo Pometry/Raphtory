@@ -205,34 +205,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean,storage:En
     }
   }
 
-  def aliveAtCache(time:Long):Boolean = {
-    if( time < oldestPoint.get)
-      false
-    else if(stateCache contains time)
-      previousState(stateCache(time))
-    else {
-      val closest = closestTime(time)
-      stateCache += ((time, closest._1))
-      closest._2
-    }
-  }
 
-  def aliveAtWithWindowCache(time:Long,windowSize:Long):Boolean = {
-    if(time < oldestPoint.get)
-      false
-    else if(stateCache contains time) {
-      val casheVal = stateCache(time)
-      if(time-casheVal<=windowSize)
-        previousState(casheVal)
-      else false
-    }
-    else{
-      val closest = closestTime(time)
-      if(time-closest._1<=windowSize)
-        closest._2
-      else false
-    }
-  }
 }
 
 

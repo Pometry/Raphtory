@@ -15,7 +15,7 @@ class RangeAnalysisManager(jobID:String,analyser:Analyser,start:Long,end:Long,ju
   override def restart(): Unit = {
     if(currentTimestamp==end){
       println(s"Range Analysis manager for $jobID between ${new Date(start)} and ${new Date(end)} finished")
-      System.exit(0)
+      return
     }
     currentTimestamp = currentTimestamp +jump
 

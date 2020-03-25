@@ -23,7 +23,7 @@ trait SpoutTrait extends Actor with Timers {
 
   protected final val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-
+  val debug = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
   override def preStart() {
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"benchmark")
     context.system.scheduler.schedule(Duration(7, SECONDS), Duration(1, SECONDS), self,"stateCheck")
@@ -33,6 +33,7 @@ trait SpoutTrait extends Actor with Timers {
   def AllocateSpoutTask(duration:Duration, task:Any) = context.system.scheduler.scheduleOnce( Duration(duration._1,duration._2), self, task)
 
   protected def recordUpdate(): Unit ={
+    if(debug) println("sent update")
     counter       += 1
     currentMessage+=1
     Kamon.counter("raphtory.updateGen.commandsSent").increment()
