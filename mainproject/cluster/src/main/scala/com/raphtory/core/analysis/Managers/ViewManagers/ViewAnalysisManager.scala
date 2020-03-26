@@ -12,9 +12,9 @@ class ViewAnalysisManager(jobID: String, analyser: Analyser, time: Long) extends
   override protected def analysisType(): AnalysisType.Value = AnalysisType.view
 
 
-  override def restart() = {
+  override def restart():Unit = {
     println(s"View Analysis manager for $jobID at ${new Date(time)} finished")
-    System.exit(0)
+    return //TODO kill actor instead
   }
 
   override def processResults(timestamp: Long): Unit = analyser.processViewResults(result, this.timestamp(), viewCompleteTime)

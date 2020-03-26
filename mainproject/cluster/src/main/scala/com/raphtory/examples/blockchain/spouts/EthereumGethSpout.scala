@@ -21,7 +21,7 @@ class EthereumGethSpout extends SpoutTrait {
   val baseRequest = requestBuilder()
 
   override protected def ProcessSpoutTask(message: Any): Unit = message match {
-      case StartSpout => AllocateSpoutTask(Duration(1,MILLISECONDS),"nextBlock")
+      case StartSpout => pullNextBlock()
       case "nextBlock" => pullNextBlock()
     }
 
@@ -36,7 +36,7 @@ class EthereumGethSpout extends SpoutTrait {
       currentBlock += 1
       AllocateSpoutTask(Duration(1,MILLISECONDS),"nextBlock")
     }
-    catch {case e:Exception => {}}
+    catch {case e:Exception => {e.printStackTrace()}}
   }
 
   def requestBuilder() = {

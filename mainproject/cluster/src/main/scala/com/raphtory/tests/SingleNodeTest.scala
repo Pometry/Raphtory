@@ -3,7 +3,7 @@ package com.raphtory.tests
 import akka.actor.{ActorSystem, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.Managers.RangeManagers.{BWindowedRangeAnalysisManager, RangeAnalysisManager}
+import com.raphtory.core.analysis.Managers.RangeManagers.{BWindowedRangeAnalysisManager, RangeAnalysisManager, WindowedRangeAnalysisManager}
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog}
 import org.slf4j.LoggerFactory
 
@@ -19,11 +19,11 @@ object SingleNodeTest extends App {
 
 
  var Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
- Analyser = "com.raphtory.core.analysis.Algorithms.DegreeRanking"
+ Analyser = "com.raphtory.core.analysis.Algorithms.DegreeBasic"
 
  var UpdaterName = "com.raphtory.examples.ldbc.spouts.LDBCSpout"
  var routerClassName = "com.raphtory.examples.ldbc.routers.LDBCRouter"
- val start = 1262307661000L
+ val start = 1262394061000L
  val end =   1357002061000L
  val jump =    86400000
 
@@ -48,26 +48,20 @@ object SingleNodeTest extends App {
 
  val system = ActorSystem("Single-Node-test")
 
-  system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
-  system.actorOf(Props(RaphtoryReplicator("Router",1, routerClassName)), s"Routers")
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager",1)), s"PartitionManager")
-  system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
+ system.actorOf(Props(new WatchDog(partitionNumber,minimumRouters)), "WatchDog")
+ system.actorOf(Props(RaphtoryReplicator("Router",1, routerClassName)), s"Routers")
+ system.actorOf(Props(RaphtoryReplicator("Partition Manager",1)), s"PartitionManager")
+ system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
 
-  val analyser = Class.forName(Analyser).newInstance().asInstanceOf[Analyser]
+ val analyser = Class.forName(Analyser).newInstance().asInstanceOf[Analyser]
 
   Thread.sleep(60000)
   println("Starting Analysis")
 
-
-
-
-
-
-
-
-  //val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
-
-  system.actorOf(Props(new RangeAnalysisManager("testname",analyser,start,end,jump)), s"LiveAnalysisManager_$Analyser")
+ //val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
+ val window = 2592000000L
+ //system.actorOf(Props(new WindowedRangeAnalysisManager("testname",analyser,start,end,jump,window)), s"LiveAnalysisManager_$Analyser")
+ system.actorOf(Props(new RangeAnalysisManager("testname",analyser,start,end,jump)), s"LiveAnalysisManager_$Analyser")
 
 ////////////////
 //  {"time":1474326000000,"windowsize":31536000000,"biggest":3990,"total":64,"totalWithoutIslands":24,"totalIslands":40,"proportion":0.9789009,"proportionWithoutIslands":0.9886026,"clustersGT2":1,"viewTime":2391,"concatTime":7},

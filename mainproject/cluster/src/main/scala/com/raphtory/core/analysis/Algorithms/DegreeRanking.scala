@@ -34,7 +34,7 @@ class DegreeRanking extends Analyser {
     val totalVert = endResults.map(x=>x._1).sum
     val totalEdge = endResults.map(x=>x._3).sum
 
-    val degree = try{totalEdge/totalVert}catch {case e:ArithmeticException => 0}
+    val degree = try{totalEdge.toDouble/totalVert.toDouble}catch {case e:ArithmeticException => 0}
     var bestUserArray = "["
     val bestUsers = endResults.map(x=>x._4).flatten.sortBy(x=> x._3)(sortOrdering).take(20).map(x=> s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""").foreach(x=> bestUserArray+=x+",")
     bestUserArray = if(bestUserArray.length>1) bestUserArray.dropRight(1)+"]" else bestUserArray+"]"
@@ -50,7 +50,7 @@ class DegreeRanking extends Analyser {
     val totalVert = endResults.map(x=>x._1).sum
     val totalEdge = endResults.map(x=>x._3).sum
 
-    val degree = try{totalEdge/totalVert}catch {case e:ArithmeticException => 0}
+    val degree = try{totalEdge.toDouble/totalVert.toDouble}catch {case e:ArithmeticException => 0}
     var bestUserArray = "["
     val bestUsers = endResults.map(x=>x._4).flatten.sortBy(x=> x._3)(sortOrdering).take(20).map(x=> s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""").foreach(x=> bestUserArray+=x+",")
     bestUserArray = if(bestUserArray.length>1) bestUserArray.dropRight(1)+"]" else bestUserArray+"]"
@@ -66,7 +66,7 @@ class DegreeRanking extends Analyser {
     val totalVert = endResults.map(x=>x._1).sum
     val totalEdge = endResults.map(x=>x._3).sum
 
-    val degree = try{totalEdge/totalVert}catch {case e:ArithmeticException => 0}
+    val degree = try{totalEdge.toDouble/totalVert.toDouble}catch {case e:ArithmeticException => 0}
     var bestUserArray = "["
     val bestUsers = endResults.map(x=>x._4).flatten.sortBy(x=> x._3)(sortOrdering).take(20).map(x=> s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""").foreach(x=> bestUserArray+=x+",")
     bestUserArray = if(bestUserArray.length>1) bestUserArray.dropRight(1)+"]" else bestUserArray+"]"
