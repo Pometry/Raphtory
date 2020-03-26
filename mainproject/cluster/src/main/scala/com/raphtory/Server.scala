@@ -47,7 +47,7 @@ object Go extends App {
       RouterNode(getConf(), sys.env("PARTITION_MIN").toInt, routerName)
     }
     case "partitionManager" => {
-      println(s"Creating Patition Manager...")
+      println(s"Creating Partition Manager...")
       ManagerNode(getConf(), sys.env("PARTITION_MIN").toInt)
     }
 

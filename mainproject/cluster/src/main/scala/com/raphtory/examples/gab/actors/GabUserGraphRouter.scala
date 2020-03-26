@@ -29,7 +29,7 @@ class GabUserGraphRouter(routerId:Int, override val initialManagerCount:Int) ext
       val creationDate = dateToUnixTime(timestamp=fileLine(0).slice(0,19))
       sendGraphUpdate(VertexAdd(creationDate, sourceNode,Type("User")))
       sendGraphUpdate(VertexAdd(creationDate, targetNode,Type("User")))
-      sendGraphUpdate(EdgeAdd(creationDate, sourceNode, targetNode,Type("User")))
+      sendGraphUpdate(EdgeAdd(creationDate, sourceNode, targetNode,Type("User to User")))
     }
 
   }

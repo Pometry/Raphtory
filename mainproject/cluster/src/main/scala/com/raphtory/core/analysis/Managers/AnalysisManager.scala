@@ -117,6 +117,7 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
     case MessagesReceived(workerID,real,receivedMessages,sentMessages) => messagesReceieved(workerID,real,receivedMessages,sentMessages)
 
     case "networkSizeTimeout" => networkSizeFail() //restart contact with readers
+    case "watchdogRestart" => watchdogRestart() //restart contact with readers
     case ClassMissing() => classMissing() //If the class is missing, send the raw source file
     case FailedToCompile(stackTrace) => failedToCompile(stackTrace) //Your code is broke scrub
     case PartitionsCount(newValue) => managerCount = newValue //for when managerCount is republished
@@ -126,13 +127,17 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
   protected def checkClusterSize: Unit = {
     viewCompleteTime()
     stepCompleteTime()
+    networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "watchdogRestart")
     mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
+  }
+  def watchdogRestart() {
+    checkClusterSize
   }
 
   def watchdogResponse(newValue: Int)= {
     managerCount = newValue
     ReaderACKS = 0
-    networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(300, SECONDS), self, "networkSizeTimeout")
+    //networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(300, SECONDS), self, "networkSizeTimeout")
     for(worker <- Utils.getAllReaders(managerCount)) {
       mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline(), false)
     }
@@ -266,10 +271,9 @@ abstract class AnalysisManager(jobID:String, analyser: Analyser) extends Actor {
         //println(s"checking, $totalReceivedMessages/$totalSentMessages")
         totalReceivedMessages =0
         totalSentMessages = 0
-        Thread.sleep(10)
         currentSuperStep+=1
         for(worker <- Utils.getAllReaderWorkers(managerCount))
-          //mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
+          //mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false) //todo fix
           mediator   ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer,jobID,currentSuperStep,timestamp,analysisType:AnalysisType.Value,windowSize(),windowSet()),false)
       }
     }
