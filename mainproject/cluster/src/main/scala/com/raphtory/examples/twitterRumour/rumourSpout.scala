@@ -8,7 +8,7 @@ import scala.concurrent.duration.{Duration, MILLISECONDS, SECONDS}
 import java.io.File
 
 class rumourSpout extends SpoutTrait {
-  var directory = System.getenv().getOrDefault("PHEME_DIRECTORY", "/home/tsunade/qmul/pheme-rnr-dataset").trim
+  var directory = System.getenv().getOrDefault("PHEME_DIRECTORY", "/home/tsunade/qmul/datasets/pheme-rnr-dataset").trim
   var r_case = System.getenv().getOrDefault("RUMOUR_CASE", "/sydneysiege").trim
   val rpath = directory + r_case + "/rumours"
   val nrpath = directory + r_case + "/non-rumours"
@@ -17,57 +17,58 @@ class rumourSpout extends SpoutTrait {
 
   var rtweetCounter = 0
   var nrtweetCounter = 0
-println("at spout....")
-  override def preStart(): Unit = {
-    super.preStart()
-    println("checking prestart...")
-    AllocateSpoutTask(Duration(1, SECONDS), "rumourTweets")
-    println("send message rumour...")
-    AllocateSpoutTask(Duration(1, SECONDS), "nonRumourTweets")
+//println("at spout....")
+
+
+  override protected def ProcessSpoutTask(message: Any): Unit = {
+   // println(message)
+    if ((rtweetCounter < max_r) || (nrtweetCounter < max_nr)) {
+      //println("inside if stm")
+      message match {
+        case StartSpout => {AllocateSpoutTask(Duration(1, SECONDS), "rumourTweets")
+          AllocateSpoutTask(Duration(1, SECONDS), "nonRumourTweets")}
+        case "rumourTweets" => {
+          if (rtweetCounter < max_r){
+       //     println("sending ingest cmd r...")
+            running(rpath, position = rtweetCounter, "R__")
+            rtweetCounter += 1
+            context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "rumourTweets")
+          }
+        }
+        case "nonRumourTweets" => {
+          if (nrtweetCounter < max_nr) {
+          //  println("sending ingest cmd nr...")
+            running(nrpath, position = nrtweetCounter, "nR__")
+            nrtweetCounter += 1
+            context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "nonRumourTweets")
+          }
+        }
+        case _ => println("message not recognized!")
+      }
+    }
+
   }
 
   def ingestTweet(path: String, rnr: String): Unit = {
+  //  println("inside ingest....")
     val tweet_l = new File(path)
     if (tweet_l.exists && tweet_l.isDirectory) {
       tweet_l.listFiles.filter(_.isFile).toList.map(_.toString).foreach { tw_path: String =>
         sendTuple(rnr + tw_path)
+       // println("running sendTuple...")
       }
     }
   }
 
-  override protected def ProcessSpoutTask(message: Any): Unit = {
-    println("processing spout task...")
-    println(message)
-    if ((rtweetCounter < max_r) || (nrtweetCounter < max_nr)) {
-     // if (isSafe()) {
-        message match {
-          case "rumourTweets" => {
-            if (rtweetCounter < max_r){
-              println("ingesting rumour ....")
-              running(rpath, position = rtweetCounter, "R__")
-              rtweetCounter += 1
-              context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "rumourTweets")
-            }
-          }
-          case "nonRumourTweets" => {
-            if (nrtweetCounter < max_nr) {
-              println("ingesting non-rumour...")
-              running(nrpath, position = nrtweetCounter, "nR__")
-              nrtweetCounter += 1
-              context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "nonRumourTweets")
-            }
-          }
-          case _ => println("message not recognized!")
-        }
-      }
-//    } else {
-//      stop()
-//    }
-  }
+
 
   def running(rpath: String, position:Int, rnr: String): Unit = {
     val rumours = new File(rpath)
+   // println("inside runnign...")
+
     if (rumours.exists && rumours.isDirectory) {
+
+      //println("inside runnign if...")
       val r_tweet = rumours.listFiles.toList.map(_.toString)
       ingestTweet(r_tweet(position) + "/source-tweet", rnr)
       ingestTweet(r_tweet(position) + "/reactions", rnr)
