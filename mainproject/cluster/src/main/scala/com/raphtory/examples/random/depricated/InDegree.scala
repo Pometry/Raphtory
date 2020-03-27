@@ -26,75 +26,69 @@ class InDegree extends Analyser {
 
   override def analyse(): Unit = {
     var results = ArrayBuffer[Int]()
-    proxy.getVerticesSet().foreach(v => {
-
-      val vertex = proxy.getVertex(v._2)
+    proxy.getVerticesSet().foreach { v =>
+      val vertex     = proxy.getVertex(v._2)
       val totalEdges = vertex.getIngoingNeighbors.size
       results += totalEdges
-    })
+    }
     // println("THIS IS HOW RESULTS LOOK: "+ results.groupBy(identity).mapValues(_.size))
     results.groupBy(identity).mapValues(_.size).toList
   }
 
-  override def setup(): Unit = {
-
-  }
+  override def setup(): Unit = {}
 
   override def defineMaxSteps(): Int = 1
 
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
-    val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
+    val inputFormat  = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
     var finalResults = ArrayBuffer[(Int, Int)]()
 
-    for (kv <- results) {
+    for (kv <- results)
       //println("KV RESULTS: "+ kv )
-      for (pair <- kv.asInstanceOf[List[(Int, Int)]]) {
+      for (pair <- kv.asInstanceOf[List[(Int, Int)]])
         finalResults += pair
-      }
-
-    }
 
     val currentDate = LocalDateTime.now()
     //val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
     var degrees = finalResults.groupBy(_._1).mapValues(seq => seq.map(_._2).reduce(_ + _)).toList.sortBy(_._1) //.foreach(println)
     for ((degree, total) <- degrees) {
       var text = currentDate + "," + degree + "," + total
-      Utils.writeLines("results/distribLAM.csv", text,"Date,InDegree,Total")
+      Utils.writeLines("results/distribLAM.csv", text, "Date,InDegree,Total")
 
     }
 
   }
 
+  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+    val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+    //Wed Aug 10 04:59:06 BST 2016
+    val inputFormat  = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
+    val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
 
-override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
-      val output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
-      //Wed Aug 10 04:59:06 BST 2016
-      val inputFormat = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
-      val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
+    var finalResults = ArrayBuffer[(Int, Int)]()
 
-      var finalResults = ArrayBuffer[(Int, Int)]()
+    for (kv <- results)
+      // println("KV RESULTS: " + kv)
+      for (pair <- kv.asInstanceOf[List[(Int, Int)]])
+        finalResults += pair
 
-      for (kv <- results) {
-        // println("KV RESULTS: " + kv)
-        for (pair <- kv.asInstanceOf[List[(Int, Int)]]) {
-          finalResults += pair
-        }
+    val currentDate   = new Date(timestamp)
+    val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
+    var degrees       = finalResults.groupBy(_._1).mapValues(seq => seq.map(_._2).reduce(_ + _)).toList.sortBy(_._1) //.foreach(println)
+    for ((degree, total) <- degrees) {
+      var text = formattedDate + "," + degree + "," + total
+      Utils.writeLines(output_file, text, "Date,InDegree,Total")
 
-      }
-
-      val currentDate = new Date(timestamp)
-      val formattedDate = outputFormat.format(inputFormat.parse(currentDate.toString))
-      var degrees = finalResults.groupBy(_._1).mapValues(seq => seq.map(_._2).reduce(_ + _)).toList.sortBy(_._1) //.foreach(println)
-      for ((degree, total) <- degrees) {
-        var text = formattedDate + "," + degree + "," + total
-        Utils.writeLines(output_file, text,"Date,InDegree,Total")
-
-      }
     }
+  }
 
-  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {}
+  override def processWindowResults(
+      results: ArrayBuffer[Any],
+      timestamp: Long,
+      windowSize: Long,
+      viewCompleteTime: Long
+  ): Unit = {}
 
   override def returnResults(): Any = ???
 }
-

@@ -4,6 +4,6 @@ import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.Managers.AnalysisManager
 import com.raphtory.core.model.communication.AnalysisType
 
-class WindowedLiveAnalysisManager(jobID:String, analyser:Analyser) extends AnalysisManager(jobID,analyser) {
+class WindowedLiveAnalysisManager(jobID: String, analyser: Analyser) extends AnalysisManager(jobID, analyser) {
   override protected def analysisType(): AnalysisType.Value = AnalysisType.live
 }
