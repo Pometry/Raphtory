@@ -6,48 +6,47 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.util.Random
 
-class BinaryDefusion extends Analyser{
+class BinaryDefusion extends Analyser {
   val infectedNode = 31
-  override def setup(): Unit = {
-    proxy.getVerticesSet().foreach(v => {
-      if(v._1 == infectedNode) {
+  override def setup(): Unit =
+    proxy.getVerticesSet().foreach { v =>
+      if (v._1 == infectedNode) {
         val vertex = proxy.getVertex(v._2)
         val toSend = vertex.getOrSetCompValue("infected", proxy.superStep()).asInstanceOf[Int]
-        vertex.getOutgoingNeighbors.foreach(neighbour => {
-          if(Random.nextBoolean())
-            vertex.messageNeighbour(neighbour._1,toSend)
-        })
+        vertex.getOutgoingNeighbors.foreach { neighbour =>
+          if (Random.nextBoolean())
+            vertex.messageNeighbour(neighbour._1, toSend)
+        }
       }
-    })
-  }
+    }
 
-  override def analyse(): Unit = {
-    proxy.getVerticesWithMessages().foreach(vert=>{
+  override def analyse(): Unit =
+    proxy.getVerticesWithMessages().foreach { vert =>
       val vertex = proxy.getVertex(vert._2)
       vertex.clearQueue
-      if(vertex.containsCompValue("infected")){
+      if (vertex.containsCompValue("infected"))
         vertex.voteToHalt() //already infected
-      }
-      else{
+      else {
         val toSend = vertex.getOrSetCompValue("infected", proxy.superStep()).asInstanceOf[Int]
-        vertex.getOutgoingNeighbors.foreach(neighbour => {
-          if(Random.nextBoolean())
-            vertex.messageNeighbour(neighbour._1,toSend)
-        })
+        vertex.getOutgoingNeighbors.foreach { neighbour =>
+          if (Random.nextBoolean())
+            vertex.messageNeighbour(neighbour._1, toSend)
+        }
       }
-    })
-  }
+    }
 
-  override def returnResults(): Any = {
-    proxy.getVerticesSet().map(vert=>{
-      val vertex = proxy.getVertex(vert._2)
-      if(vertex.containsCompValue("infected"))
-        (vert._1,vertex.getCompValue("infected").asInstanceOf[Int])
-      else
-        (-1,-1)
+  override def returnResults(): Any =
+    proxy
+      .getVerticesSet()
+      .map { vert =>
+        val vertex = proxy.getVertex(vert._2)
+        if (vertex.containsCompValue("infected"))
+          (vert._1, vertex.getCompValue("infected").asInstanceOf[Int])
+        else
+          (-1, -1)
 
-    }).filter(f=> f._2 >=0)
-  }
+      }
+      .filter(f => f._2 >= 0)
 
   override def defineMaxSteps(): Int = 100
 

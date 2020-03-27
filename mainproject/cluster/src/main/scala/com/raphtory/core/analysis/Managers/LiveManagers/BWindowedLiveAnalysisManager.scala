@@ -6,22 +6,20 @@ import com.raphtory.core.model.communication.AnalysisType
 
 import scala.collection.mutable.ArrayBuffer
 
-class BWindowedLiveAnalysisManager(jobID:String, analyser:Analyser) extends AnalysisManager(jobID,analyser) {
+class BWindowedLiveAnalysisManager(jobID: String, analyser: Analyser) extends AnalysisManager(jobID, analyser) {
   override def result(): ArrayBuffer[Any] = {
     val original = super.result()
-    if(original.nonEmpty){
+    if (original.nonEmpty) {
       val invertedArray = ArrayBuffer[ArrayBuffer[Any]]()
-      for(i <- original(0).asInstanceOf[ArrayBuffer[Any]].indices)
+      for (i <- original(0).asInstanceOf[ArrayBuffer[Any]].indices)
         invertedArray += new ArrayBuffer[Any]()
-      original.foreach(x=> {
+      original.foreach { x =>
         val internal = x.asInstanceOf[ArrayBuffer[Any]]
-        for(j <- internal.indices){
+        for (j <- internal.indices)
           invertedArray(j) += internal(j)
-        }
-      })
+      }
       invertedArray.asInstanceOf[ArrayBuffer[Any]]
-    }
-    else original
+    } else original
   }
-   override protected def analysisType(): AnalysisType.Value = AnalysisType.live
+  override protected def analysisType(): AnalysisType.Value = AnalysisType.live
 }

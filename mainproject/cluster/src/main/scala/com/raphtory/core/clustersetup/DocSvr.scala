@@ -1,13 +1,18 @@
 package com.raphtory.core.clustersetup
 
-import akka.actor.{ActorSystem, Address, ExtendedActorSystem}
-import akka.cluster.{Cluster, Member}
+import akka.actor.ActorSystem
+import akka.actor.Address
+import akka.actor.ExtendedActorSystem
+import akka.cluster.Cluster
+import akka.cluster.Member
 import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
 import com.raphtory.core.clustersetup.util.ConfigUtils._
 import com.raphtory.core.utils.Utils
-import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
+import com.typesafe.config.ConfigValueFactory
 
 import scala.collection.JavaConversions
 import scala.collection.JavaConversions._
@@ -17,10 +22,10 @@ trait DocSvr {
   def seedLoc: String
 
   implicit val system: ActorSystem
-  val docker        =  System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
+  val docker = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
   val clusterSystemName: String = Utils.clusterSystemName
-  val ssn: String = java.util.UUID.randomUUID.toString
+  val ssn: String               = java.util.UUID.randomUUID.toString
 
   /** Node lookup directory for registered members in the System */
   var nodes = Set.empty[Member]
@@ -33,16 +38,18 @@ trait DocSvr {
     */
   def initialiseActorSystem(seeds: List[String]): ActorSystem = {
     var config = ConfigFactory.load()
-    if(docker) config = config.withValue("akka.cluster.seed-nodes",
-        ConfigValueFactory.fromIterable(
-          JavaConversions.asJavaIterable(
-            seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
-          )
-        )
-     )
+    if (docker)
+      config = config.withValue(
+              "akka.cluster.seed-nodes",
+              ConfigValueFactory.fromIterable(
+                      JavaConversions.asJavaIterable(
+                              seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
+                      )
+              )
+      )
 
     val actorSystem = ActorSystem(clusterSystemName, config)
-    if(!docker) {
+    if (!docker) {
       AkkaManagement.get(actorSystem).start()
       ClusterBootstrap.get(actorSystem).start()
     }
@@ -54,11 +61,8 @@ trait DocSvr {
     *
     * @return A string object representing the address and roles of the members in this System
     */
-  def getNodes: String = {
-    nodes
-      .map(member => s"${member.address} ${member.getRoles.mkString}")
-      .mkString(",")
-  }
+  def getNodes: String =
+    nodes.map(member => s"${member.address} ${member.getRoles.mkString}").mkString(",")
 
   /** Utility method to print the configuration which an ActorSystem has been created under
     *
@@ -70,7 +74,7 @@ trait DocSvr {
 
     val systemConfig: SystemConfig = config.parse()
     val bindAddress: SocketAddress = systemConfig.bindAddress
-    val tcpAddress: SocketAddress = systemConfig.tcpAddress
+    val tcpAddress: SocketAddress  = systemConfig.tcpAddress
 
     log.info(s"Created ActorSystem with ID: $ssn")
 

@@ -2,7 +2,8 @@ package com.raphtory.examples.gab.actors
 
 import akka.actor.Cancellable
 import ch.qos.logback.classic.Level
-import com.mongodb.casbah.Imports.{MongoConnection, _}
+import com.mongodb.casbah.Imports.MongoConnection
+import com.mongodb.casbah.Imports._
 import com.raphtory.core.components.Spout.SpoutTrait
 import org.slf4j.LoggerFactory
 
@@ -20,10 +21,9 @@ final class GabRawSpout extends SpoutTrait {
   //ddClusterListener(new LoggingClusterListener).build
   private val mongoConn = MongoConnection("138.37.32.67", 27017)
   private val mongoColl = mongoConn("gab")("posts")
-  private var window = 1000
-  private var postMin = 0
-  private var postMax = 1001
-
+  private var window    = 1000
+  private var postMin   = 0
+  private var postMax   = 1001
 
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
@@ -31,7 +31,7 @@ final class GabRawSpout extends SpoutTrait {
   // mongoLogger.setLevel(Level.OFF)
 
   override protected def ProcessSpoutTask(message: Any): Unit = message match {
-    case StartSpout => AllocateSpoutTask(Duration(1,MILLISECONDS),"parsePost")
+    case StartSpout  => AllocateSpoutTask(Duration(1, MILLISECONDS), "parsePost")
     case "parsePost" => running()
   }
 
@@ -44,23 +44,20 @@ final class GabRawSpout extends SpoutTrait {
 
   }
 
-  private def getNextPosts():Int = {
-    var count =0
-    for (x <- mongoColl.find("_id" $lt postMax $gt postMin)) {
+  private def getNextPosts(): Int = {
+    var count = 0
+    for (x <- mongoColl.find("_id" $lt postMax $gt postMin))
       try {
         val data = x.get("data").toString.drop(2).dropRight(1).replaceAll("""\\"""", "").replaceAll("""\\""", "")
-        count +=1
+        count += 1
         //println(data)
         sendTuple(data)
       } catch {
         case e: Throwable =>
           println("Cannot parse record")
       }
-    }
     return count
   }
 
 }
-
-
 //redis-server --dir /home/moe/ben/gab --dbfilename gab.rdb --daemonize yes
