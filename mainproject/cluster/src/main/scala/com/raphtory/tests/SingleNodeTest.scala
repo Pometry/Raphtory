@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.analysis.Managers.LiveManagers.LiveAnalysisManager
 import com.raphtory.core.analysis.Managers.RangeManagers.BWindowedRangeAnalysisManager
 import com.raphtory.core.analysis.Managers.RangeManagers.RangeAnalysisManager
 import com.raphtory.core.analysis.Managers.RangeManagers.WindowedRangeAnalysisManager
@@ -30,19 +31,19 @@ object SingleNodeTest extends App {
  // val jump            = 86400000
 
   //ether test
-  //val start = 5000000L
-  //val end = 6000000L
-  //val jump =    1
-  //var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
-  //var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
-  //val Analyser = "com.raphtory.examples.blockchain.analysers.EthereumDegreeRanking"
+  val start = 5000000L
+  val end = 6000000L
+  val jump =    1
+  var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
+  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
+  Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
 
   //Gab test
-    val start = 1470837600000L
-    val end =   31525368897000L
-    val jump =    3600000
-  var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
-  var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+//    val start = 1470837600000L
+//    val end =   31525368897000L
+//    val jump =    3600000
+//  var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+//  var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
 
   val system = ActorSystem("Single-Node-test")
 
@@ -53,14 +54,14 @@ object SingleNodeTest extends App {
 
   val analyser = Class.forName(Analyser).newInstance().asInstanceOf[Analyser]
 
-  Thread.sleep(60000)
+  Thread.sleep(20000)
   println("Starting Analysis")
 
   //val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
   val window = 2592000000L
   //system.actorOf(Props(new WindowedRangeAnalysisManager("testname",analyser,start,end,jump,window)), s"LiveAnalysisManager_$Analyser")
   system
-    .actorOf(Props(new RangeAnalysisManager("testname", analyser, start, end, jump)), s"LiveAnalysisManager_$Analyser")
+    .actorOf(Props(new LiveAnalysisManager("testname", analyser)), s"LiveAnalysisManager_$Analyser")
 
 ////////////////
 //  {"time":1474326000000,"windowsize":31536000000,"biggest":3990,"total":64,"totalWithoutIslands":24,"totalIslands":40,"proportion":0.9789009,"proportionWithoutIslands":0.9886026,"clustersGT2":1,"viewTime":2391,"concatTime":7},

@@ -134,6 +134,10 @@ case class VertexMessageInt(source: Long, vertexID: Long, jobID: String, superSt
         extends VertexMessage
 case class VertexMessageFloat(source: Long, vertexID: Long, jobID: String, superStep: Int, data: Float)
         extends VertexMessage
+
+case class VertexMessageStringLong(source: Long, vertexID: Long, jobID: String, superStep: Int, data: (String,Long))
+  extends VertexMessage
+
 case class VertexMessageBatch(
     jobID: String,
     superStep: Int,

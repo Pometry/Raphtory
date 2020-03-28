@@ -33,6 +33,7 @@ class VertexVisitor(v: Vertex, jobID: String, superStep: Int, proxy: LiveLens, t
   def clearQueue                 = v.multiQueue.clearQueue(jobID, superStep)
   //val messageQueue2 = v.multiQueue.getMessageQueue(jobID,superStep+1)
   def getOutgoingNeighbors: ParTrieMap[Long, Edge] = v.outgoingProcessing
+  def getOutgoingNeighborsAfter(time:Long):ParTrieMap[Long,Edge] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= time))
   def getIngoingNeighbors: ParTrieMap[Long, Edge]  = v.incomingProcessing
 
   //TODO fix properties
@@ -147,6 +148,19 @@ class VertexVisitor(v: Vertex, jobID: String, superStep: Int, proxy: LiveLens, t
   def messageAllNeighbours(message: Float) =
     v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt, message))
   def messageAllIngoingNeighbors(message: Float): Unit =
+    v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt, message))
+
+  //send float
+  def messageNeighbour(vertexID: Long, data: (String,Long)): Unit = {
+    val message = VertexMessageStringLong(v.getId, vertexID, jobID, superStep, data)
+    proxy.recordMessage(v.getId, vertexID, data)
+    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count), message, false)
+  }
+  def messageAllOutgoingNeighbors(message: (String,Long)): Unit =
+    v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt, message))
+  def messageAllNeighbours(message: (String,Long)) =
+    v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt, message))
+  def messageAllIngoingNeighbors(message: (String,Long)): Unit =
     v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt, message))
 
   def moreMessages(): Boolean = messageQueue.nonEmpty
