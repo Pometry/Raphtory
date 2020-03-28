@@ -79,7 +79,7 @@ abstract class AnalysisManager(jobID: String, analyser: Analyser) extends Actor 
   protected def analyserName: String            = generateAnalyzer.getClass.getName
   final protected def getManagerCount: Int      = managerCount
   final protected def getWorkerCount: Int       = managerCount * 10
-  protected def processResults(timeStamp: Long) = analyser.processResults(results, viewCompleteTime(), timeStamp)
+  protected def processResults(timeStamp: Long) = analyser.processResults(results, timeStamp,viewCompleteTime())
 
   private def resetCounters() = {
     ReaderACKS = 0               //Acks from the readers to say they are online

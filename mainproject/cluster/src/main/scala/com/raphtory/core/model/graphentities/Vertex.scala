@@ -26,11 +26,12 @@ object Vertex {
 
 class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean, storage: EntityStorage)
         extends Entity(msgTime, initialValue, storage) {
-  var incomingProcessing = ParTrieMap[Long, Edge]() //Map of edges for the current view of the vertex
-  var outgoingProcessing = ParTrieMap[Long, Edge]()
+
 
   var incomingEdges = ParTrieMap[Long, Edge]() //Map of all edges associated with the vertex
   var outgoingEdges = ParTrieMap[Long, Edge]()
+  var incomingProcessing = incomingEdges //Map of edges for the current view of the vertex
+  var outgoingProcessing = outgoingEdges
 
   var multiQueue        = new VertexMutliQueue()    //Map of queues for all ongoing processing
   var computationValues = ParTrieMap[String, Any]() //Partial results kept between supersteps in calculation

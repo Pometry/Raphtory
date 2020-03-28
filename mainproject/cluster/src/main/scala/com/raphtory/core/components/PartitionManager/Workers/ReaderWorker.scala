@@ -48,6 +48,8 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       receivedMessage(vertexID, jobID, superStep, data)
     case VertexMessageLong(source: Long, vertexID: Long, jobID: String, superStep: Int, data: Long) =>
       receivedMessage(vertexID, jobID, superStep, data)
+    case VertexMessageStringLong(source: Long, vertexID: Long, jobID: String, superStep: Int, data: (String,Long)) =>
+      receivedMessage(vertexID, jobID, superStep, data)
     case VertexMessageBatch(jobID: String, superStep: Int, data: Set[(Long, Long, Any)]) =>
       data.foreach(f => receivedMessage(f._2, jobID, superStep, f._3))
   }

@@ -20,7 +20,7 @@ import scalaj.http.HttpRequest
 import spray.json._
 
 class EthereumGethSpout extends SpoutTrait {
-  var currentBlock = System.getenv().getOrDefault("ETHEREUM_START_BLOCK_INDEX", "5000000").trim.toInt
+  var currentBlock = System.getenv().getOrDefault("ETHEREUM_START_BLOCK_INDEX", "4000000").trim.toInt
   var highestBlock = System.getenv().getOrDefault("ETHEREUM_MAXIMUM_BLOCK_INDEX", "999999999").trim.toInt
   val nodeIP       = System.getenv().getOrDefault("ETHEREUM_IP_ADDRESS", "127.0.0.1").trim
   val nodePort     = System.getenv().getOrDefault("ETHEREUM_PORT", "8545").trim
@@ -42,7 +42,7 @@ class EthereumGethSpout extends SpoutTrait {
       return
     try {
 
-      println(s"Trying block $currentBlock")
+      if(debug)println(s"Trying block $currentBlock")
       val transactionCountHex =
         executeRequest("eth_getBlockTransactionCountByNumber", "\"0x" + currentBlock.toHexString + "\"")
       val transactionCount = Integer.parseInt(transactionCountHex.fields("result").toString().drop(3).dropRight(1), 16)
@@ -54,11 +54,11 @@ class EthereumGethSpout extends SpoutTrait {
                 ).toString()
         )
       currentBlock += 1
-      AllocateSpoutTask(Duration(1,MILLISECONDS),"nextBlock")
+      AllocateSpoutTask(Duration(1,NANOSECONDS),"nextBlock")
     }
     catch {
-      case e:NumberFormatException => {currentBlock +=1;AllocateSpoutTask(Duration(1,MILLISECONDS),"nextBlock")}
-      case e:Exception => {currentBlock +=1;e.printStackTrace()};AllocateSpoutTask(Duration(1,MILLISECONDS),"nextBlock")}
+      case e:NumberFormatException => {AllocateSpoutTask(Duration(1,SECONDS),"nextBlock")}
+      case e:Exception => {e.printStackTrace()};AllocateSpoutTask(Duration(1,SECONDS),"nextBlock")}
   }
 
   def requestBuilder() =

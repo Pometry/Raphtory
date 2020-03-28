@@ -16,9 +16,9 @@ class EthereumGethRouter(val routerId: Int, val initialManagerCount: Int) extend
     val transaction = value.toString.parseJson.asJsObject.fields("result").asJsObject
     val blockNumber = hexToInt(transaction.fields("blockNumber").toString())
 
-    val from = transaction.fields("from").toString()
-    val to   = transaction.fields("to").toString()
-    val sent = transaction.fields("value").toString()
+    val from = transaction.fields("from").toString().replaceAll("\"","").toLowerCase
+    val to   = transaction.fields("to").toString().replaceAll("\"","").toLowerCase
+    val sent = transaction.fields("value").toString().replaceAll("\"","")
 
     val sourceNode      = assignID(from) //hash the id to get a vertex ID
     val destinationNode = assignID(to)   //hash the id to get a vertex ID
