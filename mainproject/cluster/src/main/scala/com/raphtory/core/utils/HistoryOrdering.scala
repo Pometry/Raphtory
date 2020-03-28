@@ -1,5 +1,5 @@
 package com.raphtory.core.utils
 
-object HistoryOrdering extends Ordering[Long]{
-    def compare(key1:Long, key2:Long) = key2.compareTo(key1)
+object HistoryOrdering extends Ordering[Long] {
+  def compare(key1: Long, key2: Long) = key2.compareTo(key1)
 }

@@ -1,11 +1,10 @@
-
-
 package com.raphtory.examples.gab.actors
 
 import java.text.SimpleDateFormat
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{Type, _}
+import com.raphtory.core.model.communication.Type
+import com.raphtory.core.model.communication._
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
 //In this router we needed to transform the data that was sent by the spout by turning it into a epoch value (long value)
@@ -14,22 +13,22 @@ import com.raphtory.core.model.communication.{Type, _}
 // is equal to -1. Columns 2 and 5 correspond to the userid and parentUserid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabUserGraphRouter(routerId:Int, override val initialManagerCount:Int) extends RouterWorker {
+class GabUserGraphRouter(routerId: Int, override val initialManagerCount: Int) extends RouterWorker {
 
   def parseTuple(record: Any): Unit = {
     val fileLine = record.asInstanceOf[String].split(";").map(_.trim)
     //user wise
-         val sourceNode=fileLine(2).toInt
-         val targetNode=fileLine(5).toInt
+    val sourceNode = fileLine(2).toInt
+    val targetNode = fileLine(5).toInt
 
     //comment wise
-   // val sourceNode=fileLine(1).toInt
+    // val sourceNode=fileLine(1).toInt
     //val targetNode=fileLine(4).toInt
-    if (targetNode>0) {
-      val creationDate = dateToUnixTime(timestamp=fileLine(0).slice(0,19))
-      sendGraphUpdate(VertexAdd(creationDate, sourceNode,Type("User")))
-      sendGraphUpdate(VertexAdd(creationDate, targetNode,Type("User")))
-      sendGraphUpdate(EdgeAdd(creationDate, sourceNode, targetNode,Type("User to User")))
+    if (targetNode > 0) {
+      val creationDate = dateToUnixTime(timestamp = fileLine(0).slice(0, 19))
+      sendGraphUpdate(VertexAdd(creationDate, sourceNode, Type("User")))
+      sendGraphUpdate(VertexAdd(creationDate, targetNode, Type("User")))
+      sendGraphUpdate(EdgeAdd(creationDate, sourceNode, targetNode, Type("User to User")))
     }
 
   }

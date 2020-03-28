@@ -1,12 +1,17 @@
 package com.raphtory.core.components.ClusterManagement
 
-import akka.actor.{Actor, ActorRef, Props}
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import akka.actor.Actor
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
-import com.raphtory.core.components.PartitionManager.{Archivist, Reader, Writer}
+import com.raphtory.core.components.PartitionManager.Archivist
+import com.raphtory.core.components.PartitionManager.Reader
+import com.raphtory.core.components.PartitionManager.Writer
 import com.raphtory.core.components.Router.RouterManager
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
@@ -14,89 +19,89 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object RaphtoryReplicator {
 
   // Router instantiation
-  def apply(actorType: String, initialManagerCount: Int, routerName: String): RaphtoryReplicator = {
+  def apply(actorType: String, initialManagerCount: Int, routerName: String): RaphtoryReplicator =
     new RaphtoryReplicator(actorType, initialManagerCount, routerName)
-  }
 
   // PartitionManager instantiation
-  def apply(actorType: String, initialManagerCount: Int): RaphtoryReplicator = {
+  def apply(actorType: String, initialManagerCount: Int): RaphtoryReplicator =
     new RaphtoryReplicator(actorType, initialManagerCount, null)
-  }
 }
 
 class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName: String) extends Actor {
 
   implicit val timeout: Timeout = 10.seconds
-  val mediator = DistributedPubSub(context.system).mediator
+  val mediator                  = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
 
-  var myId = -1
+  var myId         = -1
   var currentCount = initialManagerCount
 
-  var actorRef: ActorRef = null
+  var actorRef: ActorRef       = null
   var actorRefReader: ActorRef = null
 
-  def getNewId() = {
-    if (myId == -1) {
+  def getNewId() =
+    if (myId == -1)
       try {
         val future = callTheWatchDog() //get the future object from the watchdog requesting either a PM id or Router id
         myId = Await.result(future, timeout.duration).asInstanceOf[AssignedId].id
         giveBirth(myId) //create the child actor (PM or Router)
-      }
-      catch {
-        case e: java.util.concurrent.TimeoutException => {
+      } catch {
+        case e: java.util.concurrent.TimeoutException =>
           myId = -1
           println("Request for ID Timed Out")
-        }
       }
-    }
-  }
 
-  def callTheWatchDog(): Future[Any] = {
+  def callTheWatchDog(): Future[Any] =
     actorType match {
       case "Partition Manager" => mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionId, false)
-      case "Router" => mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestRouterId, false)
+      case "Router"            => mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestRouterId, false)
     }
-  }
 
-  def giveBirth(assignedId: Int): Unit = {
-
+  def giveBirth(assignedId: Int): Unit =
     actorType match {
-      case "Partition Manager" => {
-        println(s"Partition Manager $assignedId has come online" )
-        var workers: ParTrieMap[Int, ActorRef] = new ParTrieMap[Int, ActorRef]()
+      case "Partition Manager" =>
+        println(s"Partition Manager $assignedId has come online")
+        var workers: ParTrieMap[Int, ActorRef]       = new ParTrieMap[Int, ActorRef]()
         var storages: ParTrieMap[Int, EntityStorage] = new ParTrieMap[Int, EntityStorage]()
         for (i <- 0 until 10) { //create threads for writing
           val storage = new EntityStorage(i)
           storages.put(i, storage)
-          workers.put(i, context.system.actorOf(Props(new IngestionWorker(i, storage)).withDispatcher("worker-dispatcher"), s"Manager_${assignedId}_child_$i"))
+          workers.put(
+                  i,
+                  context.system.actorOf(
+                          Props(new IngestionWorker(i, storage)).withDispatcher("worker-dispatcher"),
+                          s"Manager_${assignedId}_child_$i"
+                  )
+          )
         }
-        actorRef = context.system.actorOf(Props(new Writer(myId, false, currentCount, workers, storages)).withDispatcher("logging-dispatcher"), s"Manager_$myId")
-        actorRefReader = context.system.actorOf(Props(new Reader(myId, false, currentCount, storages)), s"ManagerReader_$myId")
+        actorRef = context.system.actorOf(
+                Props(new Writer(myId, false, currentCount, workers, storages)).withDispatcher("logging-dispatcher"),
+                s"Manager_$myId"
+        )
+        actorRefReader =
+          context.system.actorOf(Props(new Reader(myId, false, currentCount, storages)), s"ManagerReader_$myId")
         context.system.actorOf(Props(new Archivist(0.3, workers, storages)))
-      }
 
-      case "Router" => {
-        println(s"Router $assignedId has come online" )
+      case "Router" =>
+        println(s"Router $assignedId has come online")
         actorRef = context.system.actorOf(Props(new RouterManager(myId, currentCount, routerName)), "router")
-      }
     }
-  }
 
   override def preStart() {
     context.system.scheduler.schedule(2.seconds, 5.seconds, self, "tick")
   }
 
   def receive: Receive = {
-    case PartitionsCount(count) => {
+    case PartitionsCount(count) =>
       if (count > currentCount) {
         currentCount = count
         if (actorRef != null)
@@ -104,7 +109,6 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
         if (actorRefReader != null)
           actorRef ! UpdatedCounter(currentCount)
       }
-    }
     case "tick" => getNewId
     //    case GetNetworkSize() => {
     //      println("GetNetworkSize" + actorRefReader != null)
@@ -112,6 +116,6 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
     //        sender() ! actorRefReader ? GetNetworkSize
     //    }
     case e: SubscribeAck =>
-    case e => println(s"Received not handled message ${e.getClass}")
+    case e               => println(s"Received not handled message ${e.getClass}")
   }
 }
