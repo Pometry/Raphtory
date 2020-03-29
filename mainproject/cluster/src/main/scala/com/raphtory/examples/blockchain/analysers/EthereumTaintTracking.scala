@@ -1,6 +1,7 @@
 package com.raphtory.examples.blockchain.analysers
 
 import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -18,8 +19,8 @@ class EthereumTaintTracking extends Analyser {
       if(walletID equals infectedNode) {
           vertex.getOrSetCompValue("infected", infectionStartingBlock)
           vertex.getOrSetCompValue("infectedBy", "Start")
-          vertex.getOutgoingNeighbors.foreach { neighbour =>
-            vertex.messageNeighbour(neighbour._1, (walletID,infectionStartingBlock))
+          vertex.getOutgoingNeighborsAfter(infectionStartingBlock).foreach { neighbour =>
+            vertex.messageNeighbour(neighbour._1, (walletID,neighbour._2.getTimeAfter(infectionStartingBlock)))
           }
         }
     }
@@ -42,7 +43,7 @@ class EthereumTaintTracking extends Analyser {
        vertex.getOrSetCompValue("infected", infectionBlock)
         vertex.getOrSetCompValue("infectedBy",infector)
         vertex.getOutgoingNeighborsAfter(infectionBlock).foreach { neighbour =>
-          vertex.messageNeighbour(neighbour._1, (walletID,infectionBlock))
+          vertex.messageNeighbour(neighbour._1, (walletID,neighbour._2.getTimeAfter(infectionBlock)))
         }
       }
     }
@@ -65,8 +66,14 @@ class EthereumTaintTracking extends Analyser {
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(String, Long,String)]]].flatten
     println(s"Run as of ${System.currentTimeMillis()}")
-    for (elem <- endResults) {println(s"$elem,")}
+    for (elem <- endResults) {println(s"${elem._1},${elem._2},${elem._3},")}
     println()
+    Thread.sleep(10000)
+  }
+  override def processViewResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
+    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(String, Long,String)]]].flatten
+    println(s"Completed block $timeStamp")
+    for (elem <- endResults) {    Utils.writeLines(s"/Users/mirate/Documents/phd/etheroutput/block${timeStamp}.csv", s"${elem._1},${elem._2},${elem._3},", "")}
 
   }
 

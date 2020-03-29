@@ -33,7 +33,7 @@ class VertexVisitor(v: Vertex, jobID: String, superStep: Int, proxy: LiveLens, t
   def clearQueue                 = v.multiQueue.clearQueue(jobID, superStep)
   //val messageQueue2 = v.multiQueue.getMessageQueue(jobID,superStep+1)
   def getOutgoingNeighbors: ParTrieMap[Long, Edge] = v.outgoingProcessing
-  def getOutgoingNeighborsAfter(time:Long):ParTrieMap[Long,Edge] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= time))
+  def getOutgoingNeighborsAfter(time:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= time)).map(x=>(x._1,new EdgeVisitor(x._2)))
   def getIngoingNeighbors: ParTrieMap[Long, Edge]  = v.incomingProcessing
 
   //TODO fix properties

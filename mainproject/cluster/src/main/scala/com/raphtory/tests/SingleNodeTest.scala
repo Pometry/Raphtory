@@ -31,9 +31,9 @@ object SingleNodeTest extends App {
  // val jump            = 86400000
 
   //ether test
-  val start = 5000000L
+  val start = 4000000L
   val end = 6000000L
-  val jump =    1
+  val jump =    10
   var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
   var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
   Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
@@ -61,7 +61,7 @@ object SingleNodeTest extends App {
   val window = 2592000000L
   //system.actorOf(Props(new WindowedRangeAnalysisManager("testname",analyser,start,end,jump,window)), s"LiveAnalysisManager_$Analyser")
   system
-    .actorOf(Props(new LiveAnalysisManager("testname", analyser)), s"LiveAnalysisManager_$Analyser")
+    .actorOf(Props(new RangeAnalysisManager("testname", analyser,start,end,jump)), s"LiveAnalysisManager_$Analyser")
 
 ////////////////
 //  {"time":1474326000000,"windowsize":31536000000,"biggest":3990,"total":64,"totalWithoutIslands":24,"totalIslands":40,"proportion":0.9789009,"proportionWithoutIslands":0.9886026,"clustersGT2":1,"viewTime":2391,"concatTime":7},
