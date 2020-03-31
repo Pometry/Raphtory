@@ -30,7 +30,7 @@ case class Type(name: String)
 case class ImmutableProperty(override val key: String, override val value: String) extends Property
 case class StringProperty(override val key: String, override val value: String)    extends Property
 case class LongProperty(override val key: String, override val value: Long)        extends Property
-case class DoubleProperty(override val key: String, override val value: Long)      extends Property
+case class DoubleProperty(override val key: String, override val value: Double)      extends Property
 
 case class Properties(property: Property*)
 
