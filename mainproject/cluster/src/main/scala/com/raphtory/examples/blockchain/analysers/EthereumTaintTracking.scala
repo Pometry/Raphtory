@@ -36,16 +36,16 @@ class EthereumTaintTracking extends Analyser {
         infector = queue.filter(x=>x._2==infectionBlock).head._1 //todo check if multiple
         vertex.clearQueue
       }
-      if (vertex.containsCompValue("infected"))
-        vertex.voteToHalt() //already infected
-      else {
-       val walletID = vertex.getPropertyCurrentValue("id").get.asInstanceOf[String]
-       vertex.getOrSetCompValue("infected", infectionBlock)
-        vertex.getOrSetCompValue("infectedBy",infector)
-        vertex.getOutgoingNeighborsAfter(infectionBlock).foreach { neighbour =>
-          vertex.messageNeighbour(neighbour._1, (walletID,neighbour._2.getTimeAfter(infectionBlock)))
-        }
+      //if (vertex.containsCompValue("infected"))
+      //  vertex.voteToHalt() //already infected
+      //else {
+      val walletID = vertex.getPropertyCurrentValue("id").get.asInstanceOf[String]
+      vertex.getOrSetCompValue("infected", infectionBlock)
+      vertex.getOrSetCompValue("infectedBy",infector)
+      vertex.getOutgoingNeighborsAfter(infectionBlock).foreach { neighbour =>
+        vertex.messageNeighbour(neighbour._1, (walletID,neighbour._2.getTimeAfter(infectionBlock)))
       }
+      //}
     }
 
   override def returnResults(): Any =
