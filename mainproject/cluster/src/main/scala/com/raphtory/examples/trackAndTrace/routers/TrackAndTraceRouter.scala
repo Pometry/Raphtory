@@ -29,7 +29,7 @@ class TrackAndTraceRouter(routerId: Int, override val initialManagerCount: Int) 
   }
 
   //converts the line into a case class which has all of the data via the correct name and type
-  def lineToDatapoint(line: Array[String]) = {
+  def lineToDatapoint(line: Array[String]):Datapoint = {
      Datapoint(line(0).toLong,//User ID
       line(1).toLong, //Trip ID
       line(2).toLong, //OSM way ID
@@ -48,13 +48,15 @@ class TrackAndTraceRouter(routerId: Int, override val initialManagerCount: Int) 
       line(18).toDouble, //Location accuracy
       line(19), //Location quality
       line(20),  //Location modality
-      line(21).toLong, //SM relation ID
+      longCheck(line(21)), //SM relation ID
       line(22).toDouble, //O	Altitude in m
       (line(23).toDouble*1000).toLong, //Time estimate in decimal seconds (converted to millis)
       line(24),//	Source
       )
   }
- def doubleTruncator(latlong:Double) = { //todo decide how many points to shave off
+  def longCheck(data:String):Option[Long] = if(data equals "") None else Some(data.toLong)
+
+  def doubleTruncator(latlong:Double) = { //todo decide how many points to shave off
    latlong
  }
 
@@ -81,7 +83,7 @@ case class Datapoint(userId:Long, //User ID
                      deviation:Double, //Location accuracy
                      quality:String, //Location quality
                      modality:String, //Location modality from accelerometer; when quality=missing this indicates the modality of the used corridor or filled-in segment in a sensing gap
-                     relation:Long, //SM relation ID
+                     relation:Option[Long], //SM relation ID //wrapped as an option because data missing
                      altitude:Double, //O	Altitude in m
                      estimatedTime:Long, //Time estimate in decimal seconds
                      source:String //	Where this location originates from, either map matching (M) or sensing (S)

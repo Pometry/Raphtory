@@ -12,7 +12,7 @@ import scala.language.postfixOps
 class TrackAndTraceSpout extends SpoutTrait {
 
   val file_name = System.getenv().getOrDefault("TRACK_AND_TRACE_FILENAME", "/Users/mirate/Documents/phd/locationdataexample.csv").trim
-  val fileLines = io.Source.fromFile(file_name).getLines.drop(2).toArray
+  val fileLines = io.Source.fromFile(file_name).getLines.drop(3).toArray
   // upstream/master
   var position    = 0
   var linesNumber = fileLines.length
