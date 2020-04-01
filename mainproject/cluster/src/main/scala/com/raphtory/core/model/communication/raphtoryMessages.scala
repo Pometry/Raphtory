@@ -30,7 +30,7 @@ case class Type(name: String)
 case class ImmutableProperty(override val key: String, override val value: String) extends Property
 case class StringProperty(override val key: String, override val value: String)    extends Property
 case class LongProperty(override val key: String, override val value: Long)        extends Property
-case class DoubleProperty(override val key: String, override val value: Double)      extends Property
+case class DoubleProperty(override val key: String, override val value: Double)    extends Property
 
 case class Properties(property: Property*)
 
@@ -190,6 +190,11 @@ case class CheckMessages(superstep: Int)                                        
 
 case class ReaderWorkersOnline() extends RaphReadClasses
 case class ReaderWorkersACK()    extends RaphReadClasses
+
+trait AnalysisRequest
+case class LiveAnalysisRequest(jobID:String,analyserName:String,windowType:String="false",windowSize:Long=0L,windowSet:Array[Long]=Array[Long](0)) extends AnalysisRequest
+case class ViewAnalysisRequest(jobID:String,analyserName:String,timestamp:Long,windowType:String="false",windowSize:Long=0L,windowSet:Array[Long]=Array[Long](0)) extends AnalysisRequest
+case class RangeAnalysisRequest(jobID:String,analyserName:String,start:Long,end:Long,jump:Long,windowType:String="false",windowSize:Long=0L,windowSet:Array[Long]=Array[Long](0)) extends AnalysisRequest
 
 case class AnalyserPresentCheck(classname: String)            extends RaphReadClasses
 case class AnalyserPresent()                                  extends RaphReadClasses

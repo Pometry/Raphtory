@@ -9,15 +9,15 @@ import com.raphtory.core.model.communication.AnalyserPresentCheck
 import com.raphtory.core.model.communication.AnalysisType
 import com.raphtory.core.utils.Utils
 
-class RangeAnalysisManager(jobID: String, analyser: Analyser, start: Long, end: Long, jump: Long)
-        extends AnalysisManager(jobID: String, analyser) {
+class RangeAnalysisManager(managerCount:Int,jobID: String, analyser: Analyser, start: Long, end: Long, jump: Long)
+        extends AnalysisManager(jobID: String, analyser,managerCount) {
   protected var currentTimestamp                            = start
   override protected def analysisType(): AnalysisType.Value = AnalysisType.range
   override def timestamp(): Long                            = currentTimestamp
   override def restart(): Unit = {
     if (currentTimestamp == end) {
       println(s"Range Analysis manager for $jobID between ${new Date(start)} and ${new Date(end)} finished")
-      return
+      killme()
     }
     currentTimestamp = currentTimestamp + jump
 

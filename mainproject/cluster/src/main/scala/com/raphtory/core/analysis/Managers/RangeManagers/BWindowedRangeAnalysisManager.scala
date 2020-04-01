@@ -6,13 +6,14 @@ import com.raphtory.core.model.communication.AnalysisType
 import scala.collection.mutable.ArrayBuffer
 
 class BWindowedRangeAnalysisManager(
+    managerCount:Int,
     jobID: String,
     analyser: Analyser,
     start: Long,
     end: Long,
     jump: Long,
     windows: Array[Long]
-) extends RangeAnalysisManager(jobID, analyser, start, end, jump) {
+) extends RangeAnalysisManager(managerCount,jobID, analyser, start, end, jump) {
   override def result(): ArrayBuffer[Any] = {
     val original = super.result()
     if (original.nonEmpty) {

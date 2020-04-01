@@ -4,12 +4,10 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.Managers.LiveManagers.LiveAnalysisManager
-import com.raphtory.core.analysis.Managers.RangeManagers.BWindowedRangeAnalysisManager
-import com.raphtory.core.analysis.Managers.RangeManagers.RangeAnalysisManager
-import com.raphtory.core.analysis.Managers.RangeManagers.WindowedRangeAnalysisManager
+import com.raphtory.core.analysis.AnalysisOrchestrator
 import com.raphtory.core.components.ClusterManagement.RaphtoryReplicator
 import com.raphtory.core.components.ClusterManagement.WatchDog
+import com.raphtory.core.model.communication.LiveAnalysisRequest
 import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
@@ -57,17 +55,9 @@ object SingleNodeTest extends App {
   system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
+  val orchestrator = system.actorOf(Props[AnalysisOrchestrator], s"AnalysisOrchestrator")
 
-  val analyser = Class.forName(Analyser).newInstance().asInstanceOf[Analyser]
-
-  Thread.sleep(20000)
-  println("Starting Analysis")
-
-  //val windowset:Array[Long] = Array(31536000000L,2592000000L,604800000,86400000,3600000)
-  val window = 2592000000L
-  //system.actorOf(Props(new WindowedRangeAnalysisManager("testname",analyser,start,end,jump,window)), s"LiveAnalysisManager_$Analyser")
-  system
-    .actorOf(Props(new LiveAnalysisManager("testname", analyser)), s"LiveAnalysisManager_$Analyser")
+  orchestrator ! LiveAnalysisRequest("test","com.raphtory.core.analysis.Algorithms.ConnectedComponents")
 
 ////////////////
 //  {"time":1474326000000,"windowsize":31536000000,"biggest":3990,"total":64,"totalWithoutIslands":24,"totalIslands":40,"proportion":0.9789009,"proportionWithoutIslands":0.9886026,"clustersGT2":1,"viewTime":2391,"concatTime":7},

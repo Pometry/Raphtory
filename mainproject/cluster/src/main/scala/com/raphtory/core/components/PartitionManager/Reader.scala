@@ -45,7 +45,6 @@ class Reader(id: Int, test: Boolean, managerCountVal: Int, storages: ParTrieMap[
     case UpdatedCounter(newValue)           => managerCount = newValue; readers.foreach(x => x._2 ! UpdatedCounter(newValue))
     case SubscribeAck                       =>
     case e: Terminated                      => println(e)
-    case e                                  => //println(s"[READER] not handled message " + e)
   }
 
   def presentCheck(classname: String) =
