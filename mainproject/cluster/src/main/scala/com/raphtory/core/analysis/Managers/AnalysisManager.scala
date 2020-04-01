@@ -3,11 +3,11 @@ package com.raphtory.core.analysis.Managers
 import java.io.FileNotFoundException
 import java.util.Date
 
-import akka.actor.Actor
-import akka.actor.Cancellable
+import akka.actor.{Actor, Cancellable, PoisonPill}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.analysis.StartAnalysis
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 
@@ -18,8 +18,7 @@ import scala.concurrent.duration._
 import scala.io.Source
 import scala.sys.process._
 
-abstract class AnalysisManager(jobID: String, analyser: Analyser) extends Actor {
-  protected var managerCount: Int = 0 //Number of Managers in the Raphtory Cluster
+abstract class AnalysisManager(jobID: String, analyser: Analyser,managerCount:Int) extends Actor {
   private var currentSuperStep    = 0 //SuperStep the algorithm is currently on
 
   private var local: Boolean = Utils.local
@@ -41,11 +40,10 @@ abstract class AnalysisManager(jobID: String, analyser: Analyser) extends Actor 
 
   private var newAnalyser: Boolean = false //if the analyser is not present in the readers
 
-  private var networkSizeTimeout: Cancellable = null                                                          //for restarting the analysers if it joins too quickly
-  private val debug                           = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean //for printing debug messages
+  private val debug                = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean //for printing debug messages
 
   protected val mediator = DistributedPubSub(context.system).mediator
-
+  mediator ! DistributedPubSubMediator.Put(self)
   private var results: ArrayBuffer[Any] = mutable.ArrayBuffer[Any]()
 
   def result() = results
@@ -67,8 +65,10 @@ abstract class AnalysisManager(jobID: String, analyser: Analyser) extends Actor 
     timetakenpersuperstep = newTime
     totalTime
   }
+  viewCompleteTime()
+  stepCompleteTime()
 
-  protected var steps: Long    = 0L          // number of supersteps before returning
+  protected val steps: Long    =  analyser.defineMaxSteps()         // number of supersteps before returning
   def timestamp(): Long        = -1L         //for view
   def windowSize(): Long       = -1L         //for windowing
   def windowSet(): Array[Long] = Array.empty //for sets of windows
@@ -98,60 +98,39 @@ abstract class AnalysisManager(jobID: String, analyser: Analyser) extends Actor 
   mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
 
-  override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "start")
-    steps = analyser.defineMaxSteps()
+  override def preStart() {
+    context.system.scheduler.scheduleOnce(Duration(1, MILLISECONDS), self, StartAnalysis())
   }
 
   override def receive: Receive = {
-    case "start" => checkClusterSize //first ask the watchdog what the size of the cluster is
-    case PartitionsCountResponse(newValue) =>
-      watchdogResponse(newValue) //when the watchdog responds, set the new value and message each Reader Worker
-    case ReaderWorkersACK() =>
-      readerACK() //count up number of acks and if == number of workers, check if analyser present
-    case AnalyserPresent() =>
-      analyserPresent() //analyser confirmed to be present within workers, send setup request to workers
+    case StartAnalysis()               => startAnalysis() //received message to start from Orchestrator
+    case ReaderWorkersACK()            => readerACK() //count up number of acks and if == number of workers, check if analyser present
+    case AnalyserPresent()             => analyserPresent() //analyser confirmed to be present within workers, send setup request to workers
     case TimeResponse(ok, time)        => timeResponse(ok, time) //checking if the timestamps are ok within all partitions
     case "recheckTime"                 => timeRecheck() //if the time was previous out of scope, wait and then recheck
     case Ready(messagesSent)           => ready(messagesSent) //worker has completed setup and is ready to roll -- send nextstep
     case EndStep(messages, voteToHalt) => endStep(messages, voteToHalt) //worker has finished the step
     case ReturnResults(results)        => finaliseJob(results) //worker has finished teh job and is returned the results
     case "restart"                     => restart()
-
     case MessagesReceived(workerID, real, receivedMessages, sentMessages) =>
       messagesReceieved(workerID, real, receivedMessages, sentMessages)
 
-    case "networkSizeTimeout"        => networkSizeFail()           //restart contact with readers
-    case "watchdogRestart"           => watchdogRestart()           //restart contact with readers
     case ClassMissing()              => classMissing()              //If the class is missing, send the raw source file
     case FailedToCompile(stackTrace) => failedToCompile(stackTrace) //Your code is broke scrub
-    case PartitionsCount(newValue)   => managerCount = newValue     //for when managerCount is republished
     case _                           => processOtherMessages(_)     //incase some random stuff comes through
   }
 
-  protected def checkClusterSize: Unit = {
-    viewCompleteTime()
-    stepCompleteTime()
-    networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "watchdogRestart")
-    mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false)
-  }
-  def watchdogRestart() {
-    checkClusterSize
-  }
-
-  def watchdogResponse(newValue: Int) = {
-    managerCount = newValue
-    ReaderACKS = 0
-    //networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(300, SECONDS), self, "networkSizeTimeout")
-    for (worker <- Utils.getAllReaders(managerCount))
+  def startAnalysis() = {
+    for (worker <- Utils.getAllReaders(managerCount)) {
+      println(worker)
       mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline(), false)
+    }
   }
 
   def readerACK() = {
     if (debug) println("Received NetworkSize packet")
     ReaderACKS += 1
     if (ReaderACKS == getManagerCount) {
-      networkSizeTimeout.cancel()
       for (worker <- Utils.getAllReaders(managerCount))
         mediator ! DistributedPubSubMediator
           .Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$", "")), false)
@@ -161,7 +140,6 @@ abstract class AnalysisManager(jobID: String, analyser: Analyser) extends Actor 
   def analyserPresent() = {
     ReaderAnalyserACKS += 1
     if (ReaderAnalyserACKS == getManagerCount) {
-      networkSizeTimeout.cancel()
       for (worker <- Utils.getAllReaders(managerCount))
         mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
     }
@@ -206,7 +184,7 @@ abstract class AnalysisManager(jobID: String, analyser: Analyser) extends Actor 
             )
       else {
         println(
-                s"${new Date(timestamp())} is yet to be ingested, currently at ${new Date(time)} Backing off to 10 seconds and retrying"
+                s"${timestamp()} is yet to be ingested, currently at ${time}. Retrying analysis in 10 seconds and retrying"
         )
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "recheckTime")
       }
@@ -369,14 +347,9 @@ abstract class AnalysisManager(jobID: String, analyser: Analyser) extends Actor 
 
   def partitionsHalting() = voteToHalt
 
+  def killme() = self.tell(PoisonPill.getInstance,self)
+
   /////HERE BE DRAGONS, GO NO FURTHER
-  def networkSizeFail() {
-    if (debug) println("Timeout networkSize")
-    ReaderACKS = 0
-    networkSizeTimeout = context.system.scheduler.scheduleOnce(Duration(30, SECONDS), self, "networkSizeTimeout")
-    for (worker <- Utils.getAllReaders(managerCount))
-      mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline(), false)
-  }
 
   def classMissing() {
     if (debug) println(s"$sender does not have analyser, sending now")
