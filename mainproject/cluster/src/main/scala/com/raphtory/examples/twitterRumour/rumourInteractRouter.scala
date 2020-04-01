@@ -21,26 +21,26 @@ class rumourInteractRouter(val routerId: Int, val initialManagerCount: Int) exte
 
       val replyTime = post.fields("created_at").toString.toString.split("\"")(1)
       val source    = user.fields("id").toString
-//      if (source.toLong <0){println("this is converting worng.."+source)
-//      sys.exit()}
+      //      if (source.toLong <0){println("this is converting worng.."+source)
+      //      sys.exit()}
       val dist = post.fields("in_reply_to_user_id").toString
 
       if (dist != "null")
         sendGraphUpdate(
-                EdgeAddWithProperties(
-                        getTwitterDate(replyTime),
-                        source.toLong,
-                        dist.toLong,
-                        properties = Properties(ImmutableProperty("rumourStatus", r_status))
-                )
+          EdgeAddWithProperties(
+            getTwitterDate(replyTime),
+            source.toLong,
+            dist.toLong,
+            properties = Properties(ImmutableProperty("rumourStatus", r_status))
+          )
         )
       else
         sendGraphUpdate(
-                VertexAddWithProperties(
-                        getTwitterDate(replyTime),
-                        source.toLong,
-                        properties = Properties(ImmutableProperty("rumourStatus", r_status))
-                )
+          VertexAddWithProperties(
+            getTwitterDate(replyTime),
+            source.toLong,
+            properties = Properties(ImmutableProperty("rumourStatus", r_status))
+          )
         )
     }
   }
@@ -51,8 +51,8 @@ class rumourInteractRouter(val routerId: Int, val initialManagerCount: Int) exte
     val sf      = new SimpleDateFormat(twitter)
     //println(date)
     try
-    //println("converted time ///"+t)
-    return sf.parse(date).getTime()
+      //println("converted time ///"+t)
+      return sf.parse(date).getTime()
     catch {
       case e: Throwable =>
         println("-----time not properly converting" + date)
