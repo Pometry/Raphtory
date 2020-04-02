@@ -84,7 +84,7 @@ class ConnectedComponents extends Analyser {
         s"""{"time":$timestamp,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System
           .currentTimeMillis() - startTime}},"""
       Utils.writeLines(output_file, text, "{\"views\":[")
-      println(text)
+      //println(text)
     } catch {
       case e: UnsupportedOperationException => println(s"No activity for  view at $timestamp")
     }

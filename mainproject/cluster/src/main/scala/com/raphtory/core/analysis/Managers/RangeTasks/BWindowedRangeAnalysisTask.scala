@@ -1,12 +1,19 @@
-package com.raphtory.core.analysis.Managers.LiveManagers
+package com.raphtory.core.analysis.Managers.RangeTasks
 
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.Managers.AnalysisManager
 import com.raphtory.core.model.communication.AnalysisType
 
 import scala.collection.mutable.ArrayBuffer
 
-class BWindowedLiveAnalysisManager(managerCount:Int,jobID: String, analyser: Analyser,windowset:Array[Long]) extends AnalysisManager(jobID, analyser,managerCount) {
+class BWindowedRangeAnalysisTask(
+    managerCount:Int,
+    jobID: String,
+    analyser: Analyser,
+    start: Long,
+    end: Long,
+    jump: Long,
+    windows: Array[Long]
+) extends RangeAnalysisTask(managerCount,jobID, analyser, start, end, jump) {
   override def result(): ArrayBuffer[Any] = {
     val original = super.result()
     if (original.nonEmpty) {
@@ -19,7 +26,11 @@ class BWindowedLiveAnalysisManager(managerCount:Int,jobID: String, analyser: Ana
           invertedArray(j) += internal(j)
       }
       invertedArray.asInstanceOf[ArrayBuffer[Any]]
+
     } else original
   }
-  override protected def analysisType(): AnalysisType.Value = AnalysisType.live
+  override def windowSet(): Array[Long]                     = windows
+  override protected def analysisType(): AnalysisType.Value = AnalysisType.range
+  override def processResults(time: Long): Unit =
+    analyser.processBatchWindowResults(result, timestamp(), windowSet(), viewCompleteTime)
 }

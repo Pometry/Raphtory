@@ -50,7 +50,7 @@ class DegreeRanking extends Analyser {
       s"""{"time":$timeStamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
         .currentTimeMillis() - startTime}},"""
     Utils.writeLines(output_file, text, "{\"views\":[")
-    println(text)
+    //println(text)
   }
 
   override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
@@ -76,7 +76,7 @@ class DegreeRanking extends Analyser {
       s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
         .currentTimeMillis() - startTime}},"""
     Utils.writeLines(output_file, text, "{\"views\":[")
-    println(text)
+    //println(text)
   }
 
   override def processWindowResults(
