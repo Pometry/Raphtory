@@ -4,10 +4,10 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.AnalysisOrchestrator
+import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.components.ClusterManagement.RaphtoryReplicator
 import com.raphtory.core.components.ClusterManagement.WatchDog
-import com.raphtory.core.model.communication.LiveAnalysisRequest
+import com.raphtory.core.model.communication.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
@@ -22,11 +22,11 @@ object SingleNodeTest extends App {
   var Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
   Analyser = "com.raphtory.core.analysis.Algorithms.DegreeBasic"
 
- // var UpdaterName     = "com.raphtory.examples.ldbc.spouts.LDBCSpout"
- // var routerClassName = "com.raphtory.examples.ldbc.routers.LDBCRouter"
- // val start           = 1262394061000L
- // val end             = 1357002061000L
- // val jump            = 86400000
+  var UpdaterName     = "com.raphtory.examples.ldbc.spouts.LDBCSpout"
+  var routerClassName = "com.raphtory.examples.ldbc.routers.LDBCRouter"
+  val start           = 1262394061000L
+  val end             = 1357002061000L
+  val jump            = 86400000
 
   //ether test
 //  val start = 4000000L
@@ -44,8 +44,8 @@ object SingleNodeTest extends App {
 //  var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
 
   //track and trace test
-    var UpdaterName = "com.raphtory.examples.trackAndTrace.spouts.TrackAndTraceSpout"
-    var routerClassName = "com.raphtory.examples.trackAndTrace.routers.TrackAndTraceRouter"
+    //var UpdaterName = "com.raphtory.examples.trackAndTrace.spouts.TrackAndTraceSpout"
+    //var routerClassName = "com.raphtory.examples.trackAndTrace.routers.TrackAndTraceRouter"
   //  Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
 
 
@@ -54,10 +54,13 @@ object SingleNodeTest extends App {
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
   system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
-  system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
-  val orchestrator = system.actorOf(Props[AnalysisOrchestrator], s"AnalysisOrchestrator")
+  system.actorOf(Props(Class.forName(UpdaterName)), "Spout")
+  val orchestrator = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
+  AnalysisRestApi(system)
 
-  orchestrator ! LiveAnalysisRequest("test","com.raphtory.core.analysis.Algorithms.ConnectedComponents")
+  //orchestrator ! ViewAnalysisRequest("etherConnectedComponents","com.raphtory.core.analysis.Algorithms.ConnectedComponents",4000005L)
+  //orchestrator ! RangeAnalysisRequest("etherDegreeRanking","com.raphtory.core.analysis.Algorithms.DegreeBasic",start=4000000L,end=4000010L,jump=1)
+  //orchestrator ! RangeAnalysisRequest("etherTaintAnalysis","com.raphtory.examples.blockchain.analysers.EthereumTaintTracking",4000000L,4000010L,1)
 
 ////////////////
 //  {"time":1474326000000,"windowsize":31536000000,"biggest":3990,"total":64,"totalWithoutIslands":24,"totalIslands":40,"proportion":0.9789009,"proportionWithoutIslands":0.9886026,"clustersGT2":1,"viewTime":2391,"concatTime":7},

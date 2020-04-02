@@ -7,9 +7,9 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.Managers.LiveManagers.{BWindowedLiveAnalysisManager, LiveAnalysisManager, WindowedLiveAnalysisManager}
-import com.raphtory.core.analysis.Managers.RangeManagers.{BWindowedRangeAnalysisManager, RangeAnalysisManager, WindowedRangeAnalysisManager}
-import com.raphtory.core.analysis.Managers.ViewManagers.{BWindowedViewAnalysisManager, ViewAnalysisManager, WindowedViewAnalysisManager}
+import com.raphtory.core.analysis.Managers.LiveTasks.{BWindowedLiveAnalysisTask, LiveAnalysisTask, WindowedLiveAnalysisTask}
+import com.raphtory.core.analysis.Managers.RangeTasks.{BWindowedRangeAnalysisTask, RangeAnalysisTask, WindowedRangeAnalysisTask}
+import com.raphtory.core.analysis.Managers.ViewTasks.{BWindowedViewAnalysisTask, ViewAnalysisTask, WindowedViewAnalysisTask}
 import com.raphtory.core.model.communication._
 
 import scala.concurrent.Await
@@ -18,7 +18,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration._
 import scala.language.postfixOps
 case class StartAnalysis()
-class AnalysisOrchestrator() extends Actor{
+class AnalysisManager() extends Actor{
 
   final protected val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -46,11 +46,11 @@ class AnalysisOrchestrator() extends Actor{
     val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
     request.windowType match {
       case "false" =>
-        context.system.actorOf(Props(new LiveAnalysisManager(managerCount, jobID, analyser)), s"LiveAnalysisManager_$jobID")
+        context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID, analyser)), s"LiveAnalysisManager_$jobID")
       case "true" =>
-        context.system.actorOf(Props(new WindowedLiveAnalysisManager(managerCount, jobID, analyser, request.windowSize)), s"LiveAnalysisManager_windowed_$jobID")
+        context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID, analyser, request.windowSize)), s"LiveAnalysisManager_windowed_$jobID")
       case "batched" =>
-        context.system.actorOf(Props(new BWindowedLiveAnalysisManager(managerCount, jobID, analyser, request.windowSet)), s"LiveAnalysisManager_batchWindowed_$jobID")
+        context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID, analyser, request.windowSet)), s"LiveAnalysisManager_batchWindowed_$jobID")
     }
   }
   def spawnViewAnalysisManager(request: ViewAnalysisRequest): Unit = {
@@ -59,15 +59,15 @@ class AnalysisOrchestrator() extends Actor{
     val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
     request.windowType match {
       case "false" =>
-        context.system.actorOf(Props(new ViewAnalysisManager(managerCount,jobID, analyser, timestamp)), s"ViewAnalysisManager_$jobID")
+        context.system.actorOf(Props(new ViewAnalysisTask(managerCount,jobID, analyser, timestamp)), s"ViewAnalysisManager_$jobID")
       case "true" =>
         context.system.actorOf(
-          Props(new WindowedViewAnalysisManager(managerCount,jobID, analyser, timestamp, request.windowSize)),
+          Props(new WindowedViewAnalysisTask(managerCount,jobID, analyser, timestamp, request.windowSize)),
           s"ViewAnalysisManager_windowed_$jobID"
         )
       case "batched" =>
         context.system.actorOf(
-          Props(new BWindowedViewAnalysisManager(managerCount,jobID, analyser, timestamp, request.windowSet)),
+          Props(new BWindowedViewAnalysisTask(managerCount,jobID, analyser, timestamp, request.windowSet)),
           s"ViewAnalysisManager_batchWindowed_$jobID"
         )
     }
@@ -82,15 +82,15 @@ class AnalysisOrchestrator() extends Actor{
     request.windowType match {
       case "false" =>
         context.system
-          .actorOf(Props(new RangeAnalysisManager(managerCount,jobID, analyser, start, end, jump)), s"RangeAnalysisManager_$jobID")
+          .actorOf(Props(new RangeAnalysisTask(managerCount,jobID, analyser, start, end, jump)), s"RangeAnalysisManager_$jobID")
       case "true" =>
         context.system.actorOf(
-          Props(new WindowedRangeAnalysisManager(managerCount,jobID, analyser, start, end, jump, request.windowSize)),
+          Props(new WindowedRangeAnalysisTask(managerCount,jobID, analyser, start, end, jump, request.windowSize)),
           s"RangeAnalysisManager_windowed_$jobID"
         )
       case "batched" =>
         context.system.actorOf(
-          Props(new BWindowedRangeAnalysisManager(managerCount,jobID, analyser, start, end, jump, request.windowSet)),
+          Props(new BWindowedRangeAnalysisTask(managerCount,jobID, analyser, start, end, jump, request.windowSet)),
           s"RangeAnalysisManager_batchWindowed_$jobID"
         )
     }
@@ -115,7 +115,7 @@ class AnalysisOrchestrator() extends Actor{
       }
 
   private def notYet(request:AnalysisRequest) = {
-    println("Cluster not ready for analysis yet, resubmitting in 5 seconds")
+    //println("Cluster not ready for analysis yet, resubmitting in 5 seconds")
     context.system.scheduler.scheduleOnce(Duration(5, SECONDS), self, request)
   }
 }

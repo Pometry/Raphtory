@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 import scala.io.Source
 import scala.sys.process._
 
-abstract class AnalysisManager(jobID: String, analyser: Analyser,managerCount:Int) extends Actor {
+abstract class AnalysisTask(jobID: String, analyser: Analyser, managerCount:Int) extends Actor {
   private var currentSuperStep    = 0 //SuperStep the algorithm is currently on
 
   private var local: Boolean = Utils.local
@@ -121,10 +121,8 @@ abstract class AnalysisManager(jobID: String, analyser: Analyser,managerCount:In
   }
 
   def startAnalysis() = {
-    for (worker <- Utils.getAllReaders(managerCount)) {
-      println(worker)
+    for (worker <- Utils.getAllReaders(managerCount))
       mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline(), false)
-    }
   }
 
   def readerACK() = {
@@ -293,10 +291,10 @@ abstract class AnalysisManager(jobID: String, analyser: Analyser,managerCount:In
     //if(real != receivedMessages)
     // println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
     if (messageLogACKS == getWorkerCount) {
-      if (totalReceivedMessages != totalSentMessages)
-        println(
-                s"superstep $currentSuperStep workerID: $workerID -- $receivedMessages/$sentMessages $totalReceivedMessages/$totalSentMessages"
-        )
+//      if (totalReceivedMessages != totalSentMessages)
+//        println(
+//                s"superstep $currentSuperStep workerID: $workerID -- $receivedMessages/$sentMessages $totalReceivedMessages/$totalSentMessages"
+//        )
       messageLogACKS = 0
       if (totalReceivedMessages == totalSentMessages) {
         currentSuperStep += 1

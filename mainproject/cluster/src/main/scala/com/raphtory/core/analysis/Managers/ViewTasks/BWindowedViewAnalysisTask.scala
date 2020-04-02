@@ -1,12 +1,12 @@
-package com.raphtory.core.analysis.Managers.ViewManagers
+package com.raphtory.core.analysis.Managers.ViewTasks
 
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.model.communication.AnalysisType
 
 import scala.collection.mutable.ArrayBuffer
 
-class BWindowedViewAnalysisManager(managerCount:Int,jobID: String, analyser: Analyser, time: Long, windows: Array[Long])
-        extends ViewAnalysisManager(managerCount,jobID, analyser, time) {
+class BWindowedViewAnalysisTask(managerCount:Int, jobID: String, analyser: Analyser, time: Long, windows: Array[Long])
+        extends ViewAnalysisTask(managerCount,jobID, analyser, time) {
   override def result(): ArrayBuffer[Any] = {
     val original = super.result()
     if (original.nonEmpty) {

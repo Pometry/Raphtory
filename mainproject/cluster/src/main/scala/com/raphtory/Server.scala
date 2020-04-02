@@ -4,7 +4,7 @@ import java.lang.management.ManagementFactory
 import java.net.InetAddress
 
 import ch.qos.logback.classic.Level
-import com.raphtory.core.analysis.Managers.AnalysisManager
+import com.raphtory.core.analysis.Managers.AnalysisTask
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
 import com.raphtory.examples.random.actors.RandomRouter
@@ -30,7 +30,7 @@ object Go extends App {
   root.setLevel(Level.ERROR)
   val routerName  = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
   val updaterName = s"${sys.env.getOrElse("UPDATERCLASS", classOf[RandomSpout].getClass.getName)}"
-  val lamName     = s"${sys.env.getOrElse("LAMCLASS", classOf[AnalysisManager].getClass.getName)}"
+  val lamName     = s"${sys.env.getOrElse("LAMCLASS", classOf[AnalysisTask].getClass.getName)}"
   val docker      = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
   val runtimeMxBean = ManagementFactory.getRuntimeMXBean

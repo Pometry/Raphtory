@@ -42,7 +42,7 @@ class DegreeBasic extends Analyser {
       }
     val text = s"""$timestamp,$totalVert,$totalEdge,$degree"""
     Utils.writeLines(output_file, text, "")
-    println(text)
+   // println(text)
   }
 
   override def processWindowResults(
@@ -62,7 +62,7 @@ class DegreeBasic extends Analyser {
       }
     val text = s"""$timestamp,$windowSize,$totalVert,$totalEdge,$degree"""
     Utils.writeLines(output_file, text, "")
-    println(text)
+   // println(text)
   }
 
   override def processBatchWindowResults(
