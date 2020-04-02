@@ -1,10 +1,10 @@
-package com.raphtory.core.analysis.Managers.RangeTasks
+package com.raphtory.core.analysis.Tasks.RangeTasks
 
 import java.util.Date
 
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.Managers.AnalysisTask
+import com.raphtory.core.analysis.Tasks.AnalysisTask
 import com.raphtory.core.model.communication.AnalyserPresentCheck
 import com.raphtory.core.model.communication.AnalysisType
 import com.raphtory.core.utils.Utils

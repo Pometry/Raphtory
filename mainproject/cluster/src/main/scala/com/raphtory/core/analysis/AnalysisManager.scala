@@ -1,15 +1,15 @@
 package com.raphtory.core.analysis
 
 import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse}
-import akka.actor.{Actor, ActorSystem, Cancellable, Props}
+import akka.actor.{Actor, ActorSystem, Cancellable, InvalidActorNameException, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.Managers.LiveTasks.{BWindowedLiveAnalysisTask, LiveAnalysisTask, WindowedLiveAnalysisTask}
-import com.raphtory.core.analysis.Managers.RangeTasks.{BWindowedRangeAnalysisTask, RangeAnalysisTask, WindowedRangeAnalysisTask}
-import com.raphtory.core.analysis.Managers.ViewTasks.{BWindowedViewAnalysisTask, ViewAnalysisTask, WindowedViewAnalysisTask}
+import com.raphtory.core.analysis.Tasks.LiveTasks.{BWindowedLiveAnalysisTask, LiveAnalysisTask, WindowedLiveAnalysisTask}
+import com.raphtory.core.analysis.Tasks.RangeTasks.{BWindowedRangeAnalysisTask, RangeAnalysisTask, WindowedRangeAnalysisTask}
+import com.raphtory.core.analysis.Tasks.ViewTasks.{BWindowedViewAnalysisTask, ViewAnalysisTask, WindowedViewAnalysisTask}
 import com.raphtory.core.model.communication._
 
 import scala.concurrent.Await
@@ -41,58 +41,75 @@ class AnalysisManager() extends Actor{
   }
 
   def spawnLiveAnalysisManager(request: LiveAnalysisRequest): Unit = {
-    println("Got the request")
-    val jobID = request.jobID
-    val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
-    request.windowType match {
-      case "false" =>
-        context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID, analyser)), s"LiveAnalysisManager_$jobID")
-      case "true" =>
-        context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID, analyser, request.windowSize)), s"LiveAnalysisManager_windowed_$jobID")
-      case "batched" =>
-        context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID, analyser, request.windowSet)), s"LiveAnalysisManager_batchWindowed_$jobID")
+    println(s"Live Analysis Task ${request.jobID} received, running ${request.analyserName}")
+    try {
+      val jobID = request.jobID
+      val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
+      request.windowType match {
+        case "false" =>
+          context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID, analyser)), s"LiveAnalysisTask_$jobID")
+        case "true" =>
+          context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID, analyser, request.windowSize)), s"LiveAnalysisTask__windowed_$jobID")
+        case "batched" =>
+          context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID, analyser, request.windowSet)), s"LiveAnalysisTask__batchWindowed_$jobID")
+      }
+    }
+    catch {
+      case e:InvalidActorNameException => println("Name non unique please kill other job first")
     }
   }
   def spawnViewAnalysisManager(request: ViewAnalysisRequest): Unit = {
-    val jobID = request.jobID
-    val timestamp = request.timestamp
-    val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
-    request.windowType match {
-      case "false" =>
-        context.system.actorOf(Props(new ViewAnalysisTask(managerCount,jobID, analyser, timestamp)), s"ViewAnalysisManager_$jobID")
-      case "true" =>
-        context.system.actorOf(
-          Props(new WindowedViewAnalysisTask(managerCount,jobID, analyser, timestamp, request.windowSize)),
-          s"ViewAnalysisManager_windowed_$jobID"
-        )
-      case "batched" =>
-        context.system.actorOf(
-          Props(new BWindowedViewAnalysisTask(managerCount,jobID, analyser, timestamp, request.windowSet)),
-          s"ViewAnalysisManager_batchWindowed_$jobID"
-        )
+    println(s"View Analysis Task ${request.jobID} received, running ${request.analyserName} at time ${request.timestamp}")
+    try{
+      val jobID = request.jobID
+      val timestamp = request.timestamp
+      val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
+      request.windowType match {
+        case "false" =>
+          context.system.actorOf(Props(new ViewAnalysisTask(managerCount,jobID, analyser, timestamp)), s"ViewAnalysisTask_$jobID")
+        case "true" =>
+          context.system.actorOf(
+            Props(new WindowedViewAnalysisTask(managerCount,jobID, analyser, timestamp, request.windowSize)),
+            s"ViewAnalysisTask_windowed_$jobID"
+          )
+        case "batched" =>
+          context.system.actorOf(
+            Props(new BWindowedViewAnalysisTask(managerCount,jobID, analyser, timestamp, request.windowSet)),
+            s"ViewAnalysisTask_batchWindowed_$jobID"
+          )
+      }
+    }
+    catch {
+      case e:InvalidActorNameException => println("Name non unique please kill other job first")
     }
   }
 
   def spawnRangeAnalysisManager(request: RangeAnalysisRequest): Unit = {
-    val jobID = request.jobID
-    val start = request.start
-    val end   = request.end
-    val jump  = request.jump
-    val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
-    request.windowType match {
-      case "false" =>
-        context.system
-          .actorOf(Props(new RangeAnalysisTask(managerCount,jobID, analyser, start, end, jump)), s"RangeAnalysisManager_$jobID")
-      case "true" =>
-        context.system.actorOf(
-          Props(new WindowedRangeAnalysisTask(managerCount,jobID, analyser, start, end, jump, request.windowSize)),
-          s"RangeAnalysisManager_windowed_$jobID"
-        )
-      case "batched" =>
-        context.system.actorOf(
-          Props(new BWindowedRangeAnalysisTask(managerCount,jobID, analyser, start, end, jump, request.windowSet)),
-          s"RangeAnalysisManager_batchWindowed_$jobID"
-        )
+    println(s"Range Analysis Task ${request.jobID} received, running ${request.analyserName}, between ${request.start} and ${request.end} jumping ${request.jump} at a time.")
+    try{
+      val jobID = request.jobID
+      val start = request.start
+      val end   = request.end
+      val jump  = request.jump
+      val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
+      request.windowType match {
+        case "false" =>
+          context.system
+            .actorOf(Props(new RangeAnalysisTask(managerCount,jobID, analyser, start, end, jump)), s"RangeAnalysisTask_$jobID")
+        case "true" =>
+          context.system.actorOf(
+            Props(new WindowedRangeAnalysisTask(managerCount,jobID, analyser, start, end, jump, request.windowSize)),
+            s"RangeAnalysisTask_windowed_$jobID"
+          )
+        case "batched" =>
+          context.system.actorOf(
+            Props(new BWindowedRangeAnalysisTask(managerCount,jobID, analyser, start, end, jump, request.windowSet)),
+            s"RangeAnalysisTask_batchWindowed_$jobID"
+          )
+      }
+    }
+    catch {
+      case e:InvalidActorNameException => println("Name non unique please kill other job first")
     }
   }
 

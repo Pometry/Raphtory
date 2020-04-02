@@ -60,7 +60,7 @@ class Reader(id: Int, test: Boolean, managerCountVal: Int, storages: ParTrieMap[
 
   def timeCheck(timestamp: Long) = {
     val newest = storages.map(s => s._2.newestTime).max
-    if (timestamp < newest)
+    if (timestamp <= newest)
       sender() ! TimeResponse(true, newest)
     else
       sender() ! TimeResponse(false, newest)
