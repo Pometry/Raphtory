@@ -1,4 +1,4 @@
-package com.raphtory.core.analysis.Managers.ViewTasks
+package com.raphtory.core.analysis.Tasks.ViewTasks
 
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.model.communication.AnalysisType

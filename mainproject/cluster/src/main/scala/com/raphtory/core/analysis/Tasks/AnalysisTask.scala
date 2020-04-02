@@ -1,4 +1,4 @@
-package com.raphtory.core.analysis.Managers
+package com.raphtory.core.analysis.Tasks
 
 import java.io.FileNotFoundException
 import java.util.Date

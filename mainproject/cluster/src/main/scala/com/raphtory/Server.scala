@@ -4,7 +4,7 @@ import java.lang.management.ManagementFactory
 import java.net.InetAddress
 
 import ch.qos.logback.classic.Level
-import com.raphtory.core.analysis.Managers.AnalysisTask
+import com.raphtory.core.analysis.Tasks.AnalysisTask
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
 import com.raphtory.examples.random.actors.RandomRouter

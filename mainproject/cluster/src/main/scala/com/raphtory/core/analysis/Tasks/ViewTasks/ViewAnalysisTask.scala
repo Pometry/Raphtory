@@ -1,9 +1,9 @@
-package com.raphtory.core.analysis.Managers.ViewTasks
+package com.raphtory.core.analysis.Tasks.ViewTasks
 
 import java.util.Date
 
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.Managers.AnalysisTask
+import com.raphtory.core.analysis.Tasks.AnalysisTask
 import com.raphtory.core.model.communication.AnalysisType
 
 class ViewAnalysisTask(managerCount:Int, jobID: String, analyser: Analyser, time: Long)
