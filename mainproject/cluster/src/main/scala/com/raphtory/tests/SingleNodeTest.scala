@@ -55,7 +55,7 @@ object SingleNodeTest extends App {
   system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(UpdaterName)), "Spout")
-  val orchestrator = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
+  system.actorOf(Props[AnalysisManager], s"AnalysisManager")
   AnalysisRestApi(system)
 
 

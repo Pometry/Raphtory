@@ -82,7 +82,7 @@ lazy val basicSettings = Seq(
                 "-unchecked"
         ),
         testOptions in Test += Tests.Argument("-oDF"),
-        version := "ethereum"
+        version := "test"
 )
 
 lazy val dockerStuff = Seq(
@@ -91,8 +91,6 @@ lazy val dockerStuff = Seq(
         dockerRepository := Some("miratepuffin"),
         dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600)
 )
-
-val newAnalyser = "com/raphtory/core/actors/analysismanager/TestAnalyser2.scala"
 
 lazy val root = Project(id = "raphtory", base = file(".")) aggregate (cluster)
 
@@ -106,10 +104,6 @@ lazy val cluster = project
   .settings(
           mappings in Universal +=
             file(s"${baseDirectory.value}/../Build-Scripts/env-setter.sh") -> "bin/env-setter.sh"
-  )
-  .settings(
-          mappings in Universal +=
-            file(s"${baseDirectory.value}/src/main/scala/$newAnalyser") -> newAnalyser
   )
   .settings(dockerEntrypoint := Seq("bash"))
   .settings(

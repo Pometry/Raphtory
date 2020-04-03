@@ -30,7 +30,6 @@ object Go extends App {
   root.setLevel(Level.ERROR)
   val routerName  = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
   val updaterName = s"${sys.env.getOrElse("UPDATERCLASS", classOf[RandomSpout].getClass.getName)}"
-  val lamName     = s"${sys.env.getOrElse("LAMCLASS", classOf[AnalysisTask].getClass.getName)}"
   val docker      = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
   val runtimeMxBean = ManagementFactory.getRuntimeMXBean
@@ -55,7 +54,7 @@ object Go extends App {
 
     case "liveAnalysis" =>
       println("Creating Analysis Manager")
-      LiveAnalysisNode(getConf(), lamName)
+      LiveAnalysisNode(getConf())
     case "clusterUp" =>
       println("Cluster Up, informing Partition Managers and Routers")
       WatchDogNode(getConf(), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
@@ -65,10 +64,7 @@ object Go extends App {
       SingleNodeSetup(
               hostname2Ip(seedLoc),
               routerName,
-              updaterName,
-              lamName,
-              sys.env("PARTITION_MIN").toInt,
-              sys.env("ROUTER_MIN").toInt
+              updaterName
       )
       prometheusReporter()
   }
