@@ -45,7 +45,7 @@ trait RouterWorker extends Actor with ActorLogging {
     log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)
 
     if (managerCount < req.newValue) managerCount = req.newValue
-
+  }
 
   def handleAllocateJobRequest(req: AllocateJob): Unit = {
     log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)

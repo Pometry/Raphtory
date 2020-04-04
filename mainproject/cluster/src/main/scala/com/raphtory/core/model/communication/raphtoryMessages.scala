@@ -225,6 +225,7 @@ case class RangeAnalysisRequest(
     args:Array[String]=Array()
 ) extends AnalysisRequest
 
+case class AnalyserPresentCheck(className: String)            extends RaphReadClasses
 case class AnalyserPresent()                                  extends RaphReadClasses
 case class ClassMissing()                                     extends RaphReadClasses
 case class FailedToCompile(stackTrace: String)                extends RaphReadClasses
