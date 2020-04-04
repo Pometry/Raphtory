@@ -43,7 +43,7 @@ class ConnectedComponents extends Analyser {
 
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults  = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
-    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/opt/docker/output.csv").trim
     val startTime   = System.currentTimeMillis()
     try {
       val grouped                  = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
@@ -68,7 +68,7 @@ class ConnectedComponents extends Analyser {
 
   override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val endResults  = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
-    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/opt/docker/output.csv").trim
     val startTime   = System.currentTimeMillis()
     try {
       val grouped                  = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
@@ -98,7 +98,7 @@ class ConnectedComponents extends Analyser {
   ): Unit = {
 
     val endResults  = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
-    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/opt/docker/output.csv").trim
     val startTime   = System.currentTimeMillis()
     try {
       val grouped                  = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
@@ -127,7 +127,7 @@ class ConnectedComponents extends Analyser {
       windowSet: Array[Long],
       viewCompleteTime: Long
   ): Unit = {
-    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/opt/docker/output.csv").trim
     val endResults  = results.asInstanceOf[ArrayBuffer[ArrayBuffer[immutable.ParHashMap[Long, Int]]]]
     for (i <- endResults.indices) {
       val startTime  = System.currentTimeMillis()

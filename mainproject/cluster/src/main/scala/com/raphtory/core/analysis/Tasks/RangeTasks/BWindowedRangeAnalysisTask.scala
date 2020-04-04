@@ -8,12 +8,13 @@ import scala.collection.mutable.ArrayBuffer
 class BWindowedRangeAnalysisTask(
     managerCount:Int,
     jobID: String,
+    args:Array[String],
     analyser: Analyser,
     start: Long,
     end: Long,
     jump: Long,
     windows: Array[Long]
-) extends RangeAnalysisTask(managerCount,jobID, analyser, start, end, jump) {
+) extends RangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump) {
   override def result(): ArrayBuffer[Any] = {
     val original = super.result()
     if (original.nonEmpty) {

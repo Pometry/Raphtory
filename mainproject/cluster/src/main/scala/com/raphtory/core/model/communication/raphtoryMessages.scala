@@ -147,6 +147,7 @@ case class VertexMessageBatch(
 case class Setup(
     analyzer: Analyser,
     jobID: String,
+    args:Array[String],
     superStep: Int,
     timestamp: Long,
     analysisType: AnalysisType.Value,
@@ -157,6 +158,7 @@ case class Ready(messages: Int) extends RaphReadClasses
 case class NextStep(
     analyzer: Analyser,
     jobID: String,
+    args:Array[String],
     superStep: Int,
     timestamp: Long,
     analysisType: AnalysisType.Value,
@@ -166,6 +168,7 @@ case class NextStep(
 case class NextStepNewAnalyser(
     name: String,
     jobID: String,
+    args:Array[String],
     superStep: Int,
     timestamp: Long,
     analysisType: AnalysisType.Value,
@@ -176,6 +179,7 @@ case class EndStep(messages: Int, voteToHalt: Boolean) extends RaphReadClasses
 case class Finish(
     analyzer: Analyser,
     jobID: String,
+    args:Array[String],
     superStep: Int,
     timestamp: Long,
     analysisType: AnalysisType.Value,
@@ -197,7 +201,8 @@ case class LiveAnalysisRequest(
     analyserName: String,
     windowType: String = "false",
     windowSize: Long = 0L,
-    windowSet: Array[Long] = Array[Long](0)
+    windowSet: Array[Long] = Array[Long](0),
+    args:Array[String]=Array()
 ) extends AnalysisRequest
 case class ViewAnalysisRequest(
     jobID: String,
@@ -205,7 +210,8 @@ case class ViewAnalysisRequest(
     timestamp: Long,
     windowType: String = "false",
     windowSize: Long = 0L,
-    windowSet: Array[Long] = Array[Long](0)
+    windowSet: Array[Long] = Array[Long](0),
+    args:Array[String]=Array()
 ) extends AnalysisRequest
 case class RangeAnalysisRequest(
     jobID: String,
@@ -215,10 +221,10 @@ case class RangeAnalysisRequest(
     jump: Long,
     windowType: String = "false",
     windowSize: Long = 0L,
-    windowSet: Array[Long] = Array[Long](0)
+    windowSet: Array[Long] = Array[Long](0),
+    args:Array[String]=Array()
 ) extends AnalysisRequest
 
-case class AnalyserPresentCheck(className: String)            extends RaphReadClasses
 case class AnalyserPresent()                                  extends RaphReadClasses
 case class ClassMissing()                                     extends RaphReadClasses
 case class FailedToCompile(stackTrace: String)                extends RaphReadClasses

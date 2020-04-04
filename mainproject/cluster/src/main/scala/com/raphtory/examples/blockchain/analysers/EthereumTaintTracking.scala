@@ -10,8 +10,10 @@ import scala.util.Random
 class EthereumTaintTracking extends Analyser {
   //val infectedNode =System.getenv().getOrDefault("ETHEREUM_TAINT_TRACKING_BAD_ACTOR", "0xa09871aeadf4994ca12f5c0b6056bbd1d343c029").trim
   //val infectionStartingBlock =System.getenv().getOrDefault("ETHEREUM_TAINT_TRACKING_START_BLOCK", "9007863").trim.toLong
-  val infectedNode =System.getenv().getOrDefault("ETHEREUM_TAINT_TRACKING_BAD_ACTOR", "0x52bc44d5378309EE2abF1539BF71dE1b7d7bE3b5").trim.toLowerCase.asInstanceOf[String]
-  val infectionStartingBlock =System.getenv().getOrDefault("ETHEREUM_TAINT_TRACKING_START_BLOCK", "4000000").trim.toLong
+  //val infectedNode =System.getenv().getOrDefault("ETHEREUM_TAINT_TRACKING_BAD_ACTOR", "0x52bc44d5378309EE2abF1539BF71dE1b7d7bE3b5").trim.toLowerCase.asInstanceOf[String]
+  //val infectionStartingBlock =System.getenv().getOrDefault("ETHEREUM_TAINT_TRACKING_START_BLOCK", "4000000").trim.toLong
+  val infectedNode = args(0).trim.toLowerCase
+  val infectionStartingBlock = args(1).trim.toLong
   override def setup(): Unit =
     proxy.getVerticesSet().foreach { v =>
         val vertex = proxy.getVertex(v._2)

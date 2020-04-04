@@ -34,6 +34,7 @@ trait RouterWorker extends Actor with ActorLogging {
     case req: UpdatedCounter => handleUpdatedCounterRequest(req)
     case req: AllocateJob    => handleAllocateJobRequest(req)
     case x                   => log.warning("RouterWorker received unknown message [{}]", x)
+
   }
 
   final protected def getManagerCount: Int = managerCount
@@ -44,7 +45,7 @@ trait RouterWorker extends Actor with ActorLogging {
     log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)
 
     if (managerCount < req.newValue) managerCount = req.newValue
-  }
+
 
   def handleAllocateJobRequest(req: AllocateJob): Unit = {
     log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)
