@@ -27,6 +27,7 @@ object SingleNodeTest extends App {
   //val start           = 1262394061000L
   //val end             = 1357002061000L
   //val jump            = 86400000
+  //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"ldbcdegreeTest","analyserName":"com.raphtory.core.analysis.Algorithms.DegreeBasic","start":1262394061000,"end":1357002061000,"jump":86400000}' 127.0.0.1:8081/RangeAnalysisRequest
 
   //ether test
 //  val start = 4000000L

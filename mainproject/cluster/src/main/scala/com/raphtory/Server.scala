@@ -29,7 +29,7 @@ object Go extends App {
   val root    = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
   val routerName  = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
-  val updaterName = s"${sys.env.getOrElse("UPDATERCLASS", classOf[RandomSpout].getClass.getName)}"
+  val updaterName = s"${sys.env.getOrElse("SPOUTCLASS", classOf[RandomSpout].getClass.getName)}"
   val docker      = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
   val runtimeMxBean = ManagementFactory.getRuntimeMXBean
@@ -52,7 +52,7 @@ object Go extends App {
       println("Creating Update Generator")
       UpdateNode(getConf(), updaterName)
 
-    case "liveAnalysis" =>
+    case "analysisManager" =>
       println("Creating Analysis Manager")
       LiveAnalysisNode(getConf())
     case "clusterUp" =>
