@@ -31,23 +31,22 @@ trait RouterWorker extends Actor with ActorLogging {
     log.debug("RouterWorker [{}] is being started.", routerId)
 
   override def receive: Receive = {
-    case req: UpdatedCounter => handleUpdatedCounterRequest(req)
-    case req: AllocateJob    => handleAllocateJobRequest(req)
-    case x                   => log.warning("RouterWorker received unknown message [{}]", x)
-
+    case req: UpdatedCounter => processUpdatedCounterRequest(req)
+    case req: AllocateJob    => processAllocateJobRequest(req)
+    case x                   => log.warning("RouterWorker received unknown [{}] message.", x)
   }
 
   final protected def getManagerCount: Int = managerCount
 
   def assignID(uniqueChars: String): Long = MurmurHash3.stringHash(uniqueChars)
 
-  def handleUpdatedCounterRequest(req: UpdatedCounter): Unit = {
+  def processUpdatedCounterRequest(req: UpdatedCounter): Unit = {
     log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)
 
     if (managerCount < req.newValue) managerCount = req.newValue
   }
 
-  def handleAllocateJobRequest(req: AllocateJob): Unit = {
+  def processAllocateJobRequest(req: AllocateJob): Unit = {
     log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)
 
     parseTuple(req.record)
