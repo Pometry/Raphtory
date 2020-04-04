@@ -9,8 +9,8 @@ import com.raphtory.core.model.communication.AnalyserPresentCheck
 import com.raphtory.core.model.communication.AnalysisType
 import com.raphtory.core.utils.Utils
 
-class RangeAnalysisTask(managerCount:Int, jobID: String, analyser: Analyser, start: Long, end: Long, jump: Long)
-        extends AnalysisTask(jobID: String, analyser,managerCount) {
+class RangeAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analyser: Analyser, start: Long, end: Long, jump: Long)
+        extends AnalysisTask(jobID: String,args, analyser,managerCount) {
   protected var currentTimestamp                            = start
   override protected def analysisType(): AnalysisType.Value = AnalysisType.range
   override def timestamp(): Long                            = currentTimestamp

@@ -11,12 +11,13 @@ abstract class Analyser extends java.io.Serializable {
   implicit var managerCount: ManagerCount = null
   implicit var proxy: LiveLens            = null
   var workerID: Int                       = 0
-
-  final def sysSetup(context: ActorContext, managerCount: ManagerCount, proxy: LiveLens, ID: Int) = {
+  var args:Array[String]                  = null
+  final def sysSetup(context: ActorContext, managerCount: ManagerCount, proxy: LiveLens, ID: Int,args:Array[String]) = {
     this.context = context
     this.managerCount = managerCount
     this.proxy = proxy
     this.workerID = ID
+    this.args = args
   }
 
   def analyse(): Unit

@@ -27,17 +27,17 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   override def receive: Receive = {
     case UpdatedCounter(newValue) => managerCount = ManagerCount(newValue)
-    case Setup(analyzer, jobID, superStep, timestamp, analysisType, window, windowSet) =>
-      try setup(analyzer, jobID, superStep, timestamp, analysisType, window, windowSet)
+    case Setup(analyzer, jobID, args, superStep, timestamp, analysisType, window, windowSet) =>
+      try setup(analyzer, jobID, args, superStep, timestamp, analysisType, window, windowSet)
       catch { case e: Exception => e.printStackTrace() }
     case CheckMessages(superstep) => checkMessages()
-    case NextStep(analyzer, jobID, superStep, timestamp, analysisType, window, windowSet) =>
-      try nextStep(analyzer, jobID, superStep, timestamp, analysisType, window, windowSet)
+    case NextStep(analyzer, jobID, args, superStep, timestamp, analysisType, window, windowSet) =>
+      try nextStep(analyzer, jobID, args, superStep, timestamp, analysisType, window, windowSet)
       catch { case e: Exception => e.printStackTrace() }
-    case NextStepNewAnalyser(name, jobID, currentStep, timestamp, analysisType, window, windowSet) =>
-      nextStepNewAnalyser(name, jobID, currentStep, timestamp, analysisType, window, windowSet)
-    case Finish(analyzer, jobID, superStep, timestamp, analysisType, window, windowSet) =>
-      try returnResults(analyzer, jobID, superStep, timestamp, analysisType, window, windowSet)
+    case NextStepNewAnalyser(name, jobID, args, currentStep, timestamp, analysisType, window, windowSet) =>
+      nextStepNewAnalyser(name, jobID, args, currentStep, timestamp, analysisType, window, windowSet)
+    case Finish(analyzer, jobID, args, superStep,timestamp, analysisType, window, windowSet) =>
+      try returnResults(analyzer, jobID, args, superStep, timestamp, analysisType, window, windowSet)
       catch { case e: Exception => e.printStackTrace() }
     //case handler:VertexMessage => receivedMessage(handler)
     case VertexMessageFloat(source: Long, vertexID: Long, jobID: String, superStep: Int, data: Float) =>
@@ -68,6 +68,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   def setup(
       analyzer: Analyser,
       jobID: String,
+      args:Array[String],
       superStep: Int,
       timestamp: Long,
       analysisType: AnalysisType.Value,
@@ -76,7 +77,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   ) {
     receivedMessages.set(0)
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
-    analyzer.sysSetup(context, managerCount, tempProxy, workerId)
+    analyzer.sysSetup(context, managerCount, tempProxy, workerId,args)
     if (windowSet.isEmpty) {
       analyzer.setup()
       sender() ! Ready(tempProxy.getMessages())
@@ -95,6 +96,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   def nextStep(
       analyzer: Analyser,
       jobID: String,
+      args:Array[String],
       superStep: Int,
       timestamp: Long,
       analysisType: AnalysisType.Value,
@@ -103,7 +105,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   ): Unit = {
     receivedMessages.set(0)
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
-    analyzer.sysSetup(context, managerCount, tempProxy, workerId)
+    analyzer.sysSetup(context, managerCount, tempProxy, workerId,args)
     if (windowSet.isEmpty) {
       analyzer.analyse()
       sender() ! EndStep(tempProxy.getMessages(), tempProxy.checkVotes(workerId))
@@ -123,17 +125,19 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   def nextStepNewAnalyser(
       name: String,
       jobID: String,
+      args:Array[String],
       currentStep: Int,
       timestamp: Long,
       analysisType: AnalysisType.Value,
       window: Long,
       windowSet: Array[Long]
   ) =
-    nextStep(Utils.analyserMap(name), jobID, currentStep, timestamp, analysisType, window, windowSet)
+    nextStep(Utils.analyserMap(name), jobID, args,currentStep, timestamp, analysisType, window, windowSet)
 
   def returnResults(
       analyzer: Analyser,
       jobID: String,
+      args:Array[String],
       superStep: Int,
       timestamp: Long,
       analysisType: AnalysisType.Value,
@@ -141,7 +145,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       windowSet: Array[Long]
   ): Unit = {
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
-    analyzer.sysSetup(context, managerCount, tempProxy, workerId)
+    analyzer.sysSetup(context, managerCount, tempProxy, workerId,args)
     if (windowSet.isEmpty) {
       val result = analyzer.returnResults()
       sender() ! ReturnResults(result)

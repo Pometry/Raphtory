@@ -37,7 +37,7 @@ trait SpoutTrait extends Actor with Timers {
     context.system.scheduler.scheduleOnce(Duration(duration._1, duration._2), self, task)
 
   protected def recordUpdate(): Unit = {
-    if (debug) println("sent update")
+    //if (debug) println("sent update")
     counter += 1
     currentMessage += 1
     Kamon.counter("raphtory.updateGen.commandsSent").increment()
