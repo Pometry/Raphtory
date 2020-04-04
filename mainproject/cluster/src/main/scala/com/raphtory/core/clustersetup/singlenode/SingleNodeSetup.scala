@@ -22,6 +22,7 @@ import com.typesafe.config.ConfigFactory
 
 import scala.language.postfixOps
 
+// TODO migrate to object props
 case class SingleNodeSetup(
     seedLoc: String,
     routerClassName: String,
@@ -36,5 +37,6 @@ case class SingleNodeSetup(
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(UpdaterName)), "UpdateGen")
   system.actorOf(Props[AnalysisManager], s"AnalysisManager")
+
 
 }

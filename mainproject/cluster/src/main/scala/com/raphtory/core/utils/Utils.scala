@@ -12,12 +12,13 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
 object Utils {
-  val clusterSystemName           = "dockerexp"
-  val config                      = ConfigFactory.load
-  val partitionsTopic             = "/partitionsCount"
-  val readersTopic                = "/readers"
-  val readersWorkerTopic          = "/readerWorkers"
-  val liveAnalysisTopic           = "/liveanalysis"
+  val clusterSystemName  = "dockerexp"
+  val config             = ConfigFactory.load
+  val partitionsTopic    = "/partitionsCount"
+  val readersTopic       = "/readers"
+  val readersWorkerTopic = "/readerWorkers"
+  val liveAnalysisTopic  = "/liveanalysis"
+
   val persistenceEnabled: Boolean = System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
   val compressing: Boolean        = System.getenv().getOrDefault("COMPRESSING", "false").trim.toBoolean
   val archiving: Boolean          = System.getenv().getOrDefault("ARCHIVING", "false").trim.toBoolean
