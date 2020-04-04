@@ -27,6 +27,7 @@ object SingleNodeTest extends App {
   //val start           = 1262394061000L
   //val end             = 1357002061000L
   //val jump            = 86400000
+  //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"ldbcdegreeTest","analyserName":"com.raphtory.core.analysis.Algorithms.DegreeBasic","start":1262394061000,"end":1357002061000,"jump":86400000}' 127.0.0.1:8081/RangeAnalysisRequest
 
   //ether test
 //  val start = 4000000L
@@ -55,9 +56,10 @@ object SingleNodeTest extends App {
   system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(UpdaterName)), "Spout")
-  val orchestrator = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
+  val analysisManager = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
   AnalysisRestApi(system)
 
+  //analysisManager ! ViewAnalysisRequest("jobID","com.raphtory.examples.blockchain.analysers.EthereumTaintTracking",1234L)
 
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents"}' 127.0.0.1:8080/LiveAnalysisRequest
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsViewTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents","timestamp":1476113856000}' 127.0.0.1:8080/ViewAnalysisRequest

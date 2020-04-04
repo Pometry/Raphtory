@@ -51,7 +51,6 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
       case (key, task) =>
         SchedulerUtil.cancelTask(key, task)
     }
-
     if (!allTasksCancelled) log.warning("Failed to cancel all scheduled tasks post stop.")
   }
 

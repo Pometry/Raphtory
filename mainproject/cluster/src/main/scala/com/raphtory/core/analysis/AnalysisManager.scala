@@ -45,13 +45,14 @@ class AnalysisManager() extends Actor{
     try {
       val jobID = request.jobID
       val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
+      val args = request.args
       request.windowType match {
         case "false" =>
-          context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID, analyser)), s"LiveAnalysisTask_$jobID")
+          context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID,args, analyser)), s"LiveAnalysisTask_$jobID")
         case "true" =>
-          context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID, analyser, request.windowSize)), s"LiveAnalysisTask__windowed_$jobID")
+          context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID,args, analyser, request.windowSize)), s"LiveAnalysisTask__windowed_$jobID")
         case "batched" =>
-          context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID, analyser, request.windowSet)), s"LiveAnalysisTask__batchWindowed_$jobID")
+          context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID,args, analyser, request.windowSet)), s"LiveAnalysisTask__batchWindowed_$jobID")
       }
     }
     catch {
@@ -64,17 +65,18 @@ class AnalysisManager() extends Actor{
       val jobID = request.jobID
       val timestamp = request.timestamp
       val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
+      val args = request.args
       request.windowType match {
         case "false" =>
-          context.system.actorOf(Props(new ViewAnalysisTask(managerCount,jobID, analyser, timestamp)), s"ViewAnalysisTask_$jobID")
+          context.system.actorOf(Props(new ViewAnalysisTask(managerCount,jobID,args,analyser, timestamp)), s"ViewAnalysisTask_$jobID")
         case "true" =>
           context.system.actorOf(
-            Props(new WindowedViewAnalysisTask(managerCount,jobID, analyser, timestamp, request.windowSize)),
+            Props(new WindowedViewAnalysisTask(managerCount,jobID,args, analyser, timestamp, request.windowSize)),
             s"ViewAnalysisTask_windowed_$jobID"
           )
         case "batched" =>
           context.system.actorOf(
-            Props(new BWindowedViewAnalysisTask(managerCount,jobID, analyser, timestamp, request.windowSet)),
+            Props(new BWindowedViewAnalysisTask(managerCount,jobID, args,analyser, timestamp, request.windowSet)),
             s"ViewAnalysisTask_batchWindowed_$jobID"
           )
       }
@@ -92,18 +94,19 @@ class AnalysisManager() extends Actor{
       val end   = request.end
       val jump  = request.jump
       val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
+      val args = request.args
       request.windowType match {
         case "false" =>
           context.system
-            .actorOf(Props(new RangeAnalysisTask(managerCount,jobID, analyser, start, end, jump)), s"RangeAnalysisTask_$jobID")
+            .actorOf(Props(new RangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump)), s"RangeAnalysisTask_$jobID")
         case "true" =>
           context.system.actorOf(
-            Props(new WindowedRangeAnalysisTask(managerCount,jobID, analyser, start, end, jump, request.windowSize)),
+            Props(new WindowedRangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump, request.windowSize)),
             s"RangeAnalysisTask_windowed_$jobID"
           )
         case "batched" =>
           context.system.actorOf(
-            Props(new BWindowedRangeAnalysisTask(managerCount,jobID, analyser, start, end, jump, request.windowSet)),
+            Props(new BWindowedRangeAnalysisTask(managerCount,jobID,args, analyser, start, end, jump, request.windowSet)),
             s"RangeAnalysisTask_batchWindowed_$jobID"
           )
       }
