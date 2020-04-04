@@ -15,8 +15,8 @@ import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-//TODO fix edges
-
+// TODO fix edges
+// TODO Will be revamped
 class Archivist(maximumMem: Double, workers: ParTrieMap[Int, ActorRef], storages: ParTrieMap[Int, EntityStorage])
         extends Actor {
   val compressing: Boolean = Utils.compressing

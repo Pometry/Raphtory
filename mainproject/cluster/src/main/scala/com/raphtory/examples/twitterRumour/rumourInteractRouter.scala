@@ -8,7 +8,7 @@ import spray.json._
 
 import scala.io.Source
 
-class rumourInteractRouter(val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
+class rumourInteractRouter(override val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
 
   override protected def parseTuple(cmd: Any): Unit = {
     //println("im at router top...")
@@ -27,20 +27,20 @@ class rumourInteractRouter(val routerId: Int, val initialManagerCount: Int) exte
 
       if (dist != "null")
         sendGraphUpdate(
-          EdgeAddWithProperties(
-            getTwitterDate(replyTime),
-            source.toLong,
-            dist.toLong,
-            properties = Properties(ImmutableProperty("rumourStatus", r_status))
-          )
+                EdgeAddWithProperties(
+                        getTwitterDate(replyTime),
+                        source.toLong,
+                        dist.toLong,
+                        properties = Properties(ImmutableProperty("rumourStatus", r_status))
+                )
         )
       else
         sendGraphUpdate(
-          VertexAddWithProperties(
-            getTwitterDate(replyTime),
-            source.toLong,
-            properties = Properties(ImmutableProperty("rumourStatus", r_status))
-          )
+                VertexAddWithProperties(
+                        getTwitterDate(replyTime),
+                        source.toLong,
+                        properties = Properties(ImmutableProperty("rumourStatus", r_status))
+                )
         )
     }
   }
@@ -51,8 +51,8 @@ class rumourInteractRouter(val routerId: Int, val initialManagerCount: Int) exte
     val sf      = new SimpleDateFormat(twitter)
     //println(date)
     try
-      //println("converted time ///"+t)
-      return sf.parse(date).getTime()
+    //println("converted time ///"+t)
+    return sf.parse(date).getTime()
     catch {
       case e: Throwable =>
         println("-----time not properly converting" + date)
