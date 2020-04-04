@@ -13,7 +13,7 @@ import com.raphtory.core.model.communication._
 // is equal to -1. Columns 2 and 5 correspond to the userid and parentUserid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabUserGraphRouter(routerId: Int, override val initialManagerCount: Int) extends RouterWorker {
+class GabUserGraphRouter(override val routerId: Int, override val initialManagerCount: Int) extends RouterWorker {
 
   def parseTuple(record: Any): Unit = {
     val fileLine = record.asInstanceOf[String].split(";").map(_.trim)

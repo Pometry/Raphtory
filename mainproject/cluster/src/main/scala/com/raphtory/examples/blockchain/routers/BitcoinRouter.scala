@@ -9,7 +9,7 @@ import com.raphtory.core.model.communication.VertexAddWithProperties
 import com.raphtory.examples.blockchain.BitcoinTransaction
 import spray.json.JsArray
 
-class BitcoinRouter(val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
+class BitcoinRouter(override val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
 
   def parseTuple(record: Any): Unit = {
     val value = record.asInstanceOf[BitcoinTransaction]
