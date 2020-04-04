@@ -21,7 +21,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 // TODO break object RouterManager { getProps = { routerManager(arg1, arg2...): Props }}
-
 class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: String)
         extends Actor
         with ActorLogging {
@@ -62,7 +61,7 @@ class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: 
   override def receive: Receive = {
     case msg: String if msg == "tick"       => processHeartbeatMessage(msg)
     case msg: String if msg == "keep_alive" => processKeepAliveMessage(msg)
-    case msg: UpdatedCounter                => handleUpdatedCounterRequest(msg)
+    case msg: UpdatedCounter                => processUpdatedCounterRequest(msg)
     case x                                  => allocateRecord(x)
   }
 
@@ -84,8 +83,8 @@ class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: 
     mediator ! DistributedPubSubMediator.Send(sendPath, sendMessage, localAffinity = false)
   }
 
-  def handleUpdatedCounterRequest(msg: UpdatedCounter): Unit = {
-    log.debug(s"RouterManager [{}] received message [{}]", routerId, msg)
+  def processUpdatedCounterRequest(msg: UpdatedCounter): Unit = {
+    log.debug(s"RouterManager [{}] received [{}] request.", routerId, msg)
 
     if (managerCount < msg.newValue) {
       log.debug("UpdatedCounter is larger than current managerCount. Bumping managerCount to new value.")
@@ -109,7 +108,7 @@ class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: 
       .get(childId)
       .fold(
               log.warning(
-                      "Child with the id [{}] was not found. " +
+                      "Child id [{}] was not found. " +
                         "Request will not be acted upon.",
                       childId
               )
