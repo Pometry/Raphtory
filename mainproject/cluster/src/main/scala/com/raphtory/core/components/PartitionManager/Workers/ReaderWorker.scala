@@ -55,7 +55,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   def processSetupRequest(req: Setup): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader id [{}] received [{}] request.", managerID, workerId, req)
 
-    try setup(req.analyzer, req.jobID, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+    try setup(req.analyzer, req.jobID,req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
     catch { case e: Exception => log.error("Failed to run setup due to [{}].", e) }
   }
 
@@ -72,14 +72,14 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   def processNextStepRequest(req: NextStep): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader id [{}] received [{}] request.", managerID, workerId, req)
 
-    try nextStep(req.analyzer, req.jobID, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+    try nextStep(req.analyzer, req.jobID,req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
     catch { case e: Exception => log.error("Failed to run nextStep due to [{}].", e) }
   }
 
   def processNextStepNewAnalyserRequest(req: NextStepNewAnalyser): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader id [{}] received [{}] request.", managerID, workerId, req)
 
-    nextStepNewAnalyser(req.name, req.jobID, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+    nextStepNewAnalyser(req.name, req.jobID,req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
   }
 
   def processFinishRequest(req: Finish): Unit = {
@@ -88,6 +88,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     try returnResults(
             req.analyzer,
             req.jobID,
+            req.args,
             req.superStep,
             req.timestamp,
             req.analysisType,
