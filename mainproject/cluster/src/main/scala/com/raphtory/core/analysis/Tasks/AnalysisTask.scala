@@ -18,7 +18,8 @@ import scala.concurrent.duration._
 import scala.io.Source
 import scala.sys.process._
 
-abstract class AnalysisTask(jobID: String, analyser: Analyser, managerCount:Int) extends Actor {
+abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int) extends Actor {
+  analyser.args=args
   private var currentSuperStep    = 0 //SuperStep the algorithm is currently on
 
   private var local: Boolean = Utils.local
@@ -157,6 +158,7 @@ abstract class AnalysisTask(jobID: String, analyser: Analyser, managerCount:Int)
                     Setup(
                             this.generateAnalyzer,
                             jobID,
+                            args,
                             currentSuperStep,
                             timestamp,
                             analysisType(),
@@ -172,6 +174,7 @@ abstract class AnalysisTask(jobID: String, analyser: Analyser, managerCount:Int)
                     Finish(
                             this.generateAnalyzer,
                             jobID,
+                            args,
                             currentSuperStep,
                             timestamp,
                             analysisType(),
@@ -219,6 +222,7 @@ abstract class AnalysisTask(jobID: String, analyser: Analyser, managerCount:Int)
                   Finish(
                           this.generateAnalyzer,
                           jobID,
+                          args,
                           currentSuperStep,
                           timestamp,
                           analysisType: AnalysisType.Value,
@@ -254,6 +258,7 @@ abstract class AnalysisTask(jobID: String, analyser: Analyser, managerCount:Int)
                   NextStepNewAnalyser(
                           analyserName,
                           jobID,
+                          args,
                           currentSuperStep,
                           timestamp,
                           analysisType: AnalysisType.Value,
@@ -269,6 +274,7 @@ abstract class AnalysisTask(jobID: String, analyser: Analyser, managerCount:Int)
                   NextStep(
                           this.generateAnalyzer,
                           jobID,
+                          args,
                           currentSuperStep,
                           timestamp,
                           analysisType: AnalysisType.Value,
@@ -306,6 +312,7 @@ abstract class AnalysisTask(jobID: String, analyser: Analyser, managerCount:Int)
                   NextStep(
                           this.generateAnalyzer,
                           jobID,
+                          args,
                           currentSuperStep,
                           timestamp,
                           analysisType: AnalysisType.Value,
@@ -326,6 +333,7 @@ abstract class AnalysisTask(jobID: String, analyser: Analyser, managerCount:Int)
                   NextStep(
                           this.generateAnalyzer,
                           jobID,
+                          args,
                           currentSuperStep,
                           timestamp,
                           analysisType: AnalysisType.Value,
