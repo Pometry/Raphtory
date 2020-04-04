@@ -26,11 +26,10 @@ class EthereumGethSpout extends SpoutTrait {
   val nodePort     = System.getenv().getOrDefault("ETHEREUM_PORT", "8545").trim
   val baseRequest  = requestBuilder()
 
-  if(nodeIP.matches(Utils.IPRegex))
+  if (nodeIP.matches(Utils.IPRegex))
     println(s"Connecting to Ethereum RPC \n Address:$nodeIP \n Port:$nodePort")
   else
     println(s"Connecting to Ethereum RPC \n Address:${hostname2Ip(nodeIP)} \n Port:$nodePort")
-
 
   override protected def ProcessSpoutTask(message: Any): Unit = message match {
     case StartSpout  => pullNextBlock()
@@ -42,7 +41,8 @@ class EthereumGethSpout extends SpoutTrait {
       return
     try {
 
-      if(debug)println(s"Trying block $currentBlock")
+      log.debug(s"Trying block $currentBlock")
+
       val transactionCountHex =
         executeRequest("eth_getBlockTransactionCountByNumber", "\"0x" + currentBlock.toHexString + "\"")
       val transactionCount = Integer.parseInt(transactionCountHex.fields("result").toString().drop(3).dropRight(1), 16)
@@ -54,11 +54,11 @@ class EthereumGethSpout extends SpoutTrait {
                 ).toString()
         )
       currentBlock += 1
-      AllocateSpoutTask(Duration(1,NANOSECONDS),"nextBlock")
+      AllocateSpoutTask(Duration(1, NANOSECONDS), "nextBlock")
+    } catch {
+      case e: NumberFormatException => AllocateSpoutTask(Duration(1, SECONDS), "nextBlock")
+      case e: Exception             => e.printStackTrace(); AllocateSpoutTask(Duration(1, SECONDS), "nextBlock")
     }
-    catch {
-      case e:NumberFormatException => {AllocateSpoutTask(Duration(1,SECONDS),"nextBlock")}
-      case e:Exception => {e.printStackTrace()};AllocateSpoutTask(Duration(1,SECONDS),"nextBlock")}
   }
 
   def requestBuilder() =
