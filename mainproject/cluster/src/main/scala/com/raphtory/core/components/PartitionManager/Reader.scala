@@ -1,6 +1,7 @@
 package com.raphtory.core.components.PartitionManager
 
 import akka.actor.Actor
+import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.Terminated
@@ -15,68 +16,124 @@ import com.raphtory.core.utils.Utils
 import com.twitter.util.Eval
 
 import scala.collection.parallel.mutable.ParTrieMap
+import scala.util.Try
 
-class Reader(id: Int, test: Boolean, managerCountVal: Int, storages: ParTrieMap[Int, EntityStorage]) extends Actor {
+class Reader(
+    id: Int,
+    test: Boolean,
+    managerCountVal: Int,
+    storage: ParTrieMap[Int, EntityStorage],
+    workerCount: Int = 10
+) extends Actor
+        with ActorLogging {
+
   implicit var managerCount: Int = managerCountVal
-  val managerID: Int             = id //ID which refers to the partitions position in the graph manager map
-  val mediator: ActorRef         = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
+
+  // Id which refers to the partitions position in the graph manager map
+  val managerId: Int = id
+
+  val mediator: ActorRef = DistributedPubSub(context.system).mediator
+
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersTopic, self)
-  val debug = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
 
   var readers: ParTrieMap[Int, ActorRef] = new ParTrieMap[Int, ActorRef]()
-  for (i <- 0 until 10) { //create threads for writing
+
+  for (i <- 0 until workerCount) {
+    log.debug("Initialising [{}] worker children for Reader [{}}.", workerCount, managerId)
+
+    // create threads for writing
     val child = context.system.actorOf(
-            Props(new ReaderWorker(managerCount, managerID, i, storages(i))).withDispatcher("reader-dispatcher"),
+            Props(new ReaderWorker(managerCount, managerId, i, storage(i))).withDispatcher("reader-dispatcher"),
             s"Manager_${id}_reader_$i"
     )
+
     context.watch(child)
     readers.put(i, child)
   }
 
-  override def preStart() =
-    if (debug) println("Starting reader " + id)
+  override def preStart(): Unit =
+    log.debug("Reader [{}] is being started.", managerId)
 
   override def receive: Receive = {
-    case ReaderWorkersOnline()              => sender() ! ReaderWorkersACK()
-    case AnalyserPresentCheck(classname)    => presentCheck(classname)
-    case TimeCheck(timestamp)               => timeCheck(timestamp)
-    case CompileNewAnalyser(analyser, name) => compileNewAnalyser(analyser, name)
-    case UpdatedCounter(newValue)           => managerCount = newValue; readers.foreach(x => x._2 ! UpdatedCounter(newValue))
-    case SubscribeAck                       =>
-    case e: Terminated                      => println(e)
+    case ReaderWorkersOnline()     => sender ! ReaderWorkersACK()
+    case req: AnalyserPresentCheck => handleAnalyserPresentCheckRequest(req)
+    case req: TimeCheck            => handleTimeCheckRequest(req)
+    case req: CompileNewAnalyser   => handleCompileNewAnalyserRequest(req)
+    case req: UpdatedCounter       => handleUpdatedCounterRequest(req)
+    case SubscribeAck              =>
+    case Terminated(child) =>
+      log.warning(s"ReaderWorker with path [{}] belonging to Reader id [{}] has died.", child.path, managerId)
+    case x => log.warning(s"Reader [{}] received unknown message [{}].", managerId, x)
   }
 
-  def presentCheck(classname: String) =
-    try {
-      Class.forName(classname)
-      if (debug) println(s"Reader has this class can precede: $classname ")
-      sender() ! AnalyserPresent()
-    } catch {
-      case e: ClassNotFoundException =>
-        if (debug) println("Analyser not found within this image, requesting scala file")
-        sender() ! ClassMissing()
+  def handleAnalyserPresentCheckRequest(req: AnalyserPresentCheck): Unit = {
+    log.debug(s"Reader [{}] received [{}] request.", managerId, req)
+
+    val className   = req.className
+    val classExists = Try(Class.forName(className))
+
+    classExists.toEither.fold(
+            { _: Throwable =>
+              log.debug("Class [{}] was not found within this image.", className)
+
+              sender ! ClassMissing()
+            }, { _: Class[_] =>
+              log.debug(s"Class [{}] exists. Proceeding.", className)
+
+              sender ! AnalyserPresent()
+            }
+    )
+  }
+
+  def handleTimeCheckRequest(req: TimeCheck): Unit = {
+    log.debug(s"Reader [{}] received [{}] request.", managerId, req)
+
+    val timestamp = req.timestamp
+
+    val newest = storage.map { case (_, entityStorage) => entityStorage.newestTime }.max
+
+    if (timestamp <= newest) {
+      log.debug("Received timestamp is smaller or equal to newest entityStorage timestamp.")
+
+      sender ! TimeResponse(ok = true, newest)
+    } else {
+      log.debug("Received timestamp is larger than newest entityStorage timestamp.")
+
+      sender ! TimeResponse(ok = false, newest)
     }
-
-  def timeCheck(timestamp: Long) = {
-    val newest = storages.map(s => s._2.newestTime).max
-    if (timestamp <= newest)
-      sender() ! TimeResponse(true, newest)
-    else
-      sender() ! TimeResponse(false, newest)
   }
 
-  def compileNewAnalyser(analyserString: String, name: String) = {
-    if (debug) println(s"Received $name from LAM, compiling")
-    try {
-      val eval               = new Eval // Initializing The Eval without any target location
+  def handleCompileNewAnalyserRequest(req: CompileNewAnalyser): Unit = {
+    log.debug("Reader [{}] received [{}] request.", managerId, req)
+
+    val (analyserString, name) = (req.analyser, req.name)
+
+    log.debug("Compiling [{}] for LAM.", name)
+
+    val evalResult = Try {
+      val eval               = new Eval
       val analyser: Analyser = eval[Analyser](analyserString)
       Utils.analyserMap += ((name, analyser))
-      sender() ! ClassCompiled()
-    } catch {
-      case e: Exception =>
-        sender() ! FailedToCompile(e.getMessage)
     }
+
+    evalResult.toEither.fold(
+            { t: Throwable =>
+              log.debug("Compilation of [{}] failed due to [{}].", name, t)
+
+              sender ! ClassMissing()
+            }, { _ =>
+              log.debug(s"Compilation of [{}] succeeded. Proceeding.", name)
+
+              sender ! ClassCompiled()
+            }
+    )
   }
 
+  def handleUpdatedCounterRequest(req: UpdatedCounter): Unit = {
+    log.debug("Reader [{}] received [{}] request.", managerId, req)
+
+    managerCount = req.newValue
+    readers.foreach(x => x._2 ! UpdatedCounter(req.newValue))
+  }
 }

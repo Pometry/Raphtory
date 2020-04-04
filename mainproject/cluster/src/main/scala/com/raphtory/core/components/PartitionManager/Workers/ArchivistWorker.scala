@@ -7,6 +7,8 @@ import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 import scala.collection.parallel.mutable.ParTrieMap
+
+// TODO Will be revamped
 class ArchivistWorker(workers: ParTrieMap[Int, ActorRef], storages: ParTrieMap[Int, EntityStorage]) extends Actor {
 
   //timestamps to make sure all entities are compressed to exactly the same point
@@ -26,7 +28,7 @@ class ArchivistWorker(workers: ParTrieMap[Int, ActorRef], storages: ParTrieMap[I
     case FinishedVertexArchiving(key)   => finishedVertexArchiving(key)
   }
 
-  def compressVertices(compressTime: Long, workerID: Int) = {
+  def compressVertices(compressTime: Long, workerID: Int): Unit = {
     val worker = workers(workerID)
     storages(workerID).vertices foreach (pair => {
       worker ! CompressVertex(pair._1, compressTime)
@@ -34,7 +36,7 @@ class ArchivistWorker(workers: ParTrieMap[Int, ActorRef], storages: ParTrieMap[I
     })
   }
 
-  def archiveVertices(compressTime: Long, archiveTime: Long, workerID: Int) = {
+  def archiveVertices(compressTime: Long, archiveTime: Long, workerID: Int): Unit = {
     val worker = workers(workerID)
     storages(workerID).vertices foreach (key => {
       if (compressing) worker ! ArchiveVertex(key._1, compressTime, archiveTime)
@@ -43,7 +45,7 @@ class ArchivistWorker(workers: ParTrieMap[Int, ActorRef], storages: ParTrieMap[I
     })
   }
 
-  def finishedVertexCompression(key: Long) = {
+  def finishedVertexCompression(key: Long): Unit = {
     finishedCompressions += 1
     if (startedCompressions == finishedCompressions) {
       context.parent ! FinishedVertexCompression(startedCompressions)
@@ -52,7 +54,7 @@ class ArchivistWorker(workers: ParTrieMap[Int, ActorRef], storages: ParTrieMap[I
     }
   }
 
-  def finishedVertexArchiving(ID: Long) = {
+  def finishedVertexArchiving(ID: Long): Unit = {
     finishedArchiving += 1
     if (startedArchiving == finishedArchiving) {
       context.parent ! FinishedVertexArchiving(startedArchiving)

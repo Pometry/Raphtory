@@ -12,7 +12,7 @@ import spray.json.JsArray
 
 import scala.util.hashing.MurmurHash3
 
-class DashcoinRouter(val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
+class DashcoinRouter(override val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
 
   def parseTuple(record: Any): Unit = {
     val value        = record.asInstanceOf[LitecoinTransaction]

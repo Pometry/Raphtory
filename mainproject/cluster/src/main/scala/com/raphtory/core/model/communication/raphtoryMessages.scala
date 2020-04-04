@@ -135,8 +135,8 @@ case class VertexMessageInt(source: Long, vertexID: Long, jobID: String, superSt
 case class VertexMessageFloat(source: Long, vertexID: Long, jobID: String, superStep: Int, data: Float)
         extends VertexMessage
 
-case class VertexMessageStringLong(source: Long, vertexID: Long, jobID: String, superStep: Int, data: (String,Long))
-  extends VertexMessage
+case class VertexMessageStringLong(source: Long, vertexID: Long, jobID: String, superStep: Int, data: (String, Long))
+        extends VertexMessage
 
 case class VertexMessageBatch(
     jobID: String,
@@ -192,11 +192,33 @@ case class ReaderWorkersOnline() extends RaphReadClasses
 case class ReaderWorkersACK()    extends RaphReadClasses
 
 trait AnalysisRequest
-case class LiveAnalysisRequest(jobID:String,analyserName:String,windowType:String="false",windowSize:Long=0L,windowSet:Array[Long]=Array[Long](0)) extends AnalysisRequest
-case class ViewAnalysisRequest(jobID:String,analyserName:String,timestamp:Long,windowType:String="false",windowSize:Long=0L,windowSet:Array[Long]=Array[Long](0)) extends AnalysisRequest
-case class RangeAnalysisRequest(jobID:String,analyserName:String,start:Long,end:Long,jump:Long,windowType:String="false",windowSize:Long=0L,windowSet:Array[Long]=Array[Long](0)) extends AnalysisRequest
+case class LiveAnalysisRequest(
+    jobID: String,
+    analyserName: String,
+    windowType: String = "false",
+    windowSize: Long = 0L,
+    windowSet: Array[Long] = Array[Long](0)
+) extends AnalysisRequest
+case class ViewAnalysisRequest(
+    jobID: String,
+    analyserName: String,
+    timestamp: Long,
+    windowType: String = "false",
+    windowSize: Long = 0L,
+    windowSet: Array[Long] = Array[Long](0)
+) extends AnalysisRequest
+case class RangeAnalysisRequest(
+    jobID: String,
+    analyserName: String,
+    start: Long,
+    end: Long,
+    jump: Long,
+    windowType: String = "false",
+    windowSize: Long = 0L,
+    windowSet: Array[Long] = Array[Long](0)
+) extends AnalysisRequest
 
-case class AnalyserPresentCheck(classname: String)            extends RaphReadClasses
+case class AnalyserPresentCheck(className: String)            extends RaphReadClasses
 case class AnalyserPresent()                                  extends RaphReadClasses
 case class ClassMissing()                                     extends RaphReadClasses
 case class FailedToCompile(stackTrace: String)                extends RaphReadClasses

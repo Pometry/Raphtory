@@ -14,7 +14,7 @@ import spray.json._
   * the correct case Class which can then be passed to the graph manager
   * which will then pass it to the graph partition dealing with the associated vertex
   */
-class RandomRouter(routerId: Int, override val initialManagerCount: Int) extends RouterWorker {
+class RandomRouter(override val routerId: Int, override val initialManagerCount: Int) extends RouterWorker {
 
   //************* MESSAGE HANDLING BLOCK
 

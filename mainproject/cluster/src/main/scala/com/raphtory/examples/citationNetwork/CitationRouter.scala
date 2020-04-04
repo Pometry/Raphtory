@@ -5,7 +5,7 @@ import java.text.SimpleDateFormat
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication._
 
-class CitationRouter(routerId: Int, override val initialManagerCount: Int) extends RouterWorker {
+class CitationRouter(override val routerId: Int, override val initialManagerCount: Int) extends RouterWorker {
 
   def parseTuple(record: Any): Unit = {
 

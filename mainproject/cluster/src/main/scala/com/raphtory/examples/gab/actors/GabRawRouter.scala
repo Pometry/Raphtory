@@ -20,7 +20,7 @@ import spray.json._
   * the correct case Class which can then be passed to the graph manager
   * which will then pass it to the graph partition dealing with the associated vertex
   */
-final class GabRawRouter(val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
+final class GabRawRouter(override val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
   private val nullStr = "null"
   override def parseTuple(record: Any): Unit =
