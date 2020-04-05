@@ -14,7 +14,7 @@ class ViewAnalysisTask(managerCount:Int, jobID: String,args:Array[String], analy
 
   override def restart(): Unit = {
     println(s"View Analysis manager for $jobID at ${time} finished")
-    killme()
+    //killme()
   }
 
   override def processResults(timestamp: Long): Unit =
