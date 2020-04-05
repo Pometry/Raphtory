@@ -234,6 +234,8 @@ case class ClassCompiled()                                    extends RaphReadCl
 case class TimeCheck(timestamp: Long)                         extends RaphReadClasses
 case class TimeResponse(ok: Boolean, time: Long)              extends RaphReadClasses
 case class RequestResults(jobID:String)
+case class KillTask(jobID:String)
+case class JobKilled()
 case class ResultsForApiPI(results:Array[String])
 case class JobDoesntExist()
 case class AllocateJob(record: Any)

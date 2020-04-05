@@ -1,7 +1,7 @@
 package com.raphtory.core.analysis
 
 import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse}
-import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, InvalidActorNameException, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, InvalidActorNameException, PoisonPill, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.http.scaladsl.model.HttpResponse
@@ -41,6 +41,7 @@ class AnalysisManager() extends Actor{
     case request:ViewAnalysisRequest =>  if(!safe) notYet(request) else spawnViewAnalysisManager(request)
     case request:RangeAnalysisRequest => if(!safe) notYet(request) else spawnRangeAnalysisManager(request)
     case RequestResults(jobID) => checkResults(jobID)
+    case KillTask(jobID) => killJob(jobID)
   }
 
   def checkResults(jobID: String) = {
@@ -55,6 +56,15 @@ class AnalysisManager() extends Actor{
       }
     }
     else sender() ! JobDoesntExist()
+  }
+
+  def killJob(jobID: String) = {
+    if(currentTasks contains jobID){
+      currentTasks(jobID) ! PoisonPill
+      currentTasks remove(jobID)
+      sender() ! JobKilled()
+    }
+    else sender()! JobDoesntExist()
   }
 
   def spawnLiveAnalysisManager(request: LiveAnalysisRequest): Unit = {
