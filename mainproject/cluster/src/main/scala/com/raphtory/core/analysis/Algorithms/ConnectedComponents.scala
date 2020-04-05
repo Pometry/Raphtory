@@ -5,7 +5,7 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
-class ConnectedComponents extends Analyser {
+class ConnectedComponents(args:Array[String]) extends Analyser(args){
 
   override def setup(): Unit =
     proxy.getVerticesSet().foreach { v =>

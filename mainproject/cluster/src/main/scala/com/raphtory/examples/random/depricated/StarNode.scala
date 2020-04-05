@@ -15,7 +15,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 //sent to the analyser only the vertex  that had the maximum in-degree value. We sent it as a key value pair to
 // the analyser.
 //
-class StarNode extends Analyser {
+class StarNode(args:Array[String]) extends Analyser(args){
 
   override def analyse(): Unit = {
     val results = ParTrieMap[Int, Int]()

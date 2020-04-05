@@ -6,7 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.util.Random
 
-class BinaryDefusion extends Analyser {
+class BinaryDefusion(args:Array[String]) extends Analyser(args) {
   val infectedNode = 31
   override def setup(): Unit =
     proxy.getVerticesSet().foreach { v =>

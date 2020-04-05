@@ -4,7 +4,7 @@ import com.raphtory.core.analysis.API.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
-class PageRank extends Analyser {
+class PageRank(args:Array[String]) extends Analyser(args){
 
   private val prStr              = "_pageRank"
   private val outgoingCounterStr = "_outgoingCounter"
