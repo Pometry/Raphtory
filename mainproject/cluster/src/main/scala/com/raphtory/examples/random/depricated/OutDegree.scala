@@ -8,7 +8,7 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
-class OutDegree extends Analyser {
+class OutDegree(args:Array[String]) extends Analyser(args){
 
   override def analyse(): Unit = {
     var results = ArrayBuffer[Int]()

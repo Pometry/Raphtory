@@ -93,8 +93,8 @@ class AnalysisManager() extends Actor{
       val start = request.start
       val end   = request.end
       val jump  = request.jump
-      val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
       val args = request.args
+      val analyser = Class.forName(request.analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser]
       request.windowType match {
         case "false" =>
           context.system

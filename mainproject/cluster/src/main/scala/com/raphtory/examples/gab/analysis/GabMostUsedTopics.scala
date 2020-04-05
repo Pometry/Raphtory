@@ -4,7 +4,7 @@ import com.raphtory.core.analysis.API.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
-class GabMostUsedTopics extends Analyser {
+class GabMostUsedTopics(args:Array[String]) extends Analyser(args){
   private var epsilon        = 1
   private val dumplingFactor = 0.85f
   private var firstStep      = true

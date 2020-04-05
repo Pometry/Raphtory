@@ -7,7 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.util.Random
 
-class EthereumTaintTracking extends Analyser {
+class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
   //val infectedNode =System.getenv().getOrDefault("ETHEREUM_TAINT_TRACKING_BAD_ACTOR", "0xa09871aeadf4994ca12f5c0b6056bbd1d343c029").trim
   //val infectionStartingBlock =System.getenv().getOrDefault("ETHEREUM_TAINT_TRACKING_START_BLOCK", "9007863").trim.toLong
   //val infectedNode =System.getenv().getOrDefault("ETHEREUM_TAINT_TRACKING_BAD_ACTOR", "0x52bc44d5378309EE2abF1539BF71dE1b7d7bE3b5").trim.toLowerCase.asInstanceOf[String]
