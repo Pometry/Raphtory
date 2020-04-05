@@ -6,18 +6,16 @@ import com.raphtory.core.analysis.API.GraphLenses.LiveLens
 import scala.collection.mutable.ArrayBuffer
 case class ManagerCount(count: Int)
 case class WorkerID(ID: Int)
-abstract class Analyser extends java.io.Serializable {
+abstract class Analyser(args:Array[String]) extends java.io.Serializable {
   implicit var context: ActorContext      = null
   implicit var managerCount: ManagerCount = null
   implicit var proxy: LiveLens            = null
   var workerID: Int                       = 0
-  var args:Array[String]                  = null
-  final def sysSetup(context: ActorContext, managerCount: ManagerCount, proxy: LiveLens, ID: Int,args:Array[String]) = {
+  final def sysSetup(context: ActorContext, managerCount: ManagerCount, proxy: LiveLens, ID: Int) = {
     this.context = context
     this.managerCount = managerCount
     this.proxy = proxy
     this.workerID = ID
-    this.args = args
   }
 
   def analyse(): Unit

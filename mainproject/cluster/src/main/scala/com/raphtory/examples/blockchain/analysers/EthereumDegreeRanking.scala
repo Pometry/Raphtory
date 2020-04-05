@@ -5,7 +5,7 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
-class EthereumDegreeRanking extends Analyser {
+class EthereumDegreeRanking(args:Array[String]) extends Analyser(args) {
   object sortOrdering extends Ordering[Int] {
     def compare(key1: Int, key2: Int) = key2.compareTo(key1)
   }

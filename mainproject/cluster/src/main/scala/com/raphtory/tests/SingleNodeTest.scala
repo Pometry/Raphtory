@@ -33,16 +33,16 @@ object SingleNodeTest extends App {
 //  val start = 4000000L
 //  val end = 6000000L
 //  val jump =    10
-//  var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
-//  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
+  var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
+  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
 //  Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
 
   //Gab test
     val start = 1470837600000L
     val end =   31525368897000L
     val jump =    3600000
-    var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
-    var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+//    var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+//    var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
 
   //track and trace test
     //var UpdaterName = "com.raphtory.examples.trackAndTrace.spouts.TrackAndTraceSpout"
@@ -64,5 +64,5 @@ object SingleNodeTest extends App {
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents"}' 127.0.0.1:8080/LiveAnalysisRequest
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsViewTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents","timestamp":1476113856000}' 127.0.0.1:8080/ViewAnalysisRequest
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsRangeWindowTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents","start":1475113856000,"end":1475113856000,"jump":3600000,"windowType":"batched","windowSet":[3600000,86000000]}' 127.0.0.1:8080/RangeAnalysisRequest
-
+//curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsRangeWindowTest","analyserName":"com.raphtory.examples.blockchain.analysers.EthereumTaintTracking","start":4000000,"end":6000000,"jump":10,"args":["0xa09871aeadf4994ca12f5c0b6056bbd1d343c029","4000000"]}' 127.0.0.1:8081/RangeAnalysisRequest
 }

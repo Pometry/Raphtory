@@ -9,7 +9,7 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
-class InDegree extends Analyser {
+class InDegree(args:Array[String]) extends Analyser(args){
 
   //To obtain the in degree distribution of the network we need to know the number of time in where an specific degree took place. For example,
   // 10  nodes had an in-degree of 2 in a given time .

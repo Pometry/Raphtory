@@ -19,7 +19,6 @@ import scala.io.Source
 import scala.sys.process._
 
 abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int) extends Actor {
-  analyser.args=args
   private var currentSuperStep    = 0 //SuperStep the algorithm is currently on
 
   private var local: Boolean = Utils.local
@@ -76,7 +75,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
   private def processOtherMessages(value: Any): Unit = println("Not handled message" + value.toString)
   protected def generateAnalyzer: Analyser =
-    if (local) Class.forName(analyser.getClass.getCanonicalName).newInstance().asInstanceOf[Analyser] else analyser
+    if (local)Class.forName(analyser.getClass.getCanonicalName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser] else analyser
   protected def analyserName: String            = generateAnalyzer.getClass.getName
   final protected def getManagerCount: Int      = managerCount
   final protected def getWorkerCount: Int       = managerCount * 10
