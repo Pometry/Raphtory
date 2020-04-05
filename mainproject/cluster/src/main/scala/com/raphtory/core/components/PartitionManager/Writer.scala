@@ -91,10 +91,10 @@ class Writer(
     case msg: String if msg == "log"        => processLogMessage(msg)
     case msg: String if msg == "count"      => processCountMessage(msg)
     case msg: String if msg == "keep_alive" => processKeepAliveMessage(msg)
-    case req: UpdatedCounter                => handleUpdatedCounterRequest(req)
+    case req: UpdatedCounter                => processUpdatedCounterRequest(req)
     case Terminated(child) =>
-      log.warning(s"WriterWorker with patch [{}] belonging to Writer id [{}] has died.", child.path, managerId)
-    case x => log.warning(s"Writer [{}] received unknown message [{}].", managerId, x)
+      log.warning(s"WriterWorker with patch [{}] belonging to Writer [{}] has died.", child.path, managerId)
+    case x => log.warning(s"Writer [{}] received unknown [{}] message.", managerId, x)
   }
 
   def processLogMessage(req: String): Unit = {
@@ -121,8 +121,8 @@ class Writer(
     log.debug(s"DistributedPubSubMediator sent message [{}] to path [{}].", sendMessage, sendPath)
   }
 
-  def handleUpdatedCounterRequest(req: UpdatedCounter): Unit = {
-    log.debug(s"Writer [{}] received request [{}]", managerId, req)
+  def processUpdatedCounterRequest(req: UpdatedCounter): Unit = {
+    log.debug(s"Writer [{}] received request [{}].", managerId, req)
 
     managerCount = req.newValue
 
@@ -131,7 +131,7 @@ class Writer(
     else
       storage.foreach {
         case (_, entityStorage) =>
-          log.debug("Setting manager count for [{}] to [{}]", entityStorage, managerCount)
+          log.debug("Setting manager count for [{}] to [{}].", entityStorage, managerCount)
 
           entityStorage.setManagerCount(managerCount)
       }

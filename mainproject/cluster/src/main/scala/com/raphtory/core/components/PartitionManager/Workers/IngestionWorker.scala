@@ -35,7 +35,7 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     case req: VertexAddWithProperties    => processVertexAddWithPropertiesRequest(req)
     case req: VertexDelete               => processVertexDeleteRequest(req)
     case x =>
-      log.warning(s"IngestionWorker [{}] received unknown message [{}].", workerId, x)
+      log.warning(s"IngestionWorker [{}] received unknown [{}] message.", workerId, x)
   }
 
   def processVertexAddRequest(req: VertexAdd): Unit = {
