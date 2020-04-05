@@ -160,8 +160,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     receivedMessages.set(0)
 
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
-
-    analyzer.sysSetup(context, managerCount, tempProxy, workerId, args)
+    analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {
       analyzer.setup()
       sender ! Ready(tempProxy.getMessages())
@@ -192,7 +191,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     receivedMessages.set(0)
 
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
-    analyzer.sysSetup(context, managerCount, tempProxy, workerId, args)
+    analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {
       analyzer.analyse()
       sender ! EndStep(tempProxy.getMessages(), tempProxy.checkVotes(workerId))
@@ -232,7 +231,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       windowSet: Array[Long]
   ): Unit = {
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
-    analyzer.sysSetup(context, managerCount, tempProxy, workerId, args)
+    analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {
       val result = analyzer.returnResults()
       sender ! ReturnResults(result)

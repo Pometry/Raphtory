@@ -22,7 +22,7 @@ import scala.collection.mutable.ArrayBuffer
 //for the total of the values of how many vertices and edges are in the system.
 // Then we plug these values into the final formula to output the density to file that is written.
 
-class Density extends Analyser {
+class Density(args:Array[String]) extends Analyser(args){
   var output_file  = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
   val inputFormat  = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
   val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
