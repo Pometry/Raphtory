@@ -74,7 +74,7 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
       try {
         implicit val timeout: Timeout = Timeout(10 seconds)
 
-        val sendMessage = ClusterStatusRequest
+        val sendMessage = ClusterStatusRequest()
         val sendPath    = "/user/WatchDog"
 
         log.debug(s"Sending DPSM message [{}] to path [{}].", sendMessage, sendPath)
