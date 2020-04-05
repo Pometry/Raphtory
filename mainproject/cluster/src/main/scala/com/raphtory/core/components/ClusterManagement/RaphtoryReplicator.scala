@@ -87,7 +87,7 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
         giveBirth(myId)
       } catch {
         case _: java.util.concurrent.TimeoutException =>
-          log.error("Failed to retrieve Replicator Id due to timeout.")
+          log.debug("Failed to retrieve Replicator Id due to timeout.")
 
           myId = -1
 
@@ -115,9 +115,9 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
 
     actorType match {
       case "Partition Manager" =>
-        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestPartitionId, localAffinity = false)
+        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestPartitionId(), localAffinity = false)
       case "Router" =>
-        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestRouterId, localAffinity = false)
+        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestRouterId(), localAffinity = false)
     }
   }
 
@@ -157,7 +157,7 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
     actorRefReader =
       context.system.actorOf(Props(new Reader(myId, false, currentCount, storages)), s"ManagerReader_$myId")
 
-    _ = context.system.actorOf(Props(new Archivist(0.3, workers, storages)))
+    context.system.actorOf(Props(new Archivist(0.3, workers, storages)))
 
   }
 

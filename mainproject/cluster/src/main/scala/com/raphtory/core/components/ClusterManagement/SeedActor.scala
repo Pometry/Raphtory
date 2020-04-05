@@ -22,7 +22,7 @@ class SeedActor(svr: DocSvr) extends Actor with ActorLogging {
     case evt: MemberUp          => processMemberUpEvent(evt)
     case evt: MemberRemoved     => processMemberRemovedEvent(evt)
     case evt: UnreachableMember => processUnreachableMemberEvent(evt)
-    case evt: MemberExited      => processMemberRemovedEvent(evt)
+    case evt: MemberExited      => processMemberExitedEvent(evt)
     case x                      => log.warning("SeedActor received unknown [{}] message.", x)
   }
 
@@ -34,7 +34,14 @@ class SeedActor(svr: DocSvr) extends Actor with ActorLogging {
     }
   }
 
-  private def processMemberRemovedEvent(evt: MemberUp): Unit = {
+  private def processMemberRemovedEvent(evt: MemberRemoved): Unit = {
+    log.debug(s"SeedActor received [{}] event.", evt)
+
+    svr.nodes.synchronized {
+      svr.nodes -= evt.member
+    }
+  }
+  private def processMemberExitedEvent(evt: MemberExited): Unit = {
     log.debug(s"SeedActor received [{}] event.", evt)
 
     svr.nodes.synchronized {
