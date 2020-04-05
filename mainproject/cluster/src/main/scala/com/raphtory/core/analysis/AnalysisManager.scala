@@ -71,8 +71,8 @@ class AnalysisManager() extends Actor{
     println(s"Live Analysis Task ${request.jobID} received, running ${request.analyserName}")
     try {
       val jobID = request.jobID
-      val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
       val args = request.args
+      val analyser = Class.forName(request.analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser]
       val ref= request.windowType match {
         case "false" =>
           context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID,args, analyser)), s"LiveAnalysisTask_$jobID")
@@ -92,8 +92,8 @@ class AnalysisManager() extends Actor{
     try{
       val jobID = request.jobID
       val timestamp = request.timestamp
-      val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
       val args = request.args
+      val analyser = Class.forName(request.analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser]
       val ref =request.windowType match {
         case "false" =>
           context.system.actorOf(Props(new ViewAnalysisTask(managerCount,jobID,args,analyser, timestamp)), s"ViewAnalysisTask_$jobID")
