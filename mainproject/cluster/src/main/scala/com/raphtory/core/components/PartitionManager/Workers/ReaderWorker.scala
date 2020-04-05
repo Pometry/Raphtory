@@ -36,31 +36,40 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   override def receive: Receive = {
 
-    case req: UpdatedCounter      => handleUpdatedCounterRequest(req)
+    case req: UpdatedCounter      => processUpdatedCounterRequest(req)
     case req: Setup               => processSetupRequest(req)
     case req: CheckMessages       => processCheckMessagesRequest(req)
     case req: NextStep            => processNextStepRequest(req)
     case req: NextStepNewAnalyser => processNextStepNewAnalyserRequest(req)
     case req: Finish              => processFinishRequest(req)
     case req: VertexMessage       => handleVertexMessage(req)
-
+    case x                        => log.warning("ReaderWorker [{}] belonging to Reader [{}] received unknown [{}] message.", x)
   }
 
-  def handleUpdatedCounterRequest(req: UpdatedCounter): Unit = {
-    log.debug("ReaderWorker [{}] belonging to Reader id [{}] received [{}] request.", managerID, workerId, req)
+  def processUpdatedCounterRequest(req: UpdatedCounter): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
 
     managerCount = ManagerCount(req.newValue)
   }
 
   def processSetupRequest(req: Setup): Unit = {
-    log.debug("ReaderWorker [{}] belonging to Reader id [{}] received [{}] request.", managerID, workerId, req)
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
 
-    try setup(req.analyzer, req.jobID,req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+    try setup(
+            req.analyzer,
+            req.jobID,
+            req.args,
+            req.superStep,
+            req.timestamp,
+            req.analysisType,
+            req.window,
+            req.windowSet
+    )
     catch { case e: Exception => log.error("Failed to run setup due to [{}].", e) }
   }
 
   def processCheckMessagesRequest(req: CheckMessages): Unit = {
-    log.debug("ReaderWorker [{}] belonging to Reader id [{}] received [{}] request.", managerID, workerId, req)
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
 
     var count = AtomicInt(0)
 
@@ -70,20 +79,38 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   }
 
   def processNextStepRequest(req: NextStep): Unit = {
-    log.debug("ReaderWorker [{}] belonging to Reader id [{}] received [{}] request.", managerID, workerId, req)
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
 
-    try nextStep(req.analyzer, req.jobID,req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+    try nextStep(
+            req.analyzer,
+            req.jobID,
+            req.args,
+            req.superStep,
+            req.timestamp,
+            req.analysisType,
+            req.window,
+            req.windowSet
+    )
     catch { case e: Exception => log.error("Failed to run nextStep due to [{}].", e) }
   }
 
   def processNextStepNewAnalyserRequest(req: NextStepNewAnalyser): Unit = {
-    log.debug("ReaderWorker [{}] belonging to Reader id [{}] received [{}] request.", managerID, workerId, req)
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
 
-    nextStepNewAnalyser(req.name, req.jobID,req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+    nextStepNewAnalyser(
+            req.name,
+            req.jobID,
+            req.args,
+            req.superStep,
+            req.timestamp,
+            req.analysisType,
+            req.window,
+            req.windowSet
+    )
   }
 
   def processFinishRequest(req: Finish): Unit = {
-    log.debug("ReaderWorker [{}] belonging to Reader id [{}] received [{}] request.", managerID, workerId, req)
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
 
     try returnResults(
             req.analyzer,
@@ -99,7 +126,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   }
 
   def handleVertexMessage(req: VertexMessage): Unit = {
-    log.debug("ReaderWorker [{}] belonging to Reader id [{}] received [{}] request.", managerID, workerId, req)
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
 
     req match {
       case VertexMessageFloat(_, vertexID, jobID, superStep, data) =>
@@ -123,7 +150,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   def setup(
       analyzer: Analyser,
       jobID: String,
-      args:Array[String],
+      args: Array[String],
       superStep: Int,
       timestamp: Long,
       analysisType: AnalysisType.Value,
@@ -133,7 +160,6 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     receivedMessages.set(0)
 
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
-
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {
       analyzer.setup()
@@ -155,7 +181,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   def nextStep(
       analyzer: Analyser,
       jobID: String,
-      args:Array[String],
+      args: Array[String],
       superStep: Int,
       timestamp: Long,
       analysisType: AnalysisType.Value,
@@ -186,19 +212,18 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   def nextStepNewAnalyser(
       name: String,
       jobID: String,
-      args:Array[String],
+      args: Array[String],
       currentStep: Int,
       timestamp: Long,
       analysisType: AnalysisType.Value,
       window: Long,
       windowSet: Array[Long]
-  ): Unit = nextStep(Utils.analyserMap(name), jobID, args,currentStep, timestamp, analysisType, window, windowSet)
-
+  ): Unit = nextStep(Utils.analyserMap(name), jobID, args, currentStep, timestamp, analysisType, window, windowSet)
 
   def returnResults(
       analyzer: Analyser,
       jobID: String,
-      args:Array[String],
+      args: Array[String],
       superStep: Int,
       timestamp: Long,
       analysisType: AnalysisType.Value,

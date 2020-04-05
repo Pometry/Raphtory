@@ -57,17 +57,17 @@ class Reader(
 
   override def receive: Receive = {
     case ReaderWorkersOnline()     => sender ! ReaderWorkersACK()
-    case req: AnalyserPresentCheck => handleAnalyserPresentCheckRequest(req)
-    case req: TimeCheck            => handleTimeCheckRequest(req)
-    case req: CompileNewAnalyser   => handleCompileNewAnalyserRequest(req)
-    case req: UpdatedCounter       => handleUpdatedCounterRequest(req)
+    case req: AnalyserPresentCheck => processAnalyserPresentCheckRequest(req)
+    case req: TimeCheck            => processTimeCheckRequest(req)
+    case req: CompileNewAnalyser   => processCompileNewAnalyserRequest(req)
+    case req: UpdatedCounter       => processUpdatedCounterRequest(req)
     case SubscribeAck              =>
     case Terminated(child) =>
-      log.warning(s"ReaderWorker with path [{}] belonging to Reader id [{}] has died.", child.path, managerId)
-    case x => log.warning(s"Reader [{}] received unknown message [{}].", managerId, x)
+      log.warning(s"ReaderWorker with path [{}] belonging to Reader [{}] has died.", child.path, managerId)
+    case x => log.warning(s"Reader [{}] received unknown [{}] message.", managerId, x)
   }
 
-  def handleAnalyserPresentCheckRequest(req: AnalyserPresentCheck): Unit = {
+  def processAnalyserPresentCheckRequest(req: AnalyserPresentCheck): Unit = {
     log.debug(s"Reader [{}] received [{}] request.", managerId, req)
 
     val className   = req.className
@@ -86,7 +86,7 @@ class Reader(
     )
   }
 
-  def handleTimeCheckRequest(req: TimeCheck): Unit = {
+  def processTimeCheckRequest(req: TimeCheck): Unit = {
     log.debug(s"Reader [{}] received [{}] request.", managerId, req)
 
     val timestamp = req.timestamp
@@ -104,7 +104,7 @@ class Reader(
     }
   }
 
-  def handleCompileNewAnalyserRequest(req: CompileNewAnalyser): Unit = {
+  def processCompileNewAnalyserRequest(req: CompileNewAnalyser): Unit = {
     log.debug("Reader [{}] received [{}] request.", managerId, req)
 
     val (analyserString, name) = (req.analyser, req.name)
@@ -130,7 +130,7 @@ class Reader(
     )
   }
 
-  def handleUpdatedCounterRequest(req: UpdatedCounter): Unit = {
+  def processUpdatedCounterRequest(req: UpdatedCounter): Unit = {
     log.debug("Reader [{}] received [{}] request.", managerId, req)
 
     managerCount = req.newValue
