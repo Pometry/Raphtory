@@ -72,8 +72,12 @@ class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
     }
   override def processViewResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(String, Long,String)]]].flatten
-    //println(s"Completed block $timeStamp")
-    for (elem <- endResults) {    Utils.writeLines(s"/Users/mirate/Documents/phd/etheroutput/block${timeStamp}.csv", s"${elem._1},${elem._2},${elem._3},", "")}
+    var data = s"{block:$timeStamp,edges:["
+    for (elem <- endResults)
+      data+=s"""{"infected":"${elem._1}","block":"${elem._2}","infector":"${elem._3}"}"""
+    data+="]}"
+    publishData(data)
+    //for (elem <- endResults) {    Utils.writeLines(s"/Users/mirate/Documents/phd/etheroutput/block${timeStamp}.csv", s"${elem._1},${elem._2},${elem._3},", "")}
 
   }
 

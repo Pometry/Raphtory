@@ -18,7 +18,7 @@ import akka.cluster.pubsub._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import com.raphtory.core.clustersetup.util.ConfigUtils.SystemConfig
-import com.raphtory.core.model.communication.{AnalysisRequest, LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
+import com.raphtory.core.model.communication.{AnalysisRequest, JobDoesntExist, LiveAnalysisRequest, RangeAnalysisRequest, RequestResults, ResultsForApiPI, ViewAnalysisRequest}
 import spray.json.DefaultJsonProtocol._
 
 import scala.concurrent.Future
@@ -26,7 +26,6 @@ case class LiveAnalysisPOST(jobID:String, analyserName:String, windowType:Option
 case class ViewAnalysisPOST(jobID:String,analyserName:String,timestamp:Long,windowType:Option[String],windowSize:Option[Long],windowSet:Option[Array[Long]],args:Option[Array[String]])
 case class RangeAnalysisPOST(jobID:String,analyserName:String,start:Long,end:Long,jump:Long,windowType:Option[String],windowSize:Option[Long],windowSet:Option[Array[Long]],args:Option[Array[String]]) extends AnalysisRequest
 case class AnalysisRestApi(system:ActorSystem){
-  println("running 2")
   implicit val system2 = system
   implicit val materializer = ActorMaterializer()
   implicit val t:Timeout = 15.seconds
@@ -68,11 +67,55 @@ case class AnalysisRestApi(system:ActorSystem){
       }
       catch {case e:Exception => e.printStackTrace();HttpResponse(entity = "Your Task Appeared to have some issue, please check your JSON and resubmit")}
     }
+    //get results
+    case HttpRequest(GET,uri,_,entity,_)  => {
+      uri.path.toString() match {
+        case "/AnalysisResults" => analysisResults(uri)
+        case "/KillTask" => killTask(uri)
+        case _ => fourOhFour(uri)
+      }
 
+    }
     case last: HttpRequest => {
       HttpResponse(404, entity = s"unknown address")
     }
   }
+
+  def analysisResults(uri: Uri) = {
+
+    uri.rawQueryString match {
+      case Some(queries) =>
+        val querySplit = queries.split("=")
+        if(querySplit.size==2 && querySplit(0).equals("jobID")) {
+          try {
+            val future = mediator ? DistributedPubSubMediator.Send ("/user/AnalysisManager", RequestResults (querySplit(1): String), localAffinity = false)
+            Await.result(future, t.duration) match {
+              case ResultsForApiPI(results) => outputResults(results)
+              case JobDoesntExist() =>  HttpResponse (entity = s"""JobID given doesn't exist""")
+            }
+          } catch {
+            case _: java.util.concurrent.TimeoutException => HttpResponse (entity = s"""Request timed out""")
+          }
+        }
+        else HttpResponse (entity = s"""Please give only the jobID """)
+      case None => HttpResponse (entity = s"""Please give a jobID """)
+    }
+  }
+
+  def outputResults(results: Array[String]) = {
+    var output = "{results:["
+    results.foreach(result => output+=result)
+    output+="]}"
+    HttpResponse (entity = output)
+  }
+
+  def fourOhFour(uri: Uri) = {HttpResponse(404, entity = s"unknown address")}
+
+  def killTask(uri: Uri)={
+    HttpResponse (entity = s"""To do""")
+  }
+
+
   val serverSource: Source[Http.IncomingConnection, Future[Http.ServerBinding]] =
     Http(system).bind(interface = iface, port = port)
   val bindingFuture: Future[Http.ServerBinding] = serverSource.to(Sink.foreach { connection =>

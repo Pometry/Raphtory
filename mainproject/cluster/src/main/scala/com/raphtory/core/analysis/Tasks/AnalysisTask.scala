@@ -114,11 +114,13 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     case "restart"                     => restart()
     case MessagesReceived(workerID, real, receivedMessages, sentMessages) =>
       messagesReceieved(workerID, real, receivedMessages, sentMessages)
-
-    case ClassMissing()              => classMissing()              //If the class is missing, send the raw source file
-    case FailedToCompile(stackTrace) => failedToCompile(stackTrace) //Your code is broke scrub
-    case _                           => processOtherMessages(_)     //incase some random stuff comes through
+    case RequestResults(jobID)         => returnResults()
+    case ClassMissing()                => classMissing()              //If the class is missing, send the raw source file
+    case FailedToCompile(stackTrace)   => failedToCompile(stackTrace) //Your code is broke scrub
+    case _                             => processOtherMessages(_)     //incase some random stuff comes through
   }
+
+  def returnResults() =sender() ! ResultsForApiPI(analyser.getPublishedData())
 
   def startAnalysis() = {
     for (worker <- Utils.getAllReaders(managerCount))

@@ -3,6 +3,7 @@ package com.raphtory.core.analysis.API
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.GraphLenses.LiveLens
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 case class ManagerCount(count: Int)
 case class WorkerID(ID: Int)
@@ -11,6 +12,7 @@ abstract class Analyser(args:Array[String]) extends java.io.Serializable {
   implicit var managerCount: ManagerCount = null
   implicit var proxy: LiveLens            = null
   var workerID: Int                       = 0
+  private val toPublish:mutable.ArrayBuffer[String] = ArrayBuffer()
   final def sysSetup(context: ActorContext, managerCount: ManagerCount, proxy: LiveLens, ID: Int) = {
     this.context = context
     this.managerCount = managerCount
@@ -18,6 +20,8 @@ abstract class Analyser(args:Array[String]) extends java.io.Serializable {
     this.workerID = ID
   }
 
+  def publishData(data:String) = toPublish +=data
+  def getPublishedData() = toPublish.toArray
   def analyse(): Unit
   def setup(): Unit
   def returnResults(): Any

@@ -1,9 +1,10 @@
 package com.raphtory.core.analysis
 
 import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse}
-import akka.actor.{Actor, ActorSystem, Cancellable, InvalidActorNameException, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, InvalidActorNameException, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.http.scaladsl.model.HttpResponse
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.analysis.API.Analyser
@@ -12,6 +13,8 @@ import com.raphtory.core.analysis.Tasks.RangeTasks.{BWindowedRangeAnalysisTask, 
 import com.raphtory.core.analysis.Tasks.ViewTasks.{BWindowedViewAnalysisTask, ViewAnalysisTask, WindowedViewAnalysisTask}
 import com.raphtory.core.model.communication._
 
+import scala.collection.mutable
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -19,14 +22,13 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 case class StartAnalysis()
 class AnalysisManager() extends Actor{
-
+  implicit val timeout: Timeout = 10.seconds
   final protected val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   val debug = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
-
+  val currentTasks = ParTrieMap[String, ActorRef]()
   private var safe = false
   protected var managerCount: Int = 0 //Number of Managers in the Raphtory Cluster
-
 
   override def preStart() {
     context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "startUp")
@@ -38,6 +40,21 @@ class AnalysisManager() extends Actor{
     case request:LiveAnalysisRequest =>  if(!safe) notYet(request) else spawnLiveAnalysisManager(request)
     case request:ViewAnalysisRequest =>  if(!safe) notYet(request) else spawnViewAnalysisManager(request)
     case request:RangeAnalysisRequest => if(!safe) notYet(request) else spawnRangeAnalysisManager(request)
+    case RequestResults(jobID) => checkResults(jobID)
+  }
+
+  def checkResults(jobID: String) = {
+    if(currentTasks contains jobID){
+      try {
+        val future = currentTasks(jobID) ? RequestResults(jobID:String)
+        Await.result(future, timeout.duration) match {
+          case results:ResultsForApiPI => sender ! results
+        }
+      } catch {
+        case _: java.util.concurrent.TimeoutException =>
+      }
+    }
+    else sender() ! JobDoesntExist()
   }
 
   def spawnLiveAnalysisManager(request: LiveAnalysisRequest): Unit = {
@@ -46,7 +63,7 @@ class AnalysisManager() extends Actor{
       val jobID = request.jobID
       val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
       val args = request.args
-      request.windowType match {
+      val ref= request.windowType match {
         case "false" =>
           context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID,args, analyser)), s"LiveAnalysisTask_$jobID")
         case "true" =>
@@ -54,6 +71,7 @@ class AnalysisManager() extends Actor{
         case "batched" =>
           context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID,args, analyser, request.windowSet)), s"LiveAnalysisTask__batchWindowed_$jobID")
       }
+      currentTasks put (jobID,ref)
     }
     catch {
       case e:InvalidActorNameException => println("Name non unique please kill other job first")
@@ -66,7 +84,7 @@ class AnalysisManager() extends Actor{
       val timestamp = request.timestamp
       val analyser = Class.forName(request.analyserName).newInstance().asInstanceOf[Analyser]
       val args = request.args
-      request.windowType match {
+      val ref =request.windowType match {
         case "false" =>
           context.system.actorOf(Props(new ViewAnalysisTask(managerCount,jobID,args,analyser, timestamp)), s"ViewAnalysisTask_$jobID")
         case "true" =>
@@ -80,6 +98,7 @@ class AnalysisManager() extends Actor{
             s"ViewAnalysisTask_batchWindowed_$jobID"
           )
       }
+      currentTasks put (jobID,ref)
     }
     catch {
       case e:InvalidActorNameException => println("Name non unique please kill other job first")
@@ -95,7 +114,7 @@ class AnalysisManager() extends Actor{
       val jump  = request.jump
       val args = request.args
       val analyser = Class.forName(request.analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser]
-      request.windowType match {
+      val ref = request.windowType match {
         case "false" =>
           context.system
             .actorOf(Props(new RangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump)), s"RangeAnalysisTask_$jobID")
@@ -110,6 +129,7 @@ class AnalysisManager() extends Actor{
             s"RangeAnalysisTask_batchWindowed_$jobID"
           )
       }
+      currentTasks put (jobID,ref)
     }
     catch {
       case e:InvalidActorNameException => println("Name non unique please kill other job first")

@@ -17,16 +17,19 @@ class RangeAnalysisTask(managerCount:Int, jobID: String, args:Array[String],anal
   override def restart(): Unit = {
     if (currentTimestamp == end) {
       println(s"Range Analysis manager for $jobID between ${start} and ${end} finished")
-      killme()
+      //killme()
     }
-    currentTimestamp = currentTimestamp + jump
+    else {
+      currentTimestamp = currentTimestamp + jump
 
-    if (currentTimestamp > end)
-      currentTimestamp = end
+      if (currentTimestamp > end)
+        currentTimestamp = end
 
-    for (worker <- Utils.getAllReaders(managerCount))
-      mediator ! DistributedPubSubMediator
-        .Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$", "")), false)
+      for (worker <- Utils.getAllReaders(managerCount))
+        mediator ! DistributedPubSubMediator
+          .Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$", "")), false)
+    }
+
 
   }
 

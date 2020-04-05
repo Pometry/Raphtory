@@ -233,5 +233,7 @@ case class CompileNewAnalyser(analyser: String, name: String) extends RaphReadCl
 case class ClassCompiled()                                    extends RaphReadClasses
 case class TimeCheck(timestamp: Long)                         extends RaphReadClasses
 case class TimeResponse(ok: Boolean, time: Long)              extends RaphReadClasses
-
+case class RequestResults(jobID:String)
+case class ResultsForApiPI(results:Array[String])
+case class JobDoesntExist()
 case class AllocateJob(record: Any)
