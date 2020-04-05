@@ -18,7 +18,7 @@ import akka.cluster.pubsub._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import com.raphtory.core.clustersetup.util.ConfigUtils.SystemConfig
-import com.raphtory.core.model.communication.{AnalysisRequest, JobDoesntExist, LiveAnalysisRequest, RangeAnalysisRequest, RequestResults, ResultsForApiPI, ViewAnalysisRequest}
+import com.raphtory.core.model.communication.{AnalysisRequest, JobDoesntExist, JobKilled, KillTask, LiveAnalysisRequest, RangeAnalysisRequest, RequestResults, ResultsForApiPI, ViewAnalysisRequest}
 import spray.json.DefaultJsonProtocol._
 
 import scala.concurrent.Future
@@ -112,7 +112,23 @@ case class AnalysisRestApi(system:ActorSystem){
   def fourOhFour(uri: Uri) = {HttpResponse(404, entity = s"unknown address")}
 
   def killTask(uri: Uri)={
-    HttpResponse (entity = s"""To do""")
+    uri.rawQueryString match {
+      case Some(queries) =>
+        val querySplit = queries.split("=")
+        if(querySplit.size==2 && querySplit(0).equals("jobID")) {
+          try {
+            val future = mediator ? DistributedPubSubMediator.Send ("/user/AnalysisManager", KillTask(querySplit(1): String), localAffinity = false)
+            Await.result(future, t.duration) match {
+              case JobKilled() => HttpResponse (entity = s"""Analysis has been stopped for ${querySplit(1)}""")
+              case JobDoesntExist() =>  HttpResponse (entity = s"""JobID given doesn't exist""")
+            }
+          } catch {
+            case _: java.util.concurrent.TimeoutException => HttpResponse (entity = s"""Request timed out""")
+          }
+        }
+        else HttpResponse (entity = s"""Please give only the jobID """)
+      case None => HttpResponse (entity = s"""Please give a jobID """)
+    }
   }
 
 
