@@ -8,7 +8,7 @@ import com.raphtory.core.model.communication.VertexAddWithProperties
 
 import scala.util.hashing.MurmurHash3
 
-class EthereumTransactionRouter(override val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
+class EthereumTransactionRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
 
   override protected def parseTuple(value: Any): Unit = {
     val components   = value.toString.drop(1).dropRight(1).split(",")

@@ -112,15 +112,14 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     case EndStep(messages, voteToHalt) => endStep(messages, voteToHalt) //worker has finished the step
     case ReturnResults(results)        => finaliseJob(results) //worker has finished teh job and is returned the results
     case "restart"                     => restart()
-    case MessagesReceived(workerID, real, receivedMessages, sentMessages) =>
-      messagesReceieved(workerID, real, receivedMessages, sentMessages)
-    case RequestResults(jobID)         => returnResults()
+    case MessagesReceived(workerID, real, receivedMessages, sentMessages) => messagesReceieved(workerID, real, receivedMessages, sentMessages)
+    case RequestResults(jobID)         => requestResults()
     case ClassMissing()                => classMissing()              //If the class is missing, send the raw source file
     case FailedToCompile(stackTrace)   => failedToCompile(stackTrace) //Your code is broke scrub
     case _                             => processOtherMessages(_)     //incase some random stuff comes through
   }
 
-  def returnResults() =sender() ! ResultsForApiPI(analyser.getPublishedData())
+  def requestResults() =sender() ! ResultsForApiPI(analyser.getPublishedData())
 
   def startAnalysis() = {
     for (worker <- Utils.getAllReaders(managerCount))
@@ -371,24 +370,8 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     val file = generateAnalyzer.getClass.getName.replaceAll("\\.", "/").replaceAll("$", "")
     var code = ""
     if (debug) println("pwd" !)
-    try code = readClass(s"../$file.scala") //if inside a contained and the src has been copied
-    catch { case e: FileNotFoundException => code = readClass(s"cluster/src/main/scala/$file.scala") } //if we are running locally inside of the the mainproject folder
     code
   }
 
-  def readClass(file: String): String = {
-    val bufferedSource = Source.fromFile(file)
-    var code           = ""
-    for (line <- bufferedSource.getLines)
-      if (line.startsWith("class ") && line
-            .contains("extends Analyser")) //name of class must be replaced with "new Analyser"
-        if (line.contains("{"))
-          code += "new Analyser{ \n"
-        else
-          code += "new Analyser \n"
-      else if (!line.startsWith("package com.")) //have to also remove package line
-        code += s"$line\n"
-    bufferedSource.close
-    code
-  }
+
 }

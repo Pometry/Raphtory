@@ -26,18 +26,6 @@ class EntityStorage(workerID: Int) {
   import com.raphtory.core.utils.Utils.getPartition
   val debug = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
 
-  var messageCount          = ArrayBuffer[Int](0, 0, 0, 0, 0, 0, 0, 0, 0, 0) // number of messages processed since last report to the benchmarker
-  var secondaryMessageCount = ArrayBuffer[Int](0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-  var workerMessageCount    = ArrayBuffer[Int](0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-
-  var vertexDeletionCount         = ArrayBuffer[Int](0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-  var vertexHistoryDeletionCount  = ArrayBuffer[Int](0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-  var vertexPropertyDeletionCount = ArrayBuffer[Int](0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-
-  var edgeDeletionCount         = ArrayBuffer[Int](0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-  var edgeHistoryDeletionCount  = ArrayBuffer[Int](0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-  var edgePropertyDeletionCount = ArrayBuffer[Int](0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-
   /**
     * Map of vertices contained in the partition
     */
