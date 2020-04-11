@@ -39,6 +39,7 @@ class EntityStorage(workerID: Int) {
   //stuff for compression and archiving
   var oldestTime: Long       = Long.MaxValue
   var newestTime: Long       = Long.MinValue
+  var windowTime: Long       = 0
   var lastCompressedAt: Long = 0
 
   def timings(updateTime: Long) = {
