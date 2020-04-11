@@ -208,9 +208,24 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
 
 
   private def processWatermarkRequest() ={
-    queuedMessageMap.foreach(queue => {
-      //println(s"${workerId} ${queue._1} ${queue._2.dequeueAll}")
-    })
+    if(queuedMessageMap nonEmpty)
+      queuedMessageMap.map(queue => {
+        setSafePoint(queue._1,queue._2).timestamp
+      }).min
+    else 0L
+  }
+
+  private def setSafePoint(routerName:String,messageQueue:mutable.PriorityQueue[queueItem]) = {
+    val default = queueItem(-1,0)
+    var currentSafePoint = safeMessageMap.get(routerName) match {
+      case Some(value) => value
+      case None => default
+    }
+    if(messageQueue nonEmpty)
+      while(messageQueue.headOption.getOrElse(default).routerEpoch==currentSafePoint.routerEpoch+1)
+         currentSafePoint = messageQueue.dequeue()
+    safeMessageMap put (routerName,currentSafePoint)
+    currentSafePoint
   }
 
 
