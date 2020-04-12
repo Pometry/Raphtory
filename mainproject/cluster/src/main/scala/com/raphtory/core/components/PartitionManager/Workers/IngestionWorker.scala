@@ -51,7 +51,7 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     case req: RemoteReturnDeaths         => processRemoteReturnDeathsRequest(req)//The remote worker has returned all removals in the destination node -- for new edges
     case req: EdgeSyncAck                => processEdgeSyncAck(req) //The remote worker acknowledges the completion of an edge sync
 
-    case req: DstAddForOtherWorker       => processDstAddForOtherWorkerRequet(req) //A local writer has requested a new edge sync for a destination node in this worker
+    case req: DstAddForOtherWorker       => processDstAddForOtherWorkerRequest(req) //A local writer has requested a new edge sync for a destination node in this worker
     case req: DstResponseFromOtherWorker => processDstResponseFromOtherWorkerRequest(req)//The local writer has responded with the deletions for local split edge to allow the main writer to insert them
 
     case req: TrackedEdgeDelete          => processEdgeDeleteRequest(req) //Delete an Edge
@@ -63,7 +63,8 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     case req: EdgeRemoveForOtherWorker   => processEdgeRemoveForOtherWorkerRequest(req)
     case req: ReturnEdgeRemoval          => processReturnEdgeRemovalRequest(req)
 
-    case "watermark"                     => processWatermarkRequest(); println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
+    case "watermark"                     => processWatermarkRequest(); //println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
+    case req:RouterWorkerTimeSync        => addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime)
     case x =>
       log.warning(s"IngestionWorker [{}] received unknown [{}] message.", workerId, x)
   }
@@ -88,8 +89,6 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     storage.timings(msgTime)
     addToWatermarkQueue(routerID,routerTime,msgTime)
   }
-
-
 
 
   def processEdgeAddRequest(req: TrackedEdgeAdd): Unit = {
@@ -139,9 +138,10 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime)
   }
 
-  def processDstAddForOtherWorkerRequet(req: DstAddForOtherWorker): Unit = { //local worker asking this one to deal with an incoming edge
+  def processDstAddForOtherWorkerRequest(req: DstAddForOtherWorker): Unit = { //local worker asking this one to deal with an incoming edge
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     storage.vertexWorkerRequest(req.msgTime, req.dstID, req.srcForEdge, req.edge, req.present,req.routerID,req.routerTime)
+    storage.timings(req.msgTime)
   }
 
   def processDstResponseFromOtherWorkerRequest(req: DstResponseFromOtherWorker): Unit = { //local worker responded for a new edge so can watermark, if existing edge will just be an ack
@@ -167,18 +167,19 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
   def processRemoteEdgeRemovalNewRequest(req: RemoteEdgeRemovalNew): Unit = {
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     storage.remoteEdgeRemovalNew(req.msgTime, req.srcID, req.dstID, req.kills,req.routerID,req.routerTime)
-
+    storage.timings(req.msgTime)
   }
 
   def processRemoteEdgeRemovalRequest(req: RemoteEdgeRemoval): Unit = {
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     storage.remoteEdgeRemoval(req.msgTime, req.srcID, req.dstID,req.routerID,req.routerTime)
-
+    storage.timings(req.msgTime)
   }
 
   def processDstWipeForOtherWorkerRequest(req: DstWipeForOtherWorker): Unit = {
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     storage.vertexWipeWorkerRequest(req.msgTime, req.dstID, req.srcForEdge, req.edge, req.present,req.routerID,req.routerTime)
+    storage.timings(req.msgTime)
   }
 
 
@@ -204,33 +205,6 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     storage.returnEdgeRemoval(req.msgTime, req.srcID, req.dstID)
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   private def addToWatermarkQueue(routerID:String,routerTime:Int,msgTime:Long) = {
     queuedMessageMap.get(routerID) match {

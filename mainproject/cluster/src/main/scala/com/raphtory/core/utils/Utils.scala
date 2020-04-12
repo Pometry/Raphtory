@@ -77,6 +77,14 @@ object Utils {
     workers.toArray
   }
 
+  def getAllWriterWorkers(managerCount: Int): Array[String] = {
+    val workers = mutable.ArrayBuffer[String]()
+    for (i <- 0 until managerCount)
+      for (j <- 0 until 10)
+        workers += s"/user/Manager_${i}_child_$j"
+    workers.toArray
+  }
+
   def createHistory(history: mutable.TreeMap[Long, Boolean]): String = {
     if (history.size == 0)
       return ""
