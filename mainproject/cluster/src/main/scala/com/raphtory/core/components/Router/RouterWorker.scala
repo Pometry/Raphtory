@@ -24,10 +24,10 @@ trait RouterWorker extends Actor with ActorLogging {
   val routerId: Int
   val workerID: Int
   var newestTime:Long = 0
-  val writerArray = Utils.getAllReaderWorkers(managerCount)
   private val messageIDs = mutable.HashMap[String, AtomicInteger]()
   /** Private and protected values */
   private var managerCount: Int = initialManagerCount
+  val writerArray = Utils.getAllWriterWorkers(managerCount)
 
   protected def initialManagerCount: Int
   protected def parseTuple(value: Any)
@@ -46,7 +46,7 @@ trait RouterWorker extends Actor with ActorLogging {
 
     val broadcastancellable =
       SchedulerUtil.scheduleTask(initialDelay = 5 seconds, interval = 5 second, receiver = self, message = "timeBroadcast")
-    scheduledTaskMap.put("benchmark", broadcastancellable)
+    scheduledTaskMap.put("timeBroadcast", broadcastancellable)
   }
   override def postStop() {
     val allTasksCancelled = scheduledTaskMap.forall {

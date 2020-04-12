@@ -40,6 +40,8 @@ class EntityStorage(workerID: Int) {
   var oldestTime: Long       = Long.MaxValue
   var newestTime: Long       = 0
   var windowTime: Long       = 0
+  var safeWindowTime:Long    = 0
+  var windowSafe:Boolean     = false
   var lastCompressedAt: Long = 0
 
   def timings(updateTime: Long) = {
