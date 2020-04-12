@@ -73,6 +73,7 @@ case class EdgeRemovalAfterArchiving(msgTime: Long, srcID: Long, dstID: Long)
 
 case class EdgeSyncAck(msgTime: Long, routerID: String, routerTime: Int)
 case class VertexRemoveSyncAck(msgTime: Long, routerID: String, routerTime: Int)
+case class RouterWorkerTimeSync(msgTime:Long,routerID:String,routerTime:Int)
 
 
 case class UpdatedCounter(newValue: Int)

@@ -38,7 +38,7 @@ class EntityStorage(workerID: Int) {
   var windowing: Boolean = Utils.windowing
   //stuff for compression and archiving
   var oldestTime: Long       = Long.MaxValue
-  var newestTime: Long       = Long.MinValue
+  var newestTime: Long       = 0
   var windowTime: Long       = 0
   var lastCompressedAt: Long = 0
 
