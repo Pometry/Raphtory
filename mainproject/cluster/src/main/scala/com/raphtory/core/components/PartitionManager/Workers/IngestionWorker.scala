@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 
-case class queueItem(routerEpoch:Int,timestamp:Long)extends Ordered[queueItem] {
+case class queueItem(routerEpoch:Int,timestamp:Long,safe:Boolean)extends Ordered[queueItem] {
   def compare(that: queueItem): Int = that.routerEpoch-this.routerEpoch
 }
 
@@ -26,19 +26,6 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
 
   private val queuedMessageMap = ParTrieMap[String, mutable.PriorityQueue[queueItem]]()
   private val safeMessageMap = ParTrieMap[String, queueItem]()
-  private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
-
-  override def preStart() {
-    log.debug("IngestionWorker is being started.")
-    scheduleTasks()
-  }
-  override def postStop() {
-    val allTasksCancelled = scheduledTaskMap.forall {
-      case (key, task) =>
-        SchedulerUtil.cancelTask(key, task)
-    }
-    if (!allTasksCancelled) log.warning("Failed to cancel all scheduled tasks post stop.")
-  }
 
   override def receive: Receive = {
     case req: TrackedVertexAdd                  => processVertexAddRequest(req)//Add a new vertex
@@ -64,7 +51,7 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     case req: ReturnEdgeRemoval          => processReturnEdgeRemovalRequest(req)
 
     case "watermark"                     => processWatermarkRequest(); //println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
-    case req:RouterWorkerTimeSync        => addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime)
+    case req:RouterWorkerTimeSync        => processRouterTimeSync(req);
     case x =>
       log.warning(s"IngestionWorker [{}] received unknown [{}] message.", workerId, x)
   }
@@ -87,7 +74,7 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
   private def vertexAddTrack(srcID: Long, msgTime: Long,routerID:String,routerTime:Int): Unit = {
       //Vertex Adds the message time straight into queue as no sync
     storage.timings(msgTime)
-    addToWatermarkQueue(routerID,routerTime,msgTime)
+    addToWatermarkQueue(routerID,routerTime,msgTime,safe=false)
   }
 
 
@@ -108,7 +95,7 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
   private def edgeAddTrack(srcID: Long, dstID: Long, msgTime: Long,local:Boolean,routerID:String,routerTime:Int): Unit = {
     storage.timings(msgTime)
     if(local) //if the edge is totally handled by this worker then we are safe to add to watermark queue
-      addToWatermarkQueue(routerID,routerTime,msgTime)
+      addToWatermarkQueue(routerID,routerTime,msgTime,safe=false)
   }
 
   def processRemoteEdgeAddRequest(req: RemoteEdgeAdd): Unit = {
@@ -130,12 +117,12 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
   def processRemoteReturnDeathsRequest(req: RemoteReturnDeaths): Unit = { //when the new edge add is responded to we can say it is synced
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     storage.remoteReturnDeaths(req.msgTime, req.srcID, req.dstID, req.kills)
-    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime)
+    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,safe=false)
   }
 
   def processEdgeSyncAck(req: EdgeSyncAck) = { //when the edge isn't new we will get this response instead
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
-    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime)
+    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,safe=false)
   }
 
   def processDstAddForOtherWorkerRequest(req: DstAddForOtherWorker): Unit = { //local worker asking this one to deal with an incoming edge
@@ -147,7 +134,7 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
   def processDstResponseFromOtherWorkerRequest(req: DstResponseFromOtherWorker): Unit = { //local worker responded for a new edge so can watermark, if existing edge will just be an ack
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     storage.vertexWorkerRequestEdgeHandler(req.msgTime, req.srcForEdge, req.dstID, req.removeList)
-    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime)
+    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,safe=false)
   }
 
 
@@ -161,7 +148,7 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
   private def edgeDeleteTrack(msgTime: Long,local:Boolean,routerID:String,routerTime:Int): Unit = {
     storage.timings(msgTime)
     if(local) //if the edge is totally handled by this worker then we are safe to add to watermark queue
-      addToWatermarkQueue(routerID,routerTime,msgTime)
+      addToWatermarkQueue(routerID,routerTime,msgTime,safe=false)
   }
 
   def processRemoteEdgeRemovalNewRequest(req: RemoteEdgeRemovalNew): Unit = {
@@ -181,8 +168,6 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     storage.vertexWipeWorkerRequest(req.msgTime, req.dstID, req.srcForEdge, req.edge, req.present,req.routerID,req.routerTime)
     storage.timings(req.msgTime)
   }
-
-
 
 
   def processVertexDeleteRequest(req: TrackedVertexDelete): Unit = {
@@ -206,26 +191,32 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     storage.returnEdgeRemoval(req.msgTime, req.srcID, req.dstID)
   }
 
-  private def addToWatermarkQueue(routerID:String,routerTime:Int,msgTime:Long) = {
+  private def addToWatermarkQueue(routerID:String,routerTime:Int,msgTime:Long,safe:Boolean) = {
     queuedMessageMap.get(routerID) match {
-      case Some(queue) => queue += queueItem(routerTime,msgTime)
+      case Some(queue) => queue += queueItem(routerTime,msgTime,safe)
       case None =>
         val queue = new mutable.PriorityQueue[queueItem]()
-        queue += queueItem(routerTime,msgTime)
+        queue += queueItem(routerTime,msgTime,safe)
         queuedMessageMap put(routerID,queue)
     }
   }
 
   private def processWatermarkRequest() ={
-    storage.windowTime = if(queuedMessageMap nonEmpty)
-      queuedMessageMap.map(queue => {
-        setSafePoint(queue._1,queue._2).timestamp
-      }).min
-    else 0L
+
+      if(queuedMessageMap nonEmpty) {
+        val queueState = queuedMessageMap.map(queue => {
+          setSafePoint(queue._1, queue._2)
+        })
+        val timestamps = queueState.map(q => q.timestamp)
+        storage.windowTime = timestamps.min
+        storage.safeWindowTime = timestamps.max
+        storage.windowSafe = queueState.map(q=>q.safe).fold(true)(_&&_) //if all safe then safe
+        //println(s"Worker $workerId lowest watermarked time: ${storage.windowTime} Highest watermarked time:${storage.safeWindowTime} Safe to use High time: ${storage.windowSafe}")
+      }
   }
 
   private def setSafePoint(routerName:String,messageQueue:mutable.PriorityQueue[queueItem]) = {
-    val default = queueItem(-1,0)
+    val default = queueItem(-1,0,false)
     var currentSafePoint = safeMessageMap.get(routerName) match {
       case Some(value) => value
       case None => default
@@ -237,10 +228,29 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     currentSafePoint
   }
 
+  private def processRouterTimeSync(req:RouterWorkerTimeSync) ={
+    storage.timings(req.msgTime)
+    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,true)
+  }
 
+
+
+
+
+  private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
+  override def preStart() {
+    log.debug("IngestionWorker is being started.")
+    scheduleTasks()
+  }
+  override def postStop() {
+    val allTasksCancelled = scheduledTaskMap.forall {
+      case (key, task) =>
+        SchedulerUtil.cancelTask(key, task)
+    }
+    if (!allTasksCancelled) log.warning("Failed to cancel all scheduled tasks post stop.")
+  }
   private def scheduleTasks(): Unit = {
     log.debug("Preparing to schedule tasks in Spout.")
-
     val watermarkCancellable =
       SchedulerUtil.scheduleTask(initialDelay = 7 seconds, interval = 1 second, receiver = self, message = "watermark")
     scheduledTaskMap.put("watermark", watermarkCancellable)
