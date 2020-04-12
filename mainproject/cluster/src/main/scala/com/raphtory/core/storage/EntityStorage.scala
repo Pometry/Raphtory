@@ -112,16 +112,22 @@ class EntityStorage(workerID: Int) {
       )
   }
 
-  def vertexWipeWorkerRequest(msgTime: Long, dstID: Long, srcID: Long, edge: Edge, present: Boolean) = {
+  def vertexWipeWorkerRequest(msgTime: Long, dstID: Long, srcID: Long, edge: Edge, present: Boolean,routerID:String,routerTime:Int) = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstID) // if the worker creating an edge does not deal with do the same for the destination ID
     if (!present) {
       dstVertex addIncomingEdge edge // do the same for the destination node
-      mediator ! DistributedPubSubMediator.Send(
+      mediator ! DistributedPubSubMediator.Send( //as it is new respond with teh deletions
               getManager(srcID, managerCount),
-              DstResponseFromOtherWorker(msgTime, srcID, dstID, dstVertex.removeList),
+              DstResponseFromOtherWorker(msgTime, srcID, dstID, dstVertex.removeList,routerID,routerTime),
               false
       )
     }
+    else
+      mediator ! DistributedPubSubMediator.Send( //if this edge is not new we just need to ack
+        getManager(srcID, managerCount),
+        EdgeSyncAck(msgTime, routerID, routerTime),
+        false
+      )
   }
 
   def vertexWorkerRequestEdgeHandler(
@@ -135,7 +141,7 @@ class EntityStorage(workerID: Int) {
       case None       => println("Oh no")
     }
 
-  def vertexRemoval(msgTime: Long, srcId: Long): Unit = {
+  def vertexRemoval(msgTime: Long, srcId: Long,routerID:String,routerTime:Int): Unit = {
     val vertex: Vertex = vertices.get(srcId) match {
       case Some(v) =>
         v kill msgTime
@@ -167,7 +173,7 @@ class EntityStorage(workerID: Int) {
         edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
         mediator ! DistributedPubSubMediator.Send(
                 getManager(edge.getDstId, managerCount),
-                RemoteEdgeRemoval(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId),
+                RemoteEdgeRemoval(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId,routerID,routerTime),
                 false
         )
       case edge =>
@@ -265,7 +271,7 @@ class EntityStorage(workerID: Int) {
     mediator ! DistributedPubSubMediator.Send(getManager(srcId, managerCount), EdgeSyncAck(msgTime, routerID, routerTime), true)
   }
 
-  def edgeRemoval(msgTime: Long, srcId: Long, dstId: Long): Unit = {
+  def edgeRemoval(msgTime: Long, srcId: Long, dstId: Long, routerID: String, routerTime: Int): Boolean = {
     val local      = checkDst(dstId, managerCount, managerID)
     val sameWorker = checkWorker(dstId, managerCount, workerID) // is the dst handled by the same worker
 
@@ -301,14 +307,14 @@ class EntityStorage(workerID: Int) {
         }
       } else // if it is a different worker, ask that other worker to complete the dst part of the edge
         mediator ! DistributedPubSubMediator
-          .Send(getManager(dstId, managerCount), DstWipeForOtherWorker(msgTime, dstId, srcId, edge, present), true)
+          .Send(getManager(dstId, managerCount), DstWipeForOtherWorker(msgTime, dstId, srcId, edge, present, routerID, routerTime), true)
 
     if (present) {
       edge kill msgTime
       if (!local)
         mediator ! DistributedPubSubMediator.Send(
                 getManager(dstId, managerCount),
-                RemoteEdgeRemoval(msgTime, srcId, dstId),
+                RemoteEdgeRemoval(msgTime, srcId, dstId, routerID, routerTime),
                 false
         ) // inform the partition dealing with the destination node
     } else {
@@ -316,8 +322,9 @@ class EntityStorage(workerID: Int) {
       edge killList deaths
       if (!local)
         mediator ! DistributedPubSubMediator
-          .Send(getManager(dstId, managerCount), RemoteEdgeRemovalNew(msgTime, srcId, dstId, deaths), false)
+          .Send(getManager(dstId, managerCount), RemoteEdgeRemovalNew(msgTime, srcId, dstId, deaths, routerID, routerTime), false)
     }
+    local && sameWorker
   }
 
   def returnEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long): Unit = //for the source getting an update abou
@@ -332,15 +339,20 @@ class EntityStorage(workerID: Int) {
       case None       => //todo should this happen?
     }
 
-  def remoteEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long): Unit = {
+  def remoteEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long,routerID:String,routerTime:Int): Unit = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.getIncomingEdge(srcId) match {
       case Some(e) => e kill msgTime
       case None    => println(s"Worker ID $workerID Manager ID $managerID")
     }
+    mediator ! DistributedPubSubMediator.Send( //if this edge is not new we just need to ack
+      getManager(srcId, managerCount),
+      EdgeSyncAck(msgTime, routerID, routerTime),
+      false
+    )
   }
 
-  def remoteEdgeRemovalNew(msgTime: Long, srcId: Long, dstId: Long, srcDeaths: mutable.TreeMap[Long, Boolean]): Unit = {
+  def remoteEdgeRemovalNew(msgTime: Long, srcId: Long, dstId: Long, srcDeaths: mutable.TreeMap[Long, Boolean],routerID:String,routerTime:Int): Unit = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     val edge =
       new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = false, getPartition(srcId, managerCount), this)
@@ -349,7 +361,7 @@ class EntityStorage(workerID: Int) {
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths    // pass destination node death lists to the edge
     mediator ! DistributedPubSubMediator
-      .Send(getManager(srcId, managerCount), RemoteReturnDeaths(msgTime, srcId, dstId, deaths), false)
+      .Send(getManager(srcId, managerCount), RemoteReturnDeaths(msgTime, srcId, dstId, deaths,routerID,routerTime), false)
   }
 
   def remoteReturnDeaths(msgTime: Long, srcId: Long, dstId: Long, dstDeaths: mutable.TreeMap[Long, Boolean]): Unit = {

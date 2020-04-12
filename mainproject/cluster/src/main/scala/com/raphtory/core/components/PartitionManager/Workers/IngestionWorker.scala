@@ -54,17 +54,16 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     case req: DstAddForOtherWorker       => processDstAddForOtherWorkerRequet(req) //A local writer has requested a new edge sync for a destination node in this worker
     case req: DstResponseFromOtherWorker => processDstResponseFromOtherWorkerRequest(req)//The local writer has responded with the deletions for local split edge to allow the main writer to insert them
 
-    case req: TrackedEdgeDelete          => processEdgeDeleteRequest(req)
-    case req: RemoteEdgeRemovalNew       => processRemoteEdgeRemovalNewRequest(req)
-    case req: RemoteEdgeRemoval          => processRemoteEdgeRemovalRequest(req)
-
-    case req: EdgeRemoveForOtherWorker   => processEdgeRemoveForOtherWorkerRequest(req)
-    case req: DstWipeForOtherWorker      => processDstWipeForOtherWorkerRequest(req)
+    case req: TrackedEdgeDelete          => processEdgeDeleteRequest(req) //Delete an Edge
+    case req: RemoteEdgeRemovalNew       => processRemoteEdgeRemovalNewRequest(req) //A remote worker is asking for a new edge to be removed for a destination node in this worker
+    case req: RemoteEdgeRemoval          => processRemoteEdgeRemovalRequest(req) //A remote worker is asking for the deletion of an existing edge
+    case req: DstWipeForOtherWorker      => processDstWipeForOtherWorkerRequest(req)//A local worker is asking for a new edge sync for a destination node for this worker
 
     case req: TrackedVertexDelete        => processVertexDeleteRequest(req)
+    case req: EdgeRemoveForOtherWorker   => processEdgeRemoveForOtherWorkerRequest(req)
     case req: ReturnEdgeRemoval          => processReturnEdgeRemovalRequest(req)
 
-    case "watermark"                     => processWatermarkRequest()
+    case "watermark"                     => processWatermarkRequest(); println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
     case x =>
       log.warning(s"IngestionWorker [{}] received unknown [{}] message.", workerId, x)
   }
@@ -155,16 +154,40 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
   def processEdgeDeleteRequest(req: TrackedEdgeDelete): Unit = {
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     val update = req.update
-    storage.edgeRemoval(update.msgTime, update.srcID, update.dstID)
-    eHandle(update.srcID, update.dstID, update.msgTime)
+    val local = storage.edgeRemoval(update.msgTime, update.srcID, update.dstID,req.routerID,req.messageID)
+    edgeDeleteTrack(update.msgTime,local,req.routerID,req.messageID)
   }
+
+  private def edgeDeleteTrack(msgTime: Long,local:Boolean,routerID:String,routerTime:Int): Unit = {
+    storage.timings(msgTime)
+    if(local) //if the edge is totally handled by this worker then we are safe to add to watermark queue
+      addToWatermarkQueue(routerID,routerTime,msgTime)
+  }
+
+  def processRemoteEdgeRemovalNewRequest(req: RemoteEdgeRemovalNew): Unit = {
+    log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
+    storage.remoteEdgeRemovalNew(req.msgTime, req.srcID, req.dstID, req.kills,req.routerID,req.routerTime)
+
+  }
+
+  def processRemoteEdgeRemovalRequest(req: RemoteEdgeRemoval): Unit = {
+    log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
+    storage.remoteEdgeRemoval(req.msgTime, req.srcID, req.dstID,req.routerID,req.routerTime)
+
+  }
+
+  def processDstWipeForOtherWorkerRequest(req: DstWipeForOtherWorker): Unit = {
+    log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
+    storage.vertexWipeWorkerRequest(req.msgTime, req.dstID, req.srcForEdge, req.edge, req.present,req.routerID,req.routerTime)
+  }
+
 
 
 
   def processVertexDeleteRequest(req: TrackedVertexDelete): Unit = {
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     val update = req.update
-    storage.vertexRemoval(update.msgTime, update.srcID)
+    storage.vertexRemoval(update.msgTime, update.srcID,req.routerID,req.messageID)
     vertexDeleteTrack(update.srcID, update.msgTime,req.routerID,req.messageID)
   }
   private def vertexDeleteTrack(srcID: Long, msgTime: Long,routerID:String,routerTime:Int): Unit = {
@@ -172,53 +195,35 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
   }
 
 
-
-
-
-
-
-
-  def processDstWipeForOtherWorkerRequest(req: DstWipeForOtherWorker): Unit = {
-    log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
-
-    storage.vertexWipeWorkerRequest(req.msgTime, req.dstID, req.srcForEdge, req.edge, req.present)
-    wHandle()
-  }
-
-
-
   def processEdgeRemoveForOtherWorkerRequest(req: EdgeRemoveForOtherWorker): Unit = {
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
-
     storage.edgeRemovalFromOtherWorker(req.msgTime, req.srcID, req.dstID)
-    wHandle()
-  }
-
-
-
-
-
-
-  def processRemoteEdgeRemovalRequest(req: RemoteEdgeRemoval): Unit = {
-    log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
-
-    storage.remoteEdgeRemoval(req.msgTime, req.srcID, req.dstID)
-    eHandleSecondary(req.srcID, req.dstID, req.msgTime)
-  }
-
-  def processRemoteEdgeRemovalNewRequest(req: RemoteEdgeRemovalNew): Unit = {
-    log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
-
-    storage.remoteEdgeRemovalNew(req.msgTime, req.srcID, req.dstID, req.kills)
-    eHandleSecondary(req.srcID, req.dstID, req.msgTime)
   }
 
   def processReturnEdgeRemovalRequest(req: ReturnEdgeRemoval): Unit = {
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
-
     storage.returnEdgeRemoval(req.msgTime, req.srcID, req.dstID)
-    eHandleSecondary(req.srcID, req.dstID, req.msgTime)
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -238,7 +243,7 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
   }
 
   private def processWatermarkRequest() ={
-    if(queuedMessageMap nonEmpty)
+    storage.windowTime = if(queuedMessageMap nonEmpty)
       queuedMessageMap.map(queue => {
         setSafePoint(queue._1,queue._2).timestamp
       }).min
