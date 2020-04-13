@@ -48,6 +48,9 @@ class GabExampleSpout extends SpoutTrait {
         }
         AllocateSpoutTask(Duration(1, NANOSECONDS), "newLine")
       }
+      else{
+        println("Finished ingestion")
+      }
     case _ => println("message not recognized!")
   }
 }

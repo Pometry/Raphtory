@@ -191,11 +191,10 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
 
   def processVertexRemoveSyncAck(req:VertexRemoveSyncAck)= {
     vDeleteCountdownMap.get((req.routerID,req.routerTime)) match {
-      case Some(integer) => if(integer.decrementAndGet()<=0){
+      case Some(integer) => if(integer.decrementAndGet()==0){
         addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,safe=false)
-        //vDeleteCountdownMap.remove((req.routerID,req.routerTime)) //todo improve this datastructure
+        vDeleteCountdownMap.remove((req.routerID,req.routerTime)) //todo improve this datastructure
       }
-        //else println(integer.get())
       case None          => println("Should never Happen")
     }
   }
@@ -217,12 +216,6 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     storage.returnEdgeRemoval(req.msgTime, req.srcID, req.dstID,req.routerID,req.routerTime)
   }
 
-
-
-
-
-
-
   private def addToWatermarkQueue(routerID:String,routerTime:Int,msgTime:Long,safe:Boolean) = {
     queuedMessageMap.get(routerID) match {
       case Some(queue) => queue += queueItem(routerTime,msgTime,safe)
@@ -243,7 +236,8 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
         storage.windowTime = timestamps.min
         storage.safeWindowTime = timestamps.max
         storage.windowSafe = queueState.map(q=>q.safe).fold(true)(_&&_) //if all safe then safe
-        //println(s"Worker $workerId lowest watermarked time: ${storage.windowTime} Highest watermarked time:${storage.safeWindowTime} Safe to use High time: ${storage.windowSafe}")
+        //println(s"$workerId $queueState")
+//        println(s"Worker $workerId lowest watermarked time: ${storage.windowTime} Highest watermarked time:${storage.safeWindowTime} Safe to use High time: ${storage.windowSafe}")
       }
   }
 
@@ -257,6 +251,7 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
       while(messageQueue.headOption.getOrElse(default).routerEpoch==currentSafePoint.routerEpoch+1)
          currentSafePoint = messageQueue.dequeue()
     safeMessageMap put (routerName,currentSafePoint)
+
     currentSafePoint
   }
 
@@ -284,7 +279,7 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
   private def scheduleTasks(): Unit = {
     log.debug("Preparing to schedule tasks in Spout.")
     val watermarkCancellable =
-      SchedulerUtil.scheduleTask(initialDelay = 7 seconds, interval = 1 second, receiver = self, message = "watermark")
+      SchedulerUtil.scheduleTask(initialDelay = 7 seconds, interval = 10 second, receiver = self, message = "watermark")
     scheduledTaskMap.put("watermark", watermarkCancellable)
 
   }
