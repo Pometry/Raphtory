@@ -31,9 +31,7 @@ class GabUserGraphRouter(override val routerId: Int,override val workerID:Int, o
       sendGraphUpdate(VertexAdd(creationDate, sourceNode, Type("User")))
       sendGraphUpdate(VertexAdd(creationDate, targetNode, Type("User")))
       sendGraphUpdate(EdgeAdd(creationDate, sourceNode, targetNode, Type("User to User")))
-      if(sourceNode%5==0)
-        sendGraphUpdate(VertexDelete(creationDate+1,sourceNode))
-      sendGraphUpdate(EdgeDelete(creationDate+1,sourceNode,targetNode))
+
     }
 
   }

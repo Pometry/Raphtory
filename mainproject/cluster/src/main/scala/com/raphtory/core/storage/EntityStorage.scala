@@ -155,35 +155,80 @@ class EntityStorage(workerID: Int) {
         vertices put (srcId, v) //add it to the map
         v
     }
-     vertex.incomingEdges.values.foreach {
-      case edge @ (remoteEdge: SplitEdge) =>
-        edge kill msgTime
-        mediator ! DistributedPubSubMediator.Send(
-                getManager(remoteEdge.getSrcId, managerCount),
-                ReturnEdgeRemoval(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId,routerID,routerTime),
-                false
-        ) //inform the other partition to do the same
-      case edge => //if it is a local edge -- opperated by the same worker, therefore we can perform an action -- otherwise we must inform the other local worker to handle this
-        if (edge.getWorkerID == workerID) edge kill msgTime
-        else
+    //todo decide with hamza which one to use
+
+//     vertex.incomingEdges.values.foreach {
+//      case edge @ (remoteEdge: SplitEdge) =>
+//        edge kill msgTime
+//        mediator ! DistributedPubSubMediator.Send(
+//                getManager(remoteEdge.getSrcId, managerCount),
+//                ReturnEdgeRemoval(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId,routerID,routerTime),
+//                false
+//        ) //inform the other partition to do the same
+//      case edge => //if it is a local edge -- opperated by the same worker, therefore we can perform an action -- otherwise we must inform the other local worker to handle this
+//        if (edge.getWorkerID == workerID) edge kill msgTime
+//        else
+//          mediator ! DistributedPubSubMediator.Send(
+//                  getManager(edge.getSrcId, managerCount),
+//                  EdgeRemoveForOtherWorker(msgTime, edge.getSrcId, edge.getDstId,routerID,routerTime),
+//                  false
+//          ) //
+//    }
+//    vertex.outgoingEdges.values.foreach {
+//      case edge @ (remoteEdge: SplitEdge) =>
+//        edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
+//        mediator ! DistributedPubSubMediator.Send(
+//                getManager(edge.getDstId, managerCount),
+//                RemoteEdgeRemovalFromVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId,routerID,routerTime),
+//                false
+//        )
+//      case edge =>
+//        edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
+//    }
+
+    val incomingCount = vertex.incomingEdges.map(edge => {
+      edge._2 match {
+        case edge@(remoteEdge: SplitEdge) =>
+          edge kill msgTime
           mediator ! DistributedPubSubMediator.Send(
-                  getManager(edge.getSrcId, managerCount),
-                  EdgeRemoveForOtherWorker(msgTime, edge.getSrcId, edge.getDstId,routerID,routerTime),
-                  false
-          ) //
-    }
-    vertex.outgoingEdges.values.foreach {
-      case edge @ (remoteEdge: SplitEdge) =>
-        edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
-        mediator ! DistributedPubSubMediator.Send(
-                getManager(edge.getDstId, managerCount),
-                RemoteEdgeRemovalFromVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId,routerID,routerTime),
-                false
-        )
-      case edge =>
-        edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
-    }
-    vertex.getEdgesRequringSync()
+            getManager(remoteEdge.getSrcId, managerCount),
+            ReturnEdgeRemoval(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId, routerID, routerTime),
+            false
+          ) //inform the other partition to do the same
+          1
+        case edge => //if it is a local edge -- opperated by the same worker, therefore we can perform an action -- otherwise we must inform the other local worker to handle this
+          if (edge.getWorkerID == workerID) {
+            edge kill msgTime
+            0
+          }
+          else {
+            mediator ! DistributedPubSubMediator.Send(
+              getManager(edge.getSrcId, managerCount),
+              EdgeRemoveForOtherWorker(msgTime, edge.getSrcId, edge.getDstId, routerID, routerTime),
+              false
+            ) //
+            1
+          }
+      }
+    })
+    val outgoingCount = vertex.outgoingEdges.map (edge=>{
+      edge._2 match {
+        case edge@(remoteEdge: SplitEdge) =>
+          edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
+          mediator ! DistributedPubSubMediator.Send(
+            getManager(edge.getDstId, managerCount),
+            RemoteEdgeRemovalFromVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId, routerID, routerTime),
+            false
+          )
+          1
+        case edge =>
+          edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
+          0
+      }
+    })
+    if(!(incomingCount.sum+outgoingCount.sum == vertex.getEdgesRequringSync()))
+      println(s"Incorrect ${incomingCount.sum+outgoingCount.sum} ${vertex.getEdgesRequringSync()}")
+    incomingCount.sum+outgoingCount.sum
   }
 
   /**
@@ -239,7 +284,7 @@ class EntityStorage(workerID: Int) {
         )
     }
     addProperties(msgTime, edge, properties)
-    if(!(local && sameWorker) && !present) //if its not fully local and is new then increment the count for edges requireing a watermark count
+    if(!local && !present) //if its not fully local and is new then increment the count for edges requireing a watermark count
       srcVertex.incrementEdgesRequiringSync()
     local && sameWorker //return if the edge has no sync
   }
@@ -332,7 +377,7 @@ class EntityStorage(workerID: Int) {
         mediator ! DistributedPubSubMediator
           .Send(getManager(dstId, managerCount), RemoteEdgeRemovalNew(msgTime, srcId, dstId, deaths, routerID, routerTime), false)
     }
-    if(!(local && sameWorker) && !present) //if its not fully local and is new then increment the count for edges requireing a watermark count
+    if(!local && !present) //if its not fully local and is new then increment the count for edges requireing a watermark count
       srcVertex.incrementEdgesRequiringSync()
     local && sameWorker
   }
