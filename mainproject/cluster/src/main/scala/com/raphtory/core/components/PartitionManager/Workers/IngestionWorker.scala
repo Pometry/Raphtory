@@ -26,6 +26,7 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
 
   private val queuedMessageMap = ParTrieMap[String, mutable.PriorityQueue[queueItem]]()
   private val safeMessageMap = ParTrieMap[String, queueItem]()
+  private val vDeleteCountdownMap = ParTrieMap[(String,Int), AtomicInteger]()
 
   override def receive: Receive = {
     case req: TrackedVertexAdd                  => processVertexAddRequest(req)//Add a new vertex
@@ -46,9 +47,12 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
     case req: RemoteEdgeRemoval          => processRemoteEdgeRemovalRequest(req) //A remote worker is asking for the deletion of an existing edge
     case req: DstWipeForOtherWorker      => processDstWipeForOtherWorkerRequest(req)//A local worker is asking for a new edge sync for a destination node for this worker
 
-    case req: TrackedVertexDelete        => processVertexDeleteRequest(req)
-    case req: EdgeRemoveForOtherWorker   => processEdgeRemoveForOtherWorkerRequest(req)
-    case req: ReturnEdgeRemoval          => processReturnEdgeRemovalRequest(req)
+    case req: TrackedVertexDelete        => processVertexDeleteRequest(req) //Delete a vertex and all associated edges
+    case req: RemoteEdgeRemovalFromVertex=> processRemoteEdgeRemovalRequestFromVertex(req) //Does exactly the same as above, but for when the removal comes form a vertex
+    case req: EdgeRemoveForOtherWorker   => processEdgeRemoveForOtherWorkerRequest(req) //Handle the deletion of an outgoing edge from a vertex deletion on a local worker
+    case req: ReturnEdgeRemoval          => processReturnEdgeRemovalRequest(req) // Excatly the same as above, but for a remote worker
+
+    case req:VertexRemoveSyncAck         => processVertexRemoveSyncAck(req)
 
     case "watermark"                     => processWatermarkRequest(); //println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
     case req:RouterWorkerTimeSync        => processRouterTimeSync(req);
@@ -173,23 +177,51 @@ class IngestionWorker(workerId: Int, storage: EntityStorage) extends Actor with 
   def processVertexDeleteRequest(req: TrackedVertexDelete): Unit = {
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     val update = req.update
-    storage.vertexRemoval(update.msgTime, update.srcID,req.routerID,req.messageID)
-    vertexDeleteTrack(update.srcID, update.msgTime,req.routerID,req.messageID)
+    val totalCount = storage.vertexRemoval(update.msgTime, update.srcID,req.routerID,req.messageID)
+    vertexDeleteTrack(update.srcID, update.msgTime,req.routerID,req.messageID,totalCount)
   }
-  private def vertexDeleteTrack(srcID: Long, msgTime: Long,routerID:String,routerTime:Int): Unit = {
+  private def vertexDeleteTrack(srcID: Long, msgTime: Long,routerID:String,routerTime:Int,totalCount:Int): Unit = {
+    if(totalCount==0) //if there are no outgoing edges it is safe to watermark
+      addToWatermarkQueue(routerID,routerTime,msgTime,safe=false)
+    else{
+      vDeleteCountdownMap put ((routerID,routerTime),new AtomicInteger(totalCount))
+    }
     storage.timings(msgTime)
   }
 
-
-  def processEdgeRemoveForOtherWorkerRequest(req: EdgeRemoveForOtherWorker): Unit = {
-    log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
-    storage.edgeRemovalFromOtherWorker(req.msgTime, req.srcID, req.dstID)
+  def processVertexRemoveSyncAck(req:VertexRemoveSyncAck)= {
+    vDeleteCountdownMap.get((req.routerID,req.routerTime)) match {
+      case Some(integer) => if(integer.decrementAndGet()<=0){
+        addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,safe=false)
+        //vDeleteCountdownMap.remove((req.routerID,req.routerTime)) //todo improve this datastructure
+      }
+        //else println(integer.get())
+      case None          => println("Should never Happen")
+    }
   }
 
-  def processReturnEdgeRemovalRequest(req: ReturnEdgeRemoval): Unit = {
+
+  def processRemoteEdgeRemovalRequestFromVertex(req: RemoteEdgeRemovalFromVertex): Unit = {
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
-    storage.returnEdgeRemoval(req.msgTime, req.srcID, req.dstID)
+    storage.remoteEdgeRemovalFromVertex(req.msgTime, req.srcID, req.dstID,req.routerID,req.routerTime)
+    storage.timings(req.msgTime)
   }
+
+  def processEdgeRemoveForOtherWorkerRequest(req: EdgeRemoveForOtherWorker): Unit = { //local worker has destination and needs this worker to sort the edge removal
+    log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
+    storage.edgeRemovalFromOtherWorker(req.msgTime, req.srcID, req.dstID,req.routerID,req.routerTime)
+  }
+
+  def processReturnEdgeRemovalRequest(req: ReturnEdgeRemoval): Unit = { //remote worker same as above
+    log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
+    storage.returnEdgeRemoval(req.msgTime, req.srcID, req.dstID,req.routerID,req.routerTime)
+  }
+
+
+
+
+
+
 
   private def addToWatermarkQueue(routerID:String,routerTime:Int,msgTime:Long,safe:Boolean) = {
     queuedMessageMap.get(routerID) match {
