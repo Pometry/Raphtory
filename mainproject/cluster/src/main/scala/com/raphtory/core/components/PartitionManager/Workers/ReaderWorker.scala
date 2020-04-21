@@ -10,13 +10,16 @@ import com.raphtory.core.analysis.API.GraphLenses.ViewLens
 import com.raphtory.core.analysis.API.GraphLenses.WindowLens
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.API._
+import com.raphtory.core.analysis.Algorithms.ConnectedComponents
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
+import com.twitter.util.Eval
 import monix.execution.atomic.AtomicInt
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.util.Try
 
 class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage: EntityStorage)
         extends Actor
@@ -37,6 +40,8 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   override def receive: Receive = {
 
     case req: UpdatedCounter      => processUpdatedCounterRequest(req)
+    case req: TimeCheck            => processTimeCheckRequest(req)
+    case req: CompileNewAnalyser   => processCompileNewAnalyserRequest(req)
     case req: Setup               => processSetupRequest(req)
     case req: CheckMessages       => processCheckMessagesRequest(req)
     case req: NextStep            => processNextStepRequest(req)
@@ -218,7 +223,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       analysisType: AnalysisType.Value,
       window: Long,
       windowSet: Array[Long]
-  ): Unit = nextStep(Utils.analyserMap(name), jobID, args, currentStep, timestamp, analysisType, window, windowSet)
+  ): Unit = nextStep(new ConnectedComponents(Array()), jobID, args, currentStep, timestamp, analysisType, window, windowSet)
 
   def returnResults(
       analyzer: Analyser,
@@ -246,6 +251,52 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       sender ! ReturnResults(individualResults)
     }
   }
+
+  def processTimeCheckRequest(req: TimeCheck): Unit = {
+    log.debug(s"Reader [{}] received [{}] request.", workerId, req)
+
+    val timestamp = req.timestamp
+
+    val newest = if(storage.windowSafe) storage.safeWindowTime else storage.windowTime
+
+    if (timestamp <= newest) {
+      log.debug("Received timestamp is smaller or equal to newest entityStorage timestamp.")
+
+      sender ! TimeResponse(ok = true, newest)
+    } else {
+      log.debug("Received timestamp is larger than newest entityStorage timestamp.")
+
+      sender ! TimeResponse(ok = false, newest)
+    }
+  }
+
+
+  def processCompileNewAnalyserRequest(req: CompileNewAnalyser): Unit = {
+    log.debug("Reader [{}] received [{}] request.", workerId, req)
+
+    val (analyserString, name) = (req.analyser, req.name)
+
+    log.debug("Compiling [{}] for LAM.", name)
+
+    val evalResult = Try {
+      val eval               = new Eval
+      val analyser: Analyser = eval[Analyser](analyserString)
+      //Utils.analyserMap += ((name, analyser))
+    }
+
+    evalResult.toEither.fold(
+      { t: Throwable =>
+        log.debug("Compilation of [{}] failed due to [{}].", name, t)
+
+        sender ! ClassMissing()
+      }, { _ =>
+        log.debug(s"Compilation of [{}] succeeded. Proceeding.", name)
+
+        sender ! ClassCompiled()
+      }
+    )
+  }
+
 
   private def setProxy(
       jobID: String,

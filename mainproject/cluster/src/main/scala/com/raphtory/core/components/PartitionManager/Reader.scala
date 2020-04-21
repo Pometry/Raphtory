@@ -58,8 +58,6 @@ class Reader(
   override def receive: Receive = {
     case ReaderWorkersOnline()     => sender ! ReaderWorkersACK()
     case req: AnalyserPresentCheck => processAnalyserPresentCheckRequest(req)
-    case req: TimeCheck            => processTimeCheckRequest(req)
-    case req: CompileNewAnalyser   => processCompileNewAnalyserRequest(req)
     case req: UpdatedCounter       => processUpdatedCounterRequest(req)
     case SubscribeAck              =>
     case Terminated(child) =>
@@ -86,49 +84,9 @@ class Reader(
     )
   }
 
-  def processTimeCheckRequest(req: TimeCheck): Unit = {
-    log.debug(s"Reader [{}] received [{}] request.", managerId, req)
 
-    val timestamp = req.timestamp
 
-    val newest = storage.map { case (_, entityStorage) => entityStorage.newestTime }.max
 
-    if (timestamp <= newest) {
-      log.debug("Received timestamp is smaller or equal to newest entityStorage timestamp.")
-
-      sender ! TimeResponse(ok = true, newest)
-    } else {
-      log.debug("Received timestamp is larger than newest entityStorage timestamp.")
-
-      sender ! TimeResponse(ok = false, newest)
-    }
-  }
-
-  def processCompileNewAnalyserRequest(req: CompileNewAnalyser): Unit = {
-    log.debug("Reader [{}] received [{}] request.", managerId, req)
-
-    val (analyserString, name) = (req.analyser, req.name)
-
-    log.debug("Compiling [{}] for LAM.", name)
-
-    val evalResult = Try {
-      val eval               = new Eval
-      val analyser: Analyser = eval[Analyser](analyserString)
-      Utils.analyserMap += ((name, analyser))
-    }
-
-    evalResult.toEither.fold(
-            { t: Throwable =>
-              log.debug("Compilation of [{}] failed due to [{}].", name, t)
-
-              sender ! ClassMissing()
-            }, { _ =>
-              log.debug(s"Compilation of [{}] succeeded. Proceeding.", name)
-
-              sender ! ClassCompiled()
-            }
-    )
-  }
 
   def processUpdatedCounterRequest(req: UpdatedCounter): Unit = {
     log.debug("Reader [{}] received [{}] request.", managerId, req)
