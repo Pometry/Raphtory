@@ -6,7 +6,7 @@ import com.raphtory.core.model.communication.AnalysisType
 
 import scala.collection.mutable.ArrayBuffer
 
-class BWindowedLiveAnalysisTask(managerCount:Int, jobID: String,args:Array[String], analyser: Analyser, windowset:Array[Long]) extends AnalysisTask(jobID,args, analyser,managerCount) {
+class BWindowedLiveAnalysisTask(managerCount:Int, jobID: String,args:Array[String], analyser: Analyser,repeatTime:Long,eventTime:Boolean, windowset:Array[Long]) extends LiveAnalysisTask(managerCount,jobID, args,analyser,repeatTime,eventTime) {
   override def result(): ArrayBuffer[Any] = {
     val original = super.result()
     if (original.nonEmpty) {

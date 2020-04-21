@@ -36,9 +36,9 @@ case class AnalysisRestApi(system:ActorSystem){
     //Submit Analysis
     case HttpRequest(POST,Uri.Path("/LiveAnalysisRequest"),_,entity,_)  => {
       try{
-        implicit val LiveAnalysisFormat = jsonFormat7(LiveAnalysisPOST)
+        implicit val LiveAnalysisFormat = jsonFormat9(LiveAnalysisPOST)
         val in:LiveAnalysisPOST = Await.result(Unmarshal(entity).to[LiveAnalysisPOST], 10.second)
-        val response = LiveAnalysisRequest(in.jobID,in.analyserName,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
+        val response = LiveAnalysisRequest(in.jobID,in.analyserName,in.repeatTime.getOrElse(0),in.eventTime.getOrElse(false),in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
         mediator ! DistributedPubSubMediator.Send("/user/AnalysisManager", response, false)
         HttpResponse(entity = s"""Your Task ${in.jobID} Has been successfully submitted as a Live Analysis Task!""")
       }

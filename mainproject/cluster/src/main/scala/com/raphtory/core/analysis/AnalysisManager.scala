@@ -72,14 +72,16 @@ class AnalysisManager() extends Actor{
     try {
       val jobID = request.jobID
       val args = request.args
+      val repeatTime = request.repeatTime
+      val eventTime = request.eventTime
       val analyser = Class.forName(request.analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser]
       val ref= request.windowType match {
         case "false" =>
-          context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID,args, analyser)), s"LiveAnalysisTask_$jobID")
+          context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime)), s"LiveAnalysisTask_$jobID")
         case "true" =>
-          context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID,args, analyser, request.windowSize)), s"LiveAnalysisTask__windowed_$jobID")
+          context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSize)), s"LiveAnalysisTask__windowed_$jobID")
         case "batched" =>
-          context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID,args, analyser, request.windowSet)), s"LiveAnalysisTask__batchWindowed_$jobID")
+          context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSet)), s"LiveAnalysisTask__batchWindowed_$jobID")
       }
       currentTasks put (jobID,ref)
     }
