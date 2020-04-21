@@ -25,8 +25,6 @@ object Utils {
   var windowing: Boolean          = System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
   var local: Boolean              = System.getenv().getOrDefault("LOCAL", "false").trim.toBoolean
 
-  val analyserMap: TrieMap[String, Analyser] = TrieMap[String, Analyser]()
-
   def watchDogSelector(context: ActorContext, ip: String) =
     // IP $clusterSystemName@${InetAddress.getByName("watchDog").getHostAddress()}
     context.actorSelection(s"akka.tcp://$ip:${config.getString("settings.bport")}/user/WatchDog")

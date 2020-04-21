@@ -139,7 +139,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   def analyserPresent() = {
     ReaderAnalyserACKS += 1
     if (ReaderAnalyserACKS == getManagerCount) {
-      for (worker <- Utils.getAllReaders(managerCount))
+      for (worker <- Utils.getAllReaderWorkers(managerCount))
         mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
     }
   }
@@ -148,7 +148,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (!ok)
       TimeOKFlag = false
     TimeOKACKS += 1
-    if (TimeOKACKS == getManagerCount) {
+    if (TimeOKACKS == getWorkerCount) {
       stepCompleteTime() //reset step counter
       if (TimeOKFlag)
         if (analyser.defineMaxSteps() > 1)
