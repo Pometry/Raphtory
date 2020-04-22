@@ -19,22 +19,19 @@ import scala.io.Source
 import scala.sys.process._
 
 abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int) extends Actor {
-  private var currentSuperStep    = 0 //SuperStep the algorithm is currently on
+  protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
 
   private var local: Boolean = Utils.local
 
   //Communication Counters
-  private var ReaderACKS                   = 0    //Acks from the readers to say they are online
-  private var ReaderAnalyserACKS           = 0    //Ack to show that the chosen analyser is present within the partition
-  private var TimeOKFlag                   = true //flag to specify if the job is ok to run if temporal
-  private var TimeOKACKS                   = 0    //counter to see that all partitions have responded
-  private var workersFinishedSetup         = 0    //Acks from workers to see how many have finished the setup stage of analysis
-  private var workersFinishedSuperStep     = 0    //Acks from workers to say they have finished the superstep
-  private var workerResultsReceived        = 0    //Acks from workers when sending results back to analysis manager
-  private var messageLogACKS               = 0    //Acks from Workers with the amount of messages they have sent and received
-
-  private var liveTimes:mutable.Set[Long]  = mutable.Set[Long]()
-  private var liveTime = 0l
+  protected var ReaderACKS                   = 0    //Acks from the readers to say they are online
+  protected var ReaderAnalyserACKS           = 0    //Ack to show that the chosen analyser is present within the partition
+  protected var TimeOKFlag                   = true //flag to specify if the job is ok to run if temporal
+  protected var TimeOKACKS                   = 0    //counter to see that all partitions have responded
+  protected var workersFinishedSetup         = 0    //Acks from workers to see how many have finished the setup stage of analysis
+  protected var workersFinishedSuperStep     = 0    //Acks from workers to say they have finished the superstep
+  protected var workerResultsReceived        = 0    //Acks from workers when sending results back to analysis manager
+  protected var messageLogACKS               = 0    //Acks from Workers with the amount of messages they have sent and received
 
   private var totalReceivedMessages = 0 //Total number of messages received by the workers
   private var totalSentMessages     = 0 //Total number of messages sent by the workers
@@ -73,16 +70,11 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
   protected val steps: Long    =  analyser.defineMaxSteps()         // number of supersteps before returning
   def restartTime():Long       =  10000
-  def liveTimestamp():Long     =  liveTime
-  def timestamp(): Long        =  liveTimestamp() //defaults to live to be overwritten in view and range
+  def timestamp(): Long   //defaults to live to be overwritten in view and range
   def windowSize(): Long       = -1L         //for windowing
   def windowSet(): Array[Long] = Array.empty //for sets of windows
 
-  def setLiveTime() = {
-    println(liveTimes)
-    liveTime = liveTimes.min
-    liveTimes = mutable.Set[Long]()
-  }
+
 
   private def processOtherMessages(value: Any): Unit = println("Not handled message" + value.toString)
   protected def generateAnalyzer: Analyser =
@@ -92,7 +84,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   final protected def getWorkerCount: Int       = managerCount * 10
   protected def processResults(timeStamp: Long) = analyser.processResults(results, timeStamp,viewCompleteTime())
 
-  private def resetCounters() = {
+  protected def resetCounters() = {
     ReaderACKS = 0               //Acks from the readers to say they are online
     ReaderAnalyserACKS = 0       //Ack to show that the chosen analyser is present within the partition
     workersFinishedSetup = 0     //Acks from workers to see how many have finished the setup stage of analysis
@@ -159,12 +151,8 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (!ok)
       TimeOKFlag = false
     TimeOKACKS += 1
-    liveTimes += time
     if (TimeOKACKS == getWorkerCount) {
       stepCompleteTime() //reset step counter
-
-      setLiveTime()
-      println(timestamp())
       if (TimeOKFlag) {
         if (analyser.defineMaxSteps() > 1)
           for (worker <- Utils.getAllReaderWorkers(managerCount))
@@ -199,19 +187,19 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
                     false
             )
       } else {
-        println(
-                s"${timestamp()} is yet to be ingested, currently at ${time}. Retrying analysis in 10 seconds and retrying"
-        )
+        println(s"${timestamp()} is yet to be ingested, currently at ${time}. Retrying analysis in 10 seconds and retrying")
         context.system.scheduler.scheduleOnce(Duration(10000, MILLISECONDS), self, "recheckTime")
       }
+
       TimeOKACKS = 0
       TimeOKFlag = true
     }
   }
 
-  def timeRecheck() =
-    for (worker <- Utils.getAllReaders(managerCount))
+  def timeRecheck() = {
+    for (worker <- Utils.getAllReaderWorkers(managerCount))
       mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
+  }
 
   def ready(messages: Int) = {
     if (debug) println("Received ready")

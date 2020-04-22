@@ -254,7 +254,6 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processTimeCheckRequest(req: TimeCheck): Unit = {
     log.debug(s"Reader [{}] received [{}] request.", workerId, req)
-
     val timestamp = req.timestamp
 
     val newest = if(storage.windowSafe) storage.safeWindowTime else storage.windowTime
@@ -322,12 +321,12 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   ): Unit =
     // We have a set of windows to run
     if (windowSet.nonEmpty)
-      tempProxy = new WindowLens(jobID, superStep, storage.newestTime, windowSet(0), workerId, storage, managerCount)
+      tempProxy = new WindowLens(jobID, superStep, timestamp, windowSet(0), workerId, storage, managerCount)
     // We only have one window to run
     else if (window != -1)
-      tempProxy = new WindowLens(jobID, superStep, storage.newestTime, window, workerId, storage, managerCount)
+      tempProxy = new WindowLens(jobID, superStep, timestamp, window, workerId, storage, managerCount)
     else
-      tempProxy = new LiveLens(jobID, superStep, timestamp, window, workerId, storage, managerCount)
+      tempProxy = new ViewLens(jobID, superStep, timestamp, workerId, storage, managerCount)
 
   def handleViewAnalysis(
       jobID: String,
