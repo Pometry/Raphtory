@@ -13,8 +13,9 @@ class BWindowedRangeAnalysisTask(
     start: Long,
     end: Long,
     jump: Long,
-    windows: Array[Long]
-) extends RangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump) {
+    windows: Array[Long],
+    rawFile:String
+) extends RangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump,rawFile) {
   override def result(): ArrayBuffer[Any] = {
     val original = super.result()
     if (original.nonEmpty) {

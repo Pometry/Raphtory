@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 
-class LiveAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analyser: Analyser,repeatTime:Long,eventTime:Boolean) extends AnalysisTask(jobID,args, analyser,managerCount) {
+class LiveAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analyser: Analyser,repeatTime:Long,eventTime:Boolean,rawFile:String) extends AnalysisTask(jobID,args, analyser,managerCount,rawFile) {
   override protected def analysisType(): AnalysisType.Value = AnalysisType.live
   protected var currentTimestamp = 1L
   override def timestamp(): Long = currentTimestamp
@@ -19,7 +19,6 @@ class LiveAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analy
   private var firstTime = true
   def liveTimestamp():Long     =  liveTime
   def setLiveTime() = {
-    println(liveTimes)
     liveTime = liveTimes.min
     liveTimes = mutable.Set[Long]()
     if(!eventTime||firstTime){
