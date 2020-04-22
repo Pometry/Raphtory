@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 import scala.io.Source
 import scala.sys.process._
 
-abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int) extends Actor {
+abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int,rawFile:String) extends Actor {
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
 
   private var local: Boolean = Utils.local

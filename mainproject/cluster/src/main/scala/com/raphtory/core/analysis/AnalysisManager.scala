@@ -74,17 +74,18 @@ class AnalysisManager() extends Actor{
       val args = request.args
       val repeatTime = request.repeatTime
       val eventTime = request.eventTime
+      val analyserFile = request.rawFile
       val analyser = Class.forName(request.analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser]
       val ref= request.windowType match {
         case "false" =>
-          context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime)), s"LiveAnalysisTask_$jobID")
+          context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime,analyserFile)), s"LiveAnalysisTask_$jobID")
         case "true" =>
-          context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSize)), s"LiveAnalysisTask__windowed_$jobID")
+          context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSize,analyserFile)), s"LiveAnalysisTask__windowed_$jobID")
         case "batched" =>
-          context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSet)), s"LiveAnalysisTask__batchWindowed_$jobID")
+          context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSet,analyserFile)), s"LiveAnalysisTask__batchWindowed_$jobID")
       }
       currentTasks put (jobID,ref)
-    }
+  }
     catch {
       case e:InvalidActorNameException => println("Name non unique please kill other job first")
     }
@@ -96,17 +97,18 @@ class AnalysisManager() extends Actor{
       val timestamp = request.timestamp
       val args = request.args
       val analyser = Class.forName(request.analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser]
+      val analyserFile = request.rawFile
       val ref =request.windowType match {
         case "false" =>
-          context.system.actorOf(Props(new ViewAnalysisTask(managerCount,jobID,args,analyser, timestamp)), s"ViewAnalysisTask_$jobID")
+          context.system.actorOf(Props(new ViewAnalysisTask(managerCount,jobID,args,analyser, timestamp,analyserFile)), s"ViewAnalysisTask_$jobID")
         case "true" =>
           context.system.actorOf(
-            Props(new WindowedViewAnalysisTask(managerCount,jobID,args, analyser, timestamp, request.windowSize)),
+            Props(new WindowedViewAnalysisTask(managerCount,jobID,args, analyser, timestamp, request.windowSize,analyserFile)),
             s"ViewAnalysisTask_windowed_$jobID"
           )
         case "batched" =>
           context.system.actorOf(
-            Props(new BWindowedViewAnalysisTask(managerCount,jobID, args,analyser, timestamp, request.windowSet)),
+            Props(new BWindowedViewAnalysisTask(managerCount,jobID, args,analyser, timestamp, request.windowSet,analyserFile)),
             s"ViewAnalysisTask_batchWindowed_$jobID"
           )
       }
@@ -125,19 +127,20 @@ class AnalysisManager() extends Actor{
       val end   = request.end
       val jump  = request.jump
       val args = request.args
+      val analyserFile = request.rawFile
       val analyser = Class.forName(request.analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser]
       val ref = request.windowType match {
         case "false" =>
           context.system
-            .actorOf(Props(new RangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump)), s"RangeAnalysisTask_$jobID")
+            .actorOf(Props(new RangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump,analyserFile)), s"RangeAnalysisTask_$jobID")
         case "true" =>
           context.system.actorOf(
-            Props(new WindowedRangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump, request.windowSize)),
+            Props(new WindowedRangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump, request.windowSize,analyserFile)),
             s"RangeAnalysisTask_windowed_$jobID"
           )
         case "batched" =>
           context.system.actorOf(
-            Props(new BWindowedRangeAnalysisTask(managerCount,jobID,args, analyser, start, end, jump, request.windowSet)),
+            Props(new BWindowedRangeAnalysisTask(managerCount,jobID,args, analyser, start, end, jump, request.windowSet,analyserFile)),
             s"RangeAnalysisTask_batchWindowed_$jobID"
           )
       }
