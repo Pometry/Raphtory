@@ -126,48 +126,14 @@ case class VertexMessageBatch(
     data: ConcurrentHashMap.KeySetView[(Long, Long, Any), java.lang.Boolean]
 ) extends VertexMessage
 
-case class Setup(
-    analyzer: Analyser,
-    jobID: String,
-    args:Array[String],
-    superStep: Int,
-    timestamp: Long,
-    analysisType: AnalysisType.Value,
-    window: Long,
-    windowSet: Array[Long]
-) extends RaphReadClasses
+case class Setup(analyzer: Analyser, jobID: String, args:Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) extends RaphReadClasses
+case class SetupNewAnalyser(jobID: String, args:Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) extends RaphReadClasses
 case class Ready(messages: Int) extends RaphReadClasses
-case class NextStep(
-    analyzer: Analyser,
-    jobID: String,
-    args:Array[String],
-    superStep: Int,
-    timestamp: Long,
-    analysisType: AnalysisType.Value,
-    window: Long,
-    windowSet: Array[Long]
-) extends RaphReadClasses
-case class NextStepNewAnalyser(
-    name: String,
-    jobID: String,
-    args:Array[String],
-    superStep: Int,
-    timestamp: Long,
-    analysisType: AnalysisType.Value,
-    window: Long,
-    windowSet: Array[Long]
-) extends RaphReadClasses
+case class NextStep(analyzer: Analyser, jobID: String, args:Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) extends RaphReadClasses
+case class NextStepNewAnalyser(jobID: String, args:Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) extends RaphReadClasses
 case class EndStep(messages: Int, voteToHalt: Boolean) extends RaphReadClasses
-case class Finish(
-    analyzer: Analyser,
-    jobID: String,
-    args:Array[String],
-    superStep: Int,
-    timestamp: Long,
-    analysisType: AnalysisType.Value,
-    window: Long,
-    windowSet: Array[Long]
-) extends RaphReadClasses
+case class Finish(analyzer: Analyser, jobID: String, args:Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) extends RaphReadClasses
+case class FinishNewAnalyser(jobID: String, args:Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) extends RaphReadClasses
 case class ReturnResults(results: Any)
 case class ExceptionInAnalysis(e: String) extends RaphReadClasses
 

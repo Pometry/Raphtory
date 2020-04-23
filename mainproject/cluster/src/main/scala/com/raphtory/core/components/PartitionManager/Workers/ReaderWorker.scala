@@ -44,10 +44,13 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     case req: TimeCheck            => processTimeCheckRequest(req)
     case req: CompileNewAnalyser   => processCompileNewAnalyserRequest(req)
     case req: Setup               => processSetupRequest(req)
+    case req: SetupNewAnalyser    => processSetupNewAnalyserRequest(req)
     case req: CheckMessages       => processCheckMessagesRequest(req)
     case req: NextStep            => processNextStepRequest(req)
     case req: NextStepNewAnalyser => processNextStepNewAnalyserRequest(req)
     case req: Finish              => processFinishRequest(req)
+    case req: FinishNewAnalyser    => processFinishNewAnalyserRequest(req)
+
     case req: VertexMessage       => handleVertexMessage(req)
     case x                        => log.warning("ReaderWorker [{}] belonging to Reader [{}] received unknown [{}] message.", x)
   }
@@ -102,17 +105,17 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processNextStepNewAnalyserRequest(req: NextStepNewAnalyser): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+    nextStepNewAnalyser(req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+  }
 
-    nextStepNewAnalyser(
-            req.name,
-            req.jobID,
-            req.args,
-            req.superStep,
-            req.timestamp,
-            req.analysisType,
-            req.window,
-            req.windowSet
-    )
+  def processSetupNewAnalyserRequest(req: SetupNewAnalyser): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+    setupNewAnalyser(req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+  }
+
+  def processFinishNewAnalyserRequest(req: FinishNewAnalyser): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+    finishNewAnalyser(req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
   }
 
   def processFinishRequest(req: Finish): Unit = {
@@ -215,16 +218,16 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   }
 
-  def nextStepNewAnalyser(
-      name: String,
-      jobID: String,
-      args: Array[String],
-      currentStep: Int,
-      timestamp: Long,
-      analysisType: AnalysisType.Value,
-      window: Long,
-      windowSet: Array[Long]
-  ): Unit = nextStep(new ConnectedComponents(Array()), jobID, args, currentStep, timestamp, analysisType, window, windowSet)
+  def setupNewAnalyser(jobID: String, args: Array[String], currentStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
+    setup(analyserMap.get(jobID).get.newAnalyser, jobID, args, currentStep, timestamp, analysisType, window, windowSet)
+  }
+  def nextStepNewAnalyser(jobID: String, args: Array[String], currentStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
+    nextStep(analyserMap.get(jobID).get.newAnalyser, jobID, args, currentStep, timestamp, analysisType, window, windowSet)
+  }
+
+  def finishNewAnalyser(jobID: String, args: Array[String], currentStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
+    returnResults(analyserMap.get(jobID).get.newAnalyser, jobID, args, currentStep, timestamp, analysisType, window, windowSet)
+  }
 
   def returnResults(
       analyzer: Analyser,
