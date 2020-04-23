@@ -30,6 +30,8 @@ val akka_dist_data     = "com.typesafe.akka" %% "akka-distributed-data" % Akka
 val akka_actor_typed   = "com.typesafe.akka" %% "akka-actor-typed"      % Akka
 val akka_cluster_typed = "com.typesafe.akka" %% "akka-cluster-typed"    % Akka
 val akka_http          = "com.typesafe.akka" %% "akka-http"             % "10.1.11"
+val reflect            = "org.scala-lang"    % "scala-reflect"         % "2.12.4"
+val compile            = "org.scala-lang"    % "scala-compiler"        % "2.12.4"
 
 val akka_management  = "com.lightbend.akka.management" %% "akka-management"                   % lightBend
 val akka_management2 = "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % lightBend
@@ -116,6 +118,8 @@ lazy val cluster = project
   .settings(
           libraryDependencies ++=
             dep_compile(
+                    reflect,
+                    compile,
                     typesafe_config,
                     akka_actor,
                     akka_cluster,

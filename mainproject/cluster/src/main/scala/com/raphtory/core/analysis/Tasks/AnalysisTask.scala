@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 import scala.io.Source
 import scala.sys.process._
 
-abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int,rawFile:String) extends Actor {
+abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int,newAnalyser: Boolean,rawFile:String) extends Actor {
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
 
   private var local: Boolean = Utils.local
@@ -37,8 +37,6 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   private var totalSentMessages     = 0 //Total number of messages sent by the workers
 
   private var voteToHalt = true // If the workers have decided to halt
-
-  private var newAnalyser: Boolean = false //if the analyser is not present in the readers
 
   private val debug                = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean //for printing debug messages
 
@@ -117,7 +115,6 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     case "restart"                     => restart()
     case MessagesReceived(workerID, real, receivedMessages, sentMessages) => messagesReceieved(workerID, real, receivedMessages, sentMessages)
     case RequestResults(jobID)         => requestResults()
-    case ClassMissing()                => classMissing()              //If the class is missing, send the raw source file
     case FailedToCompile(stackTrace)   => failedToCompile(stackTrace) //Your code is broke scrub
     case _                             => processOtherMessages(_)     //incase some random stuff comes through
   }
@@ -133,18 +130,34 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (debug) println("Received NetworkSize packet")
     ReaderACKS += 1
     if (ReaderACKS == getManagerCount) {
-      for (worker <- Utils.getAllReaders(managerCount))
-        mediator ! DistributedPubSubMediator
-          .Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$", "")), false)
+      if (newAnalyser) {
+        for (worker <- Utils.getAllReaderWorkers(managerCount))
+          mediator ! DistributedPubSubMediator
+            .Send(worker, CompileNewAnalyser(rawFile,args,jobID), false)
+      }
+      else {
+        for (worker <- Utils.getAllReaders(managerCount))
+          mediator ! DistributedPubSubMediator
+            .Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$", "")), false)
+      }
     }
   }
 
   def analyserPresent() = {
     ReaderAnalyserACKS += 1
-    if (ReaderAnalyserACKS == getManagerCount) {
-      for (worker <- Utils.getAllReaderWorkers(managerCount))
-        mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
+    if(newAnalyser){
+      if (ReaderAnalyserACKS == getWorkerCount) {
+        for (worker <- Utils.getAllReaderWorkers(managerCount))
+          mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
+      }
     }
+    else{
+      if (ReaderAnalyserACKS == getManagerCount) {
+        for (worker <- Utils.getAllReaderWorkers(managerCount))
+          mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
+      }
+    }
+
   }
 
   def timeResponse(ok: Boolean, time: Long) = {
@@ -220,20 +233,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (workersFinishedSuperStep == getWorkerCount)
       if (currentSuperStep == steps || this.voteToHalt)
         for (worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(
-                  worker,
-                  Finish(
-                          this.generateAnalyzer,
-                          jobID,
-                          args,
-                          currentSuperStep,
-                          timestamp,
-                          analysisType: AnalysisType.Value,
-                          windowSize(),
-                          windowSet()
-                  ),
-                  false
-          )
+          mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()),false)
       else {
         this.voteToHalt = true
         workersFinishedSuperStep = 0
@@ -355,23 +355,11 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
   def killme() = self.tell(PoisonPill.getInstance,self)
 
-  /////HERE BE DRAGONS, GO NO FURTHER
 
-  def classMissing() {
-    if (debug) println(s"$sender does not have analyser, sending now")
-    var code = missingCode()
-    newAnalyser = true
-    sender() ! CompileNewAnalyser(code, analyserName)
-  }
   def failedToCompile(stackTrace: String): Unit =
-    if (debug) println(s"$sender failed to compiled, stacktrace returned: \n $stackTrace")
+    println(s"$sender failed to compiled, stacktrace returned: \n $stackTrace")
 
-  def missingCode(): String = {
-    val file = generateAnalyzer.getClass.getName.replaceAll("\\.", "/").replaceAll("$", "")
-    var code = ""
-    if (debug) println("pwd" !)
-    code
-  }
+
 
 
 }

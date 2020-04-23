@@ -10,7 +10,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 
-class LiveAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analyser: Analyser,repeatTime:Long,eventTime:Boolean,rawFile:String) extends AnalysisTask(jobID,args, analyser,managerCount,rawFile) {
+class LiveAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analyser: Analyser,repeatTime:Long,eventTime:Boolean,newAnalyser:Boolean,rawFile:String)
+  extends AnalysisTask(jobID,args, analyser,managerCount,newAnalyser,rawFile) {
   override protected def analysisType(): AnalysisType.Value = AnalysisType.live
   protected var currentTimestamp = 1L
   override def timestamp(): Long = currentTimestamp
