@@ -17,6 +17,7 @@ import com.raphtory.core.utils.Utils
 import com.twitter.util.Eval
 import monix.execution.atomic.AtomicInt
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -26,7 +27,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
         with ActorLogging {
 
   implicit var managerCount: ManagerCount = ManagerCount(managerCountVal)
-
+  val analyserMap: TrieMap[String,LoadExternalAnalyser] = TrieMap[String,LoadExternalAnalyser]()
   var receivedMessages    = AtomicInt(0)
   var tempProxy: LiveLens = _
 
@@ -270,32 +271,21 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   }
 
 
-  def processCompileNewAnalyserRequest(req: CompileNewAnalyser): Unit = {
-    log.debug("Reader [{}] received [{}] request.", workerId, req)
 
-    val (analyserString, name) = (req.analyser, req.name)
-
-    log.debug("Compiling [{}] for LAM.", name)
-
-    val evalResult = Try {
-      val eval               = new Eval
-      val analyser: Analyser = eval[Analyser](analyserString)
-      //Utils.analyserMap += ((name, analyser))
+  def processCompileNewAnalyserRequest(req: CompileNewAnalyser)= {
+    try{
+      val analyserBuilder = LoadExternalAnalyser(req.analyser,req.args)
+      analyserMap put (req.name,analyserBuilder)
+      analyserBuilder.newAnalyser
+      sender() ! AnalyserPresent()
     }
-
-    evalResult.toEither.fold(
-      { t: Throwable =>
-        log.debug("Compilation of [{}] failed due to [{}].", name, t)
-
-        sender ! ClassMissing()
-      }, { _ =>
-        log.debug(s"Compilation of [{}] succeeded. Proceeding.", name)
-
-        sender ! ClassCompiled()
+    catch {
+      case e:Exception => {
+        sender ! FailedToCompile(e.getStackTrace.toString)
+        println(e.getMessage)
       }
-    )
+    }
   }
-
 
   private def setProxy(
       jobID: String,
