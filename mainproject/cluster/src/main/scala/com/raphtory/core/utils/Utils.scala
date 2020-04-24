@@ -25,8 +25,6 @@ object Utils {
   var windowing: Boolean          = System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
   var local: Boolean              = System.getenv().getOrDefault("LOCAL", "false").trim.toBoolean
 
-  val analyserMap: TrieMap[String, Analyser] = TrieMap[String, Analyser]()
-
   def watchDogSelector(context: ActorContext, ip: String) =
     // IP $clusterSystemName@${InetAddress.getByName("watchDog").getHostAddress()}
     context.actorSelection(s"akka.tcp://$ip:${config.getString("settings.bport")}/user/WatchDog")
@@ -74,6 +72,14 @@ object Utils {
     for (i <- 0 until managerCount)
       for (j <- 0 until 10)
         workers += s"/user/Manager_${i}_reader_$j"
+    workers.toArray
+  }
+
+  def getAllWriterWorkers(managerCount: Int): Array[String] = {
+    val workers = mutable.ArrayBuffer[String]()
+    for (i <- 0 until managerCount)
+      for (j <- 0 until 10)
+        workers += s"/user/Manager_${i}_child_$j"
     workers.toArray
   }
 

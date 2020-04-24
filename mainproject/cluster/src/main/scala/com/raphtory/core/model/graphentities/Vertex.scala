@@ -32,6 +32,7 @@ class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean, storage: 
   var outgoingEdges = ParTrieMap[Long, Edge]()
   var incomingProcessing = incomingEdges //Map of edges for the current view of the vertex
   var outgoingProcessing = outgoingEdges
+  private var edgesRequiringSync = 0
 
   var multiQueue        = new VertexMutliQueue()    //Map of queues for all ongoing processing
   var computationValues = ParTrieMap[String, Any]() //Partial results kept between supersteps in calculation
@@ -39,6 +40,8 @@ class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean, storage: 
   override def getId = vertexId //get the vertexID
 
   //Functions for adding associated edges to this vertex
+  def incrementEdgesRequiringSync()  =edgesRequiringSync+=1
+  def getEdgesRequringSync() =edgesRequiringSync
   def addIncomingEdge(edge: Edge): Unit = incomingEdges.put(edge.getSrcId, edge)
   def addOutgoingEdge(edge: Edge): Unit = outgoingEdges.put(edge.getDstId, edge)
   def addAssociatedEdge(edge: Edge): Unit =

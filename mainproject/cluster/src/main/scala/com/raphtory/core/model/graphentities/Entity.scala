@@ -110,7 +110,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
         case (k, v) =>
           if (k >= cutoff)
             newCompressedState put (k, v)
-          else recordRemoval(entityType, workerID)
+          //else recordRemoval(entityType, workerID)
       }                                    //for each point if it is safe then keep it
       compressedState = newCompressedState //overwrite the compressed state
       //properties.foreach{case ((propkey, property)) =>{property.archive(cutoff,compressing,entityType)}}//do the same for all properties //currently properties should exist until entity removed
@@ -118,12 +118,6 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
     }
     false
   }
-
-  def recordRemoval(entityType: Boolean, workerID: Int) =
-    if (entityType)
-      storage.vertexHistoryDeletionCount(workerID) += 1
-    else
-      storage.edgeHistoryDeletionCount(workerID) += 1
 
   def archiveOnly(cutoff: Long, entityType: Boolean, workerID: Int): Boolean = { //
     if (previousState.isEmpty) return false //blank node, decide what to do later
@@ -136,8 +130,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
       case (k, v) =>
         if (k >= cutoff)
           newPreviousState put (k, v)
-        else
-          recordRemoval(entityType, workerID)
+        //else recordRemoval(entityType, workerID)
     }                                 //for each point if it is safe then keep it
     previousState = newPreviousState  //overwrite the compressed state
     newestPoint.get < cutoff && !head //return all points older than cutoff and latest update is deletion

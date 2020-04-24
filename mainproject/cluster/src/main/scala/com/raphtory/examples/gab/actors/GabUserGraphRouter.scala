@@ -6,6 +6,8 @@ import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
+import scala.util.Random
+
 // The lines sent by the Gab mining spout are read and processed accordingly.
 //In this router we needed to transform the data that was sent by the spout by turning it into a epoch value (long value)
 // in order to be accepted by Raphtory to create the corresponding entity.
@@ -13,7 +15,7 @@ import com.raphtory.core.model.communication._
 // is equal to -1. Columns 2 and 5 correspond to the userid and parentUserid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabUserGraphRouter(override val routerId: Int, override val initialManagerCount: Int) extends RouterWorker {
+class GabUserGraphRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
 
   def parseTuple(record: Any): Unit = {
     val fileLine = record.asInstanceOf[String].split(";").map(_.trim)
@@ -29,6 +31,7 @@ class GabUserGraphRouter(override val routerId: Int, override val initialManager
       sendGraphUpdate(VertexAdd(creationDate, sourceNode, Type("User")))
       sendGraphUpdate(VertexAdd(creationDate, targetNode, Type("User")))
       sendGraphUpdate(EdgeAdd(creationDate, sourceNode, targetNode, Type("User to User")))
+
     }
 
   }
