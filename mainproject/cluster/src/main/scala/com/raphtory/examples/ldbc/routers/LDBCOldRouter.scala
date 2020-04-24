@@ -10,7 +10,7 @@ import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication.VertexAdd
 import com.raphtory.core.model.communication.VertexDelete
 
-class LDBCOldRouter(override val routerId: Int, override val initialManagerCount: Int) extends RouterWorker {
+class LDBCOldRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
   override protected def parseTuple(value: Any): Unit = {
 
     val fileLine = value.asInstanceOf[String].split("\\|")

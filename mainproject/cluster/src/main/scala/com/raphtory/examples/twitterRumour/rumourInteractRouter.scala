@@ -8,7 +8,7 @@ import spray.json._
 
 import scala.io.Source
 
-class rumourInteractRouter(override val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
+class rumourInteractRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
 
   override protected def parseTuple(cmd: Any): Unit = {
     //println("im at router top...")

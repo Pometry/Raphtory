@@ -18,13 +18,11 @@ import akka.cluster.pubsub._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import com.raphtory.core.clustersetup.util.ConfigUtils.SystemConfig
-import com.raphtory.core.model.communication.{AnalysisRequest, JobDoesntExist, JobKilled, KillTask, LiveAnalysisRequest, RangeAnalysisRequest, RequestResults, ResultsForApiPI, ViewAnalysisRequest}
+import com.raphtory.core.model.communication.{AnalysisRequest, JobDoesntExist, JobKilled, KillTask, LiveAnalysisPOST, LiveAnalysisRequest, RangeAnalysisPOST, RangeAnalysisRequest, RequestResults, ResultsForApiPI, ViewAnalysisPOST, ViewAnalysisRequest}
 import spray.json.DefaultJsonProtocol._
 
 import scala.concurrent.Future
-case class LiveAnalysisPOST(jobID:String, analyserName:String, windowType:Option[String], windowSize:Option[Long], windowSet:Option[Array[Long]],args:Option[Array[String]])
-case class ViewAnalysisPOST(jobID:String,analyserName:String,timestamp:Long,windowType:Option[String],windowSize:Option[Long],windowSet:Option[Array[Long]],args:Option[Array[String]])
-case class RangeAnalysisPOST(jobID:String,analyserName:String,start:Long,end:Long,jump:Long,windowType:Option[String],windowSize:Option[Long],windowSet:Option[Array[Long]],args:Option[Array[String]]) extends AnalysisRequest
+
 case class AnalysisRestApi(system:ActorSystem){
   implicit val system2 = system
   implicit val materializer = ActorMaterializer()
@@ -32,16 +30,15 @@ case class AnalysisRestApi(system:ActorSystem){
   val port  = 8081
   var config = ConfigFactory.load().getString("akka.remote.netty.tcp.bind-hostname")
   val iface = config//java.net.InetAddress.getLocalHost().getHostAddress()
-  println(iface)
   val mediator = DistributedPubSub(system).mediator
 
   val requestHandler: HttpRequest ⇒ HttpResponse = {
     //Submit Analysis
     case HttpRequest(POST,Uri.Path("/LiveAnalysisRequest"),_,entity,_)  => {
       try{
-        implicit val LiveAnalysisFormat = jsonFormat6(LiveAnalysisPOST)
+        implicit val LiveAnalysisFormat = jsonFormat9(LiveAnalysisPOST)
         val in:LiveAnalysisPOST = Await.result(Unmarshal(entity).to[LiveAnalysisPOST], 10.second)
-        val response = LiveAnalysisRequest(in.jobID,in.analyserName,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()))
+        val response = LiveAnalysisRequest(in.jobID,in.analyserName,in.repeatTime.getOrElse(0),in.eventTime.getOrElse(false),in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
         mediator ! DistributedPubSubMediator.Send("/user/AnalysisManager", response, false)
         HttpResponse(entity = s"""Your Task ${in.jobID} Has been successfully submitted as a Live Analysis Task!""")
       }
@@ -49,9 +46,9 @@ case class AnalysisRestApi(system:ActorSystem){
     }
     case HttpRequest(POST,Uri.Path("/ViewAnalysisRequest"),_,entity,_)  => {
       try{
-        implicit val viewAnalysisPOST = jsonFormat7(ViewAnalysisPOST)
-        val in:ViewAnalysisPOST = Await.result(Unmarshal(entity).to[ViewAnalysisPOST], 10.second)
-        val response = ViewAnalysisRequest(in.jobID,in.analyserName,in.timestamp,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()))
+        implicit val viewAnalysisPOST = jsonFormat8(ViewAnalysisPOST)
+        val in:ViewAnalysisPOST = Await.result(Unmarshal(entity).to[ViewAnalysisPOST], 100  .second)
+        val response = ViewAnalysisRequest(in.jobID,in.analyserName,in.timestamp,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
         mediator ! DistributedPubSubMediator.Send("/user/AnalysisManager", response, false)
         HttpResponse(entity = s"""Your Task ${in.jobID} Has been successfully submitted as a View Analysis Task!""")
       }
@@ -59,9 +56,9 @@ case class AnalysisRestApi(system:ActorSystem){
     }
     case HttpRequest(POST,Uri.Path("/RangeAnalysisRequest"),_,entity,_)  => {
       try{
-        implicit val rangeAnalysisPOST = jsonFormat9(RangeAnalysisPOST)
+        implicit val rangeAnalysisPOST = jsonFormat10(RangeAnalysisPOST)
         val in:RangeAnalysisPOST = Await.result(Unmarshal(entity).to[RangeAnalysisPOST], 10.second)
-        val response = RangeAnalysisRequest(in.jobID,in.analyserName,in.start,in.end,in.jump,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()))
+        val response = RangeAnalysisRequest(in.jobID,in.analyserName,in.start,in.end,in.jump,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
         mediator ! DistributedPubSubMediator.Send("/user/AnalysisManager", response, false)
         HttpResponse(entity = s"""Your Task ${in.jobID} Has been successfully submitted as a Range Analysis Task!""")
       }

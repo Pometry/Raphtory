@@ -6,8 +6,8 @@ import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.Tasks.AnalysisTask
 import com.raphtory.core.model.communication.AnalysisType
 
-class ViewAnalysisTask(managerCount:Int, jobID: String,args:Array[String], analyser: Analyser, time: Long)
-        extends AnalysisTask(jobID: String, args, analyser,managerCount) {
+class ViewAnalysisTask(managerCount:Int, jobID: String,args:Array[String], analyser: Analyser, time: Long,newAnalyser:Boolean,rawFile:String)
+        extends AnalysisTask(jobID: String, args, analyser,managerCount,newAnalyser,rawFile) {
   override def timestamp(): Long = time
 
   override protected def analysisType(): AnalysisType.Value = AnalysisType.view

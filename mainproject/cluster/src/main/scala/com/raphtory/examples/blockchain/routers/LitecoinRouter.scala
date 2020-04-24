@@ -11,7 +11,7 @@ import spray.json.JsArray
 
 import scala.util.hashing.MurmurHash3
 
-class LitecoinRouter(override val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
+class LitecoinRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
 
   def parseTuple(record: Any): Unit = {
     val value        = record.asInstanceOf[LitecoinTransaction]

@@ -9,7 +9,7 @@ import com.raphtory.core.model.communication.VertexAddWithProperties
 import spray.json._
 
 import scala.util.hashing.MurmurHash3
-class EthereumGethRouter(override val routerId: Int, val initialManagerCount: Int) extends RouterWorker {
+class EthereumGethRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(3).dropRight(1), 16)
   //
   override protected def parseTuple(value: Any): Unit = {

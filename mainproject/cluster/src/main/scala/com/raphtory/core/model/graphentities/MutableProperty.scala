@@ -44,18 +44,17 @@ class MutableProperty(creationTime: Long, key: String, value: Any, storage: Enti
           if (swapped && (v != PriorPoint._2)) {              //if we have skipped the pivot and the types are different
             toWrite.put(PriorPoint._1, PriorPoint._2)         //add to toWrite so this can be saved to cassandra
             compressedState.put(PriorPoint._1, PriorPoint._2) //add to compressedState in-mem
-          } else
-            recordRemoval(entityType, workerID)
+          }
           swapped = true
         }
         PriorPoint = (k, v)
     }
-    if ((PriorPoint._1 < cutoff))                                                  //
+    if ((PriorPoint._1 < cutoff)) { //
       if (compressedState.isEmpty || (compressedState.head._2 != PriorPoint._2)) { //if the last point is before the cut off --if compressedState is empty or the head of the compressed state is different to the final point of the uncompressed state then write
-        toWrite.put(PriorPoint._1, PriorPoint._2)                                  //add to toWrite so this can be saved to cassandra
-        compressedState.put(PriorPoint._1, PriorPoint._2)                          //add to compressedState in-mem
-      } else
-        recordRemoval(entityType, workerID)
+        toWrite.put(PriorPoint._1, PriorPoint._2) //add to toWrite so this can be saved to cassandra
+        compressedState.put(PriorPoint._1, PriorPoint._2) //add to compressedState in-mem
+      }
+    }
     else
       newPreviousState.put(
               PriorPoint._1,
@@ -64,12 +63,6 @@ class MutableProperty(creationTime: Long, key: String, value: Any, storage: Enti
     previousState = newPreviousState
     toWrite
   }
-
-  def recordRemoval(entityType: Boolean, workerID: Int) =
-    if (entityType)
-      storage.vertexPropertyDeletionCount(workerID) += 1
-    else
-      storage.edgePropertyDeletionCount(workerID) += 1
 
   def getPreviousStateSize(): Int =
     previousState.size

@@ -45,7 +45,7 @@ class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: 
 
     for (i <- 0 until children) {
       val childName = "child_" + i
-      childMap.put(i, context.actorOf(Props(Class.forName(slaveType), routerId, initialManagerCount), childName))
+      childMap.put(i, context.actorOf(Props(Class.forName(slaveType), routerId, i, initialManagerCount), childName))
     }
   }
 

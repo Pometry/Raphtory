@@ -18,27 +18,25 @@ import scala.concurrent.duration._
 import scala.io.Source
 import scala.sys.process._
 
-abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int) extends Actor {
-  private var currentSuperStep    = 0 //SuperStep the algorithm is currently on
+abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int,newAnalyser: Boolean,rawFile:String) extends Actor {
+  protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
 
   private var local: Boolean = Utils.local
 
   //Communication Counters
-  private var ReaderACKS               = 0    //Acks from the readers to say they are online
-  private var ReaderAnalyserACKS       = 0    //Ack to show that the chosen analyser is present within the partition
-  private var TimeOKFlag               = true //flag to specify if the job is ok to run if temporal
-  private var TimeOKACKS               = 0    //counter to see that all partitions have responded
-  private var workersFinishedSetup     = 0    //Acks from workers to see how many have finished the setup stage of analysis
-  private var workersFinishedSuperStep = 0    //Acks from workers to say they have finished the superstep
-  private var workerResultsReceived    = 0    //Acks from workers when sending results back to analysis manager
-  private var messageLogACKS           = 0    //Acks from Workers with the amount of messages they have sent and received
+  protected var ReaderACKS                   = 0    //Acks from the readers to say they are online
+  protected var ReaderAnalyserACKS           = 0    //Ack to show that the chosen analyser is present within the partition
+  protected var TimeOKFlag                   = true //flag to specify if the job is ok to run if temporal
+  protected var TimeOKACKS                   = 0    //counter to see that all partitions have responded
+  protected var workersFinishedSetup         = 0    //Acks from workers to see how many have finished the setup stage of analysis
+  protected var workersFinishedSuperStep     = 0    //Acks from workers to say they have finished the superstep
+  protected var workerResultsReceived        = 0    //Acks from workers when sending results back to analysis manager
+  protected var messageLogACKS               = 0    //Acks from Workers with the amount of messages they have sent and received
 
   private var totalReceivedMessages = 0 //Total number of messages received by the workers
   private var totalSentMessages     = 0 //Total number of messages sent by the workers
 
   private var voteToHalt = true // If the workers have decided to halt
-
-  private var newAnalyser: Boolean = false //if the analyser is not present in the readers
 
   private val debug                = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean //for printing debug messages
 
@@ -69,19 +67,21 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   stepCompleteTime()
 
   protected val steps: Long    =  analyser.defineMaxSteps()         // number of supersteps before returning
-  def timestamp(): Long        = -1L         //for view
+  def restartTime():Long       =  10000
+  def timestamp(): Long   //defaults to live to be overwritten in view and range
   def windowSize(): Long       = -1L         //for windowing
   def windowSet(): Array[Long] = Array.empty //for sets of windows
+
+
 
   private def processOtherMessages(value: Any): Unit = println("Not handled message" + value.toString)
   protected def generateAnalyzer: Analyser =
     if (local)Class.forName(analyser.getClass.getCanonicalName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser] else analyser
-  protected def analyserName: String            = generateAnalyzer.getClass.getName
   final protected def getManagerCount: Int      = managerCount
   final protected def getWorkerCount: Int       = managerCount * 10
   protected def processResults(timeStamp: Long) = analyser.processResults(results, timeStamp,viewCompleteTime())
 
-  private def resetCounters() = {
+  protected def resetCounters() = {
     ReaderACKS = 0               //Acks from the readers to say they are online
     ReaderAnalyserACKS = 0       //Ack to show that the chosen analyser is present within the partition
     workersFinishedSetup = 0     //Acks from workers to see how many have finished the setup stage of analysis
@@ -112,15 +112,13 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     case EndStep(messages, voteToHalt) => endStep(messages, voteToHalt) //worker has finished the step
     case ReturnResults(results)        => finaliseJob(results) //worker has finished teh job and is returned the results
     case "restart"                     => restart()
-    case MessagesReceived(workerID, real, receivedMessages, sentMessages) =>
-      messagesReceieved(workerID, real, receivedMessages, sentMessages)
-    case RequestResults(jobID)         => returnResults()
-    case ClassMissing()                => classMissing()              //If the class is missing, send the raw source file
+    case MessagesReceived(workerID, real, receivedMessages, sentMessages) => messagesReceieved(workerID, real, receivedMessages, sentMessages)
+    case RequestResults(jobID)         => requestResults()
     case FailedToCompile(stackTrace)   => failedToCompile(stackTrace) //Your code is broke scrub
     case _                             => processOtherMessages(_)     //incase some random stuff comes through
   }
 
-  def returnResults() =sender() ! ResultsForApiPI(analyser.getPublishedData())
+  def requestResults() =sender() ! ResultsForApiPI(analyser.getPublishedData())
 
   def startAnalysis() = {
     for (worker <- Utils.getAllReaders(managerCount))
@@ -131,73 +129,70 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (debug) println("Received NetworkSize packet")
     ReaderACKS += 1
     if (ReaderACKS == getManagerCount) {
-      for (worker <- Utils.getAllReaders(managerCount))
-        mediator ! DistributedPubSubMediator
-          .Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$", "")), false)
+      if (newAnalyser) {
+        for (worker <- Utils.getAllReaderWorkers(managerCount))
+          mediator ! DistributedPubSubMediator
+            .Send(worker, CompileNewAnalyser(rawFile,args,jobID), false)
+      }
+      else {
+        for (worker <- Utils.getAllReaders(managerCount))
+          mediator ! DistributedPubSubMediator
+            .Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$", "")), false)
+      }
     }
   }
 
   def analyserPresent() = {
     ReaderAnalyserACKS += 1
-    if (ReaderAnalyserACKS == getManagerCount) {
-      for (worker <- Utils.getAllReaders(managerCount))
-        mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
+    if(newAnalyser){
+      if (ReaderAnalyserACKS == getWorkerCount) {
+        for (worker <- Utils.getAllReaderWorkers(managerCount))
+          mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
+      }
     }
+    else{
+      if (ReaderAnalyserACKS == getManagerCount) {
+        for (worker <- Utils.getAllReaderWorkers(managerCount))
+          mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
+      }
+    }
+
   }
 
   def timeResponse(ok: Boolean, time: Long) = {
     if (!ok)
       TimeOKFlag = false
     TimeOKACKS += 1
-    if (TimeOKACKS == getManagerCount) {
+    if (TimeOKACKS == getWorkerCount) {
       stepCompleteTime() //reset step counter
-      if (TimeOKFlag)
+      if (TimeOKFlag) {
         if (analyser.defineMaxSteps() > 1)
           for (worker <- Utils.getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(
-                    worker,
-                    Setup(
-                            this.generateAnalyzer,
-                            jobID,
-                            args,
-                            currentSuperStep,
-                            timestamp,
-                            analysisType(),
-                            windowSize(),
-                            windowSet()
-                    ),
-                    false
-            )
+            if(newAnalyser)
+              mediator ! DistributedPubSubMediator.Send(worker, SetupNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()),false)
+            else
+              mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()),false)
         else
           for (worker <- Utils.getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(
-                    worker,
-                    Finish(
-                            this.generateAnalyzer,
-                            jobID,
-                            args,
-                            currentSuperStep,
-                            timestamp,
-                            analysisType(),
-                            windowSize(),
-                            windowSet()
-                    ),
-                    false
-            )
-      else {
-        println(
-                s"${timestamp()} is yet to be ingested, currently at ${time}. Retrying analysis in 10 seconds and retrying"
-        )
-        context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, "recheckTime")
+            if(newAnalyser)
+              mediator ! DistributedPubSubMediator.Send(worker, FinishNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
+            else
+              mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
       }
+      else {
+        println(s"${timestamp()} is yet to be ingested, currently at ${time}. Retrying analysis in 10 seconds and retrying")
+        context.system.scheduler.scheduleOnce(Duration(10000, MILLISECONDS), self, "recheckTime")
+      }
+
       TimeOKACKS = 0
       TimeOKFlag = true
     }
   }
 
-  def timeRecheck() =
-    for (worker <- Utils.getAllReaders(managerCount))
+  def timeRecheck() = {
+    for (worker <- Utils.getAllReaderWorkers(managerCount))
       mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
+  }
 
   def ready(messages: Int) = {
     if (debug) println("Received ready")
@@ -218,20 +213,10 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (workersFinishedSuperStep == getWorkerCount)
       if (currentSuperStep == steps || this.voteToHalt)
         for (worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(
-                  worker,
-                  Finish(
-                          this.generateAnalyzer,
-                          jobID,
-                          args,
-                          currentSuperStep,
-                          timestamp,
-                          analysisType: AnalysisType.Value,
-                          windowSize(),
-                          windowSet()
-                  ),
-                  false
-          )
+          if(newAnalyser)
+            mediator ! DistributedPubSubMediator.Send(worker, FinishNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
+          else
+            mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
       else {
         this.voteToHalt = true
         workersFinishedSuperStep = 0
@@ -245,7 +230,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (workerResultsReceived == getWorkerCount) {
       processResults(timestamp())
       resetCounters()
-      context.system.scheduler.scheduleOnce(Duration(10, MILLISECONDS), self, "restart")
+      context.system.scheduler.scheduleOnce(Duration(restartTime(), MILLISECONDS), self, "restart")
     }
   }
 
@@ -254,141 +239,69 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
       currentSuperStep += 1
       if (newAnalyser)
         for (worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(
-                  worker,
-                  NextStepNewAnalyser(
-                          analyserName,
-                          jobID,
-                          args,
-                          currentSuperStep,
-                          timestamp,
-                          analysisType: AnalysisType.Value,
-                          windowSize(),
-                          windowSet()
-                  ),
-                  false
-          )
+          mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
       else
         for (worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(
-                  worker,
-                  NextStep(
-                          this.generateAnalyzer,
-                          jobID,
-                          args,
-                          currentSuperStep,
-                          timestamp,
-                          analysisType: AnalysisType.Value,
-                          windowSize(),
-                          windowSet()
-                  ),
-                  false
-          )
-    } else {
+          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+    }
+    else {
       totalSentMessages = 0
       totalReceivedMessages = 0
       for (worker <- Utils.getAllReaderWorkers(managerCount))
         mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep), false)
     }
 
-  def messagesReceieved(workerID: Int, real: Int, receivedMessages: Int, sentMessages: Int) = {
+  def messagesReceieved(workerID: Int, real: Int, receivedMessages: Int, sentMessages: Int) = { ////mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false) //todo fix
     messageLogACKS += 1
     totalReceivedMessages += receivedMessages
     totalSentMessages += sentMessages
-    //if(real != receivedMessages)
-    // println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
     if (messageLogACKS == getWorkerCount) {
-//      if (totalReceivedMessages != totalSentMessages)
-//        println(
-//                s"superstep $currentSuperStep workerID: $workerID -- $receivedMessages/$sentMessages $totalReceivedMessages/$totalSentMessages"
-//        )
       messageLogACKS = 0
       if (totalReceivedMessages == totalSentMessages) {
         currentSuperStep += 1
         totalSentMessages = 0
         totalReceivedMessages = 0
-        for (worker <- Utils.getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(
-                  worker,
-                  NextStep(
-                          this.generateAnalyzer,
-                          jobID,
-                          args,
-                          currentSuperStep,
-                          timestamp,
-                          analysisType: AnalysisType.Value,
-                          windowSize(),
-                          windowSet()
-                  ),
-                  false
-          )
-      } else {
-        //println(s"checking, $totalReceivedMessages/$totalSentMessages")
+        if (newAnalyser)
+          for (worker <- Utils.getAllReaderWorkers(managerCount))
+            mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+        else
+          for (worker <- Utils.getAllReaderWorkers(managerCount))
+            mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+      }
+      else {
         totalReceivedMessages = 0
         totalSentMessages = 0
         currentSuperStep += 1
-        for (worker <- Utils.getAllReaderWorkers(managerCount))
-          //mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false) //todo fix
-          mediator ! DistributedPubSubMediator.Send(
-                  worker,
-                  NextStep(
-                          this.generateAnalyzer,
-                          jobID,
-                          args,
-                          currentSuperStep,
-                          timestamp,
-                          analysisType: AnalysisType.Value,
-                          windowSize(),
-                          windowSet()
-                  ),
-                  false
-          )
+        if (newAnalyser)
+          for (worker <- Utils.getAllReaderWorkers(managerCount))
+            mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+        else
+          for (worker <- Utils.getAllReaderWorkers(managerCount))
+            mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
       }
     }
   }
 
-  def restart() =
-    for (worker <- Utils.getAllReaders(managerCount))
-      mediator ! DistributedPubSubMediator
-        .Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$", "")), false)
+  def restart()
 
   def partitionsHalting() = voteToHalt
 
   def killme() = self.tell(PoisonPill.getInstance,self)
 
-  /////HERE BE DRAGONS, GO NO FURTHER
 
-  def classMissing() {
-    if (debug) println(s"$sender does not have analyser, sending now")
-    var code = missingCode()
-    newAnalyser = true
-    sender() ! CompileNewAnalyser(code, analyserName)
-  }
   def failedToCompile(stackTrace: String): Unit =
-    if (debug) println(s"$sender failed to compiled, stacktrace returned: \n $stackTrace")
+    println(s"$sender failed to compiled, stacktrace returned: \n $stackTrace")
 
-  def missingCode(): String = {
-    val file = generateAnalyzer.getClass.getName.replaceAll("\\.", "/").replaceAll("$", "")
-    var code = ""
-    if (debug) println("pwd" !)
-    try code = readClass(s"../$file.scala") //if inside a contained and the src has been copied
-    catch { case e: FileNotFoundException => code = readClass(s"cluster/src/main/scala/$file.scala") } //if we are running locally inside of the the mainproject folder
-    code
-  }
 
-  def readClass(file: String): String = {
-    val bufferedSource = Source.fromFile(file)
-    var code           = ""
-    for (line <- bufferedSource.getLines)
-      if (line.startsWith("class ") && line
-            .contains("extends Analyser")) //name of class must be replaced with "new Analyser"
-        if (line.contains("{"))
-          code += "new Analyser{ \n"
-        else
-          code += "new Analyser \n"
-      else if (!line.startsWith("package com.")) //have to also remove package line
-        code += s"$line\n"
-    bufferedSource.close
-    code
-  }
+
+
 }
+
+//
+////if(real != receivedMessages)
+//// println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
+//if (messageLogACKS == getWorkerCount) {
+////      if (totalReceivedMessages != totalSentMessages)
+////        println(
+////                s"superstep $currentSuperStep workerID: $workerID -- $receivedMessages/$sentMessages $totalReceivedMessages/$totalSentMessages"
+////        )
