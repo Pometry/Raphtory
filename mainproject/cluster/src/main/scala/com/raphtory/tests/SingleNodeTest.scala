@@ -41,14 +41,17 @@ object SingleNodeTest extends App {
     val start = 1470837600000L
     val end =   31525368897000L
     val jump =    3600000
-    var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
-    var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+//    var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+//    var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
 
   //track and trace test
     //var UpdaterName = "com.raphtory.examples.trackAndTrace.spouts.TrackAndTraceSpout"
     //var routerClassName = "com.raphtory.examples.trackAndTrace.routers.TrackAndTraceRouter"
   //  Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
 
+//chainalysisAB
+  var UpdaterName = "com.raphtory.examples.blockchain.spouts.ChainalysisABSpout"
+  var routerClassName = "com.raphtory.examples.blockchain.routers.ChainalysisABRouter"
 
   val system = ActorSystem("Single-Node-test")
 
@@ -59,7 +62,7 @@ object SingleNodeTest extends App {
   val analysisManager = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
   AnalysisRestApi(system)
 
-  //analysisManager ! ViewAnalysisRequest("jobID","com.raphtory.examples.blockchain.analysers.EthereumTaintTracking",1234L)
+  analysisManager ! ViewAnalysisRequest("jobID","com.raphtory.core.analysis.Algorithms.DegreeBasic", 1500046397L)
 
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents"}' 127.0.0.1:8080/LiveAnalysisRequest
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsViewTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents","timestamp":1476113856000}' 127.0.0.1:8080/ViewAnalysisRequest
