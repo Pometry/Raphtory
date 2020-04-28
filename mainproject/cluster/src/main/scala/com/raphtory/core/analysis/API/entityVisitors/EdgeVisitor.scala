@@ -1,4 +1,4 @@
-package com.raphtory.core.analysis.API
+package com.raphtory.core.analysis.API.entityVisitors
 
 import com.raphtory.core.model.graphentities.Edge
 

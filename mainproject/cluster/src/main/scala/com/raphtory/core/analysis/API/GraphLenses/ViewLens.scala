@@ -2,7 +2,7 @@ package com.raphtory.core.analysis.API.GraphLenses
 
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.ManagerCount
-import com.raphtory.core.analysis.API.VertexVisitor
+import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 
@@ -15,7 +15,7 @@ class ViewLens(
     workerID: Int,
     storage: EntityStorage,
     managerCount: ManagerCount
-) extends LiveLens(jobID, superstep, timestamp, -1, workerID, storage, managerCount) {
+) extends GraphLens(jobID, superstep, timestamp, -1, workerID, storage, managerCount) {
 
   override def job()                                   = jobID + timestamp
   private var keySet: ParTrieMap[Long, Vertex]         = ParTrieMap[Long, Vertex]()
