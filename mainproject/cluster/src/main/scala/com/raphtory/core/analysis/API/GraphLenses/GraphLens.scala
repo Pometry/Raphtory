@@ -2,7 +2,7 @@ package com.raphtory.core.analysis.API.GraphLenses
 
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.ManagerCount
-import com.raphtory.core.analysis.API.VertexVisitor
+import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 import monix.execution.atomic.AtomicInt
