@@ -2,7 +2,7 @@ package com.raphtory.core.analysis.API.GraphLenses
 
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.ManagerCount
-import com.raphtory.core.analysis.API.VertexVisitor
+import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 
@@ -17,7 +17,7 @@ class WindowLens(
     workerID: Int,
     storage: EntityStorage,
     managerCount: ManagerCount
-) extends LiveLens(jobID, superstep, timestamp, windowSize, workerID, storage, managerCount) {
+) extends GraphLens(jobID, superstep, timestamp, windowSize, workerID, storage, managerCount) {
 
   private var setWindow = windowSize
   private var keySet: ParTrieMap[Long, Vertex] =

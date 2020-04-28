@@ -5,7 +5,7 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.analysis.API.GraphLenses.LiveLens
+import com.raphtory.core.analysis.API.GraphLenses.GraphLens
 import com.raphtory.core.analysis.API.GraphLenses.ViewLens
 import com.raphtory.core.analysis.API.GraphLenses.WindowLens
 import com.raphtory.core.analysis.API.Analyser
@@ -29,7 +29,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   implicit var managerCount: ManagerCount = ManagerCount(managerCountVal)
   val analyserMap: TrieMap[String,LoadExternalAnalyser] = TrieMap[String,LoadExternalAnalyser]()
   var receivedMessages    = AtomicInt(0)
-  var tempProxy: LiveLens = _
+  var tempProxy: GraphLens = _
 
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)

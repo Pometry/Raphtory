@@ -1,7 +1,7 @@
 package com.raphtory.core.analysis.API
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.API.GraphLenses.LiveLens
+import com.raphtory.core.analysis.API.GraphLenses.GraphLens
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -10,6 +10,15 @@ import scala.reflect.runtime.currentMirror
 import scala.tools.reflect.ToolBox
 case class ManagerCount(count: Int)
 case class WorkerID(ID: Int)
+
+class BlankAnalyser(args:Array[String]) extends Analyser(args) {
+  override def analyse(): Unit = {}
+  override def setup(): Unit = {}
+  override def returnResults(): Any = {}
+  override def defineMaxSteps(): Int = 1
+  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {println("howdy!")}
+}
+
 
 case class LoadExternalAnalyser(rawFile: String,args:Array[String]) {
   private val toolbox = currentMirror.mkToolBox()
@@ -21,11 +30,11 @@ case class LoadExternalAnalyser(rawFile: String,args:Array[String]) {
 abstract class Analyser(args:Array[String]) extends java.io.Serializable {
   implicit var context: ActorContext      = null
   implicit var managerCount: ManagerCount = null
-  implicit var proxy: LiveLens            = null
+  implicit var proxy: GraphLens            = null
   var workerID: Int                       = 0
 
   private val toPublish:mutable.ArrayBuffer[String] = ArrayBuffer()
-  final def sysSetup(context: ActorContext, managerCount: ManagerCount, proxy: LiveLens, ID: Int) = {
+  final def sysSetup(context: ActorContext, managerCount: ManagerCount, proxy: GraphLens, ID: Int) = {
     this.context = context
     this.managerCount = managerCount
     this.proxy = proxy

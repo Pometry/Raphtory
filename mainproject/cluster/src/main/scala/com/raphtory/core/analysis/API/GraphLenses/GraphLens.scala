@@ -9,7 +9,7 @@ import monix.execution.atomic.AtomicInt
 
 import scala.collection.parallel.mutable.ParTrieMap
 
-class LiveLens(
+abstract class GraphLens(
     jobID: String,
     superstep: Int,
     timestamp: Long,
