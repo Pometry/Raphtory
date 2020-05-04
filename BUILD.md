@@ -4,6 +4,7 @@
 	- sbt (version is fixed within the `build.properties` file)
 	- JDK version 12 (be it openjdk or oracle jdk) 
  	- scala (version is fixed within `build.sbt` file)
+	- docker (with a login into dockerhub)
 
 ## Building
 Step 1.
