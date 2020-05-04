@@ -70,7 +70,7 @@ To fix this
 - Go into the main project folder
     - `cd raphtory/mainproject`
 - Change the local java environment (per folder and everything in that folder)
-    - `jenv local 10.0.2`
+    - `jenv local 12.0.2`
 - Now sbt will run without any errors
     - `sbt build:publishLocal`
  
