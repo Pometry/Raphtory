@@ -1,1 +1,0 @@
-curl --user $1:$2 --data-binary $3 -H 'content-type: text/plain;' $4
