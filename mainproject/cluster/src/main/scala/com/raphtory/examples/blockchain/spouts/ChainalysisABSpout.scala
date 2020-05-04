@@ -26,11 +26,11 @@ class ChainalysisABSpout extends SpoutTrait {
         //val line = if(fileLines.hasNext) fileLines.next() else ""
         try {
           sendTuple(fileLines.next())
+          AllocateSpoutTask(Duration(1, NANOSECONDS), "newLine")
         }catch{
           case e: NoSuchElementException => println("End of file!")
         }
     //    position += 1
-        AllocateSpoutTask(Duration(1, NANOSECONDS), "newLine")
    //   }
     case _ => println("message not recognized!")
   }

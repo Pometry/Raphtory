@@ -43,6 +43,7 @@ abstract class Analyser(args:Array[String]) extends java.io.Serializable {
 
   def publishData(data:String) = toPublish +=data
   def getPublishedData() = toPublish.toArray
+
   def analyse(): Unit
   def setup(): Unit
   def returnResults(): Any
