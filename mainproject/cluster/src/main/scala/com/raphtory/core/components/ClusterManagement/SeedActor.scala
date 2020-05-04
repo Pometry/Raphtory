@@ -1,55 +1,57 @@
 package com.raphtory.core.components.ClusterManagement
 
 import akka.actor.Actor
+import akka.actor.ActorLogging
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
 import com.raphtory.core.clustersetup.DocSvr
 
-import scala.collection.concurrent.TrieMap
+class SeedActor(svr: DocSvr) extends Actor with ActorLogging {
+  val cluster: Cluster = Cluster(context.system)
 
-class SeedActor(svr:DocSvr) extends Actor {
-  val cluster = Cluster(context.system)
+  override def preStart(): Unit = {
+    log.debug("SeedActor is being started.")
 
- // subscribe to cluster events
-  override def preStart() : Unit = {
-    println("== Starting cluster listener 2 ==")
     cluster.subscribe(self, initialStateMode = InitialStateAsEvents, classOf[MemberEvent], classOf[UnreachableMember])
   }
 
-  override def postStop() : Unit = cluster.unsubscribe(self)
+  override def postStop(): Unit = cluster.unsubscribe(self)
 
-  def receive = {
+  def receive: Receive = {
 
-    // cluster event sent when a new cluster member comes up. Register the new cluster member if it is the parent node
-    case state: MemberUp => {
-      println("--1-- " + state.member)
-      svr.nodes.synchronized {
-        svr.nodes += state.member
-      }
+    case evt: MemberUp          => processMemberUpEvent(evt)
+    case evt: MemberRemoved     => processMemberRemovedEvent(evt)
+    case evt: UnreachableMember => processUnreachableMemberEvent(evt)
+    case evt: MemberExited      => processMemberExitedEvent(evt)
+    case x                      => log.warning("SeedActor received unknown [{}] message.", x)
+  }
+
+  private def processMemberUpEvent(evt: MemberUp): Unit = {
+    log.debug(s"SeedActor received [{}] event.", evt)
+
+    svr.nodes.synchronized {
+      svr.nodes += evt.member
     }
+  }
 
-    // cluster event sent when a cluster member is removed. Unregister the cluster member if it is the parent node
-    case state: MemberRemoved => {
-      println("--2--"+ state.member)
-      svr.nodes.synchronized {
-        svr.nodes -= state.member
-      }
+  private def processMemberRemovedEvent(evt: MemberRemoved): Unit = {
+    log.debug(s"SeedActor received [{}] event.", evt)
+
+    svr.nodes.synchronized {
+      svr.nodes -= evt.member
     }
+  }
+  private def processMemberExitedEvent(evt: MemberExited): Unit = {
+    log.debug(s"SeedActor received [{}] event.", evt)
 
-    case state: UnreachableMember => {
-      println("--3--" + state.member)
-      //svr.nodes.synchronized {
-      //  svr.nodes -= state.member
-     // }
+    svr.nodes.synchronized {
+      svr.nodes -= evt.member
     }
+  }
 
-    case state: MemberExited => {
-      println("--4--")
-      svr.nodes.synchronized {
-        svr.nodes -= state.member
-      }
-    }
+  private def processUnreachableMemberEvent(evt: UnreachableMember): Unit = {
+    log.debug(s"SeedActor received [{}] event.", evt)
 
-    case _ => //println(s"Hmm... unknown event $z")
+    log.warning("processUnreachableMemberEvent in SeedActor has not been implemented. Ignoring request.")
   }
 }
