@@ -33,17 +33,17 @@ object SingleNodeTest extends App {
 //  val start = 4000000L
 //  val end = 6000000L
 //  val jump =    10
-  var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
-  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
+//  var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
+//  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
 //  Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
 
   //Gab test
     val start = 1470837600000L
     val end =   31525368897000L
-    val jump =    3600000
 
-//    var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
-//    var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+    val jump =    3600000
+    var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+    var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
 
 
   //track and trace test
