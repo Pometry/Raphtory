@@ -1,149 +1,353 @@
 package com.raphtory.core.components.PartitionManager.Workers
 
-import akka.actor.{Actor, ActorPath, ActorRef}
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.analysis.API.GraphRepositoryProxies.{LiveProxy, ViewProxy, WindowProxy}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator
+import com.raphtory.core.analysis.API.GraphLenses.GraphLens
+import com.raphtory.core.analysis.API.GraphLenses.ViewLens
+import com.raphtory.core.analysis.API.GraphLenses.WindowLens
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.API._
+import com.raphtory.core.analysis.Algorithms.ConnectedComponents
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
+import com.twitter.util.Eval
 import monix.execution.atomic.AtomicInt
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration.{Duration, SECONDS}
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Try
 
-class ReaderWorker(managerCountVal:Int,managerID:Int,workerId:Int,storage:EntityStorage)  extends Actor{
+class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage: EntityStorage)
+        extends Actor
+        with ActorLogging {
+
   implicit var managerCount: ManagerCount = ManagerCount(managerCountVal)
-  val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
+  val analyserMap: TrieMap[String,LoadExternalAnalyser] = TrieMap[String,LoadExternalAnalyser]()
+  var receivedMessages    = AtomicInt(0)
+  var tempProxy: GraphLens = _
+
+  val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
-  var receivedMessages = AtomicInt(0)
-  var tempProxy:LiveProxy = null
+
+  override def preStart(): Unit =
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] is being started.", workerId, managerID)
 
   override def receive: Receive = {
-    case UpdatedCounter(newValue) => managerCount = ManagerCount(newValue)
-    case Setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{setup(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => e.printStackTrace()}
-    case CheckMessages(superstep) => checkMessages()
-    case NextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) => try{nextStep(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => e.printStackTrace()}
-    case NextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet) => nextStepNewAnalyser(name,jobID,currentStep,timestamp,analysisType,window,windowSet)
-    case Finish(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet) =>   try{returnResults(analyzer,jobID,superStep,timestamp,analysisType,window,windowSet)}catch {case e:Exception => e.printStackTrace()}
-    //case handler:VertexMessage => receivedMessage(handler)
-    case VertexMessageFloat(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Float) => receivedMessage(vertexID,jobID,superStep,data)
-    case VertexMessageString(source:Long,vertexID:Long,jobID:String,superStep:Int,data:String) => receivedMessage(vertexID,jobID,superStep,data)
-    case VertexMessageInt(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Int) => receivedMessage(vertexID,jobID,superStep,data)
-    case VertexMessageLong(source:Long,vertexID:Long,jobID:String,superStep:Int,data:Long) => receivedMessage(vertexID,jobID,superStep,data)
-    case VertexMessageBatch(jobID:String,superStep:Int,data:Set[(Long,Long,Any)]) => data.foreach(f => receivedMessage(f._2,jobID,superStep,f._3))
+
+    case req: UpdatedCounter      => processUpdatedCounterRequest(req)
+    case req: TimeCheck            => processTimeCheckRequest(req)
+    case req: CompileNewAnalyser   => processCompileNewAnalyserRequest(req)
+    case req: Setup               => processSetupRequest(req)
+    case req: SetupNewAnalyser    => processSetupNewAnalyserRequest(req)
+    case req: CheckMessages       => processCheckMessagesRequest(req)
+    case req: NextStep            => processNextStepRequest(req)
+    case req: NextStepNewAnalyser => processNextStepNewAnalyserRequest(req)
+    case req: Finish              => processFinishRequest(req)
+    case req: FinishNewAnalyser    => processFinishNewAnalyserRequest(req)
+
+    case req: VertexMessage       => handleVertexMessage(req)
+    case x                        => log.warning("ReaderWorker [{}] belonging to Reader [{}] received unknown [{}] message.", x)
   }
 
-  def receivedMessage(vertexID:Long,jobID:String,superStep:Int,data:Any) = {
-    receivedMessages.increment()
-    storage.vertices(vertexID).multiQueue.receiveMessage(jobID,superStep,data)
+  def processUpdatedCounterRequest(req: UpdatedCounter): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+
+    managerCount = ManagerCount(req.newValue)
   }
 
-  def checkMessages() ={
+  def processSetupRequest(req: Setup): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+
+    try setup(
+            req.analyzer,
+            req.jobID,
+            req.args,
+            req.superStep,
+            req.timestamp,
+            req.analysisType,
+            req.window,
+            req.windowSet
+    )
+    catch { case e: Exception => log.error("Failed to run setup due to [{}].", e) }
+  }
+
+  def processCheckMessagesRequest(req: CheckMessages): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+
     var count = AtomicInt(0)
+
     //tempProxy.getVerticesSet().foreach(v => count.add(tempProxy.getVertex(v._2).messageQueue2.size))
-    sender() ! MessagesReceived(workerId,count.get,receivedMessages.get,tempProxy.getMessages())
+
+    sender ! MessagesReceived(workerId, count.get, receivedMessages.get, tempProxy.getMessages())
   }
 
-  def setup(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) {
-    receivedMessages.set(0)
-    setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
-    analyzer.sysSetup(context,managerCount,tempProxy,workerId)
-    if(windowSet.isEmpty) {
-      analyzer.setup()
-      sender() ! Ready(tempProxy.getMessages())
+  def processNextStepRequest(req: NextStep): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+
+    try nextStep(
+            req.analyzer,
+            req.jobID,
+            req.args,
+            req.superStep,
+            req.timestamp,
+            req.analysisType,
+            req.window,
+            req.windowSet
+    )
+    catch { case e: Exception => log.error("Failed to run nextStep due to [{}].", e) }
+  }
+
+  def processNextStepNewAnalyserRequest(req: NextStepNewAnalyser): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+    nextStepNewAnalyser(req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+  }
+
+  def processSetupNewAnalyserRequest(req: SetupNewAnalyser): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+    setupNewAnalyser(req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+  }
+
+  def processFinishNewAnalyserRequest(req: FinishNewAnalyser): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+    finishNewAnalyser(req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+  }
+
+  def processFinishRequest(req: Finish): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+
+    try returnResults(
+            req.analyzer,
+            req.jobID,
+            req.args,
+            req.superStep,
+            req.timestamp,
+            req.analysisType,
+            req.window,
+            req.windowSet
+    )
+    catch { case e: Exception => log.error("Failed to run returnResults due to [{}].", e) }
+  }
+
+  def handleVertexMessage(req: VertexMessage): Unit = {
+    log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+
+    req match {
+      case VertexMessageFloat(_, vertexID, jobID, superStep, data) =>
+        processVertexMessage(vertexID, jobID, superStep, data)
+      case VertexMessageInt(_: Long, vertexID: Long, jobID: String, superStep: Int, data: Int) =>
+        processVertexMessage(vertexID, jobID, superStep, data)
+      case VertexMessageLong(_: Long, vertexID: Long, jobID: String, superStep: Int, data: Long) =>
+        processVertexMessage(vertexID, jobID, superStep, data)
+      case VertexMessageStringLong(_: Long, vertexID: Long, jobID: String, superStep: Int, data: (String, Long)) =>
+        processVertexMessage(vertexID, jobID, superStep, data)
+      case VertexMessageBatch(jobID: String, superStep: Int, batchData: Set[(Long, Long, Any)]) =>
+        batchData.foreach { case (vertexID, _, data) => processVertexMessage(vertexID, jobID, superStep, data) }
     }
-    else{
+  }
+
+  def processVertexMessage(vertexID: Long, jobID: String, superStep: Int, data: Any): ArrayBuffer[Any] = {
+    receivedMessages.increment()
+    storage.vertices(vertexID).multiQueue.receiveMessage(jobID, superStep, data)
+  }
+
+  def setup(
+      analyzer: Analyser,
+      jobID: String,
+      args: Array[String],
+      superStep: Int,
+      timestamp: Long,
+      analysisType: AnalysisType.Value,
+      window: Long,
+      windowSet: Array[Long]
+  ) {
+    receivedMessages.set(0)
+
+    setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
+    analyzer.sysSetup(context, managerCount, tempProxy, workerId)
+    if (windowSet.isEmpty) {
+      analyzer.setup()
+      sender ! Ready(tempProxy.getMessages())
+    } else {
       analyzer.setup()
       var currentWindow = 1
-      while(currentWindow<windowSet.size){
-        tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(currentWindow))
+
+      while (currentWindow < windowSet.length) {
+        tempProxy.asInstanceOf[WindowLens].shrinkWindow(windowSet(currentWindow))
         analyzer.setup()
-        currentWindow +=1
+        currentWindow += 1
       }
-      sender() ! Ready(tempProxy.getMessages())
+
+      sender ! Ready(tempProxy.getMessages())
     }
   }
 
-  def nextStep(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]): Unit = {
+  def nextStep(
+      analyzer: Analyser,
+      jobID: String,
+      args: Array[String],
+      superStep: Int,
+      timestamp: Long,
+      analysisType: AnalysisType.Value,
+      window: Long,
+      windowSet: Array[Long]
+  ): Unit = {
     receivedMessages.set(0)
-    setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
-    analyzer.sysSetup(context,managerCount,tempProxy,workerId)
-    if(windowSet.isEmpty) {
+
+    setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
+    analyzer.sysSetup(context, managerCount, tempProxy, workerId)
+    if (windowSet.isEmpty) {
       analyzer.analyse()
-      sender() ! EndStep(tempProxy.getMessages(),tempProxy.checkVotes(workerId))
-    }
-    else{
-      val individualResults:mutable.ArrayBuffer[Any] = ArrayBuffer[Any]()
+      sender ! EndStep(tempProxy.getMessages(), tempProxy.checkVotes(workerId))
+    } else {
       analyzer.analyse()
-      for(i<- windowSet.indices)
-        if(i!=0) {
-          tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(i))
+
+      for (i <- windowSet.indices)
+        if (i != 0) {
+          tempProxy.asInstanceOf[WindowLens].shrinkWindow(windowSet(i))
           analyzer.analyse()
         }
-      sender() ! EndStep(tempProxy.getMessages(),tempProxy.checkVotes(workerId))
-      }
 
-  }
-
-  def nextStepNewAnalyser(name: String,jobID:String,currentStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]) = {
-    nextStep(Utils.analyserMap(name),jobID,currentStep,timestamp,analysisType,window,windowSet)
-  }
-
-  def returnResults(analyzer: Analyser,jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]): Unit = {
-    setProxy(jobID,superStep,timestamp,analysisType,window,windowSet)
-    analyzer.sysSetup(context,managerCount,tempProxy,workerId)
-    if(windowSet.isEmpty) {
-      val result = analyzer.returnResults()
-      sender() ! ReturnResults(result)
+      sender ! EndStep(tempProxy.getMessages(), tempProxy.checkVotes(workerId))
     }
-    else{
-      val individualResults:mutable.ArrayBuffer[Any] = ArrayBuffer[Any]()
+
+  }
+
+  def setupNewAnalyser(jobID: String, args: Array[String], currentStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
+    setup(analyserMap.get(jobID).get.newAnalyser, jobID, args, currentStep, timestamp, analysisType, window, windowSet)
+  }
+  def nextStepNewAnalyser(jobID: String, args: Array[String], currentStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
+    nextStep(analyserMap.get(jobID).get.newAnalyser, jobID, args, currentStep, timestamp, analysisType, window, windowSet)
+  }
+
+  def finishNewAnalyser(jobID: String, args: Array[String], currentStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
+    returnResults(analyserMap.get(jobID).get.newAnalyser, jobID, args, currentStep, timestamp, analysisType, window, windowSet)
+  }
+
+  def returnResults(
+      analyzer: Analyser,
+      jobID: String,
+      args: Array[String],
+      superStep: Int,
+      timestamp: Long,
+      analysisType: AnalysisType.Value,
+      window: Long,
+      windowSet: Array[Long]
+  ): Unit = {
+    setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
+    analyzer.sysSetup(context, managerCount, tempProxy, workerId)
+    if (windowSet.isEmpty) {
+      val result = analyzer.returnResults()
+      sender ! ReturnResults(result)
+    } else {
+      val individualResults: mutable.ArrayBuffer[Any] = ArrayBuffer[Any]()
       individualResults += analyzer.returnResults()
-      for(i<- windowSet.indices)
-        if(i!=0) {
-          tempProxy.asInstanceOf[WindowProxy].shrinkWindow(windowSet(i))
+      for (i <- windowSet.indices)
+        if (i != 0) {
+          tempProxy.asInstanceOf[WindowLens].shrinkWindow(windowSet(i))
           individualResults += analyzer.returnResults()
         }
-      sender() ! ReturnResults(individualResults)
+      sender ! ReturnResults(individualResults)
+    }
+  }
+
+  def processTimeCheckRequest(req: TimeCheck): Unit = {
+    log.debug(s"Reader [{}] received [{}] request.", workerId, req)
+    val timestamp = req.timestamp
+
+    val newest = if(storage.windowSafe) storage.safeWindowTime else storage.windowTime
+
+    if (timestamp <= newest) {
+      log.debug("Received timestamp is smaller or equal to newest entityStorage timestamp.")
+
+      sender ! TimeResponse(ok = true, newest)
+    } else {
+      log.debug("Received timestamp is larger than newest entityStorage timestamp.")
+
+      sender ! TimeResponse(ok = false, newest)
     }
   }
 
 
 
+  def processCompileNewAnalyserRequest(req: CompileNewAnalyser)= {
+    try{
+      val analyserBuilder = LoadExternalAnalyser(req.analyser,req.args)
+      analyserMap put (req.name,analyserBuilder)
+      analyserBuilder.newAnalyser
+      sender() ! AnalyserPresent()
+    }
+    catch {
+      case e:Exception => {
+        sender ! FailedToCompile(e.getStackTrace.toString)
+        println(e.getMessage)
+      }
+    }
+  }
 
-
-  private def setProxy(jobID:String,superStep:Int,timestamp:Long,analysisType:AnalysisType.Value,window:Long,windowSet:Array[Long]):Unit = {
+  private def setProxy(
+      jobID: String,
+      superStep: Int,
+      timestamp: Long,
+      analysisType: AnalysisType.Value,
+      window: Long,
+      windowSet: Array[Long]
+  ): Unit =
     analysisType match {
-      case AnalysisType.live => {
-        if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,storage.newestTime,windowSet(0),workerId,storage,managerCount)
-        else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,storage.newestTime,window,workerId,storage,managerCount)
-        else
-          tempProxy = new LiveProxy(jobID,superStep,timestamp,window,workerId,storage,managerCount)
-      }
-      case AnalysisType.view  => {
-        if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),workerId,storage,managerCount)
-        else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,workerId,storage,managerCount)
-        else
-          tempProxy = new ViewProxy(jobID,superStep,timestamp,workerId,storage,managerCount)
-      }
-      case AnalysisType.range  => {
-        if(windowSet.nonEmpty) //we have a set of windows to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,windowSet(0),workerId,storage,managerCount)
-        else if(window != -1) // we only have one window to run
-          tempProxy = new WindowProxy(jobID,superStep,timestamp,window,workerId,storage,managerCount)
-        else
-          tempProxy = new ViewProxy(jobID,superStep,timestamp,workerId,storage,managerCount)
-      }
+      case AnalysisType.live  => handleLiveAnalysis(jobID, superStep, timestamp, analysisType, window, windowSet)
+      case AnalysisType.view  => handleViewAnalysis(jobID, superStep, timestamp, analysisType, window, windowSet)
+      case AnalysisType.range => handleRangeAnalysis(jobID, superStep, timestamp, analysisType, window, windowSet)
     }
-  }
 
+  def handleLiveAnalysis(
+      jobID: String,
+      superStep: Int,
+      timestamp: Long,
+      analysisType: AnalysisType.Value,
+      window: Long,
+      windowSet: Array[Long]
+  ): Unit =
+    // We have a set of windows to run
+    if (windowSet.nonEmpty)
+      tempProxy = new WindowLens(jobID, superStep, timestamp, windowSet(0), workerId, storage, managerCount)
+    // We only have one window to run
+    else if (window != -1)
+      tempProxy = new WindowLens(jobID, superStep, timestamp, window, workerId, storage, managerCount)
+    else
+      tempProxy = new ViewLens(jobID, superStep, timestamp, workerId, storage, managerCount)
+
+  def handleViewAnalysis(
+      jobID: String,
+      superStep: Int,
+      timestamp: Long,
+      analysisType: AnalysisType.Value,
+      window: Long,
+      windowSet: Array[Long]
+  ): Unit =
+    if (windowSet.nonEmpty) //we have a set of windows to run
+      tempProxy = new WindowLens(jobID, superStep, timestamp, windowSet(0), workerId, storage, managerCount)
+    else if (window != -1) // we only have one window to run
+      tempProxy = new WindowLens(jobID, superStep, timestamp, window, workerId, storage, managerCount)
+    else
+      tempProxy = new ViewLens(jobID, superStep, timestamp, workerId, storage, managerCount)
+
+  def handleRangeAnalysis(
+      jobID: String,
+      superStep: Int,
+      timestamp: Long,
+      analysisType: AnalysisType.Value,
+      window: Long,
+      windowSet: Array[Long]
+  ): Unit =
+    if (windowSet.nonEmpty) //we have a set of windows to run
+      tempProxy = new WindowLens(jobID, superStep, timestamp, windowSet(0), workerId, storage, managerCount)
+    else if (window != -1) // we only have one window to run
+      tempProxy = new WindowLens(jobID, superStep, timestamp, window, workerId, storage, managerCount)
+    else
+      tempProxy = new ViewLens(jobID, superStep, timestamp, workerId, storage, managerCount)
 }

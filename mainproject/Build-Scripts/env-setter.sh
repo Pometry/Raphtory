@@ -6,7 +6,6 @@ export HOST_IP=$(ip addr show eth0 | grep inet[^6] | sed 's/.*inet \(.*\)\/[0-9]
 export HOSTNAME=$(hostname)
 
 echo "/////  ENV SET //////"
-echo "ZOOKEEPER    = $ZOOKEEPER"
 echo "HOST_IP      = $HOST_IP"
 echo "HOSTNAME     = $HOSTNAME"
 echo "/////////////////////"
