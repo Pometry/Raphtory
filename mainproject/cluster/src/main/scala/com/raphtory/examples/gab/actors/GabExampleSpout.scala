@@ -40,17 +40,19 @@ class GabExampleSpout extends SpoutTrait {
   protected def ProcessSpoutTask(message: Any): Unit = message match {
     case StartSpout => AllocateSpoutTask(Duration(1, NANOSECONDS), "newLine")
     case "newLine" =>
-      if (position < linesNumber) {
-        for (i <- 1 to 100) {
-          var line = fileLines(position)
-          sendTuple(line)
-          position += 1
+      try {
+        if (position < linesNumber) {
+          for (i <- 1 to 100) {
+            var line = fileLines(position)
+            sendTuple(line)
+            position += 1
+          }
+          AllocateSpoutTask(Duration(1, NANOSECONDS), "newLine")
         }
-        AllocateSpoutTask(Duration(1, NANOSECONDS), "newLine")
-      }
-      else{
-        println("Finished ingestion")
-      }
+        else {
+          println("Finished ingestion")
+        }
+      }catch {case e:Exception => println("Finished ingestion")}
     case _ => println("message not recognized!")
   }
 }

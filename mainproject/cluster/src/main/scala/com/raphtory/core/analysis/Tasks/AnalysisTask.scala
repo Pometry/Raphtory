@@ -67,7 +67,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   stepCompleteTime()
 
   protected val steps: Long    =  analyser.defineMaxSteps()         // number of supersteps before returning
-  def restartTime():Long       =  10000
+  def restartTime():Long       =  0
   def timestamp(): Long   //defaults to live to be overwritten in view and range
   def windowSize(): Long       = -1L         //for windowing
   def windowSet(): Array[Long] = Array.empty //for sets of windows
