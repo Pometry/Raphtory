@@ -1,5 +1,6 @@
 *.class
 *.log
+.java-version
 
 autoSetup.sh
 seedSetup.sh
@@ -24,3 +25,6 @@ logs
 .scala_dependencies
 .worksheet
 .idea
+
+#raphtory env
+mainproject/.env
