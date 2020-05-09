@@ -84,7 +84,7 @@ lazy val basicSettings = Seq(
                 "-unchecked"
         ),
         testOptions in Test += Tests.Argument("-oDF"),
-        version := "ethereum"
+        version := "latest"
 )
 
 lazy val dockerStuff = Seq(
