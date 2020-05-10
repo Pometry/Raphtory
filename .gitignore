@@ -8,6 +8,7 @@ machine0Setup.sh
 machine1Setup.sh
 .DS_Store
 .end 
+.env
 
 # sbt specific
 .cache/
