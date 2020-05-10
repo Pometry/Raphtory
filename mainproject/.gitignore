@@ -5,6 +5,9 @@
 sbt/
 cluster/src/main/scala/scala.iml
 
+.env
+singlenodetest.yml
+
 autoSetup.sh
 seedSetup.sh
 machine0Setup.sh
