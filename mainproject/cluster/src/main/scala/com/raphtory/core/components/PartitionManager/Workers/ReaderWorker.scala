@@ -41,8 +41,8 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   override def receive: Receive = {
 
     case req: UpdatedCounter      => processUpdatedCounterRequest(req)
-    case req: TimeCheck            => processTimeCheckRequest(req)
-    case req: CompileNewAnalyser   => processCompileNewAnalyserRequest(req)
+    case req: TimeCheck           => processTimeCheckRequest(req)
+    case req: CompileNewAnalyser  => processCompileNewAnalyserRequest(req)
     case req: Setup               => processSetupRequest(req)
     case req: SetupNewAnalyser    => processSetupNewAnalyserRequest(req)
     case req: CheckMessages       => processCheckMessagesRequest(req)
