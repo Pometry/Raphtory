@@ -33,8 +33,8 @@ object SingleNodeTest extends App {
 //  val start = 4000000L
 //  val end = 6000000L
 //  val jump =    10
-//  var UpdaterName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
-//  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
+  var SpoutName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
+  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
 //  Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
 
   //Gab test
@@ -42,8 +42,8 @@ object SingleNodeTest extends App {
     val end =   31525368897000L
 
     val jump =    3600000
-    var UpdaterName = "com.raphtory.examples.gab.actors.GabExampleSpout"
-    var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+    //var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+    //var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
 
 
   //track and trace test
@@ -60,7 +60,7 @@ object SingleNodeTest extends App {
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
   system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
-  system.actorOf(Props(Class.forName(UpdaterName)), "Spout")
+  system.actorOf(Props(Class.forName(SpoutName)), "Spout")
   val analysisManager = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
   AnalysisRestApi(system)
 

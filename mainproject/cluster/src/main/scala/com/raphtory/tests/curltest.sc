@@ -30,11 +30,9 @@ def requestBuilder() =
 
 val baseRequest  = requestBuilder()
 
-def requestBatch(data: String): HttpRequest =
-  baseRequest.postData(data)
+def requestBatch(data: String): HttpRequest = baseRequest.postData(data)
 
-def executeBatchRequest(data: String) =
- requestBatch(data).execute().body.toString.parseJson.asJsObject
+def executeBatchRequest(data: String) = requestBatch(data).execute().body.toString.parseJson
 
 def request(command: String, params: String = ""): HttpRequest =
   baseRequest.postData(s"""{"jsonrpc": "2.0", "id":"100", "method": "$command", "params": [$params]}""")
