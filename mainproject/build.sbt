@@ -46,8 +46,8 @@ val slf4j_simple = "org.slf4j"      % "slf4j-api"       % "1.7.25"
 val apacheLang   = "commons-lang"   % "commons-lang"    % "2.6"
 val joda         = "joda-time"      % "joda-time"       % "2.10.5"
 
-val kafka  = "org.apache.kafka" %% "kafka"        % "2.3.0"
-val kafkac = "org.apache.kafka" % "kafka-clients" % "2.3.0"
+val kafka  = "org.apache.kafka" %% "kafka"        % "2.5.0"
+val kafkac = "org.apache.kafka" % "kafka-clients" % "2.5.0"
 
 val kamon            = "io.kamon"    %% "kamon-core"           % "1.1.0"
 val kamon_prometheus = "io.kamon"    %% "kamon-prometheus"     % "1.0.0"

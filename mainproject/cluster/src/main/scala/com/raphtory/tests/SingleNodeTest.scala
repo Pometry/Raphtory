@@ -33,8 +33,8 @@ object SingleNodeTest extends App {
 //  val start = 4000000L
 //  val end = 6000000L
 //  val jump =    10
-  var SpoutName = "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
-  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
+  var SpoutName = "com.raphtory.spouts.KafkaSpout"
+  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumKafkaRouter"
 //  Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
 
   //Gab test
