@@ -14,7 +14,8 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
   override def setup(): Unit = {}
 
   override def returnResults(): Any = {
-    val degree = proxy.getVerticesSet().map { vert =>
+    val v = proxy.getVerticesSet()
+      val degree = v.map { vert =>
       val vertex    = proxy.getVertex(vert._2)
       val outDegree = vertex.getOutgoingNeighbors.size
       val inDegree  = vertex.getIngoingNeighbors.size
@@ -31,7 +32,7 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
-    val output_file = System.getenv().getOrDefault("PROJECT_OUTPUT", "/app/defout.csv").trim
+  //  val output_file = System.getenv().getOrDefault("PROJECT_OUTPUT", "/app/defout.csv").trim
     val totalVert   = endResults.map(x => x._1).sum
     val totalEdge   = endResults.map(x => x._3).sum
 
@@ -41,7 +42,7 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
         case e: ArithmeticException => 0
       }
     val text = s"""$timestamp,$totalVert,$totalEdge,$degree"""
-    Utils.writeLines(output_file, text, "")
+   // Utils.writeLines(output_file, text, "")
     println(text)
   }
 
