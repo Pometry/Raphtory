@@ -11,8 +11,8 @@ import akka.util.Timeout
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.SchedulerUtil
 import kamon.Kamon
-import kamon.metric.CounterMetric
-import kamon.metric.GaugeMetric
+//import kamon.metric.CounterMetric
+//import kamon.metric.GaugeMetric
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -34,8 +34,8 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
 
-  val kGauge: GaugeMetric     = Kamon.gauge("raphtory.benchmarker")
-  val kCounter: CounterMetric = Kamon.counter("raphtory.counters")
+//  val kGauge: GaugeMetric     = Kamon.gauge("raphtory.benchmarker")
+ // val kCounter: CounterMetric = Kamon.counter("raphtory.counters")
 
   final protected val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -94,7 +94,7 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
     previousMessage = currentMessage
     counter = 0
 
-    kGauge.refine("actor" -> "Updater", "name" -> "diff").set(diff)
+ //   kGauge.refine("actor" -> "Updater", "name" -> "diff").set(diff)
   }
 
   private def processIsSafeMessage(msg: String): Option[Cancellable] = {
@@ -136,8 +136,8 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
   protected def recordUpdate(): Unit = {
     counter += 1
     currentMessage += 1
-    Kamon.counter("raphtory.updateGen.commandsSent").increment()
-    kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
+  //  Kamon.counter("raphtory.updateGen.commandsSent").increment()
+   // kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
   }
 
   private def scheduleTasks(): Unit = {
