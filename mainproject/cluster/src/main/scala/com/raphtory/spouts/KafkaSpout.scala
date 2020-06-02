@@ -37,6 +37,7 @@ class KafkaSpout extends SpoutTrait {
   }
 
   def consumeFromKafka() = {
+    println("Consuming")
     val record = consumer.poll(java.time.Duration.ofMillis(1000)).asScala
     for (data <- record.iterator)
       //println(data.value())

@@ -8,11 +8,14 @@ import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.components.ClusterManagement.RaphtoryReplicator
 import com.raphtory.core.components.ClusterManagement.WatchDog
 import com.raphtory.core.model.communication.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
+import kamon.Kamon
 import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
 
 object SingleNodeTest extends App {
+  Kamon.init() //start tool logging
+
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
 
