@@ -19,6 +19,7 @@ class KafkaSpout extends SpoutTrait {
   val x     = new Random().nextLong()
   var groupID   = System.getenv().getOrDefault("KAFKA_GROUP", "group" + x).trim
   var topic   = System.getenv().getOrDefault("KAFKA_TOPIC", "sample_topic").trim
+  var restart   = System.getenv().getOrDefault("RESTART_RATE", "1000").trim
 
   val props = new Properties()
   props.put("bootstrap.servers", s"$kafkaServer:$kafkaIP")
@@ -40,6 +41,6 @@ class KafkaSpout extends SpoutTrait {
     for (data <- record.iterator)
       //println(data.value())
       sendTuple(data.value())
-    AllocateSpoutTask(Duration(1, MILLISECONDS), "newLine")
+    AllocateSpoutTask(Duration(restart.toInt, MILLISECONDS), "newLine")
   }
 }
