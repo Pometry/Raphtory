@@ -111,7 +111,6 @@ object Go extends App {
   }
 
   def hostname2Ip(seedLoc: String): String = {
-    // hostname_asd_1:port
     val t = seedLoc.split(":")
     InetAddress.getByName(t(0)).getHostAddress() + ":" + t(1)
   }
