@@ -88,9 +88,9 @@ class Archivist(maximumMem: Double, workers: ParTrieMap[Int, ActorRef], storages
       println(
               s"finished total compression in ${(System.currentTimeMillis() - totalCompressionTime) / 1000} seconds"
       ) //report this to the user
-    archGauge
-      .refine("actor" -> "Archivist", "name" -> "totalCompressionTime")
-      .set((System.currentTimeMillis() - totalCompressionTime) / 1000)
+//    archGauge
+//      .refine("actor" -> "Archivist", "name" -> "totalCompressionTime")
+//      .set((System.currentTimeMillis() - totalCompressionTime) / 1000)
     if (currentWorker == 9)
       lastSaved = newLastSaved
     //EntityStorage.lastCompressedAt = lastSaved //update the saved vals so we know where we are compressed up to ??????????????????????????????
@@ -129,7 +129,7 @@ class Archivist(maximumMem: Double, workers: ParTrieMap[Int, ActorRef], storages
       val total       = usedMemory / (totalMemory).asInstanceOf[Float]
       //println(s"max ${runtime.maxMemory()} total ${runtime.totalMemory()} diff ${runtime.maxMemory()-runtime.totalMemory()} ")
       println(s"Memory usage at ${total * 100}% of ${totalMemory / (1024 * 1024)}MB")
-      archGauge.refine("actor" -> "Archivist", "name" -> "memoryPercentage").set((total * 100).asInstanceOf[Long])
+      //archGauge.refine("actor" -> "Archivist", "name" -> "memoryPercentage").set((total * 100).asInstanceOf[Long])
       if (total < (1 - maximumMem)) currentState = true else currentState = false
     }
     currentState

@@ -51,7 +51,7 @@ val kafkac = "org.apache.kafka" % "kafka-clients" % "2.5.0"
 
 val kamon            = "io.kamon"    %% "kamon-core"           % "2.1.0"
 val kamon_prometheus = "io.kamon"    %% "kamon-prometheus"     % "2.1.0"
-val kamon_akka       = "io.kamon"    %% "kamon-akka-2.5"       % "1.1.4"
+val kamon_akka       = "io.kamon"    %% "kamon-akka"           % "2.1.0"
 val kamon_system     = "io.kamon"    %% "kamon-system-metrics" % "2.1.0"
 val monix            = "io.monix"    %% "monix"                % "3.0.0-RC1"
 val mongo            = "org.mongodb" % "mongo-java-driver"     % "3.8.0"
@@ -153,5 +153,6 @@ lazy val cluster = project
   )
   .settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
+          javaAgents += "io.kamon" % "kanela-agent" % "1.0.5",
           javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default"
   )

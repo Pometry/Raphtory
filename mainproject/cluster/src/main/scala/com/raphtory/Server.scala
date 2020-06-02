@@ -13,9 +13,8 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import kamon.metric.PeriodSnapshot
 import kamon.prometheus.PrometheusReporter
-import kamon.system.SystemMetrics
 import kamon.Kamon
-import kamon.MetricReporter
+import kamon.module.MetricReporter
 import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
@@ -23,7 +22,7 @@ import scala.sys.process._
 //main function
 
 object Go extends App {
-
+  Kamon.init() //start tool logging
   val conf    = ConfigFactory.load()
   val seedLoc = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
   val root    = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
@@ -85,29 +84,29 @@ object Go extends App {
     } else "127.0.0.1"
 
   def prometheusReporter() = {
-    try SystemMetrics.startCollecting()
-    catch {
-      case e: Exception => println("Error in pro")
-    }
-    val prom = new PrometheusReporter()
-
-    val testLogger = new MetricReporter {
-
-      override def reportPeriodSnapshot(snapshot: PeriodSnapshot): Unit =
-        try prom.reportPeriodSnapshot(snapshot)
-        catch {
-          case e: Exception =>
-            println(e)
-            println("Hello I have broken and I cannot get up")
-        }
-
-      override def start(): Unit = prom.start()
-
-      override def reconfigure(config: Config): Unit = prom.reconfigure(config)
-
-      override def stop(): Unit = prom.stop()
-    }
-    Kamon.addReporter(testLogger)
+//    try //SystemMetrics.startCollecting()
+//    catch {
+//      case e: Exception => println("Error in pro")
+//    }
+//    val prom = new PrometheusReporter()
+//
+//    val testLogger = new MetricReporter {
+//
+//      override def reportPeriodSnapshot(snapshot: PeriodSnapshot): Unit =
+//        try prom.reportPeriodSnapshot(snapshot)
+//        catch {
+//          case e: Exception =>
+//            println(e)
+//            println("Hello I have broken and I cannot get up")
+//        }
+//
+//      override def reconfigure(config: Config): Unit = prom.reconfigure(config)
+//
+//      override def stop(): Unit = prom.stop()
+//    }
+//    Kamon.attachInstrumentation()
+//    //Kamon.
+//    //Kamon.addReporter(testLogger)
   }
 
   def hostname2Ip(seedLoc: String): String = {

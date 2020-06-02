@@ -11,8 +11,8 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.SchedulerUtil
 import com.raphtory.core.utils.Utils.getManager
 import kamon.Kamon
-import kamon.metric.CounterMetric
-import kamon.metric.GaugeMetric
+//import kamon.metric.CounterMetric
+//import kamon.metric.GaugeMetric
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -35,8 +35,8 @@ class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: 
   final protected val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
-  val kGauge: GaugeMetric     = Kamon.gauge("raphtory.benchmarker")
-  val kCounter: CounterMetric = Kamon.counter("raphtory.counters")
+//  val kGauge: GaugeMetric     = Kamon.gauge("raphtory.benchmarker")
+//  val kCounter: CounterMetric = Kamon.counter("raphtory.counters")
 
   override def preStart(): Unit = {
     log.debug("RouterManager [{}} is being started.", routerId)
@@ -68,7 +68,7 @@ class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: 
   private def processHeartbeatMessage(msg: String): Unit = {
     log.debug(s"RouterManager [{}] received [{}] message.", routerId, msg)
 
-    kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
+ //   kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
     count = 0
   }
 
@@ -117,8 +117,8 @@ class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: 
 
   private def recordUpdate(): Unit = {
     count += 1
-    kCounter.refine("actor" -> "Router", "name" -> "count").increment()
-    Kamon.gauge("raphtory.router.countGauge").set(count)
+//    kCounter.refine("actor" -> "Router", "name" -> "count").increment()
+//    Kamon.gauge("raphtory.router.countGauge").set(count)
   }
 
   final protected def getManagerCount: Int =
