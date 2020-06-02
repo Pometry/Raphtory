@@ -101,10 +101,12 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
     log.debug(s"Spout received [{}] message.", msg)
 
     if (safe) {
+      println("test1")
       val startSpoutCancellable =
         SchedulerUtil.scheduleTaskOnce(delay = 1 millisecond, receiver = self, message = StartSpout)
       scheduledTaskMap.put("startSpout", startSpoutCancellable)
     } else {
+      println("test2")
       val isSafeCancellable = SchedulerUtil.scheduleTaskOnce(delay = 1 second, receiver = self, message = "isSafe")
       scheduledTaskMap.put("isSafe", isSafeCancellable)
     }
