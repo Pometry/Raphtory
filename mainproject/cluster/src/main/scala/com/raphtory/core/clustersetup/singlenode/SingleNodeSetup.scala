@@ -27,7 +27,6 @@ case class SingleNodeSetup(
     routerClassName: String,
     UpdaterName: String
 ) extends DocSvr {
-  println("hello2")
   val conf: Config    = ConfigFactory.load()
   implicit val system = initialiseActorSystem(List(seedLoc))
   AnalysisRestApi(system)
@@ -36,7 +35,6 @@ case class SingleNodeSetup(
   system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
   system.actorOf(Props[AnalysisManager], s"AnalysisManager")
-  println("hello")
 
   system.actorOf(Props(Class.forName(UpdaterName)), "Spout")
 
