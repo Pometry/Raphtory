@@ -15,6 +15,7 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 import com.twitter.util.Eval
+import kamon.Kamon
 import monix.execution.atomic.AtomicInt
 
 import scala.collection.concurrent.TrieMap
@@ -22,9 +23,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
-class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage: EntityStorage)
-        extends Actor
-        with ActorLogging {
+class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage: EntityStorage) extends Actor with ActorLogging {
 
   implicit var managerCount: ManagerCount = ManagerCount(managerCountVal)
   val analyserMap: TrieMap[String,LoadExternalAnalyser] = TrieMap[String,LoadExternalAnalyser]()
@@ -34,6 +33,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
+
 
   override def preStart(): Unit =
     log.debug("ReaderWorker [{}] belonging to Reader [{}] is being started.", workerId, managerID)

@@ -8,6 +8,7 @@ import com.raphtory.core.model.graphentities.Entity
 import com.raphtory.core.model.graphentities.SplitEdge
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.utils.Utils
+import kamon.Kamon
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -19,7 +20,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO add capacity function based on memory used and number of updates processed/stored in memory
 //TODO What happens when an edge which has been archived gets readded
 
-class EntityStorage(workerID: Int) {
+class EntityStorage(partitionID:Int,workerID: Int) {
   import com.raphtory.core.utils.Utils.checkDst
   import com.raphtory.core.utils.Utils.checkWorker
   import com.raphtory.core.utils.Utils.getManager
@@ -43,6 +44,12 @@ class EntityStorage(workerID: Int) {
   var safeWindowTime:Long    = 0
   var windowSafe:Boolean     = false
   var lastCompressedAt: Long = 0
+
+  val vertexCount          = Kamon.counter("Raphtory_Vertex_Count").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerID)
+  val localEdgeCount       = Kamon.counter("Raphtory_Local_Edge_Count").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerID)
+  val copySplitEdgeCount   = Kamon.counter("Raphtory_Copy_Split_Edge_Count").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerID)
+  val masterSplitEdgeCount = Kamon.counter("Raphtory_Master_Split_Edge_Count").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerID)
+
 
   def timings(updateTime: Long) = {
     if (updateTime < oldestTime && updateTime > 0) oldestTime = updateTime
@@ -77,6 +84,7 @@ class EntityStorage(workerID: Int) {
         v
       case None => //if it does not exist
         val v = new Vertex(msgTime, srcId, initialValue = true, storage = this) //create a new vertex
+        vertexCount.increment()
         if (!(vertexType == null)) v.setType(vertexType.name)
         vertices put (srcId, v) //put it in the map
         v
@@ -90,6 +98,7 @@ class EntityStorage(workerID: Int) {
     vertices.get(id) match {
       case Some(vertex) => vertex
       case None =>
+        vertexCount.increment()
         val vertex = new Vertex(msgTime, id, initialValue = true, this)
         vertices put (id, vertex)
         vertex wipe ()
@@ -151,6 +160,7 @@ class EntityStorage(workerID: Int) {
         v kill msgTime
         v
       case None => //if the removal has arrived before the creation
+        vertexCount.increment()
         val v = new Vertex(msgTime, srcId, initialValue = false, this) //create a placeholder
         vertices put (srcId, v) //add it to the map
         v
@@ -246,11 +256,13 @@ class EntityStorage(workerID: Int) {
         edge = e
         present = true
       case None => //if it does not
-        if (local)
+        if (local) {
           edge = new Edge(workerID, msgTime, srcId, dstId, initialValue = true, this) //create the new edge, local or remote
-        else
-          edge =
-            new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = true, getPartition(dstId, managerCount), this)
+          localEdgeCount.increment()
+        } else {
+          edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = true, getPartition(dstId, managerCount), this)
+          masterSplitEdgeCount.increment()
+        }
         if (!(edgeType == null)) edge.setType(edgeType.name)
         srcVertex.addOutgoingEdge(edge) //add this edge to the vertex
     }
@@ -300,8 +312,8 @@ class EntityStorage(workerID: Int) {
       routerTime:Int
   ): Unit = {
     val dstVertex = vertexAdd(msgTime, dstId, vertexType = null) //create or revive the destination node
-    val edge =
-      new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = true, getPartition(srcId, managerCount), this)
+    val edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = true, getPartition(srcId, managerCount), this)
+    copySplitEdgeCount.increment()
     dstVertex addIncomingEdge (edge) //add the edge to the associated edges of the destination node
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
@@ -337,18 +349,13 @@ class EntityStorage(workerID: Int) {
         edge = e
         present = true
       case None =>
-        if (local)
+        if (local) {
+          localEdgeCount.increment()
           edge = new Edge(workerID, msgTime, srcId, dstId, initialValue = false, this)
-        else
-          edge = new SplitEdge(
-                  workerID,
-                  msgTime,
-                  srcId,
-                  dstId,
-                  initialValue = false,
-                  getPartition(dstId, managerCount),
-                  this
-          )
+        } else {
+          masterSplitEdgeCount.increment()
+          edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = false, getPartition(dstId, managerCount), this)
+        }
         srcVertex addOutgoingEdge (edge) // add the edge to the associated edges of the source node
     }
     if (local && srcId != dstId)
@@ -434,8 +441,8 @@ class EntityStorage(workerID: Int) {
   def remoteEdgeRemovalNew(msgTime: Long, srcId: Long, dstId: Long, srcDeaths: mutable.TreeMap[Long, Boolean],routerID:String,routerTime:Int): Unit = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.incrementEdgesRequiringSync()
-    val edge =
-      new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = false, getPartition(srcId, managerCount), this)
+    copySplitEdgeCount.increment()
+    val edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = false, getPartition(srcId, managerCount), this)
     dstVertex addIncomingEdge (edge) //add the edge to the destination nodes associated list
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
