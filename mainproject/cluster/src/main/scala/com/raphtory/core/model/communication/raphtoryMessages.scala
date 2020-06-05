@@ -44,13 +44,7 @@ case class VertexDelete(msgTime: Long, override val srcID: Long) extends GraphUp
 case class TrackedVertexDelete(routerID: String,messageID:Int,update:VertexDelete) extends TrackedGraphUpdate
 case class EdgeAdd(msgTime: Long, srcID: Long, dstID: Long, eType: Type = null) extends GraphUpdate
 case class TrackedEdgeAdd(routerID: String,messageID:Int,update:EdgeAdd) extends TrackedGraphUpdate
-case class EdgeAddWithProperties(
-    msgTime: Long,
-    override val srcID: Long,
-    dstID: Long,
-    properties: Properties,
-    eType: Type = null
-) extends GraphUpdate
+case class EdgeAddWithProperties(msgTime: Long, override val srcID: Long, dstID: Long, properties: Properties, eType: Type = null) extends GraphUpdate
 case class TrackedEdgeAddWithProperties(routerID: String,messageID:Int,update:EdgeAddWithProperties)  extends TrackedGraphUpdate
 case class EdgeDelete(msgTime: Long, override val srcID: Long, dstID: Long) extends GraphUpdate
 case class TrackedEdgeDelete(routerID: String,messageID:Int,update:EdgeDelete) extends TrackedGraphUpdate
@@ -95,16 +89,8 @@ case class ArchiveVertex(key: Long, compressTime: Long, archiveTime: Long)
 case class ArchiveOnlyVertex(key: Long, archiveTime: Long)
 case class FinishedVertexArchiving(key: Long)
 
-case class SetupSlave(children: Int)
-
-case class ReportIntake(
-    mainMessages: Int,
-    secondaryMessages: Int,
-    workerMessages: Int,
-    partitionId: Int,
-    timeDifference: Long
-)
-case class ReportSize(partitionID: Int)
+case class UpdateArrivalTime(wallClock:Long,time:Long)
+case class WatermarkTime(time:Long)
 
 sealed trait RaphReadClasses
 
