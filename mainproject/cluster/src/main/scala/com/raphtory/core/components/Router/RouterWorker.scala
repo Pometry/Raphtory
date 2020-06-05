@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.{Actor, ActorLogging, Cancellable}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.model.communication.{AllocateTrackedTuple, AllocateTuple, EdgeAdd, EdgeAddWithProperties, EdgeDelete, GraphUpdate, RouterWorkerTimeSync, TrackedEdgeAdd, TrackedEdgeAddWithProperties, TrackedEdgeDelete, TrackedVertexAdd, TrackedVertexAddWithProperties, TrackedVertexDelete, UpdatedCounter, VertexAdd, VertexAddWithProperties, VertexDelete}
+import com.raphtory.core.model.communication.{AllocateTrackedTuple, AllocateTuple, EdgeAdd, EdgeAddWithProperties, EdgeDelete, GraphUpdate, RouterWorkerTimeSync, TrackedEdgeAdd, TrackedEdgeAddWithProperties, TrackedEdgeDelete, TrackedVertexAdd, TrackedVertexAddWithProperties, TrackedVertexDelete, UpdateArrivalTime, UpdatedCounter, VertexAdd, VertexAddWithProperties, VertexDelete, WatermarkTime}
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.utils.{SchedulerUtil, Utils}
 import com.raphtory.core.utils.Utils.getManager
@@ -33,7 +33,6 @@ trait RouterWorker extends Actor with ActorLogging {
   val writerArray = Utils.getAllWriterWorkers(managerCount)
 
   val routerWorkerUpdates = Kamon.counter("Raphtory_Router_Output").withTag("Router",routerId).withTag("Worker",workerID)
-  val spoutWallClock      = Kamon.gauge("Raphtory_Wall_Clock").withTag("Component","Router")
 
   protected def initialManagerCount: Int
   protected def parseTuple(value: Any)
@@ -106,7 +105,7 @@ trait RouterWorker extends Actor with ActorLogging {
   def sendGraphUpdate[T <: GraphUpdate](message: T): Unit = {
     if(trackedMessage){
       trackedMessage=false
-      spoutWallClock.update(message.msgTime)
+      mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",UpdateArrivalTime(trackedTime,message.msgTime), localAffinity = false)
     }
 
     val path = getManager(message.srcID, getManagerCount)

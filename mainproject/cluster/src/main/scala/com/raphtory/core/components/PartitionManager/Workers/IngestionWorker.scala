@@ -268,6 +268,11 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
         latestTime.update(storage.newestTime)
         safeTime.update(storage.windowTime)
         earliestTime.update(storage.oldestTime)
+        if(storage.windowSafe)
+          mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.safeWindowTime), localAffinity = false)
+        else
+          mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.windowTime), localAffinity = false)
+
       }
   }
 
@@ -309,7 +314,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   private def scheduleTasks(): Unit = {
     log.debug("Preparing to schedule tasks in Spout.")
     val watermarkCancellable =
-      SchedulerUtil.scheduleTask(initialDelay = 7 seconds, interval = 10 second, receiver = self, message = "watermark")
+      SchedulerUtil.scheduleTask(initialDelay = 10 seconds, interval = 5 second, receiver = self, message = "watermark")
     scheduledTaskMap.put("watermark", watermarkCancellable)
 
   }
