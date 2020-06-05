@@ -40,7 +40,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   private val vDeleteCountdownMap = ParTrieMap[(String,Int), AtomicInteger]()
 
   override def receive: Receive = {
-    case req: TrackedVertexAdd                  => processVertexAddRequest(req)//Add a new vertex
+    case req: TrackedVertexAdd                  => processVertexAddRequest(req);//Add a new vertex
     case req: TrackedVertexAddWithProperties    => processVertexAddWithPropertiesRequest(req)//Add a new vertex with properties
     case req: TrackedEdgeAdd                    => processEdgeAddRequest(req)//Add an edge
     case req: TrackedEdgeAddWithProperties      => processEdgeAddWithPropertiesRequest(req)// Add an edge with properties
