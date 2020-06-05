@@ -10,7 +10,6 @@ import akka.actor.Props
 import akka.actor.Terminated
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.components.PartitionManager.Workers.WriterLogger
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.SchedulerUtil
@@ -44,10 +43,6 @@ class Writer(
 
   // should the handled messages be printed to terminal
   val printing: Boolean = false
-
-  // TODO Migrate actorOf logic to Object.props
-  val logChild: ActorRef        = context.actorOf(Props[WriterLogger].withDispatcher("logging-dispatcher"), s"logger")
-  val logChildForSize: ActorRef = context.actorOf(Props[WriterLogger].withDispatcher("logging-dispatcher"), s"logger2")
 
   var managerCount: Int          = managerCountVal
   var messageCount: Int          = 0
