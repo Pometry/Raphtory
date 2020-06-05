@@ -30,8 +30,11 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
   val spoutTuples       = Kamon.counter("Raphtory_Spout_Tuples").withTag("actor",self.path.name)
-
-  protected def recordUpdate(): Unit =spoutTuples.increment()
+  var count = 0
+  protected def recordUpdate(): Unit = {
+    spoutTuples.increment()
+    count += 1
+  }
 
   final protected val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -105,16 +108,15 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
 
   protected def sendTuple(command: String): Unit = {
     log.debug("The command [{}] received for send.", command)
-
     recordUpdate()
-    mediator ! DistributedPubSubMediator.Send(s"/user/router", command, localAffinity = false)
+    mediator ! DistributedPubSubMediator.Send(s"/user/router/routerWorker_${count % 10}", AllocateTuple(command), localAffinity = false)
   }
 
   protected def sendTuple[T <: SpoutGoing](command: T): Unit = {
     log.debug("The command [{}] received for send.", command)
 
     recordUpdate()
-    mediator ! DistributedPubSubMediator.Send("/user/router", command, localAffinity = false)
+    mediator ! DistributedPubSubMediator.Send(s"/user/router/routerWorker_${count % 10}", AllocateTuple(command), localAffinity = false)
   }
 
 

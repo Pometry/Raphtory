@@ -44,8 +44,7 @@ class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: 
     scheduleTasks()
 
     for (i <- 0 until children) {
-      val childName = "child_" + i
-      childMap.put(i, context.actorOf(Props(Class.forName(slaveType), routerId, i, initialManagerCount), childName))
+      childMap.put(i, context.actorOf(Props(Class.forName(slaveType), routerId, i, initialManagerCount), s"routerWorker_$i"))
     }
   }
 
@@ -59,17 +58,8 @@ class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: 
   }
 
   override def receive: Receive = {
-    case msg: String if msg == "tick"       => processHeartbeatMessage(msg)
     case msg: String if msg == "keep_alive" => processKeepAliveMessage(msg)
     case msg: UpdatedCounter                => processUpdatedCounterRequest(msg)
-    case x                                  => allocateRecord(x)
-  }
-
-  private def processHeartbeatMessage(msg: String): Unit = {
-    log.debug(s"RouterManager [{}] received [{}] message.", routerId, msg)
-
- //   kGauge.refine("actor" -> "Router", "name" -> "count").set(count)
-    count = 0
   }
 
   private def processKeepAliveMessage(msg: String): Unit = {
@@ -99,37 +89,12 @@ class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: 
     }
   }
 
-  protected def allocateRecord(record: Any): Unit = {
-    recordUpdate()
-
-    val childId = count % children
-
-    childMap
-      .get(childId)
-      .fold(
-              log.warning(
-                      "Child id [{}] was not found. " +
-                        "Request will not be acted upon.",
-                      childId
-              )
-      )(child => child ! AllocateJob(record))
-  }
-
-  private def recordUpdate(): Unit = {
-    count += 1
-//    kCounter.refine("actor" -> "Router", "name" -> "count").increment()
-//    Kamon.gauge("raphtory.router.countGauge").set(count)
-  }
 
   final protected def getManagerCount: Int =
     this.managerCount
 
   private def scheduleTasks(): Unit = {
     log.debug("Preparing to schedule tasks in RouterManager [{}].", routerId)
-
-    val tickCancellable =
-      SchedulerUtil.scheduleTask(initialDelay = 10 seconds, interval = 1 seconds, receiver = self, message = "tick")
-    scheduledTaskMap.put("tick", tickCancellable)
 
     val keepAliveCancellable =
       SchedulerUtil
