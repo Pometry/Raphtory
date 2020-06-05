@@ -26,23 +26,18 @@ import scala.language.postfixOps
 //  Log.debug that read 'Spout' should then read 'Blockchain Spout'
 trait SpoutTrait extends Actor with ActorLogging with Timers {
   case class StartSpout()
-
-  private var currentMessage  = 0
-  private var previousMessage = 0
-  private var counter         = 0
   private var safe            = false
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
+  val spoutTuples       = Kamon.counter("Raphtory_Spout_Tuples").withTag("actor",self.path.name)
 
-//  val kGauge: GaugeMetric     = Kamon.gauge("raphtory.benchmarker")
- // val kCounter: CounterMetric = Kamon.counter("raphtory.counters")
+  protected def recordUpdate(): Unit =spoutTuples.increment()
 
   final protected val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart() {
     log.debug("Spout is being started.")
-
     scheduleTasks()
   }
 
@@ -56,7 +51,6 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
 
   final override def receive: Receive = {
     case msg: String if msg == "stateCheck" => processStateCheckMessage(msg)
-    case msg: String if msg == "benchmark"  => processBenchmarkMessage(msg)
     case msg: String if msg == "isSafe"     => processIsSafeMessage(msg)
     case x                                  => ProcessSpoutTask(x) // TODO How do we know this is a spout task? Add a trait which spout messages extend
   }
@@ -85,16 +79,6 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
         safe = Await.result(future, timeout.duration).asInstanceOf[ClusterStatusResponse].clusterUp
 
       } catch { case _: java.util.concurrent.TimeoutException => safe = false }
-  }
-
-  private def processBenchmarkMessage(msg: String): Unit = {
-    log.debug(s"Spout received [{}] message.", msg)
-
-    val diff = currentMessage - previousMessage
-    previousMessage = currentMessage
-    counter = 0
-
- //   kGauge.refine("actor" -> "Updater", "name" -> "diff").set(diff)
   }
 
   private def processIsSafeMessage(msg: String): Option[Cancellable] = {
@@ -133,19 +117,9 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
     mediator ! DistributedPubSubMediator.Send("/user/router", command, localAffinity = false)
   }
 
-  protected def recordUpdate(): Unit = {
-    counter += 1
-    currentMessage += 1
-  //  Kamon.counter("raphtory.updateGen.commandsSent").increment()
-   // kGauge.refine("actor" -> "Updater", "name" -> "updatesSentGauge").set(counter)
-  }
 
   private def scheduleTasks(): Unit = {
     log.debug("Preparing to schedule tasks in Spout.")
-
-    val benchmarkCancellable =
-      SchedulerUtil.scheduleTask(initialDelay = 7 seconds, interval = 1 second, receiver = self, message = "benchmark")
-    scheduledTaskMap.put("benchmark", benchmarkCancellable)
 
     val stateCheckCancellable =
       SchedulerUtil.scheduleTask(initialDelay = 7 seconds, interval = 1 second, receiver = self, message = "stateCheck")
