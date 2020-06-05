@@ -11,6 +11,7 @@ import scala.collection.mutable
   * Created by Mirate on 30/05/2017.
   */
 sealed trait GraphUpdate {
+  def msgTime: Long
   def srcID: Long
 }
 sealed trait TrackedGraphUpdate
