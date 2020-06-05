@@ -109,14 +109,19 @@ trait SpoutTrait extends Actor with ActorLogging with Timers {
   protected def sendTuple(command: String): Unit = {
     log.debug("The command [{}] received for send.", command)
     recordUpdate()
-    mediator ! DistributedPubSubMediator.Send(s"/user/router/routerWorker_${count % 10}", AllocateTuple(command), localAffinity = false)
-  }
+    if(count%100==0)
+      mediator ! DistributedPubSubMediator.Send(s"/user/router/routerWorker_${count % 10}", AllocateTrackedTuple(System.currentTimeMillis(),command), localAffinity = false)
+    else
+      mediator ! DistributedPubSubMediator.Send(s"/user/router/routerWorker_${count % 10}", AllocateTuple(command), localAffinity = false)  }
 
   protected def sendTuple[T <: SpoutGoing](command: T): Unit = {
     log.debug("The command [{}] received for send.", command)
 
     recordUpdate()
-    mediator ! DistributedPubSubMediator.Send(s"/user/router/routerWorker_${count % 10}", AllocateTuple(command), localAffinity = false)
+    if(count%100==0)
+      mediator ! DistributedPubSubMediator.Send(s"/user/router/routerWorker_${count % 10}", AllocateTrackedTuple(System.currentTimeMillis(),command), localAffinity = false)
+    else
+      mediator ! DistributedPubSubMediator.Send(s"/user/router/routerWorker_${count % 10}", AllocateTuple(command), localAffinity = false)
   }
 
 
