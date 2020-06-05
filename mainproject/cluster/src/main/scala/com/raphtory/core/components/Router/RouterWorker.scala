@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.{Actor, ActorLogging, Cancellable}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.model.communication.{AllocateTuple, EdgeAdd, EdgeAddWithProperties, EdgeDelete, GraphUpdate, RouterWorkerTimeSync, TrackedEdgeAdd, TrackedEdgeAddWithProperties, TrackedEdgeDelete, TrackedVertexAdd, TrackedVertexAddWithProperties, TrackedVertexDelete, UpdatedCounter, VertexAdd, VertexAddWithProperties, VertexDelete}
+import com.raphtory.core.model.communication.{AllocateTrackedTuple, AllocateTuple, EdgeAdd, EdgeAddWithProperties, EdgeDelete, GraphUpdate, RouterWorkerTimeSync, TrackedEdgeAdd, TrackedEdgeAddWithProperties, TrackedEdgeDelete, TrackedVertexAdd, TrackedVertexAddWithProperties, TrackedVertexDelete, UpdatedCounter, VertexAdd, VertexAddWithProperties, VertexDelete}
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.utils.{SchedulerUtil, Utils}
 import com.raphtory.core.utils.Utils.getManager
@@ -25,13 +25,15 @@ trait RouterWorker extends Actor with ActorLogging {
   val routerId: Int
   val workerID: Int
   var newestTime:Long = 0
+  var trackedMessage = false
+  var trackedTime = 0L
   private val messageIDs = mutable.HashMap[String, AtomicInteger]()
   /** Private and protected values */
   private var managerCount: Int = initialManagerCount
   val writerArray = Utils.getAllWriterWorkers(managerCount)
 
   val routerWorkerUpdates = Kamon.counter("Raphtory_Router_Output").withTag("Router",routerId).withTag("Worker",workerID)
-
+  val spoutWallClock      = Kamon.gauge("Raphtory_Wall_Clock").withTag("Component","Router")
 
   protected def initialManagerCount: Int
   protected def parseTuple(value: Any)
@@ -65,6 +67,7 @@ trait RouterWorker extends Actor with ActorLogging {
   override def receive: Receive = {
     case req: UpdatedCounter => processUpdatedCounterRequest(req)
     case req: AllocateTuple    => processAllocateJobRequest(req)
+    case req: AllocateTrackedTuple =>  processAlocateTrackedRequest(req)
     case "timeBroadcast"     => broadcastToPartitions()
     case x                   => log.warning("RouterWorker received unknown [{}] message.", x)
   }
@@ -86,6 +89,14 @@ trait RouterWorker extends Actor with ActorLogging {
     if (managerCount < req.newValue) managerCount = req.newValue
   }
 
+  def processAlocateTrackedRequest(req:AllocateTrackedTuple):Unit = {
+    trackedMessage=true
+    trackedTime = req.wallClock
+    log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)
+    parseTuple(req.record)
+    routerWorkerUpdates.increment()
+  }
+
   def processAllocateJobRequest(req: AllocateTuple): Unit = {
     log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)
     parseTuple(req.record)
@@ -93,6 +104,11 @@ trait RouterWorker extends Actor with ActorLogging {
   }
 
   def sendGraphUpdate[T <: GraphUpdate](message: T): Unit = {
+    if(trackedMessage){
+      trackedMessage=false
+      spoutWallClock.update(message.msgTime)
+    }
+
     val path = getManager(message.srcID, getManagerCount)
     val id = getMessageIDForWriter(path)
 
