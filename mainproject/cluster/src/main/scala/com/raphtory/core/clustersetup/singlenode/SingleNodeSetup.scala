@@ -13,9 +13,7 @@ import com.raphtory.core.analysis.Tasks.ViewTasks.BWindowedViewAnalysisTask
 import com.raphtory.core.analysis.Tasks.ViewTasks.ViewAnalysisTask
 import com.raphtory.core.analysis.Tasks.ViewTasks.WindowedViewAnalysisTask
 import com.raphtory.core.clustersetup.DocSvr
-import com.raphtory.core.components.ClusterManagement.RaphtoryReplicator
-import com.raphtory.core.components.ClusterManagement.SeedActor
-import com.raphtory.core.components.ClusterManagement.WatchDog
+import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog, WatermarkManager}
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 
@@ -32,6 +30,7 @@ case class SingleNodeSetup(
   AnalysisRestApi(system)
   system.actorOf(Props(new SeedActor(this)), "cluster")
   system.actorOf(Props(new WatchDog(1, 1)), "WatchDog")
+  system.actorOf(Props(new WatermarkManager(managerCount = 1)),"WatermarkManager")
   system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
   system.actorOf(Props[AnalysisManager], s"AnalysisManager")

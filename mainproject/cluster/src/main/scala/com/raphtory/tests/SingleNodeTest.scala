@@ -5,8 +5,7 @@ import akka.actor.Props
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.components.ClusterManagement.RaphtoryReplicator
-import com.raphtory.core.components.ClusterManagement.WatchDog
+import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
 import com.raphtory.core.model.communication.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import kamon.Kamon
 import org.slf4j.LoggerFactory
@@ -60,6 +59,7 @@ object SingleNodeTest extends App {
 
   val system = ActorSystem("Single-Node-test")
 
+  system.actorOf(Props(new WatermarkManager(managerCount = 1)),"WatermarkManager")
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
   system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
