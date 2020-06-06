@@ -15,6 +15,8 @@ case class queueItem(wallclock:Long,timestamp:Long)extends Ordered[queueItem] {
 class WatermarkManager(managerCount: Int) extends Actor with ActorLogging  {
 
   val spoutWallClock = Kamon.histogram("Raphtory_Wall_Clock").withTag("Actor","Watchdog")
+  val safeTime       = Kamon.gauge("Raphtory_Safe_Time").withTag("actor",s"WatermarkManager")
+
   val watermarkqueue = mutable.PriorityQueue[queueItem]()
   private val safeMessageMap = ParTrieMap[String, Long]()
   var counter = 0;
@@ -22,6 +24,7 @@ class WatermarkManager(managerCount: Int) extends Actor with ActorLogging  {
   mediator ! DistributedPubSubMediator.Put(self)
   override def receive: Receive = {
     case u:UpdateArrivalTime => processUpdateArrivalTime(u)
+    case u:WatermarkTime => processWatermarkTime(u)
   }
 
   def processUpdateArrivalTime(u: UpdateArrivalTime):Unit = watermarkqueue += queueItem(u.wallClock,u.time)
@@ -31,7 +34,8 @@ class WatermarkManager(managerCount: Int) extends Actor with ActorLogging  {
     safeMessageMap put(sender().toString(),u.time)
     counter +=1
     if(counter%(10*managerCount)==0) {
-      val watermark = safeMessageMap.values.min
+      val watermark = safeMessageMap.map(x=>x._2).min
+      safeTime.update(watermark)
       while((watermarkqueue nonEmpty) && (watermarkqueue.head.timestamp<= watermark)) {
         spoutWallClock.record(currentTime-watermarkqueue.dequeue().wallclock)
       }

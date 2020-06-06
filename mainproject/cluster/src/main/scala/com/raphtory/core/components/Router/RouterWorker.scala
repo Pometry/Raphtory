@@ -93,16 +93,16 @@ trait RouterWorker extends Actor with ActorLogging {
     trackedTime = req.wallClock
     log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)
     parseTuple(req.record)
-    routerWorkerUpdates.increment()
   }
 
   def processAllocateJobRequest(req: AllocateTuple): Unit = {
     log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)
     parseTuple(req.record)
-    routerWorkerUpdates.increment()
   }
 
   def sendGraphUpdate[T <: GraphUpdate](message: T): Unit = {
+    routerWorkerUpdates.increment()
+
     if(trackedMessage){
       trackedMessage=false
       mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",UpdateArrivalTime(trackedTime,message.msgTime), localAffinity = false)
