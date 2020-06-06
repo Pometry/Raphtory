@@ -30,9 +30,9 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   val intraWorkerUpdates  = Kamon.counter("Raphtory_Intra_Worker_Updates").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
   val synchronisedUpdates = Kamon.counter("Raphtory_Synchronised_Updates").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
 
-  val safeTime       = Kamon.gauge("Raphtory_Safe_Time").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
-  val latestTime       = Kamon.gauge("Raphtory_Latest_Time").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
-  val earliestTime       = Kamon.gauge("Raphtory_Earliest_Time").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
+  val safeTime            = Kamon.gauge("Raphtory_Safe_Time").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
+  val latestTime          = Kamon.gauge("Raphtory_Latest_Time").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
+  val earliestTime        = Kamon.gauge("Raphtory_Earliest_Time").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
 
 
   private val queuedMessageMap = ParTrieMap[String, mutable.PriorityQueue[queueItem]]()
@@ -266,12 +266,14 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
         storage.safeWindowTime = timestamps.max
         storage.windowSafe = queueState.map(q=>q.safe).fold(true)(_&&_) //if all safe then safe
         latestTime.update(storage.newestTime)
-        safeTime.update(storage.windowTime)
         earliestTime.update(storage.oldestTime)
-        if(storage.windowSafe)
+        if(storage.windowSafe) {
           mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.safeWindowTime), localAffinity = false)
-        else
+          safeTime.update(storage.safeWindowTime)
+        } else {
           mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.windowTime), localAffinity = false)
+          safeTime.update(storage.windowTime)
+        }
 
       }
   }
