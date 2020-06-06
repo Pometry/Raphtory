@@ -5,6 +5,7 @@ import com.raphtory.core.analysis.API.ManagerCount
 import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
+import kamon.Kamon
 
 import scala.collection.parallel.mutable.ParTrieMap
 
@@ -24,6 +25,13 @@ class ViewLens(
   private var firstRun                                 = true
 
   override def getVerticesWithMessages(): ParTrieMap[Long, Vertex] = {
+    val viewTimer = Kamon.timer("Raphtory_View_Build_Time")
+      .withTag("Partition",storage.managerID)
+      .withTag("Worker",workerID)
+      .withTag("JobID",jobID)
+      .withTag("SuperStep",superstep)
+      .withTag("timestamp",timestamp)
+      .start()
     if (!messageFilter) {
       keySetMessages = storage.vertices.filter {
         case (id: Long, vertex: Vertex) =>
@@ -31,13 +39,22 @@ class ViewLens(
       }
       messageFilter = true
     }
+    viewTimer.stop()
     keySetMessages
   }
 
   override def getVerticesSet(): ParTrieMap[Long, Vertex] = {
     if (firstRun) {
+      val viewTimer = Kamon.timer("Raphtory_View_Build_Time")
+        .withTag("Partition",storage.managerID)
+        .withTag("Worker",workerID)
+        .withTag("JobID",jobID)
+        .withTag("SuperStep",superstep)
+        .withTag("timestamp",timestamp)
+        .start()
       keySet = storage.vertices.filter(v => v._2.aliveAt(timestamp))
       firstRun = false
+      viewTimer.stop()
     }
     keySet
   }

@@ -5,6 +5,7 @@ import com.raphtory.core.analysis.API.ManagerCount
 import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
+import kamon.Kamon
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParTrieMap
@@ -20,8 +21,19 @@ class WindowLens(
 ) extends GraphLens(jobID, superstep, timestamp, windowSize, workerID, storage, managerCount) {
 
   private var setWindow = windowSize
+
+  private val viewTimer = Kamon.timer("Raphtory_View_Build_Time")
+    .withTag("Partition",storage.managerID)
+    .withTag("Worker",workerID)
+    .withTag("JobID",jobID)
+    .withTag("SuperStep",superstep)
+    .withTag("timestamp",timestamp)
+    .withTag("windowSize",windowSize)
+    .start()
   private var keySet: ParTrieMap[Long, Vertex] =
     storage.vertices.filter(v => v._2.aliveAtWithWindow(timestamp, windowSize))
+
+  viewTimer.stop()
 
   private var TotalKeySize = 0
   private var firstCall    = true
@@ -57,10 +69,19 @@ class WindowLens(
   override def latestTime: Long = timestamp
 
   def shrinkWindow(newWindowSize: Long) = {
+    val shrinkTimer = Kamon.timer("Raphtory_View_Build_Time")
+      .withTag("Partition",storage.managerID)
+      .withTag("Worker",workerID)
+      .withTag("JobID",jobID)
+      .withTag("SuperStep",superstep)
+      .withTag("timestamp",timestamp)
+      .withTag("windowSize",newWindowSize)
+      .start()
     setWindow = newWindowSize
     keySet = keySet.filter(v => (v._2).aliveAtWithWindow(timestamp, setWindow))
     messageFilter = false
     firstCall = true
+    shrinkTimer.stop()
     //println(s"$workerID $timestamp $newWindowSize keyset prior $x keyset after ${keySet.size}")
   }
 
