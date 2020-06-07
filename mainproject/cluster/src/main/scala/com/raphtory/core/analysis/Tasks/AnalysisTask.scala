@@ -248,7 +248,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
       totalSentMessages = 0
       totalReceivedMessages = 0
       for (worker <- Utils.getAllReaderWorkers(managerCount))
-        mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep), false)
+        mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(jobID,currentSuperStep), false)
     }
 
   def messagesReceieved(workerID: Int, receivedMessages: Int, sentMessages: Int) = {
@@ -270,14 +270,15 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
       }
       else {
         println(s"$totalReceivedMessages $totalSentMessages")
+
         totalReceivedMessages = 0
         totalSentMessages = 0
         if (newAnalyser)
           for (worker <- Utils.getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
+            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(jobID,currentSuperStep),false)
         else
           for (worker <- Utils.getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
+            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(jobID,currentSuperStep),false)
       }
     }
   }

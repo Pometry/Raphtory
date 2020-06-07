@@ -10,29 +10,33 @@ import com.raphtory.core.analysis.API.GraphLenses.ViewLens
 import com.raphtory.core.analysis.API.GraphLenses.WindowLens
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.API._
-import com.raphtory.core.analysis.Algorithms.ConnectedComponents
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
-import com.twitter.util.Eval
 import kamon.Kamon
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Try
+import scala.collection.parallel.mutable.ParTrieMap
+
+case class ViewJob(jobID:String,timestamp:Long,window:Long)
 
 class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage: EntityStorage) extends Actor with ActorLogging {
 
   implicit var managerCount: ManagerCount = ManagerCount(managerCountVal)
   val analyserMap: TrieMap[String,LoadExternalAnalyser] = TrieMap[String,LoadExternalAnalyser]()
-  var receivedMessages    = new AtomicInteger(0)
+  private val sentMessageMap     = ParTrieMap[String, AtomicInteger ]()
+  private val receivedMessageMap = ParTrieMap[String, AtomicInteger ]()
   var tempProxy: GraphLens = _
 
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
+
+
+
 
   val messagesReceived  = Kamon.counter("Messages Received").withTag("actor",s"Reader_$managerID").withTag("ID",workerId)
 
@@ -79,7 +83,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processCheckMessagesRequest(req: CheckMessages): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-    sender ! MessagesReceived(workerId, receivedMessages.get, tempProxy.getMessages())
+    sender ! MessagesReceived(workerId, getReceivedMessages(req.jobID),getSentMessages(req.jobID))
   }
 
   def processNextStepRequest(req: NextStep): Unit = {
@@ -127,18 +131,17 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def handleVertexMessage(req: VertexMessage): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-    messagesReceived.withTag("JobID",req.jobID).withTag("timestamp",req.superStep)
-      .increment()//kamon
-    receivedMessages.incrementAndGet()//actual counter
-    storage.vertices(req.vertexID).multiQueue.receiveMessage(req.jobID,req.superStep,req.data)
+    incrementReceivedMessages(req.viewJob.jobID)
+    storage.vertices(req.vertexID).multiQueue.receiveMessage(req.viewJob,req.superStep,req.data)
   }
 
   def setup(analyzer: Analyser, jobID: String, args: Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) {
-    receivedMessages.set(0)
+
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {
       analyzer.setup()
+      incrementSentMessages(jobID,tempProxy.getMessages())
       sender ! Ready(tempProxy.getMessages())
     }
     else {
@@ -149,18 +152,18 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
         analyzer.setup()
         currentWindow += 1
       }
-
+      incrementSentMessages(jobID,tempProxy.getMessages())
       sender ! Ready(tempProxy.getMessages())
     }
   }
 
   def nextStep(analyzer: Analyser,jobID: String,args: Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
-    receivedMessages.set(0)
 
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {
       analyzer.analyse()
+      incrementSentMessages(jobID,tempProxy.getMessages())
       sender ! EndStep(tempProxy.getMessages(), tempProxy.checkVotes(workerId))
     } else {
       analyzer.analyse()
@@ -170,7 +173,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
           tempProxy.asInstanceOf[WindowLens].shrinkWindow(windowSet(i))
           analyzer.analyse()
         }
-
+      incrementSentMessages(jobID,tempProxy.getMessages())
       sender ! EndStep(tempProxy.getMessages(), tempProxy.checkVotes(workerId))
     }
 
@@ -248,26 +251,58 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   def handleLiveAnalysis(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit =
     // We have a set of windows to run
     if (windowSet.nonEmpty)
-      tempProxy = new WindowLens(jobID, superStep, timestamp, windowSet(0), workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,windowSet(0)), superStep,workerId, storage, managerCount)
     // We only have one window to run
     else if (window != -1)
-      tempProxy = new WindowLens(jobID, superStep, timestamp, window, workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,window), superStep, workerId, storage, managerCount)
     else
-      tempProxy = new ViewLens(jobID, superStep, timestamp, workerId, storage, managerCount)
+      tempProxy = new ViewLens(ViewJob(jobID,timestamp,-1), superStep, workerId, storage, managerCount)
 
   def handleViewAnalysis(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit =
     if (windowSet.nonEmpty) //we have a set of windows to run
-      tempProxy = new WindowLens(jobID, superStep, timestamp, windowSet(0), workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,windowSet(0)), superStep,  workerId, storage, managerCount)
     else if (window != -1) // we only have one window to run
-      tempProxy = new WindowLens(jobID, superStep, timestamp, window, workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,window), superStep, workerId, storage, managerCount)
     else
-      tempProxy = new ViewLens(jobID, superStep, timestamp, workerId, storage, managerCount)
+      tempProxy = new ViewLens(ViewJob(jobID,timestamp,-1), superStep, workerId, storage, managerCount)
 
   def handleRangeAnalysis(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit =
     if (windowSet.nonEmpty) //we have a set of windows to run
-      tempProxy = new WindowLens(jobID, superStep, timestamp, windowSet(0), workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,windowSet(0)), superStep, workerId, storage, managerCount)
     else if (window != -1) // we only have one window to run
-      tempProxy = new WindowLens(jobID, superStep, timestamp, window, workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,window), superStep, workerId, storage, managerCount)
     else
-      tempProxy = new ViewLens(jobID, superStep, timestamp, workerId, storage, managerCount)
+      tempProxy = new ViewLens(ViewJob(jobID,timestamp,-1), superStep, workerId, storage, managerCount)
+
+
+  def incrementReceivedMessages(jobID:String) = {
+    receivedMessageMap.get(jobID) match {
+      case Some(counter) => counter.incrementAndGet()
+      case None => receivedMessageMap.put(jobID,new AtomicInteger(1))
+    }
+  }
+
+  def getReceivedMessages(jobID:String) = {
+    receivedMessageMap.get(jobID) match {
+      case Some(counter) => counter.get()
+      case None => 0
+    }
+  }
+
+  def incrementSentMessages(jobID:String, value:Int) = {
+    sentMessageMap.get(jobID) match {
+      case Some(counter) => counter.set(counter.get()+value)//actual counter
+      case None => sentMessageMap.put(jobID,new AtomicInteger(value))
+    }
+  }
+
+  def getSentMessages(jobID:String) = {
+    sentMessageMap.get(jobID) match {
+      case Some(counter) => counter.get
+      case None => 0
+    }
+  }
+
+
+
 }
