@@ -3,6 +3,7 @@ package com.raphtory.core.analysis.API.GraphLenses
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.ManagerCount
 import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
+import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
@@ -10,15 +11,13 @@ import kamon.Kamon
 import scala.collection.parallel.mutable.ParTrieMap
 
 class ViewLens(
-    jobID: String,
-    superstep: Int,
-    timestamp: Long,
-    workerID: Int,
-    storage: EntityStorage,
-    managerCount: ManagerCount
-) extends GraphLens(jobID, superstep, timestamp, -1, workerID, storage, managerCount) {
+                jobID: ViewJob,
+                superstep: Int,
+                workerID: Int,
+                storage: EntityStorage,
+                managerCount: ManagerCount
+) extends GraphLens(jobID, superstep, storage, managerCount) {
 
-  override def job()                                   = jobID + timestamp
   private var keySet: ParTrieMap[Long, Vertex]         = ParTrieMap[Long, Vertex]()
   private var keySetMessages: ParTrieMap[Long, Vertex] = ParTrieMap[Long, Vertex]()
   private var messageFilter                            = false
@@ -28,14 +27,14 @@ class ViewLens(
     val viewTimer = Kamon.timer("Raphtory_View_Build_Time")
       .withTag("Partition",storage.managerID)
       .withTag("Worker",workerID)
-      .withTag("JobID",jobID)
+      .withTag("JobID",jobID.jobID)
       .withTag("SuperStep",superstep)
-      .withTag("timestamp",timestamp)
+      .withTag("timestamp",jobID.timestamp)
       .start()
     if (!messageFilter) {
       keySetMessages = storage.vertices.filter {
         case (id: Long, vertex: Vertex) =>
-          vertex.aliveAt(timestamp) && vertex.multiQueue.getMessageQueue(job(), superstep).nonEmpty
+          vertex.aliveAt(jobID.timestamp) && vertex.multiQueue.getMessageQueue(jobID, superstep).nonEmpty
       }
       messageFilter = true
     }
@@ -48,11 +47,11 @@ class ViewLens(
       val viewTimer = Kamon.timer("Raphtory_View_Build_Time")
         .withTag("Partition",storage.managerID)
         .withTag("Worker",workerID)
-        .withTag("JobID",jobID)
+        .withTag("JobID",jobID.jobID)
         .withTag("SuperStep",superstep)
-        .withTag("timestamp",timestamp)
+        .withTag("timestamp",jobID.timestamp)
         .start()
-      keySet = storage.vertices.filter(v => v._2.aliveAt(timestamp))
+      keySet = storage.vertices.filter(v => v._2.aliveAt(jobID.timestamp))
       firstRun = false
       viewTimer.stop()
     }
@@ -60,8 +59,7 @@ class ViewLens(
   }
   //override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(keySet(id.toInt).viewAt(timestamp),job(),superstep,this,timestamp,-1)
   override def getVertex(v: Vertex)(implicit context: ActorContext, managerCount: ManagerCount): VertexVisitor =
-    new VertexVisitor(v.viewAt(timestamp), job(), superstep, this, timestamp, -1)
-  override def latestTime: Long = timestamp
+    new VertexVisitor(v.viewAt(jobID.timestamp), jobID, superstep, this)
 
   override def checkVotes(workerID: Int): Boolean =
 //    println(workerID +" "+ messageFilter)

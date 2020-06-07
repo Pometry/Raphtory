@@ -3,6 +3,7 @@ package com.raphtory.core.model.communication
 import java.util.concurrent.ConcurrentHashMap
 
 import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.graphentities.Edge
 
 import scala.collection.mutable
@@ -94,7 +95,7 @@ case class WatermarkTime(time:Long)
 
 sealed trait RaphReadClasses
 
-case class VertexMessage(timestamp:Long,vertexID: Long, jobID: String, superStep: Int, data:Any )
+case class VertexMessage(vertexID: Long, viewJob: ViewJob, superStep: Int, data:Any )
 
 
 case class Setup(analyzer: Analyser, jobID: String, args:Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) extends RaphReadClasses
@@ -109,7 +110,7 @@ case class ReturnResults(results: Any)
 case class ExceptionInAnalysis(e: String) extends RaphReadClasses
 
 case class MessagesReceived(workerID: Int, receivedMessages: Int, sentMessages: Int) extends RaphReadClasses
-case class CheckMessages(superstep: Int)                                                        extends RaphReadClasses
+case class CheckMessages(jobID:String,superstep: Int)                                                        extends RaphReadClasses
 
 case class ReaderWorkersOnline() extends RaphReadClasses
 case class ReaderWorkersACK()    extends RaphReadClasses

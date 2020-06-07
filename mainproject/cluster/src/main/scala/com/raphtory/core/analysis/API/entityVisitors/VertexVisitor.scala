@@ -4,6 +4,7 @@ import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.analysis.API.GraphLenses.GraphLens
 import com.raphtory.core.analysis.API.ManagerCount
+import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, MutableProperty, Vertex}
 import com.raphtory.core.utils.Utils
@@ -12,23 +13,22 @@ import scala.collection.mutable
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 object VertexVisitor {
-  def apply(v: Vertex, jobID: String, superStep: Int, proxy: GraphLens, timestamp: Long, window: Long)(
+  def apply(v: Vertex, jobID: ViewJob, superStep: Int, proxy: GraphLens)(
       implicit context: ActorContext,
       managerCount: ManagerCount
   ) =
-    new VertexVisitor(v, jobID, superStep, proxy, timestamp, window)
+    new VertexVisitor(v, jobID, superStep, proxy)
 }
-class VertexVisitor(v: Vertex, jobID: String, superStep: Int, proxy: GraphLens, timestamp: Long, window: Long)(
-    implicit context: ActorContext,
-    managerCount: ManagerCount
-) {
+class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, proxy: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) {
+  val jobID = viewJob.jobID
+  val timestamp = viewJob.timestamp
+  val window = viewJob.window
 
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   val vert: Vertex               = v
-  def messageQueue     = v.multiQueue.getMessageQueue(jobID, superStep)
+  def messageQueue     = v.multiQueue.getMessageQueue(viewJob, superStep)
   def vertexType                 = v.getType
-  def clearQueue                   = v.multiQueue.clearQueue(jobID, superStep)
-  //val messageQueue2 = v.multiQueue.getMessageQueue(jobID,superStep+1)
+  def clearQueue                   = v.multiQueue.clearQueue(viewJob, superStep)
   def getOutgoingNeighbors: ParTrieMap[Long, Edge] = v.outgoingProcessing
   def getOutgoingNeighborsAfter(time:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= time)).map(x=>(x._1,new EdgeVisitor(x._2)))
   def getIngoingNeighbors: ParTrieMap[Long, Edge]  = v.incomingProcessing
@@ -97,7 +97,7 @@ class VertexVisitor(v: Vertex, jobID: String, superStep: Int, proxy: GraphLens, 
 
   //Send message
   def messageNeighbour(vertexID: Long, data: Any): Unit = {
-    val message = VertexMessage(timestamp, vertexID, jobID, superStep, data)
+    val message = VertexMessage(vertexID, viewJob, superStep, data)
     proxy.recordMessage(v.getId, vertexID, data)
     mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count), message, false)
   }
