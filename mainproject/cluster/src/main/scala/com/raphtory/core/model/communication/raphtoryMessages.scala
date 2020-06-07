@@ -94,7 +94,7 @@ case class WatermarkTime(time:Long)
 
 sealed trait RaphReadClasses
 
-case class VertexMessage(source: Long, vertexID: Long, jobID: String, superStep: Int, data:Any )
+case class VertexMessage(timestamp:Long,vertexID: Long, jobID: String, superStep: Int, data:Any )
 
 
 case class Setup(analyzer: Analyser, jobID: String, args:Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) extends RaphReadClasses

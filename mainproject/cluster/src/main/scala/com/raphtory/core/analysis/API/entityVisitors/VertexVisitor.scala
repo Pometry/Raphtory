@@ -97,14 +97,17 @@ class VertexVisitor(v: Vertex, jobID: String, superStep: Int, proxy: GraphLens, 
 
   //Send message
   def messageNeighbour(vertexID: Long, data: Any): Unit = {
-    val message = VertexMessage(v.getId, vertexID, jobID, superStep, data)
+    val message = VertexMessage(timestamp, vertexID, jobID, superStep, data)
     proxy.recordMessage(v.getId, vertexID, data)
     mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count), message, false)
   }
+
   def messageAllOutgoingNeighbors(message: Any): Unit =
     v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt, message))
+
   def messageAllNeighbours(message: Any) =
     v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt, message))
+
   def messageAllIngoingNeighbors(message: Any): Unit =
     v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt, message))
 
@@ -114,37 +117,6 @@ class VertexVisitor(v: Vertex, jobID: String, superStep: Int, proxy: GraphLens, 
   def voteToHalt() = proxy.vertexVoted()
   def aliveAt(time: Long): Boolean                         = v.aliveAt(time)
   def aliveAtWithWindow(time: Long, window: Long): Boolean = v.aliveAtWithWindow(time, window)
-//  private def edgeFilter(srcId: Int, dstId: Int, edgeId : Long) : Boolean = Utils.getEdgeIndex(srcId, dstId) == edgeId
-//  private def outgoingEdgeFilter(dstId : Int, edgeId : Long) : Boolean = edgeFilter(v.getId.toInt, dstId, edgeId)
-//  private def ingoingEdgeFilter(srcId : Int, edgeId : Long) : Boolean = edgeFilter(srcId, v.getId.toInt, edgeId)
-  //private def getNeighbor(f: Long => Boolean) : Option[Edge] = v.associatedEdges.values.find(e => f(e.getId))
-  //private def getOutgoingNeighbor(vId : Int) = getNeighbor(e => outgoingEdgeFilter(vId, e))
-  //private def getIngoingNeighbor(vId : Int) = getNeighbor(e => ingoingEdgeFilter(vId, e))
-  //private def getNeighbors = v.associatedEdges
+
 }
 
-//def getOutgoingNeighbors : ParArray[Int] = v.outgoingEdges.values.map(e => e.getDstId).toParArray
-//def getIngoingNeighbors  : ParArray[Int] = v.incomingEdges.values.map(e => e.getSrcId).toParArray
-
-//  def getOutgoingNeighborProp(vId: Int, key : String) : Option[String] = {
-//    v.outgoingEdges.get(Utils.getEdgeIndex(v.vertexId,vId)) match {
-//      case Some(e) => e.getPropertyCurrentValue(key)
-//      case None    => None
-//    }
-//  }
-//  def getIngoingNeighborProp(vId : Int, key : String) : Option[String] = {
-//    v.incomingEdges.get(Utils.getEdgeIndex(vId,v.vertexId)) match {
-//      case Some(e) => e.getPropertyCurrentValue(key)
-//      case None    => None
-//    }
-//  }
-
-//  def updateProperty(key : String, value : String) = {
-//    v.synchronized {
-//      v.properties.get(key) match {
-//        case None =>
-//          v.properties.put(key, new Property(System.currentTimeMillis(), key, value))
-//        case Some(oldProp) => oldProp.update(System.currentTimeMillis(), value)
-//      }
-//    }
-//  }

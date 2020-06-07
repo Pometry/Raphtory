@@ -16,7 +16,7 @@ import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 import com.twitter.util.Eval
 import kamon.Kamon
-import monix.execution.atomic.AtomicInt
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -27,7 +27,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   implicit var managerCount: ManagerCount = ManagerCount(managerCountVal)
   val analyserMap: TrieMap[String,LoadExternalAnalyser] = TrieMap[String,LoadExternalAnalyser]()
-  var receivedMessages    = AtomicInt(0)
+  var receivedMessages    = new AtomicInteger(0)
   var tempProxy: GraphLens = _
 
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
@@ -127,8 +127,9 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def handleVertexMessage(req: VertexMessage): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-    messagesReceived.increment()//kamon
-    receivedMessages.increment()//actual counter
+    messagesReceived.withTag("JobID",req.jobID).withTag("timestamp",req.superStep)
+      .increment()//kamon
+    receivedMessages.incrementAndGet()//actual counter
     storage.vertices(req.vertexID).multiQueue.receiveMessage(req.jobID,req.superStep,req.data)
   }
 

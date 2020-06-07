@@ -251,7 +251,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
         mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep), false)
     }
 
-  def messagesReceieved(workerID: Int, receivedMessages: Int, sentMessages: Int) = { ////mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false) //todo fix
+  def messagesReceieved(workerID: Int, receivedMessages: Int, sentMessages: Int) = {
     messageLogACKS += 1
     totalReceivedMessages += receivedMessages
     totalSentMessages += sentMessages
@@ -269,15 +269,15 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
             mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
       }
       else {
+        println(s"$totalReceivedMessages $totalSentMessages")
         totalReceivedMessages = 0
         totalSentMessages = 0
-        currentSuperStep += 1
         if (newAnalyser)
           for (worker <- Utils.getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
         else
           for (worker <- Utils.getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false)
       }
     }
   }
