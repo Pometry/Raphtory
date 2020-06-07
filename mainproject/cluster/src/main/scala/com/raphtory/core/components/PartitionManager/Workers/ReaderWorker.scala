@@ -34,6 +34,8 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
 
+  val messagesReceived  = Kamon.counter("Messages Received").withTag("actor",s"Reader_$managerID").withTag("ID",workerId)
+
 
   override def preStart(): Unit =
     log.debug("ReaderWorker [{}] belonging to Reader [{}] is being started.", workerId, managerID)
@@ -63,44 +65,35 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processSetupRequest(req: Setup): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-
-    try setup(
-            req.analyzer,
-            req.jobID,
-            req.args,
-            req.superStep,
-            req.timestamp,
-            req.analysisType,
-            req.window,
-            req.windowSet
-    )
+    val superstepTimer = Kamon.timer("Raphtory_Superstep_Time")
+      .withTag("Partition",storage.managerID)
+      .withTag("Worker",workerId)
+      .withTag("JobID",req.jobID)
+      .withTag("timestamp",req.timestamp)
+      .withTag("stage","setup")
+      .start()
+    try setup(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
     catch { case e: Exception => log.error("Failed to run setup due to [{}].", e) }
+    superstepTimer.stop()
   }
 
   def processCheckMessagesRequest(req: CheckMessages): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-
-    var count = AtomicInt(0)
-
-    //tempProxy.getVerticesSet().foreach(v => count.add(tempProxy.getVertex(v._2).messageQueue2.size))
-
-    sender ! MessagesReceived(workerId, count.get, receivedMessages.get, tempProxy.getMessages())
+    sender ! MessagesReceived(workerId, receivedMessages.get, tempProxy.getMessages())
   }
 
   def processNextStepRequest(req: NextStep): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-
-    try nextStep(
-            req.analyzer,
-            req.jobID,
-            req.args,
-            req.superStep,
-            req.timestamp,
-            req.analysisType,
-            req.window,
-            req.windowSet
-    )
+    val superstepTimer = Kamon.timer("Raphtory_Superstep_Time")
+      .withTag("Partition",storage.managerID)
+      .withTag("Worker",workerId)
+      .withTag("JobID",req.jobID)
+      .withTag("timestamp",req.timestamp)
+      .withTag("stage","analysis")
+      .start()
+    try nextStep(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
     catch { case e: Exception => log.error("Failed to run nextStep due to [{}].", e) }
+    superstepTimer.stop()
   }
 
   def processNextStepNewAnalyserRequest(req: NextStepNewAnalyser): Unit = {
@@ -120,18 +113,16 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processFinishRequest(req: Finish): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-
-    try returnResults(
-            req.analyzer,
-            req.jobID,
-            req.args,
-            req.superStep,
-            req.timestamp,
-            req.analysisType,
-            req.window,
-            req.windowSet
-    )
+    val superstepTimer = Kamon.timer("Raphtory_Superstep_Time")
+      .withTag("Partition",storage.managerID)
+      .withTag("Worker",workerId)
+      .withTag("JobID",req.jobID)
+      .withTag("timestamp",req.timestamp)
+      .withTag("stage","results")
+      .start()
+    try returnResults(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
     catch { case e: Exception => log.error("Failed to run returnResults due to [{}].", e) }
+    superstepTimer.stop()
   }
 
   def handleVertexMessage(req: VertexMessage): Unit = {
@@ -152,7 +143,8 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   }
 
   def processVertexMessage(vertexID: Long, jobID: String, superStep: Int, data: Any): ArrayBuffer[Any] = {
-    receivedMessages.increment()
+    messagesReceived.increment()//kamon
+    receivedMessages.increment()//actual counter
     storage.vertices(vertexID).multiQueue.receiveMessage(jobID, superStep, data)
   }
 
@@ -229,16 +221,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     returnResults(analyserMap.get(jobID).get.newAnalyser, jobID, args, currentStep, timestamp, analysisType, window, windowSet)
   }
 
-  def returnResults(
-      analyzer: Analyser,
-      jobID: String,
-      args: Array[String],
-      superStep: Int,
-      timestamp: Long,
-      analysisType: AnalysisType.Value,
-      window: Long,
-      windowSet: Array[Long]
-  ): Unit = {
+  def returnResults(analyzer: Analyser, jobID: String, args: Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {

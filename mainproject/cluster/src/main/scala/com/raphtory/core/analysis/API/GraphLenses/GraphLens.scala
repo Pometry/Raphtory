@@ -32,7 +32,6 @@ abstract class GraphLens(
   }
 
   def recordMessage(sourceID: Long, vertexID: Long, data: Any) =
-    //messageQueues(Utils.getReader(vertexID, managerCount.count)) add ((sourceID,vertexID,data))
     messages.increment()
 
   def getMessages() = messages.get

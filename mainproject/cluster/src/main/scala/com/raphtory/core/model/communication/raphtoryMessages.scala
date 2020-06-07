@@ -124,7 +124,7 @@ case class FinishNewAnalyser(jobID: String, args:Array[String], superStep: Int, 
 case class ReturnResults(results: Any)
 case class ExceptionInAnalysis(e: String) extends RaphReadClasses
 
-case class MessagesReceived(workerID: Int, real: Int, receivedMessages: Int, sentMessages: Int) extends RaphReadClasses
+case class MessagesReceived(workerID: Int, receivedMessages: Int, sentMessages: Int) extends RaphReadClasses
 case class CheckMessages(superstep: Int)                                                        extends RaphReadClasses
 
 case class ReaderWorkersOnline() extends RaphReadClasses
