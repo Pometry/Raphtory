@@ -8,6 +8,7 @@ import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.StartAnalysis
+import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 
@@ -248,7 +249,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
       totalSentMessages = 0
       totalReceivedMessages = 0
       for (worker <- Utils.getAllReaderWorkers(managerCount))
-        mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(jobID,currentSuperStep), false)
+        mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep), false)
     }
 
   def messagesReceieved(workerID: Int, receivedMessages: Int, sentMessages: Int) = {
@@ -275,10 +276,10 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
         totalSentMessages = 0
         if (newAnalyser)
           for (worker <- Utils.getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(jobID,currentSuperStep),false)
+            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep),false)
         else
           for (worker <- Utils.getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(jobID,currentSuperStep),false)
+            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep),false)
       }
     }
   }
