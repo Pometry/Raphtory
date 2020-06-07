@@ -94,24 +94,8 @@ case class WatermarkTime(time:Long)
 
 sealed trait RaphReadClasses
 
-sealed trait VertexMessage extends java.io.Serializable
-case class VertexMessageString(source: Long, vertexID: Long, jobID: String, superStep: Int, data: String)
-        extends VertexMessage
-case class VertexMessageLong(source: Long, vertexID: Long, jobID: String, superStep: Int, data: Long)
-        extends VertexMessage
-case class VertexMessageInt(source: Long, vertexID: Long, jobID: String, superStep: Int, data: Int)
-        extends VertexMessage
-case class VertexMessageFloat(source: Long, vertexID: Long, jobID: String, superStep: Int, data: Float)
-        extends VertexMessage
+case class VertexMessage(source: Long, vertexID: Long, jobID: String, superStep: Int, data:Any )
 
-case class VertexMessageStringLong(source: Long, vertexID: Long, jobID: String, superStep: Int, data: (String, Long))
-        extends VertexMessage
-
-case class VertexMessageBatch(
-    jobID: String,
-    superStep: Int,
-    data: ConcurrentHashMap.KeySetView[(Long, Long, Any), java.lang.Boolean]
-) extends VertexMessage
 
 case class Setup(analyzer: Analyser, jobID: String, args:Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) extends RaphReadClasses
 case class SetupNewAnalyser(jobID: String, args:Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) extends RaphReadClasses
