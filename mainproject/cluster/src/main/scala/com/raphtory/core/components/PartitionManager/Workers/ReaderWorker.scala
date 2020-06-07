@@ -36,11 +36,6 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
 
 
-
-
-  val messagesReceived  = Kamon.counter("Messages Received").withTag("actor",s"Reader_$managerID").withTag("ID",workerId)
-
-
   override def preStart(): Unit =
     log.debug("ReaderWorker [{}] belonging to Reader [{}] is being started.", workerId, managerID)
 
@@ -83,7 +78,23 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processCheckMessagesRequest(req: CheckMessages): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-    sender ! MessagesReceived(workerId, getReceivedMessages(req.jobID),getSentMessages(req.jobID))
+    Kamon.gauge("Messages Received")
+      .withTag("actor",s"Reader_$managerID")
+      .withTag("ID",workerId)
+      .withTag("jobID",req.jobID.jobID)
+      .withTag("Timestamp",req.jobID.timestamp)
+      .withTag("ID",req.superstep)
+      .update(getReceivedMessages(req.jobID.jobID))
+
+    Kamon.gauge("Messages Sent")
+      .withTag("actor",s"Reader_$managerID")
+      .withTag("ID",workerId)
+      .withTag("jobID",req.jobID.jobID)
+      .withTag("Timestamp",req.jobID.timestamp)
+      .withTag("ID",req.superstep)
+      .update(getReceivedMessages(req.jobID.jobID))
+
+    sender ! MessagesReceived(workerId, getReceivedMessages(req.jobID.jobID),getSentMessages(req.jobID.jobID))
   }
 
   def processNextStepRequest(req: NextStep): Unit = {

@@ -110,7 +110,7 @@ case class ReturnResults(results: Any)
 case class ExceptionInAnalysis(e: String) extends RaphReadClasses
 
 case class MessagesReceived(workerID: Int, receivedMessages: Int, sentMessages: Int) extends RaphReadClasses
-case class CheckMessages(jobID:String,superstep: Int)                                                        extends RaphReadClasses
+case class CheckMessages(jobID:ViewJob,superstep: Int)                                                        extends RaphReadClasses
 
 case class ReaderWorkersOnline() extends RaphReadClasses
 case class ReaderWorkersACK()    extends RaphReadClasses
