@@ -26,7 +26,6 @@ class WindowLens(
     .withTag("Partition",storage.managerID)
     .withTag("Worker",workerID)
     .withTag("JobID",jobID)
-    .withTag("SuperStep",superstep)
     .withTag("timestamp",timestamp)
     .withTag("windowSize",windowSize)
     .start()

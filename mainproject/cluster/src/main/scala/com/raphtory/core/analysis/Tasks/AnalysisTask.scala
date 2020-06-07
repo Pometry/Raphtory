@@ -112,7 +112,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     case EndStep(messages, voteToHalt) => endStep(messages, voteToHalt) //worker has finished the step
     case ReturnResults(results)        => finaliseJob(results) //worker has finished teh job and is returned the results
     case "restart"                     => restart()
-    case MessagesReceived(workerID, real, receivedMessages, sentMessages) => messagesReceieved(workerID, real, receivedMessages, sentMessages)
+    case MessagesReceived(workerID, receivedMessages, sentMessages) => messagesReceieved(workerID, receivedMessages, sentMessages)
     case RequestResults(jobID)         => requestResults()
     case FailedToCompile(stackTrace)   => failedToCompile(stackTrace) //Your code is broke scrub
     case _                             => processOtherMessages(_)     //incase some random stuff comes through
@@ -251,7 +251,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
         mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep), false)
     }
 
-  def messagesReceieved(workerID: Int, real: Int, receivedMessages: Int, sentMessages: Int) = { ////mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false) //todo fix
+  def messagesReceieved(workerID: Int, receivedMessages: Int, sentMessages: Int) = { ////mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false) //todo fix
     messageLogACKS += 1
     totalReceivedMessages += receivedMessages
     totalSentMessages += sentMessages
