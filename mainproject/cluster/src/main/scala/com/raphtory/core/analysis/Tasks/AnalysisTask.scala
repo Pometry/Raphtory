@@ -11,6 +11,7 @@ import com.raphtory.core.analysis.StartAnalysis
 import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
+import kamon.Kamon
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -23,6 +24,13 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
 
   private var local: Boolean = Utils.local
+
+  def viewTime = Kamon.timer("Raphtory_View_Time_Total").withTag("jobID",jobID)
+
+  private var viewTimeCurrentTimer = viewTime.start()
+
+  def concatTime = Kamon.timer("Raphtory_View_Concatenation_Time")
+    .withTag("jobID",jobID)
 
   //Communication Counters
   protected var ReaderACKS                   = 0    //Acks from the readers to say they are online
@@ -167,6 +175,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (TimeOKACKS == getWorkerCount) {
       stepCompleteTime() //reset step counter
       if (TimeOKFlag) {
+        viewTimeCurrentTimer = viewTime.withTag("Timestamp",time).start()
         if (analyser.defineMaxSteps() > 1)
           for (worker <- Utils.getAllReaderWorkers(managerCount))
             if(newAnalyser)
@@ -229,10 +238,14 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     results += result
     workerResultsReceived += 1
     if (workerResultsReceived == getWorkerCount) {
+      val timer = concatTime.withTag("Timestamp",timestamp()).start()
       processResults(timestamp())
       resetCounters()
       context.system.scheduler.scheduleOnce(Duration(restartTime(), MILLISECONDS), self, "restart")
+      timer.stop()
+      viewTimeCurrentTimer.stop()
     }
+
   }
 
   private def syncMessages() =
