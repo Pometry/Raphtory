@@ -78,7 +78,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processCheckMessagesRequest(req: CheckMessages): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-    Kamon.gauge("Messages Received")
+    Kamon.gauge("Raphtory_Analysis_Messages_Received")
       .withTag("actor",s"Reader_$managerID")
       .withTag("ID",workerId)
       .withTag("jobID",req.jobID.jobID)
@@ -86,7 +86,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       .withTag("ID",req.superstep)
       .update(getReceivedMessages(req.jobID.jobID))
 
-    Kamon.gauge("Messages Sent")
+    Kamon.gauge("Raphtory_Analysis_Messages_Sent")
       .withTag("actor",s"Reader_$managerID")
       .withTag("ID",workerId)
       .withTag("jobID",req.jobID.jobID)
