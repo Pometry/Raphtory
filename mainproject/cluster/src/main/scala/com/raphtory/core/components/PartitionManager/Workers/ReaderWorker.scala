@@ -64,16 +64,17 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processSetupRequest(req: Setup): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-    val superstepTimer = Kamon.timer("Raphtory_Superstep_Time")
+    val beforeTime = System.currentTimeMillis()
+    val superstepTimer = Kamon.gauge("Raphtory_Superstep_Time")
       .withTag("Partition",storage.managerID)
       .withTag("Worker",workerId)
       .withTag("JobID",req.jobID)
       .withTag("timestamp",req.timestamp)
+      .withTag("superstep",req.superStep)
       .withTag("stage","setup")
-      .start()
     try setup(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
     catch { case e: Exception => log.error("Failed to run setup due to [{}].", e) }
-    superstepTimer.stop()
+    superstepTimer.update(System.currentTimeMillis()-beforeTime)
   }
 
   def processCheckMessagesRequest(req: CheckMessages): Unit = {
@@ -99,16 +100,17 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processNextStepRequest(req: NextStep): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-    val superstepTimer = Kamon.timer("Raphtory_Superstep_Time")
+    val beforeTime = System.currentTimeMillis()
+    val superstepTimer = Kamon.gauge("Raphtory_Superstep_Time")
       .withTag("Partition",storage.managerID)
       .withTag("Worker",workerId)
       .withTag("JobID",req.jobID)
       .withTag("timestamp",req.timestamp)
-      .withTag("stage","analysis")
-      .start()
+      .withTag("superstep",req.superStep)
+
     try nextStep(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
     catch { case e: Exception => log.error("Failed to run nextStep due to [{}].", e) }
-    superstepTimer.stop()
+    superstepTimer.update(System.currentTimeMillis()-beforeTime)
   }
 
   def processNextStepNewAnalyserRequest(req: NextStepNewAnalyser): Unit = {
@@ -128,16 +130,17 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processFinishRequest(req: Finish): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-    val superstepTimer = Kamon.timer("Raphtory_Superstep_Time")
+    val beforeTime = System.currentTimeMillis()
+    val superstepTimer = Kamon.gauge("Raphtory_Superstep_Time")
       .withTag("Partition",storage.managerID)
       .withTag("Worker",workerId)
       .withTag("JobID",req.jobID)
       .withTag("timestamp",req.timestamp)
-      .withTag("stage","results")
-      .start()
+      .withTag("superstep",req.superStep)
+
     try returnResults(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
     catch { case e: Exception => log.error("Failed to run returnResults due to [{}].", e) }
-    superstepTimer.stop()
+    superstepTimer.update(System.currentTimeMillis()-beforeTime)
   }
 
   def handleVertexMessage(req: VertexMessage): Unit = {

@@ -23,14 +23,14 @@ class ViewLens(
   private var messageFilter                            = false
   private var firstRun                                 = true
 
+  private val viewTimer = Kamon.gauge("Raphtory_View_Build_Time")
+    .withTag("Partition",storage.managerID)
+    .withTag("Worker",workerID)
+    .withTag("JobID",jobID.jobID)
+    .withTag("timestamp",jobID.timestamp)
+
   override def getVerticesWithMessages(): ParTrieMap[Long, Vertex] = {
-    val viewTimer = Kamon.timer("Raphtory_View_Build_Time")
-      .withTag("Partition",storage.managerID)
-      .withTag("Worker",workerID)
-      .withTag("JobID",jobID.jobID)
-      .withTag("SuperStep",superstep)
-      .withTag("timestamp",jobID.timestamp)
-      .start()
+    val timetaken = System.currentTimeMillis()
     if (!messageFilter) {
       keySetMessages = storage.vertices.filter {
         case (id: Long, vertex: Vertex) =>
@@ -38,22 +38,16 @@ class ViewLens(
       }
       messageFilter = true
     }
-    viewTimer.stop()
+    viewTimer.update(System.currentTimeMillis()-timetaken)
     keySetMessages
   }
 
   override def getVerticesSet(): ParTrieMap[Long, Vertex] = {
     if (firstRun) {
-      val viewTimer = Kamon.timer("Raphtory_View_Build_Time")
-        .withTag("Partition",storage.managerID)
-        .withTag("Worker",workerID)
-        .withTag("JobID",jobID.jobID)
-        .withTag("SuperStep",superstep)
-        .withTag("timestamp",jobID.timestamp)
-        .start()
+      val timetaken = System.currentTimeMillis()
       keySet = storage.vertices.filter(v => v._2.aliveAt(jobID.timestamp))
       firstRun = false
-      viewTimer.stop()
+      viewTimer.update(System.currentTimeMillis()-timetaken)
     }
     keySet
   }

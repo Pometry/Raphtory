@@ -25,12 +25,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
   private var local: Boolean = Utils.local
 
-  def viewTime = Kamon.timer("Raphtory_View_Time_Total").withTag("jobID",jobID)
-
-  private var viewTimeCurrentTimer = viewTime.start()
-
-  def concatTime = Kamon.timer("Raphtory_View_Concatenation_Time")
-    .withTag("jobID",jobID)
+  var viewTimeCurrentTimer = System.currentTimeMillis()
 
   //Communication Counters
   protected var ReaderACKS                   = 0    //Acks from the readers to say they are online
@@ -175,7 +170,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (TimeOKACKS == getWorkerCount) {
       stepCompleteTime() //reset step counter
       if (TimeOKFlag) {
-        viewTimeCurrentTimer = viewTime.withTag("Timestamp",time).start()
+        viewTimeCurrentTimer = System.currentTimeMillis()
         if (analyser.defineMaxSteps() > 1)
           for (worker <- Utils.getAllReaderWorkers(managerCount))
             if(newAnalyser)
@@ -238,12 +233,14 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     results += result
     workerResultsReceived += 1
     if (workerResultsReceived == getWorkerCount) {
-      val timer = concatTime.withTag("Timestamp",timestamp()).start()
+      val startTime = System.currentTimeMillis()
+      val viewTime = Kamon.gauge("Raphtory_View_Time_Total").withTag("jobID",jobID).withTag("Timestamp",timestamp())
+      val concatTime = Kamon.gauge("Raphtory_View_Concatenation_Time").withTag("jobID",jobID).withTag("Timestamp",timestamp())
       processResults(timestamp())
       resetCounters()
       context.system.scheduler.scheduleOnce(Duration(restartTime(), MILLISECONDS), self, "restart")
-      timer.stop()
-      viewTimeCurrentTimer.stop()
+      concatTime.update(System.currentTimeMillis()-startTime)
+      viewTime.update(System.currentTimeMillis()-viewTimeCurrentTimer)
     }
 
   }

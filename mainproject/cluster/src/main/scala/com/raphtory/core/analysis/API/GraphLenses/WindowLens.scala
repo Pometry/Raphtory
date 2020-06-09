@@ -24,17 +24,17 @@ class WindowLens(
   val window = viewJobCurrent.window
   private var setWindow = window
 
-  private val viewTimer = Kamon.timer("Raphtory_View_Build_Time")
+  private val viewTimer = Kamon.gauge("Raphtory_View_Build_Time")
     .withTag("Partition",storage.managerID)
     .withTag("Worker",workerID)
     .withTag("JobID",jobID)
     .withTag("timestamp",timestamp)
-    .withTag("windowSize",setWindow)
-    .start()
+  private val timetaken = System.currentTimeMillis()
+
   private var keySet: ParTrieMap[Long, Vertex] =
     storage.vertices.filter(v => v._2.aliveAtWithWindow(timestamp, setWindow))
 
-  viewTimer.stop()
+  viewTimer.update(System.currentTimeMillis()-timetaken)
 
   private var TotalKeySize = 0
   private var firstCall    = true
@@ -66,20 +66,11 @@ class WindowLens(
     new VertexVisitor(v.viewAtWithWindow(timestamp, setWindow), viewJobCurrent, superstep, this)
 
   def shrinkWindow(newWindowSize: Long) = {
-    val shrinkTimer = Kamon.timer("Raphtory_View_Build_Time")
-      .withTag("Partition",storage.managerID)
-      .withTag("Worker",workerID)
-      .withTag("JobID",jobID)
-      .withTag("SuperStep",superstep)
-      .withTag("timestamp",timestamp)
-      .withTag("windowSize",newWindowSize)
-      .start()
     setWindow = newWindowSize
     keySet = keySet.filter(v => (v._2).aliveAtWithWindow(timestamp, setWindow))
     messageFilter = false
     firstCall = true
     viewJobCurrent = ViewJob(viewJobCurrent.jobID,viewJobCurrent.timestamp,newWindowSize)
-    shrinkTimer.stop()
     //println(s"$workerID $timestamp $newWindowSize keyset prior $x keyset after ${keySet.size}")
   }
 
