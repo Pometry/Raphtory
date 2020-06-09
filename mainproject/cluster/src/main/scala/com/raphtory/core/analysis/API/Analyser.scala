@@ -33,7 +33,7 @@ abstract class Analyser(args:Array[String]) extends java.io.Serializable {
   implicit var proxy: GraphLens            = null
   var workerID: Int                       = 0
 
-  private val toPublish:mutable.ArrayBuffer[String] = ArrayBuffer()
+  private var toPublish:mutable.ArrayBuffer[String] = ArrayBuffer()
   final def sysSetup(context: ActorContext, managerCount: ManagerCount, proxy: GraphLens, ID: Int) = {
     this.context = context
     this.managerCount = managerCount
@@ -43,6 +43,7 @@ abstract class Analyser(args:Array[String]) extends java.io.Serializable {
 
   def publishData(data:String) = toPublish +=data
   def getPublishedData() = toPublish.toArray
+  def clearPublishedData() =  toPublish = ArrayBuffer()
 
   def analyse(): Unit
   def setup(): Unit

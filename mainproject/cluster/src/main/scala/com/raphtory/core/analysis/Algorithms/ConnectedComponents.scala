@@ -61,6 +61,7 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
           .currentTimeMillis() - startTime}},"""
       Utils.writeLines(output_file, text, "{\"views\":[")
       println(text)
+      publishData(text)
     } catch {
       case e: UnsupportedOperationException => println(s"No activity for  view at $timeStamp")
     }
@@ -85,6 +86,8 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
           .currentTimeMillis() - startTime}},"""
       Utils.writeLines(output_file, text, "{\"views\":[")
       println(text)
+      publishData(text)
+
     } catch {
       case e: UnsupportedOperationException => println(s"No activity for  view at $timestamp")
     }
@@ -115,6 +118,8 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
           .currentTimeMillis() - startTime}},"""
       Utils.writeLines(output_file, text, "{\"views\":[")
       println(text)
+      publishData(text)
+
     } catch {
       case e: UnsupportedOperationException => println(s"No activity for  view at $timestamp with window $windowSize")
     }
@@ -149,6 +154,7 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
             .currentTimeMillis() - startTime}},"""
         Utils.writeLines(output_file, text, "{\"views\":[")
         println(text)
+        publishData(text)
         //println(s"At ${new Date(timestamp)} with a window of ${windowSize / 3600000} hour(s) there were ${} connected components. The biggest being ${}")
       } catch {
         case e: UnsupportedOperationException => println(s"No activity for  view at $timestamp with window $windowSize")
