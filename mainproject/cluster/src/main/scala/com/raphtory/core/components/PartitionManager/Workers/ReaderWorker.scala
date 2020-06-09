@@ -71,7 +71,6 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       .withTag("JobID",req.jobID)
       .withTag("timestamp",req.timestamp)
       .withTag("superstep",req.superStep)
-      .withTag("stage","setup")
     try setup(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
     catch { case e: Exception => log.error("Failed to run setup due to [{}].", e) }
     superstepTimer.update(System.currentTimeMillis()-beforeTime)
