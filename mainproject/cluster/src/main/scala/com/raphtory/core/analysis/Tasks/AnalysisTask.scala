@@ -13,6 +13,11 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import kamon.Kamon
 
+import com.mongodb.DBObject
+import com.mongodb.casbah.MongoClient
+import com.mongodb.casbah.MongoClientURI
+import com.mongodb.util.JSON
+
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -24,6 +29,10 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
 
   private var local: Boolean = Utils.local
+  val saveData = System.getenv().getOrDefault("ANALYSIS_SAVE_OUTPUT", "false").trim.toBoolean
+  val mongoIP = System.getenv().getOrDefault("ANALYSIS_MONGO_HOST", "localhost").trim
+  val mongoPort = System.getenv().getOrDefault("ANALYSIS_MONGO_PORT", "27017").trim
+  val dbname = System.getenv().getOrDefault("ANALYSIS_MONGO_DB_NAME", "raphtory").trim
 
   var viewTimeCurrentTimer = System.currentTimeMillis()
 
@@ -83,7 +92,27 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (local)Class.forName(analyser.getClass.getCanonicalName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser] else analyser
   final protected def getManagerCount: Int      = managerCount
   final protected def getWorkerCount: Int       = managerCount * 10
-  protected def processResults(timeStamp: Long) = analyser.processResults(results, timeStamp,viewCompleteTime())
+
+  protected def processResults(timeStamp:Long) = {
+    analyser.processResults(results, timeStamp,viewCompleteTime())
+  }
+
+  protected def processResultsWrapper(timeStamp: Long) = {
+    if(saveData) {
+      val mongo = MongoClient(MongoClientURI(s"mongodb://$mongoIP:$mongoPort"))
+      val buffer = new java.util.ArrayList[DBObject]()
+      processResults(timeStamp)
+      analyser.getPublishedData().foreach(data => {
+        buffer.add(JSON.parse(data).asInstanceOf[DBObject])
+      })
+      analyser.clearPublishedData()
+      mongo.getDB(dbname).getCollection(jobID).insert(buffer)
+      buffer.clear()
+    }
+    else
+      processResults(timeStamp)
+
+  }
 
   protected def resetCounters() = {
     ReaderACKS = 0               //Acks from the readers to say they are online
@@ -236,7 +265,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
       val startTime = System.currentTimeMillis()
       val viewTime = Kamon.gauge("Raphtory_View_Time_Total").withTag("jobID",jobID).withTag("Timestamp",timestamp())
       val concatTime = Kamon.gauge("Raphtory_View_Concatenation_Time").withTag("jobID",jobID).withTag("Timestamp",timestamp())
-      processResults(timestamp())
+      processResultsWrapper(timestamp())
       resetCounters()
       context.system.scheduler.scheduleOnce(Duration(restartTime(), MILLISECONDS), self, "restart")
       concatTime.update(System.currentTimeMillis()-startTime)
