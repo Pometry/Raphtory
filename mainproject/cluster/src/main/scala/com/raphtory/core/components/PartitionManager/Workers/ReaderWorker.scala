@@ -83,7 +83,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       .withTag("ID",workerId)
       .withTag("jobID",req.jobID.jobID)
       .withTag("Timestamp",req.jobID.timestamp)
-      .withTag("ID",req.superstep)
+      .withTag("Superstep",req.superstep)
       .update(getReceivedMessages(req.jobID.jobID))
 
     Kamon.gauge("Raphtory_Analysis_Messages_Sent")
@@ -91,7 +91,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       .withTag("ID",workerId)
       .withTag("jobID",req.jobID.jobID)
       .withTag("Timestamp",req.jobID.timestamp)
-      .withTag("ID",req.superstep)
+      .withTag("Superstep",req.superstep)
       .update(getReceivedMessages(req.jobID.jobID))
 
     sender ! MessagesReceived(workerId, getReceivedMessages(req.jobID.jobID),getSentMessages(req.jobID.jobID))
