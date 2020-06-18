@@ -27,6 +27,8 @@ object Go extends App {
   val seedLoc = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
   val root    = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
+  // debug should give timing
+  //root.setLevel(Level.DEBUG)
   val routerName  = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
   val updaterName = s"${sys.env.getOrElse("SPOUTCLASS", classOf[RandomSpout].getClass.getName)}"
   val docker      = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
