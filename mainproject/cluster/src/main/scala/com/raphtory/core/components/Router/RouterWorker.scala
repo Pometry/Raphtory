@@ -103,35 +103,54 @@ trait RouterWorker extends Actor with ActorLogging {
   def sendGraphUpdate[T <: GraphUpdate](message: T): Unit = {
     routerWorkerUpdates.increment()
 
+    val path = getManager(message.srcID, getManagerCount)
+    val id = getMessageIDForWriter(path)
     if(trackedMessage){
       trackedMessage=false
       mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",UpdateArrivalTime(trackedTime,message.msgTime), localAffinity = false)
+      message match {
+        case m:VertexAdd =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexAdd(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+        case m:VertexAddWithProperties =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexAddWithProperties(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+        case m:EdgeAdd =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeAdd(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+        case m:EdgeAddWithProperties =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeAddWithProperties(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+        case m:VertexDelete =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexDelete(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+        case m:EdgeDelete =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeDelete(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+      }
     }
-
-    val path = getManager(message.srcID, getManagerCount)
-    val id = getMessageIDForWriter(path)
-
-    message match {
-      case m:VertexAdd =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexAdd(s"${routerId}_${workerID}",id,m) , localAffinity = false)
-      case m:VertexAddWithProperties =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexAddWithProperties(s"${routerId}_${workerID}",id,m) , localAffinity = false)
-      case m:EdgeAdd =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeAdd(s"${routerId}_${workerID}",id,m) , localAffinity = false)
-      case m:EdgeAddWithProperties =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeAddWithProperties(s"${routerId}_${workerID}",id,m) , localAffinity = false)
-      case m:VertexDelete =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexDelete(s"${routerId}_${workerID}",id,m) , localAffinity = false)
-      case m:EdgeDelete =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeDelete(s"${routerId}_${workerID}",id,m) , localAffinity = false)
+    else {
+      message match {
+        case m: VertexAdd =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedVertexAdd(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+        case m: VertexAddWithProperties =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedVertexAddWithProperties(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+        case m: EdgeAdd =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedEdgeAdd(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+        case m: EdgeAddWithProperties =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedEdgeAddWithProperties(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+        case m: VertexDelete =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedVertexDelete(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+        case m: EdgeDelete =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedEdgeDelete(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+      }
     }
-
 
 
     log.debug("RouterWorker sending message [{}] to PubSub", message)
