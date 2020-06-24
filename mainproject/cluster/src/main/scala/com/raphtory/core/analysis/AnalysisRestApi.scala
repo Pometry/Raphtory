@@ -27,9 +27,8 @@ case class AnalysisRestApi(system:ActorSystem){
   implicit val system2 = system
   implicit val materializer = ActorMaterializer()
   implicit val t:Timeout = 15.seconds
-  val docker = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
   val port  = 8081
-  var config = if(docker) "localhost" else ConfigFactory.load().getString("akka.remote.netty.tcp.bind-hostname")
+  var config = ConfigFactory.load().getString("akka.remote.netty.tcp.bind-hostname")
   val iface = config//java.net.InetAddress.getLocalHost().getHostAddress()
   val mediator = DistributedPubSub(system).mediator
 
