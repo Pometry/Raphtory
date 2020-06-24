@@ -44,8 +44,10 @@ object SingleNodeTest extends App {
     val end =   31525368897000L
 
     val jump =    3600000
-    var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
-    var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+   // var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+    //var SpoutName = "com.raphtory.examples.random.actors.RandomSpout"
+   // var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+    //var routerClassName = "com.raphtory.examples.random.actors.RandomRouter"
 
 
   //track and trace test
@@ -55,7 +57,9 @@ object SingleNodeTest extends App {
 
 //chainalysisAB
 //  var UpdaterName = "com.raphtory.examples.blockchain.spouts.ChainalysisABSpout"
+  var SpoutName = "com.raphtory.spouts.KafkaSpout"
 //  var routerClassName = "com.raphtory.examples.blockchain.routers.ChainalysisABRouter"
+  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumKafkaRouter"
 
   val system = ActorSystem("Single-Node-test")
 
