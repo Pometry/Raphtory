@@ -56,10 +56,10 @@ object SingleNodeTest extends App {
   //  Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
 
 //chainalysisAB
-//  var UpdaterName = "com.raphtory.examples.blockchain.spouts.ChainalysisABSpout"
-  var SpoutName = "com.raphtory.spouts.KafkaSpout"
-//  var routerClassName = "com.raphtory.examples.blockchain.routers.ChainalysisABRouter"
-  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumKafkaRouter"
+  var SpoutName = "com.raphtory.examples.blockchain.spouts.ChainalysisABSpout"
+ // var SpoutName = "com.raphtory.spouts.KafkaSpout"
+  var routerClassName = "com.raphtory.examples.blockchain.routers.ChABClus2ClusRouter"
+//  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumKafkaRouter"
 
   val system = ActorSystem("Single-Node-test")
 
