@@ -89,9 +89,9 @@ lazy val basicSettings = Seq(
 )
 
 lazy val dockerStuff = Seq(
-        maintainer := "Ben Steer <b.a.steer@qmul.ac.uk>",
+        maintainer := "Imane Hafnaoui <i.hafnaoui@qmul.ac.uk>",
         dockerBaseImage := "miratepuffin/raphtory-redis:latest",
-        dockerRepository := Some("miratepuffin"),
+        dockerRepository := Some("tsukitsune"),
         dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600,8081)
 )
 
