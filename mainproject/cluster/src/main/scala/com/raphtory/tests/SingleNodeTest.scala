@@ -56,11 +56,14 @@ object SingleNodeTest extends App {
   //  Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
 
 //chainalysisAB
-  var SpoutName = "com.raphtory.examples.blockchain.spouts.ChainalysisABSpout"
+//  var SpoutName = "com.raphtory.examples.blockchain.spouts.ChainalysisABSpout"
  // var SpoutName = "com.raphtory.spouts.KafkaSpout"
-  var routerClassName = "com.raphtory.examples.blockchain.routers.ChABClus2ClusRouter"
+//  var routerClassName = "com.raphtory.examples.blockchain.routers.ChABClus2ClusRouter"
 //  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumKafkaRouter"
 
+
+  var SpoutName = "com.raphtory.examples.twitterRumour.networkxSpout"
+  var routerClassName = "com.raphtory.examples.twitterRumour.networkxRouter"
   val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatermarkManager(managerCount = 1)),"WatermarkManager")
@@ -69,9 +72,9 @@ object SingleNodeTest extends App {
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(SpoutName)), "Spout")
   val analysisManager = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
-  AnalysisRestApi(system)
+  //AnalysisRestApi(system)
 
-  //analysisManager ! ViewAnalysisRequest("jobID","com.raphtory.core.analysis.Algorithms.DegreeBasic", 1500046397L)
+  analysisManager ! RangeAnalysisRequest("jobID","com.raphtory.core.analysis.Algorithms.TriangleCounting", 1L, 4L, 1L)
 
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents"}' 127.0.0.1:8080/LiveAnalysisRequest
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsViewTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents","timestamp":1476113856000}' 127.0.0.1:8080/ViewAnalysisRequest
