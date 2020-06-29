@@ -108,7 +108,7 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
         .currentTimeMillis() - startTime}},"""
 //    Utils.writeLines(output_file, text, "{\"views\":[")
-//    println(text)
+    println(text)
     publishData(text)
   }
 

@@ -1,6 +1,7 @@
 package com.raphtory.core.analysis.Tasks
 
 import java.io.FileNotFoundException
+import java.net.InetAddress
 import java.util.Date
 
 import akka.actor.{Actor, Cancellable, PoisonPill}
@@ -12,7 +13,6 @@ import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import kamon.Kamon
-
 import com.mongodb.DBObject
 import com.mongodb.casbah.MongoClient
 import com.mongodb.casbah.MongoClientURI
@@ -99,7 +99,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
   protected def processResultsWrapper(timeStamp: Long) = {
     if(saveData) {
-      val mongo = MongoClient(MongoClientURI(s"mongodb://$mongoIP:$mongoPort"))
+      val mongo = MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress()}:$mongoPort"))
       val buffer = new java.util.ArrayList[DBObject]()
       processResults(timeStamp)
       analyser.getPublishedData().foreach(data => {
