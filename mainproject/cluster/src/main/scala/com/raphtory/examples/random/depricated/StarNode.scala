@@ -22,7 +22,7 @@ class StarNode(args:Array[String]) extends Analyser(args){
 
     for (v <- proxy.getVerticesSet()) {
       val vertex   = proxy.getVertex(v._2)
-      val inDegree = vertex.getIngoingNeighbors.size
+      val inDegree = vertex.getIncEdges.size
       //println("CHeck this out:"+v.toInt+" "+ inDegree.toInt)
       results.put(v._1.toInt, inDegree.toInt)
 

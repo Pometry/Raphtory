@@ -43,7 +43,7 @@ class KafkaSpout extends SpoutTrait {
   consumer.subscribe(util.Arrays.asList(topic))
 
 
-  //val helper = context.system.actorOf(Props(new KafkaSpoutBackPressure(queue)), "Spout_Helper")
+  val helper = context.system.actorOf(Props(new KafkaSpoutBackPressure(queue)), "Spout_Helper")
 
   protected def ProcessSpoutTask(message: Any): Unit = message match {
     case StartSpout => AllocateSpoutTask(Duration(1, MILLISECONDS), "newLine")
@@ -53,10 +53,10 @@ class KafkaSpout extends SpoutTrait {
 
   def consumeFromKafka() = {
     //println("Consuming")
-    val record = consumer.poll(java.time.Duration.ofMillis(5000)).asScala
+    val record = consumer.poll(java.time.Duration.ofMillis(3000)).asScala
     for (data <- record.iterator) {
-      sendTuple(data.value())
-      //helper ! KafkaData(data.value())
+      //sendTuple(data.value())
+      helper ! KafkaData(data.value())
     }
     AllocateSpoutTask(Duration(restart.toInt, MILLISECONDS), "newLine")
   }
