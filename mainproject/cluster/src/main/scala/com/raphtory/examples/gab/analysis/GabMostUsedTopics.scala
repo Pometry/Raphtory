@@ -17,7 +17,7 @@ class GabMostUsedTopics(args:Array[String]) extends Analyser(args){
     proxy.getVerticesSet().foreach { v =>
       val vertex = proxy.getVertex(v._2)
       if (vertex.getPropertyCurrentValue("type").getOrElse("no type").equals("topic")) {
-        val ingoingNeighbors = vertex.getIngoingNeighbors.size
+        val ingoingNeighbors = vertex.getIncEdges.size
         results.synchronized {
           vertex.getPropertyCurrentValue("id") match {
             case None =>
