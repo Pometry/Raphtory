@@ -27,7 +27,7 @@ trait RouterWorker extends Actor with ActorLogging {
   var newestTime:Long = 0
   var trackedMessage = false
   var trackedTime = 0L
-  private val messageIDs = mutable.HashMap[String, AtomicInteger]()
+  private val messageIDs = ParTrieMap[String, Int]()
   /** Private and protected values */
   private var managerCount: Int = initialManagerCount
   val writerArray = Utils.getAllWriterWorkers(managerCount)
@@ -158,9 +158,10 @@ trait RouterWorker extends Actor with ActorLogging {
   private def getMessageIDForWriter(path:String) ={
     messageIDs.get(path) match {
       case Some(messageid) =>
-        messageid.getAndIncrement()
+        messageIDs put (path,messageid+1)
+        messageid
       case None =>
-        messageIDs put (path,new AtomicInteger(1))
+        messageIDs put (path,1)
         0
     }
   }

@@ -18,7 +18,7 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
       val degree = v.map { vert =>
       val vertex    = proxy.getVertex(vert._2)
       val outDegree = vertex.getOutgoingNeighbors.size
-      val inDegree  = vertex.getIngoingNeighbors.size
+      val inDegree  = vertex.getIncEdges.size
       (vert._1, outDegree, inDegree)
     }
     val totalV   = degree.size

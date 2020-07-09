@@ -31,7 +31,9 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, proxy: GraphLens
   def clearQueue                   = v.multiQueue.clearQueue(viewJob, superStep)
   def getOutgoingNeighbors: ParTrieMap[Long, Edge] = v.outgoingProcessing
   def getOutgoingNeighborsAfter(time:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= time)).map(x=>(x._1,new EdgeVisitor(x._2)))
-  def getIngoingNeighbors: ParTrieMap[Long, Edge]  = v.incomingProcessing
+  def getOutgoingNeighborsBefore(time:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= time)).map(x=>(x._1,new EdgeVisitor(x._2))) //change >= to <=
+  def getOutgoingNeighborsBetween(min:Long,max:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= min)).map(x=>(x._1,new EdgeVisitor(x._2))) //TODO actually make function
+  def getIncEdges: ParTrieMap[Long, Edge]  = v.incomingProcessing
 
   //TODO fix properties
   def getOutgoingNeighborProp(ID: Long, key: String): Option[Any] =
@@ -40,7 +42,7 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, proxy: GraphLens
       case None    => None
     }
   def getIngoingNeighborProp(ID: Long, key: String): Option[Any] =
-    getIngoingNeighbors.get(ID) match {
+    getIncEdges.get(ID) match {
       case Some(e) => e.getPropertyCurrentValue(key)
       case None    => None
     }
@@ -91,6 +93,11 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, proxy: GraphLens
     v.containsCompvalue(realkey)
   }
   def getOrSetCompValue(key: String, value: Any) = {
+    val realkey = key + timestamp + window
+    v.getOrSet(realkey, value)
+  }
+
+  def appendToCompValue(key: String, value: Any) = { //write function later
     val realkey = key + timestamp + window
     v.getOrSet(realkey, value)
   }
