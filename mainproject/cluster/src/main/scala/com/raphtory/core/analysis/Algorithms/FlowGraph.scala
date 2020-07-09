@@ -17,10 +17,10 @@ class FlowGraph(args:Array[String]) extends Analyser(args){
       var flow = List[(Long, Long, Int)]()
       locV.foreach { u =>
         val vertU = proxy.getVertex(u._2)
-        val neighU = vertU.getIngoingNeighbors.keySet
+        val neighU = vertU.getIncEdges.keySet
         val excU = locV - u._2.getId
         excU.foreach { v =>
-          val neighV = proxy.getVertex(v._2).getIngoingNeighbors.keySet
+          val neighV = proxy.getVertex(v._2).getIncEdges.keySet
           val com = (neighU & neighV).size
           flow = (u._2.getId, v._2.getId, com) :: flow
         }
