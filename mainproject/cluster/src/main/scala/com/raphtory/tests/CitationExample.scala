@@ -23,7 +23,7 @@ object CitationExample extends App{
   var SpoutName = "com.raphtory.spouts.FileSpout"
   system.actorOf(Props(Class.forName(SpoutName)), "Spout")
 
-  var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+  var routerClassName = "com.raphtory.examples.citationNetwork.CitationRouter"
   system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
 
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")

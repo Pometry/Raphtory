@@ -1,16 +1,15 @@
-package com.raphtory.examples.citationNetwork
+package com.raphtory.examples.citationNetwork.old
 
 import com.raphtory.core.components.Spout.SpoutTrait
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.io
+import scala.io.Source
 import scala.language.postfixOps
 
 class CitationSpout extends SpoutTrait {
 
   //file is read. Please note that the first line is dropped, this in case the file has headers
-  val fileLines   = io.Source.fromFile("/Users/lagordamotoneta/Scala/small.csv").getLines.drop(1).toArray
+  val fileLines   = Source.fromFile("/Users/lagordamotoneta/Scala/small.csv").getLines.drop(1).toArray
   var position    = 0
   var linesNumber = fileLines.length
   println(linesNumber)
