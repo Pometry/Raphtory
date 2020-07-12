@@ -57,8 +57,8 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[Array[String]]].flatten
     var toPublish = s"""{"timestamp":$timeStamp,triangles:["""
-    endResults.foreach(triangle => toPublish+= triangle+=",")
-    toPublish.dropRight(1)+="]}"
+   // endResults.foreach(triangle => toPublish+= triangle+=",")
+   // toPublish.dropRight(1)+="]}"
     publishData(toPublish)
   }
 
