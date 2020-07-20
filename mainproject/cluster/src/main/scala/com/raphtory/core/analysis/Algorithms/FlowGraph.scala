@@ -12,7 +12,7 @@ class FlowGraph(args:Array[String]) extends Analyser(args){
   override def analyse(): Unit = {}
 
   override def returnResults(): Any = {
-    val locV = view.getVerticesSet().filter{ vertex => vertex.Type() == "Location" }
+    val locV = view.getVertices().filter{ vertex => vertex.Type() == "Location" }
     if(locV.size > 1){
       var flow = List[(Long, Long, Int)]()
       //TODO Revisit with Imane

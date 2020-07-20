@@ -9,7 +9,7 @@ import scala.collection.parallel.immutable
 class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
 
   override def setup(): Unit =
-    view.getVerticesSet().foreach { vertex =>
+    view.getVertices().foreach { vertex =>
       val t_max = vertex.getIncEdges.map(edge => edge._2.previousState.maxBy(f=> f._1)).max._1 //get incoming edges and then find the most recent edge with respect to timestamp and window
       vertex.getOutgoingNeighborsBefore(t_max).foreach(neighbour => {
         val nID = neighbour._1
@@ -18,7 +18,7 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
     }
 
   override def analyse(): Unit =
-    view.getVerticesWithMessages().foreach { vertex =>
+    view.getMessagedVertices().foreach { vertex =>
       val queue = vertex.messageQueue.map(_.asInstanceOf[Tuple2[Array[Long],Long]])
       queue.foreach(message=> {
         val path = message._1
@@ -43,7 +43,7 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
     }
 
   override def returnResults(): Any =
-    view.getVerticesSet().flatMap(vertex =>{
+    view.getVertices().flatMap(vertex =>{
       vertex.getCompValue("TrianglePath") match {
         case Some(value) => value.asInstanceOf[Array[String]]
         case None => ""

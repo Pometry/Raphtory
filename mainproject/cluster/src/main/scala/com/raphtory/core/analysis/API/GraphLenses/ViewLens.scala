@@ -30,7 +30,7 @@ class ViewLens(
     .withTag("JobID",jobID.jobID)
     .withTag("timestamp",jobID.timestamp)
 
-  override def getVerticesWithMessages()(implicit context: ActorContext, managerCount: ManagerCount):  ParIterable[VertexVisitor] = {
+  override def getMessagedVertices()(implicit context: ActorContext, managerCount: ManagerCount):  ParIterable[VertexVisitor] = {
     val timetaken = System.currentTimeMillis()
     if (!messageFilter) {
       keySetMessages = storage.vertices.filter {
@@ -43,7 +43,7 @@ class ViewLens(
     keySetMessages
   }
 
-  override def getVerticesSet()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] = {
+  override def getVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] = {
     if (firstRun) {
       val timetaken = System.currentTimeMillis()
       keySet = storage.vertices.filter(v => v._2.aliveAt(jobID.timestamp)).map(v =>  new VertexVisitor(v._2, jobID, superstep, this))

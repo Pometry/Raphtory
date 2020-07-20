@@ -17,10 +17,10 @@ abstract class GraphLens(jobID: ViewJob, superstep: Int, storage: EntityStorage,
   protected var voteCount  = new AtomicInteger(0)
   def superStep() = superstep
 
-  def getVerticesSet()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] =
+  def getVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] =
     storage.vertices.map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
 
-  def getVerticesWithMessages()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] =
+  def getMessagedVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] =
     storage.vertices.filter {
       case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(jobID, superstep).nonEmpty
     }.map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
