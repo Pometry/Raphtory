@@ -28,17 +28,9 @@ class Density(args:Array[String]) extends Analyser(args){
   val outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
 
   override def analyse(): Unit = {
-    var totalDegree: Int = 0
-    var totalNodes: Int  = 0
-    for (v <- view.getVerticesSet()) {
-      val vertex = view.getVertex(v._2)
-      val degree = vertex.getIncEdges.size
-
-      totalDegree += degree
-      totalNodes += 1
-
-    }
-    (totalNodes, totalDegree)
+    val vertices = view.getVerticesSet()
+    val totalDegree = vertices.map(vertex => {vertex.getIncEdges.size}).sum
+    (vertices.size, totalDegree)
 
   }
   override def setup(): Unit = {}

@@ -8,6 +8,7 @@ import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
 
+import scala.collection.parallel.ParIterable
 import scala.collection.parallel.mutable.ParTrieMap
 
 class ViewLens(
@@ -18,10 +19,10 @@ class ViewLens(
                 managerCount: ManagerCount
 ) extends GraphLens(jobID, superstep, storage, managerCount) {
 
-  private var keySet: ParTrieMap[Long, Vertex]         = ParTrieMap[Long, Vertex]()
-  private var keySetMessages: ParTrieMap[Long, Vertex] = ParTrieMap[Long, Vertex]()
-  private var messageFilter                            = false
-  private var firstRun                                 = true
+  private var keySet: ParIterable[VertexVisitor]          = ParIterable[VertexVisitor]()
+  private var keySetMessages: ParIterable[VertexVisitor]  = ParIterable[VertexVisitor]()
+  private var messageFilter                               = false
+  private var firstRun                                    = true
 
   private val viewTimer = Kamon.gauge("Raphtory_View_Build_Time")
     .withTag("Partition",storage.managerID)
@@ -29,31 +30,30 @@ class ViewLens(
     .withTag("JobID",jobID.jobID)
     .withTag("timestamp",jobID.timestamp)
 
-  override def getVerticesWithMessages(): ParTrieMap[Long, Vertex] = {
+  override def getVerticesWithMessages()(implicit context: ActorContext, managerCount: ManagerCount):  ParIterable[VertexVisitor] = {
     val timetaken = System.currentTimeMillis()
     if (!messageFilter) {
       keySetMessages = storage.vertices.filter {
         case (id: Long, vertex: Vertex) =>
           vertex.aliveAt(jobID.timestamp) && vertex.multiQueue.getMessageQueue(jobID, superstep).nonEmpty
-      }
+      }.map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
       messageFilter = true
     }
     viewTimer.update(System.currentTimeMillis()-timetaken)
     keySetMessages
   }
 
-  override def getVerticesSet(): ParTrieMap[Long, Vertex] = {
+  override def getVerticesSet()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] = {
     if (firstRun) {
       val timetaken = System.currentTimeMillis()
-      keySet = storage.vertices.filter(v => v._2.aliveAt(jobID.timestamp))
+      keySet = storage.vertices.filter(v => v._2.aliveAt(jobID.timestamp)).map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
       firstRun = false
       viewTimer.update(System.currentTimeMillis()-timetaken)
     }
     keySet
   }
   //override def getVertex(id : Long)(implicit context : ActorContext, managerCount : ManagerCount) : VertexVisitor = new VertexVisitor(keySet(id.toInt).viewAt(timestamp),job(),superstep,this,timestamp,-1)
-  override def getVertex(v: Vertex)(implicit context: ActorContext, managerCount: ManagerCount): VertexVisitor =
-    new VertexVisitor(v.viewAt(jobID.timestamp), jobID, superstep, this)
+
 
   override def checkVotes(workerID: Int): Boolean =
 //    println(workerID +" "+ messageFilter)

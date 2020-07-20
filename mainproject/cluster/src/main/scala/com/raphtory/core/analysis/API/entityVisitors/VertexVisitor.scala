@@ -34,6 +34,8 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, proxy: GraphLens
   def getOutgoingNeighborsBefore(time:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= time)).map(x=>(x._1,new EdgeVisitor(x._2))) //change >= to <=
   def getOutgoingNeighborsBetween(min:Long,max:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= min)).map(x=>(x._1,new EdgeVisitor(x._2))) //TODO actually make function
   def getIncEdges: ParTrieMap[Long, Edge]  = v.incomingProcessing
+  def ID() = vert.vertexId
+  def Type() = vert.getType
 
   //TODO fix properties
   def getOutgoingNeighborProp(ID: Long, key: String): Option[Any] =
@@ -105,7 +107,7 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, proxy: GraphLens
   //Send message
   def messageNeighbour(vertexID: Long, data: Any): Unit = {
     val message = VertexMessage(vertexID, viewJob, superStep, data)
-    proxy.recordMessage(v.getId, vertexID, data)
+    proxy.recordMessage()
     mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count), message, false)
   }
 

@@ -9,33 +9,26 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 
+import scala.collection.parallel.ParIterable
 import scala.collection.parallel.mutable.ParTrieMap
 
 abstract class GraphLens(jobID: ViewJob, superstep: Int, storage: EntityStorage, managerCount: ManagerCount) {
-  private val messages = new AtomicInteger(0)
+  private val messages     = new AtomicInteger(0)
+  protected var voteCount  = new AtomicInteger(0)
+  def superStep() = superstep
 
-  protected var voteCount                             = new AtomicInteger(0)
-  def superStep()                                = superstep
-  def getVerticesSet(): ParTrieMap[Long, Vertex] = storage.vertices
+  def getVerticesSet()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] =
+    storage.vertices.map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
 
-  def getVerticesWithMessages(): ParTrieMap[Long, Vertex] = storage.vertices.filter {
-    case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(jobID, superstep).nonEmpty
-  }
+  def getVerticesWithMessages()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] =
+    storage.vertices.filter {
+      case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(jobID, superstep).nonEmpty
+    }.map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
 
-  def recordMessage(sourceID: Long, vertexID: Long, data: Any) =
-    messages.incrementAndGet()
 
+  //TODO hide away
+  def recordMessage() = messages.incrementAndGet()
   def getMessages() = messages.get
-
-  def getVertex(v: Vertex)(implicit context: ActorContext, managerCount: ManagerCount): VertexVisitor =
-    new VertexVisitor(v, jobID, superstep, this)
-
-  def getTotalVerticesSet() =
-    storage.vertices.keySet
-
-  def vertexVoted() =
-    voteCount.incrementAndGet()
-
-  def checkVotes(workerID: Int): Boolean =
-    storage.vertices.size == voteCount.get
+  def vertexVoted() = voteCount.incrementAndGet()
+  def checkVotes(workerID: Int): Boolean = storage.vertices.size == voteCount.get
 }

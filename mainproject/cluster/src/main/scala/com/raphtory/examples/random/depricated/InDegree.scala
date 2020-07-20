@@ -25,14 +25,8 @@ class InDegree(args:Array[String]) extends Analyser(args){
   // list is written to the file.
 
   override def analyse(): Unit = {
-    var results = ArrayBuffer[Int]()
-    view.getVerticesSet().foreach { v =>
-      val vertex     = view.getVertex(v._2)
-      val totalEdges = vertex.getIncEdges.size
-      results += totalEdges
-    }
+    view.getVerticesSet().map { vertex =>vertex.getIncEdges.size}.groupBy(identity).mapValues(_.size).toList
     // println("THIS IS HOW RESULTS LOOK: "+ results.groupBy(identity).mapValues(_.size))
-    results.groupBy(identity).mapValues(_.size).toList
   }
 
   override def setup(): Unit = {}

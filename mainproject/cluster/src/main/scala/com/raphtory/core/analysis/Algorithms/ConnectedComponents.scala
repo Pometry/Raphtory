@@ -8,18 +8,16 @@ import scala.collection.parallel.immutable
 class ConnectedComponents(args:Array[String]) extends Analyser(args){
 
   override def setup(): Unit =
-    view.getVerticesSet().foreach { v =>
-      var min    = v._1
-      val vertex = view.getVertex(v._2)
+    view.getVerticesSet().foreach { vertex =>
+      var min    = vertex.ID
       //math.min(v, vertex.getOutgoingNeighbors.union(vertex.getIngoingNeighbors).min)
       val toSend = vertex.getOrSetCompValue("cclabel", min).asInstanceOf[Long]
       vertex.messageAllNeighbours(toSend)
     }
 
   override def analyse(): Unit =
-    view.getVerticesWithMessages().foreach { vert =>
-      var label  = vert._1
-      val vertex = view.getVertex(vert._2)
+    view.getVerticesWithMessages().foreach { vertex =>
+      var label  = vertex.ID
       val queue  = vertex.messageQueue.map(_.asInstanceOf[Long])
       if (queue.nonEmpty) {
         label = queue.min
@@ -37,7 +35,7 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
   override def returnResults(): Any =
     view
       .getVerticesSet()
-      .map(vert => view.getVertex(vert._2).getOrSetCompValue("cclabel", vert._1).asInstanceOf[Long])
+      .map(vertex => vertex.getOrSetCompValue("cclabel", vertex.ID).asInstanceOf[Long])
       .groupBy(f => f)
       .map(f => (f._1, f._2.size))
 
