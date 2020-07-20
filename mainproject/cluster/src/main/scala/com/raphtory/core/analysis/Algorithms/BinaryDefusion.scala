@@ -9,10 +9,10 @@ import scala.util.Random
 class BinaryDefusion(args:Array[String]) extends Analyser(args) {
   val infectedNode = 31
   override def setup(): Unit =
-    proxy.getVerticesSet().foreach { v =>
+    view.getVerticesSet().foreach { v =>
       if (v._1 == infectedNode) {
-        val vertex = proxy.getVertex(v._2)
-        val toSend = vertex.getOrSetCompValue("infected", proxy.superStep()).asInstanceOf[Int]
+        val vertex = view.getVertex(v._2)
+        val toSend = vertex.getOrSetCompValue("infected", view.superStep()).asInstanceOf[Int]
         vertex.getOutgoingNeighbors.foreach { neighbour =>
           if (Random.nextBoolean())
             vertex.messageNeighbour(neighbour._1, toSend)
@@ -21,13 +21,13 @@ class BinaryDefusion(args:Array[String]) extends Analyser(args) {
     }
 
   override def analyse(): Unit =
-    proxy.getVerticesWithMessages().foreach { vert =>
-      val vertex = proxy.getVertex(vert._2)
+    view.getVerticesWithMessages().foreach { vert =>
+      val vertex = view.getVertex(vert._2)
       vertex.clearQueue
       if (vertex.containsCompValue("infected"))
         vertex.voteToHalt() //already infected
       else {
-        val toSend = vertex.getOrSetCompValue("infected", proxy.superStep()).asInstanceOf[Int]
+        val toSend = vertex.getOrSetCompValue("infected", view.superStep()).asInstanceOf[Int]
         vertex.getOutgoingNeighbors.foreach { neighbour =>
           if (Random.nextBoolean())
             vertex.messageNeighbour(neighbour._1, toSend)
@@ -36,10 +36,10 @@ class BinaryDefusion(args:Array[String]) extends Analyser(args) {
     }
 
   override def returnResults(): Any =
-    proxy
+    view
       .getVerticesSet()
       .map { vert =>
-        val vertex = proxy.getVertex(vert._2)
+        val vertex = view.getVertex(vert._2)
         if (vertex.containsCompValue("infected"))
           (vert._1, vertex.getCompValue("infected").asInstanceOf[Int])
         else

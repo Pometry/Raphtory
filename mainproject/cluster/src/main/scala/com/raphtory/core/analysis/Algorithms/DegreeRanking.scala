@@ -12,8 +12,8 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
   override def analyse(): Unit = {}
   override def setup(): Unit   = {}
   override def returnResults(): Any = {
-    val degree = proxy.getVerticesSet().map { vert =>
-      val vertex    = proxy.getVertex(vert._2)
+    val degree = view.getVerticesSet().map { vert =>
+      val vertex    = view.getVertex(vert._2)
       val outDegree = vertex.getOutgoingNeighbors.size
       val inDegree  = vertex.getIncEdges.size
       (vert._1, outDegree, inDegree)

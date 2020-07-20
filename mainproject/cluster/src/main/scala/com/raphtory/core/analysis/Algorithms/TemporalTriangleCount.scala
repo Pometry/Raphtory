@@ -9,8 +9,8 @@ import scala.collection.parallel.immutable
 class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
 
   override def setup(): Unit =
-    proxy.getVerticesSet().foreach { v =>
-      val vertex = proxy.getVertex(v._2)
+    view.getVerticesSet().foreach { v =>
+      val vertex = view.getVertex(v._2)
       val t_max = vertex.getIncEdges.map(edge => edge._2.previousState.maxBy(f=> f._1)).max._1 //get incoming edges and then find the most recent edge with respect to timestamp and window
       vertex.getOutgoingNeighborsBefore(t_max).foreach(neighbour => {
         val nID = neighbour._1
@@ -19,8 +19,8 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
     }
 
   override def analyse(): Unit =
-    proxy.getVerticesWithMessages().foreach { v =>
-      val vertex = proxy.getVertex(v._2)
+    view.getVerticesWithMessages().foreach { v =>
+      val vertex = view.getVertex(v._2)
       val queue = vertex.messageQueue.map(_.asInstanceOf[Tuple2[Array[Long],Long]])
       queue.foreach(message=> {
         val path = message._1
@@ -45,8 +45,8 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
     }
 
   override def returnResults(): Any =
-    proxy.getVerticesSet().flatMap(v =>{
-      val vertex = proxy.getVertex(v._2)
+    view.getVerticesSet().flatMap(v =>{
+      val vertex = view.getVertex(v._2)
       vertex.getCompValue("TrianglePath") match {
         case Some(value) => value.asInstanceOf[Array[String]]
         case None => ""
