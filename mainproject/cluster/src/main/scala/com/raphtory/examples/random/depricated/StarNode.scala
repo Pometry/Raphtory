@@ -21,11 +21,6 @@ class StarNode(args:Array[String]) extends Analyser(args){
     val results = ParTrieMap[Int, Int]()
 
     for (v <- view.getVerticesSet()) {
-      val vertex   = view.getVertex(v._2)
-      val inDegree = vertex.getIncEdges.size
-      //println("CHeck this out:"+v.toInt+" "+ inDegree.toInt)
-      results.put(v._1.toInt, inDegree.toInt)
-
     }
     if (results.nonEmpty) {
       val max = results.maxBy(_._2)

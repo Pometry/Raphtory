@@ -9,18 +9,16 @@ import scala.collection.parallel.immutable
 class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
 
   override def setup(): Unit =
-    view.getVerticesSet().foreach { v =>
-      val vertex = view.getVertex(v._2)
+    view.getVerticesSet().foreach { vertex =>
       val t_max = vertex.getIncEdges.map(edge => edge._2.previousState.maxBy(f=> f._1)).max._1 //get incoming edges and then find the most recent edge with respect to timestamp and window
       vertex.getOutgoingNeighborsBefore(t_max).foreach(neighbour => {
         val nID = neighbour._1
-        vertex.messageNeighbour(nID,(Array(v._1),t_max))
+        vertex.messageNeighbour(nID,(Array(vertex.ID()),t_max))
       })
     }
 
   override def analyse(): Unit =
-    view.getVerticesWithMessages().foreach { v =>
-      val vertex = view.getVertex(v._2)
+    view.getVerticesWithMessages().foreach { vertex =>
       val queue = vertex.messageQueue.map(_.asInstanceOf[Tuple2[Array[Long],Long]])
       queue.foreach(message=> {
         val path = message._1
@@ -30,13 +28,13 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
         if(path.length<2) { //for step two of the algorithm i.e. the second node in the triangle
           vertex.getOutgoingNeighborsBetween(t_min, t_max).foreach(neighbour => {
             val nID = neighbour._1
-            vertex.messageNeighbour(nID, (message._1 ++ Array(v._1), t_max))
+            vertex.messageNeighbour(nID, (message._1 ++ Array(vertex.ID()), t_max))
           })
         }
         else{ //for the 3rd node in the triangle to see if the final edge exists
           val source = path(0)
           vertex.getOutgoingNeighborsBetween(t_min,t_max).get(source) match {
-            case Some(edge) => vertex.appendToCompValue("TrianglePath",path ++ Array(v._1).toString)
+            case Some(edge) => vertex.appendToCompValue("TrianglePath",path ++ Array(vertex.ID()).toString)
             case None => //No triangle for you
           }
         }
@@ -45,8 +43,7 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
     }
 
   override def returnResults(): Any =
-    view.getVerticesSet().flatMap(v =>{
-      val vertex = view.getVertex(v._2)
+    view.getVerticesSet().flatMap(vertex =>{
       vertex.getCompValue("TrianglePath") match {
         case Some(value) => value.asInstanceOf[Array[String]]
         case None => ""

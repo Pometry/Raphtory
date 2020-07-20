@@ -11,15 +11,8 @@ import scala.collection.mutable.ArrayBuffer
 class OutDegree(args:Array[String]) extends Analyser(args){
 
   override def analyse(): Unit = {
-    var results = ArrayBuffer[Int]()
-    view.getVerticesSet().foreach { v =>
-      val vertex     = view.getVertex(v._2)
-      val totalEdges = vertex.getOutgoingNeighbors.size
-      //  println("Total edges for V "+v+" "+vertex.getOutgoingNeighbors + " "+vertex.getIngoingNeighbors )
-      results += totalEdges
-    }
+    view.getVerticesSet().map { vertex =>vertex.getOutgoingNeighbors.size}.groupBy(identity).mapValues(_.size).toList
     // println("THIS IS HOW RESULTS LOOK: "+ results.groupBy(identity).mapValues(_.size))
-    results.groupBy(identity).mapValues(_.size).toList
   }
   override def setup(): Unit = {}
 
