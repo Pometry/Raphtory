@@ -14,8 +14,8 @@ class GabMostUsedTopics(args:Array[String]) extends Analyser(args){
   override def analyse(): Unit = {
     //println("Analyzing")
     var results = ArrayBuffer[(String, Int, String)]()
-    proxy.getVerticesSet().foreach { v =>
-      val vertex = proxy.getVertex(v._2)
+    view.getVerticesSet().foreach { v =>
+      val vertex = view.getVertex(v._2)
       if (vertex.getPropertyCurrentValue("type").getOrElse("no type").equals("topic")) {
         val ingoingNeighbors = vertex.getIncEdges.size
         results.synchronized {

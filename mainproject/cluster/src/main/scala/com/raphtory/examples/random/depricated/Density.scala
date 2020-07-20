@@ -30,8 +30,8 @@ class Density(args:Array[String]) extends Analyser(args){
   override def analyse(): Unit = {
     var totalDegree: Int = 0
     var totalNodes: Int  = 0
-    for (v <- proxy.getVerticesSet()) {
-      val vertex = proxy.getVertex(v._2)
+    for (v <- view.getVerticesSet()) {
+      val vertex = view.getVertex(v._2)
       val degree = vertex.getIncEdges.size
 
       totalDegree += degree

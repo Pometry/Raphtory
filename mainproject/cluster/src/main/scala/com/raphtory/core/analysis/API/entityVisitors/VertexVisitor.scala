@@ -26,9 +26,9 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, proxy: GraphLens
 
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
   val vert: Vertex               = v
-  def messageQueue     = v.multiQueue.getMessageQueue(viewJob, superStep)
+  def messageQueue               = v.multiQueue.getMessageQueue(viewJob, superStep)
   def vertexType                 = v.getType
-  def clearQueue                   = v.multiQueue.clearQueue(viewJob, superStep)
+  def clearQueue                 = v.multiQueue.clearQueue(viewJob, superStep)
   def getOutgoingNeighbors: ParTrieMap[Long, Edge] = v.outgoingProcessing
   def getOutgoingNeighborsAfter(time:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= time)).map(x=>(x._1,new EdgeVisitor(x._2)))
   def getOutgoingNeighborsBefore(time:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= time)).map(x=>(x._1,new EdgeVisitor(x._2))) //change >= to <=
