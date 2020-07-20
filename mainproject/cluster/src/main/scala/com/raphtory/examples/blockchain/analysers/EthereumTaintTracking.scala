@@ -15,7 +15,7 @@ class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
   val infectedNode = args(0).trim.toLowerCase
   val infectionStartingBlock = args(1).trim.toLong
   override def setup(): Unit =
-    view.getVerticesSet().foreach { vertex =>
+    view.getVertices().foreach { vertex =>
         val walletID = vertex.getPropertyCurrentValue("id").get.asInstanceOf[String]
       if(walletID equals infectedNode) {
           vertex.getOrSetCompValue("infected", infectionStartingBlock)
@@ -27,7 +27,7 @@ class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
     }
 
   override def analyse(): Unit =
-    view.getVerticesWithMessages().foreach { vertex =>
+    view.getMessagedVertices().foreach { vertex =>
       var infectionBlock = infectionStartingBlock
       var infector = infectedNode
       val queue  = vertex.messageQueue.map(_.asInstanceOf[(String,Long)])
@@ -50,7 +50,7 @@ class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
 
   override def returnResults(): Any =
     view
-      .getVerticesSet().map { vertex =>
+      .getVertices().map { vertex =>
         if (vertex.containsCompValue("infected"))
           (vertex.getPropertyCurrentValue("id").get.asInstanceOf[String], vertex.getCompValue("infected").asInstanceOf[Long],vertex.getCompValue("infectedBy").asInstanceOf[String])
         else

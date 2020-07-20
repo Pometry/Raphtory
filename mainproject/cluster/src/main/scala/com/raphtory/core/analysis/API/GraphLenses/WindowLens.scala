@@ -41,7 +41,7 @@ class WindowLens(
   private var firstCall    = true
   var timeTest             = ArrayBuffer[Long]()
 
-  override def getVerticesSet()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] = {
+  override def getVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] = {
     if (firstCall) {
       TotalKeySize += keySet.size
       firstCall = false
@@ -52,7 +52,7 @@ class WindowLens(
   private var keySetMessages: ParIterable[VertexVisitor] = null
   private var messageFilter                            = false
 
-  override def getVerticesWithMessages()(implicit context: ActorContext, managerCount: ManagerCount):ParIterable[VertexVisitor] = {
+  override def getMessagedVertices()(implicit context: ActorContext, managerCount: ManagerCount):ParIterable[VertexVisitor] = {
     if (!messageFilter) {
       keySetMessages = keySet.filter {
         case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(viewJobCurrent, superstep).nonEmpty

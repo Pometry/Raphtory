@@ -9,7 +9,7 @@ import scala.util.Random
 class BinaryDefusion(args:Array[String]) extends Analyser(args) {
   val infectedNode = 31
   override def setup(): Unit =
-    view.getVerticesSet().foreach { vertex =>
+    view.getVertices().foreach { vertex =>
       if (vertex.ID() == infectedNode) {
         val toSend = vertex.getOrSetCompValue("infected", view.superStep()).asInstanceOf[Int]
         vertex.getOutgoingNeighbors.foreach { neighbour =>
@@ -20,7 +20,7 @@ class BinaryDefusion(args:Array[String]) extends Analyser(args) {
     }
 
   override def analyse(): Unit =
-    view.getVerticesWithMessages().foreach { vertex =>
+    view.getMessagedVertices().foreach { vertex =>
       vertex.clearQueue
       if (vertex.containsCompValue("infected"))
         vertex.voteToHalt() //already infected
@@ -34,7 +34,7 @@ class BinaryDefusion(args:Array[String]) extends Analyser(args) {
     }
 
   override def returnResults(): Any =
-    view.getVerticesSet().map { vertex =>
+    view.getVertices().map { vertex =>
         if (vertex.containsCompValue("infected"))
           (vertex.ID, vertex.getCompValue("infected").asInstanceOf[Int])
         else
