@@ -11,7 +11,7 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
     view.getVertices().foreach { vertex =>
       var min    = vertex.ID
       //math.min(v, vertex.getOutgoingNeighbors.union(vertex.getIngoingNeighbors).min)
-      val toSend = vertex.getOrSetCompValue("cclabel", min).asInstanceOf[Long]
+      val toSend = vertex.getOrSetAnalysisState("cclabel", min).asInstanceOf[Long]
       vertex.messageAllNeighbours(toSend)
     }
 
@@ -23,9 +23,9 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
         label = queue.min
         vertex.clearQueue
       }
-      var currentLabel = vertex.getOrSetCompValue("cclabel", label).asInstanceOf[Long]
+      var currentLabel = vertex.getOrSetAnalysisState("cclabel", label).asInstanceOf[Long]
       if (label < currentLabel) {
-        vertex.setCompValue("cclabel", label)
+        vertex.setAnalysisState("cclabel", label)
         vertex messageAllNeighbours label
         currentLabel = label
       } else
@@ -35,7 +35,7 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
   override def returnResults(): Any =
     view
       .getVertices()
-      .map(vertex => vertex.getOrSetCompValue("cclabel", vertex.ID).asInstanceOf[Long])
+      .map(vertex => vertex.getOrSetAnalysisState("cclabel", vertex.ID).asInstanceOf[Long])
       .groupBy(f => f)
       .map(f => (f._1, f._2.size))
 

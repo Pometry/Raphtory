@@ -11,95 +11,126 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
 import scala.collection.parallel.ParSet
-import scala.collection.parallel.mutable.ParTrieMap
+import scala.collection.parallel.mutable.{ParIterable, ParTrieMap}
 object VertexVisitor {
-  def apply(v: Vertex, jobID: ViewJob, superStep: Int, proxy: GraphLens)(
-      implicit context: ActorContext,
-      managerCount: ManagerCount
-  ) =
+  def apply(v: Vertex, jobID: ViewJob, superStep: Int, proxy: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) =
     new VertexVisitor(v, jobID, superStep, proxy)
 }
-class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, proxy: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) {
+class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) {
   val jobID = viewJob.jobID
   val timestamp = viewJob.timestamp
   val window = viewJob.window
 
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
-  val vert: Vertex               = v
+
+  def ID() = v.vertexId
+  def Type() = v.getType
+
   def messageQueue               = v.multiQueue.getMessageQueue(viewJob, superStep)
-  def vertexType                 = v.getType
   def clearQueue                 = v.multiQueue.clearQueue(viewJob, superStep)
-  def getOutgoingNeighbors: ParTrieMap[Long, Edge] = v.outgoingProcessing
-  def getOutgoingNeighborsAfter(time:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= time)).map(x=>(x._1,new EdgeVisitor(x._2)))
-  def getOutgoingNeighborsBefore(time:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= time)).map(x=>(x._1,new EdgeVisitor(x._2))) //change >= to <=
-  def getOutgoingNeighborsBetween(min:Long,max:Long):ParTrieMap[Long,EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.previousState.exists(k => k._1 >= min)).map(x=>(x._1,new EdgeVisitor(x._2))) //TODO actually make function
+  def moreMessages(): Boolean    = messageQueue.nonEmpty
+
+  def voteToHalt() = view.vertexVoted()
+  def aliveAt(time: Long): Boolean                         = v.aliveAt(time)
+  def aliveAtWithWindow(time: Long, window: Long): Boolean = v.aliveAtWithWindow(time, window)
+
+
+  //out edges whole
+  def getOutEdges: ParIterable[EdgeVisitor] = v.outgoingProcessing.map(e=> visitify(e._2,e._1))
+  def getOutEdgesAfter(time:Long):ParIterable[EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.activityAfter(time)).map(e=> visitify(e._2,e._1))
+  def getOutEdgesBefore(time:Long):ParIterable[EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.activityBefore(time)).map(e=> visitify(e._2,e._1))
+  def getOutEdgesBetween(min:Long, max:Long):ParIterable[EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.activityBetween(min,max)).map(e=> visitify(e._2,e._1))
+
+  //in edges whole
   def getIncEdges: ParTrieMap[Long, Edge]  = v.incomingProcessing
-  def ID() = vert.vertexId
-  def Type() = vert.getType
+  def getIncEdgesAfter(time:Long):ParIterable[EdgeVisitor] = v.incomingProcessing.filter(e=> e._2.activityAfter(time)).map(e=> visitify(e._2,e._1))
+  def getInCEdgesBefore(time:Long):ParIterable[EdgeVisitor] = v.incomingProcessing.filter(e=> e._2.activityBefore(time)).map(e=> visitify(e._2,e._1))
+  def getInCEdgesBetween(min:Long, max:Long):ParIterable[EdgeVisitor] = v.incomingProcessing.filter(e=> e._2.activityBetween(min,max)).map(e=> visitify(e._2,e._1))
 
-  //TODO fix properties
-  def getOutgoingNeighborProp(ID: Long, key: String): Option[Any] =
-    getOutgoingNeighbors.get(ID) match {
-      case Some(e) => e.getPropertyCurrentValue(key)
-      case None    => None
-    }
-  def getIngoingNeighborProp(ID: Long, key: String): Option[Any] =
-    getIncEdges.get(ID) match {
-      case Some(e) => e.getPropertyCurrentValue(key)
-      case None    => None
-    }
 
-  def getPropertySet(): ParSet[String] =
-    v.properties.keySet
+  //out edges individual
+  def getOutEdge(id:Long): Option[EdgeVisitor] = v.outgoingProcessing.get(id) match {
+    case(e:Some[Edge]) =>  Some(visitify(e.get,id))
+    case(None) => None
+  }
 
-  def getPropertyCurrentValue(key: String): Option[Any] =
+  def getOutEdgeAfter(id:Long,time:Long): Option[EdgeVisitor] = v.outgoingProcessing.get(id) match {
+    case(e:Some[Edge]) =>
+      if(e.get.activityAfter(time)) Some(visitify(e.get,id))
+      else None
+    case(None) => None
+  }
+
+  def getOutEdgeBefore(id:Long,time:Long): Option[EdgeVisitor] = v.outgoingProcessing.get(id) match {
+    case(e:Some[Edge]) =>
+      if(e.get.activityBefore(time)) Some(visitify(e.get,id))
+      else None
+    case(None) => None
+  }
+
+  def getOutEdgeBetween(id:Long,min:Long,max:Long): Option[EdgeVisitor] = v.outgoingProcessing.get(id) match {
+    case(e:Some[Edge]) =>
+      if(e.get.activityBetween(min,max)) Some(visitify(e.get,id))
+      else None
+    case(None) => None
+  }
+
+  //In edges individual
+  def getInEdge(id:Long): Option[EdgeVisitor] = v.incomingProcessing.get(id) match {
+    case(e:Some[Edge]) =>  Some(visitify(e.get,id))
+    case(None) => None
+  }
+
+  def getInEdgeAfter(id:Long,time:Long): Option[EdgeVisitor] = v.incomingProcessing.get(id) match {
+    case(e:Some[Edge]) =>
+      if(e.get.activityAfter(time)) Some(visitify(e.get,id))
+      else None
+    case(None) => None
+  }
+
+  def getInEdgeBefore(id:Long,time:Long): Option[EdgeVisitor] = v.incomingProcessing.get(id) match {
+    case(e:Some[Edge]) =>
+      if(e.get.activityBefore(time)) Some(visitify(e.get,id))
+      else None
+    case(None) => None
+  }
+
+  def getInEdgeBetween(id:Long,min:Long,max:Long): Option[EdgeVisitor] = v.incomingProcessing.get(id) match {
+    case(e:Some[Edge]) =>
+      if(e.get.activityBetween(min,max)) Some(visitify(e.get,id))
+      else None
+    case(None) => None
+  }
+
+
+
+  //TODO work on properties
+  def getPropertySet(): ParSet[String] = v.properties.keySet
+
+  def getPropertyValue(key: String): Option[Any] =
     v.properties.get(key) match {
       case Some(p) => Some(p.currentValue)
       case None    => None
     }
 
-  private def getEdgePropertyValuesAfterTime(
-      edge: Edge,
-      key: String,
-      time: Long,
-      window: Long
-  ): Option[mutable.TreeMap[Long, Any]] =
-    if (window == -1L)
-      edge.properties.get(key) match {
-        case Some(p: MutableProperty)   => Some(p.previousState.filter(x => x._1 <= time))
-        case Some(p: ImmutableProperty) => Some(mutable.TreeMap[Long, Any]((-1L -> p.currentValue)))
-        case None                       => None
-      }
-    else
-      edge.properties.get(key) match {
-        case Some(p: MutableProperty)   => Some(p.previousState.filter(x => x._1 <= time && time - x._1 <= window))
-        case Some(p: ImmutableProperty) => Some(mutable.TreeMap[Long, Any]((-1L -> p.currentValue)))
-        case None                       => None
-      }
-
-  def getOutgoingEdgePropertyValues(key: String) =
-    v.outgoingEdges.map(e => getEdgePropertyValuesAfterTime(e._2, key, timestamp, window).get.values)
-  def getIncomingEdgePropertyValues(key: String) =
-    v.incomingEdges.map(e => getEdgePropertyValuesAfterTime(e._2, key, timestamp, window).get.values)
-
-  def setCompValue(key: String, value: Any): Unit = {
+  def setAnalysisState(key: String, value: Any): Unit = {
     val realkey = key + timestamp + window
     v.addCompValue(realkey, value)
   }
-  def getCompValue(key: String) = {
+  def getAnalysisState(key: String) = {
     val realkey = key + timestamp + window
     v.getCompValue(realkey)
   }
-  def containsCompValue(key: String): Boolean = {
+  def containsAnalysisState(key: String): Boolean = {
     val realkey = key + timestamp + window
     v.containsCompvalue(realkey)
   }
-  def getOrSetCompValue(key: String, value: Any) = {
+  def getOrSetAnalysisState(key: String, value: Any) = {
     val realkey = key + timestamp + window
     v.getOrSet(realkey, value)
   }
 
-  def appendToCompValue(key: String, value: Any) = { //write function later
+  def appendToAnalysisState(key: String, value: Any) = { //write function later
     val realkey = key + timestamp + window
     v.getOrSet(realkey, value)
   }
@@ -107,7 +138,7 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, proxy: GraphLens
   //Send message
   def messageNeighbour(vertexID: Long, data: Any): Unit = {
     val message = VertexMessage(vertexID, viewJob, superStep, data)
-    proxy.recordMessage()
+    view.recordMessage()
     mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count), message, false)
   }
 
@@ -121,11 +152,8 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, proxy: GraphLens
     v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt, message))
 
 
-  def moreMessages(): Boolean = messageQueue.nonEmpty
 
-  def voteToHalt() = proxy.vertexVoted()
-  def aliveAt(time: Long): Boolean                         = v.aliveAt(time)
-  def aliveAtWithWindow(time: Long, window: Long): Boolean = v.aliveAtWithWindow(time, window)
+  def visitify(edge:Edge,id:Long) = new EdgeVisitor(edge,id,viewJob,superStep,view,mediator)
 
 }
 
