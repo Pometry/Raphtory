@@ -55,10 +55,6 @@ abstract class Analyser(args:Array[String]) extends java.io.Serializable {
     processResults(results, timestamp: Long, viewCompleteTime: Long)
   def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit =
     processResults(results, timestamp: Long, viewCompleteTime: Long)
-  def processBatchWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSet: Array[Long],
-      viewCompleteTime: Long
-  ): Unit = processResults(results, timestamp: Long, viewCompleteTime: Long)
+  def processBatchWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long], viewCompleteTime: Long): Unit =
+    processResults(results, timestamp: Long, viewCompleteTime: Long)
 }

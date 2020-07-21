@@ -22,12 +22,12 @@ class TaintTrackExchangeStop(args:Array[String]) extends Analyser(args) {
   //args(2).split(",").map(x=>x.toLowerCase)
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
-      val walletID = vertex.getPropertyCurrentValue("id").get.asInstanceOf[String]
+      val walletID = vertex.getPropertyValue("id").get.asInstanceOf[String]
       if(walletID equals infectedNode) {
-        vertex.getOrSetCompValue("infected", infectionStartingBlock)
-        vertex.getOrSetCompValue("infectedBy", "Start")
-        vertex.getOutgoingNeighborsAfter(infectionStartingBlock).foreach { neighbour =>
-          vertex.messageNeighbour(neighbour._1, (walletID,neighbour._2.getTimeAfter(infectionStartingBlock)))
+        vertex.getOrSetAnalysisState("infected", infectionStartingBlock)
+        vertex.getOrSetAnalysisState("infectedBy", "Start")
+        vertex.getOutEdgesAfter(infectionStartingBlock).foreach { neighbour =>
+          neighbour.send((walletID,neighbour.getFirstActivityAfter(infectionStartingBlock)))
         }
       }
     }
@@ -45,18 +45,18 @@ class TaintTrackExchangeStop(args:Array[String]) extends Analyser(args) {
       //if (vertex.containsCompValue("infected"))
       //  vertex.voteToHalt() //already infected
       //else {
-      val walletID = vertex.getPropertyCurrentValue("id").get.asInstanceOf[String]
+      val walletID = vertex.getPropertyValue("id").get.asInstanceOf[String]
       if(walletID contains listOfExchanges){
-        vertex.getOrSetCompValue("exchangeHitAt", infectionBlock)
-        vertex.getOrSetCompValue("exhangeHitBy",infector)
-        vertex.getOrSetCompValue("infected", infectionBlock)
-        vertex.getOrSetCompValue("infectedBy",infector)
+        vertex.getOrSetAnalysisState("exchangeHitAt", infectionBlock)
+        vertex.getOrSetAnalysisState("exhangeHitBy",infector)
+        vertex.getOrSetAnalysisState("infected", infectionBlock)
+        vertex.getOrSetAnalysisState("infectedBy",infector)
       }
       else{
-        vertex.getOrSetCompValue("infected", infectionBlock)
-        vertex.getOrSetCompValue("infectedBy",infector)
-        vertex.getOutgoingNeighborsAfter(infectionBlock).foreach { neighbour =>
-          vertex.messageNeighbour(neighbour._1, (walletID,neighbour._2.getTimeAfter(infectionBlock)))
+        vertex.getOrSetAnalysisState("infected", infectionBlock)
+        vertex.getOrSetAnalysisState("infectedBy",infector)
+        vertex.getOutEdgesAfter(infectionBlock).foreach { neighbour =>
+          neighbour.send((walletID,neighbour.getFirstActivityAfter(infectionBlock)))
         }
       }
 
@@ -67,8 +67,8 @@ class TaintTrackExchangeStop(args:Array[String]) extends Analyser(args) {
     view
       .getVertices()
       .map { vertex =>
-        if (vertex.containsCompValue("infected"))
-          (vertex.getPropertyCurrentValue("id").get.asInstanceOf[String], vertex.getCompValue("infected").asInstanceOf[Long],vertex.getCompValue("infectedBy").asInstanceOf[String])
+        if (vertex.containsAnalysisState("infected"))
+          (vertex.getPropertyValue("id").get.asInstanceOf[String], vertex.getAnalysisState("infected").asInstanceOf[Long],vertex.getAnalysisState("infectedBy").asInstanceOf[String])
         else
           ("", -1L,"")
 

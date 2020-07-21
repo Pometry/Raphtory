@@ -200,6 +200,11 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
       else false
     }
 
+  def activityAfter(time:Long) = previousState.exists(k => k._1 >= time)
+  def activityBefore(time:Long)= previousState.exists(k => k._1 <= time)
+  def activityBetween(min:Long, max:Long)= previousState.exists(k => k._1 >= min &&  k._1 <= max)
+
+
 }
 //def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter
 //def updateLatestRouter(newRouter:Int):Unit = latestRouter = newRouter

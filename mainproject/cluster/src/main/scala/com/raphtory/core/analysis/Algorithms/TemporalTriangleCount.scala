@@ -11,8 +11,8 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       val t_max = vertex.getIncEdges.map(edge => edge._2.previousState.maxBy(f=> f._1)).max._1 //get incoming edges and then find the most recent edge with respect to timestamp and window
-      vertex.getOutgoingNeighborsBefore(t_max).foreach(neighbour => {
-        val nID = neighbour._1
+      vertex.getOutEdgesBefore(t_max).foreach(neighbour => {
+        val nID = neighbour.ID()
         vertex.messageNeighbour(nID,(Array(vertex.ID()),t_max))
       })
     }
@@ -26,15 +26,15 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
         val t_max = message._2
         val t_min = vertex.getIncEdges.get(sender).get.previousState.minBy(state => state._1)._1 //to include deletions check
         if(path.length<2) { //for step two of the algorithm i.e. the second node in the triangle
-          vertex.getOutgoingNeighborsBetween(t_min, t_max).foreach(neighbour => {
-            val nID = neighbour._1
+          vertex.getOutEdgesBetween(t_min, t_max).foreach(neighbour => {
+            val nID = neighbour.ID()
             vertex.messageNeighbour(nID, (message._1 ++ Array(vertex.ID()), t_max))
           })
         }
         else{ //for the 3rd node in the triangle to see if the final edge exists
           val source = path(0)
-          vertex.getOutgoingNeighborsBetween(t_min,t_max).get(source) match {
-            case Some(edge) => vertex.appendToCompValue("TrianglePath",path ++ Array(vertex.ID()).toString)
+          vertex.getOutEdgeBetween(source,t_min,t_max) match {
+            case Some(edge) => vertex.appendToAnalysisState("TrianglePath",path ++ Array(vertex.ID()).toString)
             case None => //No triangle for you
           }
         }
@@ -44,7 +44,7 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
 
   override def returnResults(): Any =
     view.getVertices().flatMap(vertex =>{
-      vertex.getCompValue("TrianglePath") match {
+      vertex.getAnalysisState("TrianglePath") match {
         case Some(value) => value.asInstanceOf[Array[String]]
         case None => ""
       }//turn into Option
