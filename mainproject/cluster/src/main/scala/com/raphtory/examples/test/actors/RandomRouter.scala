@@ -1,4 +1,4 @@
-package com.raphtory.examples.random.actors
+package com.raphtory.examples.test.actors
 
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication._

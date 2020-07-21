@@ -10,7 +10,7 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
-      val t_max = vertex.getIncEdges.map(edge => edge._2.previousState.maxBy(f=> f._1)).max._1 //get incoming edges and then find the most recent edge with respect to timestamp and window
+      val t_max = vertex.getIncEdges.map(edge => edge.previousState.maxBy(f=> f._1)).max._1 //get incoming edges and then find the most recent edge with respect to timestamp and window
       vertex.getOutEdgesBefore(t_max).foreach(neighbour => {
         val nID = neighbour.ID()
         vertex.messageNeighbour(nID,(Array(vertex.ID()),t_max))
