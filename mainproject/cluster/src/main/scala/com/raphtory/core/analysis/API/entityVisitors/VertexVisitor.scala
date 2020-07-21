@@ -12,6 +12,7 @@ import com.raphtory.core.utils.Utils
 import scala.collection.mutable
 import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.{ParIterable, ParTrieMap}
+import scala.reflect.ClassTag
 object VertexVisitor {
   def apply(v: Vertex, jobID: ViewJob, superStep: Int, proxy: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) =
     new VertexVisitor(v, jobID, superStep, proxy)
@@ -26,9 +27,13 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
   def ID() = v.vertexId
   def Type() = v.getType
 
-  def messageQueue               = v.multiQueue.getMessageQueue(viewJob, superStep)
-  def clearQueue                 = v.multiQueue.clearQueue(viewJob, superStep)
-  def moreMessages(): Boolean    = messageQueue.nonEmpty
+  def messageQueue[T: ClassTag]  = { //clears queue after getting it to make sure not there for next iteration
+    val queue = v.multiQueue.getMessageQueue(viewJob, superStep)map(_.asInstanceOf[T])
+    v.multiQueue.clearQueue(viewJob, superStep)
+    queue
+  }
+
+  def clearQueue = v.multiQueue.clearQueue(viewJob, superStep)
 
   def voteToHalt() = view.vertexVoted()
   def aliveAt(time: Long): Boolean                         = v.aliveAt(time)
@@ -113,26 +118,26 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
       case None    => None
     }
 
-  def setAnalysisState(key: String, value: Any): Unit = {
+  def setState(key: String, value: Any): Unit = {
     val realkey = key + timestamp + window
     v.addCompValue(realkey, value)
   }
-  def getAnalysisState(key: String) = {
+  def getState[T: ClassTag](key: String) = {
     val realkey = key + timestamp + window
-    v.getCompValue(realkey)
+    v.getCompValue(realkey).asInstanceOf[T]
   }
-  def containsAnalysisState(key: String): Boolean = {
+  def containsState(key: String): Boolean = {
     val realkey = key + timestamp + window
     v.containsCompvalue(realkey)
   }
-  def getOrSetAnalysisState(key: String, value: Any) = {
+  def getOrSetState[T: ClassTag](key: String, value: Any) = {
     val realkey = key + timestamp + window
-    v.getOrSet(realkey, value)
+    v.getOrSet(realkey, value).asInstanceOf[T]
   }
 
-  def appendToAnalysisState(key: String, value: Any) = { //write function later
+  def appendToState[T: ClassTag](key: String, value: Any) = { //write function later
     val realkey = key + timestamp + window
-    v.getOrSet(realkey, value)
+    v.getOrSet(realkey, value).asInstanceOf[T]
   }
 
   //Send message
