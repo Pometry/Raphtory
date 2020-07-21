@@ -7,8 +7,8 @@ import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.Tasks.AnalysisTask
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
-import com.raphtory.examples.random.actors.RandomRouter
-import com.raphtory.examples.random.actors.RandomSpout
+import com.raphtory.examples.test.actors.RandomRouter
+import com.raphtory.examples.test.actors.RandomSpout
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import kamon.metric.PeriodSnapshot

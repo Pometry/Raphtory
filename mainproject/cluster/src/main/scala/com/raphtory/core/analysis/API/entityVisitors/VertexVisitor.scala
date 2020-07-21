@@ -47,7 +47,7 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
   def getOutEdgesBetween(min:Long, max:Long):ParIterable[EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.activityBetween(min,max)).map(e=> visitify(e._2,e._1))
 
   //in edges whole
-  def getIncEdges: ParTrieMap[Long, Edge]  = v.incomingProcessing
+  def getIncEdges: ParIterable[EdgeVisitor]  = v.incomingProcessing.map(e=> visitify(e._2,e._1))
   def getIncEdgesAfter(time:Long):ParIterable[EdgeVisitor] = v.incomingProcessing.filter(e=> e._2.activityAfter(time)).map(e=> visitify(e._2,e._1))
   def getInCEdgesBefore(time:Long):ParIterable[EdgeVisitor] = v.incomingProcessing.filter(e=> e._2.activityBefore(time)).map(e=> visitify(e._2,e._1))
   def getInCEdgesBetween(min:Long, max:Long):ParIterable[EdgeVisitor] = v.incomingProcessing.filter(e=> e._2.activityBetween(min,max)).map(e=> visitify(e._2,e._1))
