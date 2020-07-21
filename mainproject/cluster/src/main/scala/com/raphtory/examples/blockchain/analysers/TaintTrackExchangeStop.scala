@@ -24,8 +24,8 @@ class TaintTrackExchangeStop(args:Array[String]) extends Analyser(args) {
     view.getVertices().foreach { vertex =>
       val walletID = vertex.getPropertyValue("id").get.asInstanceOf[String]
       if(walletID equals infectedNode) {
-        vertex.getOrSetAnalysisState("infected", infectionStartingBlock)
-        vertex.getOrSetAnalysisState("infectedBy", "Start")
+        vertex.getOrSetState("infected", infectionStartingBlock)
+        vertex.getOrSetState("infectedBy", "Start")
         vertex.getOutEdgesAfter(infectionStartingBlock).foreach { neighbour =>
           neighbour.send((walletID,neighbour.getFirstActivityAfter(infectionStartingBlock)))
         }
@@ -36,39 +36,35 @@ class TaintTrackExchangeStop(args:Array[String]) extends Analyser(args) {
     view.getMessagedVertices().foreach { vertex =>
       var infectionBlock = infectionStartingBlock
       var infector = infectedNode
-      val queue  = vertex.messageQueue.map(_.asInstanceOf[(String,Long)])
-      if (queue.nonEmpty) {
-        infectionBlock = queue.map(x=>x._2).min
-        infector = queue.filter(x=>x._2==infectionBlock).head._1 //todo check if multiple
-        vertex.clearQueue
-      }
+      val queue  = vertex.messageQueue[(String,Long)]
+      infectionBlock = queue.map(x=>x._2).min
+      infector = queue.filter(x=>x._2==infectionBlock).head._1 //todo check if multiple
       //if (vertex.containsCompValue("infected"))
       //  vertex.voteToHalt() //already infected
       //else {
       val walletID = vertex.getPropertyValue("id").get.asInstanceOf[String]
       if(walletID contains listOfExchanges){
-        vertex.getOrSetAnalysisState("exchangeHitAt", infectionBlock)
-        vertex.getOrSetAnalysisState("exhangeHitBy",infector)
-        vertex.getOrSetAnalysisState("infected", infectionBlock)
-        vertex.getOrSetAnalysisState("infectedBy",infector)
+        vertex.getOrSetState("exchangeHitAt", infectionBlock)
+        vertex.getOrSetState("exhangeHitBy",infector)
+        vertex.getOrSetState("infected", infectionBlock)
+        vertex.getOrSetState("infectedBy",infector)
       }
       else{
-        vertex.getOrSetAnalysisState("infected", infectionBlock)
-        vertex.getOrSetAnalysisState("infectedBy",infector)
+        vertex.getOrSetState("infected", infectionBlock)
+        vertex.getOrSetState("infectedBy",infector)
         vertex.getOutEdgesAfter(infectionBlock).foreach { neighbour =>
           neighbour.send((walletID,neighbour.getFirstActivityAfter(infectionBlock)))
         }
       }
 
-      //}
     }
 
   override def returnResults(): Any =
     view
       .getVertices()
       .map { vertex =>
-        if (vertex.containsAnalysisState("infected"))
-          (vertex.getPropertyValue("id").get.asInstanceOf[String], vertex.getAnalysisState("infected").asInstanceOf[Long],vertex.getAnalysisState("infectedBy").asInstanceOf[String])
+        if (vertex.containsState("infected"))
+          (vertex.getPropertyValue("id").get.asInstanceOf[String], vertex.getState("infected").asInstanceOf[Long],vertex.getState("infectedBy").asInstanceOf[String])
         else
           ("", -1L,"")
 

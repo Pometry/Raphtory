@@ -19,7 +19,7 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
 
   override def analyse(): Unit =
     view.getMessagedVertices().foreach { vertex =>
-      val queue = vertex.messageQueue.map(_.asInstanceOf[Tuple2[Array[Long],Long]])
+      val queue = vertex.messageQueue[(Array[Long], Long)]
       queue.foreach(message=> {
         val path = message._1
         val sender = path(path.length-1)
@@ -34,7 +34,7 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
         else{ //for the 3rd node in the triangle to see if the final edge exists
           val source = path(0)
           vertex.getOutEdgeBetween(source,t_min,t_max) match {
-            case Some(edge) => vertex.appendToAnalysisState("TrianglePath",path ++ Array(vertex.ID()).toString)
+            case Some(edge) => vertex.appendToState("TrianglePath",path ++ Array(vertex.ID()).toString)
             case None => //No triangle for you
           }
         }
@@ -44,11 +44,9 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
 
   override def returnResults(): Any =
     view.getVertices().flatMap(vertex =>{
-      vertex.getAnalysisState("TrianglePath") match {
-        case Some(value) => value.asInstanceOf[Array[String]]
-        case None => ""
+      vertex.getState[Array[String]]("TrianglePath")
       }//turn into Option
-    })
+    )
 
 
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
