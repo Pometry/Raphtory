@@ -1,4 +1,4 @@
-package com.raphtory.examples.random.actors
+package com.raphtory.examples.test.actors
 
 import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.utils.Utils

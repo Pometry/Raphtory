@@ -9,13 +9,13 @@ import scala.language.postfixOps
 
 class ChainalysisABSpout extends SpoutTrait {
 
-  val file_name = System.getenv().getOrDefault("DATA_FILENAME", "/home/tsunade/qmul/datasets/chainalysis/abmsmall.csv").trim
+  val file_name = System.getenv().getOrDefault("DATA_FILENAME", "/home/tsunade/qmul/datasets/chainalysis/abmsample-merged.csv").trim
   val fl = Source.fromFile(file_name)
   var linesNumber = Source.fromFile(file_name).getLines().size - 1
     val fileLines = fl.getLines.drop(1)//.toArray
   // upstream/master
   var position = 0
-  val JUMP = 6
+  val JUMP = 50
   println("Starting File ingestion: " + LocalDateTime.now())
   println("Lines :" + linesNumber)
 

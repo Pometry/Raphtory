@@ -1,11 +1,15 @@
 package com.raphtory.examples.blockchain.routers
 
+import java.text.SimpleDateFormat
+import java.util.Calendar
+
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
 class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
 
+  val minuteFormat = new SimpleDateFormat("yy-MM-dd - hh:mm:ss")
   def parseTuple(record: Any): Unit = {
     val lines = record.asInstanceOf[String].split("\n").map(_.trim)
     for(line <- lines){
@@ -31,6 +35,8 @@ class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, 
         )
       )
     }
+    val now = Calendar.getInstance().getTime()
+    println("done ingesting the current 50 at --- ",minuteFormat.format(now))
   }
 
   //converts the line into a case class which has all of the data via the correct name and type
