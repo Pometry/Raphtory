@@ -27,7 +27,7 @@ class TaintTrackExchangeStop(args:Array[String]) extends Analyser(args) {
         vertex.getOrSetState("infected", infectionStartingBlock)
         vertex.getOrSetState("infectedBy", "Start")
         vertex.getOutEdgesAfter(infectionStartingBlock).foreach { neighbour =>
-          neighbour.send((walletID,neighbour.getFirstActivityAfter(infectionStartingBlock)))
+          neighbour.send((walletID,neighbour.firstActivityAfter(infectionStartingBlock)))
         }
       }
     }
@@ -53,7 +53,7 @@ class TaintTrackExchangeStop(args:Array[String]) extends Analyser(args) {
         vertex.getOrSetState("infected", infectionBlock)
         vertex.getOrSetState("infectedBy",infector)
         vertex.getOutEdgesAfter(infectionBlock).foreach { neighbour =>
-          neighbour.send((walletID,neighbour.getFirstActivityAfter(infectionBlock)))
+          neighbour.send((walletID,neighbour.firstActivityAfter(infectionBlock)))
         }
       }
 

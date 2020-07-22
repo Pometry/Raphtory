@@ -11,9 +11,9 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
 
-class EdgeVisitor(edge:Edge,id:Long,viewJob:ViewJob,superStep:Int,view:GraphLens,mediator: ActorRef)(implicit context: ActorContext, managerCount: ManagerCount) {
+class EdgeVisitor(edge:Edge,id:Long,viewJob:ViewJob,superStep:Int,view:GraphLens,mediator: ActorRef)(implicit context: ActorContext, managerCount: ManagerCount) extends EntityVisitor(edge,viewJob:ViewJob) {
 
-  def getFirstActivityAfter(time:Long) = edge.previousState.filter(k => k._1 >= time).minBy(x=>x._1)._1
+
   def ID() = id
 
 

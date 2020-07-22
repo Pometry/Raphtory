@@ -5,15 +5,16 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
+import scala.collection.parallel.mutable.ParArray
 
 class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
-      val t_max = vertex.getIncEdges.map(edge => edge.previousState.maxBy(f=> f._1)).max._1 //get incoming edges and then find the most recent edge with respect to timestamp and window
+      val edges = vertex.getIncEdges.map(edge => edge.latestActivity()._1)
+      val t_max = if(edges.nonEmpty) edges.max else -1 //get incoming edges and then find the most recent edge with respect to timestamp and window
       vertex.getOutEdgesBefore(t_max).foreach(neighbour => {
-        val nID = neighbour.ID()
-        vertex.messageNeighbour(nID,(Array(vertex.ID()),t_max))
+        neighbour.send((Array(vertex.ID()),t_max))
       })
     }
 
@@ -24,37 +25,36 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
         val path = message._1
         val sender = path(path.length-1)
         val t_max = message._2
-        val t_min = vertex.getIncEdges.get(sender).get.previousState.minBy(state => state._1)._1 //to include deletions check
+        val t_min = vertex.getInEdge(sender).get.earliestActivity()._1 //to include deletions check
         if(path.length<2) { //for step two of the algorithm i.e. the second node in the triangle
           vertex.getOutEdgesBetween(t_min, t_max).foreach(neighbour => {
-            val nID = neighbour.ID()
-            vertex.messageNeighbour(nID, (message._1 ++ Array(vertex.ID()), t_max))
+            neighbour.send((message._1 ++ Array(vertex.ID()), t_max))
           })
         }
         else{ //for the 3rd node in the triangle to see if the final edge exists
           val source = path(0)
           vertex.getOutEdgeBetween(source,t_min,t_max) match {
-            case Some(edge) => vertex.appendToState("TrianglePath",path ++ Array(vertex.ID()).toString)
+            case Some(edge) =>
+              vertex.appendToState("TrianglePath",(path ++ Array(vertex.ID())).mkString("["," ","]"))
             case None => //No triangle for you
           }
         }
       })
-      vertex.clearQueue
     }
 
   override def returnResults(): Any =
-    view.getVertices().flatMap(vertex =>{
-      vertex.getState[Array[String]]("TrianglePath")
-      }//turn into Option
-    )
+    view.getVertices()
+      .filter(vertex=>
+        vertex.containsState("TrianglePath"))
+      .flatMap(vertex =>
+        vertex.getState[Array[String]]("TrianglePath")).to
+
 
 
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[Array[String]]].flatten
-    var toPublish = s"""{"timestamp":$timeStamp,triangles:["""
-   // endResults.foreach(triangle => toPublish+= triangle+=",")
-   // toPublish.dropRight(1)+="]}"
-    publishData(toPublish)
+    val endResults = results.asInstanceOf[ArrayBuffer[ParArray[String]]].flatten.toArray
+    println(s"""{"timestamp":$timeStamp,triangles:[""" +endResults.map(triangle => triangle+",").fold("")(_+_).dropRight(1)+"]}")
+    //publishData(toPublish)
   }
 
   override def defineMaxSteps(): Int = 2

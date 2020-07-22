@@ -16,7 +16,7 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
   override def analyse(): Unit =
     view.getMessagedVertices().foreach { vertex =>
       val label  = vertex.messageQueue[Long].min
-      if (label < vertex.getOrSetState[Long]("cclabel", label)) {
+      if (label < vertex.getState[Long]("cclabel")) {
         vertex.setState("cclabel", label)
         vertex messageAllNeighbours label
       }

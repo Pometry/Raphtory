@@ -36,7 +36,7 @@ class ViewLens(
       keySetMessages = storage.vertices.filter {
         case (id: Long, vertex: Vertex) =>
           vertex.aliveAt(jobID.timestamp) && vertex.multiQueue.getMessageQueue(jobID, superstep).nonEmpty
-      }.map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
+      }.map(v =>  new VertexVisitor(v._2.viewAt(jobID.timestamp), jobID, superstep, this))
       messageFilter = true
     }
     viewTimer.update(System.currentTimeMillis()-timetaken)
@@ -46,7 +46,7 @@ class ViewLens(
   override def getVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] = {
     if (firstRun) {
       val timetaken = System.currentTimeMillis()
-      keySet = storage.vertices.filter(v => v._2.aliveAt(jobID.timestamp)).map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
+      keySet = storage.vertices.filter(v => v._2.aliveAt(jobID.timestamp)).map(v =>  new VertexVisitor(v._2.viewAt(jobID.timestamp), jobID, superstep, this))
       firstRun = false
       viewTimer.update(System.currentTimeMillis()-timetaken)
     }
