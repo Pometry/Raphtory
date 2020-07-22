@@ -17,7 +17,7 @@ object VertexVisitor {
   def apply(v: Vertex, jobID: ViewJob, superStep: Int, proxy: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) =
     new VertexVisitor(v, jobID, superStep, proxy)
 }
-class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) {
+class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) extends EntityVisitor(v,viewJob:ViewJob){
   val jobID = viewJob.jobID
   val timestamp = viewJob.timestamp
   val window = viewJob.window
@@ -137,7 +137,10 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
 
   def appendToState[T: ClassTag](key: String, value: Any) = { //write function later
     val realkey = key + timestamp + window
-    v.getOrSet(realkey, value).asInstanceOf[T]
+    if(v.containsCompvalue(realkey))
+      v.addCompValue(realkey,v.getCompValue(realkey).asInstanceOf[Array[Any]] ++ Array(value))
+    else
+      v.addCompValue(realkey,Array(value))
   }
 
   //Send message

@@ -33,7 +33,7 @@ class WindowLens(
   private val timetaken = System.currentTimeMillis()
 
   private var keySet: ParTrieMap[Long, Vertex] =
-    storage.vertices.filter(v => v._2.aliveAtWithWindow(timestamp, setWindow))
+    storage.vertices.filter(v => v._2.aliveAtWithWindow(timestamp, setWindow)).map(v=> (v._1,v._2.viewAtWithWindow(timestamp,setWindow)))
 
   viewTimer.update(System.currentTimeMillis()-timetaken)
 
