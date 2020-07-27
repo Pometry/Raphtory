@@ -16,7 +16,7 @@ object Vertex {
       storage: EntityStorage
   ) = {
     val v = new Vertex(creationTime, vertexId, initialValue = true, storage)
-    v.previousState = previousState
+    v.history = previousState
     //v.associatedEdges = associatedEdges
     v.properties = properties
     v
@@ -77,7 +77,7 @@ class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean, storage: 
     if (obj.isInstanceOf[Vertex]) {
       val v2 = obj.asInstanceOf[Vertex] //add associated edges
       if (!(vertexId == v2.vertexId) ||
-          !(previousState.equals(v2.previousState)) ||
+          !(history.equals(v2.history)) ||
           !(oldestPoint.get == v2.oldestPoint.get) ||
           !(newestPoint.get == newestPoint.get) ||
           !(properties.equals(v2.properties)) ||
@@ -87,6 +87,6 @@ class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean, storage: 
       else true
     } else false
 
-  override def toString: String = s"Vertex ID $vertexId \n History $previousState \n //Properties:\n $properties \n"
+  override def toString: String = s"Vertex ID $vertexId \n History $history \n //Properties:\n $properties \n"
 
 }

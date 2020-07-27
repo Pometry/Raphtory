@@ -15,9 +15,9 @@ abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {
 
   def viewboundHistory(): mutable.TreeMap[Long, Boolean] = {
     if(viewJob.window > 0)
-      entity.previousState.filter(k => k._1 <= viewJob.timestamp && k._1 >= viewJob.timestamp-viewJob.window)
+      entity.history.filter(k => k._1 <= viewJob.timestamp && k._1 >= viewJob.timestamp-viewJob.window)
     else {
-      entity.previousState.filter(k => k._1 <= viewJob.timestamp)
+      entity.history.filter(k => k._1 <= viewJob.timestamp)
     }
 
   }

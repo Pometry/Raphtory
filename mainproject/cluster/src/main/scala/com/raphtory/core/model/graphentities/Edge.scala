@@ -20,7 +20,7 @@ object Edge {
   ) = {
 
     val e = new Edge(workerID, creationTime, srcID, dstID, initialValue = true, storage)
-    e.previousState = previousState
+    e.history = previousState
     e.properties = properties
     e
   }
@@ -36,7 +36,7 @@ class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue:
   def killList(vKills: mutable.TreeMap[Long, Boolean]): Unit =
     try {
       removeList ++= vKills
-      previousState ++= vKills
+      history ++= vKills
     } catch {
       case e: java.lang.NullPointerException =>
         e.printStackTrace()
@@ -71,7 +71,7 @@ class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue:
     //}
     var closestTime: Long = 0
     var value             = false
-    for ((k, v) <- previousState)
+    for ((k, v) <- history)
       if (k <= time)
         if ((time - k) < (time - closestTime)) {
           closestTime = k
@@ -91,8 +91,8 @@ class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue:
   override def equals(obj: scala.Any): Boolean = {
     if (obj.isInstanceOf[Edge]) {
       val v2 = obj.asInstanceOf[Edge] //add associated edges
-      if ((getSrcId == v2.getSrcId) && (getDstId == v2.getDstId) && (previousState
-            .equals(v2.previousState)) && (oldestPoint.get == v2.oldestPoint.get) && (newestPoint.get == newestPoint.get) && (properties
+      if ((getSrcId == v2.getSrcId) && (getDstId == v2.getDstId) && (history
+            .equals(v2.history)) && (oldestPoint.get == v2.oldestPoint.get) && (newestPoint.get == newestPoint.get) && (properties
             .equals(v2.properties)))
         return true
     }
@@ -100,6 +100,6 @@ class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue:
   }
 
   override def toString: String =
-    s"Edge srcID $srcId dstID $dstId \n History $previousState \n Properties:\n $properties"
+    s"Edge srcID $srcId dstID $dstId \n History $history \n Properties:\n $properties"
 
 }
