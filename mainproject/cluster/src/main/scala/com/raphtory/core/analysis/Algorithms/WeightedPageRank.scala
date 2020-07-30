@@ -5,7 +5,7 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
-class PageRank(args:Array[String]) extends Analyser(args) {
+class WeightedPageRank(args:Array[String]) extends Analyser(args) {
   object sortOrdering extends Ordering[Double] {
     def compare(key1: Double, key2: Double) = key2.compareTo(key1)
   }
@@ -15,10 +15,11 @@ class PageRank(args:Array[String]) extends Analyser(args) {
       val outEdges = vertex.getOutEdges
       val outDegree = outEdges.size
       if (outDegree > 0) {
-        val toSend = 1.0/outDegree
+        val toSend = 1.0/outEdges.map(e=> e.getHistory().size).sum
         vertex.setState("prlabel",toSend)
         outEdges.foreach(edge => {
-          edge.send(toSend)
+          val modifyer = edge.getHistory().size
+          edge.send(toSend*modifyer)
         })
       } else {
         vertex.setState("prlabel",0.0)
@@ -28,15 +29,17 @@ class PageRank(args:Array[String]) extends Analyser(args) {
   override def analyse(): Unit =
     view.getMessagedVertices().foreach {vertex =>
       val currentLabel = vertex.getState[Double]("prlabel")
-      val newLabel = vertex.messageQueue[Double].sum
+      val messages = vertex.messageQueue[Double]
+      val newLabel = messages.sum
       vertex.setState("prlabel",newLabel)
       if (Math.abs(newLabel-currentLabel)/currentLabel > 0.01) {
         val outEdges = vertex.getOutEdges
         val outDegree = outEdges.size
         if (outDegree > 0) {
-          val toSend = newLabel/outDegree
+          val toSend = newLabel/outEdges.map(e=> e.getHistory().size).sum
           outEdges.foreach(edge => {
-            edge.send(toSend)
+            val modifyer = edge.getHistory().size
+            edge.send(toSend*modifyer)
           })
         }
       }
