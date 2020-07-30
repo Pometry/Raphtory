@@ -63,16 +63,4 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
     Utils.writeLines(output_file, text, "")
    // println(text)
   }
-
-  override def processBatchWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSet: Array[Long],
-      viewCompleteTime: Long
-  ): Unit =
-    for (i <- results.indices) {
-      val window     = results(i).asInstanceOf[ArrayBuffer[Any]]
-      val windowSize = windowSet(i)
-      processWindowResults(window, timestamp, windowSize, viewCompleteTime)
-    }
 }
