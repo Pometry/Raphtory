@@ -75,11 +75,6 @@ class TaintTrackExchangeStop(args:Array[String]) extends Analyser(args) {
 
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(String, Long,String)]]].flatten
-    //println(s"Run as of ${System.currentTimeMillis()}")
-    for (elem <- endResults) {println(s"${elem._1},${elem._2},${elem._3},")}
-  }
-  override def processViewResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(String, Long,String)]]].flatten
     var data = s"{block:$timeStamp,edges:["
     for (elem <- endResults)
       data+=s"""{"infected":"${elem._1}","block":"${elem._2}","infector":"${elem._3}"}"""

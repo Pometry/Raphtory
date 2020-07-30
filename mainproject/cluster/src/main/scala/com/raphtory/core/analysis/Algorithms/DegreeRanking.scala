@@ -52,32 +52,6 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
     //println(text)
   }
 
-  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
-    val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
-    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
-    val startTime   = System.currentTimeMillis()
-    val totalVert   = endResults.map(x => x._1).sum
-    val totalEdge   = endResults.map(x => x._3).sum
-
-    val degree =
-      try totalEdge.toDouble / totalVert.toDouble
-      catch { case e: ArithmeticException => 0 }
-    var bestUserArray = "["
-    val bestUsers = endResults
-      .map(x => x._4)
-      .flatten
-      .sortBy(x => x._3)(sortOrdering)
-      .take(20)
-      .map(x => s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""")
-      .foreach(x => bestUserArray += x + ",")
-    bestUserArray = if (bestUserArray.length > 1) bestUserArray.dropRight(1) + "]" else bestUserArray + "]"
-    val text =
-      s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
-        .currentTimeMillis() - startTime}},"""
-    Utils.writeLines(output_file, text, "{\"views\":[")
-    //println(text)
-  }
-
   override def processWindowResults(
       results: ArrayBuffer[Any],
       timestamp: Long,
@@ -108,17 +82,5 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
     Utils.writeLines(output_file, text, "{\"views\":[")
     println(text)
   }
-
-  override def processBatchWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSet: Array[Long],
-      viewCompleteTime: Long
-  ): Unit =
-    for (i <- results.indices) {
-      val window     = results(i).asInstanceOf[ArrayBuffer[Any]]
-      val windowSize = windowSet(i)
-      processWindowResults(window, timestamp, windowSize, viewCompleteTime)
-    }
 
 }
