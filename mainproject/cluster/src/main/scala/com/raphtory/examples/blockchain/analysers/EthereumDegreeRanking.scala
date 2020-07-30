@@ -49,7 +49,7 @@ class EthereumDegreeRanking(args:Array[String]) extends Analyser(args) {
     println(text)
   }
 
-  
+
 
   override def processWindowResults(
       results: ArrayBuffer[Any],
