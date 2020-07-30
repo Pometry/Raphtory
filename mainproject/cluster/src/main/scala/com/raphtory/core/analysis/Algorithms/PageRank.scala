@@ -53,21 +53,15 @@ class PageRank(args:Array[String]) extends Analyser(args) {
   override def defineMaxSteps(): Int = 10
 
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
-    val startTime   = System.currentTimeMillis()
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Int,Double)])]]
+    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
     val totalVert = endResults.map(x => x._1).sum
-    var bestUserArray = "["
     val bestUsers = endResults
       .map(x => x._2)
       .flatten
       .sortBy(x => x._2)(sortOrdering)
       .take(10)
-      .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""")
-      .foreach(x => bestUserArray += x + ",")
-    bestUserArray = if (bestUserArray.length > 1) bestUserArray.dropRight(1) + "]" else bestUserArray + "]"
-    val text =
-      s"""{"time":$timeStamp,"vertices":$totalVert,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
-        .currentTimeMillis() - startTime}},"""
+      .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
+    val text = s"""{"time":$timeStamp,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
     println(text)
   }
 }
