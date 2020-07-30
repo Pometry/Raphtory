@@ -7,13 +7,13 @@ import scala.collection.mutable
 
 abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {
 
-  def firstActivityAfter(time:Long) = viewboundHistory.filter(k => k._1 >= time).minBy(x=>x._1)._1
-  def latestActivity() = viewboundHistory.head
-  def earliestActivity() = viewboundHistory.minBy(k=> k._1)
+  def firstActivityAfter(time:Long) = getHistory.filter(k => k._1 >= time).minBy(x=>x._1)._1
+  def latestActivity() = getHistory.head
+  def earliestActivity() = getHistory.minBy(k=> k._1)
 
 
 
-  def viewboundHistory(): mutable.TreeMap[Long, Boolean] = {
+  def getHistory(): mutable.TreeMap[Long, Boolean] = {
     if(viewJob.window > 0)
       entity.history.filter(k => k._1 <= viewJob.timestamp && k._1 >= viewJob.timestamp-viewJob.window)
     else {
