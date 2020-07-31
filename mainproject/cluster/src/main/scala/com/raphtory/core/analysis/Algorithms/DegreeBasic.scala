@@ -61,6 +61,6 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
       }
     val text = s"""$timestamp,$windowSize,$totalVert,$totalEdge,$degree"""
     Utils.writeLines(output_file, text, "")
-   // println(text)
+    println(text)
   }
 }
