@@ -10,6 +10,9 @@ class PageRank(args:Array[String]) extends Analyser(args) {
     def compare(key1: Double, key2: Double) = key2.compareTo(key1)
   }
 
+  // damping factor, (1-d) is restart probability
+  val d = 0.85
+
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       val outEdges = vertex.getOutEdges
@@ -28,7 +31,7 @@ class PageRank(args:Array[String]) extends Analyser(args) {
   override def analyse(): Unit =
     view.getMessagedVertices().foreach {vertex =>
       val currentLabel = vertex.getState[Double]("prlabel")
-      val newLabel = vertex.messageQueue[Double].sum
+      val newLabel = 1 - d + d * vertex.messageQueue[Double].sum
       vertex.setState("prlabel",newLabel)
       if (Math.abs(newLabel-currentLabel)/currentLabel > 0.01) {
         val outEdges = vertex.getOutEdges
