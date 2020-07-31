@@ -9,10 +9,6 @@ echo "/////  ENV SET //////"
 echo "HOST_IP      = $HOST_IP"
 echo "HOSTNAME     = $HOSTNAME"
 echo "/////////////////////"
-[ $1 != "partitionManager" ] && export JAVA_OPTS=""
-[ $1 != "partitionManager" ] && echo "No Java opts"
-[ $1 = "seedNode" ] || sleep 5 # Workaround TODO
-[ $1 = "LiveAnalysisManager" ] && echo TODO
 
 cd /opt/docker/bin
 go $1
