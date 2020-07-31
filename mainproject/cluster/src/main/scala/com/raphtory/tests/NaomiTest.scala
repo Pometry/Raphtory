@@ -4,7 +4,6 @@ import akka.actor.{ActorSystem, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
-import com.raphtory.tests.SingleNodeTest.{SpoutName, minimumRouters, partitionNumber, routerClassName}
 import kamon.Kamon
 import org.slf4j.LoggerFactory
 
