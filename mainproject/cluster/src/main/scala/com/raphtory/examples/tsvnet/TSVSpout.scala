@@ -1,4 +1,4 @@
-package com.raphtory.examples.stackex
+package com.raphtory.examples.tsvnet
 
 import java.time.LocalDateTime
 
@@ -8,10 +8,11 @@ import scala.concurrent.duration._
 import scala.io
 import scala.language.postfixOps
 
-class SXSpout extends SpoutTrait {
+/** Spout for network datasets of the form SRC_NODE_ID DEST_NODE_ID TIMESTAMP */
+class TSVSpout extends SpoutTrait {
 
-  val directory = System.getenv().getOrDefault("SX_DIRECTORY", "/app").trim
-  val file_name = System.getenv().getOrDefault("SX_FILE_NAME", "sx_reordered.txt").trim
+  val directory = System.getenv().getOrDefault("TSV_DIRECTORY", "/app").trim
+  val file_name = System.getenv().getOrDefault("TSV_FILE_NAME", "sx_reordered.txt").trim
   val fileLines = io.Source.fromFile(directory + "/" + file_name).getLines.drop(1).toArray
   // upstream/master
   var position    = 0
