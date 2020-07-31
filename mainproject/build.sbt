@@ -155,5 +155,5 @@ lazy val cluster = project
   .settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
           javaAgents += "io.kamon" % "kanela-agent" % "1.0.6",
-          javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default"
+          javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default -XX:+UseG1GC -XX:+UseStringDeduplication -J-XX:MaxGCPauseMillis=100 -J-XX:+UseG1GC -J-XX:+UseStringDeduplication -J-XX:MaxGCPauseMillis=100"
   )
