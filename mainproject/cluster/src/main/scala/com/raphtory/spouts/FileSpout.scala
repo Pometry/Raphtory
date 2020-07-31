@@ -14,6 +14,7 @@ class FileSpout extends SpoutTrait {
   val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
   val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
   val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
+  val JUMP = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "50").trim.toInt
 
   var filePosition         = 0
   var directoryPosition    = 0
@@ -35,7 +36,7 @@ class FileSpout extends SpoutTrait {
 
   def nextLineBlock() = {
     try {
-      for (i <- 1 to 50) {
+      for (i <- 1 to JUMP) {
         sendTuple(currentFile(filePosition))
         filePosition += 1
       }
@@ -53,7 +54,7 @@ class FileSpout extends SpoutTrait {
       AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
     }
     else {
-      println("All files read")
+      println("All files read "+ LocalDateTime.now())
     }
   }
 

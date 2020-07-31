@@ -7,30 +7,18 @@ import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
-class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
+class ChABClus2ClusRouterNoprop(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
 
   def parseTuple(record: Any): Unit = {
       val dp = formatLine(record.asInstanceOf[String].split(",").map(_.trim))
       val transactionTime = dp.time
       val srcClusterId = dp.srcCluster
       val dstClusterId = dp.dstCluster
-      val transactionId = dp.txid
-      val btcAmount = dp.amount
-      val usdAmount = dp.usd
 
       sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
       sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
+      sendGraphUpdate(EdgeAdd(msgTime = transactionTime, srcID = srcClusterId, dstID = dstClusterId, Type("Transfer")))
 
-      sendGraphUpdate(
-        EdgeAddWithProperties(msgTime = transactionTime,
-          srcID = srcClusterId,
-          dstID = dstClusterId,
-          Properties(DoubleProperty("BitCoin", btcAmount),
-            DoubleProperty("USD", usdAmount),
-            DoubleProperty("Transaction", transactionId)),
-          Type("Transfer")
-        )
-      )
   }
 
   //converts the line into a case class which has all of the data via the correct name and type

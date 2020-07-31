@@ -15,7 +15,7 @@ class ChainalysisABSpout extends SpoutTrait {
     val fileLines = fl.getLines.drop(1)//.toArray
   // upstream/master
   var position = 0
-  val JUMP = 50
+  val JUMP = 100
   println("Starting File ingestion: " + LocalDateTime.now())
   println("Lines :" + linesNumber)
 
