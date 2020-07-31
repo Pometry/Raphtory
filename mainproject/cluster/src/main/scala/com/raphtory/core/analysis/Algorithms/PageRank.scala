@@ -10,6 +10,7 @@ class PageRank(args:Array[String]) extends Analyser(args) {
     def compare(key1: Double, key2: Double) = key2.compareTo(key1)
   }
 
+  // damping factor, (1-d) is restart probability
   val d = 0.85
 
   override def setup(): Unit =
