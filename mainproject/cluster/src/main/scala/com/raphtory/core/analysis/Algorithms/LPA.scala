@@ -19,9 +19,9 @@ class LPA(args:Array[String]) extends Analyser(args){
   override def analyse(): Unit = {
     view.getMessagedVertices().foreach { vertex =>
       val vlabel = vertex.getState[Long]("lpalabel")
-      val gp = vertex.messageQueue[Long]//.groupBy(identity)
+      val gp = vertex.messageQueue[Long]
       gp.append(vlabel)
-      val label = labelProbability(gp.groupBy(identity))// gp.filter(_._2.size == gp.map(_._2.size).max).keys.toList
+      val label = labelProbability(gp.groupBy(identity))
       if (label == vlabel) {
         vertex.voteToHalt()
       }
@@ -36,7 +36,8 @@ class LPA(args:Array[String]) extends Analyser(args){
 
     val f = gp.map{lab =>  Math.pow(lab._2.size, 2)}
     val p = f.toArray.map(i => i/f.toArray.sum)
-    (gp.keys zip p).maxBy(_._2)._1
+    val gpp = gp.keys zip p
+    gpp.filter(x=>x._2 == gpp.maxBy(_._2)._2).maxBy(_._1)._1
   }
 
   override def returnResults(): Any =
@@ -47,14 +48,16 @@ class LPA(args:Array[String]) extends Analyser(args){
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
-    val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2}, "communities":${er.communities},"viewTime":$viewCompleteTime}"""
+    val commtxt = er.communities.map{x=> s"""[${(x.mkString(","))}]"""}
+    val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2}, "communities":[${commtxt.mkString(",")}],"viewTime":$viewCompleteTime}"""
     println(text)
     publishData(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2}, "communities":${er.communities},"viewTime":$viewCompleteTime}"""
+    val commtxt = er.communities.map{x=> s"""[${(x.mkString(","))}]}"""}
+    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2}, "communities": [${commtxt.mkString(",")}],"viewTime":$viewCompleteTime}"""
     println(text)
     publishData(text)
 
@@ -73,10 +76,10 @@ class LPA(args:Array[String]) extends Analyser(args){
       val totalIslands = total - totalWithoutIslands
       val proportion = biggest.toFloat / grouped.map(x => x._2.size).sum
       val totalGT2 = grouped.count(x => x._2.size > 2)
-      val communities =  grouped.map(x=>x._2.toList).toList
+      val communities =  grouped.map(x=>x._2.toArray).toArray
       fd(top5,total,totalIslands,proportion,totalGT2, communities)
     }  catch {
-      case e: UnsupportedOperationException => fd(Array(0),0,0,0,0, List(List(0)))
+      case e: UnsupportedOperationException => fd(Array(0),0,0,0,0, Array(Array(0)))
     }
   }
 
@@ -84,5 +87,5 @@ class LPA(args:Array[String]) extends Analyser(args){
 
 }
 
-case class fd(top5:Array[Int],total:Int,totalIslands:Int,proportion:Float,totalGT2:Int, communities: List[List[Long]])
+case class fd(top5:Array[Int],total:Int,totalIslands:Int,proportion:Float,totalGT2:Int, communities: Array[Array[Long]])
 
