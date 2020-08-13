@@ -7,8 +7,8 @@ import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.Tasks.AnalysisTask
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
-import com.raphtory.examples.random.actors.RandomRouter
-import com.raphtory.examples.random.actors.RandomSpout
+import com.raphtory.examples.test.actors.RandomRouter
+import com.raphtory.examples.test.actors.RandomSpout
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import kamon.metric.PeriodSnapshot
@@ -27,6 +27,8 @@ object Go extends App {
   val seedLoc = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
   val root    = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
+  // debug should give timing
+  //root.setLevel(Level.DEBUG)
   val routerName  = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
   val updaterName = s"${sys.env.getOrElse("SPOUTCLASS", classOf[RandomSpout].getClass.getName)}"
   val docker      = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean

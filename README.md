@@ -150,5 +150,10 @@ The Analyser is then run on a seperate stack so that it can be brought up an dow
 
 Once you have finished with the chosen query the Analysis Manager can be brought down with ```docker stack remove analysis``` and new queries can be run with ```./exampleAnalysis.sh```. Finally when you are happy everything is working, the cluster can be removed by running:```docker stack remove raphtory```.
 
+#  Slack
+
+Please join our slack channel if you need any help or want to discuss anything about Raphtory
+
+raphtory.slack.com
 
 

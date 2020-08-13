@@ -10,24 +10,25 @@ import com.raphtory.core.analysis.API.GraphLenses.ViewLens
 import com.raphtory.core.analysis.API.GraphLenses.WindowLens
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.API._
-import com.raphtory.core.analysis.Algorithms.ConnectedComponents
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
-import com.twitter.util.Eval
 import kamon.Kamon
-import monix.execution.atomic.AtomicInt
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Try
+import scala.collection.parallel.mutable.ParTrieMap
+
+case class ViewJob(jobID:String,timestamp:Long,window:Long)
 
 class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage: EntityStorage) extends Actor with ActorLogging {
 
   implicit var managerCount: ManagerCount = ManagerCount(managerCountVal)
   val analyserMap: TrieMap[String,LoadExternalAnalyser] = TrieMap[String,LoadExternalAnalyser]()
-  var receivedMessages    = AtomicInt(0)
+  private val sentMessageMap     = ParTrieMap[String, AtomicInteger ]()
+  private val receivedMessageMap = ParTrieMap[String, AtomicInteger ]()
   var tempProxy: GraphLens = _
 
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
@@ -63,44 +64,52 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processSetupRequest(req: Setup): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-
-    try setup(
-            req.analyzer,
-            req.jobID,
-            req.args,
-            req.superStep,
-            req.timestamp,
-            req.analysisType,
-            req.window,
-            req.windowSet
-    )
-    catch { case e: Exception => log.error("Failed to run setup due to [{}].", e) }
+    val beforeTime = System.currentTimeMillis()
+    val superstepTimer = Kamon.gauge("Raphtory_Superstep_Time")
+      .withTag("Partition",storage.managerID)
+      .withTag("Worker",workerId)
+      .withTag("JobID",req.jobID)
+      .withTag("timestamp",req.timestamp)
+      .withTag("superstep",req.superStep)
+    try setup(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+    catch { case e: Exception => log.error("Failed to run setup due to [{}].", e.printStackTrace()) }
+    superstepTimer.update(System.currentTimeMillis()-beforeTime)
   }
 
   def processCheckMessagesRequest(req: CheckMessages): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+    Kamon.gauge("Raphtory_Analysis_Messages_Received")
+      .withTag("actor",s"Reader_$managerID")
+      .withTag("ID",workerId)
+      .withTag("jobID",req.jobID.jobID)
+      .withTag("Timestamp",req.jobID.timestamp)
+      .withTag("Superstep",req.superstep)
+      .update(getReceivedMessages(req.jobID.jobID))
 
-    var count = AtomicInt(0)
+    Kamon.gauge("Raphtory_Analysis_Messages_Sent")
+      .withTag("actor",s"Reader_$managerID")
+      .withTag("ID",workerId)
+      .withTag("jobID",req.jobID.jobID)
+      .withTag("Timestamp",req.jobID.timestamp)
+      .withTag("Superstep",req.superstep)
+      .update(getReceivedMessages(req.jobID.jobID))
 
-    //tempProxy.getVerticesSet().foreach(v => count.add(tempProxy.getVertex(v._2).messageQueue2.size))
-
-    sender ! MessagesReceived(workerId, count.get, receivedMessages.get, tempProxy.getMessages())
+    sender ! MessagesReceived(workerId, getReceivedMessages(req.jobID.jobID),getSentMessages(req.jobID.jobID))
   }
 
   def processNextStepRequest(req: NextStep): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+    val beforeTime = System.currentTimeMillis()
+    val superstepTimer = Kamon.gauge("Raphtory_Superstep_Time")
+      .withTag("Partition",storage.managerID)
+      .withTag("Worker",workerId)
+      .withTag("JobID",req.jobID)
+      .withTag("timestamp",req.timestamp)
+      .withTag("superstep",req.superStep)
 
-    try nextStep(
-            req.analyzer,
-            req.jobID,
-            req.args,
-            req.superStep,
-            req.timestamp,
-            req.analysisType,
-            req.window,
-            req.windowSet
-    )
+    try nextStep(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
     catch { case e: Exception => log.error("Failed to run nextStep due to [{}].", e) }
+    superstepTimer.update(System.currentTimeMillis()-beforeTime)
   }
 
   def processNextStepNewAnalyserRequest(req: NextStepNewAnalyser): Unit = {
@@ -120,89 +129,54 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   def processFinishRequest(req: Finish): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
+    val beforeTime = System.currentTimeMillis()
+    val superstepTimer = Kamon.gauge("Raphtory_Superstep_Time")
+      .withTag("Partition",storage.managerID)
+      .withTag("Worker",workerId)
+      .withTag("JobID",req.jobID)
+      .withTag("timestamp",req.timestamp)
+      .withTag("superstep",req.superStep)
 
-    try returnResults(
-            req.analyzer,
-            req.jobID,
-            req.args,
-            req.superStep,
-            req.timestamp,
-            req.analysisType,
-            req.window,
-            req.windowSet
-    )
+    try returnResults(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
     catch { case e: Exception => log.error("Failed to run returnResults due to [{}].", e) }
+    superstepTimer.update(System.currentTimeMillis()-beforeTime)
   }
 
   def handleVertexMessage(req: VertexMessage): Unit = {
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
-
-    req match {
-      case VertexMessageFloat(_, vertexID, jobID, superStep, data) =>
-        processVertexMessage(vertexID, jobID, superStep, data)
-      case VertexMessageInt(_: Long, vertexID: Long, jobID: String, superStep: Int, data: Int) =>
-        processVertexMessage(vertexID, jobID, superStep, data)
-      case VertexMessageLong(_: Long, vertexID: Long, jobID: String, superStep: Int, data: Long) =>
-        processVertexMessage(vertexID, jobID, superStep, data)
-      case VertexMessageStringLong(_: Long, vertexID: Long, jobID: String, superStep: Int, data: (String, Long)) =>
-        processVertexMessage(vertexID, jobID, superStep, data)
-      case VertexMessageBatch(jobID: String, superStep: Int, batchData: Set[(Long, Long, Any)]) =>
-        batchData.foreach { case (vertexID, _, data) => processVertexMessage(vertexID, jobID, superStep, data) }
-    }
+    incrementReceivedMessages(req.viewJob.jobID)
+    storage.vertices(req.vertexID).multiQueue.receiveMessage(req.viewJob,req.superStep,req.data)
   }
 
-  def processVertexMessage(vertexID: Long, jobID: String, superStep: Int, data: Any): ArrayBuffer[Any] = {
-    receivedMessages.increment()
-    storage.vertices(vertexID).multiQueue.receiveMessage(jobID, superStep, data)
-  }
-
-  def setup(
-      analyzer: Analyser,
-      jobID: String,
-      args: Array[String],
-      superStep: Int,
-      timestamp: Long,
-      analysisType: AnalysisType.Value,
-      window: Long,
-      windowSet: Array[Long]
-  ) {
-    receivedMessages.set(0)
+  def setup(analyzer: Analyser, jobID: String, args: Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) {
 
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {
       analyzer.setup()
+      incrementSentMessages(jobID,tempProxy.getMessages())
       sender ! Ready(tempProxy.getMessages())
-    } else {
+    }
+    else {
       analyzer.setup()
       var currentWindow = 1
-
       while (currentWindow < windowSet.length) {
         tempProxy.asInstanceOf[WindowLens].shrinkWindow(windowSet(currentWindow))
         analyzer.setup()
         currentWindow += 1
       }
-
+      incrementSentMessages(jobID,tempProxy.getMessages())
       sender ! Ready(tempProxy.getMessages())
     }
   }
 
-  def nextStep(
-      analyzer: Analyser,
-      jobID: String,
-      args: Array[String],
-      superStep: Int,
-      timestamp: Long,
-      analysisType: AnalysisType.Value,
-      window: Long,
-      windowSet: Array[Long]
-  ): Unit = {
-    receivedMessages.set(0)
+  def nextStep(analyzer: Analyser,jobID: String,args: Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
 
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {
       analyzer.analyse()
+      incrementSentMessages(jobID,tempProxy.getMessages())
       sender ! EndStep(tempProxy.getMessages(), tempProxy.checkVotes(workerId))
     } else {
       analyzer.analyse()
@@ -212,7 +186,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
           tempProxy.asInstanceOf[WindowLens].shrinkWindow(windowSet(i))
           analyzer.analyse()
         }
-
+      incrementSentMessages(jobID,tempProxy.getMessages())
       sender ! EndStep(tempProxy.getMessages(), tempProxy.checkVotes(workerId))
     }
 
@@ -229,16 +203,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     returnResults(analyserMap.get(jobID).get.newAnalyser, jobID, args, currentStep, timestamp, analysisType, window, windowSet)
   }
 
-  def returnResults(
-      analyzer: Analyser,
-      jobID: String,
-      args: Array[String],
-      superStep: Int,
-      timestamp: Long,
-      analysisType: AnalysisType.Value,
-      window: Long,
-      windowSet: Array[Long]
-  ): Unit = {
+  def returnResults(analyzer: Analyser, jobID: String, args: Array[String], superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {
@@ -264,11 +229,10 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
     if (timestamp <= newest) {
       log.debug("Received timestamp is smaller or equal to newest entityStorage timestamp.")
-
       sender ! TimeResponse(ok = true, newest)
-    } else {
+    }
+    else {
       log.debug("Received timestamp is larger than newest entityStorage timestamp.")
-
       sender ! TimeResponse(ok = false, newest)
     }
   }
@@ -290,64 +254,68 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     }
   }
 
-  private def setProxy(
-      jobID: String,
-      superStep: Int,
-      timestamp: Long,
-      analysisType: AnalysisType.Value,
-      window: Long,
-      windowSet: Array[Long]
-  ): Unit =
+  private def setProxy(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit =
     analysisType match {
       case AnalysisType.live  => handleLiveAnalysis(jobID, superStep, timestamp, analysisType, window, windowSet)
       case AnalysisType.view  => handleViewAnalysis(jobID, superStep, timestamp, analysisType, window, windowSet)
       case AnalysisType.range => handleRangeAnalysis(jobID, superStep, timestamp, analysisType, window, windowSet)
     }
 
-  def handleLiveAnalysis(
-      jobID: String,
-      superStep: Int,
-      timestamp: Long,
-      analysisType: AnalysisType.Value,
-      window: Long,
-      windowSet: Array[Long]
-  ): Unit =
+  def handleLiveAnalysis(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit =
     // We have a set of windows to run
     if (windowSet.nonEmpty)
-      tempProxy = new WindowLens(jobID, superStep, timestamp, windowSet(0), workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,windowSet(0)), superStep,workerId, storage, managerCount)
     // We only have one window to run
     else if (window != -1)
-      tempProxy = new WindowLens(jobID, superStep, timestamp, window, workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,window), superStep, workerId, storage, managerCount)
     else
-      tempProxy = new ViewLens(jobID, superStep, timestamp, workerId, storage, managerCount)
+      tempProxy = new ViewLens(ViewJob(jobID,timestamp,-1), superStep, workerId, storage, managerCount)
 
-  def handleViewAnalysis(
-      jobID: String,
-      superStep: Int,
-      timestamp: Long,
-      analysisType: AnalysisType.Value,
-      window: Long,
-      windowSet: Array[Long]
-  ): Unit =
+  def handleViewAnalysis(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit =
     if (windowSet.nonEmpty) //we have a set of windows to run
-      tempProxy = new WindowLens(jobID, superStep, timestamp, windowSet(0), workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,windowSet(0)), superStep,  workerId, storage, managerCount)
     else if (window != -1) // we only have one window to run
-      tempProxy = new WindowLens(jobID, superStep, timestamp, window, workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,window), superStep, workerId, storage, managerCount)
     else
-      tempProxy = new ViewLens(jobID, superStep, timestamp, workerId, storage, managerCount)
+      tempProxy = new ViewLens(ViewJob(jobID,timestamp,-1), superStep, workerId, storage, managerCount)
 
-  def handleRangeAnalysis(
-      jobID: String,
-      superStep: Int,
-      timestamp: Long,
-      analysisType: AnalysisType.Value,
-      window: Long,
-      windowSet: Array[Long]
-  ): Unit =
+  def handleRangeAnalysis(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit =
     if (windowSet.nonEmpty) //we have a set of windows to run
-      tempProxy = new WindowLens(jobID, superStep, timestamp, windowSet(0), workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,windowSet(0)), superStep, workerId, storage, managerCount)
     else if (window != -1) // we only have one window to run
-      tempProxy = new WindowLens(jobID, superStep, timestamp, window, workerId, storage, managerCount)
+      tempProxy = new WindowLens(ViewJob(jobID,timestamp,window), superStep, workerId, storage, managerCount)
     else
-      tempProxy = new ViewLens(jobID, superStep, timestamp, workerId, storage, managerCount)
+      tempProxy = new ViewLens(ViewJob(jobID,timestamp,-1), superStep, workerId, storage, managerCount)
+
+
+  def incrementReceivedMessages(jobID:String) = {
+    receivedMessageMap.get(jobID) match {
+      case Some(counter) => counter.incrementAndGet()
+      case None => receivedMessageMap.put(jobID,new AtomicInteger(1))
+    }
+  }
+
+  def getReceivedMessages(jobID:String) = {
+    receivedMessageMap.get(jobID) match {
+      case Some(counter) => counter.get()
+      case None => 0
+    }
+  }
+
+  def incrementSentMessages(jobID:String, value:Int) = {
+    sentMessageMap.get(jobID) match {
+      case Some(counter) => counter.set(counter.get()+value)//actual counter
+      case None => sentMessageMap.put(jobID,new AtomicInteger(value))
+    }
+  }
+
+  def getSentMessages(jobID:String) = {
+    sentMessageMap.get(jobID) match {
+      case Some(counter) => counter.get
+      case None => 0
+    }
+  }
+
+
+
 }

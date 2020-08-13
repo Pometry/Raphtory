@@ -13,11 +13,10 @@ class EthereumDegreeRanking(args:Array[String]) extends Analyser(args) {
   override def setup(): Unit   = {}
   override def analyse(): Unit = {}
   override def returnResults(): Any = {
-    val degree = proxy.getVerticesSet().map { vert =>
-      val vertex    = proxy.getVertex(vert._2)
-      val outDegree = vertex.getOutgoingNeighbors.size
-      val inDegree  = vertex.getIngoingNeighbors.size
-      val walletID  = vertex.getPropertyCurrentValue("id").get
+    val degree = view.getVertices().map { vertex =>
+      val outDegree = vertex.getOutEdges.size
+      val inDegree  = vertex.getIncEdges.size
+      val walletID  = vertex.getPropertyValue("id").get
       (walletID, outDegree, inDegree)
     }
     val totalV   = degree.size
