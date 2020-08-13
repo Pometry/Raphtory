@@ -1,4 +1,4 @@
-package com.raphtory.examples.random.actors
+package com.raphtory.examples.test.actors
 
 import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.utils.Utils
@@ -46,9 +46,9 @@ class RandomSpout extends SpoutTrait {
   def distribution(): String = {
     val random = Random.nextFloat()
     if (random <= 0.3) genVertexAdd()
-    else genEdgeAdd()
-    //else if (random <= 0.8) genVertexRemoval()
-    //else                    genEdgeRemoval()
+    else if(random <=0.7) genEdgeAdd()
+    else if (random <= 0.8) genVertexRemoval()
+    else                    genEdgeRemoval()
   }
 
   def genRandomCommands(number: Int): Unit = {

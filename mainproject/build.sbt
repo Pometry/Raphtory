@@ -55,7 +55,7 @@ val kamon_akka       = "io.kamon"    %% "kamon-akka"           % "2.1.0"
 val kamon_system     = "io.kamon"    %% "kamon-system-metrics" % "2.1.0"
 val kamon_netty      = "io.kamon"    %% "kamon-netty"          % "1.0.0"
 val monix            = "io.monix"    %% "monix"                % "3.0.0-RC1"
-val mongo            = "org.mongodb" % "mongo-java-driver"     % "3.8.0"
+val mongo            = "org.mongodb" % "mongo-java-driver"     % "3.12.4"
 val casbah           = "org.mongodb" %% "casbah-core"          % "3.1.1"
 
 val doobie = "org.tpolecat" %% "doobie-core" % "0.8.4"
@@ -92,7 +92,7 @@ lazy val dockerStuff = Seq(
         maintainer := "Ben Steer <b.a.steer@qmul.ac.uk>",
         dockerBaseImage := "miratepuffin/raphtory-redis:latest",
         dockerRepository := Some("miratepuffin"),
-        dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600)
+        dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600,8081)
 )
 
 lazy val root = Project(id = "raphtory", base = file(".")) aggregate (cluster)
@@ -154,6 +154,6 @@ lazy val cluster = project
   )
   .settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
-          javaAgents += "io.kamon" % "kanela-agent" % "1.0.5",
+          javaAgents += "io.kamon" % "kanela-agent" % "1.0.6",
           javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default"
   )

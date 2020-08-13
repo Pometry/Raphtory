@@ -42,7 +42,8 @@ case class AnalysisRestApi(system:ActorSystem){
         mediator ! DistributedPubSubMediator.Send("/user/AnalysisManager", response, false)
         HttpResponse(entity = s"""Your Task ${in.jobID} Has been successfully submitted as a Live Analysis Task!""")
       }
-      catch {case e:Exception => e.printStackTrace();HttpResponse(entity = "Your Task Appeared to have some issue, please check your JSON and resubmit")}
+      catch {
+        case e:Exception => e.printStackTrace();HttpResponse(entity = "Your Task Appeared to have some issue, please check your JSON and resubmit")}
     }
     case HttpRequest(POST,Uri.Path("/ViewAnalysisRequest"),_,entity,_)  => {
       try{

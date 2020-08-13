@@ -30,19 +30,20 @@ case class LoadExternalAnalyser(rawFile: String,args:Array[String]) {
 abstract class Analyser(args:Array[String]) extends java.io.Serializable {
   implicit var context: ActorContext      = null
   implicit var managerCount: ManagerCount = null
-  implicit var proxy: GraphLens            = null
+  implicit var view: GraphLens            = null
   var workerID: Int                       = 0
 
-  private val toPublish:mutable.ArrayBuffer[String] = ArrayBuffer()
+  private var toPublish:mutable.ArrayBuffer[String] = ArrayBuffer()
   final def sysSetup(context: ActorContext, managerCount: ManagerCount, proxy: GraphLens, ID: Int) = {
     this.context = context
     this.managerCount = managerCount
-    this.proxy = proxy
+    this.view = proxy
     this.workerID = ID
   }
 
   def publishData(data:String) = toPublish +=data
   def getPublishedData() = toPublish.toArray
+  def clearPublishedData() =  toPublish = ArrayBuffer()
 
   def analyse(): Unit
   def setup(): Unit
@@ -54,10 +55,6 @@ abstract class Analyser(args:Array[String]) extends java.io.Serializable {
     processResults(results, timestamp: Long, viewCompleteTime: Long)
   def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit =
     processResults(results, timestamp: Long, viewCompleteTime: Long)
-  def processBatchWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSet: Array[Long],
-      viewCompleteTime: Long
-  ): Unit = processResults(results, timestamp: Long, viewCompleteTime: Long)
+  def processBatchWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long], viewCompleteTime: Long): Unit =
+    processResults(results, timestamp: Long, viewCompleteTime: Long)
 }

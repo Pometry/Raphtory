@@ -25,9 +25,9 @@ object SingleNodeTest extends App {
   val partitionNumber = 1
   val minimumRouters  = 1
 
-  var Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
+//  var Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
 //  Analyser = "com.raphtory.core.analysis.Algorithms.DegreeBasic"
-//  var Analyser = "com.raphtory.examples.blockchain.analysers.TaintTrackExchangeStop"
+  var Analyser = "com.raphtory.examples.blockchain.analysers.TaintTrackExchangeStop"
 
   //var UpdaterName     = "com.raphtory.examples.ldbc.spouts.LDBCSpout"
   //var routerClassName = "com.raphtory.examples.ldbc.routers.LDBCRouter"
@@ -49,9 +49,11 @@ object SingleNodeTest extends App {
     val end =   31525368897000L
 
     val jump =    3600000
-    var SpoutName =   "com.raphtory.examples.blockchain.spouts.EthereumGethSpout"
-    var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumGethRouter"
-//    Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
+
+   // var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+    //var SpoutName = "com.raphtory.examples.random.actors.RandomSpout"
+   // var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
+    //var routerClassName = "com.raphtory.examples.random.actors.RandomRouter"
 
 
   //track and trace test
@@ -61,7 +63,9 @@ object SingleNodeTest extends App {
 
 //chainalysisAB
 //  var UpdaterName = "com.raphtory.examples.blockchain.spouts.ChainalysisABSpout"
+  var SpoutName = "com.raphtory.spouts.FileSpout"
 //  var routerClassName = "com.raphtory.examples.blockchain.routers.ChainalysisABRouter"
+  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumKafkaRouter"
 
   val system = ActorSystem("Single-Node-test")
 

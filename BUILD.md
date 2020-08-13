@@ -9,14 +9,14 @@
 ## Building
 Step 1.
 - to build locally, go into mainproject, run `sbt docker:publishLocal`
-- to build on dockerhub, go into mainproject, run `sbt:publish`
+- to build on dockerhub, go into mainproject, run `sbt docker:publish`
 	
 Step 2.
 - git clone the raphtory deployment project, https://github.com/miratepuffin/Raphtory-Deployment
 - copy the required compose file to the machine you would like to run raphtory
 - edit the `.yml` file such that it points to the correct docker hub location
 - add the following text into a file called `.env` located in  the same folder as the `.yml` file, change the
-parameters of 'UPDATERCLASS' and 'ROUTERCLASS' to the Spout and Router required.
+parameters of 'SPOUTCLASS' and 'ROUTERCLASS' to the Spout and Router required.
 
 		COMPOSE_PROJECT_NAME=raphtory
 		ZOOKEEPER=zooKeeper:2181
@@ -25,12 +25,13 @@ parameters of 'UPDATERCLASS' and 'ROUTERCLASS' to the Spout and Router required.
 		JAVA_OPTS=-XX:+UseConcMarkSweepGC -XX:+UseParNewGC -Xms20g -XX:NewRatio=3
 		PROMETHEUS=true
 		STDOUT_LOG=true
-		UPDATERCLASS=com.raphtory.examples.blockchain.spouts.EthereumGethSpout
+		SPOUTCLASS=com.raphtory.examples.blockchain.spouts.EthereumGethSpout
 		ROUTERCLASS=com.raphtory.examples.blockchain.routers.EthereumGethRouter
 		RAMP_FLAG=true
 		DOCKER=true
 		GAB_PROJECT_OUTPUT=/opt/docker/output.csv
 		SPOUT_ETHEREUM_IP_ADDRESS=127.0.0.1
+		LOCAL=true
 
 - to run this locally, for a single node test edit and then run `docker-compose --file compose/singlenodetest.yml up`
 - to run this on a server, copy your `.env` and `.yml` to your server, ensure your server has docker then run `docker-compose --file youryaml.yml up`

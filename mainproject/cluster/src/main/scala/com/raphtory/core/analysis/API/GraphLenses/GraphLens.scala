@@ -5,49 +5,30 @@ import com.raphtory.core.analysis.API.ManagerCount
 import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
-import monix.execution.atomic.AtomicInt
+import java.util.concurrent.atomic.AtomicInteger
 
+import com.raphtory.core.components.PartitionManager.Workers.ViewJob
+
+import scala.collection.parallel.ParIterable
 import scala.collection.parallel.mutable.ParTrieMap
 
-abstract class GraphLens(
-    jobID: String,
-    superstep: Int,
-    timestamp: Long,
-    windowsize: Long,
-    workerID: Int,
-    storage: EntityStorage,
-    managerCount: ManagerCount
-) {
-  private var messages = AtomicInt(0)
-  //val messageQueues:ParTrieMap[String,ConcurrentHashMap.KeySetView[(Long,Long,Any),java.lang.Boolean]] = ParTrieMap[String,ConcurrentHashMap.KeySetView[(Long,Long,Any),java.lang.Boolean]]()
-  //Utils.getAllReaders(managerCount.count).foreach(reader => messageQueues put (reader,java.util.concurrent.ConcurrentHashMap.newKeySet[(Long,Long,Any)]()))
+abstract class GraphLens(jobID: ViewJob, superstep: Int, storage: EntityStorage, managerCount: ManagerCount) {
+  private val messages     = new AtomicInteger(0)
+  protected var voteCount  = new AtomicInteger(0)
+  def superStep() = superstep
 
-  protected var voteCount                        = AtomicInt(0)
-  def job()                                      = jobID
-  def superStep()                                = superstep
-  def getVerticesSet(): ParTrieMap[Long, Vertex] = storage.vertices
+  def getVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] =
+    storage.vertices.map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
 
-  def getVerticesWithMessages(): ParTrieMap[Long, Vertex] = storage.vertices.filter {
-    case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(job(), superstep).nonEmpty
-  }
+  def getMessagedVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] =
+    storage.vertices.filter {
+      case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(jobID, superstep).nonEmpty
+    }.map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
 
-  def recordMessage(sourceID: Long, vertexID: Long, data: Any) =
-    //messageQueues(Utils.getReader(vertexID, managerCount.count)) add ((sourceID,vertexID,data))
-    messages.increment()
 
+  //TODO hide away
+  def recordMessage() = messages.incrementAndGet()
   def getMessages() = messages.get
-
-  def getVertex(v: Vertex)(implicit context: ActorContext, managerCount: ManagerCount): VertexVisitor =
-    new VertexVisitor(v, jobID, superstep, this, timestamp, windowsize)
-
-  def getTotalVerticesSet() =
-    storage.vertices.keySet
-
-  def latestTime: Long = storage.newestTime
-
-  def vertexVoted() = voteCount.increment()
-
-  def checkVotes(workerID: Int): Boolean =
-    //
-    storage.vertices.size == voteCount.get
+  def vertexVoted() = voteCount.incrementAndGet()
+  def checkVotes(workerID: Int): Boolean = storage.vertices.size == voteCount.get
 }
