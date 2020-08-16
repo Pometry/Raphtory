@@ -9,8 +9,12 @@ import scala.collection.mutable.ArrayBuffer
 
 abstract class Serialiser extends Analyser(null){
 
+
+
   def serialiseVertex(v:VertexVisitor):String
   def serialiseEdge(e:EdgeVisitor):String
+  def startOfFile():String
+  def endOfFile():String
 
   override def returnResults(): Any = {
     val serialisedEntities = view.getVertices().map { vertex =>

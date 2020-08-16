@@ -15,6 +15,8 @@ class EdgeVisitor(edge:Edge,id:Long,viewJob:ViewJob,superStep:Int,view:GraphLens
 
 
   def ID() = id
+  def src() = edge.getSrcId
+  def dst() = edge.getDstId
 
 
   def send(data: Any): Unit = {
