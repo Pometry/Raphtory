@@ -11,66 +11,49 @@ import scala.collection.mutable.ArrayBuffer
 
 class TriangleCount(args:Array[String]) extends Analyser(args) {
 
-  override def setup(): Unit =
+  override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
-      vertex.setState("triangles",0)
-      vertex.setState("cluster",0.0)
-      val degree = vertex.getIncEdges.size + vertex.getOutEdges.size
-      vertex.messageAllNeighbours(vertex.ID())
+      vertex.setState("triangles", 0)
+      val neighbours = vertex.getIncEdges.map(x=> x.ID()).toSet.union(vertex.getOutEdges.map(x=> x.ID()).toSet).filter(x=> x>vertex.ID())
+      vertex.messageAllNeighbours(neighbours)
     }
+  }
 
   override def analyse(): Unit = {
-    view.getMessagedVertices().foreach { vertex =>
-      val neighbours = vertex.messageQueue[Long]
-      vertex.setState("neighbours", neighbours)
-      neighbours.foreach { neighbour =>
-        // Avoid repeated triangles
-        if (neighbour > vertex.ID()) {
-          vertex.messageAllNeighbours(neighbour)
-        }
+      view.getMessagedVertices().foreach { vertex =>
+        val neighbours = vertex.getIncEdges.map(x=> x.ID()).toSet.union(vertex.getOutEdges.map(x=> x.ID()).toSet)
+        val queue = vertex.messageQueue[Set[Long]].flatten
+        val totalTriangles = queue.toSet.intersect(neighbours).size
+        vertex.setState("triangles",totalTriangles)
       }
-    }
-    view.getMessagedVertices().foreach { vertex =>
-      val queue = vertex.messageQueue[Long]
-      val neighbours = vertex.getState("neighbours")
-      queue.foreach { message =>
-        if (neighbours.asInstanceOf[Array[Long]].contains(message)) {
-          val newlabel = vertex.getState[Int]("triangles") + 1
-          vertex.setState("triangles", newlabel)
-        }
-      }
-      vertex.voteToHalt()
-    }
+
   }
 
   override def returnResults(): Any = {
     val triangleStats  = view.getVertices().map {
-      vertex => (vertex.getState[Int]("triangles"))
-    }.sum
-//    val triangleStats = view.getVertices().map { vertex =>
-//      val degree = vertex.getOutEdges.size + vertex.getIncEdges.size
-//      val triangle = vertex.getState[Int]("triangles")
-//      val cluster =
-//        try vertex.getState[Float]("triangles")/2.0*degree*(degree-1)
-//        catch { case e: ArithmeticException => 0.0 }
-//      (vertex.ID(), triangle, cluster)
-//    }
-//    val totalV   = triangleStats.size
-//    val totTri = (triangleStats.map(x => x._2).sum/3).toInt
-//    val clusterCoeff = triangleStats.map(x => x._3).sum
-//    (totalV,totTri,clusterCoeff)
+      vertex => (vertex.getState[Int]("triangles"), vertex.getOutEdges.size + vertex.getIncEdges.size)
+    }.map {
+      row => (row._1, if (row._1 > 1) 2.0*row._1/(row._2*(row._2 - 1)) else 0.0 )
+    }
+    val totalV = triangleStats.size
+    val totalTri = triangleStats.map(x => x._1).sum
+    val totalCluster = triangleStats.map(x => x._2).sum
+    (totalV, totalTri, totalCluster)
   }
 
-  override def defineMaxSteps(): Int = 1
+  override def defineMaxSteps(): Int = 5
 
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val startTime   = System.currentTimeMillis()
-    val endResults = results.asInstanceOf[ArrayBuffer[Int]]
-    val totalTri = endResults.map(x => x).sum
+    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Double)]]
+    val totalVert = endResults.map( x => x._1 ).sum
+    val totalTri = endResults.map( x => x._2 ).sum/3
+    val avgCluster = if (totalVert > 0) endResults.map( x => x._3 ).sum/totalVert else 0.0
 //    val clusterCoeff =
 //      try endResults.map(x => x._3).sum/totalVert.toFloat
 //      catch { case e: ArithmeticException => 0.0 }
-    val text = s"""{"time":$timeStamp,"totTriangles":$totalTri,"viewTime":$viewCompleteTime,"concatTime":${System
+    val text = s"""{"time":$timeStamp,"totTriangles":$totalTri,"avgCluster":$avgCluster,"viewTime":$viewCompleteTime,"concatTime":${System
       .currentTimeMillis() - startTime}},"""
+    println(text)
   }
 }
