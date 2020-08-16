@@ -193,7 +193,13 @@ class AnalysisManager() extends Actor{
     try {
       (false,Class.forName(analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser])
     } catch {
-      case e:ClassNotFoundException => processCompileNewAnalyserRequest(rawFile,args)
+      case e:NoSuchMethodException =>
+        try {
+          (false, Class.forName(analyserName).getConstructor().newInstance().asInstanceOf[Analyser])
+        }
+        catch {
+          case e:ClassNotFoundException => processCompileNewAnalyserRequest(rawFile,args)
+        }
     }
   }
 

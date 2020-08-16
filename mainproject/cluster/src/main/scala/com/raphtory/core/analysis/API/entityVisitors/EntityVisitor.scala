@@ -5,6 +5,7 @@ import com.raphtory.core.model.graphentities.Entity
 
 import scala.collection.mutable
 import scala.collection.parallel.ParSet
+import scala.collection.parallel.mutable.ParTrieMap
 
 abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {
   def Type() = entity.getType
@@ -13,9 +14,9 @@ abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {
   def latestActivity() = getHistory.head
   def earliestActivity() = getHistory.minBy(k=> k._1)
 
-  def getPropertySet(): ParSet[String] = entity.properties.filter(p =>{
+  def getPropertySet(): ParTrieMap[String,Any] = entity.properties.filter(p =>{
     p._2.creation()<=viewJob.timestamp
-  }).keySet
+  }).map(f => (f._1,f._2.valueAt(viewJob.timestamp)))
 
   def getPropertyValue(key: String): Option[Any] =
     entity.properties.get(key) match {
