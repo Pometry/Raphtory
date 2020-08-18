@@ -12,7 +12,7 @@ import scala.language.postfixOps
 class GabExampleSpout extends SpoutTrait {
 
   val directory = System.getenv().getOrDefault("GAB_DIRECTORY", "/app").trim
-  val file_name = System.getenv().getOrDefault("GAB_FILE_NAME", "gabNetwork500.csv").trim
+  val file_name = System.getenv().getOrDefault("GAB_FILE_NAME", "gab.csv").trim
   val fileLines = Source.fromFile(directory + "/" + file_name).getLines.drop(1).toArray
   // upstream/master
   var position    = 0
