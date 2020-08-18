@@ -60,7 +60,7 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
       viewCompleteTime: Long
   ): Unit = {
     val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
-//    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val startTime   = System.currentTimeMillis()
     val totalVert   = endResults.map(x => x._1).sum
     val totalEdge   = endResults.map(x => x._3).sum
@@ -80,7 +80,7 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
         .currentTimeMillis() - startTime}},"""
-//    Utils.writeLines(output_file, text, "{\"views\":[")
+    Utils.writeLines(output_file, text, "{\"views\":[")
     println(text)
     publishData(text)
   }
