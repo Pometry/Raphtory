@@ -7,7 +7,6 @@ import com.raphtory.core.components.Spout.SpoutTrait
 import org.apache.kafka.clients.consumer.KafkaConsumer
 
 import scala.collection.JavaConverters._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.MILLISECONDS
 import scala.concurrent.duration.SECONDS
@@ -67,13 +66,13 @@ class KafkaSpoutBackPressure(queue:LinkedBlockingQueue[String]) extends SpoutTra
   var increaseBy        = System.getenv().getOrDefault("INCREASE_BY", "1000").trim.toInt
   override def preStart(): Unit = {
     super.preStart()
-    SchedulerUtil.scheduleTask(initialDelay = 60 seconds, interval = 60 second, receiver = self, message = "increase")
+    AllocateSpoutTask(Duration(60,SECONDS),"increase")
   }
   override protected def ProcessSpoutTask(receivedMessage: Any): Unit = receivedMessage match {
     case StartSpout => AllocateSpoutTask(Duration(1, MILLISECONDS), "newLine")
     case KafkaData(data) => queue.put(data)
     case "newLine"  => consumeFromQueue
-    case "increase"  => startingSpeed+=increaseBy
+    case "increase"  => startingSpeed+=increaseBy; AllocateSpoutTask(Duration(60,SECONDS),"increase")
     case _          => println("message not recognized!")
   }
   def consumeFromQueue() = {

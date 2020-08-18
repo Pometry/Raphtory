@@ -16,7 +16,6 @@ import com.raphtory.core.utils.SchedulerUtil
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -35,6 +34,7 @@ class Writer(
         with ActorLogging {
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
+  implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
 
   // Id which refers to the partitions position in the graph manager map
   val managerId: Int    = id

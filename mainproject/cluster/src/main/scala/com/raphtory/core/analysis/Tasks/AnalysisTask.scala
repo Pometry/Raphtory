@@ -20,13 +20,13 @@ import com.mongodb.util.JSON
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.sys.process._
 
 abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int,newAnalyser: Boolean,rawFile:String) extends Actor {
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
+  implicit val executionContext = context.system.dispatchers.lookup("analysis-dispatcher")
 
   private var local: Boolean = Utils.local
   val saveData = System.getenv().getOrDefault("ANALYSIS_SAVE_OUTPUT", "false").trim.toBoolean
