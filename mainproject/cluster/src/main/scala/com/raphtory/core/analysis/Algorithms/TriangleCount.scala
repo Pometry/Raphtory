@@ -1,6 +1,7 @@
 package com.raphtory.core.analysis.Algorithms
 
 import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -54,6 +55,24 @@ class TriangleCount(args:Array[String]) extends Analyser(args) {
 //      catch { case e: ArithmeticException => 0.0 }
     val text = s"""{"time":$timeStamp,"totTriangles":$totalTri,"avgCluster":$avgCluster,"viewTime":$viewCompleteTime,"concatTime":${System
       .currentTimeMillis() - startTime}},"""
+    println(text)
+  }
+
+  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
+    val startTime   = System.currentTimeMillis()
+    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Double)]]
+    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+
+    val totalVert = endResults.map( x => x._1 ).sum
+    val totalTri = endResults.map( x => x._2 ).sum/3
+    val avgCluster = if (totalVert > 0) endResults.map( x => x._3 ).sum/totalVert else 0.0
+    //    val clusterCoeff =
+    //      try endResults.map(x => x._3).sum/totalVert.toFloat
+    //      catch { case e: ArithmeticException => 0.0 }
+    val text =
+      s"""{"time":$timestamp,"windowsize":$windowSize,"totTriangles":$totalTri,"avgCluster":$avgCluster,"viewTime":$viewCompleteTime,"concatTime":${System
+        .currentTimeMillis() - startTime}},"""
+    Utils.writeLines(output_file, text, "{\"views\":[")
     println(text)
   }
 }
