@@ -10,7 +10,6 @@ import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.SchedulerUtil
 import kamon.Kamon
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -24,6 +23,8 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
 
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
+  implicit val executionContext = context.system.dispatchers.lookup("worker-dispatcher")
+
   val synchTime           = Kamon.histogram("Raphtory_Wall_Clock").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
   val routerUpdates       = Kamon.counter("Raphtory_Router_Updates").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
   val interWorkerUpdates  = Kamon.counter("Raphtory_Inter_Worker_Updates").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)

@@ -4,7 +4,6 @@ import java.time.LocalDateTime
 
 import com.raphtory.core.components.Spout.SpoutTrait
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.io
 import scala.io.Source
@@ -19,24 +18,7 @@ class GabExampleSpout extends SpoutTrait {
   var position    = 0
   var linesNumber = fileLines.length
   println("Start: " + LocalDateTime.now())
-//  println(
-//          "Vertices Users " + fileLines
-//            .map(_.split(";")(2).trim.toInt)
-//            .toSet
-//            .union(fileLines.map(_.split(";")(5).trim.toInt).toSet)
-//            .size
-//  )
-//  println(
-//          "Vertices Comments " + fileLines
-//            .map(_.split(";")(1).trim.toInt)
-//            .toSet
-//            .union(fileLines.map(_.split(";")(4).trim.toInt).toSet)
-//            .size
-//  )
-  //println("2 "+fileLines.map(_.split(";")(5).trim.toInt).contains(-1) )
-//  println("Edges " + fileLines.filter(line => line.contains("-1")).length)
 
-//  println("Lines " + linesNumber)
 
   protected def ProcessSpoutTask(message: Any): Unit = message match {
     case StartSpout => AllocateSpoutTask(Duration(1, NANOSECONDS), "newLine")
@@ -52,6 +34,7 @@ class GabExampleSpout extends SpoutTrait {
         }
         else {
           println("Finished ingestion")
+          System.gc()
         }
       }catch {case e:Exception => println("Finished ingestion")}
     case _ => println("message not recognized!")
