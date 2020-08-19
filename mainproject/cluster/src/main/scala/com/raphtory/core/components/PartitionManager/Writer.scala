@@ -38,7 +38,7 @@ class Writer(
 
   // Id which refers to the partitions position in the graph manager map
   val managerId: Int    = id
-  val children: Int     = 10
+  val children: Int     = 100
   var lastLogTime: Long = System.currentTimeMillis() / 1000
 
   // should the handled messages be printed to terminal

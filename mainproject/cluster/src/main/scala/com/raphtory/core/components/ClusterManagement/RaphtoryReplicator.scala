@@ -136,7 +136,7 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
     var workers: ParTrieMap[Int, ActorRef]       = new ParTrieMap[Int, ActorRef]()
     var storages: ParTrieMap[Int, EntityStorage] = new ParTrieMap[Int, EntityStorage]()
 
-    for (index <- 0 until 10) {
+    for (index <- 0 until 100) {
       val storage     = new EntityStorage(assignedId,index)
       storages.put(index, storage)
 
