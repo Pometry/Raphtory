@@ -98,7 +98,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
       }
     } else analyser
   final protected def getManagerCount: Int      = managerCount
-  final protected def getWorkerCount: Int       = managerCount * 10
+  final protected def getWorkerCount: Int       = managerCount * 100
 
   protected def processResults(timeStamp:Long) = {
     analyser.processResults(results, timeStamp,viewCompleteTime())

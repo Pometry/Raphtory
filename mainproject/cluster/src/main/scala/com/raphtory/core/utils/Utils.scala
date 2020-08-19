@@ -30,9 +30,9 @@ object Utils {
     context.actorSelection(s"akka.tcp://$ip:${config.getString("settings.bport")}/user/WatchDog")
 
   def getPartition(ID: Long, managerCount: Int): Int =
-    ((ID.abs % (managerCount * 10)) / 10).toInt
+    ((ID.abs % (managerCount * 100)) / 100).toInt
   def getWorker(ID: Long, managerCount: Int): Int =
-    ((ID.abs % (managerCount * 10)) % 10).toInt
+    ((ID.abs % (managerCount * 100)) % 100).toInt
   //get the partition a vertex is stored in
   def checkDst(dstID: Long, managerCount: Int, managerID: Int): Boolean =
     getPartition(dstID, managerCount) == managerID //check if destination is also local
@@ -40,23 +40,23 @@ object Utils {
     getWorker(dstID, managerCount) == workerID //check if destination is also local
 
   def getManager(srcId: Long, managerCount: Int): String = {
-    val mod     = srcId.abs % (managerCount * 10)
-    val manager = mod / 10
-    val worker  = mod % 10
+    val mod     = srcId.abs % (managerCount * 100)
+    val manager = mod / 100
+    val worker  = mod % 100
     s"/user/Manager_${manager}_child_$worker"
   }
 
   def getReader(srcId: Long, managerCount: Int): String = {
-    val mod     = srcId.abs % (managerCount * 10)
-    val manager = mod / 10
-    val worker  = mod % 10
+    val mod     = srcId.abs % (managerCount * 100)
+    val manager = mod / 100
+    val worker  = mod % 100
 
     s"/user/Manager_${manager}_reader_$worker"
   }
   def getReaderInt(srcId: Long, managerCount: Int): (Long, Long) = {
-    val mod     = srcId.abs % (managerCount * 10)
-    val manager = mod / 10
-    val worker  = mod % 10
+    val mod     = srcId.abs % (managerCount * 100)
+    val manager = mod / 100
+    val worker  = mod % 100
     (manager, worker)
   }
 
@@ -70,7 +70,7 @@ object Utils {
   def getAllReaderWorkers(managerCount: Int): Array[String] = {
     val workers = mutable.ArrayBuffer[String]()
     for (i <- 0 until managerCount)
-      for (j <- 0 until 10)
+      for (j <- 0 until 100)
         workers += s"/user/Manager_${i}_reader_$j"
     workers.toArray
   }
@@ -78,7 +78,7 @@ object Utils {
   def getAllWriterWorkers(managerCount: Int): Array[String] = {
     val workers = mutable.ArrayBuffer[String]()
     for (i <- 0 until managerCount)
-      for (j <- 0 until 10)
+      for (j <- 0 until 100)
         workers += s"/user/Manager_${i}_child_$j"
     workers.toArray
   }
