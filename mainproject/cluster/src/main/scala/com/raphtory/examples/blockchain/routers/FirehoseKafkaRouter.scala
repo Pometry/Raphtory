@@ -2,23 +2,19 @@ package com.raphtory.examples.blockchain.routers
 
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.EdgeAddWithProperties
-import com.raphtory.core.model.communication.ImmutableProperty
-import com.raphtory.core.model.communication.Properties
-import com.raphtory.core.model.communication.StringProperty
-import com.raphtory.core.model.communication.VertexAddWithProperties
+import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, ImmutableProperty, Properties, StringProperty, VertexAddWithProperties}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
 import spray.json._
 
 import scala.util.hashing.MurmurHash3
-class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
+class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
   override protected def parseTuple(value: Any): Unit = {
 
     val transaction = value.toString.split(",")
     if(transaction(1).equals("block_number")) return
-    val blockNumber = hexToInt(transaction(1))
+    val blockNumber = transaction(2).toInt
 
     val from = transaction(3).replaceAll("\"", "").toLowerCase
     val to   = transaction(4).replaceAll("\"", "").toLowerCase
@@ -33,12 +29,10 @@ class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, 
       VertexAddWithProperties(blockNumber, destinationNode, properties = Properties(ImmutableProperty("id", to)))
     )
     sendGraphUpdate(
-      EdgeAddWithProperties(
+      EdgeAdd(
         blockNumber,
         sourceNode,
-        destinationNode,
-        properties = Properties(StringProperty("value", sent))
-      )
+        destinationNode)
     )
 
   }

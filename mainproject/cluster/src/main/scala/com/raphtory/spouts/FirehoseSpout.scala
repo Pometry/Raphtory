@@ -31,7 +31,7 @@ class FirehoseSpout extends SpoutTrait {
       AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
       AllocateSpoutTask(Duration(60, SECONDS), "increase")
     }
-    case "increase" => JUMP += 2
+    case "increase" => JUMP += JUMP/10 ;AllocateSpoutTask(Duration(60, SECONDS), "increase")
     case "nextLineBLock" => nextLineBlock()
     case "nextFile" => nextFile()
     case _ => println("message not recognized!")
@@ -79,7 +79,7 @@ class FirehoseSpout extends SpoutTrait {
   def getListOfFiles(dir: String):Array[String] = {
     val d = new File(dir)
     if (d.exists && d.isDirectory) {
-      d.listFiles.filter(f=> f.isFile && !f.isHidden).map(f=> f.getCanonicalPath)
+      d.listFiles.filter(f=> f.isFile && !f.isHidden).map(f=> f.getCanonicalPath).sorted
     } else {
       Array[String]()
     }
