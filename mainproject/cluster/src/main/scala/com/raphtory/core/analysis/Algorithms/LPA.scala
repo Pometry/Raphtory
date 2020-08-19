@@ -1,37 +1,36 @@
 package com.raphtory.core.analysis.Algorithms
 
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
-import scala.collection.parallel.mutable.{ParArray, ParHashMap}
+import scala.collection.parallel.mutable.{ParArray}
 
 class LPA(args:Array[String]) extends Analyser(args){
-
-  override def setup(): Unit =
+  override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
-      val lab = vertex.ID()//scala.util.Random.nextLong()
-      vertex.setState("lpalabel", lab)//vertex.ID())
-      vertex.messageAllNeighbours(lab)//vertex.ID())
+      vertex.setState("lpalabel", vertex.ID())
+      vertex messageAllNeighbours vertex.ID()
     }
+  }
 
   override def analyse(): Unit = {
     view.getMessagedVertices().foreach { vertex =>
       val vlabel = vertex.getState[Long]("lpalabel")
       val gp = vertex.messageQueue[Long]
       gp.append(vlabel)
-      val label = labelProbability(gp.groupBy(identity))
-      if (label == vlabel) {
+      val newLabel = labelProbability(gp.groupBy(identity))
+      if (newLabel == vlabel) {
         vertex.voteToHalt()
+      }else {
+        vertex.setState("lpalabel", newLabel)
       }
-      else
-        vertex.setState("lpalabel", label)
-        vertex messageAllNeighbours label
+      vertex messageAllNeighbours newLabel
     }
   }
+
   def labelProbability(gp: Map[Long, ArrayBuffer[Long]]): Long ={
-//    label probability calculation to get rid of oscillation issue with synchronous LPA from [1]
+//    label probability function to get rid of oscillation phenomena of synchronous LPA from [1]
 //    [1] https://doi.org/10.1016/j.neucom.2014.04.084
 
     val f = gp.map{lab =>  Math.pow(lab._2.size, 2)}
@@ -48,7 +47,7 @@ class LPA(args:Array[String]) extends Analyser(args){
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
-    val commtxt = er.communities.map{x=> s"""[${(x.mkString(","))}]"""}
+    val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]"""}
     val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2}, "communities":[${commtxt.mkString(",")}],"viewTime":$viewCompleteTime}"""
     println(text)
     publishData(text)
@@ -56,7 +55,7 @@ class LPA(args:Array[String]) extends Analyser(args){
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
-    val commtxt = er.communities.map{x=> s"""[${(x.mkString(","))}]}"""}
+    val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]}"""}
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2}, "communities": [${commtxt.mkString(",")}],"viewTime":$viewCompleteTime}"""
     println(text)
     publishData(text)
@@ -70,7 +69,7 @@ class LPA(args:Array[String]) extends Analyser(args){
       val groupedNonIslands = grouped.filter(x => x._2.size > 1)
       val biggest = grouped.maxBy(_._2.size)._2.size
       val sorted = groupedNonIslands.toArray.sortBy(_._2.size)(sortOrdering).map(x=>x._2.size)
-      val top5 = if(sorted.length<=5) sorted else sorted.take(5)
+      val top5 = if(sorted.length<=10) sorted else sorted.take(10)
       val total = grouped.size
       val totalWithoutIslands = groupedNonIslands.size
       val totalIslands = total - totalWithoutIslands
