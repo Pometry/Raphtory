@@ -17,13 +17,13 @@ import com.twitter.util.Eval
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
 case class StartAnalysis()
 class AnalysisManager() extends Actor{
+  implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
   implicit val timeout: Timeout = 10.seconds
   final protected val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -84,11 +84,11 @@ class AnalysisManager() extends Actor{
         return
       val ref= request.windowType match {
         case "false" =>
-          context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime,newAnalyser,analyserFile)), s"LiveAnalysisTask_$jobID")
+          context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"), s"LiveAnalysisTask_$jobID")
         case "true" =>
-          context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSize,newAnalyser,analyserFile)), s"LiveAnalysisTask__windowed_$jobID")
+          context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSize,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"), s"LiveAnalysisTask__windowed_$jobID")
         case "batched" =>
-          context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSet,newAnalyser,analyserFile)), s"LiveAnalysisTask__batchWindowed_$jobID")
+          context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSet,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"), s"LiveAnalysisTask__batchWindowed_$jobID")
       }
       currentTasks put (jobID,ref)
   }
@@ -111,15 +111,15 @@ class AnalysisManager() extends Actor{
       val analyserFile = request.rawFile
       val ref =request.windowType match {
         case "false" =>
-          context.system.actorOf(Props(new ViewAnalysisTask(managerCount,jobID,args,analyser, timestamp,newAnalyser,analyserFile)), s"ViewAnalysisTask_$jobID")
+          context.system.actorOf(Props(new ViewAnalysisTask(managerCount,jobID,args,analyser, timestamp,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"), s"ViewAnalysisTask_$jobID")
         case "true" =>
           context.system.actorOf(
-            Props(new WindowedViewAnalysisTask(managerCount,jobID,args, analyser, timestamp, request.windowSize,newAnalyser,analyserFile)),
+            Props(new WindowedViewAnalysisTask(managerCount,jobID,args, analyser, timestamp, request.windowSize,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"),
             s"ViewAnalysisTask_windowed_$jobID"
           )
         case "batched" =>
           context.system.actorOf(
-            Props(new BWindowedViewAnalysisTask(managerCount,jobID, args,analyser, timestamp, request.windowSet,newAnalyser,analyserFile)),
+            Props(new BWindowedViewAnalysisTask(managerCount,jobID, args,analyser, timestamp, request.windowSet,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"),
             s"ViewAnalysisTask_batchWindowed_$jobID"
           )
       }
@@ -147,15 +147,15 @@ class AnalysisManager() extends Actor{
       val ref = request.windowType match {
         case "false" =>
           context.system
-            .actorOf(Props(new RangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump,newAnalyser,analyserFile)), s"RangeAnalysisTask_$jobID")
+            .actorOf(Props(new RangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"), s"RangeAnalysisTask_$jobID")
         case "true" =>
           context.system.actorOf(
-            Props(new WindowedRangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump, request.windowSize,newAnalyser,analyserFile)),
+            Props(new WindowedRangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump, request.windowSize,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"),
             s"RangeAnalysisTask_windowed_$jobID"
           )
         case "batched" =>
           context.system.actorOf(
-            Props(new BWindowedRangeAnalysisTask(managerCount,jobID,args, analyser, start, end, jump, request.windowSet,newAnalyser,analyserFile)),
+            Props(new BWindowedRangeAnalysisTask(managerCount,jobID,args, analyser, start, end, jump, request.windowSet,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"),
             s"RangeAnalysisTask_batchWindowed_$jobID"
           )
       }
@@ -193,7 +193,13 @@ class AnalysisManager() extends Actor{
     try {
       (false,Class.forName(analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser])
     } catch {
-      case e:ClassNotFoundException => processCompileNewAnalyserRequest(rawFile,args)
+      case e:NoSuchMethodException =>
+        try {
+          (false, Class.forName(analyserName).getConstructor().newInstance().asInstanceOf[Analyser])
+        }
+        catch {
+          case e:ClassNotFoundException => processCompileNewAnalyserRequest(rawFile,args)
+        }
     }
   }
 

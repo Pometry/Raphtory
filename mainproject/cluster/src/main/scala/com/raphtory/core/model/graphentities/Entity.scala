@@ -2,7 +2,6 @@ package com.raphtory.core.model.graphentities
 
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.HistoryOrdering
-import monix.execution.atomic.AtomicLong
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -27,8 +26,8 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
   private var saved                                   = false
   var shouldBeWiped                                   = false
 
-  var oldestPoint: AtomicLong = AtomicLong(creationTime)
-  var newestPoint: AtomicLong = AtomicLong(creationTime)
+  var oldestPoint: Long = creationTime
+  var newestPoint: Long = creationTime
 
   // History of that entity
   var removeList: mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
@@ -50,10 +49,10 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
   }
 
   def checkOldestNewest(msgTime: Long) = {
-    if (msgTime > newestPoint.get)
-      newestPoint.set(msgTime)
-    if (oldestPoint.get > msgTime) //check if the current point in history is the oldest
-      oldestPoint.set(msgTime)
+    if (msgTime > newestPoint)
+      newestPoint = msgTime
+    if (oldestPoint > msgTime) //check if the current point in history is the oldest
+      oldestPoint = msgTime
   }
 
   /** *
@@ -114,7 +113,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
       }                                    //for each point if it is safe then keep it
       compressedState = newCompressedState //overwrite the compressed state
       //properties.foreach{case ((propkey, property)) =>{property.archive(cutoff,compressing,entityType)}}//do the same for all properties //currently properties should exist until entity removed
-      newestPoint.get < cutoff && !head //return all points older than cutoff and latest update is deletion
+      newestPoint < cutoff && !head //return all points older than cutoff and latest update is deletion
     }
     false
   }
@@ -133,7 +132,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
         //else recordRemoval(entityType, workerID)
     }                                 //for each point if it is safe then keep it
     history = newPreviousState  //overwrite the compressed state
-    newestPoint.get < cutoff && !head //return all points older than cutoff and latest update is deletion
+    newestPoint < cutoff && !head //return all points older than cutoff and latest update is deletion
     false
   }
 
@@ -183,7 +182,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
   }
 
   def aliveAt(time: Long): Boolean =
-    if (time < oldestPoint.get)
+    if (time < oldestPoint)
       false
     else {
       val closest = closestTime(time)
@@ -191,7 +190,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
     }
 
   def aliveAtWithWindow(time: Long, windowSize: Long): Boolean =
-    if (time < oldestPoint.get)
+    if (time < oldestPoint)
       false
     else {
       val closest = closestTime(time)

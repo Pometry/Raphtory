@@ -3,7 +3,6 @@ package com.raphtory.examples.twitterRumour
 import akka.actor.ActorContext
 import com.raphtory.core.components.Spout.SpoutTrait
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.MILLISECONDS
 import scala.concurrent.duration.SECONDS
@@ -19,7 +18,6 @@ class rumourSpout extends SpoutTrait {
 
   var rtweetCounter  = 0
   var nrtweetCounter = 0
-//println("at spout....")
 
   override protected def ProcessSpoutTask(message: Any): Unit =
     // println(message)

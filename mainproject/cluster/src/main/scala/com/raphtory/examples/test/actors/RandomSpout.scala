@@ -3,7 +3,6 @@ package com.raphtory.examples.test.actors
 import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.utils.Utils
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Random

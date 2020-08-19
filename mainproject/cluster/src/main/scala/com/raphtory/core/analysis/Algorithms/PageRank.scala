@@ -58,7 +58,7 @@ class PageRank(args:Array[String]) extends Analyser(args) {
     (totalV, topUsers)
   }
 
-  override def defineMaxSteps(): Int = 10
+  override def defineMaxSteps(): Int = 20
 
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]

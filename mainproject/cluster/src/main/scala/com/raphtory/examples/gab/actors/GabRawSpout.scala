@@ -7,7 +7,6 @@ import com.mongodb.casbah.Imports._
 import com.raphtory.core.components.Spout.SpoutTrait
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
