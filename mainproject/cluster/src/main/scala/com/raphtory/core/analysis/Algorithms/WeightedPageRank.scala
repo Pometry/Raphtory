@@ -17,6 +17,11 @@ class WeightedPageRank(args:Array[String]) extends Analyser(args) {
     view.getVertices().foreach { vertex =>
       val outEdges = vertex.getOutEdges
       val outDegree = outEdges.size
+
+      vertex.getOutEdgesAfter(12345).foreach(edge => {
+        edge.getHistory().size
+      })
+
       if (outDegree > 0) {
         val toSend = 1.0/outEdges.map(e=> e.getHistory().size).sum
         vertex.setState("prlabel",toSend)

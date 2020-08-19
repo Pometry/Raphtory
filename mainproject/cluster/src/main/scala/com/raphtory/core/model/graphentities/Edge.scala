@@ -92,7 +92,7 @@ class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue:
     if (obj.isInstanceOf[Edge]) {
       val v2 = obj.asInstanceOf[Edge] //add associated edges
       if ((getSrcId == v2.getSrcId) && (getDstId == v2.getDstId) && (history
-            .equals(v2.history)) && (oldestPoint.get == v2.oldestPoint.get) && (newestPoint.get == newestPoint.get) && (properties
+            .equals(v2.history)) && (oldestPoint == v2.oldestPoint) && (newestPoint == newestPoint) && (properties
             .equals(v2.properties)))
         return true
     }

@@ -25,7 +25,7 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
 
   def ID() = v.vertexId
-  def Type() = v.getType
+
 
   def messageQueue[T: ClassTag]  = { //clears queue after getting it to make sure not there for next iteration
     val queue = v.multiQueue.getMessageQueue(viewJob, superStep)map(_.asInstanceOf[T])
@@ -110,13 +110,7 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
 
 
   //TODO work on properties
-  def getPropertySet(): ParSet[String] = v.properties.keySet
 
-  def getPropertyValue(key: String): Option[Any] =
-    v.properties.get(key) match {
-      case Some(p) => Some(p.currentValue)
-      case None    => None
-    }
 
   def setState(key: String, value: Any): Unit = {
     val realkey = key + timestamp + window
