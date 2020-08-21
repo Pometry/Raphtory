@@ -1,16 +1,20 @@
 package com.raphtory.core.analysis.Algorithms
 
 import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
-import scala.collection.parallel.mutable.{ParArray}
+import scala.collection.parallel.mutable.ParArray
 
 class LPA(args:Array[String]) extends Analyser(args){
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
-      vertex.setState("lpalabel", vertex.ID())
-      vertex messageAllNeighbours vertex.ID()
+      val lab = (vertex.getIncEdges.size+vertex.getOutEdges.size).toLong// scala.util.Random.nextLong()
+      vertex.setState("lpalabel", lab)//vertex.ID())
+      vertex.messageAllNeighbours(lab)//vertex.ID())
+//      vertex.setState("lpalabel", vertex.ID())
+//      vertex messageAllNeighbours vertex.ID()
     }
   }
 
@@ -26,6 +30,7 @@ class LPA(args:Array[String]) extends Analyser(args){
         vertex.setState("lpalabel", newLabel)
       }
       vertex messageAllNeighbours newLabel
+      doSomething(vertex, gp.toArray)
     }
   }
 
@@ -38,6 +43,8 @@ class LPA(args:Array[String]) extends Analyser(args){
     val gpp = gp.keys zip p
     gpp.filter(x=>x._2 == gpp.maxBy(_._2)._2).maxBy(_._1)._1
   }
+
+  def doSomething(v: VertexVisitor, gp: Array[Long]): Unit = {}
 
   override def returnResults(): Any =
     view.getVertices()
