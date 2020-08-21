@@ -9,6 +9,7 @@ import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.parallel.ParIterable
 import scala.collection.parallel.mutable.ParTrieMap
 
 class WindowLens(
@@ -32,7 +33,7 @@ class WindowLens(
   private val timetaken = System.currentTimeMillis()
 
   private var keySet: ParTrieMap[Long, Vertex] =
-    storage.vertices.filter(v => v._2.aliveAtWithWindow(timestamp, setWindow))
+    storage.vertices.filter(v => v._2.aliveAtWithWindow(timestamp, setWindow)).map(v=> (v._1,v._2.viewAtWithWindow(timestamp,setWindow)))
 
   viewTimer.update(System.currentTimeMillis()-timetaken)
 
@@ -40,30 +41,28 @@ class WindowLens(
   private var firstCall    = true
   var timeTest             = ArrayBuffer[Long]()
 
-  override def getVerticesSet(): ParTrieMap[Long, Vertex] = {
+  override def getVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] = {
     if (firstCall) {
       TotalKeySize += keySet.size
       firstCall = false
     }
-    keySet
+    keySet.map(v =>  new VertexVisitor(v._2, viewJobOriginal, superstep, this))
   }
 
-  private var keySetMessages: ParTrieMap[Long, Vertex] = null
+  private var keySetMessages: ParIterable[VertexVisitor] = null
   private var messageFilter                            = false
 
-  override def getVerticesWithMessages(): ParTrieMap[Long, Vertex] = {
+  override def getMessagedVertices()(implicit context: ActorContext, managerCount: ManagerCount):ParIterable[VertexVisitor] = {
     if (!messageFilter) {
       keySetMessages = keySet.filter {
         case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(viewJobCurrent, superstep).nonEmpty
-      }
+      }.map(v =>  new VertexVisitor(v._2, viewJobOriginal, superstep, this))
       TotalKeySize = keySetMessages.size + TotalKeySize
       messageFilter = true
     }
     keySetMessages
   }
 
-  override def getVertex(v: Vertex)(implicit context: ActorContext, managerCount: ManagerCount): VertexVisitor =
-    new VertexVisitor(v.viewAtWithWindow(timestamp, setWindow), viewJobCurrent, superstep, this)
 
   def shrinkWindow(newWindowSize: Long) = {
     setWindow = newWindowSize

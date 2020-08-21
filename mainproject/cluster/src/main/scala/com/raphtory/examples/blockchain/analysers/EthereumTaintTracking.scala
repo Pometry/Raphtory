@@ -15,48 +15,42 @@ class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
   val infectedNode = args(0).trim.toLowerCase
   val infectionStartingBlock = args(1).trim.toLong
   override def setup(): Unit =
-    proxy.getVerticesSet().foreach { v =>
-        val vertex = proxy.getVertex(v._2)
-        val walletID = vertex.getPropertyCurrentValue("id").get.asInstanceOf[String]
+    view.getVertices().foreach { vertex =>
+        val walletID = vertex.getPropertyValue("id").get.asInstanceOf[String]
       if(walletID equals infectedNode) {
-          vertex.getOrSetCompValue("infected", infectionStartingBlock)
-          vertex.getOrSetCompValue("infectedBy", "Start")
-          vertex.getOutgoingNeighborsAfter(infectionStartingBlock).foreach { neighbour =>
-            vertex.messageNeighbour(neighbour._1, (walletID,neighbour._2.getTimeAfter(infectionStartingBlock)))
+          vertex.getOrSetState("infected", infectionStartingBlock)
+          vertex.getOrSetState("infectedBy", "Start")
+          vertex.getOutEdgesAfter(infectionStartingBlock).foreach { neighbour =>
+            neighbour.send((walletID,neighbour.firstActivityAfter(infectionStartingBlock)))
           }
         }
     }
 
   override def analyse(): Unit =
-    proxy.getVerticesWithMessages().foreach { vert =>
-      val vertex = proxy.getVertex(vert._2)
+    view.getMessagedVertices().foreach { vertex =>
       var infectionBlock = infectionStartingBlock
       var infector = infectedNode
-      val queue  = vertex.messageQueue.map(_.asInstanceOf[(String,Long)])
-      if (queue.nonEmpty) {
-        infectionBlock = queue.map(x=>x._2).min
-        infector = queue.filter(x=>x._2==infectionBlock).head._1 //todo check if multiple
-        vertex.clearQueue
-      }
+      val queue  = vertex.messageQueue[(String,Long)]
+      infectionBlock = queue.map(x=>x._2).min
+      infector = queue.filter(x=>x._2==infectionBlock).head._1 //todo check if multiple
+
       //if (vertex.containsCompValue("infected"))
       //  vertex.voteToHalt() //already infected
       //else {
-      val walletID = vertex.getPropertyCurrentValue("id").get.asInstanceOf[String]
-      vertex.getOrSetCompValue("infected", infectionBlock)
-      vertex.getOrSetCompValue("infectedBy",infector)
-      vertex.getOutgoingNeighborsAfter(infectionBlock).foreach { neighbour =>
-        vertex.messageNeighbour(neighbour._1, (walletID,neighbour._2.getTimeAfter(infectionBlock)))
+      val walletID = vertex.getPropertyValue("id").get.asInstanceOf[String]
+      vertex.getOrSetState("infected", infectionBlock)
+      vertex.getOrSetState("infectedBy",infector)
+      vertex.getOutEdgesAfter(infectionBlock).foreach { neighbour =>
+        neighbour.send((walletID,neighbour.firstActivityAfter(infectionBlock)))
       }
       //}
     }
 
   override def returnResults(): Any =
-    proxy
-      .getVerticesSet()
-      .map { vert =>
-        val vertex = proxy.getVertex(vert._2)
-        if (vertex.containsCompValue("infected"))
-          (vertex.getPropertyCurrentValue("id").get.asInstanceOf[String], vertex.getCompValue("infected").asInstanceOf[Long],vertex.getCompValue("infectedBy").asInstanceOf[String])
+    view
+      .getVertices().map { vertex =>
+        if (vertex.containsState("infected"))
+          (vertex.getPropertyValue("id").get.asInstanceOf[String], vertex.getState("infected").asInstanceOf[Long],vertex.getState("infectedBy").asInstanceOf[String])
         else
           ("", -1L,"")
 
@@ -67,11 +61,6 @@ class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
 
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(String, Long,String)]]].flatten
-    //println(s"Run as of ${System.currentTimeMillis()}")
-    for (elem <- endResults) {println(s"${elem._1},${elem._2},${elem._3},")}
-    }
-  override def processViewResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(String, Long,String)]]].flatten
     var data = s"{block:$timeStamp,edges:["
     for (elem <- endResults)
       data+=s"""{"infected":"${elem._1}","block":"${elem._2}","infector":"${elem._3}"}"""
@@ -80,6 +69,5 @@ class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
     //for (elem <- endResults) {    Utils.writeLines(s"/Users/mirate/Documents/phd/etheroutput/block${timeStamp}.csv", s"${elem._1},${elem._2},${elem._3},", "")}
 
   }
-
 
 }

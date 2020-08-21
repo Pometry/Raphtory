@@ -4,7 +4,6 @@ import akka.actor.{ActorSystem, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
-import com.raphtory.tests.SingleNodeTest.{SpoutName, minimumRouters, partitionNumber, routerClassName}
 import kamon.Kamon
 import org.slf4j.LoggerFactory
 
@@ -19,14 +18,14 @@ object NaomiTest extends App{
   val minimumRouters  = 1
 
   var Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
-  Analyser = "com.raphtory.core.analysis.Algorithms.DegreeBasic"
+  Analyser = "com.raphtory.core.analysis.Algorithms.PageRank"
 
   val start = 1470837600000L
   val end =   31525368897000L
 
   val jump =    3600000
-  var SpoutName = "com.raphtory.examples.stackex.SXSpout"
-  var routerClassName = "com.raphtory.examples.stackex.SXRouter"
+  var SpoutName = "com.raphtory.examples.tsvnet.TSVSpout"
+  var routerClassName = "com.raphtory.examples.tsvnet.TSVRouter"
 
   val system = ActorSystem("Single-Node-test")
 

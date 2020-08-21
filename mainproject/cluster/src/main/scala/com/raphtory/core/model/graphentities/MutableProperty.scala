@@ -12,7 +12,7 @@ import scala.collection.mutable
   * @param key           Property name
   * @param value         Property value
   */
-class MutableProperty(creationTime: Long, key: String, value: Any, storage: EntityStorage) extends Property {
+class MutableProperty(creationTime: Long, key: String, value: Any, storage: EntityStorage) extends Property(creationTime) {
   private var saved = false
 
   // Initialize the TreeMap

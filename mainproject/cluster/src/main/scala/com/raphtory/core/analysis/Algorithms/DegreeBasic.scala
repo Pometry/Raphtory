@@ -14,11 +14,10 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
   override def setup(): Unit = {}
 
   override def returnResults(): Any = {
-    val degree = proxy.getVerticesSet().map { vert =>
-      val vertex    = proxy.getVertex(vert._2)
-      val outDegree = vertex.getOutgoingNeighbors.size
+    val degree = view.getVertices().map { vertex =>
+      val outDegree = vertex.getOutEdges.size
       val inDegree  = vertex.getIncEdges.size
-      (vert._1, outDegree, inDegree)
+      (vertex.ID(), outDegree, inDegree)
     }
     val totalV   = degree.size
     val totalOut = degree.map(x => x._2).sum
@@ -40,9 +39,11 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
       catch {
         case e: ArithmeticException => 0
       }
-    val text = s"""$timestamp,$totalVert,$totalEdge,$degree"""
-    Utils.writeLines(output_file, text, "")
+val startTime   = System.currentTimeMillis()
+    val text = s"""$timestamp,$totalVert,$totalEdge,$degree, $startTime"""
+   // Utils.writeLines(output_file, text, "")
     println(text)
+    publishData(text)
   }
 
   override def processWindowResults(
@@ -61,19 +62,9 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
         case e: ArithmeticException => 0
       }
     val text = s"""$timestamp,$windowSize,$totalVert,$totalEdge,$degree"""
-    Utils.writeLines(output_file, text, "")
-   // println(text)
-  }
+//    Utils.writeLines(output_file, text, "")
+    println(text)
+    publishData(text)
 
-  override def processBatchWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSet: Array[Long],
-      viewCompleteTime: Long
-  ): Unit =
-    for (i <- results.indices) {
-      val window     = results(i).asInstanceOf[ArrayBuffer[Any]]
-      val windowSize = windowSet(i)
-      processWindowResults(window, timestamp, windowSize, viewCompleteTime)
-    }
+  }
 }

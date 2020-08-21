@@ -18,7 +18,7 @@ class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, 
 
     val transaction = value.toString.split(",")
     if(transaction(1).equals("block_number")) return
-    val blockNumber = transaction(1).toInt
+    val blockNumber = hexToInt(transaction(1))
 
     val from = transaction(3).replaceAll("\"", "").toLowerCase
     val to   = transaction(4).replaceAll("\"", "").toLowerCase

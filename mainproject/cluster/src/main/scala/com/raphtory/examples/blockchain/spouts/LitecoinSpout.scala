@@ -6,7 +6,6 @@ import scalaj.http.Http
 import scalaj.http.HttpRequest
 import spray.json._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 

@@ -9,39 +9,34 @@ import scala.util.Random
 class BinaryDefusion(args:Array[String]) extends Analyser(args) {
   val infectedNode = 31
   override def setup(): Unit =
-    proxy.getVerticesSet().foreach { v =>
-      if (v._1 == infectedNode) {
-        val vertex = proxy.getVertex(v._2)
-        val toSend = vertex.getOrSetCompValue("infected", proxy.superStep()).asInstanceOf[Int]
-        vertex.getOutgoingNeighbors.foreach { neighbour =>
+    view.getVertices().foreach { vertex =>
+      if (vertex.ID() == infectedNode) {
+        val toSend = vertex.getOrSetState("infected", view.superStep()).asInstanceOf[Int]
+        vertex.getOutEdges.foreach { neighbour =>
           if (Random.nextBoolean())
-            vertex.messageNeighbour(neighbour._1, toSend)
+            vertex.messageNeighbour(neighbour.ID, toSend)
         }
       }
     }
 
   override def analyse(): Unit =
-    proxy.getVerticesWithMessages().foreach { vert =>
-      val vertex = proxy.getVertex(vert._2)
+    view.getMessagedVertices().foreach { vertex =>
       vertex.clearQueue
-      if (vertex.containsCompValue("infected"))
+      if (vertex.containsState("infected"))
         vertex.voteToHalt() //already infected
       else {
-        val toSend = vertex.getOrSetCompValue("infected", proxy.superStep()).asInstanceOf[Int]
-        vertex.getOutgoingNeighbors.foreach { neighbour =>
+        val toSend = vertex.getOrSetState("infected", view.superStep()).asInstanceOf[Int]
+        vertex.getOutEdges.foreach { neighbour =>
           if (Random.nextBoolean())
-            vertex.messageNeighbour(neighbour._1, toSend)
+            vertex.messageNeighbour(neighbour.ID, toSend)
         }
       }
     }
 
   override def returnResults(): Any =
-    proxy
-      .getVerticesSet()
-      .map { vert =>
-        val vertex = proxy.getVertex(vert._2)
-        if (vertex.containsCompValue("infected"))
-          (vert._1, vertex.getCompValue("infected").asInstanceOf[Int])
+    view.getVertices().map { vertex =>
+        if (vertex.containsState("infected"))
+          (vertex.ID, vertex.getState("infected").asInstanceOf[Int])
         else
           (-1, -1)
 
@@ -50,11 +45,10 @@ class BinaryDefusion(args:Array[String]) extends Analyser(args) {
 
   override def defineMaxSteps(): Int = 100
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = ???
-
-  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]].flatten
     println(endResults)
     println(endResults.size)
   }
+
 }
