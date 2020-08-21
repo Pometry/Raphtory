@@ -14,16 +14,15 @@ class GabMostUsedTopics(args:Array[String]) extends Analyser(args){
   override def analyse(): Unit = {
     //println("Analyzing")
     var results = ArrayBuffer[(String, Int, String)]()
-    proxy.getVerticesSet().foreach { v =>
-      val vertex = proxy.getVertex(v._2)
-      if (vertex.getPropertyCurrentValue("type").getOrElse("no type").equals("topic")) {
+    view.getVertices().foreach { vertex =>
+      if (vertex.getPropertyValue("type").getOrElse("no type").equals("topic")) {
         val ingoingNeighbors = vertex.getIncEdges.size
         results.synchronized {
-          vertex.getPropertyCurrentValue("id") match {
+          vertex.getPropertyValue("id") match {
             case None =>
             case Some(id) =>
               results +:= (id.toString, ingoingNeighbors, vertex
-                .getPropertyCurrentValue("title")
+                .getPropertyValue("title")
                 .getOrElse("no title")
                 .toString)
           }
@@ -48,7 +47,6 @@ class GabMostUsedTopics(args:Array[String]) extends Analyser(args){
       .foreach(topic => println(s"Topic: ${topic._3} with ID ${topic._1} and total uses of ${topic._2}"))
     println()
   }
-  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {}
   override def processWindowResults(
       results: ArrayBuffer[Any],
       timestamp: Long,

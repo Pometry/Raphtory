@@ -11,28 +11,28 @@ class ChainalysisABRouter(override val routerId: Int,override val workerID:Int, 
   def parseTuple(record: Any): Unit = {
     val dp = formatLine(record.asInstanceOf[String].split(",").map(_.trim))
     val transactionTime = dp.time
-    val srcClusterId = assignID(dp.srcCluster.toString)
-    val dstClusterId = assignID(dp.dstCluster.toString)
-    val transactionId = assignID(dp.txid.toString)
+    val srcClusterId = dp.srcCluster
+    val dstClusterId = dp.dstCluster
+    val transactionId = dp.txid
     val btcAmount = dp.amount
     val usdAmount = dp.usd
 
-    sendGraphUpdate(VertexAdd(transactionTime, srcClusterId, Type("Cluster")))
-    sendGraphUpdate(VertexAdd(transactionTime, dstClusterId, Type("Cluster")))
-    sendGraphUpdate(VertexAdd(transactionTime, transactionId, Type("Transaction")))
+    sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
+    sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
+    sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = transactionId, Type("Transaction")))
 
     sendGraphUpdate(
-      EdgeAddWithProperties(transactionTime,
-        srcClusterId,
-        transactionId,
+      EdgeAddWithProperties(msgTime = transactionTime,
+        srcID = srcClusterId,
+        dstID = transactionId,
         Properties(DoubleProperty("BitCoin", btcAmount), DoubleProperty("USD",usdAmount)),
         Type("Incoming Payment")
       )
     )
     sendGraphUpdate(
-      EdgeAddWithProperties(transactionTime,
-        transactionId,
-        dstClusterId,
+      EdgeAddWithProperties(msgTime = transactionTime,
+        srcID = transactionId,
+        dstID = dstClusterId,
         Properties(DoubleProperty("BitCoin", btcAmount), DoubleProperty("USD",usdAmount)),
         Type("Outgoing Payment")
       )

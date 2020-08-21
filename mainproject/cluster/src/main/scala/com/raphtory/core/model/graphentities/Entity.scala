@@ -2,7 +2,6 @@ package com.raphtory.core.model.graphentities
 
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.HistoryOrdering
-import monix.execution.atomic.AtomicLong
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -22,13 +21,13 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
   var properties: ParTrieMap[String, Property] = ParTrieMap[String, Property]()
 
   // History of that entity
-  var previousState: mutable.TreeMap[Long, Boolean]   = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+  var history: mutable.TreeMap[Long, Boolean]   = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
   var compressedState: mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
   private var saved                                   = false
   var shouldBeWiped                                   = false
 
-  var oldestPoint: AtomicLong = AtomicLong(creationTime)
-  var newestPoint: AtomicLong = AtomicLong(creationTime)
+  var oldestPoint: Long = creationTime
+  var newestPoint: Long = creationTime
 
   // History of that entity
   var removeList: mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
@@ -40,20 +39,20 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
 
   def revive(msgTime: Long): Unit = {
     checkOldestNewest(msgTime)
-    previousState.put(msgTime, true)
+    history.put(msgTime, true)
   }
 
   def kill(msgTime: Long): Unit = {
     checkOldestNewest(msgTime)
     removeList.put(msgTime, false)
-    previousState.put(msgTime, false)
+    history.put(msgTime, false)
   }
 
   def checkOldestNewest(msgTime: Long) = {
-    if (msgTime > newestPoint.get)
-      newestPoint.set(msgTime)
-    if (oldestPoint.get > msgTime) //check if the current point in history is the oldest
-      oldestPoint.set(msgTime)
+    if (msgTime > newestPoint)
+      newestPoint = msgTime
+    if (oldestPoint > msgTime) //check if the current point in history is the oldest
+      oldestPoint = msgTime
   }
 
   /** *
@@ -62,16 +61,16 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
   def apply(property: String): Property = properties(property)
 
   def compressHistory(cutoff: Long): mutable.TreeMap[Long, Boolean] = {
-    if (previousState.isEmpty)
+    if (history.isEmpty)
       return mutable.TreeMap()(HistoryOrdering) //if we have no need to compress, return an empty list
-    if (previousState.takeRight(1).head._1 >= cutoff)
+    if (history.takeRight(1).head._1 >= cutoff)
       return mutable.TreeMap()(HistoryOrdering) //if the oldest point is younger than the cut off no need to do anything
     var toWrite: mutable.TreeMap[Long, Boolean]          = mutable.TreeMap()(HistoryOrdering) //data which needs to be saved to cassandra
     var newPreviousState: mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering) //map which will replace the current history
 
-    var PriorPoint: (Long, Boolean) = previousState.head
+    var PriorPoint: (Long, Boolean) = history.head
     var swapped                     = false //specify pivot point when crossing over the cutoff as you don't want to compare to historic points which are still changing
-    previousState.foreach {
+    history.foreach {
       case (k, v) =>
         if (k >= cutoff)                                      //still in read write space so
           newPreviousState.put(k, v)                          //add to new uncompressed history
@@ -94,13 +93,13 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
               PriorPoint._1,
               PriorPoint._2
       ) //if the last point in the uncompressed history wasn't past the cutoff it needs to go back into the new uncompressed history
-    previousState = newPreviousState
+    history = newPreviousState
     toWrite
   }
 
   //val removeFrom = if(compressing) compressedState else previousState
   def archive(cutoff: Long, compressing: Boolean, entityType: Boolean, workerID: Int): Boolean = { //
-    if (previousState.isEmpty && compressedState.isEmpty) return false //blank node, decide what to do later
+    if (history.isEmpty && compressedState.isEmpty) return false //blank node, decide what to do later
     if (compressedState.nonEmpty) {
       if (compressedState.takeRight(1).head._1 >= cutoff)
         return false //if the oldest point is younger than the cut off no need to do anything
@@ -114,26 +113,26 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
       }                                    //for each point if it is safe then keep it
       compressedState = newCompressedState //overwrite the compressed state
       //properties.foreach{case ((propkey, property)) =>{property.archive(cutoff,compressing,entityType)}}//do the same for all properties //currently properties should exist until entity removed
-      newestPoint.get < cutoff && !head //return all points older than cutoff and latest update is deletion
+      newestPoint < cutoff && !head //return all points older than cutoff and latest update is deletion
     }
     false
   }
 
   def archiveOnly(cutoff: Long, entityType: Boolean, workerID: Int): Boolean = { //
-    if (previousState.isEmpty) return false //blank node, decide what to do later
-    if (previousState.takeRight(1).head._1 >= cutoff)
+    if (history.isEmpty) return false //blank node, decide what to do later
+    if (history.takeRight(1).head._1 >= cutoff)
       return false //if the oldest point is younger than the cut off no need to do anything
 
-    var head                                             = previousState.head._2 //get the head of later
+    var head                                             = history.head._2 //get the head of later
     val newPreviousState: mutable.TreeMap[Long, Boolean] = mutable.TreeMap()(HistoryOrdering)
-    previousState.foreach {
+    history.foreach {
       case (k, v) =>
         if (k >= cutoff)
           newPreviousState put (k, v)
         //else recordRemoval(entityType, workerID)
     }                                 //for each point if it is safe then keep it
-    previousState = newPreviousState  //overwrite the compressed state
-    newestPoint.get < cutoff && !head //return all points older than cutoff and latest update is deletion
+    history = newPreviousState  //overwrite the compressed state
+    newestPoint < cutoff && !head //return all points older than cutoff and latest update is deletion
     false
   }
 
@@ -155,11 +154,11 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
   def beenSaved(): Boolean = saved
   def firstSave(): Unit    = saved = true
 
-  def wipe() = previousState = mutable.TreeMap()(HistoryOrdering)
+  def wipe() = history = mutable.TreeMap()(HistoryOrdering)
 
-  def getHistorySize(): Int = previousState.size + compressedState.size
+  def getHistorySize(): Int = history.size + compressedState.size
 
-  def getUncompressedSize(): Int = previousState.size
+  def getUncompressedSize(): Int = history.size
 
   def getId: Long
   def getPropertyCurrentValue(key: String): Option[Any] =
@@ -173,7 +172,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
   protected def closestTime(time: Long): (Long, Boolean) = {
     var closestTime: Long = -1
     var value             = false
-    for ((k, v) <- previousState)
+    for ((k, v) <- history)
       if (k <= time)
         if ((time - k) < (time - closestTime)) {
           closestTime = k
@@ -183,7 +182,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
   }
 
   def aliveAt(time: Long): Boolean =
-    if (time < oldestPoint.get)
+    if (time < oldestPoint)
       false
     else {
       val closest = closestTime(time)
@@ -191,7 +190,7 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
     }
 
   def aliveAtWithWindow(time: Long, windowSize: Long): Boolean =
-    if (time < oldestPoint.get)
+    if (time < oldestPoint)
       false
     else {
       val closest = closestTime(time)
@@ -199,6 +198,11 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
         closest._2
       else false
     }
+
+  def activityAfter(time:Long) = history.exists(k => k._1 >= time)
+  def activityBefore(time:Long)= history.exists(k => k._1 <= time)
+  def activityBetween(min:Long, max:Long)= history.exists(k => k._1 >= min &&  k._1 <= max)
+
 
 }
 //def latestRouterCheck(newRouter:Int):Boolean = newRouter==latestRouter

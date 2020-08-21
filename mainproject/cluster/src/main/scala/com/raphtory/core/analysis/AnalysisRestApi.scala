@@ -11,7 +11,6 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import akka.cluster.pubsub._

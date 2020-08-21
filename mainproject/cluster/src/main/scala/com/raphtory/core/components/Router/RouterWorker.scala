@@ -13,7 +13,6 @@ import kamon.Kamon
 
 import scala.concurrent.duration._
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.util.hashing.MurmurHash3
 
@@ -27,6 +26,8 @@ trait RouterWorker extends Actor with ActorLogging {
   var newestTime:Long = 0
   var trackedMessage = false
   var trackedTime = 0L
+  implicit val executionContext = context.system.dispatchers.lookup("router-dispatcher")
+
   private val messageIDs = ParTrieMap[String, Int]()
   /** Private and protected values */
   private var managerCount: Int = initialManagerCount

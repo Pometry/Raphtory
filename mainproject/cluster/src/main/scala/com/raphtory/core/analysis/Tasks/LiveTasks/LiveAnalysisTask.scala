@@ -5,13 +5,13 @@ import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.Tasks.AnalysisTask
 import com.raphtory.core.model.communication.{AnalyserPresentCheck, AnalysisType, Finish, Setup, TimeCheck}
 import com.raphtory.core.utils.Utils
-import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 
 class LiveAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analyser: Analyser,repeatTime:Long,eventTime:Boolean,newAnalyser:Boolean,rawFile:String)
   extends AnalysisTask(jobID,args, analyser,managerCount,newAnalyser,rawFile) {
+  //implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
   override protected def analysisType(): AnalysisType.Value = AnalysisType.live
   protected var currentTimestamp = 1L
   override def timestamp(): Long = currentTimestamp
