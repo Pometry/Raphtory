@@ -33,7 +33,7 @@ class WatermarkManager(managerCount: Int) extends Actor with ActorLogging  {
     val currentTime = System.currentTimeMillis()
     safeMessageMap put(sender().toString(),u.time)
     counter +=1
-    if(counter%(10*managerCount)==0) {
+    if(counter%(100*managerCount)==0) {
       val watermark = safeMessageMap.map(x=>x._2).min
       safeTime.update(watermark)
       while((watermarkqueue nonEmpty) && (watermarkqueue.head.timestamp<= watermark)) {

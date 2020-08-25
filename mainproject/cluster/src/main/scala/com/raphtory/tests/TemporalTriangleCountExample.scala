@@ -26,7 +26,8 @@ object TemporalTriangleCountExample extends App{
 
 
   //var SpoutName ="com.raphtory.examples.test.actors.TriangleTestSpout"
-  var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+  //var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+  var SpoutName = "com.raphtory.spouts.FirehoseSpout"
   system.actorOf(Props(Class.forName(SpoutName)), "Spout")
 
   //var routerClassName = "com.raphtory.examples.test.actors.TriangleTestRouter"
