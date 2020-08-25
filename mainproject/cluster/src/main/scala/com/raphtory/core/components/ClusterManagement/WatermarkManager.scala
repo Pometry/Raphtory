@@ -3,6 +3,7 @@ package com.raphtory.core.components.ClusterManagement
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.model.communication.{UpdateArrivalTime, WatermarkTime}
+import com.raphtory.core.utils.Utils
 import kamon.Kamon
 
 import scala.collection.mutable
@@ -33,7 +34,7 @@ class WatermarkManager(managerCount: Int) extends Actor with ActorLogging  {
     val currentTime = System.currentTimeMillis()
     safeMessageMap put(sender().toString(),u.time)
     counter +=1
-    if(counter%(100*managerCount)==0) {
+    if(counter%(Utils.totalWorkers*managerCount)==0) {
       val watermark = safeMessageMap.map(x=>x._2).min
       safeTime.update(watermark)
       while((watermarkqueue nonEmpty) && (watermarkqueue.head.timestamp<= watermark)) {

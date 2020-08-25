@@ -23,7 +23,7 @@ class Reader(
     test: Boolean,
     managerCountVal: Int,
     storage: ParTrieMap[Int, EntityStorage],
-    workerCount: Int = 100
+    workerCount: Int = Utils.totalWorkers
 ) extends Actor
         with ActorLogging {
 
