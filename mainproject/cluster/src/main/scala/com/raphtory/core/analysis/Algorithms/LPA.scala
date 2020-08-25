@@ -70,7 +70,7 @@ class LPA(args:Array[String]) extends Analyser(args){
   }
 
   def extractData(results:ArrayBuffer[Any]):fd ={
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long,  ParArray[Long]]]]
+    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long,  ParArray[String]]]]
     try {
       val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
       val groupedNonIslands = grouped.filter(x => x._2.size > 1)
@@ -85,7 +85,7 @@ class LPA(args:Array[String]) extends Analyser(args){
       val communities =  grouped.map(x=>x._2.toArray).toArray
       fd(top5,total,totalIslands,proportion,totalGT2, communities)
     }  catch {
-      case e: UnsupportedOperationException => fd(Array(0),0,0,0,0, Array(Array(0)))
+      case e: UnsupportedOperationException => fd(Array(0),0,0,0,0, Array(Array("0")))
     }
   }
 
@@ -93,5 +93,5 @@ class LPA(args:Array[String]) extends Analyser(args){
 
 }
 
-case class fd(top5:Array[Int],total:Int,totalIslands:Int,proportion:Float,totalGT2:Int, communities: Array[Array[Long]])
+case class fd(top5:Array[Int],total:Int,totalIslands:Int,proportion:Float,totalGT2:Int, communities: Array[Array[String]])
 
