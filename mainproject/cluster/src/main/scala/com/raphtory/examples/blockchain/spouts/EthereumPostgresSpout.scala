@@ -7,7 +7,6 @@ import doobie.implicits._
 import doobie.util.ExecutionContexts
 import doobie.util.transactor.Transactor
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.MILLISECONDS
 import scala.concurrent.duration.SECONDS

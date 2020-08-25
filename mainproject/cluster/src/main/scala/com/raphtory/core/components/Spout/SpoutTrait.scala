@@ -16,7 +16,6 @@ import kamon.Kamon
 
 import scala.collection.mutable
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -27,6 +26,7 @@ import scala.language.postfixOps
 trait SpoutTrait extends Actor with ActorLogging with Timers {
   case class StartSpout()
   private var safe            = false
+  implicit val executionContext = context.system.dispatchers.lookup("spout-dispatcher")
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
   val spoutTuples       = Kamon.counter("Raphtory_Spout_Tuples").withTag("actor",self.path.name)

@@ -90,9 +90,9 @@ lazy val basicSettings = Seq(
 
 lazy val dockerStuff = Seq(
         maintainer := "Ben Steer <b.a.steer@qmul.ac.uk>",
-        dockerBaseImage := "narnolddd/raphtory:latest",
+        dockerBaseImage := "miratepuffin/raphtory-redis:latest",
         dockerRepository := Some("narnolddd"),
-        dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600,8081)
+        dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600,8081,46339)
 )
 
 lazy val root = Project(id = "raphtory", base = file(".")) aggregate (cluster)
@@ -155,5 +155,5 @@ lazy val cluster = project
   .settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
           javaAgents += "io.kamon" % "kanela-agent" % "1.0.6",
-          javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default -XX:+UseG1GC -XX:+UseStringDeduplication"
+          javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC -XX:+UseStringDeduplication"
   )

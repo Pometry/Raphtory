@@ -47,7 +47,6 @@ abstract class Serialiser extends Analyser(null){
       bw.write(line)
       bw.newLine()
     }
-    println("hello2")
     for (line <- serialisedResults._2) {
       bw.write(line)
       bw.newLine()

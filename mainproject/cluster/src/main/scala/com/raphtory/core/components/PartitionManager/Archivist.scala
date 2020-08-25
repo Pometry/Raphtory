@@ -12,7 +12,6 @@ import kamon.Kamon
 import org.slf4j.LoggerFactory
 
 import scala.collection.parallel.mutable.ParTrieMap
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 // TODO fix edges
@@ -24,7 +23,7 @@ class Archivist(maximumMem: Double, workers: ParTrieMap[Int, ActorRef], storages
   val archiving: Boolean   = Utils.archiving
   val debug                = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
   if (debug) println(s"Archivist compressing = $compressing, Saving = $saving, Archiving = $archiving")
-
+  implicit val executionContext = context.system.dispatchers.lookup("worker-dispatcher")
   //Turn logging off
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
@@ -49,7 +48,7 @@ class Archivist(maximumMem: Double, workers: ParTrieMap[Int, ActorRef], storages
 
   // children for distribution of compresssion and archiving
   val vertexManager = context
-    .actorOf(Props(new ArchivistWorker(workers, storages)).withDispatcher("archivist-dispatcher"), "vertexcompressor");
+    .actorOf(Props(new ArchivistWorker(workers, storages)), "vertexcompressor");
 
   val archGauge = Kamon.gauge("raphtory_archivist")
 

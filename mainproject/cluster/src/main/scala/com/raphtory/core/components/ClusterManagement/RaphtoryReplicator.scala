@@ -22,7 +22,6 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -42,7 +41,7 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
 
   // TODO Make implicit timeouts as secondary (curried), optional implicit parameter
   implicit val timeout: Timeout = 10.seconds
-
+  implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
 
   var myId: Int                = -1
@@ -137,7 +136,7 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
     var workers: ParTrieMap[Int, ActorRef]       = new ParTrieMap[Int, ActorRef]()
     var storages: ParTrieMap[Int, EntityStorage] = new ParTrieMap[Int, EntityStorage]()
 
-    for (index <- 0 until 10) {
+    for (index <- 0 until 100) {
       val storage     = new EntityStorage(assignedId,index)
       storages.put(index, storage)
 
@@ -149,13 +148,9 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
       )
     }
 
-    actorRef = context.system.actorOf(
-            Props(new Writer(myId, false, currentCount, workers, storages)).withDispatcher("logging-dispatcher"),
-            s"Manager_$myId"
-    )
+    actorRef = context.system.actorOf(Props(new Writer(myId, false, currentCount, workers, storages)), s"Manager_$myId")
 
-    actorRefReader =
-      context.system.actorOf(Props(new Reader(myId, false, currentCount, storages)), s"ManagerReader_$myId")
+    actorRefReader = context.system.actorOf(Props(new Reader(myId, false, currentCount, storages)), s"ManagerReader_$myId")
 
     context.system.actorOf(Props(new Archivist(0.3, workers, storages)))
 
