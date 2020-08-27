@@ -1,22 +1,21 @@
 package com.raphtory.spouts
 
-import java.io.File
+import java.io.{BufferedReader, File, FileReader}
 import java.time.LocalDateTime
 
 import com.raphtory.core.components.Spout.SpoutTrait
 
-import scala.concurrent.duration.{Duration, NANOSECONDS,MILLISECONDS}
+import scala.concurrent.duration.{Duration, MILLISECONDS, NANOSECONDS, SECONDS}
 import scala.io.Source
 
-class FileSpout extends SpoutTrait {
+class FirehoseSpout extends SpoutTrait {
 
   println("Start: " + LocalDateTime.now())
   val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
   val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
   val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
-  val JUMP = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "50").trim.toInt
+  var JUMP = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "100").trim.toInt
 
-  var filePosition         = 0
   var directoryPosition    = 0
 
   val filesToRead = if(fileName.isEmpty)
@@ -28,8 +27,11 @@ class FileSpout extends SpoutTrait {
 
 
   protected def ProcessSpoutTask(message: Any): Unit = message match {
-    case StartSpout => AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
-
+    case StartSpout => {
+      AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
+      AllocateSpoutTask(Duration(60, SECONDS), "increase")
+    }
+    case "increase" => JUMP += JUMP/10 ;AllocateSpoutTask(Duration(60, SECONDS), "increase")
     case "nextLineBLock" => nextLineBlock()
     case "nextFile" => nextFile()
     case _ => println("message not recognized!")
@@ -38,8 +40,11 @@ class FileSpout extends SpoutTrait {
   def nextLineBlock() = {
     try {
       for (i <- 1 to JUMP) {
-        sendTuple(currentFile(filePosition))
-        filePosition += 1
+        val line = currentFile.readLine()
+        if(line!=null)
+          sendTuple(line)
+        else
+          throw new Exception
       }
       AllocateSpoutTask(Duration(1, MILLISECONDS), "nextLineBLock")
     }
@@ -62,16 +67,19 @@ class FileSpout extends SpoutTrait {
 
   def fileToArray(pos:Int) ={
     println(s"Now reading ${filesToRead(pos)}")
-    if(dropHeader)
-      Source.fromFile(filesToRead(pos)).getLines.drop(1).toArray
+    if(dropHeader){
+      val br = new BufferedReader(new FileReader(filesToRead(pos)))
+      br.readLine()
+      br
+    }
     else
-      Source.fromFile(filesToRead(pos)).getLines.toArray
+      new BufferedReader(new FileReader(filesToRead(pos)))
   }
 
   def getListOfFiles(dir: String):Array[String] = {
     val d = new File(dir)
     if (d.exists && d.isDirectory) {
-      d.listFiles.filter(f=> f.isFile && !f.isHidden).map(f=> f.getCanonicalPath)
+      d.listFiles.filter(f=> f.isFile && !f.isHidden).map(f=> f.getCanonicalPath).sorted
     } else {
       Array[String]()
     }
