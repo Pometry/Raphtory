@@ -38,7 +38,7 @@ class MultiLayerLPA(args:Array[String]) extends LPA(args) {
         if (newlab == tv._2) {count += 1}
         (ts, newlab)
       }
-      vertex.setState("lpalabel", newLabel) //TODO check calc checks out
+      vertex.setState("lpalabel", newLabel) 
       vertex.messageAllNeighbours((vertex.ID(), newLabel))
       if (count == vlabel.size) {vertex.voteToHalt()}
     }
@@ -57,7 +57,7 @@ class MultiLayerLPA(args:Array[String]) extends LPA(args) {
       val biggest = grouped.maxBy(_._2.size)._2.size
       val sorted = groupedNonIslands.toArray.sortBy(_._2.size)(sortOrdering).map(x => x._2.size)
       val top5 = if (sorted.length <= 10) sorted else sorted.take(10)
-      val communities = grouped.map(x => x._2.toArray).toArray
+      val communities = grouped.map(x => x._2).toArray
       val total = grouped.size
       val totalWithoutIslands = groupedNonIslands.size
       val totalIslands = total - totalWithoutIslands
@@ -65,7 +65,7 @@ class MultiLayerLPA(args:Array[String]) extends LPA(args) {
       val totalGT2 = grouped.count(x => x._2.size > 2)
       fd(top5, total, totalIslands, proportion, totalGT2, communities)
     } catch {
-      case e: UnsupportedOperationException => fd(Array(0),0,0,0,0, Array(Array("0")))
+      case e: UnsupportedOperationException => fd(Array(0),0,0,0,0, Array(ArrayBuffer("0")))
     }
   }
 

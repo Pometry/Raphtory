@@ -62,8 +62,8 @@ class LPA(args:Array[String]) extends Analyser(args){
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
-    val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]}"""}
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2}, "communities": [${commtxt.mkString(",")}],"viewTime":$viewCompleteTime}"""
+    val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]"""}
+    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt.mkString(",")}],"proportion":${er.proportion},"clustersGT2":${er.totalGT2}, "viewTime":$viewCompleteTime}"""
     println(text)
     publishData(text)
 
@@ -82,10 +82,10 @@ class LPA(args:Array[String]) extends Analyser(args){
       val totalIslands = total - totalWithoutIslands
       val proportion = biggest.toFloat / grouped.map(x => x._2.size).sum
       val totalGT2 = grouped.count(x => x._2.size > 2)
-      val communities =  grouped.map(x=>x._2.toArray).toArray
-      fd(top5,total,totalIslands,proportion,totalGT2, communities)
+      val communities =  grouped.map(x=>x._2)//.toArray
+      fd(top5,total,totalIslands,proportion,totalGT2, communities.toArray)
     }  catch {
-      case e: UnsupportedOperationException => fd(Array(0),0,0,0,0, Array(Array("0")))
+      case e: UnsupportedOperationException => fd(Array(0),0,0,0,0, Array(ArrayBuffer("0")))
     }
   }
 
@@ -93,5 +93,5 @@ class LPA(args:Array[String]) extends Analyser(args){
 
 }
 
-case class fd(top5:Array[Int],total:Int,totalIslands:Int,proportion:Float,totalGT2:Int, communities: Array[Array[String]])
+case class fd(top5:Array[Int],total:Int,totalIslands:Int,proportion:Float,totalGT2:Int, communities: Array[ArrayBuffer[String]])
 
