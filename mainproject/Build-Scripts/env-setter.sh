@@ -10,5 +10,8 @@ echo "HOST_IP      = $HOST_IP"
 echo "HOSTNAME     = $HOSTNAME"
 echo "/////////////////////"
 
+cd /node_exporter-1.0.1.linux-386
+./node_exporter &
+
 cd /opt/docker/bin
 go $1
