@@ -11,7 +11,9 @@ echo "HOSTNAME     = $HOSTNAME"
 echo "/////////////////////"
 
 cd /node_exporter-1.0.1.linux-386
-./node_exporter &
+./node_exporter >/dev/null &
+
+sleep 5
 
 cd /opt/docker/bin
 go $1

@@ -63,16 +63,10 @@ class KafkaSpout extends SpoutTrait {
 case class KafkaData(data:String)
 class KafkaSpoutBackPressure(queue:LinkedBlockingQueue[String]) extends SpoutTrait {
   var startingSpeed     = System.getenv().getOrDefault("STARTING_SPEED", "1000").trim.toInt
-  var increaseBy        = System.getenv().getOrDefault("INCREASE_BY", "1000").trim.toInt
-  override def preStart(): Unit = {
-    super.preStart()
-    AllocateSpoutTask(Duration(60,SECONDS),"increase")
-  }
   override protected def ProcessSpoutTask(receivedMessage: Any): Unit = receivedMessage match {
     case StartSpout => AllocateSpoutTask(Duration(1, MILLISECONDS), "newLine")
     case KafkaData(data) => queue.put(data)
     case "newLine"  => consumeFromQueue
-    case "increase"  => startingSpeed+=increaseBy; AllocateSpoutTask(Duration(60,SECONDS),"increase")
     case _          => println("message not recognized!")
   }
   def consumeFromQueue() = {

@@ -19,8 +19,4 @@ case class ManagerNode(seedLoc: String, partitionCount: Int) extends DocSvr {
           actorName
   )
 
-  if (persistenceEnabled)
-    //Process("cassandra").lineStream //run cassandara in background on manager
-    Thread.sleep(5000)
-
 }
