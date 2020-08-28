@@ -92,7 +92,7 @@ class WeightedPageRank(args:Array[String]) extends Analyser(args) {
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
-    Utils.writeLines(output_file, text, "{\"views\":[")
+    //Utils.writeLines(output_file, text, "{\"views\":[")
     println(text)
     //publishData(text)
   }
