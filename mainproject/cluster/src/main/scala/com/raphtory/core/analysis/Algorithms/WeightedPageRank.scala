@@ -18,10 +18,6 @@ class WeightedPageRank(args:Array[String]) extends Analyser(args) {
       val outEdges = vertex.getOutEdges
       val outDegree = outEdges.size
 
-      vertex.getOutEdgesAfter(12345).foreach(edge => {
-        edge.getHistory().size
-      })
-
       if (outDegree > 0) {
         val toSend = 1.0/outEdges.map(e=> e.getHistory().size).sum
         vertex.setState("prlabel",toSend)
@@ -79,5 +75,25 @@ class WeightedPageRank(args:Array[String]) extends Analyser(args) {
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text = s"""{"time":$timeStamp,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
     println(text)
+  }
+
+  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long,
+                                     viewCompleteTime: Long ):
+  Unit = {
+    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
+    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","WeightedPageRank.json").trim
+    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
+    val totalVert = endResults.map(x => x._1).sum
+    val bestUsers = endResults
+      .map(x => x._2)
+      .flatten
+      .sortBy(x => x._2)(sortOrdering)
+      .take(10)
+      .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
+    val text =
+      s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
+    //Utils.writeLines(output_file, text, "{\"views\":[")
+    println(text)
+    //publishData(text)
   }
 }

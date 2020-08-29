@@ -89,10 +89,10 @@ lazy val basicSettings = Seq(
 )
 
 lazy val dockerStuff = Seq(
-        maintainer := "Imane Hafnaoui <i.hafnaoui@qmul.ac.uk>",
+        maintainer := "Ben Steer <b.a.steer@qmul.ac.uk>",
         dockerBaseImage := "miratepuffin/raphtory-redis:latest",
         dockerRepository := Some("miratepuffin"),
-        dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600,8081,46339,9100)
+        dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600,8081,46339,9100),
 )
 
 lazy val root = Project(id = "raphtory", base = file(".")) aggregate (cluster)

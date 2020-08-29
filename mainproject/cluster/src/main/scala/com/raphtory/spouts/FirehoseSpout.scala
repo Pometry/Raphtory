@@ -31,7 +31,7 @@ class FirehoseSpout extends SpoutTrait {
       AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
       AllocateSpoutTask(Duration(60, SECONDS), "increase")
     }
-    case "increase" => JUMP += JUMP/10 ;AllocateSpoutTask(Duration(60, SECONDS), "increase")
+    case "increase" => JUMP += 2 ;AllocateSpoutTask(Duration(60, SECONDS), "increase")
     case "nextLineBLock" => nextLineBlock()
     case "nextFile" => nextFile()
     case _ => println("message not recognized!")
