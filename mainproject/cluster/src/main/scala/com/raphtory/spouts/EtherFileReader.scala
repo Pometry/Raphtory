@@ -8,7 +8,7 @@ import com.raphtory.core.components.Spout.SpoutTrait
 import scala.concurrent.duration.{Duration, MILLISECONDS, NANOSECONDS, SECONDS}
 import scala.io.Source
 
-class FirehoseSpout extends SpoutTrait {
+class EtherFileReader extends SpoutTrait {
 
   println("Start: " + LocalDateTime.now())
   val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
@@ -27,6 +27,10 @@ class FirehoseSpout extends SpoutTrait {
 
   var currentFile = fileToArray(directoryPosition)
 
+  object sortOrdering extends Ordering[String] {
+    def massage(filename:String) = filename.split("_")(0).replaceAll("/app/transactions","").toInt
+    def compare(key1: String, key2: String) = massage(key1).compareTo(massage(key2))
+  }
 
   protected def ProcessSpoutTask(message: Any): Unit = message match {
     case StartSpout => {
@@ -81,7 +85,7 @@ class FirehoseSpout extends SpoutTrait {
   def getListOfFiles(dir: String):Array[String] = {
     val d = new File(dir)
     if (d.exists && d.isDirectory) {
-      d.listFiles.filter(f=> f.isFile && !f.isHidden).map(f=> f.getCanonicalPath).sorted
+      d.listFiles.filter(f=> f.isFile && !f.isHidden).map(f=> f.getCanonicalPath).sorted(sortOrdering)
     } else {
       Array[String]()
     }
