@@ -8,7 +8,7 @@ import com.raphtory.core.components.Spout.SpoutTrait
 import scala.concurrent.duration.{Duration, MILLISECONDS, NANOSECONDS, SECONDS}
 import scala.io.Source
 
-class FirehoseSpout extends SpoutTrait {
+class FirehoseSpoutEx extends SpoutTrait {
 
   println("Start: " + LocalDateTime.now())
   val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
@@ -33,7 +33,7 @@ class FirehoseSpout extends SpoutTrait {
       AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
       AllocateSpoutTask(Duration(60, SECONDS), "increase")
     }
-    case "increase" => JUMP += INCREMENT ;AllocateSpoutTask(Duration(TIME, SECONDS), "increase")
+    case "increase" => JUMP += (JUMP/10) ;AllocateSpoutTask(Duration(TIME, SECONDS), "increase")
     case "nextLineBLock" => nextLineBlock()
     case "nextFile" => nextFile()
     case _ => println("message not recognized!")
@@ -88,4 +88,5 @@ class FirehoseSpout extends SpoutTrait {
   }
 
 }
+
 
