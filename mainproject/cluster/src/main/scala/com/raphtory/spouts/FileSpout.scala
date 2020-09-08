@@ -50,6 +50,7 @@ class FileSpout extends SpoutTrait {
 
   def nextFile() = {
     directoryPosition += 1
+    filePosition = 0
     if (filesToRead.length > directoryPosition) {
       currentFile = fileToArray(directoryPosition)
       AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
