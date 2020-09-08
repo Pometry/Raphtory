@@ -2,13 +2,18 @@ package com.raphtory.examples.blockchain.routers
 
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, ImmutableProperty, Properties, StringProperty, VertexAdd, VertexAddWithProperties}
+import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, EdgeDelete, ImmutableProperty, Properties, StringProperty, VertexAdd, VertexAddWithProperties, VertexDelete}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
 import spray.json._
 
+import scala.util.Random
 import scala.util.hashing.MurmurHash3
 class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
+  var DELETEPERCENT = System.getenv().getOrDefault("ETHER_DELETE_PERCENT", "0").trim.toDouble/100
+  println(DELETEPERCENT)
+  var DELETESEED = System.getenv().getOrDefault("ETHER_DELETE_SEED", "123").trim.toInt
+  val random = new Random(DELETESEED)
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
   override protected def parseTuple(value: Any): Unit = {
 
@@ -22,20 +27,19 @@ class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, 
     val sourceNode      = assignID(from) //hash the id to get a vertex ID
     val destinationNode = assignID(to)   //hash the id to get a vertex ID
 
-    sendGraphUpdate(
-      //VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from)))
-      VertexAdd(blockNumber, sourceNode)
-    )
-    sendGraphUpdate(
-      VertexAdd(blockNumber, destinationNode)
-    )
-    sendGraphUpdate(
-      EdgeAdd(
-        blockNumber,
-        sourceNode,
-        destinationNode)
-    )
+    sendGraphUpdate(VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from))))
+    if(random.nextDouble()<=DELETEPERCENT)
+      sendGraphUpdate(VertexDelete(blockNumber+1,sourceNode))
 
+    sendGraphUpdate(VertexAddWithProperties(blockNumber, destinationNode, properties = Properties(ImmutableProperty("id", to))))
+    if(random.nextDouble()<=DELETEPERCENT)
+      sendGraphUpdate(VertexDelete(blockNumber+1,destinationNode))
+
+    sendGraphUpdate(EdgeAdd(blockNumber, sourceNode, destinationNode))
+    if(random.nextDouble()<=DELETEPERCENT)
+      sendGraphUpdate(EdgeDelete(blockNumber+1,sourceNode,destinationNode))
+//17:21 21:50
+  //  22:58 23:51
   }
 }
 
