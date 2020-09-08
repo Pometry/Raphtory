@@ -8,11 +8,14 @@ import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.{ParArray, ParTrieMap}
 
 class MultiLayerLPA(args:Array[String]) extends LPA(args) {
+  val snapshotSize:Long = args(2).toLong
   override def setup(): Unit = {
+    val startTime = args(0).toLong
+    val endTime = args(1).toLong
+    val snapshots = startTime to endTime by snapshotSize
     view.getVertices().foreach { vertex =>
-      val tlabels = vertex.getHistory().map { t =>
-        if (t._2) { (t._1, t._1+vertex.ID())}
-      }
+      val tlabels = snapshots.filter(t=> vertex.aliveAtWithWindow(t, snapshotSize))
+        .toArray.map{t=>(t,t+vertex.ID())}
       vertex.setState("lpalabel", tlabels) // ArrayBuffer[(ts, lab)]
       vertex.messageAllNeighbours((vertex.ID(), tlabels)) //ArrayBuffer[(ID, ArrayBuffer[(ts, lab)])]
     }
@@ -20,33 +23,29 @@ class MultiLayerLPA(args:Array[String]) extends LPA(args) {
 
   override def analyse(): Unit = {
     view.getMessagedVertices().foreach { vertex =>
-      val vlabel = vertex.getState[ArrayBuffer[(Long, Long)]]("lpalabel")
-      val msgq = vertex.messageQueue[(Long, ArrayBuffer[(Long, Long)])]
+      val vlabel = vertex.getState[Array[(Long, Long)]]("lpalabel")
+      val msgq = vertex.messageQueue[(Long, Array[(Long, Long)])]
       var count = 0
       val newLabel = vlabel.map { tv =>
         val ts = tv._1
-        val nei_ts = (vertex.getInCEdgesBetween(ts, ts) ++ vertex.getOutEdgesBetween(ts, ts)).map(_.ID()).toSet
+        val nei_ts = (vertex.getInCEdgesBetween(ts-snapshotSize, ts) ++ vertex.getOutEdgesBetween(ts-snapshotSize, ts)).map(_.ID()).toSet
         val nei = msgq.filter(x => nei_ts.contains(x._1)).flatMap(_._2).groupBy(_._1)(ts).map(_._2)
         nei.append(tv._2)
-        //TODO: find better way to do this
-        val uppertn = vlabel.filter(x => x._1 > ts)
-        if (uppertn.nonEmpty) Some(nei.append(uppertn.minBy(_._1)._2)) else None
-        val lowertn = vlabel.filter(x => x._1 < ts)
-        if (lowertn.nonEmpty) Some(nei.append(lowertn.maxBy(_._1)._2)) else None
-        //
+        //TODO: verify that this checks out
+        nei.appendAll(vlabel.filter(x=>(x._1==ts+snapshotSize)&(x._1==ts-snapshotSize)).map(_._2))
         val newlab = labelProbability(nei.groupBy(identity))
         if (newlab == tv._2) {count += 1}
         (ts, newlab)
       }
       vertex.setState("lpalabel", newLabel) 
       vertex.messageAllNeighbours((vertex.ID(), newLabel))
-      if (count == vlabel.size) {vertex.voteToHalt()}
+      if (count == vlabel.length) {vertex.voteToHalt()}
     }
   }
 
   override def returnResults(): Any =
     view.getVertices()
-      .map(vertex => (vertex.getState[ArrayBuffer[(Long, Long)]]("lpalabel"), vertex.ID()))
+      .map(vertex => (vertex.getState[Array[(Long, Long)]]("lpalabel"), vertex.ID()))
       .flatMap(f => f._1.map { x => (x._2, f._2.toString + '_' + x._1.toString) })
 
   override def extractData(results:ArrayBuffer[Any]):fd ={
@@ -57,7 +56,7 @@ class MultiLayerLPA(args:Array[String]) extends LPA(args) {
       val biggest = grouped.maxBy(_._2.size)._2.size
       val sorted = groupedNonIslands.toArray.sortBy(_._2.size)(sortOrdering).map(x => x._2.size)
       val top5 = if (sorted.length <= 10) sorted else sorted.take(10)
-      val communities = grouped.map(x => x._2).toArray
+      val communities = grouped.values.toArray
       val total = grouped.size
       val totalWithoutIslands = groupedNonIslands.size
       val totalIslands = total - totalWithoutIslands

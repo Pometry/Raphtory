@@ -67,14 +67,13 @@ class WeightedPageRank(args:Array[String]) extends Analyser(args) {
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
     val totalVert = endResults.map(x => x._1).sum
-    val bestUsers = endResults
-      .map(x => x._2)
-      .flatten
+    val bestUsers = endResults.flatMap(_._2)
       .sortBy(x => x._2)(sortOrdering)
       .take(10)
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text = s"""{"time":$timeStamp,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
     println(text)
+    publishData(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long,
@@ -84,16 +83,14 @@ class WeightedPageRank(args:Array[String]) extends Analyser(args) {
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","WeightedPageRank.json").trim
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
     val totalVert = endResults.map(x => x._1).sum
-    val bestUsers = endResults
-      .map(x => x._2)
-      .flatten
+    val bestUsers = endResults.flatMap(_._2)
       .sortBy(x => x._2)(sortOrdering)
       .take(10)
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
-    //Utils.writeLines(output_file, text, "{\"views\":[")
+    Utils.writeLines(output_file, text, "{\"views\":[")
     println(text)
-    //publishData(text)
+    publishData(text)
   }
 }
