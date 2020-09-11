@@ -9,14 +9,25 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
   object sortOrdering extends Ordering[Int] {
     def compare(key1: Int, key2: Int) = key2.compareTo(key1)
   }
+
+  val weighted = false
+
   override def analyse(): Unit = {}
   override def setup(): Unit   = {}
   override def returnResults(): Any = {
-    val degree = view.getVertices().map { vertex =>
-      val outDegree = vertex.getOutEdges.size
-      val inDegree  = vertex.getIncEdges.size
-      (vertex.ID, outDegree, inDegree)
+    val degree =
+      if (weighted) {
+      view.getVertices().map { vertex =>
+      val outDegree = vertex.getOutEdges.map{e => e.getHistory().size}.sum
+      val inDegree = vertex.getIncEdges.map{e => e.getHistory().size}.sum
+      (vertex.ID, outDegree, inDegree)}}
+    else {
+      view.getVertices().map { vertex =>
+        val outDegree = vertex.getOutEdges.size
+        val inDegree = vertex.getIncEdges.size
+        (vertex.ID, outDegree, inDegree)}
     }
+
     val totalV   = degree.size
     val totalOut = degree.map(x => x._2).sum
     val totalIn  = degree.map(x => x._3).sum
@@ -49,7 +60,7 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
       s"""{"time":$timeStamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
         .currentTimeMillis() - startTime}},"""
     //    Utils.writeLines(output_file, text, "{\"views\":[")
-    //println(text)
+    println(text)
     publishData(text)
   }
 
@@ -60,7 +71,8 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
       viewCompleteTime: Long
   ): Unit = {
     val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
-    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
+    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
+    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","DegreeRanking.json").trim
     val startTime   = System.currentTimeMillis()
     val totalVert   = endResults.map(x => x._1).sum
     val totalEdge   = endResults.map(x => x._3).sum
@@ -79,10 +91,10 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
     bestUserArray = if (bestUserArray.length > 1) bestUserArray.dropRight(1) + "]" else bestUserArray + "]"
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
-        .currentTimeMillis() - startTime}},"""
+        .currentTimeMillis() - startTime}}"""
     Utils.writeLines(output_file, text, "{\"views\":[")
     println(text)
-    publishData(text)
+    //publishData(text)
   }
 
 }
