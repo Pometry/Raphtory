@@ -15,16 +15,19 @@ class TriangleCount(args:Array[String]) extends Analyser(args) {
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
       vertex.setState("triangles", 0)
-      val neighbours = vertex.getIncEdges.map(x=> x.ID()).toSet.union(vertex.getOutEdges.map(x=> x.ID()).toSet).filter(x=> x>vertex.ID())
+      val neighbours = vertex.getIncEdges.map(x=> x.ID).toSet.union(vertex.getOutEdges.map(x=> x.ID).toSet).seq.filter(_ > vertex.ID())
       vertex.messageAllNeighbours(neighbours)
     }
   }
 
   override def analyse(): Unit = {
       view.getMessagedVertices().foreach { vertex =>
-        val neighbours = vertex.getIncEdges.map(x=> x.ID()).toSet.union(vertex.getOutEdges.map(x=> x.ID()).toSet)
-        val queue = vertex.messageQueue[Set[Long]].flatten
-        val totalTriangles = queue.toSet.intersect(neighbours).size
+        val neighbours = vertex.getIncEdges.map(x=> x.ID()).toSet.union(vertex.getOutEdges.map(x=> x.ID()).toSet).seq
+        val queue = vertex.messageQueue[Set[Long]]
+        var totalTriangles = 0
+        queue.foreach { nbs =>
+          totalTriangles += nbs.intersect(neighbours).size
+        }
         vertex.setState("triangles",totalTriangles)
       }
 
@@ -34,7 +37,7 @@ class TriangleCount(args:Array[String]) extends Analyser(args) {
     val triangleStats  = view.getVertices().map {
       vertex => (vertex.getState[Int]("triangles"), vertex.getOutEdges.size + vertex.getIncEdges.size)
     }.map {
-      row => (row._1, if (row._1 > 1) 2.0*row._1/(row._2*(row._2 - 1)) else 0.0 )
+      row => (row._1, if (row._2 > 1) 2.0*row._1/(row._2*(row._2 - 1)) else 0.0 )
     }
     val totalV = triangleStats.size
     val totalTri = triangleStats.map(x => x._1).sum
@@ -55,14 +58,15 @@ class TriangleCount(args:Array[String]) extends Analyser(args) {
 //      catch { case e: ArithmeticException => 0.0 }
     val text = s"""{"time":$timeStamp,"totTriangles":$totalTri,"avgCluster":$avgCluster,"viewTime":$viewCompleteTime,"concatTime":${System
       .currentTimeMillis() - startTime}},"""
+    publishData(text)
     println(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
     val startTime   = System.currentTimeMillis()
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Double)]]
-    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
-
+    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
+    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","TriangleCount.json").trim
     val totalVert = endResults.map( x => x._1 ).sum
     val totalTri = endResults.map( x => x._2 ).sum/3
     val avgCluster = if (totalVert > 0) endResults.map( x => x._3 ).sum/totalVert else 0.0
@@ -71,8 +75,9 @@ class TriangleCount(args:Array[String]) extends Analyser(args) {
     //      catch { case e: ArithmeticException => 0.0 }
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"totTriangles":$totalTri,"avgCluster":$avgCluster,"viewTime":$viewCompleteTime,"concatTime":${System
-        .currentTimeMillis() - startTime}},"""
+        .currentTimeMillis() - startTime}}"""
     Utils.writeLines(output_file, text, "{\"views\":[")
+    publishData(text)
     println(text)
   }
 }
