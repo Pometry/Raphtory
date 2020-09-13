@@ -7,8 +7,12 @@ import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
 import com.raphtory.core.model.communication.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
+import com.raphtory.examples.blockchain.analysers.TaintTrackExchangeStop
 import kamon.Kamon
 import org.slf4j.LoggerFactory
+
+import com.raphtory.examples.blockchain.routers.EthereumGethRouter
+import com.raphtory.examples.blockchain.spouts.EthereumGethSpout
 
 import scala.language.postfixOps
 
@@ -21,8 +25,9 @@ object SingleNodeTest extends App {
   val partitionNumber = 1
   val minimumRouters  = 1
 
-  var Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
-  Analyser = "com.raphtory.core.analysis.Algorithms.DegreeBasic"
+//  var Analyser = "com.raphtory.core.analysis.Algorithms.ConnectedComponents"
+//  Analyser = "com.raphtory.core.analysis.Algorithms.DegreeBasic"
+  var Analyser = "com.raphtory.examples.blockchain.analysers.TaintTrackExchangeStop"
 
   //var UpdaterName     = "com.raphtory.examples.ldbc.spouts.LDBCSpout"
   //var routerClassName = "com.raphtory.examples.ldbc.routers.LDBCRouter"
@@ -44,6 +49,7 @@ object SingleNodeTest extends App {
     val end =   31525368897000L
 
     val jump =    3600000
+
    // var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
     //var SpoutName = "com.raphtory.examples.random.actors.RandomSpout"
    // var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
@@ -56,6 +62,7 @@ object SingleNodeTest extends App {
   //  Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
 
 //chainalysisAB
+
   var SpoutName = "com.raphtory.examples.blockchain.spouts.ChainalysisABSpout"
  // var SpoutName = "com.raphtory.spouts.KafkaSpout"
   var routerClassName = "com.raphtory.examples.blockchain.routers.ChABClus2ClusRouter"
