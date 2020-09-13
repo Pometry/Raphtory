@@ -138,14 +138,14 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
     var storages: ParTrieMap[Int, EntityStorage] = new ParTrieMap[Int, EntityStorage]()
 
     for (index <- 0 until 10) {
-      val storage     = new EntityStorage(index)
+      val storage     = new EntityStorage(assignedId,index)
       storages.put(index, storage)
 
       val managerName = s"Manager_${assignedId}_child_$index"
       workers.put(
               index,
               context.system
-                .actorOf(Props(new IngestionWorker(index, storage)).withDispatcher("worker-dispatcher"), managerName)
+                .actorOf(Props(new IngestionWorker(index,assignedId, storage)).withDispatcher("worker-dispatcher"), managerName)
       )
     }
 

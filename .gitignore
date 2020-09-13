@@ -1,11 +1,14 @@
 *.class
 *.log
+.java-version
 
 autoSetup.sh
 seedSetup.sh
 machine0Setup.sh
 machine1Setup.sh
 .DS_Store
+.end 
+.env
 
 # sbt specific
 .cache/
@@ -24,3 +27,6 @@ logs
 .scala_dependencies
 .worksheet
 .idea
+
+#raphtory env
+mainproject/.env

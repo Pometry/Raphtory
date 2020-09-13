@@ -8,8 +8,15 @@ import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.StartAnalysis
+import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
+import kamon.Kamon
+
+import com.mongodb.DBObject
+import com.mongodb.casbah.MongoClient
+import com.mongodb.casbah.MongoClientURI
+import com.mongodb.util.JSON
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -22,6 +29,12 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
 
   private var local: Boolean = Utils.local
+  val saveData = System.getenv().getOrDefault("ANALYSIS_SAVE_OUTPUT", "false").trim.toBoolean
+  val mongoIP = System.getenv().getOrDefault("ANALYSIS_MONGO_HOST", "localhost").trim
+  val mongoPort = System.getenv().getOrDefault("ANALYSIS_MONGO_PORT", "27017").trim
+  val dbname = System.getenv().getOrDefault("ANALYSIS_MONGO_DB_NAME", "raphtory").trim
+
+  var viewTimeCurrentTimer = System.currentTimeMillis()
 
   //Communication Counters
   protected var ReaderACKS                   = 0    //Acks from the readers to say they are online
@@ -67,7 +80,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   stepCompleteTime()
 
   protected val steps: Long    =  analyser.defineMaxSteps()         // number of supersteps before returning
-  def restartTime():Long       =  10000
+  def restartTime():Long       =  0
   def timestamp(): Long   //defaults to live to be overwritten in view and range
   def windowSize(): Long       = -1L         //for windowing
   def windowSet(): Array[Long] = Array.empty //for sets of windows
@@ -79,7 +92,27 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (local)Class.forName(analyser.getClass.getCanonicalName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser] else analyser
   final protected def getManagerCount: Int      = managerCount
   final protected def getWorkerCount: Int       = managerCount * 10
-  protected def processResults(timeStamp: Long) = analyser.processResults(results, timeStamp,viewCompleteTime())
+
+  protected def processResults(timeStamp:Long) = {
+    analyser.processResults(results, timeStamp,viewCompleteTime())
+  }
+
+  protected def processResultsWrapper(timeStamp: Long) = {
+    if(saveData) {
+      val mongo = MongoClient(MongoClientURI(s"mongodb://$mongoIP:$mongoPort"))
+      val buffer = new java.util.ArrayList[DBObject]()
+      processResults(timeStamp)
+      analyser.getPublishedData().foreach(data => {
+        buffer.add(JSON.parse(data).asInstanceOf[DBObject])
+      })
+      analyser.clearPublishedData()
+      mongo.getDB(dbname).getCollection(jobID).insert(buffer)
+      buffer.clear()
+    }
+    else
+      processResults(timeStamp)
+
+  }
 
   protected def resetCounters() = {
     ReaderACKS = 0               //Acks from the readers to say they are online
@@ -112,7 +145,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     case EndStep(messages, voteToHalt) => endStep(messages, voteToHalt) //worker has finished the step
     case ReturnResults(results)        => finaliseJob(results) //worker has finished teh job and is returned the results
     case "restart"                     => restart()
-    case MessagesReceived(workerID, real, receivedMessages, sentMessages) => messagesReceieved(workerID, real, receivedMessages, sentMessages)
+    case MessagesReceived(workerID, receivedMessages, sentMessages) => messagesReceieved(workerID, receivedMessages, sentMessages)
     case RequestResults(jobID)         => requestResults()
     case FailedToCompile(stackTrace)   => failedToCompile(stackTrace) //Your code is broke scrub
     case _                             => processOtherMessages(_)     //incase some random stuff comes through
@@ -166,6 +199,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (TimeOKACKS == getWorkerCount) {
       stepCompleteTime() //reset step counter
       if (TimeOKFlag) {
+        viewTimeCurrentTimer = System.currentTimeMillis()
         if (analyser.defineMaxSteps() > 1)
           for (worker <- Utils.getAllReaderWorkers(managerCount))
             if(newAnalyser)
@@ -228,10 +262,16 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     results += result
     workerResultsReceived += 1
     if (workerResultsReceived == getWorkerCount) {
-      processResults(timestamp())
+      val startTime = System.currentTimeMillis()
+      val viewTime = Kamon.gauge("Raphtory_View_Time_Total").withTag("jobID",jobID).withTag("Timestamp",timestamp())
+      val concatTime = Kamon.gauge("Raphtory_View_Concatenation_Time").withTag("jobID",jobID).withTag("Timestamp",timestamp())
+      processResultsWrapper(timestamp())
       resetCounters()
       context.system.scheduler.scheduleOnce(Duration(restartTime(), MILLISECONDS), self, "restart")
+      concatTime.update(System.currentTimeMillis()-startTime)
+      viewTime.update(System.currentTimeMillis()-viewTimeCurrentTimer)
     }
+
   }
 
   private def syncMessages() =
@@ -248,10 +288,10 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
       totalSentMessages = 0
       totalReceivedMessages = 0
       for (worker <- Utils.getAllReaderWorkers(managerCount))
-        mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep), false)
+        mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep), false)
     }
 
-  def messagesReceieved(workerID: Int, real: Int, receivedMessages: Int, sentMessages: Int) = { ////mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(currentSuperStep),false) //todo fix
+  def messagesReceieved(workerID: Int, receivedMessages: Int, sentMessages: Int) = {
     messageLogACKS += 1
     totalReceivedMessages += receivedMessages
     totalSentMessages += sentMessages
@@ -269,15 +309,16 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
             mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
       }
       else {
+        println(s"$totalReceivedMessages $totalSentMessages")
+
         totalReceivedMessages = 0
         totalSentMessages = 0
-        currentSuperStep += 1
         if (newAnalyser)
           for (worker <- Utils.getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep),false)
         else
           for (worker <- Utils.getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep),false)
       }
     }
   }
