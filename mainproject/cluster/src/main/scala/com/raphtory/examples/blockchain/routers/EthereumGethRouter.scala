@@ -14,7 +14,11 @@ import spray.json._
 import scala.util.hashing.MurmurHash3
 class EthereumGethRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
+  print(routerId)
+
+
   override protected def parseTuple(value: Any): Unit = {
+    print(value)
     val transaction = value.toString.split(",")
     val blockNumber = hexToInt(transaction(0))
 
@@ -23,6 +27,9 @@ class EthereumGethRouter(override val routerId: Int,override val workerID:Int, v
     val sent = transaction(3).replaceAll("\"", "")
     val sourceNode      = assignID(from) //hash the id to get a vertex ID
     val destinationNode = assignID(to)   //hash the id to get a vertex ID
+
+    print(from)
+    print(to)
 
     sendGraphUpdate(
             VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from)))
