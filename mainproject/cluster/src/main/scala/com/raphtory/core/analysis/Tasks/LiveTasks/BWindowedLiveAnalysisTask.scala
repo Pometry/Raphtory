@@ -23,4 +23,12 @@ class BWindowedLiveAnalysisTask(managerCount:Int, jobID: String,args:Array[Strin
     } else original
   }
   override protected def analysisType(): AnalysisType.Value = AnalysisType.live
+  override def processResults(time: Long): Unit = {
+    var i = 0
+    val vtime = viewCompleteTime
+    result().asInstanceOf[ArrayBuffer[ArrayBuffer[Any]]].foreach(res =>{
+      analyser.processWindowResults(res, timestamp(), windowSet()(i), vtime)
+      i+=1
+    })
+  }
 }

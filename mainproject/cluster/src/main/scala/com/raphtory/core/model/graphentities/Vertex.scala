@@ -78,8 +78,8 @@ class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean, storage: 
       val v2 = obj.asInstanceOf[Vertex] //add associated edges
       if (!(vertexId == v2.vertexId) ||
           !(history.equals(v2.history)) ||
-          !(oldestPoint.get == v2.oldestPoint.get) ||
-          !(newestPoint.get == newestPoint.get) ||
+          !(oldestPoint == v2.oldestPoint) ||
+          !(newestPoint == newestPoint) ||
           !(properties.equals(v2.properties)) ||
           !(incomingEdges.equals(v2.incomingEdges)) ||
           !(outgoingEdges.equals(v2.outgoingEdges)))

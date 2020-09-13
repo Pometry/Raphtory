@@ -102,5 +102,4 @@ class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
 
   }
 
-
 }

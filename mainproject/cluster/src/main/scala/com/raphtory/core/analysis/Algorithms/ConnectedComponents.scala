@@ -30,95 +30,48 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
       .groupBy(f => f)
       .map(f => (f._1, f._2.size))
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
-    val endResults  = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
-    try {
-      val grouped                  = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
-      val groupedNonIslands        = grouped.filter(x => x._2 > 1)
-      val biggest                  = grouped.maxBy(_._2)._2
-      val total                    = grouped.size
-      val totalWithoutIslands      = groupedNonIslands.size
-      val totalIslands             = total - totalWithoutIslands
-      val proportion               = biggest.toFloat / grouped.map(x => x._2).sum
-      val proportionWithoutIslands = biggest.toFloat / groupedNonIslands.map(x => x._2).sum
-      val totalGT2                 = grouped.filter(x => x._2 > 2).size
-      val text = s"""{"time":$timeStamp,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime},"""
-      println(text)
-      publishData(text)
-    } catch {
-      case e: UnsupportedOperationException => println(s"No activity for  view at $timeStamp")
-    }
-  }
-
-  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
-    val endResults  = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
-    try {
-      val grouped                  = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
-      val groupedNonIslands        = grouped.filter(x => x._2 > 1)
-      val biggest                  = grouped.maxBy(_._2)._2
-      val total                    = grouped.size
-      val totalWithoutIslands      = groupedNonIslands.size
-      val totalIslands             = total - totalWithoutIslands
-      val proportion               = biggest.toFloat / grouped.map(x => x._2).sum
-      val proportionWithoutIslands = biggest.toFloat / groupedNonIslands.map(x => x._2).sum
-      val totalGT2                 = grouped.filter(x => x._2 > 2).size
-      val text = s"""{"time":$timestamp,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2},"""
-      println(text)
-      publishData(text)
-    } catch {
-      case e: UnsupportedOperationException => println(s"No activity for  view at $timestamp")
-    }
+  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+    val er = extractData(results)
+    val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime}"""
+    println(text)
+    publishData(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
-    val endResults  = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
-    val startTime   = System.currentTimeMillis()
-    try {
-      val grouped                  = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
-      val groupedNonIslands        = grouped.filter(x => x._2 > 1)
-      val biggest                  = grouped.maxBy(_._2)._2
-      val total                    = grouped.size
-      val totalWithoutIslands      = groupedNonIslands.size
-      val totalIslands             = total - totalWithoutIslands
-      val proportion               = biggest.toFloat / grouped.map(x => x._2).sum
-      val proportionWithoutIslands = biggest.toFloat / groupedNonIslands.map(x => x._2).sum
-      val totalGT2                 = grouped.filter(x => x._2 > 2).size
-      val text =
-        s"""{"time":$timestamp,"windowsize":$windowSize,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime,"concatTime":${System
-          .currentTimeMillis() - startTime}},"""
-      //Utils.writeLines(output_file, text, "{\"views\":[")
+      val er = extractData(results)
+      var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
+      var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","ConnectedComponents.json").trim
+      val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime}"""
+      Utils.writeLines(output_file, text, "{\"views\":[")
       println(text)
-      publishData(text)
-    } catch {
-      case e: UnsupportedOperationException => println(s"No activity for  view at $timestamp with window $windowSize")
-    }
+      //publishData(text)
+
   }
 
-  override def processBatchWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSet: Array[Long], viewCompleteTime: Long): Unit = {
-    val endResults  = results.asInstanceOf[ArrayBuffer[ArrayBuffer[immutable.ParHashMap[Long, Int]]]]
-    for (i <- endResults.indices) {
-      val window     = endResults(i)
-      val windowSize = windowSet(i)
-      try {
-        val grouped                  = window.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
-        val groupedNonIslands        = grouped.filter(x => x._2 > 1)
-        val biggest                  = grouped.maxBy(_._2)._2
-        val total                    = grouped.size
-        val totalWithoutIslands      = groupedNonIslands.size
-        val totalIslands             = total - totalWithoutIslands
-        val proportion               = biggest.toFloat / grouped.map(x => x._2).sum
-        val proportionWithoutIslands = biggest.toFloat / groupedNonIslands.map(x => x._2).sum
-        val totalGT2                 = grouped.filter(x => x._2 > 2).size
-        val text = s"""{"time":$timestamp,"windowsize":$windowSize,"biggest":$biggest,"total":$total,"totalWithoutIslands":$totalWithoutIslands,"totalIslands":$totalIslands,"proportion":$proportion,"proportionWithoutIslands":$proportionWithoutIslands,"clustersGT2":$totalGT2,"viewTime":$viewCompleteTime},"""
-        println(text)
-        publishData(text)
-      } catch {
-        case e: UnsupportedOperationException => println(s"No activity for  view at $timestamp with window $windowSize")
-      }
+  def extractData(results:ArrayBuffer[Any]):extractedData ={
+    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
+    try {
+      val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
+      val groupedNonIslands = grouped.filter(x => x._2 > 1)
+      val biggest = grouped.maxBy(_._2)._2
+      val sorted = groupedNonIslands.toArray.sortBy(_._2)(sortOrdering).map(x=>x._2)
+      val top5 = if(sorted.length<=5) sorted else sorted.take(5)
+      val total = grouped.size
+      val totalWithoutIslands = groupedNonIslands.size
+      val totalIslands = total - totalWithoutIslands
+      val proportion = biggest.toFloat / grouped.map(x => x._2).sum
+      val totalGT2 = grouped.filter(x => x._2 > 2).size
+      extractedData(top5,total,totalIslands,proportion,totalGT2)
+    } catch {
+      case e: UnsupportedOperationException => extractedData(Array(0),0,0,0,0)
     }
-
   }
 
   override def defineMaxSteps(): Int = 100
 
 }
+object sortOrdering extends Ordering[Int] {
+  def compare(key1: Int, key2: Int) = key2.compareTo(key1)
+}
+case class extractedData(top5:Array[Int],total:Int,totalIslands:Int,proportion:Float,totalGT2:Int)
+

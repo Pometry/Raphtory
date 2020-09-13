@@ -11,7 +11,6 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import akka.cluster.pubsub._
@@ -29,7 +28,7 @@ case class AnalysisRestApi(system:ActorSystem){
   implicit val t:Timeout = 15.seconds
   val port  = 8081
   var config = ConfigFactory.load().getString("akka.remote.netty.tcp.bind-hostname")
-  val iface = config//java.net.InetAddress.getLocalHost().getHostAddress()
+  val iface = "0.0.0.0"//config//java.net.InetAddress.getLocalHost().getHostAddress()
   val mediator = DistributedPubSub(system).mediator
 
   val requestHandler: HttpRequest ⇒ HttpResponse = {

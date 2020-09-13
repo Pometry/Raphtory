@@ -20,10 +20,17 @@ class BWindowedViewAnalysisTask(managerCount:Int, jobID: String, args:Array[Stri
       }
       invertedArray.asInstanceOf[ArrayBuffer[Any]]
 
-    } else original
+  } else original
+}
+override def windowSet(): Array[Long] = windows
+override def processResults(time: Long): Unit = {
+  var i = 0
+  val vtime = viewCompleteTime
+  result().asInstanceOf[ArrayBuffer[ArrayBuffer[Any]]].foreach(res =>{
+      analyser.processWindowResults(res, timestamp(), windowSet()(i),vtime )
+      i+=1
+    })
   }
-  override def windowSet(): Array[Long] = windows
-  override def processResults(time: Long): Unit =
-    analyser.processBatchWindowResults(result, timestamp(), windowSet(), viewCompleteTime)
+
   override protected def analysisType(): AnalysisType.Value = AnalysisType.view
 }

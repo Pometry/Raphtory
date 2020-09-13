@@ -39,9 +39,13 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
       catch {
         case e: ArithmeticException => 0
       }
-    val text = s"""$timestamp,$totalVert,$totalEdge,$degree"""
+
+val startTime   = System.currentTimeMillis()
+    val text = s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree}"""
+
    // Utils.writeLines(output_file, text, "")
     println(text)
+    publishData(text)
   }
 
   override def processWindowResults(
@@ -51,7 +55,8 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
       viewCompleteTime: Long
   ): Unit = {
     val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
-    var output_file = System.getenv().getOrDefault("PROJECT_OUTPUT", "/app/defout.csv").trim
+    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
+    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","DegreeBasic.json").trim
     val totalVert   = endResults.map(x => x._1).sum
     val totalEdge   = endResults.map(x => x._3).sum
     val degree =
@@ -59,20 +64,10 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
       catch {
         case e: ArithmeticException => 0
       }
-    val text = s"""$timestamp,$windowSize,$totalVert,$totalEdge,$degree"""
+    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree}"""
     Utils.writeLines(output_file, text, "")
-   // println(text)
-  }
+    println(text)
+    publishData(text)
 
-  override def processBatchWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSet: Array[Long],
-      viewCompleteTime: Long
-  ): Unit =
-    for (i <- results.indices) {
-      val window     = results(i).asInstanceOf[ArrayBuffer[Any]]
-      val windowSize = windowSet(i)
-      processWindowResults(window, timestamp, windowSize, viewCompleteTime)
-    }
+  }
 }
