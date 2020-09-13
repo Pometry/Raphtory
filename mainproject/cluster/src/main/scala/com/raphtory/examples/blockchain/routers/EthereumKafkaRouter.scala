@@ -17,12 +17,26 @@ class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, 
   override protected def parseTuple(value: Any): Unit = {
 
     val transaction = value.toString.split(",")
+
     if(transaction(1).equals("block_number")) return
     val blockNumber = hexToInt(transaction(1))
 
-    val from = transaction(3).replaceAll("\"", "").toLowerCase
-    val to   = transaction(4).replaceAll("\"", "").toLowerCase
-    val sent = transaction(5).replaceAll("\"", "")
+
+    print(transaction)
+//    if(transaction(2).equals("block_number")) return
+//    val blockNumber = transaction(2).toInt
+//
+//    val from = transaction(1).replaceAll("\"", "").toLowerCase
+//    val to   = transaction(2).replaceAll("\"", "").toLowerCase
+//    val sent = transaction(5).replaceAll("\"", "")
+
+    if(transaction(2).equals("block_number")) return
+    val blockNumber = transaction(2).toInt
+
+    val from = transaction(4).replaceAll("\"", "").toLowerCase
+    val to   = transaction(5).replaceAll("\"", "").toLowerCase
+    val sent = transaction(9).replaceAll("\"", "")
+
     val sourceNode      = assignID(from) //hash the id to get a vertex ID
     val destinationNode = assignID(to)   //hash the id to get a vertex ID
 
