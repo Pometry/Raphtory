@@ -30,7 +30,7 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
-    val output_file = System.getenv().getOrDefault("PROJECT_OUTPUT", "/app/defout.csv").trim
+  //  val output_file = System.getenv().getOrDefault("PROJECT_OUTPUT", "/app/defout.csv").trim
     val totalVert   = endResults.map(x => x._1).sum
     val totalEdge   = endResults.map(x => x._3).sum
 
@@ -39,8 +39,10 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
       catch {
         case e: ArithmeticException => 0
       }
+
 val startTime   = System.currentTimeMillis()
     val text = s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree}"""
+
    // Utils.writeLines(output_file, text, "")
     println(text)
     publishData(text)
