@@ -20,7 +20,7 @@ object SplitEdge {
       storage: EntityStorage
   ) = {
     val e = new SplitEdge(workerID: Int, creationTime, srcID, dstID, initialValue = true, remotePartitionId, storage)
-    e.previousState = previousState
+    e.history = previousState
     e.properties = properties
     e
   }

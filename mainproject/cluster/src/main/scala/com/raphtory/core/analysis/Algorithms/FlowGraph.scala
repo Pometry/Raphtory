@@ -12,20 +12,21 @@ class FlowGraph(args:Array[String]) extends Analyser(args){
   override def analyse(): Unit = {}
 
   override def returnResults(): Any = {
-    val locV = proxy.getVerticesSet().filter{ v => v._2.getType == "Location" }
+    val locV = view.getVertices().filter{ vertex => vertex.Type() == "Location" }
     if(locV.size > 1){
       var flow = List[(Long, Long, Int)]()
-      locV.foreach { u =>
-        val vertU = proxy.getVertex(u._2)
-        val neighU = vertU.getIngoingNeighbors.keySet
-        val excU = locV - u._2.getId
-        excU.foreach { v =>
-          val neighV = proxy.getVertex(v._2).getIngoingNeighbors.keySet
-          val com = (neighU & neighV).size
-          flow = (u._2.getId, v._2.getId, com) :: flow
-        }
-      }
+      //TODO Revisit with Imane
+      locV.foreach { vertU =>
+//        val neighU = vertU.getIncEdges.keySet
+//        val excU = locV - vertU.ID()
+//        excU.foreach { v =>
+//          val neighV = view.getVertex(v._2).getIncEdges.keySet
+//          val com = (neighU & neighV).size
+//          flow = (u._2.getId, v._2.getId, com) :: flow
+//        }
+//      }
       flow
+    }
     }
   }
 

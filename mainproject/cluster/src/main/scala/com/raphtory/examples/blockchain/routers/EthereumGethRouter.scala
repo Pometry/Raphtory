@@ -1,27 +1,35 @@
 package com.raphtory.examples.blockchain.routers
 
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.EdgeAddWithProperties
 import com.raphtory.core.model.communication.ImmutableProperty
 import com.raphtory.core.model.communication.Properties
 import com.raphtory.core.model.communication.StringProperty
 import com.raphtory.core.model.communication.VertexAddWithProperties
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.stream.ActorMaterializer
 import spray.json._
 
 import scala.util.hashing.MurmurHash3
 class EthereumGethRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
-  def hexToInt(hex: String) = Integer.parseInt(hex.drop(3).dropRight(1), 16)
-  //
+  def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
+  print(routerId)
+
+
   override protected def parseTuple(value: Any): Unit = {
-    val transaction = value.toString.parseJson.asJsObject.fields("result").asJsObject
-    val blockNumber = hexToInt(transaction.fields("blockNumber").toString())
+    print(value)
+    val transaction = value.toString.split(",")
+    val blockNumber = hexToInt(transaction(0))
 
-    val from = transaction.fields("from").toString().replaceAll("\"", "").toLowerCase
-    val to   = transaction.fields("to").toString().replaceAll("\"", "").toLowerCase
-    val sent = transaction.fields("value").toString().replaceAll("\"", "")
-
+    val from = transaction(1).replaceAll("\"", "").toLowerCase
+    val to   = transaction(2).replaceAll("\"", "").toLowerCase
+    val sent = transaction(3).replaceAll("\"", "")
     val sourceNode      = assignID(from) //hash the id to get a vertex ID
     val destinationNode = assignID(to)   //hash the id to get a vertex ID
+
+    print(from)
+    print(to)
 
     sendGraphUpdate(
             VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from)))

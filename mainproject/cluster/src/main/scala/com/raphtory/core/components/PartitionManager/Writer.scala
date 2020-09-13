@@ -10,7 +10,6 @@ import akka.actor.Props
 import akka.actor.Terminated
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.components.PartitionManager.Workers.WriterLogger
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.SchedulerUtil
@@ -44,10 +43,6 @@ class Writer(
 
   // should the handled messages be printed to terminal
   val printing: Boolean = false
-
-  // TODO Migrate actorOf logic to Object.props
-  val logChild: ActorRef        = context.actorOf(Props[WriterLogger].withDispatcher("logging-dispatcher"), s"logger")
-  val logChildForSize: ActorRef = context.actorOf(Props[WriterLogger].withDispatcher("logging-dispatcher"), s"logger2")
 
   var managerCount: Int          = managerCountVal
   var messageCount: Int          = 0
@@ -88,19 +83,12 @@ class Writer(
   }
 
   override def receive: Receive = {
-    case msg: String if msg == "log"        => processLogMessage(msg)
     case msg: String if msg == "count"      => processCountMessage(msg)
     case msg: String if msg == "keep_alive" => processKeepAliveMessage(msg)
     case req: UpdatedCounter                => processUpdatedCounterRequest(req)
     case Terminated(child) =>
       log.warning(s"WriterWorker with patch [{}] belonging to Writer [{}] has died.", child.path, managerId)
     case x => log.warning(s"Writer [{}] received unknown [{}] message.", managerId, x)
-  }
-
-  def processLogMessage(req: String): Unit = {
-    log.debug(s"Writer [{}] received [{}] message.", managerId, req)
-
-    logChildForSize ! ReportSize(managerId)
   }
 
   def processCountMessage(msg: String): Unit = {
@@ -139,10 +127,6 @@ class Writer(
 
   private def scheduleTasks(): Unit = {
     log.debug("Preparing to schedule tasks in Writer [{}].", managerId)
-
-    val logCancellable =
-      SchedulerUtil.scheduleTask(initialDelay = 10 seconds, interval = 10 seconds, receiver = self, message = "log")
-    scheduledTaskMap.put("log", logCancellable)
 
     val countCancellable =
       SchedulerUtil.scheduleTask(initialDelay = 10 seconds, interval = 1 seconds, receiver = self, message = "count")

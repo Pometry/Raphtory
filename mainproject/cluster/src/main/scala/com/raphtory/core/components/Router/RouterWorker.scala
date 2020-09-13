@@ -5,10 +5,11 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.{Actor, ActorLogging, Cancellable}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.model.communication.{AllocateJob, EdgeAdd, EdgeAddWithProperties, EdgeDelete, GraphUpdate, RouterWorkerTimeSync, TrackedEdgeAdd, TrackedEdgeAddWithProperties, TrackedEdgeDelete, TrackedVertexAdd, TrackedVertexAddWithProperties, TrackedVertexDelete, UpdatedCounter, VertexAdd, VertexAddWithProperties, VertexDelete}
+import com.raphtory.core.model.communication.{AllocateTrackedTuple, AllocateTuple, EdgeAdd, EdgeAddWithProperties, EdgeDelete, GraphUpdate, RouterWorkerTimeSync, TrackedEdgeAdd, TrackedEdgeAddWithProperties, TrackedEdgeDelete, TrackedVertexAdd, TrackedVertexAddWithProperties, TrackedVertexDelete, UpdateArrivalTime, UpdatedCounter, VertexAdd, VertexAddWithProperties, VertexDelete, WatermarkTime}
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.utils.{SchedulerUtil, Utils}
 import com.raphtory.core.utils.Utils.getManager
+import kamon.Kamon
 
 import scala.concurrent.duration._
 import scala.collection.mutable
@@ -24,10 +25,14 @@ trait RouterWorker extends Actor with ActorLogging {
   val routerId: Int
   val workerID: Int
   var newestTime:Long = 0
-  private val messageIDs = mutable.HashMap[String, AtomicInteger]()
+  var trackedMessage = false
+  var trackedTime = 0L
+  private val messageIDs = ParTrieMap[String, Int]()
   /** Private and protected values */
   private var managerCount: Int = initialManagerCount
   val writerArray = Utils.getAllWriterWorkers(managerCount)
+
+  val routerWorkerUpdates = Kamon.counter("Raphtory_Router_Output").withTag("Router",routerId).withTag("Worker",workerID)
 
   protected def initialManagerCount: Int
   protected def parseTuple(value: Any)
@@ -40,6 +45,8 @@ trait RouterWorker extends Actor with ActorLogging {
     log.debug("RouterWorker [{}] is being started.", routerId)
     scheduleTasks()
   }
+
+
 
   private def scheduleTasks(): Unit = {
     log.debug("Preparing to schedule tasks in Spout.")
@@ -58,7 +65,8 @@ trait RouterWorker extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case req: UpdatedCounter => processUpdatedCounterRequest(req)
-    case req: AllocateJob    => processAllocateJobRequest(req)
+    case req: AllocateTuple    => processAllocateJobRequest(req)
+    case req: AllocateTrackedTuple =>  processAlocateTrackedRequest(req)
     case "timeBroadcast"     => broadcastToPartitions()
     case x                   => log.warning("RouterWorker received unknown [{}] message.", x)
   }
@@ -80,36 +88,69 @@ trait RouterWorker extends Actor with ActorLogging {
     if (managerCount < req.newValue) managerCount = req.newValue
   }
 
-  def processAllocateJobRequest(req: AllocateJob): Unit = {
+  def processAlocateTrackedRequest(req:AllocateTrackedTuple):Unit = {
+    trackedMessage=true
+    trackedTime = req.wallClock
+    log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)
+    parseTuple(req.record)
+  }
+
+  def processAllocateJobRequest(req: AllocateTuple): Unit = {
     log.debug(s"RouterWorker [{}] received [{}] request.", routerId, req)
     parseTuple(req.record)
   }
 
   def sendGraphUpdate[T <: GraphUpdate](message: T): Unit = {
+    routerWorkerUpdates.increment()
+
     val path = getManager(message.srcID, getManagerCount)
     val id = getMessageIDForWriter(path)
-
-    message match {
-      case m:VertexAdd =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexAdd(s"${routerId}_${workerID}",id,m) , localAffinity = false)
-      case m:VertexAddWithProperties =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexAddWithProperties(s"${routerId}_${workerID}",id,m) , localAffinity = false)
-      case m:EdgeAdd =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeAdd(s"${routerId}_${workerID}",id,m) , localAffinity = false)
-      case m:EdgeAddWithProperties =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeAddWithProperties(s"${routerId}_${workerID}",id,m) , localAffinity = false)
-      case m:VertexDelete =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexDelete(s"${routerId}_${workerID}",id,m) , localAffinity = false)
-      case m:EdgeDelete =>
-        newestTime = m.msgTime
-        mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeDelete(s"${routerId}_${workerID}",id,m) , localAffinity = false)
+    if(trackedMessage){
+      trackedMessage=false
+      mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",UpdateArrivalTime(trackedTime,message.msgTime), localAffinity = false)
+      message match {
+        case m:VertexAdd =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexAdd(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+        case m:VertexAddWithProperties =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexAddWithProperties(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+        case m:EdgeAdd =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeAdd(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+        case m:EdgeAddWithProperties =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeAddWithProperties(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+        case m:VertexDelete =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedVertexDelete(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+        case m:EdgeDelete =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path ,TrackedEdgeDelete(s"${routerId}_${workerID}",id,trackedTime,m) , localAffinity = false)
+      }
     }
-
+    else {
+      message match {
+        case m: VertexAdd =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedVertexAdd(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+        case m: VertexAddWithProperties =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedVertexAddWithProperties(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+        case m: EdgeAdd =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedEdgeAdd(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+        case m: EdgeAddWithProperties =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedEdgeAddWithProperties(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+        case m: VertexDelete =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedVertexDelete(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+        case m: EdgeDelete =>
+          newestTime = m.msgTime
+          mediator ! DistributedPubSubMediator.Send(path, TrackedEdgeDelete(s"${routerId}_${workerID}", id, -1, m), localAffinity = false)
+      }
+    }
 
 
     log.debug("RouterWorker sending message [{}] to PubSub", message)
@@ -117,9 +158,10 @@ trait RouterWorker extends Actor with ActorLogging {
   private def getMessageIDForWriter(path:String) ={
     messageIDs.get(path) match {
       case Some(messageid) =>
-        messageid.getAndIncrement()
+        messageIDs put (path,messageid+1)
+        messageid
       case None =>
-        messageIDs put (path,new AtomicInteger(1))
+        messageIDs put (path,1)
         0
     }
   }
