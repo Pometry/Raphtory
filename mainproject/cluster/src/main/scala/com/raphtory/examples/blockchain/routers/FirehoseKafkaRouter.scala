@@ -28,16 +28,16 @@ class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, 
     val destinationNode = assignID(to)   //hash the id to get a vertex ID
 
     sendGraphUpdate(VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from))))
-    if(random.nextDouble()<=DELETEPERCENT)
-      sendGraphUpdate(VertexDelete(blockNumber+1,sourceNode))
+//    if(random.nextDouble()<=DELETEPERCENT)
+//      sendGraphUpdate(VertexDelete(blockNumber+1,sourceNode))
 
     sendGraphUpdate(VertexAddWithProperties(blockNumber, destinationNode, properties = Properties(ImmutableProperty("id", to))))
-    if(random.nextDouble()<=DELETEPERCENT)
-      sendGraphUpdate(VertexDelete(blockNumber+1,destinationNode))
+//    if(random.nextDouble()<=DELETEPERCENT)
+//      sendGraphUpdate(VertexDelete(blockNumber+1,destinationNode))
 
     sendGraphUpdate(EdgeAdd(blockNumber, sourceNode, destinationNode))
     if(random.nextDouble()<=DELETEPERCENT)
-      sendGraphUpdate(EdgeDelete(blockNumber+1,sourceNode,destinationNode))
+     sendGraphUpdate(EdgeDelete(blockNumber+1,sourceNode,destinationNode))
 //17:21 21:50
   //  22:58 23:51
   }

@@ -39,9 +39,7 @@ class TaintTrackExchangeStop(args:Array[String]) extends Analyser(args) {
       val queue  = vertex.messageQueue[(String,Long)]
       infectionBlock = queue.map(x=>x._2).min
       infector = queue.filter(x=>x._2==infectionBlock).head._1 //todo check if multiple
-      //if (vertex.containsCompValue("infected"))
-      //  vertex.voteToHalt() //already infected
-      //else {
+
       val walletID = vertex.getPropertyValue("id").get.asInstanceOf[String]
       if(walletID contains listOfExchanges){
         vertex.getOrSetState("exchangeHitAt", infectionBlock)
