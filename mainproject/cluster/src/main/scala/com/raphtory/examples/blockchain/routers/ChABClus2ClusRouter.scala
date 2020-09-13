@@ -6,7 +6,7 @@ import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
-class ChainalysisABRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
+class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
 
   def parseTuple(record: Any): Unit = {
     val dp = formatLine(record.asInstanceOf[String].split(",").map(_.trim))
@@ -19,25 +19,17 @@ class ChainalysisABRouter(override val routerId: Int,override val workerID:Int, 
 
     sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
     sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
-    sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = transactionId, Type("Transaction")))
 
     sendGraphUpdate(
       EdgeAddWithProperties(msgTime = transactionTime,
         srcID = srcClusterId,
-        dstID = transactionId,
-        Properties(DoubleProperty("BitCoin", btcAmount), DoubleProperty("USD",usdAmount)),
-        Type("Incoming Payment")
-      )
-    )
-    sendGraphUpdate(
-      EdgeAddWithProperties(msgTime = transactionTime,
-        srcID = transactionId,
         dstID = dstClusterId,
-        Properties(DoubleProperty("BitCoin", btcAmount), DoubleProperty("USD",usdAmount)),
-        Type("Outgoing Payment")
+        Properties(DoubleProperty("BitCoin", btcAmount),
+                  DoubleProperty("USD",usdAmount),
+                  DoubleProperty("Transaction", transactionId)),
+        Type("Transfer")
       )
     )
-
   }
 
   //converts the line into a case class which has all of the data via the correct name and type
