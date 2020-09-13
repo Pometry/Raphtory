@@ -50,7 +50,7 @@ class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
     view
       .getVertices().map { vertex =>
         if (vertex.containsState("infected"))
-          (vertex.getPropertyValue("id").get.asInstanceOf[String], vertex.getState("infected").asInstanceOf[Long],vertex.getState("infectedBy").asInstanceOf[String])
+          (vertex.getPropertyValue("id").get.asInstanceOf[String], vertex.getState("infected")[Long],vertex.getState("infectedBy")[String])
         else
           ("", -1L,"")
 
@@ -66,7 +66,6 @@ class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
       data+=s"""{"infected":"${elem._1}","block":"${elem._2}","infector":"${elem._3}"}"""
     data+="]}"
     publishData(data)
-    //for (elem <- endResults) {    Utils.writeLines(s"/Users/mirate/Documents/phd/etheroutput/block${timeStamp}.csv", s"${elem._1},${elem._2},${elem._3},", "")}
 
   }
 
