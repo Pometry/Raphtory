@@ -16,7 +16,6 @@ import kamon.Kamon
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -24,6 +23,7 @@ import scala.language.postfixOps
 class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: String)
         extends Actor
         with ActorLogging {
+  implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
 
   private var managerCount: Int = initialManagerCount
   private var count             = 0
@@ -44,7 +44,7 @@ class RouterManager(val routerId: Int, val initialManagerCount: Int, slaveType: 
     scheduleTasks()
 
     for (i <- 0 until children) {
-      childMap.put(i, context.actorOf(Props(Class.forName(slaveType), routerId, i, initialManagerCount), s"routerWorker_$i"))
+      childMap.put(i, context.actorOf(Props(Class.forName(slaveType), routerId, i, initialManagerCount).withDispatcher("router-dispatcher"), s"routerWorker_$i"))
     }
   }
 

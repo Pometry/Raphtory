@@ -18,5 +18,5 @@ class ViewAnalysisTask(managerCount:Int, jobID: String,args:Array[String], analy
   }
 
   override def processResults(timestamp: Long): Unit =
-    analyser.processViewResults(result, this.timestamp(), viewCompleteTime)
+    analyser.processResults(result, this.timestamp(), viewCompleteTime)
 }

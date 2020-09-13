@@ -15,12 +15,12 @@ import com.raphtory.core.utils.Utils
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class WatchDog(managerCount: Int, minimumRouters: Int) extends Actor with ActorLogging {
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
+  implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
 
   var clusterUp = false
   val maxTime   = 30000

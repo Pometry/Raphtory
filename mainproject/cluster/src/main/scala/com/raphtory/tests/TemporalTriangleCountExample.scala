@@ -1,3 +1,5 @@
+import java.lang.management.ManagementFactory
+
 import akka.actor.{ActorSystem, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
@@ -7,6 +9,11 @@ import org.slf4j.LoggerFactory
 
 object TemporalTriangleCountExample extends App{
   Kamon.init() //start tool logging
+
+  val runtimeMxBean = ManagementFactory.getRuntimeMXBean
+  val arguments     = runtimeMxBean.getInputArguments
+
+  println(s"Current java options: $arguments")
 
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
@@ -19,7 +26,8 @@ object TemporalTriangleCountExample extends App{
 
 
   //var SpoutName ="com.raphtory.examples.test.actors.TriangleTestSpout"
-  var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+  //var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
+  var SpoutName = "com.raphtory.spouts.FirehoseSpout"
   system.actorOf(Props(Class.forName(SpoutName)), "Spout")
 
   //var routerClassName = "com.raphtory.examples.test.actors.TriangleTestRouter"

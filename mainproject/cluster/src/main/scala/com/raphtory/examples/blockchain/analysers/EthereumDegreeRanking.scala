@@ -28,9 +28,7 @@ class EthereumDegreeRanking(args:Array[String]) extends Analyser(args) {
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {}
-
-  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
     val totalVert  = endResults.map(x => x._1).sum
     val totalEdge  = endResults.map(x => x._3).sum
@@ -50,6 +48,8 @@ class EthereumDegreeRanking(args:Array[String]) extends Analyser(args) {
       s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime},"""
     println(text)
   }
+
+
 
   override def processWindowResults(
       results: ArrayBuffer[Any],
@@ -81,17 +81,5 @@ class EthereumDegreeRanking(args:Array[String]) extends Analyser(args) {
     Utils.writeLines(output_file, text, "{\"views\":[")
     println(text)
   }
-
-  override def processBatchWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSet: Array[Long],
-      viewCompleteTime: Long
-  ): Unit =
-    for (i <- results.indices) {
-      val window     = results(i).asInstanceOf[ArrayBuffer[Any]]
-      val windowSize = windowSet(i)
-      processWindowResults(window, timestamp, windowSize, viewCompleteTime)
-    }
 
 }

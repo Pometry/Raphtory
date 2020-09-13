@@ -5,17 +5,18 @@ import java.time.LocalDateTime
 
 import com.raphtory.core.components.Spout.SpoutTrait
 
-import scala.io
-import scala.concurrent.duration.{Duration, NANOSECONDS}
+import scala.concurrent.duration.{Duration, NANOSECONDS,MILLISECONDS}
 import scala.io.Source
 
 class FileSpout extends SpoutTrait {
+
   println("Start: " + LocalDateTime.now())
   println(System.getProperty("user.dir"))
 
   val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/Users/imasgo/Downloads/splitcsv-1ce17e2c-d1fb-4dcb-8305-b6d0b1b34fa4-results").trim
   val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "transactions9000000_9100000-4.csv").trim //gabNetwork500.csv
   val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
+  val JUMP = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "50").trim.toInt
 
   var filePosition         = 0
   var directoryPosition    = 0
@@ -30,6 +31,7 @@ class FileSpout extends SpoutTrait {
 
   protected def ProcessSpoutTask(message: Any): Unit = message match {
     case StartSpout => AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
+
     case "nextLineBLock" => nextLineBlock()
     case "nextFile" => nextFile()
     case _ => println("message not recognized!")
@@ -37,11 +39,11 @@ class FileSpout extends SpoutTrait {
 
   def nextLineBlock() = {
     try {
-      for (i <- 1 to 50) {
+      for (i <- 1 to JUMP) {
         sendTuple(currentFile(filePosition))
         filePosition += 1
       }
-      AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
+      AllocateSpoutTask(Duration(1, MILLISECONDS), "nextLineBLock")
     }
     catch {
       case e:Exception => AllocateSpoutTask(Duration(1, NANOSECONDS), "nextFile")
@@ -55,7 +57,7 @@ class FileSpout extends SpoutTrait {
       AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
     }
     else {
-      println("All files read")
+      println("All files read "+ LocalDateTime.now())
     }
   }
 

@@ -4,7 +4,6 @@ import java.time.LocalDateTime
 
 import com.raphtory.core.components.Spout.SpoutTrait
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.io
 import scala.language.postfixOps

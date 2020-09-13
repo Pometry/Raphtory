@@ -9,7 +9,6 @@ import com.raphtory.tests.EtherAPITest.baseRequest
 import com.raphtory.tests.EtherAPITest.currentBlock
 import com.raphtory.tests.EtherAPITest.request
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.MILLISECONDS
 import scala.concurrent.duration.NANOSECONDS

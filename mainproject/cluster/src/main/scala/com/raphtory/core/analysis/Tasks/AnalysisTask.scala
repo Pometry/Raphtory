@@ -1,8 +1,9 @@
 package com.raphtory.core.analysis.Tasks
 
 import java.io.FileNotFoundException
+import java.net.InetAddress
 import java.util.Date
-
+import java.net.InetAddress
 import akka.actor.{Actor, Cancellable, PoisonPill}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
@@ -12,7 +13,6 @@ import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import kamon.Kamon
-
 import com.mongodb.DBObject
 import com.mongodb.casbah.MongoClient
 import com.mongodb.casbah.MongoClientURI
@@ -20,13 +20,13 @@ import com.mongodb.util.JSON
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.sys.process._
 
 abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int,newAnalyser: Boolean,rawFile:String) extends Actor {
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
+  implicit val executionContext = context.system.dispatchers.lookup("analysis-dispatcher")
 
   private var local: Boolean = Utils.local
   val saveData = System.getenv().getOrDefault("ANALYSIS_SAVE_OUTPUT", "false").trim.toBoolean
@@ -89,9 +89,16 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
   private def processOtherMessages(value: Any): Unit = println("Not handled message" + value.toString)
   protected def generateAnalyzer: Analyser =
-    if (local)Class.forName(analyser.getClass.getCanonicalName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser] else analyser
+    if (local){
+      try{
+        Class.forName(analyser.getClass.getCanonicalName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser]
+      }
+      catch {
+        case e:NoSuchMethodException => Class.forName(analyser.getClass.getCanonicalName).getConstructor().newInstance().asInstanceOf[Analyser]
+      }
+    } else analyser
   final protected def getManagerCount: Int      = managerCount
-  final protected def getWorkerCount: Int       = managerCount * 10
+  final protected def getWorkerCount: Int       = managerCount * Utils.totalWorkers
 
   protected def processResults(timeStamp:Long) = {
     analyser.processResults(results, timeStamp,viewCompleteTime())
@@ -99,7 +106,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
   protected def processResultsWrapper(timeStamp: Long) = {
     if(saveData) {
-      val mongo = MongoClient(MongoClientURI(s"mongodb://$mongoIP:$mongoPort"))
+      val mongo = MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress()}:$mongoPort"))
       val buffer = new java.util.ArrayList[DBObject]()
       processResults(timeStamp)
       analyser.getPublishedData().foreach(data => {

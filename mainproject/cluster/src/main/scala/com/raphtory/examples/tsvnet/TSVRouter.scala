@@ -1,9 +1,10 @@
-package com.raphtory.examples.stackex
+package com.raphtory.examples.tsvnet
 
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.{EdgeAdd, Type, VertexAdd}
 
-class SXRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
+/** Spout for network datasets of the form SRC_NODE_ID DEST_NODE_ID TIMESTAMP */
+class TSVRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
 
   def parseTuple(record: Any): Unit = {
     val fileLine = record.asInstanceOf[String].split(" ").map(_.trim)

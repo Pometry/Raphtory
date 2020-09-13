@@ -62,11 +62,15 @@ object SingleNodeTest extends App {
   //  Analyser = "com.raphtory.examples.blockchain.analysers.EthereumTaintTracking"
 
 //chainalysisAB
-//  var UpdaterName = "com.raphtory.examples.blockchain.spouts.ChainalysisABSpout"
-  var SpoutName = "com.raphtory.spouts.FileSpout"
-//  var routerClassName = "com.raphtory.examples.blockchain.routers.ChainalysisABRouter"
-  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumKafkaRouter"
 
+  var SpoutName = "com.raphtory.examples.blockchain.spouts.ChainalysisABSpout"
+ // var SpoutName = "com.raphtory.spouts.KafkaSpout"
+  var routerClassName = "com.raphtory.examples.blockchain.routers.ChABClus2ClusRouter"
+//  var routerClassName = "com.raphtory.examples.blockchain.routers.EthereumKafkaRouter"
+
+
+//  var SpoutName = "com.raphtory.examples.twitterRumour.networkxSpout"
+//  var routerClassName = "com.raphtory.examples.twitterRumour.networkxRouter"
   val system = ActorSystem("Single-Node-test")
 
   system.actorOf(Props(new WatermarkManager(managerCount = 1)),"WatermarkManager")
@@ -75,12 +79,13 @@ object SingleNodeTest extends App {
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(SpoutName)), "Spout")
   val analysisManager = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
-  AnalysisRestApi(system)
+  //AnalysisRestApi(system)
 
-  //analysisManager ! ViewAnalysisRequest("jobID","com.raphtory.core.analysis.Algorithms.DegreeBasic", 1500046397L)
+  //analysisManager ! ViewAnalysisRequest("jobID","com.raphtory.core.analysis.Algorithms.TriangleCounting", 1L)
 
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents"}' 127.0.0.1:8080/LiveAnalysisRequest
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsViewTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents","timestamp":1476113856000}' 127.0.0.1:8080/ViewAnalysisRequest
   //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsRangeWindowTest","analyserName":"com.raphtory.core.analysis.Algorithms.ConnectedComponents","start":1475113856000,"end":1475113856000,"jump":3600000,"windowType":"batched","windowSet":[3600000,86000000]}' 127.0.0.1:8080/RangeAnalysisRequest
 //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0", "jobID":"connectedComponentsRangeWindowTest","analyserName":"com.raphtory.examples.blockchain.analysers.EthereumTaintTracking","start":4000000,"end":6000000,"jump":10,"args":["0xa09871aeadf4994ca12f5c0b6056bbd1d343c029","4000000"]}' 127.0.0.1:8081/RangeAnalysisRequest
 }
+

@@ -47,7 +47,6 @@ class GabMostUsedTopics(args:Array[String]) extends Analyser(args){
       .foreach(topic => println(s"Topic: ${topic._3} with ID ${topic._1} and total uses of ${topic._2}"))
     println()
   }
-  override def processViewResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {}
   override def processWindowResults(
       results: ArrayBuffer[Any],
       timestamp: Long,

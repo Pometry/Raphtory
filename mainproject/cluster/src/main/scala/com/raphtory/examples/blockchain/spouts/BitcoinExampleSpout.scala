@@ -4,7 +4,6 @@ import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.examples.blockchain.BitcoinTransaction
 import spray.json._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps

@@ -46,7 +46,7 @@ class WindowLens(
       TotalKeySize += keySet.size
       firstCall = false
     }
-    keySet.map(v =>  new VertexVisitor(v._2, viewJobOriginal, superstep, this))
+    keySet.map(v =>  new VertexVisitor(v._2, viewJobCurrent, superstep, this))
   }
 
   private var keySetMessages: ParIterable[VertexVisitor] = null
@@ -56,7 +56,7 @@ class WindowLens(
     if (!messageFilter) {
       keySetMessages = keySet.filter {
         case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(viewJobCurrent, superstep).nonEmpty
-      }.map(v =>  new VertexVisitor(v._2, viewJobOriginal, superstep, this))
+      }.map(v =>  new VertexVisitor(v._2, viewJobCurrent, superstep, this))
       TotalKeySize = keySetMessages.size + TotalKeySize
       messageFilter = true
     }
@@ -66,11 +66,10 @@ class WindowLens(
 
   def shrinkWindow(newWindowSize: Long) = {
     setWindow = newWindowSize
-    keySet = keySet.filter(v => (v._2).aliveAtWithWindow(timestamp, setWindow))
+    keySet = keySet.filter(v => (v._2).aliveAtWithWindow(timestamp, setWindow)).map(v=> (v._1,v._2.viewAtWithWindow(timestamp,setWindow)))
     messageFilter = false
     firstCall = true
     viewJobCurrent = ViewJob(viewJobCurrent.jobID,viewJobCurrent.timestamp,newWindowSize)
-    //println(s"$workerID $timestamp $newWindowSize keyset prior $x keyset after ${keySet.size}")
   }
 
   override def checkVotes(workerID: Int): Boolean =

@@ -4,16 +4,27 @@ import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.graphentities.Entity
 
 import scala.collection.mutable
+import scala.collection.parallel.ParSet
+import scala.collection.parallel.mutable.ParTrieMap
 
 abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {
+  def Type() = entity.getType
 
-  def firstActivityAfter(time:Long) = viewboundHistory.filter(k => k._1 >= time).minBy(x=>x._1)._1
-  def latestActivity() = viewboundHistory.head
-  def earliestActivity() = viewboundHistory.minBy(k=> k._1)
+  def firstActivityAfter(time:Long) = getHistory.filter(k => k._1 >= time).minBy(x=>x._1)._1
+  def latestActivity() = getHistory.head
+  def earliestActivity() = getHistory.minBy(k=> k._1)
 
+  def getPropertySet(): ParTrieMap[String,Any] = entity.properties.filter(p =>{
+    p._2.creation()<=viewJob.timestamp
+  }).map(f => (f._1,f._2.valueAt(viewJob.timestamp)))
 
+  def getPropertyValue(key: String): Option[Any] =
+    entity.properties.get(key) match {
+      case Some(p) => Some(p.valueAt(viewJob.timestamp))
+      case None    => None
+    }
 
-  def viewboundHistory(): mutable.TreeMap[Long, Boolean] = {
+  def getHistory(): mutable.TreeMap[Long, Boolean] = {
     if(viewJob.window > 0)
       entity.history.filter(k => k._1 <= viewJob.timestamp && k._1 >= viewJob.timestamp-viewJob.window)
     else {
