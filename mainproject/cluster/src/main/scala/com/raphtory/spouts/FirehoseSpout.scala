@@ -14,7 +14,7 @@ class FirehoseSpout extends SpoutTrait {
   val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
   val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
   val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
-  var JUMP = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "100").trim.toInt
+  var JUMP = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "10").trim.toInt
   var INCREMENT = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "1").trim.toInt
   var TIME = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
 

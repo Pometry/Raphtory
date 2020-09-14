@@ -2,31 +2,32 @@ package com.raphtory.examples.blockchain.routers
 
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, EdgeDelete, ImmutableProperty, Properties, StringProperty, VertexAdd, VertexAddWithProperties, VertexDelete}
+import com.raphtory.core.model.communication.{DoubleProperty, EdgeAdd, EdgeAddWithProperties, EdgeDelete, ImmutableProperty, LongProperty, Properties, StringProperty, VertexAdd, VertexAddWithProperties, VertexDelete}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
 import spray.json._
 
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
+import scala.math.BigInt
 class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
   var DELETEPERCENT = System.getenv().getOrDefault("ETHER_DELETE_PERCENT", "0").trim.toDouble/100
-  println(DELETEPERCENT)
   var DELETESEED = System.getenv().getOrDefault("ETHER_DELETE_SEED", "123").trim.toInt
   val random = new Random(DELETESEED)
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
   override protected def parseTuple(value: Any): Unit = {
-
+    //if(value.toString.contains("0xa09871aeadf4994ca12f5c0b6056bbd1d343c029")) println(value.toString)
     val transaction = value.toString.split(",")
     if(transaction(1).equals("block_number")) return
     val blockNumber = transaction(2).toInt
 
-    val from = transaction(3).replaceAll("\"", "").toLowerCase
-    val to   = transaction(4).replaceAll("\"", "").toLowerCase
-    val sent = transaction(5).replaceAll("\"", "")
+    val from = transaction(4).replaceAll("\"", "").toLowerCase
+    val to   = transaction(5).replaceAll("\"", "").toLowerCase
+    val sent = (BigDecimal(transaction(6).replaceAll("\"", ""))/BigDecimal("1000000000000000000")).toDouble
     val sourceNode      = assignID(from) //hash the id to get a vertex ID
     val destinationNode = assignID(to)   //hash the id to get a vertex ID
-
+    //if(from.contains("0xa09871aeadf4994ca12f5c0b6056bbd1d343c029".toLowerCase())) println(from)
+    //if(to.contains("0xa09871aeadf4994ca12f5c0b6056bbd1d343c029".toLowerCase())) println(to)
     sendGraphUpdate(VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from))))
 //    if(random.nextDouble()<=DELETEPERCENT)
 //      sendGraphUpdate(VertexDelete(blockNumber+1,sourceNode))
@@ -35,11 +36,10 @@ class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, 
 //    if(random.nextDouble()<=DELETEPERCENT)
 //      sendGraphUpdate(VertexDelete(blockNumber+1,destinationNode))
 
-    sendGraphUpdate(EdgeAdd(blockNumber, sourceNode, destinationNode))
-    if(random.nextDouble()<=DELETEPERCENT)
-     sendGraphUpdate(EdgeDelete(blockNumber+1,sourceNode,destinationNode))
-//17:21 21:50
-  //  22:58 23:51
+    sendGraphUpdate(EdgeAddWithProperties(blockNumber, sourceNode, destinationNode,properties = Properties(DoubleProperty("value", sent))))
+//    if(random.nextDouble()<=DELETEPERCENT)
+//     sendGraphUpdate(EdgeDelete(blockNumber+1,sourceNode,destinationNode))
+
   }
 }
 
