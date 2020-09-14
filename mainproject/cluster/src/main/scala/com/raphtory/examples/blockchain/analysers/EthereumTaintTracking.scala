@@ -77,7 +77,7 @@ class EthereumTaintTracking(args:Array[String]) extends Analyser(args) {
     view
       .getVertices().map { vertex =>
         if (vertex.containsState("infected"))
-          (vertex.getPropertyValue("id").get.asInstanceOf[String], vertex.getState("infected")[Long],vertex.getState("infectedBy")[String])
+          (vertex.getPropertyValue("id").get.asInstanceOf[String], vertex.getState[Long]("infected"),vertex.getState[String]("infectedBy"))
         else
           ("", -1L,"")
 

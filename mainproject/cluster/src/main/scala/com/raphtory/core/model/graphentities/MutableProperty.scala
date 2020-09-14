@@ -80,7 +80,7 @@ class MutableProperty(creationTime: Long, key: String, value: Any, storage: Enti
   def valueAt(time: Long): Any = {
     var closestTime: Long = 0
     var value: Any        = "Default"
-    for ((k, v) <- compressedState)
+    for ((k, v) <- previousState)
       if (k <= time)
         if ((time - k) < (time - closestTime)) {
           closestTime = k
@@ -88,6 +88,8 @@ class MutableProperty(creationTime: Long, key: String, value: Any, storage: Enti
         }
     value
   }
+
+  override def valuesAfter(time: Long): Array[Any] = {previousState.filter(x=> x._1>=time).map(x=>x._2).toArray}
 
   override def toString: String =
     s"History: $previousState"
