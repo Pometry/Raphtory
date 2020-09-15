@@ -226,7 +226,8 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     log.debug(s"Reader [{}] received [{}] request.", workerId, req)
     val timestamp = req.timestamp
 
-    val newest = if(storage.windowSafe) storage.safeWindowTime else storage.windowTime
+    //val newest = if(storage.windowSafe) storage.safeWindowTime else storage.windowTime
+    val newest = storage.newestTime
 
     if (timestamp <= newest) {
       log.debug("Received timestamp is smaller or equal to newest entityStorage timestamp.")
