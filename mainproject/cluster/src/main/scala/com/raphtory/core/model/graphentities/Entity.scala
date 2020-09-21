@@ -145,10 +145,14 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
     */
   def +(msgTime: Long, immutable: Boolean, key: String, value: Any): Unit =
     properties.get(key) match {
-      case Some(p) => p update (msgTime, value)
+      case Some(p) => {
+        p update (msgTime, value)
+      }
       case None =>
-        if (immutable) properties.put(key, new MutableProperty(msgTime, key, value, storage))
-        else properties.put(key, new ImmutableProperty(msgTime, key, value, storage))
+        if (immutable) properties.put(key, new ImmutableProperty(msgTime, key, value, storage))
+        else {
+          properties.put(key, new MutableProperty(msgTime, key, value, storage))
+        }
     }
 
   def beenSaved(): Boolean = saved
