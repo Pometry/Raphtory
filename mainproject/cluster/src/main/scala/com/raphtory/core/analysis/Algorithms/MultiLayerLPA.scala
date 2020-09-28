@@ -62,9 +62,9 @@ class MultiLayerLPA(args:Array[String]) extends LPA(args) {
       val totalIslands = total - totalWithoutIslands
       val proportion = biggest.toFloat / grouped.map(x => x._2.size).sum
       val totalGT2 = grouped.count(x => x._2.size > 2)
-      fd(top5, total, totalIslands, proportion, totalGT2, communities)
+      fd(top5, total, totalIslands, proportion, communities)
     } catch {
-      case e: UnsupportedOperationException => fd(Array(0),0,0,0,0, Array(ArrayBuffer("0")))
+      case e: UnsupportedOperationException => fd(Array(0),0,0,0,Array(ArrayBuffer("0")))
     }
   }
 

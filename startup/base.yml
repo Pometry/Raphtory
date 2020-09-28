@@ -1,0 +1,16 @@
+version: '3.3'
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.0.0.0/24
+
+services:
+    raphtory:
+        image: tsukitsune/raphtory:latest
+        container_name: raphtory
+        ports:
+             - 8081:8081
+        command: env-setter.sh singleNodeSetup
+        env_file: .env
