@@ -8,9 +8,12 @@ import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.ParArray
 
 class LPA(args:Array[String]) extends Analyser(args){
+  val arg = args.map(_.trim)//.head
+  val top_c = if (arg.length==0) 999999999 else arg.head.toInt
+
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
-      val lab = (vertex.getIncEdges.size+vertex.getOutEdges.size).toLong// scala.util.Random.nextLong()
+      val lab = scala.util.Random.nextLong()
       vertex.setState("lpalabel", lab)//vertex.ID())
       vertex.messageAllNeighbours(lab)//vertex.ID())
 //      vertex.setState("lpalabel", vertex.ID())
@@ -55,7 +58,7 @@ class LPA(args:Array[String]) extends Analyser(args){
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
     val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]"""}
-    val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2}, "communities":[${commtxt.mkString(",")}],"viewTime":$viewCompleteTime}"""
+    val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion}, "communities":[${commtxt.mkString(",")}],"viewTime":$viewCompleteTime}"""
     println(text)
     publishData(text)
   }
@@ -63,7 +66,7 @@ class LPA(args:Array[String]) extends Analyser(args){
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
     val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]"""}
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt.mkString(",")}],"proportion":${er.proportion},"clustersGT2":${er.totalGT2}, "viewTime":$viewCompleteTime}"""
+    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt.mkString(",")}],"proportion":${er.proportion}, "viewTime":$viewCompleteTime}"""
     println(text)
     publishData(text)
 
@@ -75,17 +78,16 @@ class LPA(args:Array[String]) extends Analyser(args){
       val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
       val groupedNonIslands = grouped.filter(x => x._2.size > 1)
       val biggest = grouped.maxBy(_._2.size)._2.size
-      val sorted = groupedNonIslands.toArray.sortBy(_._2.size)(sortOrdering).map(x=>x._2.size)
-      val top5 = if(sorted.length<=10) sorted else sorted.take(10)
+      val sorted = groupedNonIslands.toArray.sortBy(_._2.size)(sortOrdering)//
+      val top5 = sorted.map(x=>x._2.size).take(5)
       val total = grouped.size
       val totalWithoutIslands = groupedNonIslands.size
       val totalIslands = total - totalWithoutIslands
       val proportion = biggest.toFloat / grouped.map(x => x._2.size).sum
-      val totalGT2 = grouped.count(x => x._2.size > 2)
-      val communities =  grouped.map(x=>x._2)//.toArray
-      fd(top5,total,totalIslands,proportion,totalGT2, communities.toArray)
+      val communities =  sorted.map(x=>x._2).take(Set(sorted.length, top_c).min)//.values//.toArray
+      fd(top5,total,totalIslands,proportion, communities.toArray)
     }  catch {
-      case e: UnsupportedOperationException => fd(Array(0),0,0,0,0, Array(ArrayBuffer("0")))
+      case e: UnsupportedOperationException => fd(Array(0),0,0,0, Array(ArrayBuffer("0")))
     }
   }
 
@@ -93,5 +95,5 @@ class LPA(args:Array[String]) extends Analyser(args){
 
 }
 
-case class fd(top5:Array[Int],total:Int,totalIslands:Int,proportion:Float,totalGT2:Int, communities: Array[ArrayBuffer[String]])
+case class fd(top5:Array[Int],total:Int,totalIslands:Int,proportion:Float, communities: Array[ArrayBuffer[String]])
 
