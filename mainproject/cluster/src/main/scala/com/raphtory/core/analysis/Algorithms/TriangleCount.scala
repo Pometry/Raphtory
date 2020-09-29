@@ -15,14 +15,17 @@ class TriangleCount(args:Array[String]) extends Analyser(args) {
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
       vertex.setState("triangles", 0)
-      val neighbours = vertex.getIncEdges.map(x=> x.ID).toSet.union(vertex.getOutEdges.map(x=> x.ID).toSet).seq.filter(_ > vertex.ID())
-      vertex.messageAllNeighbours(neighbours)
+      val neighbours = vertex.getIncEdges.map(x=> x.ID).toSet.union(vertex.getOutEdges.map(x=> x.ID).toSet).seq.filter(_ !=vertex.ID())
+      val toSend = neighbours.seq.filter(_ > vertex.ID())
+      neighbours.foreach { nb =>
+        vertex.messageNeighbour(nb, toSend)
+      }
     }
   }
 
   override def analyse(): Unit = {
       view.getMessagedVertices().foreach { vertex =>
-        val neighbours = vertex.getIncEdges.map(x=> x.ID()).toSet.union(vertex.getOutEdges.map(x=> x.ID()).toSet).seq
+        val neighbours = vertex.getIncEdges.map(x=> x.ID()).toSet.union(vertex.getOutEdges.map(x=> x.ID()).toSet).seq.filter(_ != vertex.ID())
         val queue = vertex.messageQueue[Set[Long]]
         var totalTriangles = 0
         queue.foreach { nbs =>

@@ -11,6 +11,9 @@ class TSVRouter(override val routerId: Int, override val workerID:Int, override 
     //user wise
     val sourceNode = fileLine(0).toInt
     val targetNode = fileLine(1).toInt
+    val creationDate = fileLine(2).toLong
+
+
 
     //comment wise
     // val sourceNode=fileLine(1).toInt
