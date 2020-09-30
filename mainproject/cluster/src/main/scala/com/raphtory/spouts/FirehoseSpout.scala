@@ -4,21 +4,21 @@ import java.io.{BufferedReader, File, FileReader}
 import java.time.LocalDateTime
 
 import com.raphtory.core.components.Spout.SpoutTrait
+import com.raphtory.core.components.Spout.SpoutTrait.Message.StartSpout
 
 import scala.concurrent.duration.{Duration, MILLISECONDS, NANOSECONDS, SECONDS}
 import scala.io.Source
 
-class FirehoseSpout extends SpoutTrait {
+final case class FirehoseSpout() extends SpoutTrait {
+  log.info("initialise FirehoseSpout")
+  private val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
+  private val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
+  private val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
+  private var JUMP = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "10").trim.toInt
+  private var INCREMENT = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "1").trim.toInt
+  private var TIME = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
 
-  println("Start: " + LocalDateTime.now())
-  val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
-  val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
-  val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
-  var JUMP = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "10").trim.toInt
-  var INCREMENT = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "1").trim.toInt
-  var TIME = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
-
-  var directoryPosition    = 0
+  var directoryPosition = 0
 
   val filesToRead = if(fileName.isEmpty)
     getListOfFiles(directory)
