@@ -26,7 +26,7 @@ class CommunityOutlierDetection(args:Array[String]) extends LPA(args) {
     val topnum = System.getenv().getOrDefault("OUTLIER_DETECTION_NUMBER", "100").trim.toInt
     val outliers = endResults.filter(_._2 >= thr)
     val sorted = outliers.sortBy(- _._2)
-    val sortedstr = sorted.map(x => s"""${x._1}:${x._2}""")
+    val sortedstr = sorted.map(x => s""""${x._1}":${x._2}""")
     val top = sorted.map(_._1).take(5)
     val total = outliers.length
     val proportion = total/endResults.length.toFloat
@@ -42,7 +42,7 @@ class CommunityOutlierDetection(args:Array[String]) extends LPA(args) {
     val topnum = System.getenv().getOrDefault("OUTLIER_DETECTION_NUMBER", "100").trim.toInt
     val outliers = endResults.filter(_._2 >= thr)
     val sorted = outliers.sortBy(- _._2)
-    val sortedstr = sorted.map(x => s"""${x._1}:${x._2}""")
+    val sortedstr = sorted.map(x => s""""${x._1}":${x._2}""")
     val top = sorted.map(_._1).take(5)
     val total = outliers.length
     val proportion = total/endResults.length.toFloat
