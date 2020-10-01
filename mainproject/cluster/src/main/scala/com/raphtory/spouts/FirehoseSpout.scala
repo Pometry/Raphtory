@@ -1,91 +1,150 @@
 package com.raphtory.spouts
 
-import java.io.{BufferedReader, File, FileReader}
-import java.time.LocalDateTime
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileReader
 
 import com.raphtory.core.components.Spout.SpoutTrait
-import com.raphtory.core.components.Spout.SpoutTrait.Message.StartSpout
+import com.raphtory.core.model.communication.StringSpoutGoing
+import com.raphtory.spouts.FirehoseSpout.Message.FireHouseDomain
+import com.raphtory.spouts.FirehoseSpout.Message.Increase
+import com.raphtory.spouts.FirehoseSpout.Message.NextFile
+import com.raphtory.spouts.FirehoseSpout.Message.NextLineBlock
+import com.typesafe.scalalogging.LazyLogging
 
-import scala.concurrent.duration.{Duration, MILLISECONDS, NANOSECONDS, SECONDS}
-import scala.io.Source
+import scala.annotation.tailrec
+import scala.concurrent.duration._
 
-final case class FirehoseSpout() extends SpoutTrait {
+final case class FirehoseSpout() extends SpoutTrait[FireHouseDomain, StringSpoutGoing] {
   log.info("initialise FirehoseSpout")
-  private val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
-  private val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
+  private val directory  = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
+  private val fileName   = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
   private val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
-  private var JUMP = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "10").trim.toInt
-  private var INCREMENT = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "1").trim.toInt
-  private var TIME = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
+  private val JUMP       = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "10").trim.toInt
+  private val INCREMENT  = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "1").trim.toInt
+  private val TIME       = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
 
-  var directoryPosition = 0
+  private var fileManager = FileManager(directory, fileName, dropHeader, JUMP)
 
-  val filesToRead = if(fileName.isEmpty)
-    getListOfFiles(directory)
-  else
-    Array(directory + "/" + fileName)
-
-  var currentFile = fileToArray(directoryPosition)
-
-
-  protected def ProcessSpoutTask(message: Any): Unit = message match {
-    case StartSpout => {
-      AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
-      AllocateSpoutTask(Duration(60, SECONDS), "increase")
-    }
-    case "increase" => JUMP += INCREMENT ;AllocateSpoutTask(Duration(TIME, SECONDS), "increase")
-    case "nextLineBLock" => nextLineBlock()
-    case "nextFile" => nextFile()
-    case _ => println("message not recognized!")
+  def startSpout(): Unit = {
+    self ! NextLineBlock
+    // todo: wvv not sure why we need to keep increasing
+    context.system.scheduler.scheduleOnce(TIME.seconds, self, Increase)
   }
 
-  def nextLineBlock() = {
-    try {
-      for (i <- 1 to JUMP) {
-        val line = currentFile.readLine()
-        if(line!=null)
-          sendTuple(line)
-        else
-          throw new Exception
+  def handleDomainMessage(message: FireHouseDomain): Unit = message match {
+    case Increase =>
+      if (fileManager.allCompleted)
+        log.info("All files read")
+      else {
+        fileManager = fileManager.increaseBlockSize(INCREMENT)
+        context.system.scheduler.scheduleOnce(TIME.seconds, self, Increase)
       }
-      AllocateSpoutTask(Duration(1, MILLISECONDS), "nextLineBLock")
-    }
-    catch {
-      case e:Exception => AllocateSpoutTask(Duration(1, NANOSECONDS), "nextFile")
-    }
+
+    case NextLineBlock =>
+      if (fileManager.allCompleted)
+        log.info("All files read")
+      else {
+        val (newFileManager, block) = fileManager.nextLineBlock()
+        fileManager = newFileManager
+        block.foreach(str => sendTuple(StringSpoutGoing(str)))
+        self ! NextLineBlock
+      }
+    case NextFile =>
+      if (fileManager.allCompleted)
+        log.info("All files read")
+      else {
+        fileManager = fileManager.nextFile()
+        self ! NextLineBlock
+      }
   }
-
-  def nextFile() = {
-    directoryPosition += 1
-    if (filesToRead.length > directoryPosition) {
-      currentFile = fileToArray(directoryPosition)
-      AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
-    }
-    else {
-      println("All files read "+ LocalDateTime.now())
-    }
-  }
-
-
-  def fileToArray(pos:Int) ={
-    println(s"Now reading ${filesToRead(pos)}")
-    if(dropHeader){
-      val br = new BufferedReader(new FileReader(filesToRead(pos)))
-      br.readLine()
-      br
-    }
-    else
-      new BufferedReader(new FileReader(filesToRead(pos)))
-  }
-
-  def getListOfFiles(dir: String):Array[String] = {
-    val d = new File(dir)
-    if (d.exists && d.isDirectory) {
-      d.listFiles.filter(f=> f.isFile && !f.isHidden).map(f=> f.getCanonicalPath).sorted
-    } else {
-      Array[String]()
-    }
-  }
-
 }
 
+object FirehoseSpout {
+  object Message {
+    sealed trait FireHouseDomain
+    case object Increase      extends FireHouseDomain
+    case object NextLineBlock extends FireHouseDomain
+    case object NextFile      extends FireHouseDomain
+  }
+}
+
+case class FileManager private (
+    currentFileReader: Option[BufferedReader],
+    restFiles: List[File],
+    dropHeader: Boolean,
+    blockSize: Int
+) extends LazyLogging {
+  def nextFile(): FileManager = this.copy(currentFileReader = None)
+
+  lazy val allCompleted: Boolean = currentFileReader.isEmpty && restFiles.isEmpty
+
+  def increaseBlockSize(inc: Int): FileManager = this.copy(blockSize = blockSize + inc)
+
+  def nextLineBlock(): (FileManager, List[String]) = currentFileReader match {
+    case None =>
+      restFiles match {
+        case Nil => (this, List.empty)
+        case head :: tail =>
+          val reader             = getFileReader(head)
+          val (block, endOfFile) = readBlockAndIsEnd(reader)
+          val currentReader      = if (endOfFile) None else Some(reader)
+          (this.copy(currentFileReader = currentReader, restFiles = tail), block)
+      }
+    case Some(reader) =>
+      val (block, endOfFile) = readBlockAndIsEnd(reader)
+      if (endOfFile) (this.copy(currentFileReader = None), block)
+      else (this, block)
+
+  }
+
+  private def readBlockAndIsEnd(reader: BufferedReader): (List[String], Boolean) = {
+    @tailrec
+    def rec(count: Int, result: List[String]): (List[String], Boolean) =
+      if (count > 0) {
+        val line = reader.readLine()
+        if (line != null)
+          rec(count - 1, result :+ line)
+        else (result, true)
+      } else (result, false)
+    rec(blockSize, List.empty)
+  }
+
+  private def getFileReader(file: File): BufferedReader = {
+    logger.info(s"Reading file ${file.getCanonicalPath}")
+    if (dropHeader) {
+      val br = new BufferedReader(new FileReader(file))
+      br.readLine()
+      br
+    } else
+      new BufferedReader(new FileReader(file))
+  }
+}
+
+object FileManager extends LazyLogging {
+  def apply(dir: String, fileName: String, dropHeader: Boolean, blockSize: Int): FileManager = {
+    val filesToRead =
+      if (fileName.isEmpty)
+        getListOfFiles(dir)
+      else {
+        val file = new File(dir + "/" + fileName)
+        if (file.exists && file.isFile)
+          List(file)
+        else {
+          logger.error(s"File $dir/$fileName does not exist or is not file ")
+          List.empty
+        }
+      }
+    FileManager(None, filesToRead, dropHeader, blockSize)
+  }
+
+  private def getListOfFiles(dir: String): List[File] = {
+    val d = new File(dir)
+    if (d.exists && d.isDirectory)
+      d.listFiles.toList.filter(f => f.isFile && !f.isHidden)
+    else {
+      logger.error(s"Directory $dir does not exist or is not directory")
+      List.empty
+    }
+  }
+}

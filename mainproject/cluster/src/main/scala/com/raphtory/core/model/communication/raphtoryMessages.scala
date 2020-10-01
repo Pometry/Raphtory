@@ -20,6 +20,7 @@ sealed trait TrackedGraphUpdate{
 }
 
 trait SpoutGoing
+final case class StringSpoutGoing(value: String) extends SpoutGoing
 
 case class RouterUp(id: Int)
 case class PartitionUp(id: Int)
