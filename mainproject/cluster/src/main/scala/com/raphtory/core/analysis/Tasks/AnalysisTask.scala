@@ -259,7 +259,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
           else
             mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
       else {
-        // println(s"Superstep $currentSuperStep")
+        //println(s"Superstep $currentSuperStep")
         this.voteToHalt = true
         workersFinishedSuperStep = 0
         syncMessages()

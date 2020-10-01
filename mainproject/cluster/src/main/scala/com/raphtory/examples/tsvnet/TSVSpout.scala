@@ -24,7 +24,7 @@ class TSVSpout extends SpoutTrait {
     case "newLine" =>
       try {
         if (position < linesNumber) {
-          for (i <- 1 to 100) {
+          for (i <- 0 to 100) {
             var line = fileLines(position)
             sendTuple(line)
             position += 1
