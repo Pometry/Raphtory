@@ -26,7 +26,7 @@ class GabUserGraphRouter(override val routerId: Int,override val workerID:Int, o
     //comment wise
     // val sourceNode=fileLine(1).toInt
     //val targetNode=fileLine(4).toInt
-    if (targetNode > 0) {
+    if (targetNode > 0 && targetNode != sourceNode) {
       val creationDate = dateToUnixTime(timestamp = fileLine(0).slice(0, 19))
       sendGraphUpdate(VertexAdd(creationDate, sourceNode, Type("User")))
       sendGraphUpdate(VertexAdd(creationDate, targetNode, Type("User")))

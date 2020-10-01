@@ -24,8 +24,8 @@ object NaomiTest extends App{
   val end =   31525368897000L
 
   val jump =    3600000
-  var SpoutName = "com.raphtory.examples.tsvnet.TSVSpout"
-  var routerClassName = "com.raphtory.examples.tsvnet.TSVRouter"
+  var SpoutName = "com.raphtory.examples.lotr.LOTRSpout"
+  var routerClassName = "com.raphtory.examples.lotr.LOTRRouter"
 
   val system = ActorSystem("Single-Node-test")
 
