@@ -69,7 +69,7 @@ object FirehoseSpout {
   }
 }
 
-case class FileManager private (
+final case class FileManager private (
     currentFileReader: Option[BufferedReader],
     restFiles: List[File],
     dropHeader: Boolean,
@@ -105,7 +105,10 @@ case class FileManager private (
         val line = reader.readLine()
         if (line != null)
           rec(count - 1, result :+ line)
-        else (result, true)
+        else {
+          reader.close()
+          (result, true)
+        }
       } else (result, false)
     rec(blockSize, List.empty)
   }
