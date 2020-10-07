@@ -1,5 +1,6 @@
 import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 import com.typesafe.sbt.packager.docker.Cmd
+import sbtassembly.MergeStrategy
 
 val Akka        = "2.5.26"
 val Config      = "1.2.1"
@@ -96,6 +97,31 @@ lazy val dockerStuff = Seq(
 
 )
 
+lazy val mergeStrategy: String => MergeStrategy = {
+  case PathList(xs @ _*) if xs.last == "io.netty.versions.properties" => MergeStrategy.first
+  case PathList(xs @ _*) if xs.last == "module-info.class" => MergeStrategy.first
+  case x if Assembly.isConfigFile(x) =>
+    MergeStrategy.concat
+  case PathList(ps @ _*) if Assembly.isReadme(ps.last) || Assembly.isLicenseFile(ps.last) =>
+    MergeStrategy.rename
+  case PathList("META-INF", xs @ _*) =>
+    xs map { _.toLowerCase } match {
+      case "manifest.mf" :: Nil | "index.list" :: Nil | "dependencies" :: Nil =>
+        MergeStrategy.discard
+      case ps @ x :: xs if ps.last.endsWith(".sf") || ps.last.endsWith(".dsa") =>
+        MergeStrategy.discard
+      case "plexus" :: xs =>
+        MergeStrategy.discard
+      case "services" :: xs =>
+        MergeStrategy.filterDistinctLines
+      case "spring.schemas" :: Nil | "spring.handlers" :: Nil |
+           "io.netty.versions.properties" :: Nil =>
+        MergeStrategy.filterDistinctLines
+      case _ => MergeStrategy.deduplicate
+    }
+  case _ => MergeStrategy.deduplicate
+}
+
 lazy val root = Project(id = "raphtory", base = file(".")) aggregate (cluster)
 
 lazy val cluster = project
@@ -157,4 +183,8 @@ lazy val cluster = project
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
           javaAgents += "io.kamon" % "kanela-agent" % "1.0.5",
           javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default"
+  )
+  .settings(
+    assemblyMergeStrategy in assembly := mergeStrategy,
+    mainClass in assembly := Some("com.raphtory.Go")
   )
