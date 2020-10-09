@@ -1,29 +1,20 @@
 package com.raphtory.core.components.ClusterManagement
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Cancellable
-import akka.actor.Props
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
-import com.raphtory.core.components.PartitionManager.Archivist
-import com.raphtory.core.components.PartitionManager.Reader
-import com.raphtory.core.components.PartitionManager.Writer
+import com.raphtory.core.components.PartitionManager.{Archivist, Reader, Writer}
 import com.raphtory.core.components.Router.RouterManager
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
-import com.raphtory.core.utils.SchedulerUtil
-import com.raphtory.core.utils.Utils
+import com.raphtory.core.utils.{SchedulerUtil, Utils}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
-import scala.concurrent.Await
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -159,7 +150,10 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
   def createNewRouter(assignedId: Int): Unit = {
     log.info(s"Router $assignedId has come online.")
 
-    actorRef = context.system.actorOf(Props(new RouterManager(myId, currentCount, routerName)), "router")
+    actorRef = context.system.actorOf(
+      Props(new RouterManager(myId, currentCount, routerName)).withDispatcher("misc-dispatcher"),
+      "router"
+    )
   }
 
 
