@@ -13,27 +13,27 @@ class LPA(args:Array[String]) extends Analyser(args){
 
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
-      val lab = scala.util.Random.nextLong()
-      vertex.setState("lpalabel", lab)//vertex.ID())
-      vertex.messageAllNeighbours(lab)//vertex.ID())
-//      vertex.setState("lpalabel", vertex.ID())
-//      vertex messageAllNeighbours vertex.ID()
+      val lab = vertex.ID()//scala.util.Random.nextLong()
+      vertex.setState("lpalabel", lab)
+      vertex.messageAllNeighbours((vertex.ID(),lab))
     }
   }
 
   override def analyse(): Unit = {
     view.getMessagedVertices().foreach { vertex =>
       val vlabel = vertex.getState[Long]("lpalabel")
-      val gp = vertex.messageQueue[Long]
-      gp.append(vlabel)
-      val newLabel = labelProbability(gp.groupBy(identity))
+      val vfreq = vertex.getPropertyValue("Frequency").getOrElse(1L).asInstanceOf[Long]
+      val neigh = (vertex.getIncEdges ++ vertex.getOutEdges).map{e=> e.ID()->e.getPropertyValue("Frequency").getOrElse(1L).asInstanceOf[Long]}.toMap
+      val gp = vertex.messageQueue[(Long, Long)].map{v => (v._2, neigh(v._1))}
+      gp.append((vlabel, vfreq))
+      val newLabel = labelProbability(gp.groupBy(_._1).mapValues(_.map(_._2)))
       if (newLabel == vlabel) {
         vertex.voteToHalt()
       }else {
         vertex.setState("lpalabel", newLabel)
       }
-      vertex messageAllNeighbours newLabel
-      doSomething(vertex, gp.toArray)
+      vertex.messageAllNeighbours((vertex.ID(),newLabel))
+      doSomething(vertex, gp.map(_._1).toArray)
     }
   }
 
@@ -41,7 +41,7 @@ class LPA(args:Array[String]) extends Analyser(args){
 //    label probability function to get rid of oscillation phenomena of synchronous LPA from [1]
 //    [1] https://doi.org/10.1016/j.neucom.2014.04.084
 
-    val f = gp.map{lab =>  Math.pow(lab._2.size, 2)}
+    val f = gp.map{lab =>  Math.pow(lab._2.sum, 2)}//TODO: implement full method from paper
     val p = f.toArray.map(i => i/f.toArray.sum)
     val gpp = gp.keys zip p
     gpp.filter(x=>x._2 == gpp.maxBy(_._2)._2).maxBy(_._1)._1
@@ -78,7 +78,7 @@ class LPA(args:Array[String]) extends Analyser(args){
       val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
       val groupedNonIslands = grouped.filter(x => x._2.size > 1)
       val biggest = grouped.maxBy(_._2.size)._2.size
-      val sorted = groupedNonIslands.toArray.sortBy(_._2.size)(sortOrdering)//
+      val sorted = grouped.toArray.sortBy(_._2.size)(sortOrdering)//
       val top5 = sorted.map(x=>x._2.size).take(5)
       val total = grouped.size
       val totalWithoutIslands = groupedNonIslands.size
