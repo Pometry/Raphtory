@@ -22,7 +22,6 @@ import akka.stream.ActorMaterializer
 import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.Next
 import com.raphtory.core.components.Spout.SpoutTrait.{BasicDomain, DomainMessage}
 import com.raphtory.core.model.communication.StringSpoutGoing
-import com.raphtory.spouts.FirehoseSpout.Message.FireHouseDomain
 import spray.json.DefaultJsonProtocol._
 
 

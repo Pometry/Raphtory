@@ -5,24 +5,27 @@ import java.text.SimpleDateFormat
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
+
+import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks._
 
-class TrackAndTraceRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
+class TrackAndTraceRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
   val EARTH_EQU = 6378137.0                                                          //m
   val EARTH_POL = 6356752.3142                                                       //m
   val STEPSIZE  = System.getenv().getOrDefault("MAP_GRID_SIZE", "100").trim.toDouble //m
 
-  def parseTuple(record: Any): Unit = {
-    val datapoint  = lineToDatapoint(record.asInstanceOf[String].split(",").map(_.trim))
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+    val datapoint  = lineToDatapoint(tuple.value.split(",").map(_.trim))
     val eventTime  = datapoint.time
     val userID     = datapoint.userId
     val latitude   = datapoint.latitude
     val longitude  = datapoint.longitude
     val locationID = locationIDGenerator(latitude, longitude)
+    val commands = new ListBuffer[GraphUpdate]()
+    commands+=(VertexAdd(eventTime, userID, Type("User")))
 
-    sendGraphUpdate(VertexAdd(eventTime, userID, Type("User")))
-
-    sendGraphUpdate(
+    commands+=(
             VertexAddWithProperties(
                     eventTime,
                     locationID,
@@ -31,8 +34,8 @@ class TrackAndTraceRouter(override val routerId: Int,override val workerID:Int, 
             )
     )
 
-    sendGraphUpdate(EdgeAdd(eventTime, userID, locationID, Type("User Visted Location")))
-
+    commands+=(EdgeAdd(eventTime, userID, locationID, Type("User Visted Location")))
+    commands.toList
   }
 
   //converts the line into a case class which has all of the data via the correct name and type

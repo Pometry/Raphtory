@@ -30,7 +30,7 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
 
   // todo: wvv let people know parseTuple will create a list of update message
   //  and this trait will handle logic to send to graph
-  protected def parseTuple(value: In): List[GraphUpdate]
+  protected def parseTuple(tuple: In): List[GraphUpdate]
 
   final protected val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)

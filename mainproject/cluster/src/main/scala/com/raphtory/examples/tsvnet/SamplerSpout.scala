@@ -4,8 +4,8 @@ import java.time.LocalDateTime
 
 import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.components.Spout.SpoutTrait.BasicDomain
+import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.Next
 import com.raphtory.core.model.communication.StringSpoutGoing
-import monix.tail.Iterant.Next
 
 import scala.concurrent.duration.{Duration, NANOSECONDS}
 import scala.util.Random
@@ -23,7 +23,7 @@ class SamplerSpout extends SpoutTrait[BasicDomain,StringSpoutGoing] {
   var linesNumber = fileLines.length
   println("Start: " + LocalDateTime.now())
 
-  protected def ProcessSpoutTask(message: Any): Unit = message match {
+  override def handleDomainMessage(message: BasicDomain): Unit = message match {
     case Next =>
       try {
         if (position < linesNumber) {
@@ -35,7 +35,7 @@ class SamplerSpout extends SpoutTrait[BasicDomain,StringSpoutGoing] {
                 break
               } else {
                 val line = fileLines(position)
-                sendTuple(line)
+                sendTuple(StringSpoutGoing(line))
                 position += 1
               }
             }
@@ -50,5 +50,7 @@ class SamplerSpout extends SpoutTrait[BasicDomain,StringSpoutGoing] {
       catch {case e:Exception => println("Finished ingestion")}
     case _ => println("message not recognized!")
   }
+
+  override def startSpout(): Unit = self ! Next
 
 }

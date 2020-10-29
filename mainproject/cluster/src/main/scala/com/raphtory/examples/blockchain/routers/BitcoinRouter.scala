@@ -9,12 +9,12 @@ import scala.collection.mutable.ListBuffer
 class BitcoinRouter(override val routerId: Int,override val workerID:Int,override val initialManagerCount: Int)
   extends RouterWorker[BitcoinTransaction](routerId,workerID,initialManagerCount) {
 
-  override protected def parseTuple(value:BitcoinTransaction): List[GraphUpdate]  = {
+  override protected def parseTuple(tuple:BitcoinTransaction): List[GraphUpdate]  = {
 
-    val transaction  = value.transaction
-    val time         = value.time
-    val blockID      = value.blockID
-    val block        = value.block
+    val transaction  = tuple.transaction
+    val time         = tuple.time
+    val blockID      = tuple.blockID
+    val block        = tuple.block
     val timeAsString = time.toString
     val timeAsLong   = timeAsString.toLong
 

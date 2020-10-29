@@ -100,5 +100,5 @@ object SpoutTrait {
     case object Next extends BasicDomain
   }
   trait DomainMessage
-  sealed trait BasicDomain
+  sealed trait BasicDomain extends DomainMessage
 }

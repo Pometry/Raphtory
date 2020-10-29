@@ -3,21 +3,26 @@ package com.raphtory.examples.wordSemantic.routers
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.{Type, _}
 
-class CooccurrenceMatrixRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
+import scala.collection.mutable.ListBuffer
 
-  def parseTuple(record: Any): Unit = {
+class CooccurrenceMatrixRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
+
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
     //println(record)
-    var dp = record.asInstanceOf[String].split(" ").map(_.trim)
+    var dp = tuple.value.split(" ").map(_.trim)
+    val commands = new ListBuffer[GraphUpdate]()
     val occurenceTime = dp.head.toLong//DateFormatting(dp.head) //.slice(4, dp.head.length)
     try {
       dp = dp.last.split("\t")
       val srcClusterId = dp.head.toLong//assignID(dp.head)
       val len = dp.length
+
       for (i <- 1 until len by 2) {
         val dstClusterId = dp(i).toLong//assignID(dp(i))
         val coocWeight = dp(i + 1).toLong
 
-        sendGraphUpdate(
+        commands+=(
          EdgeAddWithProperties(
             msgTime = occurenceTime,
             srcID = srcClusterId,
@@ -26,9 +31,11 @@ class CooccurrenceMatrixRouter(override val routerId: Int, override val workerID
           )
         )
       }
+
     }catch {
-      case e: Exception => println(e, dp.length, record.asInstanceOf[String])
+      case e: Exception => println(e, dp.length, tuple.value)
     }
+    commands.toList
   }
 
   def DateFormatting(date: String): Long = {
