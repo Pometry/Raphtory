@@ -1,4 +1,4 @@
-package com.raphtory.examples.gab.actors
+package com.raphtory.examples.gab.routers
 
 import java.time.OffsetDateTime
 

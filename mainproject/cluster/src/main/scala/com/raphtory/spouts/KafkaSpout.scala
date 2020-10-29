@@ -4,10 +4,9 @@ import java.util
 import java.util.Properties
 
 import com.raphtory.core.components.Spout.SpoutTrait
-import com.raphtory.core.components.Spout.SpoutTrait.DomainMessage
+import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.Next
+import com.raphtory.core.components.Spout.SpoutTrait.{BasicDomain, DomainMessage}
 import com.raphtory.core.model.communication.StringSpoutGoing
-import com.raphtory.spouts.KafkaSpout.Message.Domain
-import com.raphtory.spouts.KafkaSpout.Message.NewBlock
 import org.apache.kafka.clients.consumer.KafkaConsumer
 
 import scala.annotation.tailrec
@@ -15,7 +14,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Random
 
-final case class KafkaSpout() extends SpoutTrait[Domain, StringSpoutGoing] {
+final case class KafkaSpout() extends SpoutTrait[BasicDomain, StringSpoutGoing] {
   log.info("initialising KafkaSpout")
   private val kafkaServer   = System.getenv().getOrDefault("KAFKA_ADDRESS", "127.0.0.1").trim
   private val kafkaIp       = System.getenv().getOrDefault("KAFKA_PORT", "9092").trim
@@ -28,23 +27,17 @@ final case class KafkaSpout() extends SpoutTrait[Domain, StringSpoutGoing] {
   private var kafkaManager = KafkaManager(kafkaServer, kafkaIp, groupId, topic, offset)
 
   override def startSpout(): Unit =
-    self ! NewBlock
+    self ! Next
 
-  def handleDomainMessage(message: Domain): Unit = message match {
-    case NewBlock =>
+  def handleDomainMessage(message: BasicDomain): Unit = message match {
+    case Next =>
       val (newManager, block) = kafkaManager.nextNLine(startingSpeed / 100)
       kafkaManager = newManager
       block.foreach(str => sendTuple(StringSpoutGoing(str)))
-      context.system.scheduler.scheduleOnce(restart.millis, self, NewBlock)
+      context.system.scheduler.scheduleOnce(restart.millis, self, Next)
   }
 }
 
-object KafkaSpout {
-  object Message {
-    sealed trait Domain  extends DomainMessage
-    case object NewBlock extends Domain
-  }
-}
 
 final case class KafkaManager private (buffer: Stream[String], consumer: KafkaConsumer[String, String]) {
   private def poll(): KafkaManager = {

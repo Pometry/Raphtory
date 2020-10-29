@@ -1,15 +1,17 @@
-package com.raphtory.examples.gab.actors
+package com.raphtory.examples.gab.spouts
 
 import java.time.LocalDateTime
 
 import com.raphtory.core.components.Spout.SpoutTrait
+import com.raphtory.core.components.Spout.SpoutTrait.BasicDomain
+import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.Next
+import com.raphtory.core.model.communication.StringSpoutGoing
 
-import scala.concurrent.duration.{Duration, NANOSECONDS}
 import scala.io.Source
 import scala.util.Random
 import scala.util.control.Breaks.{break, breakable}
 
-class GabSampledSpout extends SpoutTrait {
+class GabSampledSpout extends SpoutTrait[BasicDomain,StringSpoutGoing] {
 
   val prop = 1.0/10
   val r = new Random()
@@ -22,9 +24,8 @@ class GabSampledSpout extends SpoutTrait {
   var linesNumber = fileLines.length
   println("Start: " + LocalDateTime.now())
 
-  protected def ProcessSpoutTask(message: Any): Unit = message match {
-    case StartSpout => AllocateSpoutTask(Duration(1, NANOSECONDS), "newLine")
-    case "newLine" =>
+  override def handleDomainMessage(message: BasicDomain): Unit = message match {
+    case Next =>
       try {
         if (position < linesNumber) {
           for (i <- 1 to 100) {
@@ -35,12 +36,12 @@ class GabSampledSpout extends SpoutTrait {
                 break
               } else {
                 val line = fileLines(position)
-                sendTuple(line)
+                sendTuple(StringSpoutGoing(line))
                 position += 1
               }
             }
           }
-          AllocateSpoutTask(Duration(1, NANOSECONDS), "newLine")
+          self ! Next
         }
         else
         {
@@ -50,4 +51,7 @@ class GabSampledSpout extends SpoutTrait {
       catch {case e:Exception => println("Finished ingestion")}
     case _ => println("message not recognized!")
   }
+
+  override def startSpout(): Unit = self ! Next
+
 }

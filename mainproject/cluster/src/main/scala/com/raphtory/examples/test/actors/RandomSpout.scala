@@ -1,13 +1,16 @@
 package com.raphtory.examples.test.actors
 
 import com.raphtory.core.components.Spout.SpoutTrait
+import com.raphtory.core.components.Spout.SpoutTrait.DomainMessage
+import com.raphtory.core.model.communication.StringSpoutGoing
 import com.raphtory.core.utils.Utils
+import com.raphtory.examples.test.actors.RandomSpout.Message.{Increase, RandomDomain, Required,Next}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Random
 
-class RandomSpout extends SpoutTrait {
+class RandomSpout extends SpoutTrait[RandomDomain,StringSpoutGoing] {
 
   var totalCount = 100
   var freq       = 1000
@@ -15,32 +18,20 @@ class RandomSpout extends SpoutTrait {
   var pool       = System.getenv().getOrDefault("ENTITY_POOL", "1000000").toInt
   var msgID      = 0
 
-  override def preStart() { //set up partition to report how many messages it has processed in the last X seconds
-    super.preStart()
-    println(s"Prestarting ($freq Hz) Entity pool = $pool Ramp flag = $increase")
 
-    //context.system.scheduler.schedule(Duration(40, SECONDS), Duration(5, MINUTES), self, "stop")
-    println("Only sending adds")
-  }
-
-  protected def ProcessSpoutTask(message: Any): Unit = message match {
-    case StartSpout => AllocateSpoutTask(Duration(1, MILLISECONDS), "random")
-    case "required" =>
+  override def handleDomainMessage(message: RandomDomain): Unit = message match {
+    case Required =>
       freq = System.getenv().getOrDefault("UPDATES_FREQ", "10000").toInt;
       println(s"Full start ($freq Hz) Entity pool = $pool Ramp flag = $increase")
     // (Updates/s) - Hz
-    case "increase" =>
+    case Increase =>
       if (increase) {
         freq += 1000
         println(s"Frequency increased, new frequency: $freq at ${Utils.nowTimeStamp()}")
       }
-    case "random" => genRandomCommands(freq / 1000)
-    case "stop"   => stop()
+    case Next => genRandomCommands(freq / 1000)
     case _        => println("message not recognized!")
   }
-  //context.system.scheduler.scheduleOnce(Duration(1, MINUTES), self, "required")
-  //context.system.scheduler.schedule(Duration(90, SECONDS), Duration(30, SECONDS), self, "increase")
-  //context.system.scheduler.schedule(Duration(10, SECONDS), Duration(1, MILLISECONDS), self, "random")
 
   def distribution(): String = {
     val random = Random.nextFloat()
@@ -52,9 +43,9 @@ class RandomSpout extends SpoutTrait {
 
   def genRandomCommands(number: Int): Unit = {
     (1 to number) foreach (_ => {
-      sendTuple(distribution())
+      sendTuple(StringSpoutGoing(distribution()))
     })
-    AllocateSpoutTask(Duration(1, NANOSECONDS), "random")
+    self ! Next
   }
 
   def genVertexAdd(): String =
@@ -113,8 +104,15 @@ class RandomSpout extends SpoutTrait {
     properties
   }
 
-  def running(): Unit =
-    genRandomCommands(totalCount)
-  //totalCount+=1000
+  override def startSpout(): Unit = ???
 
+}
+
+object RandomSpout {
+  object Message {
+    sealed trait RandomDomain extends DomainMessage
+    case object Increase  extends RandomDomain
+    case object Required  extends RandomDomain
+    case object Next      extends RandomDomain
+  }
 }
