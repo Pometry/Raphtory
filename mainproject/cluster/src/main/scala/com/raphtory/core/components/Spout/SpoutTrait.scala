@@ -1,8 +1,6 @@
 package com.raphtory.core.components.Spout
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.Timers
+import akka.actor.{Actor, ActorLogging, Cancellable, Timers}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.IsSafe
@@ -88,6 +86,10 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
         AllocateTuple(command)
     mediator ! DistributedPubSubMediator.Send(s"/user/router/routerWorker_${count % 10}", message, localAffinity = false)
   }
+  def AllocateSpoutTask(duration: FiniteDuration, task: Any): Cancellable = {
+    val taskCancellable = context.system.scheduler.scheduleOnce(duration, self, task)
+    taskCancellable
+  }
 }
 
 object SpoutTrait {
@@ -95,6 +97,8 @@ object SpoutTrait {
     case object StartSpout
     case object StateCheck
     case object IsSafe
+    case object Next extends BasicDomain
   }
   trait DomainMessage
+  sealed trait BasicDomain
 }

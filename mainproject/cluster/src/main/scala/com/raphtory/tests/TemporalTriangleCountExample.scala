@@ -25,13 +25,13 @@ object TemporalTriangleCountExample extends App{
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
 
 
-  //var SpoutName ="com.raphtory.examples.test.actors.TriangleTestSpout"
+  var SpoutName ="com.raphtory.examples.test.actors.TriangleTestSpout"
   //var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
-  var SpoutName = "com.raphtory.spouts.FirehoseSpout"
+  //var SpoutName = "com.raphtory.spouts.FirehoseSpout"
   system.actorOf(Props(Class.forName(SpoutName)), "Spout")
 
-  //var routerClassName = "com.raphtory.examples.test.actors.TriangleTestRouter"
-  var routerClassName = "com.raphtory.examples.blockchain.routers.FirehoseKafkaRouter"
+  var routerClassName = "com.raphtory.examples.test.actors.TriangleTestRouter"
+  //var routerClassName = "com.raphtory.examples.blockchain.routers.FirehoseKafkaRouter"
   system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
 
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")

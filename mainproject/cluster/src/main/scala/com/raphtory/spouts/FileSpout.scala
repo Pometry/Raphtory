@@ -5,34 +5,34 @@ import java.io.File
 import java.io.FileReader
 
 import com.raphtory.core.components.Spout.SpoutTrait
+import com.raphtory.core.components.Spout.SpoutTrait.DomainMessage
 import com.raphtory.core.model.communication.StringSpoutGoing
-import com.raphtory.spouts.FirehoseSpout.Message.FireHouseDomain
-import com.raphtory.spouts.FirehoseSpout.Message.Increase
-import com.raphtory.spouts.FirehoseSpout.Message.NextFile
-import com.raphtory.spouts.FirehoseSpout.Message.NextLineBlock
+import com.raphtory.spouts.FileSpout.Message.FileDomain
+import com.raphtory.spouts.FileSpout.Message.Increase
+import com.raphtory.spouts.FileSpout.Message.NextFile
+import com.raphtory.spouts.FileSpout.Message.NextLineBlock
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
-final case class FirehoseSpout() extends SpoutTrait[FireHouseDomain, StringSpoutGoing] {
-  log.info("initialise FirehoseSpout")
+final case class FileSpout() extends SpoutTrait[FileDomain, StringSpoutGoing] {
+  log.info("initialise FileSpout")
   private val directory  = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
   private val fileName   = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
   private val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
   private val JUMP       = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "10").trim.toInt
-  private val INCREMENT  = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "1").trim.toInt
+  private val INCREMENT  = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "0").trim.toInt
   private val TIME       = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
 
   private var fileManager = FileManager(directory, fileName, dropHeader, JUMP)
 
   def startSpout(): Unit = {
     self ! NextLineBlock
-    // todo: wvv not sure why we need to keep increasing
     context.system.scheduler.scheduleOnce(TIME.seconds, self, Increase)
   }
 
-  def handleDomainMessage(message: FireHouseDomain): Unit = message match {
+  def handleDomainMessage(message: FileDomain): Unit = message match {
     case Increase =>
       if (fileManager.allCompleted)
         log.info("All files read")
@@ -60,12 +60,12 @@ final case class FirehoseSpout() extends SpoutTrait[FireHouseDomain, StringSpout
   }
 }
 
-object FirehoseSpout {
+object FileSpout {
   object Message {
-    sealed trait FireHouseDomain
-    case object Increase      extends FireHouseDomain
-    case object NextLineBlock extends FireHouseDomain
-    case object NextFile      extends FireHouseDomain
+    sealed trait FileDomain extends DomainMessage
+    case object Increase      extends FileDomain
+    case object NextLineBlock extends FileDomain
+    case object NextFile      extends FileDomain
   }
 }
 

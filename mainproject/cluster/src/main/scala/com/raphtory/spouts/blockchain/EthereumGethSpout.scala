@@ -1,4 +1,4 @@
-package com.raphtory.examples.blockchain.spouts
+package com.raphtory.spouts.blockchain
 
 import java.net.InetAddress
 import java.util.NoSuchElementException
@@ -18,17 +18,16 @@ import scala.sys.process._
 import scalaj.http.Http
 import scalaj.http.HttpRequest
 import spray.json._
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
+import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.Next
+import com.raphtory.core.components.Spout.SpoutTrait.{BasicDomain, DomainMessage}
+import com.raphtory.core.model.communication.StringSpoutGoing
+import com.raphtory.spouts.FirehoseSpout.Message.FireHouseDomain
 import spray.json.DefaultJsonProtocol._
 
-import scala.concurrent.duration._
-import scala.concurrent.Await
 
-case class EthResult(blockHash:Option[String],blockNumber:Option[String],from:Option[String],gas:Option[String],gasPrice:Option[String],hash:Option[String],input:Option[String],nonce:Option[String],r:Option[String],s:Option[String],to:Option[String],transactionIndex:Option[String],v:Option[String],value:Option[String])
-case class EthTransaction(id:Option[String],jsonrpc:Option[String],result:EthResult)
-class EthereumGethSpout extends SpoutTrait {
+
+class EthereumGethSpout extends SpoutTrait[BasicDomain, StringSpoutGoing] {
 
   var currentBlock = System.getenv().getOrDefault("SPOUT_ETHEREUM_START_BLOCK_INDEX", "9014194").trim.toInt
   var highestBlock = System.getenv().getOrDefault("SPOUT_ETHEREUM_MAXIMUM_BLOCK_INDEX", "10026447").trim.toInt
@@ -49,9 +48,8 @@ class EthereumGethSpout extends SpoutTrait {
   else
     println(s"Connecting to Ethereum RPC \n Address:${hostname2Ip(nodeIP)} \n Port:$nodePort")
 
-  override protected def ProcessSpoutTask(message: Any): Unit = message match {
-    case StartSpout  => pullNextBlock()
-    case "nextBlock" => pullNextBlock()
+  override def handleDomainMessage(message: BasicDomain): Unit =  message match {
+    case Next => pullNextBlock()
   }
 
   def pullNextBlock(): Unit = {
@@ -68,7 +66,7 @@ class EthereumGethSpout extends SpoutTrait {
         val trasnactionBlock = executeBatchRequest(transactions.dropRight(1)+"]")
         val transList = trasnactionBlock.parseJson.convertTo[List[EthTransaction]]
         transList.foreach(t => { //try needed to ignore contracts //todo include them
-          try{sendTuple(s"${t.result.blockNumber.get},${t.result.from.get},${t.result.to.get},${t.result.value.get}")}
+          try{sendTuple(StringSpoutGoing(s"${t.result.blockNumber.get},${t.result.from.get},${t.result.to.get},${t.result.value.get}"))}
           catch {case e:NoSuchElementException =>}
 
         })
@@ -95,13 +93,15 @@ class EthereumGethSpout extends SpoutTrait {
     baseRequest.postData(s"""{"jsonrpc": "2.0", "id":"100", "method": "$command", "params": [$params]}""")
 
   def executeRequest(command: String, params: String = "") = {
-    print(params)
-    print(request(command, params).execute().body.toString)
     request(command, params).execute().body.toString.parseJson.asJsObject
-
-
   }
 
   def hostname2Ip(hostname: String): String = InetAddress.getByName(hostname).getHostAddress()
 
+  override def startSpout(): Unit = self ! Next
+
 }
+
+case class EthResult(blockHash:Option[String],blockNumber:Option[String],from:Option[String],gas:Option[String],gasPrice:Option[String],hash:Option[String],input:Option[String],nonce:Option[String],r:Option[String],s:Option[String],to:Option[String],transactionIndex:Option[String],v:Option[String],value:Option[String])
+case class EthTransaction(id:Option[String],jsonrpc:Option[String],result:EthResult)
+
