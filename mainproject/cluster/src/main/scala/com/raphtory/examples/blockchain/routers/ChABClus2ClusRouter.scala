@@ -9,7 +9,7 @@ import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
-class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
+class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
 
   def parseTuple(record: Any): Unit = {
       val dp = formatLine(record.asInstanceOf[String].split(",").map(_.trim))
