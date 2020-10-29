@@ -7,7 +7,6 @@ import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.components.Spout.SpoutTrait.BasicDomain
 import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.Next
 import com.raphtory.core.model.communication.SpoutGoing
-import com.raphtory.spouts.blockchain.BitcoinSpout.Message.{BitcoinDomain, ParseBlock}
 import scalaj.http.Http
 import scalaj.http.HttpRequest
 import spray.json._
