@@ -4,6 +4,7 @@ import java.io.{BufferedReader, File, FileReader}
 import java.time.LocalDateTime
 
 import com.raphtory.core.components.Spout.SpoutTrait
+import com.raphtory.core.model.communication.StringSpoutGoing
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -18,7 +19,7 @@ class CooccurrenceMatrixSpoutFiltered extends CooccurrenceMatrixSpout {
         val head = currentLine(0)
         for (i<- 1 to Set(JUMP, currentLine.length-posSlice/JUMP2).min) {
           val currentSlice = currentLine.slice(posSlice, posSlice + JUMP2)
-          sendTuple(cnt.toString + ' ' + scale.toString + ' ' + head + "\t" + currentSlice.mkString("\t"))
+          sendTuple(StringSpoutGoing(cnt.toString + ' ' + scale.toString + ' ' + head + "\t" + currentSlice.mkString("\t")))
           posSlice += JUMP2
         }
         AllocateSpoutTask(Duration(1, MILLISECONDS), "nextLineSlice")

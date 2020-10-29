@@ -8,7 +8,6 @@ import com.raphtory.core.model.communication.StringSpoutGoing
 import monix.tail.Iterant.Next
 
 import scala.concurrent.duration.{Duration, NANOSECONDS}
-import scala.io
 import scala.util.Random
 import scala.util.control.Breaks._
 
@@ -18,7 +17,7 @@ class SamplerSpout extends SpoutTrait[BasicDomain,StringSpoutGoing] {
   val r = new Random()
   val directory = System.getenv().getOrDefault("TSV_DIRECTORY", "/app").trim
   val file_name = System.getenv().getOrDefault("TSV_FILE_NAME", "sx_reordered.txt").trim
-  val fileLines = io.Source.fromFile(directory + "/" + file_name).getLines.drop(1).toArray
+  val fileLines = scala.io.Source.fromFile(directory + "/" + file_name).getLines.drop(1).toArray
   // upstream/master
   var position    = 0
   var linesNumber = fileLines.length
