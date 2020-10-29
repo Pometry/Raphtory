@@ -318,7 +318,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
             mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
       }
       else {
-        println(s"$totalReceivedMessages $totalSentMessages")
+        // println(s"$totalReceivedMessages $totalSentMessages")
 
         totalReceivedMessages = 0
         totalSentMessages = 0
