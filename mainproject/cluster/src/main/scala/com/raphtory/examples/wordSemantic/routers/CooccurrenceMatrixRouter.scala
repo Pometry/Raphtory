@@ -11,11 +11,26 @@ class CooccurrenceMatrixRouter(override val routerId: Int, override val workerID
     val occurenceTime = dp.head.toLong//DateFormatting(dp.head) //.slice(4, dp.head.length)
     try {
       dp = dp.last.split("\t")
-      val srcClusterId = dp.head.toLong//assignID(dp.head)
+      val srcClusterId = assignID(dp.head)
+      sendGraphUpdate(
+        VertexAddWithProperties(
+          msgTime = occurenceTime,
+          srcID = srcClusterId,
+          Properties(StringProperty("Word", dp.head))
+        )
+      )
       val len = dp.length
       for (i <- 1 until len by 2) {
-        val dstClusterId = dp(i).toLong//assignID(dp(i))
+        val dstClusterId = assignID(dp(i))
         val coocWeight = dp(i + 1).toLong
+
+        sendGraphUpdate(
+                VertexAddWithProperties(
+                  msgTime = occurenceTime,
+                  srcID = dstClusterId,
+                  Properties(StringProperty("Word", dp(i)))
+                )
+        )
 
         sendGraphUpdate(
          EdgeAddWithProperties(
