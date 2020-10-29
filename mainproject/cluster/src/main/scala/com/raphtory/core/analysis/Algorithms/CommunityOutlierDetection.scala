@@ -7,7 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 
 class CommunityOutlierDetection(args:Array[String]) extends LPA(args) {
-  val output_file = System.getenv().getOrDefault("OUTPUT_PATH", "/app/out.json").trim
+
   override def doSomething(v: VertexVisitor, neighborLabels: Array[Long]): Unit = {
       val vlabel = neighborLabels(neighborLabels.length-1)
       val outlierScore = 1 - (neighborLabels.count(_==vlabel)/neighborLabels.length.toFloat)

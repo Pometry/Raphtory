@@ -2,6 +2,7 @@ package com.raphtory.core.analysis.Algorithms
 
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
+import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -9,7 +10,9 @@ import scala.collection.parallel.mutable.ParArray
 
 class LPA(args:Array[String]) extends Analyser(args){
   val arg = args.map(_.trim)//.head
-  val top_c = if (arg.length==0) 999999999 else arg.head.toInt
+  val top_c = if (arg.length==0) 0 else arg.head.toInt
+  val PROP = "None"//"Frequency"
+  val output_file = System.getenv().getOrDefault("OUTPUT_PATH", "/app/out.json").trim
 
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
@@ -22,8 +25,8 @@ class LPA(args:Array[String]) extends Analyser(args){
   override def analyse(): Unit = {
     view.getMessagedVertices().foreach { vertex =>
       val vlabel = vertex.getState[Long]("lpalabel")
-      val vfreq = vertex.getPropertyValue("Frequency").getOrElse(1L).asInstanceOf[Long]
-      val neigh = (vertex.getIncEdges ++ vertex.getOutEdges).map{e=> e.ID()->e.getPropertyValue("Frequency").getOrElse(1L).asInstanceOf[Long]}.toMap
+      val vfreq = vertex.getPropertyValue(PROP).getOrElse(1L).asInstanceOf[Long]
+      val neigh = (vertex.getIncEdges ++ vertex.getOutEdges).map{e=> e.ID()->e.getPropertyValue(PROP).getOrElse(1L).asInstanceOf[Long]}.toMap
       val gp = vertex.messageQueue[(Long, Long)].map{v => (v._2, neigh(v._1))}
       gp.append((vlabel, vfreq))
       val newLabel = labelProbability(gp.groupBy(_._1).mapValues(_.map(_._2)))
@@ -59,14 +62,16 @@ class LPA(args:Array[String]) extends Analyser(args){
     val er = extractData(results)
     val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]"""}
     val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion}, "communities":[${commtxt.mkString(",")}],"viewTime":$viewCompleteTime}"""
+    Utils.writeLines(output_file, text, "{\"views\":[")
     println(text)
     publishData(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
-    val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]"""}
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt.mkString(",")}],"proportion":${er.proportion}, "viewTime":$viewCompleteTime}"""
+    val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]"""} //TODO: add "" around strings
+    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt.mkString(",")}],"proportion":${er.proportion}, "viewTime":$viewCompleteTime},"""
+    Utils.writeLines(output_file, text, "{\"views\":[")
     println(text)
     publishData(text)
 
@@ -84,8 +89,8 @@ class LPA(args:Array[String]) extends Analyser(args){
       val totalWithoutIslands = groupedNonIslands.size
       val totalIslands = total - totalWithoutIslands
       val proportion = biggest.toFloat / grouped.map(x => x._2.size).sum
-      val communities =  sorted.map(x=>x._2).take(Set(sorted.length, top_c).min)//.values//.toArray
-      fd(top5,total,totalIslands,proportion, communities.toArray)
+      val communities =  sorted.map(x=>x._2).take(if(top_c==0) sorted.length else top_c)//.values//.toArray
+      fd(top5,total,totalIslands,proportion, communities)
     }  catch {
       case e: UnsupportedOperationException => fd(Array(0),0,0,0, Array(ArrayBuffer("0")))
     }
