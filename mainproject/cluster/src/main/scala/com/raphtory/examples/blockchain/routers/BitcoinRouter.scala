@@ -1,18 +1,15 @@
 package com.raphtory.examples.blockchain.routers
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.EdgeAdd
-import com.raphtory.core.model.communication.EdgeAddWithProperties
-import com.raphtory.core.model.communication.Properties
-import com.raphtory.core.model.communication.StringProperty
-import com.raphtory.core.model.communication.VertexAddWithProperties
-import com.raphtory.examples.blockchain.BitcoinTransaction
+import com.raphtory.core.model.communication._
+import com.raphtory.spouts.blockchain.BitcoinTransaction
 import spray.json.JsArray
+import scala.collection.mutable.ListBuffer
 
-class BitcoinRouter(override val routerId: Int,override val workerID:Int,val initialManagerCount: Int) extends RouterWorker {
+class BitcoinRouter(override val routerId: Int,override val workerID:Int,override val initialManagerCount: Int)
+  extends RouterWorker[BitcoinTransaction](routerId,workerID,initialManagerCount) {
 
-  def parseTuple(record: Any): Unit = {
-    val value = record.asInstanceOf[BitcoinTransaction]
+  override protected def parseTuple(value:BitcoinTransaction): List[GraphUpdate]  = {
 
     val transaction  = value.transaction
     val time         = value.time
@@ -26,6 +23,7 @@ class BitcoinRouter(override val routerId: Int,override val workerID:Int,val ini
     val vouts         = transaction.asJsObject.fields("vout")
     var total: Double = 0
 
+    var commands = new ListBuffer[GraphUpdate]()
     for (vout <- vouts.asInstanceOf[JsArray].elements) {
       val voutOBJ = vout.asJsObject()
       var value   = voutOBJ.fields("value").toString
@@ -40,26 +38,21 @@ class BitcoinRouter(override val routerId: Int,override val workerID:Int,val ini
 
       //println(s"Edge $timeAsLong, ${txid.hashCode}, ${address.hashCode}, $n, $value")
       //creates vertex for the receiving wallet
-      sendGraphUpdate(
-              VertexAddWithProperties(
+
+       commands += VertexAddWithProperties(
                       msgTime = timeAsLong,
                       srcID = address.hashCode,
-                      properties = Properties(StringProperty("type", "address"), StringProperty("address", address))
-              )
-      )
+                      properties = Properties(StringProperty("type", "address"),
+                      StringProperty("address", address)))
       //creates edge between the transaction and the wallet
-      sendGraphUpdate(
-              EdgeAddWithProperties(
+      commands += EdgeAddWithProperties(
                       msgTime = timeAsLong,
                       srcID = txid.hashCode,
                       dstID = address.hashCode,
-                      properties = Properties(StringProperty("n", n), StringProperty("value", value))
-              )
-      )
+                      properties = Properties(StringProperty("n", n), StringProperty("value", value)))
 
     }
-    sendGraphUpdate(
-            VertexAddWithProperties(
+    commands += VertexAddWithProperties(
                     msgTime = timeAsLong,
                     srcID = txid.hashCode,
                     properties = Properties(
@@ -69,22 +62,19 @@ class BitcoinRouter(override val routerId: Int,override val workerID:Int,val ini
                             StringProperty("total", total.toString),
                             StringProperty("blockhash", blockID.toString),
                             StringProperty("block", block.toString)
-                    )
-            )
-    )
+                    ))
 
     if (vins.toString().contains("coinbase")) {
       //creates the coingen node //TODO change so only added once
-      sendGraphUpdate(
-              VertexAddWithProperties(
+      commands += VertexAddWithProperties(
                       msgTime = timeAsLong,
                       srcID = "coingen".hashCode,
-                      properties = Properties(StringProperty("type", "coingen"))
-              )
-      )
+                      properties = Properties(StringProperty("type", "coingen")))
+
 
       //creates edge between coingen and the transaction
-      sendGraphUpdate(EdgeAdd(msgTime = timeAsLong, srcID = "coingen".hashCode, dstID = txid.hashCode))
+      commands += EdgeAdd(msgTime = timeAsLong, srcID = "coingen".hashCode, dstID = txid.hashCode)
+      commands.toList
     } else
       for (vin <- vins.asInstanceOf[JsArray].elements) {
         val vinOBJ   = vin.asJsObject()
@@ -92,15 +82,14 @@ class BitcoinRouter(override val routerId: Int,override val workerID:Int,val ini
         val prevtxid = vinOBJ.fields("txid").toString
         //no need to create node for prevtxid as should already exist
         //creates edge between the prev transaction and current transaction
-        sendGraphUpdate(
-                EdgeAddWithProperties(
+        commands += EdgeAddWithProperties(
                         msgTime = timeAsLong,
                         srcID = prevtxid.hashCode,
                         dstID = txid.hashCode,
-                        properties = Properties(StringProperty("vout", prevVout))
-                )
-        )
+                        properties = Properties(StringProperty("vout", prevVout)))
+
       }
+    commands.toList
   }
 
 }
