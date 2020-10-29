@@ -11,8 +11,6 @@ import com.raphtory.examples.blockchain.analysers.TaintTrackExchangeStop
 import kamon.Kamon
 import org.slf4j.LoggerFactory
 
-import com.raphtory.examples.blockchain.routers.EthereumGethRouter
-import com.raphtory.examples.blockchain.spouts.EthereumGethSpout
 
 import scala.language.postfixOps
 

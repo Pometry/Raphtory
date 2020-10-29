@@ -1,18 +1,19 @@
 package com.raphtory.examples.blockchain.routers
 
 import java.text.SimpleDateFormat
-
 import java.util.Calendar
-
 
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
-class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
+import scala.collection.mutable.ListBuffer
 
-  def parseTuple(record: Any): Unit = {
-      val dp = formatLine(record.asInstanceOf[String].split(",").map(_.trim))
+class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
+
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+      val dp = formatLine(tuple.value.split(",").map(_.trim))
       val transactionTime = dp.time
       val srcClusterId = dp.srcCluster
       val dstClusterId = dp.dstCluster
@@ -20,10 +21,12 @@ class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, 
       val btcAmount = dp.amount
       val usdAmount = dp.usd
 
-      sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
-      sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
+      val commands = new ListBuffer[GraphUpdate]()
 
-      sendGraphUpdate(
+      commands+= VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster"))
+      commands+=(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
+
+      commands+=(
         EdgeAddWithProperties(msgTime = transactionTime,
           srcID = srcClusterId,
           dstID = dstClusterId,
@@ -33,6 +36,7 @@ class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, 
           Type("Transfer")
         )
       )
+    commands.toList
   }
 
   //converts the line into a case class which has all of the data via the correct name and type
@@ -58,4 +62,5 @@ class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, 
                         txid: Long,          //ID of transaction, can be similar for many records
                         usd: Double          //Amount of transaction in USD
                       )
+
 }

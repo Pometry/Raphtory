@@ -5,10 +5,12 @@ import java.text.SimpleDateFormat
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication._
 
-class CitationRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
+import scala.collection.mutable.ListBuffer
 
-  def parseTuple(record: Any): Unit = {
-    val fileLine = record.asInstanceOf[String].split(",").map(_.trim) //take the tuple and split on , as we are only interested in the first 4 fields
+class CitationRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+    val fileLine = tuple.value.split(",").map(_.trim) //take the tuple and split on , as we are only interested in the first 4 fields
     // title_paper,year,volume,title,pages,number,journal,author,ENTRYTYPE,ID
     val sourceTitle = fileLine(0)
     val destinationTitle = fileLine(3)
@@ -17,16 +19,16 @@ class CitationRouter(override val routerId: Int,override val workerID:Int, overr
 
     val sourceID = assignID(sourceTitle)
     val destinationID = assignID(destinationTitle)
-
+    val commands = new ListBuffer[GraphUpdate]()
     //create sourceNode
-    sendGraphUpdate(VertexAddWithProperties(
+    commands+=(VertexAddWithProperties(
       sourceYear, //when it happened ??
       sourceID, // the id of the node
       Properties(ImmutableProperty("title", sourceTitle)), //properties for the node
       Type("Publication")) //node type
     )
     //create destinationNode
-    sendGraphUpdate(VertexAddWithProperties(
+    commands+=(VertexAddWithProperties(
       destinationYear,
       destinationID,
       Properties(ImmutableProperty("title", destinationTitle)),
@@ -34,13 +36,13 @@ class CitationRouter(override val routerId: Int,override val workerID:Int, overr
     )
 
     //create edge
-    sendGraphUpdate(EdgeAdd(
+    commands+=(EdgeAdd(
       sourceYear, //time of edge ??
       sourceID, //source of edge
       destinationID, //destination of edge
       Type("Cited") // edge type
     ))
 
-
+    commands.toList
   }
 }

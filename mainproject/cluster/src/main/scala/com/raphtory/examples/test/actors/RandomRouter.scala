@@ -19,8 +19,8 @@ class RandomRouter(override val routerId: Int,override val workerID:Int, overrid
 
   //************* MESSAGE HANDLING BLOCK
 
-   override protected def parseTuple(value:StringSpoutGoing): List[GraphUpdate]  = {
-    val command    = value.asInstanceOf[String]
+   override protected def parseTuple(tuple:StringSpoutGoing): List[GraphUpdate]  = {
+    val command    = tuple.asInstanceOf[String]
     val parsedOBJ  = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
     if (commandKey.contains("VertexAdd"))
