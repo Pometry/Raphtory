@@ -218,7 +218,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
           individualResults += analyzer.returnResults()
         }
       sender ! ReturnResults(individualResults)
-      storage.vertices.foreach(v=>v._2.computationValues = ParTrieMap[String, Any]())
+      //storage.vertices.foreach(v=>v._2.computationValues = ParTrieMap[String, Any]())
     }
   }
 
