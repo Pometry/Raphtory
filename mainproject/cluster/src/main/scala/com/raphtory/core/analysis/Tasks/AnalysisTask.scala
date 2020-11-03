@@ -106,19 +106,26 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   }
 
   protected def processResultsWrapper(timeStamp: Long) = {
-    if(saveData) {
-      val mongo = MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress()}:$mongoPort"))
-      val buffer = new java.util.ArrayList[DBObject]()
-      processResults(timeStamp)
-      analyser.getPublishedData().foreach(data => {
-        buffer.add(JSON.parse(data).asInstanceOf[DBObject])
-      })
-      analyser.clearPublishedData()
-      mongo.getDB(dbname).getCollection(jobID).insert(buffer)
-      buffer.clear()
+    try{
+      if(saveData) {
+        val mongo = MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress()}:$mongoPort"))
+        val buffer = new java.util.ArrayList[DBObject]()
+        processResults(timeStamp)
+        analyser.getPublishedData().foreach(data => {
+          buffer.add(JSON.parse(data).asInstanceOf[DBObject])
+        })
+        analyser.clearPublishedData()
+        mongo.getDB(dbname).getCollection(jobID).insert(buffer)
+        buffer.clear()
+      }
+      else
+        processResults(timeStamp)
     }
-    else
-      processResults(timeStamp)
+    catch {
+      case e:Exception => e.printStackTrace()
+    }
+
+
 
   }
 
