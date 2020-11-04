@@ -30,6 +30,7 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
   private var lastRouter = ""
   private var partitionManagers = 0
   private var routers = 0
+  private var finish = false
   private def recordUpdate(): Unit = {
     spoutTuples.increment()
     count += 1
@@ -83,7 +84,10 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
   }
 
   protected def dataFinished():Unit = {
-    mediator ! DistributedPubSubMediator.Send(lastRouter, DataFinished, localAffinity = false)
+    if(!finish) {
+      mediator ! DistributedPubSubMediator.Send(lastRouter, DataFinished, localAffinity = false)
+      finish=true
+    }
   }
 
   protected def sendTuple(command: Out): Unit = {
