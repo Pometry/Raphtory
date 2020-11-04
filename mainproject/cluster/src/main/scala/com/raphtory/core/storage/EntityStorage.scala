@@ -41,9 +41,6 @@ class EntityStorage(partitionID:Int,workerID: Int) {
   var oldestTime: Long       = Long.MaxValue
   var newestTime: Long       = 0
   var windowTime: Long       = 0
-  var safeWindowTime:Long    = 0
-  var windowSafe:Boolean     = false
-  var lastCompressedAt: Long = 0
 
   val vertexCount          = Kamon.counter("Raphtory_Vertex_Count").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerID)
   val localEdgeCount       = Kamon.counter("Raphtory_Local_Edge_Count").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerID)
