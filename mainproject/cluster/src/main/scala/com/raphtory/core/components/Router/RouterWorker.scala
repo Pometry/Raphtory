@@ -73,33 +73,38 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
                 false
         )
       }
-    case DataFinished =>
-      Utils.getAllWriterWorkers(managerCount).foreach { workerPath =>
-      mediator ! DistributedPubSubMediator.Send(
-        workerPath,
-        RouterWorkerTimeSync(newestTime+1, s"${routerId}_$workerID", getMessageIDForWriter(workerPath)),
-        false
-      )
-      }
+    case DataFinished => {
       Utils.getAllRouterWorkers(initialRouterCount).foreach { workerPath =>
-        println(workerPath)
         mediator ! DistributedPubSubMediator.Send(
           workerPath,
-          DataFinishedSync(newestTime+1),
+          DataFinishedSync(newestTime),
           false
         )
       }
-      context.become(work(managerCount, trackedTime, newestTime+1))
-    case DataFinishedSync(time) =>
-      println("syncing")
-      Utils.getAllWriterWorkers(managerCount).foreach { workerPath =>
-        mediator ! DistributedPubSubMediator.Send(
-          workerPath,
-          RouterWorkerTimeSync(time, s"${routerId}_$workerID", getMessageIDForWriter(workerPath)),
-          false
-        )
+    }
+
+    case DataFinishedSync(time) => {
+      if (time >= newestTime) {
+        Utils.getAllWriterWorkers(managerCount).foreach { workerPath =>
+          mediator ! DistributedPubSubMediator.Send(
+            workerPath,
+            RouterWorkerTimeSync(time, s"${routerId}_$workerID", getMessageIDForWriter(workerPath)),
+            false
+          )
+        }
+        context.become(work(managerCount, trackedTime, time))
       }
-      context.become(work(managerCount, trackedTime, time))
+      else {
+        Utils.getAllRouterWorkers(initialRouterCount).foreach { workerPath =>
+          mediator ! DistributedPubSubMediator.Send(
+            workerPath,
+            DataFinishedSync(newestTime),
+            false
+          )
+        }
+
+      }
+    }
     case unhandled => log.warning(s"RouterWorker received unknown [$unhandled] message.")
   }
 
