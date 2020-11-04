@@ -19,14 +19,14 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object RaphtoryReplicator {
-  def apply(actorType: String, initialManagerCount: Int, routerName: String): RaphtoryReplicator =
-    new RaphtoryReplicator(actorType, initialManagerCount, routerName)
+  def apply(actorType: String, initialManagerCount: Int,initialRouterCount:Int, routerName: String): RaphtoryReplicator =
+    new RaphtoryReplicator(actorType, initialManagerCount,initialRouterCount, routerName)
 
-  def apply(actorType: String, initialManagerCount: Int): RaphtoryReplicator =
-    new RaphtoryReplicator(actorType, initialManagerCount, null)
+  def apply(actorType: String, initialManagerCount: Int,initialRouterCount:Int): RaphtoryReplicator =
+    new RaphtoryReplicator(actorType, initialManagerCount,initialRouterCount, null)
 }
 
-class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName: String)
+class RaphtoryReplicator(actorType: String, initialManagerCount: Int, initialRouterCount:Int, routerName: String)
         extends Actor
         with ActorLogging {
 
@@ -151,7 +151,7 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, routerName
     log.info(s"Router $assignedId has come online.")
 
     actorRef = context.system.actorOf(
-      Props(new RouterManager(myId, currentCount, routerName)).withDispatcher("misc-dispatcher"),
+      Props(new RouterManager(myId, currentCount, initialRouterCount, routerName)).withDispatcher("misc-dispatcher"),
       "router"
     )
   }

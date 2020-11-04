@@ -262,16 +262,17 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   }
 
   private def processWatermarkRequest() ={
-
       if(queuedMessageMap nonEmpty) {
         val queueState = queuedMessageMap.map(queue => {
           setSafePoint(queue._1, queue._2)
         })
         val timestamps = queueState.map(q => q.timestamp)
-        storage.windowTime = timestamps.min
+        val min = timestamps.min
+        if(storage.windowTime<min)
+          storage.windowTime = min
+        mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.windowTime), localAffinity = false)
         latestTime.update(storage.newestTime)
         earliestTime.update(storage.oldestTime)
-        mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.windowTime), localAffinity = false)
         safeTime.update(storage.windowTime)
       }
   }

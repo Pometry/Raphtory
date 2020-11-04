@@ -91,7 +91,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends Actor with ActorL
   private def processClusterStatusRequest(req: ClusterStatusRequest): Unit = {
     log.debug(s"WatchDog received [{}] request.", req)
 
-    sender ! ClusterStatusResponse(clusterUp)
+    sender ! ClusterStatusResponse(clusterUp,pmCounter,roCounter)
   }
 
   private def processRequestPartitionCountRequest(req: RequestPartitionCount): Unit = {

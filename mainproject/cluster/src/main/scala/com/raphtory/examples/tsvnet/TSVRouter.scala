@@ -6,8 +6,8 @@ import com.raphtory.core.model.communication.{EdgeAdd, GraphUpdate, StringSpoutG
 import scala.collection.mutable.ListBuffer
 
 /** Spout for network datasets of the form SRC_NODE_ID DEST_NODE_ID TIMESTAMP */
-class TSVRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
+class TSVRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
   val commands = new ListBuffer[GraphUpdate]()
   override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
     val fileLine = tuple.value.split(" ").map(_.trim)

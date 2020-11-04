@@ -31,8 +31,8 @@ object NaomiTest extends App{
 
   system.actorOf(Props(new WatermarkManager(managerCount = 1)),"WatermarkManager")
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
-  system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
+  system.actorOf(Props(RaphtoryReplicator("Router", 1, 1,routerClassName)), s"Routers")
+  system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1,1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(SpoutName)), "Spout")
   val analysisManager = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
   AnalysisRestApi(system)
