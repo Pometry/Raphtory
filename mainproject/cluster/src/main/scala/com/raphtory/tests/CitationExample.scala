@@ -26,9 +26,9 @@ object CitationExample extends App{
 
   var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
   //var routerClassName = "com.raphtory.examples.citationNetwork.CitationRouter"
-  system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
+  system.actorOf(Props(RaphtoryReplicator("Router", 1, 1,routerClassName)), s"Routers")
 
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
+  system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1,1)), s"PartitionManager")
 
   system.actorOf(Props[AnalysisManager], s"AnalysisManager")
   AnalysisRestApi(system)

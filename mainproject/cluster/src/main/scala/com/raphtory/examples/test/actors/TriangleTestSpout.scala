@@ -15,6 +15,8 @@ class TriangleTestSpout extends SpoutTrait[BasicDomain,StringSpoutGoing]  {
       sendTuple(StringSpoutGoing("5,4,1"))
       sendTuple(StringSpoutGoing("6,1,3"))
 
+      dataFinished()
+
   }
 
   override def startSpout(): Unit = self ! Next

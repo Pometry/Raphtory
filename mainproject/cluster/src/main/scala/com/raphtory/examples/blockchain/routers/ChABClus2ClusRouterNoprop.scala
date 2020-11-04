@@ -9,8 +9,8 @@ import com.raphtory.core.model.communication._
 
 import scala.collection.mutable.ListBuffer
 
-class ChABClus2ClusRouterNoprop(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
+class ChABClus2ClusRouterNoprop(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount,initialRouterCount) {
 
   override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
       val dp = formatLine(tuple.value.split(",").map(_.trim))

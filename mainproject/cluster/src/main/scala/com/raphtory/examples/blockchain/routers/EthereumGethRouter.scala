@@ -9,8 +9,8 @@ import spray.json._
 
 import scala.collection.mutable.ListBuffer
 import scala.util.hashing.MurmurHash3
-class EthereumGethRouter(override val routerId: Int,override val workerID:Int,override val initialManagerCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
+class EthereumGethRouter(override val routerId: Int,override val workerID:Int,override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
   print(routerId)
 

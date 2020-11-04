@@ -6,8 +6,8 @@ import com.raphtory.spouts.blockchain.BitcoinTransaction
 import spray.json.JsArray
 import scala.collection.mutable.ListBuffer
 
-class BitcoinRouter(override val routerId: Int,override val workerID:Int,override val initialManagerCount: Int)
-  extends RouterWorker[BitcoinTransaction](routerId,workerID,initialManagerCount) {
+class BitcoinRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[BitcoinTransaction](routerId,workerID,initialManagerCount, initialRouterCount) {
 
   override protected def parseTuple(tuple:BitcoinTransaction): List[GraphUpdate]  = {
 

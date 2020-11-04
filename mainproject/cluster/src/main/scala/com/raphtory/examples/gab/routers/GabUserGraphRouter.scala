@@ -16,8 +16,8 @@ import scala.util.Random
 // is equal to -1. Columns 2 and 5 correspond to the userid and parentUserid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabUserGraphRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
+class GabUserGraphRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
 
   override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
     val fileLine = tuple.value.split(";").map(_.trim)

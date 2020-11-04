@@ -9,8 +9,8 @@ import com.raphtory.core.model.communication._
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks._
 
-class TrackAndTraceRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
+class TrackAndTraceRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
   val EARTH_EQU = 6378137.0                                                          //m
   val EARTH_POL = 6356752.3142                                                       //m
   val STEPSIZE  = System.getenv().getOrDefault("MAP_GRID_SIZE", "100").trim.toDouble //m

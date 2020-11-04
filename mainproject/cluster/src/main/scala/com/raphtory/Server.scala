@@ -44,10 +44,10 @@ object Go extends App {
       SeedNode(seedLoc)
     case "router" =>
       println("Creating Router")
-      RouterNode(getConf(), sys.env("PARTITION_MIN").toInt, routerName)
+      RouterNode(getConf(), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt, routerName)
     case "partitionManager" =>
       println(s"Creating Partition Manager...")
-      ManagerNode(getConf(), sys.env("PARTITION_MIN").toInt)
+      ManagerNode(getConf(), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
 
     case "updater" =>
       println("Creating Update Generator")

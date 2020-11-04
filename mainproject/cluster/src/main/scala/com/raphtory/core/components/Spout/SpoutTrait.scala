@@ -27,6 +27,9 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
 
   private val spoutTuples = Kamon.counter("Raphtory_Spout_Tuples").withTag("actor", self.path.name)
   private var count       = 0
+  private var lastRouter = ""
+  private var partitionManagers = 0
+  private var routers = 0
   private def recordUpdate(): Unit = {
     spoutTuples.increment()
     count += 1
@@ -41,14 +44,14 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
     context.system.scheduler.scheduleOnce(1 seconds, self, IsSafe)
   }
 
-  final override def receive: Receive = work(false)
+  final override def receive: Receive = work(false,1,1)
 
-  private def work(safe: Boolean): Receive = {
+  private def work(safe: Boolean,pmCounter:Int,rmCounter:Int): Receive = {
     case StateCheck => processStateCheckMessage(safe)
-    case ClusterStatusResponse(clusterUp) =>
-      context.become(work(clusterUp))
+    case ClusterStatusResponse(clusterUp,pmCounter,rmCounter) =>
+      context.become(work(clusterUp,pmCounter,rmCounter))
       context.system.scheduler.scheduleOnce(1 second, self, StateCheck)
-    case IsSafe    => processIsSafeMessage(safe)
+    case IsSafe    => processIsSafeMessage(safe,pmCounter,rmCounter)
     case StartSpout => startSpout()
     case x: Domain  => handleDomainMessage(x)
     case unhandled => log.error(s"Unable to handle message [$unhandled].")
@@ -68,12 +71,19 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
     }
   }
 
-  private def processIsSafeMessage(safe: Boolean): Unit = {
+  private def processIsSafeMessage(safe: Boolean,pmCount:Int,roCount:Int): Unit = {
     log.debug(s"Spout is handling [IsSafe] message.")
-    if (safe)
+    if (safe) {
       self ! StartSpout
-    else
+      partitionManagers=pmCount
+      routers=roCount
+
+    } else
       context.system.scheduler.scheduleOnce(delay = 1 second, receiver = self, message = IsSafe)
+  }
+
+  protected def dataFinished():Unit = {
+    mediator ! DistributedPubSubMediator.Send(lastRouter, DataFinished, localAffinity = false)
   }
 
   protected def sendTuple(command: Out): Unit = {
@@ -84,8 +94,11 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
         AllocateTrackedTuple(System.currentTimeMillis(), command)
       else
         AllocateTuple(command)
-    mediator ! DistributedPubSubMediator.Send(s"/user/router/routerWorker_${count % 10}", message, localAffinity = false)
+    val mod     = count % (routers * 10)
+    lastRouter=s"/user/router/router_${mod/10}_Worker_${mod%10}"
+    mediator ! DistributedPubSubMediator.Send(lastRouter, message, localAffinity = false)
   }
+
   def AllocateSpoutTask(duration: FiniteDuration, task: Any): Cancellable = {
     val taskCancellable = context.system.scheduler.scheduleOnce(duration, self, task)
     taskCancellable

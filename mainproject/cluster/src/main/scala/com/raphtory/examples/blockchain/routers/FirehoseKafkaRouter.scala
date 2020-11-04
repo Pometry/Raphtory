@@ -11,8 +11,8 @@ import scala.collection.mutable.ListBuffer
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
 import scala.math.BigInt
-class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
+class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
   var DELETEPERCENT = System.getenv().getOrDefault("ETHER_DELETE_PERCENT", "0").trim.toDouble/100
   var DELETESEED = System.getenv().getOrDefault("ETHER_DELETE_SEED", "123").trim.toInt
   val random = new Random(DELETESEED)

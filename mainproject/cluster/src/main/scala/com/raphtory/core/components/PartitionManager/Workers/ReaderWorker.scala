@@ -50,7 +50,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     case req: NextStep            => processNextStepRequest(req)
     case req: NextStepNewAnalyser => processNextStepNewAnalyserRequest(req)
     case req: Finish              => processFinishRequest(req)
-    case req: FinishNewAnalyser    => processFinishNewAnalyserRequest(req)
+    case req: FinishNewAnalyser   => processFinishNewAnalyserRequest(req)
 
     case req: VertexMessage       => handleVertexMessage(req)
     case x                        => log.warning("ReaderWorker [{}] belonging to Reader [{}] received unknown [{}] message.", x)
@@ -225,9 +225,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   def processTimeCheckRequest(req: TimeCheck): Unit = {
     log.debug(s"Reader [{}] received [{}] request.", workerId, req)
     val timestamp = req.timestamp
-
-    //val newest = if(storage.windowSafe) storage.safeWindowTime else storage.windowTime
-    val newest = storage.newestTime
+    val newest = storage.windowTime
 
     if (timestamp <= newest) {
       log.debug("Received timestamp is smaller or equal to newest entityStorage timestamp.")
@@ -255,6 +253,8 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       }
     }
   }
+
+
 
   private def setProxy(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit =
     analysisType match {

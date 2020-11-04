@@ -18,7 +18,7 @@ import scala.util.hashing.MurmurHash3
 // TODO Add val name which sub classes that extend this trait must overwrite
 //  e.g. BlockChainRouter val name = "Blockchain Router"
 //  Log.debug that read 'Router' should then read 'Blockchain Router'
-abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: Int, val initialManagerCount: Int)
+abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: Int, val initialManagerCount: Int,val initialRouterCount:Int)
         extends Actor
         with ActorLogging {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
@@ -43,6 +43,8 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
 
   override def receive: Receive = work(initialManagerCount, 0L, 0L)
 
+
+
   private def work(managerCount: Int, trackedTime: Long, newestTime: Long): Receive = {
     case msg: UpdatedCounter =>
       log.debug(s"RouterWorker [$routerId] received [$msg] request.")
@@ -51,7 +53,8 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
     case AllocateTuple(record: In) => //todo: wvv AllocateTuple should hold type of record instead of using Any
       log.debug(s"RouterWorker [$routerId] received AllocateTuple[$record] request.")
       parseTupleAndSendGraph(record, managerCount, false, trackedTime).foreach(newNewestTime =>
-        context.become(work(managerCount, trackedTime, newNewestTime))
+        if(newNewestTime>newestTime)
+          context.become(work(managerCount, trackedTime, newNewestTime))
       )
 
     case msg @ AllocateTrackedTuple(
@@ -70,8 +73,36 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
                 false
         )
       }
+    case DataFinished =>
+      Utils.getAllWriterWorkers(managerCount).foreach { workerPath =>
+      mediator ! DistributedPubSubMediator.Send(
+        workerPath,
+        RouterWorkerTimeSync(newestTime+1, s"${routerId}_$workerID", getMessageIDForWriter(workerPath)),
+        false
+      )
+      }
+      Utils.getAllRouterWorkers(initialRouterCount).foreach { workerPath =>
+        println(workerPath)
+        mediator ! DistributedPubSubMediator.Send(
+          workerPath,
+          DataFinishedSync(newestTime+1),
+          false
+        )
+      }
+      context.become(work(managerCount, trackedTime, newestTime+1))
+    case DataFinishedSync(time) =>
+      println("syncing")
+      Utils.getAllWriterWorkers(managerCount).foreach { workerPath =>
+        mediator ! DistributedPubSubMediator.Send(
+          workerPath,
+          RouterWorkerTimeSync(time, s"${routerId}_$workerID", getMessageIDForWriter(workerPath)),
+          false
+        )
+      }
+      context.become(work(managerCount, trackedTime, time))
     case unhandled => log.warning(s"RouterWorker received unknown [$unhandled] message.")
   }
+
 
   protected def assignID(uniqueChars: String): Long = MurmurHash3.stringHash(uniqueChars)
 

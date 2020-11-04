@@ -18,7 +18,7 @@ import scala.language.postfixOps
 
 // TODO break object RouterManager { getProps = { routerManager(arg1, arg2...): Props }}
 // todo slave type should be Props
-final case class RouterManager(routerId: Int, initialManagerCount: Int, slaveType: String)
+final case class RouterManager(routerId: Int, initialManagerCount: Int, initialRouterCount:Int, slaveType: String)
         extends Actor
         with ActorLogging {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
@@ -26,8 +26,8 @@ final case class RouterManager(routerId: Int, initialManagerCount: Int, slaveTyp
   private val childrenNumber = 10
   private val children = (0 until childrenNumber).map { i =>
     context.actorOf(
-            Props(Class.forName(slaveType), routerId, i, initialManagerCount).withDispatcher("router-dispatcher"),
-            s"routerWorker_$i"
+            Props(Class.forName(slaveType), routerId, i, initialManagerCount,initialRouterCount).withDispatcher("router-dispatcher"),
+            s"router_${routerId}_Worker_$i"
     )
   }.toList
 

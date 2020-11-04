@@ -8,8 +8,8 @@ import spray.json.JsArray
 import scala.collection.mutable.ListBuffer
 import scala.util.hashing.MurmurHash3
 
-class DashcoinRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int)
-  extends RouterWorker[BitcoinTransaction](routerId,workerID, initialManagerCount) {
+class DashcoinRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[BitcoinTransaction](routerId,workerID, initialManagerCount,initialRouterCount) {
 
   override protected def parseTuple(tuple: BitcoinTransaction): List[GraphUpdate] = {
     val transaction  = tuple.transaction

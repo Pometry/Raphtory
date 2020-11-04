@@ -5,8 +5,8 @@ import com.raphtory.core.model.communication.{EdgeAdd, Type, VertexAdd, _}
 
 import scala.collection.mutable.ListBuffer
 
-class LOTRRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount) {
+class LOTRRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
 
   override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
 
