@@ -125,16 +125,17 @@ final case class FileManager private (
 }
 
 object FileManager extends LazyLogging {
+  private val joiner     = System.getenv().getOrDefault("FILE_SPOUT_JOINER", "/").trim //gabNetwork500.csv
   def apply(dir: String, fileName: String, dropHeader: Boolean, blockSize: Int): FileManager = {
     val filesToRead =
       if (fileName.isEmpty)
         getListOfFiles(dir)
       else {
-        val file = new File(dir + "/" + fileName)
+        val file = new File(dir + joiner + fileName)
         if (file.exists && file.isFile)
           List(file)
         else {
-          logger.error(s"File $dir/$fileName does not exist or is not file ")
+          logger.error(s"File $dir$joiner$fileName does not exist or is not file ")
           List.empty
         }
       }
