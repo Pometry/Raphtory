@@ -12,7 +12,8 @@ object TemporalTriangleCountExample extends App{
 
   val runtimeMxBean = ManagementFactory.getRuntimeMXBean
   val arguments     = runtimeMxBean.getInputArguments
-
+  import java.nio.file.Paths
+  println(Paths.get(".").toAbsolutePath)
   println(s"Current java options: $arguments")
 
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
@@ -25,13 +26,13 @@ object TemporalTriangleCountExample extends App{
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
 
 
-  var SpoutName ="com.raphtory.examples.test.actors.TriangleTestSpout"
+  //var SpoutName ="com.raphtory.examples.test.actors.TriangleTestSpout"
   //var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
-  //var SpoutName = "com.raphtory.spouts.FirehoseSpout"
+  var SpoutName = "com.raphtory.spouts.FileSpout"
   system.actorOf(Props(Class.forName(SpoutName)), "Spout")
 
-  var routerClassName = "com.raphtory.examples.test.actors.TriangleTestRouter"
-  //var routerClassName = "com.raphtory.examples.blockchain.routers.FirehoseKafkaRouter"
+  //var routerClassName = "com.raphtory.examples.test.actors.TriangleTestRouter"
+  var routerClassName = "com.raphtory.examples.lotr.LOTRRouter"
   system.actorOf(Props(RaphtoryReplicator("Router", 1, 1,routerClassName)), s"Routers")
 
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1,1)), s"PartitionManager")

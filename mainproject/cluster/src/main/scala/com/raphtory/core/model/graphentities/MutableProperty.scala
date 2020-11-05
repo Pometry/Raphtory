@@ -17,16 +17,20 @@ class MutableProperty(creationTime: Long, value: Any) extends Property {
   update(creationTime, value)
 
   var earliest = creationTime
+  var earliestval = value
   override def creation(): Long = earliest
 
   def update(msgTime: Long, newValue: Any): Unit = {
-    if(msgTime<earliest) earliest=msgTime
+    if(msgTime<earliest){
+      earliest=msgTime
+      earliestval=newValue
+    }
     previousState.put(msgTime, newValue)
   }
 
   def valueAt(time: Long): Any = {
-    var closestTime: Long = Long.MaxValue
-    var value: Any        = "Default"
+    var closestTime: Long = 0
+    var value: Any        = earliestval
     for ((k, v) <- previousState)
       if (k <= time)
         if ((time - k) < (time - closestTime)) {

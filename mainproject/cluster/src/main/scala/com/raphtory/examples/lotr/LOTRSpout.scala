@@ -13,9 +13,9 @@ import scala.io
 class LOTRSpout extends SpoutTrait[BasicDomain,StringSpoutGoing] {
 
   // Relating to where the file is
-  val directory = System.getenv().getOrDefault("LOTR_DIRECTORY", "/Users/naomiarnold/CODE/Raphtory/LOTR").trim
+  val directory = System.getenv().getOrDefault("LOTR_DIRECTORY", "com/raphtory/example/lotr").trim
   val file_name = System.getenv().getOrDefault("LOTR_FILE_NAME", "lotr.csv").trim
-  val fileLines = io.Source.fromFile(directory + "/" + file_name).getLines.toArray
+  val fileLines = scala.io.Source.fromFile(directory + "/" + file_name).getLines.toArray
 
   // Initialise ready to read
   var position    = 0
