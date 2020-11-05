@@ -108,10 +108,6 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
   }
 
 
-
-  //TODO work on properties
-
-
   def setState(key: String, value: Any): Unit = {
     val realkey = key + timestamp + window + jobID
     v.addCompValue(realkey, value)
@@ -155,7 +151,7 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
 
 
 
-  def visitify(edge:Edge,id:Long) = new EdgeVisitor(edge,id,viewJob,superStep,view,mediator)
+  private def visitify(edge:Edge,id:Long) = new EdgeVisitor(edge,id,viewJob,superStep,view,mediator)
 
 }
 

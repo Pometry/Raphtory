@@ -15,11 +15,9 @@ object SplitEdge {
       srcID: Long,
       dstID: Long,
       previousState: mutable.TreeMap[Long, Boolean],
-      properties: ParTrieMap[String, Property],
-      remotePartitionId: Int,
-      storage: EntityStorage
+      properties: ParTrieMap[String, Property]
   ) = {
-    val e = new SplitEdge(workerID: Int, creationTime, srcID, dstID, initialValue = true, remotePartitionId, storage)
+    val e = new SplitEdge(workerID: Int, creationTime, srcID, dstID, initialValue = true)
     e.history = previousState
     e.properties = properties
     e
@@ -38,9 +36,6 @@ class SplitEdge(
     msgTime: Long,
     srcID: Long,
     dstID: Long,
-    initialValue: Boolean,
-    remotePartitionId: Int,
-    storage: EntityStorage
-) extends Edge(workerID, msgTime, srcID, dstID, initialValue, storage) {
-  def remotePartitionID = remotePartitionId
+    initialValue: Boolean)
+  extends Edge(workerID, msgTime, srcID, dstID, initialValue) {
 }

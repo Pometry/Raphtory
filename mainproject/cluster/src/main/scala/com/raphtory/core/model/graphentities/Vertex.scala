@@ -15,7 +15,7 @@ object Vertex {
       properties: ParTrieMap[String, Property],
       storage: EntityStorage
   ) = {
-    val v = new Vertex(creationTime, vertexId, initialValue = true, storage)
+    val v = new Vertex(creationTime, vertexId, initialValue = true)
     v.history = previousState
     //v.associatedEdges = associatedEdges
     v.properties = properties
@@ -24,8 +24,8 @@ object Vertex {
 
 }
 
-class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean, storage: EntityStorage)
-        extends Entity(msgTime, initialValue, storage) {
+class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
+        extends Entity(msgTime, initialValue) {
 
 
   var incomingEdges = ParTrieMap[Long, Edge]() //Map of all edges associated with the vertex
@@ -36,8 +36,6 @@ class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean, storage: 
 
   var multiQueue        = new VertexMutliQueue()    //Map of queues for all ongoing processing
   var computationValues = ParTrieMap[String, Any]() //Partial results kept between supersteps in calculation
-
-  override def getId = vertexId //get the vertexID
 
   //Functions for adding associated edges to this vertex
   def incrementEdgesRequiringSync()  =edgesRequiringSync+=1
@@ -86,7 +84,5 @@ class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean, storage: 
         false
       else true
     } else false
-
-  override def toString: String = s"Vertex ID $vertexId \n History $history \n //Properties:\n $properties \n"
 
 }

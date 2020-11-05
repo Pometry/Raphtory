@@ -14,9 +14,15 @@ abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {
   def latestActivity() = getHistory.head
   def earliestActivity() = getHistory.minBy(k=> k._1)
 
-  def getPropertySet(): ParTrieMap[String,Any] = entity.properties.filter(p =>{
-    p._2.creation()<=viewJob.timestamp
-  }).map(f => (f._1,f._2.valueAt(viewJob.timestamp)))
+  def getPropertySet(): ParTrieMap[String,Any] = {
+    val x =entity.properties.filter(p =>{
+      p._2.creation()<=viewJob.timestamp
+    }).map(f => (f._1,f._2.valueAt(viewJob.timestamp)))
+    if(x.isEmpty){
+      println("empty")
+    }
+    x
+  }
 
   def getPropertyValue(key: String): Option[Any] =
     entity.properties.get(key) match {
