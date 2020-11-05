@@ -1,9 +1,9 @@
 package com.raphtory.core.model.graphentities
 
-abstract class Property(creationTime:Long) {
+abstract class Property {
   def update(msgTime: Long, newValue: Any): Unit
   def valueAt(time: Long): Any
   def valuesAfter(time:Long):Array[Any]
   def currentValue(): Any
-  def creation():Long = creationTime
+  def creation():Long
 }

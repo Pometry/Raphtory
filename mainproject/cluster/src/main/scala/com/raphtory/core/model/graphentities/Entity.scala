@@ -149,9 +149,9 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean, storage: 
         p update (msgTime, value)
       }
       case None =>
-        if (immutable) properties.put(key, new ImmutableProperty(msgTime, key, value, storage))
+        if (immutable) properties.put(key, new ImmutableProperty(msgTime, value))
         else {
-          properties.put(key, new MutableProperty(msgTime, key, value, storage))
+          properties.put(key, new MutableProperty(msgTime, value))
         }
     }
 
