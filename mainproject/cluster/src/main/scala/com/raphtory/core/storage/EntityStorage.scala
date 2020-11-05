@@ -80,7 +80,7 @@ class EntityStorage(partitionID:Int,workerID: Int) {
         v revive msgTime //add the history point
         v
       case None => //if it does not exist
-        val v = new Vertex(msgTime, srcId, initialValue = true, storage = this) //create a new vertex
+        val v = new Vertex(msgTime, srcId, initialValue = true) //create a new vertex
         vertexCount.increment()
         if (!(vertexType == null)) v.setType(vertexType.name)
         vertices put (srcId, v) //put it in the map
@@ -96,7 +96,7 @@ class EntityStorage(partitionID:Int,workerID: Int) {
       case Some(vertex) => vertex
       case None =>
         vertexCount.increment()
-        val vertex = new Vertex(msgTime, id, initialValue = true, this)
+        val vertex = new Vertex(msgTime, id, initialValue = true)
         vertices put (id, vertex)
         vertex wipe ()
         vertex
@@ -158,7 +158,7 @@ class EntityStorage(partitionID:Int,workerID: Int) {
         v
       case None => //if the removal has arrived before the creation
         vertexCount.increment()
-        val v = new Vertex(msgTime, srcId, initialValue = false, this) //create a placeholder
+        val v = new Vertex(msgTime, srcId, initialValue = false) //create a placeholder
         vertices put (srcId, v) //add it to the map
         v
     }
@@ -254,10 +254,10 @@ class EntityStorage(partitionID:Int,workerID: Int) {
         present = true
       case None => //if it does not
         if (local) {
-          edge = new Edge(workerID, msgTime, srcId, dstId, initialValue = true, this) //create the new edge, local or remote
+          edge = new Edge(workerID, msgTime, srcId, dstId, initialValue = true) //create the new edge, local or remote
           localEdgeCount.increment()
         } else {
-          edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = true, getPartition(dstId, managerCount), this)
+          edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = true)
           masterSplitEdgeCount.increment()
         }
         if (!(edgeType == null)) edge.setType(edgeType.name)
@@ -310,7 +310,7 @@ class EntityStorage(partitionID:Int,workerID: Int) {
       spoutTime:Long
   ): Unit = {
     val dstVertex = vertexAdd(msgTime, dstId, vertexType = null) //create or revive the destination node
-    val edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = true, getPartition(srcId, managerCount), this)
+    val edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = true)
     copySplitEdgeCount.increment()
     dstVertex addIncomingEdge (edge) //add the edge to the associated edges of the destination node
     val deaths = dstVertex.removeList //get the destination node deaths
@@ -349,10 +349,10 @@ class EntityStorage(partitionID:Int,workerID: Int) {
       case None =>
         if (local) {
           localEdgeCount.increment()
-          edge = new Edge(workerID, msgTime, srcId, dstId, initialValue = false, this)
+          edge = new Edge(workerID, msgTime, srcId, dstId, initialValue = false)
         } else {
           masterSplitEdgeCount.increment()
-          edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = false, getPartition(dstId, managerCount), this)
+          edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = false)
         }
         srcVertex addOutgoingEdge (edge) // add the edge to the associated edges of the source node
     }
@@ -440,7 +440,7 @@ class EntityStorage(partitionID:Int,workerID: Int) {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.incrementEdgesRequiringSync()
     copySplitEdgeCount.increment()
-    val edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = false, getPartition(srcId, managerCount), this)
+    val edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = false)
     dstVertex addIncomingEdge (edge) //add the edge to the destination nodes associated list
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
