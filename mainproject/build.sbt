@@ -155,6 +155,6 @@ lazy val cluster = project
   )
   .settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
-          javaAgents += "io.kamon" % "kanela-agent" % "1.0.5",
+//          javaAgents += "io.kamon" % "kanela-agent" % "1.0.5",
           javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default"
   )

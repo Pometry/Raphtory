@@ -22,7 +22,7 @@ import scala.sys.process._
 //main function
 
 object Go extends App {
-  Kamon.init() //start tool logging
+  //Kamon.init() //start tool logging
   val conf    = ConfigFactory.load()
   val seedLoc = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
   val root    = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
