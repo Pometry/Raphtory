@@ -11,8 +11,6 @@ import com.raphtory.examples.blockchain.analysers.TaintTrackExchangeStop
 import kamon.Kamon
 import org.slf4j.LoggerFactory
 
-import com.raphtory.examples.blockchain.routers.EthereumGethRouter
-import com.raphtory.examples.blockchain.spouts.EthereumGethSpout
 
 import scala.language.postfixOps
 
@@ -75,8 +73,8 @@ object SingleNodeTest extends App {
 
   system.actorOf(Props(new WatermarkManager(managerCount = 1)),"WatermarkManager")
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
-  system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
+  system.actorOf(Props(RaphtoryReplicator("Router", 1,1, routerClassName)), s"Routers")
+  system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1,1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(SpoutName)), "Spout")
   val analysisManager = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
   //AnalysisRestApi(system)

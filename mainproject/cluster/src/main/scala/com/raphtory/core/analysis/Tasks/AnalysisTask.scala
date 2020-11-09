@@ -45,6 +45,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   protected var workersFinishedSuperStep     = 0    //Acks from workers to say they have finished the superstep
   protected var workerResultsReceived        = 0    //Acks from workers when sending results back to analysis manager
   protected var messageLogACKS               = 0    //Acks from Workers with the amount of messages they have sent and received
+  protected var recentlySeenTime             = Long.MaxValue //tracking the earliest time seen
 
   private var totalReceivedMessages = 0 //Total number of messages received by the workers
   private var totalSentMessages     = 0 //Total number of messages sent by the workers
@@ -105,19 +106,26 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   }
 
   protected def processResultsWrapper(timeStamp: Long) = {
-    if(saveData) {
-      val mongo = MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress()}:$mongoPort"))
-      val buffer = new java.util.ArrayList[DBObject]()
-      processResults(timeStamp)
-      analyser.getPublishedData().foreach(data => {
-        buffer.add(JSON.parse(data).asInstanceOf[DBObject])
-      })
-      analyser.clearPublishedData()
-      mongo.getDB(dbname).getCollection(jobID).insert(buffer)
-      buffer.clear()
+    try{
+      if(saveData) {
+        val mongo = MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress()}:$mongoPort"))
+        val buffer = new java.util.ArrayList[DBObject]()
+        processResults(timeStamp)
+        analyser.getPublishedData().foreach(data => {
+          buffer.add(JSON.parse(data).asInstanceOf[DBObject])
+        })
+        analyser.clearPublishedData()
+        mongo.getDB(dbname).getCollection(jobID).insert(buffer)
+        buffer.clear()
+      }
+      else
+        processResults(timeStamp)
     }
-    else
-      processResults(timeStamp)
+    catch {
+      case e:Exception => e.printStackTrace()
+    }
+
+
 
   }
 
@@ -203,6 +211,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (!ok)
       TimeOKFlag = false
     TimeOKACKS += 1
+    if(time<recentlySeenTime)recentlySeenTime=time
     if (TimeOKACKS == getWorkerCount) {
       stepCompleteTime() //reset step counter
       if (TimeOKFlag) {
@@ -221,8 +230,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
               mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
       }
       else {
-        println(s"${timestamp()} is yet to be ingested, currently at ${time}. Retrying analysis in 10 seconds and retrying")
-        context.system.scheduler.scheduleOnce(Duration(10000, MILLISECONDS), self, "recheckTime")
+        handleTimeOutput()
       }
 
       TimeOKACKS = 0
@@ -330,6 +338,13 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
             mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep),false)
       }
     }
+  }
+
+  def handleTimeOutput() = {
+    println(s"${timestamp()} is yet to be ingested, currently at ${recentlySeenTime}. Retrying analysis in 10 seconds and retrying")
+    context.system.scheduler.scheduleOnce(Duration(10000, MILLISECONDS), self, "recheckTime")
+    recentlySeenTime = Long.MaxValue
+
   }
 
   def restart()

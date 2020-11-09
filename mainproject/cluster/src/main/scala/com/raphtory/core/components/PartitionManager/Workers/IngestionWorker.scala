@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 
-case class queueItem(routerEpoch:Int,timestamp:Long,safe:Boolean)extends Ordered[queueItem] {
+case class queueItem(routerEpoch:Int,timestamp:Long)extends Ordered[queueItem] {
   def compare(that: queueItem): Int = that.routerEpoch-this.routerEpoch
 }
 
@@ -92,7 +92,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   private def vertexAddTrack(srcID: Long, msgTime: Long,routerID:String,routerTime:Int,spoutTime:Long): Unit = {
       //Vertex Adds the message time straight into queue as no sync
     storage.timings(msgTime)
-    addToWatermarkQueue(routerID,routerTime,msgTime,safe=false,spoutTime = spoutTime)
+    addToWatermarkQueue(routerID,routerTime,msgTime,spoutTime = spoutTime)
   }
 
 
@@ -115,7 +115,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   private def edgeAddTrack(srcID: Long, dstID: Long, msgTime: Long,local:Boolean,routerID:String,routerTime:Int,spoutTime:Long): Unit = {
     storage.timings(msgTime)
     if(local) {//if the edge is totally handled by this worker then we are safe to add to watermark queue
-      addToWatermarkQueue(routerID,routerTime,msgTime,safe=false,spoutTime = spoutTime)
+      addToWatermarkQueue(routerID,routerTime,msgTime,spoutTime = spoutTime)
     }
   }
 
@@ -140,12 +140,12 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   def processRemoteReturnDeathsRequest(req: RemoteReturnDeaths): Unit = { //when the new edge add is responded to we can say it is synced
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     storage.remoteReturnDeaths(req.msgTime, req.srcID, req.dstID, req.kills)
-    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,safe=false,spoutTime = req.spoutTime)
+    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,spoutTime = req.spoutTime)
   }
 
   def processEdgeSyncAck(req: EdgeSyncAck) = { //when the edge isn't new we will get this response instead
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
-    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,safe=false,spoutTime = req.spoutTime)
+    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,spoutTime = req.spoutTime)
   }
 
   def processDstAddForOtherWorkerRequest(req: DstAddForOtherWorker): Unit = { //local worker asking this one to deal with an incoming edge
@@ -158,7 +158,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   def processDstResponseFromOtherWorkerRequest(req: DstResponseFromOtherWorker): Unit = { //local worker responded for a new edge so can watermark, if existing edge will just be an ack
     log.debug("IngestionWorker [{}] received [{}] request.", workerId, req)
     storage.vertexWorkerRequestEdgeHandler(req.msgTime, req.srcForEdge, req.dstID, req.removeList)
-    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,safe=false,spoutTime = req.spoutTime)
+    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,spoutTime = req.spoutTime)
   }
 
 
@@ -173,7 +173,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   private def edgeDeleteTrack(msgTime: Long,local:Boolean,routerID:String,routerTime:Int,spoutTime:Long): Unit = {
     storage.timings(msgTime)
     if(local) { //if the edge is totally handled by this worker then we are safe to add to watermark queue
-      addToWatermarkQueue(routerID,routerTime,msgTime,safe=false,spoutTime = spoutTime)
+      addToWatermarkQueue(routerID,routerTime,msgTime,spoutTime = spoutTime)
     }
   }
 
@@ -208,7 +208,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   }
   private def vertexDeleteTrack(srcID: Long, msgTime: Long,routerID:String,routerTime:Int,totalCount:Int,spoutTime:Long): Unit = {
     if(totalCount==0) //if there are no outgoing edges it is safe to watermark
-      addToWatermarkQueue(routerID,routerTime,msgTime,safe=false,spoutTime = spoutTime)
+      addToWatermarkQueue(routerID,routerTime,msgTime,spoutTime = spoutTime)
     else{
       vDeleteCountdownMap put ((routerID,routerTime),new AtomicInteger(totalCount))
     }
@@ -218,7 +218,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   def processVertexRemoveSyncAck(req:VertexRemoveSyncAck)= {
     vDeleteCountdownMap.get((req.routerID,req.routerTime)) match {
       case Some(integer) => if(integer.decrementAndGet()==0){
-        addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,safe=false,spoutTime = req.spoutTime)
+        addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,spoutTime = req.spoutTime)
         vDeleteCountdownMap.remove((req.routerID,req.routerTime)) //todo improve this datastructure
       }
       case None          => println("Should never Happen")
@@ -245,15 +245,15 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
     interWorkerUpdates.increment()
   }
 
-  private def addToWatermarkQueue(routerID:String,routerTime:Int,msgTime:Long,safe:Boolean,spoutTime:Long) = {
+  private def addToWatermarkQueue(routerID:String,routerTime:Int,msgTime:Long,spoutTime:Long) = {
     queuedMessageMap.get(routerID) match {
-      case Some(queue) => queue += queueItem(routerTime,msgTime,safe)
+      case Some(queue) => queue += queueItem(routerTime,msgTime)
       case None =>
         val queue = new mutable.PriorityQueue[queueItem]()
-        queue += queueItem(routerTime,msgTime,safe)
+        queue += queueItem(routerTime,msgTime)
         queuedMessageMap put(routerID,queue)
     }
-    if(!safe) synchronisedUpdates.increment()
+    synchronisedUpdates.increment()
     processSynchTime(spoutTime)
   }
 
@@ -262,30 +262,23 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   }
 
   private def processWatermarkRequest() ={
-
       if(queuedMessageMap nonEmpty) {
         val queueState = queuedMessageMap.map(queue => {
           setSafePoint(queue._1, queue._2)
         })
         val timestamps = queueState.map(q => q.timestamp)
-        storage.windowTime = timestamps.min
-        storage.safeWindowTime = timestamps.max
-        storage.windowSafe = queueState.map(q=>q.safe).fold(true)(_&&_) //if all safe then safe
+        val min = timestamps.min
+        if(storage.windowTime<min)
+          storage.windowTime = min
+        mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.windowTime), localAffinity = false)
         latestTime.update(storage.newestTime)
         earliestTime.update(storage.oldestTime)
-        if(storage.windowSafe) {
-          mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.safeWindowTime), localAffinity = false)
-          safeTime.update(storage.safeWindowTime)
-        } else {
-          mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.windowTime), localAffinity = false)
-          safeTime.update(storage.windowTime)
-        }
-
+        safeTime.update(storage.windowTime)
       }
   }
 
   private def setSafePoint(routerName:String,messageQueue:mutable.PriorityQueue[queueItem]) = {
-    val default = queueItem(-1,0,false)
+    val default = queueItem(-1,0)
     var currentSafePoint = safeMessageMap.get(routerName) match {
       case Some(value) => value
       case None => default
@@ -300,7 +293,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
 
   private def processRouterTimeSync(req:RouterWorkerTimeSync) ={
     storage.timings(req.msgTime)
-    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,true,-1)
+    addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime,0)
   }
 
 

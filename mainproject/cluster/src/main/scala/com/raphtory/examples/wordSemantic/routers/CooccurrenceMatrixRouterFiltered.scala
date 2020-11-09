@@ -3,18 +3,22 @@ package com.raphtory.examples.wordSemantic.routers
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication._
 
-class CooccurrenceMatrixRouterFiltered(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
-  val THR = System.getenv().getOrDefault("COOC_FREQ_THRESHOLD ", "0.05").trim.toDouble
+import scala.collection.mutable.ListBuffer
 
-  def parseTuple(record: Any): Unit = {
+class CooccurrenceMatrixRouterFiltered(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
+  val THR = System.getenv().getOrDefault("COOC_FREQ_THRESHOLD ", "0.03").trim.toDouble
+
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
     //println(record)
-    var dp = record.asInstanceOf[String].split(" ").map(_.trim)
+    var dp =tuple.value.split(" ").map(_.trim)
     val occurenceTime = dp.head.toLong//DateFormatting(dp.head) //.slice(4, dp.head.length)
     val scale = dp(1).toDouble
+    val commands = new ListBuffer[GraphUpdate]()
     try {
       dp = dp.last.split("\t")
       val srcClusterId = assignID(dp.head)
-      sendGraphUpdate(
+      commands+= (
         VertexAddWithProperties(
           msgTime = occurenceTime,
           srcID = srcClusterId,
@@ -27,7 +31,8 @@ class CooccurrenceMatrixRouterFiltered(override val routerId: Int, override val 
           val dstClusterId = assignID(dp(i))
           val coocWeight = dp(i + 1).toLong
 
-          sendGraphUpdate(
+
+        commands+= (
             VertexAddWithProperties(
               msgTime = occurenceTime,
               srcID = dstClusterId,
@@ -35,7 +40,7 @@ class CooccurrenceMatrixRouterFiltered(override val routerId: Int, override val 
             )
           )
 
-          sendGraphUpdate(
+          commands+= (
             EdgeAddWithProperties(
               msgTime = occurenceTime,
               srcID = srcClusterId,
@@ -47,7 +52,8 @@ class CooccurrenceMatrixRouterFiltered(override val routerId: Int, override val 
         }
       }
     }catch {
-      case e: Exception => println(e, dp.length, record.asInstanceOf[String])
+      case e: Exception => println(e, dp.length, tuple.asInstanceOf[String])
     }
+    commands.toList
   }
 }

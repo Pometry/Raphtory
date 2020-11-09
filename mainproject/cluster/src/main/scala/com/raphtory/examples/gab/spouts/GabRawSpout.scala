@@ -1,16 +1,17 @@
-package com.raphtory.examples.gab.actors
+package com.raphtory.examples.gab.spouts
 
 import akka.actor.Cancellable
 import ch.qos.logback.classic.Level
-import com.mongodb.casbah.Imports.MongoConnection
-import com.mongodb.casbah.Imports._
+import com.mongodb.casbah.Imports.{MongoConnection, _}
 import com.raphtory.core.components.Spout.SpoutTrait
+import com.raphtory.core.components.Spout.SpoutTrait.BasicDomain
+import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.Next
+import com.raphtory.core.model.communication.StringSpoutGoing
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
-final class GabRawSpout extends SpoutTrait {
+final class GabRawSpout extends SpoutTrait[BasicDomain,StringSpoutGoing] {
 
   //private val redis    = new RedisClient("moe", 6379)
   //private val redisKey = "gab-posts"
@@ -29,9 +30,8 @@ final class GabRawSpout extends SpoutTrait {
   // private val mongoLogger = Logger.getLogger("org.mongodb.driver.cluster")
   // mongoLogger.setLevel(Level.OFF)
 
-  override protected def ProcessSpoutTask(message: Any): Unit = message match {
-    case StartSpout  => AllocateSpoutTask(Duration(1, MILLISECONDS), "parsePost")
-    case "parsePost" => running()
+  override def handleDomainMessage(message: BasicDomain): Unit = message match {
+    case Next => running()
   }
 
   def running(): Unit = {
@@ -39,7 +39,7 @@ final class GabRawSpout extends SpoutTrait {
     postMin += window
     postMax += window
     println(s"Current min post is $postMin, max post is $postMax, last call retrieved $count posts")
-    AllocateSpoutTask(Duration(10, MILLISECONDS), "parsePost")
+    self ! Next
 
   }
 
@@ -50,13 +50,16 @@ final class GabRawSpout extends SpoutTrait {
         val data = x.get("data").toString.drop(2).dropRight(1).replaceAll("""\\"""", "").replaceAll("""\\""", "")
         count += 1
         //println(data)
-        sendTuple(data)
+        sendTuple(StringSpoutGoing(data))
       } catch {
         case e: Throwable =>
           println("Cannot parse record")
       }
     return count
   }
+
+  override def startSpout(): Unit = self ! Next
+
 
 }
 //redis-server --dir /home/moe/ben/gab --dbfilename gab.rdb --daemonize yes

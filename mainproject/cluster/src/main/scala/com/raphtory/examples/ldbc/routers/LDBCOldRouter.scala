@@ -4,24 +4,24 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.EdgeAdd
-import com.raphtory.core.model.communication.EdgeDelete
-import com.raphtory.core.model.communication.Type
-import com.raphtory.core.model.communication.VertexAdd
-import com.raphtory.core.model.communication.VertexDelete
+import com.raphtory.core.model.communication.{EdgeAdd, EdgeDelete, GraphUpdate, StringSpoutGoing, Type, VertexAdd, VertexDelete}
 
-class LDBCOldRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
-  override protected def parseTuple(value: Any): Unit = {
+import scala.collection.mutable.ListBuffer
 
-    val fileLine = value.asInstanceOf[String].split("\\|")
+class LDBCOldRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
 
+    val fileLine = tuple.asInstanceOf[String].split("\\|")
+    val commands = new ListBuffer[GraphUpdate]()
     //val deletionDate:Long  = new SimpleDateFormat("yyyy-MM-ddHH:mm:ss.SSS").parse(date2).getTime()
     fileLine(0) match {
       case "person" =>
         val date = fileLine(6).substring(0, 10) + fileLine(5).substring(11, 23); //extract the day of the event
         //val date2 = fileLine(2).substring(0, 10) + fileLine(1).substring(11, 23); //extract the day of the event
         val creationDate: Long = new SimpleDateFormat("yyyy-MM-ddHH:mm:ss.SSS").parse(date).getTime()
-        sendGraphUpdate(VertexAdd(creationDate, assignID("person" + fileLine(1)), Type("person")))
+        commands+=(VertexAdd(creationDate, assignID("person" + fileLine(1)), Type("person")))
+        commands.toList
       //sendGraphUpdate(VertexAdd(creationDate, fileLine(3).toLong,Type("person")))
       //    sendGraphUpdate(VertexDelete(deletionDate, assignID("person"+fileLine(3))))
       case "person_knows_person" =>
@@ -29,7 +29,7 @@ class LDBCOldRouter(override val routerId: Int,override val workerID:Int, overri
         //val date2 = fileLine(2).substring(0, 10) + fileLine(1).substring(11, 23); //extract the day of the event
         val creationDate: Long = new SimpleDateFormat("yyyy-MM-ddHH:mm:ss.SSS").parse(date).getTime()
         //sendGraphUpdate(EdgeAdd(creationDate, fileLine(3).toLong,fileLine(4).toLong,Type("person_knows_person")))
-        sendGraphUpdate(
+        commands+=(
                 EdgeAdd(
                         creationDate,
                         assignID("person" + fileLine(1)),
@@ -37,6 +37,7 @@ class LDBCOldRouter(override val routerId: Int,override val workerID:Int, overri
                         Type("person_knows_person")
                 )
         )
+        commands.toList
       //sendGraphUpdate(EdgeDelete(deletionDate, assignID("person"+fileLine(3)),assignID("person"+fileLine(4))))
     }
   }

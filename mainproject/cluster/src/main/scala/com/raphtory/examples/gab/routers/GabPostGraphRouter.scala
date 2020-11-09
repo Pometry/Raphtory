@@ -1,9 +1,11 @@
-package com.raphtory.examples.gab.actors
+package com.raphtory.examples.gab.routers
 
 import java.text.SimpleDateFormat
 
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication._
+
+import scala.collection.mutable.ListBuffer
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
 //In this router we needed to transform the data that was sent by the spout by turning it into a epoch value (long value)
@@ -12,25 +14,26 @@ import com.raphtory.core.model.communication._
 // is equal to -1. Columns 1 and 4 correspond to the postId and parentPostid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabPostGraphRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
+class GabPostGraphRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
 
-  def parseTuple(record: Any): Unit = {
-    val fileLine = record.asInstanceOf[String].split(";").map(_.trim)
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+    val fileLine = tuple.value.split(";").map(_.trim)
     //user wise
 //     val sourceNode=fileLine(2).toInt
 //     val targetNode=fileLine(5).toInt
-
+    val commands = new ListBuffer[GraphUpdate]()
     //comment wise
     val sourceNode = fileLine(1).toInt
     val targetNode = fileLine(4).toInt
 
     if (targetNode > 0) {
       val creationDate = dateToUnixTime(timestamp = fileLine(0).slice(0, 19))
-      sendGraphUpdate(VertexAdd(creationDate, sourceNode))
-      sendGraphUpdate(VertexAdd(creationDate, targetNode))
-      sendGraphUpdate(EdgeAdd(creationDate, sourceNode, targetNode))
+      commands+=(VertexAdd(creationDate, sourceNode))
+      commands+=(VertexAdd(creationDate, targetNode))
+      commands+=(EdgeAdd(creationDate, sourceNode, targetNode))
     }
-
+  commands.toList
   }
 
   def dateToUnixTime(timestamp: => String): Long = {

@@ -22,7 +22,7 @@ import scala.sys.process._
 //main function
 
 object Go extends App {
-  Kamon.init() //start tool logging
+  //Kamon.init() //start tool logging
   val conf    = ConfigFactory.load()
   val seedLoc = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
   val root    = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
@@ -44,10 +44,10 @@ object Go extends App {
       SeedNode(seedLoc)
     case "router" =>
       println("Creating Router")
-      RouterNode(getConf(), sys.env("PARTITION_MIN").toInt, routerName)
+      RouterNode(getConf(), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt, routerName)
     case "partitionManager" =>
       println(s"Creating Partition Manager...")
-      ManagerNode(getConf(), sys.env("PARTITION_MIN").toInt)
+      ManagerNode(getConf(), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
 
     case "updater" =>
       println("Creating Update Generator")

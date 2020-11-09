@@ -1,19 +1,20 @@
-package com.raphtory.examples.blockchain.spouts
+package com.raphtory.spouts.blockchain
 
 import java.io.File
 import java.io.PrintWriter
 
 import com.raphtory.core.components.Spout.SpoutTrait
-import com.raphtory.examples.blockchain.BitcoinTransaction
+import com.raphtory.core.components.Spout.SpoutTrait.BasicDomain
+import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.Next
+import com.raphtory.core.model.communication.SpoutGoing
 import scalaj.http.Http
 import scalaj.http.HttpRequest
 import spray.json._
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.sys.process._
 
-class BitcoinSpout extends SpoutTrait {
+class BitcoinSpout extends SpoutTrait[BasicDomain, BitcoinTransaction] {
 
   var blockcount    = 1
   val rpcuser       = System.getenv().getOrDefault("BITCOIN_USERNAME", "").trim
@@ -22,16 +23,16 @@ class BitcoinSpout extends SpoutTrait {
   val id            = "scala-jsonrpc"
   val baseRequest   = Http(serverAddress).auth(rpcuser, rpcpassword).header("content-type", "text/plain")
 
+
   //************* MESSAGE HANDLING BLOCK
-  override def ProcessSpoutTask(message: Any): Unit = message match {
-    case StartSpout => AllocateSpoutTask(Duration(1, MILLISECONDS), "parseBlock")
-    case "parseBlock" =>
+  def handleDomainMessage(message: BasicDomain): Unit = message match {
+    case Next =>
       try {
         getTransactions()
         blockcount += 1
-        AllocateSpoutTask(Duration(1, MILLISECONDS), "parseBlock")
+        self !  Next
       } catch {
-        case e: java.net.SocketTimeoutException => AllocateSpoutTask(Duration(1, MILLISECONDS), "parseBlock")
+        case e: java.net.SocketTimeoutException => self ! Next
       }
     case _ => println("message not recognized!")
   }
@@ -64,5 +65,10 @@ class BitcoinSpout extends SpoutTrait {
 
   }
 
+  override def startSpout(): Unit = self ! Next
+
 }
+
+case class BitcoinTransaction(time: JsValue, block: Int, blockID: JsValue, transaction: JsValue) extends SpoutGoing
+
 //def request(command: String, params: String = ""): HttpRequest = baseRequest.postData(s"""{"jsonrpc": "1.0", "id":"$id", "method": "$command", "params": [$params] }""")

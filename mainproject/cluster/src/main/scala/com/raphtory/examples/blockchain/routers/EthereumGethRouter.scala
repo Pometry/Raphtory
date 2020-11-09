@@ -2,24 +2,22 @@ package com.raphtory.examples.blockchain.routers
 
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.EdgeAddWithProperties
-import com.raphtory.core.model.communication.ImmutableProperty
-import com.raphtory.core.model.communication.Properties
-import com.raphtory.core.model.communication.StringProperty
-import com.raphtory.core.model.communication.VertexAddWithProperties
+import com.raphtory.core.model.communication.{EdgeAddWithProperties, GraphUpdate, ImmutableProperty, Properties, StringProperty, StringSpoutGoing, VertexAddWithProperties}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
 import spray.json._
 
+import scala.collection.mutable.ListBuffer
 import scala.util.hashing.MurmurHash3
-class EthereumGethRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
+class EthereumGethRouter(override val routerId: Int,override val workerID:Int,override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
   print(routerId)
 
 
-  override protected def parseTuple(value: Any): Unit = {
-    print(value)
-    val transaction = value.toString.split(",")
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+    print(tuple)
+    val transaction = tuple.value.split(",")
     val blockNumber = hexToInt(transaction(0))
 
     val from = transaction(1).replaceAll("\"", "").toLowerCase
@@ -30,14 +28,15 @@ class EthereumGethRouter(override val routerId: Int,override val workerID:Int, v
 
     print(from)
     print(to)
+    val commands = new ListBuffer[GraphUpdate]()
 
-    sendGraphUpdate(
+    commands+=(
             VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from)))
     )
-    sendGraphUpdate(
+    commands+=(
             VertexAddWithProperties(blockNumber, destinationNode, properties = Properties(ImmutableProperty("id", to)))
     )
-    sendGraphUpdate(
+    commands+=(
             EdgeAddWithProperties(
                     blockNumber,
                     sourceNode,
@@ -45,7 +44,7 @@ class EthereumGethRouter(override val routerId: Int,override val workerID:Int, v
                     properties = Properties(StringProperty("value", sent))
             )
     )
-
+  commands.toList
   }
 }
 

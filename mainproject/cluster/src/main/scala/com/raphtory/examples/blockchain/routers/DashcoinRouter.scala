@@ -1,25 +1,21 @@
 package com.raphtory.examples.blockchain.routers
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.EdgeAdd
-import com.raphtory.core.model.communication.EdgeAddWithProperties
-import com.raphtory.core.model.communication.Properties
-import com.raphtory.core.model.communication.StringProperty
-import com.raphtory.core.model.communication.VertexAdd
-import com.raphtory.core.model.communication.VertexAddWithProperties
-import com.raphtory.examples.blockchain.LitecoinTransaction
+import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, GraphUpdate, Properties, StringProperty, StringSpoutGoing, VertexAdd, VertexAddWithProperties}
+import com.raphtory.spouts.blockchain.BitcoinTransaction
 import spray.json.JsArray
 
+import scala.collection.mutable.ListBuffer
 import scala.util.hashing.MurmurHash3
 
-class DashcoinRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
+class DashcoinRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[BitcoinTransaction](routerId,workerID, initialManagerCount,initialRouterCount) {
 
-  def parseTuple(record: Any): Unit = {
-    val value        = record.asInstanceOf[LitecoinTransaction]
-    val transaction  = value.transaction
-    val time         = value.time
-    val blockID      = value.blockID
-    val block        = value.block
+  override protected def parseTuple(tuple: BitcoinTransaction): List[GraphUpdate] = {
+    val transaction  = tuple.transaction
+    val time         = tuple.time
+    val blockID      = tuple.blockID
+    val block        = tuple.block
     val timeAsString = time.toString
     val timeAsLong   = (timeAsString.toLong) * 1000
 
@@ -29,7 +25,7 @@ class DashcoinRouter(override val routerId: Int,override val workerID:Int, val i
     val locktime      = transaction.asJsObject.fields("locktime")
     val version       = transaction.asJsObject.fields("version")
     var total: Double = 0
-
+    val commands = new ListBuffer[GraphUpdate]()
     for (vout <- vouts.asInstanceOf[JsArray].elements) {
       val voutOBJ = vout.asJsObject()
       var value   = voutOBJ.fields("value").toString
@@ -45,7 +41,7 @@ class DashcoinRouter(override val routerId: Int,override val workerID:Int, val i
       else value = "0" //TODO deal with people burning money
 
       //creates vertex for the receiving wallet
-      sendGraphUpdate(
+      commands+=(
               VertexAddWithProperties(
                       msgTime = timeAsLong,
                       srcID = MurmurHash3.stringHash(address),
@@ -57,7 +53,7 @@ class DashcoinRouter(override val routerId: Int,override val workerID:Int, val i
               )
       )
       //creates edge between the transaction and the wallet
-      sendGraphUpdate(
+      commands+=(
               EdgeAddWithProperties(
                       msgTime = timeAsLong,
                       srcID = MurmurHash3.stringHash(txid),
@@ -67,7 +63,7 @@ class DashcoinRouter(override val routerId: Int,override val workerID:Int, val i
       )
 
     }
-    sendGraphUpdate(
+    commands+=(
             VertexAddWithProperties(
                     msgTime = timeAsLong,
                     srcID = MurmurHash3.stringHash(txid),
@@ -86,10 +82,10 @@ class DashcoinRouter(override val routerId: Int,override val workerID:Int, val i
     if (vins.toString().contains("coinbase")) {
       //creates the coingen node
       //toPartitionManager(VertexAddWithProperties(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen"), properties = Map[String,String](("type","coingen"))))
-      sendGraphUpdate(VertexAdd(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen")))
+      commands+=(VertexAdd(msgTime = timeAsLong, srcID = MurmurHash3.stringHash("coingen")))
 
       //creates edge between coingen and the transaction
-      sendGraphUpdate(
+      commands+=(
               EdgeAdd(
                       msgTime = timeAsLong,
                       srcID = MurmurHash3.stringHash("coingen"),
@@ -104,7 +100,7 @@ class DashcoinRouter(override val routerId: Int,override val workerID:Int, val i
         val sequence = vinOBJ.fields("sequence").toString
         //no need to create node for prevtxid as should already exist
         //creates edge between the prev transaction and current transaction
-        sendGraphUpdate(
+        commands+=(
                 EdgeAddWithProperties(
                         msgTime = timeAsLong,
                         srcID = MurmurHash3.stringHash(prevtxid),
@@ -112,7 +108,9 @@ class DashcoinRouter(override val routerId: Int,override val workerID:Int, val i
                         properties = Properties(StringProperty("vout", prevVout), StringProperty("sequence", sequence))
                 )
         )
+
       }
+    commands.toList
   }
 
 }
