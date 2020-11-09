@@ -85,6 +85,14 @@ object Utils {
     workers.toArray
   }
 
+  def getAllRouterWorkers(managerCount: Int): Array[String] = {
+    val workers = mutable.ArrayBuffer[String]()
+    for (i <- 0 until managerCount)
+      for (j <- 0 until totalWorkers)
+        workers += s"/user/router/router_${i}_Worker_$j"
+    workers.toArray
+  }
+
   def createHistory(history: mutable.TreeMap[Long, Boolean]): String = {
     if (history.size == 0)
       return ""

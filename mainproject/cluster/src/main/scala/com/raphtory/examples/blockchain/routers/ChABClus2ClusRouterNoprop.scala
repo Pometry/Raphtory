@@ -7,18 +7,21 @@ import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
-class ChABClus2ClusRouterNoprop(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
+import scala.collection.mutable.ListBuffer
 
-  def parseTuple(record: Any): Unit = {
-      val dp = formatLine(record.asInstanceOf[String].split(",").map(_.trim))
+class ChABClus2ClusRouterNoprop(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount,initialRouterCount) {
+
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+      val dp = formatLine(tuple.value.split(",").map(_.trim))
       val transactionTime = dp.time
       val srcClusterId = dp.srcCluster
       val dstClusterId = dp.dstCluster
-
-      sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
-      sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
-      sendGraphUpdate(EdgeAdd(msgTime = transactionTime, srcID = srcClusterId, dstID = dstClusterId, Type("Transfer")))
-
+      val commands = new ListBuffer[GraphUpdate]()
+      commands+=(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
+      commands+=(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
+      commands+=(EdgeAdd(msgTime = transactionTime, srcID = srcClusterId, dstID = dstClusterId, Type("Transfer")))
+      commands.toList
   }
 
   //converts the line into a case class which has all of the data via the correct name and type

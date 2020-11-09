@@ -2,23 +2,21 @@ package com.raphtory.examples.blockchain.routers
 
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.EdgeAddWithProperties
-import com.raphtory.core.model.communication.ImmutableProperty
-import com.raphtory.core.model.communication.Properties
-import com.raphtory.core.model.communication.StringProperty
-import com.raphtory.core.model.communication.VertexAddWithProperties
+import com.raphtory.core.model.communication.{EdgeAddWithProperties, GraphUpdate, ImmutableProperty, Properties, StringProperty, StringSpoutGoing, VertexAddWithProperties}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
 import spray.json._
 
+import scala.collection.mutable.ListBuffer
 import scala.util.hashing.MurmurHash3
-class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
+class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
-  override protected def parseTuple(value: Any): Unit = {
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
 
-    val transaction = value.toString.split(",")
+    val transaction = tuple.value.split(",")
 
-    if(transaction(1).equals("block_number")) return
+    if(transaction(1).equals("block_number")) return List()
 
 
     print(transaction)
@@ -29,7 +27,7 @@ class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, 
 //    val to   = transaction(2).replaceAll("\"", "").toLowerCase
 //    val sent = transaction(5).replaceAll("\"", "")
 
-    if(transaction(2).equals("block_number")) return
+    if(transaction(2).equals("block_number")) return List()
     val blockNumber = transaction(2).toInt
 
     val from = transaction(4).replaceAll("\"", "").toLowerCase
@@ -38,14 +36,15 @@ class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, 
 
     val sourceNode      = assignID(from) //hash the id to get a vertex ID
     val destinationNode = assignID(to)   //hash the id to get a vertex ID
+    val commands = new ListBuffer[GraphUpdate]()
 
-    sendGraphUpdate(
+    commands+=(
       VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from)))
     )
-    sendGraphUpdate(
+    commands+=(
       VertexAddWithProperties(blockNumber, destinationNode, properties = Properties(ImmutableProperty("id", to)))
     )
-    sendGraphUpdate(
+    commands+=(
       EdgeAddWithProperties(
         blockNumber,
         sourceNode,
@@ -53,7 +52,7 @@ class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, 
         properties = Properties(StringProperty("value", sent))
       )
     )
-
+  commands.toList
   }
 }
 

@@ -1,21 +1,20 @@
 package com.raphtory.core.analysis.Algorithms
 
-import java.time.LocalDateTime
-
-import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.immutable
-import scala.collection.parallel.mutable.{ParArray, ParTrieMap}
+import scala.collection.parallel.ParMap
 
-class MultiLayerLPA(args:Array[String]) extends LPA(args) {
-  //TODO  DOUBLE CHECK WITH THE OTHER VERSION
-  //args = [top_c, start, end, layer-size]
+class MultiLayerLPAparams(args:Array[String]) extends LPA(args) {
+  //args = [top_c, start, end, layer-size, w, theta, property]
   val snapshotSize:Long = args(3).toLong
   val startTime = args(1).toLong * snapshotSize //TODO: change this when done with wsdata
   val endTime = args(2).toLong * snapshotSize
   val snapshots = (startTime to endTime by snapshotSize).tail
+  val weight = args(4)
+  val theta = args(5).toDouble
+  override val PROP = args(6)
+
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
       val tlabels = snapshots.filter(t=> vertex.aliveAtWithWindow(t, snapshotSize))
@@ -37,14 +36,13 @@ class MultiLayerLPA(args:Array[String]) extends LPA(args) {
       var count = 0
       val newLabel = vlabel.map { tv =>
         val ts = tv._1
-        val nei_ts = vertex.getInCEdgesBetween(ts-snapshotSize, ts) ++ vertex.getOutEdgesBetween(ts-snapshotSize, ts)
-        val nei_ts_freq = nei_ts.map { e => (e.ID(), e.getPropertyValueAt(PROP, ts).getOrElse(1L).asInstanceOf[Long]) }
-        .groupBy(_._1).mapValues(x=> x.map(_._2).sum) // (ID -> Freq)
+        val nei_ts_freq = weightFunction(vertex, ts) // ID -> freq
         val nei_labs = msgq.filter(x => nei_ts_freq.keySet.contains(x._1)).map{ x=> (x._2.filter(_._1==ts).map(_._2.last).head, nei_ts_freq(x._1))} //(lab, freq)
-        val v_tempo_nei_labs = vlabel.filter(x=>(x._1==ts+snapshotSize)|(x._1==ts-snapshotSize)).map(x=>(x._2.last,1L))// nei_ts_freq.values.max))//TODO: think about tempo link weights <<<<
+        val v_tempo_nei_labs = vlabel.filter(_._1==ts+snapshotSize).map(x=> (x._2.last, nei_ts_freq.values.sum/nei_ts_freq.size))++
+          vlabel.filter(_._1==ts-snapshotSize).map(x=>(x._2.last,interLayerWeights(weight, vertex, ts-snapshotSize)))
         nei_labs.appendAll(v_tempo_nei_labs)
-        val v_ts_freq = if (nei_labs.nonEmpty) nei_labs.map(_._2).sum / nei_labs.size else 1L
-        nei_labs.append((tv._2.last, v_ts_freq))
+       // val v_ts_freq = if (nei_labs.nonEmpty) nei_labs.map(_._2).sum / nei_labs.size else 1L
+        //nei_labs.append((tv._2.last, v_ts_freq))
         val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
         var newlab = max_freq.filter(f=> f._2 == max_freq.values.max).keySet.max
         if (tv._2.contains(newlab)) {
@@ -52,7 +50,6 @@ class MultiLayerLPA(args:Array[String]) extends LPA(args) {
           count += 1}
         (ts, tv._2.tail.union(List(newlab)))
       }
-      println(view.superStep())
       vertex.setState("lpalabel", newLabel)
       vertex.messageAllNeighbours((vertex.ID(), newLabel))
       if (count == vlabel.length) {vertex.voteToHalt()}
@@ -62,10 +59,24 @@ class MultiLayerLPA(args:Array[String]) extends LPA(args) {
     }
   }
 
+  def interLayerWeights(x:String,v:VertexVisitor, ts:Long): Long = {
+    x match {
+      case "none" =>
+        val neilabs = weightFunction(v, ts)
+          neilabs.values.sum / neilabs.size
+      case _ => weight.toLong
+    }
+  }
 
+  def weightFunction(v:VertexVisitor, ts:Long): ParMap[Long, Long] ={
+    val nei_ts = (v.getInCEdgesBetween(ts-snapshotSize, ts) ++ v.getOutEdgesBetween(ts-snapshotSize, ts))
+      .filter(e => e.getPropertyValueAt("ScaledFreq", ts).getOrElse(1.0).asInstanceOf[Double] > theta)
+    nei_ts.map { e => (e.ID(), e.getPropertyValueAt(PROP, ts).getOrElse(1L).asInstanceOf[Long]) }
+      .groupBy(_._1).mapValues(x=> x.map(_._2).sum) // (ID -> Freq)
+  }
   override def returnResults(): Any =
     view.getVertices()
-      .map(vertex => (vertex.getOrSetState[Array[(Long, List[Long])]]("lpalabel", Array(0, -1L)), vertex.ID()))//getPropertyValue("Word").getOrElse("Unknown")))
+      .map(vertex => (vertex.getOrSetState[Array[(Long, List[Long])]]("lpalabel", Array(0, -1L)), vertex.getPropertyValue("Word").getOrElse("Unknown")))
       .flatMap(f => f._1.map { x => (x._2.last, f._2.toString + '_' + x._1.toString) })
 
   override def extractData(results:ArrayBuffer[Any]):fd ={
@@ -87,6 +98,6 @@ class MultiLayerLPA(args:Array[String]) extends LPA(args) {
     }
   }
 
-  override def defineMaxSteps(): Int = 1000
+  override def defineMaxSteps(): Int = 100
 
 }

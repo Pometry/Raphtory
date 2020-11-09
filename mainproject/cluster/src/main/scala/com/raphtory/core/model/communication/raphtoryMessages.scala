@@ -20,11 +20,14 @@ sealed trait TrackedGraphUpdate{
 }
 
 trait SpoutGoing
+final case class StringSpoutGoing(value: String) extends SpoutGoing
+case class DataFinished()
+case class DataFinishedSync(time:Long)
 
 case class RouterUp(id: Int)
 case class PartitionUp(id: Int)
 case class ClusterStatusRequest()
-case class ClusterStatusResponse(clusterUp: Boolean)
+case class ClusterStatusResponse(clusterUp: Boolean,pmCounter:Int,roCounter:Int)
 
 sealed trait Property {
   def key: String

@@ -5,12 +5,14 @@ import java.io.{BufferedReader, File, FileReader}
 import java.time.LocalDateTime
 
 import com.raphtory.core.components.Spout.SpoutTrait
-import com.raphtory.spouts.EtherFileReader
+import com.raphtory.core.components.Spout.SpoutTrait.{BasicDomain, DomainMessage}
+import com.raphtory.core.model.communication.StringSpoutGoing
+import com.raphtory.examples.wordSemantic.spouts.CooccurrenceMatrixSpout.Message.{CooccuranceDomain, NextFile, NextLineBlock, NextLineSlice}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class CooccurrenceMatrixSpout extends SpoutTrait {
+class CooccurrenceMatrixSpout extends SpoutTrait[CooccuranceDomain,StringSpoutGoing] {
 
   println("Start: " + LocalDateTime.now())
   val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
@@ -38,28 +40,28 @@ class CooccurrenceMatrixSpout extends SpoutTrait {
 
 
 
-  override protected def ProcessSpoutTask(message: Any): Unit = message match {
-  case StartSpout => AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineSlice")
+  def handleDomainMessage(message: CooccuranceDomain): Unit = message match {
 
-  case "nextLineSlice" => nextLineSlice()
-  case "nextLineBLock" => nextLineBlock()
-  case "nextFile" => nextFile()
+  case NextLineSlice => nextLineSlice()
+  case NextLineBlock => nextLineBlock()
+  case NextFile => nextFile()
   case _ => println("message not recognized!")
 }
+
   def nextLineSlice() = {
     try {
       if (posSlice <= currentLine.length-1) {
         val head = currentLine(0)
         for (i<- 1 to Set(JUMP, currentLine.length-posSlice/JUMP2).min) {
           val currentSlice = currentLine.slice(posSlice, posSlice + JUMP2)
-          sendTuple(cnt.toString + ' ' + head + "\t" + currentSlice.mkString("\t"))
+          sendTuple(StringSpoutGoing(cnt.toString + ' ' + head + "\t" + currentSlice.mkString("\t")))
           posSlice += JUMP2
         }
-        AllocateSpoutTask(Duration(1, MILLISECONDS), "nextLineSlice")
+        self ! NextLineSlice //AllocateSpoutTask(Duration(1, MILLISECONDS), "nextLineSlice")
       }
       else {
         posSlice = 1
-        AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
+        self ! NextLineBlock //AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
       }
     }catch {
       case e: Exception => println(e,  posSlice)
@@ -71,24 +73,29 @@ class CooccurrenceMatrixSpout extends SpoutTrait {
       cnt += 1
       cline = currentFile.readLine()
       currentLine = cline.split("\t")
-      AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineSlice")
+      self ! AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineSlice")
       }
     catch {
-      case e:Exception => AllocateSpoutTask(Duration(1, NANOSECONDS), "nextFile")
+      case e:Exception => self ! NextFile //AllocateSpoutTask(Duration(1, NANOSECONDS), "nextFile")
     }
   }
 
   def nextFile() = {
-    directoryPosition += 1
-    if (filesToRead.length > directoryPosition) {
-      currentFile = fileToArray(directoryPosition)
-      filename = filesToRead(directoryPosition) //D-200001_merge_occ
-      time = filename.split('/').last.stripPrefix("D-").stripSuffix("_merge_occ").toLong * 1000000000L
-      cnt = time + 1
-      AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
-    }
-    else {
-      println("All files read "+ LocalDateTime.now())
+    try {
+      directoryPosition += 1
+      if (filesToRead.length > directoryPosition) {
+        currentFile = fileToArray(directoryPosition)
+        filename = filesToRead(directoryPosition) //D-200001_merge_occ
+        time = filename.split('/').last.stripPrefix("D-").stripSuffix("_merge_occ").toLong * 1000000000L
+        cnt = time + 1
+        self ! NextLineBlock// AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
+      }
+      else {
+        println("All files read " + LocalDateTime.now()
+        )
+      }
+    }catch {
+      case e:Exception => println(e, "im in next file")
     }
   }
 
@@ -110,5 +117,16 @@ class CooccurrenceMatrixSpout extends SpoutTrait {
     } else {
       Array[String]()
     }
+  }
+
+  override def startSpout(): Unit = self ! NextLineSlice
+}
+
+object CooccurrenceMatrixSpout {
+  object Message {
+    sealed trait CooccuranceDomain extends DomainMessage
+    case object NextLineSlice      extends CooccuranceDomain
+    case object NextLineBlock extends CooccuranceDomain
+    case object NextFile      extends CooccuranceDomain
   }
 }

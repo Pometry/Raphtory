@@ -7,7 +7,7 @@ import com.raphtory.core.utils.Utils
 
 import scala.language.postfixOps
 
-case class ManagerNode(seedLoc: String, partitionCount: Int) extends DocSvr {
+case class ManagerNode(seedLoc: String, partitionCount: Int,routerCount:Int) extends DocSvr {
 
   implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
 
@@ -15,7 +15,7 @@ case class ManagerNode(seedLoc: String, partitionCount: Int) extends DocSvr {
   final val actorName: String           = "PartitionManager"
 
   system.actorOf(
-          Props(RaphtoryReplicator(actorType = "Partition Manager", initialManagerCount = partitionCount)),
+          Props(RaphtoryReplicator(actorType = "Partition Manager", initialManagerCount = partitionCount,initialRouterCount = routerCount)),
           actorName
   )
 

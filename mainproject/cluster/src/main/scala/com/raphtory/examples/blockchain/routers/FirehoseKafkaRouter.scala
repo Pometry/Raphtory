@@ -2,24 +2,28 @@ package com.raphtory.examples.blockchain.routers
 
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{DoubleProperty, EdgeAdd, EdgeAddWithProperties, EdgeDelete, ImmutableProperty, LongProperty, Properties, StringProperty, VertexAdd, VertexAddWithProperties, VertexDelete}
+import com.raphtory.core.model.communication.{DoubleProperty, EdgeAdd, EdgeAddWithProperties, EdgeDelete, GraphUpdate, ImmutableProperty, LongProperty, Properties, StringProperty, StringSpoutGoing, VertexAdd, VertexAddWithProperties, VertexDelete}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
 import spray.json._
 
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
 import scala.math.BigInt
-class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, val initialManagerCount: Int) extends RouterWorker {
+class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
   var DELETEPERCENT = System.getenv().getOrDefault("ETHER_DELETE_PERCENT", "0").trim.toDouble/100
   var DELETESEED = System.getenv().getOrDefault("ETHER_DELETE_SEED", "123").trim.toInt
   val random = new Random(DELETESEED)
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
-  override protected def parseTuple(value: Any): Unit = {
+
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
     //if(value.toString.contains("0xa09871aeadf4994ca12f5c0b6056bbd1d343c029")) println(value.toString)
-    val transaction = value.toString.split(",")
-    if(transaction(1).equals("block_number")) return
+    val transaction = tuple.value.split(",")
+    if(transaction(1).equals("block_number")) return List()
     val blockNumber = transaction(2).toInt
+    val commands = new ListBuffer[GraphUpdate]()
 
     val from = transaction(4).replaceAll("\"", "").toLowerCase
     val to   = transaction(5).replaceAll("\"", "").toLowerCase
@@ -28,18 +32,18 @@ class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, 
     val destinationNode = assignID(to)   //hash the id to get a vertex ID
     //if(from.contains("0xa09871aeadf4994ca12f5c0b6056bbd1d343c029".toLowerCase())) println(from)
     //if(to.contains("0xa09871aeadf4994ca12f5c0b6056bbd1d343c029".toLowerCase())) println(to)
-    sendGraphUpdate(VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from))))
+    commands+=(VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from))))
 //    if(random.nextDouble()<=DELETEPERCENT)
 //      sendGraphUpdate(VertexDelete(blockNumber+1,sourceNode))
 
-    sendGraphUpdate(VertexAddWithProperties(blockNumber, destinationNode, properties = Properties(ImmutableProperty("id", to))))
+    commands+=(VertexAddWithProperties(blockNumber, destinationNode, properties = Properties(ImmutableProperty("id", to))))
 //    if(random.nextDouble()<=DELETEPERCENT)
 //      sendGraphUpdate(VertexDelete(blockNumber+1,destinationNode))
 
-    sendGraphUpdate(EdgeAddWithProperties(blockNumber, sourceNode, destinationNode,properties = Properties(DoubleProperty("value", sent))))
+    commands+=(EdgeAddWithProperties(blockNumber, sourceNode, destinationNode,properties = Properties(DoubleProperty("value", sent))))
 //    if(random.nextDouble()<=DELETEPERCENT)
 //     sendGraphUpdate(EdgeDelete(blockNumber+1,sourceNode,destinationNode))
-
+    commands.toList
   }
 }
 

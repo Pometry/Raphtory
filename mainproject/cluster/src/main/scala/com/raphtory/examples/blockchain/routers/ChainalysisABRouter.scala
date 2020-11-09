@@ -6,22 +6,26 @@ import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
-class ChainalysisABRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
+import scala.collection.mutable.ListBuffer
 
-  def parseTuple(record: Any): Unit = {
-    val dp = formatLine(record.asInstanceOf[String].split(",").map(_.trim))
+class ChainalysisABRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
+  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount,initialRouterCount) {
+
+  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+    val dp = formatLine(tuple.value.split(",").map(_.trim))
     val transactionTime = dp.time
     val srcClusterId = dp.srcCluster
     val dstClusterId = dp.dstCluster
     val transactionId = dp.txid
     val btcAmount = dp.amount
     val usdAmount = dp.usd
+    val commands = new ListBuffer[GraphUpdate]()
 
-    sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
-    sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
-    sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = transactionId, Type("Transaction")))
+    commands+=(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
+    commands+=(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
+    commands+=(VertexAdd(msgTime = transactionTime, srcID = transactionId, Type("Transaction")))
 
-    sendGraphUpdate(
+    commands+=(
       EdgeAddWithProperties(msgTime = transactionTime,
         srcID = srcClusterId,
         dstID = transactionId,
@@ -29,7 +33,7 @@ class ChainalysisABRouter(override val routerId: Int,override val workerID:Int, 
         Type("Incoming Payment")
       )
     )
-    sendGraphUpdate(
+    commands+=(
       EdgeAddWithProperties(msgTime = transactionTime,
         srcID = transactionId,
         dstID = dstClusterId,
@@ -37,7 +41,7 @@ class ChainalysisABRouter(override val routerId: Int,override val workerID:Int, 
         Type("Outgoing Payment")
       )
     )
-
+  commands.toList
   }
 
   //converts the line into a case class which has all of the data via the correct name and type

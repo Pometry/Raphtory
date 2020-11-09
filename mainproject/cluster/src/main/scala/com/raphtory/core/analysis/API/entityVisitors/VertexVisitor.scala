@@ -108,29 +108,25 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
   }
 
 
-
-  //TODO work on properties
-
-
   def setState(key: String, value: Any): Unit = {
-    val realkey = key + timestamp + window
+    val realkey = key + timestamp + window + jobID
     v.addCompValue(realkey, value)
   }
   def getState[T: ClassTag](key: String) = {
-    val realkey = key + timestamp + window
+    val realkey = key + timestamp + window + jobID
     v.getCompValue(realkey).asInstanceOf[T]
   }
   def containsState(key: String): Boolean = {
-    val realkey = key + timestamp + window
+    val realkey = key + timestamp + window + jobID
     v.containsCompvalue(realkey)
   }
   def getOrSetState[T: ClassTag](key: String, value: Any) = {
-    val realkey = key + timestamp + window
+    val realkey = key + timestamp + window + jobID
     v.getOrSet(realkey, value).asInstanceOf[T]
   }
 
   def appendToState[T: ClassTag](key: String, value: Any) = { //write function later
-    val realkey = key + timestamp + window
+    val realkey = key + timestamp + window + jobID
     if(v.containsCompvalue(realkey))
       v.addCompValue(realkey,v.getCompValue(realkey).asInstanceOf[Array[Any]] ++ Array(value))
     else
@@ -155,7 +151,7 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
 
 
 
-  def visitify(edge:Edge,id:Long) = new EdgeVisitor(edge,id,viewJob,superStep,view,mediator)
+  private def visitify(edge:Edge,id:Long) = new EdgeVisitor(edge,id,viewJob,superStep,view,mediator)
 
 }
 

@@ -31,8 +31,8 @@ case class SingleNodeSetup(
   system.actorOf(Props(new SeedActor(this)), "cluster")
   system.actorOf(Props(new WatchDog(1, 1)), "WatchDog")
   system.actorOf(Props(new WatermarkManager(managerCount = 1)),"WatermarkManager")
-  system.actorOf(Props(RaphtoryReplicator("Router", 1, routerClassName)), s"Routers")
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1)), s"PartitionManager")
+  system.actorOf(Props(RaphtoryReplicator("Router", 1, 1,routerClassName)), s"Routers")
+  system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1,1)), s"PartitionManager")
   system.actorOf(Props[AnalysisManager], s"AnalysisManager")
 
   system.actorOf(Props(Class.forName(UpdaterName)), "Spout")

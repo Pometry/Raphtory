@@ -19,7 +19,7 @@ object Edge {
       storage: EntityStorage
   ) = {
 
-    val e = new Edge(workerID, creationTime, srcID, dstID, initialValue = true, storage)
+    val e = new Edge(workerID, creationTime, srcID, dstID, initialValue = true)
     e.history = previousState
     e.properties = properties
     e
@@ -30,45 +30,16 @@ object Edge {
 /**
   * Created by Mirate on 01/03/2017.
   */
-class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean, storage: EntityStorage)
-        extends Entity(msgTime, initialValue, storage) {
+class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean)
+        extends Entity(msgTime, initialValue) {
 
-  def killList(vKills: mutable.TreeMap[Long, Boolean]): Unit =
-    try {
-      removeList ++= vKills
-      history ++= vKills
-    } catch {
-      case e: java.lang.NullPointerException =>
-        e.printStackTrace()
-        killList(vKills)
-    }
+  def killList(vKills: mutable.TreeMap[Long, Boolean]): Unit = history ++= vKills
 
-  def getId: Long      = dstId //todo remove
   def getSrcId: Long   = srcId
   def getDstId: Long   = dstId
   def getWorkerID: Int = workerID
 
-//  def getPropertyValuesAfterTime(key : String,time:Long,window:Long) : Option[mutable.TreeMap[Long,Any]] = {
-//    if (window == -1L)
-//      properties.get(key) match {
-//        case Some(p) => Some(p.previousState.filter(x => x._1 <= time))
-//        case None => None
-//      }
-//    else
-//      properties.get(key) match {
-//        case Some(p) => Some(p.previousState.filter(x => x._1 <= time && time - x._1 <= window))
-//        case None => None
-//      }
-//  }
-
   def viewAt(time: Long): Edge = {
-
-//    if(time > EntityStorage.lastCompressedAt){
-//      throw StillWithinLiveGraphException(time)
-//    }
-    //if(time < EntityStorage.oldestTime){
-    //  throw PushedOutOfGraphException(time)
-    //}
     var closestTime: Long = 0
     var value             = false
     for ((k, v) <- history)
@@ -77,9 +48,7 @@ class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue:
           closestTime = k
           value = v
         }
-    //if(value==false)
-    //  throw EntityRemovedAtTimeException(getId)
-    val edge = new Edge(-1, closestTime, srcId, dstId, value, storage)
+    val edge = new Edge(-1, closestTime, srcId, dstId, value)
     for ((k, p) <- properties) {
       val value = p.valueAt(time)
       if (!(value equals ("")))
@@ -88,18 +57,5 @@ class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue:
     edge
   }
 
-  override def equals(obj: scala.Any): Boolean = {
-    if (obj.isInstanceOf[Edge]) {
-      val v2 = obj.asInstanceOf[Edge] //add associated edges
-      if ((getSrcId == v2.getSrcId) && (getDstId == v2.getDstId) && (history
-            .equals(v2.history)) && (oldestPoint == v2.oldestPoint) && (newestPoint == newestPoint) && (properties
-            .equals(v2.properties)))
-        return true
-    }
-    false
-  }
-
-  override def toString: String =
-    s"Edge srcID $srcId dstID $dstId \n History $history \n Properties:\n $properties"
 
 }

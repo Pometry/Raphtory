@@ -40,10 +40,4 @@ class EdgeVisitor(edge:Edge,id:Long,viewJob:ViewJob,superStep:Int,view:GraphLens
         case None                       => None
       }
 
- // def getOutgoingEdgePropertyValues(key: String) =
- //   v.outgoingEdges.map(e => getEdgePropertyValuesAfterTime(e._2, key, timestamp, window).get.values)
- // def getIncomingEdgePropertyValues(key: String) =
- //   v.incomingEdges.map(e => getEdgePropertyValuesAfterTime(e._2, key, timestamp, window).get.values)
-
-
 }

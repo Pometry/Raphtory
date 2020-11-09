@@ -33,9 +33,10 @@ abstract class Serialiser extends Analyser(null){
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
-    val serialisedResults = results.asInstanceOf[(Array[String],Array[String])]
+    val serialisedResults = results.asInstanceOf[ArrayBuffer[(Array[String],Array[String])]]
     val file = new File(s"$path/Raphtory_Snapshot_${timestamp}_$windowSize.txt")
-    write(serialisedResults,file)
+    write((serialisedResults.flatMap(x=>x._1).toArray,serialisedResults.flatMap(x=>x._2).toArray),file)
+
 
   }
 
