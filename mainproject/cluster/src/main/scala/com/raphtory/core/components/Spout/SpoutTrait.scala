@@ -11,6 +11,7 @@ import com.raphtory.core.model.communication._
 import kamon.Kamon
 
 import scala.concurrent.ExecutionContext
+import scala.util.Random
 //import kamon.metric.CounterMetric
 //import kamon.metric.GaugeMetric
 
@@ -78,6 +79,8 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
       self ! StartSpout
       partitionManagers=pmCount
       routers=roCount
+      println(s"Number of routers: $routers")
+      println(s"Number of partitions: $partitionManagers")
 
     } else
       context.system.scheduler.scheduleOnce(delay = 1 second, receiver = self, message = IsSafe)
@@ -98,8 +101,8 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
         AllocateTrackedTuple(System.currentTimeMillis(), command)
       else
         AllocateTuple(command)
-    val mod     = count % (routers * 10)
-    lastRouter=s"/user/router/router_${mod/10}_Worker_${mod%10}"
+
+    lastRouter=s"/user/router/router_${Random.nextInt(routers)}_Worker_${Random.nextInt(10)}"
     mediator ! DistributedPubSubMediator.Send(lastRouter, message, localAffinity = false)
   }
 

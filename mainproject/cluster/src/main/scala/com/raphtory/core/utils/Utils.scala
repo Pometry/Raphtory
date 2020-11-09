@@ -52,7 +52,6 @@ object Utils {
     val mod     = srcId.abs % (managerCount * totalWorkers)
     val manager = mod / totalWorkers
     val worker  = mod % totalWorkers
-
     s"/user/Manager_${manager}_reader_$worker"
   }
   def getReaderInt(srcId: Long, managerCount: Int): (Long, Long) = {

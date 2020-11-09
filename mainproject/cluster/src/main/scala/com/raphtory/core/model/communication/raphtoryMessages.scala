@@ -75,7 +75,6 @@ case class EdgeSyncAck(msgTime: Long, routerID: String, routerTime: Int,spoutTim
 case class VertexRemoveSyncAck(msgTime: Long, routerID: String, routerTime: Int,spoutTime:Long)
 case class RouterWorkerTimeSync(msgTime:Long,routerID:String,routerTime:Int)
 
-
 case class UpdatedCounter(newValue: Int)
 case class AssignedId(id: Int)
 case class PartitionsCount(count: Int)
