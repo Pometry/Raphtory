@@ -1,13 +1,12 @@
 package com.raphtory.core.components.Spout
 
-import akka.actor.{Actor, ActorLogging, Cancellable, Timers}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.IsSafe
-import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.StartSpout
-import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.StateCheck
+import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage._
 import com.raphtory.core.components.Spout.SpoutTrait.DomainMessage
 import com.raphtory.core.model.communication._
+import com.raphtory.core.utils.Utils
 import kamon.Kamon
 
 import scala.concurrent.ExecutionContext
@@ -17,14 +16,16 @@ import scala.util.Random
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.collection.mutable.Queue
+
 
 // TODO Add val name which sub classes that extend this trait must overwrite
 //  e.g. BlockChainSpout val name = "Blockchain Spout"
 //  Log.debug that read 'Spout' should then read 'Blockchain Spout'
 trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with ActorLogging with Timers {
   // todo: wvv should assign the dispatcher when create the actor
-  // implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("spout-dispatcher")
-  implicit val executionContext: ExecutionContext = context.system.dispatcher
+  implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("spout-dispatcher")
+  //implicit val executionContext: ExecutionContext = context.system.dispatcher
 
   private val spoutTuples = Kamon.counter("Raphtory_Spout_Tuples").withTag("actor", self.path.name)
   private var count       = 0
@@ -32,6 +33,7 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
   private var partitionManagers = 0
   private var routers = 0
   private var finish = false
+  private val workQueue = Queue[SpoutGoing]()
   private def recordUpdate(): Unit = {
     spoutTuples.increment()
     count += 1
@@ -48,13 +50,16 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
 
   final override def receive: Receive = work(false,1,1)
 
-  private def work(safe: Boolean,pmCounter:Int,rmCounter:Int): Receive = {
+
+
+  private def work(safe: Boolean, pmCounter:Int, rmCounter:Int): Receive = {
     case StateCheck => processStateCheckMessage(safe)
     case ClusterStatusResponse(clusterUp,pmCounter,rmCounter) =>
       context.become(work(clusterUp,pmCounter,rmCounter))
       context.system.scheduler.scheduleOnce(1 second, self, StateCheck)
     case IsSafe    => processIsSafeMessage(safe,pmCounter,rmCounter)
     case StartSpout => startSpout()
+    case WorkPlease => sendData(context.sender())
     case x: Domain  => handleDomainMessage(x)
     case unhandled => log.error(s"Unable to handle message [$unhandled].")
   }
@@ -79,6 +84,13 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
       self ! StartSpout
       partitionManagers=pmCount
       routers=roCount
+      Utils.getAllRouterWorkers(roCount).foreach { workerPath =>
+        mediator ! DistributedPubSubMediator.Send(
+          workerPath,
+          SpoutOnline,
+          false
+        )
+      }
       println(s"Number of routers: $routers")
       println(s"Number of partitions: $partitionManagers")
 
@@ -88,22 +100,40 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
 
   protected def dataFinished():Unit = {
     if(!finish) {
-      mediator ! DistributedPubSubMediator.Send(lastRouter, DataFinished, localAffinity = false)
+      workQueue += DataFinished()
+      //mediator ! DistributedPubSubMediator.Send(lastRouter, DataFinished, localAffinity = false)
       finish=true
     }
   }
 
   protected def sendTuple(command: Out): Unit = {
     log.debug(s"The command [$command] received for send.")
-    recordUpdate()
-    val message =
-      if (count % 100 == 0)
-        AllocateTrackedTuple(System.currentTimeMillis(), command)
-      else
-        AllocateTuple(command)
+      workQueue += command
+    //lastRouter=s"/user/router/router_${Random.nextInt(routers)}_Worker_${Random.nextInt(10)}"
+    //mediator ! DistributedPubSubMediator.Send(lastRouter, message, localAffinity = false)
+  }
 
-    lastRouter=s"/user/router/router_${Random.nextInt(routers)}_Worker_${Random.nextInt(10)}"
-    mediator ! DistributedPubSubMediator.Send(lastRouter, message, localAffinity = false)
+  def sendData(sender:ActorRef): Unit = {
+      //s"/user/router/router_${Random.nextInt(routers)}_Worker_${Random.nextInt(10)}"
+    try {
+      val work =workQueue.dequeue()
+      if(work.isInstanceOf[DataFinished]) {
+        sender ! DataFinished
+        println("All data sent")
+      }
+      else {
+        val message = if (count % 100 == 0)
+          AllocateTrackedTuple(System.currentTimeMillis(),work)
+        else
+          AllocateTuple(work)
+        recordUpdate()
+        sender ! message
+        if (count % 100 == 0) println(s"Spout at Message $count, remaining messages ${workQueue.size}")
+        //println(s"Spout at Message $count, remaining messages ${work}")
+      }//mediator ! DistributedPubSubMediator.Send(lastRouter, message, localAffinity = false)
+    }catch {
+      case e:Exception  => sender ! NoWork//mediator ! DistributedPubSubMediator.Send(lastRouter, NoWork, localAffinity = false)
+    }
   }
 
   def AllocateSpoutTask(duration: FiniteDuration, task: Any): Cancellable = {
@@ -118,6 +148,11 @@ object SpoutTrait {
     case object StateCheck
     case object IsSafe
     case object Next extends BasicDomain
+    case object WorkPlease
+    case object NoWork
+    case object SpoutOnline
+
+
   }
   trait DomainMessage
   sealed trait BasicDomain extends DomainMessage

@@ -4,12 +4,13 @@ import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.{EdgeAdd, GraphUpdate, StringSpoutGoing, Type, VertexAdd}
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 
 /** Spout for network datasets of the form SRC_NODE_ID DEST_NODE_ID TIMESTAMP */
 class TSVRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
-  val commands = new ListBuffer[GraphUpdate]()
-  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+  val commands = new ParHashSet[GraphUpdate]()
+  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
     val fileLine = tuple.value.split(" ").map(_.trim)
     //user wise
     val sourceNode = fileLine(0).toInt
@@ -28,6 +29,6 @@ class TSVRouter(override val routerId: Int, override val workerID:Int, override 
       commands+=(EdgeAdd(creationDate, sourceNode, targetNode, Type("User to User")))
 
     }
-    commands.toList
+    commands
   }
 }

@@ -6,6 +6,7 @@ import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication._
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
 //In this router we needed to transform the data that was sent by the spout by turning it into a epoch value (long value)
@@ -17,12 +18,12 @@ import scala.collection.mutable.ListBuffer
 class GabPostGraphRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
 
-  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
     val fileLine = tuple.value.split(";").map(_.trim)
     //user wise
 //     val sourceNode=fileLine(2).toInt
 //     val targetNode=fileLine(5).toInt
-    val commands = new ListBuffer[GraphUpdate]()
+    val commands = new ParHashSet[GraphUpdate]()
     //comment wise
     val sourceNode = fileLine(1).toInt
     val targetNode = fileLine(4).toInt
@@ -33,7 +34,7 @@ class GabPostGraphRouter(override val routerId: Int,override val workerID:Int, o
       commands+=(VertexAdd(creationDate, targetNode))
       commands+=(EdgeAdd(creationDate, sourceNode, targetNode))
     }
-  commands.toList
+  commands
   }
 
   def dateToUnixTime(timestamp: => String): Long = {

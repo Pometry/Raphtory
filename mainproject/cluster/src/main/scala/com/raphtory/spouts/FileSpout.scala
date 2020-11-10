@@ -21,7 +21,7 @@ final case class FileSpout() extends SpoutTrait[FileDomain, StringSpoutGoing] {
   private val directory  = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
   private val fileName   = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
   private val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
-  private val JUMP       = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "10").trim.toInt
+  private val JUMP       = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "1000").trim.toInt
   private val INCREMENT  = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "0").trim.toInt
   private val TIME       = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
 
@@ -30,23 +30,14 @@ final case class FileSpout() extends SpoutTrait[FileDomain, StringSpoutGoing] {
 
   def startSpout(): Unit = {
     self ! NextLineBlock
-    context.system.scheduler.scheduleOnce(TIME.seconds, self, Increase)
   }
 
   def handleDomainMessage(message: FileDomain): Unit = message match {
-    case Increase =>
-      if (fileManager.allCompleted) {
-        println("All files read1-" + (System.nanoTime() - t0))
-        dataFinished()
-      }
-      else {
-        fileManager = fileManager.increaseBlockSize(INCREMENT)
-        context.system.scheduler.scheduleOnce(TIME.seconds, self, Increase)
-      }
-
     case NextLineBlock =>
-      if (fileManager.allCompleted)
+      if (fileManager.allCompleted){
+        dataFinished()
         println("All files read2-" + (System.nanoTime() - t0))
+      }
       else {
         val (newFileManager, block) = fileManager.nextLineBlock()
         fileManager = newFileManager
@@ -54,8 +45,10 @@ final case class FileSpout() extends SpoutTrait[FileDomain, StringSpoutGoing] {
         self ! NextLineBlock
       }
     case NextFile =>
-      if (fileManager.allCompleted)
+      if (fileManager.allCompleted){
         println("All files read3-" + (System.nanoTime() - t0))
+        dataFinished()
+      }
       else {
         fileManager = fileManager.nextFile()
         self ! NextLineBlock

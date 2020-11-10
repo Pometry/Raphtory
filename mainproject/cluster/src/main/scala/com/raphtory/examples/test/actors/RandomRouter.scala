@@ -4,6 +4,8 @@ import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.{GraphUpdate, _}
 import spray.json._
 
+import scala.collection.parallel.mutable.ParHashSet
+
 /**
   * The Graph Manager is the top level actor in this system (under the stream)
   * which tracks all the graph partitions - passing commands processed by the 'command processor' actors
@@ -19,21 +21,21 @@ class RandomRouter(override val routerId: Int,override val workerID:Int, overrid
 
   //************* MESSAGE HANDLING BLOCK
 
-   override protected def parseTuple(tuple:StringSpoutGoing): List[GraphUpdate]  = {
+   override protected def parseTuple(tuple:StringSpoutGoing): ParHashSet[GraphUpdate]  = {
     val command    = tuple.asInstanceOf[String]
     val parsedOBJ  = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
     if (commandKey.contains("VertexAdd"))
-      List(vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject))
+      ParHashSet(vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject))
     //else if(commandKey.contains("VertexUpdateProperties")) vertexUpdateProperties(parsedOBJ.getFields("VertexUpdateProperties").head.asJsObject)
     else if (commandKey.contains("VertexRemoval"))
-      List(vertexRemoval(parsedOBJ.getFields("VertexRemoval").head.asJsObject))
+      ParHashSet(vertexRemoval(parsedOBJ.getFields("VertexRemoval").head.asJsObject))
     else if (commandKey.contains("EdgeAdd"))
-      List(edgeAdd(parsedOBJ.getFields("EdgeAdd").head.asJsObject)) //if addVertex, parse to handling function
+      ParHashSet(edgeAdd(parsedOBJ.getFields("EdgeAdd").head.asJsObject)) //if addVertex, parse to handling function
     //   else if(commandKey.contains("EdgeUpdateProperties")) edgeUpdateProperties(parsedOBJ.getFields("EdgeUpdateProperties").head.asJsObject)
     else if (commandKey.contains("EdgeRemoval"))
-      List(edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject))
-    else List()
+      ParHashSet(edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject))
+    else ParHashSet()
   }
 
   def vertexAdd(command: JsObject) = {

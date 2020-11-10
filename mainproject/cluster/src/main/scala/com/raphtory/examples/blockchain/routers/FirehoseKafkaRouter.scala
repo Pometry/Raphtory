@@ -8,6 +8,7 @@ import akka.stream.ActorMaterializer
 import spray.json._
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
 import scala.math.BigInt
@@ -18,12 +19,12 @@ class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, 
   val random = new Random(DELETESEED)
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
 
-  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
     //if(value.toString.contains("0xa09871aeadf4994ca12f5c0b6056bbd1d343c029")) println(value.toString)
     val transaction = tuple.value.split(",")
-    if(transaction(1).equals("block_number")) return List()
+    if(transaction(1).equals("block_number")) return ParHashSet()
     val blockNumber = transaction(2).toInt
-    val commands = new ListBuffer[GraphUpdate]()
+    val commands = new ParHashSet[GraphUpdate]()
 
     val from = transaction(4).replaceAll("\"", "").toLowerCase
     val to   = transaction(5).replaceAll("\"", "").toLowerCase
@@ -43,7 +44,7 @@ class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, 
     commands+=(EdgeAddWithProperties(blockNumber, sourceNode, destinationNode,properties = Properties(DoubleProperty("value", sent))))
 //    if(random.nextDouble()<=DELETEPERCENT)
 //     sendGraphUpdate(EdgeDelete(blockNumber+1,sourceNode,destinationNode))
-    commands.toList
+    commands
   }
 }
 

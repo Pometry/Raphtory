@@ -7,6 +7,7 @@ import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 import scala.util.Random
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
@@ -19,12 +20,12 @@ import scala.util.Random
 class GabUserGraphRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
 
-  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
     val fileLine = tuple.value.split(";").map(_.trim)
     //user wise
     val sourceNode = fileLine(2).toInt
     val targetNode = fileLine(5).toInt
-    val commands = new ListBuffer[GraphUpdate]()
+    val commands = new ParHashSet[GraphUpdate]()
     //comment wise
     // val sourceNode=fileLine(1).toInt
     //val targetNode=fileLine(4).toInt
@@ -37,7 +38,7 @@ class GabUserGraphRouter(override val routerId: Int,override val workerID:Int, o
 //      sendGraphUpdate(VertexAddWithProperties(creationDate, targetNode, Properties(StringProperty("test1","value1"),StringProperty("test2","Value2")),Type("User")))
 //      sendGraphUpdate(EdgeAddWithProperties(creationDate, sourceNode, targetNode, Properties(StringProperty("test1","value1"),StringProperty("test2","Value2")),Type("User To User")))
     }
-  commands.toList
+  commands
   }
 
   def dateToUnixTime(timestamp: => String): Long = {

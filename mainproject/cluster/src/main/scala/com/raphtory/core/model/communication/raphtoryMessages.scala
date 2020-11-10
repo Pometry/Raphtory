@@ -21,7 +21,7 @@ sealed trait TrackedGraphUpdate{
 
 trait SpoutGoing
 final case class StringSpoutGoing(value: String) extends SpoutGoing
-case class DataFinished()
+case class DataFinished() extends SpoutGoing
 case class DataFinishedSync(time:Long)
 
 case class RouterUp(id: Int)

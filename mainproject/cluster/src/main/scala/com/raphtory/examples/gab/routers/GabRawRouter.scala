@@ -8,6 +8,7 @@ import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 
 /**
   * The Graph Manager is the top level actor in this system (under the stream)
@@ -26,8 +27,8 @@ final class GabRawRouter(override val routerId: Int,override val workerID:Int, o
 
   private val nullStr = "null"
 
-  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
-    val commands = new ListBuffer[GraphUpdate]()
+  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
+    val commands = new ParHashSet[GraphUpdate]()
     try {
       val command = tuple.value
       val post = command.parseJson.convertTo[GabPost]
@@ -133,7 +134,7 @@ final class GabRawRouter(override val routerId: Int,override val workerID:Int, o
 
     }
 
-    commands.toList
+    commands
   }
 }
 
