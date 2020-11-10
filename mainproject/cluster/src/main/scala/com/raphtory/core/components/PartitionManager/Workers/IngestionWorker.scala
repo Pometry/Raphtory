@@ -291,23 +291,31 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   }
 
   private def setSafePoint(routerName:String,messageQueue:mutable.PriorityQueue[queueItem]) = {
-    val default = queueItem(-1,0)
+
     var currentSafePoint = safeMessageMap.get(routerName) match {
       case Some(value) => value
-      case None => default
+      case None => queueItem(-1,0)
     }
-    if(messageQueue nonEmpty)
-      while(messageQueue.headOption.getOrElse(default).routerEpoch==currentSafePoint.routerEpoch+1) {
-        currentSafePoint = messageQueue.dequeue()
-        if(workerId==1 && (routerName equals "0_3"))
-          println(currentSafePoint)
-      }
-    safeMessageMap put (routerName,currentSafePoint)
-
-    currentSafePoint
+    recursiveDequeue(routerName,messageQueue,currentSafePoint)
   }
 
-  def recursiveDequeue(q:mutable.PriorityQueue[queueItem])
+  def recursiveDequeue(routerName:String,messageQueue:mutable.PriorityQueue[queueItem],currentSafePoint:queueItem): queueItem ={
+    if(messageQueue nonEmpty)
+      if(messageQueue.head.routerEpoch==currentSafePoint.routerEpoch+1)
+        recursiveDequeue(routerName,messageQueue,messageQueue.dequeue())
+      else if(messageQueue.head.routerEpoch==currentSafePoint.routerEpoch)
+        recursiveDequeue(routerName,messageQueue,messageQueue.dequeue())
+      else {
+        if(workerId==1)
+          println(s"$increments Writer Worker $partitionID $workerId --- ${safeMessageMap.get(routerName).get} $currentSafePoint ${messageQueue.head.routerEpoch}")
+        safeMessageMap put(routerName, currentSafePoint)
+        currentSafePoint
+      }
+    else {
+      safeMessageMap put(routerName, currentSafePoint)
+      currentSafePoint
+    }
+  }
 
   private def processRouterTimeSync(req:RouterWorkerTimeSync) ={
     storage.timings(req.msgTime)
