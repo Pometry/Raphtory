@@ -272,7 +272,6 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
           setSafePoint(queue._1, queue._2)
         })
         val timestamps = queueState.map(q => q.timestamp)
-        if(workerId==1)
           println(s"$increments Writer Worker $partitionID $workerId $timestamps")
 
         //println(s"Writer Worker $partitionID $workerId ${queueState.mkString("[",",","]")} ${storage.vertices.size}")
@@ -289,32 +288,26 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
         safeTime.update(storage.windowTime)
       }
   }
-
+  import scala.util.control.Breaks._
   private def setSafePoint(routerName:String,messageQueue:mutable.PriorityQueue[queueItem]) = {
 
     var currentSafePoint = safeMessageMap.get(routerName) match {
       case Some(value) => value
       case None => queueItem(-1,0)
     }
-    recursiveDequeue(routerName,messageQueue,currentSafePoint)
-  }
-
-  def recursiveDequeue(routerName:String,messageQueue:mutable.PriorityQueue[queueItem],currentSafePoint:queueItem): queueItem ={
-    if(messageQueue nonEmpty)
-      if(messageQueue.head.routerEpoch==currentSafePoint.routerEpoch+1)
-        recursiveDequeue(routerName,messageQueue,messageQueue.dequeue())
-      else if(messageQueue.head.routerEpoch==currentSafePoint.routerEpoch)
-        recursiveDequeue(routerName,messageQueue,messageQueue.dequeue())
-      else {
-        if(workerId==1)
-          println(s"$increments Writer Worker $partitionID $workerId --- ${safeMessageMap.get(routerName).get} $currentSafePoint ${messageQueue.head.routerEpoch}")
-        safeMessageMap put(routerName, currentSafePoint)
-        currentSafePoint
-      }
-    else {
-      safeMessageMap put(routerName, currentSafePoint)
-      currentSafePoint
+    breakable {
+      while (messageQueue nonEmpty)
+        if (messageQueue.head.routerEpoch == currentSafePoint.routerEpoch + 1)
+          currentSafePoint = messageQueue.dequeue()
+        else if (messageQueue.head.routerEpoch == currentSafePoint.routerEpoch)
+          currentSafePoint = messageQueue.dequeue()
+        else {
+          //println(s"$increments Writer Worker $partitionID $workerId --- ${safeMessageMap.get(routerName).get} $currentSafePoint ${messageQueue.head.routerEpoch}")
+          break
+        }
     }
+    safeMessageMap put(routerName, currentSafePoint)
+    currentSafePoint
   }
 
   private def processRouterTimeSync(req:RouterWorkerTimeSync) ={
