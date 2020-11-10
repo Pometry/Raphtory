@@ -7,6 +7,7 @@ import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 import scala.util.control.Breaks._
 
 class TrackAndTraceRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
@@ -15,14 +16,14 @@ class TrackAndTraceRouter(override val routerId: Int,override val workerID:Int, 
   val EARTH_POL = 6356752.3142                                                       //m
   val STEPSIZE  = System.getenv().getOrDefault("MAP_GRID_SIZE", "100").trim.toDouble //m
 
-  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
     val datapoint  = lineToDatapoint(tuple.value.split(",").map(_.trim))
     val eventTime  = datapoint.time
     val userID     = datapoint.userId
     val latitude   = datapoint.latitude
     val longitude  = datapoint.longitude
     val locationID = locationIDGenerator(latitude, longitude)
-    val commands = new ListBuffer[GraphUpdate]()
+    val commands = new ParHashSet[GraphUpdate]()
     commands+=(VertexAdd(eventTime, userID, Type("User")))
 
     commands+=(
@@ -35,7 +36,7 @@ class TrackAndTraceRouter(override val routerId: Int,override val workerID:Int, 
     )
 
     commands+=(EdgeAdd(eventTime, userID, locationID, Type("User Visted Location")))
-    commands.toList
+    commands
   }
 
   //converts the line into a case class which has all of the data via the correct name and type

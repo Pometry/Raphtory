@@ -8,11 +8,12 @@ import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 
 class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount,initialRouterCount) {
 
-  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
       val dp = formatLine(tuple.value.split(",").map(_.trim))
       val transactionTime = dp.time
       val srcClusterId = dp.srcCluster
@@ -21,7 +22,7 @@ class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, 
       val btcAmount = dp.amount
       val usdAmount = dp.usd
 
-      val commands = new ListBuffer[GraphUpdate]()
+      val commands = new ParHashSet[GraphUpdate]()
 
       commands+= VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster"))
       commands+=(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
@@ -36,7 +37,7 @@ class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, 
           Type("Transfer")
         )
       )
-    commands.toList
+    commands
   }
 
   //converts the line into a case class which has all of the data via the correct name and type
