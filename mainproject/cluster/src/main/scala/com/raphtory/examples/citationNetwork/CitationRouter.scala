@@ -6,10 +6,11 @@ import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication._
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 
 class CitationRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
-  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
     val fileLine = tuple.value.split(",").map(_.trim) //take the tuple and split on , as we are only interested in the first 4 fields
     // title_paper,year,volume,title,pages,number,journal,author,ENTRYTYPE,ID
     val sourceTitle = fileLine(0)
@@ -19,7 +20,7 @@ class CitationRouter(override val routerId: Int,override val workerID:Int, overr
 
     val sourceID = assignID(sourceTitle)
     val destinationID = assignID(destinationTitle)
-    val commands = new ListBuffer[GraphUpdate]()
+    val commands = new ParHashSet[GraphUpdate]()
     //create sourceNode
     commands+=(VertexAddWithProperties(
       sourceYear, //when it happened ??
@@ -43,6 +44,6 @@ class CitationRouter(override val routerId: Int,override val workerID:Int, overr
       Type("Cited") // edge type
     ))
 
-    commands.toList
+    commands
   }
 }

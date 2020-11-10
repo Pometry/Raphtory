@@ -4,12 +4,14 @@ import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication._
 import com.raphtory.spouts.blockchain.BitcoinTransaction
 import spray.json.JsArray
+
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.{ParArray, ParHashSet}
 
 class BitcoinRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[BitcoinTransaction](routerId,workerID,initialManagerCount, initialRouterCount) {
 
-  override protected def parseTuple(tuple:BitcoinTransaction): List[GraphUpdate]  = {
+  override protected def parseTuple(tuple:BitcoinTransaction): ParHashSet[GraphUpdate]  = {
 
     val transaction  = tuple.transaction
     val time         = tuple.time
@@ -23,7 +25,7 @@ class BitcoinRouter(override val routerId: Int, override val workerID:Int, overr
     val vouts         = transaction.asJsObject.fields("vout")
     var total: Double = 0
 
-    var commands = new ListBuffer[GraphUpdate]()
+    var commands = new ParHashSet[GraphUpdate]()
     for (vout <- vouts.asInstanceOf[JsArray].elements) {
       val voutOBJ = vout.asJsObject()
       var value   = voutOBJ.fields("value").toString
@@ -74,7 +76,7 @@ class BitcoinRouter(override val routerId: Int, override val workerID:Int, overr
 
       //creates edge between coingen and the transaction
       commands += EdgeAdd(msgTime = timeAsLong, srcID = "coingen".hashCode, dstID = txid.hashCode)
-      commands.toList
+      commands
     } else
       for (vin <- vins.asInstanceOf[JsArray].elements) {
         val vinOBJ   = vin.asJsObject()
@@ -89,7 +91,7 @@ class BitcoinRouter(override val routerId: Int, override val workerID:Int, overr
                         properties = Properties(StringProperty("vout", prevVout)))
 
       }
-    commands.toList
+    commands
   }
 
 }

@@ -21,7 +21,7 @@ sealed trait TrackedGraphUpdate{
 
 trait SpoutGoing
 final case class StringSpoutGoing(value: String) extends SpoutGoing
-case class DataFinished()
+case class DataFinished() extends SpoutGoing
 case class DataFinishedSync(time:Long)
 
 case class RouterUp(id: Int)
@@ -74,7 +74,6 @@ case class EdgeRemoveForOtherWorker(msgTime: Long, srcID: Long, dstID: Long,rout
 case class EdgeSyncAck(msgTime: Long, routerID: String, routerTime: Int,spoutTime:Long)
 case class VertexRemoveSyncAck(msgTime: Long, routerID: String, routerTime: Int,spoutTime:Long)
 case class RouterWorkerTimeSync(msgTime:Long,routerID:String,routerTime:Int)
-
 
 case class UpdatedCounter(newValue: Int)
 case class AssignedId(id: Int)

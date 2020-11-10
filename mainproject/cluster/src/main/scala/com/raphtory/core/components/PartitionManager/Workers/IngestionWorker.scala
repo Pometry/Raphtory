@@ -25,6 +25,10 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   mediator ! DistributedPubSubMediator.Put(self)
   implicit val executionContext = context.system.dispatchers.lookup("worker-dispatcher")
 
+  var increments =0
+  var updates = 0
+  var updates2 =0
+
   val synchTime           = Kamon.histogram("Raphtory_Wall_Clock").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
   val routerUpdates       = Kamon.counter("Raphtory_Router_Updates").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
   val interWorkerUpdates  = Kamon.counter("Raphtory_Inter_Worker_Updates").withTag("actor",s"PartitionWriter_$partitionID").withTag("ID",workerId)
@@ -249,10 +253,11 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
     queuedMessageMap.get(routerID) match {
       case Some(queue) => queue += queueItem(routerTime,msgTime)
       case None =>
-        val queue = new mutable.PriorityQueue[queueItem]()
+        val queue = new mutable.PriorityQueue[queueItem]()(Ordering.by[queueItem, Int](f=>f.routerEpoch).reverse)
         queue += queueItem(routerTime,msgTime)
         queuedMessageMap put(routerID,queue)
     }
+    updates+=1
     synchronisedUpdates.increment()
     processSynchTime(spoutTime)
   }
@@ -267,6 +272,13 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
           setSafePoint(queue._1, queue._2)
         })
         val timestamps = queueState.map(q => q.timestamp)
+          println(s"$increments Writer Worker $partitionID $workerId $timestamps")
+
+        //println(s"Writer Worker $partitionID $workerId ${queueState.mkString("[",",","]")} ${storage.vertices.size}")
+        //println(s"$increments Writer Worker $partitionID $workerId ${timestamps.min} ${storage.vertices.size} $updates ${updates-updates2}")
+        updates2=updates
+        increments+=1
+
         val min = timestamps.min
         if(storage.windowTime<min)
           storage.windowTime = min
@@ -276,18 +288,25 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
         safeTime.update(storage.windowTime)
       }
   }
-
+  import scala.util.control.Breaks._
   private def setSafePoint(routerName:String,messageQueue:mutable.PriorityQueue[queueItem]) = {
-    val default = queueItem(-1,0)
+
     var currentSafePoint = safeMessageMap.get(routerName) match {
       case Some(value) => value
-      case None => default
+      case None => queueItem(-1,0)
     }
-    if(messageQueue nonEmpty)
-      while(messageQueue.headOption.getOrElse(default).routerEpoch==currentSafePoint.routerEpoch+1)
-         currentSafePoint = messageQueue.dequeue()
-    safeMessageMap put (routerName,currentSafePoint)
-
+    breakable {
+      while (messageQueue nonEmpty)
+        if (messageQueue.head.routerEpoch == currentSafePoint.routerEpoch + 1)
+          currentSafePoint = messageQueue.dequeue()
+        else if (messageQueue.head.routerEpoch == currentSafePoint.routerEpoch)
+          currentSafePoint = messageQueue.dequeue()
+        else {
+          //println(s"$increments Writer Worker $partitionID $workerId --- ${safeMessageMap.get(routerName).get} $currentSafePoint ${messageQueue.head.routerEpoch}")
+          break
+        }
+    }
+    safeMessageMap put(routerName, currentSafePoint)
     currentSafePoint
   }
 

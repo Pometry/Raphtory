@@ -5,6 +5,8 @@ class NetworkXSerialiser extends Serialiser {
 
   override def startOfFile(): String = "G = nx.Graph()"
 
+  override def middleOfFile() :String = ""
+
   override def serialiseVertex(v: VertexVisitor): String = {
     val properties =v.getPropertySet().map(property => s"${property._1} = ${property._2}").toArray.mkString(",")
     if(properties.nonEmpty) {

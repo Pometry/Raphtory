@@ -1,8 +1,8 @@
 package com.raphtory.spouts
 
-import java.io.BufferedReader
-import java.io.File
-import java.io.FileReader
+import java.io.{BufferedReader, File, FileInputStream, FileReader, InputStreamReader}
+import java.nio.charset.StandardCharsets
+import java.util.zip.GZIPInputStream
 
 import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.components.Spout.SpoutTrait.DomainMessage
@@ -21,29 +21,23 @@ final case class FileSpout() extends SpoutTrait[FileDomain, StringSpoutGoing] {
   private val directory  = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
   private val fileName   = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
   private val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
-  private val JUMP       = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "10").trim.toInt
+  private val JUMP       = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "1000").trim.toInt
   private val INCREMENT  = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "0").trim.toInt
   private val TIME       = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
 
   private var fileManager = FileManager(directory, fileName, dropHeader, JUMP)
+  val t0 = System.nanoTime()
 
   def startSpout(): Unit = {
     self ! NextLineBlock
-    context.system.scheduler.scheduleOnce(TIME.seconds, self, Increase)
   }
 
   def handleDomainMessage(message: FileDomain): Unit = message match {
-    case Increase =>
-      if (fileManager.allCompleted)
-        log.info("All files read")
-      else {
-        fileManager = fileManager.increaseBlockSize(INCREMENT)
-        context.system.scheduler.scheduleOnce(TIME.seconds, self, Increase)
-      }
-
     case NextLineBlock =>
-      if (fileManager.allCompleted)
-        log.info("All files read")
+      if (fileManager.allCompleted){
+        dataFinished()
+        println("All files read2-" + (System.nanoTime() - t0))
+      }
       else {
         val (newFileManager, block) = fileManager.nextLineBlock()
         fileManager = newFileManager
@@ -51,8 +45,10 @@ final case class FileSpout() extends SpoutTrait[FileDomain, StringSpoutGoing] {
         self ! NextLineBlock
       }
     case NextFile =>
-      if (fileManager.allCompleted)
-        log.info("All files read")
+      if (fileManager.allCompleted){
+        println("All files read3-" + (System.nanoTime() - t0))
+        dataFinished()
+      }
       else {
         fileManager = fileManager.nextFile()
         self ! NextLineBlock
@@ -115,12 +111,18 @@ final case class FileManager private (
 
   private def getFileReader(file: File): BufferedReader = {
     logger.info(s"Reading file ${file.getCanonicalPath}")
+
+    var br = new BufferedReader(new FileReader(file))
+    if (file.getName.endsWith(".gz")) {
+      val inStream = new FileInputStream(file)
+      val inGzipStream = new GZIPInputStream(inStream)
+      val inReader = new InputStreamReader(inGzipStream) //default to UTF-8
+      br = new BufferedReader(inReader)
+    }
     if (dropHeader) {
-      val br = new BufferedReader(new FileReader(file))
       br.readLine()
-      br
-    } else
-      new BufferedReader(new FileReader(file))
+    }
+    br
   }
 }
 

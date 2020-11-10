@@ -18,9 +18,9 @@ abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {
     val x =entity.properties.filter(p =>{
       p._2.creation()<=viewJob.timestamp
     }).map(f => (f._1,f._2.valueAt(viewJob.timestamp)))
-    if(x.isEmpty&&this.isInstanceOf[VertexVisitor]){
-      println(viewJob)
-    }
+//    if(x.isEmpty&&this.isInstanceOf[VertexVisitor]){
+//      println(viewJob)
+//    }
     x
   }
 

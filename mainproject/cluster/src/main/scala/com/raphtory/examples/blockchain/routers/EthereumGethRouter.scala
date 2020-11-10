@@ -8,6 +8,7 @@ import akka.stream.ActorMaterializer
 import spray.json._
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 import scala.util.hashing.MurmurHash3
 class EthereumGethRouter(override val routerId: Int,override val workerID:Int,override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
@@ -15,7 +16,7 @@ class EthereumGethRouter(override val routerId: Int,override val workerID:Int,ov
   print(routerId)
 
 
-  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
     print(tuple)
     val transaction = tuple.value.split(",")
     val blockNumber = hexToInt(transaction(0))
@@ -28,7 +29,7 @@ class EthereumGethRouter(override val routerId: Int,override val workerID:Int,ov
 
     print(from)
     print(to)
-    val commands = new ListBuffer[GraphUpdate]()
+    val commands = new ParHashSet[GraphUpdate]()
 
     commands+=(
             VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from)))
@@ -44,7 +45,7 @@ class EthereumGethRouter(override val routerId: Int,override val workerID:Int,ov
                     properties = Properties(StringProperty("value", sent))
             )
     )
-  commands.toList
+  commands
   }
 }
 

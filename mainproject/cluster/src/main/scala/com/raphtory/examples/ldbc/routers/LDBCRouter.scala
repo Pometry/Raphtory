@@ -8,11 +8,12 @@ import com.raphtory.core.model.communication.{EdgeAdd, EdgeDelete, GraphUpdate, 
 import com.raphtory.examples.test.actors.RandomSpout
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 
 class LDBCRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
-  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
-    val commands = new ListBuffer[GraphUpdate]()
+  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
+    val commands = new ParHashSet[GraphUpdate]()
     val fileLine           = tuple.asInstanceOf[String].split("\\|")
     val date               = fileLine(1).substring(0, 10) + fileLine(1).substring(11, 23); //extract the day of the event
     val date2              = fileLine(2).substring(0, 10) + fileLine(1).substring(11, 23); //extract the day of the event
@@ -39,7 +40,7 @@ class LDBCRouter(override val routerId: Int,override val workerID:Int, override 
         if(edgeDeletion)
           commands+=(EdgeDelete(deletionDate, assignID("person"+fileLine(3)),assignID("person"+fileLine(4))))
     }
-    commands.toList
+    commands
   }
 }
 //2012-11-01T09:28:01.185+00:00|2019-07-22T11:24:24.362+00:00|35184372093644|Jose|Garcia|female|1988-05-20|111.68.47.44|Firefox
