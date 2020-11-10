@@ -253,7 +253,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
     queuedMessageMap.get(routerID) match {
       case Some(queue) => queue += queueItem(routerTime,msgTime)
       case None =>
-        val queue = new mutable.PriorityQueue[queueItem]()
+        val queue = new mutable.PriorityQueue[queueItem]()(Ordering.by[queueItem, Int](f=>f.routerEpoch).reverse)
         queue += queueItem(routerTime,msgTime)
         queuedMessageMap put(routerID,queue)
     }
@@ -272,8 +272,11 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
           setSafePoint(queue._1, queue._2)
         })
         val timestamps = queueState.map(q => q.timestamp)
+        if(workerId==1)
+          println(s"$increments Writer Worker $partitionID $workerId $timestamps")
+
         //println(s"Writer Worker $partitionID $workerId ${queueState.mkString("[",",","]")} ${storage.vertices.size}")
-        println(s"$increments Writer Worker $partitionID $workerId ${timestamps.min} ${storage.vertices.size} $updates ${updates-updates2}")
+        //println(s"$increments Writer Worker $partitionID $workerId ${timestamps.min} ${storage.vertices.size} $updates ${updates-updates2}")
         updates2=updates
         increments+=1
 
@@ -294,12 +297,17 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
       case None => default
     }
     if(messageQueue nonEmpty)
-      while(messageQueue.headOption.getOrElse(default).routerEpoch==currentSafePoint.routerEpoch+1)
-         currentSafePoint = messageQueue.dequeue()
+      while(messageQueue.headOption.getOrElse(default).routerEpoch==currentSafePoint.routerEpoch+1) {
+        currentSafePoint = messageQueue.dequeue()
+        if(workerId==1 && (routerName equals "0_3"))
+          println(currentSafePoint)
+      }
     safeMessageMap put (routerName,currentSafePoint)
 
     currentSafePoint
   }
+
+  def recursiveDequeue(q:mutable.PriorityQueue[queueItem])
 
   private def processRouterTimeSync(req:RouterWorkerTimeSync) ={
     storage.timings(req.msgTime)

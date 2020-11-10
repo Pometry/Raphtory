@@ -8,15 +8,16 @@ import akka.stream.ActorMaterializer
 import spray.json._
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 import scala.util.hashing.MurmurHash3
 class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
-  override protected def parseTuple(tuple: StringSpoutGoing): List[GraphUpdate] = {
+  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
 
     val transaction = tuple.value.split(",")
 
-    if(transaction(1).equals("block_number")) return List()
+    if(transaction(1).equals("block_number")) return ParHashSet()
 
 
     print(transaction)
@@ -27,7 +28,7 @@ class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, 
 //    val to   = transaction(2).replaceAll("\"", "").toLowerCase
 //    val sent = transaction(5).replaceAll("\"", "")
 
-    if(transaction(2).equals("block_number")) return List()
+    if(transaction(2).equals("block_number")) return ParHashSet()
     val blockNumber = transaction(2).toInt
 
     val from = transaction(4).replaceAll("\"", "").toLowerCase
@@ -36,7 +37,7 @@ class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, 
 
     val sourceNode      = assignID(from) //hash the id to get a vertex ID
     val destinationNode = assignID(to)   //hash the id to get a vertex ID
-    val commands = new ListBuffer[GraphUpdate]()
+    val commands = new ParHashSet[GraphUpdate]()
 
     commands+=(
       VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from)))
@@ -52,7 +53,7 @@ class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, 
         properties = Properties(StringProperty("value", sent))
       )
     )
-  commands.toList
+  commands
   }
 }
 

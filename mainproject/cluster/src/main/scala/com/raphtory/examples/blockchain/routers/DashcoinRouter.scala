@@ -6,12 +6,13 @@ import com.raphtory.spouts.blockchain.BitcoinTransaction
 import spray.json.JsArray
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParHashSet
 import scala.util.hashing.MurmurHash3
 
 class DashcoinRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[BitcoinTransaction](routerId,workerID, initialManagerCount,initialRouterCount) {
 
-  override protected def parseTuple(tuple: BitcoinTransaction): List[GraphUpdate] = {
+  override protected def parseTuple(tuple: BitcoinTransaction): ParHashSet[GraphUpdate] = {
     val transaction  = tuple.transaction
     val time         = tuple.time
     val blockID      = tuple.blockID
@@ -25,7 +26,7 @@ class DashcoinRouter(override val routerId: Int,override val workerID:Int, overr
     val locktime      = transaction.asJsObject.fields("locktime")
     val version       = transaction.asJsObject.fields("version")
     var total: Double = 0
-    val commands = new ListBuffer[GraphUpdate]()
+    val commands = new ParHashSet[GraphUpdate]()
     for (vout <- vouts.asInstanceOf[JsArray].elements) {
       val voutOBJ = vout.asJsObject()
       var value   = voutOBJ.fields("value").toString
@@ -110,7 +111,7 @@ class DashcoinRouter(override val routerId: Int,override val workerID:Int, overr
         )
 
       }
-    commands.toList
+    commands
   }
 
 }

@@ -4,12 +4,13 @@ import akka.actor.{Actor, ActorLogging, Cancellable}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.Router.RouterWorker.CommonMessage.TimeBroadcast
+import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.{NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import com.raphtory.core.utils.Utils.getManager
 import kamon.Kamon
 
-import scala.collection.parallel.mutable.ParTrieMap
+import scala.collection.parallel.mutable.{ParArray, ParHashSet, ParTrieMap}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.hashing.MurmurHash3
@@ -29,7 +30,7 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
   var update = 0
   // todo: wvv let people know parseTuple will create a list of update message
   //  and this trait will handle logic to send to graph
-  protected def parseTuple(tuple: In): List[GraphUpdate]
+  protected def parseTuple(tuple: In): ParHashSet[GraphUpdate]
 
   final protected val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -45,6 +46,8 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
 
 
   private def work(managerCount: Int, trackedTime: Long, newestTime: Long): Receive = {
+    case SpoutOnline => context.sender() ! WorkPlease
+    case NoWork => context.system.scheduler.scheduleOnce(delay = 10.second, receiver = context.sender(), message = WorkPlease)
     case msg: UpdatedCounter =>
       log.debug(s"RouterWorker [$routerId] received [$msg] request.")
       if (managerCount < msg.newValue) context.become(work(msg.newValue, trackedTime, newestTime))
@@ -55,6 +58,7 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
         if(newNewestTime>newestTime)
           context.become(work(managerCount, trackedTime, newNewestTime))
       )
+      context.sender() ! WorkPlease
 
     case msg @ AllocateTrackedTuple(
                 wallClock,
@@ -63,7 +67,7 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
       log.debug(s"RouterWorker [$routerId] received [$msg] request.")
       val newNewestTime = parseTupleAndSendGraph(record, managerCount, true, wallClock).getOrElse(newestTime)
       context.become(work(managerCount, wallClock, newNewestTime))
-
+      context.sender() ! WorkPlease
     case TimeBroadcast => {
       Utils.getAllWriterWorkers(managerCount).foreach { workerPath =>
         mediator ! DistributedPubSubMediator.Send(
@@ -74,7 +78,7 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
       }
       context.system.scheduler
         .scheduleOnce(delay = 5.seconds, receiver = self, message = TimeBroadcast)
-      println(s"Router $routerId $workerID with $newestTime ${messageIDs.mkString("[",",","]")}")
+      //println(s"Router $routerId $workerID with $newestTime ${messageIDs.mkString("[",",","]")}")
     }
     case DataFinished => {
       Utils.getAllRouterWorkers(initialRouterCount).foreach { workerPath =>
@@ -87,10 +91,8 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
     }
 
     case DataFinishedSync(time) => {
-      println(s"Router $routerId $workerID finished")
-      println(s"Router $routerId $workerID ${update}")
-
       if (time >= newestTime) {
+        println(s"Router $routerId $workerID ${time}")
         Utils.getAllWriterWorkers(managerCount).foreach { workerPath =>
           mediator ! DistributedPubSubMediator.Send(
             workerPath,
@@ -108,7 +110,6 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
             false
           )
         }
-
       }
     }
     case unhandled => log.warning(s"RouterWorker received unknown [$unhandled] message.")
