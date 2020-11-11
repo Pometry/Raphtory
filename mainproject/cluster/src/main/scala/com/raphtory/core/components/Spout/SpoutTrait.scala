@@ -122,13 +122,13 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
         println("All data sent")
       }
       else {
-        val message = if (count % 100 == 0)
+        val message = if (count % 10000 == 0)
           AllocateTrackedTuple(System.currentTimeMillis(),work)
         else
           AllocateTuple(work)
         recordUpdate()
         sender ! message
-        if (count % 100 == 0) println(s"Spout at Message $count, remaining messages ${workQueue.size}")
+        if (count % 10000 == 0) println(s"Spout at Message $count, remaining messages ${workQueue.size}")
         //println(s"Spout at Message $count, remaining messages ${work}")
       }//mediator ! DistributedPubSubMediator.Send(lastRouter, message, localAffinity = false)
     }catch {

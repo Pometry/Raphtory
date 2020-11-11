@@ -47,7 +47,7 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
 
   private def work(managerCount: Int, trackedTime: Long, newestTime: Long): Receive = {
     case SpoutOnline => context.sender() ! WorkPlease
-    case NoWork => context.system.scheduler.scheduleOnce(delay = 10.second, receiver = context.sender(), message = WorkPlease)
+    case NoWork => context.system.scheduler.scheduleOnce(delay = 1.second, receiver = context.sender(), message = WorkPlease)
     case msg: UpdatedCounter =>
       log.debug(s"RouterWorker [$routerId] received [$msg] request.")
       if (managerCount < msg.newValue) context.become(work(msg.newValue, trackedTime, newestTime))
@@ -123,8 +123,9 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
       managerCount: Int,
       trackedMessage: Boolean,
       trackedTime: Long
-  ): Option[Long] =
-    parseTuple(record).map(update => sendGraphUpdate(update, managerCount, trackedMessage, trackedTime)).lastOption
+  ): Option[Long] =try{
+      parseTuple(record).map(update => sendGraphUpdate(update, managerCount, trackedMessage, trackedTime)).lastOption
+  }catch {case e:Exception => None}
 
   private def sendGraphUpdate(
       message: GraphUpdate,
