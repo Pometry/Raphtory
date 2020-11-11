@@ -91,6 +91,7 @@ class CooccurrenceMatrixSpout extends SpoutTrait[CooccuranceDomain,StringSpoutGo
         self ! NextLineBlock// AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
       }
       else {
+        dataFinished()
         println("All files read " + LocalDateTime.now()
         )
       }

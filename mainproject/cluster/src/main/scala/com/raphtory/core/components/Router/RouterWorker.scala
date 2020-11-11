@@ -22,7 +22,7 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
         extends Actor
         with ActorLogging {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
-  println(s"Router $routerId $workerID with $initialManagerCount $initialRouterCount")
+//  println(s"Router $routerId $workerID with $initialManagerCount $initialRouterCount")
   private val messageIDs = ParTrieMap[String, Int]()
 
   private val routerWorkerUpdates =
@@ -92,7 +92,7 @@ abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: I
 
     case DataFinishedSync(time) => {
       if (time >= newestTime) {
-        println(s"Router $routerId $workerID ${time}")
+       // println(s"Router $routerId $workerID ${time}")
         Utils.getAllWriterWorkers(managerCount).foreach { workerPath =>
           mediator ! DistributedPubSubMediator.Send(
             workerPath,
