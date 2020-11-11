@@ -66,6 +66,10 @@ val lift = "net.liftweb" %% "lift-json" % "3.3.0"
 val bitcoin      = "org.scalaj"  %% "scalaj-http" % "2.3.0"
 val twitter_eval = "com.twitter" %% "util-eval"   % "6.43.0"
 
+// https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk
+val aws =  "com.amazonaws" % "aws-java-sdk" % "1.11.897"
+
+
 val IP = java.net.InetAddress.getLocalHost.getHostAddress
 
 lazy val basicSettings = Seq(
@@ -150,7 +154,8 @@ lazy val cluster = project
                     doobiepostgres,
                     joda,
                     casbah,
-                    mongo
+                    mongo,
+                    aws
             )
   )
   .settings(
