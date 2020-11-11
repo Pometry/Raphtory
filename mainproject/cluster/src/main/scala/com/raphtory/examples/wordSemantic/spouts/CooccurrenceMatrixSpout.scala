@@ -18,7 +18,7 @@ class CooccurrenceMatrixSpout extends SpoutTrait[CooccuranceDomain,StringSpoutGo
   val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
   val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
   val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
-  var JUMP = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "100").trim.toInt
+  var JUMP = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "1").trim.toInt
   var INCREMENT = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "1").trim.toInt
   var TIME = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
 
@@ -70,9 +70,9 @@ class CooccurrenceMatrixSpout extends SpoutTrait[CooccuranceDomain,StringSpoutGo
 
   def nextLineBlock() = {
     try {
-      cnt += 1
       cline = currentFile.readLine()
       currentLine = cline.split("\t")
+      cnt += 1
       self ! AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineSlice")
       }
     catch {
@@ -87,7 +87,7 @@ class CooccurrenceMatrixSpout extends SpoutTrait[CooccuranceDomain,StringSpoutGo
         currentFile = fileToArray(directoryPosition)
         filename = filesToRead(directoryPosition) //D-200001_merge_occ
         time = filename.split('/').last.stripPrefix("D-").stripSuffix("_merge_occ").toLong * 1000000000L
-        cnt = time + 1
+        cnt = time
         self ! NextLineBlock// AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
       }
       else {
