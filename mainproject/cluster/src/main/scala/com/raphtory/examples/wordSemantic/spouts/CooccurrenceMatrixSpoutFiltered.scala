@@ -36,11 +36,11 @@ class CooccurrenceMatrixSpoutFiltered extends CooccurrenceMatrixSpout {
 
   override def nextLineBlock() = {
     try {
-      cnt += 1
       cline = currentFile.readLine()
       currentLine = cline.split("\t")
       freq = currentLine.drop(2).grouped(2).map(_.head.toInt).toArray
       scale = scalling(freq)
+      cnt += 1
       self ! NextLineSlice //AllocateSpoutTask(Duration(1, NANOSECONDS), nextLineSlice)
       }
     catch {
