@@ -38,11 +38,9 @@ class MultiLayerLPAparams(args:Array[String]) extends LPA(args) {
         val ts = tv._1
         val nei_ts_freq = weightFunction(vertex, ts) // ID -> freq
         val nei_labs = msgq.filter(x => nei_ts_freq.keySet.contains(x._1)).map{ x=> (x._2.filter(_._1==ts).map(_._2.last).head, nei_ts_freq(x._1))} //(lab, freq)
-        val v_tempo_nei_labs = vlabel.filter(_._1==ts+snapshotSize).map(x=> (x._2.last, nei_ts_freq.values.sum/nei_ts_freq.size))++
+        val v_tempo_nei_labs = vlabel.filter(_._1==ts+snapshotSize).map(x=> (x._2.last, interLayerWeights(weight, vertex, ts)))++
           vlabel.filter(_._1==ts-snapshotSize).map(x=>(x._2.last,interLayerWeights(weight, vertex, ts-snapshotSize)))
         nei_labs.appendAll(v_tempo_nei_labs)
-       // val v_ts_freq = if (nei_labs.nonEmpty) nei_labs.map(_._2).sum / nei_labs.size else 1L
-        //nei_labs.append((tv._2.last, v_ts_freq))
         val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
         var newlab = max_freq.filter(f=> f._2 == max_freq.values.max).keySet.max
         if (tv._2.contains(newlab)) {

@@ -128,8 +128,8 @@ trait SpoutTrait[Domain <: DomainMessage, Out <: SpoutGoing] extends Actor with 
           AllocateTuple(work)
         recordUpdate()
         sender ! message
-        if (count % 100 == 0) println(s"Spout at Message $count, remaining messages ${workQueue.size}")
-        //println(s"Spout at Message $count, remaining messages ${work}")
+//        if (count % 100 == 0) println(s"Spout at Message $count, remaining messages ${workQueue.size}")
+//        println(s"Spout at Message $count, remaining messages ${work}")
       }//mediator ! DistributedPubSubMediator.Send(lastRouter, message, localAffinity = false)
     }catch {
       case e:Exception  => sender ! NoWork//mediator ! DistributedPubSubMediator.Send(lastRouter, NoWork, localAffinity = false)
