@@ -8,7 +8,7 @@ networks:
 
 services:
     raphtory:
-        image: tsukitsune/raphtory:latest
+        image: miratepuffin/raphtory:latest
         container_name: raphtory
         ports:
              - 8081:8081
