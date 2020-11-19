@@ -14,6 +14,25 @@ class CommunityOutlierDetection(args:Array[String]) extends LPA(args) {
       v.setState("outlierscore", outlierScore)
   }
 
+  def motifCounting(v: VertexVisitor, mType: Int): Float = {
+    var inc = v.getIncEdges.flatMap(e=> e.getHistory().keys.toSet).toArray.sorted //TODO modify to include a delta period
+    var outg = v.getOutEdges.flatMap(e=> e.getHistory().keys.toSet).toArray.sorted
+    val total = (inc.length * outg.length)-(inc.toSet & outg.toSet).size
+    mType match {
+      case 1 => {
+        var cnt = 0
+        inc = inc.filter(_ < outg.last)
+        inc.foreach{t=>
+          outg = outg.filter(_>t)
+          cnt+=outg.length
+        }
+        cnt / total
+      }
+      case _ => -1
+    }
+  }
+
+
   override def returnResults(): Any =
     view.getVertices()
       .map(vertex => (vertex.ID(), vertex.getState[Float]("outlierscore")))
