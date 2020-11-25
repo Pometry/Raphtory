@@ -1,36 +1,25 @@
 package com.raphtory.examples.lotr
 
-import java.time.LocalDateTime
-
-import com.raphtory.core.components.Spout.{DataSource, DataSourceComplete, Spout}
+import com.raphtory.core.components.Spout.{DataSource, DataSourceComplete}
 import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
 
-import scala.concurrent.duration.{Duration, MILLISECONDS, NANOSECONDS}
-import scala.io
+import scala.collection.mutable
+
 
 class LOTRDataSource extends DataSource {
 
-  // Relating to where the file is
   val directory = System.getenv().getOrDefault("LOTR_DIRECTORY", "com/raphtory/example/lotr").trim
   val file_name = System.getenv().getOrDefault("LOTR_FILE_NAME", "lotr.csv").trim
-  val fileLines = scala.io.Source.fromFile(directory + "/" + file_name).getLines.toArray
+  val fileQueue = mutable.Queue[String]() ++= scala.io.Source.fromFile(directory + "/" + file_name).getLines.toArray
 
-  // Initialise ready to read
-  var position    = 0
-  var linesNumber = fileLines.length
-  println("Start: " + LocalDateTime.now())
-
-  override def setupDataSource(): Unit = {}
+  override def setupDataSource(): Unit = {}//no setup
 
   override def generateData(): SpoutGoing = {
-    if(position==linesNumber)
+    if(fileQueue isEmpty)
       throw new DataSourceComplete()
-    else {
-      val line =fileLines(position)
-      position+=1
-      StringSpoutGoing(line)
-    }
+    else
+      StringSpoutGoing(fileQueue.dequeue())
   }
 
-  override def closeDataSource(): Unit = {}
+  override def closeDataSource(): Unit = {}//no file closure already done
 }

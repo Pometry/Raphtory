@@ -34,6 +34,7 @@ class BitcoinSpout extends DataSource{
      getTransactions()
     queue.dequeue()
   }
+
   def getTransactions(): Unit = {
     try {
 

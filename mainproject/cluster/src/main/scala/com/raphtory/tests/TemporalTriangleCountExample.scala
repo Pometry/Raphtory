@@ -5,7 +5,7 @@ import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
 import com.raphtory.core.components.Spout.Spout
-import com.raphtory.sources.FileSpout
+import com.raphtory.sources.FileSource
 import kamon.Kamon
 import org.slf4j.LoggerFactory
 
@@ -31,7 +31,7 @@ object TemporalTriangleCountExample extends App{
   //var SpoutName ="com.raphtory.examples.test.actors.TriangleTestSpout"
   //var SpoutName = "com.raphtory.examples.gab.actors.GabExampleSpout"
   //var SpoutName = "com.raphtory.spouts.FileSpout"
-  system.actorOf(Props(new Spout(new FileSpout())), "Spout")
+  system.actorOf(Props(new Spout(new FileSource())), "Spout")
 
   //var routerClassName = "com.raphtory.examples.test.actors.TriangleTestRouter"
   var routerClassName = "com.raphtory.examples.lotr.LOTRRouter"
