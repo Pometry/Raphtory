@@ -3,7 +3,7 @@ package com.raphtory.spouts
 import java.util
 import java.util.Properties
 
-import com.raphtory.core.components.Spout.{DataSource, NoDataAvailable}
+import com.raphtory.core.components.Spout.{DataSource}
 import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
 import org.apache.kafka.clients.consumer.KafkaConsumer
 
@@ -25,15 +25,15 @@ final case class KafkaSpout() extends DataSource {
   val messageQueue = mutable.Queue[StringSpoutGoing]()
   override def setupDataSource(): Unit = {}
 
-  override def generateData(): SpoutGoing = {
+  override def generateData(): Option[SpoutGoing] = {
     if(messageQueue isEmpty) {
       val (newManager, block) = kafkaManager.nextNLine(startingSpeed / 100)
       kafkaManager = newManager
       block.foreach(str => messageQueue += StringSpoutGoing(str))
       if(messageQueue isEmpty) //still empty
-        throw new NoDataAvailable()
+        None
     }
-    messageQueue.dequeue()
+    Some(messageQueue.dequeue())
   }
 
   override def closeDataSource(): Unit = {}

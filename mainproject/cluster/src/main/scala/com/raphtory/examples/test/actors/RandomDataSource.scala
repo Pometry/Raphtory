@@ -16,7 +16,7 @@ class RandomDataSource extends DataSource {
 
   override def setupDataSource(): Unit = {}
 
-  override def generateData(): SpoutGoing = StringSpoutGoing(distribution())
+  override def generateData(): Option[SpoutGoing] = Some(StringSpoutGoing(distribution()))
 
   override def closeDataSource(): Unit = {}
 

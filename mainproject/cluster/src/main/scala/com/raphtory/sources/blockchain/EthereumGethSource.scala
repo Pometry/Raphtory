@@ -31,13 +31,13 @@ class EthereumGethSpout extends DataSource {
 
   print(currentBlock)
 
-  val queue = mutable.Queue[StringSpoutGoing]()
+  val queue = mutable.Queue[Option[StringSpoutGoing]]()
 
   val baseRequest  = requestBuilder()
 
   override def setupDataSource(): Unit = {}
   override def closeDataSource(): Unit = {}
-  override def generateData(): SpoutGoing = {
+  override def generateData(): Option[SpoutGoing] = {
     if(queue.isEmpty)
       pullNextBlock()
     queue.dequeue()
@@ -68,7 +68,7 @@ class EthereumGethSpout extends DataSource {
         val trasnactionBlock = executeBatchRequest(transactions.dropRight(1)+"]")
         val transList = trasnactionBlock.parseJson.convertTo[List[EthTransaction]]
         transList.foreach(t => { //try needed to ignore contracts //todo include them
-          try{queue +=(StringSpoutGoing(s"${t.result.blockNumber.get},${t.result.from.get},${t.result.to.get},${t.result.value.get}"))}
+          try{queue +=(Some(StringSpoutGoing(s"${t.result.blockNumber.get},${t.result.from.get},${t.result.to.get},${t.result.value.get}")))}
           catch {case e:NoSuchElementException =>}
 
         })

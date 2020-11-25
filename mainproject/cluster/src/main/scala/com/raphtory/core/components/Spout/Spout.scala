@@ -25,6 +25,7 @@ class Spout(datasource:DataSource) extends Actor with ActorLogging with Timers {
   private var count       = 0
   private var partitionManagers = 0
   private var routers = 0
+  private var datafinishedSent = false
 
   private def recordUpdate(): Unit = {
     spoutTuples.increment()
@@ -49,10 +50,20 @@ class Spout(datasource:DataSource) extends Actor with ActorLogging with Timers {
       context.become(work(clusterUp,pmCounter,rmCounter))
       context.system.scheduler.scheduleOnce(1 second, self, StateCheck)
     case IsSafe    => processIsSafeMessage(safe,pmCounter,rmCounter)
-    case WorkPlease => sendData(context.sender())
+    case WorkPlease => processWorkPlease()
     case unhandled => log.error(s"Unable to handle message [$unhandled].")
   }
 
+  private def processWorkPlease():Unit = {
+    if(datasource.isComplete())
+      if(!datafinishedSent) {
+        sender ! DataFinished
+        datafinishedSent=true
+      }else
+        sender ! NoWork
+    else
+      sendData(context.sender())
+  }
 
   private def processStateCheckMessage(safe: Boolean): Unit = {
     log.debug(s"Spout is handling [StateCheck] message.")
@@ -86,20 +97,22 @@ class Spout(datasource:DataSource) extends Actor with ActorLogging with Timers {
 
 
   def sendData(sender:ActorRef): Unit = {
-    try {
-      val work =datasource.generateData()
-      val message = if (count % 10000 == 0)
-        AllocateTrackedTuple(System.currentTimeMillis(),work)
-      else
-        AllocateTuple(work)
-      sender ! message
-      recordUpdate()
-        if (count % 10000 == 0) println(s"Spout at Message $count")
+
+      datasource.generateData() match {
+        case Some(work) =>
+          val message = if (count % 10000 == 0)
+            AllocateTrackedTuple(System.currentTimeMillis(),work)
+          else
+            AllocateTuple(work)
+          sender ! message
+          recordUpdate()
+          if (count % 10000 == 0) println(s"Spout at Message $count")
+        case None =>   sender ! NoWork
     }//mediator ! DistributedPubSubMediator.Send(lastRouter, message, localAffinity = false)
-    catch {
-      case e:NoDataAvailable  => sender ! NoWork
-      case e:DataSourceComplete => sender ! DataFinished; println("All data sent")
-    }
+      if(datasource isComplete) {
+        sender ! DataFinished
+        datafinishedSent=true
+      }
   }
 
   def AllocateSpoutTask(duration: FiniteDuration, task: Any): Cancellable = {

@@ -4,7 +4,7 @@ import java.io.{BufferedReader, File, FileInputStream, FileReader, InputStreamRe
 import java.nio.charset.StandardCharsets
 import java.util.zip.GZIPInputStream
 
-import com.raphtory.core.components.Spout.{DataSource, DataSourceComplete, NoDataAvailable, Spout}
+import com.raphtory.core.components.Spout.{DataSource}
 import com.raphtory.core.model.communication.StringSpoutGoing
 import com.typesafe.scalalogging.LazyLogging
 
@@ -23,14 +23,15 @@ class FileSource extends DataSource {
 
   private var fileManager = FileManager(directory, fileName, dropHeader)
 
-  override def generateData(): StringSpoutGoing = {
+  override def generateData(): Option[StringSpoutGoing] = {
     if (fileManager.allCompleted) {
-      throw new DataSourceComplete()
+      dataSourceComplete()
+      None
     }
     else {
       val (newFileManager, line) = fileManager.nextLine()
       fileManager = newFileManager
-      StringSpoutGoing(line)
+      Some(StringSpoutGoing(line))
     }
   }
 

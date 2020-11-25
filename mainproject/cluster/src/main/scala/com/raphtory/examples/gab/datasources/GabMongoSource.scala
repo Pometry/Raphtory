@@ -29,15 +29,12 @@ final class GabMongoDataSource extends DataSource {
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
 
-  var queue = mutable.Queue[StringSpoutGoing]()
+  var queue = mutable.Queue[Option[StringSpoutGoing]]()
 
-  override def generateData(): SpoutGoing = {
-    if(queue.isEmpty) {
+  override def generateData(): Option[SpoutGoing] = {
+    if(queue.isEmpty)
       getNextPosts()
-      queue.dequeue()
-    }
-    else
-      queue.dequeue()
+    queue.dequeue()
 
   }
 
@@ -47,7 +44,7 @@ final class GabMongoDataSource extends DataSource {
     for (x <- mongoColl.find("_id" $lt postMax $gt postMin))
       try {
         val data = x.get("data").toString.drop(2).dropRight(1).replaceAll("""\\"""", "").replaceAll("""\\""", "")
-        queue += StringSpoutGoing(data)
+        queue += Some(StringSpoutGoing(data))
       } catch {
         case e: Throwable =>
           println("Cannot parse record")

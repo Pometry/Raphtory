@@ -1,7 +1,7 @@
 package com.raphtory.sources.blockchain
 
 import cats.effect.{Blocker, IO}
-import com.raphtory.core.components.Spout.{DataSource, DataSourceComplete, Spout}
+import com.raphtory.core.components.Spout.{DataSource}
 import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
 import doobie.implicits._
 import doobie.util.ExecutionContexts
@@ -27,9 +27,9 @@ class EthereumPostgresSource extends DataSource{
           dbPASSWORD,
           Blocker.liftExecutionContext(ExecutionContexts.synchronous)
   )
-  val queue = mutable.Queue[StringSpoutGoing]()
+  val queue = mutable.Queue[Option[StringSpoutGoing]]()
 
-  override def generateData(): SpoutGoing = {
+  override def generateData(): Option[SpoutGoing] = {
     if(queue isEmpty)
       pullBlocks()
     queue.dequeue()
@@ -43,11 +43,11 @@ class EthereumPostgresSource extends DataSource{
       .to[List]                              // ConnectionIO[List[String]]
       .transact(dbconnector)                 // IO[List[String]]
       .unsafeRunSync                         // List[String]
-      .foreach(x => queue+=(StringSpoutGoing(x.toString()))) //send each transaction to the routers
+      .foreach(x => queue+=(Some(StringSpoutGoing(x.toString())))) //send each transaction to the routers
 
     startBlock += batchSize//increment batch for the next query
     if (startBlock <= maxblock)
-      throw new DataSourceComplete()//if we have reached the max block we stop querying the database
+      dataSourceComplete()//if we have reached the max block we stop querying the database
 
 
 

@@ -2,15 +2,17 @@ package com.raphtory.core.components.Spout
 
 import com.raphtory.core.model.communication.SpoutGoing
 
-class NoDataAvailable extends Exception
-class DataSourceComplete extends Exception
+
 
 trait DataSource{
+  private var dataComplete = false
+
   def setupDataSource():Unit
 
-  @throws(classOf[NoDataAvailable])
-  @throws(classOf[DataSourceComplete])
-  def generateData():SpoutGoing
+  def generateData():Option[SpoutGoing]
 
   def closeDataSource():Unit
+
+  def dataSourceComplete():Unit = dataComplete=true
+  def isComplete():Boolean = dataComplete
 }
