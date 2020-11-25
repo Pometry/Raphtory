@@ -11,7 +11,7 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
-class FileSpout extends DataSource {
+class FileSource extends DataSource {
   //TODO work out loggging here
   //log.info("initialise FileSpout")
   private val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
