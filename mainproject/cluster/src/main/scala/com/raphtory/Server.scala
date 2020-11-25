@@ -8,7 +8,6 @@ import com.raphtory.core.analysis.Tasks.AnalysisTask
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
 import com.raphtory.examples.test.actors.RandomRouter
-import com.raphtory.examples.test.actors.RandomSpout
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import kamon.metric.PeriodSnapshot
@@ -30,7 +29,7 @@ object Go extends App {
   // debug should give timing
   //root.setLevel(Level.DEBUG)
   val routerName  = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
-  val updaterName = s"${sys.env.getOrElse("SPOUTCLASS", classOf[RandomSpout].getClass.getName)}"
+  val updaterName = s"${sys.env.getOrElse("SPOUTCLASS", "")}"
   val docker      = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
   val runtimeMxBean = ManagementFactory.getRuntimeMXBean

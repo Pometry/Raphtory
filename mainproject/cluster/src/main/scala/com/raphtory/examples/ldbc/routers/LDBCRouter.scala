@@ -5,7 +5,6 @@ import java.util.Date
 
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication.{EdgeAdd, EdgeDelete, GraphUpdate, StringSpoutGoing, Type, VertexAdd, VertexDelete}
-import com.raphtory.examples.test.actors.RandomSpout
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParHashSet

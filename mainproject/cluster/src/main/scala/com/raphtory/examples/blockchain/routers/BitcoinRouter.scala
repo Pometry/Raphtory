@@ -2,7 +2,6 @@ package com.raphtory.examples.blockchain.routers
 
 import com.raphtory.core.components.Router.RouterWorker
 import com.raphtory.core.model.communication._
-import com.raphtory.spouts.blockchain.BitcoinTransaction
 import spray.json.JsArray
 
 import scala.collection.mutable.ListBuffer
