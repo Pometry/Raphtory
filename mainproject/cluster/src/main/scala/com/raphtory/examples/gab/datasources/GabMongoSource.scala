@@ -1,17 +1,16 @@
-package com.raphtory.examples.gab.spouts
+package com.raphtory.examples.gab.datasources
 
 import akka.actor.Cancellable
 import ch.qos.logback.classic.Level
 import com.mongodb.casbah.Imports.{MongoConnection, _}
-import com.raphtory.core.components.Spout.SpoutTrait
-import com.raphtory.core.components.Spout.SpoutTrait.BasicDomain
-import com.raphtory.core.components.Spout.SpoutTrait.CommonMessage.Next
-import com.raphtory.core.model.communication.StringSpoutGoing
+import com.raphtory.core.components.Spout.DataSource
+import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable
 import scala.language.postfixOps
 
-final class GabRawSpout extends SpoutTrait[BasicDomain,StringSpoutGoing] {
+final class GabMongoDataSource extends DataSource {
 
   //private val redis    = new RedisClient("moe", 6379)
   //private val redisKey = "gab-posts"
@@ -25,41 +24,42 @@ final class GabRawSpout extends SpoutTrait[BasicDomain,StringSpoutGoing] {
   private var postMin   = 0
   private var postMax   = 1001
 
+
+
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
-  // private val mongoLogger = Logger.getLogger("org.mongodb.driver.cluster")
-  // mongoLogger.setLevel(Level.OFF)
 
-  override def handleDomainMessage(message: BasicDomain): Unit = message match {
-    case Next => running()
-  }
+  var queue = mutable.Queue[StringSpoutGoing]()
 
-  def running(): Unit = {
-    val count = getNextPosts()
-    postMin += window
-    postMax += window
-    println(s"Current min post is $postMin, max post is $postMax, last call retrieved $count posts")
-    self ! Next
+  override def generateData(): SpoutGoing = {
+    if(queue.isEmpty) {
+      getNextPosts()
+      queue.dequeue()
+    }
+    else
+      queue.dequeue()
 
   }
 
-  private def getNextPosts(): Int = {
-    var count = 0
+
+  private def getNextPosts() = {
+
     for (x <- mongoColl.find("_id" $lt postMax $gt postMin))
       try {
         val data = x.get("data").toString.drop(2).dropRight(1).replaceAll("""\\"""", "").replaceAll("""\\""", "")
-        count += 1
-        //println(data)
-        sendTuple(StringSpoutGoing(data))
+        queue += StringSpoutGoing(data)
       } catch {
         case e: Throwable =>
           println("Cannot parse record")
       }
-    return count
+    postMin += window
+    postMax += window
   }
 
-  override def startSpout(): Unit = self ! Next
+  override def setupDataSource(): Unit = {}
 
 
+
+  override def closeDataSource(): Unit = {}
 }
 //redis-server --dir /home/moe/ben/gab --dbfilename gab.rdb --daemonize yes

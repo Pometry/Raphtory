@@ -1,6 +1,6 @@
 val nodeIP       = System.getenv().getOrDefault("SPOUT_ETHEREUM_IP_ADDRESS", "54.184.149.221").trim
 val nodePort     = System.getenv().getOrDefault("SPOUT_ETHEREUM_PORT", "8545").trim
-import com.raphtory.core.components.Spout.SpoutTrait
+import com.raphtory.core.components.Spout.Spout
 import com.raphtory.core.utils.Utils
 import com.raphtory.tests.EtherAPITest.baseRequest
 import com.raphtory.tests.EtherAPITest.currentBlock

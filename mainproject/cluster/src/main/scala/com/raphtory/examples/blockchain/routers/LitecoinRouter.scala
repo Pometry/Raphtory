@@ -1,13 +1,13 @@
 package com.raphtory.examples.blockchain.routers
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeAddWithProperties, GraphUpdate, Properties, StringProperty, VertexAddWithProperties}
-import com.raphtory.spouts.blockchain.BitcoinTransaction
-import spray.json.JsArray
+import com.raphtory.core.model.communication._
+import spray.json.{JsArray, JsValue}
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParHashSet
 import scala.util.hashing.MurmurHash3
+case class BitcoinTransaction(time: JsValue, block: Int, blockID: JsValue, transaction: JsValue) extends SpoutGoing
 
 class LitecoinRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[BitcoinTransaction](routerId,workerID,initialManagerCount, initialRouterCount) {

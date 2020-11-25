@@ -1,7 +1,7 @@
 package com.raphtory.examples.test.actors
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.components.Spout.SpoutTrait
+import com.raphtory.core.components.Spout.Spout
 import com.raphtory.core.model.communication.{EdgeAdd, GraphUpdate, StringSpoutGoing, VertexAddWithProperties}
 
 import scala.collection.mutable.ListBuffer
