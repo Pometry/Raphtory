@@ -3,7 +3,7 @@ package com.raphtory.sources.blockchain
 import java.io.File
 import java.io.PrintWriter
 
-import com.raphtory.core.components.Spout.{DataSource, NoDataAvailable}
+import com.raphtory.core.components.Spout.DataSource
 import com.raphtory.core.model.communication.SpoutGoing
 import scalaj.http.Http
 import scalaj.http.HttpRequest
@@ -27,9 +27,9 @@ class BitcoinSpout extends DataSource{
   override def setupDataSource(): Unit = {}
   override def closeDataSource(): Unit = {}
 
-  val queue = mutable.Queue[BitcoinTransaction]()
+  val queue = mutable.Queue[Option[BitcoinTransaction]]()
 
-  override def generateData(): SpoutGoing = {
+  override def generateData(): Option[SpoutGoing] = {
    if(queue.isEmpty)
      getTransactions()
     queue.dequeue()
@@ -44,11 +44,11 @@ class BitcoinSpout extends DataSource{
     val result    = blockData.fields("result")
     val time      = result.asJsObject.fields("time")
     for (transaction <- result.asJsObject().fields("tx").asInstanceOf[JsArray].elements)
-      queue += BitcoinTransaction(time, blockcount, blockID, transaction)
+      queue += Some(BitcoinTransaction(time, blockcount, blockID, transaction))
     //val time = transaction.asJsObject.fields("time")
     blockcount += 1
   } catch {
-      case e: java.net.SocketTimeoutException => throw new NoDataAvailable
+      case e: java.net.SocketTimeoutException => queue += None
     }
   }
 

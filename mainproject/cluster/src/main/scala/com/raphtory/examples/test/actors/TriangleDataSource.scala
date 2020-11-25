@@ -1,6 +1,6 @@
 package com.raphtory.examples.test.actors
 
-import com.raphtory.core.components.Spout.{DataSource, DataSourceComplete, Spout}
+import com.raphtory.core.components.Spout.{DataSource}
 import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
 
 import scala.collection.mutable.Queue
@@ -11,11 +11,13 @@ class TriangleDataSource extends DataSource {
 
   override def setupDataSource(): Unit = {}
 
-  override def generateData(): SpoutGoing = {
-    if(edges.isEmpty)
-      throw new DataSourceComplete()
+  override def generateData(): Option[SpoutGoing] = {
+    if(edges.isEmpty) {
+      dataSourceComplete()
+      None
+    }
     else
-      edges.dequeue()
+      Some(edges.dequeue())
   }
 
   override def closeDataSource(): Unit = {}
