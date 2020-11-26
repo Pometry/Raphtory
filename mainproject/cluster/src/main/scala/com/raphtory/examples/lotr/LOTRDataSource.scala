@@ -6,9 +6,7 @@ import scala.collection.mutable
 
 class LOTRDataSource extends DataSource[String] {
 
-  val directory = System.getenv().getOrDefault("LOTR_DIRECTORY", "com/raphtory/example/lotr").trim
-  val file_name = System.getenv().getOrDefault("LOTR_FILE_NAME", "lotr.csv").trim
-  val fileQueue = mutable.Queue[String]() ++= scala.io.Source.fromFile(directory + "/" + file_name).getLines
+  val fileQueue = mutable.Queue[String]() ++= scala.io.Source.fromFile("cluster/src/main/scala/com/raphtory/examples/lotr/lotr.csv").getLines
 
   override def setupDataSource(): Unit = {}//no setup
 
@@ -20,6 +18,5 @@ class LOTRDataSource extends DataSource[String] {
     else
       Some(fileQueue.dequeue())
   }
-
   override def closeDataSource(): Unit = {}//no file closure already done
 }
