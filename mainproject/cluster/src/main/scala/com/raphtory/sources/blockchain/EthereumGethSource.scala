@@ -5,10 +5,6 @@ import java.util.NoSuchElementException
 
 import com.raphtory.core.components.Spout.{DataSource, Spout}
 import com.raphtory.core.utils.Utils
-import .baseRequest
-import .currentBlock
-import .request
-
 import scala.language.postfixOps
 import scala.sys.process._
 import scalaj.http.Http

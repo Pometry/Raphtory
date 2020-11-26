@@ -7,7 +7,7 @@ import com.raphtory.core.model.communication.{EdgeAdd, GraphUpdate, VertexAddWit
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParHashSet
 
-class TriangleTestGraphBuilder extends GraphBuilder[String] {
+class TriangleGraphBuilder extends GraphBuilder[String] {
   override def parseTuple(tuple: String)= {
     val command  = tuple.split(",")
     val msgTime = command(0).toLong

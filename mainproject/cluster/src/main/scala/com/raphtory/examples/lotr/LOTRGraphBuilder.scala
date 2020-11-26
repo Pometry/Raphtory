@@ -1,10 +1,8 @@
 package com.raphtory.examples.lotr
 
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
-import com.raphtory.core.model.communication.{EdgeAdd, Type, VertexAdd, _}
+import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.model.communication._
 
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
 import scala.util.Random
 
 class LOTRGraphBuilder extends GraphBuilder[String]{
