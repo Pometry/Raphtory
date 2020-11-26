@@ -3,13 +3,23 @@ package com.raphtory.core.components.Router
 import com.raphtory.core.model.communication.GraphUpdate
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParHashSet
+import scala.util.hashing.MurmurHash3
 
-abstract class GraphBuilder[T] {
+trait GraphBuilder[T]{
 
   var updates:mutable.HashSet[GraphUpdate] = mutable.HashSet[GraphUpdate]()
 
-//  protected def parseTuple(tuple: T):
+  def getUpdates() = { //TODO hide from users
+    val toReturn = updates
+    updates = mutable.HashSet[GraphUpdate]()
+    toReturn
+  }
 
+  def sendUpdate(update:GraphUpdate):Unit ={
+    updates += update
+  }
+  protected def assignID(uniqueChars: String): Long = MurmurHash3.stringHash(uniqueChars)
+
+  def parseTuple(tuple: T):Unit
 
 }

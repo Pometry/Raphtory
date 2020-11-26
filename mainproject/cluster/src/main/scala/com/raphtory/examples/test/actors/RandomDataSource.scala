@@ -1,8 +1,6 @@
 package com.raphtory.examples.test.actors
 
 import com.raphtory.core.components.Spout.DataSource
-import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
-import com.raphtory.core.utils.Utils
 
 import scala.language.postfixOps
 import scala.util.Random

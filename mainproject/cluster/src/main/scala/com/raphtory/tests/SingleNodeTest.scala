@@ -6,11 +6,11 @@ import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
+import com.raphtory.core.components.Router.GraphBuilder
 import com.raphtory.core.model.communication.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import com.raphtory.examples.blockchain.analysers.TaintTrackExchangeStop
 import kamon.Kamon
 import org.slf4j.LoggerFactory
-
 
 import scala.language.postfixOps
 
@@ -73,7 +73,9 @@ object SingleNodeTest extends App {
 
   system.actorOf(Props(new WatermarkManager(managerCount = 1)),"WatermarkManager")
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
-  system.actorOf(Props(RaphtoryReplicator("Router", 1,1, routerClassName)), s"Routers")
+  val graphBuilder = Class.forName(routerClassName).getConstructor().newInstance().asInstanceOf[GraphBuilder[Any]]
+  val routerReplicator = RaphtoryReplicator.apply("Router", 1, 1,graphBuilder)
+  system.actorOf(Props(routerReplicator), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1,1)), s"PartitionManager")
   system.actorOf(Props(Class.forName(SpoutName)), "Spout")
   val analysisManager = system.actorOf(Props[AnalysisManager], s"AnalysisManager")

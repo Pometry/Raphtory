@@ -2,7 +2,7 @@ package com.raphtory.examples.gab.routers
 
 import java.text.SimpleDateFormat
 
-import com.raphtory.core.components.Router.RouterWorker
+import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
 import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
@@ -17,28 +17,25 @@ import scala.util.Random
 // is equal to -1. Columns 2 and 5 correspond to the userid and parentUserid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabUserGraphRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
+class GabUserGraphBuilder extends GraphBuilder[String] {
 
-  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
+  override def parseTuple(tuple: String) = {
     val fileLine = tuple.split(";").map(_.trim)
     //user wise
     val sourceNode = fileLine(2).toInt
     val targetNode = fileLine(5).toInt
-    val commands = new ParHashSet[GraphUpdate]()
     //comment wise
     // val sourceNode=fileLine(1).toInt
     //val targetNode=fileLine(4).toInt
     if (targetNode > 0 && targetNode != sourceNode) {
       val creationDate = dateToUnixTime(timestamp = fileLine(0).slice(0, 19))
-      commands+=(VertexAdd(creationDate, sourceNode, Type("User")))
-      commands+=(VertexAdd(creationDate, targetNode, Type("User")))
-      commands+=(EdgeAdd(creationDate, sourceNode, targetNode, Type("User to User")))
+      sendUpdate(VertexAdd(creationDate, sourceNode, Type("User")))
+      sendUpdate(VertexAdd(creationDate, targetNode, Type("User")))
+      sendUpdate(EdgeAdd(creationDate, sourceNode, targetNode, Type("User to User")))
 //      sendGraphUpdate(VertexAddWithProperties(creationDate, sourceNode, Properties(StringProperty("test1","value1"),StringProperty("test2","Value2")),Type("User")))
 //      sendGraphUpdate(VertexAddWithProperties(creationDate, targetNode, Properties(StringProperty("test1","value1"),StringProperty("test2","Value2")),Type("User")))
 //      sendGraphUpdate(EdgeAddWithProperties(creationDate, sourceNode, targetNode, Properties(StringProperty("test1","value1"),StringProperty("test2","Value2")),Type("User To User")))
     }
-  commands
   }
 
   def dateToUnixTime(timestamp: => String): Long = {

@@ -4,7 +4,9 @@ import akka.actor.{ActorSystem, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
+import com.raphtory.core.components.Router.GraphBuilder
 import com.raphtory.core.components.Spout.Spout
+import com.raphtory.examples.lotr.LOTRGraphBuilder
 import com.raphtory.sources.FileSource
 import kamon.Kamon
 import org.slf4j.LoggerFactory
@@ -34,8 +36,10 @@ object TemporalTriangleCountExample extends App{
   system.actorOf(Props(new Spout(new FileSource())), "Spout")
 
   //var routerClassName = "com.raphtory.examples.test.actors.TriangleTestRouter"
-  var routerClassName = "com.raphtory.examples.lotr.LOTRRouter"
-  system.actorOf(Props(RaphtoryReplicator("Router", 1, 1,routerClassName)), s"Routers")
+  var graphBuilderClassName = "com.raphtory.examples.lotr.LOTRGraphBuilder"
+
+
+  system.actorOf(Props(RaphtoryReplicator.apply("Router", 1, 1,new LOTRGraphBuilder())), s"Routers")
 
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1,1)), s"PartitionManager")
 

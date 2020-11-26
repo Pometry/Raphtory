@@ -2,15 +2,14 @@ package com.raphtory.examples.citationNetwork
 
 import java.text.SimpleDateFormat
 
-import com.raphtory.core.components.Router.RouterWorker
+import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
 import com.raphtory.core.model.communication._
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParHashSet
 
-class CitationRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
-  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
+class CitationGraphBuilder extends GraphBuilder[String] {
+  override def parseTuple(tuple: String) = {
     val fileLine = tuple.split(",").map(_.trim) //take the tuple and split on , as we are only interested in the first 4 fields
     // title_paper,year,volume,title,pages,number,journal,author,ENTRYTYPE,ID
     val sourceTitle = fileLine(0)
@@ -20,16 +19,15 @@ class CitationRouter(override val routerId: Int,override val workerID:Int, overr
 
     val sourceID = assignID(sourceTitle)
     val destinationID = assignID(destinationTitle)
-    val commands = new ParHashSet[GraphUpdate]()
     //create sourceNode
-    commands+=(VertexAddWithProperties(
+    sendUpdate(VertexAddWithProperties(
       sourceYear, //when it happened ??
       sourceID, // the id of the node
       Properties(ImmutableProperty("title", sourceTitle)), //properties for the node
       Type("Publication")) //node type
     )
     //create destinationNode
-    commands+=(VertexAddWithProperties(
+    sendUpdate(VertexAddWithProperties(
       destinationYear,
       destinationID,
       Properties(ImmutableProperty("title", destinationTitle)),
@@ -37,13 +35,11 @@ class CitationRouter(override val routerId: Int,override val workerID:Int, overr
     )
 
     //create edge
-    commands+=(EdgeAdd(
+    sendUpdate(EdgeAdd(
       sourceYear, //time of edge ??
       sourceID, //source of edge
       destinationID, //destination of edge
       Type("Cited") // edge type
     ))
-
-    commands
   }
 }

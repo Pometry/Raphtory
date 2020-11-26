@@ -2,7 +2,7 @@ package com.raphtory.examples.gab.routers
 
 import java.time.OffsetDateTime
 
-import com.raphtory.core.components.Router.RouterWorker
+import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
 import com.raphtory.core.model.communication.{EdgeAddWithProperties, GraphUpdate, Properties, StringProperty, VertexAddWithProperties}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
@@ -20,15 +20,13 @@ import scala.collection.parallel.mutable.ParHashSet
   * the correct case Class which can then be passed to the graph manager
   * which will then pass it to the graph partition dealing with the associated vertex
   */
-final class GabRawRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
+final class GabRawGraphBuilder extends GraphBuilder[String] {
 
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
 
   private val nullStr = "null"
 
-  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
-    val commands = new ParHashSet[GraphUpdate]()
+  override def parseTuple(tuple: String) = {
     try {
       val command = tuple
       val post = command.parseJson.convertTo[GabPost]
@@ -44,7 +42,7 @@ final class GabRawRouter(override val routerId: Int,override val workerID:Int, o
     def sendPostToPartitions(post: GabPost, recursiveCall: Boolean = false, parent: Int = 0): Unit = {
       val postUUID = post.id.get.toInt
       val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
-      commands += (
+      sendUpdate(
         VertexAddWithProperties(
           timestamp,
           postUUID,
@@ -68,12 +66,12 @@ final class GabRawRouter(override val routerId: Int,override val workerID:Int, o
             StringProperty("type", "post")
           )
         )
-        )
+      )
 
       post.user match {
         case Some(user) =>
           val userUUID: Int = "user".hashCode() + user.id //TODO improve in case of clashes
-          commands += (
+          sendUpdate(
             VertexAddWithProperties(
               timestamp,
               userUUID,
@@ -85,21 +83,21 @@ final class GabRawRouter(override val routerId: Int,override val workerID:Int, o
                 StringProperty("verified", user.verified.toString)
               )
             )
-            )
+          )
 
-          commands += (
+          sendUpdate(
             EdgeAddWithProperties(timestamp, userUUID, postUUID, Properties((StringProperty("type", "userToPost"))))
-            )
-          commands += (
+          )
+          sendUpdate(
             EdgeAddWithProperties(timestamp, postUUID, userUUID, Properties(StringProperty("type", "postToUser")))
-            )
+          )
         case None =>
       }
 
       post.topic match {
         case Some(topic) =>
           val topicUUID: Int = Math.pow(2, 24).toInt + (topic.id.hashCode())
-          commands += (
+          sendUpdate(
             VertexAddWithProperties(
               timestamp,
               topicUUID,
@@ -111,19 +109,19 @@ final class GabRawRouter(override val routerId: Int,override val workerID:Int, o
                 StringProperty("id", topic.id)
               )
             )
-            )
+          )
 
-          commands += (
+          sendUpdate(
             EdgeAddWithProperties(timestamp, postUUID, topicUUID, Properties(StringProperty("type", "postToTopic")))
-            )
+          )
         case None =>
       }
 
       // Edge from child to parent post
       if (recursiveCall && parent != 0)
-        commands += (
+        sendUpdate(
           EdgeAddWithProperties(timestamp, postUUID, parent, Properties(StringProperty("type", "childToParent")))
-          )
+        )
       post.parent match {
         case Some(p) =>
           if (!recursiveCall) // Allow only one recursion per post
@@ -133,8 +131,6 @@ final class GabRawRouter(override val routerId: Int,override val workerID:Int, o
       }
 
     }
-
-    commands
   }
 }
 

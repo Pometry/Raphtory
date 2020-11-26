@@ -1,7 +1,6 @@
 package com.raphtory.examples.test.actors
 
 import com.raphtory.core.components.Spout.{DataSource}
-import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
 
 import scala.collection.mutable.Queue
 

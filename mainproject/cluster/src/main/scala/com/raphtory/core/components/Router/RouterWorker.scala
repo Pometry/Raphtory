@@ -18,7 +18,7 @@ import scala.util.hashing.MurmurHash3
 // TODO Add val name which sub classes that extend this trait must overwrite
 //  e.g. BlockChainRouter val name = "Blockchain Router"
 //  Log.debug that read 'Router' should then read 'Blockchain Router'
-abstract class RouterWorker[In <: Any](val routerId: Int, val workerID: Int, val initialManagerCount: Int,val initialRouterCount:Int)
+class RouterWorker[T](val graphBuilder: GraphBuilder[T],val routerId: Int, val workerID: Int, val initialManagerCount: Int,val initialRouterCount:Int)
         extends Actor
         with ActorLogging {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
@@ -30,7 +30,6 @@ abstract class RouterWorker[In <: Any](val routerId: Int, val workerID: Int, val
   var update = 0
   // todo: wvv let people know parseTuple will create a list of update message
   //  and this trait will handle logic to send to graph
-  protected def parseTuple(tuple: In): ParHashSet[GraphUpdate]
 
   final protected val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -52,7 +51,7 @@ abstract class RouterWorker[In <: Any](val routerId: Int, val workerID: Int, val
       log.debug(s"RouterWorker [$routerId] received [$msg] request.")
       if (managerCount < msg.newValue) context.become(work(msg.newValue, trackedTime, newestTime))
 
-    case AllocateTuple(record: In) => //todo: wvv AllocateTuple should hold type of record instead of using Any
+    case AllocateTuple(record: T) => //todo: wvv AllocateTuple should hold type of record instead of using Any
       log.debug(s"RouterWorker [$routerId] received AllocateTuple[$record] request.")
       parseTupleAndSendGraph(record, managerCount, false, trackedTime).foreach(newNewestTime =>
         if(newNewestTime>newestTime)
@@ -62,7 +61,7 @@ abstract class RouterWorker[In <: Any](val routerId: Int, val workerID: Int, val
 
     case msg @ AllocateTrackedTuple(
                 wallClock,
-                record: In
+                record: T
         ) => //todo: wvv AllocateTrackedTuple should hold type of record instead of using Any
       log.debug(s"RouterWorker [$routerId] received [$msg] request.")
       val newNewestTime = parseTupleAndSendGraph(record, managerCount, true, wallClock).getOrElse(newestTime)
@@ -116,15 +115,15 @@ abstract class RouterWorker[In <: Any](val routerId: Int, val workerID: Int, val
   }
 
 
-  protected def assignID(uniqueChars: String): Long = MurmurHash3.stringHash(uniqueChars)
 
   private def parseTupleAndSendGraph(
-      record: In,
+      record: T,
       managerCount: Int,
       trackedMessage: Boolean,
       trackedTime: Long
   ): Option[Long] =try{
-      parseTuple(record).map(update => sendGraphUpdate(update, managerCount, trackedMessage, trackedTime)).lastOption
+      graphBuilder.parseTuple(record)
+      graphBuilder.getUpdates().map(update => sendGraphUpdate(update, managerCount, trackedMessage, trackedTime)).lastOption
   }catch {case e:Exception => None}
 
   private def sendGraphUpdate(

@@ -4,7 +4,6 @@ import java.io.File
 import java.io.PrintWriter
 
 import com.raphtory.core.components.Spout.DataSource
-import com.raphtory.core.model.communication.SpoutGoing
 import scalaj.http.Http
 import scalaj.http.HttpRequest
 import spray.json._

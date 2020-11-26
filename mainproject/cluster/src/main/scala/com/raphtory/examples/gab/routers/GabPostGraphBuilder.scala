@@ -2,7 +2,7 @@ package com.raphtory.examples.gab.routers
 
 import java.text.SimpleDateFormat
 
-import com.raphtory.core.components.Router.RouterWorker
+import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
 import com.raphtory.core.model.communication._
 
 import scala.collection.mutable.ListBuffer
@@ -15,26 +15,23 @@ import scala.collection.parallel.mutable.ParHashSet
 // is equal to -1. Columns 1 and 4 correspond to the postId and parentPostid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabPostGraphRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
+class GabPostGraphBuilder extends GraphBuilder[String] {
 
-  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
+  override def parseTuple(tuple: String) = {
     val fileLine = tuple.split(";").map(_.trim)
     //user wise
 //     val sourceNode=fileLine(2).toInt
 //     val targetNode=fileLine(5).toInt
-    val commands = new ParHashSet[GraphUpdate]()
     //comment wise
     val sourceNode = fileLine(1).toInt
     val targetNode = fileLine(4).toInt
 
     if (targetNode > 0) {
       val creationDate = dateToUnixTime(timestamp = fileLine(0).slice(0, 19))
-      commands+=(VertexAdd(creationDate, sourceNode))
-      commands+=(VertexAdd(creationDate, targetNode))
-      commands+=(EdgeAdd(creationDate, sourceNode, targetNode))
+      sendUpdate(VertexAdd(creationDate, sourceNode))
+      sendUpdate(VertexAdd(creationDate, targetNode))
+      sendUpdate(EdgeAdd(creationDate, sourceNode, targetNode))
     }
-  commands
   }
 
   def dateToUnixTime(timestamp: => String): Long = {

@@ -4,6 +4,7 @@ import akka.actor.{ActorSystem, Props}
 import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
+import com.raphtory.core.components.Router.GraphBuilder
 import kamon.Kamon
 import org.slf4j.LoggerFactory
 
@@ -26,7 +27,9 @@ object CitationExample extends App{
 
   var routerClassName = "com.raphtory.examples.gab.actors.GabUserGraphRouter"
   //var routerClassName = "com.raphtory.examples.citationNetwork.CitationRouter"
-  system.actorOf(Props(RaphtoryReplicator("Router", 1, 1,routerClassName)), s"Routers")
+  val graphBuilder = Class.forName(routerClassName).getConstructor().newInstance().asInstanceOf[GraphBuilder[Any]]
+  val routerReplicator = RaphtoryReplicator.apply("Router", 1, 1,graphBuilder)
+  system.actorOf(Props(routerReplicator), s"Routers")
 
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", 1,1)), s"PartitionManager")
 
