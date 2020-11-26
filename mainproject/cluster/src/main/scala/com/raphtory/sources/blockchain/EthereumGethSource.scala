@@ -14,7 +14,6 @@ import scala.sys.process._
 import scalaj.http.Http
 import scalaj.http.HttpRequest
 import spray.json._
-import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
 import spray.json.DefaultJsonProtocol._
 
 import scala.collection.mutable

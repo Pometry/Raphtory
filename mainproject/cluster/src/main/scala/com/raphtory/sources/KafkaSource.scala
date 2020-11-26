@@ -4,7 +4,6 @@ import java.util
 import java.util.Properties
 
 import com.raphtory.core.components.Spout.{DataSource}
-import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
 import org.apache.kafka.clients.consumer.KafkaConsumer
 
 import scala.annotation.tailrec

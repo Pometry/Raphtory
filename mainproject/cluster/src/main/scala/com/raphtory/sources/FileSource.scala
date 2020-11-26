@@ -5,7 +5,6 @@ import java.nio.charset.StandardCharsets
 import java.util.zip.GZIPInputStream
 
 import com.raphtory.core.components.Spout.{DataSource}
-import com.raphtory.core.model.communication.StringSpoutGoing
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.annotation.tailrec

@@ -7,7 +7,7 @@ import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.Tasks.AnalysisTask
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
-import com.raphtory.examples.test.actors.RandomRouter
+import com.raphtory.examples.test.actors.RandomGraphBuilder
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import kamon.metric.PeriodSnapshot
@@ -28,7 +28,7 @@ object Go extends App {
   root.setLevel(Level.ERROR)
   // debug should give timing
   //root.setLevel(Level.DEBUG)
-  val routerName  = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomRouter].getClass.getName)}"
+  val routerName  = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomGraphBuilder].getClass.getName)}"
   val updaterName = s"${sys.env.getOrElse("SPOUTCLASS", "")}"
   val docker      = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 

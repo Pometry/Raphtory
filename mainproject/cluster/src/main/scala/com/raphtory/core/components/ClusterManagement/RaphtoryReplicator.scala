@@ -7,7 +7,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
 import com.raphtory.core.components.PartitionManager.{Archivist, Reader, Writer}
-import com.raphtory.core.components.Router.RouterManager
+import com.raphtory.core.components.Router.{GraphBuilder, RouterManager}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.{SchedulerUtil, Utils}
@@ -19,14 +19,14 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object RaphtoryReplicator {
-  def apply(actorType: String, initialManagerCount: Int,initialRouterCount:Int, routerName: String): RaphtoryReplicator =
-    new RaphtoryReplicator(actorType, initialManagerCount,initialRouterCount, routerName)
+  def apply[T](actorType: String, initialManagerCount: Int,initialRouterCount:Int, graphBuilder: GraphBuilder[T]): RaphtoryReplicator[T] =
+    new RaphtoryReplicator(actorType, initialManagerCount,initialRouterCount, graphBuilder)
 
-  def apply(actorType: String, initialManagerCount: Int,initialRouterCount:Int): RaphtoryReplicator =
+  def apply[T](actorType: String, initialManagerCount: Int,initialRouterCount:Int): RaphtoryReplicator[T] =
     new RaphtoryReplicator(actorType, initialManagerCount,initialRouterCount, null)
 }
 
-class RaphtoryReplicator(actorType: String, initialManagerCount: Int, initialRouterCount:Int, routerName: String)
+class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initialRouterCount:Int, graphBuilder: GraphBuilder[T])
         extends Actor
         with ActorLogging {
 
@@ -151,7 +151,7 @@ class RaphtoryReplicator(actorType: String, initialManagerCount: Int, initialRou
     log.info(s"Router $assignedId has come online.")
 
     actorRef = context.system.actorOf(
-      Props(new RouterManager(myId, currentCount, initialRouterCount, routerName)).withDispatcher("misc-dispatcher"),
+      Props(new RouterManager(myId, currentCount, initialRouterCount, graphBuilder)).withDispatcher("misc-dispatcher"),
       "router"
     )
   }

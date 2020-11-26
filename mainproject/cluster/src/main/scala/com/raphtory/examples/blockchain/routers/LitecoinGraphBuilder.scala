@@ -1,6 +1,6 @@
 package com.raphtory.examples.blockchain.routers
 
-import com.raphtory.core.components.Router.RouterWorker
+import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
 import com.raphtory.core.model.communication._
 import com.raphtory.sources.blockchain.BitcoinTransaction
 import spray.json.{JsArray, JsValue}
@@ -10,10 +10,9 @@ import scala.collection.parallel.mutable.ParHashSet
 import scala.util.hashing.MurmurHash3
 
 
-class LitecoinRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[BitcoinTransaction](routerId,workerID,initialManagerCount, initialRouterCount) {
+class LitecoinGraphBuilder extends GraphBuilder[BitcoinTransaction]{
 
-  override protected def parseTuple(tuple:BitcoinTransaction): ParHashSet[GraphUpdate]  = {
+  override def parseTuple(tuple:BitcoinTransaction)  = {
     val transaction  = tuple.transaction
     val time         = tuple.time
     val blockID      = tuple.blockID
@@ -27,7 +26,6 @@ class LitecoinRouter(override val routerId: Int,override val workerID:Int, overr
     val locktime      = transaction.asJsObject.fields("locktime")
     val version       = transaction.asJsObject.fields("version")
     var total: Double = 0
-    val commands = new ParHashSet[GraphUpdate]()
     for (vout <- vouts.asInstanceOf[JsArray].elements) {
       val voutOBJ = vout.asJsObject()
       var value   = voutOBJ.fields("value").toString
@@ -43,7 +41,7 @@ class LitecoinRouter(override val routerId: Int,override val workerID:Int, overr
       else value = "0" //TODO deal with people burning money
 
       //creates vertex for the receiving wallet
-      commands+=(
+      sendUpdate(
               VertexAddWithProperties(
                       msgTime = timeAsLong,
                       srcID = MurmurHash3.stringHash(address),
@@ -55,7 +53,7 @@ class LitecoinRouter(override val routerId: Int,override val workerID:Int, overr
               )
       )
       //creates edge between the transaction and the wallet
-      commands+=(
+      sendUpdate(
               EdgeAddWithProperties(
                       msgTime = timeAsLong,
                       srcID = MurmurHash3.stringHash(txid),
@@ -65,7 +63,7 @@ class LitecoinRouter(override val routerId: Int,override val workerID:Int, overr
       )
 
     }
-    commands+=(
+    sendUpdate(
             VertexAddWithProperties(
                     msgTime = timeAsLong,
                     srcID = MurmurHash3.stringHash(txid),
@@ -84,7 +82,7 @@ class LitecoinRouter(override val routerId: Int,override val workerID:Int, overr
 
     if (vins.toString().contains("coinbase")) {
       //creates the coingen node
-      commands+=(
+      sendUpdate(
               VertexAddWithProperties(
                       msgTime = timeAsLong,
                       srcID = MurmurHash3.stringHash("coingen"),
@@ -93,7 +91,7 @@ class LitecoinRouter(override val routerId: Int,override val workerID:Int, overr
       )
 
       //creates edge between coingen and the transaction
-      commands+=(
+      sendUpdate(
               EdgeAdd(
                       msgTime = timeAsLong,
                       srcID = MurmurHash3.stringHash("coingen"),
@@ -108,7 +106,7 @@ class LitecoinRouter(override val routerId: Int,override val workerID:Int, overr
         val sequence = vinOBJ.fields("sequence").toString
         //no need to create node for prevtxid as should already exist
         //creates edge between the prev transaction and current transaction
-        commands+=(
+        sendUpdate(
                 EdgeAddWithProperties(
                         msgTime = timeAsLong,
                         srcID = MurmurHash3.stringHash(prevtxid),
@@ -119,7 +117,6 @@ class LitecoinRouter(override val routerId: Int,override val workerID:Int, overr
       }
 
     }
-    commands
   }
 
 }

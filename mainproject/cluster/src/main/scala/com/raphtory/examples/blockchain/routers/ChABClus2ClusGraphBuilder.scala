@@ -3,17 +3,16 @@ package com.raphtory.examples.blockchain.routers
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
-import com.raphtory.core.components.Router.RouterWorker
+import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
 import com.raphtory.core.model.communication.Type
 import com.raphtory.core.model.communication._
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParHashSet
 
-class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[String](routerId,workerID, initialManagerCount,initialRouterCount) {
+class ChABClus2ClusGraphBuilder extends GraphBuilder[String]{
 
-  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
+  override def parseTuple(tuple: String) = {
       val dp = formatLine(tuple.split(",").map(_.trim))
       val transactionTime = dp.time
       val srcClusterId = dp.srcCluster
@@ -22,12 +21,11 @@ class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, 
       val btcAmount = dp.amount
       val usdAmount = dp.usd
 
-      val commands = new ParHashSet[GraphUpdate]()
 
-      commands+= VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster"))
-      commands+=(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
+    sendUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
+    sendUpdate((VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster"))))
 
-      commands+=(
+    sendUpdate(
         EdgeAddWithProperties(msgTime = transactionTime,
           srcID = srcClusterId,
           dstID = dstClusterId,
@@ -37,7 +35,6 @@ class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, 
           Type("Transfer")
         )
       )
-    commands
   }
 
   //converts the line into a case class which has all of the data via the correct name and type

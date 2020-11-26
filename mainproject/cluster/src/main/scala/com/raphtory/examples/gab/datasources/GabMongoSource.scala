@@ -4,7 +4,6 @@ import akka.actor.Cancellable
 import ch.qos.logback.classic.Level
 import com.mongodb.casbah.Imports.{MongoConnection, _}
 import com.raphtory.core.components.Spout.DataSource
-import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable

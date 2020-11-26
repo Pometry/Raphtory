@@ -1,7 +1,7 @@
 package com.raphtory.examples.blockchain.routers
 
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import com.raphtory.core.components.Router.RouterWorker
+import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
 import com.raphtory.core.model.communication.{DoubleProperty, EdgeAdd, EdgeAddWithProperties, EdgeDelete, GraphUpdate, ImmutableProperty, LongProperty, Properties, StringProperty, VertexAdd, VertexAddWithProperties, VertexDelete}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
@@ -12,19 +12,17 @@ import scala.collection.parallel.mutable.ParHashSet
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
 import scala.math.BigInt
-class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
+class FirehoseKafkaGraphBuilder extends GraphBuilder[String] {
   var DELETEPERCENT = System.getenv().getOrDefault("ETHER_DELETE_PERCENT", "0").trim.toDouble/100
   var DELETESEED = System.getenv().getOrDefault("ETHER_DELETE_SEED", "123").trim.toInt
   val random = new Random(DELETESEED)
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
 
-  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
+  override def parseTuple(tuple: String): Unit = {
     //if(value.toString.contains("0xa09871aeadf4994ca12f5c0b6056bbd1d343c029")) println(value.toString)
     val transaction = tuple.split(",")
-    if(transaction(1).equals("block_number")) return ParHashSet()
+    if(transaction(1).equals("block_number")) return
     val blockNumber = transaction(2).toInt
-    val commands = new ParHashSet[GraphUpdate]()
 
     val from = transaction(4).replaceAll("\"", "").toLowerCase
     val to   = transaction(5).replaceAll("\"", "").toLowerCase
@@ -33,18 +31,17 @@ class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, 
     val destinationNode = assignID(to)   //hash the id to get a vertex ID
     //if(from.contains("0xa09871aeadf4994ca12f5c0b6056bbd1d343c029".toLowerCase())) println(from)
     //if(to.contains("0xa09871aeadf4994ca12f5c0b6056bbd1d343c029".toLowerCase())) println(to)
-    commands+=(VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from))))
+    sendUpdate(VertexAddWithProperties(blockNumber, sourceNode, properties = Properties(ImmutableProperty("id", from))))
 //    if(random.nextDouble()<=DELETEPERCENT)
 //      sendGraphUpdate(VertexDelete(blockNumber+1,sourceNode))
 
-    commands+=(VertexAddWithProperties(blockNumber, destinationNode, properties = Properties(ImmutableProperty("id", to))))
+    sendUpdate(VertexAddWithProperties(blockNumber, destinationNode, properties = Properties(ImmutableProperty("id", to))))
 //    if(random.nextDouble()<=DELETEPERCENT)
 //      sendGraphUpdate(VertexDelete(blockNumber+1,destinationNode))
 
-    commands+=(EdgeAddWithProperties(blockNumber, sourceNode, destinationNode,properties = Properties(DoubleProperty("value", sent))))
+    sendUpdate(EdgeAddWithProperties(blockNumber, sourceNode, destinationNode,properties = Properties(DoubleProperty("value", sent))))
 //    if(random.nextDouble()<=DELETEPERCENT)
 //     sendGraphUpdate(EdgeDelete(blockNumber+1,sourceNode,destinationNode))
-    commands
   }
 }
 
