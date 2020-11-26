@@ -2,7 +2,7 @@ package com.raphtory.examples.blockchain.routers
 
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{EdgeAddWithProperties, GraphUpdate, ImmutableProperty, Properties, StringProperty, StringSpoutGoing, VertexAddWithProperties}
+import com.raphtory.core.model.communication.{EdgeAddWithProperties, GraphUpdate, ImmutableProperty, Properties, StringProperty, VertexAddWithProperties}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
 import spray.json._
@@ -11,11 +11,11 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParHashSet
 import scala.util.hashing.MurmurHash3
 class EthereumKafkaRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
+  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
-  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
+  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
 
-    val transaction = tuple.value.split(",")
+    val transaction = tuple.split(",")
 
     if(transaction(1).equals("block_number")) return ParHashSet()
 

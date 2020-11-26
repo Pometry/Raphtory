@@ -11,7 +11,7 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
-class FileSource extends DataSource {
+class FileSource extends DataSource[String] {
   //TODO work out loggging here
   //log.info("initialise FileSpout")
   private val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
@@ -23,7 +23,7 @@ class FileSource extends DataSource {
 
   private var fileManager = FileManager(directory, fileName, dropHeader)
 
-  override def generateData(): Option[StringSpoutGoing] = {
+  override def generateData(): Option[String] = {
     if (fileManager.allCompleted) {
       dataSourceComplete()
       None
@@ -31,7 +31,7 @@ class FileSource extends DataSource {
     else {
       val (newFileManager, line) = fileManager.nextLine()
       fileManager = newFileManager
-      Some(StringSpoutGoing(line))
+      Some(line)
     }
   }
 

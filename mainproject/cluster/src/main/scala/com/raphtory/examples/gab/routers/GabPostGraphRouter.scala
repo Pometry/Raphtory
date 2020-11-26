@@ -16,10 +16,10 @@ import scala.collection.parallel.mutable.ParHashSet
 // Then either the vertex or the edge are created accordingly.
 
 class GabPostGraphRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
+  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
 
-  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
-    val fileLine = tuple.value.split(";").map(_.trim)
+  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
+    val fileLine = tuple.split(";").map(_.trim)
     //user wise
 //     val sourceNode=fileLine(2).toInt
 //     val targetNode=fileLine(5).toInt

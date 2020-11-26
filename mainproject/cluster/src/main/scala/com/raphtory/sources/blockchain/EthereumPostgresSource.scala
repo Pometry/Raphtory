@@ -9,7 +9,7 @@ import doobie.util.transactor.Transactor
 
 import scala.collection.mutable
 
-class EthereumPostgresSource extends DataSource{
+class EthereumPostgresSource extends DataSource[String]{
   var startBlock = System.getenv().getOrDefault("STARTING_BLOCK", "46147").trim.toInt //first block to have a transaction by default
   val batchSize  = System.getenv().getOrDefault("BLOCK_BATCH_SIZE", "100").trim.toInt //number of blocks to pull each query
   val maxblock   = System.getenv().getOrDefault("MAX_BLOCK", "8828337").trim.toInt    //Maximum block in database to stop querying once this is reached
@@ -27,9 +27,9 @@ class EthereumPostgresSource extends DataSource{
           dbPASSWORD,
           Blocker.liftExecutionContext(ExecutionContexts.synchronous)
   )
-  val queue = mutable.Queue[Option[StringSpoutGoing]]()
+  val queue = mutable.Queue[Option[String]]()
 
-  override def generateData(): Option[SpoutGoing] = {
+  override def generateData(): Option[String] = {
     if(queue isEmpty)
       pullBlocks()
     queue.dequeue()
@@ -43,7 +43,7 @@ class EthereumPostgresSource extends DataSource{
       .to[List]                              // ConnectionIO[List[String]]
       .transact(dbconnector)                 // IO[List[String]]
       .unsafeRunSync                         // List[String]
-      .foreach(x => queue+=(Some(StringSpoutGoing(x.toString())))) //send each transaction to the routers
+      .foreach(x => queue+=(Some(x.toString()))) //send each transaction to the routers
 
     startBlock += batchSize//increment batch for the next query
     if (startBlock <= maxblock)

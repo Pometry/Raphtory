@@ -12,7 +12,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
-final case class KafkaSpout() extends DataSource {
+final case class KafkaSpout() extends DataSource[String] {
   private val kafkaServer   = System.getenv().getOrDefault("KAFKA_ADDRESS", "127.0.0.1").trim
   private val kafkaIp       = System.getenv().getOrDefault("KAFKA_PORT", "9092").trim
   private val offset        = System.getenv().getOrDefault("KAFKA_OFFSET", "earliest").trim
@@ -22,14 +22,14 @@ final case class KafkaSpout() extends DataSource {
   private val startingSpeed = System.getenv().getOrDefault("STARTING_SPEED", "1000").trim.toInt
 
   private var kafkaManager = KafkaManager(kafkaServer, kafkaIp, groupId, topic, offset)
-  val messageQueue = mutable.Queue[StringSpoutGoing]()
+  val messageQueue = mutable.Queue[String]()
   override def setupDataSource(): Unit = {}
 
-  override def generateData(): Option[SpoutGoing] = {
+  override def generateData(): Option[String] = {
     if(messageQueue isEmpty) {
       val (newManager, block) = kafkaManager.nextNLine(startingSpeed / 100)
       kafkaManager = newManager
-      block.foreach(str => messageQueue += StringSpoutGoing(str))
+      block.foreach(str => messageQueue += str)
       if(messageQueue isEmpty) //still empty
         None
     }

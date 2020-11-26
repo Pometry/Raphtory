@@ -3,7 +3,7 @@ package com.raphtory.examples.gab.routers
 import java.time.OffsetDateTime
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{EdgeAddWithProperties, GraphUpdate, Properties, StringProperty, StringSpoutGoing, VertexAddWithProperties}
+import com.raphtory.core.model.communication.{EdgeAddWithProperties, GraphUpdate, Properties, StringProperty, VertexAddWithProperties}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
 
@@ -21,16 +21,16 @@ import scala.collection.parallel.mutable.ParHashSet
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 final class GabRawRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
+  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
 
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
 
   private val nullStr = "null"
 
-  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
+  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
     val commands = new ParHashSet[GraphUpdate]()
     try {
-      val command = tuple.value
+      val command = tuple
       val post = command.parseJson.convertTo[GabPost]
       sendPostToPartitions(post)
     } catch {

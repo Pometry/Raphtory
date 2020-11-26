@@ -6,7 +6,7 @@ import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
 import scala.collection.mutable
 
 
-class LOTRDataSource extends DataSource {
+class LOTRDataSource extends DataSource[String] {
 
   val directory = System.getenv().getOrDefault("LOTR_DIRECTORY", "com/raphtory/example/lotr").trim
   val file_name = System.getenv().getOrDefault("LOTR_FILE_NAME", "lotr.csv").trim
@@ -14,13 +14,13 @@ class LOTRDataSource extends DataSource {
 
   override def setupDataSource(): Unit = {}//no setup
 
-  override def generateData(): Option[SpoutGoing] = {
+  override def generateData(): Option[String] = {
     if(fileQueue isEmpty){
       dataSourceComplete()
       None
     }
     else
-      Some(StringSpoutGoing(fileQueue.dequeue()))
+      Some(fileQueue.dequeue())
   }
 
   override def closeDataSource(): Unit = {}//no file closure already done

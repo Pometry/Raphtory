@@ -11,13 +11,13 @@ import scala.collection.parallel.mutable.ParHashSet
 import scala.util.control.Breaks._
 
 class TrackAndTraceRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
+  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
   val EARTH_EQU = 6378137.0                                                          //m
   val EARTH_POL = 6356752.3142                                                       //m
   val STEPSIZE  = System.getenv().getOrDefault("MAP_GRID_SIZE", "100").trim.toDouble //m
 
-  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
-    val datapoint  = lineToDatapoint(tuple.value.split(",").map(_.trim))
+  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
+    val datapoint  = lineToDatapoint(tuple.split(",").map(_.trim))
     val eventTime  = datapoint.time
     val userID     = datapoint.userId
     val latitude   = datapoint.latitude

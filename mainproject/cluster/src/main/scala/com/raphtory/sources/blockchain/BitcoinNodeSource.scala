@@ -13,9 +13,9 @@ import scala.collection.mutable
 import scala.language.postfixOps
 import scala.sys.process._
 //
-case class BitcoinTransaction(time: JsValue, block: Int, blockID: JsValue, transaction: JsValue) extends SpoutGoing
+case class BitcoinTransaction(time: JsValue, block: Int, blockID: JsValue, transaction: JsValue)
 
-class BitcoinSpout extends DataSource{
+class BitcoinSpout extends DataSource[BitcoinTransaction]{
 
   var blockcount    = 1
   val rpcuser       = System.getenv().getOrDefault("BITCOIN_USERNAME", "").trim
@@ -29,7 +29,7 @@ class BitcoinSpout extends DataSource{
 
   val queue = mutable.Queue[Option[BitcoinTransaction]]()
 
-  override def generateData(): Option[SpoutGoing] = {
+  override def generateData(): Option[BitcoinTransaction] = {
    if(queue.isEmpty)
      getTransactions()
     queue.dequeue()

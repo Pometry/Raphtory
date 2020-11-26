@@ -1,15 +1,12 @@
 package com.raphtory.core.components.Spout
 
-import com.raphtory.core.model.communication.SpoutGoing
 
-
-
-trait DataSource{
+trait DataSource[+T]{
   private var dataComplete = false
 
   def setupDataSource():Unit
 
-  def generateData():Option[SpoutGoing]
+  def generateData():Option[T]
 
   def closeDataSource():Unit
 
