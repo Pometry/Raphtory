@@ -3,8 +3,6 @@ package com.raphtory.examples.lotr
 import com.raphtory.core.components.Router.GraphBuilder
 import com.raphtory.core.model.communication._
 
-import scala.util.Random
-
 class LOTRGraphBuilder extends GraphBuilder[String]{
 
   override def parseTuple(tuple: String) = {
@@ -18,8 +16,11 @@ class LOTRGraphBuilder extends GraphBuilder[String]{
 
     val timeStamp = fileLine(2).toLong
 
-    sendUpdate(VertexAddWithProperties(timeStamp, srcID, Properties(LongProperty("test",Random.nextLong()),ImmutableProperty("name",sourceNode)),Type("Character")))
-    sendUpdate(VertexAddWithProperties(timeStamp, tarID, Properties(LongProperty("test2",Random.nextLong()),ImmutableProperty("name",targetNode)),Type("Character")))
+    sendUpdate(VertexAddWithProperties(timeStamp, srcID,
+      Properties(ImmutableProperty("name",sourceNode)),Type("Character")))
+    sendUpdate(VertexAddWithProperties(timeStamp, tarID,
+      Properties(ImmutableProperty("name",targetNode)),Type("Character")))
+
     sendUpdate(EdgeAdd(timeStamp,srcID,tarID, Type("Character Co-occurence")))
   }
 }

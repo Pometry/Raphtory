@@ -6,7 +6,9 @@ import scala.collection.mutable
 
 class LOTRDataSource extends DataSource[String] {
 
-  val fileQueue = mutable.Queue[String]() ++= scala.io.Source.fromFile("cluster/src/main/scala/com/raphtory/examples/lotr/lotr.csv").getLines
+  val fileQueue = mutable.Queue[String]() ++=
+    scala.io.Source.fromFile("cluster/src/main/scala/com/raphtory/examples/lotr/lotr.csv")
+      .getLines
 
   override def setupDataSource(): Unit = {}//no setup
 
