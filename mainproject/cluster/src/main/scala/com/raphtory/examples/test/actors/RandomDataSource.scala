@@ -7,7 +7,7 @@ import com.raphtory.core.utils.Utils
 import scala.language.postfixOps
 import scala.util.Random
 
-class RandomDataSource extends DataSource {
+class RandomDataSource extends DataSource[String] {
 
   var totalCount = 100
   var freq = 1000
@@ -16,7 +16,7 @@ class RandomDataSource extends DataSource {
 
   override def setupDataSource(): Unit = {}
 
-  override def generateData(): Option[SpoutGoing] = Some(StringSpoutGoing(distribution()))
+  override def generateData(): Option[String] = Some(distribution())
 
   override def closeDataSource(): Unit = {}
 

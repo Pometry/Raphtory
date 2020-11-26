@@ -5,13 +5,13 @@ import com.raphtory.core.model.communication.{SpoutGoing, StringSpoutGoing}
 
 import scala.collection.mutable.Queue
 
-class TriangleDataSource extends DataSource {
+class TriangleDataSource extends DataSource[String] {
 
-  val edges = Queue[StringSpoutGoing](StringSpoutGoing("3,3,1"), StringSpoutGoing("4,3,4"), StringSpoutGoing("2,2,3"), StringSpoutGoing("5,4,1"), StringSpoutGoing("6,1,3"), StringSpoutGoing("1,1,2"))
+  val edges = Queue[String]("3,3,1", "4,3,4", "2,2,3", "5,4,1", "6,1,3", "1,1,2")
 
   override def setupDataSource(): Unit = {}
 
-  override def generateData(): Option[SpoutGoing] = {
+  override def generateData(): Option[String] = {
     if(edges.isEmpty) {
       dataSourceComplete()
       None

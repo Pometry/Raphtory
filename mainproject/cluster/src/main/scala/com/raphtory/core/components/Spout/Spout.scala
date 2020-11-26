@@ -16,7 +16,7 @@ import scala.language.postfixOps
 
 
 
-class Spout(datasource:DataSource) extends Actor with ActorLogging with Timers {
+class Spout(datasource:DataSource[Any]) extends Actor with ActorLogging with Timers {
   // todo: wvv should assign the dispatcher when create the actor
   implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("spout-dispatcher")
   //implicit val executionContext: ExecutionContext = context.system.dispatcher
@@ -58,6 +58,7 @@ class Spout(datasource:DataSource) extends Actor with ActorLogging with Timers {
     if(datasource.isComplete())
       if(!datafinishedSent) {
         sender ! DataFinished
+        println(s"All data sent")
         datafinishedSent=true
       }else
         sender ! NoWork
@@ -111,6 +112,7 @@ class Spout(datasource:DataSource) extends Actor with ActorLogging with Timers {
     }//mediator ! DistributedPubSubMediator.Send(lastRouter, message, localAffinity = false)
       if(datasource isComplete) {
         sender ! DataFinished
+        println(s"All data sent")
         datafinishedSent=true
       }
   }

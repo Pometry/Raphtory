@@ -4,14 +4,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeDelete, GraphUpdate, StringSpoutGoing, Type, VertexAdd, VertexDelete}
+import com.raphtory.core.model.communication.{EdgeAdd, EdgeDelete, GraphUpdate, Type, VertexAdd, VertexDelete}
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParHashSet
 
 class LDBCOldRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
-  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
+  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
+  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
 
     val fileLine = tuple.asInstanceOf[String].split("\\|")
     val commands = new ParHashSet[GraphUpdate]()

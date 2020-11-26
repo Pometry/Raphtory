@@ -7,11 +7,11 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParHashSet
 
 class CooccurrenceMatrixRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
+  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
 
-  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
+  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
     //println(record)
-    var dp = tuple.value.split(" ").map(_.trim)
+    var dp = tuple.split(" ").map(_.trim)
     val commands = new ParHashSet[GraphUpdate]()
     val occurenceTime = dp.head.toLong//DateFormatting(dp.head) //.slice(4, dp.head.length)
     try {
@@ -34,7 +34,7 @@ class CooccurrenceMatrixRouter(override val routerId: Int, override val workerID
       }
 
     }catch {
-      case e: Exception => println(e, dp.length, tuple.value)
+      case e: Exception => println(e, dp.length, tuple)
     }
     commands
   }

@@ -18,7 +18,7 @@ import scala.util.hashing.MurmurHash3
 // TODO Add val name which sub classes that extend this trait must overwrite
 //  e.g. BlockChainRouter val name = "Blockchain Router"
 //  Log.debug that read 'Router' should then read 'Blockchain Router'
-abstract class RouterWorker[In <: SpoutGoing](val routerId: Int, val workerID: Int, val initialManagerCount: Int,val initialRouterCount:Int)
+abstract class RouterWorker[In <: Any](val routerId: Int, val workerID: Int, val initialManagerCount: Int,val initialRouterCount:Int)
         extends Actor
         with ActorLogging {
   implicit val executionContext: ExecutionContext = context.system.dispatcher

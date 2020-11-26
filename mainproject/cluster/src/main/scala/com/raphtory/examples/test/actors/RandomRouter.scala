@@ -17,11 +17,11 @@ import scala.collection.parallel.mutable.ParHashSet
   * which will then pass it to the graph partition dealing with the associated vertex
   */
 class RandomRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID,initialManagerCount, initialRouterCount) {
+  extends RouterWorker[String](routerId,workerID,initialManagerCount, initialRouterCount) {
 
   //************* MESSAGE HANDLING BLOCK
 
-   override protected def parseTuple(tuple:StringSpoutGoing): ParHashSet[GraphUpdate]  = {
+   override protected def parseTuple(tuple:String): ParHashSet[GraphUpdate]  = {
     val command    = tuple.asInstanceOf[String]
     val parsedOBJ  = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type

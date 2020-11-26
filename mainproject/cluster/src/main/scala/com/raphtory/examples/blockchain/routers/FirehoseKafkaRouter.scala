@@ -2,7 +2,7 @@ package com.raphtory.examples.blockchain.routers
 
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{DoubleProperty, EdgeAdd, EdgeAddWithProperties, EdgeDelete, GraphUpdate, ImmutableProperty, LongProperty, Properties, StringProperty, StringSpoutGoing, VertexAdd, VertexAddWithProperties, VertexDelete}
+import com.raphtory.core.model.communication.{DoubleProperty, EdgeAdd, EdgeAddWithProperties, EdgeDelete, GraphUpdate, ImmutableProperty, LongProperty, Properties, StringProperty, VertexAdd, VertexAddWithProperties, VertexDelete}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
 import spray.json._
@@ -13,15 +13,15 @@ import scala.util.Random
 import scala.util.hashing.MurmurHash3
 import scala.math.BigInt
 class FirehoseKafkaRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
+  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
   var DELETEPERCENT = System.getenv().getOrDefault("ETHER_DELETE_PERCENT", "0").trim.toDouble/100
   var DELETESEED = System.getenv().getOrDefault("ETHER_DELETE_SEED", "123").trim.toInt
   val random = new Random(DELETESEED)
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)
 
-  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
+  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
     //if(value.toString.contains("0xa09871aeadf4994ca12f5c0b6056bbd1d343c029")) println(value.toString)
-    val transaction = tuple.value.split(",")
+    val transaction = tuple.split(",")
     if(transaction(1).equals("block_number")) return ParHashSet()
     val blockNumber = transaction(2).toInt
     val commands = new ParHashSet[GraphUpdate]()

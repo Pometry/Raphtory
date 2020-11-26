@@ -8,11 +8,11 @@ import scala.collection.parallel.mutable.ParHashSet
 import scala.util.Random
 
 class LOTRRouter(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
+  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
 
-  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
+  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
 
-    val fileLine = tuple.value.split(",").map(_.trim)
+    val fileLine = tuple.split(",").map(_.trim)
     val commands = new ParHashSet[GraphUpdate]()
     val sourceNode = fileLine(0)
     val srcID = assignID(sourceNode)

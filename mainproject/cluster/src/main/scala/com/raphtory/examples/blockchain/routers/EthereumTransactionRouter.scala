@@ -1,17 +1,17 @@
 package com.raphtory.examples.blockchain.routers
 
 import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.{EdgeAddWithProperties, GraphUpdate, Properties, StringProperty, StringSpoutGoing, VertexAddWithProperties}
+import com.raphtory.core.model.communication.{EdgeAddWithProperties, GraphUpdate, Properties, StringProperty, VertexAddWithProperties}
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParHashSet
 import scala.util.hashing.MurmurHash3
 
 class EthereumTransactionRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
-  extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
+  extends RouterWorker[String](routerId,workerID, initialManagerCount, initialRouterCount) {
 
-  override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
-    val components   = tuple.value.drop(1).dropRight(1).split(",")
+  override protected def parseTuple(tuple: String): ParHashSet[GraphUpdate] = {
+    val components   = tuple.drop(1).dropRight(1).split(",")
     val creationDate = components(3).toLong * 1000 //seconds to miliseconds
     val sourceNode   = MurmurHash3.stringHash(components(0)) //hash the id to get a vertex ID
     val commands = new ParHashSet[GraphUpdate]()

@@ -21,7 +21,7 @@ import scala.collection.mutable
 
 
 
-class EthereumGethSpout extends DataSource {
+class EthereumGethSpout extends DataSource[String] {
 
   var currentBlock = System.getenv().getOrDefault("SPOUT_ETHEREUM_START_BLOCK_INDEX", "9014194").trim.toInt
   var highestBlock = System.getenv().getOrDefault("SPOUT_ETHEREUM_MAXIMUM_BLOCK_INDEX", "10026447").trim.toInt
@@ -31,13 +31,13 @@ class EthereumGethSpout extends DataSource {
 
   print(currentBlock)
 
-  val queue = mutable.Queue[Option[StringSpoutGoing]]()
+  val queue = mutable.Queue[Option[String]]()
 
   val baseRequest  = requestBuilder()
 
   override def setupDataSource(): Unit = {}
   override def closeDataSource(): Unit = {}
-  override def generateData(): Option[SpoutGoing] = {
+  override def generateData(): Option[String] = {
     if(queue.isEmpty)
       pullNextBlock()
     queue.dequeue()
@@ -68,7 +68,7 @@ class EthereumGethSpout extends DataSource {
         val trasnactionBlock = executeBatchRequest(transactions.dropRight(1)+"]")
         val transList = trasnactionBlock.parseJson.convertTo[List[EthTransaction]]
         transList.foreach(t => { //try needed to ignore contracts //todo include them
-          try{queue +=(Some(StringSpoutGoing(s"${t.result.blockNumber.get},${t.result.from.get},${t.result.to.get},${t.result.value.get}")))}
+          try{queue +=(Some(s"${t.result.blockNumber.get},${t.result.from.get},${t.result.to.get},${t.result.value.get}"))}
           catch {case e:NoSuchElementException =>}
 
         })
