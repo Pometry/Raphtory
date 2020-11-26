@@ -5,9 +5,9 @@ import java.util.NoSuchElementException
 
 import com.raphtory.core.components.Spout.{DataSource, Spout}
 import com.raphtory.core.utils.Utils
-import com.raphtory.tests.EtherAPITest.baseRequest
-import com.raphtory.tests.EtherAPITest.currentBlock
-import com.raphtory.tests.EtherAPITest.request
+import .baseRequest
+import .currentBlock
+import .request
 
 import scala.language.postfixOps
 import scala.sys.process._
