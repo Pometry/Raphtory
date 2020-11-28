@@ -1,8 +1,8 @@
 package com.raphtory.core.components.ClusterManagement
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
@@ -14,8 +14,8 @@ import com.raphtory.core.utils.{SchedulerUtil, Utils}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 
 object RaphtoryReplicator {

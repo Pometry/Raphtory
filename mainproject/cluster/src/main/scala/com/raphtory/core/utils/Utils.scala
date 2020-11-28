@@ -4,11 +4,9 @@ import java.io._
 import java.text.SimpleDateFormat
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.API.Analyser
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.lang.StringEscapeUtils
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
 object Utils {

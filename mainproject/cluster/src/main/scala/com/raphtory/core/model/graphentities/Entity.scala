@@ -1,6 +1,5 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.HistoryOrdering
 
 import scala.collection.mutable

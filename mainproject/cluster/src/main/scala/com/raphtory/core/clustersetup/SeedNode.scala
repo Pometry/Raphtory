@@ -1,10 +1,8 @@
 package com.raphtory.core.clustersetup
 
-import akka.actor.ActorSystem
-import akka.actor.Props
+import akka.actor.{ActorSystem, Props}
 import com.raphtory.core.components.ClusterManagement.SeedActor
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 
 case class SeedNode(seedLoc: String) extends DocSvr {
   val conf: Config                 = ConfigFactory.load()

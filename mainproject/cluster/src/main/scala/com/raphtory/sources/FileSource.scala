@@ -1,14 +1,10 @@
 package com.raphtory.sources
 
-import java.io.{BufferedReader, File, FileInputStream, FileReader, InputStreamReader}
-import java.nio.charset.StandardCharsets
+import java.io._
 import java.util.zip.GZIPInputStream
 
-import com.raphtory.core.components.Spout.{DataSource}
+import com.raphtory.core.components.Spout.DataSource
 import com.typesafe.scalalogging.LazyLogging
-
-import scala.annotation.tailrec
-import scala.concurrent.duration._
 
 class FileSource extends DataSource[String] {
   //TODO work out loggging here

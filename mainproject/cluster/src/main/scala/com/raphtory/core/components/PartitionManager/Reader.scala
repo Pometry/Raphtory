@@ -1,19 +1,12 @@
 package com.raphtory.core.components.PartitionManager
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.Terminated
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.components.PartitionManager.Workers.ReaderWorker
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
-import com.twitter.util.Eval
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.util.Try

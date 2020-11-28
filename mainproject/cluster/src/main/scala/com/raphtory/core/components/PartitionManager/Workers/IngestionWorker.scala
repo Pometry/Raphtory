@@ -3,16 +3,15 @@ package com.raphtory.core.components.PartitionManager.Workers
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable}
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.SchedulerUtil
 import kamon.Kamon
 
-import scala.concurrent.duration._
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
+import scala.concurrent.duration._
 
 case class queueItem(routerEpoch:Int,timestamp:Long)extends Ordered[queueItem] {
   def compare(that: queueItem): Int = that.routerEpoch-this.routerEpoch

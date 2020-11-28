@@ -1,11 +1,6 @@
 package com.raphtory.core.analysis.Algorithms
 
-import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
-
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.immutable
-import scala.collection.parallel.mutable.{ParArray, ParTrieMap}
 
 class MultiLayerLPA(args:Array[String]) extends LPA(args) {
   val snapshotSize:Long = args(2).toLong

@@ -1,13 +1,9 @@
 package com.raphtory.examples.ldbc.routers
 
 import java.text.SimpleDateFormat
-import java.util.Date
 
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
-import com.raphtory.core.model.communication.{EdgeAdd, EdgeDelete, GraphUpdate, Type, VertexAdd, VertexDelete}
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
+import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.model.communication._
 
 class LDBCGraphBuilder extends GraphBuilder[String] {
   override def parseTuple(tuple: String) = {

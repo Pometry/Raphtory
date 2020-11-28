@@ -1,20 +1,15 @@
 package com.raphtory.core.components.PartitionManager.Workers
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.analysis.API.GraphLenses.GraphLens
-import com.raphtory.core.analysis.API.GraphLenses.ViewLens
-import com.raphtory.core.analysis.API.GraphLenses.WindowLens
-import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.API._
+import java.util.concurrent.atomic.AtomicInteger
+
+import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.analysis.API.GraphLenses.{GraphLens, ViewLens, WindowLens}
+import com.raphtory.core.analysis.API.{Analyser, _}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 import kamon.Kamon
-import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable

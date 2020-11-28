@@ -1,14 +1,7 @@
 package com.raphtory.examples.trackAndTrace.routers
 
-import java.text.SimpleDateFormat
-
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
-import com.raphtory.core.model.communication.Type
-import com.raphtory.core.model.communication._
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
-import scala.util.control.Breaks._
+import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.model.communication.{Type, _}
 
 class TrackAndTraceGraphBuilder extends GraphBuilder[String] {
   val EARTH_EQU = 6378137.0                                                          //m

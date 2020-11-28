@@ -1,10 +1,8 @@
 package com.raphtory.examples.test.actors
 
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
+import com.raphtory.core.components.Router.GraphBuilder
 import com.raphtory.core.model.communication.{GraphUpdate, _}
 import spray.json._
-
-import scala.collection.parallel.mutable.ParHashSet
 
 /**
   * The Graph Manager is the top level actor in this system (under the stream)

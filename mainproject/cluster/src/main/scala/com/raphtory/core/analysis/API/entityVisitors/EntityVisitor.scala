@@ -4,7 +4,6 @@ import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.graphentities.Entity
 
 import scala.collection.mutable
-import scala.collection.parallel.ParSet
 import scala.collection.parallel.mutable.ParTrieMap
 
 abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {

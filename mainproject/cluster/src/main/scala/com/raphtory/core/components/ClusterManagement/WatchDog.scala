@@ -3,15 +3,10 @@ package com.raphtory.core.components.ClusterManagement
 /**
   * Created by Mirate on 11/07/2017.
   */
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Cancellable
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.SchedulerUtil
-import com.raphtory.core.utils.Utils
+import com.raphtory.core.utils.{SchedulerUtil, Utils}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable

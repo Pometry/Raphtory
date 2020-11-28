@@ -1,10 +1,8 @@
 package com.raphtory.core.analysis.serialisers
-import com.amazonaws.auth.BasicAWSCredentials
 import java.io.{BufferedWriter, File, FileWriter}
-import com.amazonaws.auth.AWSStaticCredentialsProvider
-import com.amazonaws.services.s3.AmazonS3
-import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.amazonaws.regions.Regions
+
+import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
+import com.amazonaws.services.s3.{AmazonS3, AmazonS3ClientBuilder}
 
 abstract class S3Serialiser extends Serialiser {
   val AWS_ACCESS_KEY = s"${sys.env.getOrElse("AWS_ACCESS_KEY", "")}"

@@ -9,7 +9,6 @@ import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
 
 import scala.collection.parallel.ParIterable
-import scala.collection.parallel.mutable.ParTrieMap
 
 class ViewLens(
                 jobID: ViewJob,

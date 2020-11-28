@@ -1,12 +1,10 @@
 package com.raphtory.examples.blockchain.routers
 
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
+import com.raphtory.core.components.Router.GraphBuilder
 import com.raphtory.core.model.communication._
 import com.raphtory.sources.blockchain.BitcoinTransaction
-import spray.json.{JsArray, JsValue}
+import spray.json.JsArray
 
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
 import scala.util.hashing.MurmurHash3
 
 

@@ -1,6 +1,6 @@
 package com.raphtory.examples.test.actors
 
-import com.raphtory.core.components.Spout.{DataSource}
+import com.raphtory.core.components.Spout.DataSource
 
 import scala.collection.mutable.Queue
 

@@ -1,7 +1,5 @@
 package com.raphtory.core.model.communication
 
-import java.util.concurrent.ConcurrentHashMap
-
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.graphentities.Edge

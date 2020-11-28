@@ -1,13 +1,7 @@
 package com.raphtory.examples.blockchain.routers
 
-import java.text.SimpleDateFormat
-
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
-import com.raphtory.core.model.communication.Type
-import com.raphtory.core.model.communication._
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
+import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.model.communication.{Type, _}
 
 class ChainalysisABGraphBuilder extends GraphBuilder[String] {
 

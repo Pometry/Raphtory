@@ -3,7 +3,7 @@ package com.raphtory.spouts
 import java.util
 import java.util.Properties
 
-import com.raphtory.core.components.Spout.{DataSource}
+import com.raphtory.core.components.Spout.DataSource
 import org.apache.kafka.clients.consumer.KafkaConsumer
 
 import scala.annotation.tailrec

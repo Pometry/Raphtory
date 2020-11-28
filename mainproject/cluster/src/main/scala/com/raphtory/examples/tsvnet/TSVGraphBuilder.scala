@@ -1,10 +1,7 @@
 package com.raphtory.examples.tsvnet
 
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
-import com.raphtory.core.model.communication.{EdgeAdd, GraphUpdate, Type, VertexAdd}
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
+import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.model.communication.{EdgeAdd, Type, VertexAdd}
 
 /** Spout for network datasets of the form SRC_NODE_ID DEST_NODE_ID TIMESTAMP */
 class TSVGraphBuilder extends GraphBuilder[String] {

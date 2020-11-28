@@ -65,9 +65,12 @@ val lift = "net.liftweb" %% "lift-json" % "3.3.0"
 
 val bitcoin      = "org.scalaj"  %% "scalaj-http" % "2.3.0"
 val twitter_eval = "com.twitter" %% "util-eval"   % "6.43.0"
+val hadoop = "org.apache.hadoop" % "hadoop-client" % "3.3.0"
 
 // https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk
 val aws =  "com.amazonaws" % "aws-java-sdk" % "1.11.897"
+val parquet = "com.github.mjakubowski84" %% "parquet4s-core" % "1.6.0"
+val h3 = "com.uber" % "h3" % "3.6.4"
 
 
 val IP = java.net.InetAddress.getLocalHost.getHostAddress
@@ -155,7 +158,10 @@ lazy val cluster = project
                     joda,
                     casbah,
                     mongo,
-                    aws
+                    aws,
+                    parquet,
+                    hadoop,
+                    h3
             )
   )
   .settings(

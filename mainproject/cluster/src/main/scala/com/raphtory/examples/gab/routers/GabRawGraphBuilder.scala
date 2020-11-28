@@ -2,13 +2,10 @@ package com.raphtory.examples.gab.routers
 
 import java.time.OffsetDateTime
 
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
-import com.raphtory.core.model.communication.{EdgeAddWithProperties, GraphUpdate, Properties, StringProperty, VertexAddWithProperties}
+import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.model.communication.{EdgeAddWithProperties, Properties, StringProperty, VertexAddWithProperties}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
 
 /**
   * The Graph Manager is the top level actor in this system (under the stream)

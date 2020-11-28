@@ -1,10 +1,8 @@
 package com.raphtory.examples.blockchain.routers
 
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
-import com.raphtory.core.model.communication.{EdgeAddWithProperties, GraphUpdate, Properties, StringProperty, VertexAddWithProperties}
+import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.model.communication.{EdgeAddWithProperties, Properties, StringProperty, VertexAddWithProperties}
 
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
 import scala.util.hashing.MurmurHash3
 
 class EthereumTransactionGraphBuilder extends GraphBuilder[String]{

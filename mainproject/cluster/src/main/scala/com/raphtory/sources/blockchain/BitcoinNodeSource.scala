@@ -1,11 +1,9 @@
 package com.raphtory.sources.blockchain
 //
-import java.io.File
-import java.io.PrintWriter
+import java.io.{File, PrintWriter}
 
 import com.raphtory.core.components.Spout.DataSource
-import scalaj.http.Http
-import scalaj.http.HttpRequest
+import scalaj.http.{Http, HttpRequest}
 import spray.json._
 
 import scala.collection.mutable

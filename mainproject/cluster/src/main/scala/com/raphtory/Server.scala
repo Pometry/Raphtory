@@ -4,16 +4,10 @@ import java.lang.management.ManagementFactory
 import java.net.InetAddress
 
 import ch.qos.logback.classic.Level
-import com.raphtory.core.analysis.Tasks.AnalysisTask
 import com.raphtory.core.clustersetup._
 import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
 import com.raphtory.examples.test.actors.RandomGraphBuilder
-import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
-import kamon.metric.PeriodSnapshot
-import kamon.prometheus.PrometheusReporter
-import kamon.Kamon
-import kamon.module.MetricReporter
 import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps

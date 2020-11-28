@@ -5,7 +5,6 @@ import com.raphtory.core.analysis.API.GraphLenses.GraphLens
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
 import scala.reflect.runtime.currentMirror
 import scala.tools.reflect.ToolBox
 case class ManagerCount(count: Int)

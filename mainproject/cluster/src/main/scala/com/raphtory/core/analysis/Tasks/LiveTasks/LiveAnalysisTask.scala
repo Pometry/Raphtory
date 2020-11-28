@@ -3,7 +3,7 @@ package com.raphtory.core.analysis.Tasks.LiveTasks
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.Tasks.AnalysisTask
-import com.raphtory.core.model.communication.{AnalyserPresentCheck, AnalysisType, Finish, Setup, TimeCheck}
+import com.raphtory.core.model.communication.{AnalysisType, Finish, Setup, TimeCheck}
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable

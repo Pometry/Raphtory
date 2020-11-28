@@ -1,10 +1,8 @@
 package com.raphtory.core.analysis.Algorithms
 
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.ParArray
 
 class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
