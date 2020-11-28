@@ -1,10 +1,7 @@
 package com.raphtory.examples.wordSemantic.routers
 
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
-import com.raphtory.core.model.communication.{Type, _}
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
+import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.model.communication._
 
 class CooccurrenceMatrixGraphBuilder extends GraphBuilder[String] {
 

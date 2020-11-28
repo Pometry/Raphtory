@@ -1,12 +1,7 @@
 package com.raphtory.examples.citationNetwork
 
-import java.text.SimpleDateFormat
-
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
+import com.raphtory.core.components.Router.GraphBuilder
 import com.raphtory.core.model.communication._
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
 
 class CitationGraphBuilder extends GraphBuilder[String] {
   override def parseTuple(tuple: String) = {

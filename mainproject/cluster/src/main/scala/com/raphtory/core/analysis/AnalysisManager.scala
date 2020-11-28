@@ -1,26 +1,19 @@
 package com.raphtory.core.analysis
 
-import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse}
-import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, InvalidActorNameException, PoisonPill, Props}
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
-import akka.http.scaladsl.model.HttpResponse
+import akka.actor.{Actor, ActorRef, InvalidActorNameException, PoisonPill, Props}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.analysis.API.{Analyser, BlankAnalyser, LoadExternalAnalyser}
 import com.raphtory.core.analysis.Tasks.LiveTasks.{BWindowedLiveAnalysisTask, LiveAnalysisTask, WindowedLiveAnalysisTask}
 import com.raphtory.core.analysis.Tasks.RangeTasks.{BWindowedRangeAnalysisTask, RangeAnalysisTask, WindowedRangeAnalysisTask}
 import com.raphtory.core.analysis.Tasks.ViewTasks.{BWindowedViewAnalysisTask, ViewAnalysisTask, WindowedViewAnalysisTask}
-import com.raphtory.core.model.communication._
-import com.twitter.util.Eval
+import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse, _}
 
-import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration._
+import scala.concurrent.duration.{Duration, _}
 import scala.language.postfixOps
-import scala.util.Try
 case class StartAnalysis()
 class AnalysisManager() extends Actor{
   implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")

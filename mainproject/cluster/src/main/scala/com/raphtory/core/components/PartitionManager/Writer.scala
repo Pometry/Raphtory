@@ -1,15 +1,8 @@
 package com.raphtory.core.components.PartitionManager
 
 import akka.actor.SupervisorStrategy.Resume
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Cancellable
-import akka.actor.OneForOneStrategy
-import akka.actor.Props
-import akka.actor.Terminated
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Terminated}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.{SchedulerUtil, Utils}

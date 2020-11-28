@@ -1,7 +1,7 @@
 package com.raphtory.sources.blockchain
 
 import cats.effect.{Blocker, IO}
-import com.raphtory.core.components.Spout.{DataSource}
+import com.raphtory.core.components.Spout.DataSource
 import doobie.implicits._
 import doobie.util.ExecutionContexts
 import doobie.util.transactor.Transactor

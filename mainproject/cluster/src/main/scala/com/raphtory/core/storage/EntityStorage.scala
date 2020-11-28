@@ -3,15 +3,11 @@ package com.raphtory.core.storage
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.Edge
-import com.raphtory.core.model.graphentities.Entity
-import com.raphtory.core.model.graphentities.SplitEdge
-import com.raphtory.core.model.graphentities.Vertex
+import com.raphtory.core.model.graphentities.{Edge, Entity, SplitEdge, Vertex}
 import com.raphtory.core.utils.Utils
 import kamon.Kamon
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParTrieMap
 
 /**
@@ -21,10 +17,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO What happens when an edge which has been archived gets readded
 
 class EntityStorage(partitionID:Int,workerID: Int) {
-  import com.raphtory.core.utils.Utils.checkDst
-  import com.raphtory.core.utils.Utils.checkWorker
-  import com.raphtory.core.utils.Utils.getManager
-  import com.raphtory.core.utils.Utils.getPartition
+  import com.raphtory.core.utils.Utils.{checkDst, checkWorker, getManager}
   val debug = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
 
   /**

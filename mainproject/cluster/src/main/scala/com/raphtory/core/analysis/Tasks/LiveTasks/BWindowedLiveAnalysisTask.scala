@@ -1,7 +1,6 @@
 package com.raphtory.core.analysis.Tasks.LiveTasks
 
 import com.raphtory.core.analysis.API.Analyser
-import com.raphtory.core.analysis.Tasks.AnalysisTask
 import com.raphtory.core.model.communication.AnalysisType
 
 import scala.collection.mutable.ArrayBuffer

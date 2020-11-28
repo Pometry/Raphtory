@@ -2,13 +2,8 @@ package com.raphtory.examples.gab.routers
 
 import java.text.SimpleDateFormat
 
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
-import com.raphtory.core.model.communication.Type
-import com.raphtory.core.model.communication._
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
-import scala.util.Random
+import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.model.communication.{Type, _}
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
 //In this router we needed to transform the data that was sent by the spout by turning it into a epoch value (long value)

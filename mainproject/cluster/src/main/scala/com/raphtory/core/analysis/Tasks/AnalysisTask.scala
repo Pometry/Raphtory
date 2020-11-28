@@ -1,28 +1,22 @@
 package com.raphtory.core.analysis.Tasks
 
-import java.io.FileNotFoundException
 import java.net.InetAddress
-import java.util.Date
-import java.net.InetAddress
-import akka.actor.{Actor, Cancellable, PoisonPill}
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
+
+import akka.actor.{Actor, PoisonPill}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.mongodb.DBObject
+import com.mongodb.casbah.{MongoClient, MongoClientURI}
+import com.mongodb.util.JSON
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.analysis.StartAnalysis
 import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import kamon.Kamon
-import com.mongodb.DBObject
-import com.mongodb.casbah.MongoClient
-import com.mongodb.casbah.MongoClientURI
-import com.mongodb.util.JSON
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
-import scala.io.Source
-import scala.sys.process._
 
 abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int,newAnalyser: Boolean,rawFile:String) extends Actor {
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on

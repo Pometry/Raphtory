@@ -1,10 +1,7 @@
 package com.raphtory.examples.wordSemantic.routers
 
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
+import com.raphtory.core.components.Router.GraphBuilder
 import com.raphtory.core.model.communication._
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
 
 class CooccurrenceMatrixGraphBuilderFiltered extends GraphBuilder[String] {
   val THR = System.getenv().getOrDefault("COOC_FREQ_THRESHOLD ", "0.05").trim.toDouble

@@ -6,12 +6,10 @@ import com.raphtory.core.analysis.API.GraphLenses.GraphLens
 import com.raphtory.core.analysis.API.ManagerCount
 import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.{Edge, MutableProperty, Vertex}
+import com.raphtory.core.model.graphentities.{Edge, Vertex}
 import com.raphtory.core.utils.Utils
 
-import scala.collection.mutable
-import scala.collection.parallel.ParSet
-import scala.collection.parallel.mutable.{ParIterable, ParTrieMap}
+import scala.collection.parallel.mutable.ParIterable
 import scala.reflect.ClassTag
 object VertexVisitor {
   def apply(v: Vertex, jobID: ViewJob, superStep: Int, proxy: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) =

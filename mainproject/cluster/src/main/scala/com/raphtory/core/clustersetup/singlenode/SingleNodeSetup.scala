@@ -1,22 +1,11 @@
 package com.raphtory.core.clustersetup.singlenode
 
-import akka.actor.{ActorSystem, Props}
-import com.raphtory.core.analysis.API.Analyser
+import akka.actor.Props
 import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.analysis.Tasks.LiveTasks.BWindowedLiveAnalysisTask
-import com.raphtory.core.analysis.Tasks.LiveTasks.LiveAnalysisTask
-import com.raphtory.core.analysis.Tasks.LiveTasks.WindowedLiveAnalysisTask
-import com.raphtory.core.analysis.Tasks.RangeTasks.BWindowedRangeAnalysisTask
-import com.raphtory.core.analysis.Tasks.RangeTasks.RangeAnalysisTask
-import com.raphtory.core.analysis.Tasks.RangeTasks.WindowedRangeAnalysisTask
-import com.raphtory.core.analysis.Tasks.ViewTasks.BWindowedViewAnalysisTask
-import com.raphtory.core.analysis.Tasks.ViewTasks.ViewAnalysisTask
-import com.raphtory.core.analysis.Tasks.ViewTasks.WindowedViewAnalysisTask
 import com.raphtory.core.clustersetup.DocSvr
 import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.components.Router.GraphBuilder
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.language.postfixOps
 

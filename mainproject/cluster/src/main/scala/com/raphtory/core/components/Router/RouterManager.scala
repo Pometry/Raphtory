@@ -1,11 +1,7 @@
 package com.raphtory.core.components.Router
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.Router.RouterManager.Message.KeepAlive
 import com.raphtory.core.model.communication._
 

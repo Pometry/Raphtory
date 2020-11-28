@@ -3,16 +3,14 @@ package com.raphtory.sources.blockchain
 import java.net.InetAddress
 import java.util.NoSuchElementException
 
-import com.raphtory.core.components.Spout.{DataSource, Spout}
+import com.raphtory.core.components.Spout.DataSource
 import com.raphtory.core.utils.Utils
-import scala.language.postfixOps
-import scala.sys.process._
-import scalaj.http.Http
-import scalaj.http.HttpRequest
-import spray.json._
+import scalaj.http.{Http, HttpRequest}
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import scala.collection.mutable
+import scala.language.postfixOps
 
 
 

@@ -1,12 +1,9 @@
 package com.raphtory.examples.blockchain.routers
 
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
+import com.raphtory.core.components.Router.GraphBuilder
 import com.raphtory.core.model.communication._
 import com.raphtory.sources.blockchain.BitcoinTransaction
 import spray.json.JsArray
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.{ParArray, ParHashSet}
 
 class BitcoinGraphBuilder extends GraphBuilder[BitcoinTransaction]{
 

@@ -1,18 +1,13 @@
 package com.raphtory.core.clustersetup
 
-import akka.actor.ActorSystem
-import akka.actor.Address
-import akka.actor.ExtendedActorSystem
-import akka.cluster.Cluster
+import akka.actor.{ActorSystem, Address, ExtendedActorSystem}
 import akka.cluster.Member
 import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
 import com.raphtory.core.clustersetup.util.ConfigUtils._
 import com.raphtory.core.utils.Utils
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
-import com.typesafe.config.ConfigValueFactory
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 import scala.collection.JavaConversions
 import scala.collection.JavaConversions._

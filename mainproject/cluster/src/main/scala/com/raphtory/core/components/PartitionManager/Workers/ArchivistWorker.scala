@@ -1,7 +1,6 @@
 package com.raphtory.core.components.PartitionManager.Workers
 
-import akka.actor.Actor
-import akka.actor.ActorRef
+import akka.actor.{Actor, ActorRef}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils

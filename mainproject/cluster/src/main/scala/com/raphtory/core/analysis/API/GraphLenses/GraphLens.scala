@@ -1,16 +1,15 @@
 package com.raphtory.core.analysis.API.GraphLenses
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.ManagerCount
 import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
+import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.graphentities.Vertex
 import com.raphtory.core.storage.EntityStorage
-import java.util.concurrent.atomic.AtomicInteger
-
-import com.raphtory.core.components.PartitionManager.Workers.ViewJob
 
 import scala.collection.parallel.ParIterable
-import scala.collection.parallel.mutable.ParTrieMap
 
 abstract class GraphLens(jobID: ViewJob, superstep: Int, storage: EntityStorage, managerCount: ManagerCount) {
   private val messages     = new AtomicInteger(0)

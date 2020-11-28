@@ -1,9 +1,6 @@
 package com.raphtory.core.utils
 
-import akka.actor.Actor
-import akka.actor.ActorContext
-import akka.actor.ActorRef
-import akka.actor.Cancellable
+import akka.actor.{Actor, ActorContext, ActorRef, Cancellable}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration

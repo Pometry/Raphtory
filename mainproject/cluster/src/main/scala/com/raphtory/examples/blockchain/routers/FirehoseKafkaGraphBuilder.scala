@@ -1,17 +1,9 @@
 package com.raphtory.examples.blockchain.routers
 
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import com.raphtory.core.components.Router.{GraphBuilder, RouterWorker}
-import com.raphtory.core.model.communication.{DoubleProperty, EdgeAdd, EdgeAddWithProperties, EdgeDelete, GraphUpdate, ImmutableProperty, LongProperty, Properties, StringProperty, VertexAdd, VertexAddWithProperties, VertexDelete}
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.stream.ActorMaterializer
-import spray.json._
+import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.model.communication._
 
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
 import scala.util.Random
-import scala.util.hashing.MurmurHash3
-import scala.math.BigInt
 class FirehoseKafkaGraphBuilder extends GraphBuilder[String] {
   var DELETEPERCENT = System.getenv().getOrDefault("ETHER_DELETE_PERCENT", "0").trim.toDouble/100
   var DELETESEED = System.getenv().getOrDefault("ETHER_DELETE_SEED", "123").trim.toInt

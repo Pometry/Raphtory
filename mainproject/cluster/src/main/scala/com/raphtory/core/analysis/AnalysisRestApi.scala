@@ -1,26 +1,22 @@
 package com.raphtory.core.analysis
 
-import akka.actor.ActorSystem
-import akka.actor._
+import akka.actor.{ActorSystem, _}
+import akka.cluster.pubsub._
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.HttpMethods._
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, _}
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.Timeout
+import com.raphtory.core.model.communication._
 import com.typesafe.config.ConfigFactory
-
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
-import akka.cluster.pubsub._
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import com.raphtory.core.clustersetup.util.ConfigUtils.SystemConfig
-import com.raphtory.core.model.communication.{AnalysisRequest, JobDoesntExist, JobKilled, KillTask, LiveAnalysisPOST, LiveAnalysisRequest, RangeAnalysisPOST, RangeAnalysisRequest, RequestResults, ResultsForApiPI, ViewAnalysisPOST, ViewAnalysisRequest}
 import spray.json.DefaultJsonProtocol._
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 case class AnalysisRestApi(system:ActorSystem){
   implicit val system2 = system
