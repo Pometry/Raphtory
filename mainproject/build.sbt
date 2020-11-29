@@ -99,7 +99,7 @@ lazy val basicSettings = Seq(
 lazy val dockerStuff = Seq(
         maintainer := "Imane Hafnaoui <i.hafnaoui@qmul.ac.uk>",
         dockerBaseImage := "miratepuffin/raphtory-redis:latest",
-        dockerRepository := Some("niallroche"),
+        dockerRepository := Some("miratepuffin"),
         dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600,8081,46339,9100),
 
 )
@@ -124,15 +124,15 @@ lazy val mergeStrategy: String => MergeStrategy = {
       case "spring.schemas" :: Nil | "spring.handlers" :: Nil |
            "io.netty.versions.properties" :: Nil =>
         MergeStrategy.filterDistinctLines
-      case _ => MergeStrategy.discard
+      case _ => MergeStrategy.first
     }
-  case _ => MergeStrategy.discard
+  case _ => MergeStrategy.first
 }
 
 lazy val root = Project(id = "raphtory", base = file(".")) aggregate (cluster)
 
 lazy val cluster = project
-  .in(file("cluster"))
+  .in(file("."))
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(AshScriptPlugin)
   .enablePlugins(JavaAgent)
