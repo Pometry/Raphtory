@@ -40,11 +40,6 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       newestTime = updateTime //this isn't thread safe, but is only an approx for the archiving
   }
 
-  def apply(printing: Boolean, managerCount: Int) = {
-    this.managerCount = managerCount
-    this
-  }
-
   def setManagerCount(count: Int) = this.managerCount = count
 
   def addProperties(msgTime: Long, entity: Entity, properties: Properties): Unit =
