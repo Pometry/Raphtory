@@ -3,7 +3,7 @@ package com.raphtory.core.components.Router
 import akka.actor.{Actor, ActorLogging}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.Router.RouterWorker.CommonMessage.TimeBroadcast
-import com.raphtory.core.components.Spout.Spout.CommonMessage.{NoWork, SpoutOnline, WorkPlease}
+import com.raphtory.core.components.Spout.SpoutAgent.CommonMessage.{NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.Utils
 import com.raphtory.core.utils.Utils.getManager
