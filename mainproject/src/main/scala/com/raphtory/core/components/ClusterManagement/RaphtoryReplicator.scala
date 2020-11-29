@@ -6,7 +6,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
-import com.raphtory.core.components.PartitionManager.{Archivist, Reader, Writer}
+import com.raphtory.core.components.PartitionManager.{Reader, Writer}
 import com.raphtory.core.components.Router.{GraphBuilder, RouterManager}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.storage.EntityStorage
