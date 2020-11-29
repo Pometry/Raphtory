@@ -108,11 +108,18 @@ object FileManager extends LazyLogging {
 
   private def getListOfFiles(dir: String): List[File] = {
     val d = new File(dir)
-    if (d.exists && d.isDirectory)
-      d.listFiles.toList.filter(f => f.isFile && !f.isHidden)
+    if (d.exists && d.isDirectory) {
+      val files = getRecursiveListOfFiles(d)
+      files.filter(f => f.isFile && !f.isHidden)
+    }
     else {
       logger.error(s"Directory $dir does not exist or is not directory")
       List.empty
     }
+  }
+
+  private def getRecursiveListOfFiles(dir: File): List[File] = {
+    val these = dir.listFiles.toList
+    these ++ these.filter(_.isDirectory).flatMap(getRecursiveListOfFiles)
   }
 }
