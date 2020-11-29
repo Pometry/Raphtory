@@ -63,9 +63,9 @@ class AnalysisManager() extends Actor{
   }
 
   def spawnLiveAnalysisManager(request: LiveAnalysisRequest): Unit = {
-    println(s"Live Analysis Task ${request.jobID} received, running ${request.analyserName}")
     try {
-      val jobID = request.jobID
+      val jobID = request.analyserName+"_"+System.currentTimeMillis().toString
+      println(s"Live Analysis Task received, your job ID is ${jobID}")
       val args = request.args
       val repeatTime = request.repeatTime
       val eventTime = request.eventTime
@@ -90,9 +90,10 @@ class AnalysisManager() extends Actor{
     }
   }
   def spawnViewAnalysisManager(request: ViewAnalysisRequest): Unit = {
-    println(s"View Analysis Task ${request.jobID} received, running ${request.analyserName} at time ${request.timestamp}")
+
     try{
-      val jobID = request.jobID
+      val jobID = request.analyserName+"_"+System.currentTimeMillis().toString
+      println(s"View Analysis Task received, your job ID is ${jobID}")
       val timestamp = request.timestamp
       val args = request.args
       val buildAnalyser = getAnalyser(request.analyserName,args,request.rawFile)
@@ -124,9 +125,9 @@ class AnalysisManager() extends Actor{
   }
 
   def spawnRangeAnalysisManager(request: RangeAnalysisRequest): Unit = {
-    println(s"Range Analysis Task ${request.jobID} received, running ${request.analyserName}, between ${request.start} and ${request.end} jumping ${request.jump} at a time.")
     try{
-      val jobID = request.jobID
+      val jobID = request.analyserName+"_"+System.currentTimeMillis().toString
+      println(s"Range Analysis Task received, your job ID is ${jobID}, running ${request.analyserName}, between ${request.start} and ${request.end} jumping ${request.jump} at a time.")
       val start = request.start
       val end   = request.end
       val jump  = request.jump

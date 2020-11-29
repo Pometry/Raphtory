@@ -31,32 +31,32 @@ case class AnalysisRestApi(system:ActorSystem){
     //Submit Analysis
     case HttpRequest(POST,Uri.Path("/LiveAnalysisRequest"),_,entity,_)  => {
       try{
-        implicit val LiveAnalysisFormat = jsonFormat9(LiveAnalysisPOST)
+        implicit val LiveAnalysisFormat = jsonFormat8(LiveAnalysisPOST)
         val in:LiveAnalysisPOST = Await.result(Unmarshal(entity).to[LiveAnalysisPOST], 10.second)
-        val response = LiveAnalysisRequest(in.jobID,in.analyserName,in.repeatTime.getOrElse(0),in.eventTime.getOrElse(false),in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
+        val response = LiveAnalysisRequest(in.analyserName,in.repeatTime.getOrElse(0),in.eventTime.getOrElse(false),in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
         mediator ! DistributedPubSubMediator.Send("/user/AnalysisManager", response, false)
-        HttpResponse(entity = s"""Your Task ${in.jobID} Has been successfully submitted as a Live Analysis Task!""")
+        HttpResponse(entity = s"""Your Task Has been successfully submitted as a Live Analysis Task!""")
       }
       catch {
         case e:Exception => e.printStackTrace();HttpResponse(entity = "Your Task Appeared to have some issue, please check your JSON and resubmit")}
     }
     case HttpRequest(POST,Uri.Path("/ViewAnalysisRequest"),_,entity,_)  => {
       try{
-        implicit val viewAnalysisPOST = jsonFormat8(ViewAnalysisPOST)
+        implicit val viewAnalysisPOST = jsonFormat7(ViewAnalysisPOST)
         val in:ViewAnalysisPOST = Await.result(Unmarshal(entity).to[ViewAnalysisPOST], 100  .second)
-        val response = ViewAnalysisRequest(in.jobID,in.analyserName,in.timestamp,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
+        val response = ViewAnalysisRequest(in.analyserName,in.timestamp,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
         mediator ! DistributedPubSubMediator.Send("/user/AnalysisManager", response, false)
-        HttpResponse(entity = s"""Your Task ${in.jobID} Has been successfully submitted as a View Analysis Task!""")
+        HttpResponse(entity = s"""Your Task Has been successfully submitted as a View Analysis Task!""")
       }
       catch {case e:Exception => e.printStackTrace();HttpResponse(entity = "Your Task Appeared to have some issue, please check your JSON and resubmit")}
     }
     case HttpRequest(POST,Uri.Path("/RangeAnalysisRequest"),_,entity,_)  => {
       try{
-        implicit val rangeAnalysisPOST = jsonFormat10(RangeAnalysisPOST)
+        implicit val rangeAnalysisPOST = jsonFormat9(RangeAnalysisPOST)
         val in:RangeAnalysisPOST = Await.result(Unmarshal(entity).to[RangeAnalysisPOST], 10.second)
-        val response = RangeAnalysisRequest(in.jobID,in.analyserName,in.start,in.end,in.jump,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
+        val response = RangeAnalysisRequest(in.analyserName,in.start,in.end,in.jump,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
         mediator ! DistributedPubSubMediator.Send("/user/AnalysisManager", response, false)
-        HttpResponse(entity = s"""Your Task ${in.jobID} Has been successfully submitted as a Range Analysis Task!""")
+        HttpResponse(entity = s"""Your Task Has been successfully submitted as a Range Analysis Task!""")
       }
       catch {case e:Exception => e.printStackTrace();HttpResponse(entity = "Your Task Appeared to have some issue, please check your JSON and resubmit")}
     }

@@ -124,9 +124,9 @@ lazy val mergeStrategy: String => MergeStrategy = {
       case "spring.schemas" :: Nil | "spring.handlers" :: Nil |
            "io.netty.versions.properties" :: Nil =>
         MergeStrategy.filterDistinctLines
-      case _ => MergeStrategy.deduplicate
+      case _ => MergeStrategy.discard
     }
-  case _ => MergeStrategy.deduplicate
+  case _ => MergeStrategy.discard
 }
 
 lazy val root = Project(id = "raphtory", base = file(".")) aggregate (cluster)

@@ -115,12 +115,11 @@ case class ReaderWorkersACK()    extends RaphReadClasses
 
 
 
-case class LiveAnalysisPOST(jobID:String, analyserName:String, windowType:Option[String], windowSize:Option[Long], windowSet:Option[Array[Long]],repeatTime:Option[Long],eventTime:Option[Boolean],args:Option[Array[String]],rawFile:Option[String])
-case class ViewAnalysisPOST(jobID:String,analyserName:String,timestamp:Long,windowType:Option[String],windowSize:Option[Long],windowSet:Option[Array[Long]],args:Option[Array[String]],rawFile:Option[String])
-case class RangeAnalysisPOST(jobID:String,analyserName:String,start:Long,end:Long,jump:Long,windowType:Option[String],windowSize:Option[Long],windowSet:Option[Array[Long]],args:Option[Array[String]],rawFile:Option[String])
+case class LiveAnalysisPOST(analyserName:String, windowType:Option[String], windowSize:Option[Long], windowSet:Option[Array[Long]],repeatTime:Option[Long],eventTime:Option[Boolean],args:Option[Array[String]],rawFile:Option[String])
+case class ViewAnalysisPOST(analyserName:String,timestamp:Long,windowType:Option[String],windowSize:Option[Long],windowSet:Option[Array[Long]],args:Option[Array[String]],rawFile:Option[String])
+case class RangeAnalysisPOST(analyserName:String,start:Long,end:Long,jump:Long,windowType:Option[String],windowSize:Option[Long],windowSet:Option[Array[Long]],args:Option[Array[String]],rawFile:Option[String])
 trait AnalysisRequest
 case class LiveAnalysisRequest(
-    jobID: String,
     analyserName: String,
     repeatTime:Long =0L,
     eventTime:Boolean=false,
@@ -131,7 +130,6 @@ case class LiveAnalysisRequest(
     rawFile:String=""
 ) extends AnalysisRequest
 case class ViewAnalysisRequest(
-    jobID: String,
     analyserName: String,
     timestamp: Long,
     windowType: String = "false",
@@ -141,7 +139,6 @@ case class ViewAnalysisRequest(
     rawFile:String=""
 ) extends AnalysisRequest
 case class RangeAnalysisRequest(
-    jobID: String,
     analyserName: String,
     start: Long,
     end: Long,
