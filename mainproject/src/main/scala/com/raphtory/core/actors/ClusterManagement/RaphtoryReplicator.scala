@@ -127,20 +127,20 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
     var storages: ParTrieMap[Int, EntityStorage] = new ParTrieMap[Int, EntityStorage]()
 
     for (index <- 0 until totalWorkers) {
-      val storage     = new EntityStorage(assignedId,index)
+      val storage     = new EntityStorage(currentCount,assignedId,index)
       storages.put(index, storage)
 
       val managerName = s"Manager_${assignedId}_child_$index"
       workers.put(
               index,
               context.system
-                .actorOf(Props(new IngestionWorker(index,assignedId, storage)).withDispatcher("worker-dispatcher"), managerName)
+                .actorOf(Props(new IngestionWorker(index,assignedId, storage,currentCount)).withDispatcher("worker-dispatcher"), managerName)
       )
     }
 
-    actorRef = context.system.actorOf(Props(new Writer(myId, false, currentCount, workers, storages)), s"Manager_$myId")
+    actorRef = context.system.actorOf(Props(new Writer(myId,  currentCount, workers, storages)), s"Manager_$myId")
 
-    actorRefReader = context.system.actorOf(Props(new Reader(myId, false, currentCount, storages)), s"ManagerReader_$myId")
+    actorRefReader = context.system.actorOf(Props(new Reader(myId,  currentCount, storages)), s"ManagerReader_$myId")
 
   }
 

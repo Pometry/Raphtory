@@ -28,11 +28,12 @@ class AllCommandsSpout extends Spout[String] {
 
   def distribution(): String = {
     val random = rnd.nextFloat()
+    // genVertexAdd()
     if (random <= 0.3) genVertexAdd()
     //else genEdgeAdd()
-    else if (random <= 0.7) genEdgeAdd()
-//  else genEdgeRemoval()
-    else if (random <= 0.98) genEdgeRemoval()
+    else if (random <= 0.90) genEdgeAdd()
+  //  else genEdgeRemoval()
+    //else if (random <= 0.98) genEdgeRemoval()
     else genVertexRemoval()
   }
 

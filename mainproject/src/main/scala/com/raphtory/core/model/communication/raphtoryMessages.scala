@@ -39,7 +39,7 @@ case class Properties(property: Property*)
 case class VertexAdd(msgTime: Long, override val srcID: Long, vType: Type = null) extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
 case class TrackedVertexAdd(routerID: String, messageID:Int, update:VertexAdd) extends TrackedGraphUpdate
 case class VertexAddWithProperties(msgTime: Long, override val srcID: Long, properties: Properties, vType: Type = null) extends GraphUpdate
-case class TrackedVertexAddWithProperties(routerID: String,messageID:Int, update:VertexAddWithProperties) extends TrackedGraphUpdate
+case class TrackedVertexAddWithProperties(routerID: String,messageID:Int,update:VertexAddWithProperties) extends TrackedGraphUpdate
 case class VertexDelete(msgTime: Long, override val srcID: Long) extends GraphUpdate
 case class TrackedVertexDelete(routerID: String,messageID:Int, update:VertexDelete) extends TrackedGraphUpdate
 case class EdgeAdd(msgTime: Long, srcID: Long, dstID: Long, eType: Type = null) extends GraphUpdate
@@ -49,24 +49,26 @@ case class TrackedEdgeAddWithProperties(routerID: String,messageID:Int, update:E
 case class EdgeDelete(msgTime: Long, override val srcID: Long, dstID: Long) extends GraphUpdate
 case class TrackedEdgeDelete(routerID: String,messageID:Int, update:EdgeDelete) extends TrackedGraphUpdate
 
-case class RemoteEdgeAdd(msgTime: Long, srcID: Long, dstID: Long, properties: Properties, eType: Type, routerID: String, routerTime: Int)
-case class RemoteEdgeRemoval(msgTime: Long, srcID: Long, dstID: Long, routerID: String, routerTime: Int)
-case class RemoteEdgeRemovalFromVertex(msgTime: Long, srcID: Long, dstID: Long, routerID: String, routerTime: Int)
+sealed abstract class EffectMessage(val targetId: Long) extends Serializable
 
-case class RemoteEdgeAddNew(msgTime: Long, srcID: Long, dstID: Long, properties: Properties, kills: mutable.TreeMap[Long, Boolean], vType: Type, routerID: String, routerTime: Int)
-case class RemoteEdgeRemovalNew(msgTime: Long, srcID: Long, dstID: Long, kills: mutable.TreeMap[Long, Boolean], routerID: String, routerTime: Int)
+case class RemoteEdgeAdd(msgTime: Long, srcID: Long, dstID: Long, properties: Properties, eType: Type, routerID: String, routerTime: Int) extends EffectMessage(dstID)
+case class RemoteEdgeRemoval(msgTime: Long, srcID: Long, dstID: Long, routerID: String, routerTime: Int) extends EffectMessage(dstID)
+case class RemoteEdgeRemovalFromVertex(msgTime: Long, srcID: Long, dstID: Long, routerID: String, routerTime: Int) extends EffectMessage(dstID)
 
-case class RemoteReturnDeaths(msgTime: Long, srcID: Long, dstID: Long, kills: mutable.TreeMap[Long, Boolean], routerID: String, routerTime: Int)
-case class ReturnEdgeRemoval(msgTime: Long, srcID: Long, dstID: Long,routerID:String,routerTime:Int)
+case class RemoteEdgeAddNew(msgTime: Long, srcID: Long, dstID: Long, properties: Properties, kills: mutable.TreeMap[Long, Boolean], vType: Type, routerID: String, routerTime: Int) extends EffectMessage(dstID)
+case class RemoteEdgeRemovalNew(msgTime: Long, srcID: Long, dstID: Long, kills: mutable.TreeMap[Long, Boolean], routerID: String, routerTime: Int) extends EffectMessage(dstID)
+
+case class RemoteReturnDeaths(msgTime: Long, srcID: Long, dstID: Long, kills: mutable.TreeMap[Long, Boolean], routerID: String, routerTime: Int) extends EffectMessage(srcID)
+case class ReturnEdgeRemoval(msgTime: Long, srcID: Long, dstID: Long,routerID:String,routerTime:Int) extends EffectMessage(srcID)
 
 //BLOCK FROM WORKER SYNC
-case class DstAddForOtherWorker(msgTime: Long, dstID: Long, srcForEdge: Long, edge: Edge, present: Boolean, routerID: String, routerTime: Int)
-case class DstWipeForOtherWorker(msgTime: Long, dstID: Long, srcForEdge: Long, edge: Edge, present: Boolean, routerID: String, routerTime: Int)
-case class DstResponseFromOtherWorker(msgTime: Long, srcForEdge: Long, dstID: Long, removeList: mutable.TreeMap[Long, Boolean], routerID: String, routerTime: Int)
-case class EdgeRemoveForOtherWorker(msgTime: Long, srcID: Long, dstID: Long,routerID: String, routerTime: Int)
+case class DstAddForOtherWorker(msgTime: Long, dstID: Long, srcForEdge: Long, edge: Edge, present: Boolean, routerID: String, routerTime: Int) extends EffectMessage(dstID)
+case class DstWipeForOtherWorker(msgTime: Long, dstID: Long, srcForEdge: Long, edge: Edge, present: Boolean, routerID: String, routerTime: Int) extends EffectMessage(dstID)
+case class DstResponseFromOtherWorker(msgTime: Long, srcID: Long, dstID: Long, removeList: mutable.TreeMap[Long, Boolean], routerID: String, routerTime: Int) extends EffectMessage(srcID)
+case class EdgeRemoveForOtherWorker(msgTime: Long, srcID: Long, dstID: Long,routerID: String, routerTime: Int) extends EffectMessage(srcID)
 
-case class EdgeSyncAck(msgTime: Long, routerID: String, routerTime: Int)
-case class VertexRemoveSyncAck(msgTime: Long, routerID: String, routerTime: Int)
+case class EdgeSyncAck(msgTime: Long, srcID: Long, routerID: String, routerTime: Int) extends EffectMessage(srcID)
+case class VertexRemoveSyncAck(msgTime: Long, override val targetId: Long, routerID: String, routerTime: Int) extends EffectMessage(targetId)
 case class RouterWorkerTimeSync(msgTime:Long,routerID:String,routerTime:Int)
 
 case class UpdatedCounter(newValue: Int)

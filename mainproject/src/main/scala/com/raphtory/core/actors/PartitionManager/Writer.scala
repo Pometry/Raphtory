@@ -19,7 +19,6 @@ import scala.language.postfixOps
   * */
 class Writer(
     id: Int,
-    test: Boolean,
     managerCountVal: Int,
     workers: ParTrieMap[Int, ActorRef],
     storage: ParTrieMap[Int, EntityStorage]
@@ -44,11 +43,6 @@ class Writer(
   val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
 
   mediator ! DistributedPubSubMediator.Put(self)
-
-  storage.foreach {
-    case (_, entityStorage) =>
-      entityStorage.apply(printing, managerCount, managerId, mediator)
-  }
 
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
@@ -109,11 +103,9 @@ class Writer(
     if (storage.isEmpty)
       log.warning("Entity storage is empty. The request [{}] will not be acted upon.", req)
     else
-      storage.foreach {
-        case (_, entityStorage) =>
-          log.debug("Setting manager count for [{}] to [{}].", entityStorage, managerCount)
-
-          entityStorage.setManagerCount(managerCount)
+      storage.values.foreach { entityStorage =>
+        log.debug(s"Setting manager count for [$entityStorage] to [$managerCount].")
+        entityStorage.setManagerCount(managerCount)
       }
   }
 
