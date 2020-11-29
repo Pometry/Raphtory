@@ -13,7 +13,6 @@ import scala.util.Try
 
 class Reader(
     id: Int,
-    test: Boolean,
     managerCountVal: Int,
     storage: ParTrieMap[Int, EntityStorage],
     workerCount: Int = Utils.totalWorkers

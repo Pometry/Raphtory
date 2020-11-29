@@ -39,7 +39,7 @@ class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
 
   //Functions for adding associated edges to this vertex
   def incrementEdgesRequiringSync()  =edgesRequiringSync+=1
-  def getEdgesRequringSync() =edgesRequiringSync
+  def getEdgesRequringSync() = edgesRequiringSync
   def addIncomingEdge(edge: Edge): Unit = incomingEdges.put(edge.getSrcId, edge)
   def addOutgoingEdge(edge: Edge): Unit = outgoingEdges.put(edge.getDstId, edge)
   def addAssociatedEdge(edge: Edge): Unit =

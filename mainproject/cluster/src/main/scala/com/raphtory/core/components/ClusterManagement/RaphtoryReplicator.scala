@@ -37,8 +37,8 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
 
   var myId: Int                = -1
   var currentCount: Int        = initialManagerCount
-  var actorRef: ActorRef       = _
-  var actorRefReader: ActorRef = _
+  var writerActorRef: ActorRef       = _
+  var readerActorRef: ActorRef = _
 
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -91,10 +91,10 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
     if (req.count > currentCount) {
       currentCount = req.count
 
-      if (actorRef != null)
-        actorRef ! UpdatedCounter(currentCount)
-      if (actorRefReader != null)
-        actorRef ! UpdatedCounter(currentCount)
+      if (writerActorRef != null)
+        writerActorRef ! UpdatedCounter(currentCount)
+      if (readerActorRef != null)
+        writerActorRef ! UpdatedCounter(currentCount)
     }
   }
 
@@ -128,20 +128,20 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
     var storages: ParTrieMap[Int, EntityStorage] = new ParTrieMap[Int, EntityStorage]()
 
     for (index <- 0 until Utils.totalWorkers) {
-      val storage     = new EntityStorage(assignedId,index)
+      val storage     = EntityStorage(assignedId, currentCount, myId, index)
       storages.put(index, storage)
 
       val managerName = s"Manager_${assignedId}_child_$index"
       workers.put(
               index,
               context.system
-                .actorOf(Props(new IngestionWorker(index,assignedId, storage)).withDispatcher("worker-dispatcher"), managerName)
+                .actorOf(Props(new IngestionWorker(index,assignedId, storage, currentCount)).withDispatcher("worker-dispatcher"), managerName)
       )
     }
 
-    actorRef = context.system.actorOf(Props(new Writer(myId, false, currentCount, workers, storages)), s"Manager_$myId")
+    writerActorRef = context.system.actorOf(Props(new Writer(myId, currentCount, workers, storages)), s"Manager_$myId")
 
-    actorRefReader = context.system.actorOf(Props(new Reader(myId, false, currentCount, storages)), s"ManagerReader_$myId")
+    readerActorRef = context.system.actorOf(Props(new Reader(myId, currentCount, storages)), s"ManagerReader_$myId")
 
     context.system.actorOf(Props(new Archivist(0.3, workers, storages)))
 
@@ -150,7 +150,7 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
   def createNewRouter(assignedId: Int): Unit = {
     log.info(s"Router $assignedId has come online.")
 
-    actorRef = context.system.actorOf(
+    writerActorRef = context.system.actorOf(
       Props(new RouterManager(myId, currentCount, initialRouterCount, graphBuilder)).withDispatcher("misc-dispatcher"),
       "router"
     )
