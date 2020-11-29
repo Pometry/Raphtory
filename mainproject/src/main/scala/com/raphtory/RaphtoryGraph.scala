@@ -17,8 +17,8 @@ object RaphtoryGraph {
 class RaphtoryGraph[T](dataSource: Spout[T], graphBuilder: GraphBuilder[T]) {
   Kamon.init() //start tool logging
 
-  val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
-  root.setLevel(Level.ERROR)
+//  val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
+  //root.setLevel(Level.ERROR)
   val system = ActorSystem("Citation-system")
 
   val partitionNumber = 1
