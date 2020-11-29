@@ -3,13 +3,13 @@ package com.raphtory.examples.gab.datasources
 import akka.actor.Cancellable
 import ch.qos.logback.classic.Level
 import com.mongodb.casbah.Imports.{MongoConnection, _}
-import com.raphtory.core.components.Spout.DataSource
+import com.raphtory.core.components.Spout.Spout
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.language.postfixOps
 
-final class GabMongoDataSource extends DataSource[String] {
+final class GabMongoSpout extends Spout[String] {
 
   //private val redis    = new RedisClient("moe", 6379)
   //private val redisKey = "gab-posts"

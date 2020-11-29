@@ -1,9 +1,9 @@
 package com.raphtory.examples.lotr
 
-import com.raphtory.Raphtory
+import com.raphtory.RaphtoryGraph
 
 object LOTRDeployment extends App{
-  val source  = new LOTRDataSource()
+  val source  = new LOTRSpout()
   val builder = new LOTRGraphBuilder()
-  Raphtory[String](source,builder)
+  RaphtoryGraph[String](source,builder)
 }
