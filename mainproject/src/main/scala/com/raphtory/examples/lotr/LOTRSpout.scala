@@ -1,6 +1,6 @@
 package com.raphtory.examples.lotr
 
-import com.raphtory.core.components.Spout.Spout
+import com.raphtory.core.actors.Spout.Spout
 
 import scala.collection.mutable
 

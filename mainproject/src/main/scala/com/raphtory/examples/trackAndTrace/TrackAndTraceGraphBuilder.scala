@@ -1,6 +1,6 @@
 package com.raphtory.examples.trackAndTrace
 
-import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication.{Type, _}
 
 class TrackAndTraceGraphBuilder extends GraphBuilder[String] {

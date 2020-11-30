@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
+import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer

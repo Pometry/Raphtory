@@ -3,7 +3,7 @@ package com.raphtory.spouts.blockchain
 import java.net.InetAddress
 import java.util.NoSuchElementException
 
-import com.raphtory.core.components.Spout.Spout
+import com.raphtory.core.actors.Spout.Spout
 import com.raphtory.core.utils.Utils
 import scalaj.http.{Http, HttpRequest}
 import spray.json.DefaultJsonProtocol._

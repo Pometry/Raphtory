@@ -1,6 +1,6 @@
 package com.raphtory.examples.blockchain.graphbuilders
 
-import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication.{EdgeAddWithProperties, Properties, StringProperty, VertexAddWithProperties}
 
 import scala.util.hashing.MurmurHash3

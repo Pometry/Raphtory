@@ -1,6 +1,6 @@
 package com.raphtory.examples.blockchain.graphbuilders
 
-import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication._
 class EthereumGethGraphBuilder extends GraphBuilder[String] {
   def hexToInt(hex: String) = Integer.parseInt(hex.drop(2), 16)

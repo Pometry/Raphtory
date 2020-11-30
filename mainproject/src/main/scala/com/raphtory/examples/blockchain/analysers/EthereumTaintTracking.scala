@@ -1,6 +1,6 @@
 package com.raphtory.examples.blockchain.analysers
 
-import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable

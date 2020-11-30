@@ -1,6 +1,6 @@
 package com.raphtory.examples.tsvnet
 
-import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication.{EdgeAdd, Type, VertexAdd}
 
 /** Spout for network datasets of the form SRC_NODE_ID DEST_NODE_ID TIMESTAMP */

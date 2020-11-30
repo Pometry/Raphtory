@@ -1,6 +1,6 @@
 package com.raphtory.core.model.communication
 
-import com.raphtory.core.components.PartitionManager.Workers.ViewJob
+import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap

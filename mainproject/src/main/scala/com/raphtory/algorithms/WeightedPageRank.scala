@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.API.Analyser
+import com.raphtory.api.Analyser
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer

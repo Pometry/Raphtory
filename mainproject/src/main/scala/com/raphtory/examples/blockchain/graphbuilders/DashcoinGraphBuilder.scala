@@ -1,6 +1,6 @@
 package com.raphtory.examples.blockchain.graphbuilders
 
-import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication._
 import com.raphtory.spouts.blockchain.BitcoinTransaction
 import spray.json.JsArray
