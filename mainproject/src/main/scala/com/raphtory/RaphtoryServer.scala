@@ -37,7 +37,7 @@ object RaphtoryServer extends App {
     case "partitionManager" => partition()
     case "spout" => spout()
     case "analysisManager" =>analysis()
-    case "clusterUp" => watchDog()
+    case "watchdog" => watchDog()
     case "local" => local()
   }
 
@@ -54,9 +54,7 @@ object RaphtoryServer extends App {
 
     val builderPath  = s"${sys.env.getOrElse("GRAPHBUILDER", "")}"
     val graphBuilder = Class.forName(builderPath).getConstructor().newInstance().asInstanceOf[GraphBuilder[Any]]
-
-    val routerReplicator = RaphtoryReplicator.apply("Router", partitionCount, routerCount,graphBuilder)
-    system.actorOf(Props(routerReplicator), "Routers")
+    system.actorOf(Props(RaphtoryReplicator("Router", partitionCount, routerCount,graphBuilder)), "Routers")
   }
 
   def partition() = {
