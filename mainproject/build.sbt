@@ -140,7 +140,7 @@ lazy val cluster = project
   .settings(dockerStuff: _*)
   .settings(
           mappings in Universal +=
-            file(s"${baseDirectory.value}/../Build-Scripts/env-setter.sh") -> "bin/env-setter.sh"
+            file(s"${baseDirectory.value}/Build-Scripts/env-setter.sh") -> "bin/env-setter.sh"
   )
   .settings(dockerEntrypoint := Seq("bash"))
   .settings(
