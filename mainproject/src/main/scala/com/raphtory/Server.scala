@@ -3,109 +3,190 @@ package com.raphtory
 import java.lang.management.ManagementFactory
 import java.net.InetAddress
 
-import ch.qos.logback.classic.Level
-import com.raphtory.core.clustersetup._
-import com.raphtory.core.clustersetup.singlenode.SingleNodeSetup
-import com.raphtory.examples.test.actors.RandomGraphBuilder
-import com.typesafe.config.ConfigFactory
-import org.slf4j.LoggerFactory
+import akka.actor.{ActorSystem, Address, ExtendedActorSystem, Props}
+import akka.cluster.Member
+import akka.event.LoggingAdapter
+import akka.management.cluster.bootstrap.ClusterBootstrap
+import akka.management.javadsl.AkkaManagement
+import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
+import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.components.Spout.{Spout, SpoutAgent}
+import com.raphtory.core.utils.Utils
+import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory}
 
+import scala.collection.JavaConversions
+import scala.collection.JavaConversions._
 import scala.language.postfixOps
 import scala.sys.process._
 //main function
 
 object Go extends App {
 //  Kamon.init() //start tool logging
+
+  printJavaOptions()
+
+
   val conf    = ConfigFactory.load()
-  val seedLoc = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
-  val root    = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
-  root.setLevel(Level.ERROR)
-  // debug should give timing
-  //root.setLevel(Level.DEBUG)
-  val routerName  = s"${sys.env.getOrElse("ROUTERCLASS", classOf[RandomGraphBuilder].getClass.getName)}"
-  val updaterName = s"${sys.env.getOrElse("SPOUTCLASS", "")}"
-  val docker      = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
-  val runtimeMxBean = ManagementFactory.getRuntimeMXBean
-  val arguments     = runtimeMxBean.getInputArguments
 
-  println(s"Current java options: $arguments")
+
+  val docker = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
+
+  val clusterSystemName: String = Utils.clusterSystemName
+  val ssn: String               = java.util.UUID.randomUUID.toString
+
+  val partitionCount = sys.env("PARTITION_MIN").toInt
+  val routerCount = sys.env("ROUTER_MIN").toInt
+
+  /** Node lookup directory for registered members in the System */
+  var nodes = Set.empty[Member]
+
   args(0) match {
-    case "seedNode" =>
-      println("Creating seed node")
-      setConf(seedLoc)
-      SeedNode(seedLoc)
-    case "router" =>
-      println("Creating Router")
-      RouterNode(getConf(), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt, routerName)
-    case "partitionManager" =>
-      println(s"Creating Partition Manager...")
-      ManagerNode(getConf(), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
+    case "seedNode" => seedNode()
+    case "router" => router()
+    case "partitionManager" => partition()
+    case "spout" => spout()
+    case "analysisManager" =>analysis()
+    case "clusterUp" => watchDog()
+    case "local" => local()
+  }
 
-    case "updater" =>
-      println("Creating Update Generator")
-      UpdateNode(getConf(), updaterName)
+  def seedNode() = {
+    val seedLoc = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
+    println(s"Creating seed node at $seedLoc")
+    implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
+    system.actorOf(Props(new SeedActor()), "cluster")
+  }
 
-    case "analysisManager" =>
-      println("Creating Analysis Manager")
-      LiveAnalysisNode(getConf())
-    case "clusterUp" =>
-      println("Cluster Up, informing Partition Managers and Routers")
-      WatchDogNode(getConf(), sys.env("PARTITION_MIN").toInt, sys.env("ROUTER_MIN").toInt)
+  def router() = {
+    println("Creating Router")
+    implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
 
-    case "singleNodeSetup" =>
-      println("putting up cluster in one node")
-      SingleNodeSetup(
-              hostname2Ip(seedLoc),
-              routerName,
-              updaterName
+    val builderPath  = s"${sys.env.getOrElse("GRAPHBUILDER", "")}"
+    val graphBuilder = Class.forName(builderPath).getConstructor().newInstance().asInstanceOf[GraphBuilder[Any]]
+
+    val routerReplicator = RaphtoryReplicator.apply("Router", partitionCount, routerCount,graphBuilder)
+    system.actorOf(Props(routerReplicator), "Routers")
+  }
+
+  def partition() = {
+    println(s"Creating Partition Manager...")
+    implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
+    system.actorOf(Props(RaphtoryReplicator(actorType = "Partition Manager", initialManagerCount = partitionCount,initialRouterCount = routerCount)), "PartitionManager")
+  }
+
+  def spout() = {
+    println("Creating Update Generator")
+    implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
+    val spoutPath = s"${sys.env.getOrElse("SPOUT", "")}"
+    val spout = Class.forName(spoutPath).getConstructor().newInstance().asInstanceOf[Spout[Any]]
+    system.actorOf(Props(new SpoutAgent(spout)), "Spout")
+  }
+
+  def analysis() = {
+    println("Creating Analysis Manager")
+    implicit val system: ActorSystem = initialiseActorSystem(List(locateSeed()))
+    system.actorOf(Props[AnalysisManager], s"AnalysisManager")
+    AnalysisRestApi(system)
+  }
+
+  def watchDog() = {
+    println("Cluster Up, informing Partition Managers and Routers")
+    implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
+    system.actorOf(Props(new WatermarkManager(managerCount = partitionCount)),"WatermarkManager")
+    system.actorOf(Props(new WatchDog(managerCount = partitionCount, minimumRouters = routerCount)), "WatchDog")
+  }
+
+
+  def local() = {
+    println("putting up cluster in one node")
+    val spoutPath = s"${sys.env.getOrElse("SPOUT", "")}"
+    val builderPath  = s"${sys.env.getOrElse("GRAPHBUILDER", "")}"
+    RaphtoryGraph[Any](spoutPath,builderPath)
+  }
+
+
+  /** Initialise a new ActorSystem with configured name and seed nods
+    *
+    * @param seeds the set of Seed nodes to be added to the System
+    * @return A new Akka ActorSystem object with the set config and seed nodes
+    *         as determined by the ${seeds} parameter
+    */
+  def initialiseActorSystem(seeds: List[String]): ActorSystem = {
+    var config = ConfigFactory.load()
+    val seedLoc = seeds.head
+    if (docker)
+      config = config.withValue(
+        "akka.cluster.seed-nodes",
+        ConfigValueFactory.fromIterable(
+          JavaConversions.asJavaIterable(
+            seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
+          )
+        )
       )
-      prometheusReporter()
+
+    val actorSystem = ActorSystem(clusterSystemName, config)
+    if (!docker) {
+      AkkaManagement.get(actorSystem).start()
+      ClusterBootstrap.get(actorSystem).start()
+    }
+    printConfigInfo(config, actorSystem)
+    actorSystem
   }
 
-  def setConf(seedLoc: String): Unit = {
-    println(s"I AM AT $seedLoc")
-    prometheusReporter()
-  }
-
-  def getConf(): String =
+  def locateSeed(): String =
     if (docker) {
       while (!("nc seedNode 1600" !).equals(0)) {
         println("Waiting for seednode to come online")
         Thread.sleep(3000)
       }
-      prometheusReporter()
-      hostname2Ip("seedNode:1600")
+      InetAddress.getByName("seedNode").getHostAddress() + ":1600"
     } else "127.0.0.1"
 
-  def prometheusReporter() = {
-//    try //SystemMetrics.startCollecting()
-//    catch {
-//      case e: Exception => println("Error in pro")
-//    }
-//    val prom = new PrometheusReporter()
-//
-//    val testLogger = new MetricReporter {
-//
-//      override def reportPeriodSnapshot(snapshot: PeriodSnapshot): Unit =
-//        try prom.reportPeriodSnapshot(snapshot)
-//        catch {
-//          case e: Exception =>
-//            println(e)
-//            println("Hello I have broken and I cannot get up")
-//        }
-//
-//      override def reconfigure(config: Config): Unit = prom.reconfigure(config)
-//
-//      override def stop(): Unit = prom.stop()
-//    }
-//    Kamon.attachInstrumentation()
-//    //Kamon.
-//    //Kamon.addReporter(testLogger)
+
+  case class SocketAddress(host: String, port: String)
+  case class SystemConfig(bindAddress: SocketAddress, tcpAddress: SocketAddress, seeds: List[ConfigValue], roles: List[ConfigValue])
+  def parseConfig(config: Config): SystemConfig = {
+    val bindHost    = config.getString("akka.remote.netty.tcp.bind-hostname")
+    val bindPort    = config.getString("akka.remote.netty.tcp.bind-port")
+    val bindAddress = SocketAddress(bindHost, bindPort)
+
+    val tcpHost    = config.getString("akka.remote.netty.tcp.hostname")
+    val tcpPort    = config.getString("akka.remote.netty.tcp.port")
+    val tcpAddress = SocketAddress(tcpHost, tcpPort)
+
+    val seeds = config.getList("akka.cluster.seed-nodes").toList
+    val roles = config.getList("akka.cluster.roles").toList
+
+    SystemConfig(bindAddress = bindAddress, tcpAddress = tcpAddress, seeds, roles)
   }
 
-  def hostname2Ip(seedLoc: String): String = {
-    val t = seedLoc.split(":")
-    InetAddress.getByName(t(0)).getHostAddress() + ":" + t(1)
+  /** Utility method to print the configuration which an ActorSystem has been created under
+    *
+    * @param config a TypeSafe config object detailing the Akka system configuration
+    * @param system an initialised ActorSystem object
+    */
+  def printConfigInfo(config: Config, system: ActorSystem): Unit = {
+    val log: LoggingAdapter = system.log
+
+    val systemConfig: SystemConfig = parseConfig(config)
+    val bindAddress: SocketAddress = systemConfig.bindAddress
+    val tcpAddress: SocketAddress  = systemConfig.tcpAddress
+
+    log.info(s"Created ActorSystem with ID: $ssn")
+
+    log.info(s"Binding ActorSystem internally to address ${bindAddress.host}:${bindAddress.port}")
+    log.info(s"Binding ActorSystem externally to host ${tcpAddress.host}:${tcpAddress.port}")
+
+    log.info(s"Registering the following seeds to ActorSystem: ${systemConfig.seeds}")
+    log.info(s"Registering the following roles to ActorSystem: ${systemConfig.roles}")
+
+    // FIXME: This is bit unorthodox ...
+    val akkaSystemUrl: Address = system.asInstanceOf[ExtendedActorSystem].provider.getDefaultAddress
+    log.info(s"ActorSystem successfully initialised at the following Akka URL: $akkaSystemUrl")
   }
+
+  def printJavaOptions(): Unit = println(s"Current java options: ${ManagementFactory.getRuntimeMXBean.getInputArguments}")
+
 }

@@ -3,9 +3,8 @@ package com.raphtory.core.components.ClusterManagement
 import akka.actor.{Actor, ActorLogging}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
-import com.raphtory.core.clustersetup.DocSvr
 
-class SeedActor(svr: DocSvr) extends Actor with ActorLogging {
+class SeedActor() extends Actor with ActorLogging {
   val cluster: Cluster = Cluster(context.system)
 
   override def preStart(): Unit = {
@@ -28,24 +27,24 @@ class SeedActor(svr: DocSvr) extends Actor with ActorLogging {
   private def processMemberUpEvent(evt: MemberUp): Unit = {
     log.debug(s"SeedActor received [{}] event.", evt)
 
-    svr.nodes.synchronized {
-      svr.nodes += evt.member
-    }
+//    svr.nodes.synchronized {
+//      svr.nodes += evt.member
+//    }
   }
 
   private def processMemberRemovedEvent(evt: MemberRemoved): Unit = {
     log.debug(s"SeedActor received [{}] event.", evt)
 
-    svr.nodes.synchronized {
-      svr.nodes -= evt.member
-    }
+//    svr.nodes.synchronized {
+//      svr.nodes -= evt.member
+//    }
   }
   private def processMemberExitedEvent(evt: MemberExited): Unit = {
     log.debug(s"SeedActor received [{}] event.", evt)
 
-    svr.nodes.synchronized {
-      svr.nodes -= evt.member
-    }
+//    svr.nodes.synchronized {
+//      svr.nodes -= evt.member
+//    }
   }
 
   private def processUnreachableMemberEvent(evt: UnreachableMember): Unit = {
