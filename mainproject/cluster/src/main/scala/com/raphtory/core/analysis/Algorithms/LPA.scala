@@ -39,7 +39,7 @@ class LPA(args:Array[String]) extends Analyser(args){
         vertex.setState("lpalabel", newLabel)
       }
       vertex.messageAllNeighbours((vertex.ID(), newLabel))
-      doSomething(vertex, gp.map(_._1).toArray)
+      doSomething(vertex, gp.dropRight(1).map(_._1).toArray)
     }catch{
       case e: Exception => println(e, vertex.ID())
     }

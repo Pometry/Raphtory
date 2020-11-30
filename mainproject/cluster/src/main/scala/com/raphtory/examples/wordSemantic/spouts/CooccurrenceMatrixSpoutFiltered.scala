@@ -1,18 +1,13 @@
 package com.raphtory.examples.wordSemantic.spouts
 
-import java.io.{BufferedReader, File, FileReader}
-import java.time.LocalDateTime
-
-import com.raphtory.core.components.Spout.SpoutTrait
 import com.raphtory.core.model.communication.StringSpoutGoing
 import com.raphtory.examples.wordSemantic.spouts.CooccurrenceMatrixSpout.Message.{NextFile,NextLineBlock, NextLineSlice}
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class CooccurrenceMatrixSpoutFiltered extends CooccurrenceMatrixSpout {
  var freq = currentLine.drop(2).grouped(2).map(_.head.toInt).toArray
-  var scale = scalling(freq)
+  var scale = scaling()
 
   override def nextLineSlice() = {
     try {
@@ -39,7 +34,7 @@ class CooccurrenceMatrixSpoutFiltered extends CooccurrenceMatrixSpout {
       cline = currentFile.readLine()
       currentLine = cline.split("\t")
       freq = currentLine.drop(2).grouped(2).map(_.head.toInt).toArray
-      scale = scalling(freq)
+      scale = scaling()
       cnt += 1
       self ! NextLineSlice //AllocateSpoutTask(Duration(1, NANOSECONDS), nextLineSlice)
       }
@@ -48,7 +43,7 @@ class CooccurrenceMatrixSpoutFiltered extends CooccurrenceMatrixSpout {
     }
   }
 
-  def scalling(freq: Array[Int]): Double = {
+  def scaling(): Double = {
    math.sqrt(freq.map(math.pow(_, 2)).sum)
   }
 }
