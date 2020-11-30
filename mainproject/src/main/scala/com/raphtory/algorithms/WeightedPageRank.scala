@@ -1,19 +1,17 @@
-package com.raphtory.core.analysis.Algorithms
+package com.raphtory.algorithms
 
 import com.raphtory.core.analysis.API.Analyser
 import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
-class GabWeightedPageRank(args:Array[String]) extends Analyser(args) {
+class WeightedPageRank(args:Array[String]) extends Analyser(args) {
   object sortOrdering extends Ordering[Double] {
     def compare(key1: Double, key2: Double) = key2.compareTo(key1)
   }
 
   // damping factor, (1-d) is restart probability
   val d = 0.85
-
-  val toWatch = Set(31,4987,1981,709,1175,18992,491,5196,1759,4555).map(_.toLong)
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
@@ -69,37 +67,30 @@ class GabWeightedPageRank(args:Array[String]) extends Analyser(args) {
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
     val totalVert = endResults.map(x => x._1).sum
-    val bestUsers = endResults
-      .map(x => x._2)
-      .flatten
-      .filter(inFilter)
+    val bestUsers = endResults.flatMap(_._2)
+      .sortBy(x => x._2)(sortOrdering)
+      .take(10)
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text = s"""{"time":$timeStamp,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
     println(text)
+    publishData(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long,
-                                    viewCompleteTime: Long ):
+                                     viewCompleteTime: Long ):
   Unit = {
     var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","WeightedPageRank.json").trim
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
     val totalVert = endResults.map(x => x._1).sum
-    val bestUsers = endResults
-      .map(x => x._2)
-      .flatten
-      .filter(inFilter)
+    val bestUsers = endResults.flatMap(_._2)
+      .sortBy(x => x._2)(sortOrdering)
+      .take(10)
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
     Utils.writeLines(output_file, text, "{\"views\":[")
     println(text)
-    //publishData(text)
+    publishData(text)
   }
-
-  def inFilter(item: (Long, Double)):
-  Boolean = {
-    toWatch.contains(item._1)
-  }
-
 }

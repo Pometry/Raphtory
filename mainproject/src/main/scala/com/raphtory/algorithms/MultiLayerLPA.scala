@@ -1,4 +1,4 @@
-package com.raphtory.core.analysis.Algorithms
+package com.raphtory.algorithms
 
 import scala.collection.mutable.ArrayBuffer
 
