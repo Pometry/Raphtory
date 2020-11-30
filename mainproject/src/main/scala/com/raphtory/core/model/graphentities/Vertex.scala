@@ -1,7 +1,7 @@
 package com.raphtory.core.model.graphentities
 
+import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication.VertexMutliQueue
-import com.raphtory.core.storage.EntityStorage
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap

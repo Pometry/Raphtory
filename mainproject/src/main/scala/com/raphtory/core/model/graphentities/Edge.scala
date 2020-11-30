@@ -1,6 +1,6 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.storage.EntityStorage
+import com.raphtory.core.model.EntityStorage
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap

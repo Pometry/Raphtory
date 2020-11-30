@@ -4,8 +4,8 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import com.raphtory.core.components.PartitionManager.Workers.ReaderWorker
+import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
-import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 
 import scala.collection.parallel.mutable.ParTrieMap

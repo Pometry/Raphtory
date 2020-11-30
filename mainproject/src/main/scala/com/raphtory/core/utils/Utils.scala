@@ -19,10 +19,6 @@ object Utils {
 
   val totalWorkers = 10 //must be power of 10
 
-  val persistenceEnabled: Boolean = System.getenv().getOrDefault("SAVING", "false").trim.toBoolean
-  val compressing: Boolean        = System.getenv().getOrDefault("COMPRESSING", "false").trim.toBoolean
-  val archiving: Boolean          = System.getenv().getOrDefault("ARCHIVING", "false").trim.toBoolean
-  var windowing: Boolean          = System.getenv().getOrDefault("WINDOWING", "false").trim.toBoolean
   var local: Boolean              = System.getenv().getOrDefault("LOCAL", "false").trim.toBoolean
 
   def watchDogSelector(context: ActorContext, ip: String) =
