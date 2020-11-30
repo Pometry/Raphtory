@@ -3,8 +3,8 @@ package com.raphtory.core.components.PartitionManager
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
-import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.{SchedulerUtil, Utils}
 
 import scala.collection.mutable

@@ -1,7 +1,5 @@
 package com.raphtory.core.model.graphentities
 
-import com.raphtory.core.utils.HistoryOrdering
-
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 
@@ -20,6 +18,9 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean) {
   var properties: ParTrieMap[String, Property] = ParTrieMap[String, Property]()
 
   // History of that entity
+  object HistoryOrdering extends Ordering[Long] {
+    def compare(key1: Long, key2: Long) = key2.compareTo(key1)
+  }
   var history: mutable.TreeMap[Long, Boolean]   = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
 
   var oldestPoint: Long = creationTime

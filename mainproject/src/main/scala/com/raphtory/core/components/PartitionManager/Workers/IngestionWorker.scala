@@ -4,8 +4,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
-import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.SchedulerUtil
 import kamon.Kamon
 

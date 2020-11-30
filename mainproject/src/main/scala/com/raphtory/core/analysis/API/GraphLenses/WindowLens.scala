@@ -4,8 +4,8 @@ import akka.actor.ActorContext
 import com.raphtory.core.analysis.API.ManagerCount
 import com.raphtory.core.analysis.API.entityVisitors.VertexVisitor
 import com.raphtory.core.components.PartitionManager.Workers.ViewJob
+import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.graphentities.Vertex
-import com.raphtory.core.storage.EntityStorage
 import kamon.Kamon
 
 import scala.collection.mutable.ArrayBuffer

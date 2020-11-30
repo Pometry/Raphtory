@@ -1,4 +1,4 @@
-package com.raphtory.core.storage
+package com.raphtory.core.model
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
@@ -29,7 +29,6 @@ class EntityStorage(partitionID:Int,workerID: Int) {
   var managerCount: Int  = 1
   var managerID: Int     = 0
   var mediator: ActorRef = null
-  var windowing: Boolean = Utils.windowing
   //stuff for compression and archiving
   var oldestTime: Long       = Long.MaxValue
   var newestTime: Long       = 0

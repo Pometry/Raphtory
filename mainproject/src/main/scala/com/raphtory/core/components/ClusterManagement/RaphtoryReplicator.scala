@@ -8,8 +8,8 @@ import akka.util.Timeout
 import com.raphtory.core.components.PartitionManager.Workers.IngestionWorker
 import com.raphtory.core.components.PartitionManager.{Reader, Writer}
 import com.raphtory.core.components.Router.{GraphBuilder, RouterManager}
+import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
-import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.{SchedulerUtil, Utils}
 
 import scala.collection.mutable

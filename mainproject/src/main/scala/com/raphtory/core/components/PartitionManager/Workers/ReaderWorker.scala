@@ -6,8 +6,8 @@ import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.analysis.API.GraphLenses.{GraphLens, ViewLens, WindowLens}
 import com.raphtory.core.analysis.API.{Analyser, _}
+import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
-import com.raphtory.core.storage.EntityStorage
 import com.raphtory.core.utils.Utils
 import kamon.Kamon
 
