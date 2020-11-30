@@ -5,7 +5,7 @@ import java.io.{BufferedReader, File, FileReader}
 import java.time.LocalDateTime
 
 import com.raphtory.core.components.Spout.SpoutTrait
-import com.raphtory.core.components.Spout.SpoutTrait.{BasicDomain, DomainMessage}
+import com.raphtory.core.components.Spout.SpoutTrait.{DomainMessage}
 import com.raphtory.core.model.communication.StringSpoutGoing
 import com.raphtory.examples.wordSemantic.spouts.CooccurrenceMatrixSpout.Message.{CooccuranceDomain, NextFile, NextLineBlock, NextLineSlice}
 
@@ -35,7 +35,7 @@ class CooccurrenceMatrixSpout extends SpoutTrait[CooccuranceDomain,StringSpoutGo
   var cline = currentFile.readLine()
   var currentLine = cline.split("\t")
   var filename = filesToRead(directoryPosition) //D-200001_merge_occ
-  var time = filename.split('/').last.stripPrefix("D-").stripSuffix("_merge_occ").toLong * 1000000000L
+  var time = getTime(filename)
   var cnt = time + 1
 
 
@@ -86,7 +86,7 @@ class CooccurrenceMatrixSpout extends SpoutTrait[CooccuranceDomain,StringSpoutGo
       if (filesToRead.length > directoryPosition) {
         currentFile = fileToArray(directoryPosition)
         filename = filesToRead(directoryPosition) //D-200001_merge_occ
-        time = filename.split('/').last.stripPrefix("D-").stripSuffix("_merge_occ").toLong * 1000000000L
+        time = getTime(filename)
         cnt = time
         self ! NextLineBlock// AllocateSpoutTask(Duration(1, NANOSECONDS), "nextLineBLock")
       }
@@ -118,6 +118,10 @@ class CooccurrenceMatrixSpout extends SpoutTrait[CooccuranceDomain,StringSpoutGo
     } else {
       Array[String]()
     }
+  }
+
+  def getTime(fn: String): Long ={
+    fn.split('/').last.stripPrefix("D-").stripSuffix("_merge_occ").toLong * 1000000000L
   }
 
   override def startSpout(): Unit = self ! NextLineSlice

@@ -8,7 +8,7 @@ import scala.collection.parallel.mutable.ParHashSet
 
 class CooccurrenceMatrixRouterFiltered(override val routerId: Int, override val workerID:Int, override val initialManagerCount: Int, override val initialRouterCount: Int)
   extends RouterWorker[StringSpoutGoing](routerId,workerID, initialManagerCount, initialRouterCount) {
-  val THR = System.getenv().getOrDefault("COOC_FREQ_THRESHOLD ", "0.03").trim.toDouble
+  val THR = System.getenv().getOrDefault("COOC_FREQ_THRESHOLD ", "0.0").trim.toDouble
 
   override protected def parseTuple(tuple: StringSpoutGoing): ParHashSet[GraphUpdate] = {
     //println(record)

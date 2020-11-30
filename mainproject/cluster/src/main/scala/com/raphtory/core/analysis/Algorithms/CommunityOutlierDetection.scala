@@ -9,7 +9,7 @@ import scala.collection.parallel.immutable
 class CommunityOutlierDetection(args:Array[String]) extends LPA(args) {
 
   override def doSomething(v: VertexVisitor, neighborLabels: Array[Long]): Unit = {
-      val vlabel = neighborLabels(neighborLabels.length-1) //TODO: double check vlabel \in neiLabs
+      val vlabel = v.getState[Long]("lpalabel")
       val outlierScore = 1 - (neighborLabels.count(_==vlabel)/neighborLabels.length.toFloat)
       v.setState("outlierscore", outlierScore)
   }
