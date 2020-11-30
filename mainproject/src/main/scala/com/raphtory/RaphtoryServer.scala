@@ -4,7 +4,6 @@ import java.lang.management.ManagementFactory
 import java.net.InetAddress
 
 import akka.actor.{ActorSystem, Address, ExtendedActorSystem, Props}
-import akka.cluster.Member
 import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
@@ -21,26 +20,16 @@ import scala.language.postfixOps
 import scala.sys.process._
 //main function
 
-object Go extends App {
+object RaphtoryServer extends App {
 //  Kamon.init() //start tool logging
-
   printJavaOptions()
-
-
   val conf    = ConfigFactory.load()
-
-
-
-  val docker = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
-
   val clusterSystemName: String = Utils.clusterSystemName
   val ssn: String               = java.util.UUID.randomUUID.toString
 
   val partitionCount = sys.env("PARTITION_MIN").toInt
   val routerCount = sys.env("ROUTER_MIN").toInt
-
-  /** Node lookup directory for registered members in the System */
-  var nodes = Set.empty[Member]
+  val docker = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
   args(0) match {
     case "seedNode" => seedNode()
@@ -106,6 +95,16 @@ object Go extends App {
     RaphtoryGraph[Any](spoutPath,builderPath)
   }
 
+  def locateSeed(): String =
+    if (docker) {
+      while (!("nc seedNode 1600" !).equals(0)) {
+        println("Waiting for seednode to come online")
+        Thread.sleep(3000)
+      }
+      InetAddress.getByName("seedNode").getHostAddress() + ":1600"
+    } else "127.0.0.1"
+
+
 
   /** Initialise a new ActorSystem with configured name and seed nods
     *
@@ -135,14 +134,6 @@ object Go extends App {
     actorSystem
   }
 
-  def locateSeed(): String =
-    if (docker) {
-      while (!("nc seedNode 1600" !).equals(0)) {
-        println("Waiting for seednode to come online")
-        Thread.sleep(3000)
-      }
-      InetAddress.getByName("seedNode").getHostAddress() + ":1600"
-    } else "127.0.0.1"
 
 
   case class SocketAddress(host: String, port: String)
