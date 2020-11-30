@@ -11,7 +11,7 @@ class LOTRSpout extends Spout[String] {
 
   override def setupDataSource(): Unit = {
     fileQueue++=
-      scala.io.Source.fromFile("cluster/src/main/scala/com/raphtory/examples/lotr/lotr.csv")
+      scala.io.Source.fromFile("src/main/scala/com/raphtory/examples/lotr/lotr.csv")
         .getLines
   }//no setup
 
