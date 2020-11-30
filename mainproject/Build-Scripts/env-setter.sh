@@ -14,4 +14,4 @@ echo "/////////////////////"
 #./node_exporter >> /dev/null &
 
 cd /opt/docker/bin
-RaphtoryServer $1
+raphtory-server $1
