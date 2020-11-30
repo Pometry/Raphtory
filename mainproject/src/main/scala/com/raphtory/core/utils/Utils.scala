@@ -19,12 +19,6 @@ object Utils {
 
   val totalWorkers = 10 //must be power of 10
 
-  var local: Boolean              = System.getenv().getOrDefault("LOCAL", "false").trim.toBoolean
-
-  def watchDogSelector(context: ActorContext, ip: String) =
-    // IP $clusterSystemName@${InetAddress.getByName("watchDog").getHostAddress()}
-    context.actorSelection(s"akka.tcp://$ip:${config.getString("settings.bport")}/user/WatchDog")
-
   def getPartition(ID: Long, managerCount: Int): Int =
     ((ID.abs % (managerCount * totalWorkers)) / totalWorkers).toInt
   def getWorker(ID: Long, managerCount: Int): Int =

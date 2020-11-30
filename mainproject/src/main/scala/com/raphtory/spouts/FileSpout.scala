@@ -3,7 +3,7 @@ package com.raphtory.spouts
 import java.io._
 import java.util.zip.GZIPInputStream
 
-import com.raphtory.core.components.Spout.Spout
+import com.raphtory.core.actors.Spout.Spout
 import com.typesafe.scalalogging.LazyLogging
 
 class FileSpout extends Spout[String] {

@@ -1,6 +1,6 @@
 package com.raphtory.examples.test.actors
 
-import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication.{GraphUpdate, _}
 import spray.json._
 

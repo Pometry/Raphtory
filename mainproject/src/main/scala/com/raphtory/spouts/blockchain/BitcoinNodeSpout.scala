@@ -2,7 +2,7 @@ package com.raphtory.spouts.blockchain
 //
 import java.io.{File, PrintWriter}
 
-import com.raphtory.core.components.Spout.Spout
+import com.raphtory.core.actors.Spout.Spout
 import scalaj.http.{Http, HttpRequest}
 import spray.json._
 

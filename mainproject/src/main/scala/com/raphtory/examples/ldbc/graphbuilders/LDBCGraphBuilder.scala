@@ -2,7 +2,7 @@ package com.raphtory.examples.ldbc.graphbuilders
 
 import java.text.SimpleDateFormat
 
-import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication._
 
 class LDBCGraphBuilder extends GraphBuilder[String] {

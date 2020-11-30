@@ -1,6 +1,6 @@
 package com.raphtory.examples.test.actors
 
-import com.raphtory.core.components.Spout.Spout
+import com.raphtory.core.actors.Spout.Spout
 
 import scala.language.postfixOps
 import scala.util.Random

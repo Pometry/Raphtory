@@ -7,10 +7,10 @@ import akka.actor.{ActorSystem, Address, ExtendedActorSystem, Props}
 import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
-import com.raphtory.core.analysis.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.components.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog, WatermarkManager}
-import com.raphtory.core.components.Router.GraphBuilder
-import com.raphtory.core.components.Spout.{Spout, SpoutAgent}
+import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
+import com.raphtory.core.actors.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.Router.GraphBuilder
+import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
 import com.raphtory.core.utils.Utils
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory}
 

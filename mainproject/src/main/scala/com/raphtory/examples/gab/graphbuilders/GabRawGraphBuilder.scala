@@ -2,7 +2,7 @@ package com.raphtory.examples.gab.graphbuilders
 
 import java.time.OffsetDateTime
 
-import com.raphtory.core.components.Router.GraphBuilder
+import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication.{EdgeAddWithProperties, Properties, StringProperty, VertexAddWithProperties}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
