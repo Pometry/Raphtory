@@ -143,8 +143,6 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
 
     actorRefReader = context.system.actorOf(Props(new Reader(myId, false, currentCount, storages)), s"ManagerReader_$myId")
 
-    context.system.actorOf(Props(new Archivist(0.3, workers, storages)))
-
   }
 
   def createNewRouter(assignedId: Int): Unit = {
