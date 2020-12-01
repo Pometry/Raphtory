@@ -4,6 +4,11 @@ import com.raphtory.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
+
+object ConnectedComponents {
+  def apply():ConnectedComponents = new ConnectedComponents(Array())
+}
+
 class ConnectedComponents(args:Array[String]) extends Analyser(args){
 
   override def setup(): Unit =
