@@ -4,7 +4,6 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.api.Analyser
 import com.raphtory.analysis.Tasks.AnalysisTask
 import com.raphtory.core.model.communication.{AnalyserPresentCheck, AnalysisType}
-import com.raphtory.core.utils.Utils
 
 class RangeAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analyser: Analyser, start: Long, end: Long, jump: Long,newAnalyser:Boolean,rawFile:String)
         extends AnalysisTask(jobID: String,args, analyser,managerCount,newAnalyser,rawFile) {
@@ -23,7 +22,7 @@ class RangeAnalysisTask(managerCount:Int, jobID: String, args:Array[String],anal
       if (currentTimestamp > end)
         currentTimestamp = end
 
-      for (worker <- Utils.getAllReaders(managerCount))
+      for (worker <- getAllReaders(managerCount))
         mediator ! DistributedPubSubMediator
           .Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$", "")), false)
     }

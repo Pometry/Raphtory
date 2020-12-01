@@ -4,7 +4,6 @@ import java.net.InetAddress
 import java.util.NoSuchElementException
 
 import com.raphtory.core.actors.Spout.Spout
-import com.raphtory.core.utils.Utils
 import scalaj.http.{Http, HttpRequest}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -21,7 +20,8 @@ class EthereumGethSpout extends Spout[String] {
   val nodeIP       = System.getenv().getOrDefault("SPOUT_ETHEREUM_IP_ADDRESS", "127.0.0.1").trim
   val nodePort     = System.getenv().getOrDefault("SPOUT_ETHEREUM_PORT", "8545").trim
 //   val nodePort     = System.getenv().getOrDefault("SPOUT_ETHEREUM_PORT", "30303").trim
-
+def IPRegex =
+  "\\b(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\b"
   print(currentBlock)
 
   val queue = mutable.Queue[Option[String]]()
@@ -42,7 +42,7 @@ class EthereumGethSpout extends Spout[String] {
 
   implicit val EthFormat = jsonFormat14(EthResult)
   implicit val EthTransactionFormat = jsonFormat3(EthTransaction)
-  if (nodeIP.matches(Utils.IPRegex))
+  if (nodeIP.matches(IPRegex))
     println(s"Connecting to Ethereum RPC \n Address:$nodeIP \n Port:$nodePort")
   else
     println(s"Connecting to Ethereum RPC \n Address:${hostname2Ip(nodeIP)} \n Port:$nodePort")
@@ -79,7 +79,7 @@ class EthereumGethSpout extends Spout[String] {
   def executeBatchRequest(data: String) = requestBatch(data).execute().body.toString
   def requestBatch(data: String): HttpRequest = baseRequest.postData(data)
   def requestBuilder() =
-    if (nodeIP.matches(Utils.IPRegex))
+    if (nodeIP.matches(IPRegex))
       Http("http://" + nodeIP + ":" + nodePort).header("content-type", "application/json")
     else
       Http("http://" + hostname2Ip(nodeIP) + ":" + nodePort).header("content-type", "application/json")

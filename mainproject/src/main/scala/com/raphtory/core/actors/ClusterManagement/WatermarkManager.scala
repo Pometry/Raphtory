@@ -2,8 +2,8 @@ package com.raphtory.core.actors.ClusterManagement
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.communication.{UpdateArrivalTime, WatermarkTime}
-import com.raphtory.core.utils.Utils
 import kamon.Kamon
 
 import scala.collection.mutable
@@ -13,7 +13,7 @@ case class queueItem(wallclock:Long,timestamp:Long)extends Ordered[queueItem] {
   def compare(that: queueItem): Int = (that.timestamp-this.timestamp).toInt
 }
 
-class WatermarkManager(managerCount: Int) extends Actor with ActorLogging  {
+class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
 
   val spoutWallClock = Kamon.histogram("Raphtory_Wall_Clock").withTag("Actor","Watchdog")
   val safeTime       = Kamon.gauge("Raphtory_Safe_Time").withTag("actor",s"WatermarkManager")
@@ -34,7 +34,7 @@ class WatermarkManager(managerCount: Int) extends Actor with ActorLogging  {
     val currentTime = System.currentTimeMillis()
     safeMessageMap put(sender().toString(),u.time)
     counter +=1
-    if(counter%(Utils.totalWorkers*managerCount)==0) {
+    if(counter%(totalWorkers*managerCount)==0) {
       val watermark = safeMessageMap.map(x=>x._2).min
       safeTime.update(watermark)
       while((watermarkqueue nonEmpty) && (watermarkqueue.head.timestamp<= watermark)) {

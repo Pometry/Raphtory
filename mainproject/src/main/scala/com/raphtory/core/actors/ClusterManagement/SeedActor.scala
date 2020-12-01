@@ -3,8 +3,9 @@ package com.raphtory.core.actors.ClusterManagement
 import akka.actor.{Actor, ActorLogging}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
+import com.raphtory.core.actors.RaphtoryActor
 
-class SeedActor() extends Actor with ActorLogging {
+class SeedActor() extends RaphtoryActor {
   val cluster: Cluster = Cluster(context.system)
 
   override def preStart(): Unit = {

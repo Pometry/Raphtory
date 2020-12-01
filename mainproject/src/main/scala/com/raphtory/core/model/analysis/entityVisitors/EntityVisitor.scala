@@ -48,4 +48,12 @@ abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {
     }
 
   }
+
+  //TODO only here for temp, needs to be removed
+  protected def getReader(srcId: Long, managerCount: Int): String = {
+    val mod     = srcId.abs % (managerCount * 10)
+    val manager = mod / 10
+    val worker  = mod % 10
+    s"/user/Manager_${manager}_reader_$worker"
+  }
 }

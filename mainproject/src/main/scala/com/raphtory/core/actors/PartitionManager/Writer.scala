@@ -3,9 +3,9 @@ package com.raphtory.core.actors.PartitionManager
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.{SchedulerUtil, Utils}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -23,15 +23,14 @@ class Writer(
     managerCountVal: Int,
     workers: ParTrieMap[Int, ActorRef],
     storage: ParTrieMap[Int, EntityStorage]
-) extends Actor
-        with ActorLogging {
+) extends RaphtoryActor {
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
   implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
 
   // Id which refers to the partitions position in the graph manager map
   val managerId: Int    = id
-  val children: Int     = Utils.totalWorkers
+  val children: Int     = totalWorkers
   var lastLogTime: Long = System.currentTimeMillis() / 1000
 
   // should the handled messages be printed to terminal
@@ -69,7 +68,7 @@ class Writer(
   override def postStop(): Unit = {
     val allTasksCancelled = scheduledTaskMap.forall {
       case (key, task) =>
-        SchedulerUtil.cancelTask(key, task)
+        cancelTask(key, task)
     }
 
     if (!allTasksCancelled) log.warning("Failed to cancel all scheduled tasks post stop.")
@@ -122,12 +121,11 @@ class Writer(
     log.debug("Preparing to schedule tasks in Writer [{}].", managerId)
 
     val countCancellable =
-      SchedulerUtil.scheduleTask(initialDelay = 10 seconds, interval = 1 seconds, receiver = self, message = "count")
+      scheduleTask(initialDelay = 10 seconds, interval = 1 seconds, receiver = self, message = "count")
     scheduledTaskMap.put("count", countCancellable)
 
     val keepAliveCancellable =
-      SchedulerUtil
-        .scheduleTask(initialDelay = 10 seconds, interval = 10 seconds, receiver = self, message = "keep_alive")
+      scheduleTask(initialDelay = 10 seconds, interval = 10 seconds, receiver = self, message = "keep_alive")
     scheduledTaskMap.put("keep_alive", keepAliveCancellable)
   }
 }

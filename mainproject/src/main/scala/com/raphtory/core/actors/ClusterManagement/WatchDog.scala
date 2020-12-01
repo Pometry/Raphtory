@@ -3,16 +3,18 @@ package com.raphtory.core.actors.ClusterManagement
 /**
   * Created by Mirate on 11/07/2017.
   */
+import java.text.SimpleDateFormat
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.{SchedulerUtil, Utils}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.duration._
 
-class WatchDog(managerCount: Int, minimumRouters: Int) extends Actor with ActorLogging {
+class WatchDog(managerCount: Int, minimumRouters: Int) extends RaphtoryActor {
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
   implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
@@ -37,7 +39,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends Actor with ActorL
   override def postStop(): Unit = {
     val allTasksCancelled = scheduledTaskMap.forall {
       case (key, task) =>
-        SchedulerUtil.cancelTask(key, task)
+        cancelTask(key, task)
     }
 
     if (!allTasksCancelled) log.warning("Failed to cancel all scheduled tasks post stop.")
@@ -80,7 +82,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends Actor with ActorL
   private def processRefreshManagerCountMessage(msg: String): Unit = {
     log.debug(s"WatchDog received [{}] message.", msg)
 
-    mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
+    mediator ! DistributedPubSubMediator.Publish(partitionsTopic, PartitionsCount(pmCounter))
   }
 
   private def processClusterStatusRequest(req: ClusterStatusRequest): Unit = {
@@ -115,7 +117,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends Actor with ActorL
     pmCounter += 1
 
     log.debug("Propagating the new total partition managers [{}] to all the subscribers.", pmCounter)
-    mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
+    mediator ! DistributedPubSubMediator.Publish(partitionsTopic, PartitionsCount(pmCounter))
   }
 
   private def processRequestRouterIdRequest(req: RequestRouterId): Unit = {
@@ -129,7 +131,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends Actor with ActorL
     map.foreach {
       case (pmId, startTime) =>
         if (startTime + maxTime <= System.currentTimeMillis())
-          log.debug("Partition manager [{}] not responding since [{}].", pmId, Utils.unixToTimeStamp(startTime))
+          log.debug("Partition manager [{}] not responding since [{}].", pmId, unixToTimeStamp(startTime))
     }
 
   private def mapHandler(id: Int, map: TrieMap[Int, Long], mapType: String): Unit = {
@@ -142,7 +144,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends Actor with ActorL
                 "The [{}] for id [{}] has started. Keep alive will be sent at [{}].",
                 mapType,
                 id,
-                Utils.nowTimeStamp()
+                nowTimeStamp()
         )
     }
   }
@@ -150,12 +152,13 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends Actor with ActorL
   private def scheduleTasks(): Unit = {
     log.debug("Preparing to schedule tasks in WatchDog.")
 
-    val tickCancellable = SchedulerUtil.scheduleTask(2 seconds, 10 seconds, self, "tick")
+    val tickCancellable = scheduleTask(2 seconds, 10 seconds, self, "tick")
     scheduledTaskMap.put("tick", tickCancellable)
 
     val refreshManagerCountCancellable =
-      SchedulerUtil.scheduleTask(3 minutes, 1 minute, self, "refreshManagerCount")
+      scheduleTask(3 minutes, 1 minute, self, "refreshManagerCount")
     scheduledTaskMap.put("refreshManagerCount", refreshManagerCountCancellable)
   }
-
+  def nowTimeStamp()                  = new SimpleDateFormat("dd-MM hh:mm:ss").format(System.currentTimeMillis())
+  def unixToTimeStamp(unixTime: Long) = new SimpleDateFormat("dd-MM hh:mm:ss").format(unixTime)
 }

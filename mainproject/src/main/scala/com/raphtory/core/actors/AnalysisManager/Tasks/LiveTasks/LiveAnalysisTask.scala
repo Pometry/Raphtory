@@ -4,7 +4,6 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.api.Analyser
 import com.raphtory.analysis.Tasks.AnalysisTask
 import com.raphtory.core.model.communication.{AnalysisType, Finish, Setup, TimeCheck}
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, MILLISECONDS}
@@ -40,12 +39,12 @@ class LiveAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analy
 
       if(eventTime){ //if its event time then we wait for the repeat time to be represented in the storage
           currentTimestamp=liveTime+repeatTime
-          for (worker <- Utils.getAllReaderWorkers(managerCount))
+          for (worker <- getAllReaderWorkers(managerCount))
             mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp()), false)
       }
       else{
           currentTimestamp=liveTime
-          for (worker <- Utils.getAllReaderWorkers(managerCount))
+          for (worker <- getAllReaderWorkers(managerCount))
             mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
       }
     }
@@ -62,7 +61,7 @@ class LiveAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analy
       if (TimeOKFlag) {
         setLiveTime()
         if (analyser.defineMaxSteps() > 1)
-          for (worker <- Utils.getAllReaderWorkers(managerCount))
+          for (worker <- getAllReaderWorkers(managerCount))
             mediator ! DistributedPubSubMediator.Send(
               worker,
               Setup(
@@ -78,7 +77,7 @@ class LiveAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analy
               false
             )
         else
-          for (worker <- Utils.getAllReaderWorkers(managerCount))
+          for (worker <- getAllReaderWorkers(managerCount))
             mediator ! DistributedPubSubMediator.Send(
               worker,
               Finish(

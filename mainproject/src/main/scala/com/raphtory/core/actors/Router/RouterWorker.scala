@@ -2,13 +2,13 @@ package com.raphtory.core.actors.Router
 
 import akka.actor.{Actor, ActorLogging}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.Router.RouterWorker.CommonMessage.TimeBroadcast
 import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage.{NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.Utils
-import com.raphtory.core.utils.Utils.getManager
 import kamon.Kamon
 
+import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -17,8 +17,7 @@ import scala.concurrent.duration._
 //  e.g. BlockChainRouter val name = "Blockchain Router"
 //  Log.debug that read 'Router' should then read 'Blockchain Router'
 class RouterWorker[T](val graphBuilder: GraphBuilder[T],val routerId: Int, val workerID: Int, val initialManagerCount: Int,val initialRouterCount:Int)
-        extends Actor
-        with ActorLogging {
+        extends RaphtoryActor {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
   println(s"Router $routerId $workerID with $initialManagerCount $initialRouterCount")
   private val messageIDs = ParTrieMap[String, Int]()
@@ -66,7 +65,7 @@ class RouterWorker[T](val graphBuilder: GraphBuilder[T],val routerId: Int, val w
       context.become(work(managerCount, wallClock, newNewestTime))
       context.sender() ! WorkPlease
     case TimeBroadcast => {
-      Utils.getAllWriterWorkers(managerCount).foreach { workerPath =>
+      getAllWriterWorkers(managerCount).foreach { workerPath =>
         mediator ! DistributedPubSubMediator.Send(
           workerPath,
           RouterWorkerTimeSync(newestTime, s"${routerId}_$workerID", getMessageIDForWriter(workerPath)),
@@ -78,7 +77,7 @@ class RouterWorker[T](val graphBuilder: GraphBuilder[T],val routerId: Int, val w
       //println(s"Router $routerId $workerID with $newestTime ${messageIDs.mkString("[",",","]")}")
     }
     case DataFinished => {
-      Utils.getAllRouterWorkers(initialRouterCount).foreach { workerPath =>
+      getAllRouterWorkers(initialRouterCount).foreach { workerPath =>
         mediator ! DistributedPubSubMediator.Send(
           workerPath,
           DataFinishedSync(newestTime),
@@ -90,7 +89,7 @@ class RouterWorker[T](val graphBuilder: GraphBuilder[T],val routerId: Int, val w
     case DataFinishedSync(time) => {
       if (time >= newestTime) {
         println(s"Router $routerId $workerID ${time}")
-        Utils.getAllWriterWorkers(managerCount).foreach { workerPath =>
+        getAllWriterWorkers(managerCount).foreach { workerPath =>
           mediator ! DistributedPubSubMediator.Send(
             workerPath,
             RouterWorkerTimeSync(time, s"${routerId}_$workerID", getMessageIDForWriter(workerPath)),
@@ -100,7 +99,7 @@ class RouterWorker[T](val graphBuilder: GraphBuilder[T],val routerId: Int, val w
         context.become(work(managerCount, trackedTime, time))
       }
       else {
-        Utils.getAllRouterWorkers(initialRouterCount).foreach { workerPath =>
+        getAllRouterWorkers(initialRouterCount).foreach { workerPath =>
           mediator ! DistributedPubSubMediator.Send(
             workerPath,
             DataFinishedSync(newestTime),
@@ -168,6 +167,14 @@ class RouterWorker[T](val graphBuilder: GraphBuilder[T],val routerId: Int, val w
         messageIDs put (path, 1)
         0
     }
+
+  def getAllWriterWorkers(managerCount: Int): Array[String] = {
+    val workers = mutable.ArrayBuffer[String]()
+    for (i <- 0 until managerCount)
+      for (j <- 0 until totalWorkers)
+        workers += s"/user/Manager_${i}_child_$j"
+    workers.toArray
+  }
 }
 
 object RouterWorker {

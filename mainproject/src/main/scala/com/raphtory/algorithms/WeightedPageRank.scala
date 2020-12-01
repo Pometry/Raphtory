@@ -1,7 +1,6 @@
 package com.raphtory.algorithms
 
 import com.raphtory.api.Analyser
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -89,7 +88,7 @@ class WeightedPageRank(args:Array[String]) extends Analyser(args) {
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
-    Utils.writeLines(output_file, text, "{\"views\":[")
+    writeLines(output_file, text, "{\"views\":[")
     println(text)
     publishData(text)
   }

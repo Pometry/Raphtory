@@ -8,6 +8,7 @@ import com.raphtory.api.{Analyser, BlankAnalyser, LoadExternalAnalyser}
 import com.raphtory.analysis.Tasks.LiveTasks.{BWindowedLiveAnalysisTask, LiveAnalysisTask, WindowedLiveAnalysisTask}
 import com.raphtory.analysis.Tasks.RangeTasks.{BWindowedRangeAnalysisTask, RangeAnalysisTask, WindowedRangeAnalysisTask}
 import com.raphtory.analysis.Tasks.ViewTasks.{BWindowedViewAnalysisTask, ViewAnalysisTask, WindowedViewAnalysisTask}
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse, _}
 
 import scala.collection.parallel.mutable.ParTrieMap
@@ -15,7 +16,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.{Duration, _}
 import scala.language.postfixOps
 case class StartAnalysis()
-class AnalysisManager() extends Actor{
+class AnalysisManager() extends RaphtoryActor{
   implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
   implicit val timeout: Timeout = 10.seconds
   final protected val mediator = DistributedPubSub(context.system).mediator

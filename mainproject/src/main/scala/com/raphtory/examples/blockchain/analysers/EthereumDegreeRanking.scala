@@ -1,7 +1,6 @@
 package com.raphtory.examples.blockchain.analysers
 
 import com.raphtory.api.Analyser
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -78,7 +77,7 @@ class EthereumDegreeRanking(args:Array[String]) extends Analyser(args) {
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
         .currentTimeMillis() - startTime}},"""
-    Utils.writeLines(output_file, text, "{\"views\":[")
+    writeLines(output_file, text, "{\"views\":[")
     println(text)
   }
 

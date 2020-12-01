@@ -1,7 +1,6 @@
 package com.raphtory.algorithms
 
 import com.raphtory.api.Analyser
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -59,7 +58,7 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
     val text =
       s"""{"time":$timeStamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
         .currentTimeMillis() - startTime}},"""
-    //    Utils.writeLines(output_file, text, "{\"views\":[")
+    //    writeLines(output_file, text, "{\"views\":[")
     println(text)
     publishData(text)
   }
@@ -92,7 +91,7 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
         .currentTimeMillis() - startTime}}"""
-    Utils.writeLines(output_file, text, "{\"views\":[")
+    writeLines(output_file, text, "{\"views\":[")
     println(text)
     //publishData(text)
   }

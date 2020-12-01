@@ -7,10 +7,10 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.actors.PartitionManager.Workers.IngestionWorker
 import com.raphtory.core.actors.PartitionManager.{Reader, Writer}
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.Router.{GraphBuilder, RouterManager}
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.{SchedulerUtil, Utils}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -27,8 +27,7 @@ object RaphtoryReplicator {
 }
 
 class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initialRouterCount:Int, graphBuilder: GraphBuilder[T])
-        extends Actor
-        with ActorLogging {
+        extends RaphtoryActor {
 
   // TODO Make implicit timeouts as secondary (curried), optional implicit parameter
   implicit val timeout: Timeout = 10.seconds
@@ -42,7 +41,7 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
 
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
+  mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
 
   override def preStart(): Unit = {
     log.debug("Replicator [{}] is being started.")
@@ -53,7 +52,7 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
   override def postStop(): Unit = {
     val allTasksCancelled = scheduledTaskMap.forall {
       case (key, task) =>
-        SchedulerUtil.cancelTask(key, task)
+        cancelTask(key, task)
     }
 
     if (!allTasksCancelled) log.warning("Failed to cancel all scheduled tasks post stop.")
@@ -127,7 +126,7 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
     var workers: ParTrieMap[Int, ActorRef]       = new ParTrieMap[Int, ActorRef]()
     var storages: ParTrieMap[Int, EntityStorage] = new ParTrieMap[Int, EntityStorage]()
 
-    for (index <- 0 until Utils.totalWorkers) {
+    for (index <- 0 until totalWorkers) {
       val storage     = new EntityStorage(assignedId,index)
       storages.put(index, storage)
 
@@ -159,7 +158,7 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
     log.debug("Preparing to schedule tasks in Replicator.")
 
     val tickCancellable =
-      SchedulerUtil.scheduleTask(initialDelay = 2 seconds, interval = 5 seconds, receiver = self, message = "tick")
+      scheduleTask(initialDelay = 2 seconds, interval = 5 seconds, receiver = self, message = "tick")
     scheduledTaskMap.put("tick", tickCancellable)
   }
 }

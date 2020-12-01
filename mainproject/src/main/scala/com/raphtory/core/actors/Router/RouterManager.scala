@@ -2,6 +2,7 @@ package com.raphtory.core.actors.Router
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.Router.RouterManager.Message.KeepAlive
 import com.raphtory.core.model.communication._
 
@@ -15,8 +16,7 @@ import scala.language.postfixOps
 // TODO break object RouterManager { getProps = { routerManager(arg1, arg2...): Props }}
 // todo slave type should be Props
 final case class RouterManager[T](routerId: Int, initialManagerCount: Int, initialRouterCount:Int, graphBuilder: GraphBuilder[T])
-        extends Actor
-        with ActorLogging {
+        extends RaphtoryActor {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
 
   private val childrenNumber = 10

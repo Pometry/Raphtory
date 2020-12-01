@@ -4,9 +4,9 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import com.raphtory.core.actors.PartitionManager.Workers.ReaderWorker
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.Utils
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.util.Try
@@ -16,9 +16,7 @@ class Reader(
     test: Boolean,
     managerCountVal: Int,
     storage: ParTrieMap[Int, EntityStorage],
-    workerCount: Int = Utils.totalWorkers
-) extends Actor
-        with ActorLogging {
+) extends RaphtoryActor {
 
   implicit var managerCount: Int = managerCountVal
 
@@ -28,12 +26,11 @@ class Reader(
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
 
   mediator ! DistributedPubSubMediator.Put(self)
-  mediator ! DistributedPubSubMediator.Subscribe(Utils.readersTopic, self)
 
   var readers: ParTrieMap[Int, ActorRef] = new ParTrieMap[Int, ActorRef]()
 
-  for (i <- 0 until workerCount) {
-    log.debug("Initialising [{}] worker children for Reader [{}}.", workerCount, managerId)
+  for (i <- 0 until totalWorkers) {
+    log.debug("Initialising [{}] worker children for Reader [{}}.", totalWorkers, managerId)
 
     // create threads for writing
     val child = context.system.actorOf(

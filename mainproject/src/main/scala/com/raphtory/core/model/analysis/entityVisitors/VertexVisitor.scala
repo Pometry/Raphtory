@@ -7,7 +7,6 @@ import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.analysis.GraphLenses.GraphLens
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
-import com.raphtory.core.utils.Utils
 
 import scala.collection.parallel.mutable.ParIterable
 import scala.reflect.ClassTag
@@ -135,7 +134,7 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
   def messageNeighbour(vertexID: Long, data: Any): Unit = {
     val message = VertexMessage(vertexID, viewJob, superStep, data)
     view.recordMessage()
-    mediator ! DistributedPubSubMediator.Send(Utils.getReader(vertexID, managerCount.count), message, false)
+    mediator ! DistributedPubSubMediator.Send(getReader(vertexID, managerCount.count), message, false)
   }
 
   def messageAllOutgoingNeighbors(message: Any): Unit =
