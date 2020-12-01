@@ -1,5 +1,7 @@
 package com.raphtory.api
 
+import java.io.{BufferedWriter, File, FileWriter}
+
 import akka.actor.ActorContext
 import com.raphtory.core.model.analysis.GraphLenses.GraphLens
 
@@ -52,5 +54,27 @@ abstract class Analyser(args:Array[String]) extends java.io.Serializable {
   def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit
   def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit =
     processResults(results, timestamp: Long, viewCompleteTime: Long)
+
+  //TODO THIS IS A CURSED FUNCTION AND SHOULD BE DESTROYED
+  def writeLines(fileName: String, line: String, header: String): Unit = {
+    val f = new File(fileName)
+    if (!f.exists()) {
+      f.createNewFile()
+      val file = new FileWriter(fileName, true)
+      var bw   = new BufferedWriter(file)
+      bw.write(header)
+      bw.newLine()
+      bw.write(line)
+      bw.newLine()
+      bw.flush()
+    } else {
+      val file = new FileWriter(fileName, true)
+      var bw   = new BufferedWriter(file)
+      bw.write(line)
+      bw.newLine()
+      bw.flush()
+    }
+
+  }
 
 }

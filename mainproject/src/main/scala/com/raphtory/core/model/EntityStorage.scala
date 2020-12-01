@@ -4,7 +4,6 @@ import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Entity, SplitEdge, Vertex}
-import com.raphtory.core.utils.Utils
 import kamon.Kamon
 
 import scala.collection.mutable
@@ -17,7 +16,6 @@ import scala.collection.parallel.mutable.ParTrieMap
 //TODO What happens when an edge which has been archived gets readded
 
 class EntityStorage(partitionID:Int,workerID: Int) {
-  import com.raphtory.core.utils.Utils.{checkDst, checkWorker, getManager}
   val debug = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean
 
   /**
@@ -448,4 +446,14 @@ class EntityStorage(partitionID:Int,workerID: Int) {
       case None       => /*todo Should this happen*/
     }
   }
+
+  //TODO these are placed here until YanYangs changes can be integrated
+  def getManager(srcId: Long, managerCount: Int): String = {
+    val mod     = srcId.abs % (managerCount * 10)
+    val manager = mod / 10
+    val worker  = mod % 10
+    s"/user/Manager_${manager}_child_$worker"
+  }
+  def checkDst(dstID: Long, managerCount: Int, managerID: Int): Boolean = ((dstID.abs % (managerCount * 10)) / 10).toInt == managerID //check if destination is also local
+  def checkWorker(dstID: Long, managerCount: Int, workerID: Int): Boolean = ((dstID.abs % (managerCount * 10)) % 10).toInt == workerID //check if destination is also local
 }

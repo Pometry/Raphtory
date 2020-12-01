@@ -1,7 +1,6 @@
 package com.raphtory.algorithms
 
 import com.raphtory.api.Analyser
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -44,7 +43,7 @@ val startTime   = System.currentTimeMillis()
     val text = s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree}"""
     var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","DegreeBasic.json").trim
-    Utils.writeLines(output_file, text, "")
+    writeLines(output_file, text, "")
     println(text)
     publishData(text)
   }
@@ -66,7 +65,7 @@ val startTime   = System.currentTimeMillis()
         case e: ArithmeticException => 0
       }
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree},"""
-    Utils.writeLines(output_file, text, "")
+    writeLines(output_file, text, "")
     println(text)
     publishData(text)
 

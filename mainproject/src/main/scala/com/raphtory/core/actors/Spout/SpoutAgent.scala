@@ -2,9 +2,9 @@ package com.raphtory.core.actors.Spout
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage._
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.Utils
 import kamon.Kamon
 
 import scala.concurrent.ExecutionContext
@@ -13,7 +13,7 @@ import scala.language.postfixOps
 
 
 
-class SpoutAgent(datasource:Spout[Any]) extends Actor with ActorLogging with Timers {
+class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
   // todo: wvv should assign the dispatcher when create the actor
   implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("spout-dispatcher")
   //implicit val executionContext: ExecutionContext = context.system.dispatcher
@@ -79,7 +79,7 @@ class SpoutAgent(datasource:Spout[Any]) extends Actor with ActorLogging with Tim
       datasource.setupDataSource()
       partitionManagers=pmCount
       routers=roCount
-      Utils.getAllRouterWorkers(roCount).foreach { workerPath =>
+      getAllRouterWorkers(roCount).foreach { workerPath =>
         mediator ! DistributedPubSubMediator.Send(
           workerPath,
           SpoutOnline,

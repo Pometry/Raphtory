@@ -11,7 +11,6 @@ import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestAp
 import com.raphtory.core.actors.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
-import com.raphtory.core.utils.Utils
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory}
 
 import scala.collection.JavaConversions
@@ -24,7 +23,7 @@ object RaphtoryServer extends App {
 //  Kamon.init() //start tool logging
   printJavaOptions()
   val conf    = ConfigFactory.load()
-  val clusterSystemName: String = Utils.clusterSystemName
+  val clusterSystemName  = "Raphtory"
   val ssn: String               = java.util.UUID.randomUUID.toString
 
   val partitionCount = sys.env("PARTITION_MIN").toInt

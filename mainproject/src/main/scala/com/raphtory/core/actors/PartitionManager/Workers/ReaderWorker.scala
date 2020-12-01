@@ -5,10 +5,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.api.{Analyser, LoadExternalAnalyser, ManagerCount}
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.analysis.GraphLenses.{GraphLens, ViewLens, WindowLens}
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.Utils
 import kamon.Kamon
 
 import scala.collection.concurrent.TrieMap
@@ -18,7 +18,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 
 case class ViewJob(jobID:String,timestamp:Long,window:Long)
 
-class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage: EntityStorage) extends Actor with ActorLogging {
+class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage: EntityStorage) extends RaphtoryActor {
 
   implicit var managerCount: ManagerCount = ManagerCount(managerCountVal)
   val analyserMap: TrieMap[String,LoadExternalAnalyser] = TrieMap[String,LoadExternalAnalyser]()
@@ -28,8 +28,6 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  mediator ! DistributedPubSubMediator.Subscribe(Utils.readersWorkerTopic, self)
-
 
   override def preStart(): Unit =
     log.debug("ReaderWorker [{}] belonging to Reader [{}] is being started.", workerId, managerID)

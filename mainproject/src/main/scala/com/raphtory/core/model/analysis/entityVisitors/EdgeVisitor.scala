@@ -7,7 +7,6 @@ import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.analysis.GraphLenses.GraphLens
 import com.raphtory.core.model.communication.{ImmutableProperty, VertexMessage}
 import com.raphtory.core.model.graphentities.{Edge, MutableProperty}
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable
 
@@ -22,7 +21,7 @@ class EdgeVisitor(edge:Edge,id:Long,viewJob:ViewJob,superStep:Int,view:GraphLens
   def send(data: Any): Unit = {
     val message = VertexMessage(id, viewJob, superStep, data)
     view.recordMessage()
-    mediator ! DistributedPubSubMediator.Send(Utils.getReader(id, managerCount.count), message, false)
+    mediator ! DistributedPubSubMediator.Send(getReader(id, managerCount.count), message, false)
   }
 
   //TODO edge properties

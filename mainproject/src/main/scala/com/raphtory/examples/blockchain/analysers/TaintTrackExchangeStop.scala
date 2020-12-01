@@ -1,7 +1,6 @@
 package com.raphtory.examples.blockchain.analysers
 
 import com.raphtory.api.Analyser
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -108,11 +107,11 @@ class TaintTrackExchangeStop(args:Array[String]) extends Analyser(args) {
       data+=s"""{"infected":"${elem._1}","block":${elem._2},"infector":"${elem._3}","exchange":"${elem._4}","value":${elem._5}},"""
     data+="]}"
     //publishData(data)
-//    Utils.writeLines("/opt/docker/output.csv", data, "{\"views\":[")
+//    writeLines("/opt/docker/output.csv", data, "{\"views\":[")
     //print(data)
-    Utils.writeLines("/app/output.csv", data, "")
+    writeLines("/app/output.csv", data, "")
 
-    //for (elem <- endResults) {    Utils.writeLines(s"/Users/mirate/Documents/phd/etheroutput/block${timeStamp}.csv", s"${elem._1},${elem._2},${elem._3},", "")}
+    //for (elem <- endResults) {    writeLines(s"/Users/mirate/Documents/phd/etheroutput/block${timeStamp}.csv", s"${elem._1},${elem._2},${elem._3},", "")}
 
   }
 }

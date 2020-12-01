@@ -10,15 +10,15 @@ import com.mongodb.util.JSON
 import com.raphtory.api.Analyser
 import com.raphtory.core.actors.AnalysisManager.StartAnalysis
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.Utils
 import kamon.Kamon
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 
-abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int,newAnalyser: Boolean,rawFile:String) extends Actor {
+abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int,newAnalyser: Boolean,rawFile:String) extends RaphtoryActor {
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
   implicit val executionContext = context.system.dispatchers.lookup("analysis-dispatcher")
 
@@ -91,7 +91,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     }
 
   final protected def getManagerCount: Int      = managerCount
-  final protected def getWorkerCount: Int       = managerCount * Utils.totalWorkers
+  final protected def getWorkerCount: Int       = managerCount * totalWorkers
 
   protected def processResults(timeStamp:Long) = {
     analyser.processResults(results, timeStamp,viewCompleteTime())
@@ -135,8 +135,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   }
 
   mediator ! DistributedPubSubMediator.Put(self)
-  mediator ! DistributedPubSubMediator.Subscribe(Utils.partitionsTopic, self)
-  mediator ! DistributedPubSubMediator.Subscribe(Utils.liveAnalysisTopic, self)
+  mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
 
   override def preStart() {
     context.system.scheduler.scheduleOnce(Duration(1, MILLISECONDS), self, StartAnalysis())
@@ -161,7 +160,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   def requestResults() =sender() ! ResultsForApiPI(analyser.getPublishedData())
 
   def startAnalysis() = {
-    for (worker <- Utils.getAllReaders(managerCount))
+    for (worker <- getAllReaders(managerCount))
       mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline(), false)
   }
 
@@ -170,12 +169,12 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     ReaderACKS += 1
     if (ReaderACKS == getManagerCount) {
       if (newAnalyser) {
-        for (worker <- Utils.getAllReaderWorkers(managerCount))
+        for (worker <- getAllReaderWorkers(managerCount))
           mediator ! DistributedPubSubMediator
             .Send(worker, CompileNewAnalyser(rawFile,args,jobID), false)
       }
       else {
-        for (worker <- Utils.getAllReaders(managerCount))
+        for (worker <- getAllReaders(managerCount))
           mediator ! DistributedPubSubMediator
             .Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$", "")), false)
       }
@@ -186,13 +185,13 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     ReaderAnalyserACKS += 1
     if(newAnalyser){
       if (ReaderAnalyserACKS == getWorkerCount) {
-        for (worker <- Utils.getAllReaderWorkers(managerCount))
+        for (worker <- getAllReaderWorkers(managerCount))
           mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
       }
     }
     else{
       if (ReaderAnalyserACKS == getManagerCount) {
-        for (worker <- Utils.getAllReaderWorkers(managerCount))
+        for (worker <- getAllReaderWorkers(managerCount))
           mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
       }
     }
@@ -209,13 +208,13 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
       if (TimeOKFlag) {
         viewTimeCurrentTimer = System.currentTimeMillis()
         if (analyser.defineMaxSteps() > 1)
-          for (worker <- Utils.getAllReaderWorkers(managerCount))
+          for (worker <- getAllReaderWorkers(managerCount))
             if(newAnalyser)
               mediator ! DistributedPubSubMediator.Send(worker, SetupNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()),false)
             else
               mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()),false)
         else
-          for (worker <- Utils.getAllReaderWorkers(managerCount))
+          for (worker <- getAllReaderWorkers(managerCount))
             if(newAnalyser)
               mediator ! DistributedPubSubMediator.Send(worker, FinishNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
             else
@@ -231,7 +230,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   }
 
   def timeRecheck() = {
-    for (worker <- Utils.getAllReaderWorkers(managerCount))
+    for (worker <- getAllReaderWorkers(managerCount))
       mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
   }
 
@@ -253,7 +252,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (debug) println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
     if (workersFinishedSuperStep == getWorkerCount)
       if (currentSuperStep == steps || this.voteToHalt)
-        for (worker <- Utils.getAllReaderWorkers(managerCount))
+        for (worker <- getAllReaderWorkers(managerCount))
           if(newAnalyser)
             mediator ! DistributedPubSubMediator.Send(worker, FinishNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
           else
@@ -287,16 +286,16 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     if (totalSentMessages == 0) {
       currentSuperStep += 1
       if (newAnalyser)
-        for (worker <- Utils.getAllReaderWorkers(managerCount))
+        for (worker <- getAllReaderWorkers(managerCount))
           mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
       else
-        for (worker <- Utils.getAllReaderWorkers(managerCount))
+        for (worker <- getAllReaderWorkers(managerCount))
           mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
     }
     else {
       totalSentMessages = 0
       totalReceivedMessages = 0
-      for (worker <- Utils.getAllReaderWorkers(managerCount))
+      for (worker <- getAllReaderWorkers(managerCount))
         mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep), false)
     }
 
@@ -311,10 +310,10 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
         totalSentMessages = 0
         totalReceivedMessages = 0
         if (newAnalyser)
-          for (worker <- Utils.getAllReaderWorkers(managerCount))
+          for (worker <- getAllReaderWorkers(managerCount))
             mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
         else
-          for (worker <- Utils.getAllReaderWorkers(managerCount))
+          for (worker <- getAllReaderWorkers(managerCount))
             mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
       }
       else {
@@ -323,10 +322,10 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
         totalReceivedMessages = 0
         totalSentMessages = 0
         if (newAnalyser)
-          for (worker <- Utils.getAllReaderWorkers(managerCount))
+          for (worker <- getAllReaderWorkers(managerCount))
             mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep),false)
         else
-          for (worker <- Utils.getAllReaderWorkers(managerCount))
+          for (worker <- getAllReaderWorkers(managerCount))
             mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep),false)
       }
     }
@@ -346,10 +345,10 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   def killme() = self.tell(PoisonPill.getInstance,self)
 
 
+  
+  
   def failedToCompile(stackTrace: String): Unit =
     println(s"$sender failed to compiled, stacktrace returned: \n $stackTrace")
-
-
 
 
 }

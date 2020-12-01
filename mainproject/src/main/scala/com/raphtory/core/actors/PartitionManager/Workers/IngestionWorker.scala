@@ -4,9 +4,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.SchedulerUtil
 import kamon.Kamon
 
 import scala.collection.mutable
@@ -18,7 +18,7 @@ case class queueItem(routerEpoch:Int,timestamp:Long)extends Ordered[queueItem] {
 }
 
 // TODO Re-add compression (removed during commit Log-Revamp)
-class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) extends Actor with ActorLogging {
+class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) extends RaphtoryActor {
 
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -324,14 +324,14 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
   override def postStop() {
     val allTasksCancelled = scheduledTaskMap.forall {
       case (key, task) =>
-        SchedulerUtil.cancelTask(key, task)
+        cancelTask(key, task)
     }
     if (!allTasksCancelled) log.warning("Failed to cancel all scheduled tasks post stop.")
   }
   private def scheduleTasks(): Unit = {
     log.debug("Preparing to schedule tasks in Spout.")
     val watermarkCancellable =
-      SchedulerUtil.scheduleTask(initialDelay = 10 seconds, interval = 5 second, receiver = self, message = "watermark")
+      scheduleTask(initialDelay = 10 seconds, interval = 5 second, receiver = self, message = "watermark")
     scheduledTaskMap.put("watermark", watermarkCancellable)
 
   }

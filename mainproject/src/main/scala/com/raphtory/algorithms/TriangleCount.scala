@@ -1,7 +1,6 @@
 package com.raphtory.algorithms
 
 import com.raphtory.api.Analyser
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -79,7 +78,7 @@ class TriangleCount(args:Array[String]) extends Analyser(args) {
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"totTriangles":$totalTri,"avgCluster":$avgCluster,"viewTime":$viewCompleteTime,"concatTime":${System
         .currentTimeMillis() - startTime}}"""
-    Utils.writeLines(output_file, text, "{\"views\":[")
+    writeLines(output_file, text, "{\"views\":[")
     publishData(text)
     println(text)
   }

@@ -1,7 +1,6 @@
 package com.raphtory.algorithms
 
 import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -31,7 +30,7 @@ class CommunityOutlierDetection(args:Array[String]) extends LPA(args) {
     val total = outliers.length
     val proportion = total/endResults.length.toFloat
     val text = s"""{"time":$timestamp,"total":$total,"top5":[${top.mkString(",")}],"outliers":{${sortedstr.take(topnum).mkString(",")}},"proportion":$proportion,"viewTime":$viewCompleteTime}"""
-    Utils.writeLines(output_file, text, "{\"views\":[")
+    writeLines(output_file, text, "{\"views\":[")
     println(text)
     publishData(text)
   }
@@ -47,7 +46,7 @@ class CommunityOutlierDetection(args:Array[String]) extends LPA(args) {
     val total = outliers.length
     val proportion = total/endResults.length.toFloat
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":$total,"top5":[${top.mkString(",")}],"outliers":{${sortedstr.take(topnum).mkString(",")}},"proportion":$proportion,"viewTime":$viewCompleteTime},"""
-    Utils.writeLines(output_file, text, "{\"views\":[")
+    writeLines(output_file, text, "{\"views\":[")
     println(text)
     publishData(text)
   }

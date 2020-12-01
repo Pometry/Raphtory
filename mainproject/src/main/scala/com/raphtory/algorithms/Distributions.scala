@@ -1,7 +1,6 @@
 package com.raphtory.algorithms
 
 import com.raphtory.api.Analyser
-import com.raphtory.core.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -51,7 +50,7 @@ class Distributions(args:Array[String]) extends Analyser(args){
     val text = s"""{"time":$timeStamp,"degDist":$degDistArr,"weightDist":$weightDistArr, "edgeDist":$edgeDistArr,"viewTime":$viewCompleteTime}"""
     println(text)
     publishData(text)
-    Utils.writeLines(output_file, text, "{\"views\":[")
+    writeLines(output_file, text, "{\"views\":[")
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
@@ -67,7 +66,7 @@ class Distributions(args:Array[String]) extends Analyser(args){
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"degDist":$degDistArr,"weightDist":$weightDistArr, "edgeDist":$edgeDistArr,"viewTime":$viewCompleteTime}"""
     println(text)
     publishData(text)
-    Utils.writeLines(output_file, text, "{\"views\":[")
+    writeLines(output_file, text, "{\"views\":[")
   }
 
   def extractData(results: ArrayBuffer[Any]): extractedData = {
