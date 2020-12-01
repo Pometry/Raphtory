@@ -4,6 +4,10 @@ import com.raphtory.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
+object DegreeBasic{
+  def apply() = new DegreeBasic(Array())
+}
+
 class DegreeBasic(args:Array[String]) extends Analyser(args){
   object sortOrdering extends Ordering[Int] {
     def compare(key1: Int, key2: Int) = key2.compareTo(key1)
