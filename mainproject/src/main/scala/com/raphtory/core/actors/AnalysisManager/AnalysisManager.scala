@@ -165,9 +165,9 @@ class AnalysisManager() extends RaphtoryActor{
     if (!safe)
       try {
         implicit val timeout: Timeout = Timeout(10 seconds) //time to wait for watchdog response
-        val future                    = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest(), false) //ask if the cluster is safe to use
+        val future                    = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest, false) //ask if the cluster is safe to use
         if(Await.result(future, timeout.duration).asInstanceOf[ClusterStatusResponse].clusterUp) { //if it is
-          val future                  = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount(), false) //ask how many partitions there are
+          val future                  = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false) //ask how many partitions there are
           managerCount = Await.result(future, timeout.duration).asInstanceOf[PartitionsCountResponse].count //when they respond set the partition manager count to this value
           safe = true
           println("Cluster ready for Analysis")

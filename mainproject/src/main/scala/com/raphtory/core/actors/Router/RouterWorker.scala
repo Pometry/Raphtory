@@ -172,7 +172,7 @@ class RouterWorker[T](
     if (!safe)
       try {
         implicit val timeout: Timeout = Timeout(10 seconds) //time to wait for watchdog response
-        val future                    = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest(), false) //ask if the cluster is safe to use
+        val future                    = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest, false) //ask if the cluster is safe to use
         if(Await.result(future, timeout.duration).asInstanceOf[ClusterStatusResponse].clusterUp) { //if it is
           safe = true
         }

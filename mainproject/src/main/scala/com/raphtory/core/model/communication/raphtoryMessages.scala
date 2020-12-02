@@ -20,7 +20,7 @@ case class DataFinishedSync(time:Long)
 
 case class RouterUp(id: Int)
 case class PartitionUp(id: Int)
-case class ClusterStatusRequest()
+case object ClusterStatusRequest
 case class ClusterStatusResponse(clusterUp: Boolean,pmCounter:Int,roCounter:Int)
 
 sealed trait Property {
@@ -75,9 +75,9 @@ case class UpdatedCounter(newValue: Int)
 case class AssignedId(id: Int)
 case class PartitionsCount(count: Int)
 case class PartitionsCountResponse(count: Int)
-case class RequestPartitionCount()
-case class RequestPartitionId()
-case class RequestRouterId()
+case object RequestPartitionCount
+case object RequestPartitionId
+case object RequestRouterId
 
 case class CompressVertices(lastSaved: Long, workerID: Int)
 case class CompressVertex(key: Long, time: Long)
