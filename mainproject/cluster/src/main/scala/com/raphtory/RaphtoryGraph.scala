@@ -24,7 +24,7 @@ class RaphtoryGraph[T](dataSource: Spout[T], graphBuilder: GraphBuilder[T]) {
   val partitionNumber = 1
   val minimumRouters  = 1
   system.actorOf(Props(new WatermarkManager(managerCount = 1)),"WatermarkManager")
-  system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
+  system.actorOf(Props(WatchDog(partitionNumber, minimumRouters)).withDispatcher("misc-dispatcher"), "WatchDog")
 
   system.actorOf(Props(new SpoutAgent(dataSource)), "Spout")
   system.actorOf(Props(RaphtoryReplicator.apply("Router", 1, 1,graphBuilder)), s"Routers")

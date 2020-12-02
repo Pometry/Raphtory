@@ -3,159 +3,106 @@ package com.raphtory.core.components.ClusterManagement
 /**
   * Created by Mirate on 11/07/2017.
   */
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable}
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.event.LoggingReceive
+import com.raphtory.core.components.ClusterManagement.WatchDog.ActorState
+import com.raphtory.core.components.ClusterManagement.WatchDog.Message.RefreshManagerCount
+import com.raphtory.core.components.ClusterManagement.WatchDog.Message.Tick
 import com.raphtory.core.model.communication._
-import com.raphtory.core.utils.{SchedulerUtil, Utils}
+import com.raphtory.core.utils.Utils
 
-import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class WatchDog(managerCount: Int, minimumRouters: Int) extends Actor with ActorLogging {
+final case class WatchDog(managerCount: Int, minimumRouters: Int) extends Actor with ActorLogging {
+  implicit val executionContext: ExecutionContext = context.system.dispatcher
 
-  private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
-  implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
-
-  var clusterUp = false
-  val maxTime   = 30000
-  var pmCounter = 0
-  var roCounter = 0
-
-  var PMKeepAlive: TrieMap[Int, Long]     = TrieMap[Int, Long]()
-  var RouterKeepAlive: TrieMap[Int, Long] = TrieMap[Int, Long]()
+  private val maxTimeInMillis = 30000
 
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart(): Unit = {
     log.debug("WatchDog is being started.")
-
-    scheduleTasks()
+    context.system.scheduler.scheduleOnce(10.seconds, self, Tick)
+    context.system.scheduler.scheduleOnce(3.minute, self, RefreshManagerCount)
   }
 
-  override def postStop(): Unit = {
-    val allTasksCancelled = scheduledTaskMap.forall {
-      case (key, task) =>
-        SchedulerUtil.cancelTask(key, task)
-    }
+  override def receive: Receive =
+    work(ActorState(clusterUp = false, pmLiveMap = Map.empty, roLiveMap = Map.empty, pmCounter = 0, roCounter = 0))
 
-    if (!allTasksCancelled) log.warning("Failed to cancel all scheduled tasks post stop.")
+  private def work(state: ActorState): Receive = LoggingReceive {
+    case Tick =>
+      val newState = handleTick(state)
+      context.become(work(newState))
+      context.system.scheduler.scheduleOnce(10.seconds, self, Tick)
+
+    case RefreshManagerCount =>
+      mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(state.pmCounter))
+      context.system.scheduler.scheduleOnce(1.minute, self, RefreshManagerCount)
+
+    case ClusterStatusRequest =>
+      sender ! ClusterStatusResponse(state.clusterUp, state.pmCounter, state.roCounter)
+
+    case RequestPartitionCount =>
+      log.debug(s"Sending Partition Manager count [${state.pmCounter}].")
+      sender ! PartitionsCountResponse(state.pmCounter)
+
+    case PartitionUp(id) =>
+      val newMap = state.pmLiveMap + (id -> System.currentTimeMillis())
+      context.become(work(state.copy(pmLiveMap = newMap)))
+
+    case RouterUp(id) =>
+      val newMap = state.roLiveMap + (id -> System.currentTimeMillis())
+      context.become(work(state.copy(roLiveMap = newMap)))
+
+    case RequestPartitionId =>
+      sender() ! AssignedId(state.pmCounter)
+      val newCounter = state.pmCounter + 1
+      log.debug(s"Propagating the new total partition managers [$newCounter] to all the subscribers.")
+      context.become(work(state.copy(pmCounter = newCounter)))
+      mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(newCounter))
+
+    case RequestRouterId =>
+      sender ! AssignedId(state.roCounter)
+      val newCounter = state.roCounter + 1
+      context.become(work(state.copy(roCounter = newCounter)))
+
+    case unhandled => log.error(s"WatchDog received unknown [$unhandled] message.")
   }
 
-  override def receive: Receive = {
-    case msg: String if msg == "tick"                => processHeartbeatMessage(msg)
-    case msg: String if msg == "refreshManagerCount" => processRefreshManagerCountMessage(msg)
-    case req: ClusterStatusRequest                   => processClusterStatusRequest(req)
-    case req: RequestPartitionCount                  => processRequestPartitionCountRequest(req)
-    case req: PartitionUp                            => processPartitionUpRequest(req)
-    case req: RouterUp                               => processRouterUpRequest(req)
-    case req: RequestPartitionId                     => processRequestPartitionIdRequest(req)
-    case req: RequestRouterId                        => processRequestRouterIdRequest(req)
-    case x                                           => log.warning("WatchDog received unknown [{}] message.", x)
+  private def handleTick(state: ActorState): ActorState = {
+    checkMapTime(state.pmLiveMap, "Partition Manager")
+    checkMapTime(state.roLiveMap, "Router")
+    if (!state.clusterUp && state.roLiveMap.size >= minimumRouters && state.roLiveMap.size >= managerCount) {
+      log.info("Partition managers and min. number of Routers have joined cluster.")
+      log.debug(s"The cluster was started with [$managerCount] Partition Managers and [$minimumRouters] >= Routers.")
+      state.copy(clusterUp = true)
+    } else state
   }
 
-  // TODO Simple srcID hash at the moment
-  def getManager(srcId: Int): String = s"/user/Manager_${srcId % managerCount}"
-
-  private def processHeartbeatMessage(msg: String): Unit = {
-    log.debug(s"WatchDog received [{}] message.", msg)
-
-    checkMapTime(PMKeepAlive)
-    checkMapTime(RouterKeepAlive)
-
-    if (!clusterUp)
-      if (RouterKeepAlive.size >= minimumRouters)
-        if (PMKeepAlive.size == managerCount) {
-          clusterUp = true
-          log.info("Partition managers and min. number of Routers have joined cluster.")
-          log.debug(
-                  "The cluster was started with [{}] Partition Managers and [{}] >= Routers.",
-                  managerCount,
-                  minimumRouters
-          )
-        }
-  }
-
-  private def processRefreshManagerCountMessage(msg: String): Unit = {
-    log.debug(s"WatchDog received [{}] message.", msg)
-
-    mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
-  }
-
-  private def processClusterStatusRequest(req: ClusterStatusRequest): Unit = {
-    log.debug(s"WatchDog received [{}] request.", req)
-
-    sender ! ClusterStatusResponse(clusterUp,pmCounter,roCounter)
-  }
-
-  private def processRequestPartitionCountRequest(req: RequestPartitionCount): Unit = {
-    log.debug(s"WatchDog received [{}] request.", req)
-
-    log.debug(s"Sending Partition Manager count [{}].", pmCounter)
-    sender ! PartitionsCountResponse(pmCounter)
-  }
-
-  private def processPartitionUpRequest(req: PartitionUp): Unit = {
-    log.debug(s"WatchDog received [{}] request.", req)
-
-    mapHandler(req.id, PMKeepAlive, "Partition Manager")
-  }
-
-  private def processRouterUpRequest(req: RouterUp): Unit = {
-    log.debug(s"WatchDog received [{}] request.", req)
-
-    mapHandler(req.id, RouterKeepAlive, "Router")
-  }
-
-  private def processRequestPartitionIdRequest(req: RequestPartitionId): Unit = {
-    log.debug(s"Sending assigned id [{}] for new partition manager to Replicator.", pmCounter)
-
-    sender() ! AssignedId(pmCounter)
-    pmCounter += 1
-
-    log.debug("Propagating the new total partition managers [{}] to all the subscribers.", pmCounter)
-    mediator ! DistributedPubSubMediator.Publish(Utils.partitionsTopic, PartitionsCount(pmCounter))
-  }
-
-  private def processRequestRouterIdRequest(req: RequestRouterId): Unit = {
-    log.debug(s"Sending assigned id [{}] for new router to Replicator.", roCounter)
-
-    sender ! AssignedId(roCounter)
-    roCounter += 1
-  }
-
-  private def checkMapTime(map: TrieMap[Int, Long]): Unit =
+  private def checkMapTime(map: Map[Int, Long], mapType: String): Unit =
     map.foreach {
       case (pmId, startTime) =>
-        if (startTime + maxTime <= System.currentTimeMillis())
-          log.debug("Partition manager [{}] not responding since [{}].", pmId, Utils.unixToTimeStamp(startTime))
+        if (startTime + maxTimeInMillis <= System.currentTimeMillis())
+          log.debug(s"$mapType [$pmId] not responding since [${Utils.unixToTimeStamp(startTime)}].")
     }
+}
 
-  private def mapHandler(id: Int, map: TrieMap[Int, Long], mapType: String): Unit = {
-    log.debug(s"Checking [{}] status for id [{}].", mapType, id)
-
-    map.putIfAbsent(id, System.currentTimeMillis()) match {
-      case Some(_) => map.update(id, System.currentTimeMillis())
-      case _ =>
-        log.debug(
-                "The [{}] for id [{}] has started. Keep alive will be sent at [{}].",
-                mapType,
-                id,
-                Utils.nowTimeStamp()
-        )
-    }
+object WatchDog {
+  object Message {
+    case object Tick
+    case object RefreshManagerCount
   }
-
-  private def scheduleTasks(): Unit = {
-    log.debug("Preparing to schedule tasks in WatchDog.")
-
-    val tickCancellable = SchedulerUtil.scheduleTask(2 seconds, 10 seconds, self, "tick")
-    scheduledTaskMap.put("tick", tickCancellable)
-
-    val refreshManagerCountCancellable =
-      SchedulerUtil.scheduleTask(3 minutes, 1 minute, self, "refreshManagerCount")
-    scheduledTaskMap.put("refreshManagerCount", refreshManagerCountCancellable)
-  }
-
+  private case class ActorState(
+      clusterUp: Boolean,
+      pmLiveMap: Map[Int, Long],
+      roLiveMap: Map[Int, Long],
+      pmCounter: Int,
+      roCounter: Int
+  )
 }

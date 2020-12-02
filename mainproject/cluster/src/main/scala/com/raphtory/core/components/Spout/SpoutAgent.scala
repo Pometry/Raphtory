@@ -66,7 +66,7 @@ class SpoutAgent(datasource:Spout[Any]) extends Actor with ActorLogging with Tim
   private def processStateCheckMessage(safe: Boolean): Unit = {
     log.debug(s"Spout is handling [StateCheck] message.")
     if (!safe) {
-      val sendMessage = ClusterStatusRequest()
+      val sendMessage = ClusterStatusRequest
       val sendPath    = "/user/WatchDog"
       log.debug(s"Sending DPSM message [$sendMessage] to path [$sendPath].")
       mediator ! DistributedPubSubMediator.Send(sendPath, sendMessage, localAffinity = false)

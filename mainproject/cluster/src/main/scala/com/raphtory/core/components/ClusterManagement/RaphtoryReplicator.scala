@@ -105,9 +105,9 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
 
     actorType match {
       case "Partition Manager" =>
-        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestPartitionId(), localAffinity = false)
+        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestPartitionId, localAffinity = false)
       case "Router" =>
-        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestRouterId(), localAffinity = false)
+        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestRouterId, localAffinity = false)
     }
   }
 
