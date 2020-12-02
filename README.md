@@ -10,7 +10,7 @@ An overview of this can be seen in the diagram below:
 The most recent article on Raphtory can be found [here](https://www.sciencedirect.com/science/article/pii/S0167739X19301621). As an example of the sort of analysis which can be conducted with Raphtory, checkout our paper on the social network Gab.ai [here.](https://arxiv.org/pdf/2009.08322.pdf). For an introduction to temporal graphs and to see some of the exciting software being built on top of Raphtory, check out the work by [Chorograph](https://chorograph.com/demo).
 
 # Documentation & Slack
-The documentation on how to run Raphtory and an in-depth look at the sort of analysis it performs can be found at [https://raphtory.github.io/](https://raphtory.github.io/images/overview.png).
+The documentation on how to run Raphtory and an in-depth look at the sort of analysis it performs can be found at [https://raphtory.github.io/](https://raphtory.github.io/).
 
 If you have any queries on running Raphtory, or want to get involved with the development, please join our [slack](https://join.slack.com/t/raphtory/shared_invite/zt-jd5mce91-vDxEiFBILC_G2ilZPdvDaA). Feel free to join the #raphtory-development channel to discuss current issues, ask your questions in #general or ping Ben Steer (miratepuffin) who can give you a hand.
 
