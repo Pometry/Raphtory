@@ -36,12 +36,12 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
-    val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime}"""
+    val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime},"""
     var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","ConnectedComponents.json").trim
 
     println(text)
-    writeLines(output_file, text, "{\"views\":[")
+    writeLines(output_file, text, "[")
 
     publishData(text)
   }
@@ -50,8 +50,8 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
       val er = extractData(results)
       var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
       var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","ConnectedComponents.json").trim
-      val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime}"""
-      writeLines(output_file, text, "{\"views\":[")
+      val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime},"""
+      writeLines(output_file, text, "[")
       println(text)
       //publishData(text)
 
