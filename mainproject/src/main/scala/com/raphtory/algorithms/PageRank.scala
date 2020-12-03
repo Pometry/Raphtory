@@ -69,6 +69,9 @@ class PageRank(args:Array[String]) extends Analyser(args) {
       .take(10)
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text = s"""{"time":$timeStamp,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
+    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
+    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","WeightedPageRank.json").trim
+    writeLines(output_file, text, "[")
     println(text)
   }
 
@@ -86,7 +89,7 @@ class PageRank(args:Array[String]) extends Analyser(args) {
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
-    writeLines(output_file, text, "{\"views\":[")
+    writeLines(output_file, text, "[")
     println(text)
     //publishData(text)
   }
