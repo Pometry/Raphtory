@@ -1,0 +1,24 @@
+name: Test Build Push
+on:
+  push:
+    branches: [ feature/build ]
+  pull_request:
+    branches: [ feature/build ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code 
+      uses: actions/checkout@v2
+    - name: Set up JDK 1.8
+      uses: actions/setup-java@v1
+      with:
+        java-version: 1.8
+    - name: Get sbt package
+      run: wget https://github.com/sbt/sbt/releases/download/v1.3.8/sbt-1.3.8.zip && unzip sbt-1.3.8.zip
+    - name: Run SBT tests
+      run: sbt test
+    - name: Run SBT assembly
+      run: cd mainproject && ../sbt/bin/sbt assembly
+    - name: Check jar is built
+      run: ls ./target/scala-2.12/cluster-assembly-latest.jar
