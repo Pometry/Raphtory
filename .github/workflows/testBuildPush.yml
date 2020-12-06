@@ -17,8 +17,6 @@ jobs:
     - name: Get sbt package
       run: wget https://github.com/sbt/sbt/releases/download/v1.3.8/sbt-1.3.8.zip && unzip sbt-1.3.8.zip
     - name: Run SBT tests
-      run: sbt test
+      run: cd mainproject && ../sbt/bin/sbt test
     - name: Run SBT assembly
       run: cd mainproject && ../sbt/bin/sbt assembly
-    - name: Check jar is built
-      run: ls ./target/scala-2.12/cluster-assembly-latest.jar
