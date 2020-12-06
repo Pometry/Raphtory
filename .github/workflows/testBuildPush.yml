@@ -20,3 +20,8 @@ jobs:
       run: cd mainproject && ../sbt/bin/sbt test
     - name: Run SBT assembly
       run: cd mainproject && ../sbt/bin/sbt assembly
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: raphtory-core
+        path: mainproject/target/scala-2.12/cluster-assembly-latest.jar
