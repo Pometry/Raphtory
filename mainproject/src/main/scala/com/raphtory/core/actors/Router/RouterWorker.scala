@@ -19,7 +19,7 @@ import scala.concurrent.duration._
 class RouterWorker[T](val graphBuilder: GraphBuilder[T],val routerId: Int, val workerID: Int, val initialManagerCount: Int,val initialRouterCount:Int)
         extends RaphtoryActor {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
-  println(s"Router $routerId $workerID with $initialManagerCount $initialRouterCount")
+  //println(s"Router $routerId $workerID with $initialManagerCount $initialRouterCount")
   private val messageIDs = ParTrieMap[String, Int]()
 
   private val routerWorkerUpdates =
@@ -88,7 +88,7 @@ class RouterWorker[T](val graphBuilder: GraphBuilder[T],val routerId: Int, val w
 
     case DataFinishedSync(time) => {
       if (time >= newestTime) {
-        println(s"Router $routerId $workerID ${time}")
+        //println(s"Router $routerId $workerID ${time}")
         getAllWriterWorkers(managerCount).foreach { workerPath =>
           mediator ! DistributedPubSubMediator.Send(
             workerPath,
