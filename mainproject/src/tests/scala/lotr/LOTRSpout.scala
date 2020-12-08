@@ -1,4 +1,4 @@
-package examples.lotr
+package lotr
 
 import com.raphtory.core.actors.Spout.Spout
 

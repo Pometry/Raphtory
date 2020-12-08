@@ -55,23 +55,23 @@ val kamon_prometheus = "io.kamon"    %% "kamon-prometheus"     % "2.1.0"
 val kamon_akka       = "io.kamon"    %% "kamon-akka"           % "2.1.0"
 val kamon_system     = "io.kamon"    %% "kamon-system-metrics" % "2.1.0"
 val kamon_netty      = "io.kamon"    %% "kamon-netty"          % "1.0.0"
-val monix            = "io.monix"    %% "monix"                % "3.0.0-RC1"
+//val monix            = "io.monix"    %% "monix"                % "3.0.0-RC1"
 val mongo            = "org.mongodb" % "mongo-java-driver"     % "3.12.4"
 val casbah           = "org.mongodb" %% "casbah-core"          % "3.1.1"
 
-val doobie = "org.tpolecat" %% "doobie-core" % "0.8.4"
-val doobiepostgres =
-  "org.tpolecat" %% "doobie-postgres" % "0.8.4" // Postgres driver 42.2.8 + type mappings.
+//val doobie = "org.tpolecat" %% "doobie-core" % "0.8.4"
+//val doobiepostgres =
+//  "org.tpolecat" %% "doobie-postgres" % "0.8.4" // Postgres driver 42.2.8 + type mappings.
 val lift = "net.liftweb" %% "lift-json" % "3.3.0"
 
-val bitcoin      = "org.scalaj"  %% "scalaj-http" % "2.3.0"
-val twitter_eval = "com.twitter" %% "util-eval"   % "6.43.0"
+//val bitcoin      = "org.scalaj"  %% "scalaj-http" % "2.3.0"
+//val twitter_eval = "com.twitter" %% "util-eval"   % "6.43.0"
 val hadoop = "org.apache.hadoop" % "hadoop-client" % "3.3.0"
 
 // https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk
-val aws =  "com.amazonaws" % "aws-java-sdk" % "1.11.897"
+//val aws =  "com.amazonaws" % "aws-java-sdk" % "1.11.897"
 val parquet = "com.github.mjakubowski84" %% "parquet4s-core" % "1.6.0"
-val h3 = "com.uber" % "h3" % "3.6.4"
+//val h3 = "com.uber" % "h3" % "3.6.4"
 
 
 val IP = java.net.InetAddress.getLocalHost.getHostAddress
@@ -129,9 +129,9 @@ lazy val mergeStrategy: String => MergeStrategy = {
   case _ => MergeStrategy.first
 }
 
-lazy val root = Project(id = "raphtory", base = file(".")) aggregate (cluster)
+lazy val root = Project(id = "raphtory", base = file(".")) aggregate (raphtory)
 
-lazy val cluster = project
+lazy val raphtory = project
   .in(file("."))
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(AshScriptPlugin)
@@ -172,22 +172,22 @@ lazy val cluster = project
                     kamon_akka,
                     kamon_prometheus,
                     kamon_system,
-                    monix,
-                    bitcoin,
-                    twitter_eval,
+                    //monix,
+                    //bitcoin,
+                    //twitter_eval,
                     lift,
                     apacheLang,
                     kafka,
                     kafkac,
-                    doobie,
-                    doobiepostgres,
+                    //doobie,
+                    //doobiepostgres,
                     joda,
                     casbah,
                     mongo,
-                    aws,
+                    //aws,
                     parquet,
-                    hadoop,
-                    h3
+                    hadoop
+                   // h3
             )
   )
   .settings(
