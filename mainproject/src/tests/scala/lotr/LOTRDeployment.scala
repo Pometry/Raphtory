@@ -1,5 +1,4 @@
-package examples.lotr
-
+package lotr
 import com.raphtory.RaphtoryGraph
 import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic}
 
