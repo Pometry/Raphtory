@@ -1,5 +1,6 @@
 import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 import com.typesafe.sbt.packager.docker.Cmd
+import sbtassembly.MergeStrategy
 
 val Akka        = "2.5.26"
 val Config      = "1.2.1"
@@ -54,17 +55,24 @@ val kamon_prometheus = "io.kamon"    %% "kamon-prometheus"     % "2.1.0"
 val kamon_akka       = "io.kamon"    %% "kamon-akka"           % "2.1.0"
 val kamon_system     = "io.kamon"    %% "kamon-system-metrics" % "2.1.0"
 val kamon_netty      = "io.kamon"    %% "kamon-netty"          % "1.0.0"
-val monix            = "io.monix"    %% "monix"                % "3.0.0-RC1"
+//val monix            = "io.monix"    %% "monix"                % "3.0.0-RC1"
 val mongo            = "org.mongodb" % "mongo-java-driver"     % "3.12.4"
 val casbah           = "org.mongodb" %% "casbah-core"          % "3.1.1"
 
-val doobie = "org.tpolecat" %% "doobie-core" % "0.8.4"
-val doobiepostgres =
-  "org.tpolecat" %% "doobie-postgres" % "0.8.4" // Postgres driver 42.2.8 + type mappings.
+//val doobie = "org.tpolecat" %% "doobie-core" % "0.8.4"
+//val doobiepostgres =
+//  "org.tpolecat" %% "doobie-postgres" % "0.8.4" // Postgres driver 42.2.8 + type mappings.
 val lift = "net.liftweb" %% "lift-json" % "3.3.0"
 
-val bitcoin      = "org.scalaj"  %% "scalaj-http" % "2.3.0"
-val twitter_eval = "com.twitter" %% "util-eval"   % "6.43.0"
+//val bitcoin      = "org.scalaj"  %% "scalaj-http" % "2.3.0"
+//val twitter_eval = "com.twitter" %% "util-eval"   % "6.43.0"
+val hadoop = "org.apache.hadoop" % "hadoop-client" % "3.3.0"
+
+// https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk
+//val aws =  "com.amazonaws" % "aws-java-sdk" % "1.11.897"
+val parquet = "com.github.mjakubowski84" %% "parquet4s-core" % "1.6.0"
+//val h3 = "com.uber" % "h3" % "3.6.4"
+
 
 val IP = java.net.InetAddress.getLocalHost.getHostAddress
 
@@ -89,16 +97,42 @@ lazy val basicSettings = Seq(
 )
 
 lazy val dockerStuff = Seq(
-        maintainer := "Ben Steer <b.a.steer@qmul.ac.uk>",
+        maintainer := "Imane Hafnaoui <i.hafnaoui@qmul.ac.uk>",
         dockerBaseImage := "miratepuffin/raphtory-redis:latest",
         dockerRepository := Some("miratepuffin"),
         dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600,8081,46339,9100),
+
 )
 
-lazy val root = Project(id = "raphtory", base = file(".")) aggregate (cluster)
+lazy val mergeStrategy: String => MergeStrategy = {
+  case PathList(xs @ _*) if xs.last == "io.netty.versions.properties" => MergeStrategy.first
+  case PathList(xs @ _*) if xs.last == "module-info.class" => MergeStrategy.first
+  case x if Assembly.isConfigFile(x) =>
+    MergeStrategy.concat
+  case PathList(ps @ _*) if Assembly.isReadme(ps.last) || Assembly.isLicenseFile(ps.last) =>
+    MergeStrategy.rename
+  case PathList("META-INF", xs @ _*) =>
+    xs map { _.toLowerCase } match {
+      case "manifest.mf" :: Nil | "index.list" :: Nil | "dependencies" :: Nil =>
+        MergeStrategy.discard
+      case ps @ x :: xs if ps.last.endsWith(".sf") || ps.last.endsWith(".dsa") =>
+        MergeStrategy.discard
+      case "plexus" :: xs =>
+        MergeStrategy.discard
+      case "services" :: xs =>
+        MergeStrategy.filterDistinctLines
+      case "spring.schemas" :: Nil | "spring.handlers" :: Nil |
+           "io.netty.versions.properties" :: Nil =>
+        MergeStrategy.filterDistinctLines
+      case _ => MergeStrategy.first
+    }
+  case _ => MergeStrategy.first
+}
 
-lazy val cluster = project
-  .in(file("cluster"))
+lazy val root = Project(id = "raphtory", base = file(".")) aggregate (raphtory)
+
+lazy val raphtory = project
+  .in(file("."))
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(AshScriptPlugin)
   .enablePlugins(JavaAgent)
@@ -106,7 +140,7 @@ lazy val cluster = project
   .settings(dockerStuff: _*)
   .settings(
           mappings in Universal +=
-            file(s"${baseDirectory.value}/../Build-Scripts/env-setter.sh") -> "bin/env-setter.sh"
+            file(s"${baseDirectory.value}/Build-Scripts/env-setter.sh") -> "bin/env-setter.sh"
   )
   .settings(dockerEntrypoint := Seq("bash"))
   .settings(
@@ -138,22 +172,29 @@ lazy val cluster = project
                     kamon_akka,
                     kamon_prometheus,
                     kamon_system,
-                    monix,
-                    bitcoin,
-                    twitter_eval,
+                    //monix,
+                    //bitcoin,
+                    //twitter_eval,
                     lift,
                     apacheLang,
                     kafka,
                     kafkac,
-                    doobie,
-                    doobiepostgres,
+                    //doobie,
+                    //doobiepostgres,
                     joda,
                     casbah,
-                    mongo
+                    mongo,
+                    //aws,
+                    parquet,
+                    hadoop
+                   // h3
             )
   )
   .settings(
           javaAgents += "org.aspectj" % "aspectjweaver" % "1.8.13",
-          javaAgents += "io.kamon" % "kanela-agent" % "1.0.6",
-          javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC -XX:+UseStringDeduplication"
+          javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default"
+  )
+  .settings(
+    assemblyMergeStrategy in assembly := mergeStrategy,
+    mainClass in assembly := Some("com.raphtory.Go")
   )
