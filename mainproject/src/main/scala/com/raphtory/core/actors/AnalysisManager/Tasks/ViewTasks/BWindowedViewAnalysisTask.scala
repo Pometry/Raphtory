@@ -22,7 +22,7 @@ class BWindowedViewAnalysisTask(managerCount:Int, jobID: String, args:Array[Stri
 
   } else original
 }
-override def windowSet(): Array[Long] = windows
+override def windowSet(): Array[Long]                     = windows.sortBy(x=>x)(sortOrdering)
 override def processResults(time: Long): Unit = {
   var i = 0
   val vtime = viewCompleteTime
