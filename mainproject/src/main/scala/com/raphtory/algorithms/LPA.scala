@@ -2,6 +2,7 @@ package com.raphtory.algorithms
 
 import com.raphtory.api.Analyser
 import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.ParArray
@@ -67,7 +68,7 @@ class LPA(args:Array[String]) extends Analyser(args){
     val er = extractData(results)
     val commtxt = er.communities.map{x=> s"""["${x.mkString("\",\"")}"]"""}
     val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion}, "communities":[${commtxt.mkString(",")}],"viewTime":$viewCompleteTime}"""
-    writeLines(output_file, text, "{\"views\":[")
+   // writeLines(output_file, text, "{\"views\":[")
     println(text)
     publishData(text)
   }
@@ -76,7 +77,7 @@ class LPA(args:Array[String]) extends Analyser(args){
     val er = extractData(results)
     val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]"""}
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt.mkString(",")}],"proportion":${er.proportion}, "viewTime":$viewCompleteTime},"""
-    writeLines(output_file, text, "{\"views\":[")
+   // writeLines(output_file, text, "{\"views\":[")
     println(text)
     publishData(text)
 
