@@ -23,25 +23,25 @@ class LPA(args:Array[String]) extends Analyser(args){ //TODO needs Major cleanup
 
   override def analyse(): Unit = {
     view.getMessagedVertices().foreach { vertex =>
-    try {
-      val vlabel = vertex.getState[Long]("lpalabel")//, scala.util.Random.nextLong())
-      val vneigh = vertex.getOutEdges ++ vertex.getIncEdges
-      val neigh_freq = vneigh.map { e => (e.ID(), e.getPropertyValue(PROP).getOrElse(1L).asInstanceOf[Long]) }
-        .groupBy(_._1).mapValues(x=> x.map(_._2).sum)
-      val vfreq = if (vneigh.nonEmpty) neigh_freq.values.sum / vneigh.map(_.ID()).toSet.size else 1L
-      val gp = vertex.messageQueue[(Long, Long)].map { v => (v._2, if (neigh_freq.contains(v._1)) neigh_freq(v._1) else 1) }
-      gp.append((vlabel, vfreq))
-      val newLabel = gp.groupBy(_._1).mapValues(_.map(_._2).sum).maxBy(_._2)._1
-      if (newLabel == vlabel) {
-        vertex.voteToHalt()
-      } else {
-        vertex.setState("lpalabel", newLabel)
+      try {
+        val vlabel = vertex.getState[Long]("lpalabel") //, scala.util.Random.nextLong())
+        val vneigh = vertex.getOutEdges ++ vertex.getIncEdges
+        val neigh_freq = vneigh.map { e => (e.ID(), e.getPropertyValue(PROP).getOrElse(1L).asInstanceOf[Long]) }
+          .groupBy(_._1).mapValues(x => x.map(_._2).sum)
+        val vfreq = if (vneigh.nonEmpty) neigh_freq.values.sum / vneigh.map(_.ID()).toSet.size else 1L
+        val gp = vertex.messageQueue[(Long, Long)].map { v => (v._2, if (neigh_freq.contains(v._1)) neigh_freq(v._1) else 1) }
+        gp.append((vlabel, vfreq))
+        val newLabel = gp.groupBy(_._1).mapValues(_.map(_._2).sum).maxBy(_._2)._1
+        if (newLabel == vlabel) {
+          vertex.voteToHalt()
+        } else {
+          vertex.setState("lpalabel", newLabel)
+        }
+        vertex.messageAllNeighbours((vertex.ID(), newLabel))
+        doSomething(vertex, gp.dropRight(1).map(_._1).toArray)
+      } catch {
+        case e: Exception => println(e, vertex.ID())
       }
-      vertex.messageAllNeighbours((vertex.ID(), newLabel))
-      doSomething(vertex, gp.dropRight(1).map(_._1).toArray)
-    }catch{
-      case e: Exception => println(e, vertex.ID())
-    }
     }
   }
 
