@@ -7,7 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.ParArray
 
-class LPA(args:Array[String]) extends Analyser(args){
+class LPA(args:Array[String]) extends Analyser(args){ //TODO needs Major cleanup
   val arg = args.map(_.trim)//.head
   val top_c = if (arg.length==0 | arg.head=="-1") 0 else arg.head.toInt
   val PROP = "weight"
