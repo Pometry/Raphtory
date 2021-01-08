@@ -20,14 +20,14 @@ import scala.concurrent.duration._
 //  e.g. BlockChainRouter val name = "Blockchain Router"
 //  Log.debug that read 'Router' should then read 'Blockchain Router'
 class RouterWorker[T](
-                       val graphBuilder: GraphBuilder[T],
-                       val routerId: Int,
-                       val workerID: Int,
-                       val initialManagerCount: Int,
-                       val initialRouterCount: Int
-                     ) extends RaphtoryActor {
+    val graphBuilder: GraphBuilder[T],
+    val routerId: Int,
+    val workerID: Int,
+    val initialManagerCount: Int,
+    val initialRouterCount: Int
+) extends RaphtoryActor {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
-  //println(s"Router $routerId $workerID with $initialManagerCount $initialRouterCount")
+//  println(s"Router $routerId $workerID with $initialManagerCount $initialRouterCount")
   private val messageIDs = ParTrieMap[String, Int]()
 
   private val routerWorkerUpdates =
@@ -64,9 +64,9 @@ class RouterWorker[T](
       context.sender() ! WorkPlease
 
     case msg @ AllocateTrackedTuple(
-    wallClock,
-    record: T
-    ) => //todo: wvv AllocateTrackedTuple should hold type of record instead of using Any
+                wallClock,
+                record: T
+        ) => //todo: wvv AllocateTrackedTuple should hold type of record instead of using Any
       log.debug(s"RouterWorker [$routerId] received [$msg] request.")
       val newNewestTimes = parseTupleAndSendGraph(record, state.managerCount, true, wallClock)
       val newNewestTime  = (state.newestTime :: newNewestTimes).max
@@ -81,11 +81,21 @@ class RouterWorker[T](
     case DataFinished =>
       getAllRouterWorkers(initialRouterCount).foreach { workerPath =>
         mediator ! new DistributedPubSubMediator.Send(
-          workerPath,
-          DataFinishedSync(state.newestTime)
+                workerPath,
+                DataFinishedSync(state.newestTime)
         )
-        if (state.restRouterNewestFinishedTime > state.newestTime) {
-          broadcastRouterWorkerTimeSync(state.managerCount, state.restRouterNewestFinishedTime)
+      }
+    }
+
+    case DataFinishedSync(time) => {
+      if (time >= newestTime) {
+//        println(s"Router $routerId $workerID ${time}")
+        getAllWriterWorkers(managerCount).foreach { workerPath =>
+          mediator ! DistributedPubSubMediator.Send(
+            workerPath,
+            RouterWorkerTimeSync(time, s"${routerId}_$workerID", getMessageIDForWriter(workerPath)),
+            false
+          )
         }
         val newNewestTime = state.newestTime max state.restRouterNewestFinishedTime
         context.become(work(state.copy(newestTime = newNewestTime, dataFinished = true)))
@@ -104,19 +114,19 @@ class RouterWorker[T](
   }
 
   private def parseTupleAndSendGraph(
-                                      record: T,
-                                      managerCount: Int,
-                                      trackedMessage: Boolean,
-                                      trackedTime: Long
-                                    ): List[Long] =
+      record: T,
+      managerCount: Int,
+      trackedMessage: Boolean,
+      trackedTime: Long
+  ): List[Long] =
     graphBuilder.getUpdates(record).map(update => sendGraphUpdate(update, managerCount, trackedMessage, trackedTime))
 
   private def sendGraphUpdate(
-                               message: GraphUpdate,
-                               managerCount: Int,
-                               trackedMessage: Boolean,
-                               trackedTime: Long
-                             ): Long = {
+      message: GraphUpdate,
+      managerCount: Int,
+      trackedMessage: Boolean,
+      trackedTime: Long
+  ): Long = {
     update += 1
     routerWorkerUpdates.increment()
     val path             = getManager(message.srcID, managerCount)
@@ -190,5 +200,5 @@ object RouterWorker {
                             newestTime: Long,
                             dataFinished: Boolean,
                             restRouterNewestFinishedTime: Long
-                          )
+  )
 }
