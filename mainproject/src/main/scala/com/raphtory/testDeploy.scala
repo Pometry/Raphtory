@@ -13,8 +13,8 @@ object testDeploy extends App {
 //  RG.viewQuery(motifs, 3L, arguments)
 //
 //
-  val arguments = Array[String]("4","1")
-  val motifs = new CBODMotifs(arguments) //delta, step
+  val arguments = Array[String]("4","4")
+  val motifs = new MotifCounting(arguments) //delta, step
 //  Thread.sleep(60000L)
   RG.viewQuery(motifs, 4L, arguments)
 }
