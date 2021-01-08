@@ -22,7 +22,6 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
   private var count       = 0
   private var partitionManagers = 0
   private var routers = 0
-  private var datafinishedSent = false
 
   private def recordUpdate(): Unit = {
     spoutTuples.increment()
@@ -51,17 +50,8 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
     case unhandled => log.error(s"Unable to handle message [$unhandled].")
   }
 
-  private def processWorkPlease():Unit = {
-    if(datasource.isComplete())
-      if(!datafinishedSent) {
-        sender ! DataFinished
-        println(s"All data sent")
-        datafinishedSent=true
-      }else
-        sender ! NoWork
-    else
+  private def processWorkPlease():Unit =
       sendData(context.sender())
-  }
 
   private def processStateCheckMessage(safe: Boolean): Unit = {
     log.debug(s"Spout is handling [StateCheck] message.")
@@ -105,13 +95,9 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
           sender ! message
           recordUpdate()
           if (count % 10000 == 0) println(s"Spout at Message $count")
-        case None =>   sender ! NoWork
-    }//mediator ! DistributedPubSubMediator.Send(lastRouter, message, localAffinity = false)
-      if(datasource isComplete) {
-        sender ! DataFinished
-        println(s"All data sent")
-        datafinishedSent=true
-      }
+        case None if !datasource.isComplete() =>   sender ! NoWork
+        case _ => sender ! DataFinished
+    }
   }
 
   def AllocateSpoutTask(duration: FiniteDuration, task: Any): Cancellable = {

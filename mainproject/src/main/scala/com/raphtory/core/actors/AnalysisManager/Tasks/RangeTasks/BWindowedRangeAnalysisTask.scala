@@ -32,7 +32,7 @@ class BWindowedRangeAnalysisTask(
 
     } else original
   }
-  override def windowSet(): Array[Long]                     = windows
+  override def windowSet(): Array[Long]                     = windows.sortBy(x=>x)(sortOrdering)
   override protected def analysisType(): AnalysisType.Value = AnalysisType.range
   override def processResults(time: Long): Unit = {
     var i = 0

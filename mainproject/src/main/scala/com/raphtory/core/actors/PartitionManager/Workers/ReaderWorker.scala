@@ -64,7 +64,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       .withTag("JobID",req.jobID)
       .withTag("timestamp",req.timestamp)
       .withTag("superstep",req.superStep)
-    try setup(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+    try setup(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet.sortBy(x=>x)(sortOrdering))
     catch { case e: Exception => log.error("Failed to run setup due to [{}].", e.printStackTrace()) }
     superstepTimer.update(System.currentTimeMillis()-beforeTime)
   }
@@ -100,7 +100,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       .withTag("timestamp",req.timestamp)
       .withTag("superstep",req.superStep)
 
-    try nextStep(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+    try nextStep(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet.sortBy(x=>x)(sortOrdering))
     catch { case e: Exception => log.error("Failed to run nextStep due to [{}].", e) }
     superstepTimer.update(System.currentTimeMillis()-beforeTime)
   }
@@ -130,7 +130,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       .withTag("timestamp",req.timestamp)
       .withTag("superstep",req.superStep)
 
-    try returnResults(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet)
+    try returnResults(req.analyzer, req.jobID, req.args, req.superStep, req.timestamp, req.analysisType, req.window, req.windowSet.sortBy(x=>x)(sortOrdering))
     catch { case e: Exception => log.error("Failed to run returnResults due to [{}].", e) }
     superstepTimer.update(System.currentTimeMillis()-beforeTime)
   }
