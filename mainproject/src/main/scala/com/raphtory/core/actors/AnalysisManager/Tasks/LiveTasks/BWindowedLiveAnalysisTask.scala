@@ -21,6 +21,7 @@ class BWindowedLiveAnalysisTask(managerCount:Int, jobID: String,args:Array[Strin
       invertedArray.asInstanceOf[ArrayBuffer[Any]]
     } else original
   }
+  override def windowSet(): Array[Long]  = windowset.sortBy(x=>x)(sortOrdering)
   override protected def analysisType(): AnalysisType.Value = AnalysisType.live
   override def processResults(time: Long): Unit = {
     var i = 0

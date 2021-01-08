@@ -26,8 +26,8 @@ object RaphtoryServer extends App {
   val clusterSystemName  = "Raphtory"
   val ssn: String               = java.util.UUID.randomUUID.toString
 
-  val partitionCount = sys.env("PARTITION_MIN").toInt
-  val routerCount = sys.env("ROUTER_MIN").toInt
+  val partitionCount = sys.env.getOrElse("PARTITION_MIN","1").toInt
+  val routerCount = sys.env.getOrElse("ROUTER_MIN","1").toInt
   val docker = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
   args(0) match {
@@ -41,7 +41,7 @@ object RaphtoryServer extends App {
   }
 
   def seedNode() = {
-    val seedLoc = s"${sys.env("HOST_IP")}:${conf.getInt("settings.bport")}"
+    val seedLoc = s"${sys.env.getOrElse("HOST_IP","127.0.0.1")}:${conf.getInt("settings.bport")}"
     println(s"Creating seed node at $seedLoc")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
     system.actorOf(Props(new SeedActor()), "cluster")
@@ -99,7 +99,7 @@ object RaphtoryServer extends App {
         Thread.sleep(3000)
       }
       InetAddress.getByName("seedNode").getHostAddress() + ":1600"
-    } else "127.0.0.1"
+    } else "127.0.0.1:1600"
 
 
 

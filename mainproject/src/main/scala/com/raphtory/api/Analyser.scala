@@ -57,22 +57,26 @@ abstract class Analyser(args:Array[String]) extends java.io.Serializable {
 
   //TODO THIS IS A CURSED FUNCTION AND SHOULD BE DESTROYED
   def writeLines(fileName: String, line: String, header: String): Unit = {
-    val f = new File(fileName)
-    if (!f.exists()) {
-      f.createNewFile()
-      val file = new FileWriter(fileName, true)
-      var bw   = new BufferedWriter(file)
-      bw.write(header)
-      bw.newLine()
-      bw.write(line)
-      bw.newLine()
-      bw.flush()
-    } else {
-      val file = new FileWriter(fileName, true)
-      var bw   = new BufferedWriter(file)
-      bw.write(line)
-      bw.newLine()
-      bw.flush()
+    try {
+      val f = new File(fileName)
+      if (!f.exists()) {
+        f.createNewFile()
+        val file = new FileWriter(fileName, true)
+        var bw = new BufferedWriter(file)
+        bw.write(header)
+        bw.newLine()
+        bw.write(line)
+        bw.newLine()
+        bw.flush()
+      } else {
+        val file = new FileWriter(fileName, true)
+        var bw = new BufferedWriter(file)
+        bw.write(line)
+        bw.newLine()
+        bw.flush()
+      }
+    }catch {
+      case e:Exception =>
     }
 
   }
