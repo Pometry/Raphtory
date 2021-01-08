@@ -1,0 +1,66 @@
+version: '3.3'
+
+
+services:
+    #### seedSetup ####
+    seedNode:
+        image: miratepuffin/raphtory:latest
+        command: env-setter.sh seedNode
+        env_file: .env
+        deploy:
+            endpoint_mode: dnsrr
+            replicas: 1
+
+    watchDog:
+        image: miratepuffin/raphtory:latest
+        depends_on:
+            - seedNode
+        command: env-setter.sh watchdog
+        env_file: .env
+        deploy:
+            endpoint_mode: vip
+            replicas: 1
+
+    partitionManager:
+        image: miratepuffin/raphtory:latest
+        depends_on:
+            - seedNode
+            - watchDog
+        command: env-setter.sh partitionManager
+        env_file: .env
+        deploy:
+            endpoint_mode: dnsrr
+            mode: global
+
+    router:
+         image: miratepuffin/raphtory:latest
+         depends_on:
+            - seedNode
+            - watchDog
+
+         command: env-setter.sh router
+         env_file: .env
+         deploy:
+            endpoint_mode: dnsrr
+            mode: global
+
+    spout:
+        image: miratepuffin/raphtory:latest
+        depends_on:
+            - seedNode
+            - watchDog
+        command: env-setter.sh spout
+        env_file: .env
+        deploy:
+            replicas: 1
+
+    analysis:
+        image: miratepuffin/raphtory:latest
+        depends_on:
+            - seedNode
+            - watchDog
+        command: env-setter.sh analysisManager
+        env_file: .env
+        deploy:
+            replicas: 1
+            

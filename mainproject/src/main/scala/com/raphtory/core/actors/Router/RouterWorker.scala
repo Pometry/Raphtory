@@ -27,7 +27,7 @@ class RouterWorker[T](
     val initialRouterCount: Int
 ) extends RaphtoryActor {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
-//  println(s"Router $routerId $workerID with $initialManagerCount $initialRouterCount")
+  //println(s"Router $routerId $workerID with $initialManagerCount $initialRouterCount")
   private val messageIDs = ParTrieMap[String, Int]()
 
   private val routerWorkerUpdates =
@@ -84,18 +84,8 @@ class RouterWorker[T](
                 workerPath,
                 DataFinishedSync(state.newestTime)
         )
-      }
-    }
-
-    case DataFinishedSync(time) => {
-      if (time >= newestTime) {
-//        println(s"Router $routerId $workerID ${time}")
-        getAllWriterWorkers(managerCount).foreach { workerPath =>
-          mediator ! DistributedPubSubMediator.Send(
-            workerPath,
-            RouterWorkerTimeSync(time, s"${routerId}_$workerID", getMessageIDForWriter(workerPath)),
-            false
-          )
+        if (state.restRouterNewestFinishedTime > state.newestTime) {
+          broadcastRouterWorkerTimeSync(state.managerCount, state.restRouterNewestFinishedTime)
         }
         val newNewestTime = state.newestTime max state.restRouterNewestFinishedTime
         context.become(work(state.copy(newestTime = newNewestTime, dataFinished = true)))
