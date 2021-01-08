@@ -14,7 +14,7 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //todo better 
     view.getVertices.foreach { v =>
       val inc  = v.getIncEdges
       val outc = v.getOutEdges
-//            println(v.ID() + "     " + (v.getIncEdges ++ v.getOutEdges).map(e => e.getHistory().size).sum)
+            println(v.ID() + "     " + (v.getIncEdges ++ v.getOutEdges).map(e => e.getHistory().size).sum)
       val count1 = motifCounting(1, inc, outc)
       val count2 = motifCounting(2, inc, outc)
       v.setState("motifs", (count1, count2))
@@ -65,7 +65,7 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //todo better 
             case (a, t) =>
               t_out = t_out.filter(_ > t)
               a + t_out.count(_ <= t + delta) * tmp(t).length
-          } / total.toDouble
+          } /// total.toDouble
         } else 0.0
       case 2 =>
         val (mn, mx) = tEdges.foldLeft((tEdges.head, tEdges.head)) {
