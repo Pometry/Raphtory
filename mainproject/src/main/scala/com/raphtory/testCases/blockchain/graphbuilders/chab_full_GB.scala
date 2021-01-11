@@ -3,31 +3,37 @@ package com.raphtory.testCases.blockchain.graphbuilders
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication.{Type, _}
 
-class ChABClus2ClusGraphBuilder extends GraphBuilder[String]{
+class chab_full_GB extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String) = {
-      val dp = formatLine(tuple.split(",").map(_.trim))
-      val transactionTime = dp.time
-      val srcClusterId = dp.srcCluster
-      val dstClusterId = dp.dstCluster
-      val transactionId = dp.txid
-      val btcAmount = dp.amount
-      val usdAmount = dp.usd
-
+    val dp = formatLine(tuple.split(",").map(_.trim))
+    val transactionTime = dp.time
+    val srcClusterId = dp.srcCluster
+    val dstClusterId = dp.dstCluster
+    val transactionId = dp.txid
+    val btcAmount = dp.amount
+    val usdAmount = dp.usd
 
     sendUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
-    sendUpdate((VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster"))))
+    sendUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
+    sendUpdate(VertexAdd(msgTime = transactionTime, srcID = transactionId, Type("Transaction")))
 
     sendUpdate(
-        EdgeAddWithProperties(msgTime = transactionTime,
-          srcID = srcClusterId,
-          dstID = dstClusterId,
-          Properties(DoubleProperty("BitCoin", btcAmount),
-            DoubleProperty("USD", usdAmount),
-            DoubleProperty("Transaction", transactionId)),
-          Type("Transfer")
-        )
+      EdgeAddWithProperties(msgTime = transactionTime,
+        srcID = srcClusterId,
+        dstID = transactionId,
+        Properties(DoubleProperty("BitCoin", btcAmount), DoubleProperty("USD",usdAmount)),
+        Type("Incoming Payment")
       )
+    )
+    sendUpdate(
+      EdgeAddWithProperties(msgTime = transactionTime,
+        srcID = transactionId,
+        dstID = dstClusterId,
+        Properties(DoubleProperty("BitCoin", btcAmount), DoubleProperty("USD",usdAmount)),
+        Type("Outgoing Payment")
+      )
+    )
   }
 
   //converts the line into a case class which has all of the data via the correct name and type
@@ -53,5 +59,4 @@ class ChABClus2ClusGraphBuilder extends GraphBuilder[String]{
                         txid: Long,          //ID of transaction, can be similar for many records
                         usd: Double          //Amount of transaction in USD
                       )
-
 }
