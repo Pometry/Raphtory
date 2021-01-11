@@ -1,38 +1,20 @@
-package com.raphtory.examples.blockchain.routers
+package com.raphtory.testCases.blockchain.graphbuilders
 
-import com.raphtory.core.components.Router.RouterWorker
-import com.raphtory.core.model.communication.Type
-import com.raphtory.core.model.communication._
+import com.raphtory.core.actors.Router.GraphBuilder
+import com.raphtory.core.model.communication.{Type, _}
 
-class ChABClus2ClusRouter(override val routerId: Int,override val workerID:Int, override val initialManagerCount: Int) extends RouterWorker {
-  val JUMP = 50
+class chab_C2C_noprop_GB extends GraphBuilder[String] {
 
-  def parseTuple(record: Any): Unit = {
-    val lines = record.asInstanceOf[String].split("\n").map(_.trim)
-    for(line <- lines){
-      val dp = formatLine(line.split(",").map(_.trim))
+  override def parseTuple(tuple: String) = {
+    try{
+      val dp = formatLine(tuple.split(",").map(_.trim))
       val transactionTime = dp.time
       val srcClusterId = dp.srcCluster
       val dstClusterId = dp.dstCluster
-      val transactionId = dp.txid
-      val btcAmount = dp.amount
-      val usdAmount = dp.usd
-
-      sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
-      sendGraphUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
-
-      sendGraphUpdate(
-        EdgeAddWithProperties(msgTime = transactionTime,
-          srcID = srcClusterId,
-          dstID = dstClusterId,
-          Properties(DoubleProperty("BitCoin", btcAmount),
-            DoubleProperty("USD", usdAmount),
-            DoubleProperty("Transaction", transactionId)),
-          Type("Transfer")
-        )
-      )
-    }
-
+      sendUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
+      sendUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
+      sendUpdate(EdgeAdd(msgTime = transactionTime, srcID = srcClusterId, dstID = dstClusterId, Type("Transfer")))
+    }catch { case e: Exception => println(e, tuple) }
   }
 
   //converts the line into a case class which has all of the data via the correct name and type
