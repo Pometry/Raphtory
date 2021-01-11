@@ -302,7 +302,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
           currentSafePoint = messageQueue.dequeue()
         else {
          // currentSafePoint = messageQueue.dequeue()
-          println(s"$increments Writer Worker $partitionID $workerId --- ${safeMessageMap.get(routerName).get} $currentSafePoint ${messageQueue.head.routerEpoch}")
+//          println(s"$increments Writer Worker $partitionID $workerId --- ${safeMessageMap.get(routerName).get} $currentSafePoint ${messageQueue.head.routerEpoch}")
           break
         }
     }

@@ -8,7 +8,7 @@ import scala.collection.parallel.mutable.{ParArray, ParIterable, ParMap}
 import scala.reflect.io.{File, Path}
 
 class MotifCounting(args: Array[String]) extends Analyser(args) { //todo better manage args
-  val output_file = System.getenv().getOrDefault("OUTPUT_PATH", "/home/tsunade/app/out.json").trim
+  val output_file = System.getenv().getOrDefault("MC_OUTPUT_PATH", "/home/tsunade/app/out.json").trim
   val Array(delta, step) = if (args.isEmpty) throw new Exception else args.map(_.toLong) //todo remove exception later
   val PROP: String       = System.getenv().getOrDefault("EDGE_PROPERTY", "weight").trim
   val nodeType = System.getenv().getOrDefault("NODE_TYPE", "Addr").trim
@@ -79,7 +79,7 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //todo better 
           var total = 0
           (for (dt <- mn to mx by step) yield dt).count { dt =>
             if (checkActivity(inc ++ outc, dt, dt + delta)) total += 1
-            val gamma1 = mean(inc.flatMap(getTimes(_, dt)).toParArray) < mean(outc.flatMap(getTimes(_, dt)).toParArray)
+            val gamma1 = mean(inc.flatMap(getTimes(_, dt).map(_.toDouble)).toParArray) < mean(outc.flatMap(getTimes(_, dt).map(_.toDouble)).toParArray)
             val gamma2 = mean(getProperties(inc, dt, PROP).toParArray) > mean(getProperties(outc, dt, PROP).toParArray)
             gamma1 & gamma2
           } / total.toDouble
@@ -89,9 +89,9 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //todo better 
   }
   def writerLine(path: String, line:String): Unit ={ Path(path).createFile().appendAll(line+"\n")  }
   def nChoosek(n: Long, k: Long = 2): Long = if (k == 0L) 1L else (n * nChoosek(n - 1, k - 1)) / k
-  def mean(a: ParArray[Long]): Double =    if (a.nonEmpty) a.sum / a.length.toDouble else 0.0 //the fact i have to build this is maddening dont touch me
+  def mean(a: ParArray[Double]): Double =    if (a.nonEmpty) a.sum / a.length else 0.0 //the fact i have to build this is maddening dont touch me
   def checkActivity(edges: ParIterable[EdgeVisitor], t1: Long, t2: Long): Boolean = {    edges.exists(e => e.getHistory().exists(k => k._1 >= t1 && k._1 < t2))  }
   def getTimes(edge: EdgeVisitor, time: Long): Iterable[Long] =  edge.getHistory().filter { case (t, true) => t >= time & t < time + delta }.keys
-  def getProperties(edges: ParIterable[EdgeVisitor], time: Long, prop: String): ParIterable[Long] =
-    edges.map(e =>   getTimes(e, time).foldLeft(0L) {  case (a, b) => a + e.getPropertyValueAt(prop, b).getOrElse(0L).asInstanceOf[Long]  })
+  def getProperties(edges: ParIterable[EdgeVisitor], time: Long, prop: String): ParIterable[Double] =
+    edges.map(e =>   getTimes(e, time).foldLeft(0.0) {  case (a, b) => a + e.getPropertyValueAt(prop, b).getOrElse(0.0).asInstanceOf[Double]  })
 }

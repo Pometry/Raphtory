@@ -11,7 +11,7 @@ class LPA(args:Array[String]) extends Analyser(args){ //TODO needs Major cleanup
   val arg = args.map(_.trim)//.head
   val top_c = if (arg.length==0 || arg.head=="-1") 0 else arg.head.toInt // TODO: youknwo the drill
   val PROP = "weight"
-  val output_file = System.getenv().getOrDefault("OUTPUT_PATH", "/home/tsunade/app/out.json").trim
+  val output_file = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "/home/tsunade/app/out.json").trim
   val nodeType = System.getenv().getOrDefault("NODE_TYPE", "Addr").trim
 
   override def setup(): Unit = {
