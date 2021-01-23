@@ -21,8 +21,9 @@ final case class RouterManager[T](routerId: Int, initialManagerCount: Int, initi
 
   private val childrenNumber = 10
   private val children = (0 until childrenNumber).map { i =>
+    val tempGraphBuilder = Class.forName(graphBuilder.getClass.getCanonicalName).getConstructor().newInstance().asInstanceOf[GraphBuilder[T]]
     context.actorOf(
-            Props(new RouterWorker(graphBuilder, routerId, i, initialManagerCount,initialRouterCount)).withDispatcher("router-dispatcher"),
+            Props(new RouterWorker(tempGraphBuilder, routerId, i, initialManagerCount,initialRouterCount)).withDispatcher("router-dispatcher"),
             s"router_${routerId}_Worker_$i"
     )
   }.toList
