@@ -34,12 +34,12 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean) {
 
   def revive(msgTime: Long): Unit = {
     checkOldestNewest(msgTime)
-    history.put(msgTime, true)
+    history += ((msgTime, true))
   }
 
   def kill(msgTime: Long): Unit = {
     checkOldestNewest(msgTime)
-    history.put(msgTime, false)
+    history += ((msgTime, false))
   }
 
   def checkOldestNewest(msgTime: Long) = {

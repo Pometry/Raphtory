@@ -1,7 +1,7 @@
 package com.raphtory.core.model.graphentities
 
 import com.raphtory.core.model.EntityStorage
-import com.raphtory.core.model.communication.VertexMutliQueue
+import com.raphtory.core.model.communication.VertexMultiQueue
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -34,7 +34,7 @@ class Vertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   var outgoingProcessing = outgoingEdges
   private var edgesRequiringSync = 0
 
-  var multiQueue        = new VertexMutliQueue()    //Map of queues for all ongoing processing
+  var multiQueue        = new VertexMultiQueue()    //Map of queues for all ongoing processing
   var computationValues = ParTrieMap[String, Any]() //Partial results kept between supersteps in calculation
 
   //Functions for adding associated edges to this vertex

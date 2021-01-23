@@ -53,7 +53,7 @@ class PageRank(args:Array[String]) extends Analyser(args) {
       (vertex.ID, pr)
     }
     val totalV = pageRankings.size
-    val topUsers = pageRankings.toArray.sortBy(x => x._2)(sortOrdering).take(10)
+    val topUsers = pageRankings.toArray.sortBy(x => x._2)(sortOrdering).take(100)
     (totalV, topUsers)
   }
 
@@ -66,13 +66,14 @@ class PageRank(args:Array[String]) extends Analyser(args) {
       .map(x => x._2)
       .flatten
       .sortBy(x => x._2)(sortOrdering)
-      .take(10)
+      .take(100)
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text = s"""{"time":$timeStamp,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
     var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","WeightedPageRank.json").trim
     writeLines(output_file, text, "[")
     println(text)
+    publishData(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long ):
@@ -91,6 +92,6 @@ class PageRank(args:Array[String]) extends Analyser(args) {
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
     writeLines(output_file, text, "[")
     println(text)
-    //publishData(text)
+    publishData(text)
   }
 }
