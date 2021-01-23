@@ -60,6 +60,6 @@ class DegreeDistribution(args:Array[String]) extends Analyser(args){
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"maxDeg":$maxDeg,"avgSquaredDeg":$meanDegSq,"avgSquaredInDeg":$meanInDegSq,"avgSquaredOutDeg":$meanOutDegSq,"viewTime":$viewCompleteTime}"""
     writeLines(output_file, text, "{\"views\":[")
     println(text)
-    //publishData(text)
+    publishData(text)
   }
 }

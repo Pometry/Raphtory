@@ -5,7 +5,7 @@ import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 
-class VertexMutliQueue {
+class VertexMultiQueue {
 
   val evenMessageQueueMap = ParTrieMap[ViewJob, mutable.ArrayBuffer[Any]]()
   val oddMessageQueueMap  = ParTrieMap[ViewJob, mutable.ArrayBuffer[Any]]()

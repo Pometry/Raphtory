@@ -51,8 +51,9 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
 
   override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[ParArray[String]]].flatten.toArray
-    println(s"""{"timestamp":$timeStamp,triangles:[""" +endResults.map(triangle => triangle+",").fold("")(_+_).dropRight(1)+"]}")
-    //publishData(toPublish)
+    val toPublish = s"""{"timestamp":$timeStamp,triangles:[""" +endResults.map(triangle => triangle+",").fold("")(_+_).dropRight(1)+"]}"
+    println(toPublish)
+    publishData(toPublish)
   }
 
   override def defineMaxSteps(): Int = 2

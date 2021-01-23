@@ -50,7 +50,7 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
     val bestUsers = endResults
       .map(x => x._4)
       .flatten
-      .sortBy(x => x._3)(sortOrdering)
+      .sortBy(x => x._2)(sortOrdering)
       .take(20)
       .map(x => s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""")
       .foreach(x => bestUserArray += x + ",")
@@ -83,7 +83,7 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
     val bestUsers = endResults
       .map(x => x._4)
       .flatten
-      .sortBy(x => x._3)(sortOrdering)
+      .sortBy(x => x._2)(sortOrdering)
       .take(20)
       .map(x => s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""")
       .foreach(x => bestUserArray += x + ",")
@@ -93,7 +93,7 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
         .currentTimeMillis() - startTime}}"""
     writeLines(output_file, text, "{\"views\":[")
     println(text)
-    //publishData(text)
+    publishData(text)
   }
 
 }
