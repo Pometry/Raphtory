@@ -1,6 +1,5 @@
 package com.raphtory.algorithms
 
-
 import com.raphtory.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
@@ -15,7 +14,7 @@ class BinaryDefusion(args:Array[String]) extends Analyser(args) {
         val toSend = vertex.getOrSetState("infected", view.superStep()).asInstanceOf[Int]
         vertex.getOutEdges.foreach { neighbour =>
           if (Random.nextBoolean())
-            vertex.messageNeighbour(neighbour.ID, toSend)
+            vertex.messageNeighbour(neighbour.ID(), toSend)
         }
       }
     }

@@ -271,7 +271,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
           setSafePoint(queue._1, queue._2)
         })
         val timestamps = queueState.map(q => q.timestamp)
-          //println(s"$increments Writer Worker $partitionID $workerId $timestamps") //TODO FIX
+         // println(s"$increments Writer Worker $partitionID $workerId $timestamps")
 
         //println(s"Writer Worker $partitionID $workerId ${queueState.mkString("[",",","]")} ${storage.vertices.size}")
         //println(s"$increments Writer Worker $partitionID $workerId ${timestamps.min} ${storage.vertices.size} $updates ${updates-updates2}")
