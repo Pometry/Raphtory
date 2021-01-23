@@ -99,14 +99,14 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean) {
       false
     else {
       val closest = closestTime(time)
-      if (time - closest._1 <= windowSize)
+      if (time - closest._1 < windowSize)
         closest._2
       else false
     }
 
   def activityAfter(time:Long) = history.exists(k => k._1 >= time)
   def activityBefore(time:Long)= history.exists(k => k._1 <= time)
-  def activityBetween(min:Long, max:Long)= history.exists(k => k._1 >= min &&  k._1 <= max)
+  def activityBetween(min:Long, max:Long)= history.exists(k => k._1 > min &&  k._1 <= max)
 
 
 }

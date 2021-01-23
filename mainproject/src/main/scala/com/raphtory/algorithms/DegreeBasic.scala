@@ -47,9 +47,9 @@ val startTime   = System.currentTimeMillis()
     val text = s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree}"""
     var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","DegreeBasic.json").trim
-    writeLines(output_file, text, "")
+   // writeLines(output_file, text, "")
     println(text)
-    publishData(text)
+    //publishData(text)
   }
 
   override def processWindowResults(
@@ -69,9 +69,9 @@ val startTime   = System.currentTimeMillis()
         case e: ArithmeticException => 0
       }
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree},"""
-    writeLines(output_file, text, "")
+  //  writeLines(output_file, text, "")
     println(text)
-    publishData(text)
+  //  publishData(text)
 
   }
 }
