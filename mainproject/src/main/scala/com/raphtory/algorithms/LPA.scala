@@ -2,16 +2,17 @@ package com.raphtory.algorithms
 
 import com.raphtory.api.Analyser
 import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
-
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.ParArray
+import scala.reflect.io.Path
 
 class LPA(args:Array[String]) extends Analyser(args){ //TODO needs Major cleanup
   val arg = args.map(_.trim)//.head
-  val top_c = if (arg.length==0 | arg.head=="-1") 0 else arg.head.toInt
+  val top_c = if (arg.length==0 || arg.head=="-1") 0 else arg.head.toInt // TODO: youknwo the drill
   val PROP = "weight"
-  val output_file = System.getenv().getOrDefault("OUTPUT_PATH", "/app/out.json").trim
+  val output_file = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "/home/tsunade/app/out.json").trim
+  val nodeType = System.getenv().getOrDefault("NODE_TYPE", "Addr").trim
 
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
@@ -58,7 +59,7 @@ class LPA(args:Array[String]) extends Analyser(args){ //TODO needs Major cleanup
   def doSomething(v: VertexVisitor, gp: Array[Long]): Unit = {}
 
   override def returnResults(): Any =
-    view.getVertices()
+    view.getVertices().filter(v=> v.Type()==nodeType)
       .map(vertex => (vertex.getState[Long]("lpalabel"), vertex.ID()))
       .groupBy(f => f._1)
       .map(f => (f._1, f._2.map(_._2)))
@@ -66,21 +67,18 @@ class LPA(args:Array[String]) extends Analyser(args){ //TODO needs Major cleanup
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
-    val commtxt = er.communities.map{x=> s"""["${x.mkString("\",\"")}"]"""}
-    val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion}, "communities":[${commtxt.mkString(",")}],"viewTime":$viewCompleteTime}"""
-   // writeLines(output_file, text, "{\"views\":[")
-    println(text)
-    publishData(text)
+    val commtxt = er.communities.map { x => s"""[${x.mkString(",")}]""" }
+    val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt.mkString(",")}],"proportion":${er.proportion}, "viewTime":$viewCompleteTime}"""
+    Path(output_file).createFile().appendAll(text + "\n")
+//    println(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
     val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]"""}
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt.mkString(",")}],"proportion":${er.proportion}, "viewTime":$viewCompleteTime},"""
-   // writeLines(output_file, text, "{\"views\":[")
-    println(text)
-    publishData(text)
-
+    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt.mkString(",")}],"proportion":${er.proportion}, "viewTime":$viewCompleteTime}"""
+    Path(output_file).createFile().appendAll(text + "\n")
+//    println(text)
   }
 
   def extractData(results:ArrayBuffer[Any]):fd ={

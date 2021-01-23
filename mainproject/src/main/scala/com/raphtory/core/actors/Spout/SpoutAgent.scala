@@ -94,7 +94,7 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
             AllocateTuple(work)
           sender ! message
           recordUpdate()
-          if (count % 10000 == 0) println(s"Spout at Message $count")
+//          if (count % 10000 == 0) println(s"Spout at Message $count")
         case None if !datasource.isComplete() =>   sender ! NoWork
         case _ => sender ! DataFinished
     }
