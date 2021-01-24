@@ -30,3 +30,4 @@ logs
 
 #raphtory env
 mainproject/.env
+mainproject/build.sbt
