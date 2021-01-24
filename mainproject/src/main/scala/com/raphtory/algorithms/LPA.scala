@@ -100,7 +100,7 @@ class LPA(args:Array[String]) extends Analyser(args){ //TODO needs Major cleanup
     }
   }
 
-  override def defineMaxSteps(): Int = 1000
+  override def defineMaxSteps(): Int = 500
 
 }
 

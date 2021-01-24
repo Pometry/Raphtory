@@ -31,7 +31,7 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //todo better 
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[ParMap[Long, (Double, Double)]]].flatten
-    val count      = endResults.sortBy(_._1).map(x => s""""${x._1}":${x._2}""")
+    val count      = endResults.sortBy(_._1).map(x => s""""${x._1}":{"mc1":${x._2._1}, "mc2":${x._2._2}}""")
 //    val nl         = "\n"
 //    val text       = s"""{"time":$timestamp,"motifs":{ $nl${count.mkString(",\n")} $nl},"viewTime":$viewCompleteTime}"""
     val text       = s"""{"time":$timestamp,"motifs":{ ${count.mkString(",")} },"viewTime":$viewCompleteTime}"""
@@ -45,10 +45,9 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //todo better 
       windowSize: Long,
       viewCompleteTime: Long
   ): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[ParMap[Long, Double]]].flatten
-    val count = endResults.map(x => s""""${x._1}":${x._2}""")
-    val text =
-      s"""{"time":$timestamp,"windowsize":$windowSize,"motifs":{${count.mkString(",")}},"viewTime":$viewCompleteTime}"""
+    val endResults = results.asInstanceOf[ArrayBuffer[ParMap[Long, (Double, Double)]]].flatten
+    val count      = endResults.sortBy(_._1).map(x => s""""${x._1}":{"mc1":${x._2._1}, "mc2":${x._2._2}}""")
+    val text       = s"""{"time":$timestamp,"windowsize":$windowSize,"motifs":{ ${count.mkString(",")} },"viewTime":$viewCompleteTime}"""
     writerLine(output_file, text)
 //    println(text)
   }
@@ -77,7 +76,7 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //todo better 
             case ((min, max), e) => (math.min(min, e), math.max(max, e))
           }
           var total = 0
-          (for (dt <- mn to mx by step) yield dt).count { dt =>
+          (for (dt <- mn to mx by step) yield dt).count { dt => // TODO: give a think on removing step
             if (checkActivity(inc ++ outc, dt, dt + delta)) total += 1
             val gamma1 = mean(inc.flatMap(getTimes(_, dt).map(_.toDouble)).toParArray) < mean(outc.flatMap(getTimes(_, dt).map(_.toDouble)).toParArray)
             val gamma2 = mean(getProperties(inc, dt, PROP).toParArray) > mean(getProperties(outc, dt, PROP).toParArray)
@@ -93,5 +92,5 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //todo better 
   def checkActivity(edges: ParIterable[EdgeVisitor], t1: Long, t2: Long): Boolean = {    edges.exists(e => e.getHistory().exists(k => k._1 >= t1 && k._1 < t2))  }
   def getTimes(edge: EdgeVisitor, time: Long): Iterable[Long] =  edge.getHistory().filter { case (t, true) => t >= time & t < time + delta }.keys
   def getProperties(edges: ParIterable[EdgeVisitor], time: Long, prop: String): ParIterable[Double] =
-    edges.map(e =>   getTimes(e, time).foldLeft(0.0) {  case (a, b) => a + e.getPropertyValueAt(prop, b).getOrElse(0.0).asInstanceOf[Double]  })
+    edges.map(e =>   getTimes(e, time).foldLeft(0.0) {  case (a, b) =>      a + e.getPropertyValueAt(prop, b).getOrElse(0.0).asInstanceOf[Long].toDouble  })
 }
