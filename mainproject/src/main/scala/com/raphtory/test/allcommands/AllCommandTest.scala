@@ -18,5 +18,9 @@ object AllCommandTest extends App {
 
 }
 
+//Wanna check are all messages being ingested
+//Is there a slow down over time (full range vs the final point in  time)
+//Do changes make a difference to the run times
+//How can we track the time taken by each stage of the analysis superstep
 
 

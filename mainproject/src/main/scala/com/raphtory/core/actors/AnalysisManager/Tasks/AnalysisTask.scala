@@ -22,10 +22,10 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
   implicit val executionContext = context.system.dispatchers.lookup("analysis-dispatcher")
 
-  val saveData = System.getenv().getOrDefault("ANALYSIS_SAVE_OUTPUT", "false").trim.toBoolean
-  val mongoIP = System.getenv().getOrDefault("ANALYSIS_MONGO_HOST", "localhost").trim
+  val saveData  = System.getenv().getOrDefault("ANALYSIS_SAVE_OUTPUT", "false").trim.toBoolean
+  val mongoIP   = System.getenv().getOrDefault("ANALYSIS_MONGO_HOST", "localhost").trim
   val mongoPort = System.getenv().getOrDefault("ANALYSIS_MONGO_PORT", "27017").trim
-  val dbname = System.getenv().getOrDefault("ANALYSIS_MONGO_DB_NAME", "raphtory").trim
+  val dbname    = System.getenv().getOrDefault("ANALYSIS_MONGO_DB_NAME", "raphtory").trim
 
   var viewTimeCurrentTimer = System.currentTimeMillis()
 
@@ -107,8 +107,10 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
           buffer.add(JSON.parse(data).asInstanceOf[DBObject])
         })
         analyser.clearPublishedData()
-        mongo.getDB(dbname).getCollection(jobID).insert(buffer)
+        if(!buffer.isEmpty)
+          mongo.getDB(dbname).getCollection(jobID).insert(buffer)
         buffer.clear()
+        mongo.close()
       }
       else
         processResults(timeStamp)
@@ -317,8 +319,6 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
             mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
       }
       else {
-        // println(s"$totalReceivedMessages $totalSentMessages")
-
         totalReceivedMessages = 0
         totalSentMessages = 0
         if (newAnalyser)
