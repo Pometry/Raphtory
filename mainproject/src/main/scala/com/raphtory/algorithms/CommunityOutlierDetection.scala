@@ -18,7 +18,7 @@ class CommunityOutlierDetection(args:Array[String]) extends LPA(args) {
 
   override def returnResults(): Any =
     view.getVertices().filter(v=> v.Type()==nodeType)
-      .map(vertex => (vertex.ID(), vertex.getOrSetState[Double]("outlierscore", 1.0)))
+      .map(vertex => (vertex.ID(), vertex.getOrSetState[Double]("outlierscore", -1.0)))
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Double]]].flatten
@@ -43,7 +43,7 @@ class CommunityOutlierDetection(args:Array[String]) extends LPA(args) {
     val total = outliers.length
     val proportion = total/endResults.length.toDouble
     val out = if (topnum == -1) sortedstr else sortedstr.take(topnum)
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":$total,"top5":[${top.mkString(",")}],"outliers":{${out.mkString(",")}},"proportion":$proportion,"viewTime":$viewCompleteTime},"""
+    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":$total,"top5":[${top.mkString(",")}],"outliers":{${out.mkString(",")}},"proportion":$proportion,"viewTime":$viewCompleteTime}"""
     Path(output_file).createFile().appendAll(text + "\n")
 //    println(text)
   }
