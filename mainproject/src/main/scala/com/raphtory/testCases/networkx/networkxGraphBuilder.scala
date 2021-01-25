@@ -37,7 +37,9 @@ class networkxGraphBuilder extends GraphBuilder[String]{
       )
     )
 
-//    sendUpdate(
+
+
+    //    sendUpdate(
 //        EdgeAddWithProperties(msgTime = time,
 //          srcID = dstClusterId,
 //          dstID = srcClusterId ,
