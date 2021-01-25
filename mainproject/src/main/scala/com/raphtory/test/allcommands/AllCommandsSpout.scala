@@ -76,9 +76,9 @@ class AllCommandsSpout extends Spout[String] {
 
   def genSetDstID(): String = s""" "dstID":10 """
 
-  def genSrcID(): String = s""" "srcID":${Random.nextInt(pool)} """
+  def genSrcID(): String = s""" "srcID":${rnd.nextInt(pool)} """
 
-  def genDstID(): String = s""" "dstID":${Random.nextInt(pool)} """
+  def genDstID(): String = s""" "dstID":${rnd.nextInt(pool)} """
 
   def genSrcID(src: Int): String = s""" "srcID":$src """
 

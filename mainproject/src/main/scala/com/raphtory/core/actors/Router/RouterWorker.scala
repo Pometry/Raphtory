@@ -44,7 +44,7 @@ class RouterWorker[T](
     context.system.scheduler.scheduleOnce(delay = 5.seconds, receiver = self, message = TimeBroadcast)
   }
 
-  override def receive: Receive = work(State(initialManagerCount, 0L, 0L, false,0L))
+  override def receive: Receive = work(State(initialManagerCount, 0L, false,0L))
 
   private def work(state: State): Receive = {
     case SpoutOnline => context.sender() ! WorkPlease
@@ -57,21 +57,10 @@ class RouterWorker[T](
 
     case AllocateTuple(record: T) => //todo: wvv AllocateTuple should hold type of record instead of using Any
       log.debug(s"RouterWorker [$routerId] received AllocateTuple[$record] request.")
-      val newNewestTimes = parseTupleAndSendGraph(record, state.managerCount, false, state.trackedTime)
+      val newNewestTimes = parseTupleAndSendGraph(record, state.managerCount)
       val newNewestTime  = (state.newestTime :: newNewestTimes).max
       if (newNewestTime > state.newestTime)
         context.become(work(state.copy(newestTime = newNewestTime)))
-      context.sender() ! WorkPlease
-
-    case msg @ AllocateTrackedTuple(
-                wallClock,
-                record: T
-        ) => //todo: wvv AllocateTrackedTuple should hold type of record instead of using Any
-      log.debug(s"RouterWorker [$routerId] received [$msg] request.")
-      val newNewestTimes = parseTupleAndSendGraph(record, state.managerCount, true, wallClock)
-      val newNewestTime  = (state.newestTime :: newNewestTimes).max
-      if (newNewestTime > state.newestTime)
-        context.become(work(state.copy(trackedTime = wallClock, newestTime = newNewestTime)))
       context.sender() ! WorkPlease
 
     case TimeBroadcast =>
@@ -105,42 +94,34 @@ class RouterWorker[T](
 
   private def parseTupleAndSendGraph(
       record: T,
-      managerCount: Int,
-      trackedMessage: Boolean,
-      trackedTime: Long
+      managerCount: Int
   ): List[Long] =
-    graphBuilder.getUpdates(record).map(update => sendGraphUpdate(update, managerCount, trackedMessage, trackedTime))
+    graphBuilder.getUpdates(record).map(update => sendGraphUpdate(update, managerCount))
 
   private def sendGraphUpdate(
       message: GraphUpdate,
       managerCount: Int,
-      trackedMessage: Boolean,
-      trackedTime: Long
   ): Long = {
     update += 1
     routerWorkerUpdates.increment()
     val path             = getManager(message.srcID, managerCount)
     val id               = getMessageIDForWriter(path)
-    val trackedTimeToUse = if (trackedMessage) trackedTime else -1L
 
     val sentMessage = message match {
       case m: VertexAdd =>
-        TrackedVertexAdd(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedVertexAdd(s"${routerId}_$workerID", id, m)
       case m: VertexAddWithProperties =>
-        TrackedVertexAddWithProperties(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedVertexAddWithProperties(s"${routerId}_$workerID", id, m)
       case m: EdgeAdd =>
-        TrackedEdgeAdd(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedEdgeAdd(s"${routerId}_$workerID", id, m)
       case m: EdgeAddWithProperties =>
-        TrackedEdgeAddWithProperties(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedEdgeAddWithProperties(s"${routerId}_$workerID", id, m)
       case m: VertexDelete =>
-        TrackedVertexDelete(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedVertexDelete(s"${routerId}_$workerID", id, m)
       case m: EdgeDelete =>
-        TrackedEdgeDelete(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedEdgeDelete(s"${routerId}_$workerID", id, m)
     }
     log.debug(s"RouterWorker sending message [$sentMessage] to PubSub")
-    if (trackedMessage)
-      mediator ! DistributedPubSubMediator
-        .Send("/user/WatermarkManager", UpdateArrivalTime(trackedTime, message.msgTime), localAffinity = false)
 
     mediator ! DistributedPubSubMediator.Send(path, sentMessage, localAffinity = false)
     message.msgTime
@@ -186,7 +167,6 @@ object RouterWorker {
 
   private case class State(
                             managerCount: Int,
-                            trackedTime: Long,
                             newestTime: Long,
                             dataFinished: Boolean,
                             restRouterNewestFinishedTime: Long
