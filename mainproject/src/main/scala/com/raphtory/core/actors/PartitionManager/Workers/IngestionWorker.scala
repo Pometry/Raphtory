@@ -69,6 +69,7 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
     case req:VertexRemoveSyncAck         => processVertexRemoveSyncAck(req)
 
     case "watermark"                     => processWatermarkRequest(); //println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
+    case req:ProbeWatermark              => mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.windowTime), localAffinity = false)
     case req:RouterWorkerTimeSync        => processRouterTimeSync(req);
     case x =>
       log.warning(s"IngestionWorker [{}] received unknown [{}] message.", workerId, x)
@@ -276,7 +277,6 @@ class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage) ext
         val min = timestamps.min
         if(storage.windowTime<min)
           storage.windowTime = min
-        mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.windowTime), localAffinity = false)
         latestTime.update(storage.newestTime)
         earliestTime.update(storage.oldestTime)
         safeTime.update(storage.windowTime)

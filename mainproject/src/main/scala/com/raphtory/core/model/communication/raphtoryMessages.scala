@@ -86,6 +86,7 @@ case class ArchiveVertex(key: Long, compressTime: Long, archiveTime: Long)
 case class ArchiveOnlyVertex(key: Long, archiveTime: Long)
 case class FinishedVertexArchiving(key: Long)
 
+case class ProbeWatermark()
 case class WatermarkTime(time:Long)
 
 sealed trait RaphReadClasses
