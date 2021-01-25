@@ -30,8 +30,9 @@ class CommunityOutlierDetection(args:Array[String]) extends LPA(args) {
     val proportion = total/endResults.length.toDouble
     val out = if (topnum == -1) sortedstr else sortedstr.take(topnum)
     val text = s"""{"time":$timestamp,"total":$total,"top5":[${top.mkString(",")}],"outliers":{${out.mkString(",")}},"proportion":$proportion,"viewTime":$viewCompleteTime}"""
-    Path(output_file).createFile().appendAll(text + "\n")
+    //Path(output_file).createFile().appendAll(text + "\n")
     //    println(text)
+    publishData(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
@@ -44,7 +45,8 @@ class CommunityOutlierDetection(args:Array[String]) extends LPA(args) {
     val proportion = total/endResults.length.toDouble
     val out = if (topnum == -1) sortedstr else sortedstr.take(topnum)
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":$total,"top5":[${top.mkString(",")}],"outliers":{${out.mkString(",")}},"proportion":$proportion,"viewTime":$viewCompleteTime},"""
-    Path(output_file).createFile().appendAll(text + "\n")
+    //Path(output_file).createFile().appendAll(text + "\n")
 //    println(text)
+    publishData(text)
   }
 }
