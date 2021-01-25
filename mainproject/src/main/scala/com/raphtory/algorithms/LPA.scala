@@ -69,16 +69,18 @@ class LPA(args:Array[String]) extends Analyser(args){ //TODO needs Major cleanup
     val er = extractData(results)
     val commtxt = er.communities.map { x => s"""[${x.mkString(",")}]""" }
     val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt.mkString(",")}],"proportion":${er.proportion}, "viewTime":$viewCompleteTime}"""
-    Path(output_file).createFile().appendAll(text + "\n")
+    //Path(output_file).createFile().appendAll(text + "\n")
 //    println(text)
+    publishData(text)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
     val commtxt = er.communities.map{x=> s"""[${x.mkString(",")}]"""}
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt.mkString(",")}],"proportion":${er.proportion}, "viewTime":$viewCompleteTime}"""
-    Path(output_file).createFile().appendAll(text + "\n")
+    //Path(output_file).createFile().appendAll(text + "\n")
 //    println(text)
+    publishData(text)
   }
 
   def extractData(results:ArrayBuffer[Any]):fd ={
