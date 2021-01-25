@@ -109,12 +109,15 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
           buffer.add(JSON.parse(data).asInstanceOf[DBObject])
         })
         analyser.clearPublishedData()
-        if(!buffer.isEmpty)
+        if(!buffer.isEmpty){
           mongo.getDB(dbname).getCollection(jobID).insert(buffer)
+        }
         //mongo.
       }
-      else
+      else {
+        analyser.clearPublishedData()
         processResults(timeStamp)
+      }
     }
     catch {
       case e:Exception => e.printStackTrace()
