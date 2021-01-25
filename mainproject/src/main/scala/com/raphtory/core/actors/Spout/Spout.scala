@@ -11,6 +11,6 @@ trait Spout[+T]{
   def closeDataSource():Unit
 
   def dataSourceComplete():Unit = dataComplete=true
-  
+
   def isComplete():Boolean = dataComplete
 }

@@ -39,17 +39,37 @@ object AllCommandTest extends App {
 //How can we track the time taken by each stage of the analysis superstep
 
 
-//0.72317415
-//0.99089885
-//0.2532931
-//0.60880035
-//0.80586946
-//0.87541276
-//0.7160485
-//0.071917
-//0.79626095
-//0.57871693
-//0.9081256
+//{"time":1,"windowsize":10000,"top5":[2],"total":1,"totalIslands":0,"proportion":1.0,"clustersGT2":0,"viewTime":2549},
+//{"time":10001,"windowsize":10000,"top5":[5174,36,29,20,19],"total":1387,"totalIslands":646,"proportion":0.63082176,"clustersGT2":310,"viewTime":49271},
+//{"time":20001,"windowsize":10000,"top5":[5238,15,15,14,12],"total":1385,"totalIslands":660,"proportion":0.64515334,"clustersGT2":317,"viewTime":10088},
+//{"time":30001,"windowsize":10000,"top5":[5192,22,18,16,16],"total":1327,"totalIslands":605,"proportion":0.6362745,"clustersGT2":299,"viewTime":8383},
+//{"time":40001,"windowsize":10000,"top5":[5164,22,21,19,17],"total":1374,"totalIslands":637,"proportion":0.63408643,"clustersGT2":306,"viewTime":8327},
+//{"time":50001,"windowsize":10000,"top5":[5169,17,16,15,14],"total":1381,"totalIslands":639,"proportion":0.6331455,"clustersGT2":340,"viewTime":7489},
+//{"time":60001,"windowsize":10000,"top5":[4987,31,24,24,22],"total":1417,"totalIslands":650,"proportion":0.60913646,"clustersGT2":333,"viewTime":8828},
+//{"time":70001,"windowsize":10000,"top5":[5021,46,28,26,21],"total":1414,"totalIslands":632,"proportion":0.61411446,"clustersGT2":328,"viewTime":7627},
+//{"time":80001,"windowsize":10000,"top5":[5159,26,18,18,16],"total":1358,"totalIslands":610,"proportion":0.63362813,"clustersGT2":320,"viewTime":11467},
+//{"time":90001,"windowsize":10000,"top5":[5081,41,28,21,20],"total":1352,"totalIslands":609,"proportion":0.6231297,"clustersGT2":330,"viewTime":9575},
+//{"time":100001,"windowsize":10000,"top5":[5127,28,28,25,19],"total":1406,"totalIslands":654,"proportion":0.6276934,"clustersGT2":335,"viewTime":9331},
+//{"time":110001,"windowsize":10000,"top5":[5087,35,33,19,18],"total":1437,"totalIslands":691,"proportion":0.6197612,"clustersGT2":334,"viewTime":8534},
+//{"time":120001,"windowsize":10000,"top5":[5162,49,24,23,20],"total":1350,"totalIslands":615,"proportion":0.63066584,"clustersGT2":306,"viewTime":7991},
+//{"time":130001,"windowsize":10000,"top5":[5180,22,17,17,16],"total":1357,"totalIslands":609,"proportion":0.63573885,"clustersGT2":341,"viewTime":6847},
+//{"time":140001,"windowsize":10000,"top5":[5171,35,17,16,15],"total":1369,"totalIslands":603,"proportion":0.6307636,"clustersGT2":325,"viewTime":9540},
+//{"time":150001,"windowsize":10000,"top5":[5206,22,16,16,16],"total":1400,"totalIslands":647,"proportion":0.6345685,"clustersGT2":324,"viewTime":8550},
+//{"time":160001,"windowsize":10000,"top5":[4959,45,29,22,21],"total":1454,"totalIslands":659,"proportion":0.6032113,"clustersGT2":332,"viewTime":7300},
+//{"time":170001,"windowsize":10000,"top5":[5118,31,27,22,19],"total":1405,"totalIslands":670,"proportion":0.62551945,"clustersGT2":302,"viewTime":7347},
+//{"time":180001,"windowsize":10000,"top5":[5270,19,17,14,13],"total":1369,"totalIslands":637,"proportion":0.6440968,"clustersGT2":319,"viewTime":8214},
+//{"time":190001,"windowsize":10000,"top5":[4988,72,33,29,28],"total":1453,"totalIslands":672,"proportion":0.6050461,"clustersGT2":324,"viewTime":12156},
+//{"time":200001,"windowsize":10000,"top5":[5125,32,27,22,20],"total":1378,"totalIslands":611,"proportion":0.6247714,"clustersGT2":314,"viewTime":11024},
+//{"time":210001,"windowsize":10000,"top5":[4943,29,26,18,18],"total":1380,"totalIslands":596,"proportion":0.6039834,"clustersGT2":343,"viewTime":10205},
+//{"time":220001,"windowsize":10000,"top5":[5196,44,41,24,23],"total":1372,"totalIslands":627,"proportion":0.63497496,"clustersGT2":320,"viewTime":8996},
+//{"time":230001,"windowsize":10000,"top5":[4956,49,26,23,18],"total":1429,"totalIslands":665,"proportion":0.60358053,"clustersGT2":348,"viewTime":7892},
+//{"time":240001,"windowsize":10000,"top5":[5171,34,30,21,19],"total":1337,"totalIslands":627,"proportion":0.63440067,"clustersGT2":310,"viewTime":9581},
+//{"time":250001,"windowsize":10000,"top5":[5197,21,18,18,17],"total":1358,"totalIslands":625,"proportion":0.63517475,"clustersGT2":304,"viewTime":8277},
+//{"time":260001,"windowsize":10000,"top5":[5014,39,34,32,19],"total":1405,"totalIslands":645,"proportion":0.6127337,"clustersGT2":320,"viewTime":9793},
+//{"time":270001,"windowsize":10000,"top5":[5029,40,34,22,20],"total":1391,"totalIslands":631,"proportion":0.6145668,"clustersGT2":328,"viewTime":8790},
+//{"time":280001,"windowsize":10000,"top5":[5126,38,28,21,21],"total":1394,"totalIslands":647,"proportion":0.6264206,"clustersGT2":341,"viewTime":8935},
+//{"time":290001,"windowsize":10000,"top5":[5228,66,25,21,20],"total":1318,"totalIslands":611,"proportion":0.63771653,"clustersGT2":314,"viewTime":9553},
+//{"time":300001,"windowsize":10000,"top5":[5149,24,24,21,18],"total":1383,"totalIslands":624,"proportion":0.6303869,"clustersGT2":305,"viewTime":8931},
 
 
 //Range Analysis Task received, your job ID is com.raphtory.algorithms.ConnectedComponents_1611587405024, running com.raphtory.algorithms.ConnectedComponents, between 1 and 300000 jumping 10000 at a time.

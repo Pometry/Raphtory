@@ -88,10 +88,7 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
 
       datasource.generateData() match {
         case Some(work) =>
-          val message = if (count % 10000 == 0)
-            AllocateTrackedTuple(System.currentTimeMillis(),work)
-          else
-            AllocateTuple(work)
+          val message = AllocateTuple(work)
           sender ! message
           recordUpdate()
 //          if (count % 10000 == 0) println(s"Spout at Message $count")
