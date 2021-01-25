@@ -27,6 +27,9 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   val mongoPort = System.getenv().getOrDefault("ANALYSIS_MONGO_PORT", "27017").trim
   val dbname    = System.getenv().getOrDefault("ANALYSIS_MONGO_DB_NAME", "raphtory").trim
 
+  val mongo = if(saveData) MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress()}:$mongoPort")) else MongoClient()
+
+
   var viewTimeCurrentTimer = System.currentTimeMillis()
 
   //Communication Counters
@@ -100,7 +103,6 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   protected def processResultsWrapper(timeStamp: Long) = {
     try{
       if(saveData) {
-        val mongo = MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress()}:$mongoPort"))
         val buffer = new java.util.ArrayList[DBObject]()
         processResults(timeStamp)
         analyser.getPublishedData().foreach(data => {
@@ -109,8 +111,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
         analyser.clearPublishedData()
         if(!buffer.isEmpty)
           mongo.getDB(dbname).getCollection(jobID).insert(buffer)
-        buffer.clear()
-        mongo.close()
+        //mongo.
       }
       else
         processResults(timeStamp)
