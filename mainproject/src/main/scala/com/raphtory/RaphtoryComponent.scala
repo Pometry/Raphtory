@@ -73,13 +73,13 @@ class RaphtoryComponent(component:String,partitionCount:Int,routerCount:Int,port
     system.actorOf(Props(new SpoutAgent(spout)), "Spout")
   }
 
-
   def analysis() = {
     println("Creating Analysis Manager")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
     AnalysisRestApi(system)
     system.actorOf(Props[AnalysisManager], s"AnalysisManager")
   }
+
   def watchDog() = {
     println("Cluster Up, informing Partition Managers and Routers")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
