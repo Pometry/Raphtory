@@ -8,18 +8,47 @@ import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.ParArray
 import scala.reflect.io.Path
 
+/**
+Description
+  LPA returns the communities of the constructed graph as detected by synchronous label propagation.
+  Every vertex is assigned an initial label at random. Looking at the labels of its neighbours, a probability is assigned
+  to observed labels following an increasing function then the vertex’s label is updated with the label with the highest
+  probability. If the new label is the same as the current label, the vertex votes to halt. This process iterates until
+  all vertex labels have converged. The algorithm is synchronous since every vertex updates its label at the same time.
+
+Parameters
+  top (Int)       – The number of top largest communities to return. (default: 0)
+                      If not specified, Raphtory will return all detected communities.
+  weight (String) - Edge property (default: ""). To be specified in case of weighted LPA.
+  maxIter (Int)   - Maximum iterations for LPA to run. (default: 500)
+
+Returns
+  total (Int)     – Number of detected communities.
+  communities (List(List(Long))) – Communities sorted by their sizes. Returns largest top communities if specified.
+
+Notes
+This implementation of LPA incorporated probabilistic elements which makes it non-deterministic;
+The returned communities may differ on multiple executions.
+  **/
+
 object LPA {
-  def apply(args:Array[String]): LPA = new LPA(args)
+//  def apply(top: Int = 0, weight: String = "", maxIter: Int = 500): LPA =
+//    new LPA(Array(top.toString, weight, maxIter.toString))
+def apply(args:Array[String]): LPA = new LPA(args)
 }
 
 class LPA(args: Array[String]) extends Analyser(args) {
   //args = [top output, edge property, max iterations]
+
+//  val top_c: Int   = args.head.toInt
+//  val PROP: String = args(1)
+//  val maxIter: Int = args(2).toInt
   val arg: Array[String] = args.map(_.trim)
   val top_c: Int         = if (arg.length == 0) 0 else arg.head.toInt
   val PROP: String       = if (arg.length < 2) "" else arg(1)
   val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
 
-  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "/app/out.json").trim
+  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
   val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
 
   override def setup(): Unit =
@@ -76,8 +105,8 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val text = s"""{"time":$timestamp,"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt
       .mkString(",")}], "viewTime":$viewCompleteTime}"""
-//    Path(output_file).createFile().appendAll(text + "\n")
-    println(text)
+    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
+    else println(text)
   }
 
   override def processWindowResults(
@@ -91,8 +120,8 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt
       .mkString(",")}], "viewTime":$viewCompleteTime}"""
-//    Path(output_file).createFile().appendAll(text + "\n")
-    println(text)
+    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
+    else println(text)
   }
 
   def extractData(results: ArrayBuffer[Any]): fd = {
