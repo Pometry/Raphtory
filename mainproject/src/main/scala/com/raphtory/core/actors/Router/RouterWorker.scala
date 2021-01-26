@@ -2,6 +2,7 @@ package com.raphtory.core.actors.Router
 
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.util.Timeout
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.Router.RouterWorker.CommonMessage.TimeBroadcast
 import com.raphtory.core.actors.Router.RouterWorker.State
@@ -10,10 +11,11 @@ import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage.SpoutOnline
 import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage.WorkPlease
 import com.raphtory.core.model.communication._
 import kamon.Kamon
+import akka.pattern.ask
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 
 // TODO Add val name which sub classes that extend this trait must overwrite
@@ -29,6 +31,7 @@ class RouterWorker[T](
   implicit val executionContext: ExecutionContext = context.system.dispatcher
   //println(s"Router $routerId $workerID with $initialManagerCount $initialRouterCount")
   private val messageIDs = ParTrieMap[String, Int]()
+  private var safe = false
 
   private val routerWorkerUpdates =
     Kamon.counter("Raphtory_Router_Output").withTag("Router", routerId).withTag("Worker", workerID)
@@ -42,11 +45,15 @@ class RouterWorker[T](
   override def preStart(): Unit = {
     log.debug(s"RouterWorker [$routerId] is being started.")
     context.system.scheduler.scheduleOnce(delay = 5.seconds, receiver = self, message = TimeBroadcast)
+    context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "startUp")
+
   }
 
-  override def receive: Receive = work(State(initialManagerCount, 0L, 0L, false,0L))
+  override def receive: Receive = work(State(initialManagerCount, 0L, false,0L))
 
   private def work(state: State): Receive = {
+    case "startUp"     => clusterReadyForAnalysis() //first ask the watchdog if it is safe to do analysis and what the size of the cluster is //when the watchdog responds, set the new value and message each Reader Worker
+
     case SpoutOnline => context.sender() ! WorkPlease
     case NoWork =>
       context.system.scheduler.scheduleOnce(delay = 1.second, receiver = context.sender(), message = WorkPlease)
@@ -57,21 +64,10 @@ class RouterWorker[T](
 
     case AllocateTuple(record: T) => //todo: wvv AllocateTuple should hold type of record instead of using Any
       log.debug(s"RouterWorker [$routerId] received AllocateTuple[$record] request.")
-      val newNewestTimes = parseTupleAndSendGraph(record, state.managerCount, false, state.trackedTime)
+      val newNewestTimes = parseTupleAndSendGraph(record, state.managerCount)
       val newNewestTime  = (state.newestTime :: newNewestTimes).max
       if (newNewestTime > state.newestTime)
         context.become(work(state.copy(newestTime = newNewestTime)))
-      context.sender() ! WorkPlease
-
-    case msg @ AllocateTrackedTuple(
-                wallClock,
-                record: T
-        ) => //todo: wvv AllocateTrackedTuple should hold type of record instead of using Any
-      log.debug(s"RouterWorker [$routerId] received [$msg] request.")
-      val newNewestTimes = parseTupleAndSendGraph(record, state.managerCount, true, wallClock)
-      val newNewestTime  = (state.newestTime :: newNewestTimes).max
-      if (newNewestTime > state.newestTime)
-        context.become(work(state.copy(trackedTime = wallClock, newestTime = newNewestTime)))
       context.sender() ! WorkPlease
 
     case TimeBroadcast =>
@@ -105,42 +101,34 @@ class RouterWorker[T](
 
   private def parseTupleAndSendGraph(
       record: T,
-      managerCount: Int,
-      trackedMessage: Boolean,
-      trackedTime: Long
+      managerCount: Int
   ): List[Long] =
-    graphBuilder.getUpdates(record).map(update => sendGraphUpdate(update, managerCount, trackedMessage, trackedTime))
+    graphBuilder.getUpdates(record).map(update => sendGraphUpdate(update, managerCount))
 
   private def sendGraphUpdate(
       message: GraphUpdate,
       managerCount: Int,
-      trackedMessage: Boolean,
-      trackedTime: Long
   ): Long = {
     update += 1
     routerWorkerUpdates.increment()
     val path             = getManager(message.srcID, managerCount)
     val id               = getMessageIDForWriter(path)
-    val trackedTimeToUse = if (trackedMessage) trackedTime else -1L
 
     val sentMessage = message match {
       case m: VertexAdd =>
-        TrackedVertexAdd(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedVertexAdd(s"${routerId}_$workerID", id, m)
       case m: VertexAddWithProperties =>
-        TrackedVertexAddWithProperties(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedVertexAddWithProperties(s"${routerId}_$workerID", id, m)
       case m: EdgeAdd =>
-        TrackedEdgeAdd(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedEdgeAdd(s"${routerId}_$workerID", id, m)
       case m: EdgeAddWithProperties =>
-        TrackedEdgeAddWithProperties(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedEdgeAddWithProperties(s"${routerId}_$workerID", id, m)
       case m: VertexDelete =>
-        TrackedVertexDelete(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedVertexDelete(s"${routerId}_$workerID", id, m)
       case m: EdgeDelete =>
-        TrackedEdgeDelete(s"${routerId}_$workerID", id, trackedTimeToUse, m)
+        TrackedEdgeDelete(s"${routerId}_$workerID", id, m)
     }
     log.debug(s"RouterWorker sending message [$sentMessage] to PubSub")
-    if (trackedMessage)
-      mediator ! DistributedPubSubMediator
-        .Send("/user/WatermarkManager", UpdateArrivalTime(trackedTime, message.msgTime), localAffinity = false)
 
     mediator ! DistributedPubSubMediator.Send(path, sentMessage, localAffinity = false)
     message.msgTime
@@ -165,19 +153,39 @@ class RouterWorker[T](
   }
 
   def broadcastRouterWorkerTimeSync(managerCount: Int, time: Long) = {
-    val workerPaths = for {
-      i <- 0 until managerCount
-      j <- 0 until totalWorkers
-    } yield s"/user/Manager_${i}_child_$j"
+    if(safe) {
+      val workerPaths = for {
+        i <- 0 until managerCount
+        j <- 0 until totalWorkers
+      } yield s"/user/Manager_${i}_child_$j"
 
-    workerPaths.foreach { workerPath =>
-      mediator ! new DistributedPubSubMediator.Send(
-        workerPath,
-        RouterWorkerTimeSync(time, s"${routerId}_$workerID", getMessageIDForWriter(workerPath))
-      )
+      workerPaths.foreach { workerPath =>
+        mediator ! new DistributedPubSubMediator.Send(
+          workerPath,
+          RouterWorkerTimeSync(time, s"${routerId}_$workerID", getMessageIDForWriter(workerPath))
+        )
+      }
     }
   }
+
+  private def clusterReadyForAnalysis(): Unit =
+    if (!safe)
+      try {
+        implicit val timeout: Timeout = Timeout(10 seconds) //time to wait for watchdog response
+        val future                    = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest(), false) //ask if the cluster is safe to use
+        if(Await.result(future, timeout.duration).asInstanceOf[ClusterStatusResponse].clusterUp) { //if it is
+          safe = true
+        }
+        else{
+          context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "startUp")
+        }
+      } catch {
+        case e: java.util.concurrent.TimeoutException => context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "startUp")
+      }
+
 }
+
+
 
 object RouterWorker {
   object CommonMessage {
@@ -186,7 +194,6 @@ object RouterWorker {
 
   private case class State(
                             managerCount: Int,
-                            trackedTime: Long,
                             newestTime: Long,
                             dataFinished: Boolean,
                             restRouterNewestFinishedTime: Long
