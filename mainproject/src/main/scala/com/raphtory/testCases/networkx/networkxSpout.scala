@@ -24,7 +24,6 @@ class networkxSpout extends Spout[String] {
     override def generateData(): Option[String] = {
       if(fileQueue isEmpty){
         dataSourceComplete()
-        println("Finished Reading All Data!  " + LocalDateTime.now())
         None
       }
       else

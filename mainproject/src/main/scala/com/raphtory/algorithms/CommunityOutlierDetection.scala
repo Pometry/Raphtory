@@ -5,14 +5,36 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.reflect.io.Path
 
+/**
+Description
+  Returns outliers detected based on the community structure of the Graph.
+
+  Tha algorithm runs an instance of LPA on the graph, initially, and then defines an outlier score based on a node's
+  community membership and how it compares to its neighbors community memberships.
+
+Parameters
+  top (Int)       – Defines number of nodes with high outlier score to be returned. (default: 0)
+                      If not specified, Raphtory will return the outlier score for all nodes.
+  weight (String) - Edge property (default: ""). To be specified in case of weighted LPA.
+  cutoff (Double) - Outlier score threshold (default: 0.0). Identifies the outliers with an outlier score > cutoff.
+  maxIter (Int)   - Maximum iterations for LPA to run. (default: 500)
+
+Returns
+  total (Int)     – Number of detected outliers.
+  outliers Map(Long, Double) – Map of (node, outlier score) sorted by their outlier score.
+                  Returns `top` nodes with outlier score higher than `cutoff` if specified.
+**/
+
 object CommunityOutlierDetection {
   def apply(args:Array[String]): CommunityOutlierDetection = new CommunityOutlierDetection(args)
 }
 
 class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
   //args = [top output, edge property, maxIter, threshold]
-  val topnum: Int           = if (arg.length == 0) 0 else arg.head.toInt
-  val thr: Double           = if (arg.length < 4) 0.0 else arg(3).toDouble
+  val topnum: Int           = if (args.length == 0) 0 else args.head.toInt
+  val thr: Double           = if (args.length < 4) 0.0 else args(3).toDouble
+
+  override val output_file: String = System.getenv().getOrDefault("CBOD_OUTPUT_PATH", "").trim
 
   override def doSomething(v: VertexVisitor, neighborLabels: Array[Long]): Unit = {
     val vlabel       = v.getState[Long]("lpalabel")
@@ -36,8 +58,8 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
     val out        = if (topnum == 0) sortedstr else sortedstr.take(topnum)
     val text = s"""{"time":$timestamp,"total":$total,"top5":[${top.mkString(",")}],"outliers":{${out
       .mkString(",")}},"viewTime":$viewCompleteTime}"""
-//    Path(output_file).createFile().appendAll(text + "\n")
-        println(text)
+    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
+    else    println(text)
   }
 
   override def processWindowResults(
@@ -55,7 +77,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
     val out        = if (topnum == 0) sortedstr else sortedstr.take(topnum)
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":$total,"top5":[${top
       .mkString(",")}],"outliers":{${out.mkString(",")}},"viewTime":$viewCompleteTime}"""
-//    Path(output_file).createFile().appendAll(text + "\n")
-    println(text)
+    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
+    else println(text)
   }
 }

@@ -90,9 +90,9 @@ class MultiLayerLPAparams(args:Array[String]) extends LPA(args) {
       val totalIslands = total - totalWithoutIslands
       val proportion = biggest.toFloat / grouped.map(x => x._2.size).sum
       val communities = sorted.map(x=>x._2).take(if(top_c==0) sorted.length else top_c)
-      fd(top5, total, totalIslands, proportion, communities)
+      fd(top5, total, totalIslands,  communities)
     } catch {
-      case e: UnsupportedOperationException => fd(Array(0),0,0,0,Array(ArrayBuffer("0")))
+      case e: UnsupportedOperationException => fd(Array(0),0,0,Array(ArrayBuffer("0")))
     }
   }
 
