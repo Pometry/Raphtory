@@ -50,6 +50,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Double]]].flatten
+
     val outliers   = endResults.filter(_._2 >= thr)
     val sorted     = outliers.sortBy(-_._2)
     val sortedstr  = sorted.map(x => s""""${x._1}":${x._2}""")
