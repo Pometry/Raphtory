@@ -9,12 +9,12 @@ import scala.collection.parallel.mutable.ParArray
 import scala.reflect.io.Path
 
 object LPA {
-  def apply(): LPA = new LPA(Array())
+  def apply(args:Array[String]): LPA = new LPA(args)
 }
 
 class LPA(args: Array[String]) extends Analyser(args) {
   //args = [top output, edge property, max iterations]
-  val arg: Array[String] = args.map(_.trim) // TODO: IM: add argument (maxiter)
+  val arg: Array[String] = args.map(_.trim)
   val top_c: Int         = if (arg.length == 0) 0 else arg.head.toInt
   val PROP: String       = if (arg.length < 2) "" else arg(1)
   val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
@@ -76,8 +76,8 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val text = s"""{"time":$timestamp,"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt
       .mkString(",")}], "viewTime":$viewCompleteTime}"""
-    Path(output_file).createFile().appendAll(text + "\n")
-//    println(text)
+//    Path(output_file).createFile().appendAll(text + "\n")
+    println(text)
   }
 
   override def processWindowResults(
@@ -91,8 +91,8 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt
       .mkString(",")}], "viewTime":$viewCompleteTime}"""
-    Path(output_file).createFile().appendAll(text + "\n")
-//    println(text)
+//    Path(output_file).createFile().appendAll(text + "\n")
+    println(text)
   }
 
   def extractData(results: ArrayBuffer[Any]): fd = {
@@ -100,7 +100,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
     try {
       val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
       val groupedNonIslands   = grouped.filter(x => x._2.size > 1)
-      val sorted              = grouped.toArray.sortBy(_._2.size)(sortOrdering) //
+      val sorted              = grouped.toArray.sortBy(_._2.size)(sortOrdering)
       val top5                = sorted.map(_._2.size).take(5)
       val total               = grouped.size
       val totalWithoutIslands = groupedNonIslands.size
