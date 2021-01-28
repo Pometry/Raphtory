@@ -112,7 +112,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends RaphtoryActor {
 
   private def processRequestPartitionIdRequest(req: RequestPartitionId): Unit = {
     log.debug(s"Sending assigned id [{}] for new partition manager to Replicator.", pmCounter)
-
+    println(s"Sending assigned id $pmCounter for new partition manager to Replicator.")
     sender() ! AssignedId(pmCounter)
     pmCounter += 1
 
@@ -122,7 +122,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends RaphtoryActor {
 
   private def processRequestRouterIdRequest(req: RequestRouterId): Unit = {
     log.debug(s"Sending assigned id [{}] for new router to Replicator.", roCounter)
-
+    println(s"Sending assigned id $roCounter for new partition manager to Replicator.")
     sender ! AssignedId(roCounter)
     roCounter += 1
   }
