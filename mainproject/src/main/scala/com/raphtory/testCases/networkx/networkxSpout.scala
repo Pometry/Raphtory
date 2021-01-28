@@ -11,7 +11,7 @@ class networkxSpout extends Spout[String] {
 
     println("Start: " + LocalDateTime.now())
     val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
-    val fileName = "small_tgraph2.csv"//System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //
+    val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //
     val filename = directory + "/" + fileName
     val fileQueue = mutable.Queue[String]()
 

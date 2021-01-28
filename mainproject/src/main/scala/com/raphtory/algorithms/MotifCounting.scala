@@ -11,9 +11,9 @@ object MotifCounting {
   def apply(args: Array[String]): MotifCounting = new MotifCounting(args)
 }
 
-class MotifCounting(args: Array[String]) extends Analyser(args) { //todo: IM: better manage args
+class MotifCounting(args: Array[String]) extends Analyser(args) { //IM: better manage args
 //args = [delta, edge weight]
-  val delta: Long  = if (args.isEmpty) throw new Exception else args.head.toLong //todo: IM: remove exception later
+  val delta: Long  = if (args.isEmpty) throw new Exception else args.head.toLong //IM: remove exception later
   val PROP: String = if (args.length < 2) "weight" else args(1)
 
   val output_file: String = System.getenv().getOrDefault("MC_OUTPUT_PATH", "").trim
