@@ -47,7 +47,7 @@ class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
     safeMessageMap put(sender().path.toString,u.time)
     counter +=1
     if(counter%(totalWorkers*managerCount)==0) {
-      val watermark = safeMessageMap.map(x=>x._2).min
+      val watermark = safeMessageMap.values.min
       safeTime.update(watermark)
       val max = safeMessageMap.maxBy(x=> x._2)
       val min = safeMessageMap.minBy(x=> x._2)
