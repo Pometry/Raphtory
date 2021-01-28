@@ -14,7 +14,7 @@ class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
 
   override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(delay = 20.seconds, receiver = self, message = "probe")
+    context.system.scheduler.scheduleOnce(delay = 60.seconds, receiver = self, message = "probe")
   }
   val safeTime = Kamon.gauge("Raphtory_Safe_Time").withTag("actor",s"WatermarkManager")
 

@@ -46,7 +46,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
   val arg: Array[String] = args.map(_.trim)
   val top_c: Int         = if (arg.length == 0) 0 else arg.head.toInt
   val PROP: String       = if (arg.length < 2) "" else arg(1)
-  val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
+  val maxIter: Int       = if (arg.length < 3) 30 else arg(2).toInt
 
   val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
   val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
@@ -105,8 +105,9 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val text = s"""{"time":$timestamp,"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt
       .mkString(",")}], "viewTime":$viewCompleteTime}"""
-    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
-    else println(text)
+    publishData(text)
+//    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
+//    else println(text)
   }
 
   override def processWindowResults(
@@ -120,8 +121,9 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt
       .mkString(",")}], "viewTime":$viewCompleteTime}"""
-    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
-    else println(text)
+    publishData(text)
+    //    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
+//    else println(text)
   }
 
   def extractData(results: ArrayBuffer[Any]): fd = {
