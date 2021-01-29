@@ -58,8 +58,10 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
     val out       = if (top == 0) sortedstr else sortedstr.take(top)
     val text = s"""{"time":$timestamp,"total":$total,"top5":[${top5.mkString(",")}],"outliers":{${out
       .mkString(",")}},"viewTime":$viewCompleteTime}"""
-    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
-    else println(text)
+    output_file match {
+      case "" => println(text)
+      case _  => Path(output_file).createFile().appendAll(text + "\n")
+    }
   }
 
   override def processWindowResults(
@@ -77,7 +79,9 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
     val out        = if (top == 0) sortedstr else sortedstr.take(top)
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":$total,"top5":[${top5
       .mkString(",")}],"outliers":{${out.mkString(",")}},"viewTime":$viewCompleteTime}"""
-    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
-    else println(text)
+    output_file match {
+      case "" => println(text)
+      case _  => Path(output_file).createFile().appendAll(text + "\n")
+    }
   }
 }
