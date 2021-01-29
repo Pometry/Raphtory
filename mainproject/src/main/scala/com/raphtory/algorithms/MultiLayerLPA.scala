@@ -56,7 +56,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
     }
 
   override def analyse(): Unit =
-//    try
+    try
     view.getMessagedVertices().foreach { vertex =>
       val vlabel    = vertex.getState[mutable.TreeMap[Long, (Long, Long)]]("mlpalabel")
       val msgQueue  = vertex.messageQueue[(Long, mutable.TreeMap[Long, (Long, Long)])]
@@ -99,16 +99,16 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       if (voteCount == vlabel.size) vertex.voteToHalt()
 //        println(view.superStep())
     }
-//  catch {
-//      case e: Exception => println("Something went wrong in mLPA!", e)
-//    }
+  catch {
+      case e: Exception => println("Something went wrong with mLPA!", e)
+    }
 
   def interLayerWeights(x: String, v: VertexVisitor, ts: Long): Long =
     x match {
       case "None" =>
         val neilabs = weightFunction(v, ts)
         neilabs.values.sum / neilabs.size
-      case _ => omega.toLong
+      case _ => omega.toLong                            //imlater: possibly changing this to Double
     }
 
   def weightFunction(v: VertexVisitor, ts: Long): ParMap[Long, Long] =

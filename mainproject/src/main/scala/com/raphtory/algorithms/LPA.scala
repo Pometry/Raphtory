@@ -108,8 +108,11 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val text = s"""{"time":$timestamp,"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt
       .mkString(",")}], "viewTime":$viewCompleteTime}"""
-    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
-    else println(text)
+
+    output_file match {
+      case "" => println(text)
+      case _  => Path(output_file).createFile().appendAll(text + "\n")
+    }
   }
 
   override def processWindowResults(
@@ -123,8 +126,11 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt
       .mkString(",")}], "viewTime":$viewCompleteTime}"""
-    if (output_file.nonEmpty) Path(output_file).createFile().appendAll(text + "\n")
-    else println(text)
+
+    output_file match {
+      case "" => println(text)
+      case _  => Path(output_file).createFile().appendAll(text + "\n")
+    }
   }
 
   def extractData(results: ArrayBuffer[Any]): fd = {
