@@ -11,9 +11,9 @@ class MultiLayerLPAparams(args:Array[String]) extends LPA(args) {
   val startTime = args(1).toLong * snapshotSize //TODO: change this when done with wsdata
   val endTime = args(2).toLong * snapshotSize
   val snapshots = (startTime to endTime by snapshotSize).tail
-  val weight = args(4)
+  override val weight = args(4)
   val theta = args(5).toDouble
-  override val PROP = args(6)
+  val PROP = args(6)
 
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
@@ -89,7 +89,7 @@ class MultiLayerLPAparams(args:Array[String]) extends LPA(args) {
       val totalWithoutIslands = groupedNonIslands.size
       val totalIslands = total - totalWithoutIslands
       val proportion = biggest.toFloat / grouped.map(x => x._2.size).sum
-      val communities = sorted.map(x=>x._2).take(if(top_c==0) sorted.length else top_c)
+      val communities = sorted.map(x=>x._2).take(if(top==0) sorted.length else top)
       fd(top5, total, totalIslands,  communities)
     } catch {
       case e: UnsupportedOperationException => fd(Array(0),0,0,Array(ArrayBuffer("0")))

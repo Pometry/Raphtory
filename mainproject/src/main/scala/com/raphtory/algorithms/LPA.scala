@@ -19,7 +19,7 @@ Description
 Parameters
   top (Int)       – The number of top largest communities to return. (default: 0)
                       If not specified, Raphtory will return all detected communities.
-  weight (String) - Edge property (default: ""). To be specified in case of weighted LPA.
+  weight (String) - Edge property (default: ""). To be specified in case of weighted graph.
   maxIter (Int)   - Maximum iterations for LPA to run. (default: 500)
 
 Returns
@@ -27,14 +27,13 @@ Returns
   communities (List(List(Long))) – Communities sorted by their sizes. Returns largest top communities if specified.
 
 Notes
-This implementation of LPA incorporated probabilistic elements which makes it non-deterministic;
-The returned communities may differ on multiple executions.
+  This implementation of LPA incorporated probabilistic elements which makes it non-deterministic;
+  The returned communities may differ on multiple executions.
   **/
-
 object LPA {
 //  def apply(top: Int = 0, weight: String = "", maxIter: Int = 500): LPA =
 //    new LPA(Array(top.toString, weight, maxIter.toString))
-def apply(args:Array[String]): LPA = new LPA(args)
+  def apply(args: Array[String]): LPA = new LPA(args)
 }
 
 class LPA(args: Array[String]) extends Analyser(args) {
@@ -44,16 +43,18 @@ class LPA(args: Array[String]) extends Analyser(args) {
 //  val PROP: String = args(1)
 //  val maxIter: Int = args(2).toInt
   val arg: Array[String] = args.map(_.trim)
-  val top_c: Int         = if (arg.length == 0) 0 else arg.head.toInt
-  val PROP: String       = if (arg.length < 2) "" else arg(1)
-  val maxIter: Int       = if (arg.length < 3) 30 else arg(2).toInt
+
+  val top: Int         = if (arg.length == 0) 0 else arg.head.toInt
+  val weight: String       = if (arg.length < 2) "" else arg(1)
+  val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
+
 
   val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
   val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
-      val lab = scala.util.Random.nextLong()
+      val lab = (-1L, scala.util.Random.nextLong())
       vertex.setState("lpalabel", lab)
       vertex.messageAllNeighbours((vertex.ID(), lab))
     }
@@ -61,29 +62,33 @@ class LPA(args: Array[String]) extends Analyser(args) {
   override def analyse(): Unit =
     view.getMessagedVertices().foreach { vertex =>
       try {
-        val Vlabel = vertex.getState[Long]("lpalabel")
+        val Vlabel   = vertex.getState[(Long, Long)]("lpalabel")._2
+        val Oldlabel = vertex.getState[(Long, Long)]("lpalabel")._1
 
         // Get neighbourhood Frequencies -- relevant to weighted LPA
         val vneigh = vertex.getOutEdges ++ vertex.getIncEdges
         val neigh_freq = vneigh
-          .map(e => (e.ID(), e.getPropertyValue(PROP).getOrElse(1L).asInstanceOf[Long]))
+          .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1L).asInstanceOf[Long]))
           .groupBy(_._1)
-          .mapValues(x => x.map(_._2).sum)
-        val vfreq = if (vneigh.nonEmpty) neigh_freq.values.sum / vneigh.map(_.ID()).toSet.size else 1L
+          .mapValues(x => x.map(_._2).sum / x.size)
 
         // Process neighbour labels into (label, frequency)
-        val gp = vertex.messageQueue[(Long, Long)].map(v => (v._2, neigh_freq(v._1)))
-        gp.append((Vlabel, vfreq))
+        val gp = vertex.messageQueue[(Long, (Long, Long))].map(v => (v._2._2, neigh_freq(v._1)))
+
+        // Get label most prominent in neighborhood of vertex
+        val maxlab = gp.groupBy(_._1).mapValues(_.map(_._2).sum)
 
         // Update node label and broadcast
-        val newLabel = gp.groupBy(_._1).mapValues(_.map(_._2).sum).maxBy(_._2)._1
-        newLabel match {
-          case Vlabel => vertex.voteToHalt()
-          case _      => vertex.setState("lpalabel", newLabel)
+        val newLabel = maxlab.filter(_._2 == maxlab.values.max).keySet.max
+        val nlab = newLabel match {
+          case Vlabel | Oldlabel =>
+            vertex.voteToHalt()
+            (List(Vlabel, Oldlabel).min, List(Vlabel, Oldlabel).max)
+          case _ => (Vlabel, newLabel)
         }
-
-        vertex.messageAllNeighbours((vertex.ID(), newLabel))
-        doSomething(vertex, gp.dropRight(1).map(_._1).toArray)
+        vertex.setState("lpalabel", nlab)
+        vertex.messageAllNeighbours((vertex.ID(), nlab))
+        doSomething(vertex, gp.map(_._1).toArray)
       } catch {
         case e: Exception => println(e, vertex.ID())
       }
@@ -95,7 +100,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
     view
       .getVertices()
       .filter(v => v.Type() == nodeType)
-      .map(vertex => (vertex.getState[Long]("lpalabel"), vertex.ID()))
+      .map(vertex => (vertex.getState[(Long, Long)]("lpalabel")._2, vertex.ID()))
       .groupBy(f => f._1)
       .map(f => (f._1, f._2.map(_._2)))
 
@@ -136,7 +141,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
       val total               = grouped.size
       val totalWithoutIslands = groupedNonIslands.size
       val totalIslands        = total - totalWithoutIslands
-      val communities         = if (top_c == 0) sorted.map(_._2) else sorted.map(_._2).take(top_c)
+      val communities         = if (top == 0) sorted.map(_._2) else sorted.map(_._2).take(top)
       fd(top5, total, totalIslands, communities)
     } catch {
       case e: UnsupportedOperationException => fd(Array(0), 0, 0, Array(ArrayBuffer("0")))
