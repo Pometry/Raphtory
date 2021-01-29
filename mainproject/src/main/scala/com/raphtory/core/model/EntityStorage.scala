@@ -253,17 +253,21 @@ class EntityStorage(partitionID:Int,workerID: Int) {
         if (!(edgeType == null)) edge.setType(edgeType.name)
         srcVertex.addOutgoingEdge(edge) //add this edge to the vertex
     }
-    if (local && srcId != dstId)
-      if (sameWorker) { //if the dst is handled by the same worker
-        val dstVertex = vertexAdd(msgTime, dstId, vertexType = null) // do the same for the destination ID
-        if (!present) {
-          dstVertex addIncomingEdge (edge)   // add it to the dst as would not have been seen
-          edge killList dstVertex.removeList //add the dst removes into the edge
-        }
-      } else // if it is a different worker, ask that other worker to complete the dst part of the edge
-        mediator ! DistributedPubSubMediator
-          .Send(getManager(dstId, managerCount), DstAddForOtherWorker(msgTime, dstId, srcId, edge, present, routerID:String, routerTime), true)
-
+    if (local) {
+      if (srcId != dstId) {
+        if (sameWorker) { //if the dst is handled by the same worker
+          val dstVertex = vertexAdd(msgTime, dstId, vertexType = null) // do the same for the destination ID
+          if (!present) {
+            dstVertex addIncomingEdge (edge) // add it to the dst as would not have been seen
+            edge killList dstVertex.removeList //add the dst removes into the edge
+          }
+        } else // if it is a different worker, ask that other worker to complete the dst part of the edge
+          mediator ! DistributedPubSubMediator
+            .Send(getManager(dstId, managerCount), DstAddForOtherWorker(msgTime, dstId, srcId, edge, present, routerID: String, routerTime), true)
+      }
+      else
+        srcVertex addIncomingEdge (edge) // a self loop should be in the incoming map as well
+    }
     if (present) {
       edge revive msgTime //if the edge was previously created we need to revive it
       if (!local)         // if it is a remote edge we
