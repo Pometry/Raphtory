@@ -57,6 +57,8 @@ val kamon_system     = "io.kamon"    %% "kamon-system-metrics" % "2.1.0"
 val kamon_netty      = "io.kamon"    %% "kamon-netty"          % "1.0.0"
 //val monix            = "io.monix"    %% "monix"                % "3.0.0-RC1"
 val mongo            = "org.mongodb" % "mongo-java-driver"     % "3.12.4"
+val mongoscala       ="org.mongodb.scala" %% "mongo-scala-driver" % "2.9.0"
+
 val casbah           = "org.mongodb" %% "casbah-core"          % "3.1.1"
 
 //val doobie = "org.tpolecat" %% "doobie-core" % "0.8.4"
@@ -184,6 +186,7 @@ lazy val raphtory = project
                     joda,
                     casbah,
                     mongo,
+                    mongoscala,
                     //aws,
                     parquet,
                     hadoop
