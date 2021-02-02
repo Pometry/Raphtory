@@ -198,14 +198,16 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
 
   def processRemoteEdgeRemovalRequest(req: RemoteEdgeRemoval): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    storage.remoteEdgeRemoval(req.msgTime, req.srcID, req.dstID,req.routerID,req.routerTime)
+    val effect = storage.remoteEdgeRemoval(req.msgTime, req.srcID, req.dstID,req.routerID,req.routerTime)
+    sendEffectMessage(effect)
     storage.timings(req.msgTime)
     interWorkerUpdates.increment()
   }
 
   def processDstWipeForOtherWorkerRequest(req: DstWipeForOtherWorker): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    storage.vertexWipeWorkerRequest(req.msgTime, req.dstID, req.srcForEdge, req.edge, req.present,req.routerID,req.routerTime)
+    val effect = storage.vertexWipeWorkerRequest(req.msgTime, req.dstID, req.srcForEdge, req.edge, req.present,req.routerID,req.routerTime)
+    sendEffectMessage(effect)
     storage.timings(req.msgTime)
     intraWorkerUpdates.increment()
   }

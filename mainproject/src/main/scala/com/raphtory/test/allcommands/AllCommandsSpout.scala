@@ -31,8 +31,9 @@ class AllCommandsSpout extends Spout[String] {
     // genVertexAdd()
     if (random <= 0.3) genVertexAdd()
     //else genEdgeAdd()
-    else if (random <= 0.95) genEdgeAdd()
-    //else if (random <= 0.98) genEdgeRemoval()
+    else if (random <= 0.7) genEdgeAdd()
+    //  else genEdgeRemoval()
+    else if (random <= 0.98) genEdgeRemoval()
     else genVertexRemoval()
   }
 
