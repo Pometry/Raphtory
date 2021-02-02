@@ -187,10 +187,8 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
         if (sameWorker) {
           if (srcId != dstId) {
             addVertex(msgTime, dstId, vertexType = null) // do the same for the destination ID
+
           }
-          else {
-            srcVertex addIncomingEdge (edge)
-          } // a self loop should be in the incoming map as well
           None
         } else {
           Some(DstAddForOtherWorker(msgTime, dstId, srcId, edge, present, routerID, routerTime))
@@ -208,6 +206,9 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
             dstVertex addIncomingEdge (edge) // add it to the dst as would not have been seen
             edge killList dstVertex.removeList //add the dst removes into the edge
           }
+          else {
+            srcVertex addIncomingEdge (edge)
+          } // a self loop should be in the incoming map as well
           None
         } else {
           Some(DstAddForOtherWorker(msgTime, dstId, srcId, edge, present, routerID, routerTime))
@@ -281,9 +282,6 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       edge kill msgTime
       if (local) {
         if (sameWorker) {
-          if (srcId != dstId) {
-            getVertexOrPlaceholder(msgTime, dstId) // do the same for the destination ID
-          }
           None
         } else { // if it is a different worker, ask that other worker to complete the dst part of the edge
           Some(DstWipeForOtherWorker(msgTime, dstId, srcId, edge, present, routerID, routerTime))
