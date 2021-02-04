@@ -3,7 +3,7 @@ package com.raphtory.testCases.wordSemantic.graphbuilders
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication._
 
-class CooccurrenceMatrixGraphBuilder extends GraphBuilder[String] {
+class CoMatGB extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String) = {
     //println(record)
