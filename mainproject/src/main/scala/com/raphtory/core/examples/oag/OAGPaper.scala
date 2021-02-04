@@ -10,6 +10,11 @@ case class Author(
   org: Option[String]
 )
 
+case class MAGReference(
+  RId: Long,
+  title: String
+)
+
 case class DataSource (
   urlType: SourceUrlType,
   url: URL
@@ -65,6 +70,7 @@ case class OAGPaper(
   citationCount: Option[Int],
   estimatedCitationCount: Option[Int],
   references: Option[List[Long]],
+  extendedReferences: Option[List[MAGReference]],
   isSeed: Option[Boolean],
   labelDensity: Option[Double]
 //  citations: Option[List[Long]],

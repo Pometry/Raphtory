@@ -46,9 +46,23 @@ object OpenAcademicJsonProtocol extends DefaultJsonProtocol {
 
     def getInt(field: String)(implicit jsObj: JsObject): Option[Int] =
       getField(field) match {
-        case Some(s) => Some(s.toInt)
-        case None => None
+        case Some(s) => {
+          if(s.equals("null"))
+            Some(-1)
+          else Some(s.toInt)}
+        case None => Some(-1)
       }
+
+    /*def getInt(field: String)(implicit jsObj: JsObject): Int =
+      getField(field) match {
+        case Some(s) => {
+          if(s.equals("null"))
+            1
+          else s.toInt
+        }
+        case None => 1
+      }*/
+
 
     def getLong(field: String)(implicit jsObj: JsObject): Option[Long] =
       getField(field) match {

@@ -2,6 +2,7 @@ package com.raphtory.examples.oag
 
 import java.net.URL
 
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.raphtory.examples.oag
 import com.raphtory.examples.oag.PublicationType
 import com.raphtory.examples.oag.PublicationType.PublicationType
@@ -19,6 +20,7 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
 //                implicit val gabAuthorFormat           = jsonFormat2(List[Author])
 //implicit val publicationTypeFormat         = jsonFormat1(PublicationType.type)
 
+  implicit val magExtendedReferenceFormat = jsonFormat2(MAGReference)
 
   implicit object OAGDocJsonFormat extends RootJsonFormat[OAGPaper] {
     // TODO Writer method
@@ -45,6 +47,7 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
       }
 
     def getDataSources(field: String)(implicit jsObj: JsObject): Option[List[DataSource]] = {
+      return None
 //    def getDataSources(field: String)(implicit jsObj: JsObject): Option[String] = {
       val sString = getRawField(field)
       if (sString == None) {
@@ -124,6 +127,39 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
       val sources = new List[DataSource]
       return sources
     }*/
+
+    def getExtendedReferences(field: String)(implicit jsObj: JsObject): Option[List[MAGReference]] = {
+      val refs = mutable.MutableList[MAGReference]()
+      //"ExtendedRId": [{"RId": 2918032601, "title":"Paper1 title"}, {"RId": 2092553756, "title":"Paper2 title"}, {"RId": 1506366602, "title":"Paper2 title"}]
+      val raw = getRawField(field)
+      if (raw == None) {
+        //        return new List[]
+        return None
+      }
+      val sValue =  raw.get
+      val sArray = sValue.asInstanceOf[JsArray]
+//      val sArray_elements = sArray.elements
+//      val r = Unmarshal(sValue).to[List[MAGReference]]
+//      sArray_elements.foreach { elem =>
+      for (r <- sArray.elements) {
+//        val mag = elem.convertTo(MAGReference)
+          val ref = r.asInstanceOf[JsObject]
+          refs+=new MAGReference(ref.fields.get("RId").get.asInstanceOf[JsNumber].value.longValue(), ref.fields.get("title").get.toString)
+        //
+//        val mag = elem.asJsObject.fields.get("RId").get.asInstanceOf[Long].longValue()
+      }
+//      Some(jsObj.fields.get(field).asInstanceOf[List[MAGReference]])
+//      Some(refs.toList)
+//      val sArray = sValue.asInstanceOf[JsArray[MAGReference]]
+//      val sArray = sValue.asInstanceOf[JsArray]
+//      for(r <- sArray.elements) {
+//      for(r <- sValue.elements) {
+        //val ref = r.asInstanceOf[JsObject]
+        //refs+=new MAGReference(ref.fields.get("RId").asInstanceOf[Long].longValue(), ref.fields.get("title").toString)
+//        r.asInstanceOf[JsNumber].value.asInstanceOf[BigDecimal].longValue()
+      //}
+      Some(refs.toList)
+    }
 
     def getReferences(field: String)(implicit jsObj: JsObject): Option[List[Long]] = {
       val refs = mutable.MutableList[Long]()
@@ -241,6 +277,7 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
               getInt("CC"),
               getInt("ECC"),
               getReferences("RId"),
+              getExtendedReferences("ExtendedRId"),
 //              getCitations("CitCon")
 //              new Option(new List[String])
               getBoolean("isSeed"),

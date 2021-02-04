@@ -2,6 +2,7 @@ package com.raphtory.core.examples.oag
 import java.time.{LocalDate, Month, ZonedDateTime}
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util
 
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication.{DoubleProperty, EdgeAdd, GraphUpdate, ImmutableProperty, LongProperty, Properties, Type, VertexAddWithProperties}
@@ -19,7 +20,8 @@ import scala.collection.parallel.mutable.ParHashSet
 
 class OAGGraphBuilder extends GraphBuilder[String] {
 
-  var threshold = 2.2
+//  var threshold = 2.2
+  var threshold = 2.15
 
   private val processCitations = System.getenv().getOrDefault("PROCESS_CITATIONS", "false").trim.toBoolean
 
@@ -47,28 +49,67 @@ class OAGGraphBuilder extends GraphBuilder[String] {
       val command = tuple
       val inputType = resolveInputFormat(command)
 
-      if (inputType == 0) {
+      if (inputType == 0) { //sematic
         val doc = command.parseJson.convertTo[OpenAcademic]
         sendDocumentToPartitions(doc, commands)
-      } else { //MAG
+      } else if (inputType == 1) { //MAG
         val oagdoc = command.parseJson.convertTo[OAGPaper]
         val doc = convertToOpenAcademic(oagdoc)
         sendDocumentToPartitions(doc, commands)
+      } else {
+        println("Could not resolve input type")
       }
     } catch {
-      case e: Exception => println("Could not parse post" + e.getMessage)
+      case e: Exception => println("Could not parse input" + e.getMessage)
     }
   }
 
   def resolveInputFormat(inputstr: String): Int = {
-    if (inputstr.contains("entities") && inputstr.contains("FamId"))//is MAG format
+
+
+    if (inputstr.contains("168635309") && inputstr.contains("352507459")) {
+      println("found paper")
+    }
+
+    if (inputstr.contains("2126031951") && inputstr.contains("212119943")) {
+//    if (inputstr.contains("a survey on distributed topology control techniques for extending the lifetime of battery powered wireless sensor networks")) {
+//    if (inputstr.contains("intelligent device to device communication in the internet of things")) {
+      println("found paper")
+    }
+
+      //    if (inputstr.contains("entities") && inputstr.contains("FamId"))//is MAG format
+//    if (inputstr.contains("FamId"))//is MAG format
+    if (inputstr.contains("Ti") && inputstr.contains("Ty") && inputstr.contains("Id")
+      && inputstr.contains("logprob")
+      )//is MAG format
       return 1
-    return 0//other like Semanic Scholar
+    else if (inputstr.contains("arxivId")) {
+      return 0 //other like Semantic Scholar
+    }
+    return -1
   }
 
   def convertToOpenAcademic(paper:OAGPaper) :OpenAcademic = {
+//    var references : List[OpenAcademic] = List()
+    var references = new ListBuffer[OpenAcademic]
+    for (reference <- paper.extendedReferences.get) {
+//    paper.extendedReferences.get.foreach { reference =>
+//    paper.extendedReferences.get.foreach { reference =>
+//      val r = reference.get
+      val openformat = new OpenAcademic(
+        Some(reference.title),
+        None,
+        Some(reference.RId.toString),
+        None,
+        None,
+        None,
+        None,
+        None
+      )
+      references+=openformat
+    }
 
-    var references = None
+//    var references = None
     var citations = None
 
     new OpenAcademic(
@@ -76,7 +117,7 @@ class OAGGraphBuilder extends GraphBuilder[String] {
       paper.doi,
       Some(paper.id.toString),
       paper.year,
-      references,
+      Some(references.toList),
       citations,
       paper.isSeed,
       paper.labelDensity
@@ -88,15 +129,15 @@ class OAGGraphBuilder extends GraphBuilder[String] {
     //    var timestamp = dateToEarlierEpoch(document.date.get.toString)
     var timestamp = dateToEarlierEpoch(document.year.get.toString)
     //    var annotationUUID = mapId(document.id.get)
-    //    var annotationUUID = assignID(document.title.get)
-    var annotationUUID = assignPaperID(document.paperId.get)
+        var annotationUUID = assignID(document.title.get)
+//    var annotationUUID = assignPaperID(document.paperId.get)
     //send paper and add edges to references and back to citations
     //    val props = new Properties()
     //    props+=new StringProperty("doi",document.doi.get)
 
     document.title.get
     //    if (document.title.get.contains("turtle")) {
-    if (document.title.get.contains("turtle")) {
+    /*if (document.title.get.contains("turtle")) {
       print("-----found turtles paper")
     }
     if (document.title.get.contains("Blockchain for Cities")) {
@@ -104,7 +145,7 @@ class OAGGraphBuilder extends GraphBuilder[String] {
     }
     if (document.title.get.contains("The tragedy of the commons.")) {
       print("-----found Tragedy of the Commons paper")
-    }
+    }*/
 
     sendUpdate(
       VertexAddWithProperties(
@@ -165,7 +206,8 @@ class OAGGraphBuilder extends GraphBuilder[String] {
     for (reference <- references) {
       //        val refUUID = mapId(reference)
       //        val refUUID = assignID(reference.title.get)
-      val refUUID = assignPaperID(reference.paperId.get)
+//      val refUUID = assignPaperID(reference.paperId.get)
+      val refUUID = assignPaperID(reference.title.get)
       //      if (reference.title.get.contains("Blockchain for Cities A Systematic Literature Review")) {
       if (reference.title.get.contains("Blockchain for Cities A Systematic Literature Review")) {
         print("-----found ref to Blockchain for Cities paper")
@@ -173,7 +215,9 @@ class OAGGraphBuilder extends GraphBuilder[String] {
       if (reference.title.get.contains("The tragedy of the commons.")) {
         print("-----found Tragedy of the Commons paper")
       }
-      sendUpdate(
+
+
+      if (reference.year != None) sendUpdate(
         VertexAddWithProperties(
           dateToEarlierEpoch(reference.year.get.toString),
           refUUID,
@@ -219,13 +263,15 @@ class OAGGraphBuilder extends GraphBuilder[String] {
   }
 
   def assignPaperID(paperId: String) :Long = {
-    if ("bc122501e2ad6292d3dcaf29a68aff9025b72e53" == paperId) {
+    /*if ("bc122501e2ad6292d3dcaf29a68aff9025b72e53" == paperId) {
       print("-----found paper")
-    }
+    }*/
     assignID(paperId)
   }
 
   def dateToEarlierEpoch(timestamp: => String): Long = {
+    if (timestamp == "-1")
+      return -1
     val startEpoch = LocalDate.of(1600, Month.JANUARY, 1)
 
     //convert String to LocalDate for comparison
