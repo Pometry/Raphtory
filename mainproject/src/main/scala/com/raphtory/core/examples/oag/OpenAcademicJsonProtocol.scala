@@ -103,7 +103,8 @@ object OpenAcademicJsonProtocol extends DefaultJsonProtocol {
               getReferences("citations"),//citations
 //              getBoolean("is_seed"),
               getBoolean("isSeed"),
-              getField("labelDensity") match {
+//              getField("labelDensity") match {
+              getField("label_density") match {
                 case Some(s) => Some(s.toDouble)
                 case None    => None
               },

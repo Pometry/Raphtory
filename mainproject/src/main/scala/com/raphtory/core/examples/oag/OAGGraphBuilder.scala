@@ -21,7 +21,8 @@ import scala.collection.parallel.mutable.ParHashSet
 class OAGGraphBuilder extends GraphBuilder[String] {
 
 //  var threshold = 2.2
-  var threshold = 2.15
+  var filteringOnThreshold = System.getenv().getOrDefault("FILTERING_ON_THRESHOLD", "false").trim.toBoolean
+  var threshold = System.getenv().getOrDefault("THRESHOLD", "2.15").trim.toDouble
 
   private val processCitations = System.getenv().getOrDefault("PROCESS_CITATIONS", "false").trim.toBoolean
 
@@ -125,6 +126,13 @@ class OAGGraphBuilder extends GraphBuilder[String] {
   }
 
   def sendDocumentToPartitions(document: OpenAcademic, commands: ParHashSet[GraphUpdate]): Unit = {
+    if (filteringOnThreshold)  {
+      val density = document.labelDensity
+      if(density isDefined)
+        if(document.labelDensity.get.doubleValue() != -1)
+          if(document.labelDensity.get.doubleValue < threshold.doubleValue || document.labelDensity.get.doubleValue > 1000)
+            return //do not proceed with adding this node
+    }
     //    var timestamp = dateToUnixTime(document.date.get.toString)
     //    var timestamp = dateToEarlierEpoch(document.date.get.toString)
     var timestamp = dateToEarlierEpoch(document.year.get.toString)

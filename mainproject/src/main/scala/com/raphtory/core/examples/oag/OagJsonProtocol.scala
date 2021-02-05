@@ -281,7 +281,7 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
 //              getCitations("CitCon")
 //              new Option(new List[String])
               getBoolean("isSeed"),
-              getField("labelDensity") match {
+              getField("label_density") match {
                 case Some(s) => Some(s.toDouble)
                 case None    => None
               },
