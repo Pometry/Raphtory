@@ -130,7 +130,7 @@ class OAGGraphBuilder extends GraphBuilder[String] {
       val density = document.labelDensity
       if(density isDefined)
         if(document.labelDensity.get.doubleValue() != -1)
-          if(document.labelDensity.get.doubleValue < threshold.doubleValue || document.labelDensity.get.doubleValue > 1000)
+          if(document.labelDensity.get.doubleValue < threshold.doubleValue || document.labelDensity.get.doubleValue > 100)
             return //do not proceed with adding this node
     }
     //    var timestamp = dateToUnixTime(document.date.get.toString)
