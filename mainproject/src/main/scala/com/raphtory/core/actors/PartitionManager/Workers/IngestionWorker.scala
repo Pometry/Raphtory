@@ -1,15 +1,13 @@
 package com.raphtory.core.actors.PartitionManager.Workers
 
-import java.util.concurrent.atomic.AtomicInteger
-
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable}
+import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.EntityStorage
-import akka.dispatch.MessageDispatcher
 import com.raphtory.core.model.communication._
 import kamon.Kamon
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
@@ -45,10 +43,10 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
   private val vDeleteCountdownMap = ParTrieMap[(String,Int), AtomicInteger]()
 
   override def receive: Receive = {
-    case req: TrackedVertexAdd                  => processVertexAddRequest(req);//Add a new vertex
-    case req: TrackedVertexAddWithProperties    => processVertexAddWithPropertiesRequest(req)//Add a new vertex with properties
-    case req: TrackedEdgeAdd                    => processEdgeAddRequest(req)//Add an edge
-    case req: TrackedEdgeAddWithProperties      => processEdgeAddWithPropertiesRequest(req)// Add an edge with properties
+    case TrackedGraphUpdate(routerId, messageId, req: VertexAdd) => processVertexAddRequest(routerId, messageId, req); //Add a new vertex
+    case TrackedGraphUpdate(routerId, messageId, req: VertexAddWithProperties) => processVertexAddWithPropertiesRequest(routerId, messageId, req) //Add a new vertex with properties
+    case TrackedGraphUpdate(routerId, messageId, req: EdgeAdd) => processEdgeAddRequest(routerId, messageId, req) //Add an edge
+    case TrackedGraphUpdate(routerId, messageId, req: EdgeAddWithProperties) => processEdgeAddWithPropertiesRequest(routerId, messageId, req) // Add an edge with properties
 
     case req: RemoteEdgeAddNew           => processRemoteEdgeAddNewRequest(req)//A writer has requested a new edge sync for a destination node in this worker
     case req: RemoteEdgeAdd              => processRemoteEdgeAddRequest(req)// A writer has requested an existing edge sync for a destination node on in this worker
@@ -58,12 +56,12 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
     case req: DstAddForOtherWorker       => processDstAddForOtherWorkerRequest(req) //A local writer has requested a new edge sync for a destination node in this worker
     case req: DstResponseFromOtherWorker => processDstResponseFromOtherWorkerRequest(req)//The local writer has responded with the deletions for local split edge to allow the main writer to insert them
 
-    case req: TrackedEdgeDelete          => processEdgeDeleteRequest(req) //Delete an Edge
+    case TrackedGraphUpdate(routerId, messageId, req: EdgeDelete) => processEdgeDeleteRequest(routerId, messageId, req) //Delete an Edge
     case req: RemoteEdgeRemovalNew       => processRemoteEdgeRemovalNewRequest(req) //A remote worker is asking for a new edge to be removed for a destination node in this worker
     case req: RemoteEdgeRemoval          => processRemoteEdgeRemovalRequest(req) //A remote worker is asking for the deletion of an existing edge
     case req: DstWipeForOtherWorker      => processDstWipeForOtherWorkerRequest(req)//A local worker is asking for a new edge sync for a destination node for this worker
 
-    case req: TrackedVertexDelete        => processVertexDeleteRequest(req) //Delete a vertex and all associated edges
+    case TrackedGraphUpdate(routerId, messageId, req: VertexDelete) => processVertexDeleteRequest(routerId, messageId, req) //Delete a vertex and all associated edges
     case req: RemoteEdgeRemovalFromVertex=> processRemoteEdgeRemovalRequestFromVertex(req) //Does exactly the same as above, but for when the removal comes form a vertex
     case req: EdgeRemoveForOtherWorker   => processEdgeRemoveForOtherWorkerRequest(req) //Handle the deletion of an outgoing edge from a vertex deletion on a local worker
     case req: ReturnEdgeRemoval          => processReturnEdgeRemovalRequest(req) // Excatly the same as above, but for a remote worker
@@ -78,51 +76,47 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
   }
 
 
-  def processVertexAddRequest(req: TrackedVertexAdd): Unit = {
-    log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    val update = req.update
-    storage.addVertex(update.msgTime, update.srcID, vertexType = update.vType)
+  def processVertexAddRequest(routerId: String, messageId: Int, update: VertexAdd): Unit = {
+    log.debug(s"IngestionWorker [$workerId] received [$update] request.")
+    storage.addVertex(update.msgTime, update.srcId, vertexType = update.vType)
     routerUpdates.increment()
-    vertexAddTrack(update.srcID, update.msgTime,req.routerID,req.messageID)
+    trackVertexAdd(update.msgTime, routerId, messageId)
   }
 
-  def processVertexAddWithPropertiesRequest(req: TrackedVertexAddWithProperties): Unit = {
-    log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    val update = req.update
-    storage.addVertex(update.msgTime, update.srcID, update.properties, update.vType)
+  def processVertexAddWithPropertiesRequest(routerId: String, messageId: Int, update: VertexAddWithProperties): Unit = {
+    log.debug(s"IngestionWorker [$workerId] received [$update] request.")
+    storage.addVertex(update.msgTime, update.srcId, update.properties, update.vType)
     routerUpdates.increment()
-    vertexAddTrack(update.srcID, update.msgTime,req.routerID,req.messageID)
+    trackVertexAdd(update.msgTime, routerId, messageId)
   }
 
-  private def vertexAddTrack(srcID: Long, msgTime: Long,routerID:String,routerTime:Int): Unit = {
-      //Vertex Adds the message time straight into queue as no sync
+  private def trackVertexAdd(msgTime: Long, routerId: String, messageId: Int): Unit = {
+    //Vertex Adds the message time straight into queue as no sync
     storage.timings(msgTime)
-    addToWatermarkQueue(routerID,routerTime,msgTime)
+    addToWatermarkQueue(routerId, messageId, msgTime)
   }
 
 
-  def processEdgeAddRequest(req: TrackedEdgeAdd): Unit = {
-    log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    val update = req.update
-    val maybeEffect = storage.addEdge(update.msgTime, update.srcID, update.dstID,req.routerID,req.messageID, edgeType = update.eType)
+  def processEdgeAddRequest(routerId: String, messageId: Int, update: EdgeAdd): Unit = {
+    log.debug(s"IngestionWorker [$workerId] received [$update] request.")
+    val maybeEffect = storage.addEdge(update.msgTime, update.srcId, update.dstId, routerId, messageId, edgeType = update.eType)
     maybeEffect.foreach(sendEffectMessage)
     routerUpdates.increment()
-    edgeAddTrack(update.srcID, update.dstID, update.msgTime,maybeEffect.isEmpty,req.routerID,req.messageID)
+    trackEdgeAdd(update.msgTime, maybeEffect.isEmpty, routerId, messageId)
   }
 
-  def processEdgeAddWithPropertiesRequest(req: TrackedEdgeAddWithProperties): Unit = {
-    log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    val update = req.update
-    val maybeEffect = storage.addEdge(update.msgTime, update.srcID, update.dstID,req.routerID,req.messageID, update.properties, update.eType)
+  def processEdgeAddWithPropertiesRequest(routerId: String, messageId: Int, update: EdgeAddWithProperties): Unit = {
+    log.debug(s"IngestionWorker [$workerId] received [$update] request.")
+    val maybeEffect = storage.addEdge(update.msgTime, update.srcId, update.dstId, routerId, messageId, update.properties, update.eType)
     maybeEffect.foreach(sendEffectMessage)
     routerUpdates.increment()
-    edgeAddTrack(update.srcID, update.dstID, update.msgTime,maybeEffect.isEmpty,req.routerID,req.messageID)
+    trackEdgeAdd(update.msgTime, maybeEffect.isEmpty, routerId, messageId)
   }
 
-  private def edgeAddTrack(srcID: Long, dstID: Long, msgTime: Long,local:Boolean,routerID:String,routerTime:Int): Unit = {
+  private def trackEdgeAdd(msgTime: Long, local: Boolean, routerId: String, messageId: Int): Unit = {
     storage.timings(msgTime)
-    if(local) {//if the edge is totally handled by this worker then we are safe to add to watermark queue
-      addToWatermarkQueue(routerID,routerTime,msgTime)
+    if (local) { //if the edge is totally handled by this worker then we are safe to add to watermark queue
+      addToWatermarkQueue(routerId, messageId, msgTime)
     }
   }
 
@@ -172,19 +166,18 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
   }
 
 
-  def processEdgeDeleteRequest(req: TrackedEdgeDelete): Unit = {
-    log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    val update = req.update
-    val maybeEffect = storage.removeEdge(update.msgTime, update.srcID, update.dstID,req.routerID,req.messageID)
+  def processEdgeDeleteRequest(routerId: String, messageId: Int, update: EdgeDelete): Unit = {
+    log.debug(s"IngestionWorker [$workerId] received [$update] request.")
+    val maybeEffect = storage.removeEdge(update.msgTime, update.srcId, update.dstId, routerId, messageId)
     maybeEffect.foreach(sendEffectMessage)
-    edgeDeleteTrack(update.msgTime,maybeEffect.isEmpty,req.routerID,req.messageID)
+    trackEdgeDelete(update.msgTime, maybeEffect.isEmpty, routerId, messageId)
     routerUpdates.increment()
   }
 
-  private def edgeDeleteTrack(msgTime: Long,local:Boolean,routerID:String,routerTime:Int): Unit = {
+  private def trackEdgeDelete(msgTime: Long, local: Boolean, routerId: String, messageId: Int): Unit = {
     storage.timings(msgTime)
-    if(local) { //if the edge is totally handled by this worker then we are safe to add to watermark queue
-      addToWatermarkQueue(routerID,routerTime,msgTime)
+    if (local) { //if the edge is totally handled by this worker then we are safe to add to watermark queue
+      addToWatermarkQueue(routerId, messageId, msgTime)
     }
   }
 
@@ -213,19 +206,19 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
   }
 
 
-  def processVertexDeleteRequest(req: TrackedVertexDelete): Unit = {
-    log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    val update = req.update
-    val messages = storage.removeVertex(update.msgTime, update.srcID,req.routerID,req.messageID)
-    messages.foreach(x=>sendEffectMessage(x))
-    vertexDeleteTrack(update.srcID, update.msgTime,req.routerID,req.messageID,messages.size)
+  def processVertexDeleteRequest(routerId: String, messageId: Int, update: VertexDelete): Unit = {
+    log.debug(s"IngestionWorker [$workerId] received [$update] request.")
+    val messages = storage.removeVertex(update.msgTime, update.srcId, routerId, messageId)
+    messages.foreach(x => sendEffectMessage(x))
+    trackVertexDelete(update.msgTime, routerId, messageId, messages.size)
     routerUpdates.increment()
   }
-  private def vertexDeleteTrack(srcID: Long, msgTime: Long,routerID:String,routerTime:Int,totalCount:Int): Unit = {
-    if(totalCount==0) //if there are no outgoing edges it is safe to watermark
-      addToWatermarkQueue(routerID,routerTime,msgTime)
-    else{
-      vDeleteCountdownMap put ((routerID,routerTime),new AtomicInteger(totalCount))
+
+  private def trackVertexDelete(msgTime: Long, routerId: String, messageId: Int, totalCount: Int): Unit = {
+    if (totalCount == 0) //if there are no outgoing edges it is safe to watermark
+      addToWatermarkQueue(routerId, messageId, msgTime)
+    else {
+      vDeleteCountdownMap put((routerId, messageId), new AtomicInteger(totalCount))
     }
     storage.timings(msgTime)
   }

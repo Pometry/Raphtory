@@ -9,11 +9,6 @@ import scala.collection.mutable
 /**
   * Created by Mirate on 30/05/2017.
   */
-sealed trait GraphUpdate {
-  def msgTime: Long
-  def srcID: Long
-}
-sealed trait TrackedGraphUpdate
 
 case class DataFinished()
 case class DataFinishedSync(time:Long)
@@ -29,25 +24,25 @@ sealed trait Property {
 }
 
 case class Type(name: String)
-case class ImmutableProperty(override val key: String, override val value: String) extends Property
-case class StringProperty(override val key: String, override val value: String)    extends Property
-case class LongProperty(override val key: String, override val value: Long)        extends Property
-case class DoubleProperty(override val key: String, override val value: Double)    extends Property
-
+case class ImmutableProperty(key: String, value: String) extends Property
+case class StringProperty(key: String, value: String)    extends Property
+case class LongProperty(key: String, value: Long)        extends Property
+case class DoubleProperty(key: String, value: Double)    extends Property
 case class Properties(property: Property*)
 
-case class VertexAdd(msgTime: Long, override val srcID: Long, vType: Type = null) extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
-case class TrackedVertexAdd(routerID: String, messageID:Int, update:VertexAdd) extends TrackedGraphUpdate
-case class VertexAddWithProperties(msgTime: Long, override val srcID: Long, properties: Properties, vType: Type = null) extends GraphUpdate
-case class TrackedVertexAddWithProperties(routerID: String,messageID:Int,update:VertexAddWithProperties) extends TrackedGraphUpdate
-case class VertexDelete(msgTime: Long, override val srcID: Long) extends GraphUpdate
-case class TrackedVertexDelete(routerID: String,messageID:Int, update:VertexDelete) extends TrackedGraphUpdate
-case class EdgeAdd(msgTime: Long, srcID: Long, dstID: Long, eType: Type = null) extends GraphUpdate
-case class TrackedEdgeAdd(routerID: String,messageID:Int, update:EdgeAdd) extends TrackedGraphUpdate
-case class EdgeAddWithProperties(msgTime: Long, override val srcID: Long, dstID: Long, properties: Properties, eType: Type = null) extends GraphUpdate
-case class TrackedEdgeAddWithProperties(routerID: String,messageID:Int, update:EdgeAddWithProperties)  extends TrackedGraphUpdate
-case class EdgeDelete(msgTime: Long, override val srcID: Long, dstID: Long) extends GraphUpdate
-case class TrackedEdgeDelete(routerID: String,messageID:Int, update:EdgeDelete) extends TrackedGraphUpdate
+sealed trait GraphUpdate {
+  val msgTime: Long
+  val srcId: Long
+}
+
+case class VertexAdd(msgTime: Long, srcId: Long, vType: Type = null) extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
+case class VertexAddWithProperties(msgTime: Long, srcId: Long, properties: Properties, vType: Type = null) extends GraphUpdate
+case class VertexDelete(msgTime: Long, srcId: Long) extends GraphUpdate
+case class EdgeAdd(msgTime: Long, srcId: Long, dstId: Long, eType: Type = null) extends GraphUpdate
+case class EdgeAddWithProperties(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, eType: Type = null) extends GraphUpdate
+case class EdgeDelete(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdate
+
+case class TrackedGraphUpdate[+T <: GraphUpdate](routerId: String, messageId:Int, update: T)
 
 sealed abstract class EffectMessage(val targetId: Long) extends Serializable
 
