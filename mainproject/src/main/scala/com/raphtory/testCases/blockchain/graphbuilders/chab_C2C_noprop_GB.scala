@@ -11,9 +11,9 @@ class chab_C2C_noprop_GB extends GraphBuilder[String] {
       val transactionTime = dp.time
       val srcClusterId = dp.srcCluster
       val dstClusterId = dp.dstCluster
-      sendUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
-      sendUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
-      sendUpdate(EdgeAdd(msgTime = transactionTime, srcID = srcClusterId, dstID = dstClusterId, Type("Transfer")))
+      sendUpdate(VertexAdd(msgTime = transactionTime, srcId = srcClusterId, Type("Cluster")))
+      sendUpdate(VertexAdd(msgTime = transactionTime, srcId = dstClusterId, Type("Cluster")))
+      sendUpdate(EdgeAdd(msgTime = transactionTime, srcId = srcClusterId, dstId = dstClusterId, Type("Transfer")))
     }catch { case e: Exception => println(e, tuple) }
   }
 
