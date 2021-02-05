@@ -27,7 +27,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   val mongoPort = System.getenv().getOrDefault("ANALYSIS_MONGO_PORT", "27017").trim
   val dbname    = System.getenv().getOrDefault("ANALYSIS_MONGO_DB_NAME", "raphtory").trim
 
-  val mongo = if(saveData) MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress()}:$mongoPort")) else MongoClient()
+  val mongo = if(saveData) MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress()}:$mongoPort")) else null
 
 
   var viewTimeCurrentTimer = System.currentTimeMillis()

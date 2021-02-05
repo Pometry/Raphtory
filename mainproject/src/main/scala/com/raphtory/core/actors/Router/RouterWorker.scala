@@ -53,7 +53,6 @@ class RouterWorker[T](
 
   private def work(state: State): Receive = {
     case "startUp"     => clusterReadyForAnalysis() //first ask the watchdog if it is safe to do analysis and what the size of the cluster is //when the watchdog responds, set the new value and message each Reader Worker
-
     case SpoutOnline => context.sender() ! WorkPlease
     case NoWork =>
       context.system.scheduler.scheduleOnce(delay = 1.second, receiver = context.sender(), message = WorkPlease)
