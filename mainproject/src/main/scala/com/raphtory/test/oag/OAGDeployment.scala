@@ -3,13 +3,14 @@ package com.raphtory.test.oag
 import com.raphtory.RaphtoryGraph
 import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic}
 import com.raphtory.serialisers.JSONSerialiser
-import com.raphtory.core.examples.oag.OAGGraphBuilder
+import com.raphtory.test.oag.OAGGraphBuilder
+import com.raphtory.spouts.FileSpout
 //import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.MultiLineFileSpout
 
 object OAGDeployment extends App{
 //  val source  = new FileSpout()
-  val source  = new MultiLineFileSpout()
+  val source  = new FileSpout()
   val builder = new OAGGraphBuilder()
   val rg = RaphtoryGraph[String](source,builder)
   val arguments = Array[String]()

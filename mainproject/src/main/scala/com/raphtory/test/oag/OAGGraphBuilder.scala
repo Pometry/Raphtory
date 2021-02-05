@@ -1,4 +1,4 @@
-package com.raphtory.core.examples.oag
+package com.raphtory.test.oag
 import java.time.{LocalDate, Month, ZonedDateTime}
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -146,7 +146,6 @@ class OAGGraphBuilder extends GraphBuilder[String] {
     if (document.title.get.contains("The tragedy of the commons.")) {
       print("-----found Tragedy of the Commons paper")
     }*/
-
     sendUpdate(
       VertexAddWithProperties(
         timestamp,
@@ -217,38 +216,40 @@ class OAGGraphBuilder extends GraphBuilder[String] {
       }
 
 
-      if (reference.year != None) sendUpdate(
-        VertexAddWithProperties(
-          dateToEarlierEpoch(reference.year.get.toString),
-          refUUID,
-          Properties(
-            //          StringProperty("doi",document.doi.get),
-            if (reference.doi != None)
-              ImmutableProperty("doi", reference.doi.get)
-            else
-              ImmutableProperty("doi", ""),
-            ImmutableProperty("title", reference.title.get),
-            LongProperty("year", reference.year.get.toLong),
-            //ImmutableProperty("date",document.date.get.toString),
-            if (reference.isSeed != None && reference.isSeed.get)
-              LongProperty("isSeed", 1)
-            else
-              LongProperty("isSeed", 0),
-            //            LongProperty("isSeed", 0),
-            if (reference.labelDensity != None) {
-              val label_density = reference.labelDensity.get
-              if (label_density > threshold)
-                DoubleProperty("labelDensity", reference.labelDensity.get)
-              else {
-                print("skipping as label density:" + label_density + " is not greater than threshold:" + threshold)
-                null
-              }
-            } else
-              DoubleProperty("labelDensity", 0)
-          ),
-          Type("Paper"),
+      if (reference.year != None) {
+        sendUpdate(
+          VertexAddWithProperties(
+            dateToEarlierEpoch(reference.year.get.toString),
+            refUUID,
+            Properties(
+              //          StringProperty("doi",document.doi.get),
+              if (reference.doi != None)
+                ImmutableProperty("doi", reference.doi.get)
+              else
+                ImmutableProperty("doi", ""),
+              ImmutableProperty("title", reference.title.get),
+              LongProperty("year", reference.year.get.toLong),
+              //ImmutableProperty("date",document.date.get.toString),
+              if (reference.isSeed != None && reference.isSeed.get)
+                LongProperty("isSeed", 1)
+              else
+                LongProperty("isSeed", 0),
+              //            LongProperty("isSeed", 0),
+              if (reference.labelDensity != None) {
+                val label_density = reference.labelDensity.get
+                if (label_density > threshold)
+                  DoubleProperty("labelDensity", reference.labelDensity.get)
+                else {
+                  print("skipping as label density:" + label_density + " is not greater than threshold:" + threshold)
+                  null
+                }
+              } else
+                DoubleProperty("labelDensity", 0)
+            ),
+            Type("Paper"),
+          )
         )
-      )
+      }
 
       //        val refUUID = assignID(reference.title.get)
       sendUpdate(

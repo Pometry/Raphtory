@@ -63,7 +63,8 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
         vertices put (srcId, v) //put it in the map
         v
     }
-    addProperties(msgTime, vertex, properties)
+    if(properties!=null)
+      addProperties(msgTime, vertex, properties)
 
     vertex //return the vertex
   }
@@ -218,7 +219,8 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
         Some(RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths, edgeType, routerID: String, routerTime))
       }
     }
-    addProperties(msgTime, edge, properties)
+    if(properties!=null)
+      addProperties(msgTime, edge, properties)
 
     maybeEffect
   }
@@ -240,7 +242,8 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge
     edge killList deaths    // pass destination node death lists to the edge
-    addProperties(msgTime, edge, properties)
+    if(properties!=null)
+      addProperties(msgTime, edge, properties)
     dstVertex.incrementEdgesRequiringSync()
     if (!(edgeType == null)) edge.setType(edgeType.name)
     RemoteReturnDeaths(msgTime, srcId, dstId, deaths, routerID, routerTime)
@@ -251,7 +254,8 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
     dstVertex.getIncomingEdge(srcId) match {
       case Some(edge) =>
         edge revive msgTime //revive the edge
-        addProperties(msgTime, edge, properties)
+        if(properties!=null)
+          addProperties(msgTime, edge, properties)
       case None => /*todo should this happen */
     }
     EdgeSyncAck(msgTime, srcId, routerID, routerTime)
