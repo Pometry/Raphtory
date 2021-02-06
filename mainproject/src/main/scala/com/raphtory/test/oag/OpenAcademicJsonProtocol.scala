@@ -1,4 +1,4 @@
-package com.raphtory.examples.oag
+package com.raphtory.test.oag
 
 import java.net.URL
 import spray.json.JsNumber
@@ -27,7 +27,7 @@ object OpenAcademicJsonProtocol extends DefaultJsonProtocol {
       val refs = mutable.MutableList[OpenAcademic]()
       val raw = getRawField(field)
       if (raw == None) {
-//        return new List[]
+        //        return new List[]
         return None
       }
       val sValue =  raw.get
@@ -73,41 +73,42 @@ object OpenAcademicJsonProtocol extends DefaultJsonProtocol {
     def write(p: OpenAcademic) = JsString("TODO")
 
     def read(value: JsValue) = {
-        val jsObj = value.asJsObject
-        //val entitiesArray = jsObj.fields.get("entities")
+      val jsObj = value.asJsObject
+      //val entitiesArray = jsObj.fields.get("entities")
 
-        var raw_attributes = jsObj
-        /*if (entitiesArray != None) {
-          val jsonEntities =  entitiesArray.get
-          val en = jsonEntities.asInstanceOf[JsArray]
-          raw_attributes = en.elements(0).asJsObject
-        }*/
-//        implicit val attributes = en.elements(0).asJsObject
-        implicit val attributes = raw_attributes
+      var raw_attributes = jsObj
+      /*if (entitiesArray != None) {
+        val jsonEntities =  entitiesArray.get
+        val en = jsonEntities.asInstanceOf[JsArray]
+        raw_attributes = en.elements(0).asJsObject
+      }*/
+      //        implicit val attributes = en.elements(0).asJsObject
+      implicit val attributes = raw_attributes
 
-            new OpenAcademic(
-              getField("title") match {
-                case Some(s) => Some(s.replaceAll("\\\\", "").replaceAll("\"", ""))
-                case None    => None
-              },
-              getField("doi") match {
-                case Some(s) => Some(s.replaceAll("\"", ""))
-                case None    => None
-              },
-              getField("paperId") match {
-                case Some(s) => Some(s.replaceAll("\"", ""))
-                case None    => None
-              },
-              getInt("year"),
-              getReferences("references"),//references
-              getReferences("citations"),//citations
-//              getBoolean("is_seed"),
-              getBoolean("isSeed"),
-              getField("labelDensity") match {
-                case Some(s) => Some(s.toDouble)
-                case None    => None
-              },
-            )
+      new OpenAcademic(
+        getField("title") match {
+          case Some(s) => Some(s.replaceAll("\\\\", "").replaceAll("\"", ""))
+          case None    => None
+        },
+        getField("doi") match {
+          case Some(s) => Some(s.replaceAll("\"", ""))
+          case None    => None
+        },
+        getField("paperId") match {
+          case Some(s) => Some(s.replaceAll("\"", ""))
+          case None    => None
+        },
+        getInt("year"),
+        getReferences("references"),//references
+        getReferences("citations"),//citations
+        //              getBoolean("is_seed"),
+        getBoolean("isSeed"),
+        //              getField("labelDensity") match {
+        getField("label_density") match {
+          case Some(s) => Some(s.toDouble)
+          case None    => None
+        },
+      )
     }
   }
 }

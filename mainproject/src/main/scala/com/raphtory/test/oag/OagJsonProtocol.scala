@@ -1,10 +1,10 @@
-package com.raphtory.examples.oag
+package com.raphtory.test.oag
 
 import java.net.URL
 
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.raphtory.examples.oag
-import com.raphtory.examples.oag.PublicationType
+import com.raphtory.examples.oag.{PublicationType, SourceUrlType}
 import com.raphtory.examples.oag.PublicationType.PublicationType
 import com.raphtory.examples.oag.SourceUrlType.SourceUrlType
 import spray.json.JsNumber
@@ -17,8 +17,8 @@ import spray.json.{DefaultJsonProtocol, JsArray, JsObject, JsString, JsValue, Ro
 
 object OAGJsonProtocol extends DefaultJsonProtocol {
 
-//                implicit val gabAuthorFormat           = jsonFormat2(List[Author])
-//implicit val publicationTypeFormat         = jsonFormat1(PublicationType.type)
+  //                implicit val gabAuthorFormat           = jsonFormat2(List[Author])
+  //implicit val publicationTypeFormat         = jsonFormat1(PublicationType.type)
 
   implicit val magExtendedReferenceFormat = jsonFormat2(MAGReference)
 
@@ -48,7 +48,7 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
 
     def getDataSources(field: String)(implicit jsObj: JsObject): Option[List[DataSource]] = {
       return None
-//    def getDataSources(field: String)(implicit jsObj: JsObject): Option[String] = {
+      //    def getDataSources(field: String)(implicit jsObj: JsObject): Option[String] = {
       val sString = getRawField(field)
       if (sString == None) {
         return None
@@ -56,33 +56,33 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
       val sValue =  sString.get
       val sArray = sValue.asInstanceOf[JsArray]
 
-//      var dataSources: List[DataSource] = List()
-//      var dataSources = new ListBuffer[Option[DataSource]]()
+      //      var dataSources: List[DataSource] = List()
+      //      var dataSources = new ListBuffer[Option[DataSource]]()
       var dataSources = new ListBuffer[DataSource]()
 
       for (s <- sArray.elements) {
-//        implicit val attributes = s
+        //        implicit val attributes = s
         /*getRawField(s) match {
           case Some(s) => Some(s.toString())
           case None => None
         }*/
-//        s.
-//        val dataSource = new DataSource(SourceUrlType.withName("HTML"), new URL("http://example.com"))
+        //        s.
+        //        val dataSource = new DataSource(SourceUrlType.withName("HTML"), new URL("http://example.com"))
 
 
-//        val st = SourceUrlType.apply(3)
-//        val st = new Enumeration[SourceUrlType](3)
+        //        val st = SourceUrlType.apply(3)
+        //        val st = new Enumeration[SourceUrlType](3)
 
 
-//        check the order of the fields
+        //        check the order of the fields
         var st = SourceUrlType.withName("UNKNOWN")
         var url = new URL("http://example.com")
         if (s.asInstanceOf[JsObject].fields.head._2.toString().forall(_.isDigit)) {
-//          st = SourceUrlType.apply(s.asInstanceOf[JsObject].fields.head._2.toString().toInt)
+          //          st = SourceUrlType.apply(s.asInstanceOf[JsObject].fields.head._2.toString().toInt)
           st = parseSourceUrlType(s.asInstanceOf[JsObject].fields.head._2.toString().toInt)
           url = new URL(s.asInstanceOf[JsObject].fields.last._2.toString().replaceAll("\"", ""))
         } else if (s.asInstanceOf[JsObject].fields.head._1.toString().equalsIgnoreCase("U")) {
-//          st = SourceUrlType.apply(s.asInstanceOf[JsObject].fields.last._2.toString().toInt)
+          //          st = SourceUrlType.apply(s.asInstanceOf[JsObject].fields.last._2.toString().toInt)
           st = SourceUrlType.UNKNOWN
           url = new URL(s.asInstanceOf[JsObject].fields.head._2.toString().replaceAll("\"", ""))
         } else {
@@ -91,37 +91,37 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
 
 
         val dataSource = new DataSource(st, url)
-//        val dataSource = None
-//        dataSources:+dataSource
+        //        val dataSource = None
+        //        dataSources:+dataSource
         dataSources+=dataSource
       }
-//      implicit val attributes = sArray.elements(0).asJsObject
+      //      implicit val attributes = sArray.elements(0).asJsObject
 
       return Some(dataSources.toList)
-//      return None
+      //      return None
     }
 
-      /*getRawField(field) match {
-        case Some(s) => Some(s.toString())
-        case None => None
-      }*/
-      /*getField(field) match {
-        case Some(s) => Option(parseSourceUrlType())
-        case None => None
-      }*/
-//      l = List[DataSource]
-      /*getRawField(field).toString match {
-        case Some(f) => Some(f)
-      }*/
-      //      return new Option[List[DataSource]]
-      //return Some(l)
+    /*getRawField(field) match {
+      case Some(s) => Some(s.toString())
+      case None => None
+    }*/
+    /*getField(field) match {
+      case Some(s) => Option(parseSourceUrlType())
+      case None => None
+    }*/
+    //      l = List[DataSource]
+    /*getRawField(field).toString match {
+      case Some(f) => Some(f)
+    }*/
+    //      return new Option[List[DataSource]]
+    //return Some(l)
 
 
-      /*getRawField("field") match {
+    /*getRawField("field") match {
 //        case Some(field) => Some(field.convertTo[parseDataSources])
-        case Some(field) => Some(parseDataSources(field.asJsObject().getFields()))
-        case None    => None
-      }*/
+      case Some(field) => Some(parseDataSources(field.asJsObject().getFields()))
+      case None    => None
+    }*/
 
     /*def parseDataSources(sources: String[]): List[DataSource] = {
       val sources = new List[DataSource]
@@ -138,25 +138,25 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
       }
       val sValue =  raw.get
       val sArray = sValue.asInstanceOf[JsArray]
-//      val sArray_elements = sArray.elements
-//      val r = Unmarshal(sValue).to[List[MAGReference]]
-//      sArray_elements.foreach { elem =>
+      //      val sArray_elements = sArray.elements
+      //      val r = Unmarshal(sValue).to[List[MAGReference]]
+      //      sArray_elements.foreach { elem =>
       for (r <- sArray.elements) {
-//        val mag = elem.convertTo(MAGReference)
-          val ref = r.asInstanceOf[JsObject]
-          refs+=new MAGReference(ref.fields.get("RId").get.asInstanceOf[JsNumber].value.longValue(), ref.fields.get("title").get.toString)
+        //        val mag = elem.convertTo(MAGReference)
+        val ref = r.asInstanceOf[JsObject]
+        refs+=new MAGReference(ref.fields.get("RId").get.asInstanceOf[JsNumber].value.longValue(), ref.fields.get("title").get.toString)
         //
-//        val mag = elem.asJsObject.fields.get("RId").get.asInstanceOf[Long].longValue()
+        //        val mag = elem.asJsObject.fields.get("RId").get.asInstanceOf[Long].longValue()
       }
-//      Some(jsObj.fields.get(field).asInstanceOf[List[MAGReference]])
-//      Some(refs.toList)
-//      val sArray = sValue.asInstanceOf[JsArray[MAGReference]]
-//      val sArray = sValue.asInstanceOf[JsArray]
-//      for(r <- sArray.elements) {
-//      for(r <- sValue.elements) {
-        //val ref = r.asInstanceOf[JsObject]
-        //refs+=new MAGReference(ref.fields.get("RId").asInstanceOf[Long].longValue(), ref.fields.get("title").toString)
-//        r.asInstanceOf[JsNumber].value.asInstanceOf[BigDecimal].longValue()
+      //      Some(jsObj.fields.get(field).asInstanceOf[List[MAGReference]])
+      //      Some(refs.toList)
+      //      val sArray = sValue.asInstanceOf[JsArray[MAGReference]]
+      //      val sArray = sValue.asInstanceOf[JsArray]
+      //      for(r <- sArray.elements) {
+      //      for(r <- sValue.elements) {
+      //val ref = r.asInstanceOf[JsObject]
+      //refs+=new MAGReference(ref.fields.get("RId").asInstanceOf[Long].longValue(), ref.fields.get("title").toString)
+      //        r.asInstanceOf[JsNumber].value.asInstanceOf[BigDecimal].longValue()
       //}
       Some(refs.toList)
     }
@@ -165,7 +165,7 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
       val refs = mutable.MutableList[Long]()
       val raw = getRawField(field)
       if (raw == None) {
-//        return new List[]
+        //        return new List[]
         return None
       }
       val sValue =  raw.get
@@ -182,13 +182,13 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
       val sValue =  raw.get
       val sJs = sValue.asInstanceOf[JsObject]
       for(c <- sJs.fields) {
-//        refs+=c.asInstanceOf[JsNumber].value.asInstanceOf[BigDecimal].longValue()
+        //        refs+=c.asInstanceOf[JsNumber].value.asInstanceOf[BigDecimal].longValue()
         refs+=c._1.toLong
       }
       Some(refs.toList)
     }
 
-//    def parsePublicationType(pubtype: Int): Option[PublicationType] =
+    //    def parsePublicationType(pubtype: Int): Option[PublicationType] =
     def parsePublicationType(pubtype: Int): PublicationType =
       pubtype match {
         case 0 => PublicationType.Unknown
@@ -237,55 +237,55 @@ object OAGJsonProtocol extends DefaultJsonProtocol {
     def write(p: OAGPaper) = JsString("TODO")
 
     def read(value: JsValue) = {
-        val jsObj = value.asJsObject
-        val entitiesArray = jsObj.fields.get("entities")
+      val jsObj = value.asJsObject
+      val entitiesArray = jsObj.fields.get("entities")
 
-        var raw_attributes = jsObj
-        if (entitiesArray != None) {
-          val jsonEntities =  entitiesArray.get
-          val en = jsonEntities.asInstanceOf[JsArray]
-          raw_attributes = en.elements(0).asJsObject
-        }
-//        implicit val attributes = en.elements(0).asJsObject
-        implicit val attributes = raw_attributes
+      var raw_attributes = jsObj
+      if (entitiesArray != None) {
+        val jsonEntities =  entitiesArray.get
+        val en = jsonEntities.asInstanceOf[JsArray]
+        raw_attributes = en.elements(0).asJsObject
+      }
+      //        implicit val attributes = en.elements(0).asJsObject
+      implicit val attributes = raw_attributes
 
-            new OAGPaper(
-              getLong("Id"),
-              getField("DOI") match {
-                case Some(s) => Some(s.replaceAll("\"", ""))
-                case None    => None
-              },
-              getLong("FamId"),
-              getField("Ti") match {
-                case Some(s) => Some(s.replaceAll("\\\\", "").replaceAll("\"", ""))
-                case None    => None
-              },
-              getField("DN") match {
-                case Some(s) => Some(s.replaceAll("\\\\", "").replaceAll("\"", ""))
-                case None    => None
-              },
-//              getField("Pt"),
-//              getSourceUrlTypeField("Ty"),
-//              Option(SourceUrlType.withName("HTML")),
-              getDataSources("S"),
-              getPublicationTypeField("Pt"),
-              getInt("Y"),
-              getField("D") match {
-                case Some(s) => Some(s.replaceAll("\"", ""))
-                case None    => None
-              },
-              getInt("CC"),
-              getInt("ECC"),
-              getReferences("RId"),
-              getExtendedReferences("ExtendedRId"),
-//              getCitations("CitCon")
-//              new Option(new List[String])
-              getBoolean("isSeed"),
-              getField("labelDensity") match {
-                case Some(s) => Some(s.toDouble)
-                case None    => None
-              },
-            )
+      new OAGPaper(
+        getLong("Id"),
+        getField("DOI") match {
+          case Some(s) => Some(s.replaceAll("\"", ""))
+          case None    => None
+        },
+        getLong("FamId"),
+        getField("Ti") match {
+          case Some(s) => Some(s.replaceAll("\\\\", "").replaceAll("\"", ""))
+          case None    => None
+        },
+        getField("DN") match {
+          case Some(s) => Some(s.replaceAll("\\\\", "").replaceAll("\"", ""))
+          case None    => None
+        },
+        //              getField("Pt"),
+        //              getSourceUrlTypeField("Ty"),
+        //              Option(SourceUrlType.withName("HTML")),
+        getDataSources("S"),
+        getPublicationTypeField("Pt"),
+        getInt("Y"),
+        getField("D") match {
+          case Some(s) => Some(s.replaceAll("\"", ""))
+          case None    => None
+        },
+        getInt("CC"),
+        getInt("ECC"),
+        getReferences("RId"),
+        getExtendedReferences("ExtendedRId"),
+        //              getCitations("CitCon")
+        //              new Option(new List[String])
+        getBoolean("isSeed"),
+        getField("label_density") match {
+          case Some(s) => Some(s.toDouble)
+          case None    => None
+        },
+      )
     }
   }
 }

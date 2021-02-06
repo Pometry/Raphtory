@@ -5,7 +5,7 @@ import scala.language.postfixOps
 
 object OAGDistributed extends App {
   val partitionCount =10
-  val routerCount =10
+  val routerCount =9
   new RaphtoryComponent("seedNode",partitionCount,routerCount,1600)
   new RaphtoryComponent("watchdog",partitionCount,routerCount,1601)
   new RaphtoryComponent("analysisManager",partitionCount,routerCount,1602)
@@ -19,7 +19,7 @@ object OAGDistributed extends App {
   new RaphtoryComponent("router",partitionCount,routerCount,1610,"com.raphtory.test.oag.OAGGraphBuilder")
   new RaphtoryComponent("router",partitionCount,routerCount,1611,"com.raphtory.test.oag.OAGGraphBuilder")
   new RaphtoryComponent("router",partitionCount,routerCount,1612,"com.raphtory.test.oag.OAGGraphBuilder")
-  new RaphtoryComponent("router",partitionCount,routerCount,1613,"com.raphtory.test.oag.OAGGraphBuilder")
+  //new RaphtoryComponent("router",partitionCount,routerCount,1613,"com.raphtory.test.oag.OAGGraphBuilder")
   new RaphtoryComponent("partitionManager",partitionCount,routerCount,1614)
   new RaphtoryComponent("partitionManager",partitionCount,routerCount,1615)
   new RaphtoryComponent("partitionManager",partitionCount,routerCount,1616)

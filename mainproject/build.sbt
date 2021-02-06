@@ -95,7 +95,7 @@ lazy val basicSettings = Seq(
                 "-unchecked"
         ),
         testOptions in Test += Tests.Argument("-oDF"),
-        version := "vlex-snapshot"
+        version := "latest"
 )
 
 lazy val dockerStuff = Seq(

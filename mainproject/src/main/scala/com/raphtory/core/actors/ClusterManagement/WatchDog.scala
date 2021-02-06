@@ -87,7 +87,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends RaphtoryActor {
   private def handleTick(state: ActorState): ActorState = {
     checkMapTime(state.pmLiveMap, "Partition Manager")
     checkMapTime(state.roLiveMap, "Router")
-    if (!state.clusterUp && state.roLiveMap.size >= minimumRouters && state.roLiveMap.size >= managerCount) {
+    if (!state.clusterUp && state.roLiveMap.size >= minimumRouters && state.pmLiveMap.size >= managerCount) {
       log.info("Partition managers and min. number of Routers have joined cluster.")
       log.debug(s"The cluster was started with [$managerCount] Partition Managers and [$minimumRouters] >= Routers.")
       state.copy(clusterUp = true)
