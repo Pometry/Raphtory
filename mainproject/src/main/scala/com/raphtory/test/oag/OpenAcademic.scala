@@ -1,4 +1,4 @@
-package com.raphtory.examples.oag
+package com.raphtory.test.oag
 
 case class OpenAcademic(
 /*"title": "1 Blockchain's roles in meeting key supply chain management objectives",

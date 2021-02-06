@@ -8,11 +8,11 @@ import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication.{DoubleProperty, EdgeAdd, GraphUpdate, ImmutableProperty, LongProperty, Properties, Type, VertexAddWithProperties}
 //import com.raphtory.core.model.communication
 //import com.raphtory.core.model.communication.{StringSpoutGoing, _}
-import com.raphtory.examples.oag.{OAGPaper, OpenAcademic}
+import com.raphtory.test.oag.{OAGPaper, OpenAcademic}
 
-import com.raphtory.examples.oag.OAGJsonProtocol._
+import com.raphtory.test.oag.OAGJsonProtocol._
 //import com.raphtory.examples.oag.OpenAcademicJsonProtocol.OpenAcademicDocJsonFormat.{getBoolean, getField, getInt, getReferences}
-import com.raphtory.examples.oag.OpenAcademicJsonProtocol._
+import com.raphtory.test.oag.OpenAcademicJsonProtocol._
 import spray.json._
 
 import scala.collection.mutable.ListBuffer
@@ -20,8 +20,9 @@ import scala.collection.parallel.mutable.ParHashSet
 
 class OAGGraphBuilder extends GraphBuilder[String] {
 
-//  var threshold = 2.2
-  var threshold = 2.15
+  //  var threshold = 2.2
+  var filteringOnThreshold = System.getenv().getOrDefault("FILTERING_ON_THRESHOLD", "false").trim.toBoolean
+  var threshold = System.getenv().getOrDefault("THRESHOLD", "2.15").trim.toDouble
 
   private val processCitations = System.getenv().getOrDefault("PROCESS_CITATIONS", "false").trim.toBoolean
 
@@ -72,16 +73,16 @@ class OAGGraphBuilder extends GraphBuilder[String] {
     }
 
     if (inputstr.contains("2126031951") && inputstr.contains("212119943")) {
-//    if (inputstr.contains("a survey on distributed topology control techniques for extending the lifetime of battery powered wireless sensor networks")) {
-//    if (inputstr.contains("intelligent device to device communication in the internet of things")) {
+      //    if (inputstr.contains("a survey on distributed topology control techniques for extending the lifetime of battery powered wireless sensor networks")) {
+      //    if (inputstr.contains("intelligent device to device communication in the internet of things")) {
       println("found paper")
     }
 
-      //    if (inputstr.contains("entities") && inputstr.contains("FamId"))//is MAG format
-//    if (inputstr.contains("FamId"))//is MAG format
+    //    if (inputstr.contains("entities") && inputstr.contains("FamId"))//is MAG format
+    //    if (inputstr.contains("FamId"))//is MAG format
     if (inputstr.contains("Ti") && inputstr.contains("Ty") && inputstr.contains("Id")
       && inputstr.contains("logprob")
-      )//is MAG format
+    )//is MAG format
       return 1
     else if (inputstr.contains("arxivId")) {
       return 0 //other like Semantic Scholar
@@ -90,12 +91,12 @@ class OAGGraphBuilder extends GraphBuilder[String] {
   }
 
   def convertToOpenAcademic(paper:OAGPaper) :OpenAcademic = {
-//    var references : List[OpenAcademic] = List()
+    //    var references : List[OpenAcademic] = List()
     var references = new ListBuffer[OpenAcademic]
     for (reference <- paper.extendedReferences.get) {
-//    paper.extendedReferences.get.foreach { reference =>
-//    paper.extendedReferences.get.foreach { reference =>
-//      val r = reference.get
+      //    paper.extendedReferences.get.foreach { reference =>
+      //    paper.extendedReferences.get.foreach { reference =>
+      //      val r = reference.get
       val openformat = new OpenAcademic(
         Some(reference.title),
         None,
@@ -109,7 +110,7 @@ class OAGGraphBuilder extends GraphBuilder[String] {
       references+=openformat
     }
 
-//    var references = None
+    //    var references = None
     var citations = None
 
     new OpenAcademic(
@@ -125,12 +126,19 @@ class OAGGraphBuilder extends GraphBuilder[String] {
   }
 
   def sendDocumentToPartitions(document: OpenAcademic, commands: ParHashSet[GraphUpdate]): Unit = {
+    if (filteringOnThreshold)  {
+      val density = document.labelDensity
+      if(density isDefined)
+        if(document.labelDensity.get.doubleValue() != -1)
+          if(document.labelDensity.get.doubleValue < threshold.doubleValue || document.labelDensity.get.doubleValue > 100)
+            return //do not proceed with adding this node
+    }
     //    var timestamp = dateToUnixTime(document.date.get.toString)
     //    var timestamp = dateToEarlierEpoch(document.date.get.toString)
     var timestamp = dateToEarlierEpoch(document.year.get.toString)
     //    var annotationUUID = mapId(document.id.get)
-        var annotationUUID = assignID(document.title.get)
-//    var annotationUUID = assignPaperID(document.paperId.get)
+    var annotationUUID = assignID(document.title.get)
+    //    var annotationUUID = assignPaperID(document.paperId.get)
     //send paper and add edges to references and back to citations
     //    val props = new Properties()
     //    props+=new StringProperty("doi",document.doi.get)
@@ -146,6 +154,7 @@ class OAGGraphBuilder extends GraphBuilder[String] {
     if (document.title.get.contains("The tragedy of the commons.")) {
       print("-----found Tragedy of the Commons paper")
     }*/
+
     sendUpdate(
       VertexAddWithProperties(
         timestamp,
@@ -171,7 +180,7 @@ class OAGGraphBuilder extends GraphBuilder[String] {
         ),
         Type("Paper"),
       )
-      )
+    )
 
     //    add outbound references
     if (document.references != None) {
@@ -198,14 +207,14 @@ class OAGGraphBuilder extends GraphBuilder[String] {
     }*/
 
     //    println("added timestamp:" + timestamp)
-//    commands
+    //    commands
   }
 
   private def handleReferences(references: List[OpenAcademic], commands: ParHashSet[GraphUpdate], timestamp: Long, annotationUUID: Long, outbound: Boolean) = {
     for (reference <- references) {
       //        val refUUID = mapId(reference)
       //        val refUUID = assignID(reference.title.get)
-//      val refUUID = assignPaperID(reference.paperId.get)
+      //      val refUUID = assignPaperID(reference.paperId.get)
       val refUUID = assignPaperID(reference.title.get)
       //      if (reference.title.get.contains("Blockchain for Cities A Systematic Literature Review")) {
       if (reference.title.get.contains("Blockchain for Cities A Systematic Literature Review")) {
@@ -216,40 +225,38 @@ class OAGGraphBuilder extends GraphBuilder[String] {
       }
 
 
-      if (reference.year != None) {
-        sendUpdate(
-          VertexAddWithProperties(
-            dateToEarlierEpoch(reference.year.get.toString),
-            refUUID,
-            Properties(
-              //          StringProperty("doi",document.doi.get),
-              if (reference.doi != None)
-                ImmutableProperty("doi", reference.doi.get)
-              else
-                ImmutableProperty("doi", ""),
-              ImmutableProperty("title", reference.title.get),
-              LongProperty("year", reference.year.get.toLong),
-              //ImmutableProperty("date",document.date.get.toString),
-              if (reference.isSeed != None && reference.isSeed.get)
-                LongProperty("isSeed", 1)
-              else
-                LongProperty("isSeed", 0),
-              //            LongProperty("isSeed", 0),
-              if (reference.labelDensity != None) {
-                val label_density = reference.labelDensity.get
-                if (label_density > threshold)
-                  DoubleProperty("labelDensity", reference.labelDensity.get)
-                else {
-                  print("skipping as label density:" + label_density + " is not greater than threshold:" + threshold)
-                  null
-                }
-              } else
-                DoubleProperty("labelDensity", 0)
-            ),
-            Type("Paper"),
-          )
+      if (reference.year != None) sendUpdate(
+        VertexAddWithProperties(
+          dateToEarlierEpoch(reference.year.get.toString),
+          refUUID,
+          Properties(
+            //          StringProperty("doi",document.doi.get),
+            if (reference.doi != None)
+              ImmutableProperty("doi", reference.doi.get)
+            else
+              ImmutableProperty("doi", ""),
+            ImmutableProperty("title", reference.title.get),
+            LongProperty("year", reference.year.get.toLong),
+            //ImmutableProperty("date",document.date.get.toString),
+            if (reference.isSeed != None && reference.isSeed.get)
+              LongProperty("isSeed", 1)
+            else
+              LongProperty("isSeed", 0),
+            //            LongProperty("isSeed", 0),
+            if (reference.labelDensity != None) {
+              val label_density = reference.labelDensity.get
+              if (label_density > threshold)
+                DoubleProperty("labelDensity", reference.labelDensity.get)
+              else {
+                print("skipping as label density:" + label_density + " is not greater than threshold:" + threshold)
+                null
+              }
+            } else
+              DoubleProperty("labelDensity", 0)
+          ),
+          Type("Paper"),
         )
-      }
+      )
 
       //        val refUUID = assignID(reference.title.get)
       sendUpdate(

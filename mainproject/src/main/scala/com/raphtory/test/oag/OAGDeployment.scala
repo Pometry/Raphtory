@@ -2,8 +2,8 @@ package com.raphtory.test.oag
 
 import com.raphtory.RaphtoryGraph
 import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic}
-import com.raphtory.serialisers.JSONSerialiser
 import com.raphtory.test.oag.OAGGraphBuilder
+import com.raphtory.serialisers.JSONSerialiser
 import com.raphtory.spouts.FileSpout
 //import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.MultiLineFileSpout
