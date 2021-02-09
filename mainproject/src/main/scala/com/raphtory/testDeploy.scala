@@ -4,12 +4,13 @@ import com.raphtory.algorithms.{CommunityOutlierDetection, ConnectedComponents, 
 import com.raphtory.spouts.FileSpout
 import com.raphtory.testCases.blockchain.graphbuilders.bitcoin_mixers_GB
 import com.raphtory.testCases.networkx.{networkxGraphBuilder, networkxSpout}
-import com.raphtory.testCases.wordSemantic.graphbuilders.CoMatGBFiltered
-import com.raphtory.testCases.wordSemantic.spouts.CoMatSpout
+import com.raphtory.testCases.wordSemantic.graphbuilders.{CoMatGBFiltered, CoMatParquetGB}
+import com.raphtory.testCases.wordSemantic.spouts.{CoMatParquetSpout, CoMatSpout}
+import org.apache.spark.sql.Row
 object testDeploy extends App {
-  val source = new CoMatSpout()
-  val builder = new CoMatGBFiltered()
-  val RG = RaphtoryGraph[String](source, builder)
+  val source = new CoMatParquetSpout(Array[String]())
+  val builder = new CoMatParquetGB()
+  val RG = RaphtoryGraph[Row](source, builder)
 
   //1414771239000, "end":1414871729000, "jump":3600000,"windowType":"true","windowSize":21600000, "args":["3600000", "BitCoin"]
   val arguments = Array[String]("21600000", "BitCoin", "10")
