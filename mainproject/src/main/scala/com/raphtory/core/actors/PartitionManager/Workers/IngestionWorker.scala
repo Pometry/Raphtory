@@ -285,7 +285,7 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
         val timestamps = queueState.map(q => q.timestamp)
          // println(s"$increments Writer Worker $partitionID $workerId $timestamps")
 
-        //println(s"Writer Worker $partitionID $workerId ${queueState.mkString("[",",","]")} ${storage.vertices.size}")
+        println(s"Writer Worker $partitionID $workerId ${queueState.mkString("[",",","]")} ${storage.vertices.size}")
         //println(s"$increments Writer Worker $partitionID $workerId ${timestamps.min} ${storage.vertices.size} $updates ${updates-updates2}")
         updates2=updates
         increments+=1
