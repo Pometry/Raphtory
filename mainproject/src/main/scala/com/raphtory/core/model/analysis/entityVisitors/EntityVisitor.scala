@@ -59,7 +59,6 @@ abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {
     else {
       entity.history.filter(k => k._1 <= viewJob.timestamp)
     }
-
   }
 
   //TODO only here for temp, needs to be removed

@@ -1,7 +1,7 @@
 package com.raphtory.test.lotr
 
 import com.raphtory.RaphtoryGraph
-import com.raphtory.algorithms.{DegreeBasic}
+import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic}
 
 object LOTRDeployment extends App{
   val source  = new LOTRSpout()
@@ -11,7 +11,7 @@ object LOTRDeployment extends App{
 
 
 
-  //rg.rangeQuery(new JSONSerialiser(),start = 1,end = 32674,increment = 100,windowBatch=Array(10,50,100),arguments)
+  rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,windowBatch=Array(10,50,100),arguments)
 
   rg.viewQuery(DegreeBasic(),timestamp = 10000,windowBatch=Array(100,50,10),arguments)
   rg.viewQuery(DegreeBasic(),timestamp = 10000,windowBatch=Array(10,50,100),arguments)
