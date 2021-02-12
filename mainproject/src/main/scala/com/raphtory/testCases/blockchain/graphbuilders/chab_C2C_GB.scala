@@ -16,13 +16,13 @@ class chab_C2C_GB extends GraphBuilder[String]{
       val usdAmount = dp.usd
 
 
-    sendUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
-    sendUpdate((VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster"))))
+    sendUpdate(VertexAdd(msgTime = transactionTime, srcId = srcClusterId, Type("Cluster")))
+    sendUpdate((VertexAdd(msgTime = transactionTime, srcId = dstClusterId, Type("Cluster"))))
 
     sendUpdate(
         EdgeAddWithProperties(msgTime = transactionTime,
-          srcID = srcClusterId,
-          dstID = dstClusterId,
+          srcId = srcClusterId,
+          dstId = dstClusterId,
           Properties(DoubleProperty("BitCoin", btcAmount),
             DoubleProperty("USD", usdAmount),
             DoubleProperty("Transaction", transactionId)),
