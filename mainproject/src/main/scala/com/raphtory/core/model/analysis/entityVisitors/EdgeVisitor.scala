@@ -5,8 +5,8 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.api.ManagerCount
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.analysis.GraphLenses.GraphLens
-import com.raphtory.core.model.communication.{ImmutableProperty, VertexMessage}
-import com.raphtory.core.model.graphentities.{Edge, MutableProperty}
+import com.raphtory.core.model.communication.VertexMessage
+import com.raphtory.core.model.graphentities.{Edge, MutableProperty, ImmutableProperty}
 
 import scala.collection.mutable
 

@@ -18,21 +18,21 @@ class networkxGraphBuilder extends GraphBuilder[String]{
     sendUpdate(
       VertexAddWithProperties(
         msgTime = time,
-        srcID = srcClusterId,
+        srcId = srcClusterId,
         Properties(StringProperty("Word", dp.head))
       )
     )
     sendUpdate(
       VertexAddWithProperties(
         msgTime = time,
-        srcID = dstClusterId,
+        srcId = dstClusterId,
         Properties(StringProperty("Word", dp(1)))
       )
     )
     sendUpdate(
       EdgeAddWithProperties(msgTime = time,
-          srcID = srcClusterId,
-          dstID = dstClusterId,
+          srcId = srcClusterId,
+          dstId = dstClusterId,
           Properties(LongProperty("weight", properties.getOrElse("'weight'", "1").toLong))
       )
     )

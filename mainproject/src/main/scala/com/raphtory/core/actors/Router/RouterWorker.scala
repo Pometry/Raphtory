@@ -110,23 +110,10 @@ class RouterWorker[T](
   ): Long = {
     update += 1
     routerWorkerUpdates.increment()
-    val path             = getManager(message.srcID, managerCount)
+    val path             = getManager(message.srcId, managerCount)
     val id               = getMessageIDForWriter(path)
 
-    val sentMessage = message match {
-      case m: VertexAdd =>
-        TrackedVertexAdd(s"${routerId}_$workerID", id, m)
-      case m: VertexAddWithProperties =>
-        TrackedVertexAddWithProperties(s"${routerId}_$workerID", id, m)
-      case m: EdgeAdd =>
-        TrackedEdgeAdd(s"${routerId}_$workerID", id, m)
-      case m: EdgeAddWithProperties =>
-        TrackedEdgeAddWithProperties(s"${routerId}_$workerID", id, m)
-      case m: VertexDelete =>
-        TrackedVertexDelete(s"${routerId}_$workerID", id, m)
-      case m: EdgeDelete =>
-        TrackedEdgeDelete(s"${routerId}_$workerID", id, m)
-    }
+    val sentMessage = TrackedGraphUpdate(s"${routerId}_$workerID", id, message)
     log.debug(s"RouterWorker sending message [$sentMessage] to PubSub")
 
     mediator ! DistributedPubSubMediator.Send(path, sentMessage, localAffinity = false)
