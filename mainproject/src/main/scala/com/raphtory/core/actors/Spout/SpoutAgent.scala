@@ -2,6 +2,7 @@ package com.raphtory.core.actors.Spout
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.ClusterManagement.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage._
 import com.raphtory.core.model.communication._
@@ -110,5 +111,6 @@ object SpoutAgent {
     case object WorkPlease
     case object NoWork
     case object SpoutOnline
+    case object DataFinished
   }
 }

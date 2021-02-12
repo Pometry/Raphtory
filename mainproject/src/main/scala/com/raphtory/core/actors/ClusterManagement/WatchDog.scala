@@ -3,31 +3,20 @@ package com.raphtory.core.actors.ClusterManagement
 /**
   * Created by Mirate on 11/07/2017.
   */
-import java.text.SimpleDateFormat
-
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable}
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.model.communication._
-
-import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-import akka.actor.Actor
-import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.event.LoggingReceive
 import com.raphtory.core.actors.ClusterManagement.WatchDog.ActorState
-import com.raphtory.core.actors.ClusterManagement.WatchDog.Message.{RefreshManagerCount, Tick}
+import com.raphtory.core.actors.ClusterManagement.WatchDog.Message._
+import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.model.communication._
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 class WatchDog(managerCount: Int, minimumRouters: Int) extends RaphtoryActor {
 
-  private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
   implicit val executionContext: ExecutionContext = context.system.dispatcher
 
   private val maxTimeInMillis = 30000
@@ -59,7 +48,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends RaphtoryActor {
 
     case RequestPartitionCount =>
       log.debug(s"Sending Partition Manager count [${state.pmCounter}].")
-      sender ! PartitionsCountResponse(state.pmCounter)
+      sender ! PartitionsCount(state.pmCounter)
 
     case PartitionUp(id) =>
       val newMap = state.pmLiveMap + (id -> System.currentTimeMillis())
@@ -106,6 +95,15 @@ object WatchDog {
   object Message {
     case object Tick
     case object RefreshManagerCount
+    case class RouterUp(id: Int)
+    case class PartitionUp(id: Int)
+    case object ClusterStatusRequest
+    case class ClusterStatusResponse(clusterUp: Boolean, pmCounter: Int, roCounter: Int)
+    case class AssignedId(id: Int)
+    case object RequestPartitionId
+    case object RequestRouterId
+    case object RequestPartitionCount
+    case class PartitionsCount(count: Int)
   }
   private case class ActorState(
       clusterUp: Boolean,

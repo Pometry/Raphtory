@@ -2,8 +2,8 @@ package com.raphtory.core.actors.ClusterManagement
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.ClusterManagement.WatermarkManager.Message._
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.model.communication.{ProbeWatermark, RouterWorkerTimeSync, WatermarkTime}
 import kamon.Kamon
 
 import scala.concurrent.duration._
@@ -38,7 +38,7 @@ class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
     workerPaths.foreach { workerPath =>
       mediator ! new DistributedPubSubMediator.Send(
         workerPath,
-        ProbeWatermark()
+        ProbeWatermark
       )
     }
   }
@@ -54,5 +54,12 @@ class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
       println(s". Minimum Watermark: ${min._1} ${min._2} Maximum Watermark: ${max._1} ${max._2}")
       context.system.scheduler.scheduleOnce(delay = 10.seconds, receiver = self, message = "probe")
     }
+  }
+}
+
+object WatermarkManager {
+  object Message {
+    case object ProbeWatermark
+    case class WatermarkTime(time:Long)
   }
 }

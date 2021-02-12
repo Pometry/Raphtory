@@ -3,6 +3,7 @@ package com.raphtory.core.actors.PartitionManager
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
+import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
 import com.raphtory.core.actors.PartitionManager.Workers.ReaderWorker
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.EntityStorage
