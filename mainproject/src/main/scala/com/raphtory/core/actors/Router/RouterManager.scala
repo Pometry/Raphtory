@@ -2,8 +2,10 @@ package com.raphtory.core.actors.Router
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
+import com.raphtory.core.actors.ClusterManagement.WatchDog.Message.RouterUp
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.Router.RouterManager.Message.KeepAlive
+import com.raphtory.core.actors.Router.RouterManager.Message._
 import com.raphtory.core.model.communication._
 
 import scala.concurrent.ExecutionContext
