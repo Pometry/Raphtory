@@ -9,8 +9,8 @@ import org.apache.spark.sql.{Row, SparkSession}
 import com.typesafe.scalalogging.LazyLogging
 
 class CoMatParquetSpout() extends Spout[Row] {
-  private val directory = "/home/tsunade/qmul/datasets/word_semantics/tmp/sample-0.1"//System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
-  private val fileName = ""//System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
+  private val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
+  private val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim
   private val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
 
   private var fileManager = ParquetManager(directory, fileName, dropHeader)
@@ -68,7 +68,7 @@ final case class ParquetManager private (
   }
 
   private def getFileReader(file: File): util.Iterator[Row] = {
-    logger.info(s"Reading file ${file.getCanonicalPath}")
+    println(s"Reading file ${file.getCanonicalPath}")
     val br = spark.read.parquet(file.getCanonicalPath)
     br.toLocalIterator()
   }
@@ -85,7 +85,7 @@ object ParquetManager extends LazyLogging {
         if (file.exists && file.isFile)
           List(file)
         else {
-          logger.error(s"File $dir$joiner$fileName does not exist or is not file ")
+          println(s"File $dir$joiner$fileName does not exist or is not file ")
           List.empty
         }
       }
