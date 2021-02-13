@@ -8,7 +8,7 @@ import com.raphtory.testCases.wordSemantic.graphbuilders.{CoMatGBFiltered, CoMat
 import com.raphtory.testCases.wordSemantic.spouts.{CoMatParquetSpout, CoMatSpout}
 import org.apache.spark.sql.Row
 object testDeploy extends App {
-  val source = new CoMatParquetSpout(Array[String]())
+  val source = new CoMatParquetSpout()
   val builder = new CoMatParquetGB()
   val RG = RaphtoryGraph[Row](source, builder)
 
@@ -17,7 +17,7 @@ object testDeploy extends App {
   val arguments2 = Array[String]("10","","50","1","4","1","1")
 //  val motifs = new MotifCounting(arguments)
 //  Thread.sleep(30000L)
-  RG.viewQuery(DegreeBasic(),2008000000000L, arguments)
+  RG.viewQuery(DegreeBasic(),2008000000010L, arguments)
 //  RG.viewQuery(ConnectedComponents(), 1414771239000L, arguments)
 //  RG.viewQuery(LPA(arguments2), 1414771239000L, arguments2)
 //    RG.viewQuery(MotifCounting(arguments), 1414771239000L, arguments)
