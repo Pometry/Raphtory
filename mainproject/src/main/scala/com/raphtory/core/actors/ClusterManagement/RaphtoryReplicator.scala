@@ -5,6 +5,8 @@ import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
+import com.raphtory.core.actors.ClusterManagement.WatchDog.Message.{AssignedId, PartitionsCount, RequestPartitionId, RequestRouterId}
 import com.raphtory.core.actors.PartitionManager.Workers.IngestionWorker
 import com.raphtory.core.actors.PartitionManager.{Reader, Writer}
 import com.raphtory.core.actors.RaphtoryActor
@@ -24,6 +26,10 @@ object RaphtoryReplicator {
 
   def apply[T](actorType: String, initialManagerCount: Int,initialRouterCount:Int): RaphtoryReplicator[T] =
     new RaphtoryReplicator(actorType, initialManagerCount,initialRouterCount, null)
+
+  object Message {
+    case class UpdatedCounter(newValue: Int)
+  }
 }
 
 class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initialRouterCount:Int, graphBuilder: GraphBuilder[T])
