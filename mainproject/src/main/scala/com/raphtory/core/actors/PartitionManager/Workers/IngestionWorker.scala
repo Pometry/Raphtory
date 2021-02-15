@@ -2,6 +2,7 @@ package com.raphtory.core.actors.PartitionManager.Workers
 
 import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.ClusterManagement.WatermarkManager.Message._
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
@@ -69,7 +70,7 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
     case req:VertexRemoveSyncAck         => processVertexRemoveSyncAck(req)
 
     case "watermark"                     => processWatermarkRequest(); //println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
-    case req:ProbeWatermark              => mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.windowTime), localAffinity = false)
+    case ProbeWatermark              => mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager",WatermarkTime(storage.windowTime), localAffinity = false)
     case req:RouterWorkerTimeSync        => processRouterTimeSync(req);
     case x =>
       log.warning(s"IngestionWorker [{}] received unknown [{}] message.", workerId, x)
@@ -317,7 +318,7 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
     addToWatermarkQueue(req.routerID,req.routerTime,req.msgTime)
   }
 
-  private def sendEffectMessage(msg: EffectMessage): Unit = {
+  private def sendEffectMessage(msg: GraphEffect): Unit = {
     mediator ! new DistributedPubSubMediator.Send(
       getManager(msg.targetId,managerCount),
       msg
