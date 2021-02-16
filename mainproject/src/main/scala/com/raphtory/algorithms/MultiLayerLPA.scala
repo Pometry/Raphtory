@@ -41,7 +41,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   val snapshotSize: Long        = args(5).toLong
   val startTime: Long           = args(3).toLong * snapshotSize //imlater: change this when done with wsdata
   val endTime: Long             = args(4).toLong * snapshotSize
-  val snapshots: Iterator[Long] = (for (ts <- startTime to endTime by snapshotSize) yield ts).toIterator
+  val snapshots: Iterable[Long] = (for (ts <- startTime to endTime by snapshotSize) yield ts)
   val omega: String             = if (arg.length < 7) "1" else args(6)
 
   override def setup(): Unit =
@@ -50,7 +50,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       val tlabels = mutable.TreeMap[Long, (Long, Long)]()
       snapshots
         .filter(t => vertex.aliveAtWithWindow(t, snapshotSize))
-        .foreach(tlabels.put(_, (-1L, scala.util.Random.nextLong())))
+        .foreach(tlabels.put(_, (scala.util.Random.nextLong(), scala.util.Random.nextLong())))
       vertex.setState("mlpalabel", tlabels)
       vertex.messageAllNeighbours((vertex.ID(), tlabels))
     }
@@ -98,6 +98,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       // Vote to halt if all instances of vertex haven't changed their labels
       if (voteCount == vlabel.size) vertex.voteToHalt()
 //        println(view.superStep())
+      doSomething(vertex, Array[Long]())
     }
   catch {
       case e: Exception => println("Something went wrong with mLPA!", e)

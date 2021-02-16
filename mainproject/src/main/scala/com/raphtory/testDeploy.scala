@@ -1,6 +1,6 @@
 package com.raphtory
 
-import com.raphtory.algorithms.{CommunityOutlierDetection, ConnectedComponents, DegreeBasic, LPA, MotifCounting, MultiLayerLPA}
+import com.raphtory.algorithms.{CommunityOutlierDetection, ConnectedComponents, DegreeBasic, LPA, MotifCounting, MultiLayerLPA, MultiLayerLPAparams}
 import com.raphtory.spouts.FileSpout
 import com.raphtory.testCases.blockchain.graphbuilders.bitcoin_mixers_GB
 import com.raphtory.testCases.networkx.{networkxGraphBuilder, networkxSpout}
@@ -14,10 +14,11 @@ object testDeploy extends App {
 
   //1414771239000, "end":1414871729000, "jump":3600000,"windowType":"true","windowSize":21600000, "args":["3600000", "BitCoin"]
   val arguments = Array[String]("21600000", "BitCoin", "10")
-  val arguments2 = Array[String]("10","","50","1","4","1","1")
+  val arguments2 = Array[String]("0","","50","2004","2009","1000000000","1")
 //  val motifs = new MotifCounting(arguments)
 //  Thread.sleep(30000L)
-  RG.viewQuery(DegreeBasic(),2008000000010L, arguments)
+//  RG.viewQuery(DegreeBasic(),2008000000010L, arguments2)
+  RG.viewQuery(MultiLayerLPAparams(arguments2),2008000000010L, arguments2)
 //  RG.viewQuery(ConnectedComponents(), 1414771239000L, arguments)
 //  RG.viewQuery(LPA(arguments2), 1414771239000L, arguments2)
 //    RG.viewQuery(MotifCounting(arguments), 1414771239000L, arguments)
