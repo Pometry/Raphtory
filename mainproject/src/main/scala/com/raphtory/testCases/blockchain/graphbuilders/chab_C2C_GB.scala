@@ -16,18 +16,18 @@ class chab_C2C_GB extends GraphBuilder[String]{
       val usdAmount = dp.usd
 
 
-    sendUpdate(VertexAdd(msgTime = transactionTime, srcId = srcClusterId, Type("Cluster")))
-    sendUpdate((VertexAdd(msgTime = transactionTime, srcId = dstClusterId, Type("Cluster"))))
+      addVertex(transactionTime, srcClusterId, Type("Cluster"))
+      addVertex(transactionTime, dstClusterId, Type("Cluster"))
 
-    sendUpdate(
-        EdgeAddWithProperties(msgTime = transactionTime,
-          srcId = srcClusterId,
-          dstId = dstClusterId,
-          Properties(DoubleProperty("BitCoin", btcAmount),
-            DoubleProperty("USD", usdAmount),
-            DoubleProperty("Transaction", transactionId)),
-          Type("Transfer")
-        )
+      addEdge(transactionTime,
+        srcClusterId,
+        dstClusterId,
+        Properties(
+          DoubleProperty("BitCoin", btcAmount),
+          DoubleProperty("USD", usdAmount),
+          DoubleProperty("Transaction", transactionId)
+        ),
+        Type("Transfer")
       )
   }catch { case e: Exception => println(e, tuple) }
   }

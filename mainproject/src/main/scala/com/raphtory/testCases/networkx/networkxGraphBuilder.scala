@@ -15,27 +15,9 @@ class networkxGraphBuilder extends GraphBuilder[String]{
       val time = properties("'t'").toLong
 
 
-    sendUpdate(
-      VertexAddWithProperties(
-        msgTime = time,
-        srcId = srcClusterId,
-        Properties(StringProperty("Word", dp.head))
-      )
-    )
-    sendUpdate(
-      VertexAddWithProperties(
-        msgTime = time,
-        srcId = dstClusterId,
-        Properties(StringProperty("Word", dp(1)))
-      )
-    )
-    sendUpdate(
-      EdgeAddWithProperties(msgTime = time,
-          srcId = srcClusterId,
-          dstId = dstClusterId,
-          Properties(LongProperty("weight", properties.getOrElse("'weight'", "1").toLong))
-      )
-    )
+    addVertex(time, srcClusterId, Properties(StringProperty("Word", dp.head)))
+    addVertex(time, dstClusterId, Properties(StringProperty("Word", dp(1))))
+    addEdge(time, srcClusterId, dstClusterId, Properties(LongProperty("weight", properties.getOrElse("'weight'", "1").toLong)))
 
 
 

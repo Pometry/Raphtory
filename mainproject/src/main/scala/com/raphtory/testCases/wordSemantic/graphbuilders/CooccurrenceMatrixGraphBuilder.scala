@@ -14,20 +14,18 @@ class CooccurrenceMatrixGraphBuilder extends GraphBuilder[String] {
       val srcClusterId = assignID(dp.head)
       val len = dp.length
 
-      sendUpdate(VertexAddWithProperties(msgTime = occurenceTime, srcId = srcClusterId, Properties(StringProperty("Word", dp.head))))
+      addVertex(occurenceTime, srcClusterId, Properties(StringProperty("Word", dp.head)))
 
       for (i <- 1 until len by 2) {
         val dstClusterId = assignID(dp(i))
         val coocWeight = dp(i + 1).toLong
 
-        sendUpdate(VertexAddWithProperties(msgTime = occurenceTime, srcId = dstClusterId, Properties(StringProperty("Word", dp(i)))))
-        sendUpdate(
-         EdgeAddWithProperties(
-            msgTime = occurenceTime,
-            srcId = srcClusterId,
-            dstId = dstClusterId,
-            Properties(LongProperty("Frequency", coocWeight))
-          )
+        addVertex(occurenceTime, dstClusterId, Properties(StringProperty("Word", dp(i))))
+        addEdge(
+          occurenceTime,
+          srcClusterId,
+          dstClusterId,
+          Properties(LongProperty("Frequency", coocWeight))
         )
       }
 

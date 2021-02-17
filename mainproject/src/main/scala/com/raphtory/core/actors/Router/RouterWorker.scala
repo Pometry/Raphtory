@@ -124,7 +124,7 @@ class RouterWorker[T](
     log.debug(s"RouterWorker sending message [$sentMessage] to PubSub")
 
     mediator ! DistributedPubSubMediator.Send(path, sentMessage, localAffinity = false)
-    message.msgTime
+    message.updateTime
   }
 
   private def getMessageIDForWriter(path: String) =

@@ -51,7 +51,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       }
   // if the add come with some properties add all passed properties into the entity
 
-  def addVertex(msgTime: Long, srcId: Long, properties: Properties = Properties(), vertexType: Type): Vertex = { //Vertex add handler function
+  def addVertex(msgTime: Long, srcId: Long, properties: Properties, vertexType: Option[Type]): Vertex = { //Vertex add handler function
     val vertex: Vertex = vertices.get(srcId) match { //check if the vertex exists
       case Some(v) => //if it does
         v revive msgTime //add the history point
@@ -59,12 +59,11 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       case None => //if it does not exist
         val v = new Vertex(msgTime, srcId, initialValue = true) //create a new vertex
         vertexCount.increment()
-        if (!(vertexType == null)) v.setType(vertexType.name)
+        vertexType.foreach(vType => v.setType(vType.name))
         vertices put (srcId, v) //put it in the map
         v
     }
-    if(properties!=null)
-      addProperties(msgTime, vertex, properties)
+    addProperties(msgTime, vertex, properties)
 
     vertex //return the vertex
   }
@@ -81,7 +80,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
     }
 
   def vertexWorkerRequest(msgTime: Long, dstID: Long, srcID: Long, edge: Edge, present: Boolean,routerID:String,routerTime:Int): GraphEffect = {
-    val dstVertex = addVertex(msgTime, dstID, vertexType = null) //if the worker creating an edge does not deal with the destination
+    val dstVertex = addVertex(msgTime, dstID, Properties(), None) //if the worker creating an edge does not deal with the destination
     if (!present) {
       dstVertex.incrementEdgesRequiringSync()
       dstVertex addIncomingEdge edge // do the same for the destination node
@@ -159,10 +158,10 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
   /**
     * Edges Methods
     */
-  def addEdge(msgTime: Long, srcId: Long, dstId: Long, routerID:String, routerTime:Int, properties: Properties = null, edgeType: Type): Option[GraphEffect] = {
+  def addEdge(msgTime: Long, srcId: Long, dstId: Long, routerID:String, routerTime:Int, properties: Properties, edgeType: Option[Type]): Option[GraphEffect] = {
     val local      = checkDst(dstId, managerCount, managerID)     //is the dst on this machine
     val sameWorker = checkWorker(dstId, managerCount, workerID)   // is the dst handled by the same worker
-    val srcVertex  = addVertex(msgTime, srcId, vertexType = null) // create or revive the source ID
+    val srcVertex  = addVertex(msgTime, srcId, Properties(), None) // create or revive the source ID
 
     val (present, edge) = srcVertex.getOutgoingEdge(dstId) match {
       case Some(e) => //retrieve the edge if it exists
@@ -177,7 +176,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
           masterSplitEdgeCount.increment()
           created
         }
-        if (!(edgeType == null)) newEdge.setType(edgeType.name)
+        edgeType.foreach(eType => newEdge.setType(eType.name))
         srcVertex.addOutgoingEdge(newEdge) //add this edge to the vertex
         (false, newEdge)
     }
@@ -187,7 +186,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       if (local) {
         if (sameWorker) {
           if (srcId != dstId) {
-            addVertex(msgTime, dstId, vertexType = null) // do the same for the destination ID
+            addVertex(msgTime, dstId, Properties(), None) // do the same for the destination ID
 
           }
           None
@@ -195,7 +194,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
           Some(DstAddForOtherWorker(msgTime, dstId, srcId, edge, present, routerID, routerTime))
         }
       } else {
-        Some(RemoteEdgeAdd(msgTime, srcId, dstId, properties, edgeType, routerID: String, routerTime)) // inform the partition dealing with the destination node*/
+        Some(RemoteEdgeAdd(msgTime, srcId, dstId, properties, edgeType.orNull, routerID: String, routerTime)) // inform the partition dealing with the destination node*/
       }
     } else {
       val deaths = srcVertex.removeList //we extract the removals from the src
@@ -203,7 +202,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       if (local) {
         if (sameWorker) {
           if (srcId != dstId) {
-            val dstVertex = addVertex(msgTime, dstId, vertexType = null) // do the same for the destination ID
+            val dstVertex = addVertex(msgTime, dstId, Properties(), None) // do the same for the destination ID
             dstVertex addIncomingEdge (edge) // add it to the dst as would not have been seen
             edge killList dstVertex.removeList //add the dst removes into the edge
           }
@@ -216,11 +215,10 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
         }
       } else {
         srcVertex.incrementEdgesRequiringSync() //if its not fully local and is new then increment the count for edges requireing a watermark count
-        Some(RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths, edgeType, routerID: String, routerTime))
+        Some(RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths, edgeType.orNull, routerID: String, routerTime))
       }
     }
-    if(properties!=null)
-      addProperties(msgTime, edge, properties)
+    addProperties(msgTime, edge, properties)
 
     maybeEffect
   }
@@ -235,7 +233,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       routerID:String,
       routerTime:Int,
   ): GraphEffect = {
-    val dstVertex = addVertex(msgTime, dstId, vertexType = null) //create or revive the destination node
+    val dstVertex = addVertex(msgTime, dstId, Properties(), None) //create or revive the destination node
     val edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = true)
     copySplitEdgeCount.increment()
     dstVertex addIncomingEdge (edge) //add the edge to the associated edges of the destination node
@@ -250,7 +248,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
   }
 
   def remoteEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties = null, edgeType: Type, routerID:String, routerTime:Int): GraphEffect = {
-    val dstVertex = addVertex(msgTime, dstId, vertexType = null) // revive the destination node
+    val dstVertex = addVertex(msgTime, dstId, Properties(), None) // revive the destination node
     dstVertex.getIncomingEdge(srcId) match {
       case Some(edge) =>
         edge revive msgTime //revive the edge
