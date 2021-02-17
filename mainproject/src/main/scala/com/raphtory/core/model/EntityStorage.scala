@@ -112,7 +112,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       case None       => logger.error(s"no edge from $srcID to $dstID")
     }
 
-  def removeVertex(msgTime: Long, srcId: Long, routerID:String, routerTime:Int): List[GraphEffect] = {
+  def removeVertex(msgTime: Long, srcId: Long, channelId: String, channelTime: Int): List[GraphEffect] = {
     val vertex = vertices.get(srcId) match {
       case Some(v) =>
         v kill msgTime
@@ -128,14 +128,14 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       edge._2 match {
         case remoteEdge: SplitEdge =>
           remoteEdge kill msgTime
-          Some(ReturnEdgeRemoval(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId, routerID, routerTime))
+          Some(ReturnEdgeRemoval(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId, channelId, channelTime))
         case edge => //if it is a local edge -- opperated by the same worker, therefore we can perform an action -- otherwise we must inform the other local worker to handle this
           if (edge.getWorkerID == workerID) {
             edge kill msgTime
             None
           }
           else {
-            Some(EdgeRemoveForOtherWorker(msgTime, edge.getSrcId, edge.getDstId, routerID, routerTime))
+            Some(EdgeRemoveForOtherWorker(msgTime, edge.getSrcId, edge.getDstId, channelId, channelTime))
           }
       }
     })
@@ -143,7 +143,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       edge._2 match {
         case remoteEdge: SplitEdge =>
           remoteEdge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
-          Some(RemoteEdgeRemovalFromVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId, routerID, routerTime))
+          Some(RemoteEdgeRemovalFromVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId, channelId, channelTime))
         case edge =>
           edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
           None
@@ -158,7 +158,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
   /**
     * Edges Methods
     */
-  def addEdge(msgTime: Long, srcId: Long, dstId: Long, routerID:String, routerTime:Int, properties: Properties, edgeType: Option[Type]): Option[GraphEffect] = {
+  def addEdge(msgTime: Long, srcId: Long, dstId: Long, channelId:String, channelTime:Int, properties: Properties, edgeType: Option[Type]): Option[GraphEffect] = {
     val local      = checkDst(dstId, managerCount, managerID)     //is the dst on this machine
     val sameWorker = checkWorker(dstId, managerCount, workerID)   // is the dst handled by the same worker
     val srcVertex  = addVertex(msgTime, srcId, Properties(), None) // create or revive the source ID
@@ -191,10 +191,10 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
           }
           None
         } else {
-          Some(DstAddForOtherWorker(msgTime, dstId, srcId, edge, present, routerID, routerTime))
+          Some(DstAddForOtherWorker(msgTime, dstId, srcId, edge, present, channelId, channelTime))
         }
       } else {
-        Some(RemoteEdgeAdd(msgTime, srcId, dstId, properties, edgeType.orNull, routerID: String, routerTime)) // inform the partition dealing with the destination node*/
+        Some(RemoteEdgeAdd(msgTime, srcId, dstId, properties, edgeType.orNull, channelId, channelTime)) // inform the partition dealing with the destination node*/
       }
     } else {
       val deaths = srcVertex.removeList //we extract the removals from the src
@@ -211,11 +211,11 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
           } // a self loop should be in the incoming map as well
           None
         } else {
-          Some(DstAddForOtherWorker(msgTime, dstId, srcId, edge, present, routerID, routerTime))
+          Some(DstAddForOtherWorker(msgTime, dstId, srcId, edge, present, channelId, channelTime))
         }
       } else {
         srcVertex.incrementEdgesRequiringSync() //if its not fully local and is new then increment the count for edges requireing a watermark count
-        Some(RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths, edgeType.orNull, routerID: String, routerTime))
+        Some(RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths, edgeType.orNull, channelId: String, channelTime))
       }
     }
     addProperties(msgTime, edge, properties)
@@ -259,7 +259,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
     EdgeSyncAck(msgTime, srcId, routerID, routerTime)
   }
 
-  def removeEdge(msgTime: Long, srcId: Long, dstId: Long, routerID: String, routerTime: Int): Option[GraphEffect] = {
+  def removeEdge(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int): Option[GraphEffect] = {
     val local      = checkDst(dstId, managerCount, managerID)
     val sameWorker = checkWorker(dstId, managerCount, workerID) // is the dst handled by the same worker
 
@@ -286,10 +286,10 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
         if (sameWorker) {
           None
         } else { // if it is a different worker, ask that other worker to complete the dst part of the edge
-          Some(DstWipeForOtherWorker(msgTime, dstId, srcId, edge, present, routerID, routerTime))
+          Some(DstWipeForOtherWorker(msgTime, dstId, srcId, edge, present, channelId, channelTime))
         }
       } else {
-        Some(RemoteEdgeRemoval(msgTime, srcId, dstId, routerID, routerTime)) // inform the partition dealing with the destination node
+        Some(RemoteEdgeRemoval(msgTime, srcId, dstId, channelId, channelTime)) // inform the partition dealing with the destination node
       }
     } else {
       val deaths = srcVertex.removeList
@@ -303,11 +303,11 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
           }
           None
         } else { // if it is a different worker, ask that other worker to complete the dst part of the edge
-          Some(DstWipeForOtherWorker(msgTime, dstId, srcId, edge, present, routerID, routerTime))
+          Some(DstWipeForOtherWorker(msgTime, dstId, srcId, edge, present, channelId, channelTime))
         }
       } else {
         srcVertex.incrementEdgesRequiringSync() //if its not fully local and is new then increment the count for edges requireing a watermark count
-        Some(RemoteEdgeRemovalNew(msgTime, srcId, dstId, deaths, routerID, routerTime))
+        Some(RemoteEdgeRemovalNew(msgTime, srcId, dstId, deaths, channelId, channelTime))
       }
     }
   }
