@@ -11,18 +11,18 @@ class AllCommandsBuilder extends GraphBuilder[String]{
     val parsedOBJ  = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
     if (commandKey.contains("VertexAdd"))
-      sendUpdate(vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject))
+      vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject)
     //else if(commandKey.contains("VertexUpdateProperties")) vertexUpdateProperties(parsedOBJ.getFields("VertexUpdateProperties").head.asJsObject)
     else if (commandKey.contains("VertexRemoval"))
-      sendUpdate(vertexRemoval(parsedOBJ.getFields("VertexRemoval").head.asJsObject))
+      vertexRemoval(parsedOBJ.getFields("VertexRemoval").head.asJsObject)
     else if (commandKey.contains("EdgeAdd"))
-      sendUpdate(edgeAdd(parsedOBJ.getFields("EdgeAdd").head.asJsObject)) //if addVertex, parse to handling function
+      edgeAdd(parsedOBJ.getFields("EdgeAdd").head.asJsObject) //if addVertex, parse to handling function
     //   else if(commandKey.contains("EdgeUpdateProperties")) edgeUpdateProperties(parsedOBJ.getFields("EdgeUpdateProperties").head.asJsObject)
     else if (commandKey.contains("EdgeRemoval"))
-      sendUpdate(edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject))
+      edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject)
   }
 
-  def vertexAdd(command: JsObject) = {
+  def vertexAdd(command: JsObject): Unit = {
     val msgTime = command.fields("messageID").toString().toLong
     val srcId   = command.fields("srcID").toString().toInt //extract the srcID
     if (command.fields.contains("properties")) { //if there are properties within the command
@@ -32,36 +32,36 @@ class AllCommandsBuilder extends GraphBuilder[String]{
        }).toSeq:_*)
 
       //send the srcID and properties to the graph manager
-      VertexAddWithProperties(msgTime, srcId, properties)
+      addVertex(msgTime, srcId, properties)
     } else
-      VertexAdd(msgTime, srcId)
+      addVertex(msgTime, srcId)
     // if there are not any properties, just send the srcID
   }
 
-  def vertexRemoval(command: JsObject):GraphUpdate = {
+  def vertexRemoval(command: JsObject): Unit = {
     val msgTime = command.fields("messageID").toString().toLong
     val srcId   = command.fields("srcID").toString().toInt //extract the srcID
-    VertexDelete(msgTime, srcId)
+    deleteVertex(msgTime, srcId)
   }
 
-  def edgeAdd(command: JsObject):GraphUpdate = {
+  def edgeAdd(command: JsObject): Unit = {
     val msgTime = command.fields("messageID").toString().toLong
     val srcId   = command.fields("srcID").toString().toInt //extract the srcID
     val dstId   = command.fields("dstID").toString().toInt //extract the dstID
     if (command.fields.contains("properties")) { //if there are properties within the command
-      var properties = Properties(command.fields("properties").asJsObject.fields.map( pair => {  //add all of the pairs to the map
+      val properties = Properties(command.fields("properties").asJsObject.fields.map( pair => {  //add all of the pairs to the map
         StringProperty(pair._1, pair._2.toString())
       }).toSeq:_*)
 
-      EdgeAddWithProperties(msgTime, srcId, dstId, properties)
-    } else EdgeAdd(msgTime, srcId, dstId)
+      addEdge(msgTime, srcId, dstId, properties)
+    } else addEdge(msgTime, srcId, dstId)
   }
 
-  def edgeRemoval(command: JsObject):GraphUpdate = {
+  def edgeRemoval(command: JsObject): Unit = {
     val msgTime = command.fields("messageID").toString().toLong
     val srcId   = command.fields("srcID").toString().toInt //extract the srcID
     val dstId   = command.fields("dstID").toString().toInt //extract the dstID
-    EdgeDelete(msgTime, srcId, dstId)
+    deleteEdge(msgTime, srcId, dstId)
   }
 
 }

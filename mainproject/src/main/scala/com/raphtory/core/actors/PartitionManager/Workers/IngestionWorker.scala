@@ -45,9 +45,7 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
 
   override def receive: Receive = {
     case TrackedGraphUpdate(routerId, messageId, req: VertexAdd) => processVertexAddRequest(routerId, messageId, req); //Add a new vertex
-    case TrackedGraphUpdate(routerId, messageId, req: VertexAddWithProperties) => processVertexAddWithPropertiesRequest(routerId, messageId, req) //Add a new vertex with properties
     case TrackedGraphUpdate(routerId, messageId, req: EdgeAdd) => processEdgeAddRequest(routerId, messageId, req) //Add an edge
-    case TrackedGraphUpdate(routerId, messageId, req: EdgeAddWithProperties) => processEdgeAddWithPropertiesRequest(routerId, messageId, req) // Add an edge with properties
 
     case req: RemoteEdgeAddNew           => processRemoteEdgeAddNewRequest(req)//A writer has requested a new edge sync for a destination node in this worker
     case req: RemoteEdgeAdd              => processRemoteEdgeAddRequest(req)// A writer has requested an existing edge sync for a destination node on in this worker
@@ -79,16 +77,9 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
 
   def processVertexAddRequest(routerId: String, messageId: Int, update: VertexAdd): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$update] request.")
-    storage.addVertex(update.msgTime, update.srcId, vertexType = update.vType)
+    storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
     routerUpdates.increment()
-    trackVertexAdd(update.msgTime, routerId, messageId)
-  }
-
-  def processVertexAddWithPropertiesRequest(routerId: String, messageId: Int, update: VertexAddWithProperties): Unit = {
-    log.debug(s"IngestionWorker [$workerId] received [$update] request.")
-    storage.addVertex(update.msgTime, update.srcId, update.properties, update.vType)
-    routerUpdates.increment()
-    trackVertexAdd(update.msgTime, routerId, messageId)
+    trackVertexAdd(update.updateTime, routerId, messageId)
   }
 
   private def trackVertexAdd(msgTime: Long, routerId: String, messageId: Int): Unit = {
@@ -100,18 +91,10 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
 
   def processEdgeAddRequest(routerId: String, messageId: Int, update: EdgeAdd): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$update] request.")
-    val maybeEffect = storage.addEdge(update.msgTime, update.srcId, update.dstId, routerId, messageId, edgeType = update.eType)
+    val maybeEffect = storage.addEdge(update.updateTime, update.srcId, update.dstId, routerId, messageId, update.properties, update.eType)
     maybeEffect.foreach(sendEffectMessage)
     routerUpdates.increment()
-    trackEdgeAdd(update.msgTime, maybeEffect.isEmpty, routerId, messageId)
-  }
-
-  def processEdgeAddWithPropertiesRequest(routerId: String, messageId: Int, update: EdgeAddWithProperties): Unit = {
-    log.debug(s"IngestionWorker [$workerId] received [$update] request.")
-    val maybeEffect = storage.addEdge(update.msgTime, update.srcId, update.dstId, routerId, messageId, update.properties, update.eType)
-    maybeEffect.foreach(sendEffectMessage)
-    routerUpdates.increment()
-    trackEdgeAdd(update.msgTime, maybeEffect.isEmpty, routerId, messageId)
+    trackEdgeAdd(update.updateTime, maybeEffect.isEmpty, routerId, messageId)
   }
 
   private def trackEdgeAdd(msgTime: Long, local: Boolean, routerId: String, messageId: Int): Unit = {
@@ -169,9 +152,9 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
 
   def processEdgeDeleteRequest(routerId: String, messageId: Int, update: EdgeDelete): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$update] request.")
-    val maybeEffect = storage.removeEdge(update.msgTime, update.srcId, update.dstId, routerId, messageId)
+    val maybeEffect = storage.removeEdge(update.updateTime, update.srcId, update.dstId, routerId, messageId)
     maybeEffect.foreach(sendEffectMessage)
-    trackEdgeDelete(update.msgTime, maybeEffect.isEmpty, routerId, messageId)
+    trackEdgeDelete(update.updateTime, maybeEffect.isEmpty, routerId, messageId)
     routerUpdates.increment()
   }
 
@@ -209,9 +192,9 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
 
   def processVertexDeleteRequest(routerId: String, messageId: Int, update: VertexDelete): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$update] request.")
-    val messages = storage.removeVertex(update.msgTime, update.srcId, routerId, messageId)
+    val messages = storage.removeVertex(update.updateTime, update.srcId, routerId, messageId)
     messages.foreach(x => sendEffectMessage(x))
-    trackVertexDelete(update.msgTime, routerId, messageId, messages.size)
+    trackVertexDelete(update.updateTime, routerId, messageId, messages.size)
     routerUpdates.increment()
   }
 
