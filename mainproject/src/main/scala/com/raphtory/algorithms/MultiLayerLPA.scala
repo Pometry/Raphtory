@@ -47,7 +47,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       // Assign random labels for all instances in time of a vertex as Map(ts, lab)
-      val tlabels = mutable.TreeMap[Long, (Long, Long)]()
+      val tlabels = mutable.TreeMap[Long, (Long, Long)]()  //im: send tuples instead of TreeMap and build the TM for processing only
       snapshots
         .filter(t => vertex.aliveAtWithWindow(t, snapshotSize))
         .foreach(tlabels.put(_, (scala.util.Random.nextLong(), scala.util.Random.nextLong())))
@@ -107,7 +107,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   def interLayerWeights(x: String, v: VertexVisitor, ts: Long): Long =
     x match {
       case "None" =>
-        val neilabs = weightFunction(v, ts)
+        val neilabs = weightFunction(v, ts)             //imlater: a more conceptual implementation of temporal weights
         neilabs.values.sum / neilabs.size
       case _ => omega.toLong                            //imlater: possibly changing this to Double
     }

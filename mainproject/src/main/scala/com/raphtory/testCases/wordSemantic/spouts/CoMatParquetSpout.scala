@@ -41,6 +41,7 @@ final case class ParquetManager private (
 
   lazy val allCompleted: Boolean = currentFileReader.isEmpty && restFiles.isEmpty
   lazy val spark: SparkSession =   SparkSession.builder().master("local").getOrCreate()
+  spark.sparkContext.setLogLevel("ERROR")
 
   def nextLine(): (ParquetManager, Row) = currentFileReader match {
     case None =>

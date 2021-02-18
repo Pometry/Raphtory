@@ -8,7 +8,6 @@ class CSVGraphBuilder extends GraphBuilder[String] {
 
   override def parseTuple(row: String) =
     try {
-
       val dp = row.split(",").map(_.trim)
       val occurenceTime = dp.head.toLong
       val srcClusterId = assignID(dp(1))

@@ -17,7 +17,7 @@ object testDeploy extends App {
   val arguments2 = Array[String]("0","","50","2004","2009","1000000000","1")
 //  val motifs = new MotifCounting(arguments)
 //  Thread.sleep(30000L)
-//  RG.viewQuery(DegreeBasic(),2008000000010L, arguments2)
+  RG.viewQuery(DegreeBasic(),2008000000010L, arguments2)
   RG.viewQuery(MultiLayerLPAparams(arguments2),2008000000010L, arguments2)
 //  RG.viewQuery(ConnectedComponents(), 1414771239000L, arguments)
 //  RG.viewQuery(LPA(arguments2), 1414771239000L, arguments2)
