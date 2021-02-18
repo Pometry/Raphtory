@@ -17,6 +17,7 @@ import kamon.Kamon
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
+import scala.reflect.io.Path
 
 abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int,newAnalyser: Boolean,rawFile:String) extends RaphtoryActor {
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
@@ -269,7 +270,8 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
         workersFinishedSuperStep = 0
         syncMessages()
       }
-
+//    Path("/home/tsunade/messagecount.csv").createFile().appendAll(totalSentMessages.toString + "\n")
+//    println(currentSuperStep,totalSentMessages)
   }
 
   def finaliseJob(result: Any) = {
@@ -306,6 +308,9 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     }
 
   def messagesReceieved(workerID: Int, receivedMessages: Int, sentMessages: Int) = {
+//    println(s"+++ Superstep: $currentSuperStep  wID: $workerID    Messages in: $totalReceivedMessages    Messages out: $totalSentMessages ")
+//    Path("/home/tsunade/messageIncount.csv").createFile().appendAll(s"$currentSuperStep,$workerID,$totalReceivedMessages\n")
+//      println(totalReceivedMessages)
     messageLogACKS += 1
     totalReceivedMessages += receivedMessages
     totalSentMessages += sentMessages

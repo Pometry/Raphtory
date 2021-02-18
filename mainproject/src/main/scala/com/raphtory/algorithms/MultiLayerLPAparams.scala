@@ -1,5 +1,7 @@
 package com.raphtory.algorithms
 
+import java.time.LocalDateTime
+
 import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetWriter}
 import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
 import org.apache.parquet.hadoop.ParquetFileWriter
@@ -21,12 +23,26 @@ class MultiLayerLPAparams(args: Array[String]) extends MultiLayerLPA(args) {
   //args = [top, weight, maxiter, start, end, layer-size, omega, theta]
 //  val theta: Double = if (arg.length < 8) 0.0 else args(7).toDouble
   val word: Array[String] =  if (arg.length < 8) Array("advert") else args(7).split("-")
+  override def setup(): Unit = {
+    val t1 = System.currentTimeMillis()
+    view.getVertices().foreach { vertex =>
+      // Assign random labels for all instances in time of a vertex as Map(ts, lab)
+      val tlabels = mutable.TreeMap[Long, (Long, Long)]()  //im: send tuples instead of TreeMap and build the TM for processing only
+      snapshots
+        .filter(t => vertex.aliveAtWithWindow(t, snapshotSize))
+        .foreach(tlabels.put(_, (scala.util.Random.nextLong(), scala.util.Random.nextLong())))
+      vertex.setState("mlpalabel", tlabels)
+      vertex.messageAllNeighbours((vertex.ID(), tlabels))
+    }
+    println(" Setup timing - wID: %s    Time: %s    ExecTime: %s".format(workerID, LocalDateTime.now(), System.currentTimeMillis() - t1))
+  }
 
   override def doSomething(v: VertexVisitor, gp: Array[Long]): Unit = {
     val wd = v.getPropertyValue("Word").get
     if (word.contains(wd)) {
       val lab = v.getState[mutable.TreeMap[Long, (Long, Long)]]("mlpalabel").head
-      println("Superstep: %s    Vertex: %s    ID: %s   Time: %s    Label: %s".format(view.superStep(), wd, v.ID(), lab._1, lab._2._2))
+      println("Superstep: %s   Time: %s     Vertex: %s    ID: %s   Label: %s"
+        .format(view.superStep(),LocalDateTime.now(), wd, v.ID(),  lab._2._2))
     }
   }
 
