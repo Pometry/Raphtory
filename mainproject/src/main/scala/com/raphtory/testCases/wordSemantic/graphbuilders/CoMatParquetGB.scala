@@ -22,7 +22,7 @@ class CoMatParquetGB extends GraphBuilder[Row] {
                       msgTime = time,
                       srcID = srcID,
                       dstID = dstID,
-                      Properties(LongProperty("Frequency", freq))
+                      Properties(DoubleProperty("Frequency", freq.toDouble))
               )
       )
 
