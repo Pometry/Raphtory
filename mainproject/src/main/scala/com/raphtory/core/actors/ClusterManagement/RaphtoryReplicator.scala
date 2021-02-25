@@ -5,6 +5,8 @@ import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
+import com.raphtory.core.actors.ClusterManagement.WatchDog.Message.{AssignedId, PartitionsCount, RequestPartitionId, RequestRouterId}
 import com.raphtory.core.actors.PartitionManager.Workers.IngestionWorker
 import com.raphtory.core.actors.PartitionManager.{Reader, Writer}
 import com.raphtory.core.actors.RaphtoryActor
@@ -24,6 +26,10 @@ object RaphtoryReplicator {
 
   def apply[T](actorType: String, initialManagerCount: Int,initialRouterCount:Int): RaphtoryReplicator[T] =
     new RaphtoryReplicator(actorType, initialManagerCount,initialRouterCount, null)
+
+  object Message {
+    case class UpdatedCounter(newValue: Int)
+  }
 }
 
 class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initialRouterCount:Int, graphBuilder: GraphBuilder[T])
@@ -104,9 +110,9 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
 
     actorType match {
       case "Partition Manager" =>
-        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestPartitionId(), localAffinity = false)
+        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestPartitionId, localAffinity = false)
       case "Router" =>
-        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestRouterId(), localAffinity = false)
+        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestRouterId, localAffinity = false)
     }
   }
 
@@ -127,20 +133,20 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
     var storages: ParTrieMap[Int, EntityStorage] = new ParTrieMap[Int, EntityStorage]()
 
     for (index <- 0 until totalWorkers) {
-      val storage     = new EntityStorage(assignedId,index)
+      val storage     = new EntityStorage(currentCount,assignedId,index)
       storages.put(index, storage)
 
       val managerName = s"Manager_${assignedId}_child_$index"
       workers.put(
               index,
               context.system
-                .actorOf(Props(new IngestionWorker(index,assignedId, storage)).withDispatcher("worker-dispatcher"), managerName)
+                .actorOf(Props(new IngestionWorker(index,assignedId, storage,currentCount)).withDispatcher("worker-dispatcher"), managerName)
       )
     }
 
-    actorRef = context.system.actorOf(Props(new Writer(myId, false, currentCount, workers, storages)), s"Manager_$myId")
+    actorRef = context.system.actorOf(Props(new Writer(myId,  currentCount, workers, storages)), s"Manager_$myId")
 
-    actorRefReader = context.system.actorOf(Props(new Reader(myId, false, currentCount, storages)), s"ManagerReader_$myId")
+    actorRefReader = context.system.actorOf(Props(new Reader(myId,  currentCount, storages)), s"ManagerReader_$myId")
 
   }
 

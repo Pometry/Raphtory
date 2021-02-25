@@ -2,6 +2,7 @@ package com.raphtory.core.actors.Spout
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.ClusterManagement.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage._
 import com.raphtory.core.model.communication._
@@ -56,7 +57,7 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
   private def processStateCheckMessage(safe: Boolean): Unit = {
     log.debug(s"Spout is handling [StateCheck] message.")
     if (!safe) {
-      val sendMessage = ClusterStatusRequest()
+      val sendMessage = ClusterStatusRequest
       val sendPath    = "/user/WatchDog"
       log.debug(s"Sending DPSM message [$sendMessage] to path [$sendPath].")
       mediator ! DistributedPubSubMediator.Send(sendPath, sendMessage, localAffinity = false)
@@ -91,7 +92,7 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
           val message = AllocateTuple(work)
           sender ! message
           recordUpdate()
-//          if (count % 10000 == 0) println(s"Spout at Message $count")
+          if (count % 10000 == 0) println(s"Spout at Message $count")
         case None if !datasource.isComplete() =>   sender ! NoWork
         case _ => sender ! DataFinished
     }
@@ -110,5 +111,6 @@ object SpoutAgent {
     case object WorkPlease
     case object NoWork
     case object SpoutOnline
+    case object DataFinished
   }
 }

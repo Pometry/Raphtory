@@ -8,8 +8,9 @@ import com.raphtory.api.{Analyser, BlankAnalyser, LoadExternalAnalyser}
 import com.raphtory.analysis.Tasks.LiveTasks.{BWindowedLiveAnalysisTask, LiveAnalysisTask, WindowedLiveAnalysisTask}
 import com.raphtory.analysis.Tasks.RangeTasks.{BWindowedRangeAnalysisTask, RangeAnalysisTask, WindowedRangeAnalysisTask}
 import com.raphtory.analysis.Tasks.ViewTasks.{BWindowedViewAnalysisTask, ViewAnalysisTask, WindowedViewAnalysisTask}
+import com.raphtory.core.actors.ClusterManagement.WatchDog.Message._
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.model.communication.{ClusterStatusRequest, ClusterStatusResponse, _}
+import com.raphtory.core.model.communication._
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Await
@@ -165,10 +166,10 @@ class AnalysisManager() extends RaphtoryActor{
     if (!safe)
       try {
         implicit val timeout: Timeout = Timeout(10 seconds) //time to wait for watchdog response
-        val future                    = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest(), false) //ask if the cluster is safe to use
+        val future                    = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest, false) //ask if the cluster is safe to use
         if(Await.result(future, timeout.duration).asInstanceOf[ClusterStatusResponse].clusterUp) { //if it is
-          val future                  = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount(), false) //ask how many partitions there are
-          managerCount = Await.result(future, timeout.duration).asInstanceOf[PartitionsCountResponse].count //when they respond set the partition manager count to this value
+          val future                  = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount, false) //ask how many partitions there are
+          managerCount = Await.result(future, timeout.duration).asInstanceOf[PartitionsCount].count //when they respond set the partition manager count to this value
           safe = true
           println("Cluster ready for Analysis")
         }

@@ -26,10 +26,11 @@ class AllCommandsBuilder extends GraphBuilder[String]{
     val msgTime = command.fields("messageID").toString().toLong
     val srcId   = command.fields("srcID").toString().toInt //extract the srcID
     if (command.fields.contains("properties")) { //if there are properties within the command
-      var properties = Properties() //create a vertex map
-      //command.fields("properties").asJsObject.fields.foreach( pair => {  //add all of the pairs to the map
-      //   properties = properties updated (pair._1, pair._2.toString())
-      // })
+
+      val properties = Properties(command.fields("properties").asJsObject.fields.map( pair => {  //add all of the pairs to the map
+         StringProperty(pair._1, pair._2.toString())
+       }).toSeq:_*)
+
       //send the srcID and properties to the graph manager
       VertexAddWithProperties(msgTime, srcId, properties)
     } else
@@ -48,10 +49,10 @@ class AllCommandsBuilder extends GraphBuilder[String]{
     val srcId   = command.fields("srcID").toString().toInt //extract the srcID
     val dstId   = command.fields("dstID").toString().toInt //extract the dstID
     if (command.fields.contains("properties")) { //if there are properties within the command
-      var properties = Properties() //create a vertex map
-      //      command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
-      //        properties = properties updated (pair._1,pair._2.toString())
-      //      })
+      var properties = Properties(command.fields("properties").asJsObject.fields.map( pair => {  //add all of the pairs to the map
+        StringProperty(pair._1, pair._2.toString())
+      }).toSeq:_*)
+
       EdgeAddWithProperties(msgTime, srcId, dstId, properties)
     } else EdgeAdd(msgTime, srcId, dstId)
   }

@@ -9,7 +9,12 @@ trait GraphBuilder[T] {
   private var updates: List[GraphUpdate] = List.empty
 
   def getUpdates(tuple: T): List[GraphUpdate] = { //TODO hide from users
-    parseTuple(tuple)
+    try{
+      parseTuple(tuple)
+    }
+    catch {
+      case e:Exception => println(s"Tuple broken: $tuple")
+    }
     val toReturn = updates
     updates = List.empty
     toReturn

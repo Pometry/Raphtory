@@ -24,7 +24,7 @@ object RaphtoryGraph {
 }
 
 class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
-  Kamon.init() //start tool logging
+  //Kamon.init() //start tool logging
 
 //  val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   //root.setLevel(Level.ERROR)

@@ -57,6 +57,8 @@ val kamon_system     = "io.kamon"    %% "kamon-system-metrics" % "2.1.0"
 val kamon_netty      = "io.kamon"    %% "kamon-netty"          % "1.0.0"
 //val monix            = "io.monix"    %% "monix"                % "3.0.0-RC1"
 val mongo            = "org.mongodb" % "mongo-java-driver"     % "3.12.4"
+val mongoscala       ="org.mongodb.scala" %% "mongo-scala-driver" % "2.9.0"
+
 val casbah           = "org.mongodb" %% "casbah-core"          % "3.1.1"
 
 //val doobie = "org.tpolecat" %% "doobie-core" % "0.8.4"
@@ -101,7 +103,7 @@ lazy val basicSettings = Seq(
 lazy val dockerStuff = Seq(
         maintainer := "Imane Hafnaoui <i.hafnaoui@qmul.ac.uk>",
         dockerBaseImage := "miratepuffin/raphtory-redis:latest",
-        dockerRepository := Some("tsukitsune"),
+        dockerRepository := Some("niallroche"),
         dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600,8081,46339,9100),
 
 )
@@ -186,6 +188,7 @@ lazy val raphtory = project
                     joda,
                     casbah,
                     mongo,
+                    mongoscala,
                     //aws,
                     parquet,
                     hadoop,

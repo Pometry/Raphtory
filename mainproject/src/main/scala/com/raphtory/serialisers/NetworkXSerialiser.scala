@@ -1,4 +1,5 @@
 package com.raphtory.serialisers
+
 import com.raphtory.api.Serialiser
 import com.raphtory.core.model.analysis.entityVisitors.{EdgeVisitor, VertexVisitor}
 

@@ -14,22 +14,22 @@ class chab_full_GB extends GraphBuilder[String] {
     val btcAmount = dp.amount
     val usdAmount = dp.usd
 
-    sendUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type("Cluster")))
-    sendUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type("Cluster")))
-    sendUpdate(VertexAdd(msgTime = transactionTime, srcID = transactionId, Type("Transaction")))
+    sendUpdate(VertexAdd(msgTime = transactionTime, srcId = srcClusterId, Type("Cluster")))
+    sendUpdate(VertexAdd(msgTime = transactionTime, srcId = dstClusterId, Type("Cluster")))
+    sendUpdate(VertexAdd(msgTime = transactionTime, srcId = transactionId, Type("Transaction")))
 
     sendUpdate(
       EdgeAddWithProperties(msgTime = transactionTime,
-        srcID = srcClusterId,
-        dstID = transactionId,
+        srcId = srcClusterId,
+        dstId = transactionId,
         Properties(DoubleProperty("BitCoin", btcAmount), DoubleProperty("USD",usdAmount)),
         Type("Incoming Payment")
       )
     )
     sendUpdate(
       EdgeAddWithProperties(msgTime = transactionTime,
-        srcID = transactionId,
-        dstID = dstClusterId,
+        srcId = transactionId,
+        dstId = dstClusterId,
         Properties(DoubleProperty("BitCoin", btcAmount), DoubleProperty("USD",usdAmount)),
         Type("Outgoing Payment")
       )

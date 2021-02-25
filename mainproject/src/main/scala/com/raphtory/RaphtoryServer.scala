@@ -78,7 +78,7 @@ object RaphtoryServer extends App {
   }
 
   def watchDog() = {
-    println("Cluster Up, informing Partition Managers and Routers")
+    println("Creating Watchdog")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
     system.actorOf(Props(new WatermarkManager(managerCount = partitionCount)),"WatermarkManager")
     system.actorOf(Props(new WatchDog(managerCount = partitionCount, minimumRouters = routerCount)), "WatchDog")
