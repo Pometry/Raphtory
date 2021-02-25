@@ -21,20 +21,19 @@ class CoMatGBFiltered extends GraphBuilder[String] {
       val top = (dst.size * THR).toInt
       val thr = if (top > 0) dst.values.toArray.sorted.reverse.take(top).last else dst.values.max
 
-      sendUpdate(VertexAddWithProperties(msgTime = occurenceTime, srcID = srcClusterId, Properties(StringProperty("Word", dp.head))))
+      addVertex(updateTime = occurenceTime, srcId = srcClusterId, Properties(StringProperty("Word", dp.head)))
       dst.filter(_._2>=thr).foreach{ edge =>
         val dstClusterId = assignID(edge._1)
         val coocWeight = edge._2
 
-        sendUpdate(VertexAddWithProperties(msgTime = occurenceTime, srcID = dstClusterId, Properties(StringProperty("Word", edge._1))))
-        sendUpdate(
-         EdgeAddWithProperties(
-            msgTime = occurenceTime,
-            srcID = srcClusterId,
-            dstID = dstClusterId,
+        addVertex(updateTime = occurenceTime, srcId = dstClusterId, Properties(StringProperty("Word", edge._1)))
+        addEdge(
+            updateTime = occurenceTime,
+            srcId = srcClusterId,
+            dstId = dstClusterId,
             Properties(LongProperty("Frequency", coocWeight))
           )
-        )
+
         occurenceTime+=1
       }
 
