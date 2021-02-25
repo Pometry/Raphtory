@@ -4,14 +4,14 @@ import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.util.Timeout
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.Router.RouterWorker.CommonMessage.TimeBroadcast
+import com.raphtory.core.actors.Router.RouterWorker.CommonMessage.{DataFinishedSync, StartUp, TimeBroadcast}
 import com.raphtory.core.actors.Router.RouterWorker.State
-import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage.NoWork
-import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage.SpoutOnline
-import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage.WorkPlease
+import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage.{DataFinished, NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.model.communication._
 import kamon.Kamon
 import akka.pattern.ask
+import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
+import com.raphtory.core.actors.ClusterManagement.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -45,14 +45,20 @@ class RouterWorker[T](
   override def preStart(): Unit = {
     log.debug(s"RouterWorker [$routerId] is being started.")
     context.system.scheduler.scheduleOnce(delay = 5.seconds, receiver = self, message = TimeBroadcast)
-    context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "startUp")
+    context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, StartUp) // wait 10 seconds to start
 
   }
 
   override def receive: Receive = work(State(initialManagerCount, 0L, false,0L))
 
   private def work(state: State): Receive = {
-    case "startUp"     => clusterReadyForAnalysis() //first ask the watchdog if it is safe to do analysis and what the size of the cluster is //when the watchdog responds, set the new value and message each Reader Worker
+    case StartUp     =>
+      if (!safe) {
+        mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest) //ask if the cluster is safe to use
+        context.system.scheduler.scheduleOnce(1.second, self, StartUp)  // repeat every 1 second until safe
+      }
+    case ClusterStatusResponse(clusterUp, _, _) =>
+      if (clusterUp) safe = true
 
     case SpoutOnline => context.sender() ! WorkPlease
     case NoWork =>
@@ -111,23 +117,10 @@ class RouterWorker[T](
   ): Long = {
     update += 1
     routerWorkerUpdates.increment()
-    val path             = getManager(message.srcID, managerCount)
+    val path             = getManager(message.srcId, managerCount)
     val id               = getMessageIDForWriter(path)
 
-    val sentMessage = message match {
-      case m: VertexAdd =>
-        TrackedVertexAdd(s"${routerId}_$workerID", id, m)
-      case m: VertexAddWithProperties =>
-        TrackedVertexAddWithProperties(s"${routerId}_$workerID", id, m)
-      case m: EdgeAdd =>
-        TrackedEdgeAdd(s"${routerId}_$workerID", id, m)
-      case m: EdgeAddWithProperties =>
-        TrackedEdgeAddWithProperties(s"${routerId}_$workerID", id, m)
-      case m: VertexDelete =>
-        TrackedVertexDelete(s"${routerId}_$workerID", id, m)
-      case m: EdgeDelete =>
-        TrackedEdgeDelete(s"${routerId}_$workerID", id, m)
-    }
+    val sentMessage = TrackedGraphUpdate(s"${routerId}_$workerID", id, message)
     log.debug(s"RouterWorker sending message [$sentMessage] to PubSub")
 
     mediator ! DistributedPubSubMediator.Send(path, sentMessage, localAffinity = false)
@@ -168,28 +161,15 @@ class RouterWorker[T](
     }
   }
 
-  private def clusterReadyForAnalysis(): Unit =
-    if (!safe)
-      try {
-        implicit val timeout: Timeout = Timeout(10 seconds) //time to wait for watchdog response
-        val future                    = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest(), false) //ask if the cluster is safe to use
-        if(Await.result(future, timeout.duration).asInstanceOf[ClusterStatusResponse].clusterUp) { //if it is
-          safe = true
-        }
-        else{
-          context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "startUp")
-        }
-      } catch {
-        case e: java.util.concurrent.TimeoutException => context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, "startUp")
-      }
-
 }
 
 
 
 object RouterWorker {
   object CommonMessage {
+    case object StartUp
     case object TimeBroadcast
+    case class DataFinishedSync(time:Long)
   }
 
   private case class State(

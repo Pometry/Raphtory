@@ -6,7 +6,7 @@ import java.util.zip.GZIPInputStream
 import com.raphtory.core.actors.Spout.Spout
 import com.typesafe.scalalogging.LazyLogging
 
-class FileSpout extends Spout[String] {
+class MultiLineFileSpout extends Spout[String] {
   //TODO work out loggging here
   //log.info("initialise FileSpout")
   private val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
@@ -16,7 +16,7 @@ class FileSpout extends Spout[String] {
   private val INCREMENT = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "0").trim.toInt
   private val TIME = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
 
-  private var fileManager = FileManager(directory, fileName, dropHeader)
+  private var fileManager = MultiLineFileManager(directory, fileName, dropHeader)
 
   override def generateData(): Option[String] = {
     if (fileManager.allCompleted) {
@@ -35,16 +35,16 @@ class FileSpout extends Spout[String] {
   override def closeDataSource(): Unit = {}
 }
 
-final case class FileManager private (
-    currentFileReader: Option[BufferedReader],
-    restFiles: List[File],
-    dropHeader: Boolean
-) extends LazyLogging {
-  def nextFile(): FileManager = this.copy(currentFileReader = None)
+final case class MultiLineFileManager private (
+                                       currentFileReader: Option[BufferedReader],
+                                       restFiles: List[File],
+                                       dropHeader: Boolean
+                                     ) extends LazyLogging {
+  def nextFile(): MultiLineFileManager = this.copy(currentFileReader = None)
 
   lazy val allCompleted: Boolean = currentFileReader.isEmpty && restFiles.isEmpty
 
-  def nextLine(): (FileManager, String) = currentFileReader match {
+  def nextLine(): (MultiLineFileManager, String) = currentFileReader match {
     case None =>
       restFiles match {
         case Nil => (this, "")
@@ -60,20 +60,35 @@ final case class FileManager private (
       else (this, block)
 
   }
-
   private def readBlockAndIsEnd(reader: BufferedReader): (String, Boolean) = {
-    val line = reader.readLine()
-    if (line != null)
-      (line,false)
-    else{
-      reader.close()
-      ("",true)
+    val lines = new StringBuffer()
+    var line = reader.readLine()
+//    double check the file is not empty and keep the oroginal filespout contract
+    if (line == null)
+      return (line,false)
+    while (line != null) {
+      lines.append(line)
+      line = reader.readLine()
     }
+    reader.close()
+    (lines.toString,true)
+
   }
+
+
+//  private def readBlockAndIsEnd(reader: BufferedReader): (String, Boolean) = {
+//    val line = reader.readLine()
+//    if (line != null)
+//      (line,false)
+//    else{
+//      reader.close()
+//      ("",true)
+//    }
+//  }
 
   private def getFileReader(file: File): BufferedReader = {
     logger.info(s"Reading file ${file.getCanonicalPath}")
-    println(s"Reading file ${file.getCanonicalPath}")
+
     var br = new BufferedReader(new FileReader(file))
     if (file.getName.endsWith(".gz")) {
       val inStream = new FileInputStream(file)
@@ -88,9 +103,9 @@ final case class FileManager private (
   }
 }
 
-object FileManager extends LazyLogging {
+object MultiLineFileManager extends LazyLogging {
   private val joiner     = System.getenv().getOrDefault("FILE_SPOUT_JOINER", "/").trim //gabNetwork500.csv
-  def apply(dir: String, fileName: String, dropHeader: Boolean): FileManager = {
+  def apply(dir: String, fileName: String, dropHeader: Boolean): MultiLineFileManager = {
     val filesToRead =
       if (fileName.isEmpty)
         getListOfFiles(dir)
@@ -99,11 +114,11 @@ object FileManager extends LazyLogging {
         if (file.exists && file.isFile)
           List(file)
         else {
-          println(s"File $dir$joiner$fileName does not exist or is not file ")
+          logger.error(s"File $dir$joiner$fileName does not exist or is not file ")
           List.empty
         }
       }
-    FileManager(None, filesToRead, dropHeader)
+    MultiLineFileManager(None, filesToRead, dropHeader)
   }
 
   private def getListOfFiles(dir: String): List[File] = {
@@ -113,7 +128,7 @@ object FileManager extends LazyLogging {
       files.filter(f => f.isFile && !f.isHidden)
     }
     else {
-      println(s"Directory $dir does not exist or is not directory")
+      logger.error(s"Directory $dir does not exist or is not directory")
       List.empty
     }
   }

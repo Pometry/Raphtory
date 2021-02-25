@@ -43,9 +43,11 @@ class LPA(args: Array[String]) extends Analyser(args) {
 //  val PROP: String = args(1)
 //  val maxIter: Int = args(2).toInt
   val arg: Array[String] = args.map(_.trim)
+
   val top: Int         = if (arg.length == 0) 0 else arg.head.toInt
   val weight: String       = if (arg.length < 2) "" else arg(1)
   val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
+
 
   val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
   val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
@@ -113,6 +115,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
       case "" => println(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
+    publishData(text)
   }
 
   override def processWindowResults(
@@ -131,6 +134,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
       case "" => println(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
+    publishData(text)
   }
 
   def extractData(results: ArrayBuffer[Any]): fd = {

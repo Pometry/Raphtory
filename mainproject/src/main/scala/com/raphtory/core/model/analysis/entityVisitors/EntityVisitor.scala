@@ -40,13 +40,25 @@ abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {
       case None    => None
     }
 
+  def getPropertyHistory(key:String): Option[Array[(Long,Any)]] = {
+    entity.properties.get(key) match {
+      case Some(p) => {
+        if(viewJob.window > 0)
+          Some(p.values().filter(k => k._1 <= viewJob.timestamp && k._1 >= viewJob.timestamp-viewJob.window))
+        else {
+          Some(p.values().filter(k => k._1 <= viewJob.timestamp))
+        }
+      }
+      case None    => None
+    }
+  }
+
   def getHistory(): mutable.TreeMap[Long, Boolean] = {
     if(viewJob.window > 0)
       entity.history.filter(k => k._1 <= viewJob.timestamp && k._1 >= viewJob.timestamp-viewJob.window)
     else {
       entity.history.filter(k => k._1 <= viewJob.timestamp)
     }
-
   }
 
   //TODO only here for temp, needs to be removed

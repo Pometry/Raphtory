@@ -1,10 +1,10 @@
 package com.raphtory.core.actors.PartitionManager.Workers
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.api.{Analyser, LoadExternalAnalyser, ManagerCount}
+import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.analysis.GraphLenses.{GraphLens, ViewLens, WindowLens}
 import com.raphtory.core.model.EntityStorage

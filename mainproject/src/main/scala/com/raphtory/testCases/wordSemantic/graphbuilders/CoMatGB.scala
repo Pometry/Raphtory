@@ -15,18 +15,18 @@ class CoMatGB extends GraphBuilder[String] {
       val srcClusterId = assignID(dp.head)
       val len = dp.length
 
-      sendUpdate(VertexAddWithProperties(msgTime = occurenceTime, srcID = srcClusterId, Properties(StringProperty("Word", dp.head))))
+      sendUpdate(VertexAddWithProperties(msgTime = occurenceTime, srcId = srcClusterId, Properties(StringProperty("Word", dp.head))))
 
       for (i <- 1 until len by 2) {
         val dstClusterId = assignID(dp(i))
         val coocWeight = dp(i + 1).toLong
 
-        sendUpdate(VertexAddWithProperties(msgTime = occurenceTime, srcID = dstClusterId, Properties(StringProperty("Word", dp(i)))))
+        sendUpdate(VertexAddWithProperties(msgTime = occurenceTime, srcId = dstClusterId, Properties(StringProperty("Word", dp(i)))))
         sendUpdate(
          EdgeAddWithProperties(
             msgTime = occurenceTime,
-            srcID = srcClusterId,
-            dstID = dstClusterId,
+            srcId = srcClusterId,
+            dstId = dstClusterId,
             Properties(LongProperty("Frequency", coocWeight))
           )
         )

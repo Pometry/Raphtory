@@ -45,5 +45,5 @@ class MutableProperty(creationTime: Long, value: Any) extends Property {
   def currentValue: Any    = previousState.head._2
   def currentTime: Long    = previousState.head._1
 
-
+  override def values(): Array[(Long,Any)] =  {previousState.toArray}
 }

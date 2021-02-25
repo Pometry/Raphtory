@@ -13,14 +13,14 @@ class bitcoin_mixers_GB extends GraphBuilder[String] {
       val dstClusterId    = dp.dstCluster
       val btcAmount       = dp.amount
 
-      sendUpdate(VertexAdd(msgTime = transactionTime, srcID = srcClusterId, Type(dp.srcType)))
-      sendUpdate(VertexAdd(msgTime = transactionTime, srcID = dstClusterId, Type(dp.dstType)))
+      sendUpdate(VertexAdd(msgTime = transactionTime, srcId = srcClusterId, Type(dp.srcType)))
+      sendUpdate(VertexAdd(msgTime = transactionTime, srcId = dstClusterId, Type(dp.dstType)))
 
       sendUpdate(
               EdgeAddWithProperties(
                       msgTime = transactionTime,
-                      srcID = srcClusterId,
-                      dstID = dstClusterId,
+                      srcId = srcClusterId,
+                      dstId = dstClusterId,
                       Properties(DoubleProperty("BitCoin", btcAmount)),
                       Type("Transfer")
               )

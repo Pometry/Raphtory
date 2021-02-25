@@ -62,6 +62,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
       case "" => println(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
+    publishData(text)
   }
 
   override def processWindowResults(
@@ -83,5 +84,6 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
       case "" => println(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
+    publishData(text)
   }
 }
