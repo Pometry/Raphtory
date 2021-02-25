@@ -1,5 +1,7 @@
 package com.raphtory.algorithms
 
+import java.time.LocalDateTime
+
 import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
 
 import scala.collection.mutable
@@ -103,7 +105,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
     catch {
       case e: Exception => println("Something went wrong with mLPA!", e)
     }
-  if (workerID == 1) println(s" analysis timing - Superstep: ${view.superStep()} ExecTime: ${System.currentTimeMillis() - t1}")
+  if (workerID == 1) println(s"Superstep: ${view.superStep()}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}")
 }
 
   def interLayerWeights(x: String, v: VertexVisitor, ts: Long): Double =
