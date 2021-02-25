@@ -14,16 +14,15 @@ class CSVGraphBuilder extends GraphBuilder[String] {
       val dstClusterId = assignID(dp(2))
       val coocWeight = dp.last.toLong
 
-      sendUpdate(VertexAddWithProperties(msgTime = occurenceTime, srcID = srcClusterId, Properties(StringProperty("Word", dp(1)))))
-      sendUpdate(VertexAddWithProperties(msgTime = occurenceTime, srcID = dstClusterId, Properties(StringProperty("Word", dp(2)))))
-      sendUpdate(
-          EdgeAddWithProperties(
-            msgTime = occurenceTime,
-            srcID = srcClusterId,
-            dstID = dstClusterId,
+      addVertex(updateTime = occurenceTime, srcId = srcClusterId, Properties(StringProperty("Word", dp(1))))
+      addVertex(updateTime = occurenceTime, srcId = dstClusterId, Properties(StringProperty("Word", dp(2))))
+      addEdge(
+            updateTime = occurenceTime,
+            srcId = srcClusterId,
+            dstId = dstClusterId,
             Properties(LongProperty("Frequency", coocWeight))
           )
-        )
+
     } catch {
       case e: Exception => println(e, row)
     }

@@ -15,16 +15,15 @@ class CoMatParquetGB extends GraphBuilder[Row] {
       val dstID = assignID(dst)
       val freq  = row.getAs[Long](3)
 
-      sendUpdate(VertexAddWithProperties(msgTime = time, srcID = srcID, Properties(StringProperty("Word", src))))
-      sendUpdate(VertexAddWithProperties(msgTime = time, srcID = dstID, Properties(StringProperty("Word", dst))))
-      sendUpdate(
-              EdgeAddWithProperties(
-                      msgTime = time,
-                      srcID = srcID,
-                      dstID = dstID,
+      addVertex(updateTime = time, srcId = srcID, Properties(StringProperty("Word", src)))
+      addVertex(updateTime = time, srcId = dstID, Properties(StringProperty("Word", dst)))
+      addEdge(
+                      updateTime = time,
+                      srcId = srcID,
+                      dstId = dstID,
                       Properties(DoubleProperty("Frequency", freq.toDouble))
               )
-      )
+
 
     } catch {
       case e: Exception => println(e, row)
