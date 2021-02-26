@@ -22,18 +22,16 @@ case class DoubleProperty(key: String, value: Double)    extends Property
 case class Properties(property: Property*)
 
 sealed trait GraphUpdate {
-  val msgTime: Long
+  val updateTime: Long
   val srcId: Long
 }
 
-case class VertexAdd(msgTime: Long, srcId: Long, vType: Type = null) extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
-case class VertexAddWithProperties(msgTime: Long, srcId: Long, properties: Properties, vType: Type = null) extends GraphUpdate
-case class VertexDelete(msgTime: Long, srcId: Long) extends GraphUpdate
-case class EdgeAdd(msgTime: Long, srcId: Long, dstId: Long, eType: Type = null) extends GraphUpdate
-case class EdgeAddWithProperties(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, eType: Type = null) extends GraphUpdate
-case class EdgeDelete(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdate
+case class VertexAdd(updateTime: Long, srcId: Long, properties: Properties, vType: Option[Type]) extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
+case class VertexDelete(updateTime: Long, srcId: Long) extends GraphUpdate
+case class EdgeAdd(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, eType: Option[Type]) extends GraphUpdate
+case class EdgeDelete(updateTime: Long, srcId: Long, dstId: Long) extends GraphUpdate
 
-case class TrackedGraphUpdate[+T <: GraphUpdate](routerId: String, messageId:Int, update: T)
+case class TrackedGraphUpdate[+T <: GraphUpdate](channelId: String, channelTime:Int, update: T)
 
 sealed abstract class GraphEffect(val targetId: Long) extends Serializable
 
