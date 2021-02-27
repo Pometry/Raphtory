@@ -4,7 +4,7 @@ import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.util.Timeout
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.Router.RouterWorker.CommonMessage.{DataFinishedSync, StartUp, TimeBroadcast}
+import com.raphtory.core.actors.Router.RouterWorker.CommonMessage.{DataFinishedSync, RouterWorkerTimeSync, StartUp, TimeBroadcast}
 import com.raphtory.core.actors.Router.RouterWorker.State
 import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage.{DataFinished, NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.model.communication._
@@ -170,6 +170,7 @@ object RouterWorker {
     case object StartUp
     case object TimeBroadcast
     case class DataFinishedSync(time:Long)
+    case class RouterWorkerTimeSync(msgTime:Long, routerId:String, routerTime:Int)
   }
 
   private case class State(
