@@ -33,27 +33,27 @@ case class EdgeDelete(updateTime: Long, srcId: Long, dstId: Long) extends GraphU
 
 case class TrackedGraphUpdate[+T <: GraphUpdate](channelId: String, channelTime:Int, update: T)
 
-sealed abstract class GraphEffect(val targetId: Long) extends Serializable
+sealed abstract class GraphUpdateEffect(val updateId: Long) extends Serializable {
+  val msgTime: Long
+}
 
-case class RemoteEdgeAdd(msgTime: Long, srcID: Long, dstID: Long, properties: Properties, eType: Type, routerID: String, routerTime: Int) extends GraphEffect(dstID)
-case class RemoteEdgeRemoval(msgTime: Long, srcID: Long, dstID: Long, routerID: String, routerTime: Int) extends GraphEffect(dstID)
-case class RemoteEdgeRemovalFromVertex(msgTime: Long, srcID: Long, dstID: Long, routerID: String, routerTime: Int) extends GraphEffect(dstID)
-
-case class RemoteEdgeAddNew(msgTime: Long, srcID: Long, dstID: Long, properties: Properties, kills: mutable.TreeMap[Long, Boolean], vType: Type, routerID: String, routerTime: Int) extends GraphEffect(dstID)
-case class RemoteEdgeRemovalNew(msgTime: Long, srcID: Long, dstID: Long, kills: mutable.TreeMap[Long, Boolean], routerID: String, routerTime: Int) extends GraphEffect(dstID)
-
-case class RemoteReturnDeaths(msgTime: Long, srcID: Long, dstID: Long, kills: mutable.TreeMap[Long, Boolean], routerID: String, routerTime: Int) extends GraphEffect(srcID)
-case class ReturnEdgeRemoval(msgTime: Long, srcID: Long, dstID: Long,routerID:String,routerTime:Int) extends GraphEffect(srcID)
+case class RemoteEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties) extends GraphUpdateEffect(dstId)
+case class RemoteEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(dstId)
+case class RemoteEdgeRemovalFromVertex(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(dstId)
+case class RemoteEdgeAddNew(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, kills: mutable.TreeMap[Long, Boolean], vType: Option[Type]) extends GraphUpdateEffect(dstId)
+case class RemoteEdgeRemovalNew(msgTime: Long, srcId: Long, dstId: Long, kills: mutable.TreeMap[Long, Boolean]) extends GraphUpdateEffect(dstId)
+case class RemoteReturnDeaths(msgTime: Long, srcId: Long, dstId: Long, kills: mutable.TreeMap[Long, Boolean]) extends GraphUpdateEffect(srcId)
+case class ReturnEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(srcId)
 
 //BLOCK FROM WORKER SYNC
-case class DstAddForOtherWorker(msgTime: Long, dstID: Long, srcForEdge: Long, edge: Edge, present: Boolean, routerID: String, routerTime: Int) extends GraphEffect(dstID)
-case class DstWipeForOtherWorker(msgTime: Long, dstID: Long, srcForEdge: Long, edge: Edge, present: Boolean, routerID: String, routerTime: Int) extends GraphEffect(dstID)
-case class DstResponseFromOtherWorker(msgTime: Long, srcID: Long, dstID: Long, removeList: mutable.TreeMap[Long, Boolean], routerID: String, routerTime: Int) extends GraphEffect(srcID)
-case class EdgeRemoveForOtherWorker(msgTime: Long, srcID: Long, dstID: Long,routerID: String, routerTime: Int) extends GraphEffect(srcID)
+case class DstAddForOtherWorker(msgTime: Long, srcId: Long, dstId: Long, edge: Edge, present: Boolean) extends GraphUpdateEffect(dstId)
+case class DstWipeForOtherWorker(msgTime: Long, srcId: Long, dstId: Long, edge: Edge, present: Boolean) extends GraphUpdateEffect(dstId)
+case class DstResponseFromOtherWorker(msgTime: Long, srcId: Long, dstId: Long, removeList: mutable.TreeMap[Long, Boolean]) extends GraphUpdateEffect(srcId)
+case class EdgeRemoveForOtherWorker(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(srcId)
+case class EdgeSyncAck(msgTime: Long, srcId: Long) extends GraphUpdateEffect(srcId)
+case class VertexRemoveSyncAck(msgTime: Long, override val updateId: Long) extends GraphUpdateEffect(updateId)
 
-case class EdgeSyncAck(msgTime: Long, srcID: Long, routerID: String, routerTime: Int) extends GraphEffect(srcID)
-case class VertexRemoveSyncAck(msgTime: Long, override val targetId: Long, routerID: String, routerTime: Int) extends GraphEffect(targetId)
-case class RouterWorkerTimeSync(msgTime:Long,routerID:String,routerTime:Int)
+case class TrackedGraphEffect[T <: GraphUpdateEffect](channelId: String, channelTime: Int, effect: T)
 
 
 sealed trait RaphReadClasses
