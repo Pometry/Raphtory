@@ -14,7 +14,7 @@ object testDeploy extends App {
 
   //1414771239000, "end":1414871729000, "jump":3600000,"windowType":"true","windowSize":21600000, "args":["3600000", "BitCoin"]
   val arguments = Array[String]("21600000", "BitCoin", "10")
-  val arguments2 = Array[String]("0","","50","2004","2009","1000000000","1","true")
+  val arguments2 = Array[String]("0","","50","2004","2009","1000000000","1")
 //  val motifs = new MotifCounting(arguments)
 //  Thread.sleep(30000L)
 //  RG.viewQuery(DegreeBasic(),2008000000010L, arguments2)

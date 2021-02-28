@@ -49,12 +49,13 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       // Assign random labels for all instances in time of a vertex as Map(ts, lab)
-      val tlabels = //Array[(Long, (Long, Long))]()  //im: send tuples instead of TreeMap and build the TM for processing only
+      val tlabels =   //im: send tuples instead of TreeMap and build the TM for processing only
         snapshots
           .filter(t => vertex.aliveAtWithWindow(t, snapshotSize))
           .map(x => (x, (scala.util.Random.nextLong(), scala.util.Random.nextLong()))).toArray
       vertex.setState("mlpalabel", tlabels)
-      vertex.messageAllNeighbours((vertex.ID(), tlabels)) //im: only send last label
+      val message = (vertex.ID(), tlabels.map(x=> (x._1, x._2._2)))
+      vertex.messageAllNeighbours(message)
     }
 
   override def analyse(): Unit = {
@@ -62,7 +63,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
     try
       view.getMessagedVertices().foreach { vertex =>
         val vlabel = vertex.getState[Array[(Long, (Long, Long))]]("mlpalabel").toMap
-        val msgQueue = vertex.messageQueue[(Long, Array[(Long, (Long, Long))])]
+        val msgQueue = vertex.messageQueue[(Long, Array[(Long, Long)])]
         var voteCount = 0
         val newLabel = vlabel.map { tv =>
           val ts = tv._1
@@ -72,8 +73,8 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
             .filter(x => nei_ts_freq.keySet.contains(x._1)) // filter messages from neighbours at time ts only
             .map { msg =>
               val freq = nei_ts_freq(msg._1)
-              val message = msg._2.filter(_._1==ts).head._2
-              (message._2, freq) //get label at time ts -> (lab, freq)
+              val label_ts = msg._2.filter(_._1==ts).head._2
+              (label_ts, freq) //get label at time ts -> (lab, freq)
             }
 
           //Get labels of past/future instances of vertex //IMlater: links between non consecutive layers should persist or at least degrade?
@@ -90,7 +91,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
           val Oldlab = tv._2._1
           val Vlab = tv._2._2
           (ts, newlab match {
-            case Vlab | Oldlab =>
+            case Vlab | Oldlab => //im: check if this is the culprit behind islands
               voteCount += 1
               (List(Vlab, Oldlab).min, List(Vlab, Oldlab).max)
             case _ => (Vlab, newlab)
@@ -98,7 +99,9 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
         }.toArray
 
         vertex.setState("mlpalabel", newLabel)
-        vertex.messageAllNeighbours((vertex.ID(), newLabel))
+        val message = (vertex.ID(), newLabel.map(x=> (x._1, x._2._2)))
+        vertex.messageAllNeighbours(message)
+
         // Vote to halt if all instances of vertex haven't changed their labels
         if (voteCount == vlabel.size) vertex.voteToHalt()
       }
