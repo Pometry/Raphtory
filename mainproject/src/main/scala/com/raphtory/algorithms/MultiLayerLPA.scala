@@ -54,7 +54,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
           .filter(t => vertex.aliveAtWithWindow(t, snapshotSize))
           .map(x => (x, (scala.util.Random.nextLong(), scala.util.Random.nextLong()))).toArray
       vertex.setState("mlpalabel", tlabels)
-      vertex.messageAllNeighbours((vertex.ID(), tlabels))
+      vertex.messageAllNeighbours((vertex.ID(), tlabels)) //im: only send last label
     }
 
   override def analyse(): Unit = {

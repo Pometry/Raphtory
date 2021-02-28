@@ -26,7 +26,7 @@ class FileSpout extends Spout[String] {
     else {
       val (newFileManager, line) = fileManager.nextLine()
       fileManager = newFileManager
-      Some(line)
+      if (line != "" ) Some(line) else None
     }
   }
 
@@ -72,7 +72,7 @@ final case class FileManager private (
   }
 
   private def getFileReader(file: File): BufferedReader = {
-    logger.info(s"Reading file ${file.getCanonicalPath}")
+//    logger.info(s"Reading file ${file.getCanonicalPath}")
     println(s"Reading file ${file.getCanonicalPath}")
     var br = new BufferedReader(new FileReader(file))
     if (file.getName.endsWith(".gz")) {
