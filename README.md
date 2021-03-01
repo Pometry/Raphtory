@@ -1,8 +1,7 @@
 <p align="center">
-  <img src="https://raphtory.github.io/images/raphtory_logo.png" alt="Raphtory" width="200" height="200"/>
+  <img src="https://raphtory.github.io/images/raphtory_logo.png" alt="Raphtory" width="120" height="120"/>
 </p>
-
-# Raphtory 
+<h1 align="center">Raphtory</h1>
 
 Open-source platform that brings you distributed real-time temporal graph analytics. Quick and dynamic way to analyse your data with a time element. 
 
@@ -30,7 +29,7 @@ Raphtory is built with Scala. We recommend using IntelliJ IDE for your code. The
 
 ## Concept  
 
-Static graphs, which requires data to be manually reloaded for an update, have been the focus for data analytics so far in the community. While static graphs are useful, they could be inefficient. **Our tool aims to address these issues by helping you create dynamic graphs with the added element of time.** Dynamic graphs allow for a more efficient process with its ability to automatically make changes in real time by intaking streamed or stored data.  Our tool also gives you the option to dive deep in your analysis and explore the changes in structural (vertex and edge properties) and temporal (time of when components of your graph were created, updated, and deleted) scopes of your graphs. This opens up many possibilities including tracking cryptocurrency fraud, covid transmission patterns, or monitoring activities on social media.  
+Static graphs, which require data to be manually reloaded for updates, have been the focus for data analytics in the community. While static graphs are useful, they could be inefficient. **Our tool aims to address these issues by helping you create dynamic graphs with the added element of time.** Dynamic graphs allow for a more efficient process with its ability to automatically make changes in real time by intaking streamed or stored data.  Our tool also gives you the option to dive deep in your analysis and explore the changes in structural (vertex and edge properties) and temporal (time of when components of your graph are created, updated, and deleted) scopes of your graphs. This opens up many possibilities including tracking cryptocurrency fraud, covid transmission patterns, or monitoring activities on social media.  
 
 Check out these links for more information:
 
@@ -46,7 +45,9 @@ Check out these links for more information:
 
 ## Contributors
 
-Want to get involved with the development? Please join our [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-jd5mce91-vDxEiFBILC_G2ilZPdvDaA) and speak with us on how you could pitch in!
+<a href="https://github.com/raphtory/raphtory/graphs/contributors"><img src="https://contrib.rocks/image?repo=raphtory/raphtory"/></a>
+
+Want to get involved? Please join our [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-jd5mce91-vDxEiFBILC_G2ilZPdvDaA) and speak with us on how you could pitch in!
 
 ## License  
 
