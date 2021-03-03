@@ -11,12 +11,14 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.Timeout
+import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
+import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi._
 import com.raphtory.core.model.communication._
 import com.typesafe.config.ConfigFactory
 import spray.json.DefaultJsonProtocol._
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 case class AnalysisRestApi(system:ActorSystem){
   implicit val system2 = system
@@ -84,7 +86,7 @@ case class AnalysisRestApi(system:ActorSystem){
             val future = mediator ? DistributedPubSubMediator.Send ("/user/AnalysisManager", RequestResults (querySplit(1): String), localAffinity = false)
             Await.result(future, t.duration) match {
               case ResultsForApiPI(results) => outputResults(results)
-              case JobDoesntExist() =>  HttpResponse (entity = s"""JobID given doesn't exist""")
+              case JobDoesntExist =>  HttpResponse (entity = s"""JobID given doesn't exist""")
             }
           } catch {
             case _: java.util.concurrent.TimeoutException => HttpResponse (entity = s"""Request timed out""")
@@ -112,8 +114,8 @@ case class AnalysisRestApi(system:ActorSystem){
           try {
             val future = mediator ? DistributedPubSubMediator.Send ("/user/AnalysisManager", KillTask(querySplit(1): String), localAffinity = false)
             Await.result(future, t.duration) match {
-              case JobKilled() => HttpResponse (entity = s"""Analysis has been stopped for ${querySplit(1)}""")
-              case JobDoesntExist() =>  HttpResponse (entity = s"""JobID given doesn't exist""")
+              case JobKilled => HttpResponse (entity = s"""Analysis has been stopped for ${querySplit(1)}""")
+              case JobDoesntExist =>  HttpResponse (entity = s"""JobID given doesn't exist""")
             }
           } catch {
             case _: java.util.concurrent.TimeoutException => HttpResponse (entity = s"""Request timed out""")
@@ -131,7 +133,74 @@ case class AnalysisRestApi(system:ActorSystem){
     connection handleWithSyncHandler requestHandler
   }).run()
 
+}
 
+object AnalysisRestApi {
+  case class LiveAnalysisPOST(
+     analyserName: String,
+     windowType: Option[String],
+     windowSize: Option[Long],
+     windowSet: Option[Array[Long]],
+     repeatTime: Option[Long],
+     eventTime: Option[Boolean],
+     args: Option[Array[String]],
+     rawFile: Option[String]
+  )
 
+  case class ViewAnalysisPOST(
+     analyserName: String,
+     timestamp: Long,
+     windowType: Option[String],
+     windowSize: Option[Long],
+     windowSet: Option[Array[Long]],
+     args: Option[Array[String]],
+     rawFile: Option[String]
+   )
 
+  case class RangeAnalysisPOST(
+    analyserName: String,
+    start: Long,
+    end: Long,
+    jump: Long,
+    windowType: Option[String],
+    windowSize: Option[Long],
+    windowSet: Option[Array[Long]],
+    args: Option[Array[String]],
+    rawFile: Option[String]
+  )
+
+  trait AnalysisRequest
+
+  case class LiveAnalysisRequest(
+    analyserName: String,
+    repeatTime: Long = 0L,
+    eventTime: Boolean = false,
+    windowType: String = "false",
+    windowSize: Long = 0L,
+    windowSet: Array[Long] = Array[Long](0),
+    args: Array[String] = Array(),
+    rawFile: String = ""
+  ) extends AnalysisRequest
+
+  case class ViewAnalysisRequest(
+    analyserName: String,
+    timestamp: Long,
+    windowType: String = "false",
+    windowSize: Long = 0L,
+    windowSet: Array[Long] = Array[Long](0),
+    args: Array[String] = Array(),
+    rawFile: String = ""
+  ) extends AnalysisRequest
+
+  case class RangeAnalysisRequest(
+     analyserName: String,
+     start: Long,
+     end: Long,
+     jump: Long,
+     windowType: String = "false",
+     windowSize: Long = 0L,
+     windowSet: Array[Long] = Array[Long](0),
+     args: Array[String] = Array(),
+     rawFile: String = ""
+   ) extends AnalysisRequest
 }
