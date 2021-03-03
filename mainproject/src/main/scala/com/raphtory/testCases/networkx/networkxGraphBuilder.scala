@@ -17,7 +17,7 @@ class networkxGraphBuilder extends GraphBuilder[String]{
 
     addVertex(time, srcClusterId, Properties(StringProperty("Word", dp.head)))
     addVertex(time, dstClusterId, Properties(StringProperty("Word", dp(1))))
-    addEdge(time, srcClusterId, dstClusterId, Properties(LongProperty("weight", properties.getOrElse("'weight'", "1").toLong)))
+    addEdge(time, srcClusterId, dstClusterId, Properties(DoubleProperty("weight", properties.getOrElse("'weight'", "1").toDouble)))
 
 
 
