@@ -6,7 +6,7 @@ import com.raphtory.api.ManagerCount
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.analysis.GraphLenses.GraphLens
 import com.raphtory.core.model.communication.VertexMessage
-import com.raphtory.core.model.graphentities.{Edge, MutableProperty, ImmutableProperty}
+import com.raphtory.core.model.graphentities.{Edge, ImmutableProperty, MutableProperty}
 
 import scala.collection.mutable
 
