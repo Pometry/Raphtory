@@ -26,7 +26,7 @@ class FileSpout extends Spout[String] {
     else {
       val (newFileManager, line) = fileManager.nextLine()
       fileManager = newFileManager
-      if (line != "" ) Some(line) else None
+      if (line.isEmpty ) None else Some(line)
     }
   }
 
