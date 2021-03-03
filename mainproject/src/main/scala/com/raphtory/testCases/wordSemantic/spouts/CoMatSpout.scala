@@ -68,7 +68,7 @@ case class FileManager  ( currentFileReader: Option[BufferedReader],
   }
 
    def getFileReader(file: File): BufferedReader = {
-    logger.info(s"Reading file ${file.getCanonicalPath}")
+    println(s"Reading file ${file.getCanonicalPath}")
 
     var br = new BufferedReader(new FileReader(file))
     if (file.getName.endsWith(".gz")) {
@@ -95,7 +95,7 @@ object FileManager extends LazyLogging {
         if (file.exists && file.isFile)
           List(file)
         else {
-          logger.error(s"File $dir$joiner$fileName does not exist or is not file ")
+          println(s"File $dir$joiner$fileName does not exist or is not file ")
           List.empty
         }
       }
@@ -109,7 +109,7 @@ object FileManager extends LazyLogging {
       files.filter(f => f.isFile && !f.isHidden)
     }
     else {
-      logger.error(s"Directory $dir does not exist or is not directory")
+      println(s"Directory $dir does not exist or is not directory")
       List.empty
     }
   }
