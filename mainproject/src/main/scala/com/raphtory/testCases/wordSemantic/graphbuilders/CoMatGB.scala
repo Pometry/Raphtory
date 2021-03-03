@@ -3,13 +3,14 @@ package com.raphtory.testCases.wordSemantic.graphbuilders
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication._
 
-class CooccurrenceMatrixGraphBuilder extends GraphBuilder[String] {
+class CoMatGB extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String) = {
     //println(record)
+    try {
     var dp = tuple.split(" ").map(_.trim)
     val occurenceTime = dp.head.toLong//DateFormatting(dp.head) //.slice(4, dp.head.length)
-    try {
+
       dp = dp.last.split("\t")
       val srcClusterId = assignID(dp.head)
       val len = dp.length
@@ -30,7 +31,7 @@ class CooccurrenceMatrixGraphBuilder extends GraphBuilder[String] {
       }
 
     }catch {
-      case e: Exception => println(e, dp.length, tuple)
+      case e: Exception => println(e, tuple)
     }
   }
 }

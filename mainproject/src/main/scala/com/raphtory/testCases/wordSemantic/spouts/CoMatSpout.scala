@@ -6,7 +6,7 @@ import java.util.zip.GZIPInputStream
 import com.raphtory.core.actors.Spout.Spout
 import com.typesafe.scalalogging.LazyLogging
 
-class CooccurrenceMatrixSpout extends Spout[String] {
+class CoMatSpout extends Spout[String] {
    val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
    val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim 
    val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
@@ -48,7 +48,7 @@ case class FileManager  ( currentFileReader: Option[BufferedReader],
           val (block, endOfFile) = readBlockAndIsEnd(reader)
           val currentReader      = if (endOfFile) None else Some(reader)
           val time = head.getName.split('/').last.stripPrefix("D-").stripSuffix("_merge_occ").toLong * 1000000000L
-          (this.copy(currentFileReader = currentReader, restFiles = tail,timeInc=time+1), (timeInc+1).toString +' '+ block)
+          (this.copy(currentFileReader = currentReader, restFiles = tail,timeInc=time+1), (time+1).toString +' '+ block)
       }
     case Some(reader) =>
       val (block, endOfFile) = readBlockAndIsEnd(reader)
