@@ -7,15 +7,37 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.{ParIterable, ParMap}
 import scala.reflect.io.Path
 
+
+/**
+Description
+  Returns the percentage of temporal motifs for every node in the graph. The algorithms identifies motifs specific to a node of the form
+  2-edge-1-node motifs; It identifies two types of these motifs:
+    Type-1: Detects motifs that exhibit incoming flow followed by outgoing flow in the form
+              (n_1) -- t_k --> (n_2) -- t_{k+1} --> (n_3)
+    Type-2: Detects attribute-based motifs that exhibit a non-negative balance while maintaining the temporal pattern
+      of Type-1 i.e. on average, a larger incoming weight is followed by an lesser outgoing weight.
+
+  Parameters
+    top (Int)       – The number of nodes with highest number of motifs to return. (default: 0)
+                        If not specified, Raphtory will return the motif count of all nodes that observe the motifs.
+    weight (String) - Edge property (default: "weight"). To be specified for type-2 motifs.
+    delta (Long)    - The size of the window in time to search for motifs where the length of the motif must be < delta.
+
+  Returns
+    total (Int)     – Number of nodes that exhibit a temporal motif.
+    motifs (Map(Long, Map(Type, Double)))
+                    – A dictionary of average number of motifs for Type1 and Type2 per node.
+  **/
+
 object MotifCounting {
   def apply(args: Array[String]): MotifCounting = new MotifCounting(args)
 }
 
 class MotifCounting(args: Array[String]) extends Analyser(args) { //IM: better manage args
-//args = [delta, edge weight, top]
-  val delta: Long  = if (args.isEmpty) throw new Exception else args.head.toLong //IM: remove exception later
-  val PROP: String = if (args.length < 2) "weight" else args(1)
-  val top: Int         = if (args.length <3) 0 else args(2).toInt
+  //args = [delta, edge weight, top]
+  val top: Int         = if (args.length == 0) 0 else args.head.toInt
+  val weight: String = if (args.length < 2) "weight" else args(1)
+  val delta: Long  = if (args.length < 3) throw new Exception else args(2).toLong //IM: remove exception later
 
   val output_file: String = System.getenv().getOrDefault("MC_OUTPUT_PATH", "").trim
   val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
@@ -42,8 +64,6 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //IM: better m
     val filtered      = endResults.filter(x=> (x._2._1>0)|(x._2._2>0)).map(x => s""""${x._1}":{"mc1":${x._2._1}, "mc2":${x._2._2}}""")
     val total         = filtered.length
     val count         = if (top == 0) filtered else filtered.take(top)
-//    val nl         = "\n"
-//    val text       = s"""{"time":$timestamp,"motifs":{ $nl${count.mkString(",\n")} $nl},"viewTime":$viewCompleteTime}"""
     val text          =
 s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"viewTime":$viewCompleteTime}"""
 
@@ -71,7 +91,7 @@ s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"vie
     }
   }
 
-  override def defineMaxSteps(): Int = 100
+  override def defineMaxSteps(): Int = 10
 
   def motifCounting(mType: Int, inc: ParIterable[EdgeVisitor], outc: ParIterable[EdgeVisitor]): Double = {
     var t_in   = inc.flatMap(e => e.getHistory().keys).toArray.sorted
@@ -95,7 +115,7 @@ s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"vie
           (for (dt <- mn to mx by delta) yield dt).count { dt =>
             if (checkActivity(inc ++ outc, dt, dt + delta)) total += 1
             val gamma1 = mean(inc.flatMap(getTimes(_, dt)).map(_.toDouble).toArray) < mean(outc.flatMap(getTimes(_, dt)).map(_.toDouble).toArray)
-            val gamma2 = mean(getProperties(inc, dt, PROP)) > mean(getProperties(outc, dt, PROP))
+            val gamma2 = mean(getProperties(inc, dt, weight)) > mean(getProperties(outc, dt, weight))
             gamma1 & gamma2
           } / total.toDouble
         case _ => 0.0
@@ -107,5 +127,5 @@ s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"vie
   def checkActivity(edges: ParIterable[EdgeVisitor], t1: Long, t2: Long): Boolean =    edges.exists(e => e.getHistory().exists(k => k._1 >= t1 && k._1 < t2)) //  IM: change this to range
   def getTimes(edge: EdgeVisitor, time: Long): Iterable[Long] =    edge.getHistory().filter { case (t, true) => t >= time & t < time + delta }.keys
   def getProperties(edges: ParIterable[EdgeVisitor], time: Long, prop: String): Array[Double] =
-    edges.map(e => getTimes(e, time).foldLeft(0.0) {  case (a, b) => a + e.getPropertyValueAt(prop, b).getOrElse(0.0).asInstanceOf[Double] }).toArray //IM change all properties to Double ¬¬
+    edges.map(e => getTimes(e, time).foldLeft(0.0) {  case (a, b) => a + e.getPropertyValueAt(prop, b).getOrElse(0.0).asInstanceOf[Double] }).toArray
 }
