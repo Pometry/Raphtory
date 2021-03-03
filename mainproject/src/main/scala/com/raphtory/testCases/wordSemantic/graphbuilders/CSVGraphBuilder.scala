@@ -2,7 +2,6 @@ package com.raphtory.testCases.wordSemantic.graphbuilders
 
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication._
-import org.apache.spark.sql.Row
 
 class CSVGraphBuilder extends GraphBuilder[String] {
 

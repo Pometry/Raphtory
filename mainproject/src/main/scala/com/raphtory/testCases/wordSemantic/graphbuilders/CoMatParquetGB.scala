@@ -2,18 +2,19 @@ package com.raphtory.testCases.wordSemantic.graphbuilders
 
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication._
-import org.apache.spark.sql.Row
+import com.raphtory.testCases.wordSemantic.spouts.Update
 
-class CoMatParquetGB extends GraphBuilder[Row] {
 
-  override def parseTuple(row: Row) =
+class CoMatParquetGB extends GraphBuilder[Update] {
+
+  override def parseTuple(row: Update) =
     try {
-      val time  = row.getAs[Long](0)
-      val src   = row.getAs[String](1)
-      val dst   = row.getAs[String](2)
+      val time  = row._1
+      val src   = row._2
+      val dst   = row._3
       val srcID = assignID(src)
       val dstID = assignID(dst)
-      val freq  = row.getAs[Long](3)
+      val freq  = row._4
 
       addVertex(updateTime = time, srcId = srcID, Properties(StringProperty("Word", src)))
       addVertex(updateTime = time, srcId = dstID, Properties(StringProperty("Word", dst)))
@@ -23,8 +24,6 @@ class CoMatParquetGB extends GraphBuilder[Row] {
                       dstId = dstID,
                       Properties(DoubleProperty("Frequency", freq.toDouble))
               )
-
-
     } catch {
       case e: Exception => println(e, row)
     }
