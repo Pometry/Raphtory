@@ -1,4 +1,4 @@
-package com.raphtory.testCases.networkx
+package com.raphtory.test.networkx
 
 import java.time.LocalDateTime
 

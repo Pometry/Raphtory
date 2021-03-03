@@ -1,9 +1,9 @@
-package com.raphtory.testCases.blockchain.graphbuilders
+package com.raphtory.test.blockchain.graphbuilders
 
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication.{Type, _}
 
-class chab_C2C_GB extends GraphBuilder[String]{
+class chab_C2C_noprop_GB extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String) = {
     try{
@@ -11,25 +11,10 @@ class chab_C2C_GB extends GraphBuilder[String]{
       val transactionTime = dp.time
       val srcClusterId = dp.srcCluster
       val dstClusterId = dp.dstCluster
-      val transactionId = dp.txid
-      val btcAmount = dp.amount
-      val usdAmount = dp.usd
-
-
       addVertex(transactionTime, srcClusterId, Type("Cluster"))
       addVertex(transactionTime, dstClusterId, Type("Cluster"))
-
-      addEdge(transactionTime,
-        srcClusterId,
-        dstClusterId,
-        Properties(
-          DoubleProperty("BitCoin", btcAmount),
-          DoubleProperty("USD", usdAmount),
-          DoubleProperty("Transaction", transactionId)
-        ),
-        Type("Transfer")
-      )
-  }catch { case e: Exception => println(e, tuple) }
+      addEdge(transactionTime, srcClusterId, dstClusterId, Type("Transfer"))
+    }catch { case e: Exception => println(e, tuple) }
   }
 
   //converts the line into a case class which has all of the data via the correct name and type
@@ -41,7 +26,6 @@ class chab_C2C_GB extends GraphBuilder[String]{
       line(4).toLong * 1000,            //Time of transaction in seconds (milli in Raph)
       line(5).toLong, 			            //ID of transaction, can be similar for many records
       line(6).toDouble / 100000 			    //Amount of transaction in USD
-
     )
 
   def longCheck(data: String): Option[Long] = if (data equals "") None else Some(data.toLong)
@@ -55,5 +39,4 @@ class chab_C2C_GB extends GraphBuilder[String]{
                         txid: Long,          //ID of transaction, can be similar for many records
                         usd: Double          //Amount of transaction in USD
                       )
-
 }

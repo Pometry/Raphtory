@@ -1,38 +1,35 @@
-package com.raphtory.testCases.blockchain.graphbuilders
+package com.raphtory.test.blockchain.graphbuilders
 
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication.{Type, _}
 
-class chab_full_GB extends GraphBuilder[String] {
+class chab_C2C_GB extends GraphBuilder[String]{
 
   override def parseTuple(tuple: String) = {
-    val dp = formatLine(tuple.split(",").map(_.trim))
-    val transactionTime = dp.time
-    val srcClusterId = dp.srcCluster
-    val dstClusterId = dp.dstCluster
-    val transactionId = dp.txid
-    val btcAmount = dp.amount
-    val usdAmount = dp.usd
+    try{
+      val dp = formatLine(tuple.split(",").map(_.trim))
+      val transactionTime = dp.time
+      val srcClusterId = dp.srcCluster
+      val dstClusterId = dp.dstCluster
+      val transactionId = dp.txid
+      val btcAmount = dp.amount
+      val usdAmount = dp.usd
 
-    addVertex(transactionTime, srcClusterId, Type("Cluster"))
-    addVertex(transactionTime, dstClusterId, Type("Cluster"))
-    addVertex(transactionTime, transactionId, Type("Transaction"))
 
-    addEdge(
-      transactionTime,
-      srcClusterId,
-      transactionId,
-      Properties(DoubleProperty("BitCoin", btcAmount), DoubleProperty("USD", usdAmount)),
-      Type("Incoming Payment")
-    )
+      addVertex(transactionTime, srcClusterId, Type("Cluster"))
+      addVertex(transactionTime, dstClusterId, Type("Cluster"))
 
-    addEdge(
-      transactionTime,
-      transactionId,
-      dstClusterId,
-      Properties(DoubleProperty("BitCoin", btcAmount), DoubleProperty("USD", usdAmount)),
-      Type("Outgoing Payment")
-    )
+      addEdge(transactionTime,
+        srcClusterId,
+        dstClusterId,
+        Properties(
+          DoubleProperty("BitCoin", btcAmount),
+          DoubleProperty("USD", usdAmount),
+          DoubleProperty("Transaction", transactionId)
+        ),
+        Type("Transfer")
+      )
+  }catch { case e: Exception => println(e, tuple) }
   }
 
   //converts the line into a case class which has all of the data via the correct name and type
@@ -58,4 +55,5 @@ class chab_full_GB extends GraphBuilder[String] {
                         txid: Long,          //ID of transaction, can be similar for many records
                         usd: Double          //Amount of transaction in USD
                       )
+
 }
