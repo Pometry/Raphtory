@@ -110,14 +110,16 @@ s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"vie
               a + t_out.count(_ <= t + delta) * tmp(t).length
           } / total.toDouble
         case 2 =>
-          val (mn, mx) = tEdges.foldLeft((tEdges.head, tEdges.head)) {    case ((min, max), e) => (math.min(min, e), math.max(max, e))          }
+          val (mn, mx) = tEdges.foldLeft((tEdges.head, tEdges.head)) {case ((min, max), e) => (math.min(min, e), math.max(max, e))}
           var total = 0
-          (for (dt <- mn to mx by delta) yield dt).count { dt =>
+          var count = 0
+          for (dt <- mn to mx by delta) {
             if (checkActivity(inc ++ outc, dt, dt + delta)) total += 1
             val gamma1 = mean(inc.flatMap(getTimes(_, dt)).map(_.toDouble).toArray) < mean(outc.flatMap(getTimes(_, dt)).map(_.toDouble).toArray)
             val gamma2 = mean(getProperties(inc, dt, weight)) > mean(getProperties(outc, dt, weight))
-            gamma1 & gamma2
-          } / total.toDouble
+            count += (if (gamma1 & gamma2) 1 else 0)
+          }
+          count / total.toDouble
         case _ => 0.0
       }
     else 0.0
