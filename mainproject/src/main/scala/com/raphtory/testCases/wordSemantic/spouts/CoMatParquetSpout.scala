@@ -1,14 +1,14 @@
 package com.raphtory.testCases.wordSemantic.spouts
 
 import java.io.File
-import java.util
 
 import com.raphtory.core.actors.Spout.Spout
-import com.raphtory.spouts.FileManager.{joiner, logger}
-import org.apache.spark.sql.{Row, SparkSession}
 import com.typesafe.scalalogging.LazyLogging
+import com.github.mjakubowski84.parquet4s.ParquetReader
 
-class CoMatParquetSpout() extends Spout[Row] {
+case class Update(_1: Long, _2: String, _3:String, _4:Long)
+
+class CoMatParquetSpout() extends Spout[Update] {
   private val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
   private val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim
   private val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
@@ -17,7 +17,7 @@ class CoMatParquetSpout() extends Spout[Row] {
 
   override def setupDataSource(): Unit = {}
 
-  override def generateData(): Option[Row] =
+  override def generateData(): Option[Update] =
     if (fileManager.allCompleted) {
       dataSourceComplete()
       None
@@ -25,7 +25,7 @@ class CoMatParquetSpout() extends Spout[Row] {
     else {
       val (newParquetManager, line) = fileManager.nextLine()
       fileManager = newParquetManager
-      if (line!= Row.empty) Some(line) else None
+      Option(line)
     }
 
   override def closeDataSource(): Unit = {}
@@ -33,20 +33,19 @@ class CoMatParquetSpout() extends Spout[Row] {
 }
 
 final case class ParquetManager private (
-                                       currentFileReader: Option[util.Iterator[Row]],
-                                       restFiles: List[File],
-                                       dropHeader: Boolean
-                                     ) extends LazyLogging {
+                                          currentFileReader: Option[Iterator[Update]],
+                                          restFiles: List[File],
+                                          dropHeader: Boolean
+                                        ) extends LazyLogging {
   def nextFile(): ParquetManager = this.copy(currentFileReader = None)
 
   lazy val allCompleted: Boolean = currentFileReader.isEmpty && restFiles.isEmpty
-  lazy val spark: SparkSession =   SparkSession.builder().master("local").getOrCreate()
-  spark.sparkContext.setLogLevel("ERROR")
 
-  def nextLine(): (ParquetManager, Row) = currentFileReader match {
+
+  def nextLine(): (ParquetManager, Update) = currentFileReader match {
     case None =>
       restFiles match {
-        case Nil => (this, Row.empty)
+        case Nil => (this, null)
         case head :: tail =>
           val reader             = getFileReader(head)
           val (block, endOfFile) = readBlockAndIsEnd(reader)
@@ -60,18 +59,18 @@ final case class ParquetManager private (
 
   }
 
-  private def readBlockAndIsEnd(reader: util.Iterator[Row]): (Row, Boolean) = {
+  private def readBlockAndIsEnd(reader: Iterator[Update]): (Update, Boolean) = {
     if (reader.hasNext)
       (reader.next(), false)
     else{
-      (Row.empty ,true)
+      (null ,true)
     }
   }
 
-  private def getFileReader(file: File): util.Iterator[Row] = {
+  private def getFileReader(file: File): Iterator[Update] = {
     println(s"Reading file ${file.getCanonicalPath}")
-    val br = spark.read.parquet(file.getCanonicalPath)
-    br.toLocalIterator()
+    val br = ParquetReader.read[Update](file.getCanonicalPath)
+    br.toIterator
   }
 }
 

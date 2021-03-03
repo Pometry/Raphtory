@@ -74,8 +74,6 @@ val hadoop = "org.apache.hadoop" % "hadoop-client" % "3.3.0"
 //val aws =  "com.amazonaws" % "aws-java-sdk" % "1.11.897"
 val parquet = "com.github.mjakubowski84" %% "parquet4s-core" % "1.6.0"
 //val h3 = "com.uber" % "h3" % "3.6.4"
-val spark =  "org.apache.spark" %% "spark-core" % "2.4.2"
-val spark_sql = "org.apache.spark" %% "spark-sql" % "2.4.2"
 
 
 val IP = java.net.InetAddress.getLocalHost.getHostAddress
@@ -191,9 +189,7 @@ lazy val raphtory = project
                     mongoscala,
                     //aws,
                     parquet,
-                    hadoop,
-		    spark,
-		    spark_sql
+                    hadoop
                    // h3
             )
   )
