@@ -31,17 +31,12 @@ Notes
   The returned communities may differ on multiple executions.
   **/
 object LPA {
-//  def apply(top: Int = 0, weight: String = "", maxIter: Int = 500): LPA =
-//    new LPA(Array(top.toString, weight, maxIter.toString))
   def apply(args: Array[String]): LPA = new LPA(args)
 }
 
 class LPA(args: Array[String]) extends Analyser(args) {
   //args = [top output, edge property, max iterations]
 
-//  val top_c: Int   = args.head.toInt
-//  val PROP: String = args(1)
-//  val maxIter: Int = args(2).toInt
   val arg: Array[String] = args.map(_.trim)
 
   val top: Int         = if (arg.length == 0) 0 else arg.head.toInt
@@ -150,7 +145,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
       val communities         = if (top == 0) sorted.map(_._2) else sorted.map(_._2).take(top)
       fd(top5, total, totalIslands, communities)
     } catch {
-      case e: UnsupportedOperationException => fd(Array(0), 0, 0, Array(ArrayBuffer("0")))
+      case _: UnsupportedOperationException => fd(Array(0), 0, 0, Array(ArrayBuffer("0")))
     }
   }
 
