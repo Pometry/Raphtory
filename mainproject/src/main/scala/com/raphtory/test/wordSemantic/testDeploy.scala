@@ -1,12 +1,11 @@
-package com.raphtory
+package com.raphtory.test.wordSemantic
 
-import com.raphtory.algorithms.{CommunityOutlierDetection, ConnectedComponents, DegreeBasic, LPA, MotifCounting, MultiLayerLPA, MultiLayerLPAparams}
-import com.raphtory.spouts.FileSpout
-import com.raphtory.testCases.blockchain.graphbuilders.bitcoin_mixers_GB
-import com.raphtory.testCases.networkx.{networkxGraphBuilder, networkxSpout}
-import com.raphtory.testCases.wordSemantic.graphbuilders.{CoMatGBFiltered, CoMatParquetGB}
-import com.raphtory.testCases.wordSemantic.spouts.{CoMatParquetSpout, CoMatSpout}
+import com.raphtory.RaphtoryGraph
+import com.raphtory.algorithms.MultiLayerLPAparams
+import com.raphtory.test.wordSemantic.graphbuilders.CoMatParquetGB
+import com.raphtory.test.wordSemantic.spouts.CoMatParquetSpout
 import org.apache.spark.sql.Row
+
 object testDeploy extends App {
   val source = new CoMatParquetSpout()
   val builder = new CoMatParquetGB()

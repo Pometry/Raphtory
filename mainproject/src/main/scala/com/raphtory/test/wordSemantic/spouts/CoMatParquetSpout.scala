@@ -1,4 +1,4 @@
-package com.raphtory.testCases.wordSemantic.spouts
+package com.raphtory.test.wordSemantic.spouts
 
 import java.io.File
 import java.util

@@ -1,4 +1,4 @@
-package com.raphtory.testCases.wordSemantic.graphbuilders
+package com.raphtory.test.wordSemantic.graphbuilders
 
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication._
