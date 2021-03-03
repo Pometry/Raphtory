@@ -14,7 +14,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 abstract class Entity(val creationTime: Long, isInitialValue: Boolean) {
 
   // Properties from that entity
-  private var entityType: String               = null
+  private var entityType: Option[String]               = None
   var properties: ParTrieMap[String, Property] = ParTrieMap[String, Property]()
 
   // History of that entity
@@ -29,8 +29,8 @@ abstract class Entity(val creationTime: Long, isInitialValue: Boolean) {
   // History of that entity
   def removeList: mutable.TreeMap[Long, Boolean] = history.filter(f=> !f._2)
 
-  def setType(newType: String): Unit = if (entityType == (null)) entityType = newType
-  def getType: String                = if (entityType == null) "" else entityType
+  def setType(newType: Option[String]): Unit = newType.foreach(nt => entityType = entityType.orElse(Some(nt)))
+  def getType: String                = entityType.getOrElse("")
 
   def revive(msgTime: Long): Unit = {
     checkOldestNewest(msgTime)
