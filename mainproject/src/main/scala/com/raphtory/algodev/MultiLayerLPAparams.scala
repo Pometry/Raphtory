@@ -1,6 +1,7 @@
-package com.raphtory.algorithms
+package com.raphtory.algodev
 
 import com.github.mjakubowski84.parquet4s.ParquetWriter
+import com.raphtory.algorithms.MultilayerLPA
 import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
 import org.apache.parquet.hadoop.ParquetFileWriter
 

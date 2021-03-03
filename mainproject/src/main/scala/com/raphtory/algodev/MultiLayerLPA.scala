@@ -1,42 +1,12 @@
-package com.raphtory.algorithms
+package com.raphtory.algodev
 
 import java.time.LocalDateTime
 
+import com.raphtory.algorithms.LPA
 import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
 
-import scala.collection.mutable
 import scala.collection.parallel.ParMap
 
-/**
-Description
-  This returns the communities of the constructed multi-layer graph as detected by synchronous label propagation.
-
-  This transforms the graph into a multi-layer graph where the same vertices on different layers are handled as
-  distinct vertices. The algorithm then runs a version of LPA on this view of the graph and returns communities that
-  share the same label that can span both vertices on the same layer and other layers.
-
-Parameters
-  top (Int)       – The number of top largest communities to return. (default: 0)
-                      If not specified, Raphtory will return all detected communities.
-  weight (String) - Edge property (default: ""). To be specified in case of weighted graph.
-  maxIter (Int)   - Maximum iterations for LPA to run. (default: 500)
-  start (Long)    - Oldest time in the graph events.
-  end (Long)      - Newest time in the graph events.
-  layerSize (Long)- Size of a single layer that spans all events occurring within this period.
-  omega (Long)    - Weight of temporal edge that are created between two layers for two persisting instances of a node.
-                  (Default: 1) If "None", the weights are assigned based on an average of the neighborhood of two layers.
-
-Returns
-  total (Int)     – Number of detected communities.
-  communities (List(List(Long))) – Communities sorted by their sizes. Returns largest top communities if specified.
-
-Notes
-  This implementation is based on LPA, which incorporates probabilistic elements; This makes it non-deterministic i.e.
-  The returned communities may differ on multiple executions.
-  **/
-object MultiLayerLPA {
-  def apply(args: Array[String]): MultiLayerLPA = new MultiLayerLPA(args)
-}
 
 class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   //args = [top, weight, maxiter, start, end, layer-size, omega]
@@ -49,7 +19,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       // Assign random labels for all instances in time of a vertex as Map(ts, lab)
-      val tlabels =   //im: send tuples instead of TreeMap and build the TM for processing only
+      val tlabels =
         snapshots
           .filter(t => vertex.aliveAtWithWindow(t, snapshotSize))
           .map(x => (x, (scala.util.Random.nextLong(), scala.util.Random.nextLong()))).toArray
@@ -91,7 +61,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
           val Oldlab = tv._2._1
           val Vlab = tv._2._2
           (ts, newlab match {
-            case Vlab | Oldlab => //im: check if this is the culprit behind islands
+            case Vlab | Oldlab =>
               voteCount += 1
               (List(Vlab, Oldlab).min, List(Vlab, Oldlab).max)
             case _ => (Vlab, newlab)
@@ -121,7 +91,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
 
   def weightFunction(v: VertexVisitor, ts: Long): ParMap[Long, Double] =
     (v.getInCEdgesBetween(ts - snapshotSize, ts) ++ v.getOutEdgesBetween(ts - snapshotSize, ts))
-      .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0).asInstanceOf[Double])) //  im: fix this one after pulling new changes
+      .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0).asInstanceOf[Double])) 
       .groupBy(_._1)
       .mapValues(x => x.map(_._2).sum / x.size) // (ID -> Freq)
 
