@@ -9,7 +9,7 @@
 
   <logger name="slick.lifted" level="ERROR" />
 
-  <root level="error">
+  <root level="ERROR">
     <appender-ref ref="STDOUT" />
   </root>
 </configuration>
