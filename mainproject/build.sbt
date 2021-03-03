@@ -74,6 +74,8 @@ val hadoop = "org.apache.hadoop" % "hadoop-client" % "3.3.0"
 //val aws =  "com.amazonaws" % "aws-java-sdk" % "1.11.897"
 val parquet = "com.github.mjakubowski84" %% "parquet4s-core" % "1.6.0"
 //val h3 = "com.uber" % "h3" % "3.6.4"
+val spark =  "org.apache.spark" %% "spark-core" % "2.4.2"
+val spark_sql = "org.apache.spark" %% "spark-sql" % "2.4.2"
 
 
 val IP = java.net.InetAddress.getLocalHost.getHostAddress
@@ -101,7 +103,7 @@ lazy val basicSettings = Seq(
 lazy val dockerStuff = Seq(
         maintainer := "Imane Hafnaoui <i.hafnaoui@qmul.ac.uk>",
         dockerBaseImage := "miratepuffin/raphtory-redis:latest",
-        dockerRepository := Some("niallroche"),
+        dockerRepository := Some("tsukitsune"),
         dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600,8081,46339,9100),
 
 )
@@ -189,7 +191,9 @@ lazy val raphtory = project
                     mongoscala,
                     //aws,
                     parquet,
-                    hadoop
+                    hadoop,
+		    spark,
+		    spark_sql
                    // h3
             )
   )
