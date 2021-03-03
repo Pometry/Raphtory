@@ -31,7 +31,7 @@ class CoMatGBFiltered extends GraphBuilder[String] {
             updateTime = occurenceTime,
             srcId = srcClusterId,
             dstId = dstClusterId,
-            Properties(LongProperty("Frequency", coocWeight))
+            Properties(DoubleProperty("Frequency", coocWeight))
           )
 
         occurenceTime+=1
