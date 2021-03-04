@@ -49,9 +49,9 @@ class LPA(args: Array[String]) extends Analyser(args) {
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
-      val lab = (-1L, scala.util.Random.nextLong())
+      val lab = (scala.util.Random.nextLong(), scala.util.Random.nextLong())
       vertex.setState("lpalabel", lab)
-      vertex.messageAllNeighbours((vertex.ID(), lab))
+      vertex.messageAllNeighbours((vertex.ID(), lab._2))
     }
 
   override def analyse(): Unit =
@@ -68,7 +68,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
           .mapValues(x => x.map(_._2).sum / x.size)
 
         // Process neighbour labels into (label, frequency)
-        val gp = vertex.messageQueue[(Long, (Long, Long))].map(v => (v._2._2, neigh_freq(v._1)))
+        val gp = vertex.messageQueue[(Long,  Long)].map(v => (v._2, neigh_freq(v._1)))
 
         // Get label most prominent in neighborhood of vertex
         val maxlab = gp.groupBy(_._1).mapValues(_.map(_._2).sum)
@@ -82,7 +82,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
           case _ => (Vlabel, newLabel)
         }
         vertex.setState("lpalabel", nlab)
-        vertex.messageAllNeighbours((vertex.ID(), nlab))
+        vertex.messageAllNeighbours((vertex.ID(), nlab._2))
         doSomething(vertex, gp.map(_._1).toArray)
       } catch {
         case e: Exception => println(e, vertex.ID())
