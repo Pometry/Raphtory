@@ -3,7 +3,7 @@
 </p>
 <h1 align="center">Raphtory</h1>
 
-Open-source platform that brings you distributed real-time temporal graph analytics. Quick and dynamic way to analyse your data with a time element. 
+Open-source platform for distributed real-time temporal graph analytics. Load and process large dynamic graphs across time.
 
 ## Table of Contents
 - [Getting started](#getting-started)
@@ -14,22 +14,22 @@ Open-source platform that brings you distributed real-time temporal graph analyt
 
 ## Getting Started
 
-We will use an example Raphtory project and install SBT (Scala Build Tool) to get it up and running.  
+Let's use an example Raphtory project and install SBT (Scala Build Tool) to get it up and running.  
 
-1. Clone our [example](https://github.com/Raphtory/Examples) and get the [latest release](https://github.com/Raphtory/Raphtory/releases/latest). 
+1. Clone the [example](https://github.com/Raphtory/Examples) and get the [latest release](https://github.com/Raphtory/Raphtory/releases/latest). 
 2. Download the `raphtory.jar` [here](https://github.com/Raphtory/Raphtory/releases/latest/download/raphtory.jar). Move it into the lib directory of the example project.
 3. Install SBT by following their [guide](https://www.scala-sbt.org/1.x/docs/Setup.html). The example project uses SBT to compile the source code. 
-4. Initiate SBT by changing into the example project directory in your terminal and running the command `sbt`. You are in the SBT interactive shell once you see `>`.
+4. Initiate SBT by changing into the example project directory in the terminal and running the command `sbt`. The SBT interactive shell starts once it shows `>`.
 5. Run `compile` to build the project. 
 6. Run `run` to analyse the project. The output is the result of the analysis.   
 
-Go to the [documentation](https://raphtory.github.io/documentation/install) for information on writing your own analysis and more.
+Go to the [documentation](https://raphtory.github.io/documentation/install) for [tutorials](https://raphtory.github.io/documentation/sprouter) on how to use Raphtory for graph building, analysis, and more.  
 
 Raphtory is built with Scala. We recommend using IntelliJ IDE for your code. They have a community version which is free. Follow their [guide](https://www.jetbrains.com/idea/download/#section=windows) for installation.
 
 ## Concept  
 
-Static graphs, which require data to be manually reloaded for updates, have been the focus for data analytics in the community. While static graphs are useful, they could be inefficient. **Our tool aims to address these issues by helping you create dynamic graphs with the added element of time.** Dynamic graphs allow for a more efficient process with its ability to automatically make changes in real time by intaking streamed or stored data.  Our tool also gives you the option to dive deep in your analysis and explore the changes in structural (vertex and edge properties) and temporal (time of when components of your graph are created, updated, and deleted) scopes of your graphs. This opens up many possibilities including tracking cryptocurrency fraud, covid transmission patterns, or monitoring activities on social media.  
+Static graphs, which require data to be manually reloaded for updates, have been the focus for data analytics in the community. While static graphs are useful, they could be inefficient. **Raphtory aims to address these issues by creating dynamic graphs with the added element of time.** Dynamic graphs allow for a more efficient process with its ability to automatically make changes in real time by intaking streamed or stored data.  Raphtory also gives the option to dive deep in analysis and explore the changes in structural (vertex and edge properties) and temporal (time of when components of your graph are created, updated, and deleted) scopes of the graphs. This opens up many possibilities including tracking cryptocurrency fraud, covid transmission patterns, or monitoring activities on social media.  
 
 Check out these links for more information:
 
@@ -39,15 +39,15 @@ Check out these links for more information:
 
 ## Community and Changelog  
 
-- Follow the latest development on our [blog](https://raphtory.github.io/blog/)
-- Follow us on [Twitter](https://twitter.com/raphtory)
-- Join our [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-jd5mce91-vDxEiFBILC_G2ilZPdvDaA) group (we are always happy to answer any questions and chat about the project!) Feel free to join the #raphtory-development and #askaway channel to discuss current issues, ask your questions in #general or ping Ben Steer (miratepuffin) who can give you a hand.
+- Follow the latest development on the official [blog](https://raphtory.github.io/blog/)
+- Follow the Raphtory [Twitter](https://twitter.com/raphtory)
+- Join the [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-jd5mce91-vDxEiFBILC_G2ilZPdvDaA) group (we are always happy to answer any questions and chat about the project!) Feel free to join the #raphtory-development and #askaway channel to discuss current issues, ask your questions in #general or ping Ben Steer (miratepuffin) who can give you a hand.
 
 ## Contributors
 
 <a href="https://github.com/raphtory/raphtory/graphs/contributors"><img src="https://contrib.rocks/image?repo=raphtory/raphtory"/></a>
 
-Want to get involved? Please join our [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-jd5mce91-vDxEiFBILC_G2ilZPdvDaA) and speak with us on how you could pitch in!
+Want to get involved? Please join the Raphtory [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-jd5mce91-vDxEiFBILC_G2ilZPdvDaA) group and speak with us on how you could pitch in!
 
 ## License  
 
