@@ -7,6 +7,8 @@ import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
 
 import scala.collection.parallel.ParMap
 
+object MultiLayerLPA {
+  def apply(args: Array[String]): MultiLayerLPA = new MultiLayerLPA(args)}
 
 class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   //args = [top, weight, maxiter, start, end, layer-size, omega]
