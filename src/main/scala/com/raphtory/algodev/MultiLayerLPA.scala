@@ -13,7 +13,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   val snapshotSize: Long = args(5).toLong
   val startTime: Long = args(3).toLong * snapshotSize //imlater: change this when done with wsdata
   val endTime: Long = args(4).toLong * snapshotSize
-  val snapshots: Iterable[Long] = (for (ts <- startTime to endTime by snapshotSize) yield ts)
+  val snapshots: Iterable[Long] = for (ts <- startTime to endTime by snapshotSize) yield ts
   val omega: String = if (arg.length < 7) "1" else args(6)
 
   override def setup(): Unit =
@@ -21,8 +21,9 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       // Assign random labels for all instances in time of a vertex as Map(ts, lab)
       val tlabels =
         snapshots
-          .filter(t => vertex.aliveAtWithWindow(t, snapshotSize))
-          .map(x => (x, (scala.util.Random.nextLong(), scala.util.Random.nextLong()))).toArray
+          .filter(ts => vertex.aliveAtWithWindow(ts, snapshotSize))
+//          .map(ts => (ts, (scala.util.Random.nextLong(), scala.util.Random.nextLong()))).toArray
+          .map(x => (x, (vertex.ID()+x,vertex.ID()-x))).toArray //IM: remove this after testing
       vertex.setState("mlpalabel", tlabels)
       val message = (vertex.ID(), tlabels.map(x=> (x._1, x._2._2)))
       vertex.messageAllNeighbours(message)
