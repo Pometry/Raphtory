@@ -8,7 +8,7 @@ class AllCommandsSpout extends Spout[String] {
 
   var totalCount = 100
   var freq = 1000
-  var pool = System.getenv().getOrDefault("ENTITY_POOL", "10000").toInt
+  var pool: Int = System.getenv().getOrDefault("ENTITY_POOL", "10000").toInt
   var msgID = 0
   val rnd = new scala.util.Random(123)
   override def setupDataSource(): Unit = {}
@@ -63,7 +63,7 @@ class AllCommandsSpout extends Spout[String] {
     for (i <- 1 to numOfProps) {
       val propnum = i
       if (i < numOfProps) properties = properties + s""" "property$propnum":"${"test"}", """
-      else properties = properties + s""" "property$propnum":"${"test"}" }"""
+      else properties = properties + s""" "property$propnum":${rnd.nextDouble()} }"""
     }
     properties
   }
