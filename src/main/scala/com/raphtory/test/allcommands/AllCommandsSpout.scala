@@ -9,6 +9,8 @@ class AllCommandsSpout extends Spout[String] {
   var totalCount = 100
   var freq = 1000
   var pool: Int = System.getenv().getOrDefault("ENTITY_POOL", "10000").toInt
+  var vprob: Double = System.getenv().getOrDefault("VPROB", "0.3").toDouble
+  var eprob: Double = System.getenv().getOrDefault("EPROB", "0.7").toDouble
   var msgID = 0
   val rnd = new scala.util.Random(123)
   override def setupDataSource(): Unit = {}
@@ -29,9 +31,9 @@ class AllCommandsSpout extends Spout[String] {
   def distribution(): String = {
     val random = rnd.nextFloat()
     // genVertexAdd()
-    if (random <= 0.3) genVertexAdd()
+    if (random <= vprob) genVertexAdd()
     //else genEdgeAdd()
-    else if (random <= 0.7) genEdgeAdd()
+    else if (random <= eprob) genEdgeAdd()
     //  else genEdgeRemoval()
     else if (random <= 0.98) genEdgeRemoval()
     else genVertexRemoval()
@@ -67,5 +69,4 @@ class AllCommandsSpout extends Spout[String] {
     }
     properties
   }
-
 }
