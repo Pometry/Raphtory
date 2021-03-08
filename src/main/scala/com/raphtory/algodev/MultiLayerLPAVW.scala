@@ -17,8 +17,8 @@ object MultiLayerLPAVW {
 class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
   //args = [top, weight, maxiter, start, end, layer-size, omega]
   val snapshotSize: Long = args(5).toLong
-  val startTime: Long = args(3).toLong * snapshotSize //imlater: change this when done with wsdata
-  val endTime: Long = args(4).toLong * snapshotSize
+  val startTime: Long = args(3).toLong //* snapshotSize //imlater: change this when done with wsdata
+  val endTime: Long = args(4).toLong //* snapshotSize
   val snapshots: Iterable[Long] = for (ts <- startTime to endTime by snapshotSize) yield ts
   val o: Double = if (arg.length < 7) 0.1 else args(6).toDouble
   val omega: Array[Double] = (0.1 to 1.0 by o).toArray
@@ -65,24 +65,26 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
           if (vlabel.contains(ts + snapshotSize))
             vlabel(ts + snapshotSize).zipWithIndex.foreach(x => nei_labs.append((x._2, x._1._2, omega(x._2))))
 
-          val a = nei_labs.groupBy(_._1).values.toArray.map { x =>
+          nei_labs.groupBy(_._1).values.toArray.map { x =>
             val w = x.head._1
+            val Oldlab = tv._2(w)._1
+            val Curlab = tv._2(w)._2
+
             // Get label most prominent in neighborhood of vertex
-            val max_freq = x.groupBy(_._2).mapValues(_.map(_._3).sum)
-            val newlab = max_freq.filter(_._2 == max_freq.values.max).keySet.max
+            val newlab = if (x.nonEmpty) {
+              val max_freq = x.groupBy(_._2).mapValues(_.map(_._3).sum)
+              max_freq.filter(_._2 == max_freq.values.max).keySet.max
+            }else Curlab
 
             // Update node label and broadcast
-            val Oldlab = tv._2(w)._1
-            val Vlab = tv._2(w)._2
             (ts, newlab match {
-              case Vlab | Oldlab => //im: check if this is the culprit behind islands
-                if (newlab == Vlab) voteCount += 1
-                (List(Vlab, Oldlab).min, List(Vlab, Oldlab).max)
-              case _ => (Vlab, newlab)
+              case Curlab | Oldlab =>
+                voteCount += 1
+                if (Curlab>Oldlab) (Oldlab,Curlab) else (Curlab, Oldlab)
+              case _ => (Curlab, newlab)
             })
-          }
-          a
 
+          }
         }.toArray.flatten
         vertex.setState("mlpalabel", newLabel)
         val message = (vertex.ID(), newLabel.map(x => (x._1, x._2._2)))
@@ -119,7 +121,7 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
       .map(vertex =>
         (
           vertex.getState[Array[(Long, (Long, Long))]]("mlpalabel"),
-          vertex.getPropertyValue("Word").getOrElse(vertex.ID()).asInstanceOf[String]
+          vertex.getPropertyValue("Word").getOrElse(vertex.ID()).toString
         )
       )
       .flatMap(f =>
@@ -150,7 +152,7 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
               s"""{"time":$timestamp, "omega": $w, "top5":[${
                 top5
                   .mkString(",")
-              }],"total":${total},"totalIslands":$totalIslands,""" +
+              }],"total":$total,"totalIslands":$totalIslands,""" +
                 //          s""" "communities": [${commtxt.mkString(",")}],""" +
                 s"""viewTime":$viewCompleteTime}"""
             println(text)
@@ -158,7 +160,7 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
             val text =
               s"""{"time":$timestamp, "omega": $w,"top5":[${
                 top5.mkString(",")
-              }],"total":${total},"totalIslands":$totalIslands, "viewTime":$viewCompleteTime}"""
+              }],"total":$total,"totalIslands":$totalIslands, "viewTime":$viewCompleteTime}"""
             println(text)
             case class Data(omega: Double, comm: Array[String])
             val writer =
