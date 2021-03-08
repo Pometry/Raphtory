@@ -82,18 +82,21 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
         if (vlabel.contains(ts + snapshotSize))
           nei_labs.append((vlabel(ts + snapshotSize)._2, interLayerWeights(omega, vertex, ts)))
 
+        val Oldlab = tv._2._1
+        val Curlab = tv._2._2
+
         // Get label most prominent in neighborhood of vertex
-        val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
-        val newlab   = max_freq.filter(_._2 == max_freq.values.max).keySet.max
+        val newlab = if (nei_labs.nonEmpty) {
+          val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
+          max_freq.filter(_._2 == max_freq.values.max).keySet.max
+        }else Curlab
 
         // Update node label and broadcast
-        val Oldlab = tv._2._1
-        val Vlab   = tv._2._2
         (ts, newlab match {
-          case Vlab | Oldlab =>
+          case Curlab | Oldlab =>
             voteCount += 1
-            (List(Vlab, Oldlab).min, List(Vlab, Oldlab).max)
-          case _ => (Vlab, newlab)
+            if (Curlab>Oldlab) (Oldlab,Curlab) else (Curlab, Oldlab)
+          case _ => (Curlab, newlab)
         })
       }.toArray
 
@@ -132,7 +135,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
       .map(vertex =>
         (
                 vertex.getState[Array[(Long, (Long, Long))]]("mlpalabel"),
-                vertex.getPropertyValue("Word").getOrElse(vertex.ID()).asInstanceOf[String]
+                vertex.getPropertyValue("Word").getOrElse(vertex.ID()).toString
         )
       )
       .flatMap(f => f._1.map(x => (x._2._2, f._2 + "_" + x._1.toString)))
