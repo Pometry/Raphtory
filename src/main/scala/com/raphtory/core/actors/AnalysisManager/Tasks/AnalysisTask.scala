@@ -1,13 +1,14 @@
 package com.raphtory.analysis.Tasks
 
 import java.net.InetAddress
-
 import akka.actor.{Actor, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.mongodb.DBObject
 import com.mongodb.casbah.{MongoClient, MongoClientURI}
 import com.mongodb.util.JSON
+import com.raphtory.analysis.Tasks.AnalysisTask.Message._
 import com.raphtory.api.Analyser
+import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
 import com.raphtory.core.actors.AnalysisManager.StartAnalysis
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.actors.RaphtoryActor
@@ -150,8 +151,8 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
   override def receive: Receive = {
     case StartAnalysis()               => startAnalysis() //received message to start from Orchestrator
-    case ReaderWorkersACK()            => readerACK() //count up number of acks and if == number of workers, check if analyser present
-    case AnalyserPresent()             => analyserPresent() //analyser confirmed to be present within workers, send setup request to workers
+    case ReaderWorkersAck           => readerACK() //count up number of acks and if == number of workers, check if analyser present
+    case AnalyserPresent             => analyserPresent() //analyser confirmed to be present within workers, send setup request to workers
     case TimeResponse(ok, time)        => timeResponse(ok, time) //checking if the timestamps are ok within all partitions
     case "recheckTime"                 => timeRecheck() //if the time was previous out of scope, wait and then recheck
     case Ready(messagesSent)           => ready(messagesSent) //worker has completed setup and is ready to roll -- send nextstep
@@ -159,7 +160,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     case ReturnResults(results)        => finaliseJob(results) //worker has finished teh job and is returned the results
     case "restart"                     => restart()
     case MessagesReceived(workerID, receivedMessages, sentMessages) => messagesReceieved(workerID, receivedMessages, sentMessages)
-    case RequestResults(jobID)         => requestResults()
+    case RequestResults(_)         => requestResults()
     case FailedToCompile(stackTrace)   => failedToCompile(stackTrace) //Your code is broke scrub
     case _                             => processOtherMessages(_)     //incase some random stuff comes through
   }
@@ -168,7 +169,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
   def startAnalysis() = {
     for (worker <- getAllReaders(managerCount))
-      mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline(), false)
+      mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline, false)
   }
 
   def readerACK() = {
@@ -217,15 +218,15 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
         if (analyser.defineMaxSteps() > 1)
           for (worker <- getAllReaderWorkers(managerCount))
             if(newAnalyser)
-              mediator ! DistributedPubSubMediator.Send(worker, SetupNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()),false)
+              mediator ! DistributedPubSubMediator.Send(worker, SetupNewAnalyser(jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()),false)
             else
-              mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()),false)
+              mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()),false)
         else
           for (worker <- getAllReaderWorkers(managerCount))
             if(newAnalyser)
-              mediator ! DistributedPubSubMediator.Send(worker, FinishNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
+              mediator ! DistributedPubSubMediator.Send(worker, FinishNewAnalyser(jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
             else
-              mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
+              mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
       }
       else {
         handleTimeOutput()
@@ -261,9 +262,9 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
       if (currentSuperStep == steps || this.voteToHalt)
         for (worker <- getAllReaderWorkers(managerCount))
           if(newAnalyser)
-            mediator ! DistributedPubSubMediator.Send(worker, FinishNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
+            mediator ! DistributedPubSubMediator.Send(worker, FinishNewAnalyser(jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
           else
-            mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
+            mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
       else {
         //println(s"Superstep $currentSuperStep")
         this.voteToHalt = true
@@ -295,10 +296,10 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
       currentSuperStep += 1
       if (newAnalyser)
         for (worker <- getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
       else
         for (worker <- getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
     }
     else {
       totalSentMessages = 0
@@ -322,10 +323,10 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
         totalReceivedMessages = 0
         if (newAnalyser)
           for (worker <- getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+            mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
         else
           for (worker <- getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, args, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+            mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
       }
       else {
         totalReceivedMessages = 0
@@ -352,9 +353,6 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   def partitionsHalting() = voteToHalt
 
   def killme() = self.tell(PoisonPill.getInstance,self)
-
-
-  
   
   def failedToCompile(stackTrace: String): Unit =
     println(s"$sender failed to compiled, stacktrace returned: \n $stackTrace")
@@ -362,11 +360,27 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
 }
 
-//
-////if(real != receivedMessages)
-//// println(s"superstep $currentSuperStep workerID: $workerID -- messages Received $receivedMessages/$real  -- total $totalReceivedMessages-- sent messages $sentMessages/$totalSentMessages")
-//if (messageLogACKS == getWorkerCount) {
-////      if (totalReceivedMessages != totalSentMessages)
-////        println(
-////                s"superstep $currentSuperStep workerID: $workerID -- $receivedMessages/$sentMessages $totalReceivedMessages/$totalSentMessages"
-////        )
+object AnalysisTask {
+  object Message {
+    case class Setup(analyzer: Analyser, jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
+    case class SetupNewAnalyser(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
+    case class Ready(messages: Int)
+    case class NextStep(analyzer: Analyser, jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
+    case class NextStepNewAnalyser(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
+    case class EndStep(messages: Int, voteToHalt: Boolean)
+    case class Finish(analyzer: Analyser, jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
+    case class FinishNewAnalyser(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
+    case class ReturnResults(results: Any)
+    case class MessagesReceived(workerID: Int, receivedMessages: Int, sentMessages: Int)
+    case class CheckMessages(jobID: ViewJob, superstep: Int)
+    case object ReaderWorkersOnline
+    case object ReaderWorkersAck
+    case class AnalyserPresentCheck(className: String)
+    case object AnalyserPresent
+    case object ClassMissing
+    case class FailedToCompile(stackTrace: String)
+    case class CompileNewAnalyser(analyser: String, args: Array[String], name: String)
+    case class TimeCheck(timestamp: Long)
+    case class TimeResponse(ok: Boolean, time: Long)
+  }
+}
