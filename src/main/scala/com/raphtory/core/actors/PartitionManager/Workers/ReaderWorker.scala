@@ -145,6 +145,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
 
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
+
     if (windowSet.isEmpty) {
       analyzer.setup()
       incrementSentMessages(jobID,tempProxy.getMessages())
