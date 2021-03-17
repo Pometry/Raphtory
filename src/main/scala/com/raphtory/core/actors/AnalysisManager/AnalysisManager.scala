@@ -4,13 +4,15 @@ import akka.actor.{Actor, ActorRef, InvalidActorNameException, PoisonPill, Props
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.raphtory.analysis.Tasks.AnalysisTask.Message.FailedToCompile
 import com.raphtory.api.{Analyser, BlankAnalyser, LoadExternalAnalyser}
 import com.raphtory.analysis.Tasks.LiveTasks.{BWindowedLiveAnalysisTask, LiveAnalysisTask, WindowedLiveAnalysisTask}
 import com.raphtory.analysis.Tasks.RangeTasks.{BWindowedRangeAnalysisTask, RangeAnalysisTask, WindowedRangeAnalysisTask}
 import com.raphtory.analysis.Tasks.ViewTasks.{BWindowedViewAnalysisTask, ViewAnalysisTask, WindowedViewAnalysisTask}
+import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
+import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi._
 import com.raphtory.core.actors.ClusterManagement.WatchDog.Message._
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.model.communication._
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Await
@@ -44,7 +46,7 @@ class AnalysisManager() extends RaphtoryActor{
   def checkResults(jobID: String) = {
     if(currentTasks contains jobID){
       try {
-        val future = currentTasks(jobID) ? RequestResults(jobID:String)
+        val future = currentTasks(jobID) ? RequestResults(jobID)
         Await.result(future, timeout.duration) match {
           case results:ResultsForApiPI => sender ! results
         }
@@ -52,16 +54,16 @@ class AnalysisManager() extends RaphtoryActor{
         case _: java.util.concurrent.TimeoutException =>
       }
     }
-    else sender() ! JobDoesntExist()
+    else sender() ! JobDoesntExist
   }
 
   def killJob(jobID: String) = {
     if(currentTasks contains jobID){
       currentTasks(jobID) ! PoisonPill
       currentTasks remove(jobID)
-      sender() ! JobKilled()
+      sender() ! JobKilled
     }
-    else sender()! JobDoesntExist()
+    else sender()! JobDoesntExist
   }
 
   def spawnLiveAnalysisManager(request: LiveAnalysisRequest): Unit = {
@@ -214,4 +216,14 @@ class AnalysisManager() extends RaphtoryActor{
     (true,analyser)
   }
 
+}
+
+object AnalysisManager {
+  object Message {
+    case class RequestResults(jobID:String)
+    case class KillTask(jobID:String)
+    case object JobKilled
+    case class ResultsForApiPI(results:Array[String])
+    case object JobDoesntExist
+  }
 }

@@ -3,6 +3,7 @@ package com.raphtory.core.actors.PartitionManager
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
+import com.raphtory.analysis.Tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
 import com.raphtory.core.actors.PartitionManager.Workers.ReaderWorker
 import com.raphtory.core.actors.RaphtoryActor
@@ -10,7 +11,7 @@ import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
 
 import scala.collection.parallel.mutable.ParTrieMap
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class Reader(
     id: Int,
@@ -46,7 +47,7 @@ class Reader(
     log.debug("Reader [{}] is being started.", managerId)
 
   override def receive: Receive = {
-    case ReaderWorkersOnline()     => sender ! ReaderWorkersACK()
+    case ReaderWorkersOnline     => sender ! ReaderWorkersAck
     case req: AnalyserPresentCheck => processAnalyserPresentCheckRequest(req)
     case req: UpdatedCounter       => processUpdatedCounterRequest(req)
     case SubscribeAck              =>
@@ -59,19 +60,14 @@ class Reader(
     log.debug(s"Reader [{}] received [{}] request.", managerId, req)
 
     val className   = req.className
-    val classExists = Try(Class.forName(className))
-
-    classExists.toEither.fold(
-            { _: Throwable =>
-              log.debug("Class [{}] was not found within this image.", className)
-
-              sender ! ClassMissing()
-            }, { _: Class[_] =>
-              log.debug(s"Class [{}] exists. Proceeding.", className)
-
-              sender ! AnalyserPresent()
-            }
-    )
+    Try(Class.forName(className)) match {
+      case Failure(_) =>
+        log.debug(s"Class [$className] was not found within this image.")
+        sender ! ClassMissing
+      case Success(_) =>
+        log.debug(s"Class [$className] exists. Proceeding.")
+        sender ! AnalyserPresent
+    }
   }
 
 

@@ -3,7 +3,8 @@ package com.raphtory.analysis.Tasks.RangeTasks
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.api.Analyser
 import com.raphtory.analysis.Tasks.AnalysisTask
-import com.raphtory.core.model.communication.{AnalyserPresentCheck, AnalysisType}
+import com.raphtory.analysis.Tasks.AnalysisTask.Message.AnalyserPresentCheck
+import com.raphtory.core.model.communication.AnalysisType
 
 class RangeAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analyser: Analyser, start: Long, end: Long, jump: Long,newAnalyser:Boolean,rawFile:String)
         extends AnalysisTask(jobID: String,args, analyser,managerCount,newAnalyser,rawFile) {
