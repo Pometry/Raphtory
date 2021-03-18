@@ -69,6 +69,7 @@ s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"vie
 
     output_file match {
       case "" => println(text)
+      case "mongo" => publishData(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
   }
@@ -87,6 +88,7 @@ s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"vie
       .mkString(",")} },"viewTime":$viewCompleteTime}"""
     output_file match {
       case "" => println(text)
+      case "mongo" => publishData(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
   }

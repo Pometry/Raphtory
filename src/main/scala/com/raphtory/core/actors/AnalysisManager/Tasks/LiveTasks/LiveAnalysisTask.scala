@@ -3,7 +3,8 @@ package com.raphtory.analysis.Tasks.LiveTasks
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.api.Analyser
 import com.raphtory.analysis.Tasks.AnalysisTask
-import com.raphtory.core.model.communication.{AnalysisType, Finish, Setup, TimeCheck}
+import com.raphtory.analysis.Tasks.AnalysisTask.Message._
+import com.raphtory.core.model.communication.AnalysisType
 
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, MILLISECONDS}
@@ -67,7 +68,6 @@ class LiveAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analy
               Setup(
                 this.generateAnalyzer,
                 jobID,
-                args,
                 currentSuperStep,
                 timestamp,
                 analysisType(),
@@ -83,7 +83,6 @@ class LiveAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analy
               Finish(
                 this.generateAnalyzer,
                 jobID,
-                args,
                 currentSuperStep,
                 timestamp,
                 analysisType(),

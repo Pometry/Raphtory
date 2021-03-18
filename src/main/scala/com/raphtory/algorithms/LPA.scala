@@ -103,14 +103,14 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val er      = extractData(results)
     val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
     val text = s"""{"time":$timestamp,"top5":[${er.top5
-      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt
-      .mkString(",")}], "viewTime":$viewCompleteTime}"""
-
+      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
+       s"""communities": [${commtxt.mkString(",")}],"""+
+      s"""viewTime":$viewCompleteTime}"""
     output_file match {
       case "" => println(text)
+      case "mongo" => publishData(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
-    publishData(text)
   }
 
   override def processWindowResults(
@@ -122,11 +122,12 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val er      = extractData(results)
     val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5
-      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"communities": [${commtxt
-      .mkString(",")}], "viewTime":$viewCompleteTime}"""
-
+      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
+      s"""communities": [${commtxt.mkString(",")}],"""+
+      s"""viewTime":$viewCompleteTime}"""
     output_file match {
       case "" => println(text)
+      case "mongo" => publishData(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
     publishData(text)

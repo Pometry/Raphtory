@@ -44,6 +44,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
   val snapshots: Iterable[Long] = (for (ts <- startTime to endTime by snapshotSize) yield ts)
   val omega: String             = if (arg.length < 7) "1" else args(6)
   private val debug             = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean //for printing debug messages
+  override val output_file: String = System.getenv().getOrDefault("MLPA_OUTPUT_PATH", "").trim
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
