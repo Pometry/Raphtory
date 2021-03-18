@@ -34,3 +34,45 @@ mainproject/.env
 # sbt 
 sbt-*.zip
 sbt
+
+mainproject/build.sbt
+*.class
+*.log
+.*.sw[op]
+
+sbt/
+cluster/src/main/scala/scala.iml
+src/main/scala/com/raphtory/algorithms/testAlgo.scala
+src/main/scala/com/raphtory/testDeploy.scala
+
+.env
+singlenodetest.yml
+
+autoSetup.sh
+seedSetup.sh
+machine0Setup.sh
+machine1Setup.sh
+
+.DS_Store
+
+docker-compose/prometheus_data/
+# sbt specific
+.cache/
+.history/
+.lib/
+dist/*
+target/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+project/project
+project/target
+logs
+# Scala-IDE specific
+.scala_dependencies
+.worksheet
+.idea
+
+**/logs/**
+
