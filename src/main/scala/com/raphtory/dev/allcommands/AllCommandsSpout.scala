@@ -1,4 +1,4 @@
-package com.raphtory.test.allcommands
+package com.raphtory.dev.allcommands
 
 import com.raphtory.core.actors.Spout.Spout
 
@@ -9,6 +9,7 @@ class AllCommandsSpout extends Spout[String] {
   var totalCount = 100
   var freq = 1000
   var pool: Int = System.getenv().getOrDefault("ENTITY_POOL", "10000").toInt
+  var time: Int = System.getenv().getOrDefault("TIME_RANGE", "300000").toInt
   var vprob: Double = System.getenv().getOrDefault("VPROB", "0.3").toDouble
   var eprob: Double = System.getenv().getOrDefault("EPROB", "0.7").toDouble
   var msgID = 0
@@ -16,7 +17,7 @@ class AllCommandsSpout extends Spout[String] {
   override def setupDataSource(): Unit = {}
 
   override def generateData(): Option[String] ={
-    if(msgID<=300000)
+    if(msgID<=time)
       Some(distribution())
     else {
       dataSourceComplete()

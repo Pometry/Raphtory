@@ -1,4 +1,4 @@
-package com.raphtory.testCases.networkx
+package com.raphtory.dev.networkx
 
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication._

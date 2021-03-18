@@ -99,7 +99,7 @@ object FileManager extends LazyLogging {
         if (file.exists && file.isFile)
           List(file)
         else {
-          println(s"File $dir$joiner$fileName does not exist or is not file ")
+          logger.error(s"File $dir$joiner$fileName does not exist or is not file ")
           List.empty
         }
       }

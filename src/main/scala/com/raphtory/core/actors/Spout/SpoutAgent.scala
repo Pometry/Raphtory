@@ -112,5 +112,6 @@ object SpoutAgent {
     case object NoWork
     case object SpoutOnline
     case object DataFinished
+    case class AllocateTuple(record: Any)
   }
 }

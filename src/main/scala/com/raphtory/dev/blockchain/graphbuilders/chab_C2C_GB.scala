@@ -1,4 +1,4 @@
-package com.raphtory.testCases.blockchain.graphbuilders
+package com.raphtory.dev.blockchain.graphbuilders
 
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication.{Type, _}

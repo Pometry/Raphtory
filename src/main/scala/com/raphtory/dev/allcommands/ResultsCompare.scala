@@ -1,4 +1,4 @@
-package com.raphtory.test.allcommands
+package com.raphtory.dev.allcommands
 
 import java.net.InetAddress
 
