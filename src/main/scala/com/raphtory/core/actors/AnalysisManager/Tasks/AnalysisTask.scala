@@ -271,7 +271,6 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
         workersFinishedSuperStep = 0
         syncMessages()
       }
-//    Path("/home/tsunade/messagecount.csv").createFile().appendAll(totalSentMessages.toString + "\n")
 //    println(currentSuperStep,totalSentMessages)
   }
 
@@ -310,7 +309,6 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
   def messagesReceieved(workerID: Int, receivedMessages: Int, sentMessages: Int) = {
 //    println(s"+++ Superstep: $currentSuperStep  wID: $workerID    Messages in: $totalReceivedMessages    Messages out: $totalSentMessages ")
-//    Path("/home/tsunade/messageIncount.csv").createFile().appendAll(s"$currentSuperStep,$workerID,$totalReceivedMessages\n")
 //      println(totalReceivedMessages)
     messageLogACKS += 1
     totalReceivedMessages += receivedMessages
