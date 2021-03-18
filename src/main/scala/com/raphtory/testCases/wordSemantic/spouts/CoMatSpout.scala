@@ -1,4 +1,4 @@
-package com.raphtory.spouts
+package com.raphtory.testCases.wordSemantic.spouts
 
 import java.io._
 import java.util.zip.GZIPInputStream
@@ -6,17 +6,12 @@ import java.util.zip.GZIPInputStream
 import com.raphtory.core.actors.Spout.Spout
 import com.typesafe.scalalogging.LazyLogging
 
-class FileSpout extends Spout[String] {
-  //TODO work out loggging here
-  //log.info("initialise FileSpout")
-  private val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
-  private val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
-  private val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
-  //  private val JUMP       = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "10").trim.toInt
-  private val INCREMENT = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "0").trim.toInt
-  private val TIME = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
+class CoMatSpout extends Spout[String] {
+   val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
+   val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim 
+   val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
 
-  private var fileManager = FileManager(directory, fileName, dropHeader)
+   var fileManager = FileManager(directory, fileName, dropHeader)
 
   override def generateData(): Option[String] = {
     if (fileManager.allCompleted) {
@@ -26,7 +21,7 @@ class FileSpout extends Spout[String] {
     else {
       val (newFileManager, line) = fileManager.nextLine()
       fileManager = newFileManager
-      if (line.isEmpty ) None else Some(line)
+      Some(line)
     }
   }
 
@@ -35,11 +30,11 @@ class FileSpout extends Spout[String] {
   override def closeDataSource(): Unit = {}
 }
 
-final case class FileManager private (
-    currentFileReader: Option[BufferedReader],
-    restFiles: List[File],
-    dropHeader: Boolean
-) extends LazyLogging {
+case class FileManager  ( currentFileReader: Option[BufferedReader],
+                                       restFiles: List[File],
+                                       dropHeader: Boolean,
+                                       timeInc: Long
+                                     ) extends LazyLogging {
   def nextFile(): FileManager = this.copy(currentFileReader = None)
 
   lazy val allCompleted: Boolean = currentFileReader.isEmpty && restFiles.isEmpty
@@ -52,16 +47,17 @@ final case class FileManager private (
           val reader             = getFileReader(head)
           val (block, endOfFile) = readBlockAndIsEnd(reader)
           val currentReader      = if (endOfFile) None else Some(reader)
-          (this.copy(currentFileReader = currentReader, restFiles = tail), block)
+          val time = head.getName.split('/').last.stripPrefix("D-").stripSuffix("_merge_occ").toLong * 1000000000L
+          (this.copy(currentFileReader = currentReader, restFiles = tail,timeInc=time+1), (time+1).toString +' '+ block)
       }
     case Some(reader) =>
       val (block, endOfFile) = readBlockAndIsEnd(reader)
-      if (endOfFile) (this.copy(currentFileReader = None), block)
-      else (this, block)
+      if (endOfFile) (this.copy(currentFileReader = None, timeInc=0L), block)
+      else (this.copy(timeInc=timeInc+1), timeInc.toString +' '+block)
 
   }
 
-  private def readBlockAndIsEnd(reader: BufferedReader): (String, Boolean) = {
+   def readBlockAndIsEnd(reader: BufferedReader): (String, Boolean) = {
     val line = reader.readLine()
     if (line != null)
       (line,false)
@@ -71,9 +67,9 @@ final case class FileManager private (
     }
   }
 
-  private def getFileReader(file: File): BufferedReader = {
-//    logger.info(s"Reading file ${file.getCanonicalPath}")
+   def getFileReader(file: File): BufferedReader = {
     println(s"Reading file ${file.getCanonicalPath}")
+
     var br = new BufferedReader(new FileReader(file))
     if (file.getName.endsWith(".gz")) {
       val inStream = new FileInputStream(file)
@@ -89,7 +85,7 @@ final case class FileManager private (
 }
 
 object FileManager extends LazyLogging {
-  private val joiner     = System.getenv().getOrDefault("FILE_SPOUT_JOINER", "/").trim //gabNetwork500.csv
+   val joiner     = System.getenv().getOrDefault("FILE_SPOUT_JOINER", "/").trim //gabNetwork500.csv
   def apply(dir: String, fileName: String, dropHeader: Boolean): FileManager = {
     val filesToRead =
       if (fileName.isEmpty)
@@ -103,10 +99,10 @@ object FileManager extends LazyLogging {
           List.empty
         }
       }
-    FileManager(None, filesToRead, dropHeader)
+    FileManager(None, filesToRead, dropHeader, 0L)
   }
 
-  private def getListOfFiles(dir: String): List[File] = {
+   def getListOfFiles(dir: String): List[File] = {
     val d = new File(dir)
     if (d.exists && d.isDirectory) {
       val files = getRecursiveListOfFiles(d)
@@ -118,7 +114,7 @@ object FileManager extends LazyLogging {
     }
   }
 
-  private def getRecursiveListOfFiles(dir: File): List[File] = {
+   def getRecursiveListOfFiles(dir: File): List[File] = {
     val these = dir.listFiles.toList
     these ++ these.filter(_.isDirectory).flatMap(getRecursiveListOfFiles)
   }
