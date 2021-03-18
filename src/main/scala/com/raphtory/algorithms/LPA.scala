@@ -31,17 +31,12 @@ Notes
   The returned communities may differ on multiple executions.
   **/
 object LPA {
-//  def apply(top: Int = 0, weight: String = "", maxIter: Int = 500): LPA =
-//    new LPA(Array(top.toString, weight, maxIter.toString))
   def apply(args: Array[String]): LPA = new LPA(args)
 }
 
 class LPA(args: Array[String]) extends Analyser(args) {
   //args = [top output, edge property, max iterations]
 
-//  val top_c: Int   = args.head.toInt
-//  val PROP: String = args(1)
-//  val maxIter: Int = args(2).toInt
   val arg: Array[String] = args.map(_.trim)
 
   val top: Int         = if (arg.length == 0) 0 else arg.head.toInt
@@ -54,9 +49,9 @@ class LPA(args: Array[String]) extends Analyser(args) {
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
-      val lab = (-1L, scala.util.Random.nextLong())
+      val lab = (scala.util.Random.nextLong(), scala.util.Random.nextLong())
       vertex.setState("lpalabel", lab)
-      vertex.messageAllNeighbours((vertex.ID(), lab))
+      vertex.messageAllNeighbours((vertex.ID(), lab._2))
     }
 
   override def analyse(): Unit =
@@ -73,7 +68,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
           .mapValues(x => x.map(_._2).sum / x.size)
 
         // Process neighbour labels into (label, frequency)
-        val gp = vertex.messageQueue[(Long, (Long, Long))].map(v => (v._2._2, neigh_freq(v._1)))
+        val gp = vertex.messageQueue[(Long,  Long)].map(v => (v._2, neigh_freq(v._1)))
 
         // Get label most prominent in neighborhood of vertex
         val maxlab = gp.groupBy(_._1).mapValues(_.map(_._2).sum)
@@ -87,7 +82,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
           case _ => (Vlabel, newLabel)
         }
         vertex.setState("lpalabel", nlab)
-        vertex.messageAllNeighbours((vertex.ID(), nlab))
+        vertex.messageAllNeighbours((vertex.ID(), nlab._2))
         doSomething(vertex, gp.map(_._1).toArray)
       } catch {
         case e: Exception => println(e, vertex.ID())
@@ -150,7 +145,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
       val communities         = if (top == 0) sorted.map(_._2) else sorted.map(_._2).take(top)
       fd(top5, total, totalIslands, communities)
     } catch {
-      case e: UnsupportedOperationException => fd(Array(0), 0, 0, Array(ArrayBuffer("0")))
+      case _: UnsupportedOperationException => fd(Array(0), 0, 0, Array(ArrayBuffer("0")))
     }
   }
 

@@ -1,60 +1,32 @@
-package com.raphtory.algorithms
+package com.raphtory.algodev
 
 import java.time.LocalDateTime
 
+import com.raphtory.algorithms.LPA
 import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
 
-import scala.collection.mutable
 import scala.collection.parallel.ParMap
 
-/**
-Description
-  This returns the communities of the constructed multi-layer graph as detected by synchronous label propagation.
-
-  This transforms the graph into a multi-layer graph where the same vertices on different layers are handled as
-  distinct vertices. The algorithm then runs a version of LPA on this view of the graph and returns communities that
-  share the same label that can span both vertices on the same layer and other layers.
-
-Parameters
-  top (Int)       – The number of top largest communities to return. (default: 0)
-                      If not specified, Raphtory will return all detected communities.
-  weight (String) - Edge property (default: ""). To be specified in case of weighted graph.
-  maxIter (Int)   - Maximum iterations for LPA to run. (default: 500)
-  start (Long)    - Oldest time in the graph events.
-  end (Long)      - Newest time in the graph events.
-  layerSize (Long)- Size of a single layer that spans all events occurring within this period.
-  omega (Long)    - Weight of temporal edge that are created between two layers for two persisting instances of a node.
-                  (Default: 1) If "None", the weights are assigned based on an average of the neighborhood of two layers.
-
-Returns
-  total (Int)     – Number of detected communities.
-  communities (List(List(Long))) – Communities sorted by their sizes. Returns largest top communities if specified.
-
-Notes
-  This implementation is based on LPA, which incorporates probabilistic elements; This makes it non-deterministic i.e.
-  The returned communities may differ on multiple executions.
-  **/
-object MultiLayerLPA {
-  def apply(args: Array[String]): MultiLayerLPA = new MultiLayerLPA(args)
-}
 
 class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   //args = [top, weight, maxiter, start, end, layer-size, omega]
   val snapshotSize: Long = args(5).toLong
   val startTime: Long = args(3).toLong * snapshotSize //imlater: change this when done with wsdata
   val endTime: Long = args(4).toLong * snapshotSize
-  val snapshots: Iterable[Long] = (for (ts <- startTime to endTime by snapshotSize) yield ts)
+  val snapshots: Iterable[Long] = for (ts <- startTime to endTime by snapshotSize) yield ts
   val omega: String = if (arg.length < 7) "1" else args(6)
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       // Assign random labels for all instances in time of a vertex as Map(ts, lab)
-      val tlabels = //Array[(Long, (Long, Long))]()  //im: send tuples instead of TreeMap and build the TM for processing only
+      val tlabels =
         snapshots
-          .filter(t => vertex.aliveAtWithWindow(t, snapshotSize))
-          .map(x => (x, (scala.util.Random.nextLong(), scala.util.Random.nextLong()))).toArray
+          .filter(ts => vertex.aliveAtWithWindow(ts, snapshotSize))
+//          .map(ts => (ts, (scala.util.Random.nextLong(), scala.util.Random.nextLong()))).toArray
+          .map(x => (x, (vertex.ID()+x,vertex.ID()-x))).toArray //IM: remove this after testing
       vertex.setState("mlpalabel", tlabels)
-      vertex.messageAllNeighbours((vertex.ID(), tlabels)) //im: only send last label
+      val message = (vertex.ID(), tlabels.map(x=> (x._1, x._2._2)))
+      vertex.messageAllNeighbours(message)
     }
 
   override def analyse(): Unit = {
@@ -62,7 +34,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
     try
       view.getMessagedVertices().foreach { vertex =>
         val vlabel = vertex.getState[Array[(Long, (Long, Long))]]("mlpalabel").toMap
-        val msgQueue = vertex.messageQueue[(Long, Array[(Long, (Long, Long))])]
+        val msgQueue = vertex.messageQueue[(Long, Array[(Long, Long)])]
         var voteCount = 0
         val newLabel = vlabel.map { tv =>
           val ts = tv._1
@@ -72,8 +44,8 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
             .filter(x => nei_ts_freq.keySet.contains(x._1)) // filter messages from neighbours at time ts only
             .map { msg =>
               val freq = nei_ts_freq(msg._1)
-              val message = msg._2.filter(_._1==ts).head._2
-              (message._2, freq) //get label at time ts -> (lab, freq)
+              val label_ts = msg._2.filter(_._1==ts).head._2
+              (label_ts, freq) //get label at time ts -> (lab, freq)
             }
 
           //Get labels of past/future instances of vertex //IMlater: links between non consecutive layers should persist or at least degrade?
@@ -98,7 +70,9 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
         }.toArray
 
         vertex.setState("mlpalabel", newLabel)
-        vertex.messageAllNeighbours((vertex.ID(), newLabel))
+        val message = (vertex.ID(), newLabel.map(x=> (x._1, x._2._2)))
+        vertex.messageAllNeighbours(message)
+
         // Vote to halt if all instances of vertex haven't changed their labels
         if (voteCount == vlabel.size) vertex.voteToHalt()
       }
@@ -118,7 +92,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
 
   def weightFunction(v: VertexVisitor, ts: Long): ParMap[Long, Double] =
     (v.getInCEdgesBetween(ts - snapshotSize, ts) ++ v.getOutEdgesBetween(ts - snapshotSize, ts))
-      .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0).asInstanceOf[Double])) //  im: fix this one after pulling new changes
+      .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0).asInstanceOf[Double])) 
       .groupBy(_._1)
       .mapValues(x => x.map(_._2).sum / x.size) // (ID -> Freq)
 
