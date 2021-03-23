@@ -1,10 +1,10 @@
-package com.raphtory.core.model.analysis.GraphLenses
+package com.raphtory.core.analysis.GraphLenses
 
 import akka.actor.ActorContext
-import com.raphtory.api.ManagerCount
+import com.raphtory.core.analysis.api.ManagerCount
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.EntityStorage
-import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.entityVisitors.VertexVisitor
 import com.raphtory.core.model.graphentities.Vertex
 import kamon.Kamon
 

@@ -1,6 +1,6 @@
 package com.raphtory.examples.gab.analysis
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 

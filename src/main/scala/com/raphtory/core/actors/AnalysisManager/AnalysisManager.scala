@@ -5,7 +5,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.analysis.Tasks.AnalysisTask.Message.FailedToCompile
-import com.raphtory.api.{Analyser, BlankAnalyser, LoadExternalAnalyser}
+import com.raphtory.core.analysis.api.{Analyser, BlankAnalyser, LoadExternalAnalyser}
 import com.raphtory.analysis.Tasks.LiveTasks.{BWindowedLiveAnalysisTask, LiveAnalysisTask, WindowedLiveAnalysisTask}
 import com.raphtory.analysis.Tasks.RangeTasks.{BWindowedRangeAnalysisTask, RangeAnalysisTask, WindowedRangeAnalysisTask}
 import com.raphtory.analysis.Tasks.ViewTasks.{BWindowedViewAnalysisTask, ViewAnalysisTask, WindowedViewAnalysisTask}

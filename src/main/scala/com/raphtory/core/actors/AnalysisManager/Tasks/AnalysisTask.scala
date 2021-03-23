@@ -7,7 +7,7 @@ import com.mongodb.DBObject
 import com.mongodb.casbah.{MongoClient, MongoClientURI}
 import com.mongodb.util.JSON
 import com.raphtory.analysis.Tasks.AnalysisTask.Message._
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
 import com.raphtory.core.actors.AnalysisManager.StartAnalysis
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob

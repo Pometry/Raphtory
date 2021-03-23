@@ -1,6 +1,6 @@
 package com.raphtory.core.model.communication
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.graphentities.Edge
 

@@ -1,7 +1,7 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.Analyser
-import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.analysis.entityVisitors.VertexVisitor
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable

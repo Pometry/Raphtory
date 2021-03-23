@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.entityVisitors.VertexVisitor
 
 import java.time.LocalDateTime
 import scala.collection.parallel.ParMap

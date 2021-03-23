@@ -1,6 +1,6 @@
 package com.raphtory.analysis.Tasks.ViewTasks
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.model.communication.AnalysisType
 
 class WindowedViewAnalysisTask(managerCount:Int, jobID: String,args:Array[String], analyser: Analyser, time: Long, window: Long,newAnalyser:Boolean,rawFile:String)

@@ -1,9 +1,9 @@
-package com.raphtory.api
+package com.raphtory.core.analysis.api
 
 import java.io.{BufferedWriter, File, FileWriter}
 
 import akka.actor.ActorContext
-import com.raphtory.core.model.analysis.GraphLenses.GraphLens
+import com.raphtory.core.analysis.GraphLenses.GraphLens
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

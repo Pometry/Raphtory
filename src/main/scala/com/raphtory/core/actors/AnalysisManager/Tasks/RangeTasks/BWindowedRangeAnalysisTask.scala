@@ -1,6 +1,6 @@
 package com.raphtory.analysis.Tasks.RangeTasks
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.model.communication.AnalysisType
 
 import scala.collection.mutable.ArrayBuffer
