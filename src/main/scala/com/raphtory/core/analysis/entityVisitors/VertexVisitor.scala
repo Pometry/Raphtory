@@ -1,10 +1,10 @@
-package com.raphtory.core.model.analysis.entityVisitors
+package com.raphtory.core.analysis.entityVisitors
 
 import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.api.ManagerCount
+import com.raphtory.core.analysis.api.ManagerCount
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
-import com.raphtory.core.model.analysis.GraphLenses.GraphLens
+import com.raphtory.core.analysis.GraphLenses.GraphLens
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graphentities.{Edge, Vertex}
 

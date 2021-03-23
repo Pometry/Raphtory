@@ -2,7 +2,7 @@ package com.raphtory.dev.algorithms
 
 import com.github.mjakubowski84.parquet4s.ParquetWriter
 import com.raphtory.algorithms.{LPA, sortOrdering}
-import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.entityVisitors.VertexVisitor
 import org.apache.parquet.hadoop.ParquetFileWriter
 
 import java.time.LocalDateTime

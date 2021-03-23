@@ -1,6 +1,6 @@
 package examples.lotr
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable

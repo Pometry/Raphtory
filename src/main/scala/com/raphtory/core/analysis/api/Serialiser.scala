@@ -1,8 +1,8 @@
-package com.raphtory.api
+package com.raphtory.core.analysis.api
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import com.raphtory.core.model.analysis.entityVisitors.{EdgeVisitor, VertexVisitor}
+import com.raphtory.core.analysis.entityVisitors.{EdgeVisitor, VertexVisitor}
 
 import scala.collection.mutable.ArrayBuffer
 

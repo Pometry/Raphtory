@@ -1,7 +1,7 @@
 package com.raphtory.serialisers
 
-import com.raphtory.api.Serialiser
-import com.raphtory.core.model.analysis.entityVisitors.{EdgeVisitor, VertexVisitor}
+import com.raphtory.core.analysis.api.Serialiser
+import com.raphtory.core.analysis.entityVisitors.{EdgeVisitor, VertexVisitor}
 
 import scala.collection.parallel.mutable.ParTrieMap
 

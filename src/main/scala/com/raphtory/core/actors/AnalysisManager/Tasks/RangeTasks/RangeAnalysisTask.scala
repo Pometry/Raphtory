@@ -1,7 +1,7 @@
 package com.raphtory.analysis.Tasks.RangeTasks
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.analysis.Tasks.AnalysisTask
 import com.raphtory.analysis.Tasks.AnalysisTask.Message.AnalyserPresentCheck
 import com.raphtory.core.model.communication.AnalysisType

@@ -1,4 +1,4 @@
-package com.raphtory.core.model.analysis.entityVisitors
+package com.raphtory.core.analysis.entityVisitors
 
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.graphentities.Entity

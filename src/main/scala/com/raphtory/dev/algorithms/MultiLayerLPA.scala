@@ -1,7 +1,7 @@
 package com.raphtory.dev.algorithms
 
 import com.raphtory.algorithms.LPA
-import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.entityVisitors.VertexVisitor
 
 import java.time.LocalDateTime
 import scala.collection.parallel.ParMap
