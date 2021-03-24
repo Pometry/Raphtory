@@ -1,4 +1,4 @@
-package com.raphtory.core.model.graphentities
+package com.raphtory.core.model.entities
 
 class ImmutableProperty(creationTime: Long, value: Any) extends Property {
   var earliestTime: Long                = creationTime

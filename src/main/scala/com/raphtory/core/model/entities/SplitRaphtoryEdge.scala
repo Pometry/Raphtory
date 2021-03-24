@@ -1,4 +1,4 @@
-package com.raphtory.core.model.graphentities
+package com.raphtory.core.model.entities
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -6,7 +6,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 /**
   * Companion Edge object (extended creator for storage loads)
   */
-object SplitEdge {
+object SplitRaphtoryEdge {
   def apply(
       workerID: Int,
       creationTime: Long,
@@ -15,7 +15,7 @@ object SplitEdge {
       previousState: mutable.TreeMap[Long, Boolean],
       properties: ParTrieMap[String, Property]
   ) = {
-    val e = new SplitEdge(workerID: Int, creationTime, srcID, dstID, initialValue = true)
+    val e = new SplitRaphtoryEdge(workerID: Int, creationTime, srcID, dstID, initialValue = true)
     e.history = previousState
     e.properties = properties
     e
@@ -29,11 +29,11 @@ object SplitEdge {
   * and which partition this other half is stored in
   *
   */
-class SplitEdge(
+class SplitRaphtoryEdge(
     workerID: Int,
     msgTime: Long,
     srcID: Long,
     dstID: Long,
     initialValue: Boolean)
-  extends Edge(workerID, msgTime, srcID, dstID, initialValue) {
+  extends RaphtoryEdge(workerID, msgTime, srcID, dstID, initialValue) {
 }

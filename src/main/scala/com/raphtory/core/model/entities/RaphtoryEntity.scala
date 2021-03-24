@@ -1,4 +1,4 @@
-package com.raphtory.core.model.graphentities
+package com.raphtory.core.model.entities
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -11,7 +11,7 @@ import scala.collection.parallel.mutable.ParTrieMap
   * @param creationTime ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced
   */
-abstract class Entity(val creationTime: Long, isInitialValue: Boolean) {
+abstract class RaphtoryEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   // Properties from that entity
   private var entityType: Option[String]               = None

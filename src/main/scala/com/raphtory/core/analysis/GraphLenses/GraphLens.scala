@@ -6,8 +6,8 @@ import akka.actor.ActorContext
 import com.raphtory.core.analysis.api.ManagerCount
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.EntityStorage
-import com.raphtory.core.analysis.entityVisitors.VertexVisitor
-import com.raphtory.core.model.graphentities.Vertex
+import com.raphtory.core.analysis.entity.Vertex
+import com.raphtory.core.model.entities.RaphtoryVertex
 
 import scala.collection.parallel.ParIterable
 
@@ -16,13 +16,13 @@ abstract class GraphLens(jobID: ViewJob, superstep: Int, storage: EntityStorage,
   protected var voteCount  = new AtomicInteger(0)
   def superStep() = superstep
 
-  def getVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] =
-    storage.vertices.map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
+  def getVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[Vertex] =
+    storage.vertices.map(v =>  new Vertex(v._2, jobID, superstep, this))
 
-  def getMessagedVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] =
+  def getMessagedVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[Vertex] =
     storage.vertices.filter {
-      case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(jobID, superstep).nonEmpty
-    }.map(v =>  new VertexVisitor(v._2, jobID, superstep, this))
+      case (id: Long, vertex: RaphtoryVertex) => vertex.multiQueue.getMessageQueue(jobID, superstep).nonEmpty
+    }.map(v =>  new Vertex(v._2, jobID, superstep, this))
 
 
   //TODO hide away

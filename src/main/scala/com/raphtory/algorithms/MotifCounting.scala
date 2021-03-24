@@ -1,7 +1,7 @@
 package com.raphtory.algorithms
 
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.analysis.entityVisitors.EdgeVisitor
+import com.raphtory.core.analysis.entity.Edge
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.{ParIterable, ParMap}
@@ -95,7 +95,7 @@ s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"vie
 
   override def defineMaxSteps(): Int = 10
 
-  def motifCounting(mType: Int, inc: ParIterable[EdgeVisitor], outc: ParIterable[EdgeVisitor]): Double = {
+  def motifCounting(mType: Int, inc: ParIterable[Edge], outc: ParIterable[Edge]): Double = {
     var t_in   = inc.flatMap(e => e.getHistory().keys).toArray.sorted
     var t_out  = outc.flatMap(e => e.getHistory().keys).toArray.sorted
     val tEdges = t_in ++ t_out
@@ -128,8 +128,8 @@ s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"vie
   }
   def nChoosek(n: Long, k: Long = 2): Long         = if (k == 0L) 1L else (n * nChoosek(n - 1, k - 1)) / k
   def mean(a: Array[Double]): Double =    if (a.nonEmpty) a.sum / a.length else 0.0 //the fact i have to build this is maddening dont touch me
-  def checkActivity(edges: ParIterable[EdgeVisitor], t1: Long, t2: Long): Boolean =    edges.exists(e => e.getHistory().exists(k => k._1 >= t1 && k._1 < t2)) //  IM: change this to range
-  def getTimes(edge: EdgeVisitor, time: Long): Iterable[Long] =    edge.getHistory().filter { case (t, true) => t >= time & t < time + delta }.keys
-  def getProperties(edges: ParIterable[EdgeVisitor], time: Long, prop: String): Array[Double] =
+  def checkActivity(edges: ParIterable[Edge], t1: Long, t2: Long): Boolean =    edges.exists(e => e.getHistory().exists(k => k._1 >= t1 && k._1 < t2)) //  IM: change this to range
+  def getTimes(edge: Edge, time: Long): Iterable[Long] =    edge.getHistory().filter { case (t, true) => t >= time & t < time + delta }.keys
+  def getProperties(edges: ParIterable[Edge], time: Long, prop: String): Array[Double] =
     edges.map(e => getTimes(e, time).foldLeft(0.0) {  case (a, b) => a + e.getPropertyValueAt(prop, b).getOrElse(0.0).asInstanceOf[Double] }).toArray
 }

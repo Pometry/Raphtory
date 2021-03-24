@@ -2,7 +2,7 @@ package com.raphtory.core.model.communication
 
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
-import com.raphtory.core.model.graphentities.Edge
+import com.raphtory.core.model.entities.RaphtoryEdge
 
 import scala.collection.mutable
 
@@ -46,8 +46,8 @@ case class RemoteReturnDeaths(msgTime: Long, srcId: Long, dstId: Long, kills: mu
 case class ReturnEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(srcId)
 
 //BLOCK FROM WORKER SYNC
-case class DstAddForOtherWorker(msgTime: Long, srcId: Long, dstId: Long, edge: Edge, present: Boolean) extends GraphUpdateEffect(dstId)
-case class DstWipeForOtherWorker(msgTime: Long, srcId: Long, dstId: Long, edge: Edge, present: Boolean) extends GraphUpdateEffect(dstId)
+case class DstAddForOtherWorker(msgTime: Long, srcId: Long, dstId: Long, edge: RaphtoryEdge, present: Boolean) extends GraphUpdateEffect(dstId)
+case class DstWipeForOtherWorker(msgTime: Long, srcId: Long, dstId: Long, edge: RaphtoryEdge, present: Boolean) extends GraphUpdateEffect(dstId)
 case class DstResponseFromOtherWorker(msgTime: Long, srcId: Long, dstId: Long, removeList: mutable.TreeMap[Long, Boolean]) extends GraphUpdateEffect(srcId)
 case class EdgeRemoveForOtherWorker(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(srcId)
 case class EdgeSyncAck(msgTime: Long, srcId: Long) extends GraphUpdateEffect(srcId)

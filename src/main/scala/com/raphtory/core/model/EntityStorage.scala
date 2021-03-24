@@ -1,7 +1,7 @@
 package com.raphtory.core.model
 
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.{Edge, Entity, SplitEdge, Vertex}
+import com.raphtory.core.model.entities.{RaphtoryEdge, RaphtoryEntity, SplitRaphtoryEdge, RaphtoryVertex}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 
@@ -19,7 +19,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
   /**
     * Map of vertices contained in the partition
     */
-  val vertices = ParTrieMap[Long, Vertex]()
+  val vertices = ParTrieMap[Long, RaphtoryVertex]()
 
   var managerCount: Int = initManagerCount
   //stuff for compression and archiving
@@ -48,7 +48,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
 
   def setManagerCount(count: Int) = this.managerCount = count
 
-  def addProperties(msgTime: Long, entity: Entity, properties: Properties): Unit =
+  def addProperties(msgTime: Long, entity: RaphtoryEntity, properties: Properties): Unit =
     properties.property.foreach {
       case StringProperty(key, value)    => entity + (msgTime, false, key, value)
       case LongProperty(key, value)      => entity + (msgTime, false, key, value)
@@ -57,13 +57,13 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
     }
   // if the add come with some properties add all passed properties into the entity
 
-  def addVertex(msgTime: Long, srcId: Long, properties: Properties, vertexType: Option[Type]): Vertex = { //Vertex add handler function
-    val vertex: Vertex = vertices.get(srcId) match { //check if the vertex exists
+  def addVertex(msgTime: Long, srcId: Long, properties: Properties, vertexType: Option[Type]): RaphtoryVertex = { //Vertex add handler function
+    val vertex: RaphtoryVertex = vertices.get(srcId) match { //check if the vertex exists
       case Some(v) => //if it does
         v revive msgTime //add the history point
         v
       case None => //if it does not exist
-        val v = new Vertex(msgTime, srcId, initialValue = true) //create a new vertex
+        val v = new RaphtoryVertex(msgTime, srcId, initialValue = true) //create a new vertex
         vertexCount.increment()
         v.setType(vertexType.map(_.name))
         vertices put (srcId, v) //put it in the map
@@ -74,25 +74,25 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
     vertex //return the vertex
   }
 
-  def getVertexOrPlaceholder(msgTime: Long, id: Long): Vertex =
+  def getVertexOrPlaceholder(msgTime: Long, id: Long): RaphtoryVertex =
     vertices.get(id) match {
       case Some(vertex) => vertex
       case None =>
         vertexCount.increment()
-        val vertex = new Vertex(msgTime, id, initialValue = true)
+        val vertex = new RaphtoryVertex(msgTime, id, initialValue = true)
         vertices put (id, vertex)
         vertex wipe ()
         vertex
     }
 
   def vertexWorkerRequest(
-      msgTime: Long,
-      srcId: Long,
-      dstId: Long,
-      edge: Edge,
-      present: Boolean,
-      channelId: String,
-      channelTime: Int
+                           msgTime: Long,
+                           srcId: Long,
+                           dstId: Long,
+                           edge: RaphtoryEdge,
+                           present: Boolean,
+                           channelId: String,
+                           channelTime: Int
   ): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = addVertex(msgTime, dstId, Properties(), None) //if the worker creating an edge does not deal with the destination
     if (!present) {
@@ -108,13 +108,13 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
   }
 
   def vertexWipeWorkerRequest(
-      msgTime: Long,
-      srcId: Long,
-      dstId: Long,
-      edge: Edge,
-      present: Boolean,
-      channelId: String,
-      channelTime: Int
+                               msgTime: Long,
+                               srcId: Long,
+                               dstId: Long,
+                               edge: RaphtoryEdge,
+                               present: Boolean,
+                               channelId: String,
+                               channelTime: Int
   ): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId) // if the worker creating an edge does not deal with do the same for the destination ID
     if (!present) {
@@ -152,7 +152,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
         v
       case None => //if the removal has arrived before the creation
         vertexCount.increment()
-        val v = new Vertex(msgTime, srcId, initialValue = false) //create a placeholder
+        val v = new RaphtoryVertex(msgTime, srcId, initialValue = false) //create a placeholder
         vertices put (srcId, v) //add it to the map
         v
     }
@@ -160,7 +160,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
     val messagesForIncoming = vertex.incomingEdges
       .map { edge =>
         edge._2 match {
-          case remoteEdge: SplitEdge =>
+          case remoteEdge: SplitRaphtoryEdge =>
             remoteEdge kill msgTime
             Some[TrackedGraphEffect[GraphUpdateEffect]](
                     TrackedGraphEffect(
@@ -188,7 +188,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
     val messagesForOutgoing = vertex.outgoingEdges
       .map { edge =>
         edge._2 match {
-          case remoteEdge: SplitEdge =>
+          case remoteEdge: SplitRaphtoryEdge =>
             remoteEdge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
             Some[TrackedGraphEffect[GraphUpdateEffect]](
                     TrackedGraphEffect(
@@ -233,11 +233,11 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
         (true, e)
       case None => //if it does not
         val newEdge = if (local) {
-          val created = new Edge(workerID, msgTime, srcId, dstId, initialValue = true) //create the new edge, local or remote
+          val created = new RaphtoryEdge(workerID, msgTime, srcId, dstId, initialValue = true) //create the new edge, local or remote
           localEdgeCount.increment()
           created
         } else {
-          val created = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = true)
+          val created = new SplitRaphtoryEdge(workerID, msgTime, srcId, dstId, initialValue = true)
           masterSplitEdgeCount.increment()
           created
         }
@@ -303,7 +303,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       channelTime: Int
   ): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = addVertex(msgTime, dstId, Properties(), None) //create or revive the destination node
-    val edge      = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = true)
+    val edge      = new SplitRaphtoryEdge(workerID, msgTime, srcId, dstId, initialValue = true)
     copySplitEdgeCount.increment()
     dstVertex addIncomingEdge (edge) //add the edge to the associated edges of the destination node
     val deaths = dstVertex.removeList //get the destination node deaths
@@ -344,7 +344,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
     val local      = checkDst(dstId, managerCount, managerID)
     val sameWorker = checkWorker(dstId, managerCount, workerID) // is the dst handled by the same worker
 
-    val srcVertex: Vertex = getVertexOrPlaceholder(msgTime, srcId)
+    val srcVertex: RaphtoryVertex = getVertexOrPlaceholder(msgTime, srcId)
 
     val (present, edge) = srcVertex.getOutgoingEdge(dstId) match {
       case Some(e) =>
@@ -352,10 +352,10 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       case None =>
         val newEdge = if (local) {
           localEdgeCount.increment()
-          new Edge(workerID, msgTime, srcId, dstId, initialValue = false)
+          new RaphtoryEdge(workerID, msgTime, srcId, dstId, initialValue = false)
         } else {
           masterSplitEdgeCount.increment()
-          new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = false)
+          new SplitRaphtoryEdge(workerID, msgTime, srcId, dstId, initialValue = false)
         }
         srcVertex.addOutgoingEdge(newEdge) // add the edge to the associated edges of the source node
         (false, newEdge)
@@ -462,7 +462,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.incrementEdgesRequiringSync()
     copySplitEdgeCount.increment()
-    val edge = new SplitEdge(workerID, msgTime, srcId, dstId, initialValue = false)
+    val edge = new SplitRaphtoryEdge(workerID, msgTime, srcId, dstId, initialValue = false)
     dstVertex addIncomingEdge (edge) //add the edge to the destination nodes associated list
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcDeaths //pass source node death lists to the edge

@@ -2,7 +2,7 @@ package com.raphtory.core.analysis.api
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import com.raphtory.core.analysis.entityVisitors.{EdgeVisitor, VertexVisitor}
+import com.raphtory.core.analysis.entity.{Edge, Vertex}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -11,8 +11,8 @@ abstract class Serialiser extends Analyser(null){
   val path  = s"${sys.env.getOrElse("SERIALISER_PATH", "")}"
 
 
-  def serialiseVertex(v:VertexVisitor):String
-  def serialiseEdge(e:EdgeVisitor):String
+  def serialiseVertex(v:Vertex):String
+  def serialiseEdge(e:Edge):String
   def startOfFile():String
   def middleOfFile():String
   def endOfFile():String

@@ -1,4 +1,4 @@
-package com.raphtory.core.model.graphentities
+package com.raphtory.core.model.entities
 
 import com.raphtory.core.model.EntityStorage
 
@@ -8,7 +8,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 /**
   * Companion Edge object (extended creator for storage loads)
   */
-object Edge {
+object RaphtoryEdge {
   def apply(
       workerID: Int,
       creationTime: Long,
@@ -19,7 +19,7 @@ object Edge {
       storage: EntityStorage
   ) = {
 
-    val e = new Edge(workerID, creationTime, srcID, dstID, initialValue = true)
+    val e = new RaphtoryEdge(workerID, creationTime, srcID, dstID, initialValue = true)
     e.history = previousState
     e.properties = properties
     e
@@ -30,8 +30,8 @@ object Edge {
 /**
   * Created by Mirate on 01/03/2017.
   */
-class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean)
-        extends Entity(msgTime, initialValue) {
+class RaphtoryEdge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean)
+        extends RaphtoryEntity(msgTime, initialValue) {
 
   def killList(vKills: mutable.TreeMap[Long, Boolean]): Unit = history ++= vKills
 
@@ -39,7 +39,7 @@ class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue:
   def getDstId: Long   = dstId
   def getWorkerID: Int = workerID
 
-  def viewAt(time: Long): Edge = {
+  def viewAt(time: Long): RaphtoryEdge = {
     var closestTime: Long = 0
     var value             = false
     for ((k, v) <- history)
@@ -48,7 +48,7 @@ class Edge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue:
           closestTime = k
           value = v
         }
-    val edge = new Edge(-1, closestTime, srcId, dstId, value)
+    val edge = new RaphtoryEdge(-1, closestTime, srcId, dstId, value)
     for ((k, p) <- properties) {
       val value = p.valueAt(time)
       if (!(value equals ("")))

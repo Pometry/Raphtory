@@ -1,7 +1,7 @@
 package com.raphtory.algorithms
 
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.entity.Vertex
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -89,7 +89,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
       }
     }
 
-  def doSomething(v: VertexVisitor, gp: Array[Long]): Unit = {}
+  def doSomething(v: Vertex, gp: Array[Long]): Unit = {}
 
   override def returnResults(): Any =
     view

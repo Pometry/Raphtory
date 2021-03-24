@@ -1,4 +1,4 @@
-package com.raphtory.core.model.graphentities
+package com.raphtory.core.model.entities
 
 abstract class Property {
   def update(msgTime: Long, newValue: Any): Unit

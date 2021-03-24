@@ -1,7 +1,7 @@
 package com.raphtory.serialisers
 
 import com.raphtory.core.analysis.api.Serialiser
-import com.raphtory.core.analysis.entityVisitors.{EdgeVisitor, VertexVisitor}
+import com.raphtory.core.analysis.entity.{Edge, Vertex}
 
 class NetworkXSerialiser extends Serialiser {
 
@@ -9,7 +9,7 @@ class NetworkXSerialiser extends Serialiser {
 
   override def middleOfFile() :String = ""
 
-  override def serialiseVertex(v: VertexVisitor): String = {
+  override def serialiseVertex(v: Vertex): String = {
     val properties =v.getPropertySet().map(property => s"${property._1} = ${property._2}").toArray.mkString(",")
     if(properties.nonEmpty) {
       if (v.Type().nonEmpty)
@@ -25,7 +25,7 @@ class NetworkXSerialiser extends Serialiser {
     }
   }
 
-  override def serialiseEdge(e: EdgeVisitor): String = {
+  override def serialiseEdge(e: Edge): String = {
     val properties =e.getPropertySet().map(property => s"${property._1} = ${property._2}").toArray.mkString(",")
     if(properties.nonEmpty) {
       if (e.Type().nonEmpty)

@@ -1,7 +1,7 @@
 package com.raphtory.dev.algorithms
 
 import com.github.mjakubowski84.parquet4s.ParquetWriter
-import com.raphtory.core.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.entity.Vertex
 import org.apache.parquet.hadoop.ParquetFileWriter
 
 import scala.collection.mutable.ArrayBuffer
@@ -19,7 +19,7 @@ class MultiLayerLPAparams(args: Array[String]) extends MultiLayerLPA(args) {
 //  val theta: Double = if (arg.length < 8) 0.0 else args(7).toDouble
   val scaled: Boolean = if (arg.length < 8) false else args(7).toBoolean
 
-  override def weightFunction(v: VertexVisitor, ts: Long): ParMap[Long, Double] = {
+  override def weightFunction(v: Vertex, ts: Long): ParMap[Long, Double] = {
     var nei_weights =
       (v.getInCEdgesBetween(ts - snapshotSize, ts) ++ v.getOutEdgesBetween(ts - snapshotSize, ts)).map(e =>
         (e.ID(), e.getPropertyValue(weight).getOrElse(1.0).asInstanceOf[Double])
