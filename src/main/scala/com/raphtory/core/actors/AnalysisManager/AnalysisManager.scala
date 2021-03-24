@@ -6,9 +6,9 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.analysis.Tasks.AnalysisTask.Message.FailedToCompile
 import com.raphtory.core.analysis.api.{Analyser, BlankAnalyser, LoadExternalAnalyser}
-import com.raphtory.analysis.Tasks.LiveTasks.{BWindowedLiveAnalysisTask, LiveAnalysisTask, WindowedLiveAnalysisTask}
-import com.raphtory.analysis.Tasks.RangeTasks.{BWindowedRangeAnalysisTask, RangeAnalysisTask, WindowedRangeAnalysisTask}
-import com.raphtory.analysis.Tasks.ViewTasks.{BWindowedViewAnalysisTask, ViewAnalysisTask, WindowedViewAnalysisTask}
+import com.raphtory.analysis.Tasks.LiveTasks.{LiveAnalysisTask, WindowedLiveAnalysisTask}
+import com.raphtory.analysis.Tasks.RangeTasks.{RangeAnalysisTask, WindowedRangeAnalysisTask}
+import com.raphtory.analysis.Tasks.ViewTasks.{ViewAnalysisTask, WindowedViewAnalysisTask}
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
 import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi._
 import com.raphtory.core.actors.ClusterManagement.WatchDog.Message._
@@ -84,8 +84,6 @@ class AnalysisManager() extends RaphtoryActor{
           context.system.actorOf(Props(new LiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"), s"LiveAnalysisTask_$jobID")
         case "true" =>
           context.system.actorOf(Props(new WindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSize,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"), s"LiveAnalysisTask__windowed_$jobID")
-        case "batched" =>
-          context.system.actorOf(Props(new BWindowedLiveAnalysisTask(managerCount, jobID,args, analyser,repeatTime,eventTime, request.windowSet,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"), s"LiveAnalysisTask__batchWindowed_$jobID")
       }
       currentTasks put (jobID,ref)
   }
@@ -114,11 +112,6 @@ class AnalysisManager() extends RaphtoryActor{
           context.system.actorOf(
             Props(new WindowedViewAnalysisTask(managerCount,jobID,args, analyser, timestamp, request.windowSize,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"),
             s"ViewAnalysisTask_windowed_$jobID"
-          )
-        case "batched" =>
-          context.system.actorOf(
-            Props(new BWindowedViewAnalysisTask(managerCount,jobID, args,analyser, timestamp, request.windowSet,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"),
-            s"ViewAnalysisTask_batchWindowed_$jobID"
           )
       }
       currentTasks put (jobID,ref)
@@ -150,11 +143,6 @@ class AnalysisManager() extends RaphtoryActor{
           context.system.actorOf(
             Props(new WindowedRangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump, request.windowSize,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"),
             s"RangeAnalysisTask_windowed_$jobID"
-          )
-        case "batched" =>
-          context.system.actorOf(
-            Props(new BWindowedRangeAnalysisTask(managerCount,jobID,args, analyser, start, end, jump, request.windowSet,newAnalyser,analyserFile)).withDispatcher("analysis-dispatcher"),
-            s"RangeAnalysisTask_batchWindowed_$jobID"
           )
       }
       currentTasks put (jobID,ref)

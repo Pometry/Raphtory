@@ -4,7 +4,7 @@ import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
-class StateTest(args:Array[String]) extends Analyser[Any](args){
+class StateTest(args:Array[String]) extends Analyser[(Int, Int, Int, Int, Int, Int,Int,Int,Int,Int, Int, Int, Int, Int,Int,Int,Int,Int)](args){
 
   override def analyse(): Unit = {}
 
@@ -66,28 +66,27 @@ class StateTest(args:Array[String]) extends Analyser[Any](args){
 
   override def defineMaxSteps(): Int = 1
 
-  override def extractResults(results: Array[Any]): Any = {
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Int, Int, Int,Int,Int,Int,Int, Int, Int, Int, Int,Int,Int,Int,Int)]]
-    val totalVert = endResults.map( x => x._1 ).sum
-    val totDeg = endResults.map(x => x._2).sum
-    val maxDeg = endResults.map(x => x._6).max
-    val InEdge = endResults.map(x => x._3).sum
-    val OutEdge = endResults.map(x => x._4).sum
+  override def extractResults(results: Array[(Int, Int, Int, Int, Int, Int,Int,Int,Int,Int, Int, Int, Int, Int,Int,Int,Int,Int)]): Any = {
+    val totalVert = results.map( x => x._1 ).sum
+    val totDeg = results.map(x => x._2).sum
+    val maxDeg = results.map(x => x._6).max
+    val InEdge = results.map(x => x._3).sum
+    val OutEdge = results.map(x => x._4).sum
     //val DegSq = if (totalVert > 0) endResults.map(x => x._5/totalVert.toDouble).sum else 0.0
-    val vdeletionstotal = endResults.map( x => x._7).sum
-    val vcreationstotal = endResults.map( x => x._8).sum
-    val outedgedeletionstotal = endResults.map( x => x._9).sum
-    val outedgecreationstotal = endResults.map( x => x._10).sum
-    val inedgedeletionstotal = endResults.map( x => x._11).sum
-    val inedgecreationstotal = endResults.map( x => x._12).sum
+    val vdeletionstotal = results.map( x => x._7).sum
+    val vcreationstotal = results.map( x => x._8).sum
+    val outedgedeletionstotal = results.map( x => x._9).sum
+    val outedgecreationstotal = results.map( x => x._10).sum
+    val inedgedeletionstotal = results.map( x => x._11).sum
+    val inedgecreationstotal = results.map( x => x._12).sum
 
-    val properties = endResults.map( x => x._13).sum
-    val propertyhistory = endResults.map( x => x._14).sum
-    val outedgeProperties = endResults.map( x => x._15).sum
-    val outedgePropertyHistory = endResults.map( x => x._16).sum
+    val properties = results.map( x => x._13).sum
+    val propertyhistory = results.map( x => x._14).sum
+    val outedgeProperties = results.map( x => x._15).sum
+    val outedgePropertyHistory = results.map( x => x._16).sum
 
-    val inedgeProperties = endResults.map( x => x._17).sum
-    val inedgePropertyHistory = endResults.map( x => x._18).sum
+    val inedgeProperties = results.map( x => x._17).sum
+    val inedgePropertyHistory = results.map( x => x._18).sum
 
     val text =
       s"""{"vertices":$totalVert, "maxDeg":$maxDeg,
