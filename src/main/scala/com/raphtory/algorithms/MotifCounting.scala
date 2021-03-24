@@ -59,33 +59,14 @@ class MotifCounting(args: Array[String]) extends Analyser[Any](args) { //IM: bet
       }
       .toMap
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: Array[Any]): Any = {
     val endResults = results.asInstanceOf[ArrayBuffer[ParMap[Long, (Double, Double)]]].flatten
     val filtered      = endResults.filter(x=> (x._2._1>0)|(x._2._2>0)).map(x => s""""${x._1}":{"mc1":${x._2._1}, "mc2":${x._2._2}}""")
     val total         = filtered.length
     val count         = if (top == 0) filtered else filtered.take(top)
     val text          =
-s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"viewTime":$viewCompleteTime}"""
+s"""{"total": $total, "motifs":{ ${count.mkString(",")} }}"""
 
-    output_file match {
-      case "" => println(text)
-      case "mongo" => publishData(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
-  }
-
-  override def processWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSize: Long,
-      viewCompleteTime: Long
-  ): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[ParMap[Long, (Double, Double)]]].flatten
-    val filtered      = endResults.filter(x=> (x._2._1>0)|(x._2._2>0)).map(x => s""""${x._1}":{"mc1":${x._2._1}, "mc2":${x._2._2}}""")
-    val total         = filtered.length
-    val count         = if (top == 0) filtered else filtered.take(top)
-    val text          = s"""{"time":$timestamp,"windowsize":$windowSize,"total": $total,"motifs":{ ${count
-      .mkString(",")} },"viewTime":$viewCompleteTime}"""
     output_file match {
       case "" => println(text)
       case "mongo" => publishData(text)

@@ -7,6 +7,6 @@ class WindowedRangeAnalysisTask(managerCount:Int, jobID: String,args:Array[Strin
         extends RangeAnalysisTask(managerCount,jobID, args, analyser, start, end, jump,newAnalyser,rawFile) {
   override def windowSize(): Long = window
   override def processResults(time: Long) =
-    analyser.processWindowResults(result, timestamp(), windowSize(), viewCompleteTime)
+    analyser.extractResults(result)
   override protected def analysisType(): AnalysisType.Value = AnalysisType.range
 }

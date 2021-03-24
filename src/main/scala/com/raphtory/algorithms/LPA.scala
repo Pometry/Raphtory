@@ -99,13 +99,12 @@ class LPA(args: Array[String]) extends Analyser[Any](args) {
       .groupBy(f => f._1)
       .map(f => (f._1, f._2.map(_._2)))
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: Array[Any]): Any = {
     val er      = extractData(results)
     val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
-    val text = s"""{"time":$timestamp,"top5":[${er.top5
+    val text = s"""{"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
-       s"""communities": [${commtxt.mkString(",")}],"""+
-      s"""viewTime":$viewCompleteTime}"""
+       s"""communities": [${commtxt.mkString(",")}]}"""
     output_file match {
       case "" => println(text)
       case "mongo" => publishData(text)
@@ -113,27 +112,7 @@ class LPA(args: Array[String]) extends Analyser[Any](args) {
     }
   }
 
-  override def processWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSize: Long,
-      viewCompleteTime: Long
-  ): Unit = {
-    val er      = extractData(results)
-    val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5
-      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
-      s"""communities": [${commtxt.mkString(",")}],"""+
-      s"""viewTime":$viewCompleteTime}"""
-    output_file match {
-      case "" => println(text)
-      case "mongo" => publishData(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
-    publishData(text)
-  }
-
-  def extractData(results: ArrayBuffer[Any]): fd = {
+  def extractData(results: Array[Any]): fd = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, ParArray[String]]]]
     try {
       val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))

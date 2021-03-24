@@ -15,7 +15,7 @@ class BlankAnalyser(args:Array[String]) extends Analyser[Any](args) {
   override def setup(): Unit = {}
   override def returnResults(): Any = {""}
   override def defineMaxSteps(): Int = 1
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {println("howdy!")}
+  override def extractResults(results: Array[Any]): Any = {println("howdy!")}
 }
 
 
@@ -49,8 +49,6 @@ abstract class Analyser[T<:Any](args:Array[String]) extends java.io.Serializable
   def returnResults(): Any
 
   def defineMaxSteps(): Int
-  def processResults(results: ArrayBuffer[T], timeStamp: Long, viewCompleteTime: Long): Unit
-  def processWindowResults(results: ArrayBuffer[T], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit =
-    processResults(results, timestamp: Long, viewCompleteTime: Long)
-
+  def extractResults(results: Array[T]): Any
+ 
 }

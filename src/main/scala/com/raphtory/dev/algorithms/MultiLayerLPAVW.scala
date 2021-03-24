@@ -136,7 +136,7 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
           .flatMap(ts => ts._2.zipWithIndex.map { case ((_, lab), w) => (omega(w), lab, s"""${f._2}_${ts._1}""") })
       )
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: Array[Any]): Any = {
     val endResults = results.asInstanceOf[ArrayBuffer[ParIterable[(Double, Long, String)]]]
     try {
       println(s"Printing output to $output_file")
@@ -156,15 +156,15 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
           case "" =>
             //            val commtxt = communities.map(x => s"""[${x.mkString(",")}]""")
             val text =
-              s"""{"time":$timestamp, "omega": $w, "top5":[${top5
-                .mkString(",")}],"total":$total,"totalIslands":$totalIslands,""" +
+              s"""{"omega": $w, "top5":[${top5
+                .mkString(",")}],"total":$total,"totalIslands":$totalIslands}"""
                 //          s""" "communities": [${commtxt.mkString(",")}],""" +
-                s"""viewTime":$viewCompleteTime}"""
+
             println(text)
           case _ =>
             val text =
-              s"""{"time":$timestamp, "omega": $w,"top5":[${top5
-                .mkString(",")}],"total":$total,"totalIslands":$totalIslands, "viewTime":$viewCompleteTime}"""
+              s"""{"omega": $w,"top5":[${top5
+                .mkString(",")}],"total":$total,"totalIslands":$totalIslands}"""
             println(text)
             case class Data(omega: Double, comm: Array[String])
             val writer =

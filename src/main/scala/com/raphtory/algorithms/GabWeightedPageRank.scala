@@ -65,7 +65,7 @@ class GabWeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
 
   override def defineMaxSteps(): Int = 10
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: Array[Any]): Any = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
     val totalVert = endResults.map(x => x._1).sum
     val bestUsers = endResults
@@ -73,27 +73,11 @@ class GabWeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
       .flatten
       .filter(inFilter)
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
-    val text = s"""{"time":$timeStamp,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
+    val text = s"""{"vertices":$totalVert,"bestusers":$bestUsers}"""
     println(text)
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long,
-                                    viewCompleteTime: Long ):
-  Unit = {
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","WeightedPageRank.json").trim
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
-    val totalVert = endResults.map(x => x._1).sum
-    val bestUsers = endResults
-      .map(x => x._2)
-      .flatten
-      .filter(inFilter)
-      .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
-    val text =
-      s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
-    println(text)
-    //publishData(text)
-  }
+
 
   def inFilter(item: (Long, Double)):
   Boolean = {

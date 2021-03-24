@@ -54,9 +54,9 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
   protected val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  private var results: ArrayBuffer[Any] = mutable.ArrayBuffer[Any]()
+  private var results: ArrayBuffer[Any] = ArrayBuffer[Any]()
 
-  def result() = results
+  def result() = results.toArray
 
   protected def analysisType(): AnalysisType.Value
 
@@ -99,7 +99,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   final protected def getWorkerCount: Int       = managerCount * totalWorkers
 
   protected def processResults(timeStamp:Long) = {
-    analyser.processResults(results, timeStamp,viewCompleteTime())
+    analyser.extractResults(results.toArray)
   }
 
   protected def processResultsWrapper(timeStamp: Long) = {
@@ -139,7 +139,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     totalSentMessages = 0        //Total number of messages sent by the workers
     workerResultsReceived = 0    //Total number of acks from worker when they are sending results back
     currentSuperStep = 0
-    results = mutable.ArrayBuffer[Any]()
+    results = ArrayBuffer[Any]()
   }
 
   mediator ! DistributedPubSubMediator.Put(self)
@@ -275,7 +275,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   }
 
   def finaliseJob(result: Any) = {
-    results += result
+    results = results += result
     workerResultsReceived += 1
     if (workerResultsReceived == getWorkerCount) {
       val startTime = System.currentTimeMillis()

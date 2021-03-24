@@ -34,19 +34,18 @@ class MultiLayerLPAparams(args: Array[String]) extends MultiLayerLPA(args) {
 
   def scaling(freq: Array[Double]): Double = math.sqrt(freq.map(math.pow(_, 2)).sum)
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: Array[Any]): Any = {
     val er = extractData(results)
     output_file match {
       case "" =>
         val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
-        val text = s"""{"time":$timestamp,"top5":[${er.top5
+        val text = s"""{"top5":[${er.top5
           .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},""" +
-          s""" "communities": [${commtxt.mkString(",")}],""" +
-          s"""viewTime":$viewCompleteTime}"""
+          s""" "communities": [${commtxt.mkString(",")}]}"""
         println(text)
       case _ =>
-        val text = s"""{"time":$timestamp,"top5":[${er.top5
-          .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands}, "viewTime":$viewCompleteTime}"""
+        val text = s"""{"top5":[${er.top5
+          .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands}}"""
         println(text)
         case class Data(comm: Array[String])
         val writer =

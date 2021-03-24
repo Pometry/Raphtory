@@ -66,7 +66,7 @@ class StateTest(args:Array[String]) extends Analyser[Any](args){
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: Array[Any]): Any = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Int, Int, Int,Int,Int,Int,Int, Int, Int, Int, Int,Int,Int,Int,Int)]]
     val totalVert = endResults.map( x => x._1 ).sum
     val totDeg = endResults.map(x => x._2).sum
@@ -90,7 +90,7 @@ class StateTest(args:Array[String]) extends Analyser[Any](args){
     val inedgePropertyHistory = endResults.map( x => x._18).sum
 
     val text =
-      s"""{"time":$timeStamp,"viewTime":$viewCompleteTime,"vertices":$totalVert, "maxDeg":$maxDeg,
+      s"""{"vertices":$totalVert, "maxDeg":$maxDeg,
          |"totalInEdges":$InEdge,"totalOutEdges":$OutEdge,"vdeletionstotal":$vdeletionstotal,
          |"vcreationstotal":$vcreationstotal,"outedgedeletionstotal":$outedgedeletionstotal,"outedgecreationstotal":$outedgecreationstotal,
          |"inedgedeletionstotal":$inedgedeletionstotal,"inedgecreationstotal":$inedgecreationstotal,"properties":$properties,
@@ -99,41 +99,4 @@ class StateTest(args:Array[String]) extends Analyser[Any](args){
     publishData(text)
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long,
-                                    viewCompleteTime: Long ):
-  Unit = {
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","DegreeDistribution.json").trim
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Int, Int, Int,Int, Int, Int, Int, Int, Int, Int, Int,Int, Int, Int, Int)]]
-    val totalVert = endResults.map( x => x._1 ).sum
-    val totDeg = endResults.map(x => x._2).sum
-    val maxDeg = endResults.map(x => x._6).max
-    val InEdge = endResults.map(x => x._3).sum
-    val OutEdge = endResults.map(x => x._4).sum
-    //val DegSq = if (totalVert > 0) endResults.map(x => x._5/totalVert.toDouble).sum else 0.0
-    val vdeletionstotal = endResults.map( x => x._7).sum
-    val vcreationstotal = endResults.map( x => x._8).sum
-    val outedgedeletionstotal = endResults.map( x => x._9).sum
-    val outedgecreationstotal = endResults.map( x => x._10).sum
-    val inedgedeletionstotal = endResults.map( x => x._11).sum
-    val inedgecreationstotal = endResults.map( x => x._12).sum
-
-    val properties = endResults.map( x => x._13).sum
-    val propertyhistory = endResults.map( x => x._14).sum
-    val outedgeProperties = endResults.map( x => x._15).sum
-    val outedgePropertyHistory = endResults.map( x => x._16).sum
-
-    val inedgeProperties = endResults.map( x => x._17).sum
-    val inedgePropertyHistory = endResults.map( x => x._18).sum
-    val text =
-      s"""{"time":$timestamp,"window":$windowSize,"viewTime":$viewCompleteTime,"vertices":$totalVert, "maxDeg":$maxDeg,
-         |"totalInEdges":$InEdge,"totalOutEdges":$OutEdge,"vdeletionstotal":$vdeletionstotal,
-         |"vcreationstotal":$vcreationstotal,"outedgedeletionstotal":$outedgedeletionstotal,"outedgecreationstotal":$outedgecreationstotal,
-         |"inedgedeletionstotal":$inedgedeletionstotal,"inedgecreationstotal":$inedgecreationstotal,"properties":$properties,
-         |"propertyhistory":$propertyhistory,"outedgeProperties":$outedgeProperties,"outedgePropertyHistory":$outedgePropertyHistory,
-         |"inedgeProperties":$inedgeProperties,"inedgePropertyHistory":$inedgePropertyHistory}""".stripMargin
-
-    publishData(text)
-    println(text)
-  }
 }

@@ -17,7 +17,7 @@ class BWindowedRangeAnalysisTask(
     ,newAnalyser:Boolean,
     rawFile:String
 ) extends RangeAnalysisTask(managerCount,jobID, args,analyser, start, end, jump,newAnalyser,rawFile) {
-  override def result(): ArrayBuffer[Any] = {
+  override def result(): Array[Any] = {
     val original = super.result()
     if (original.nonEmpty) {
       val invertedArray = ArrayBuffer[ArrayBuffer[Any]]()
@@ -28,7 +28,7 @@ class BWindowedRangeAnalysisTask(
         for (j <- internal.indices)
           invertedArray(j) += internal(j)
       }
-      invertedArray.asInstanceOf[ArrayBuffer[Any]]
+      invertedArray.asInstanceOf[ArrayBuffer[Any]].toArray
 
     } else original
   }
@@ -37,8 +37,8 @@ class BWindowedRangeAnalysisTask(
   override def processResults(time: Long): Unit = {
     var i = 0
     val vtime = viewCompleteTime
-    result().asInstanceOf[ArrayBuffer[ArrayBuffer[Any]]].foreach(res =>{
-      analyser.processWindowResults(res, timestamp(), windowSet()(i), vtime)
+    result().asInstanceOf[Array[Array[Any]]].foreach(res =>{
+      analyser.extractResults(res)
       i+=1
     })
   }

@@ -32,5 +32,5 @@ class RangeAnalysisTask(managerCount:Int, jobID: String, args:Array[String],anal
   }
 
   override def processResults(timestamp: Long): Unit =
-    analyser.processResults(result, this.timestamp(), viewCompleteTime)
+    analyser.extractResults(result.toArray)
 }
