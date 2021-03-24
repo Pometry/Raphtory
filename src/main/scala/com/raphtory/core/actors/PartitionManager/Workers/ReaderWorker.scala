@@ -143,7 +143,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     storage.vertices(req.vertexID).multiQueue.receiveMessage(req.viewJob,req.superStep,req.data)
   }
 
-  def setup(analyzer: Analyser, jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) {
+  def setup(analyzer: Analyser[Any], jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) {
 
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
@@ -166,7 +166,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     }
   }
 
-  def nextStep(analyzer: Analyser,jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
+  def nextStep(analyzer: Analyser[Any],jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
 
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
@@ -199,7 +199,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
     returnResults(analyserMap.get(jobID).get.newAnalyser, jobID, currentStep, timestamp, analysisType, window, windowSet)
   }
 
-  def returnResults(analyzer: Analyser, jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
+  def returnResults(analyzer: Analyser[Any], jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {

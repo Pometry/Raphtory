@@ -4,7 +4,7 @@ import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
-class DegreeDistribution(args:Array[String]) extends Analyser(args){
+class DegreeDistribution(args:Array[String]) extends Analyser[Any](args){
 
   override def analyse(): Unit = {}
 
@@ -58,7 +58,6 @@ class DegreeDistribution(args:Array[String]) extends Analyser(args){
     val meanDegSq = if (totalVert > 0) endResults.map(x => x._5/totalVert.toDouble).sum else 0.0
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"maxDeg":$maxDeg,"avgSquaredDeg":$meanDegSq,"avgSquaredInDeg":$meanInDegSq,"avgSquaredOutDeg":$meanOutDegSq,"viewTime":$viewCompleteTime}"""
-    writeLines(output_file, text, "{\"views\":[")
     println(text)
     publishData(text)
   }

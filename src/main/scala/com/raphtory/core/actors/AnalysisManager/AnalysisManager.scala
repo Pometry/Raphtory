@@ -187,13 +187,13 @@ class AnalysisManager() extends RaphtoryActor{
     context.system.scheduler.scheduleOnce(Duration(5, SECONDS), self, request)
   }
 
-  private def getAnalyser(analyserName:String,args:Array[String],rawFile:String): (Boolean,Analyser) ={
+  private def getAnalyser(analyserName:String,args:Array[String],rawFile:String): (Boolean,Analyser[Any]) ={
     try {
-      (false,Class.forName(analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser])
+      (false,Class.forName(analyserName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser[Any]])
     } catch {
       case e:NoSuchMethodException =>
         try {
-          (false, Class.forName(analyserName).getConstructor().newInstance().asInstanceOf[Analyser])
+          (false, Class.forName(analyserName).getConstructor().newInstance().asInstanceOf[Analyser[Any]])
         }
         catch {
           case e:ClassNotFoundException => processCompileNewAnalyserRequest(rawFile,args)
@@ -201,8 +201,8 @@ class AnalysisManager() extends RaphtoryActor{
     }
   }
 
-  def processCompileNewAnalyserRequest(rawFile:String,args:Array[String]): (Boolean,Analyser) = {
-    var analyser: Analyser = new BlankAnalyser(args)
+  def processCompileNewAnalyserRequest(rawFile:String,args:Array[String]): (Boolean,Analyser[Any]) = {
+    var analyser: Analyser[Any] = new BlankAnalyser(args)
     try{
       analyser = LoadExternalAnalyser(rawFile,args).newAnalyser
     }

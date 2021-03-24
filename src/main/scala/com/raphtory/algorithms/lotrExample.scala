@@ -5,7 +5,7 @@ import com.raphtory.core.analysis.api.Analyser
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 
-class lotrExample(args:Array[String]) extends Analyser(args) {
+class lotrExample(args:Array[String]) extends Analyser[Any](args) {
   val SEP = 3
 
   override def setup(): Unit = {

@@ -5,7 +5,7 @@ import com.raphtory.core.analysis.api.Analyser
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParArray
 
-class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
+class TemporalTriangleCount(args:Array[String]) extends Analyser[Any](args) {
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>

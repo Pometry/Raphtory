@@ -6,7 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 
-class WattsCascade(args:Array[String]) extends Analyser(args){
+class WattsCascade(args:Array[String]) extends Analyser[Any](args){
 
   // Set initial seed of infected nodes
   val infectedSeed = Array(290,1459,65,1)
