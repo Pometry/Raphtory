@@ -9,7 +9,7 @@ class BWindowedRangeAnalysisTask(
     managerCount:Int,
     jobID: String,
     args:Array[String],
-    analyser: Analyser,
+    analyser: Analyser[Any],
     start: Long,
     end: Long,
     jump: Long,

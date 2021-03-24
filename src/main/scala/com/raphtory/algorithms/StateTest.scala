@@ -4,7 +4,7 @@ import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
-class StateTest(args:Array[String]) extends Analyser(args){
+class StateTest(args:Array[String]) extends Analyser[Any](args){
 
   override def analyse(): Unit = {}
 

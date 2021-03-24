@@ -33,7 +33,7 @@ object MotifCounting {
   def apply(args: Array[String]): MotifCounting = new MotifCounting(args)
 }
 
-class MotifCounting(args: Array[String]) extends Analyser(args) { //IM: better manage args
+class MotifCounting(args: Array[String]) extends Analyser[Any](args) { //IM: better manage args
   //args = [delta, edge weight, top]
   val top: Int         = if (args.length == 0) 0 else args.head.toInt
   val weight: String = if (args.length < 2) "weight" else args(1)

@@ -4,7 +4,7 @@ import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
-class DegreeRanking(args:Array[String]) extends Analyser(args){
+class DegreeRanking(args:Array[String]) extends Analyser[Any](args){
   object sortOrdering extends Ordering[Int] {
     def compare(key1: Int, key2: Int) = key2.compareTo(key1)
   }
@@ -91,7 +91,6 @@ class DegreeRanking(args:Array[String]) extends Analyser(args){
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"viewTime":$viewCompleteTime,"concatTime":${System
         .currentTimeMillis() - startTime}}"""
-    writeLines(output_file, text, "{\"views\":[")
     println(text)
     publishData(text)
   }

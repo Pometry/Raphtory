@@ -9,7 +9,7 @@ object SixDegreesOfGandalf{
   def apply(seperation:Int): SixDegreesOfGandalf = new SixDegreesOfGandalf(Array(seperation.toString))
 }
 
-class SixDegreesOfGandalf(args: Array[String]) extends Analyser(args){
+class SixDegreesOfGandalf(args: Array[String]) extends Analyser[Any](args){
 
   val SEP=args(0).toInt
 

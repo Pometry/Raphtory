@@ -4,7 +4,7 @@ import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
-class PageRank(args:Array[String]) extends Analyser(args) {
+class PageRank(args:Array[String]) extends Analyser[Any](args) {
   object sortOrdering extends Ordering[Double] {
     def compare(key1: Double, key2: Double) = key2.compareTo(key1)
   }
@@ -71,7 +71,6 @@ class PageRank(args:Array[String]) extends Analyser(args) {
     val text = s"""{"time":$timeStamp,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
     var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","WeightedPageRank.json").trim
-    writeLines(output_file, text, "[")
     println(text)
     publishData(text)
   }
@@ -90,7 +89,6 @@ class PageRank(args:Array[String]) extends Analyser(args) {
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"bestusers":$bestUsers,"viewTime":$viewCompleteTime}"""
-    writeLines(output_file, text, "[")
     println(text)
     publishData(text)
   }

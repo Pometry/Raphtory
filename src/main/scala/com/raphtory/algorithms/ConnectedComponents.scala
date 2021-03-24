@@ -9,7 +9,7 @@ object ConnectedComponents {
   def apply():ConnectedComponents = new ConnectedComponents(Array())
 }
 
-class ConnectedComponents(args:Array[String]) extends Analyser(args){
+class ConnectedComponents(args:Array[String]) extends Analyser[Any](args){
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
@@ -41,7 +41,6 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","ConnectedComponents.json").trim
 
     println(text)
-    writeLines(output_file, text, "[")
 
     publishData(text)
   }
@@ -51,7 +50,6 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
       var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
       var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","ConnectedComponents.json").trim
       val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime},"""
-      writeLines(output_file, text, "[")
       println(text)
       publishData(text)
 

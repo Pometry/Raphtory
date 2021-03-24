@@ -43,37 +43,37 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   AnalysisRestApi(system)
 
   //TODO tidy these, but will be done with full analysis Overhall
-  def rangeQuery(analyser:Analyser,start:Long,end:Long,increment:Long,args:Array[String]):Unit = {
+  def rangeQuery(analyser:Analyser[Any],start:Long,end:Long,increment:Long,args:Array[String]):Unit = {
     analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,"false",0L,Array[Long](),args,"")
   }
 
-  def rangeQuery(analyser:Analyser,start:Long,end:Long,increment:Long,window:Long,args:Array[String]):Unit = {
+  def rangeQuery(analyser:Analyser[Any],start:Long,end:Long,increment:Long,window:Long,args:Array[String]):Unit = {
     analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,"true",window,Array[Long](),args,"")
   }
-  def rangeQuery(analyser:Analyser,start:Long,end:Long,increment:Long,windowBatch:Array[Long],args:Array[String]):Unit = {
+  def rangeQuery(analyser:Analyser[Any],start:Long,end:Long,increment:Long,windowBatch:Array[Long],args:Array[String]):Unit = {
     analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,"batched",0L,windowBatch,args,"")
   }
 
-  def viewQuery(analyser:Analyser,timestamp:Long,args:Array[String]):Unit = {
+  def viewQuery(analyser:Analyser[Any],timestamp:Long,args:Array[String]):Unit = {
     analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,"false",0L,Array[Long](),args,"")
   }
 
-  def viewQuery(analyser:Analyser,timestamp:Long,window:Long,args:Array[String]):Unit = {
+  def viewQuery(analyser:Analyser[Any],timestamp:Long,window:Long,args:Array[String]):Unit = {
     analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,"true",window,Array[Long](),args,"")
   }
-  def viewQuery(analyser:Analyser,timestamp:Long,windowBatch:Array[Long],args:Array[String]):Unit = {
+  def viewQuery(analyser:Analyser[Any],timestamp:Long,windowBatch:Array[Long],args:Array[String]):Unit = {
     analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,"batched",0L,windowBatch,args,"")
   }
 
-  def liveQuery(analyser:Analyser,repeat:Long,eventTime:Boolean,args:Array[String]):Unit = {
+  def liveQuery(analyser:Analyser[Any],repeat:Long,eventTime:Boolean,args:Array[String]):Unit = {
     analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime,"false",0L,Array[Long](),args,"")
   }
 
-  def liveQuery(analyser:Analyser,repeat:Long,eventTime:Boolean,window:Long,args:Array[String]):Unit = {
+  def liveQuery(analyser:Analyser[Any],repeat:Long,eventTime:Boolean,window:Long,args:Array[String]):Unit = {
     analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime,"true",window,Array[Long](),args,"")
   }
 
-  def liveQuery(analyser:Analyser,repeat:Long,eventTime:Boolean,windowBatch:Array[Long],args:Array[String]):Unit = {
+  def liveQuery(analyser:Analyser[Any],repeat:Long,eventTime:Boolean,windowBatch:Array[Long],args:Array[String]):Unit = {
     analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime,"batched",0L,windowBatch,args,"")
   }
 

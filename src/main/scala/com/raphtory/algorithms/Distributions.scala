@@ -8,7 +8,7 @@ import scala.collection.parallel.immutable
 
 /** Warning: will generate large amount of data, best to run on small numbers of snapshots */
 
-class Distributions(args:Array[String]) extends Analyser(args){
+class Distributions(args:Array[String]) extends Analyser[Any](args){
 
   object sortOrdering extends Ordering[Int] {
     def compare(key1: Int, key2: Int) = key2.compareTo(key1)
@@ -50,7 +50,6 @@ class Distributions(args:Array[String]) extends Analyser(args){
     val text = s"""{"time":$timeStamp,"degDist":$degDistArr,"weightDist":$weightDistArr, "edgeDist":$edgeDistArr,"viewTime":$viewCompleteTime}"""
     println(text)
     publishData(text)
-    writeLines(output_file, text, "{\"views\":[")
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
@@ -66,7 +65,6 @@ class Distributions(args:Array[String]) extends Analyser(args){
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"degDist":$degDistArr,"weightDist":$weightDistArr, "edgeDist":$edgeDistArr,"viewTime":$viewCompleteTime}"""
     println(text)
     publishData(text)
-    writeLines(output_file, text, "{\"views\":[")
   }
 
   def extractData(results: ArrayBuffer[Any]): extractedData = {

@@ -20,7 +20,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 
-abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser, managerCount:Int,newAnalyser: Boolean,rawFile:String) extends RaphtoryActor {
+abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser[Any], managerCount:Int,newAnalyser: Boolean,rawFile:String) extends RaphtoryActor {
   protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
   implicit val executionContext = context.system.dispatchers.lookup("analysis-dispatcher")
 
@@ -87,12 +87,12 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
 
   private def processOtherMessages(value: Any): Unit = println("Not handled message" + value.toString)
-  protected def generateAnalyzer: Analyser =
+  protected def generateAnalyzer: Analyser[Any] =
     try{
-      Class.forName(analyser.getClass.getCanonicalName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser]
+      Class.forName(analyser.getClass.getCanonicalName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser[Any]]
     }
     catch {
-      case e:NoSuchMethodException => Class.forName(analyser.getClass.getCanonicalName).getConstructor().newInstance().asInstanceOf[Analyser]
+      case e:NoSuchMethodException => Class.forName(analyser.getClass.getCanonicalName).getConstructor().newInstance().asInstanceOf[Analyser[Any]]
     }
 
   final protected def getManagerCount: Int      = managerCount
@@ -360,13 +360,13 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
 object AnalysisTask {
   object Message {
-    case class Setup(analyzer: Analyser, jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
+    case class Setup(analyzer: Analyser[Any], jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
     case class SetupNewAnalyser(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
     case class Ready(messages: Int)
-    case class NextStep(analyzer: Analyser, jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
+    case class NextStep(analyzer: Analyser[Any], jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
     case class NextStepNewAnalyser(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
     case class EndStep(messages: Int, voteToHalt: Boolean)
-    case class Finish(analyzer: Analyser, jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
+    case class Finish(analyzer: Analyser[Any], jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
     case class FinishNewAnalyser(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
     case class ReturnResults(results: Any)
     case class MessagesReceived(workerID: Int, receivedMessages: Int, sentMessages: Int)

@@ -34,7 +34,7 @@ object LPA {
   def apply(args: Array[String]): LPA = new LPA(args)
 }
 
-class LPA(args: Array[String]) extends Analyser(args) {
+class LPA(args: Array[String]) extends Analyser[Any](args) {
   //args = [top output, edge property, max iterations]
 
   val arg: Array[String] = args.map(_.trim)

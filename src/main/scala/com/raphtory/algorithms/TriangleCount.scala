@@ -9,7 +9,7 @@ import scala.collection.mutable.ArrayBuffer
   * I will send the message '5' and '7' to my neighbours. Then each vertex checks its incoming messages and sees if any
   * of the messages received correspond to ids of its neighbours. */
 
-class TriangleCount(args:Array[String]) extends Analyser(args) {
+class TriangleCount(args:Array[String]) extends Analyser[Any](args) {
 
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
@@ -78,7 +78,6 @@ class TriangleCount(args:Array[String]) extends Analyser(args) {
     val text =
       s"""{"time":$timestamp,"windowsize":$windowSize,"totTriangles":$totalTri,"avgCluster":$avgCluster,"viewTime":$viewCompleteTime,"concatTime":${System
         .currentTimeMillis() - startTime}}"""
-    writeLines(output_file, text, "{\"views\":[")
     publishData(text)
     println(text)
   }

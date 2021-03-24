@@ -4,7 +4,7 @@ import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
-class OutDegreeAverage(args:Array[String]) extends Analyser(args){
+class OutDegreeAverage(args:Array[String]) extends Analyser[Any](args){
 
   override def analyse(): Unit = {}
   override def setup(): Unit   = {}

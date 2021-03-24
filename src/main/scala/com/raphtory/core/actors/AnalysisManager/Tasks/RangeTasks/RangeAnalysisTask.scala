@@ -6,7 +6,7 @@ import com.raphtory.analysis.Tasks.AnalysisTask
 import com.raphtory.analysis.Tasks.AnalysisTask.Message.AnalyserPresentCheck
 import com.raphtory.core.model.communication.AnalysisType
 
-class RangeAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analyser: Analyser, start: Long, end: Long, jump: Long,newAnalyser:Boolean,rawFile:String)
+class RangeAnalysisTask(managerCount:Int, jobID: String, args:Array[String],analyser: Analyser[Any], start: Long, end: Long, jump: Long,newAnalyser:Boolean,rawFile:String)
         extends AnalysisTask(jobID: String,args, analyser,managerCount,newAnalyser,rawFile) {
   protected var currentTimestamp                            = start
   override def restartTime() = 0
