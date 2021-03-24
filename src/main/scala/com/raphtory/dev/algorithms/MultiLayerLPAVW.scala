@@ -2,7 +2,7 @@ package com.raphtory.dev.algorithms
 
 import com.github.mjakubowski84.parquet4s.ParquetWriter
 import com.raphtory.algorithms.{LPA, sortOrdering}
-import com.raphtory.core.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.entity.Vertex
 import org.apache.parquet.hadoop.ParquetFileWriter
 
 import java.time.LocalDateTime
@@ -105,7 +105,7 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
       )
   }
 
-  def weightFunction(v: VertexVisitor, ts: Long): ParMap[Long, Double] = {
+  def weightFunction(v: Vertex, ts: Long): ParMap[Long, Double] = {
     var nei_weights =
       (v.getInCEdgesBetween(ts - snapshotSize, ts) ++ v.getOutEdgesBetween(ts - snapshotSize, ts)).map(e =>
         (e.ID(), e.getPropertyValue(weight).getOrElse(1.0).asInstanceOf[Double])

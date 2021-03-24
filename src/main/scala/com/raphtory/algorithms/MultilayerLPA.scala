@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.entity.Vertex
 
 import java.time.LocalDateTime
 import scala.collection.parallel.ParMap
@@ -116,7 +116,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
       )
   }
 
-  def interLayerWeights(x: String, v: VertexVisitor, ts: Long): Double =
+  def interLayerWeights(x: String, v: Vertex, ts: Long): Double =
     x match {
       case "average" =>
         val neilabs = weightFunction(v, ts)
@@ -124,7 +124,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
       case _ => omega.toDouble
     }
 
-  def weightFunction(v: VertexVisitor, ts: Long): ParMap[Long, Double] =
+  def weightFunction(v: Vertex, ts: Long): ParMap[Long, Double] =
     (v.getInCEdgesBetween(ts - snapshotSize, ts) ++ v.getOutEdgesBetween(ts - snapshotSize, ts))
       .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0).asInstanceOf[Double]))
       .groupBy(_._1)

@@ -1,4 +1,4 @@
-package com.raphtory.core.analysis.entityVisitors
+package com.raphtory.core.analysis.entity
 
 import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
@@ -6,15 +6,15 @@ import com.raphtory.core.analysis.api.ManagerCount
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.analysis.GraphLenses.GraphLens
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graphentities.{Edge, Vertex}
+import com.raphtory.core.model.entities.{RaphtoryEdge, RaphtoryVertex}
 
 import scala.collection.parallel.mutable.ParIterable
 import scala.reflect.ClassTag
-object VertexVisitor {
-  def apply(v: Vertex, jobID: ViewJob, superStep: Int, proxy: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) =
-    new VertexVisitor(v, jobID, superStep, proxy)
+object Vertex {
+  def apply(v: RaphtoryVertex, jobID: ViewJob, superStep: Int, proxy: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) =
+    new Vertex(v, jobID, superStep, proxy)
 }
-class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) extends EntityVisitor(v,viewJob:ViewJob){
+class Vertex(v: RaphtoryVertex, viewJob:ViewJob, superStep: Int, view: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) extends EntityVisitor(v,viewJob:ViewJob){
   val jobID = viewJob.jobID
   val timestamp = viewJob.timestamp
   val window = viewJob.window
@@ -38,67 +38,67 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
 
 
   //out edges whole
-  def getOutEdges: ParIterable[EdgeVisitor] = v.outgoingProcessing.map(e=> visitify(e._2,e._1))
-  def getOutEdgesAfter(time:Long):ParIterable[EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.activityAfter(time)).map(e=> visitify(e._2,e._1))
-  def getOutEdgesBefore(time:Long):ParIterable[EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.activityBefore(time)).map(e=> visitify(e._2,e._1))
-  def getOutEdgesBetween(min:Long, max:Long):ParIterable[EdgeVisitor] = v.outgoingProcessing.filter(e=> e._2.activityBetween(min,max)).map(e=> visitify(e._2,e._1))
+  def getOutEdges: ParIterable[Edge] = v.outgoingProcessing.map(e=> visitify(e._2,e._1))
+  def getOutEdgesAfter(time:Long):ParIterable[Edge] = v.outgoingProcessing.filter(e=> e._2.activityAfter(time)).map(e=> visitify(e._2,e._1))
+  def getOutEdgesBefore(time:Long):ParIterable[Edge] = v.outgoingProcessing.filter(e=> e._2.activityBefore(time)).map(e=> visitify(e._2,e._1))
+  def getOutEdgesBetween(min:Long, max:Long):ParIterable[Edge] = v.outgoingProcessing.filter(e=> e._2.activityBetween(min,max)).map(e=> visitify(e._2,e._1))
 
   //in edges whole
-  def getIncEdges: ParIterable[EdgeVisitor]  = v.incomingProcessing.map(e=> visitify(e._2,e._1))
-  def getIncEdgesAfter(time:Long):ParIterable[EdgeVisitor] = v.incomingProcessing.filter(e=> e._2.activityAfter(time)).map(e=> visitify(e._2,e._1))
-  def getInCEdgesBefore(time:Long):ParIterable[EdgeVisitor] = v.incomingProcessing.filter(e=> e._2.activityBefore(time)).map(e=> visitify(e._2,e._1))
-  def getInCEdgesBetween(min:Long, max:Long):ParIterable[EdgeVisitor] = v.incomingProcessing.filter(e=> e._2.activityBetween(min,max)).map(e=> visitify(e._2,e._1))
+  def getIncEdges: ParIterable[Edge]  = v.incomingProcessing.map(e=> visitify(e._2,e._1))
+  def getIncEdgesAfter(time:Long):ParIterable[Edge] = v.incomingProcessing.filter(e=> e._2.activityAfter(time)).map(e=> visitify(e._2,e._1))
+  def getInCEdgesBefore(time:Long):ParIterable[Edge] = v.incomingProcessing.filter(e=> e._2.activityBefore(time)).map(e=> visitify(e._2,e._1))
+  def getInCEdgesBetween(min:Long, max:Long):ParIterable[Edge] = v.incomingProcessing.filter(e=> e._2.activityBetween(min,max)).map(e=> visitify(e._2,e._1))
 
 
   //out edges individual
-  def getOutEdge(id:Long): Option[EdgeVisitor] = v.outgoingProcessing.get(id) match {
-    case(e:Some[Edge]) =>  Some(visitify(e.get,id))
+  def getOutEdge(id:Long): Option[Edge] = v.outgoingProcessing.get(id) match {
+    case(e:Some[RaphtoryEdge]) =>  Some(visitify(e.get,id))
     case(None) => None
   }
 
-  def getOutEdgeAfter(id:Long,time:Long): Option[EdgeVisitor] = v.outgoingProcessing.get(id) match {
-    case(e:Some[Edge]) =>
+  def getOutEdgeAfter(id:Long,time:Long): Option[Edge] = v.outgoingProcessing.get(id) match {
+    case(e:Some[RaphtoryEdge]) =>
       if(e.get.activityAfter(time)) Some(visitify(e.get,id))
       else None
     case(None) => None
   }
 
-  def getOutEdgeBefore(id:Long,time:Long): Option[EdgeVisitor] = v.outgoingProcessing.get(id) match {
-    case(e:Some[Edge]) =>
+  def getOutEdgeBefore(id:Long,time:Long): Option[Edge] = v.outgoingProcessing.get(id) match {
+    case(e:Some[RaphtoryEdge]) =>
       if(e.get.activityBefore(time)) Some(visitify(e.get,id))
       else None
     case(None) => None
   }
 
-  def getOutEdgeBetween(id:Long,min:Long,max:Long): Option[EdgeVisitor] = v.outgoingProcessing.get(id) match {
-    case(e:Some[Edge]) =>
+  def getOutEdgeBetween(id:Long,min:Long,max:Long): Option[Edge] = v.outgoingProcessing.get(id) match {
+    case(e:Some[RaphtoryEdge]) =>
       if(e.get.activityBetween(min,max)) Some(visitify(e.get,id))
       else None
     case(None) => None
   }
 
   //In edges individual
-  def getInEdge(id:Long): Option[EdgeVisitor] = v.incomingProcessing.get(id) match {
-    case(e:Some[Edge]) =>  Some(visitify(e.get,id))
+  def getInEdge(id:Long): Option[Edge] = v.incomingProcessing.get(id) match {
+    case(e:Some[RaphtoryEdge]) =>  Some(visitify(e.get,id))
     case(None) => None
   }
 
-  def getInEdgeAfter(id:Long,time:Long): Option[EdgeVisitor] = v.incomingProcessing.get(id) match {
-    case(e:Some[Edge]) =>
+  def getInEdgeAfter(id:Long,time:Long): Option[Edge] = v.incomingProcessing.get(id) match {
+    case(e:Some[RaphtoryEdge]) =>
       if(e.get.activityAfter(time)) Some(visitify(e.get,id))
       else None
     case(None) => None
   }
 
-  def getInEdgeBefore(id:Long,time:Long): Option[EdgeVisitor] = v.incomingProcessing.get(id) match {
-    case(e:Some[Edge]) =>
+  def getInEdgeBefore(id:Long,time:Long): Option[Edge] = v.incomingProcessing.get(id) match {
+    case(e:Some[RaphtoryEdge]) =>
       if(e.get.activityBefore(time)) Some(visitify(e.get,id))
       else None
     case(None) => None
   }
 
-  def getInEdgeBetween(id:Long,min:Long,max:Long): Option[EdgeVisitor] = v.incomingProcessing.get(id) match {
-    case(e:Some[Edge]) =>
+  def getInEdgeBetween(id:Long,min:Long,max:Long): Option[Edge] = v.incomingProcessing.get(id) match {
+    case(e:Some[RaphtoryEdge]) =>
       if(e.get.activityBetween(min,max)) Some(visitify(e.get,id))
       else None
     case(None) => None
@@ -148,7 +148,7 @@ class VertexVisitor(v: Vertex, viewJob:ViewJob, superStep: Int, view: GraphLens)
 
 
 
-  private def visitify(edge:Edge,id:Long) = new EdgeVisitor(edge,id,viewJob,superStep,view,mediator)
+  private def visitify(edge:RaphtoryEdge, id:Long) = new Edge(edge,id,viewJob,superStep,view,mediator)
 
 }
 

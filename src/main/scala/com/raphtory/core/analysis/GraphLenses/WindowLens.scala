@@ -4,8 +4,8 @@ import akka.actor.ActorContext
 import com.raphtory.core.analysis.api.ManagerCount
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.EntityStorage
-import com.raphtory.core.analysis.entityVisitors.VertexVisitor
-import com.raphtory.core.model.graphentities.Vertex
+import com.raphtory.core.analysis.entity.Vertex
+import com.raphtory.core.model.entities.RaphtoryVertex
 import kamon.Kamon
 
 import scala.collection.mutable.ArrayBuffer
@@ -32,7 +32,7 @@ class WindowLens(
     .withTag("timestamp",timestamp)
   private val timetaken = System.currentTimeMillis()
 
-  private var keySet: ParTrieMap[Long, Vertex] =
+  private var keySet: ParTrieMap[Long, RaphtoryVertex] =
     storage.vertices.filter(v => v._2.aliveAtWithWindow(timestamp, setWindow)).map(v=> (v._1,v._2.viewAtWithWindow(timestamp,setWindow)))
 
   viewTimer.update(System.currentTimeMillis()-timetaken)
@@ -41,22 +41,22 @@ class WindowLens(
   private var firstCall    = true
   var timeTest             = ArrayBuffer[Long]()
 
-  override def getVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[VertexVisitor] = {
+  override def getVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[Vertex] = {
     if (firstCall) {
       TotalKeySize += keySet.size
       firstCall = false
     }
-    keySet.map(v =>  new VertexVisitor(v._2, viewJobCurrent, superstep, this))
+    keySet.map(v =>  new Vertex(v._2, viewJobCurrent, superstep, this))
   }
 
-  private var keySetMessages: ParIterable[VertexVisitor] = null
+  private var keySetMessages: ParIterable[Vertex] = null
   private var messageFilter                            = false
 
-  override def getMessagedVertices()(implicit context: ActorContext, managerCount: ManagerCount):ParIterable[VertexVisitor] = {
+  override def getMessagedVertices()(implicit context: ActorContext, managerCount: ManagerCount):ParIterable[Vertex] = {
     if (!messageFilter) {
       keySetMessages = keySet.filter {
-        case (id: Long, vertex: Vertex) => vertex.multiQueue.getMessageQueue(viewJobCurrent, superstep).nonEmpty
-      }.map(v =>  new VertexVisitor(v._2, viewJobCurrent, superstep, this))
+        case (id: Long, vertex: RaphtoryVertex) => vertex.multiQueue.getMessageQueue(viewJobCurrent, superstep).nonEmpty
+      }.map(v =>  new Vertex(v._2, viewJobCurrent, superstep, this))
       TotalKeySize = keySetMessages.size + TotalKeySize
       messageFilter = true
     }

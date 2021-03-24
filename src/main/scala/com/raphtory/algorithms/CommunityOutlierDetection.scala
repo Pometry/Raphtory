@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.entity.Vertex
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -35,7 +35,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
 
   override val output_file: String = System.getenv().getOrDefault("CBOD_OUTPUT_PATH", "").trim
 
-  override def doSomething(v: VertexVisitor, neighborLabels: Array[Long]): Unit = {
+  override def doSomething(v: Vertex, neighborLabels: Array[Long]): Unit = {
     val vlabel       = v.getState[(Long, Long)]("lpalabel")._2
     val outlierScore = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)
     v.setState("outlierscore", outlierScore)

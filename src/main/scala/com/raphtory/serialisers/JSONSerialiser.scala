@@ -1,7 +1,7 @@
 package com.raphtory.serialisers
 
 import com.raphtory.core.analysis.api.Serialiser
-import com.raphtory.core.analysis.entityVisitors.{EdgeVisitor, VertexVisitor}
+import com.raphtory.core.analysis.entity.{Edge, Vertex}
 
 import scala.collection.parallel.mutable.ParTrieMap
 
@@ -15,7 +15,7 @@ class JSONSerialiser extends Serialiser {
     "json"
   }
 
-  override def serialiseVertex(v: VertexVisitor): String = {
+  override def serialiseVertex(v: Vertex): String = {
     val properties: String = extractProperties(v.getPropertySet())
 
     if(properties.nonEmpty) {
@@ -41,7 +41,7 @@ class JSONSerialiser extends Serialiser {
     ).toArray.mkString(",")
   }
 
-  override def serialiseEdge(e: EdgeVisitor): String = {
+  override def serialiseEdge(e: Edge): String = {
     val properties = extractProperties(e.getPropertySet())
     if(properties.nonEmpty) {
       if (e.Type().nonEmpty)

@@ -1,12 +1,12 @@
-package com.raphtory.core.analysis.entityVisitors
+package com.raphtory.core.analysis.entity
 
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
-import com.raphtory.core.model.graphentities.Entity
+import com.raphtory.core.model.entities.RaphtoryEntity
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 
-abstract class EntityVisitor(entity:Entity,viewJob:ViewJob) {
+abstract class EntityVisitor(entity:RaphtoryEntity, viewJob:ViewJob) {
   def Type() = entity.getType
 
   def firstActivityAfter(time:Long) = getHistory.filter(k => k._1 >= time).minBy(x=>x._1)._1
