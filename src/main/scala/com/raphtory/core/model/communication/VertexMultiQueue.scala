@@ -25,11 +25,13 @@ class VertexMultiQueue {
     val queueMap = if (superStep % 2 == 0) evenMessageQueueMap else oddMessageQueueMap
     queueMap.update(jobID, mutable.ArrayBuffer[Any]())
   }
+
   def clearQueues(jobID: ViewJob) = {
     evenMessageQueueMap.get(jobID) match {
       case Some(_) => evenMessageQueueMap.update(jobID, mutable.ArrayBuffer[Any]())
       case None    =>
     }
+
     oddMessageQueueMap.get(jobID) match {
       case Some(_) => oddMessageQueueMap.update(jobID, mutable.ArrayBuffer[Any]())
       case None    =>
