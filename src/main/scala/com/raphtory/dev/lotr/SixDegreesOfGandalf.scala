@@ -46,13 +46,13 @@ class SixDegreesOfGandalf(args: Array[String]) extends Analyser[Any](args){
 
   override def defineMaxSteps(): Int = 100
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: Array[Any]): Any = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
     try {
       val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
       val direct = if (grouped.size>0) grouped(SEP-1) else 0
       val total = grouped.values.sum
-      val text = s"""{"time":$timestamp,"total":${total},"direct":${direct},"viewTime":$viewCompleteTime}"""
+      val text = s"""{"total":${total},"direct":${direct}}"""
       println(text)
     } catch {
       case e: Exception => println("null")

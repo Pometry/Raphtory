@@ -56,26 +56,15 @@ class WattsCascade(args:Array[String]) extends Analyser[Any](args){
 
   override def defineMaxSteps(): Int = 100
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: Array[Any]): Any = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int)]]
     val totalV = endResults.map (x => x._1).sum
     val totalInfected = endResults.map (x => x._2).sum
     val propInfected = if (totalV > 0) totalInfected.toDouble/totalV.toDouble else 0
 
-    val text = s"""{"time":$timeStamp,"totalV":$totalV,"cascadeSize":$totalInfected,"cascadeProp":$propInfected,"viewTime":$viewCompleteTime}"""
+    val text = s"""{"totalV":$totalV,"cascadeSize":$totalInfected,"cascadeProp":$propInfected}"""
     println(text)
     publishData(text)
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long):
-  Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int)]]
-    val totalV = endResults.map (x => x._1).sum
-    val totalInfected = endResults.map (x => x._2).sum
-    val propInfected = if (totalV > 0) totalInfected.toDouble/totalV.toDouble else 0
-
-    val text = s"""{"time":$timestamp,"windowSize":$windowSize,"totalV":$totalV,"cascadeSize":$totalInfected,"cascadeProp":$propInfected,"viewTime":$viewCompleteTime}"""
-    println(text)
-    publishData(text)
-  }
 }

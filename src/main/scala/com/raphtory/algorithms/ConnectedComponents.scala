@@ -34,9 +34,9 @@ class ConnectedComponents(args:Array[String]) extends Analyser[Any](args){
       .groupBy(f => f)
       .map(f => (f._1, f._2.size))
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: Array[Any]): Any = {
     val er = extractData(results)
-    val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime},"""
+    val text = s"""{"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2}},"""
     var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","ConnectedComponents.json").trim
 
@@ -45,18 +45,9 @@ class ConnectedComponents(args:Array[String]) extends Analyser[Any](args){
     publishData(text)
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
-      val er = extractData(results)
-      var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-      var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","ConnectedComponents.json").trim
-      val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime},"""
-      println(text)
-      publishData(text)
 
-  }
-
-  def extractData(results:ArrayBuffer[Any]):extractedData ={
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
+  def extractData(results:Array[Any]):extractedData ={
+    val endResults = results.asInstanceOf[Array[immutable.ParHashMap[Long, Int]]].toBuffer
     try {
       val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
       val groupedNonIslands = grouped.filter(x => x._2 > 1)

@@ -7,7 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class BWindowedLiveAnalysisTask(managerCount:Int, jobID: String,args:Array[String], analyser: Analyser[Any],repeatTime:Long,eventTime:Boolean, windowset:Array[Long],newAnalyser:Boolean,rawFile:String)
   extends LiveAnalysisTask(managerCount,jobID, args,analyser,repeatTime,eventTime,newAnalyser,rawFile) {
-  override def result(): ArrayBuffer[Any] = {
+  override def result(): Array[Any] = {
     val original = super.result()
     if (original.nonEmpty) {
       val invertedArray = ArrayBuffer[ArrayBuffer[Any]]()
@@ -18,7 +18,7 @@ class BWindowedLiveAnalysisTask(managerCount:Int, jobID: String,args:Array[Strin
         for (j <- internal.indices)
           invertedArray(j) += internal(j)
       }
-      invertedArray.asInstanceOf[ArrayBuffer[Any]]
+      invertedArray.asInstanceOf[ArrayBuffer[Any]].toArray
     } else original
   }
   override def windowSet(): Array[Long]  = windowset.sortBy(x=>x)(sortOrdering)
@@ -26,8 +26,8 @@ class BWindowedLiveAnalysisTask(managerCount:Int, jobID: String,args:Array[Strin
   override def processResults(time: Long): Unit = {
     var i = 0
     val vtime = viewCompleteTime
-    result().asInstanceOf[ArrayBuffer[ArrayBuffer[Any]]].foreach(res =>{
-      analyser.processWindowResults(res, timestamp(), windowSet()(i), vtime)
+    result().asInstanceOf[Array[Array[Any]]].foreach(res =>{
+      analyser.extractResults(res)
       i+=1
     })
   }

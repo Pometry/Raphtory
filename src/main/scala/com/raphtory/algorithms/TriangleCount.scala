@@ -49,7 +49,7 @@ class TriangleCount(args:Array[String]) extends Analyser[Any](args) {
 
   override def defineMaxSteps(): Int = 5
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: Array[Any]): Any = {
     val startTime   = System.currentTimeMillis()
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Double)]]
     val totalVert = endResults.map( x => x._1 ).sum
@@ -58,27 +58,10 @@ class TriangleCount(args:Array[String]) extends Analyser[Any](args) {
 //    val clusterCoeff =
 //      try endResults.map(x => x._3).sum/totalVert.toFloat
 //      catch { case e: ArithmeticException => 0.0 }
-    val text = s"""{"time":$timeStamp,"totTriangles":$totalTri,"avgCluster":$avgCluster,"viewTime":$viewCompleteTime,"concatTime":${System
+    val text = s"""{"totTriangles":$totalTri,"avgCluster":$avgCluster,"concatTime":${System
       .currentTimeMillis() - startTime}},"""
     publishData(text)
     println(text)
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
-    val startTime   = System.currentTimeMillis()
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Double)]]
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","TriangleCount.json").trim
-    val totalVert = endResults.map( x => x._1 ).sum
-    val totalTri = endResults.map( x => x._2 ).sum/3
-    val avgCluster = if (totalVert > 0) endResults.map( x => x._3 ).sum/totalVert else 0.0
-    //    val clusterCoeff =
-    //      try endResults.map(x => x._3).sum/totalVert.toFloat
-    //      catch { case e: ArithmeticException => 0.0 }
-    val text =
-      s"""{"time":$timestamp,"windowsize":$windowSize,"totTriangles":$totalTri,"avgCluster":$avgCluster,"viewTime":$viewCompleteTime,"concatTime":${System
-        .currentTimeMillis() - startTime}}"""
-    publishData(text)
-    println(text)
-  }
 }

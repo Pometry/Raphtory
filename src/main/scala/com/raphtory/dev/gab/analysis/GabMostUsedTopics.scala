@@ -37,7 +37,7 @@ class GabMostUsedTopics(args:Array[String]) extends Analyser[Any](args){
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: Array[Any]): Any = {
     println()
     println("Current top topics")
     results
@@ -47,12 +47,6 @@ class GabMostUsedTopics(args:Array[String]) extends Analyser[Any](args){
       .foreach(topic => println(s"Topic: ${topic._3} with ID ${topic._1} and total uses of ${topic._2}"))
     println()
   }
-  override def processWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSize: Long,
-      viewCompleteTime: Long
-  ): Unit = {}
 
   override def returnResults(): Any = ???
 }
