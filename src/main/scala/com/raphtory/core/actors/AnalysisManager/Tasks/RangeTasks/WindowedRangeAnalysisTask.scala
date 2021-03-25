@@ -1,4 +1,4 @@
-package com.raphtory.analysis.Tasks.RangeTasks
+package com.raphtory.core.actors.AnalysisManager.Tasks.RangeTasks
 
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.model.communication.AnalysisType

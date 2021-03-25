@@ -77,7 +77,7 @@ class RaphtoryComponent(component:String,partitionCount:Int,routerCount:Int,port
     println("Creating Analysis Manager")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
     AnalysisRestApi(system)
-    system.actorOf(Props[AnalysisManager], s"AnalysisManager")
+    system.actorOf(Props[AnalysisManager].withDispatcher("misc-dispatcher"), s"AnalysisManager")
   }
 
   def watchDog() = {
