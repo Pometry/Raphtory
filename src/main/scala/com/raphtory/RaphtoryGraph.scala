@@ -1,15 +1,12 @@
 package com.raphtory
 
 import akka.actor.{ActorSystem, Props}
-import ch.qos.logback.classic.Level
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi._
+import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi.message._
 import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.actors.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
-import kamon.Kamon
-import org.slf4j.LoggerFactory
 
 object RaphtoryGraph {
   def apply[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) : RaphtoryGraph[T] =

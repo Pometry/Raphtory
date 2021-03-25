@@ -8,7 +8,7 @@ import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.State
-import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi._
+import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi.message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message.FailedToCompile
 import com.raphtory.core.actors.AnalysisManager.Tasks.LiveTasks._
 import com.raphtory.core.actors.AnalysisManager.Tasks.RangeTasks._
