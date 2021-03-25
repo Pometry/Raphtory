@@ -1,4 +1,4 @@
-package com.raphtory.analysis.Tasks
+package com.raphtory.core.actors.AnalysisManager.Tasks
 
 import java.net.InetAddress
 import akka.actor.{Actor, PoisonPill}
@@ -6,10 +6,9 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.mongodb.DBObject
 import com.mongodb.casbah.{MongoClient, MongoClientURI}
 import com.mongodb.util.JSON
-import com.raphtory.analysis.Tasks.AnalysisTask.Message._
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
-import com.raphtory.core.actors.AnalysisManager.StartAnalysis
+import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.communication._
@@ -146,11 +145,11 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
   mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
 
   override def preStart() {
-    context.system.scheduler.scheduleOnce(Duration(1, MILLISECONDS), self, StartAnalysis())
+    context.system.scheduler.scheduleOnce(Duration(1, MILLISECONDS), self, StartAnalysis)
   }
 
   override def receive: Receive = {
-    case StartAnalysis()               => startAnalysis() //received message to start from Orchestrator
+    case StartAnalysis               => startAnalysis() //received message to start from Orchestrator
     case ReaderWorkersAck           => readerACK() //count up number of acks and if == number of workers, check if analyser present
     case AnalyserPresent             => analyserPresent() //analyser confirmed to be present within workers, send setup request to workers
     case TimeResponse(ok, time)        => timeResponse(ok, time) //checking if the timestamps are ok within all partitions
@@ -360,6 +359,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
 
 object AnalysisTask {
   object Message {
+    case object StartAnalysis
     case class Setup(analyzer: Analyser[Any], jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
     case class SetupNewAnalyser(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
     case class Ready(messages: Int)

@@ -2,7 +2,7 @@ package com.raphtory.core.actors.PartitionManager.Workers
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.analysis.Tasks.AnalysisTask.Message._
+import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
 import com.raphtory.core.analysis.api.{Analyser, LoadExternalAnalyser, ManagerCount}
 import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
 import com.raphtory.core.actors.RaphtoryActor

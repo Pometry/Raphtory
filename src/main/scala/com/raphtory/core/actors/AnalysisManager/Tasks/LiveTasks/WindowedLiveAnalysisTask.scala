@@ -1,4 +1,4 @@
-package com.raphtory.analysis.Tasks.LiveTasks
+package com.raphtory.core.actors.AnalysisManager.Tasks.LiveTasks
 
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.model.communication.AnalysisType
