@@ -1,9 +1,9 @@
-package com.raphtory.analysis.Tasks.LiveTasks
+package com.raphtory.core.actors.AnalysisManager.Tasks.LiveTasks
 
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.analysis.Tasks.AnalysisTask
-import com.raphtory.analysis.Tasks.AnalysisTask.Message._
+import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask
+import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
 import com.raphtory.core.model.communication.AnalysisType
 
 import scala.collection.mutable

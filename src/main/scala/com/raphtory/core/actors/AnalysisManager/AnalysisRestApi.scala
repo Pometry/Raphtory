@@ -33,9 +33,15 @@ case class AnalysisRestApi(system:ActorSystem){
     //Submit Analysis
     case HttpRequest(POST,Uri.Path("/LiveAnalysisRequest"),_,entity,_)  => {
       try{
-        implicit val LiveAnalysisFormat = jsonFormat8(LiveAnalysisPOST)
+        implicit val LiveAnalysisFormat = jsonFormat6(LiveAnalysisPOST)
         val in:LiveAnalysisPOST = Await.result(Unmarshal(entity).to[LiveAnalysisPOST], 10.second)
-        val response = LiveAnalysisRequest(in.analyserName,in.repeatTime.getOrElse(0),in.eventTime.getOrElse(false),in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
+        val response = LiveAnalysisRequest(
+          in.analyserName,in.repeatTime.getOrElse(0),
+          in.eventTime.getOrElse(false),
+          in.windowSet.getOrElse(List.empty),
+          in.args.getOrElse(Array()),
+          in.rawFile.getOrElse("")
+        )
         mediator ! DistributedPubSubMediator.Send("/user/AnalysisManager", response, false)
         HttpResponse(entity = s"""Your Task Has been successfully submitted as a Live Analysis Task!""")
       }
@@ -44,9 +50,15 @@ case class AnalysisRestApi(system:ActorSystem){
     }
     case HttpRequest(POST,Uri.Path("/ViewAnalysisRequest"),_,entity,_)  => {
       try{
-        implicit val viewAnalysisPOST = jsonFormat7(ViewAnalysisPOST)
+        implicit val viewAnalysisPOST = jsonFormat5(ViewAnalysisPOST)
         val in:ViewAnalysisPOST = Await.result(Unmarshal(entity).to[ViewAnalysisPOST], 100  .second)
-        val response = ViewAnalysisRequest(in.analyserName,in.timestamp,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
+        val response = ViewAnalysisRequest(
+          in.analyserName,
+          in.timestamp,
+          in.windowSet.getOrElse(List.empty),
+          in.args.getOrElse(Array()),
+          in.rawFile.getOrElse("")
+        )
         mediator ! DistributedPubSubMediator.Send("/user/AnalysisManager", response, false)
         HttpResponse(entity = s"""Your Task Has been successfully submitted as a View Analysis Task!""")
       }
@@ -54,16 +66,24 @@ case class AnalysisRestApi(system:ActorSystem){
     }
     case HttpRequest(POST,Uri.Path("/RangeAnalysisRequest"),_,entity,_)  => {
       try{
-        implicit val rangeAnalysisPOST = jsonFormat9(RangeAnalysisPOST)
+        implicit val rangeAnalysisPOST = jsonFormat7(RangeAnalysisPOST)
         val in:RangeAnalysisPOST = Await.result(Unmarshal(entity).to[RangeAnalysisPOST], 10.second)
-        val response = RangeAnalysisRequest(in.analyserName,in.start,in.end,in.jump,in.windowType.getOrElse("false"),in.windowSize.getOrElse(0),in.windowSet.getOrElse(Array()),in.args.getOrElse(Array()),in.rawFile.getOrElse(""))
+        val response = RangeAnalysisRequest(
+          in.analyserName,
+          in.start,
+          in.end,
+          in.jump,
+          in.windowSet.getOrElse(List.empty),
+          in.args.getOrElse(Array()),
+          in.rawFile.getOrElse("")
+        )
         mediator ! DistributedPubSubMediator.Send("/user/AnalysisManager", response, false)
         HttpResponse(entity = s"""Your Task Has been successfully submitted as a Range Analysis Task!""")
       }
       catch {case e:Exception => e.printStackTrace();HttpResponse(entity = "Your Task Appeared to have some issue, please check your JSON and resubmit")}
     }
     //get results
-    case HttpRequest(GET,uri,_,entity,_)  => {
+    case HttpRequest(GET,uri,_,_,_)  => {
       uri.path.toString() match {
         case "/AnalysisResults" => analysisResults(uri)
         case "/KillTask" => killTask(uri)
@@ -71,7 +91,15 @@ case class AnalysisRestApi(system:ActorSystem){
       }
 
     }
-    case last: HttpRequest => {
+    case HttpRequest(GET,uri,_,_,_)  => {
+      uri.path.toString() match {
+        case "/AnalysisResults" => analysisResults(uri)
+        case "/KillTask" => killTask(uri)
+        case _ => fourOhFour(uri)
+      }
+
+    }
+    case _: HttpRequest => {
       HttpResponse(404, entity = s"unknown address")
     }
   }
@@ -138,9 +166,7 @@ case class AnalysisRestApi(system:ActorSystem){
 object AnalysisRestApi {
   case class LiveAnalysisPOST(
      analyserName: String,
-     windowType: Option[String],
-     windowSize: Option[Long],
-     windowSet: Option[Array[Long]],
+     windowSet: Option[List[Long]],
      repeatTime: Option[Long],
      eventTime: Option[Boolean],
      args: Option[Array[String]],
@@ -150,9 +176,7 @@ object AnalysisRestApi {
   case class ViewAnalysisPOST(
      analyserName: String,
      timestamp: Long,
-     windowType: Option[String],
-     windowSize: Option[Long],
-     windowSet: Option[Array[Long]],
+     windowSet: Option[List[Long]],
      args: Option[Array[String]],
      rawFile: Option[String]
    )
@@ -162,9 +186,7 @@ object AnalysisRestApi {
     start: Long,
     end: Long,
     jump: Long,
-    windowType: Option[String],
-    windowSize: Option[Long],
-    windowSet: Option[Array[Long]],
+    windowSet: Option[List[Long]],
     args: Option[Array[String]],
     rawFile: Option[String]
   )
@@ -173,23 +195,19 @@ object AnalysisRestApi {
 
   case class LiveAnalysisRequest(
     analyserName: String,
-    repeatTime: Long = 0L,
-    eventTime: Boolean = false,
-    windowType: String = "false",
-    windowSize: Long = 0L,
-    windowSet: Array[Long] = Array[Long](0),
-    args: Array[String] = Array(),
-    rawFile: String = ""
+    repeatTime: Long,
+    eventTime: Boolean,
+    windowSet: List[Long],
+    args: Array[String],
+    rawFile: String
   ) extends AnalysisRequest
 
   case class ViewAnalysisRequest(
     analyserName: String,
     timestamp: Long,
-    windowType: String = "false",
-    windowSize: Long = 0L,
-    windowSet: Array[Long] = Array[Long](0),
-    args: Array[String] = Array(),
-    rawFile: String = ""
+    windowSet: List[Long] ,
+    args: Array[String],
+    rawFile: String
   ) extends AnalysisRequest
 
   case class RangeAnalysisRequest(
@@ -197,10 +215,8 @@ object AnalysisRestApi {
      start: Long,
      end: Long,
      jump: Long,
-     windowType: String = "false",
-     windowSize: Long = 0L,
-     windowSet: Array[Long] = Array[Long](0),
-     args: Array[String] = Array(),
-     rawFile: String = ""
+     windowSet: List[Long],
+     args: Array[String],
+     rawFile: String
    ) extends AnalysisRequest
 }

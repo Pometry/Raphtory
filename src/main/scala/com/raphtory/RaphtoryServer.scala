@@ -73,7 +73,7 @@ object RaphtoryServer extends App {
   def analysis() = {
     println("Creating Analysis Manager")
     implicit val system: ActorSystem = initialiseActorSystem(List(locateSeed()))
-    system.actorOf(Props[AnalysisManager], s"AnalysisManager")
+    system.actorOf(Props[AnalysisManager].withDispatcher("misc-dispatcher"), s"AnalysisManager")
     AnalysisRestApi(system)
   }
 

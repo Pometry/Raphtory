@@ -10,20 +10,11 @@ import scala.tools.reflect.ToolBox
 case class ManagerCount(count: Int)
 case class WorkerID(ID: Int)
 
-class BlankAnalyser(args:Array[String]) extends Analyser[Any](args) {
-  override def analyse(): Unit = {}
-  override def setup(): Unit = {}
-  override def returnResults(): Any = {""}
-  override def defineMaxSteps(): Int = 1
-  override def extractResults(results: Array[Any]): Any = {println("howdy!")}
-}
-
-
 case class LoadExternalAnalyser(rawFile: String,args:Array[String]) {
   private val toolbox = currentMirror.mkToolBox()
   private val tree = toolbox.parse(rawFile)
   private val compiledCode = toolbox.compile(tree).apply().asInstanceOf[Class[Analyser[Any]]]
-  def newAnalyser = compiledCode.getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser[Any]]
+  def newAnalyser: Analyser[Any] = compiledCode.getConstructor(classOf[Array[String]]).newInstance(args)
 }
 
 abstract class Analyser[T<:Any](args:Array[String]) extends java.io.Serializable {
