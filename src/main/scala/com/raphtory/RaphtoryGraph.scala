@@ -39,42 +39,42 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   system.actorOf(Props(RaphtoryReplicator.apply("Router", partitionNumber, minimumRouters,graphBuilder)), s"Routers")
   system.actorOf(Props(RaphtoryReplicator("Partition Manager", partitionNumber,minimumRouters)), s"PartitionManager")
 
-  val analysisManager = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
+  val analysisManager = system.actorOf(Props[AnalysisManager].withDispatcher("misc-dispatcher"), s"AnalysisManager")
   AnalysisRestApi(system)
 
   //TODO tidy these, but will be done with full analysis Overhall
   def rangeQuery(analyser:Analyser[Any],start:Long,end:Long,increment:Long,args:Array[String]):Unit = {
-    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,"false",0L,Array[Long](),args,"")
+    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,List.empty,args,"")
   }
 
   def rangeQuery(analyser:Analyser[Any],start:Long,end:Long,increment:Long,window:Long,args:Array[String]):Unit = {
-    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,"true",window,Array[Long](),args,"")
+    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment, List(window),args,"")
   }
-  def rangeQuery(analyser:Analyser[Any],start:Long,end:Long,increment:Long,windowBatch:Array[Long],args:Array[String]):Unit = {
-    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,"batched",0L,windowBatch,args,"")
+  def rangeQuery(analyser:Analyser[Any],start:Long,end:Long,increment:Long,windowBatch:List[Long],args:Array[String]):Unit = {
+    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,windowBatch,args,"")
   }
 
   def viewQuery(analyser:Analyser[Any],timestamp:Long,args:Array[String]):Unit = {
-    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,"false",0L,Array[Long](),args,"")
+    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,List.empty,args,"")
   }
 
   def viewQuery(analyser:Analyser[Any],timestamp:Long,window:Long,args:Array[String]):Unit = {
-    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,"true",window,Array[Long](),args,"")
+    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp, List(window),args,"")
   }
-  def viewQuery(analyser:Analyser[Any],timestamp:Long,windowBatch:Array[Long],args:Array[String]):Unit = {
-    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,"batched",0L,windowBatch,args,"")
+  def viewQuery(analyser:Analyser[Any],timestamp:Long,windowBatch:List[Long],args:Array[String]):Unit = {
+    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp, windowBatch,args,"")
   }
 
   def liveQuery(analyser:Analyser[Any],repeat:Long,eventTime:Boolean,args:Array[String]):Unit = {
-    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime,"false",0L,Array[Long](),args,"")
+    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime, List.empty,args,"")
   }
 
   def liveQuery(analyser:Analyser[Any],repeat:Long,eventTime:Boolean,window:Long,args:Array[String]):Unit = {
-    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime,"true",window,Array[Long](),args,"")
+    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime,List(window),args,"")
   }
 
-  def liveQuery(analyser:Analyser[Any],repeat:Long,eventTime:Boolean,windowBatch:Array[Long],args:Array[String]):Unit = {
-    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime,"batched",0L,windowBatch,args,"")
+  def liveQuery(analyser:Analyser[Any],repeat:Long,eventTime:Boolean,windowBatch:List[Long],args:Array[String]):Unit = {
+    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime, windowBatch,args,"")
   }
 
 }

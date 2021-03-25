@@ -1,7 +1,7 @@
-package com.raphtory.analysis.Tasks.ViewTasks
+package com.raphtory.core.actors.AnalysisManager.Tasks.ViewTasks
 
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.analysis.Tasks.AnalysisTask
+import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask
 import com.raphtory.core.model.communication.AnalysisType
 
 class ViewAnalysisTask(managerCount:Int, jobID: String,args:Array[String], analyser: Analyser[Any], time: Long,newAnalyser:Boolean,rawFile:String)
