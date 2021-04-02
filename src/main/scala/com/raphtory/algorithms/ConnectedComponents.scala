@@ -10,7 +10,7 @@ object ConnectedComponents {
 }
 
 class ConnectedComponents(args:Array[String]) extends Analyser(args){
-
+  val output_file: String = System.getenv().getOrDefault("CC_OUTPUT_PATH", "").trim
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       vertex.setState("cclabel", vertex.ID)
@@ -37,23 +37,13 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val er = extractData(results)
     val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime},"""
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","ConnectedComponents.json").trim
-
-    println(text)
-    writeLines(output_file, text, "[")
-
-    publishData(text)
+    writeOut(text, output_file)
   }
 
   override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
       val er = extractData(results)
-      var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-      var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","ConnectedComponents.json").trim
       val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime},"""
-      writeLines(output_file, text, "[")
-      println(text)
-      publishData(text)
+      writeOut(text, output_file)
 
   }
 
@@ -68,8 +58,8 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
       val total = grouped.size
       val totalWithoutIslands = groupedNonIslands.size
       val totalIslands = total - totalWithoutIslands
-      val proportion = biggest.toFloat / grouped.map(x => x._2).sum
-      val totalGT2 = grouped.filter(x => x._2 > 2).size
+      val proportion = biggest.toFloat / grouped.values.sum
+      val totalGT2 = grouped.count(x => x._2 > 2)
       extractedData(top5,total,totalIslands,proportion,totalGT2)
     } catch {
       case e: UnsupportedOperationException => extractedData(Array(0),0,0,0,0)

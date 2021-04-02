@@ -37,7 +37,6 @@ mainproject/build.sbt
 
 sbt/
 cluster/src/main/scala/scala.iml
-src/main/scala/com/raphtory/algorithms/testAlgo.scala
 src/main/scala/com/raphtory/testDeploy.scala
 
 .env
@@ -70,3 +69,4 @@ logs
 .idea
 
 **/logs/**
+/src/main/scala/com/raphtory/dev/algorithms/test.scala

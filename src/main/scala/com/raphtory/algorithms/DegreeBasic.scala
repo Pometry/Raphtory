@@ -9,6 +9,7 @@ object DegreeBasic{
 }
 
 class DegreeBasic(args:Array[String]) extends Analyser(args){
+  val output_file: String = System.getenv().getOrDefault("DB_OUTPUT_PATH", "").trim
   object sortOrdering extends Ordering[Int] {
     def compare(key1: Int, key2: Int) = key2.compareTo(key1)
   }
@@ -43,13 +44,8 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
         case e: ArithmeticException => 0
       }
 
-val startTime   = System.currentTimeMillis()
     val text = s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree}"""
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","DegreeBasic.json").trim
-   // writeLines(output_file, text, "")
-    println(text)
-    //publishData(text)
+    writeOut(text, output_file)
   }
 
   override def processWindowResults(
@@ -58,20 +54,15 @@ val startTime   = System.currentTimeMillis()
       windowSize: Long,
       viewCompleteTime: Long
   ): Unit = {
-    val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","DegreeBasic.json").trim
-    val totalVert   = endResults.map(x => x._1).sum
-    val totalEdge   = endResults.map(x => x._3).sum
+    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
+    val totalVert = endResults.map(x => x._1).sum
+    val totalEdge = endResults.map(x => x._3).sum
     val degree =
       try totalEdge.toDouble / totalVert.toDouble
       catch {
         case e: ArithmeticException => 0
       }
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree},"""
-  //  writeLines(output_file, text, "")
-    println(text)
-  //  publishData(text)
-
+    writeOut(text, output_file)
   }
 }

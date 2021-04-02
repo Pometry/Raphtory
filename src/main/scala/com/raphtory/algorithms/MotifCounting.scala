@@ -65,13 +65,8 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //IM: better m
     val total         = filtered.length
     val count         = if (top == 0) filtered else filtered.take(top)
     val text          =
-s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"viewTime":$viewCompleteTime}"""
-
-    output_file match {
-      case "" => println(text)
-      case "mongo" => publishData(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
+    s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"viewTime":$viewCompleteTime}"""
+    writeOut(text, output_file)
   }
 
   override def processWindowResults(
@@ -86,11 +81,7 @@ s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"vie
     val count         = if (top == 0) filtered else filtered.take(top)
     val text          = s"""{"time":$timestamp,"windowsize":$windowSize,"total": $total,"motifs":{ ${count
       .mkString(",")} },"viewTime":$viewCompleteTime}"""
-    output_file match {
-      case "" => println(text)
-      case "mongo" => publishData(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
+    writeOut(text, output_file)
   }
 
   override def defineMaxSteps(): Int = 10
