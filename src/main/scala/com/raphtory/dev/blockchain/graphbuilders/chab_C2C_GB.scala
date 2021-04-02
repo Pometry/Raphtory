@@ -9,15 +9,14 @@ class chab_C2C_GB extends GraphBuilder[String]{
     try{
       val dp = formatLine(tuple.split(",").map(_.trim))
       val transactionTime = dp.time
-      val srcClusterId = dp.srcCluster
-      val dstClusterId = dp.dstCluster
+      val srcClusterId = assignID(dp.srcCluster.toString)
+      val dstClusterId = assignID(dp.dstCluster.toString)
       val transactionId = dp.txid
       val btcAmount = dp.amount
       val usdAmount = dp.usd
 
-
-      addVertex(transactionTime, srcClusterId, Type("Cluster"))
-      addVertex(transactionTime, dstClusterId, Type("Cluster"))
+      addVertex(transactionTime, srcClusterId, Properties(StringProperty("ID", dp.srcCluster.toString)), Type("Cluster"))
+      addVertex(transactionTime, dstClusterId, Properties(StringProperty("ID", dp.dstCluster.toString)), Type("Cluster"))
 
       addEdge(transactionTime,
         srcClusterId,

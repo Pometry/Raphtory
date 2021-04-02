@@ -1,12 +1,12 @@
 package com.raphtory.api
 
 import java.io.{BufferedWriter, File, FileWriter}
-
 import akka.actor.ActorContext
 import com.raphtory.core.model.analysis.GraphLenses.GraphLens
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.io.Path
 import scala.reflect.runtime.currentMirror
 import scala.tools.reflect.ToolBox
 case class ManagerCount(count: Int)
@@ -79,6 +79,19 @@ abstract class Analyser(args:Array[String]) extends java.io.Serializable {
       case e:Exception =>
     }
 
+  }
+
+  //IM: TEMPORARY SOLUTION TIL A STABLE ONE IS AGREED ON
+  def writeOut(line: String, filepath: String): Unit ={
+    try{
+      filepath match {
+        case "" => println(line)
+        case "mongo" => publishData(line)
+        case _  => Path(filepath).createFile().appendAll(line + "\n")
+      }
+    }catch {
+      case e:Exception => println(s"ERROR while writing to $filepath >> $e")
+    }
   }
 
 }
