@@ -6,7 +6,7 @@ import akka.actor.Props
 import akka.actor.Stash
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
+import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message.{JobKilled, _}
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.State
 import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi.message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message.FailedToCompile
@@ -82,12 +82,11 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
         case None => sender ! JobDoesntExist
       }
 
-    case KillTask(jobId) =>
-      state.currentTasks.get(jobId) match {
+    case req: KillTask =>
+      state.currentTasks.get(req.jobId) match {
         case Some(actor) =>
-          context.stop(actor)
-          context.become(work(state.updateCurrentTask(_ - jobId)))
-          sender ! JobKilled
+          context.become(work(state.updateCurrentTask(_ - req.jobId)))
+          actor forward KillTask
         case None => sender ! JobDoesntExist
       }
 
@@ -101,41 +100,23 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
 
     getAnalyser(analyserName, args, request.rawFile).map {
       case (newAnalyser, analyser) =>
-        val ref = windowSet match {
-          case Nil =>
-            context.system.actorOf(
-                    Props(
-                            new LiveAnalysisTask(
-                                    managerCount,
-                                    jobId,
-                                    args,
-                                    analyser,
-                                    repeatTime,
-                                    eventTime,
-                                    newAnalyser,
-                                    rawFile
-                            )
-                    ).withDispatcher("analysis-dispatcher"),
-                    s"LiveAnalysisTask_$jobId"
-            )
-          case windows =>
-            context.system.actorOf(
-                    Props(
-                            new WindowedLiveAnalysisTask(
-                                    managerCount,
-                                    jobId,
-                                    args,
-                                    analyser,
-                                    repeatTime,
-                                    eventTime,
-                                    windows.head, // should pass whole windows until we support
-                                    newAnalyser,
-                                    rawFile
-                            )
-                    ).withDispatcher("analysis-dispatcher"),
-                    s"LiveAnalysisTask__windowed_$jobId"
-            )
-        }
+        val ref = context.system.actorOf(
+                Props(
+                        LiveAnalysisTask(
+                                managerCount,
+                                jobId,
+                                args,
+                                analyser,
+                                repeatTime,
+                                eventTime,
+                                windowSet,
+                                newAnalyser,
+                                rawFile
+                        )
+                ).withDispatcher("analysis-dispatcher"),
+                s"LiveAnalysisTask_$jobId"
+        )
+
         (jobId, ref)
     }
   }
@@ -146,39 +127,22 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
     log.info(s"View Analysis Task received, your job ID is $jobId")
     getAnalyser(analyserName, args, rawFile).map {
       case (newAnalyser, analyser) =>
-        val ref = windowSet match {
-          case Nil =>
-            context.system.actorOf(
-                    Props(
-                            new ViewAnalysisTask(
-                                    managerCount,
-                                    jobId,
-                                    args,
-                                    analyser,
-                                    timestamp,
-                                    newAnalyser,
-                                    rawFile
-                            )
-                    ).withDispatcher("analysis-dispatcher"),
-                    s"ViewAnalysisTask_$jobId"
-            )
-          case windows =>
-            context.system.actorOf(
-                    Props(
-                            new WindowedViewAnalysisTask(
-                                    managerCount,
-                                    jobId,
-                                    args,
-                                    analyser,
-                                    timestamp,
-                                    windows.head, // should pass whole windows until we support
-                                    newAnalyser,
-                                    rawFile
-                            )
-                    ).withDispatcher("analysis-dispatcher"),
-                    s"ViewAnalysisTask_windowed_$jobId"
-            )
-        }
+        val ref =
+          context.system.actorOf(
+                  Props(
+                          ViewAnalysisTask(
+                                  managerCount,
+                                  jobId,
+                                  args,
+                                  analyser,
+                                  timestamp,
+                                  windowSet,
+                                  newAnalyser,
+                                  rawFile
+                          )
+                  ).withDispatcher("analysis-dispatcher"),
+                  s"ViewAnalysisTask_$jobId"
+          )
         (jobId, ref)
     }
   }
@@ -194,43 +158,24 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
     )
     getAnalyser(analyserName, args, rawFile).map {
       case (newAnalyser, analyser) =>
-        val ref = windowSet match {
-          case Nil =>
-            context.system.actorOf(
-                    Props(
-                            new RangeAnalysisTask(
-                                    managerCount,
-                                    jobId,
-                                    args,
-                                    analyser,
-                                    start,
-                                    end,
-                                    jump,
-                                    newAnalyser,
-                                    rawFile
-                            )
-                    ).withDispatcher("analysis-dispatcher"),
-                    s"RangeAnalysisTask_$jobId"
-            )
-          case windows =>
-            context.system.actorOf(
-                    Props(
-                            new WindowedRangeAnalysisTask(
-                                    managerCount,
-                                    jobId,
-                                    args,
-                                    analyser,
-                                    start,
-                                    end,
-                                    jump,
-                                    windows.head, // should pass whole windows until we support
-                                    newAnalyser,
-                                    rawFile
-                            )
-                    ).withDispatcher("analysis-dispatcher"),
-                    s"RangeAnalysisTask_windowed_$jobId"
-            )
-        }
+        val ref =
+          context.system.actorOf(
+                  Props(
+                          RangeAnalysisTask(
+                                  managerCount,
+                                  jobId,
+                                  args,
+                                  analyser,
+                                  start,
+                                  end,
+                                  jump,
+                                  windowSet,
+                                  newAnalyser,
+                                  rawFile
+                          )
+                  ).withDispatcher("analysis-dispatcher"),
+                  s"RangeAnalysisTask_$jobId"
+          )
         (jobId, ref)
     }
   }

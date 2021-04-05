@@ -1,20 +1,19 @@
 package com.raphtory.core.actors.AnalysisManager.Tasks.ViewTasks
 
-import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask
-import com.raphtory.core.model.communication.AnalysisType
+import com.raphtory.core.actors.AnalysisManager.Tasks.SubTaskController
+import com.raphtory.core.analysis.api.Analyser
 
-class ViewAnalysisTask(managerCount:Int, jobID: String,args:Array[String], analyser: Analyser[Any], time: Long,newAnalyser:Boolean,rawFile:String)
-        extends AnalysisTask(jobID: String, args, analyser,managerCount,newAnalyser,rawFile) {
-  override def timestamp(): Long = time
-
-  override protected def analysisType(): AnalysisType.Value = AnalysisType.view
-
-  override def restart(): Unit = {
-    println(s"View Analysis manager for $jobID at ${time} finished")
-    //killme()
-  }
-
-  override def processResults(timestamp: Long): Unit =
-    analyser.extractResults(result.toArray)
+final case class ViewAnalysisTask(
+    managerCount: Int,
+    jobId: String,
+    args: Array[String],
+    analyser: Analyser[Any],
+    time: Long,
+    windows: List[Long],
+    newAnalyser: Boolean,
+    rawFile: String
+) extends AnalysisTask(jobId: String, args, analyser, managerCount, newAnalyser, rawFile) {
+  override protected def buildSubTaskController(readyTimestamp: Long): SubTaskController =
+    SubTaskController.fromViewTask(time, windows)
 }

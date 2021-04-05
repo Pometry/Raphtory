@@ -35,7 +35,7 @@ class Reader(
 
     // create threads for writing
     val child = context.system.actorOf(
-            Props(new ReaderWorker(managerCount, managerId, i, storage(i))).withDispatcher("reader-dispatcher"),
+            Props(ReaderWorker(managerCount, managerId, i, storage(i))).withDispatcher("reader-dispatcher"),
             s"Manager_${id}_reader_$i"
     )
 
@@ -66,7 +66,7 @@ class Reader(
         sender ! ClassMissing
       case Success(_) =>
         log.debug(s"Class [$className] exists. Proceeding.")
-        sender ! AnalyserPresent
+        sender ! ClassExists
     }
   }
 

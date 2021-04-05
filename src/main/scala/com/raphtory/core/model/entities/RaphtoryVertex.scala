@@ -34,9 +34,6 @@ class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   var outgoingProcessing = outgoingEdges
   private var edgesRequiringSync = 0
 
-  var multiQueue        = new VertexMultiQueue()    //Map of queues for all ongoing processing
-  var computationValues = ParTrieMap[String, Any]() //Partial results kept between supersteps in calculation
-
   //Functions for adding associated edges to this vertex
   def incrementEdgesRequiringSync()  =edgesRequiringSync+=1
   def getEdgesRequringSync() = edgesRequiringSync
@@ -46,18 +43,6 @@ class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
     if (edge.getSrcId == vertexId) addOutgoingEdge(edge) else addIncomingEdge(edge)
   def getOutgoingEdge(id: Long): Option[RaphtoryEdge] = outgoingEdges.get(id)
   def getIncomingEdge(id: Long): Option[RaphtoryEdge] = incomingEdges.get(id)
-
-  //Getters and setters for processing results
-  def addCompValue(key: String, value: Any): Unit = computationValues += ((key, value))
-  def containsCompvalue(key: String): Boolean     = computationValues contains (key)
-  def getCompValue(key: String)                   = computationValues(key)
-  def getOrSet(key: String, value: Any) =
-    if (computationValues.contains(key))
-      computationValues(key)
-    else {
-      computationValues += ((key, value))
-      value
-    }
 
   def viewAt(time: Long): RaphtoryVertex = {
     incomingProcessing = incomingEdges.filter(e => e._2.aliveAt(time))
