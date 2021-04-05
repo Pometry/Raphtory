@@ -1,43 +1,21 @@
 package com.raphtory.core.model.communication
 
-import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
+import scala.collection.mutable.{ArrayBuffer, MutableList}
 
-import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
+final class VertexMultiQueue {
+  private val evenMessageQueue: ArrayBuffer[Any] = ArrayBuffer.empty
+  private val oddMessageQueue: ArrayBuffer[Any]  = ArrayBuffer.empty
 
-class VertexMultiQueue {
+  def getMessageQueue(superStep: Int): ArrayBuffer[Any] =
+    if (superStep % 2 == 0) evenMessageQueue else oddMessageQueue
 
-  val evenMessageQueueMap = ParTrieMap[ViewJob, mutable.ArrayBuffer[Any]]()
-  val oddMessageQueueMap  = ParTrieMap[ViewJob, mutable.ArrayBuffer[Any]]()
+  def clearQueue(superStep: Int): Unit =
+    getMessageQueue(superStep).clear()
 
-  def getMessageQueue(jobID: ViewJob, superStep: Int): mutable.ArrayBuffer[Any] = {
-    val queueMap = if (superStep % 2 == 0) evenMessageQueueMap else oddMessageQueueMap
-    queueMap.get(jobID) match {
-      case Some(stack) => stack
-      case None =>
-        val newStack = mutable.ArrayBuffer[Any]()
-        queueMap(jobID) = newStack
-        newStack
-    }
+  def clearQueues(): Unit = {
+    evenMessageQueue.clear()
+    oddMessageQueue.clear()
   }
 
-  def clearQueue(jobID: ViewJob, superStep: Int) = {
-    val queueMap = if (superStep % 2 == 0) evenMessageQueueMap else oddMessageQueueMap
-    queueMap.update(jobID, mutable.ArrayBuffer[Any]())
-  }
-
-  def clearQueues(jobID: ViewJob) = {
-    evenMessageQueueMap.get(jobID) match {
-      case Some(_) => evenMessageQueueMap.update(jobID, mutable.ArrayBuffer[Any]())
-      case None    =>
-    }
-
-    oddMessageQueueMap.get(jobID) match {
-      case Some(_) => oddMessageQueueMap.update(jobID, mutable.ArrayBuffer[Any]())
-      case None    =>
-    }
-  }
-
-  def receiveMessage(jobID: ViewJob, superStep: Int, data: Any) = getMessageQueue(jobID, superStep + 1) += (data)
-
+  def receiveMessage(superStep: Int, data: Any) = getMessageQueue(superStep + 1) += data
 }

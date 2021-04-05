@@ -4,7 +4,8 @@ import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.analysis.entity.Edge
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.mutable.{ParIterable, ParMap}
+import scala.collection.parallel.ParIterable
+import scala.collection.parallel.mutable.ParMap
 import scala.reflect.io.Path
 
 

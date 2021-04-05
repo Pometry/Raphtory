@@ -11,7 +11,7 @@ class BinaryDefusion(args:Array[String]) extends Analyser[Any](args) {
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       if (vertex.ID() == infectedNode) {
-        val toSend = vertex.getOrSetState("infected", view.superStep()).asInstanceOf[Int]
+        val toSend = vertex.getOrSetState("infected", view.superStep).asInstanceOf[Int]
         vertex.getOutEdges.foreach { neighbour =>
           if (Random.nextBoolean())
             vertex.messageNeighbour(neighbour.ID(), toSend)
@@ -25,7 +25,7 @@ class BinaryDefusion(args:Array[String]) extends Analyser[Any](args) {
       if (vertex.containsState("infected"))
         vertex.voteToHalt() //already infected
       else {
-        val toSend = vertex.getOrSetState("infected", view.superStep()).asInstanceOf[Int]
+        val toSend = vertex.getOrSetState("infected", view.superStep).asInstanceOf[Int]
         vertex.getOutEdges.foreach { neighbour =>
           if (Random.nextBoolean())
             vertex.messageNeighbour(neighbour.ID, toSend)

@@ -112,7 +112,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
     }
     if (debug & (workerID == 1))
       println(
-              s"Superstep: ${view.superStep()}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
+        s"Superstep: ${view.superStep}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
       )
   }
 

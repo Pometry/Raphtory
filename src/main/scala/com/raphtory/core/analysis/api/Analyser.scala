@@ -18,17 +18,13 @@ case class LoadExternalAnalyser(rawFile: String,args:Array[String]) {
 }
 
 abstract class Analyser[T<:Any](args:Array[String]) extends java.io.Serializable {
-  implicit var context: ActorContext      = null
-  implicit var managerCount: ManagerCount = null
   implicit var view: GraphLens            = null
   var workerID: Int                       = 0
 
   private var toPublish:mutable.ArrayBuffer[String] = ArrayBuffer()
-  final def sysSetup(context: ActorContext, managerCount: ManagerCount, proxy: GraphLens, ID: Int) = {
-    this.context = context
-    this.managerCount = managerCount
+  final def sysSetup(proxy: GraphLens, id: Int) = {
     this.view = proxy
-    this.workerID = ID
+    this.workerID = id
   }
 
   def publishData(data:String) = toPublish +=data

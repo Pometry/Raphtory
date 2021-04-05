@@ -1,7 +1,5 @@
 package com.raphtory.core.model.communication
 
-import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
 import com.raphtory.core.model.entities.RaphtoryEdge
 
 import scala.collection.mutable
@@ -55,4 +53,4 @@ case class VertexRemoveSyncAck(msgTime: Long, override val updateId: Long) exten
 
 case class TrackedGraphEffect[T <: GraphUpdateEffect](channelId: String, channelTime: Int, effect: T)
 
-case class VertexMessage(vertexID: Long, viewJob: ViewJob, superStep: Int, data:Any )
+case class VertexMessage(vertexId: Long, jobId: String, superStep: Int, data: Any)

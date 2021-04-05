@@ -1,33 +1,75 @@
 package com.raphtory.core.analysis.GraphLenses
 
-import java.util.concurrent.atomic.AtomicInteger
-
-import akka.actor.ActorContext
-import com.raphtory.core.analysis.api.ManagerCount
-import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
-import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.analysis.entity.Vertex
-import com.raphtory.core.model.entities.RaphtoryVertex
+import com.raphtory.core.model.EntityStorage
+import com.raphtory.core.model.communication.VertexMessage
+import kamon.Kamon
 
 import scala.collection.parallel.ParIterable
+import scala.collection.parallel.mutable.ParTrieMap
 
-abstract class GraphLens(jobID: ViewJob, superstep: Int, storage: EntityStorage, managerCount: ManagerCount) {
-  private val messages     = new AtomicInteger(0)
-  protected var voteCount  = new AtomicInteger(0)
-  def superStep() = superstep
+final case class GraphLens(
+    jobId: String,
+    timestamp: Long,
+    window: Option[Long],
+    var superStep: Int,
+    workerId: Int,
+    storage: EntityStorage
+) {
+  private var messages: List[VertexMessage] = List.empty
+  protected var voteCount                   = 0
 
-  def getVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[Vertex] =
-    storage.vertices.map(v =>  new Vertex(v._2, jobID, superstep, this))
+  private var messageFilter: Boolean = false
 
-  def getMessagedVertices()(implicit context: ActorContext, managerCount: ManagerCount): ParIterable[Vertex] =
-    storage.vertices.filter {
-      case (id: Long, vertex: RaphtoryVertex) => vertex.multiQueue.getMessageQueue(jobID, superstep).nonEmpty
-    }.map(v =>  new Vertex(v._2, jobID, superstep, this))
+  private val viewTimer = Kamon
+    .gauge("Raphtory_View_Build_Time")
+    .withTag("Partition", storage.managerID)
+    .withTag("Worker", workerId)
+    .withTag("JobID", jobId)
+    .withTag("timestamp", timestamp)
 
+  private lazy val vertexMap: ParTrieMap[Long, Vertex] = {
+    val startTime = System.currentTimeMillis()
+    val result = window match {
+      case None =>
+        storage.vertices.map {
+          case (k, v) if v.aliveAt(timestamp) =>
+            k -> Vertex(v.viewAt(timestamp), this)
+        }
+      case Some(w) =>
+        storage.vertices.map {
+          case (k, v) if v.aliveAtWithWindow(timestamp, w) =>
+            k -> Vertex(v.viewAtWithWindow(timestamp, w), this)
+        }
+    }
+    viewTimer.update(System.currentTimeMillis() - startTime)
+    result
+  }
+
+  def getMessagedVertices(): ParIterable[Vertex] = {
+    val startTime = System.currentTimeMillis()
+    val result    = getVertices.filter(_.hasMessage())
+    messageFilter = true
+    viewTimer.update(System.currentTimeMillis() - startTime)
+    result
+  }
+
+  def getVertices(): ParIterable[Vertex] = vertexMap.values
+
+  def checkVotes(): Boolean =
+    if (messageFilter)
+      getMessagedVertices().size == voteCount
+    else
+      vertexMap.size == voteCount
 
   //TODO hide away
-  def recordMessage() = messages.incrementAndGet()
-  def getMessages() = messages.get
-  def vertexVoted() = voteCount.incrementAndGet()
-  def checkVotes(workerID: Int): Boolean = storage.vertices.size == voteCount.get
+  def sendMessage(msg: VertexMessage): Unit = messages = messages :+ msg
+  def getAndCleanMessages(): Seq[VertexMessage] = {
+    val temp = messages
+    messages = List.empty
+    temp
+  }
+  def vertexVoted(): Unit = voteCount += 1
+  def nextStep(): Unit    = superStep += 1
+  def receiveMessage(msg: VertexMessage): Unit = vertexMap(msg.vertexId).receiveMessage(msg)
 }
