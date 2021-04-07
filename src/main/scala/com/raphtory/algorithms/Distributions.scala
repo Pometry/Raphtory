@@ -37,7 +37,7 @@ class Distributions(args:Array[String]) extends Analyser[Any](args){
 
   override def defineMaxSteps(): Int = 1
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","Distributions.json").trim
     val er = extractData(results)
@@ -50,9 +50,10 @@ class Distributions(args:Array[String]) extends Analyser[Any](args){
     val text = s"""{"degDist":$degDistArr,"weightDist":$weightDistArr, "edgeDist":$edgeDistArr}"""
     println(text)
     publishData(text)
+    Map[String,Any]()
   }
 
-  def extractData(results: Array[Any]): extractedData = {
+  def extractData(results: List[Any]): extractedData = {
     val endResults = results.asInstanceOf[ArrayBuffer[(immutable.ParHashMap[Int, Int], immutable.ParHashMap[Int, Int], immutable.ParHashMap[(Long,Long), Int])]]
     val degreeDist = endResults.map(x => x._1)
       .flatten

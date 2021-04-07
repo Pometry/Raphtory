@@ -8,7 +8,7 @@ object DegreeBasic{
   def apply() = new DegreeBasic(Array())
 }
 
-class DegreeBasic(args:Array[String]) extends Analyser[Any](args){
+class DegreeBasic(args:Array[String]) extends Analyser[(Int, Int, Int, Array[(Int, Int, Int)])](args){
   object sortOrdering extends Ordering[Int] {
     def compare(key1: Int, key2: Int) = key2.compareTo(key1)
   }
@@ -31,8 +31,8 @@ class DegreeBasic(args:Array[String]) extends Analyser[Any](args){
 
   override def defineMaxSteps(): Int = 1
 
-  override def extractResults(results: Array[Any]): Any = {
-    val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
+  override def extractResults(results: List[(Int, Int, Int, Array[(Int, Int, Int)])]): Map[String, Any] = {
+    val endResults  = results
   //  val output_file = System.getenv().getOrDefault("PROJECT_OUTPUT", "/app/defout.csv").trim
     val totalVert   = endResults.map(x => x._1).sum
     val totalEdge   = endResults.map(x => x._3).sum
@@ -50,6 +50,7 @@ val startTime   = System.currentTimeMillis()
    // writeLines(output_file, text, "")
     println(text)
     //publishData(text)
+    Map[String,Any]()
   }
 
 }

@@ -47,7 +47,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
       .filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.ID(), vertex.getOrSetState[Double]("outlierscore", -1.0)))
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Double]]].flatten
 
     val outliers  = endResults.filter(_._2 >= cutoff)
@@ -63,6 +63,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
       case "mongo" => publishData(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
+    Map[String,Any]()
   }
 
 

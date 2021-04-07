@@ -60,7 +60,7 @@ class MotifCounting(args: Array[String]) extends Analyser[Any](args) { //IM: bet
       }
       .toMap
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String, Any] = {
     val endResults = results.asInstanceOf[ArrayBuffer[ParMap[Long, (Double, Double)]]].flatten
     val filtered      = endResults.filter(x=> (x._2._1>0)|(x._2._2>0)).map(x => s""""${x._1}":{"mc1":${x._2._1}, "mc2":${x._2._2}}""")
     val total         = filtered.length
@@ -73,6 +73,7 @@ s"""{"total": $total, "motifs":{ ${count.mkString(",")} }}"""
       case "mongo" => publishData(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
+    Map[String,Any]()
   }
 
   override def defineMaxSteps(): Int = 10

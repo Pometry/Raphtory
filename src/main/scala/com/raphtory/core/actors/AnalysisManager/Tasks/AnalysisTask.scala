@@ -212,13 +212,13 @@ abstract class AnalysisTask(
           Try {
             mongoOpt match {
               case Some(mongo) =>
-                analyser.extractResults(newAllResults.toArray)
+                analyser.extractResults(newAllResults)
                 val data = analyser.getPublishedData().map(JSON.parse(_).asInstanceOf[DBObject])
                 analyser.clearPublishedData()
                 if (data.nonEmpty) mongo.getDB(dbname).getCollection(jobId).insert(data.toList.asJava)
               case None =>
                 analyser.clearPublishedData()
-                analyser.extractResults(newAllResults.toArray)
+                analyser.extractResults(newAllResults)
             }
           } match {
             case Success(_) =>

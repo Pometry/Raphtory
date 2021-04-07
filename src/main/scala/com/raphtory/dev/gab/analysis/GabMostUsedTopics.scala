@@ -37,7 +37,7 @@ class GabMostUsedTopics(args:Array[String]) extends Analyser[Any](args){
 
   override def defineMaxSteps(): Int = 1
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     println()
     println("Current top topics")
     results
@@ -46,6 +46,7 @@ class GabMostUsedTopics(args:Array[String]) extends Analyser[Any](args){
       .sortBy(f => f._2)(Ordering[Int].reverse)
       .foreach(topic => println(s"Topic: ${topic._3} with ID ${topic._1} and total uses of ${topic._2}"))
     println()
+    Map[String,Any]()
   }
 
   override def returnResults(): Any = ???

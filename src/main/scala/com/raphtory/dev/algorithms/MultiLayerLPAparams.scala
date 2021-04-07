@@ -34,7 +34,7 @@ class MultiLayerLPAparams(args: Array[String]) extends MultiLayerLPA(args) {
 
   def scaling(freq: Array[Double]): Double = math.sqrt(freq.map(math.pow(_, 2)).sum)
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     val er = extractData(results)
     output_file match {
       case "" =>
@@ -53,5 +53,6 @@ class MultiLayerLPAparams(args: Array[String]) extends MultiLayerLPA(args) {
         try er.communities.foreach(c => writer.write(Data(c.toArray)))
         finally writer.close()
     }
+    Map[String,Any]()
   }
 }

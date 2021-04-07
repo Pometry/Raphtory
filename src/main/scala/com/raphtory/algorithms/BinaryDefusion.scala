@@ -45,10 +45,11 @@ class BinaryDefusion(args:Array[String]) extends Analyser[Any](args) {
 
   override def defineMaxSteps(): Int = 100
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String, Any] = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]].flatten
     println(endResults)
     println(endResults.size)
+    Map[String,Any]()
   }
 
 }

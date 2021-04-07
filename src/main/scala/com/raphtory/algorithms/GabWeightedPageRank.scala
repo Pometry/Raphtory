@@ -65,7 +65,7 @@ class GabWeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
 
   override def defineMaxSteps(): Int = 10
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String, Any] = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
     val totalVert = endResults.map(x => x._1).sum
     val bestUsers = endResults
@@ -75,6 +75,7 @@ class GabWeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text = s"""{"vertices":$totalVert,"bestusers":$bestUsers}"""
     println(text)
+    Map[String,Any]()
   }
 
 
