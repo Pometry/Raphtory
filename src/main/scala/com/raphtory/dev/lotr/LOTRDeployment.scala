@@ -16,6 +16,6 @@ object LOTRDeployment extends App{
   //rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,windowBatch=Array(100,50,10),arguments)
 
   //rg.viewQuery(DegreeBasic(),timestamp = 10000,arguments)
-  rg.viewQuery(DegreeBasic(),timestamp = 10000,window=100,arguments)
-  //rg.viewQuery(DegreeBasic(),timestamp = 10000,windowBatch=Array(100,50,10),arguments)
+  //rg.viewQuery(DegreeBasic(),timestamp = 10000,window=100,arguments)
+  rg.viewQuery(DegreeBasic(),timestamp = 10000,windowBatch=List(100,50,10),arguments)
 }

@@ -49,11 +49,12 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser[Any](args) {
 
 
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     val endResults = results.asInstanceOf[ArrayBuffer[ParArray[String]]].flatten.toArray
     val toPublish = s"""{triangles:[""" +endResults.map(triangle => triangle+",").fold("")(_+_).dropRight(1)+"]}"
     println(toPublish)
     publishData(toPublish)
+    Map[String,Any]()
   }
 
   override def defineMaxSteps(): Int = 2

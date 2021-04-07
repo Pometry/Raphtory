@@ -136,7 +136,7 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
           .flatMap(ts => ts._2.zipWithIndex.map { case ((_, lab), w) => (omega(w), lab, s"""${f._2}_${ts._1}""") })
       )
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String,Any] = {
     val endResults = results.asInstanceOf[ArrayBuffer[ParIterable[(Double, Long, String)]]]
     try {
       println(s"Printing output to $output_file")
@@ -177,5 +177,6 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
         }
       }
     }
+    Map[String,Any]()
   }
 }

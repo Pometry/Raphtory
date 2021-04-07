@@ -59,7 +59,7 @@ class PageRank(args:Array[String]) extends Analyser[Any](args) {
 
   override def defineMaxSteps(): Int = 20
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
     val totalVert = endResults.map(x => x._1).sum
     val bestUsers = endResults
@@ -73,6 +73,7 @@ class PageRank(args:Array[String]) extends Analyser[Any](args) {
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","WeightedPageRank.json").trim
     println(text)
     publishData(text)
+    Map[String,Any]()
   }
 
 }

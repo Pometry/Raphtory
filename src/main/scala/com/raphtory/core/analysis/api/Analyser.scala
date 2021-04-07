@@ -36,6 +36,6 @@ abstract class Analyser[T<:Any](args:Array[String]) extends java.io.Serializable
   def returnResults(): Any
 
   def defineMaxSteps(): Int
-  def extractResults(results: Array[T]): Any
+  def extractResults(results: List[T]): Map[String, Any]
  
 }
