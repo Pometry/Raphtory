@@ -32,12 +32,12 @@ final case class GraphLens(
     val startTime = System.currentTimeMillis()
     val result = window match {
       case None =>
-        storage.vertices.map {
+        storage.vertices.collect {
           case (k, v) if v.aliveAt(timestamp) =>
             k -> Vertex(v.viewAt(timestamp), this)
         }
       case Some(w) =>
-        storage.vertices.map {
+        storage.vertices.collect {
           case (k, v) if v.aliveAtWithWindow(timestamp, w) =>
             k -> Vertex(v.viewAtWithWindow(timestamp, w), this)
         }
