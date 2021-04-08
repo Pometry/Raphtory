@@ -106,6 +106,6 @@ final case class Vertex(
 
   // todo hide
   def receiveMessage(msg: VertexMessage): Unit = {
-    multiQueue.receiveMessage(view.superStep, msg)
+    multiQueue.receiveMessage(view.superStep, msg.data)
   }
 }
