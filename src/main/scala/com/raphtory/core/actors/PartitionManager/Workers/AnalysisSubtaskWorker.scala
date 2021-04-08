@@ -82,6 +82,7 @@ final case class AnalysisSubtaskWorker(
             mediator ! new DistributedPubSubMediator.Send(getReader(m.vertexId, state.managerCount), m)
           }
           sender ! EndStep(analyzer.view.superStep, messages.size, analyzer.view.checkVotes())
+          context.become(work(state.updateSentMessageCount(_ + messages.size)))
 
         case Failure(e) => log.error(s"Failed to run nextStep due to [$e].")
       }

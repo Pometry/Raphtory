@@ -158,7 +158,7 @@ abstract class AnalysisTask(
       val newTotalReceivedMessage = totalReceivedMessage + receivedMessages
       val newTotalSentMessage     = totalSentMessage + sentMessages
       if (newReadyCount == workerCount)
-        if (totalReceivedMessage == totalSentMessage) {
+        if (newTotalReceivedMessage == newTotalSentMessage) {
           messageToAllReaderWorkers(NextStep(jobId))
           context.become(stepWork(subtaskState, 0, 0, true))
         } else {
