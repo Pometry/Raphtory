@@ -1,12 +1,12 @@
 package com.raphtory
 
 import akka.actor.{ActorSystem, Props}
-import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi.message._
 import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.actors.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
+import com.raphtory.core.analysis.api.Analyser
 
 object RaphtoryGraph {
   def apply[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) : RaphtoryGraph[T] =
@@ -51,8 +51,8 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
     analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,windowBatch,args,"")
   }
 
-  def viewQuery[S<:Serializable](analyser:Analyser[S],timestamp:Long,args:Array[String]):Unit = {
-    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,List.empty,args,"")
+  def viewQuery[S <: Serializable](clazz: Class[_], timestamp: Long, args: Array[String]): Unit = {
+    analysisManager ! ViewAnalysisRequest(clazz.getCanonicalName, timestamp, List.empty, args, "")
   }
 
   def viewQuery[S<:Serializable](analyser:Analyser[S],timestamp:Long,window:Long,args:Array[String]):Unit = {

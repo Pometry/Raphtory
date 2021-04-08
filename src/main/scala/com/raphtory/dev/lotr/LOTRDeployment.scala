@@ -1,7 +1,7 @@
 package examples.lotr
 
 import com.raphtory.RaphtoryGraph
-import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic}
+import com.raphtory.algorithms.ConnectedComponents
 
 object LOTRDeployment extends App{
   val source  = new LOTRSpout()
@@ -17,5 +17,5 @@ object LOTRDeployment extends App{
 
   //rg.viewQuery(DegreeBasic(),timestamp = 10000,arguments)
   //rg.viewQuery(DegreeBasic(),timestamp = 10000,window=100,arguments)
-  rg.viewQuery(ConnectedComponents(),timestamp = 10000,arguments)
+  rg.viewQuery(classOf[ConnectedComponents], timestamp = 10000, arguments)
 }

@@ -41,6 +41,7 @@ final case class AnalysisSubtaskWorker(
       val initStep   = 0
       val graphLens  = GraphLens(jobId, timestamp, window, initStep, workerId, storage)
       analyzer.sysSetup(graphLens, workerId)
+      analyzer.setup()
       val messages = analyzer.view.getAndCleanMessages()
       messages.foreach(m => mediator ! new DistributedPubSubMediator.Send(getReader(m.vertexId, state.managerCount), m))
       sender ! Ready(messages.size)
@@ -75,7 +76,7 @@ final case class AnalysisSubtaskWorker(
       val beforeTime = System.currentTimeMillis()
       analyzer.view.nextStep()
       Try(analyzer.analyse()) match {
-        case Success(result) =>
+        case Success(_) =>
           val messages = analyzer.view.getAndCleanMessages()
           messages.foreach { m =>
             mediator ! new DistributedPubSubMediator.Send(getReader(m.vertexId, state.managerCount), m)
