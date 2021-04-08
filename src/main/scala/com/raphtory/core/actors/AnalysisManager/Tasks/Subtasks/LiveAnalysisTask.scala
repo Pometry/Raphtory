@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.AnalysisManager.Tasks.LiveTasks
+package com.raphtory.core.actors.AnalysisManager.Tasks.Subtasks
 
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask
 import com.raphtory.core.actors.AnalysisManager.Tasks.SubTaskController

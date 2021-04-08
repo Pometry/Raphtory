@@ -1,7 +1,7 @@
 package com.raphtory.core.analysis.api
 
 import akka.actor.ActorContext
-import com.raphtory.core.analysis.GraphLenses.GraphLens
+import com.raphtory.core.analysis.GraphLens
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

@@ -4,7 +4,7 @@ import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.analysis.api.ManagerCount
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
-import com.raphtory.core.analysis.GraphLenses.GraphLens
+import com.raphtory.core.analysis.GraphLens
 import com.raphtory.core.model.communication.VertexMessage
 import com.raphtory.core.model.entities.{ImmutableProperty, MutableProperty, RaphtoryEdge}
 

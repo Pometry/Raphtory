@@ -1,7 +1,6 @@
-package com.raphtory.core.actors.AnalysisManager.Tasks.ViewTasks
+package com.raphtory.core.actors.AnalysisManager.Tasks.Subtasks
 
-import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask
-import com.raphtory.core.actors.AnalysisManager.Tasks.SubTaskController
+import com.raphtory.core.actors.AnalysisManager.Tasks.{AnalysisTask, SubTaskController}
 import com.raphtory.core.analysis.api.Analyser
 
 final case class ViewAnalysisTask(

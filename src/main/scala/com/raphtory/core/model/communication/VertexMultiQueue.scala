@@ -1,6 +1,6 @@
 package com.raphtory.core.model.communication
 
-import scala.collection.mutable.{ArrayBuffer, MutableList}
+import scala.collection.mutable.{ArrayBuffer}
 
 final class VertexMultiQueue {
   private val evenMessageQueue: ArrayBuffer[Any] = ArrayBuffer.empty
