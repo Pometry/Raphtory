@@ -36,11 +36,13 @@ final case class GraphLens(
           case (k, v) if v.aliveAt(timestamp) =>
             k -> Vertex(v.viewAt(timestamp), this)
         }
-      case Some(w) =>
+      case Some(w) => {
+        println(storage.vertices.size)
         storage.vertices.collect {
           case (k, v) if v.aliveAtWithWindow(timestamp, w) =>
             k -> Vertex(v.viewAtWithWindow(timestamp, w), this)
         }
+    }
     }
     viewTimer.update(System.currentTimeMillis() - startTime)
     result
