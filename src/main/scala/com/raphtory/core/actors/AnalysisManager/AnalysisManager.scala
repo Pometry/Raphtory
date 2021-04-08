@@ -11,8 +11,6 @@ import com.raphtory.core.actors.AnalysisManager.AnalysisManager.State
 import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi.message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message.FailedToCompile
 import com.raphtory.core.actors.AnalysisManager.Tasks.Subtasks._
-import com.raphtory.core.actors.AnalysisManager.Tasks.RangeTasks._
-import com.raphtory.core.actors.AnalysisManager.Tasks.ViewTasks._
 import com.raphtory.core.actors.ClusterManagement.WatchDog.Message._
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.api.Analyser
