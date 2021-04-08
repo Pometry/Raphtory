@@ -113,7 +113,7 @@ abstract class AnalysisTask(
         val controller = taskController.getOrElse(buildSubTaskController(time))
         val readyTime  = readyTimes.min
         currentRange.orElse(controller.nextRange(readyTime)) match {
-          case Some(range) if range.timestamp >= readyTime =>
+          case Some(range) if range.timestamp <= readyTime =>
             log.info(s"Range $range for Job $jobId is ready to start")
             messageToAllReaderWorkers(StartSubtask(jobId, range.timestamp, range.window))
             context.become(setupSubtask(SubtaskState(range, System.currentTimeMillis(), controller), 0, 0))
