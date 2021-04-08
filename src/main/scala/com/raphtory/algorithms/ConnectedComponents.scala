@@ -48,7 +48,7 @@ class ConnectedComponents(args:Array[String]) extends Analyser[immutable.ParHash
 
 
   def extractData(results:List[immutable.ParHashMap[Long, Int]]):extractedData ={
-    val endResults = results.asInstanceOf[Array[immutable.ParHashMap[Long, Int]]].toBuffer
+    val endResults = results
     try {
       val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
       val groupedNonIslands = grouped.filter(x => x._2 > 1)
