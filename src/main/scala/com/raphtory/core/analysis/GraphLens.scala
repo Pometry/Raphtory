@@ -56,7 +56,7 @@ final case class GraphLens(
     result
   }
 
-  def getVertices(): ParIterable[Vertex] = vertexMap.values
+  def getVertices(): ParIterable[Vertex] = vertexMap.map(x=>x._2)
 
   def checkVotes(): Boolean =
     if (messageFilter)
