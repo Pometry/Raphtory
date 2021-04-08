@@ -86,7 +86,7 @@ abstract class AnalysisTask(
     case ClassMissing => log.error("unexpected missing")
     case ClassExists =>
       if (readyCount + 1 == managerCount) {
-        messageToAllReaderWorkers(LoadPredefinedAnalyser(jobId, analyser))
+        messageToAllReaderWorkers(LoadPredefinedAnalyser(jobId, analyser, args))
         context.become(checkAnalyser(0))
       } else context.become(loadPredefinedAnalyser(readyCount + 1))
   }
@@ -258,7 +258,7 @@ object AnalysisTask {
     case class AnalyserPresentCheck(className: String)
     case object ClassMissing
     case object ClassExists
-    case class LoadPredefinedAnalyser(jobId: String, analyser: Analyser[Any])
+    case class LoadPredefinedAnalyser(jobId: String, analyser: Analyser[Any], args: Array[String])
     case object AnalyserPresent
 
     case object TimeCheck
