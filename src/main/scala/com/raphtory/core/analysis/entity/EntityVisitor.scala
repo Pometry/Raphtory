@@ -1,6 +1,6 @@
 package com.raphtory.core.analysis.entity
 
-import com.raphtory.core.analysis.GraphLenses.GraphLens
+import com.raphtory.core.analysis.GraphLens
 import com.raphtory.core.model.entities.RaphtoryEntity
 
 import scala.collection.mutable

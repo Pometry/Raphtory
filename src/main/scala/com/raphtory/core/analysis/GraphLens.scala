@@ -1,4 +1,4 @@
-package com.raphtory.core.analysis.GraphLenses
+package com.raphtory.core.analysis
 
 import com.raphtory.core.analysis.entity.Vertex
 import com.raphtory.core.model.EntityStorage
