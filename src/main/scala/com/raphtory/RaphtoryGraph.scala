@@ -40,7 +40,7 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   AnalysisRestApi(system)
 
   //TODO tidy these, but will be done with full analysis Overhall
-  def rangeQuery(analyser:Analyser[Any],start:Long,end:Long,increment:Long,args:Array[String]):Unit = {
+  def rangeQuery[S<:Serializable](analyser:Analyser[S],start:Long,end:Long,increment:Long,args:Array[String]):Unit = {
     analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,List.empty,args,"")
   }
 
@@ -51,8 +51,8 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
     analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,windowBatch,args,"")
   }
 
-  def viewQuery[S <: Serializable](clazz: Class[_], timestamp: Long, args: Array[String]): Unit = {
-    analysisManager ! ViewAnalysisRequest(clazz.getCanonicalName, timestamp, List.empty, args, "")
+  def viewQuery[S<:Serializable](analyser:Analyser[S],timestamp:Long,args:Array[String]):Unit = {
+    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,List.empty,args,"")
   }
 
   def viewQuery[S<:Serializable](analyser:Analyser[S],timestamp:Long,window:Long,args:Array[String]):Unit = {

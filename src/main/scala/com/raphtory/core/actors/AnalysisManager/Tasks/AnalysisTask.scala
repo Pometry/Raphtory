@@ -43,7 +43,7 @@ abstract class AnalysisTask(
 
   private val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
+  //mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
 
   private val maxStep: Int     = analyser.defineMaxSteps()
   private val workerCount: Int = managerCount * totalWorkers
