@@ -74,12 +74,6 @@ final case class GraphLens(
   def vertexVoted(): Unit = voteCount += 1
   def nextStep(): Unit    = superStep += 1
   def receiveMessage(msg: VertexMessage): Unit = {
-    try{
       vertexMap(msg.vertexId).receiveMessage(msg)
-    }
-    catch {
-      case e:Exception => println(s"I am worker $workerId with message ${msg.vertexId}" )
-    }
-
   }
 }
