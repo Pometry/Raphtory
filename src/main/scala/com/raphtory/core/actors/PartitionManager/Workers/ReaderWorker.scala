@@ -12,6 +12,7 @@ import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.analysis.api.LoadExternalAnalyser
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
+import com.raphtory.core.utils.AnalyserUtils
 
 import scala.collection.concurrent.TrieMap
 import scala.util.Failure
@@ -32,20 +33,26 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
 
   private def work(subtaskWorkerMap: Map[String, ActorRef], managerCount: Int): Receive = {
     case CompileNewAnalyser(jobId, analyser, args) =>
-      Try(LoadExternalAnalyser(analyser, args).newAnalyser) match {
+      AnalyserUtils.compileNewAnalyser(analyser, args) match {
         case Success(analyser) =>
           sender() ! AnalyserPresent
-          val subtaskWorker = buildSubtaskWorker(jobId, analyser, args, managerCount)
+          val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount)
           context.become(work(subtaskWorkerMap + (jobId -> subtaskWorker), managerCount))
         case Failure(e) =>
           sender ! FailedToCompile(e.getStackTrace.toString)
-          log.error("fail to compile: " + e.getMessage)
+          log.error("fail to compile new analyser: " + e.getMessage)
       }
 
-    case LoadPredefinedAnalyser(jobId, analyser,args) =>
-      sender() ! AnalyserPresent
-      val subtaskWorker = buildSubtaskWorker(jobId, analyser, args, managerCount)
-      context.become(work(subtaskWorkerMap + (jobId -> subtaskWorker), managerCount))
+    case LoadPredefinedAnalyser(jobId, className, args) =>
+      AnalyserUtils.loadPredefinedAnalyser(className, args) match {
+        case Success(analyser) =>
+          sender() ! AnalyserPresent
+          val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount)
+          context.become(work(subtaskWorkerMap + (jobId -> subtaskWorker), managerCount))
+        case Failure(e) =>
+          sender ! FailedToCompile(e.getStackTrace.toString)
+          log.error("fail to compile predefined analyser: " + e.getMessage)
+      }
 
     case TimeCheck =>
       log.debug(s"Reader [$workerId] received TimeCheck.")
@@ -68,18 +75,9 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
       log.error(s"ReaderWorker [$workerId] belonging to Reader [$managerId] received unknown [$unhandled].")
   }
 
-  private def generateNewAnalyser(analyser:Analyser[Any],args: Array[String]) = {
-    try{
-      Class.forName(analyser.getClass.getCanonicalName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser[Any]]
-    }
-    catch {
-      case e:NoSuchMethodException => Class.forName(analyser.getClass.getCanonicalName).getConstructor().newInstance().asInstanceOf[Analyser[Any]]
-    }
-  }
-
-  private def buildSubtaskWorker(jobId: String, analyser: Analyser[Any], args:Array[String], managerCount: Int): ActorRef =
+  private def buildSubtaskWorker(jobId: String, analyser: Analyser[Any], managerCount: Int): ActorRef =
     context.system.actorOf(
-            Props(AnalysisSubtaskWorker(managerCount, managerId, workerId, storage, generateNewAnalyser(analyser,args), jobId))
+            Props(AnalysisSubtaskWorker(managerCount, managerId, workerId, storage, analyser, jobId))
               .withDispatcher("reader-dispatcher"),
             s"Manager_${managerId}_reader_${workerId}_analysis_subtask_worker_$jobId"
     )

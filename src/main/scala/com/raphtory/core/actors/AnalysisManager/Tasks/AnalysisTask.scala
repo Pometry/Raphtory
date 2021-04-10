@@ -77,18 +77,9 @@ abstract class AnalysisTask(
         messageToAllReaderWorkers(CompileNewAnalyser(jobId, rawFile, args))
         context.become(checkAnalyser(0))
       } else {
-        messageToAllReaders(AnalyserPresentCheck(analyser.getClass.getName.replace("$", "")))
-        context.become(loadPredefinedAnalyser(0))
-      }
-  }
-
-  private def loadPredefinedAnalyser(readyCount: Int): Receive = withDefaultMessageHandler("load predefined analyser") {
-    case ClassMissing => log.error("unexpected missing")
-    case ClassExists =>
-      if (readyCount + 1 == managerCount) {
-        messageToAllReaderWorkers(LoadPredefinedAnalyser(jobId, analyser, args))
+        messageToAllReaderWorkers(LoadPredefinedAnalyser(jobId, analyser.getClass.getCanonicalName, args))
         context.become(checkAnalyser(0))
-      } else context.become(loadPredefinedAnalyser(readyCount + 1))
+      }
   }
 
   private def checkAnalyser(readyCount: Int): Receive = withDefaultMessageHandler("check analyser") {
@@ -253,12 +244,9 @@ object AnalysisTask {
     case object ReaderWorkersOnline
     case object ReaderWorkersAck
 
-    case class CompileNewAnalyser(jobId: String, analyser: String, args: Array[String])
+    case class CompileNewAnalyser(jobId: String, analyserRaw: String, args: Array[String])
+    case class LoadPredefinedAnalyser(jobId: String, className: String, args: Array[String])
     case class FailedToCompile(stackTrace: String)
-    case class AnalyserPresentCheck(className: String)
-    case object ClassMissing
-    case object ClassExists
-    case class LoadPredefinedAnalyser(jobId: String, analyser: Analyser[Any], args: Array[String])
     case object AnalyserPresent
 
     case object TimeCheck
