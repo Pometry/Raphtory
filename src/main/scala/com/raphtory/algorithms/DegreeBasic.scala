@@ -26,15 +26,14 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
     val totalV   = degree.size
     val totalOut = degree.map(x => x._2).sum
     val totalIn  = degree.map(x => x._3).sum
-    val topUsers = degree.toArray.sortBy(x => x._3)(sortOrdering).take(20)
-    (totalV, totalOut, totalIn, topUsers)
+//    val topUsers = degree.toArray.sortBy(x => x._3)(sortOrdering).take(20)
+    (totalV, totalOut, totalIn)//, topUsers)
   }
 
   override def defineMaxSteps(): Int = 1
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
-    val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
-  //  val output_file = System.getenv().getOrDefault("PROJECT_OUTPUT", "/app/defout.csv").trim
+    val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int)]]//, Array[(Int, Int, Int)])]]
     val totalVert   = endResults.map(x => x._1).sum
     val totalEdge   = endResults.map(x => x._3).sum
 
@@ -54,7 +53,7 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
       windowSize: Long,
       viewCompleteTime: Long
   ): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
+    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Int)]]//, Array[(Int, Int, Int)])]]
     val totalVert = endResults.map(x => x._1).sum
     val totalEdge = endResults.map(x => x._3).sum
     val degree =
