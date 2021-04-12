@@ -9,8 +9,8 @@ class chab_C2C_GB extends GraphBuilder[String]{
     try{
       val dp = formatLine(tuple.split(",").map(_.trim))
       val transactionTime = dp.time
-      val srcClusterId = assignID(dp.srcCluster.toString)
-      val dstClusterId = assignID(dp.dstCluster.toString)
+      val srcClusterId = dp.srcCluster
+      val dstClusterId = dp.dstCluster
       val transactionId = dp.txid
       val btcAmount = dp.amount
       val usdAmount = dp.usd

@@ -7,6 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.ParArray
 import scala.reflect.io.Path
+import scala.util.Random
 
 /**
 Description
@@ -68,17 +69,19 @@ class LPA(args: Array[String]) extends Analyser(args) {
           .mapValues(x => x.map(_._2).sum / x.size)
 
         // Process neighbour labels into (label, frequency)
-        val gp = vertex.messageQueue[(Long,  Long)].map(v => (v._2, neigh_freq(v._1)))
-
+        val mq = vertex.messageQueue[(Long, Long)]
+        val gp = mq.map(v => (v._2, neigh_freq(v._1)))
         // Get label most prominent in neighborhood of vertex
         val maxlab = gp.groupBy(_._1).mapValues(_.map(_._2).sum)
 
         // Update node label and broadcast
         val newLabel = maxlab.filter(_._2 == maxlab.values.max).keySet.max
         val nlab = newLabel match {
-          case Vlabel | Oldlabel =>
+          case Vlabel =>
             vertex.voteToHalt()
-            (List(Vlabel, Oldlabel).min, List(Vlabel, Oldlabel).max)
+            (Vlabel, Vlabel)
+          case Oldlabel =>
+            if (Random.nextFloat() < 0.1) (Vlabel, Vlabel) else (List(Vlabel, Oldlabel).min, List(Vlabel, Oldlabel).max)
           case _ => (Vlabel, newLabel)
         }
         vertex.setState("lpalabel", nlab)
@@ -104,8 +107,8 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
     val text = s"""{"time":$timestamp,"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
-       s"""communities": [${commtxt.mkString(",")}],"""+
-      s"""viewTime":$viewCompleteTime}"""
+       s""""communities": [${commtxt.mkString(",")}],"""+
+      s""""viewTime":$viewCompleteTime}"""
     output_file match {
       case "" => println(text)
       case "mongo" => publishData(text)
@@ -123,8 +126,8 @@ class LPA(args: Array[String]) extends Analyser(args) {
     val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
-      s"""communities": [${commtxt.mkString(",")}],"""+
-      s"""viewTime":$viewCompleteTime}"""
+      s""""communities": [${commtxt.mkString(",")}],"""+
+      s""""viewTime":$viewCompleteTime}"""
     output_file match {
       case "" => println(text)
       case "mongo" => publishData(text)
