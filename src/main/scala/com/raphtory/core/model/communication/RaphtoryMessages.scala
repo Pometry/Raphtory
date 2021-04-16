@@ -19,6 +19,7 @@ case class ImmutableProperty(key: String, value: String) extends Property
 case class StringProperty(key: String, value: String)    extends Property
 case class LongProperty(key: String, value: Long)        extends Property
 case class DoubleProperty(key: String, value: Double)    extends Property
+case class FloatProperty(key: String, value: Float)    extends Property
 case class Properties(property: Property*)
 
 sealed trait GraphUpdate {
