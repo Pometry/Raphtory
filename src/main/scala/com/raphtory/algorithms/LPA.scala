@@ -6,7 +6,6 @@ import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.ParArray
-import scala.reflect.io.Path
 import scala.util.Random
 
 /**
@@ -48,92 +47,84 @@ class LPA(args: Array[String]) extends Analyser(args) {
   val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
   val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
 
-  override def setup(): Unit =
-    view.getVertices().foreach { vertex =>
-      val lab = (scala.util.Random.nextLong(), scala.util.Random.nextLong())
-      vertex.setState("lpalabel", lab)
-      vertex.messageAllNeighbours((vertex.ID(), lab._2))
-    }
+  val SP = 0.2 // Stickiness probability
 
-  override def analyse(): Unit =
+  override def setup(): Unit = {
+    view.getVertices().foreach { vertex =>
+      val lab = scala.util.Random.nextLong()
+      vertex.setState("lpalabel", lab)
+      vertex.messageAllNeighbours((vertex.ID(),lab))
+    }
+  }
+
+  override def analyse(): Unit = {
     view.getMessagedVertices().foreach { vertex =>
       try {
-        val Vlabel   = vertex.getState[(Long, Long)]("lpalabel")._2
-        val Oldlabel = vertex.getState[(Long, Long)]("lpalabel")._1
+        val vlabel = vertex.getState[Long]("lpalabel")
 
         // Get neighbourhood Frequencies -- relevant to weighted LPA
         val vneigh = vertex.getOutEdges ++ vertex.getIncEdges
-        val neigh_freq = vneigh
-          .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1L).asInstanceOf[Long]))
+        val neigh_freq = vneigh.map { e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float]) }
           .groupBy(_._1)
-          .mapValues(x => x.map(_._2).sum / x.size)
+          .mapValues(x => x.map(_._2).sum)
 
         // Process neighbour labels into (label, frequency)
-        val mq = vertex.messageQueue[(Long, Long)]
-        val gp = mq.map(v => (v._2, neigh_freq(v._1)))
+        val gp = vertex.messageQueue[(Long, Long)].map { v => (v._2, neigh_freq.getOrElse(v._1, 1.0F))}
+
         // Get label most prominent in neighborhood of vertex
         val maxlab = gp.groupBy(_._1).mapValues(_.map(_._2).sum)
+        var newLabel =  maxlab.filter(_._2 == maxlab.values.max).keySet.max
 
         // Update node label and broadcast
-        val newLabel = maxlab.filter(_._2 == maxlab.values.max).keySet.max
-        val nlab = newLabel match {
-          case Vlabel =>
-            vertex.voteToHalt()
-            (Vlabel, Vlabel)
-          case Oldlabel =>
-            if (Random.nextFloat() < 0.1) (Vlabel, Vlabel) else (List(Vlabel, Oldlabel).min, List(Vlabel, Oldlabel).max)
-          case _ => (Vlabel, newLabel)
-        }
-        vertex.setState("lpalabel", nlab)
-        vertex.messageAllNeighbours((vertex.ID(), nlab._2))
+        if (newLabel == vlabel)
+          vertex.voteToHalt()
+        newLabel =  if (Random.nextFloat() < SP) vlabel else newLabel
+        vertex.setState("lpalabel", newLabel)
+        vertex.messageAllNeighbours((vertex.ID(), newLabel))
         doSomething(vertex, gp.map(_._1).toArray)
       } catch {
         case e: Exception => println(e, vertex.ID())
       }
     }
+    if (workerID==1)
+      println(
+        s"{workerID: ${workerID},Superstep: ${view.superStep()}}"
+      )
+  }
+
 
   def doSomething(v: VertexVisitor, gp: Array[Long]): Unit = {}
 
   override def returnResults(): Any =
-    view
-      .getVertices()
+    view.getVertices()
       .filter(v => v.Type() == nodeType)
-      .map(vertex => (vertex.getState[(Long, Long)]("lpalabel")._2, vertex.ID()))
+      .map(vertex => (vertex.getState[Long]("lpalabel"), vertex.ID()))
       .groupBy(f => f._1)
       .map(f => (f._1, f._2.map(_._2)))
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     val er      = extractData(results)
     val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
-    val text = s"""{"time":$timestamp,"top5":[${er.top5
-      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
-       s""""communities": [${commtxt.mkString(",")}],"""+
+    val text = s"""{"time":$timestamp,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
+      .mkString(",")}],"""+
+      s""""communities": \n[${commtxt.mkString(",")}] \n,"""+
       s""""viewTime":$viewCompleteTime}"""
-    output_file match {
-      case "" => println(text)
-      case "mongo" => publishData(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
+    writeOut(text, output_file)
   }
 
   override def processWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSize: Long,
-      viewCompleteTime: Long
-  ): Unit = {
+                                     results: ArrayBuffer[Any],
+                                     timestamp: Long,
+                                     windowSize: Long,
+                                     viewCompleteTime: Long
+                                   ): Unit = {
     val er      = extractData(results)
     val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5
-      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
+    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
+      .mkString(",")}],"""+
       s""""communities": [${commtxt.mkString(",")}],"""+
       s""""viewTime":$viewCompleteTime}"""
-    output_file match {
-      case "" => println(text)
-      case "mongo" => publishData(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
-    publishData(text)
+    writeOut(text, output_file)
   }
 
   def extractData(results: ArrayBuffer[Any]): fd = {
