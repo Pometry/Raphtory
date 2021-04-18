@@ -21,30 +21,32 @@ class MongoSerialiser extends AggregateSerialiser{
   private val mongo = MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress}:$mongoPort"))
 
   override def serialiseView(results: Map[String, Any], timestamp: Long, jobID: String, viewTime: Long): Unit = {
-    val data = (results + (("timestamp",timestamp)) + (("viewTime",viewTime))) .map{
+    val data = (Map[String,Any]("time"->timestamp,"viewTime"->viewTime)++results).map{
       case (key,value) => valueToString(key,value)
     }.mkString("{",",","}")
-    val json = JSON.parse(data).asInstanceOf[DBObject]
-    if (data.nonEmpty) mongo.getDB(dbname).getCollection(jobID).insert(json)
+    if (data.nonEmpty) mongo.getDB(dbname).getCollection(jobID).insert(JSON.parse(data).asInstanceOf[DBObject])
   }
 
-  override def serialiseWindowedView(results: Map[String, Any], timestamp: Long, window: Long, jobID: String, viewTime: Long): Unit = ???
-
-  private def valueToString(key: String, value: Any):String = {
-    val realValue= value match {
-      case v:Array[Any] => v.map(individualValue).mkString("[",",","]")
-      case v:Any => individualValue(v)
-    }
-    s""""$key":$realValue"""
+  override def serialiseWindowedView(results: Map[String, Any], timestamp: Long, window: Long, jobID: String, viewTime: Long): Unit = {
+    val data = (Map[String,Any]("time"->timestamp,"windowSize"->window,"viewTime"->viewTime)++results).map{
+      case (key,value) => valueToString(key,value)
+    }.mkString("{",",","}")
+    if (data.nonEmpty) mongo.getDB(dbname).getCollection(jobID).insert(JSON.parse(data).asInstanceOf[DBObject])
   }
 
-  private def individualValue(value:Any) = value match {
+  private def individualValue(value:Any):String = value match {
     case v:String => s""""$v""""
-    case v:Long   => s"""$v"""
-    case v:Int    => s"""$v"""
-    case v:Double => s"""$v"""
-    case v:Float  => s"""$v"""
-  }
+    case v:Long   => s"""${v.toString}"""
+    case v:Int    => s"""${v.toString}"""
+    case v:Double => s"""${v.toString}"""
+    case v:Float  => s"""${v.toString}"""
+    case v:Array[String] => v.map(individualValue).mkString("[", ",", "]") //TODO compress to one array type, cases being a pain in the ass
+    case v:Array[Int] => v.map(individualValue).mkString("[", ",", "]")
+    case v:Array[Double] => v.map(individualValue).mkString("[", ",", "]")
+    case v:Array[Float] => v.map(individualValue).mkString("[", ",", "]")
 
+  }
+  
+  private def valueToString(key: String, value: Any):String = s""""$key":${individualValue(value)}"""
 
 }

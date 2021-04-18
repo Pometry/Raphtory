@@ -36,13 +36,7 @@ class ConnectedComponents(args:Array[String]) extends Analyser[immutable.ParHash
 
   override def extractResults(results: List[immutable.ParHashMap[Long, Int]]): Map[String, Any] = {
     val er = extractData(results)
-    val text = s"""{"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2}},"""
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","ConnectedComponents.json").trim
-
-    println(text)
-
-    Map[String,Any]()
+    Map[String,Any]("top5"-> er.top5,"total"->er.total,"totalIslands"->er.totalIslands,"proportion"->er.proportion,"clustersGT2"->er.totalGT2)
   }
 
 
