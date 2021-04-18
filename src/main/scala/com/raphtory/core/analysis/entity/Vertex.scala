@@ -11,31 +11,27 @@ import scala.reflect.ClassTag
 
 final case class Vertex(
     private val v: RaphtoryVertex,
-    private val view: GraphLens
-) extends EntityVisitor(v, view) {
+    private val internalOutgoingEdges: ParTrieMap[Long, Edge],
+    private val internalIncomingEdges: ParTrieMap[Long, Edge],
+    private val lens: GraphLens
+) extends EntityVisitor(v, lens) {
 
   def ID() = v.vertexId
 
   private val multiQueue: VertexMultiQueue        = new VertexMultiQueue() //Map of queues for all ongoing processing
   private var computationValues: Map[String, Any] = Map.empty              //Partial results kept between supersteps in calculation
-  private val internalOutgoingEdges: ParTrieMap[Long, Edge] = v.outgoingProcessing.map {
-    case (k, v) => k -> Edge(v, k, view)
-  }
-  private val internalIncomingEdges: ParTrieMap[Long, Edge] = v.incomingProcessing.map {
-    case (k, v) => k -> Edge(v, k, view)
-  }
 
-  def hasMessage(): Boolean = multiQueue.getMessageQueue(view.superStep).nonEmpty
+  def hasMessage(): Boolean = multiQueue.getMessageQueue(lens.superStep).nonEmpty
 
   def messageQueue[T: ClassTag]: ArrayBuffer[T] = { //clears queue after getting it to make sure not there for next iteration
-    val queue = multiQueue.getMessageQueue(view.superStep).map(_.asInstanceOf[T])
-    multiQueue.clearQueue(view.superStep)
+    val queue = multiQueue.getMessageQueue(lens.superStep).map(_.asInstanceOf[T])
+    multiQueue.clearQueue(lens.superStep)
     queue
   }
 
-  def clearQueue() = multiQueue.clearQueue(view.superStep)
+  def clearQueue() = multiQueue.clearQueue(lens.superStep)
 
-  def voteToHalt()         : Unit                                = view.vertexVoted()
+  def voteToHalt()         : Unit                                = lens.vertexVoted()
   def aliveAt(time: Long): Boolean                         = v.aliveAt(time)
   def aliveAtWithWindow(time: Long, window: Long): Boolean = v.aliveAtWithWindow(time, window)
 
@@ -93,7 +89,7 @@ final case class Vertex(
 
   //Send message
   def messageNeighbour(vertexId: Long, data: Any): Unit =
-    view.sendMessage(VertexMessage(vertexId, view.jobId, view.superStep, data))
+    lens.sendMessage(VertexMessage(vertexId, lens.jobId, lens.superStep, data))
 
   def messageAllOutgoingNeighbors(message: Any): Unit =
     internalOutgoingEdges.keys.foreach(vId => messageNeighbour(vId, message))
@@ -106,6 +102,6 @@ final case class Vertex(
 
   // todo hide
   def receiveMessage(msg: VertexMessage): Unit = {
-    multiQueue.receiveMessage(view.superStep, msg.data)
+    multiQueue.receiveMessage(lens.superStep, msg.data)
   }
 }

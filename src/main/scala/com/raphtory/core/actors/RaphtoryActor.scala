@@ -15,15 +15,15 @@ trait RaphtoryActor extends Actor with ActorLogging with Timers {
   def checkDst(dstID: Long, managerCount: Int, managerID: Int): Boolean = ((dstID.abs % (managerCount * totalWorkers)) / totalWorkers).toInt == managerID //check if destination is also local
   def checkWorker(dstID: Long, managerCount: Int, workerID: Int): Boolean = ((dstID.abs % (managerCount * totalWorkers)) % totalWorkers).toInt == workerID //check if destination is also local
 
-  def getManager(srcId: Long, managerCount: Int): String = {
-    val mod     = srcId.abs % (managerCount * totalWorkers)
-    val manager = mod / totalWorkers
-    val worker  = mod % totalWorkers
-    s"/user/Manager_${manager}_child_$worker"
-  }
+    def getManager(srcId: Long, managerCount: Int): String = {
+      val mod     = srcId.abs % (managerCount * totalWorkers)
+      val manager = mod / totalWorkers
+      val worker  = mod % totalWorkers
+      s"/user/Manager_${manager}_child_$worker"
+    }
 
-  def getReader(srcId: Long, managerCount: Int): String = {
-    val mod     = srcId.abs % (managerCount * totalWorkers)
+    def getReader(srcId: Long, managerCount: Int): String = {
+      val mod     = srcId.abs % (managerCount * totalWorkers)
     val manager = mod / totalWorkers
     val worker  = mod % totalWorkers
     s"/user/Manager_${manager}_reader_$worker"
