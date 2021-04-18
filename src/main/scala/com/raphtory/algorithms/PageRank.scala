@@ -72,7 +72,6 @@ class PageRank(args:Array[String]) extends Analyser[Any](args) {
     var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","WeightedPageRank.json").trim
     println(text)
-    publishData(text)
     Map[String,Any]()
   }
 

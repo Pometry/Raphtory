@@ -3,7 +3,6 @@ package com.raphtory.core.model.entities
 import com.raphtory.core.analysis.GraphLens
 import com.raphtory.core.analysis.entity.{Edge, Vertex}
 import com.raphtory.core.model.EntityStorage
-import com.raphtory.core.model.communication.VertexMultiQueue
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -28,7 +27,7 @@ object RaphtoryVertex {
 
 class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
         extends RaphtoryEntity(msgTime, initialValue) {
-  
+
   var incomingEdges = ParTrieMap[Long, RaphtoryEdge]() //Map of all edges associated with the vertex
   var outgoingEdges = ParTrieMap[Long, RaphtoryEdge]()
 

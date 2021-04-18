@@ -72,7 +72,6 @@ class WeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
     val text = s"""{"vertices":$totalVert,"bestusers":$bestUsers}"""
     println(text)
-    publishData(text)
     Map[String,Any]()
   }
 

@@ -53,7 +53,6 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser[Any](args) {
     val endResults = results.asInstanceOf[ArrayBuffer[ParArray[String]]].flatten.toArray
     val toPublish = s"""{triangles:[""" +endResults.map(triangle => triangle+",").fold("")(_+_).dropRight(1)+"]}"
     println(toPublish)
-    publishData(toPublish)
     Map[String,Any]()
   }
 

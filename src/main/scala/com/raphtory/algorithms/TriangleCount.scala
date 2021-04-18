@@ -60,7 +60,6 @@ class TriangleCount(args:Array[String]) extends Analyser[Any](args) {
 //      catch { case e: ArithmeticException => 0.0 }
     val text = s"""{"totTriangles":$totalTri,"avgCluster":$avgCluster,"concatTime":${System
       .currentTimeMillis() - startTime}},"""
-    publishData(text)
     println(text)
     Map[String,Any]()
   }
