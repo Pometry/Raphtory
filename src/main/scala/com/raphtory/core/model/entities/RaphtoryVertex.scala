@@ -1,5 +1,7 @@
 package com.raphtory.core.model.entities
 
+import com.raphtory.core.analysis.GraphLens
+import com.raphtory.core.analysis.entity.{Edge, Vertex}
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication.VertexMultiQueue
 
@@ -26,12 +28,10 @@ object RaphtoryVertex {
 
 class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
         extends RaphtoryEntity(msgTime, initialValue) {
-
-
+  
   var incomingEdges = ParTrieMap[Long, RaphtoryEdge]() //Map of all edges associated with the vertex
   var outgoingEdges = ParTrieMap[Long, RaphtoryEdge]()
-  var incomingProcessing = incomingEdges //Map of edges for the current view of the vertex
-  var outgoingProcessing = outgoingEdges
+
   private var edgesRequiringSync = 0
 
   //Functions for adding associated edges to this vertex
@@ -44,30 +44,31 @@ class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   def getOutgoingEdge(id: Long): Option[RaphtoryEdge] = outgoingEdges.get(id)
   def getIncomingEdge(id: Long): Option[RaphtoryEdge] = incomingEdges.get(id)
 
-  def viewAt(time: Long): RaphtoryVertex = {
-    incomingProcessing = incomingEdges.filter(e => e._2.aliveAt(time))
-    outgoingProcessing = outgoingEdges.filter(e => e._2.aliveAt(time))
-    this
+  def viewAt(time: Long,lens:GraphLens): Vertex = {
+    Vertex(this,
+      incomingEdges.collect {
+        case (k, edge) if edge.aliveAt(time) =>
+          k -> Edge(edge, k, lens)
+      },
+      outgoingEdges.collect {
+        case (k, edge) if edge.aliveAt(time) =>
+          k -> Edge(edge, k, lens)
+      },
+      lens)
   }
 
-  def viewAtWithWindow(time: Long, windowSize: Long): RaphtoryVertex = {
-    incomingProcessing = incomingEdges.filter(e => e._2.aliveAtWithWindow(time, windowSize))
-    outgoingProcessing = outgoingEdges.filter(e => e._2.aliveAtWithWindow(time, windowSize))
-    this
+  def viewAtWithWindow(time: Long, windowSize: Long,lens:GraphLens): Vertex = {
+    Vertex(this,
+      incomingEdges.collect {
+        case (k, edge) if edge.aliveAtWithWindow(time,windowSize) =>
+          k -> Edge(edge, k, lens)
+      },
+      outgoingEdges.collect {
+        case (k, edge) if edge.aliveAtWithWindow(time,windowSize) =>
+          k -> Edge(edge, k, lens)
+      },
+      lens)
   }
 
-  override def equals(obj: scala.Any): Boolean =
-    if (obj.isInstanceOf[RaphtoryVertex]) {
-      val v2 = obj.asInstanceOf[RaphtoryVertex] //add associated edges
-      if (!(vertexId == v2.vertexId) ||
-          !(history.equals(v2.history)) ||
-          !(oldestPoint == v2.oldestPoint) ||
-          !(newestPoint == newestPoint) ||
-          !(properties.equals(v2.properties)) ||
-          !(incomingEdges.equals(v2.incomingEdges)) ||
-          !(outgoingEdges.equals(v2.outgoingEdges)))
-        false
-      else true
-    } else false
 
 }
