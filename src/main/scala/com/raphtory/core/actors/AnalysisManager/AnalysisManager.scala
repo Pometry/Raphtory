@@ -15,6 +15,7 @@ import com.raphtory.core.actors.ClusterManagement.WatchDog.Message._
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.analysis.api.LoadExternalAnalyser
+import com.raphtory.core.utils.AnalyserUtils
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -183,13 +184,7 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
       args: Array[String],
       rawFile: String
   ): Option[(Boolean, Analyser[Any])] = {
-    val tryExist = Try(
-            Class
-              .forName(analyserName)
-              .getConstructor(classOf[Array[String]])
-              .newInstance(args)
-              .asInstanceOf[Analyser[Any]]
-    ).orElse(Try(Class.forName(analyserName).getConstructor().newInstance().asInstanceOf[Analyser[Any]]))
+    val tryExist = AnalyserUtils.loadPredefinedAnalyser(analyserName, args)
 
     tryExist match {
       case Success(analyser) => Some((false, analyser))
@@ -198,7 +193,7 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
   }
 
   private def compileNewAnalyser(rawFile: String, args: Array[String]): Option[Analyser[Any]] =
-    Try(LoadExternalAnalyser(rawFile, args).newAnalyser) match {
+    AnalyserUtils.compileNewAnalyser(rawFile, args) match {
       case Success(analyser) => Some(analyser)
       case Failure(e) =>
         sender ! FailedToCompile(e.getStackTrace.mkString(","))
