@@ -49,7 +49,6 @@ class Distributions(args:Array[String]) extends Analyser[Any](args){
 
     val text = s"""{"degDist":$degDistArr,"weightDist":$weightDistArr, "edgeDist":$edgeDistArr}"""
     println(text)
-    publishData(text)
     Map[String,Any]()
   }
 

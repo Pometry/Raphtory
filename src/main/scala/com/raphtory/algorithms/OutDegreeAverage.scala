@@ -31,7 +31,6 @@ class OutDegreeAverage(args:Array[String]) extends Analyser[Any](args){
       s"""{"vertices":$totalVert,"edges":$totalEdge,"degree":$degree}"""
     //    writeLines(output_file, text, "{\"views\":[")
     println(text)
-    publishData(text)
     Map[String,Any]()
   }
 

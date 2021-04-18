@@ -41,7 +41,6 @@ class DegreeDistribution(args:Array[String]) extends Analyser[Any](args){
     val text =
       s"""{"vertices":$totalVert, "maxDeg":$maxDeg,"avgSquaredDeg":$meanDegSq,"avgSquaredInDeg":$meanInDegSq,"avgSquaredOutDeg":$meanOutDegSq}"""
     println(text)
-    publishData(text)
     Map[String,Any]()
   }
 

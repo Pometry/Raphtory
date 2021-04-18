@@ -42,8 +42,6 @@ class ConnectedComponents(args:Array[String]) extends Analyser[immutable.ParHash
 
     println(text)
 
-    publishData(text)
-
     Map[String,Any]()
   }
 

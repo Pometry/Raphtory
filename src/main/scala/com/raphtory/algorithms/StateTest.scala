@@ -95,7 +95,6 @@ class StateTest(args:Array[String]) extends Analyser[(Int, Int, Int, Int, Int, I
          |"inedgedeletionstotal":$inedgedeletionstotal,"inedgecreationstotal":$inedgecreationstotal,"properties":$properties,
          |"propertyhistory":$propertyhistory,"outedgeProperties":$outedgeProperties,"outedgePropertyHistory":$outedgePropertyHistory,
          |"inedgeProperties":$inedgeProperties,"inedgePropertyHistory":$inedgePropertyHistory}""".stripMargin
-    publishData(text)
     Map[String,Any]()
   }
 

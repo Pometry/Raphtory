@@ -27,10 +27,6 @@ abstract class Analyser[T<:Any](args:Array[String]) extends java.io.Serializable
     this.workerID = id
   }
 
-  def publishData(data:String) = toPublish +=data
-  def getPublishedData() = toPublish.toArray
-  def clearPublishedData() =  toPublish = ArrayBuffer()
-
   def analyse(): Unit
   def setup(): Unit
   def returnResults(): Any

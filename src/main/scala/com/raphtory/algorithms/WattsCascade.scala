@@ -64,7 +64,6 @@ class WattsCascade(args:Array[String]) extends Analyser[Any](args){
 
     val text = s"""{"totalV":$totalV,"cascadeSize":$totalInfected,"cascadeProp":$propInfected}"""
     println(text)
-    publishData(text)
     Map[String,Any]()
   }
 

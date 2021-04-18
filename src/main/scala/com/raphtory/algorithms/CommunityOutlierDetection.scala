@@ -60,7 +60,6 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
       .mkString(",")}}}"""
     output_file match {
       case "" => println(text)
-      case "mongo" => publishData(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
     Map[String,Any]()

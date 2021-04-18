@@ -60,7 +60,6 @@ class DegreeRanking(args:Array[String]) extends Analyser[Any](args){
         .currentTimeMillis() - startTime}},"""
     //    writeLines(output_file, text, "{\"views\":[")
     println(text)
-    publishData(text)
     Map[String,Any]()
   }
 

@@ -107,7 +107,6 @@ class LPA(args: Array[String]) extends Analyser[Any](args) {
        s"""communities": [${commtxt.mkString(",")}]}"""
     output_file match {
       case "" => println(text)
-      case "mongo" => publishData(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
     Map[String,Any]()

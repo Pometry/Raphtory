@@ -2,10 +2,7 @@ package com.raphtory.core.actors.AnalysisManager.Tasks
 
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.mongodb.DBObject
-import com.mongodb.casbah.MongoClient
-import com.mongodb.casbah.MongoClientURI
-import com.mongodb.util.JSON
+
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.SubtaskState
@@ -13,8 +10,6 @@ import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.api.Analyser
 import kamon.Kamon
 
-import java.net.InetAddress
-import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -30,16 +25,6 @@ abstract class AnalysisTask(
     rawFile: String
 ) extends RaphtoryActor {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
-
-  private val saveData  = System.getenv().getOrDefault("ANALYSIS_SAVE_OUTPUT", "false").trim.toBoolean
-  private val mongoIP   = System.getenv().getOrDefault("ANALYSIS_MONGO_HOST", "localhost").trim
-  private val mongoPort = System.getenv().getOrDefault("ANALYSIS_MONGO_PORT", "27017").trim
-  private val dbname    = System.getenv().getOrDefault("ANALYSIS_MONGO_DB_NAME", "raphtory").trim
-
-  private val mongoOpt =
-    if (saveData)
-      Some(MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress}:$mongoPort")))
-    else None
 
   private val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -58,7 +43,7 @@ abstract class AnalysisTask(
 
   private def withDefaultMessageHandler(description: String)(handler: Receive): Receive = handler.orElse {
     case RequestResults(_) =>
-      sender ! ResultsForApiPI(analyser.getPublishedData())
+      sender ! ResultsForApiPI(Array())//TODO remove
     case req: KillTask =>
       messageToAllReaderWorkers(req)
       sender ! JobKilled
@@ -201,16 +186,7 @@ abstract class AnalysisTask(
             .withTag("jobID", jobId)
             .withTag("Timestamp", subtaskState.range.timestamp)
           Try {
-            mongoOpt match {
-              case Some(mongo) =>
-                analyser.extractResults(newAllResults)
-                val data = analyser.getPublishedData().map(JSON.parse(_).asInstanceOf[DBObject])
-                analyser.clearPublishedData()
-                if (data.nonEmpty) mongo.getDB(dbname).getCollection(jobId).insert(data.toList.asJava)
-              case None =>
-                analyser.clearPublishedData()
-                analyser.extractResults(newAllResults)
-            }
+               analyser.extractResults(newAllResults)
           } match {
             case Success(_) =>
               context.system.scheduler
