@@ -18,5 +18,5 @@ object LOTRDeployment extends App{
 
   //rg.viewQuery(DegreeBasic(),timestamp = 10000,arguments)
   //rg.viewQuery(DegreeBasic(),timestamp = 10000,window=100,arguments)
-  rg.viewQuery(ConnectedComponents(), new MongoSerialiser, timestamp = 32674, arguments)
+  rg.viewQuery(ConnectedComponents(), new MongoSerialiser, timestamp = 32674,windowBatch=List(10000, 1000,100), arguments)
 }
