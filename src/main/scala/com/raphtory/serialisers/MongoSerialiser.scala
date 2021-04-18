@@ -9,6 +9,10 @@ import com.raphtory.core.analysis.api.AggregateSerialiser
 import java.net.InetAddress
 import scala.collection.JavaConverters._
 
+object MongoSerialiser {
+  new MongoSerialiser
+}
+
 class MongoSerialiser extends AggregateSerialiser{
 
 

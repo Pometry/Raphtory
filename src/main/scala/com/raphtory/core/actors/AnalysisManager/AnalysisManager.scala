@@ -13,8 +13,7 @@ import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message.Faile
 import com.raphtory.core.actors.AnalysisManager.Tasks.Subtasks._
 import com.raphtory.core.actors.ClusterManagement.WatchDog.Message._
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.analysis.api.LoadExternalAnalyser
+import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser, LoadExternalAnalyser}
 import com.raphtory.core.utils.AnalyserUtils
 
 import scala.concurrent.ExecutionContext
@@ -106,6 +105,7 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
                                 jobId,
                                 args,
                                 analyser,
+                                getSerialiser(serialiserName), //TODO tidy up
                                 repeatTime,
                                 eventTime,
                                 windowSet,
@@ -134,6 +134,7 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
                                   jobId,
                                   args,
                                   analyser,
+                                  getSerialiser(serialiserName), //TODO tidy up
                                   timestamp,
                                   windowSet,
                                   newAnalyser,
@@ -165,6 +166,7 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
                                   jobId,
                                   args,
                                   analyser,
+                                  getSerialiser(serialiserName), //TODO tidy up
                                   start,
                                   end,
                                   jump,
@@ -191,6 +193,11 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
       case Failure(_)        => compileNewAnalyser(rawFile, args).map((true, _))
     }
   }
+
+  private def getSerialiser(
+       serialiserName: String,
+  ):  AggregateSerialiser= AnalyserUtils.loadPredefinedSerialiser(serialiserName)
+
 
   private def compileNewAnalyser(rawFile: String, args: Array[String]): Option[Analyser[Any]] =
     AnalyserUtils.compileNewAnalyser(rawFile, args) match {

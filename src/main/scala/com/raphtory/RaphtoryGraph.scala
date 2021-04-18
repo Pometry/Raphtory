@@ -6,7 +6,7 @@ import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestAp
 import com.raphtory.core.actors.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 
 object RaphtoryGraph {
   def apply[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) : RaphtoryGraph[T] =
@@ -40,38 +40,38 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   AnalysisRestApi(system)
 
   //TODO tidy these, but will be done with full analysis Overhall
-  def rangeQuery[S<:Serializable](analyser:Analyser[S],start:Long,end:Long,increment:Long,args:Array[String]):Unit = {
-    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,List.empty,args,"")
+  def rangeQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long,args:Array[String]):Unit = {
+    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,start,end,increment,List.empty,args,"")
   }
 
-  def rangeQuery[S<:Serializable](analyser:Analyser[S],start:Long,end:Long,increment:Long,window:Long,args:Array[String]):Unit = {
-    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment, List(window),args,"")
+  def rangeQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long,window:Long,args:Array[String]):Unit = {
+    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,start,end,increment, List(window),args,"")
   }
-  def rangeQuery[S<:Serializable](analyser:Analyser[S],start:Long,end:Long,increment:Long,windowBatch:List[Long],args:Array[String]):Unit = {
-    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,windowBatch,args,"")
-  }
-
-  def viewQuery[S<:Serializable](analyser:Analyser[S],timestamp:Long,args:Array[String]):Unit = {
-    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,List.empty,args,"")
+  def rangeQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long,windowBatch:List[Long],args:Array[String]):Unit = {
+    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,start,end,increment,windowBatch,args,"")
   }
 
-  def viewQuery[S<:Serializable](analyser:Analyser[S],timestamp:Long,window:Long,args:Array[String]):Unit = {
-    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp, List(window),args,"")
-  }
-  def viewQuery[S<:Serializable](analyser:Analyser[S],timestamp:Long,windowBatch:List[Long],args:Array[String]):Unit = {
-    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp, windowBatch,args,"")
+  def viewQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,timestamp:Long,args:Array[String]):Unit = {
+    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,timestamp,List.empty,args,"")
   }
 
-  def liveQuery[S<:Serializable](analyser:Analyser[S],repeat:Long,eventTime:Boolean,args:Array[String]):Unit = {
-    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime, List.empty,args,"")
+  def viewQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,timestamp:Long,window:Long,args:Array[String]):Unit = {
+    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,timestamp, List(window),args,"")
+  }
+  def viewQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,timestamp:Long,windowBatch:List[Long],args:Array[String]):Unit = {
+    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,timestamp, windowBatch,args,"")
   }
 
-  def liveQuery[S<:Serializable](analyser:Analyser[S],repeat:Long,eventTime:Boolean,window:Long,args:Array[String]):Unit = {
-    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime,List(window),args,"")
+  def liveQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,repeat:Long,eventTime:Boolean,args:Array[String]):Unit = {
+    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,repeat,eventTime, List.empty,args,"")
   }
 
-  def liveQuery[S<:Serializable](analyser:Analyser[S],repeat:Long,eventTime:Boolean,windowBatch:List[Long],args:Array[String]):Unit = {
-    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime, windowBatch,args,"")
+  def liveQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,repeat:Long,eventTime:Boolean,window:Long,args:Array[String]):Unit = {
+    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,repeat,eventTime,List(window),args,"")
+  }
+
+  def liveQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,repeat:Long,eventTime:Boolean,windowBatch:List[Long],args:Array[String]):Unit = {
+    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,repeat,eventTime, windowBatch,args,"")
   }
 
 }

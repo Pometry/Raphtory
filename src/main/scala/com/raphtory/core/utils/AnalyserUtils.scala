@@ -1,7 +1,6 @@
 package com.raphtory.core.utils
 
-import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.analysis.api.LoadExternalAnalyser
+import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser, LoadExternalAnalyser}
 
 import scala.util.Try
 
@@ -17,4 +16,8 @@ object AnalyserUtils {
               .newInstance(args)
               .asInstanceOf[Analyser[Any]]
     ).orElse(Try(Class.forName(className).getConstructor().newInstance().asInstanceOf[Analyser[Any]]))
+
+  def loadPredefinedSerialiser(className:String):AggregateSerialiser = {
+    Class.forName(className).getConstructor().newInstance().asInstanceOf[AggregateSerialiser]
+  }
 }

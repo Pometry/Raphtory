@@ -2,12 +2,11 @@ package com.raphtory.core.actors.AnalysisManager.Tasks
 
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.SubtaskState
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 import kamon.Kamon
 
 import scala.concurrent.ExecutionContext
@@ -20,6 +19,7 @@ abstract class AnalysisTask(
     jobId: String,
     args: Array[String],
     analyser: Analyser[Any],
+    serialiser:AggregateSerialiser,
     managerCount: Int,
     newAnalyser: Boolean,
     rawFile: String
@@ -186,7 +186,10 @@ abstract class AnalysisTask(
             .withTag("jobID", jobId)
             .withTag("Timestamp", subtaskState.range.timestamp)
           Try {
-               analyser.extractResults(newAllResults)
+            subtaskState.range.window match {
+              case Some(window) => serialiser.serialiseWindowedView(analyser.extractResults(newAllResults),subtaskState.range.timestamp,window,jobId,1L)
+              case None => serialiser.serialiseView(analyser.extractResults(newAllResults),subtaskState.range.timestamp,jobId,1L)
+            }
           } match {
             case Success(_) =>
               context.system.scheduler
