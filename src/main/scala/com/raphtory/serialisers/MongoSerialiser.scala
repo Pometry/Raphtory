@@ -28,7 +28,7 @@ class MongoSerialiser extends AggregateSerialiser{
   }
 
   override def serialiseWindowedView(results: Map[String, Any], timestamp: Long, window: Long, jobID: String, viewTime: Long): Unit = {
-    val data = (Map[String,Any]("time"->timestamp,"windowSize"->window,"viewTime"->viewTime)++results).map{
+    val data = (Map[String,Any]("time"->timestamp,"windowsize"->window,"viewTime"->viewTime)++results).map{
       case (key,value) => valueToString(key,value)
     }.mkString("{",",","}")
     println(data)
