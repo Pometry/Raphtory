@@ -31,6 +31,7 @@ class MongoSerialiser extends AggregateSerialiser{
     val data = (Map[String,Any]("time"->timestamp,"windowSize"->window,"viewTime"->viewTime)++results).map{
       case (key,value) => valueToString(key,value)
     }.mkString("{",",","}")
+    println(data)
     if (data.nonEmpty) mongo.getDB(dbname).getCollection(jobID).insert(JSON.parse(data).asInstanceOf[DBObject])
   }
 

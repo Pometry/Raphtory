@@ -88,14 +88,13 @@ class StateTest(args:Array[String]) extends Analyser[(Int, Int, Int, Int, Int, I
     val inedgeProperties = results.map( x => x._17).sum
     val inedgePropertyHistory = results.map( x => x._18).sum
 
-    val text =
-      s"""{"vertices":$totalVert, "maxDeg":$maxDeg,
-         |"totalInEdges":$InEdge,"totalOutEdges":$OutEdge,"vdeletionstotal":$vdeletionstotal,
-         |"vcreationstotal":$vcreationstotal,"outedgedeletionstotal":$outedgedeletionstotal,"outedgecreationstotal":$outedgecreationstotal,
-         |"inedgedeletionstotal":$inedgedeletionstotal,"inedgecreationstotal":$inedgecreationstotal,"properties":$properties,
-         |"propertyhistory":$propertyhistory,"outedgeProperties":$outedgeProperties,"outedgePropertyHistory":$outedgePropertyHistory,
-         |"inedgeProperties":$inedgeProperties,"inedgePropertyHistory":$inedgePropertyHistory}""".stripMargin
-    Map[String,Any]()
+    Map[String,Any]("vertices"->totalVert,"maxDeg"->maxDeg,"totalInEdges"->InEdge,"totalOutEdges"->OutEdge,
+      "vdeletionstotal"->vdeletionstotal,"vcreationstotal"->vcreationstotal,"outedgedeletionstotal"->outedgedeletionstotal,
+      "outedgecreationstotal"->outedgecreationstotal,"inedgedeletionstotal"->inedgedeletionstotal,
+      "inedgecreationstotal"->inedgecreationstotal,"properties"->properties,"propertyhistory"->propertyhistory,
+      "outedgeProperties"->outedgeProperties,"outedgePropertyHistory"->outedgePropertyHistory,
+      "inedgeProperties"->inedgeProperties,"inedgePropertyHistory"->inedgePropertyHistory
+    )
   }
 
 }
