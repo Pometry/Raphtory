@@ -19,7 +19,7 @@ class CSVGraphBuilder extends GraphBuilder[String] {
             updateTime = occurenceTime,
             srcId = srcClusterId,
             dstId = dstClusterId,
-            Properties(DoubleProperty("Frequency", coocWeight))
+            Properties(FloatProperty("Frequency", coocWeight))
           )
 
     } catch {
