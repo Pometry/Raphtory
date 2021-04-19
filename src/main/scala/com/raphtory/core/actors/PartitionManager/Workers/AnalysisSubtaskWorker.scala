@@ -10,7 +10,7 @@ import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.GraphLens
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.model.EntityStorage
-import com.raphtory.core.model.communication.VertexMessage
+import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandler}
 import kamon.Kamon
 
 import scala.util.Failure
@@ -26,7 +26,6 @@ final case class AnalysisSubtaskWorker(
     jobId: String
 ) extends RaphtoryActor {
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator
-
   override def preStart(): Unit =
     log.debug(
             s"AnalysisSubtaskWorker for Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is being started."
@@ -39,14 +38,14 @@ final case class AnalysisSubtaskWorker(
       log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is SetupTaskWorker.")
       val beforeTime = System.currentTimeMillis()
       val initStep   = 0
-      val graphLens  = GraphLens(jobId, timestamp, window, initStep, workerId, storage)
-      analyzer.sysSetup(graphLens, workerId)
+      val messageHandler = new VertexMessageHandler(mediator,state.managerCount)
+      val graphLens  = GraphLens(jobId, timestamp, window, initStep, workerId, storage,messageHandler)
+      analyzer.sysSetup(graphLens, messageHandler, workerId)
       analyzer.setup()
-      val messages = analyzer.view.getAndCleanMessages()
-      messages.foreach(m => mediator ! new DistributedPubSubMediator.Send(getReader(m.vertexId, state.managerCount), m))
-      sender ! Ready(messages.size)
+      val messagesSent = messageHandler.getCountandReset()
+      sender ! Ready(messagesSent)
       stepMetric(analyzer).update(System.currentTimeMillis() - beforeTime)
-      context.become(work(state.updateSentMessageCount(_ + messages.size)))
+      context.become(work(state.updateSentMessageCount(_ + messagesSent)))
 
     case _: CheckMessages =>
       log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives CheckMessages.")
@@ -77,12 +76,9 @@ final case class AnalysisSubtaskWorker(
       analyzer.view.nextStep()
       Try(analyzer.analyse()) match {
         case Success(_) =>
-          val messages = analyzer.view.getAndCleanMessages()
-          messages.foreach { m =>
-            mediator ! new DistributedPubSubMediator.Send(getReader(m.vertexId, state.managerCount), m)
-          }
-          sender ! EndStep(analyzer.view.superStep, messages.size, analyzer.view.checkVotes())
-          context.become(work(state.updateSentMessageCount(_ + messages.size)))
+          val messageCount = analyzer.messageHandler.getCountandReset()
+          sender ! EndStep(analyzer.view.superStep, messageCount, analyzer.view.checkVotes())
+          context.become(work(state.updateSentMessageCount(_ + messageCount)))
 
         case Failure(e) => log.error(s"Failed to run nextStep due to [$e].")
       }
@@ -112,8 +108,10 @@ final case class AnalysisSubtaskWorker(
       .withTag("Partition", storage.managerID)
       .withTag("Worker", workerId)
       .withTag("JobID", jobId)
-      .withTag("timestamp", analyser.view.timestamp)
+      .withTag("timestamp", analyzer.view.timestamp)
       .withTag("superstep", analyser.view.superStep)
+
+
 
 }
 

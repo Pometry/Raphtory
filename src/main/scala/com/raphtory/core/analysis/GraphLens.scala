@@ -1,8 +1,10 @@
 package com.raphtory.core.analysis
 
+import akka.cluster.pubsub.DistributedPubSubMediator
+import com.raphtory.core.actors.PartitionManager.Workers.AnalysisSubtaskWorker
 import com.raphtory.core.analysis.entity.Vertex
 import com.raphtory.core.model.EntityStorage
-import com.raphtory.core.model.communication.VertexMessage
+import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandler}
 import kamon.Kamon
 
 import scala.collection.parallel.ParIterable
@@ -13,10 +15,10 @@ final case class GraphLens(
     timestamp: Long,
     window: Option[Long],
     var superStep: Int,
-    workerId: Int,
-    storage: EntityStorage
+    private val workerId: Int,
+    private val storage: EntityStorage,
+    private val messageHandler:VertexMessageHandler
 ) {
-  private var messages: List[VertexMessage] = List.empty
   protected var voteCount                   = 0
 
   private var messageFilter: Boolean = false
@@ -64,12 +66,9 @@ final case class GraphLens(
       vertexMap.size == voteCount
 
   //TODO hide away
-  def sendMessage(msg: VertexMessage): Unit = messages = messages :+ msg
-  def getAndCleanMessages(): Seq[VertexMessage] = {
-    val temp = messages
-    messages = List.empty
-    temp
-  }
+  def sendMessage(msg: VertexMessage): Unit = messageHandler.sendMessage(msg)
+
+
   def vertexVoted(): Unit = voteCount += 1
   def nextStep(): Unit    = superStep += 1
   def receiveMessage(msg: VertexMessage): Unit = {
