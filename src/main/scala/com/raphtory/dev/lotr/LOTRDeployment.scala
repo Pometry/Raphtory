@@ -9,7 +9,7 @@ object LOTRDeployment extends App{
   val builder = new LOTRGraphBuilder()
   val rg = RaphtoryGraph[String](source,builder)
   val arguments = Array[String]()
-
+  rg.viewQuery(ConnectedComponents(), new MongoSerialiser, timestamp = 32674,windowBatch=List(10000, 1000,100), arguments)
   //rg.rangeQuery(SixDegreesOfGandalf(3),start = 1,end = 32674,increment = 100,arguments)
 
   //rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,arguments)
@@ -18,5 +18,5 @@ object LOTRDeployment extends App{
 
   //rg.viewQuery(DegreeBasic(),timestamp = 10000,arguments)
   //rg.viewQuery(DegreeBasic(),timestamp = 10000,window=100,arguments)
-  rg.viewQuery(ConnectedComponents(), new MongoSerialiser, timestamp = 32674,windowBatch=List(10000, 1000,100), arguments)
+
 }
