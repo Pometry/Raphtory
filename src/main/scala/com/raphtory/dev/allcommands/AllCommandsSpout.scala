@@ -66,7 +66,7 @@ class AllCommandsSpout extends Spout[String] {
     for (i <- 1 to numOfProps) {
       val propnum = i
       if (i < numOfProps) properties = properties + s""" "property$propnum":"${"test"}", """
-      else properties = properties + s""" "property$propnum":${rnd.nextDouble()} }"""
+      else properties = properties + s""" "property$propnum":${rnd.nextFloat()} }"""
     }
     properties
   }
