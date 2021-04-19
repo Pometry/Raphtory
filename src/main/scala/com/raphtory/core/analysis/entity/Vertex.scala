@@ -36,13 +36,13 @@ final case class Vertex(
   def aliveAtWithWindow(time: Long, window: Long): Boolean = v.aliveAtWithWindow(time, window)
 
   //out edges whole
-  def getOutEdges: ParIterable[Edge]                              = internalOutgoingEdges.values
+  def getOutEdges: ParIterable[Edge]                              = internalOutgoingEdges.map(x=>x._2)
   def getOutEdgesAfter(time: Long): ParIterable[Edge]             = getOutEdges.filter(_.activityAfter(time))
   def getOutEdgesBefore(time: Long): ParIterable[Edge]            = getOutEdges.filter(_.activityBefore(time))
   def getOutEdgesBetween(min: Long, max: Long): ParIterable[Edge] = getOutEdges.filter(_.activityBetween(min, max))
 
   //in edges whole
-  def getIncEdges: ParIterable[Edge]                              = internalIncomingEdges.values
+  def getIncEdges: ParIterable[Edge]                              = internalIncomingEdges.map(x=>x._2)
   def getIncEdgesAfter(time: Long): ParIterable[Edge]             = getIncEdges.filter(_.activityAfter(time))
   def getInCEdgesBefore(time: Long): ParIterable[Edge]            = getIncEdges.filter(_.activityBefore(time))
   def getInCEdgesBetween(min: Long, max: Long): ParIterable[Edge] = getIncEdges.filter(_.activityBetween(min, max))
