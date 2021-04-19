@@ -186,9 +186,10 @@ abstract class AnalysisTask(
             .withTag("jobID", jobId)
             .withTag("Timestamp", subtaskState.range.timestamp)
           Try {
+            val viewTime = System.currentTimeMillis() - subtaskState.startTimestamp
             subtaskState.range.window match {
-              case Some(window) => serialiser.serialiseWindowedView(analyser.extractResults(newAllResults),subtaskState.range.timestamp,window,jobId,1L)
-              case None => serialiser.serialiseView(analyser.extractResults(newAllResults),subtaskState.range.timestamp,jobId,1L)
+              case Some(window) => serialiser.serialiseWindowedView(analyser.extractResults(newAllResults),subtaskState.range.timestamp,window,jobId,viewTime)
+              case None => serialiser.serialiseView(analyser.extractResults(newAllResults),subtaskState.range.timestamp,jobId,viewTime)
             }
           } match {
             case Success(_) =>
