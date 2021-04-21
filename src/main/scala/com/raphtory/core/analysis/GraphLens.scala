@@ -1,5 +1,7 @@
 package com.raphtory.core.analysis
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.PartitionManager.Workers.AnalysisSubtaskWorker
 import com.raphtory.core.analysis.entity.Vertex
@@ -19,9 +21,8 @@ final case class GraphLens(
     private val storage: EntityStorage,
     private val messageHandler:VertexMessageHandler
 ) {
-  protected var voteCount                   = 0
-
-  private var messageFilter: Boolean = false
+  private var voteCount            = new AtomicInteger(0)
+  private var vertexCount          = new AtomicInteger(0)
 
   private val viewTimer = Kamon
     .gauge("Raphtory_View_Build_Time")
@@ -48,29 +49,32 @@ final case class GraphLens(
     viewTimer.update(System.currentTimeMillis() - startTime)
     result
   }
-
+  def getVertices(): ParIterable[Vertex] = {
+    vertexCount.set(vertexMap.size)
+    vertexMap.map(x=>x._2)
+  }
   def getMessagedVertices(): ParIterable[Vertex] = {
     val startTime = System.currentTimeMillis()
-    val result    = getVertices.filter(_.hasMessage())
-    messageFilter = true
+    val result    = vertexMap.collect {
+      case (k, vertex) if vertex.hasMessage() => vertex
+    }
     viewTimer.update(System.currentTimeMillis() - startTime)
+    vertexCount.set(result.size)
     result
   }
 
-  def getVertices(): ParIterable[Vertex] = vertexMap.map(x=>x._2)
-
-  def checkVotes(): Boolean =
-    if (messageFilter)
-      getMessagedVertices().size == voteCount
-    else
-      vertexMap.size == voteCount
+  def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
 
   //TODO hide away
   def sendMessage(msg: VertexMessage): Unit = messageHandler.sendMessage(msg)
 
 
-  def vertexVoted(): Unit = voteCount += 1
-  def nextStep(): Unit    = superStep += 1
+  def vertexVoted(): Unit = voteCount.incrementAndGet()
+  def nextStep(): Unit    = {
+    voteCount.set(0)
+    vertexCount.set(0)
+    superStep += 1
+  }
   def receiveMessage(msg: VertexMessage): Unit = {
       vertexMap(msg.vertexId).receiveMessage(msg)
   }
