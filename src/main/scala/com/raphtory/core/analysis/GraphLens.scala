@@ -49,6 +49,7 @@ final case class GraphLens(
     viewTimer.update(System.currentTimeMillis() - startTime)
     result
   }
+
   def getVertices(): ParIterable[Vertex] = {
     vertexCount.set(vertexMap.size)
     vertexMap.map(x=>x._2)
@@ -70,11 +71,13 @@ final case class GraphLens(
 
 
   def vertexVoted(): Unit = voteCount.incrementAndGet()
+
   def nextStep(): Unit    = {
     voteCount.set(0)
     vertexCount.set(0)
     superStep += 1
   }
+
   def receiveMessage(msg: VertexMessage): Unit = {
       vertexMap(msg.vertexId).receiveMessage(msg)
   }
