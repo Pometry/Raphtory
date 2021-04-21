@@ -11,8 +11,8 @@ import scala.reflect.ClassTag
 
 final case class Vertex(
     private val v: RaphtoryVertex,
-    private val internalOutgoingEdges: ParTrieMap[Long, Edge],
     private val internalIncomingEdges: ParTrieMap[Long, Edge],
+    private val internalOutgoingEdges: ParTrieMap[Long, Edge],
     private val lens: GraphLens
 ) extends EntityVisitor(v, lens) {
 
