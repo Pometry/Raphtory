@@ -4,9 +4,11 @@ import com.raphtory.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
-
+object lotrExample {
+  def apply(args: Array[String]): lotrExample = new lotrExample(args)
+}
 class lotrExample(args:Array[String]) extends Analyser(args) {
-  val SEP = 3
+  val SEP: Int = if (args.length == 0) 3 else args.head.toInt
 
   override def setup(): Unit = {
     var sep_state = 0

@@ -86,7 +86,7 @@ class CBOD2(args: Array[String]) extends Analyser(args) {
   override def returnResults(): Any =
     view
       .getVertices()
-      .filter(v => v.Type() == nodeType)
+//      .filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.getPropertyValue("ID").getOrElse("Unknown"),
         vertex.getOrSetState[Float]("outlierscore", -1.0F),
         vertex.getState[Long]("lpalabel")))
