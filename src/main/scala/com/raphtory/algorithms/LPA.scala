@@ -97,7 +97,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
 
   override def returnResults(): Any =
     view.getVertices()
-      .filter(v => v.Type() == nodeType)
+      //.filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.getState[Long]("lpalabel"), vertex.ID()))
       .groupBy(f => f._1)
       .map(f => (f._1, f._2.map(_._2)))

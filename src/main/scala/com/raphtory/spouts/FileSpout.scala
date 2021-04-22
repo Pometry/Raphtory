@@ -109,7 +109,7 @@ object FileManager extends LazyLogging {
   private def getListOfFiles(dir: String): List[File] = {
     val d = new File(dir)
     if (d.exists && d.isDirectory) {
-      val files = getRecursiveListOfFiles(d)
+      val files = getRecursiveListOfFiles(d).sorted
       files.filter(f => f.isFile && !f.isHidden)
     }
     else {
