@@ -6,7 +6,6 @@ import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.ParArray
-import scala.util.Random
 
 /**
 Description
@@ -42,16 +41,16 @@ class LPA(args: Array[String]) extends Analyser(args) {
   val top: Int         = if (arg.length == 0) 0 else arg.head.toInt
   val weight: String       = if (arg.length < 2) "" else arg(1)
   val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
-
+  val rnd    = new scala.util.Random
 
   val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
   val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
-
+  val debug             = System.getenv().getOrDefault("DEBUG2", "false").trim.toBoolean //for printing debug messages
   val SP = 0.2 // Stickiness probability
 
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
-      val lab = scala.util.Random.nextLong()
+      val lab = rnd.nextLong()
       vertex.setState("lpalabel", lab)
       vertex.messageAllNeighbours((vertex.ID(),lab))
     }
@@ -78,7 +77,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
         // Update node label and broadcast
         if (newLabel == vlabel)
           vertex.voteToHalt()
-        newLabel =  if (Random.nextFloat() < SP) vlabel else newLabel
+        newLabel =  if (rnd.nextFloat() < SP) vlabel else newLabel
         vertex.setState("lpalabel", newLabel)
         vertex.messageAllNeighbours((vertex.ID(), newLabel))
         doSomething(vertex, gp.map(_._1).toArray)
@@ -86,10 +85,10 @@ class LPA(args: Array[String]) extends Analyser(args) {
         case e: Exception => println(e, vertex.ID())
       }
     }
-    if (workerID==1)
-      println(
-        s"{workerID: ${workerID},Superstep: ${view.superStep()}}"
-      )
+//    if (workerID==1)
+//      println(
+//        s"{workerID: ${workerID},Superstep: ${view.superStep()}}"
+//      )
   }
 
 
