@@ -1,21 +1,16 @@
 package com.raphtory.core.model.communication
 
-import scala.collection.mutable.{ArrayBuffer}
+import scala.collection.mutable.ListBuffer
+
 
 final class VertexMultiQueue {
-  private val evenMessageQueue: ArrayBuffer[Any] = ArrayBuffer.empty
-  private val oddMessageQueue: ArrayBuffer[Any]  = ArrayBuffer.empty
+  private val evenMessageQueue: ListBuffer[Any] = ListBuffer.empty
+  private val oddMessageQueue: ListBuffer[Any]  = ListBuffer.empty
 
-  def getMessageQueue(superStep: Int): ArrayBuffer[Any] =
-    if (superStep % 2 == 0) evenMessageQueue else oddMessageQueue
+  def getMessageQueue(superStep: Int): List[Any] =
+    if (superStep % 2 == 0) evenMessageQueue.toList else oddMessageQueue.toList
 
-  def clearQueue(superStep: Int): Unit =
-    getMessageQueue(superStep).clear()
+  def clearQueue(superStep: Int): Unit = if (superStep % 2 == 0) evenMessageQueue.clear() else oddMessageQueue.clear()
 
-  def clearQueues(): Unit = {
-    evenMessageQueue.clear()
-    oddMessageQueue.clear()
-  }
-
-  def receiveMessage(superStep: Int, data: Any) = getMessageQueue(superStep + 1) += data
+  def receiveMessage(superStep: Int, data: Any):Unit = if ((superStep+1) % 2 == 0) evenMessageQueue += data else oddMessageQueue += data
 }

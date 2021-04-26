@@ -61,10 +61,10 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
               }
 
             //Get labels of past/future instances of vertex //IMlater: links between non consecutive layers should persist or at least degrade?
-            if (vlabel.contains(ts - snapshotSize))
-              vlabel(ts - snapshotSize).zipWithIndex.foreach(x => nei_labs.append((x._2, x._1._2, omega(x._2))))
-            if (vlabel.contains(ts + snapshotSize))
-              vlabel(ts + snapshotSize).zipWithIndex.foreach(x => nei_labs.append((x._2, x._1._2, omega(x._2))))
+//            if (vlabel.contains(ts - snapshotSize)) //TODO reenable
+//              vlabel(ts - snapshotSize).zipWithIndex.foreach(x => nei_labs.append((x._2, x._1._2, omega(x._2))))
+//            if (vlabel.contains(ts + snapshotSize))
+//              vlabel(ts + snapshotSize).zipWithIndex.foreach(x => nei_labs.append((x._2, x._1._2, omega(x._2))))
 
             nei_labs.groupBy(_._1).values.toArray.map { x =>
               val w      = x.head._1
