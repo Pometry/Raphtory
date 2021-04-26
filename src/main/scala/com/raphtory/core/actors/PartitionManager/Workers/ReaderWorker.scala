@@ -82,7 +82,7 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
             s"Manager_${managerId}_reader_${workerId}_analysis_subtask_worker_$jobId"
     )
 
-  private def forwardMsgToSubtaskWorker[T](jobId: String, map: Map[String, ActorRef], msg: T): Unit =
+  private def  forwardMsgToSubtaskWorker[T](jobId: String, map: Map[String, ActorRef], msg: T): Unit =
     map.get(jobId) match {
       case Some(worker) => worker forward msg
       case None         => log.error(s"unexpected sate: $jobId does not have actor for $msg")

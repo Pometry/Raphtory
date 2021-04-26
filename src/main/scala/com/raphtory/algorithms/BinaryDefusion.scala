@@ -21,7 +21,7 @@ class BinaryDefusion(args:Array[String]) extends Analyser[Any](args) {
 
   override def analyse(): Unit =
     view.getMessagedVertices().foreach { vertex =>
-      vertex.clearQueue
+      //vertex.clearQueue //todo this should probably happen by default
       if (vertex.containsState("infected"))
         vertex.voteToHalt() //already infected
       else {

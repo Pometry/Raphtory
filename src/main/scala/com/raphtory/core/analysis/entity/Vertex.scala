@@ -23,13 +23,11 @@ final case class Vertex(
 
   def hasMessage(): Boolean = multiQueue.getMessageQueue(lens.superStep).nonEmpty
 
-  def messageQueue[T: ClassTag]: ArrayBuffer[T] = { //clears queue after getting it to make sure not there for next iteration
+  def messageQueue[T: ClassTag]: List[T] = { //clears queue after getting it to make sure not there for next iteration
     val queue = multiQueue.getMessageQueue(lens.superStep).map(_.asInstanceOf[T])
     multiQueue.clearQueue(lens.superStep)
     queue
   }
-
-  def clearQueue() = multiQueue.clearQueue(lens.superStep)
 
   def voteToHalt()         : Unit                                = lens.vertexVoted()
   def aliveAt(time: Long): Boolean                         = v.aliveAt(time)
