@@ -16,7 +16,7 @@ final case class Edge(edge:RaphtoryEdge, id:Long, view: GraphLens) extends Entit
   def dst() = edge.getDstId
 
   def send(data: Any): Unit =
-    view.sendMessage(VertexMessage(id, view.jobId, view.superStep, data))
+    view.sendMessage(VertexMessage(id, view.jobId, data))
 
   def activityAfter(time:Long): Boolean = edge.history.exists(k => k._1 >= time)
   def activityBefore(time:Long): Boolean = edge.history.exists(k => k._1 <= time)

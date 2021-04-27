@@ -53,4 +53,4 @@ case class VertexRemoveSyncAck(msgTime: Long, override val updateId: Long) exten
 
 case class TrackedGraphEffect[T <: GraphUpdateEffect](channelId: String, channelTime: Int, effect: T)
 
-case class VertexMessage(vertexId: Long, jobId: String, superStep: Int, data: Any)
+case class VertexMessage(vertexId: Long, jobId: String, data: Any)
