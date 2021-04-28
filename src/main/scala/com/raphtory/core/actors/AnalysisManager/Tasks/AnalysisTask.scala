@@ -1,7 +1,6 @@
 package com.raphtory.core.actors.AnalysisManager.Tasks
 
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.SubtaskState
@@ -11,9 +10,7 @@ import kamon.Kamon
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 abstract class AnalysisTask(
     jobId: String,
@@ -91,8 +88,8 @@ abstract class AnalysisTask(
         currentRange.orElse(controller.nextRange(readyTime)) match {
           case Some(range) if range.timestamp <= readyTime =>
             log.info(s"Range $range for Job $jobId is ready to start")
-            messageToAllReaderWorkers(StartSubtask(jobId, range.timestamp, range.window))
-            context.become(setupSubtask(SubtaskState(range, System.currentTimeMillis(), controller), 0, 0))
+            messageToAllReaderWorkers(SetupSubtask(jobId, range.timestamp, range.window))
+            context.become(waitAllReadyForSetupTask(SubtaskState(range, System.currentTimeMillis(), controller), 0))
           case Some(range) =>
             log.info(s"Range $range for Job $jobId is not ready. Recheck")
             context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
@@ -106,21 +103,43 @@ abstract class AnalysisTask(
       messageToAllReaderWorkers(TimeCheck)
   }
 
-  private def setupSubtask(subtaskState: SubtaskState, readyCount: Int, sentMessageCount: Int): Receive =
-    withDefaultMessageHandler("setup subtask") {
+  private def waitAllReadyForSetupTask(subtaskState: SubtaskState, readyCount: Int): Receive =
+    withDefaultMessageHandler("ready for setup task") {
+      case SetupSubtaskDone =>
+        val newReadyCount = readyCount + 1
+        if (newReadyCount == workerCount) {
+          messageToAllReaderWorkers(StartSubtask(jobId))
+          context.become(preStepSubtask(subtaskState, 0, 0))
+        }
+        else context.become(waitAllReadyForSetupTask(subtaskState, newReadyCount))
+    }
+
+  private def preStepSubtask(subtaskState: SubtaskState, readyCount: Int, sentMessageCount: Int): Receive =
+    withDefaultMessageHandler("pre-setup subtask") {
       case Ready(messagesSent) =>
         val newReadyCount       = readyCount + 1
         val newSendMessageCount = sentMessageCount + messagesSent
         log.debug(s"setup workers $newReadyCount / $workerCount")
         if (newReadyCount == workerCount)
           if (newSendMessageCount == 0) {
-            messageToAllReaderWorkers(NextStep(jobId))
-            context.become(stepWork(subtaskState, 0, 0, true))
+            messageToAllReaderWorkers(SetupNextStep(jobId))
+            context.become(waitAllReadyForNextStep(subtaskState, 0))
           } else {
             messageToAllReaderWorkers(CheckMessages(jobId))
             context.become(checkMessages(subtaskState, 0, 0, 0))
           }
-        else context.become(setupSubtask(subtaskState, newReadyCount, newSendMessageCount))
+        else context.become(preStepSubtask(subtaskState, newReadyCount, newSendMessageCount))
+    }
+
+  private def waitAllReadyForNextStep(subtaskState: SubtaskState, readyCount: Int): Receive =
+    withDefaultMessageHandler("ready for next step") {
+      case SetupNextStepDone =>
+        val newReadyCount = readyCount + 1
+        if (newReadyCount == workerCount) {
+          messageToAllReaderWorkers(StartNextStep(jobId))
+          context.become(stepWork(subtaskState, 0, 0, true))
+        }
+        else context.become(waitAllReadyForNextStep(subtaskState, newReadyCount))
     }
 
   private def checkMessages(
@@ -135,8 +154,8 @@ abstract class AnalysisTask(
       val newTotalSentMessage     = totalSentMessage + sentMessages
       if (newReadyCount == workerCount)
         if (newTotalReceivedMessage == newTotalSentMessage) {
-          messageToAllReaderWorkers(NextStep(jobId))
-          context.become(stepWork(subtaskState, 0, 0, true))
+          messageToAllReaderWorkers(SetupNextStep(jobId))
+          context.become(waitAllReadyForNextStep(subtaskState, 0))
         } else {
           messageToAllReaderWorkers(CheckMessages(jobId))
           context.become(checkMessages(subtaskState, 0, 0, 0))
@@ -160,8 +179,8 @@ abstract class AnalysisTask(
           messageToAllReaderWorkers(Finish(jobId))
           context.become(finishSubtask(subtaskState, 0, List.empty))
         } else if (newTotalSentMessages == 0) {
-          messageToAllReaderWorkers(NextStep(jobId))
-          context.become(stepWork(subtaskState, 0, 0, true))
+          messageToAllReaderWorkers(SetupNextStep(jobId))
+          context.become(waitAllReadyForNextStep(subtaskState, 0))
         } else {
           messageToAllReaderWorkers(CheckMessages(jobId))
           context.become(checkMessages(subtaskState, 0, 0, 0))
@@ -233,9 +252,13 @@ object AnalysisTask {
     case class TimeResponse(time: Long)
     case object RecheckTime
 
-    case class StartSubtask(jobId: String, timestamp: Long, window: Option[Long])
+    case class SetupSubtask(jobId: String, timestamp: Long, window: Option[Long])
+    case object SetupSubtaskDone
+    case class StartSubtask(jobId: String)
     case class Ready(messages: Int)
-    case class NextStep(jobId: String)
+    case class SetupNextStep(jobId: String)
+    case object SetupNextStepDone
+    case class StartNextStep(jobId: String)
     case class CheckMessages(jobId: String)
     case class MessagesReceived(receivedMessages: Int, sentMessages: Int)
     case class EndStep(superStep: Int, sentMessageCount: Int, voteToHalt: Boolean)
