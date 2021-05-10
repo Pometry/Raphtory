@@ -74,7 +74,6 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
     case unhandled =>
       log.error(s"ReaderWorker [$workerId] belonging to Reader [$managerId] received unknown [$unhandled].")
   }
-
   private def buildSubtaskWorker(jobId: String, analyser: Analyser[Any], managerCount: Int): ActorRef =
     context.system.actorOf(
             Props(AnalysisSubtaskWorker(managerCount, managerId, workerId, storage, analyser, jobId))
