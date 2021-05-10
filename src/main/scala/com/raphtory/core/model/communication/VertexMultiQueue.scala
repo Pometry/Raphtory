@@ -13,4 +13,5 @@ final class VertexMultiQueue {
   def clearQueue(superStep: Int): Unit = if (superStep % 2 == 0) evenMessageQueue.clear() else oddMessageQueue.clear()
 
   def receiveMessage(superStep: Int, data: Any):Unit = if ((superStep+1) % 2 == 0) evenMessageQueue += data else oddMessageQueue += data
+
 }
