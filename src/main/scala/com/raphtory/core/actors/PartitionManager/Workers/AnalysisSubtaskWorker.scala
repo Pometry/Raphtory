@@ -2,7 +2,6 @@ package com.raphtory.core.actors.PartitionManager.Workers
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
 import com.raphtory.core.actors.PartitionManager.Workers.AnalysisSubtaskWorker.State
@@ -10,7 +9,8 @@ import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.GraphLens
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.model.EntityStorage
-import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandler}
+import com.raphtory.core.model.communication.VertexMessage
+import com.raphtory.core.model.communication.VertexMessageHandler
 import kamon.Kamon
 
 import scala.util.Failure
@@ -34,18 +34,23 @@ final case class AnalysisSubtaskWorker(
   override def receive: Receive = work(State(0, 0, initManagerCount))
 
   private def work(state: State): Receive = {
-    case StartSubtask(_, timestamp, window) =>
+    case SetupSubtask(_, timestamp, window) =>
       log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is SetupTaskWorker.")
-      val beforeTime = System.currentTimeMillis()
-      val initStep   = 0
-      val messageHandler = new VertexMessageHandler(mediator,state.managerCount)
-      val graphLens  = GraphLens(jobId, timestamp, window, initStep, workerId, storage,messageHandler)
+      val initStep       = 0
+      val messageHandler = new VertexMessageHandler(mediator, state.managerCount)
+      val graphLens      = GraphLens(jobId, timestamp, window, initStep, workerId, storage, messageHandler)
       analyzer.sysSetup(graphLens, messageHandler, workerId)
+      context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
+      sender ! SetupSubtaskDone
+
+    case _: StartSubtask =>
+      log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is StartSubtask.")
+      val beforeTime = System.currentTimeMillis()
       analyzer.setup()
-      val messagesSent = messageHandler.getCountandReset()
+      val messagesSent = analyzer.messageHandler.getCountandReset()
       sender ! Ready(messagesSent)
+      context.become(work(state.copy(sentMessageCount = messagesSent)))
       stepMetric(analyzer).update(System.currentTimeMillis() - beforeTime)
-      context.become(work(state.updateSentMessageCount(_ + messagesSent)))
 
     case _: CheckMessages =>
       log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives CheckMessages.")
@@ -70,15 +75,20 @@ final case class AnalysisSubtaskWorker(
 
       sender ! MessagesReceived(state.receivedMessageCount, state.sentMessageCount)
 
-    case _: NextStep =>
-      log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives NextStep.")
-      val beforeTime = System.currentTimeMillis()
+    case _: SetupNextStep =>
+      log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives SetupNextStep.")
       analyzer.view.nextStep()
+      context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
+      sender ! SetupNextStepDone
+
+    case _: StartNextStep =>
+      log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives StartNextStep.")
+      val beforeTime = System.currentTimeMillis()
       Try(analyzer.analyse()) match {
         case Success(_) =>
           val messageCount = analyzer.messageHandler.getCountandReset()
           sender ! EndStep(analyzer.view.superStep, messageCount, analyzer.view.checkVotes())
-          context.become(work(state.updateSentMessageCount(_ + messageCount)))
+          context.become(work(state.copy(sentMessageCount = messageCount)))
 
         case Failure(e) => log.error(s"Failed to run nextStep due to [$e].")
       }
@@ -111,13 +121,10 @@ final case class AnalysisSubtaskWorker(
       .withTag("timestamp", analyzer.view.timestamp)
       .withTag("superstep", analyser.view.superStep)
 
-
-
 }
 
 object AnalysisSubtaskWorker {
   private case class State(sentMessageCount: Int, receivedMessageCount: Int, managerCount: Int) {
-    def updateSentMessageCount(f: Int => Int): State     = copy(sentMessageCount = f(sentMessageCount))
     def updateReceivedMessageCount(f: Int => Int): State = copy(receivedMessageCount = f(receivedMessageCount))
   }
   object Message {
