@@ -9,15 +9,12 @@ import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.analysis.api.LoadExternalAnalyser
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.AnalyserUtils
 
-import scala.collection.concurrent.TrieMap
 import scala.util.Failure
 import scala.util.Success
-import scala.util.Try
 
 case class ViewJob(jobID: String, timestamp: Long, window: Long)
 
@@ -58,9 +55,11 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
       log.debug(s"Reader [$workerId] received TimeCheck.")
       sender ! TimeResponse(storage.windowTime)
 
+    case req: SetupSubtask  => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
     case req: StartSubtask  => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
     case req: CheckMessages => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
-    case req: NextStep      => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
+    case req: SetupNextStep => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
+    case req: StartNextStep => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
     case req: Finish        => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
     case req: VertexMessage => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
 
@@ -81,7 +80,7 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
             s"Manager_${managerId}_reader_${workerId}_analysis_subtask_worker_$jobId"
     )
 
-  private def  forwardMsgToSubtaskWorker[T](jobId: String, map: Map[String, ActorRef], msg: T): Unit =
+  private def forwardMsgToSubtaskWorker[T](jobId: String, map: Map[String, ActorRef], msg: T): Unit =
     map.get(jobId) match {
       case Some(worker) => worker forward msg
       case None         => log.error(s"unexpected sate: $jobId does not have actor for $msg")
