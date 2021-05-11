@@ -1,6 +1,8 @@
 package com.raphtory.core.actors.AnalysisManager.Tasks
 
+import akka.actor.PoisonPill
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.SubtaskState
@@ -96,6 +98,8 @@ abstract class AnalysisTask(
             context.become(checkTime(Some(controller), List.empty, Some(range)))
           case None =>
             log.info(s"no more sub tasks for $jobId")
+            messageToAllReaderWorkers(KillTask(jobId))
+            self ! PoisonPill
         }
       } else
         context.become(checkTime(taskController, readyTimes, currentRange))
