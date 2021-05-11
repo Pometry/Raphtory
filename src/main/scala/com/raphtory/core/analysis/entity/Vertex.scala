@@ -87,7 +87,7 @@ final case class Vertex(
 
   //Send message
   def messageNeighbour(vertexId: Long, data: Any): Unit =
-    lens.sendMessage(VertexMessage(vertexId, lens.jobId, data))
+    lens.sendMessage(VertexMessage(vertexId, data))
 
   def messageAllOutgoingNeighbors(message: Any): Unit =
     internalOutgoingEdges.keys.foreach(vId => messageNeighbour(vId, message))
