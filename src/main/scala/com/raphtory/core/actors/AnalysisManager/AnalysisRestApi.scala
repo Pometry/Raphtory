@@ -32,6 +32,7 @@ final case class AnalysisRestApi(system: ActorSystem) {
         entity(as[LiveAnalysisPost]) { in =>
           val request = LiveAnalysisRequest(
             in.analyserName,
+            in.serialiserName,
             in.repeatTime.getOrElse(0),
             in.eventTime.getOrElse(false),
             in.windowSet.getOrElse(List.empty),
@@ -45,6 +46,7 @@ final case class AnalysisRestApi(system: ActorSystem) {
       entity(as[ViewAnalysisPost]) { in =>
         val request = ViewAnalysisRequest(
           in.analyserName,
+          in.serialiserName,
           in.timestamp,
           in.windowSet.getOrElse(List.empty),
           in.args.getOrElse(Array()),
@@ -57,6 +59,7 @@ final case class AnalysisRestApi(system: ActorSystem) {
       entity(as[RangeAnalysisPost]) { in =>
         val request = RangeAnalysisRequest(
           in.analyserName,
+          in.serialiserName,
           in.start,
           in.end,
           in.jump,
@@ -89,6 +92,7 @@ object AnalysisRestApi {
   object http {
     case class LiveAnalysisPost(
         analyserName: String,
+        serialiserName:String,
         windowSet: Option[List[Long]],
         repeatTime: Option[Long],
         eventTime: Option[Boolean],
@@ -96,22 +100,24 @@ object AnalysisRestApi {
         rawFile: Option[String]
     )
     object LiveAnalysisPost {
-      implicit val formatter: RootJsonFormat[LiveAnalysisPost] = jsonFormat6(LiveAnalysisPost.apply)
+      implicit val formatter: RootJsonFormat[LiveAnalysisPost] = jsonFormat7(LiveAnalysisPost.apply)
     }
 
     case class ViewAnalysisPost(
         analyserName: String,
+        serialiserName:String,
         timestamp: Long,
         windowSet: Option[List[Long]],
         args: Option[Array[String]],
         rawFile: Option[String]
     )
     object ViewAnalysisPost {
-      implicit val formatter: RootJsonFormat[ViewAnalysisPost] = jsonFormat5(ViewAnalysisPost.apply)
+      implicit val formatter: RootJsonFormat[ViewAnalysisPost] = jsonFormat6(ViewAnalysisPost.apply)
     }
 
     case class RangeAnalysisPost(
         analyserName: String,
+        serialiserName:String,
         start: Long,
         end: Long,
         jump: Long,
@@ -121,7 +127,7 @@ object AnalysisRestApi {
     )
 
     object RangeAnalysisPost {
-      implicit val formatter: RootJsonFormat[RangeAnalysisPost] = jsonFormat7(RangeAnalysisPost.apply)
+      implicit val formatter: RootJsonFormat[RangeAnalysisPost] = jsonFormat8(RangeAnalysisPost.apply)
     }
   }
 
@@ -130,6 +136,7 @@ object AnalysisRestApi {
 
     case class LiveAnalysisRequest(
         analyserName: String,
+        serialiserName:String,
         repeatTime: Long,
         eventTime: Boolean,
         windowSet: List[Long],
@@ -139,6 +146,7 @@ object AnalysisRestApi {
 
     case class ViewAnalysisRequest(
         analyserName: String,
+        serialiserName:String,
         timestamp: Long,
         windowSet: List[Long],
         args: Array[String],
@@ -147,6 +155,7 @@ object AnalysisRestApi {
 
     case class RangeAnalysisRequest(
         analyserName: String,
+        serialiserName:String,
         start: Long,
         end: Long,
         jump: Long,

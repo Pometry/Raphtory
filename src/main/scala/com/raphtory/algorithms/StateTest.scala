@@ -66,7 +66,7 @@ class StateTest(args:Array[String]) extends Analyser[(Int, Int, Int, Int, Int, I
 
   override def defineMaxSteps(): Int = 1
 
-  override def extractResults(results: Array[(Int, Int, Int, Int, Int, Int,Int,Int,Int,Int, Int, Int, Int, Int,Int,Int,Int,Int)]): Any = {
+  override def extractResults(results: List[(Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)]): Map[String, Any] = {
     val totalVert = results.map( x => x._1 ).sum
     val totDeg = results.map(x => x._2).sum
     val maxDeg = results.map(x => x._6).max
@@ -88,14 +88,13 @@ class StateTest(args:Array[String]) extends Analyser[(Int, Int, Int, Int, Int, I
     val inedgeProperties = results.map( x => x._17).sum
     val inedgePropertyHistory = results.map( x => x._18).sum
 
-    val text =
-      s"""{"vertices":$totalVert, "maxDeg":$maxDeg,
-         |"totalInEdges":$InEdge,"totalOutEdges":$OutEdge,"vdeletionstotal":$vdeletionstotal,
-         |"vcreationstotal":$vcreationstotal,"outedgedeletionstotal":$outedgedeletionstotal,"outedgecreationstotal":$outedgecreationstotal,
-         |"inedgedeletionstotal":$inedgedeletionstotal,"inedgecreationstotal":$inedgecreationstotal,"properties":$properties,
-         |"propertyhistory":$propertyhistory,"outedgeProperties":$outedgeProperties,"outedgePropertyHistory":$outedgePropertyHistory,
-         |"inedgeProperties":$inedgeProperties,"inedgePropertyHistory":$inedgePropertyHistory}""".stripMargin
-    publishData(text)
+    Map[String,Any]("vertices"->totalVert,"maxDeg"->maxDeg,"totalInEdges"->InEdge,"totalOutEdges"->OutEdge,
+      "vdeletionstotal"->vdeletionstotal,"vcreationstotal"->vcreationstotal,"outedgedeletionstotal"->outedgedeletionstotal,
+      "outedgecreationstotal"->outedgecreationstotal,"inedgedeletionstotal"->inedgedeletionstotal,
+      "inedgecreationstotal"->inedgecreationstotal,"properties"->properties,"propertyhistory"->propertyhistory,
+      "outedgeProperties"->outedgeProperties,"outedgePropertyHistory"->outedgePropertyHistory,
+      "inedgeProperties"->inedgeProperties,"inedgePropertyHistory"->inedgePropertyHistory
+    )
   }
 
 }

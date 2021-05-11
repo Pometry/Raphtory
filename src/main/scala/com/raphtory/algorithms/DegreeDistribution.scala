@@ -29,7 +29,7 @@ class DegreeDistribution(args:Array[String]) extends Analyser[Any](args){
 
   override def defineMaxSteps(): Int = 1
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Int, Int, Int)]]
     val totalVert = endResults.map( x => x._1 ).sum
     val totDeg = endResults.map(x => x._2).sum
@@ -41,7 +41,7 @@ class DegreeDistribution(args:Array[String]) extends Analyser[Any](args){
     val text =
       s"""{"vertices":$totalVert, "maxDeg":$maxDeg,"avgSquaredDeg":$meanDegSq,"avgSquaredInDeg":$meanInDegSq,"avgSquaredOutDeg":$meanOutDegSq}"""
     println(text)
-    publishData(text)
+    Map[String,Any]()
   }
 
 }

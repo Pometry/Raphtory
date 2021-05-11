@@ -35,7 +35,7 @@ class Reader(
 
     // create threads for writing
     val child = context.system.actorOf(
-            Props(new ReaderWorker(managerCount, managerId, i, storage(i))).withDispatcher("reader-dispatcher"),
+            Props(ReaderWorker(managerCount, managerId, i, storage(i))).withDispatcher("reader-dispatcher"),
             s"Manager_${id}_reader_$i"
     )
 
@@ -48,31 +48,12 @@ class Reader(
 
   override def receive: Receive = {
     case ReaderWorkersOnline     => sender ! ReaderWorkersAck
-    case req: AnalyserPresentCheck => processAnalyserPresentCheckRequest(req)
     case req: UpdatedCounter       => processUpdatedCounterRequest(req)
     case SubscribeAck              =>
     case Terminated(child) =>
       log.warning(s"ReaderWorker with path [{}] belonging to Reader [{}] has died.", child.path, managerId)
     case x => log.warning(s"Reader [{}] received unknown [{}] message.", managerId, x)
   }
-
-  def processAnalyserPresentCheckRequest(req: AnalyserPresentCheck): Unit = {
-    log.debug(s"Reader [{}] received [{}] request.", managerId, req)
-
-    val className   = req.className
-    Try(Class.forName(className)) match {
-      case Failure(_) =>
-        log.debug(s"Class [$className] was not found within this image.")
-        sender ! ClassMissing
-      case Success(_) =>
-        log.debug(s"Class [$className] exists. Proceeding.")
-        sender ! AnalyserPresent
-    }
-  }
-
-
-
-
 
   def processUpdatedCounterRequest(req: UpdatedCounter): Unit = {
     log.debug("Reader [{}] received [{}] request.", managerId, req)

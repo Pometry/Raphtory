@@ -4,7 +4,8 @@ import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.analysis.entity.Edge
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.mutable.{ParIterable, ParMap}
+import scala.collection.parallel.ParIterable
+import scala.collection.parallel.mutable.ParMap
 import scala.reflect.io.Path
 
 
@@ -59,7 +60,7 @@ class MotifCounting(args: Array[String]) extends Analyser[Any](args) { //IM: bet
       }
       .toMap
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String, Any] = {
     val endResults = results.asInstanceOf[ArrayBuffer[ParMap[Long, (Double, Double)]]].flatten
     val filtered      = endResults.filter(x=> (x._2._1>0)|(x._2._2>0)).map(x => s""""${x._1}":{"mc1":${x._2._1}, "mc2":${x._2._2}}""")
     val total         = filtered.length
@@ -69,9 +70,9 @@ s"""{"total": $total, "motifs":{ ${count.mkString(",")} }}"""
 
     output_file match {
       case "" => println(text)
-      case "mongo" => publishData(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
+    Map[String,Any]()
   }
 
   override def defineMaxSteps(): Int = 10

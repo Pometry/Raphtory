@@ -55,11 +55,11 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
               }
 
             //Get labels of past/future instances of vertex //IMlater: links between non consecutive layers should persist or at least degrade?
-            if (vlabel.contains(ts - snapshotSize))
-              nei_labs.append((vlabel(ts - snapshotSize)._2, interLayerWeights(omega, vertex, ts - snapshotSize)))
-            if (vlabel.contains(ts + snapshotSize))
-              nei_labs.append((vlabel(ts + snapshotSize)._2, interLayerWeights(omega, vertex, ts)))
-            // Get label most prominent in neighborhood of vertex
+//            if (vlabel.contains(ts - snapshotSize)) //TODO reenable
+//              nei_labs.append((vlabel(ts - snapshotSize)._2, interLayerWeights(omega, vertex, ts - snapshotSize)))
+//            if (vlabel.contains(ts + snapshotSize))
+//              nei_labs.append((vlabel(ts + snapshotSize)._2, interLayerWeights(omega, vertex, ts)))
+//            // Get label most prominent in neighborhood of vertex
 
             val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
             max_freq.filter(_._2 == max_freq.values.max).keySet.max
@@ -86,7 +86,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
     }
     if (workerID == 1)
       println(
-              s"Superstep: ${view.superStep()}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
+        s"Superstep: ${view.superStep}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
       )
   }
 

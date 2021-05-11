@@ -9,7 +9,7 @@ object ConnectedComponents {
   def apply():ConnectedComponents = new ConnectedComponents(Array())
 }
 
-class ConnectedComponents(args:Array[String]) extends Analyser[Any](args){
+class ConnectedComponents(args:Array[String]) extends Analyser[immutable.ParHashMap[Long, Int]](args){
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
@@ -34,20 +34,14 @@ class ConnectedComponents(args:Array[String]) extends Analyser[Any](args){
       .groupBy(f => f)
       .map(f => (f._1, f._2.size))
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[immutable.ParHashMap[Long, Int]]): Map[String, Any] = {
     val er = extractData(results)
-    val text = s"""{"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2}},"""
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","ConnectedComponents.json").trim
-
-    println(text)
-
-    publishData(text)
+    Map[String,Any]("top5"-> er.top5,"total"->er.total,"totalIslands"->er.totalIslands,"proportion"->er.proportion,"clustersGT2"->er.totalGT2)
   }
 
 
-  def extractData(results:Array[Any]):extractedData ={
-    val endResults = results.asInstanceOf[Array[immutable.ParHashMap[Long, Int]]].toBuffer
+  def extractData(results:List[immutable.ParHashMap[Long, Int]]):extractedData ={
+    val endResults = results
     try {
       val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
       val groupedNonIslands = grouped.filter(x => x._2 > 1)
