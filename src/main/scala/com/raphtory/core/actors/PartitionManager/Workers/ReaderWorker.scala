@@ -26,15 +26,14 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
   override def preStart(): Unit =
     log.debug(s"ReaderWorker [$workerId] belonging to Reader [$managerId] is being started.")
 
-  override def receive: Receive = work(Map.empty, initManagerCount)
+  override def receive: Receive = work(initManagerCount)
 
-  private def work(subtaskWorkerMap: Map[String, ActorRef], managerCount: Int): Receive = {
+  private def work(managerCount: Int): Receive = {
     case CompileNewAnalyser(jobId, analyser, args) =>
       AnalyserUtils.compileNewAnalyser(analyser, args) match {
         case Success(analyser) =>
           sender() ! AnalyserPresent
           val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount)
-          context.become(work(subtaskWorkerMap + (jobId -> subtaskWorker), managerCount))
         case Failure(e) =>
           sender ! FailedToCompile(e.getStackTrace.toString)
           log.error("fail to compile new analyser: " + e.getMessage)
@@ -45,7 +44,6 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
         case Success(analyser) =>
           sender() ! AnalyserPresent
           val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount)
-          context.become(work(subtaskWorkerMap + (jobId -> subtaskWorker), managerCount))
         case Failure(e) =>
           sender ! FailedToCompile(e.getStackTrace.toString)
           log.error("fail to compile predefined analyser: " + e.getMessage)
@@ -55,21 +53,6 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
       log.debug(s"Reader [$workerId] received TimeCheck.")
       sender ! TimeResponse(storage.windowTime)
 
-    case req: SetupSubtask  => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
-    case req: StartSubtask  => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
-    case req: CheckMessages => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
-    case req: SetupNextStep => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
-    case req: StartNextStep => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
-    case req: Finish        => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
-    case req: VertexMessage => forwardMsgToSubtaskWorker(req.jobId, subtaskWorkerMap, req)
-
-    case req: UpdatedCounter =>
-      subtaskWorkerMap.values.foreach(_ forward UpdatedCounter)
-      context.become(work(subtaskWorkerMap, req.newValue))
-
-    case KillTask(jobId) =>
-      subtaskWorkerMap.get(jobId).foreach(context.stop)
-      context.become(work(subtaskWorkerMap - jobId, managerCount))
     case unhandled =>
       log.error(s"ReaderWorker [$workerId] belonging to Reader [$managerId] received unknown [$unhandled].")
   }
@@ -80,9 +63,4 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
             s"Manager_${managerId}_reader_${workerId}_analysis_subtask_worker_$jobId"
     )
 
-  private def forwardMsgToSubtaskWorker[T](jobId: String, map: Map[String, ActorRef], msg: T): Unit =
-    map.get(jobId) match {
-      case Some(worker) => worker forward msg
-      case None         => log.error(s"unexpected sate: $jobId does not have actor for $msg")
-    }
 }

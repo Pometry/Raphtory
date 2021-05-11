@@ -90,7 +90,7 @@ abstract class AnalysisTask(
         currentRange.orElse(controller.nextRange(readyTime)) match {
           case Some(range) if range.timestamp <= readyTime =>
             log.info(s"Range $range for Job $jobId is ready to start")
-            messageToAllReaderWorkers(SetupSubtask(jobId, range.timestamp, range.window))
+            messagetoAllJobWorkers(SetupSubtask(jobId, range.timestamp, range.window))
             context.become(waitAllReadyForSetupTask(SubtaskState(range, System.currentTimeMillis(), controller), 0))
           case Some(range) =>
             log.info(s"Range $range for Job $jobId is not ready. Recheck")
@@ -98,7 +98,7 @@ abstract class AnalysisTask(
             context.become(checkTime(Some(controller), List.empty, Some(range)))
           case None =>
             log.info(s"no more sub tasks for $jobId")
-            messageToAllReaderWorkers(KillTask(jobId))
+            messagetoAllJobWorkers(KillTask(jobId))
             self ! PoisonPill
         }
       } else
@@ -112,7 +112,7 @@ abstract class AnalysisTask(
       case SetupSubtaskDone =>
         val newReadyCount = readyCount + 1
         if (newReadyCount == workerCount) {
-          messageToAllReaderWorkers(StartSubtask(jobId))
+          messagetoAllJobWorkers(StartSubtask(jobId))
           context.become(preStepSubtask(subtaskState, 0, 0))
         }
         else context.become(waitAllReadyForSetupTask(subtaskState, newReadyCount))
@@ -126,10 +126,10 @@ abstract class AnalysisTask(
         log.debug(s"setup workers $newReadyCount / $workerCount")
         if (newReadyCount == workerCount)
           if (newSendMessageCount == 0) {
-            messageToAllReaderWorkers(SetupNextStep(jobId))
+            messagetoAllJobWorkers(SetupNextStep(jobId))
             context.become(waitAllReadyForNextStep(subtaskState, 0))
           } else {
-            messageToAllReaderWorkers(CheckMessages(jobId))
+            messagetoAllJobWorkers(CheckMessages(jobId))
             context.become(checkMessages(subtaskState, 0, 0, 0))
           }
         else context.become(preStepSubtask(subtaskState, newReadyCount, newSendMessageCount))
@@ -140,7 +140,7 @@ abstract class AnalysisTask(
       case SetupNextStepDone =>
         val newReadyCount = readyCount + 1
         if (newReadyCount == workerCount) {
-          messageToAllReaderWorkers(StartNextStep(jobId))
+          messagetoAllJobWorkers(StartNextStep(jobId))
           context.become(stepWork(subtaskState, 0, 0, true))
         }
         else context.become(waitAllReadyForNextStep(subtaskState, newReadyCount))
@@ -158,10 +158,10 @@ abstract class AnalysisTask(
       val newTotalSentMessage     = totalSentMessage + sentMessages
       if (newReadyCount == workerCount)
         if (newTotalReceivedMessage == newTotalSentMessage) {
-          messageToAllReaderWorkers(SetupNextStep(jobId))
+          messagetoAllJobWorkers(SetupNextStep(jobId))
           context.become(waitAllReadyForNextStep(subtaskState, 0))
         } else {
-          messageToAllReaderWorkers(CheckMessages(jobId))
+          messagetoAllJobWorkers(CheckMessages(jobId))
           context.become(checkMessages(subtaskState, 0, 0, 0))
         }
       else
@@ -180,13 +180,13 @@ abstract class AnalysisTask(
       val newVoteToHaltForAll  = if (voteToHalt) voteToHaltForAll else false
       if (newReadyCount == workerCount)
         if (superStep == maxStep || newVoteToHaltForAll) {
-          messageToAllReaderWorkers(Finish(jobId))
+          messagetoAllJobWorkers(Finish(jobId))
           context.become(finishSubtask(subtaskState, 0, List.empty))
         } else if (newTotalSentMessages == 0) {
-          messageToAllReaderWorkers(SetupNextStep(jobId))
+          messagetoAllJobWorkers(SetupNextStep(jobId))
           context.become(waitAllReadyForNextStep(subtaskState, 0))
         } else {
-          messageToAllReaderWorkers(CheckMessages(jobId))
+          messagetoAllJobWorkers(CheckMessages(jobId))
           context.become(checkMessages(subtaskState, 0, 0, 0))
         }
       else
@@ -236,6 +236,11 @@ abstract class AnalysisTask(
 
   private def messageToAllReaderWorkers[T](msg: T): Unit =
     getAllReaderWorkers(managerCount).foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
+
+  private def messagetoAllJobWorkers[T](msg:T):Unit =
+    getAllJobWorkers(managerCount,jobId).foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
+
+
 }
 
 object AnalysisTask {

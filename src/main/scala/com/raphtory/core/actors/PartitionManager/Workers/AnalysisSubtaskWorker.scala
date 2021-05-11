@@ -1,7 +1,7 @@
 package com.raphtory.core.actors.PartitionManager.Workers
 
 import akka.actor.ActorRef
-import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
 import com.raphtory.core.actors.PartitionManager.Workers.AnalysisSubtaskWorker.State
@@ -26,9 +26,11 @@ final case class AnalysisSubtaskWorker(
     jobId: String
 ) extends RaphtoryActor {
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator
+  mediator ! DistributedPubSubMediator.Put(self)
+
   override def preStart(): Unit =
     log.debug(
-            s"AnalysisSubtaskWorker for Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is being started."
+      s"AnalysisSubtaskWorker for Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is being started."
     )
 
   override def receive: Receive = work(State(0, 0, initManagerCount))
@@ -37,7 +39,7 @@ final case class AnalysisSubtaskWorker(
     case SetupSubtask(_, timestamp, window) =>
       log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is SetupTaskWorker.")
       val initStep       = 0
-      val messageHandler = new VertexMessageHandler(mediator, state.managerCount)
+      val messageHandler = new VertexMessageHandler(mediator, state.managerCount,jobId)
       val graphLens      = GraphLens(jobId, timestamp, window, initStep, workerId, storage, messageHandler)
       analyzer.sysSetup(graphLens, messageHandler, workerId)
       context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
