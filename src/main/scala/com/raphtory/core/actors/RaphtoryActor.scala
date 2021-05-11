@@ -53,6 +53,14 @@ trait RaphtoryActor extends Actor with ActorLogging with Timers {
     workers.toArray
   }
 
+  def getAllJobWorkers(managerCount: Int,jobID:String): Array[String] = {
+    val workers = mutable.ArrayBuffer[String]()
+    for (i <- 0 until managerCount)
+      for (j <- 0 until totalWorkers)
+        workers += s"/user/Manager_${i}_reader_${j}_analysis_subtask_worker_$jobID"
+    workers.toArray
+  }
+
   def scheduleTask(initialDelay: FiniteDuration, interval: FiniteDuration, receiver: ActorRef, message: Any)(
     implicit context: ActorContext,
     executor: ExecutionContext,

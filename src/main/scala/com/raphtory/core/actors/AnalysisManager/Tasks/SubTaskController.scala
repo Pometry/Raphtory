@@ -10,6 +10,8 @@ final case class SubTaskController(
     waitTime: Long,
     overrideTimestamp: Boolean
 ) {
+
+
   private var subTasks: Stream[TaskTimeRange] = windows match {
     case Nil => timestamps.map(TaskTimeRange(_, None))
     case ws =>
