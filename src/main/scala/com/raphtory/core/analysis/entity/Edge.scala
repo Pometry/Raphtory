@@ -4,39 +4,21 @@ import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.analysis.api.ManagerCount
 import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
-import com.raphtory.core.analysis.GraphLenses.GraphLens
+import com.raphtory.core.analysis.GraphLens
 import com.raphtory.core.model.communication.VertexMessage
-import com.raphtory.core.model.entities.{RaphtoryEdge, ImmutableProperty, MutableProperty}
+import com.raphtory.core.model.entities.{ImmutableProperty, MutableProperty, RaphtoryEdge}
 
 import scala.collection.mutable
 
-class Edge(edge:RaphtoryEdge, id:Long, viewJob:ViewJob, superStep:Int, view:GraphLens, mediator: ActorRef)(implicit context: ActorContext, managerCount: ManagerCount) extends EntityVisitor(edge,viewJob:ViewJob) {
-
-
+final case class Edge(edge:RaphtoryEdge, id:Long, view: GraphLens) extends EntityVisitor(edge,view) {
   def ID() = id
   def src() = edge.getSrcId
   def dst() = edge.getDstId
 
+  def send(data: Any): Unit =
+    view.sendMessage(VertexMessage(id, data))
 
-  def send(data: Any): Unit = {
-    val message = VertexMessage(id, viewJob, superStep, data)
-    view.recordMessage()
-    mediator ! DistributedPubSubMediator.Send(getReader(id, managerCount.count), message, false)
-  }
-
-  //TODO edge properties
-  private def getEdgePropertyValuesAfterTime(edge: RaphtoryEdge, key: String, time: Long, window: Long): Option[mutable.TreeMap[Long, Any]] =
-    if (window == -1L)
-      edge.properties.get(key) match {
-        case Some(p: MutableProperty)   => Some(p.previousState.filter(x => x._1 <= time))
-        case Some(p: ImmutableProperty) => Some(mutable.TreeMap[Long, Any]((-1L -> p.currentValue)))
-        case None                       => None
-      }
-    else
-      edge.properties.get(key) match {
-        case Some(p: MutableProperty)   => Some(p.previousState.filter(x => x._1 <= time && time - x._1 <= window))
-        case Some(p: ImmutableProperty) => Some(mutable.TreeMap[Long, Any]((-1L -> p.currentValue)))
-        case None                       => None
-      }
-
+  def activityAfter(time:Long): Boolean = edge.history.exists(k => k._1 >= time)
+  def activityBefore(time:Long): Boolean = edge.history.exists(k => k._1 <= time)
+  def activityBetween(min:Long, max:Long): Boolean = edge.history.exists(k => k._1 > min &&  k._1 <= max)
 }

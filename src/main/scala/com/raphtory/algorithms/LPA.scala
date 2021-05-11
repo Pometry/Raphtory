@@ -99,7 +99,7 @@ class LPA(args: Array[String]) extends Analyser[Any](args) {
       .groupBy(f => f._1)
       .map(f => (f._1, f._2.map(_._2)))
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String, Any] = {
     val er      = extractData(results)
     val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
     val text = s"""{"top5":[${er.top5
@@ -107,12 +107,12 @@ class LPA(args: Array[String]) extends Analyser[Any](args) {
        s"""communities": [${commtxt.mkString(",")}]}"""
     output_file match {
       case "" => println(text)
-      case "mongo" => publishData(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
+    Map[String,Any]()
   }
 
-  def extractData(results: Array[Any]): fd = {
+  def extractData(results: List[Any]): fd = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, ParArray[String]]]]
     try {
       val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))

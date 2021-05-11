@@ -1,384 +1,278 @@
 package com.raphtory.core.actors.AnalysisManager.Tasks
 
-import java.net.InetAddress
-import akka.actor.{Actor, PoisonPill}
+import akka.actor.PoisonPill
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.mongodb.DBObject
-import com.mongodb.casbah.{MongoClient, MongoClientURI}
-import com.mongodb.util.JSON
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
-import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
+import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.SubtaskState
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.model.communication._
+import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 import kamon.Kamon
 
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.reflect.io.Path
+import scala.util.{Failure, Success, Try}
 
-abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyser[Any], managerCount:Int,newAnalyser: Boolean,rawFile:String) extends RaphtoryActor {
-  protected var currentSuperStep    = 0 //SuperStep the algorithm is currently on
-  implicit val executionContext = context.system.dispatchers.lookup("analysis-dispatcher")
+abstract class AnalysisTask(
+    jobId: String,
+    args: Array[String],
+    analyser: Analyser[Any],
+    serialiser:AggregateSerialiser,
+    managerCount: Int,
+    newAnalyser: Boolean,
+    rawFile: String
+) extends RaphtoryActor {
+  implicit val executionContext: ExecutionContext = context.system.dispatcher
 
-  val saveData  = System.getenv().getOrDefault("ANALYSIS_SAVE_OUTPUT", "false").trim.toBoolean
-  val mongoIP   = System.getenv().getOrDefault("ANALYSIS_MONGO_HOST", "localhost").trim
-  val mongoPort = System.getenv().getOrDefault("ANALYSIS_MONGO_PORT", "27017").trim
-  val dbname    = System.getenv().getOrDefault("ANALYSIS_MONGO_DB_NAME", "raphtory").trim
-
-  val mongo = if(saveData) MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress()}:$mongoPort")) else null
-
-
-  var viewTimeCurrentTimer = System.currentTimeMillis()
-
-  //Communication Counters
-  protected var ReaderACKS                   = 0    //Acks from the readers to say they are online
-  protected var ReaderAnalyserACKS           = 0    //Ack to show that the chosen analyser is present within the partition
-  protected var TimeOKFlag                   = true //flag to specify if the job is ok to run if temporal
-  protected var TimeOKACKS                   = 0    //counter to see that all partitions have responded
-  protected var workersFinishedSetup         = 0    //Acks from workers to see how many have finished the setup stage of analysis
-  protected var workersFinishedSuperStep     = 0    //Acks from workers to say they have finished the superstep
-  protected var workerResultsReceived        = 0    //Acks from workers when sending results back to analysis manager
-  protected var messageLogACKS               = 0    //Acks from Workers with the amount of messages they have sent and received
-  protected var recentlySeenTime             = Long.MaxValue //tracking the earliest time seen
-
-  private var totalReceivedMessages = 0 //Total number of messages received by the workers
-  private var totalSentMessages     = 0 //Total number of messages sent by the workers
-
-  private var voteToHalt = true // If the workers have decided to halt
-
-  private val debug                = System.getenv().getOrDefault("DEBUG", "false").trim.toBoolean //for printing debug messages
-
-  protected val mediator = DistributedPubSub(context.system).mediator
+  private val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  private var results: ArrayBuffer[Any] = ArrayBuffer[Any]()
+  //mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
 
-  def result() = results.toArray
+  private val maxStep: Int     = analyser.defineMaxSteps()
+  private val workerCount: Int = managerCount * totalWorkers
 
-  protected def analysisType(): AnalysisType.Value
-
-  private var lastTime = System.currentTimeMillis()
-  def viewCompleteTime(): Long = {
-    val newTime   = System.currentTimeMillis()
-    val totalTime = newTime - lastTime
-    lastTime = newTime
-    totalTime
-  }
-
-  private var timetakenpersuperstep = System.currentTimeMillis()
-  def stepCompleteTime(): Long = {
-    val newTime   = System.currentTimeMillis()
-    val totalTime = newTime - timetakenpersuperstep
-    timetakenpersuperstep = newTime
-    totalTime
-  }
-  viewCompleteTime()
-  stepCompleteTime()
-
-  protected val steps: Long    =  analyser.defineMaxSteps()         // number of supersteps before returning
-  def restartTime():Long       =  0
-  def timestamp(): Long   //defaults to live to be overwritten in view and range
-  def windowSize(): Long       = -1L         //for windowing
-  def windowSet(): Array[Long] = Array.empty //for sets of windows
-
-
-
-  private def processOtherMessages(value: Any): Unit = println("Not handled message" + value.toString)
-  protected def generateAnalyzer: Analyser[Any] =
-    try{
-      Class.forName(analyser.getClass.getCanonicalName).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser[Any]]
-    }
-    catch {
-      case e:NoSuchMethodException => Class.forName(analyser.getClass.getCanonicalName).getConstructor().newInstance().asInstanceOf[Analyser[Any]]
-    }
-
-  final protected def getManagerCount: Int      = managerCount
-  final protected def getWorkerCount: Int       = managerCount * totalWorkers
-
-  protected def processResults(timeStamp:Long) = {
-    analyser.extractResults(results.toArray)
-  }
-
-  protected def processResultsWrapper(timeStamp: Long) = {
-    try{
-      if(saveData) {
-        val buffer = new java.util.ArrayList[DBObject]()
-        processResults(timeStamp)
-        analyser.getPublishedData().foreach(data => {
-          buffer.add(JSON.parse(data).asInstanceOf[DBObject])
-        })
-        analyser.clearPublishedData()
-        if(!buffer.isEmpty){
-          mongo.getDB(dbname).getCollection(jobID).insert(buffer)
-        }
-        //mongo.
-      }
-      else {
-        analyser.clearPublishedData()
-        processResults(timeStamp)
-      }
-    }
-    catch {
-      case e:Exception => e.printStackTrace()
-    }
-
-
-
-  }
-
-  protected def resetCounters() = {
-    ReaderACKS = 0               //Acks from the readers to say they are online
-    ReaderAnalyserACKS = 0       //Ack to show that the chosen analyser is present within the partition
-    workersFinishedSetup = 0     //Acks from workers to see how many have finished the setup stage of analysis
-    workersFinishedSuperStep = 0 //Acks from workers to say they have finished the superstep
-    messageLogACKS = 0           //Acks from Workers with the amount of messages they have sent and received
-    totalReceivedMessages = 0    //Total number of messages received by the workers
-    totalSentMessages = 0        //Total number of messages sent by the workers
-    workerResultsReceived = 0    //Total number of acks from worker when they are sending results back
-    currentSuperStep = 0
-    results = ArrayBuffer[Any]()
-  }
-
-  mediator ! DistributedPubSubMediator.Put(self)
-  mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
+  protected def buildSubTaskController(readyTimestamp: Long): SubTaskController
 
   override def preStart() {
     context.system.scheduler.scheduleOnce(Duration(1, MILLISECONDS), self, StartAnalysis)
   }
 
-  override def receive: Receive = {
-    case StartAnalysis               => startAnalysis() //received message to start from Orchestrator
-    case ReaderWorkersAck           => readerACK() //count up number of acks and if == number of workers, check if analyser present
-    case AnalyserPresent             => analyserPresent() //analyser confirmed to be present within workers, send setup request to workers
-    case TimeResponse(ok, time)        => timeResponse(ok, time) //checking if the timestamps are ok within all partitions
-    case "recheckTime"                 => timeRecheck() //if the time was previous out of scope, wait and then recheck
-    case Ready(messagesSent)           => ready(messagesSent) //worker has completed setup and is ready to roll -- send nextstep
-    case EndStep(messages, voteToHalt) => endStep(messages, voteToHalt) //worker has finished the step
-    case ReturnResults(results)        => finaliseJob(results) //worker has finished teh job and is returned the results
-    case "restart"                     => restart()
-    case MessagesReceived(workerID, receivedMessages, sentMessages) => messagesReceieved(workerID, receivedMessages, sentMessages)
-    case RequestResults(_)         => requestResults()
-    case FailedToCompile(stackTrace)   => failedToCompile(stackTrace) //Your code is broke scrub
-    case _                             => processOtherMessages(_)     //incase some random stuff comes through
+  override def receive: Receive = checkReaderWorker(0)
+
+  private def withDefaultMessageHandler(description: String)(handler: Receive): Receive = handler.orElse {
+    case RequestResults(_) =>
+      sender ! ResultsForApiPI(Array())//TODO remove
+    case req: KillTask =>
+      messageToAllReaderWorkers(req)
+      sender ! JobKilled
+      context.stop(self)
+    case unhandled     => log.error(s"Not handled message in $description: " + unhandled)
   }
 
-  def requestResults() =sender() ! ResultsForApiPI(analyser.getPublishedData())
+  private def checkReaderWorker(readyCount: Int): Receive = withDefaultMessageHandler("check reader worker") {
+    case StartAnalysis => //received message to start from Orchestrator
+      messageToAllReaders(ReaderWorkersOnline)
 
-  def startAnalysis() = {
-    for (worker <- getAllReaders(managerCount))
-      mediator ! DistributedPubSubMediator.Send(worker, ReaderWorkersOnline, false)
-  }
-
-  def readerACK() = {
-    if (debug) println("Received NetworkSize packet")
-    ReaderACKS += 1
-    if (ReaderACKS == getManagerCount) {
-      if (newAnalyser) {
-        for (worker <- getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator
-            .Send(worker, CompileNewAnalyser(rawFile,args,jobID), false)
+    case ReaderWorkersAck => //count up number of acks and if == number of workers, check if analyser present
+      if (readyCount + 1 != managerCount)
+        context.become(checkReaderWorker(readyCount + 1))
+      else if (newAnalyser) {
+        messageToAllReaderWorkers(CompileNewAnalyser(jobId, rawFile, args))
+        context.become(checkAnalyser(0))
+      } else {
+        messageToAllReaderWorkers(LoadPredefinedAnalyser(jobId, analyser.getClass.getCanonicalName, args))
+        context.become(checkAnalyser(0))
       }
-      else {
-        for (worker <- getAllReaders(managerCount))
-          mediator ! DistributedPubSubMediator
-            .Send(worker, AnalyserPresentCheck(this.generateAnalyzer.getClass.getName.replace("$", "")), false)
-      }
-    }
   }
 
-  def analyserPresent() = {
-    ReaderAnalyserACKS += 1
-    if(newAnalyser){
-      if (ReaderAnalyserACKS == getWorkerCount) {
-        for (worker <- getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
-      }
-    }
-    else{
-      if (ReaderAnalyserACKS == getManagerCount) {
-        for (worker <- getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
-      }
-    }
+  private def checkAnalyser(readyCount: Int): Receive = withDefaultMessageHandler("check analyser") {
+    case FailedToCompile(stackTrace) => //Your code is broke scrub
+      log.info(s"$sender failed to compiled, stacktrace returned: \n $stackTrace")
 
+    case AnalyserPresent => //analyser confirmed to be present within workers, send setup request to workers
+      if (readyCount + 1 == workerCount) {
+        messageToAllReaderWorkers(TimeCheck)
+        context.become(checkTime(None, List.empty, None))
+      } else context.become(checkAnalyser(readyCount + 1))
   }
 
-  def timeResponse(ok: Boolean, time: Long) = {
-    if (!ok)
-      TimeOKFlag = false
-    TimeOKACKS += 1
-    if(time<recentlySeenTime)recentlySeenTime=time
-    if (TimeOKACKS == getWorkerCount) {
-      stepCompleteTime() //reset step counter
-      if (TimeOKFlag) {
-        viewTimeCurrentTimer = System.currentTimeMillis()
-        if (analyser.defineMaxSteps() > 1)
-          for (worker <- getAllReaderWorkers(managerCount))
-            if(newAnalyser)
-              mediator ! DistributedPubSubMediator.Send(worker, SetupNewAnalyser(jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()),false)
-            else
-              mediator ! DistributedPubSubMediator.Send(worker, Setup(this.generateAnalyzer, jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()),false)
-        else
-          for (worker <- getAllReaderWorkers(managerCount))
-            if(newAnalyser)
-              mediator ! DistributedPubSubMediator.Send(worker, FinishNewAnalyser(jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
-            else
-              mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
-      }
-      else {
-        handleTimeOutput()
-      }
-
-      TimeOKACKS = 0
-      TimeOKFlag = true
-    }
+  private def checkTime(
+      taskController: Option[SubTaskController],
+      readyTimeList: List[Long],
+      currentRange: Option[TaskTimeRange]
+  ): Receive = withDefaultMessageHandler("check time") {
+    case TimeResponse(time) =>
+      val readyTimes = time :: readyTimeList
+      if (readyTimes.size == workerCount) {
+        val controller = taskController.getOrElse(buildSubTaskController(time))
+        val readyTime  = readyTimes.min
+        currentRange.orElse(controller.nextRange(readyTime)) match {
+          case Some(range) if range.timestamp <= readyTime =>
+            log.info(s"Range $range for Job $jobId is ready to start")
+            messagetoAllJobWorkers(SetupSubtask(jobId, range.timestamp, range.window))
+            context.become(waitAllReadyForSetupTask(SubtaskState(range, System.currentTimeMillis(), controller), 0))
+          case Some(range) =>
+            log.info(s"Range $range for Job $jobId is not ready. Recheck")
+            context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
+            context.become(checkTime(Some(controller), List.empty, Some(range)))
+          case None =>
+            log.info(s"no more sub tasks for $jobId")
+            messagetoAllJobWorkers(KillTask(jobId))
+            self ! PoisonPill
+        }
+      } else
+        context.become(checkTime(taskController, readyTimes, currentRange))
+    case RecheckTime => //if the time was previous out of scope, wait and then recheck
+      messageToAllReaderWorkers(TimeCheck)
   }
 
-  def timeRecheck() = {
-    for (worker <- getAllReaderWorkers(managerCount))
-      mediator ! DistributedPubSubMediator.Send(worker, TimeCheck(timestamp), false)
-  }
-
-  def ready(messages: Int) = {
-    if (debug) println("Received ready")
-    workersFinishedSetup += 1
-    totalSentMessages += messages
-    if (debug) println(s"$workersFinishedSetup / $getWorkerCount")
-    if (workersFinishedSetup == getWorkerCount) {
-      workersFinishedSetup = 0
-      syncMessages()
-    }
-  }
-
-  def endStep(messages: Int, voteToHalt: Boolean) = {
-    workersFinishedSuperStep += 1
-    totalSentMessages += messages
-    if (!voteToHalt) this.voteToHalt = false
-    if (debug) println(s"$workersFinishedSuperStep / $getWorkerCount : $currentSuperStep / $steps")
-    if (workersFinishedSuperStep == getWorkerCount)
-      if (currentSuperStep == steps || this.voteToHalt)
-        for (worker <- getAllReaderWorkers(managerCount))
-          if(newAnalyser)
-            mediator ! DistributedPubSubMediator.Send(worker, FinishNewAnalyser(jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
-          else
-            mediator ! DistributedPubSubMediator.Send(worker, Finish(this.generateAnalyzer, jobID, currentSuperStep, timestamp, analysisType(), windowSize(), windowSet()), false)
-      else {
-        //println(s"Superstep $currentSuperStep")
-        this.voteToHalt = true
-        workersFinishedSuperStep = 0
-        syncMessages()
-      }
-//    println(currentSuperStep,totalSentMessages)
-  }
-
-  def finaliseJob(result: Any) = {
-    results = results += result
-    workerResultsReceived += 1
-    if (workerResultsReceived == getWorkerCount) {
-      val startTime = System.currentTimeMillis()
-      val viewTime = Kamon.gauge("Raphtory_View_Time_Total").withTag("jobID",jobID).withTag("Timestamp",timestamp())
-      val concatTime = Kamon.gauge("Raphtory_View_Concatenation_Time").withTag("jobID",jobID).withTag("Timestamp",timestamp())
-      processResultsWrapper(timestamp())
-      resetCounters()
-      context.system.scheduler.scheduleOnce(Duration(restartTime(), MILLISECONDS), self, "restart")
-      concatTime.update(System.currentTimeMillis()-startTime)
-      viewTime.update(System.currentTimeMillis()-viewTimeCurrentTimer)
+  private def waitAllReadyForSetupTask(subtaskState: SubtaskState, readyCount: Int): Receive =
+    withDefaultMessageHandler("ready for setup task") {
+      case SetupSubtaskDone =>
+        val newReadyCount = readyCount + 1
+        if (newReadyCount == workerCount) {
+          messagetoAllJobWorkers(StartSubtask(jobId))
+          context.become(preStepSubtask(subtaskState, 0, 0))
+        }
+        else context.become(waitAllReadyForSetupTask(subtaskState, newReadyCount))
     }
 
-  }
+  private def preStepSubtask(subtaskState: SubtaskState, readyCount: Int, sentMessageCount: Int): Receive =
+    withDefaultMessageHandler("pre-setup subtask") {
+      case Ready(messagesSent) =>
+        val newReadyCount       = readyCount + 1
+        val newSendMessageCount = sentMessageCount + messagesSent
+        log.debug(s"setup workers $newReadyCount / $workerCount")
+        if (newReadyCount == workerCount)
+          if (newSendMessageCount == 0) {
+            messagetoAllJobWorkers(SetupNextStep(jobId))
+            context.become(waitAllReadyForNextStep(subtaskState, 0))
+          } else {
+            messagetoAllJobWorkers(CheckMessages(jobId))
+            context.become(checkMessages(subtaskState, 0, 0, 0))
+          }
+        else context.become(preStepSubtask(subtaskState, newReadyCount, newSendMessageCount))
+    }
 
-  private def syncMessages() =
-    if (totalSentMessages == 0) {
-      currentSuperStep += 1
-      if (newAnalyser)
-        for (worker <- getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
+  private def waitAllReadyForNextStep(subtaskState: SubtaskState, readyCount: Int): Receive =
+    withDefaultMessageHandler("ready for next step") {
+      case SetupNextStepDone =>
+        val newReadyCount = readyCount + 1
+        if (newReadyCount == workerCount) {
+          messagetoAllJobWorkers(StartNextStep(jobId))
+          context.become(stepWork(subtaskState, 0, 0, true))
+        }
+        else context.become(waitAllReadyForNextStep(subtaskState, newReadyCount))
+    }
+
+  private def checkMessages(
+      subtaskState: SubtaskState,
+      readyCount: Int,
+      totalReceivedMessage: Int,
+      totalSentMessage: Int
+  ): Receive = withDefaultMessageHandler("check message") {
+    case MessagesReceived(receivedMessages, sentMessages) =>
+      val newReadyCount           = readyCount + 1
+      val newTotalReceivedMessage = totalReceivedMessage + receivedMessages
+      val newTotalSentMessage     = totalSentMessage + sentMessages
+      if (newReadyCount == workerCount)
+        if (newTotalReceivedMessage == newTotalSentMessage) {
+          messagetoAllJobWorkers(SetupNextStep(jobId))
+          context.become(waitAllReadyForNextStep(subtaskState, 0))
+        } else {
+          messagetoAllJobWorkers(CheckMessages(jobId))
+          context.become(checkMessages(subtaskState, 0, 0, 0))
+        }
       else
-        for (worker <- getAllReaderWorkers(managerCount))
-          mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
-    }
-    else {
-      totalSentMessages = 0
-      totalReceivedMessages = 0
-      for (worker <- getAllReaderWorkers(managerCount))
-        mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep), false)
-    }
-
-  def messagesReceieved(workerID: Int, receivedMessages: Int, sentMessages: Int) = {
-//    println(s"+++ Superstep: $currentSuperStep  wID: $workerID    Messages in: $totalReceivedMessages    Messages out: $totalSentMessages ")
-//      println(totalReceivedMessages)
-    messageLogACKS += 1
-    totalReceivedMessages += receivedMessages
-    totalSentMessages += sentMessages
-    if (messageLogACKS == getWorkerCount) {
-      messageLogACKS = 0
-      if (totalReceivedMessages == totalSentMessages) {
-        currentSuperStep += 1
-        totalSentMessages = 0
-        totalReceivedMessages = 0
-        if (newAnalyser)
-          for (worker <- getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, NextStepNewAnalyser(jobID, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
-        else
-          for (worker <- getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, NextStep(this.generateAnalyzer, jobID, currentSuperStep, timestamp, analysisType: AnalysisType.Value, windowSize(), windowSet()), false)
-      }
-      else {
-        totalReceivedMessages = 0
-        totalSentMessages = 0
-        if (newAnalyser)
-          for (worker <- getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep),false)
-        else
-          for (worker <- getAllReaderWorkers(managerCount))
-            mediator ! DistributedPubSubMediator.Send(worker, CheckMessages(ViewJob(jobID,timestamp(),-1),currentSuperStep),false)
-      }
-    }
+        context.become(checkMessages(subtaskState, newReadyCount, newTotalReceivedMessage, newTotalSentMessage))
   }
 
-  def handleTimeOutput() = {
-    println(s"${timestamp()} is yet to be ingested, currently at ${recentlySeenTime}. Retrying analysis in 10 seconds and retrying")
-    context.system.scheduler.scheduleOnce(Duration(10000, MILLISECONDS), self, "recheckTime")
-    recentlySeenTime = Long.MaxValue
-
+  private def stepWork(
+      subtaskState: SubtaskState,
+      readyCount: Int,
+      totalSentMessages: Int,
+      voteToHaltForAll: Boolean
+  ): Receive = withDefaultMessageHandler("step work") {
+    case EndStep(superStep, sentMessageCount, voteToHalt) =>
+      val newReadyCount        = readyCount + 1
+      val newTotalSentMessages = totalSentMessages + sentMessageCount
+      val newVoteToHaltForAll  = if (voteToHalt) voteToHaltForAll else false
+      if (newReadyCount == workerCount)
+        if (superStep == maxStep || newVoteToHaltForAll) {
+          messagetoAllJobWorkers(Finish(jobId))
+          context.become(finishSubtask(subtaskState, 0, List.empty))
+        } else if (newTotalSentMessages == 0) {
+          messagetoAllJobWorkers(SetupNextStep(jobId))
+          context.become(waitAllReadyForNextStep(subtaskState, 0))
+        } else {
+          messagetoAllJobWorkers(CheckMessages(jobId))
+          context.become(checkMessages(subtaskState, 0, 0, 0))
+        }
+      else
+        context.become(stepWork(subtaskState, newReadyCount, newTotalSentMessages, newVoteToHaltForAll))
   }
 
-  def restart()
+  private def finishSubtask(subtaskState: SubtaskState, readyCount: Int, allResults: List[Any]): Receive =
+    withDefaultMessageHandler("finish subtask") {
+      case ReturnResults(results) =>
+        val newReadyCount = readyCount + 1
+        val newAllResults = allResults :+ results
+        if (newReadyCount == workerCount) {
+          val startTime = System.currentTimeMillis()
+          val viewTime = Kamon
+            .gauge("Raphtory_View_Time_Total")
+            .withTag("jobID", jobId)
+            .withTag("Timestamp", subtaskState.range.timestamp)
+          val concatTime = Kamon
+            .gauge("Raphtory_View_Concatenation_Time")
+            .withTag("jobID", jobId)
+            .withTag("Timestamp", subtaskState.range.timestamp)
+          Try {
+            val viewTime = System.currentTimeMillis() - subtaskState.startTimestamp
+            subtaskState.range.window match {
+              case Some(window) => serialiser.serialiseWindowedView(analyser.extractResults(newAllResults),subtaskState.range.timestamp,window,jobId,viewTime)
+              case None => serialiser.serialiseView(analyser.extractResults(newAllResults),subtaskState.range.timestamp,jobId,viewTime)
+            }
+          } match {
+            case Success(_) =>
+              context.system.scheduler
+                .scheduleOnce(Duration(subtaskState.taskController.waitTime, MILLISECONDS), self, StartNextSubtask)
+            case Failure(e) =>
+              log.error(e, "fail to process result")
+          }
+          concatTime.update(System.currentTimeMillis() - startTime)
+          viewTime.update(System.currentTimeMillis() - subtaskState.startTimestamp)
+        } else
+          context.become(finishSubtask(subtaskState, newReadyCount, newAllResults))
 
-  def partitionsHalting() = voteToHalt
+      case StartNextSubtask =>
+        messageToAllReaderWorkers(TimeCheck)
+        context.become(checkTime(Some(subtaskState.taskController), List.empty, None))
+    }
 
-  def killme() = self.tell(PoisonPill.getInstance,self)
-  
-  def failedToCompile(stackTrace: String): Unit =
-    println(s"$sender failed to compiled, stacktrace returned: \n $stackTrace")
+  private def messageToAllReaders[T](msg: T): Unit =
+    getAllReaders(managerCount).foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
+
+  private def messageToAllReaderWorkers[T](msg: T): Unit =
+    getAllReaderWorkers(managerCount).foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
+
+  private def messagetoAllJobWorkers[T](msg:T):Unit =
+    getAllJobWorkers(managerCount,jobId).foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
 
 
 }
 
 object AnalysisTask {
+  private case class SubtaskState(range: TaskTimeRange, startTimestamp: Long, taskController: SubTaskController)
+
   object Message {
     case object StartAnalysis
-    case class Setup(analyzer: Analyser[Any], jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
-    case class SetupNewAnalyser(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
-    case class Ready(messages: Int)
-    case class NextStep(analyzer: Analyser[Any], jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
-    case class NextStepNewAnalyser(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
-    case class EndStep(messages: Int, voteToHalt: Boolean)
-    case class Finish(analyzer: Analyser[Any], jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
-    case class FinishNewAnalyser(jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long])
-    case class ReturnResults(results: Any)
-    case class MessagesReceived(workerID: Int, receivedMessages: Int, sentMessages: Int)
-    case class CheckMessages(jobID: ViewJob, superstep: Int)
+
     case object ReaderWorkersOnline
     case object ReaderWorkersAck
-    case class AnalyserPresentCheck(className: String)
-    case object AnalyserPresent
-    case object ClassMissing
+
+    case class CompileNewAnalyser(jobId: String, analyserRaw: String, args: Array[String])
+    case class LoadPredefinedAnalyser(jobId: String, className: String, args: Array[String])
     case class FailedToCompile(stackTrace: String)
-    case class CompileNewAnalyser(analyser: String, args: Array[String], name: String)
-    case class TimeCheck(timestamp: Long)
-    case class TimeResponse(ok: Boolean, time: Long)
+    case object AnalyserPresent
+
+    case object TimeCheck
+    case class TimeResponse(time: Long)
+    case object RecheckTime
+
+    case class SetupSubtask(jobId: String, timestamp: Long, window: Option[Long])
+    case object SetupSubtaskDone
+    case class StartSubtask(jobId: String)
+    case class Ready(messages: Int)
+    case class SetupNextStep(jobId: String)
+    case object SetupNextStepDone
+    case class StartNextStep(jobId: String)
+    case class CheckMessages(jobId: String)
+    case class MessagesReceived(receivedMessages: Int, sentMessages: Int)
+    case class EndStep(superStep: Int, sentMessageCount: Int, voteToHalt: Boolean)
+    case class Finish(jobId: String)
+    case class ReturnResults(results: Any)
+    case object StartNextSubtask
   }
 }

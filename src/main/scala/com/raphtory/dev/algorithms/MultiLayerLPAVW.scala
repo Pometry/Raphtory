@@ -61,10 +61,10 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
               }
 
             //Get labels of past/future instances of vertex //IMlater: links between non consecutive layers should persist or at least degrade?
-            if (vlabel.contains(ts - snapshotSize))
-              vlabel(ts - snapshotSize).zipWithIndex.foreach(x => nei_labs.append((x._2, x._1._2, omega(x._2))))
-            if (vlabel.contains(ts + snapshotSize))
-              vlabel(ts + snapshotSize).zipWithIndex.foreach(x => nei_labs.append((x._2, x._1._2, omega(x._2))))
+//            if (vlabel.contains(ts - snapshotSize)) //TODO reenable
+//              vlabel(ts - snapshotSize).zipWithIndex.foreach(x => nei_labs.append((x._2, x._1._2, omega(x._2))))
+//            if (vlabel.contains(ts + snapshotSize))
+//              vlabel(ts + snapshotSize).zipWithIndex.foreach(x => nei_labs.append((x._2, x._1._2, omega(x._2))))
 
             nei_labs.groupBy(_._1).values.toArray.map { x =>
               val w      = x.head._1
@@ -101,7 +101,7 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
     }
     if (workerID == 1)
       println(
-              s"Superstep: ${view.superStep()}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
+        s"Superstep: ${view.superStep}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
       )
   }
 
@@ -136,7 +136,7 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
           .flatMap(ts => ts._2.zipWithIndex.map { case ((_, lab), w) => (omega(w), lab, s"""${f._2}_${ts._1}""") })
       )
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String,Any] = {
     val endResults = results.asInstanceOf[ArrayBuffer[ParIterable[(Double, Long, String)]]]
     try {
       println(s"Printing output to $output_file")
@@ -177,5 +177,6 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
         }
       }
     }
+    Map[String,Any]()
   }
 }

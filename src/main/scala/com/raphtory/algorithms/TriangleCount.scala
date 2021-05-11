@@ -49,7 +49,7 @@ class TriangleCount(args:Array[String]) extends Analyser[Any](args) {
 
   override def defineMaxSteps(): Int = 5
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String, Any] = {
     val startTime   = System.currentTimeMillis()
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Double)]]
     val totalVert = endResults.map( x => x._1 ).sum
@@ -60,8 +60,8 @@ class TriangleCount(args:Array[String]) extends Analyser[Any](args) {
 //      catch { case e: ArithmeticException => 0.0 }
     val text = s"""{"totTriangles":$totalTri,"avgCluster":$avgCluster,"concatTime":${System
       .currentTimeMillis() - startTime}},"""
-    publishData(text)
     println(text)
+    Map[String,Any]()
   }
 
 }

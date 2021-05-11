@@ -1,154 +1,105 @@
 package com.raphtory.core.analysis.entity
 
-import akka.actor.{ActorContext, ActorRef}
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.analysis.api.ManagerCount
-import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
-import com.raphtory.core.analysis.GraphLenses.GraphLens
+import com.raphtory.core.analysis.GraphLens
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.entities.{RaphtoryEdge, RaphtoryVertex}
+import com.raphtory.core.model.entities.RaphtoryVertex
 
-import scala.collection.parallel.mutable.ParIterable
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.parallel.ParIterable
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.reflect.ClassTag
-object Vertex {
-  def apply(v: RaphtoryVertex, jobID: ViewJob, superStep: Int, proxy: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) =
-    new Vertex(v, jobID, superStep, proxy)
-}
-class Vertex(v: RaphtoryVertex, viewJob:ViewJob, superStep: Int, view: GraphLens)(implicit context: ActorContext, managerCount: ManagerCount) extends EntityVisitor(v,viewJob:ViewJob){
-  val jobID = viewJob.jobID
-  val timestamp = viewJob.timestamp
-  val window = viewJob.window
 
-  private val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
+final case class Vertex(
+    private val v: RaphtoryVertex,
+    private val internalIncomingEdges: ParTrieMap[Long, Edge],
+    private val internalOutgoingEdges: ParTrieMap[Long, Edge],
+    private val lens: GraphLens
+) extends EntityVisitor(v, lens) {
 
   def ID() = v.vertexId
 
+  private val multiQueue: VertexMultiQueue        = new VertexMultiQueue() //Map of queues for all ongoing processing
+  private var computationValues: Map[String, Any] = Map.empty              //Partial results kept between supersteps in calculation
 
-  def messageQueue[T: ClassTag]  = { //clears queue after getting it to make sure not there for next iteration
-    val queue = v.multiQueue.getMessageQueue(viewJob, superStep)map(_.asInstanceOf[T])
-    v.multiQueue.clearQueue(viewJob, superStep)
+  def hasMessage(): Boolean = multiQueue.getMessageQueue(lens.superStep).nonEmpty
+
+  def messageQueue[T: ClassTag]: List[T] = { //clears queue after getting it to make sure not there for next iteration
+    val queue = multiQueue.getMessageQueue(lens.superStep).map(_.asInstanceOf[T])
+    multiQueue.clearQueue(lens.superStep)
     queue
   }
 
-  def clearQueue = v.multiQueue.clearQueue(viewJob, superStep)
-
-  def voteToHalt() = view.vertexVoted()
+  def voteToHalt()         : Unit                                = lens.vertexVoted()
   def aliveAt(time: Long): Boolean                         = v.aliveAt(time)
   def aliveAtWithWindow(time: Long, window: Long): Boolean = v.aliveAtWithWindow(time, window)
 
-
   //out edges whole
-  def getOutEdges: ParIterable[Edge] = v.outgoingProcessing.map(e=> visitify(e._2,e._1))
-  def getOutEdgesAfter(time:Long):ParIterable[Edge] = v.outgoingProcessing.filter(e=> e._2.activityAfter(time)).map(e=> visitify(e._2,e._1))
-  def getOutEdgesBefore(time:Long):ParIterable[Edge] = v.outgoingProcessing.filter(e=> e._2.activityBefore(time)).map(e=> visitify(e._2,e._1))
-  def getOutEdgesBetween(min:Long, max:Long):ParIterable[Edge] = v.outgoingProcessing.filter(e=> e._2.activityBetween(min,max)).map(e=> visitify(e._2,e._1))
+  def getOutEdges: ParIterable[Edge]                              = internalOutgoingEdges.map(x=>x._2)
+  def getOutEdgesAfter(time: Long): ParIterable[Edge]             = getOutEdges.filter(_.activityAfter(time))
+  def getOutEdgesBefore(time: Long): ParIterable[Edge]            = getOutEdges.filter(_.activityBefore(time))
+  def getOutEdgesBetween(min: Long, max: Long): ParIterable[Edge] = getOutEdges.filter(_.activityBetween(min, max))
 
   //in edges whole
-  def getIncEdges: ParIterable[Edge]  = v.incomingProcessing.map(e=> visitify(e._2,e._1))
-  def getIncEdgesAfter(time:Long):ParIterable[Edge] = v.incomingProcessing.filter(e=> e._2.activityAfter(time)).map(e=> visitify(e._2,e._1))
-  def getInCEdgesBefore(time:Long):ParIterable[Edge] = v.incomingProcessing.filter(e=> e._2.activityBefore(time)).map(e=> visitify(e._2,e._1))
-  def getInCEdgesBetween(min:Long, max:Long):ParIterable[Edge] = v.incomingProcessing.filter(e=> e._2.activityBetween(min,max)).map(e=> visitify(e._2,e._1))
-
+  def getIncEdges: ParIterable[Edge]                              = internalIncomingEdges.map(x=>x._2)
+  def getIncEdgesAfter(time: Long): ParIterable[Edge]             = getIncEdges.filter(_.activityAfter(time))
+  def getInCEdgesBefore(time: Long): ParIterable[Edge]            = getIncEdges.filter(_.activityBefore(time))
+  def getInCEdgesBetween(min: Long, max: Long): ParIterable[Edge] = getIncEdges.filter(_.activityBetween(min, max))
 
   //out edges individual
-  def getOutEdge(id:Long): Option[Edge] = v.outgoingProcessing.get(id) match {
-    case(e:Some[RaphtoryEdge]) =>  Some(visitify(e.get,id))
-    case(None) => None
-  }
-
-  def getOutEdgeAfter(id:Long,time:Long): Option[Edge] = v.outgoingProcessing.get(id) match {
-    case(e:Some[RaphtoryEdge]) =>
-      if(e.get.activityAfter(time)) Some(visitify(e.get,id))
-      else None
-    case(None) => None
-  }
-
-  def getOutEdgeBefore(id:Long,time:Long): Option[Edge] = v.outgoingProcessing.get(id) match {
-    case(e:Some[RaphtoryEdge]) =>
-      if(e.get.activityBefore(time)) Some(visitify(e.get,id))
-      else None
-    case(None) => None
-  }
-
-  def getOutEdgeBetween(id:Long,min:Long,max:Long): Option[Edge] = v.outgoingProcessing.get(id) match {
-    case(e:Some[RaphtoryEdge]) =>
-      if(e.get.activityBetween(min,max)) Some(visitify(e.get,id))
-      else None
-    case(None) => None
-  }
+  def getOutEdge(id: Long): Option[Edge]                  = internalOutgoingEdges.get(id)
+  def getOutEdgeAfter(id: Long, time: Long): Option[Edge] = internalOutgoingEdges.get(id).filter(_.activityAfter(time))
+  def getOutEdgeBefore(id: Long, time: Long): Option[Edge] =
+    internalOutgoingEdges.get(id).filter(_.activityBefore(time))
+  def getOutEdgeBetween(id: Long, min: Long, max: Long): Option[Edge] =
+    internalOutgoingEdges.get(id).filter(_.activityBetween(min, max))
 
   //In edges individual
-  def getInEdge(id:Long): Option[Edge] = v.incomingProcessing.get(id) match {
-    case(e:Some[RaphtoryEdge]) =>  Some(visitify(e.get,id))
-    case(None) => None
-  }
+  def getInEdge(id: Long): Option[Edge]                   = internalIncomingEdges.get(id)
+  def getInEdgeAfter(id: Long, time: Long): Option[Edge]  = internalIncomingEdges.get(id).filter(_.activityAfter(time))
+  def getInEdgeBefore(id: Long, time: Long): Option[Edge] = internalIncomingEdges.get(id).filter(_.activityBefore(time))
+  def getInEdgeBetween(id: Long, min: Long, max: Long): Option[Edge] =
+    internalIncomingEdges.get(id).filter(_.activityBetween(min, max))
 
-  def getInEdgeAfter(id:Long,time:Long): Option[Edge] = v.incomingProcessing.get(id) match {
-    case(e:Some[RaphtoryEdge]) =>
-      if(e.get.activityAfter(time)) Some(visitify(e.get,id))
-      else None
-    case(None) => None
-  }
+  // state related
+  def setState(key: String, value: Any): Unit =
+    computationValues += ((key, value))
+  def getState[T: ClassTag](key: String) =
+    computationValues(key).asInstanceOf[T]
+  def containsState(key: String): Boolean =
+    computationValues.contains(key)
+  def getOrSetState[T: ClassTag](key: String, value: Any) =
+    computationValues.get(key) match {
+      case Some(value) =>
+        value.asInstanceOf[T]
+      case None =>
+        setState(key, value)
+        value
+    }
 
-  def getInEdgeBefore(id:Long,time:Long): Option[Edge] = v.incomingProcessing.get(id) match {
-    case(e:Some[RaphtoryEdge]) =>
-      if(e.get.activityBefore(time)) Some(visitify(e.get,id))
-      else None
-    case(None) => None
-  }
-
-  def getInEdgeBetween(id:Long,min:Long,max:Long): Option[Edge] = v.incomingProcessing.get(id) match {
-    case(e:Some[RaphtoryEdge]) =>
-      if(e.get.activityBetween(min,max)) Some(visitify(e.get,id))
-      else None
-    case(None) => None
-  }
-
-
-  def setState(key: String, value: Any): Unit = {
-    val realkey = key + timestamp + window + jobID
-    v.addCompValue(realkey, value)
-  }
-  def getState[T: ClassTag](key: String) = {
-    val realkey = key + timestamp + window + jobID
-    v.getCompValue(realkey).asInstanceOf[T]
-  }
-  def containsState(key: String): Boolean = {
-    val realkey = key + timestamp + window + jobID
-    v.containsCompvalue(realkey)
-  }
-  def getOrSetState[T: ClassTag](key: String, value: Any) = {
-    val realkey = key + timestamp + window + jobID
-    v.getOrSet(realkey, value).asInstanceOf[T]
-  }
-
-  def appendToState[T: ClassTag](key: String, value: Any) = { //write function later
-    val realkey = key + timestamp + window + jobID
-    if(v.containsCompvalue(realkey))
-      v.addCompValue(realkey,v.getCompValue(realkey).asInstanceOf[Array[Any]] ++ Array(value))
-    else
-      v.addCompValue(realkey,Array(value))
-  }
+  def appendToState[T: ClassTag](key: String, value: Any) = //write function later
+    computationValues.get(key) match {
+      case Some(arr) =>
+        setState(key, arr.asInstanceOf[Array[Any]] :+ value)
+      case None =>
+        setState(key, Array(value))
+        value
+    }
 
   //Send message
-  def messageNeighbour(vertexID: Long, data: Any): Unit = {
-    val message = VertexMessage(vertexID, viewJob, superStep, data)
-    view.recordMessage()
-    mediator ! DistributedPubSubMediator.Send(getReader(vertexID, managerCount.count), message, false)
-  }
+  def messageNeighbour(vertexId: Long, data: Any): Unit =
+    lens.sendMessage(VertexMessage(vertexId, data))
 
   def messageAllOutgoingNeighbors(message: Any): Unit =
-    v.outgoingProcessing.foreach(vID => messageNeighbour(vID._1.toInt, message))
+    internalOutgoingEdges.keys.foreach(vId => messageNeighbour(vId, message))
 
   def messageAllNeighbours(message: Any) =
-    v.outgoingProcessing.keySet.union(v.incomingProcessing.keySet).foreach(vID => messageNeighbour(vID.toInt, message))
+    internalOutgoingEdges.keySet.union(internalIncomingEdges.keySet).foreach(vId => messageNeighbour(vId, message))
 
   def messageAllIngoingNeighbors(message: Any): Unit =
-    v.incomingProcessing.foreach(vID => messageNeighbour(vID._1.toInt, message))
+    internalIncomingEdges.keys.foreach(vId => messageNeighbour(vId, message))
 
-
-
-  private def visitify(edge:RaphtoryEdge, id:Long) = new Edge(edge,id,viewJob,superStep,view,mediator)
-
+  // todo hide
+  def receiveMessage(msg: VertexMessage): Unit = {
+    multiQueue.receiveMessage(lens.superStep, msg.data)
+  }
 }
-

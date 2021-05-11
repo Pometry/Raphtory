@@ -36,7 +36,7 @@ class DegreeRanking(args:Array[String]) extends Analyser[Any](args){
 
   override def defineMaxSteps(): Int = 1
 
-  override def extractResults(results: Array[Any]): Any = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
     //    var output_file = System.getenv().getOrDefault("GAB_PROJECT_OUTPUT", "/app/defout.csv").trim
     val startTime   = System.currentTimeMillis()
@@ -60,7 +60,7 @@ class DegreeRanking(args:Array[String]) extends Analyser[Any](args){
         .currentTimeMillis() - startTime}},"""
     //    writeLines(output_file, text, "{\"views\":[")
     println(text)
-    publishData(text)
+    Map[String,Any]()
   }
 
 

@@ -1,43 +1,17 @@
 package com.raphtory.core.model.communication
 
-import com.raphtory.core.actors.PartitionManager.Workers.ViewJob
+import scala.collection.mutable.ListBuffer
 
-import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 
-class VertexMultiQueue {
+final class VertexMultiQueue {
+  private val evenMessageQueue: ListBuffer[Any] = ListBuffer.empty
+  private val oddMessageQueue: ListBuffer[Any]  = ListBuffer.empty
 
-  val evenMessageQueueMap = ParTrieMap[ViewJob, mutable.ArrayBuffer[Any]]()
-  val oddMessageQueueMap  = ParTrieMap[ViewJob, mutable.ArrayBuffer[Any]]()
+  def getMessageQueue(superStep: Int): List[Any] =
+    if (superStep % 2 == 0) evenMessageQueue.toList else oddMessageQueue.toList
 
-  def getMessageQueue(jobID: ViewJob, superStep: Int): mutable.ArrayBuffer[Any] = {
-    val queueMap = if (superStep % 2 == 0) evenMessageQueueMap else oddMessageQueueMap
-    queueMap.get(jobID) match {
-      case Some(stack) => stack
-      case None =>
-        val newStack = mutable.ArrayBuffer[Any]()
-        queueMap(jobID) = newStack
-        newStack
-    }
-  }
+  def clearQueue(superStep: Int): Unit = if (superStep % 2 == 0) evenMessageQueue.clear() else oddMessageQueue.clear()
 
-  def clearQueue(jobID: ViewJob, superStep: Int) = {
-    val queueMap = if (superStep % 2 == 0) evenMessageQueueMap else oddMessageQueueMap
-    queueMap.update(jobID, mutable.ArrayBuffer[Any]())
-  }
-
-  def clearQueues(jobID: ViewJob) = {
-    evenMessageQueueMap.get(jobID) match {
-      case Some(_) => evenMessageQueueMap.update(jobID, mutable.ArrayBuffer[Any]())
-      case None    =>
-    }
-
-    oddMessageQueueMap.get(jobID) match {
-      case Some(_) => oddMessageQueueMap.update(jobID, mutable.ArrayBuffer[Any]())
-      case None    =>
-    }
-  }
-
-  def receiveMessage(jobID: ViewJob, superStep: Int, data: Any) = getMessageQueue(jobID, superStep + 1) += (data)
+  def receiveMessage(superStep: Int, data: Any):Unit = if ((superStep+1) % 2 == 0) evenMessageQueue += data else oddMessageQueue += data
 
 }
