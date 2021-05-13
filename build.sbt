@@ -2,14 +2,16 @@ import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
 import com.typesafe.sbt.packager.docker.Cmd
 import sbtassembly.MergeStrategy
 
-val Akka        = "2.5.26"
-val Config      = "1.2.1"
-val JodaT       = "2.3"
-val Logback     = "1.1.2"
-val Scala       = "2.12.4"
-val Slf4j       = "1.7.7"
-val lightBend   = "1.0.5"
-val SbtPackager = "1.2.0"
+val Akka          = "2.6.14"
+val http          = "10.2.4"
+val scala_compile = "2.12.4"
+val Config        = "1.2.1"
+val JodaT         = "2.3"
+val Logback       = "1.1.2"
+val Scala         = "2.12.4"
+val Slf4j         = "1.7.7"
+val lightBend     = "1.1.0"//"2.15.1"
+val SbtPackager   = "1.2.0"
 
 val resolutionRepos = Seq(
         "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/",
@@ -30,9 +32,11 @@ val akka_tools         = "com.typesafe.akka" %% "akka-cluster-tools"    % Akka
 val akka_dist_data     = "com.typesafe.akka" %% "akka-distributed-data" % Akka
 val akka_actor_typed   = "com.typesafe.akka" %% "akka-actor-typed"      % Akka
 val akka_cluster_typed = "com.typesafe.akka" %% "akka-cluster-typed"    % Akka
-val akka_http          = "com.typesafe.akka" %% "akka-http"             % "10.1.11"
-val reflect            = "org.scala-lang"    % "scala-reflect"         % "2.12.4"
-val compile            = "org.scala-lang"    % "scala-compiler"        % "2.12.4"
+val akka_http          = "com.typesafe.akka" %% "akka-http"             % http
+val akka_discovery     = "com.typesafe.akka" %% "akka-discovery"        % Akka
+val akka_spray         = "com.typesafe.akka" %% "akka-http-spray-json" % http
+val reflect            = "org.scala-lang"    % "scala-reflect"          % scala_compile
+val compile            = "org.scala-lang"    % "scala-compiler"         % scala_compile
 
 val akka_management  = "com.lightbend.akka.management" %% "akka-management"                   % lightBend
 val akka_management2 = "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % lightBend
@@ -40,7 +44,7 @@ val kube             = "com.lightbend.akka.discovery"  %% "akka-discovery-kubern
 
 val typesafe_config = "com.typesafe" % "config" % Config
 
-val spray_json = "io.spray" % "spray-json_2.12" % "1.3.3"
+val spray_json = "io.spray" % "spray-json_2.12" % "1.3.6"
 //val scalajack		    = "co.blocke"           % "scalajack_2.12"      % "4.1"
 val logback      = "ch.qos.logback" % "logback-classic" % Logback
 val slf4j_simple = "org.slf4j"      % "slf4j-api"       % "1.7.25"
@@ -174,6 +178,7 @@ lazy val raphtory = project
                     kamon_akka,
                     kamon_prometheus,
                     kamon_system,
+                    akka_discovery,
                     //monix,
                     //bitcoin,
                     //twitter_eval,
@@ -189,7 +194,8 @@ lazy val raphtory = project
                     mongoscala,
                     //aws,
                     parquet,
-                    hadoop
+                    hadoop,
+                    akka_spray
                    // h3
             )
   )
