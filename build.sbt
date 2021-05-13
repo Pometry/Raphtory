@@ -7,7 +7,7 @@ val http          = "10.2.4"
 val scala_compile = "2.12.4"
 val Config        = "1.2.1"
 val JodaT         = "2.3"
-val Logback       = "1.1.2"
+val Logback       = "1.2.3"
 val Scala         = "2.12.4"
 val Slf4j         = "1.7.7"
 val lightBend     = "1.1.0"//"2.15.1"
@@ -106,7 +106,7 @@ lazy val dockerStuff = Seq(
         maintainer := "Imane Hafnaoui <i.hafnaoui@qmul.ac.uk>",
         dockerBaseImage := "miratepuffin/raphtory-redis:latest",
         dockerRepository := Some("miratepuffin"),
-        dockerExposedPorts := Seq(2551, 8080, 2552, 1600, 11600,8081,46339,9100),
+        dockerExposedPorts := Seq(2551, 8080, 2552,25520, 1600, 11600,8081,46339,9100),
 
 )
 
