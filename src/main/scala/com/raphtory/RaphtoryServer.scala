@@ -117,7 +117,7 @@ object RaphtoryServer extends App {
         "akka.cluster.seed-nodes",
         ConfigValueFactory.fromIterable(
           JavaConversions.asJavaIterable(
-            seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
+            seeds.map(_ => s"akka://$clusterSystemName@$seedLoc")
           )
         )
       )

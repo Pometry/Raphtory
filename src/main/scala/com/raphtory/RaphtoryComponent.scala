@@ -42,14 +42,14 @@ class RaphtoryComponent(component:String,partitionCount:Int,routerCount:Int,port
       "akka.cluster.seed-nodes",
       ConfigValueFactory.fromIterable(
         JavaConversions.asJavaIterable(
-          seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
+          seeds.map(_ => s"akka://$clusterSystemName@$seedLoc")
         )
       )
     )
-    config = config.withValue("akka.remote.netty.tcp.bind-port",ConfigValueFactory.fromAnyRef(port))
-    config = config.withValue("akka.remote.netty.tcp.port",ConfigValueFactory.fromAnyRef(port))
-    config = config.withValue("akka.remote.netty.tcp.port",ConfigValueFactory.fromAnyRef(port))
-    config = config.withValue("akka.remote.netty.tcp.hostname",ConfigValueFactory.fromAnyRef("127.0.0.1"))
+
+    config = config.withValue("akka.remote.artery.canonical.bind-port",ConfigValueFactory.fromAnyRef(port))
+    config = config.withValue("akka.remote.artery.canonical.port",ConfigValueFactory.fromAnyRef(port))
+    config = config.withValue("akka.remote.artery.canonical.hostname",ConfigValueFactory.fromAnyRef("127.0.0.1"))
     ActorSystem(clusterSystemName, config)
   }
 
