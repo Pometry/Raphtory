@@ -46,7 +46,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
   val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
   val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
   val debug             = System.getenv().getOrDefault("DEBUG2", "false").trim.toBoolean //for printing debug messages
-  val SP = 0.2 // Stickiness probability
+  val SP = 0.2F // Stickiness probability
 
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
@@ -102,11 +102,12 @@ class LPA(args: Array[String]) extends Analyser(args) {
       .map(f => (f._1, f._2.map(_._2)))
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+    println(s"$workerID -- Merging up results..")
     val er      = extractData(results)
-    val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
+    val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
     val text = s"""{"time":$timestamp,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
       .mkString(",")}],"""+
-      s""""communities": \n[${commtxt.mkString(",")}] \n,"""+
+      s""""communities": [${commtxt.mkString(",")}] ,"""+
       s""""viewTime":$viewCompleteTime}"""
     writeOut(text, output_file)
   }

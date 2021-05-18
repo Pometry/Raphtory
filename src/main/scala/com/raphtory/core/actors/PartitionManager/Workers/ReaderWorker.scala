@@ -11,6 +11,7 @@ import com.raphtory.core.model.analysis.GraphLenses.{GraphLens, ViewLens, Window
 import com.raphtory.core.model.communication._
 import kamon.Kamon
 
+import java.time.LocalDateTime
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -26,7 +27,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   private val sentMessageMap     = ParTrieMap[String, AtomicInteger ]()
   private val receivedMessageMap = ParTrieMap[String, AtomicInteger ]()
   var tempProxy: GraphLens = _
-
+  var t1 = System.currentTimeMillis()
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
@@ -72,6 +73,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   }
 
   def processCheckMessagesRequest(req: CheckMessages): Unit = {
+    //pt2
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
     Kamon.gauge("Raphtory_Analysis_Messages_Received")
       .withTag("actor",s"Reader_$managerID")
@@ -93,6 +95,12 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   }
 
   def processNextStepRequest(req: NextStep): Unit = {
+    if (workerId==1) {
+      println(
+        s"Superstep: ${req.superStep}   Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
+      )
+      t1 = System.currentTimeMillis()
+    }
     log.debug("ReaderWorker [{}] belonging to Reader [{}] received [{}] request.", managerID, workerId, req)
     val beforeTime = System.currentTimeMillis()
     val superstepTimer = Kamon.gauge("Raphtory_Superstep_Time")
@@ -144,7 +152,8 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   }
 
   def setup(analyzer: Analyser, jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]) {
-
+//im: setup (once)
+    if (workerId==1) println(s"Starting setup ${LocalDateTime.now()}")
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
 
@@ -164,10 +173,12 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       incrementSentMessages(jobID,tempProxy.getMessages())
       sender ! Ready(tempProxy.getMessages())
     }
+    if (workerId==1) println(s"Ending setup ${LocalDateTime.now()}")
   }
 
   def nextStep(analyzer: Analyser,jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
-
+//im: pt1
+    if (workerId==1) println(s"analysis start step: $superStep at ${LocalDateTime.now()}")
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {
@@ -185,7 +196,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
       incrementSentMessages(jobID,tempProxy.getMessages())
       sender ! EndStep(tempProxy.getMessages(), tempProxy.checkVotes(workerId))
     }
-
+    if (workerId==1) println(s"analysis end step: $superStep at ${LocalDateTime.now()}")
   }
 
   def setupNewAnalyser(jobID: String, currentStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
@@ -200,6 +211,7 @@ class ReaderWorker(managerCountVal: Int, managerID: Int, workerId: Int, storage:
   }
 
   def returnResults(analyzer: Analyser, jobID: String, superStep: Int, timestamp: Long, analysisType: AnalysisType.Value, window: Long, windowSet: Array[Long]): Unit = {
+    println(s"returning results worker: $workerId step: $superStep at ${LocalDateTime.now()}")
     setProxy(jobID, superStep, timestamp, analysisType, window, windowSet)
     analyzer.sysSetup(context, managerCount, tempProxy, workerId)
     if (windowSet.isEmpty) {

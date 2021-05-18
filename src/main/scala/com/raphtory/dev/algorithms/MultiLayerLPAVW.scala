@@ -21,7 +21,8 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
   val snapshots: Iterable[Long] = for (ts <- startTime to endTime by snapshotSize) yield ts
   val o: Float                 = if (arg.length < 7) 0.1F else args(6).toFloat
   val omega: Array[Float]      = (o to 1.0F by o).toArray
-  val scaled: Boolean = if (arg.length < 8) true else args(7).toBoolean
+  override val SP: Float = if (arg.length < 8) 0.2F else args(7).toFloat
+  val scaled: Boolean = if (arg.length < 9) true else args(8).toBoolean
   var t1 = System.currentTimeMillis()
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
@@ -87,17 +88,17 @@ class MultiLayerLPAVW(args: Array[String]) extends LPA(args) {
         vertex.messageAllNeighbours(message)
 
         // Vote to halt if all instances of vertex haven't changed their labels
-        if (voteCount > (vlabel.size * omega.length * 0.8).toInt) vertex.voteToHalt()
+        if (voteCount > (vlabel.size * omega.length * 0.95).toInt) vertex.voteToHalt()
       }
     } catch {
       case e: Exception => println("Something went wrong with mLPAv!", e)
     }
-    if (debug & (workerID==1)) {
-      println(
-              s"Superstep: ${view.superStep()}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
-      )
-      t1 = System.currentTimeMillis()
-    }
+//    if (debug & (workerID==1)) {
+//      println(
+//              s"Superstep: ${view.superStep()}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
+//      )
+//      t1 = System.currentTimeMillis()
+//    }
   }
 
   def weightFunction(v: VertexVisitor, ts: Long): ParMap[Long, Float] = {
