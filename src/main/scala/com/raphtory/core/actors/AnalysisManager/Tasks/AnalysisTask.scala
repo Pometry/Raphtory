@@ -308,7 +308,7 @@ abstract class AnalysisTask(jobID: String, args:Array[String], analyser: Analyse
     }
 
   def messagesReceieved(workerID: Int, receivedMessages: Int, sentMessages: Int) = {
-//    println(s"+++ Superstep: $currentSuperStep  wID: $workerID    Messages in: $totalReceivedMessages    Messages out: $totalSentMessages ")
+    println(s"+++ Superstep: $currentSuperStep  wID: $workerID    Messages in: $totalReceivedMessages    Messages out: $totalSentMessages ")
 //      println(totalReceivedMessages)
     messageLogACKS += 1
     totalReceivedMessages += receivedMessages

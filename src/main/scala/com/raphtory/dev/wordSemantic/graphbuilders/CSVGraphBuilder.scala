@@ -5,24 +5,25 @@ import com.raphtory.core.model.communication._
 
 class CSVGraphBuilder extends GraphBuilder[String] {
 
-  override def parseTuple(row: String) =
-    try {
-      val dp = row.split(",").map(_.trim)
-      val occurenceTime = dp.head.toLong
-      val srcClusterId = assignID(dp(1))
-      val dstClusterId = assignID(dp(2))
-      val coocWeight = dp.last.toLong
+  override def parseTuple(row: String) = {
+    //    try {
+    val dp = row.split(",").map(_.trim)
+    val occurenceTime = dp.head.toLong
+    val srcClusterId = assignID(dp(1))
+    val dstClusterId = assignID(dp(2))
+    val coocWeight = dp.last.toFloat
 
-      addVertex(updateTime = occurenceTime, srcId = srcClusterId, Properties(StringProperty("Word", dp(1))))
-      addVertex(updateTime = occurenceTime, srcId = dstClusterId, Properties(StringProperty("Word", dp(2))))
-      addEdge(
-            updateTime = occurenceTime,
-            srcId = srcClusterId,
-            dstId = dstClusterId,
-            Properties(FloatProperty("Frequency", coocWeight))
-          )
+    addVertex(updateTime = occurenceTime, srcId = srcClusterId, Properties(StringProperty("Word", dp(1))))
+    addVertex(updateTime = occurenceTime, srcId = dstClusterId, Properties(StringProperty("Word", dp(2))))
+    addEdge(
+      updateTime = occurenceTime,
+      srcId = srcClusterId,
+      dstId = dstClusterId,
+      Properties(FloatProperty("Frequency", coocWeight))
+    )
 
-    } catch {
-      case e: Exception => println(e, row)
-    }
+    //    } catch {
+    //      case e: Exception => println(e, row)
+    //    }
+  }
 }

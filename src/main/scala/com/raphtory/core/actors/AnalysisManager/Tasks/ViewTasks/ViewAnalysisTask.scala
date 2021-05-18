@@ -1,5 +1,6 @@
 package com.raphtory.analysis.Tasks.ViewTasks
 
+import java.time.LocalDateTime
 import com.raphtory.api.Analyser
 import com.raphtory.analysis.Tasks.AnalysisTask
 import com.raphtory.core.model.communication.AnalysisType
@@ -11,7 +12,7 @@ class ViewAnalysisTask(managerCount:Int, jobID: String,args:Array[String], analy
   override protected def analysisType(): AnalysisType.Value = AnalysisType.view
 
   override def restart(): Unit = {
-    println(s"View Analysis manager for $jobID at ${time} finished")
+    println(s" ${LocalDateTime.now()} View Analysis manager for $jobID at ${time} finished")
     //killme()
   }
 

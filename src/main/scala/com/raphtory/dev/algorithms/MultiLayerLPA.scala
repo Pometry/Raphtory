@@ -11,13 +11,14 @@ object MultiLayerLPA {
 }
 
 class MultiLayerLPA(args: Array[String]) extends LPA(args) {
-  //args = [top, weight, maxiter, start, end, layer-size, omega, scaled]
+  //args = [top, weight, maxiter, start, end, layer-size, omega, stickiness prob, scaled]
   val snapshotSize: Long        = args(5).toLong
   val startTime: Long           = args(3).toLong
   val endTime: Long             = args(4).toLong
   val snapshots: Iterable[Long] = for (ts <- startTime to endTime by snapshotSize) yield ts
   val omega: String             = if (arg.length < 7) "1" else args(6)
-  val scaled: Boolean = if (arg.length < 8) true else args(7).toBoolean
+  override val SP: Float = if (arg.length < 8) 0.2F else args(7).toFloat
+  val scaled: Boolean = if (arg.length < 9) true else args(8).toBoolean
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
@@ -81,10 +82,10 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
     } catch {
       case e: Exception => println("Something went wrong with mLPA!", e)
     }
-    if (debug & (workerID==1))
-      println(
-              s"Superstep: ${view.superStep()}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
-      )
+//    if (debug & (workerID==1))
+//      println(
+//              s"Superstep: ${view.superStep()}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
+//      )
   }
 
   def interLayerWeights(x: String, v: VertexVisitor, ts: Long): Float =

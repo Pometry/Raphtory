@@ -14,6 +14,7 @@ import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi._
 import com.raphtory.core.actors.ClusterManagement.WatchDog.Message._
 import com.raphtory.core.actors.RaphtoryActor
 
+import java.time.LocalDateTime
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Await
 import scala.concurrent.duration.{Duration, _}
@@ -97,7 +98,7 @@ class AnalysisManager() extends RaphtoryActor{
 
     try{
       val jobID = request.analyserName+"_"+System.currentTimeMillis().toString
-      println(s"View Analysis Task received, your job ID is ${jobID}")
+      println(s"${LocalDateTime.now()} View Analysis Task received, your job ID is ${jobID}")
       val timestamp = request.timestamp
       val args = request.args
       val buildAnalyser = getAnalyser(request.analyserName,args,request.rawFile)
