@@ -326,7 +326,6 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: R
     val watermarkCancellable =
       scheduleTask(initialDelay = 10 seconds, interval = 5 second, receiver = self, message = Watermark)
     scheduledTaskMap.put("watermark", watermarkCancellable)
-
   }
 
 }
