@@ -3,7 +3,7 @@ package com.raphtory.dev.lotr
 import com.raphtory.core.actors.Spout.Spout
 import scala.collection.mutable
 
-class lotrSpout extends Spout[String] {
+class LOTRSpout extends Spout[String] {
  val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
     val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //
     val filename = directory + "/" + fileName

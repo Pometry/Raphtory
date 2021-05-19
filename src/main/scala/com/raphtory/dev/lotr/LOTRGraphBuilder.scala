@@ -3,7 +3,7 @@ package com.raphtory.dev.lotr
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.model.communication._
 
-class lotrGB extends GraphBuilder[String]{
+class LOTRGraphBuilder extends GraphBuilder[String]{
 
   override def parseTuple(tuple: String) = {
     val fileLine   = tuple.split(",").map(_.trim)
