@@ -136,12 +136,12 @@ object RaphtoryServer extends App {
   case class SocketAddress(host: String, port: String)
   case class SystemConfig(bindAddress: SocketAddress, tcpAddress: SocketAddress, seeds: List[ConfigValue], roles: List[ConfigValue])
   def parseConfig(config: Config): SystemConfig = {
-    val bindHost    = config.getString("akka.remote.netty.tcp.bind-hostname")
-    val bindPort    = config.getString("akka.remote.netty.tcp.bind-port")
+    val bindHost    = config.getString("akka.remote.artery.canonical.bind-hostname")
+    val bindPort    = config.getString("akka.remote.artery.canonical.bind-port")
     val bindAddress = SocketAddress(bindHost, bindPort)
 
-    val tcpHost    = config.getString("akka.remote.netty.tcp.hostname")
-    val tcpPort    = config.getString("akka.remote.netty.tcp.port")
+    val tcpHost    = config.getString("akka.remote.artery.canonical.hostname")
+    val tcpPort    = config.getString("akka.remote.artery.canonical.port")
     val tcpAddress = SocketAddress(tcpHost, tcpPort)
 
     val seeds = config.getList("akka.cluster.seed-nodes").toList
