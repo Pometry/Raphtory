@@ -10,7 +10,8 @@ val JodaT         = "2.3"
 val Logback       = "1.2.3"
 val Scala         = "2.12.4"
 val Slf4j         = "1.7.7"
-val lightBend     = "1.1.0"//"2.15.1"
+val lightBend     = "1.1.0"
+
 val SbtPackager   = "1.2.0"
 
 val resolutionRepos = Seq(
@@ -78,7 +79,7 @@ val hadoop = "org.apache.hadoop" % "hadoop-client" % "3.3.0"
 //val aws =  "com.amazonaws" % "aws-java-sdk" % "1.11.897"
 val parquet = "com.github.mjakubowski84" %% "parquet4s-core" % "1.6.0"
 //val h3 = "com.uber" % "h3" % "3.6.4"
-
+val kryo = "io.altoo" %% "akka-kryo-serialization" % "2.2.0"
 
 val IP = java.net.InetAddress.getLocalHost.getHostAddress
 
@@ -99,7 +100,7 @@ lazy val basicSettings = Seq(
                 "-unchecked"
         ),
         testOptions in Test += Tests.Argument("-oDF"),
-        version := "latest"
+        version := "dev"
 )
 
 lazy val dockerStuff = Seq(
@@ -195,7 +196,8 @@ lazy val raphtory = project
                     //aws,
                     parquet,
                     hadoop,
-                    akka_spray
+                    akka_spray,
+                    kryo
                    // h3
             )
   )
@@ -206,4 +208,13 @@ lazy val raphtory = project
   .settings(
     assemblyMergeStrategy in assembly := mergeStrategy,
     mainClass in assembly := Some("com.raphtory.Go")
+  )
+  .settings(
+    libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.1",
+    Compile / PB.targets := Seq(
+      scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
+    ),
+    libraryDependencies ++= Seq(
+      "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
+    )
   )
