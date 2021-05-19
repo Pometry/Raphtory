@@ -19,6 +19,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   val omega: String             = if (arg.length < 7) "1" else args(6)
   override val SP: Float = if (arg.length < 8) 0.2F else args(7).toFloat
   val scaled: Boolean = if (arg.length < 9) true else args(8).toBoolean
+  val filter: Float = if (arg.length < 10) 0.1F else args(9).toFloat
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
@@ -45,7 +46,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
           val Curlab = tv._2
           // Get weights/labels of neighbours of vertex at time ts
           val nei_ts_freq = weightFunction(vertex, ts) // ID -> freq
-          var newlab = if (nei_ts_freq.nonEmpty) {
+          var newlab = if (nei_ts_freq.nonEmpty) { //im: put this a bit lower
             val nei_labs = msgQueue
               .filter(x => nei_ts_freq.keySet.contains(x._1)) // filter messages from neighbours at time ts only
               .map { msg =>
@@ -96,7 +97,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       case _ => omega.toFloat
     }
 
-  def weightFunction(v: VertexVisitor, ts: Long): ParMap[Long, Float] = {
+  def weightFunction(v: VertexVisitor, ts: Long): Map[Long, Float] = {
     var nei_weights =
       (v.getInCEdgesBetween(ts - snapshotSize, ts) ++ v.getOutEdgesBetween(ts - snapshotSize, ts)).map(e =>
         (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float])
@@ -106,7 +107,10 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       nei_weights = nei_weights.map(x => (x._1, x._2 / scale))
 
     }
-    nei_weights.groupBy(_._1).mapValues(x => x.map(_._2).sum) // (ID -> Freq)
+//    nei_weights =
+      nei_weights.toArray.sortBy(-_._2).take((nei_weights.size*filter).toInt+1)
+//    nei_weights
+      .groupBy(_._1).mapValues(x => x.map(_._2).sum) // (ID -> Freq)
   }
 
   def scaling(freq: Array[Float]): Float = math.sqrt(freq.map(math.pow(_, 2)).sum).toFloat
