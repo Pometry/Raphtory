@@ -80,8 +80,10 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
       println(s"Number of routers: $routers")
       println(s"Number of partitions: $partitionManagers")
 
-    } else
+    } else{
       context.system.scheduler.scheduleOnce(delay = 1 second, receiver = self, message = IsSafe)
+    }
+
   }
 
 

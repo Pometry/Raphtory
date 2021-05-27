@@ -27,7 +27,7 @@ abstract class RaphtoryEntity(val creationTime: Long, isInitialValue: Boolean) {
   var newestPoint: Long = creationTime
 
   // History of that entity
-  def removeList: mutable.TreeMap[Long, Boolean] = history.filter(f=> !f._2)
+  def removeList: List[(Long, Boolean)] = history.filter(f=> !f._2).toList
 
   def setType(newType: Option[String]): Unit = newType.foreach(nt => entityType = entityType.orElse(Some(nt)))
   def getType: String                = entityType.getOrElse("")

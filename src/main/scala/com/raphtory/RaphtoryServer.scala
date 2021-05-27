@@ -94,10 +94,11 @@ object RaphtoryServer extends App {
 
   def locateSeed(): String =
     if (docker) {
-      while (!("nc seedNode 1600" !).equals(0)) {
-        println("Waiting for seednode to come online")
-        Thread.sleep(3000)
-      }
+     // while (!("nc -l seedNode -p 1600 -w 1" !).equals(0)) {
+     //   println("Waiting for seednode to come online.")
+        Thread.sleep(20000)
+      //}
+      println("Seed Found!")
       InetAddress.getByName("seedNode").getHostAddress() + ":1600"
     } else "127.0.0.1:1600"
 
