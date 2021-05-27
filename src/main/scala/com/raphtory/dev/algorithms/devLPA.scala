@@ -36,17 +36,18 @@ object devLPA {
 }
 
 class devLPA(args: Array[String]) extends Analyser(args) {
-  //args = [top output, edge property, max iterations]
+  //args = [top output, edge property, max iterations, outfile, commfile]
 
   val arg: Array[String] = args.map(_.trim)
 
   val top: Int         = if (arg.length == 0) 0 else arg.head.toInt
   val weight: String       = if (arg.length < 2) "" else arg(1)
   val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
-  val commurl : String = if  (arg.length < 4) "" else arg(3)
+  val output_file : String = if  (arg.length < 4) "" else arg(3)
+  val commurl : String = if  (arg.length < 5) "" else arg(4)
   val rnd    = new scala.util.Random
 
-  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
+//  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
   val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
   val debug             = System.getenv().getOrDefault("DEBUG2", "false").trim.toBoolean //for printing debug messages
   val SP = 0.2F // Stickiness probability
@@ -110,11 +111,15 @@ class devLPA(args: Array[String]) extends Analyser(args) {
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     println(s"$workerID -- Merging up results..")
     val er      = extractData(results)
-    val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
-    val text = s"""{"time":$timestamp,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
-      .mkString(",")}],"""+
-      s""""communities": [${commtxt.mkString(",")}] ,"""+
-      s""""viewTime":$viewCompleteTime}"""
+    val text = er.communities.flatMap { x =>
+      val lab = rnd.nextLong()
+      x.map(v=> s"$v, $lab")
+    }.mkString("\n")
+//    val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
+//    val text = s"""{"time":$timestamp,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
+//      .mkString(",")}],"""+
+//      s""""communities": [${commtxt.mkString(",")}] ,"""+
+//      s""""viewTime":$viewCompleteTime}"""
     writeOut(text, output_file)
   }
 
@@ -154,7 +159,7 @@ class devLPA(args: Array[String]) extends Analyser(args) {
 
   def dllCommFile(url:String): Map[String, Long] ={
     val html = Source.fromURL(url)
-    html.mkString.split("\n").map(x=> x.split(',')).map(x=> (x.head, x.last.toLong)).toMap
+    html.mkString.split("\n").map(x=> x.split(',')).map(x=> (x.head.trim, x.last.trim.toLong)).toMap
   }
 }
 
