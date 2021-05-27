@@ -2,7 +2,7 @@ package com.raphtory.dev.gab
 
 import com.raphtory.RaphtoryGraph
 import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic}
-import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
+import com.raphtory.dev.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.serialisers.MongoSerialiser
 import com.raphtory.spouts.FileSpout
 

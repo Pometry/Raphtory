@@ -33,7 +33,7 @@ object RaphtoryEdge {
 class RaphtoryEdge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean)
         extends RaphtoryEntity(msgTime, initialValue) {
 
-  def killList(vKills: mutable.TreeMap[Long, Boolean]): Unit = history ++= vKills
+  def killList(vKills: List[(Long, Boolean)]): Unit = history ++= vKills
 
   def getSrcId: Long   = srcId
   def getDstId: Long   = dstId

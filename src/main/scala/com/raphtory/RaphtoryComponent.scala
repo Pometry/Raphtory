@@ -6,6 +6,7 @@ import akka.actor.{ActorSystem, Address, ExtendedActorSystem, Props}
 import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
+import com.esotericsoftware.kryo.Kryo
 import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.actors.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.Router.GraphBuilder
@@ -20,6 +21,12 @@ import scala.sys.process._
 class RaphtoryComponent(component:String,partitionCount:Int,routerCount:Int,port:Int,classPath:String="") {
   val conf    = ConfigFactory.load()
   val clusterSystemName  = "Raphtory"
+  val kryo = new Kryo()
+  kryo.register(Array[Tuple2[Long,Boolean]]().getClass,3000)
+  kryo.register(classOf[Array[scala.Tuple2[Long,Boolean]]],3001)
+  kryo.register(scala.Tuple2.getClass,3002)
+  kryo.register(classOf[scala.Tuple2[Long,Boolean]],3003)
+
   component match {
     case "seedNode" => seedNode()
     case "router" => router()

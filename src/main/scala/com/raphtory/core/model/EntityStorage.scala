@@ -133,7 +133,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       msgTime: Long,
       srcId: Long,
       dstId: Long,
-      removeList: mutable.TreeMap[Long, Boolean]
+      removeList: List[(Long, Boolean)]
   ): Unit =
     getVertexOrPlaceholder(msgTime, srcId).getOutgoingEdge(dstId) match {
       case Some(edge) => edge killList removeList //add the dst removes into the edge
@@ -297,7 +297,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       srcId: Long,
       dstId: Long,
       properties: Properties,
-      srcDeaths: mutable.TreeMap[Long, Boolean],
+      srcDeaths: List[(Long, Boolean)],
       edgeType: Option[Type],
       channelId: String,
       channelTime: Int
@@ -455,7 +455,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       msgTime: Long,
       srcId: Long,
       dstId: Long,
-      srcDeaths: mutable.TreeMap[Long, Boolean],
+      srcDeaths: List[(Long, Boolean)],
       channelId: String,
       channelTime: Int
   ): TrackedGraphEffect[GraphUpdateEffect] = {
@@ -470,7 +470,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
     TrackedGraphEffect(channelId, channelTime, RemoteReturnDeaths(msgTime, srcId, dstId, deaths))
   }
 
-  def remoteReturnDeaths(msgTime: Long, srcId: Long, dstId: Long, dstDeaths: mutable.TreeMap[Long, Boolean]): Unit =
+  def remoteReturnDeaths(msgTime: Long, srcId: Long, dstId: Long, dstDeaths: List[(Long, Boolean)]): Unit =
     //logger.info(s"Received deaths for $srcId --> $dstId from ${getManager(dstId, managerCount)}")
     getVertexOrPlaceholder(msgTime, srcId).getOutgoingEdge(dstId) match {
       case Some(edge) => edge killList dstDeaths

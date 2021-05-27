@@ -1,4 +1,4 @@
-package com.raphtory.examples.gab.graphbuilders
+package com.raphtory.dev.gab.graphbuilders
 
 import java.text.SimpleDateFormat
 

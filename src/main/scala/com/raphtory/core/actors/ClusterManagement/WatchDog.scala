@@ -52,10 +52,12 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends RaphtoryActor {
 
     case PartitionUp(id) =>
       val newMap = state.pmLiveMap + (id -> System.currentTimeMillis())
+      //println(s"Partition $id online")
       context.become(work(state.copy(pmLiveMap = newMap)))
 
     case RouterUp(id) =>
       val newMap = state.roLiveMap + (id -> System.currentTimeMillis())
+      //println(s"Router $id online")
       context.become(work(state.copy(roLiveMap = newMap)))
 
     case RequestPartitionId =>
@@ -76,11 +78,14 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends RaphtoryActor {
   private def handleTick(state: ActorState): ActorState = {
     checkMapTime(state.pmLiveMap, "Partition Manager")
     checkMapTime(state.roLiveMap, "Router")
-    if (!state.clusterUp && state.roLiveMap.size >= minimumRouters && state.pmLiveMap.size >= managerCount) {
+    if (state.roLiveMap.size >= minimumRouters && state.pmLiveMap.size >= managerCount) {
       log.info("Partition managers and min. number of Routers have joined cluster.")
       log.debug(s"The cluster was started with [$managerCount] Partition Managers and [$minimumRouters] >= Routers.")
       state.copy(clusterUp = true)
-    } else state
+    } else {
+      println(s"${state.roLiveMap.size} $minimumRouters ${state.pmLiveMap.size} $managerCount")
+      state
+    }
   }
 
   private def checkMapTime(map: Map[Int, Long], mapType: String): Unit =
