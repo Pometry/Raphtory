@@ -127,6 +127,7 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
     getAnalyser(analyserName, args, rawFile).map {
       case (newAnalyser, analyser) =>
         val ref =
+
           context.system.actorOf(
                   Props(
                           ViewAnalysisTask(
