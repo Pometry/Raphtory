@@ -67,7 +67,7 @@ final case class Vertex(
     computationValues(key).asInstanceOf[T]
   def containsState(key: String): Boolean =
     computationValues.contains(key)
-  def getOrSetState[T: ClassTag](key: String, value: Any) =
+  def getOrSetState[T: ClassTag](key: String, value: T):T =
     computationValues.get(key) match {
       case Some(value) =>
         value.asInstanceOf[T]
