@@ -45,6 +45,7 @@ class devLPA(args: Array[String]) extends Analyser(args) {
   val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
   val output_file : String = if  (arg.length < 4) "" else arg(3)
   val commurl : String = if  (arg.length < 5) "" else arg(4)
+  val commprob: Float = if  (arg.length < 6) 1.0F else arg(5).toFloat
   val rnd    = new scala.util.Random
 
 //  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
@@ -55,7 +56,9 @@ class devLPA(args: Array[String]) extends Analyser(args) {
   override def setup(): Unit = {
     val commlab = if (commurl.isEmpty) Map[String, Long]() else dllCommFile(commurl)
     view.getVertices().foreach { vertex =>
-      val lab = commlab.getOrElse(vertex.getPropertyValue("Word").getOrElse("").asInstanceOf[String], rnd.nextLong())
+      val lab = if (rnd.nextFloat() < commprob)
+        commlab.getOrElse(vertex.getPropertyValue("Word").getOrElse("").asInstanceOf[String], rnd.nextLong())
+      else rnd.nextLong()
       vertex.setState("lpalabel", lab)
       vertex.messageAllNeighbours((vertex.ID(),lab))
     }
@@ -105,15 +108,16 @@ class devLPA(args: Array[String]) extends Analyser(args) {
       .map(vertex => (vertex.getState[Long]("lpalabel"),
         vertex.getPropertyValue("Word").getOrElse(vertex.ID()).toString
       ))
-      .groupBy(f => f._1)
-      .map(f => (f._1, f._2.map(_._2)))
+//      .groupBy(f => f._1)
+//      .map(f => (f._1, f._2.map(_._2)))
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
     println(s"$workerID -- Merging up results..")
-    val er      = extractData(results)
-    val text = er.communities.flatMap { x =>
-      val lab = rnd.nextLong()
-      x.map(v=> s"$v, $lab")
+//    val er      = extractData(results)
+val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(Long, String)]]].flatten
+    val text = endResults.map { x =>
+//      val lab = rnd.nextLong()
+      s"${x._2},${x._1}"
     }.mkString("\n")
 //    val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
 //    val text = s"""{"time":$timestamp,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
@@ -129,12 +133,17 @@ class devLPA(args: Array[String]) extends Analyser(args) {
                                      windowSize: Long,
                                      viewCompleteTime: Long
                                    ): Unit = {
-    val er      = extractData(results)
-    val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
-      .mkString(",")}],"""+
-      s""""communities": [${commtxt.mkString(",")}],"""+
-      s""""viewTime":$viewCompleteTime}"""
+//    val er      = extractData(results)
+val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(Long, String)]]].flatten
+    val text = endResults.map { x =>
+      //      val lab = rnd.nextLong()
+      s"${x._2},${x._1}"
+    }.mkString("\n")
+//    val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
+//    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
+//      .mkString(",")}],"""+
+//      s""""communities": [${commtxt.mkString(",")}],"""+
+//      s""""viewTime":$viewCompleteTime}"""
     writeOut(text, output_file)
   }
 
