@@ -19,15 +19,17 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   val omega: String             = if (arg.length < 7) "1" else args(6)
   override val SP: Float = if (arg.length < 8) 0.2F else args(7).toFloat
   val scaled: Boolean = if (arg.length < 9) true else args(8).toBoolean
-  val filter: Float = if (arg.length < 10) 0.1F else args(9).toFloat
+  val filter: Float = if (arg.length < 10) 1.0F else args(9).toFloat
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       // Assign random labels for all instances in time of a vertex as Map(ts, lab)
+    val slabel = rnd.nextLong()
       val tlabels =
         snapshots
           .filter(ts => vertex.aliveAtWithWindow(ts, snapshotSize))
-          .map(ts => (ts, rnd.nextLong()))
+//          .map(ts => (ts, rnd.nextLong()))
+          .map(ts => (ts, slabel))
           .toArray
       vertex.setState("mlpalabel", tlabels)
       val message = (vertex.ID(), tlabels.map(x => (x._1, x._2)))
@@ -60,9 +62,9 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
               nei_labs.append((vlabel(ts - snapshotSize), interLayerWeights(omega, vertex, ts - snapshotSize)))
             if (vlabel.contains(ts + snapshotSize))
               nei_labs.append((vlabel(ts + snapshotSize), interLayerWeights(omega, vertex, ts)))
-
+//            nei_labs.appendAll(vlabel.filter(_._1!=ts).map(ts=>(ts._2,omega.toFloat)))
             // Get label most prominent in neighborhood of vertex
-
+            selectiveProc(v = vertex, ts, gp = nei_labs.map(_._1).toArray )
             val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
             max_freq.filter(_._2 == max_freq.values.max).keySet.max
           } else Curlab
@@ -88,7 +90,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
 //              s"Superstep: ${view.superStep()}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
 //      )
   }
-
+  def selectiveProc(v: VertexVisitor, ts: Long, gp: Array[Long]): Unit = {}
   def interLayerWeights(x: String, v: VertexVisitor, ts: Long): Float =
     x match {
       case "average" =>
@@ -108,9 +110,12 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
 
     }
 //    nei_weights =
-      nei_weights.toArray.sortBy(-_._2).take((nei_weights.size*filter).toInt+1)
+      var nei_filt = nei_weights.toArray.sortBy(-_._2)
+      nei_filt = nei_filt.take((nei_weights.size*filter).toInt)
 //    nei_weights
-      .groupBy(_._1).mapValues(x => x.map(_._2).sum) // (ID -> Freq)
+
+      nei_filt = if (nei_filt.nonEmpty) nei_filt else nei_weights.toArray.take(1)
+      nei_filt.groupBy(_._1).mapValues(x => x.map(_._2).sum) // (ID -> Freq)
   }
 
   def scaling(freq: Array[Float]): Float = math.sqrt(freq.map(math.pow(_, 2)).sum).toFloat
