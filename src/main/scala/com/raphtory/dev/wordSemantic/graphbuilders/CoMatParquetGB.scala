@@ -22,7 +22,7 @@ class CoMatParquetGB extends GraphBuilder[Update] {
                       updateTime = time,
                       srcId = srcID,
                       dstId = dstID,
-                      Properties(DoubleProperty("Frequency", freq.toDouble))
+                      Properties(FloatProperty("Frequency", freq.toFloat))
               )
     } catch {
       case e: Exception => println(e, row)

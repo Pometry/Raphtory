@@ -20,7 +20,7 @@ class bitcoin_mixers_GB extends GraphBuilder[String] {
         transactionTime,
         srcClusterId,
         dstClusterId,
-        Properties(DoubleProperty("BitCoin", btcAmount)),
+        Properties(FloatProperty("BitCoin", btcAmount)),
         Type("Transfer")
       )
     } catch { case e: Exception => println(e, tuple) }
@@ -28,7 +28,7 @@ class bitcoin_mixers_GB extends GraphBuilder[String] {
   //converts the line into a case class which has all of the data via the correct name and type
   def formatLine(line: Array[String]): Datapoint =
     Datapoint(
-            line(5).toDouble / 100000000, //Amount of transaction in BTC
+            line(5).toFloat / 100000000, //Amount of transaction in BTC
             line(3).toLong,               //ID of destination cluster
             line(1).toLong,               //ID of source cluster
             line(0).toLong * 1000,        //Time of transaction in seconds (milli in Raph)
@@ -39,7 +39,7 @@ class bitcoin_mixers_GB extends GraphBuilder[String] {
   def longCheck(data: String): Option[Long] = if (data equals "") None else Some(data.toLong)
 
   case class Datapoint(
-      amount: Double,   //Amount of transaction in Satoshi
+      amount: Float,   //Amount of transaction in Satoshi
       dstCluster: Long, //ID of destination cluster
       srcCluster: Long, //ID of source cluster
       time: Long,       //Time of transaction in seconds
