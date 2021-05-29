@@ -58,10 +58,10 @@ abstract class AnalysisTask(
       if (readyCount + 1 != managerCount)
         context.become(checkReaderWorker(readyCount + 1))
       else if (newAnalyser) {
-        messageToAllReaderWorkers(CompileNewAnalyser(jobId, rawFile, args))
+        messageToAllReaderWorkers(CompileNewAnalyser(jobId, rawFile, args.toList))
         context.become(checkAnalyser(0))
       } else {
-        messageToAllReaderWorkers(LoadPredefinedAnalyser(jobId, analyser.getClass.getCanonicalName, args))
+        messageToAllReaderWorkers(LoadPredefinedAnalyser(jobId, analyser.getClass.getCanonicalName, args.toList))
         context.become(checkAnalyser(0))
       }
   }
@@ -252,8 +252,8 @@ object AnalysisTask {
     case object ReaderWorkersOnline
     case object ReaderWorkersAck
 
-    case class CompileNewAnalyser(jobId: String, analyserRaw: String, args: Array[String])
-    case class LoadPredefinedAnalyser(jobId: String, className: String, args: Array[String])
+    case class CompileNewAnalyser(jobId: String, analyserRaw: String, args: List[String])
+    case class LoadPredefinedAnalyser(jobId: String, className: String, args: List[String])
     case class FailedToCompile(stackTrace: String)
     case object AnalyserPresent
 

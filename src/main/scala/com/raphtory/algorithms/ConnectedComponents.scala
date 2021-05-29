@@ -9,7 +9,7 @@ object ConnectedComponents {
   def apply():ConnectedComponents = new ConnectedComponents(Array())
 }
 
-class ConnectedComponents(args:Array[String]) extends Analyser[immutable.ParHashMap[Long, Int]](args){
+class ConnectedComponents(args:Array[String]) extends Analyser[List[(Long, Int)]](args){
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
@@ -28,19 +28,20 @@ class ConnectedComponents(args:Array[String]) extends Analyser[immutable.ParHash
         vertex.voteToHalt()
     }
 
-  override def returnResults(): Any =
-    view.getVertices()
+  override def returnResults(): Any = {
+    val x = view.getVertices()
       .map(vertex => vertex.getState[Long]("cclabel"))
       .groupBy(f => f)
-      .map(f => (f._1, f._2.size))
+      .map(f => (f._1, f._2.size)).toList
+  }
 
-  override def extractResults(results: List[immutable.ParHashMap[Long, Int]]): Map[String, Any] = {
+  override def extractResults(results: List[List[(Long, Int)]]): Map[String, Any] = {
     val er = extractData(results)
     Map[String,Any]("top5"-> er.top5,"total"->er.total,"totalIslands"->er.totalIslands,"proportion"->er.proportion,"clustersGT2"->er.totalGT2)
   }
 
 
-  def extractData(results:List[immutable.ParHashMap[Long, Int]]):extractedData ={
+  def extractData(results:List[List[(Long, Int)]]):extractedData ={
     val endResults = results
     try {
       val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
