@@ -30,7 +30,7 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
 
   private def work(managerCount: Int): Receive = {
     case CompileNewAnalyser(jobId, analyser, args) =>
-      AnalyserUtils.compileNewAnalyser(analyser, args) match {
+      AnalyserUtils.compileNewAnalyser(analyser, args.toArray) match {
         case Success(analyser) =>
           sender() ! AnalyserPresent
           val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount)
@@ -40,7 +40,7 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
       }
 
     case LoadPredefinedAnalyser(jobId, className, args) =>
-      AnalyserUtils.loadPredefinedAnalyser(className, args) match {
+      AnalyserUtils.loadPredefinedAnalyser(className, args.toArray) match {
         case Success(analyser) =>
           sender() ! AnalyserPresent
           val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount)
