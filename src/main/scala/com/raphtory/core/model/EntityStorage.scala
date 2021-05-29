@@ -53,6 +53,7 @@ final case class EntityStorage(initManagerCount: Int, managerID: Int, workerID: 
       case StringProperty(key, value)    => entity + (msgTime, false, key, value)
       case LongProperty(key, value)      => entity + (msgTime, false, key, value)
       case DoubleProperty(key, value)    => entity + (msgTime, false, key, value)
+      case FloatProperty(key, value)    => entity + (msgTime, false, key, value)
       case ImmutableProperty(key, value) => entity + (msgTime, true, key, value)
     }
   // if the add come with some properties add all passed properties into the entity

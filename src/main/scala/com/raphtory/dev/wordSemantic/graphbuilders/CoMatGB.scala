@@ -26,7 +26,7 @@ class CoMatGB extends GraphBuilder[String] {
           occurenceTime,
           srcClusterId,
           dstClusterId,
-          Properties(DoubleProperty("Frequency", coocWeight))
+          Properties(FloatProperty("Frequency", coocWeight))
         )
       }
 

@@ -1,4 +1,4 @@
-package examples.lotr
+package com.raphtory.dev.lotr
 
 import com.raphtory.RaphtoryGraph
 import com.raphtory.algorithms.{ConnectedComponents, StateTest}

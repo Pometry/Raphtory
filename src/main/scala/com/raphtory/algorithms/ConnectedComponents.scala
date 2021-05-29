@@ -52,8 +52,8 @@ class ConnectedComponents(args:Array[String]) extends Analyser[List[(Long, Int)]
       val total = grouped.size
       val totalWithoutIslands = groupedNonIslands.size
       val totalIslands = total - totalWithoutIslands
-      val proportion = biggest.toFloat / grouped.map(x => x._2).sum
-      val totalGT2 = grouped.filter(x => x._2 > 2).size
+      val proportion = biggest.toFloat / grouped.values.sum
+      val totalGT2 = grouped.count(x => x._2 > 2)
       extractedData(top5,total,totalIslands,proportion,totalGT2)
     } catch {
       case e: UnsupportedOperationException => extractedData(Array(0),0,0,0,0)
