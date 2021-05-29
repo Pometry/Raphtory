@@ -106,9 +106,8 @@ lazy val basicSettings = Seq(
 lazy val dockerStuff = Seq(
         maintainer := "Imane Hafnaoui <i.hafnaoui@qmul.ac.uk>",
         dockerBaseImage := "miratepuffin/raphtory-redis:latest",
-        dockerRepository := Some("miratepuffin"),
         dockerExposedPorts := Seq(2551, 8080, 2552,25520, 1600, 11600,8081,46339,9100),
-
+        dockerRepository := Some("tsukitsune"),
 )
 
 lazy val mergeStrategy: String => MergeStrategy = {

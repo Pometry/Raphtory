@@ -50,7 +50,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
   override def extractResults(results: List[Any]): Map[String,Any]  = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Double]]].flatten
 
-    val outliers  = endResults.filter(_._2 >= cutoff)
+    val outliers  = endResults.filter(_._2 > cutoff)
     val sorted    = outliers.sortBy(-_._2)
     val sortedstr = sorted.map(x => s""""${x._1}":${x._2}""")
     val top5       = sorted.map(_._1).take(5)
@@ -64,6 +64,4 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
     }
     Map[String,Any]()
   }
-
-
 }

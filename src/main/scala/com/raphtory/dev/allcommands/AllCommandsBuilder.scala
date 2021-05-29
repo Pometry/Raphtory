@@ -28,7 +28,7 @@ class AllCommandsBuilder extends GraphBuilder[String]{
     if (command.fields.contains("properties")) { //if there are properties within the command
 
       val properties = Properties(command.fields("properties").asJsObject.fields.map( pair => {  //add all of the pairs to the map
-         DoubleProperty(pair._1, pair._2.toString().toDouble)
+         FloatProperty(pair._1, pair._2.toString().toFloat)
        }).toSeq:_*)
 
       //send the srcID and properties to the graph manager
@@ -50,7 +50,7 @@ class AllCommandsBuilder extends GraphBuilder[String]{
     val dstId   = command.fields("dstID").toString().toInt //extract the dstID
     if (command.fields.contains("properties")) { //if there are properties within the command
       val properties = Properties(command.fields("properties").asJsObject.fields.map( pair => {  //add all of the pairs to the map
-        DoubleProperty(pair._1, pair._2.toString().toDouble)
+        FloatProperty(pair._1, pair._2.toString().toFloat)
       }).toSeq:_*)
 
       addEdge(msgTime, srcId, dstId, properties)

@@ -1,17 +1,17 @@
-package examples.lotr
+package com.raphtory.dev.lotr
 
 import com.raphtory.core.actors.Spout.Spout
-
 import scala.collection.mutable
 
-
 class LOTRSpout extends Spout[String] {
-
+ val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
+    val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //
+    val filename = directory + "/" + fileName
   val fileQueue = mutable.Queue[String]()
-
+	
   override def setupDataSource(): Unit = {
     fileQueue++=
-      scala.io.Source.fromFile("src/main/scala/com/raphtory/dev/lotr/lotr.csv")
+      scala.io.Source.fromFile(filename)
         .getLines
   }//no setup
 

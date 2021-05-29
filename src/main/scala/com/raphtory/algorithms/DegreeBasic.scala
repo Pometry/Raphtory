@@ -25,8 +25,8 @@ class DegreeBasic(args:Array[String]) extends Analyser[(Int, Int, Int, Array[(In
     val totalV   = degree.size
     val totalOut = degree.map(x => x._2).sum
     val totalIn  = degree.map(x => x._3).sum
-    val topUsers = degree.toArray.sortBy(x => x._3)(sortOrdering).take(20)
-    (totalV, totalOut, totalIn, topUsers)
+//    val topUsers = degree.toArray.sortBy(x => x._3)(sortOrdering).take(20)
+    (totalV, totalOut, totalIn)//, topUsers)
   }
 
   override def defineMaxSteps(): Int = 1

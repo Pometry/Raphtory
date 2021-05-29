@@ -1,12 +1,10 @@
-package com.raphtory.algorithms
+package com.raphtory.dev.algorithms
 
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.analysis.entity.Vertex
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
-import scala.collection.parallel.mutable.ParArray
-import scala.tools.nsc.io.Path
+import scala.io.Source
 
 /**
 Description
@@ -30,28 +28,34 @@ Notes
   This implementation of LPA incorporated probabilistic elements which makes it non-deterministic;
   The returned communities may differ on multiple executions.
   **/
-object LPA {
-  def apply(args: Array[String]): LPA = new LPA(args)
+object devLPA {
+  def apply(args: Array[String]): devLPA = new devLPA(args)
 }
 
-class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
-  //args = [top output, edge property, max iterations]
+class devLPA(args: Array[String]) extends Analyser[Any](args) {
+  //args = [top output, edge property, max iterations, outfile, commfile]
 
   val arg: Array[String] = args.map(_.trim)
 
   val top: Int         = if (arg.length == 0) 0 else arg.head.toInt
   val weight: String       = if (arg.length < 2) "" else arg(1)
   val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
+  val output_file : String = if  (arg.length < 4) "" else arg(3)
+  val commurl : String = if  (arg.length < 5) "" else arg(4)
+  val commprob: Float = if  (arg.length < 6) 1.0F else arg(5).toFloat
   val rnd    = new scala.util.Random
 
-  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
+//  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
   val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
   val debug             = System.getenv().getOrDefault("DEBUG2", "false").trim.toBoolean //for printing debug messages
   val SP = 0.2F // Stickiness probability
 
   override def setup(): Unit = {
+    val commlab = if (commurl.isEmpty) Map[String, Long]() else dllCommFile(commurl)
     view.getVertices().foreach { vertex =>
-      val lab = rnd.nextLong()
+      val lab = if (rnd.nextFloat() < commprob)
+        commlab.getOrElse(vertex.getPropertyValue("Word").getOrElse("").asInstanceOf[String], rnd.nextLong())
+      else rnd.nextLong()
       vertex.setState("lpalabel", lab)
       vertex.messageAllNeighbours((vertex.ID(),lab))
     }
@@ -81,7 +85,6 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
         newLabel =  if (rnd.nextFloat() < SP) vlabel else newLabel
         vertex.setState("lpalabel", newLabel)
         vertex.messageAllNeighbours((vertex.ID(), newLabel))
-        doSomething(vertex, gp.map(_._1).toArray)
       } catch {
         case e: Exception => println(e, vertex.ID())
       }
@@ -93,47 +96,55 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
   }
 
 
-  def doSomething(v: Vertex, gp: Array[Long]): Unit = {}
 
   override def returnResults(): Any =
     view.getVertices()
       //.filter(v => v.Type() == nodeType)
-      .map(vertex => (vertex.getState[Long]("lpalabel"), vertex.ID()))
-      .groupBy(f => f._1)
-      .map(f => (f._1, f._2.map(_._2)))
+      .map(vertex => (vertex.getState[Long]("lpalabel"),
+        vertex.getPropertyValue("Word").getOrElse(vertex.ID()).toString
+      ))
+//      .groupBy(f => f._1)
+//      .map(f => (f._1, f._2.map(_._2)))
 
-  override def extractResults(results: List[Any]): Map[String, Any] = {
-    val er      = extractData(results)
-    val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
-    val text = s"""{"top5":[${er.top5
-      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
-       s"""communities": [${commtxt.mkString(",")}]}"""
-    output_file match {
-      case "" => println(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
+  override def extractResults(results: List[Any]): Map[String,Any] = {
+    println(s"$workerID -- Merging up results..")
+//    val er      = extractData(results)
+val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(Long, String)]]].flatten
+    val text = endResults.map { x =>
+//      val lab = rnd.nextLong()
+      s"${x._2},${x._1}"
+    }.mkString("\n")
+//    val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
+//    val text = s"""{"time":$timestamp,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
+//      .mkString(",")}],"""+
+//      s""""communities": [${commtxt.mkString(",")}] ,"""+
+//      s""""viewTime":$viewCompleteTime}"""
     Map[String,Any]()
   }
-
-  def extractData(results: List[Any]): fd = {
-    val endResults = results.asInstanceOf[List[immutable.ParHashMap[Long, ParArray[String]]]]
-    try {
-      val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
-      val groupedNonIslands   = grouped.filter(x => x._2.size > 1)
-      val sorted              = grouped.toArray.sortBy(_._2.size)(sortOrdering)
-      val top5                = sorted.map(_._2.size).take(5)
-      val total               = grouped.size
-      val totalWithoutIslands = groupedNonIslands.size
-      val totalIslands        = total - totalWithoutIslands
-      val communities         = if (top == 0) sorted.map(_._2) else sorted.map(_._2).take(top)
-      fd(top5, total, totalIslands, communities)
-    } catch {
-      case _: UnsupportedOperationException => fd(Array(0), 0, 0, Array(List("0")))
-    }
-  }
+//
+//  def extractData(results: ArrayBuffer[Any]): fd = {
+//    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, ParArray[String]]]]
+//    try {
+//      val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
+//      val groupedNonIslands   = grouped.filter(x => x._2.size > 1)
+//      val sorted              = grouped.toArray.sortBy(_._2.size)(sortOrdering)
+//      val top5                = sorted.map(_._2.size).take(5)
+//      val total               = grouped.size
+//      val totalWithoutIslands = groupedNonIslands.size
+//      val totalIslands        = total - totalWithoutIslands
+//      val communities         = if (top == 0) sorted.map(_._2) else sorted.map(_._2).take(top)
+//      fd(top5, total, totalIslands, communities)
+//    } catch {
+//      case _: UnsupportedOperationException => fd(Array(0), 0, 0, Array(ArrayBuffer("0")))
+//    }
+//  }
 
   override def defineMaxSteps(): Int = maxIter
 
+  def dllCommFile(url:String): Map[String, Long] ={
+    val html = Source.fromURL(url)
+    html.mkString.split("\n").map(x=> x.split(',')).map(x=> (x.head.trim, x.last.trim.toLong)).toMap
+  }
 }
 
-case class fd(top5: Array[Int], total: Int, totalIslands: Int, communities: Array[List[String]])
+//case class fd(top5: Array[Int], total: Int, totalIslands: Int, communities: Array[ArrayBuffer[String]])

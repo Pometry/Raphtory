@@ -16,6 +16,7 @@ import com.raphtory.core.utils.AnalyserUtils
 import scala.util.Failure
 import scala.util.Success
 
+
 case class ViewJob(jobID: String, timestamp: Long, window: Long)
 
 final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: Int, storage: EntityStorage)
@@ -47,6 +48,7 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
         case Failure(e) =>
           sender ! FailedToCompile(e.getStackTrace.toString)
           log.error("fail to compile predefined analyser: " + e.getMessage)
+
       }
 
     case TimeCheck =>
@@ -62,5 +64,4 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
               .withDispatcher("reader-dispatcher"),
             s"Manager_${managerId}_reader_${workerId}_analysis_subtask_worker_$jobId"
     )
-
 }

@@ -241,6 +241,7 @@ abstract class AnalysisTask(
     getAllJobWorkers(managerCount,jobId).foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
 
 
+
 }
 
 object AnalysisTask {
