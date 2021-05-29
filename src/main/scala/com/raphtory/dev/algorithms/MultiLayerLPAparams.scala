@@ -7,6 +7,7 @@ import org.apache.parquet.hadoop.ParquetFileWriter
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.{ParMap, immutable}
 import scala.io.Source
+import scala.reflect.io.Path
 
 /**
 A version of MultiLayerLPA that gives freedom over filering the edges to consider
@@ -27,8 +28,8 @@ class MultiLayerLPAparams(args: Array[String]) extends MultiLayerLPA(args) {
   override def selectiveProc(v: Vertex, ts: Long, gp: Array[Long]): Unit = {
     val word = v.getPropertyValue("Word").get.asInstanceOf[String]
     if (commlab.contains(word)) {
-      var neiLab = v.getOrSetState[Map[Long, Array[Long]]]("neilab",Map[Long, Array[Long]]()) //.getOrSetState[Map[Long, Array[Long]]]("neilab", Map[Long, Array[Long]]())
-//      neiLab=neiLab.updated(ts,gp)
+      var neiLab = v.getOrSetState[Map[Long, Array[Long]]]("neilab",Map[Long, Array[Long]]())
+      neiLab=neiLab.updated(ts,gp)
       v.setState("neilab", neiLab)
     }
   }
@@ -41,25 +42,25 @@ class MultiLayerLPAparams(args: Array[String]) extends MultiLayerLPA(args) {
           vertex.getOrSetState[Map[Long, Array[Long]]]("neilab", Map[Long, Array[Long]]())
         )
       )
-//      .flatMap(f => f._2.map(x => (f._1, x._1, x._2)))
+      .flatMap(f => f._2.map(x => (f._1, x._1, x._2)))
 //          //  .flatMap(f =>  f._1.toArray.map(x => (x._2._2, "\""+x._1.toString+f._2+"\"")))
-//      .groupBy(f => f._1)
-//      .map(f => (f._1, f._2.map(x=>(x._2,x._3)).toArray))
+      .groupBy(f => f._1)
+      .map(f => (f._1, f._2.map(x=>(x._2,x._3)).toArray))
 
 
   override def extractResults(results: List[Any]): Map[String,Any]  = {
-    val er = extractData(results)
-    Map[String,Any]()
+//    val er = extractData(results)
 //  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
-//    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[String, Array[(Long, Array[Long])]]]].flatten
-//    val text = "{" + endResults.map { wd =>
-//      val comts =  wd._2.map{cts=>
-//        s""""${cts._1}": [ ${cts._2.mkString(",")} ]"""
-//      }.mkString(",")
-//      s""""${wd._1}": { $comts } """
-//    }.mkString(",") + "}"
-////  println(text)
-//    writeOut(text, output_file)
+    val endResults = results.asInstanceOf[List[immutable.ParHashMap[String, Array[(Long, Array[Long])]]]].flatten
+    val text = "{" + endResults.map { wd =>
+      val comts =  wd._2.map{cts=>
+        s""""${cts._1}": [ ${cts._2.mkString(",")} ]"""
+      }.mkString(",")
+      s""""${wd._1}": { $comts } """
+    }.mkString(",") + "}"
+//  println(text)
+    Path(output_file).createFile().appendAll(text + "\n")
+    Map[String,Any]()
   }
 
 //  override def processWindowResults(
