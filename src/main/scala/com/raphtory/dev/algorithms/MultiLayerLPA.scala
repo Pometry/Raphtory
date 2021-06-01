@@ -85,10 +85,10 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       case e: Exception => println("Something went wrong with mLPA!", e)
     }
 
-//    if (debug & (workerID==1))
-//      println(
-//              s"Superstep: ${view.superStep()}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
-//      )
+    if (debug & (workerID==1))
+      println(
+              s"Superstep: ${view.superStep}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
+      )
   }
   def selectiveProc(v: Vertex, ts: Long, gp: Array[Long]): Unit = {}
   def interLayerWeights(x: String, v: Vertex, ts: Long): Float =

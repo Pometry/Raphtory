@@ -6,6 +6,7 @@ import com.raphtory.core.actors.ClusterManagement.WatermarkManager.Message._
 import com.raphtory.core.actors.RaphtoryActor
 import kamon.Kamon
 
+import java.time.LocalDateTime
 import scala.concurrent.duration._
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
@@ -51,7 +52,7 @@ class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
       safeTime.update(watermark)
       val max = safeMessageMap.maxBy(x=> x._2)
       val min = safeMessageMap.minBy(x=> x._2)
-      println(s". Minimum Watermark: ${min._1} ${min._2} Maximum Watermark: ${max._1} ${max._2}")
+      println(s" ${LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))} . Minimum Watermark: ${min._1} ${min._2} Maximum Watermark: ${max._1} ${max._2}")
       context.system.scheduler.scheduleOnce(delay = 10.seconds, receiver = self, message = "probe")
     }
   }
