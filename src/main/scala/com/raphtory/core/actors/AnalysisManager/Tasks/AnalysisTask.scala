@@ -90,7 +90,9 @@ abstract class AnalysisTask(
         currentRange.orElse(controller.nextRange(readyTime)) match {
           case Some(range) if range.timestamp <= readyTime =>
             log.info(s"Range $range for Job $jobId is ready to start")
+            println("hello")
             messagetoAllJobWorkers(SetupSubtask(jobId, range.timestamp, range.window))
+            //messageToAllReaderWorkers(SetupSubtask(jobId, range.timestamp, range.window))
             context.become(waitAllReadyForSetupTask(SubtaskState(range, System.currentTimeMillis(), controller), 0))
           case Some(range) =>
             log.info(s"Range $range for Job $jobId is not ready. Recheck")
@@ -111,6 +113,7 @@ abstract class AnalysisTask(
     withDefaultMessageHandler("ready for setup task") {
       case SetupSubtaskDone =>
         val newReadyCount = readyCount + 1
+        println(s"$newReadyCount")
         if (newReadyCount == workerCount) {
           messagetoAllJobWorkers(StartSubtask(jobId))
           context.become(preStepSubtask(subtaskState, 0, 0))
@@ -263,6 +266,7 @@ object AnalysisTask {
     case object RecheckTime
 
     case class SetupSubtask(jobId: String, timestamp: Long, window: Option[Long])
+    case object ReadyToRock
     case object SetupSubtaskDone
     case class StartSubtask(jobId: String)
     case class Ready(messages: Int)

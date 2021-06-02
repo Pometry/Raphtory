@@ -23,15 +23,20 @@ final case class AnalysisSubtaskWorker(
     workerId: Int,
     storage: EntityStorage,
     analyzer: Analyser[Any],
-    jobId: String
+    jobId: String,
+    taskManager:ActorRef
 ) extends RaphtoryActor {
+
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
-  override def preStart(): Unit =
+
+  override def preStart(): Unit = {
     log.debug(
-      s"AnalysisSubtaskWorker for Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is being started."
+      s"AnalysisSubtaskWorker ${self.path} for Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is being started."
     )
+    taskManager ! AnalyserPresent
+  }
 
   override def receive: Receive = work(State(0, 0, initManagerCount))
 
