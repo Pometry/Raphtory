@@ -10,7 +10,7 @@ class StateTest(args:Array[String]) extends Analyser[(Int, Int, Int, Int, Int, I
 
   override def setup(): Unit = {}
 
-  override def returnResults(): Any = {
+  override def returnResults(): (Int, Int, Int, Int, Int, Int,Int,Int,Int,Int, Int, Int, Int, Int,Int,Int,Int,Int) = {
     val degDist = view.getVertices().map {
       vertex =>
         val inDeg = vertex.getIncEdges.size

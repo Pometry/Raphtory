@@ -58,8 +58,11 @@ class MultiLayerLPAparams(args: Array[String]) extends MultiLayerLPA(args) {
       }.mkString(",")
       s""""${wd._1}": { $comts } """
     }.mkString(",") + "}"
-//  println(text)
-    Path(output_file).createFile().appendAll(text + "\n")
+    output_file match {
+      case "" => println(text)
+      //        case "mongo" => mongo.getDB(dbname).getCollection(jobID).insert(JSON.parse(data).asInstanceOf[DBObject])
+      case _ => Path(output_file).createFile().appendAll(text + "\n")
+    }
     Map[String,Any]()
   }
 

@@ -1,7 +1,8 @@
 package com.raphtory.core.actors.PartitionManager.Workers
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message.KillTask
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
 import com.raphtory.core.actors.PartitionManager.Workers.AnalysisSubtaskWorker.State
@@ -35,8 +36,10 @@ final case class AnalysisSubtaskWorker(
     log.debug(
       s"AnalysisSubtaskWorker ${self.path} for Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is being started."
     )
-    taskManager ! AnalyserPresent
+    taskManager ! AnalyserPresent(self)
   }
+
+  override def postStop(): Unit = println(s"Worker $workerId for $jobId Killed")
 
   override def receive: Receive = work(State(0, 0, initManagerCount))
 
@@ -116,7 +119,11 @@ final case class AnalysisSubtaskWorker(
     case UpdatedCounter(newValue) =>
       context.become(work(state.copy(managerCount = newValue)))
 
+    case KillTask(jobID) => self ! PoisonPill
+
     case unhandled => log.error(s"Unexpected message [$unhandled].")
+
+
   }
 
   private def stepMetric(analyser: Analyser[Any]) =

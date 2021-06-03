@@ -1,6 +1,6 @@
 package com.raphtory.core.actors.AnalysisManager.Tasks
 
-import akka.actor.PoisonPill
+import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message
 import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
@@ -10,6 +10,8 @@ import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 import kamon.Kamon
 
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -28,7 +30,7 @@ abstract class AnalysisTask(
   private val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   //mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
-
+  private val workerList = ListBuffer[ActorRef]()
   private val maxStep: Int     = analyser.defineMaxSteps()
   private val workerCount: Int = managerCount * totalWorkers
 
@@ -70,7 +72,8 @@ abstract class AnalysisTask(
     case FailedToCompile(stackTrace) => //Your code is broke scrub
       log.info(s"$sender failed to compiled, stacktrace returned: \n $stackTrace")
 
-    case AnalyserPresent => //analyser confirmed to be present within workers, send setup request to workers
+    case AnalyserPresent(actor) => //analyser confirmed to be present within workers, send setup request to workers
+      workerList += actor
       if (readyCount + 1 == workerCount) {
         messageToAllReaderWorkers(TimeCheck)
         context.become(checkTime(None, List.empty, None))
@@ -90,7 +93,6 @@ abstract class AnalysisTask(
         currentRange.orElse(controller.nextRange(readyTime)) match {
           case Some(range) if range.timestamp <= readyTime =>
             log.info(s"Range $range for Job $jobId is ready to start")
-            println("hello")
             messagetoAllJobWorkers(SetupSubtask(jobId, range.timestamp, range.window))
             //messageToAllReaderWorkers(SetupSubtask(jobId, range.timestamp, range.window))
             context.become(waitAllReadyForSetupTask(SubtaskState(range, System.currentTimeMillis(), controller), 0))
@@ -113,7 +115,6 @@ abstract class AnalysisTask(
     withDefaultMessageHandler("ready for setup task") {
       case SetupSubtaskDone =>
         val newReadyCount = readyCount + 1
-        println(s"$newReadyCount")
         if (newReadyCount == workerCount) {
           messagetoAllJobWorkers(StartSubtask(jobId))
           context.become(preStepSubtask(subtaskState, 0, 0))
@@ -241,7 +242,7 @@ abstract class AnalysisTask(
     getAllReaderWorkers(managerCount).foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
 
   private def messagetoAllJobWorkers[T](msg:T):Unit =
-    getAllJobWorkers(managerCount,jobId).foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
+    workerList.foreach(worker => worker ! msg)
 
 
 
@@ -259,7 +260,7 @@ object AnalysisTask {
     case class CompileNewAnalyser(jobId: String, analyserRaw: String, args: List[String])
     case class LoadPredefinedAnalyser(jobId: String, className: String, args: List[String])
     case class FailedToCompile(stackTrace: String)
-    case object AnalyserPresent
+    case class AnalyserPresent(me:ActorRef)
 
     case object TimeCheck
     case class TimeResponse(time: Long)

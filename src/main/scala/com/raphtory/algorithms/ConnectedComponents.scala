@@ -28,8 +28,8 @@ class ConnectedComponents(args:Array[String]) extends Analyser[List[(Long, Int)]
         vertex.voteToHalt()
     }
 
-  override def returnResults(): Any = {
-    val x = view.getVertices()
+  override def returnResults(): List[(Long, Int)] = {
+    view.getVertices()
       .map(vertex => vertex.getState[Long]("cclabel"))
       .groupBy(f => f)
       .map(f => (f._1, f._2.size)).toList
