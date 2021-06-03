@@ -14,6 +14,7 @@ import com.raphtory.core.model.communication.VertexMessage
 import com.raphtory.core.model.communication.VertexMessageHandler
 import kamon.Kamon
 
+import scala.collection.mutable
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -36,18 +37,18 @@ final case class AnalysisSubtaskWorker(
     log.debug(
       s"AnalysisSubtaskWorker ${self.path} for Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is being started."
     )
-    taskManager ! AnalyserPresent(self)
+    taskManager ! AnalyserPresent((managerId,workerId),self)
   }
 
-  override def postStop(): Unit = println(s"Worker $workerId for $jobId Killed")
+  override def postStop(): Unit = log.info(s"Worker $workerId for $jobId Killed")
 
   override def receive: Receive = work(State(0, 0, initManagerCount))
 
   private def work(state: State): Receive = {
-    case SetupSubtask(_, timestamp, window) =>
+    case SetupSubtask(neighbours, timestamp, window) =>
       log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is SetupTaskWorker.")
       val initStep       = 0
-      val messageHandler = new VertexMessageHandler(mediator, state.managerCount,jobId)
+      val messageHandler = new VertexMessageHandler(neighbours, state.managerCount,jobId)
       val graphLens      = GraphLens(jobId, timestamp, window, initStep, workerId, storage, messageHandler)
       analyzer.sysSetup(graphLens, messageHandler, workerId)
       context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
