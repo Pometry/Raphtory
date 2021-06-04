@@ -74,7 +74,7 @@ object ResultsCompare extends App{
       println(incorrectResults)
     }
 
-    val timeResults = base.map(baseValue=> (((compare(baseValue._1).viewTime)-baseValue._2.viewTime).toDouble/baseValue._2.viewTime)*100)
+    val timeResults = base.map(baseValue=> ((compare(baseValue._1).viewTime).toDouble/baseValue._2.viewTime.toDouble)*100)
     val meanPercent = timeResults.sum/timeResults.size
     if(meanPercent<0)
       println(s"The second connected components run was on average $meanPercent% slower than the first")
