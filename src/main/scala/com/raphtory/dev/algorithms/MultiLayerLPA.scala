@@ -11,7 +11,7 @@ object MultiLayerLPA {
 }
 
 class MultiLayerLPA(args: Array[String]) extends LPA(args) {
-  //args = [top, weight, maxiter, start, end, layer-size, omega, stickiness prob, scaled]
+  //args = [top, weight, maxiter, start, end, layer-size, omega, stickiness prob, scaled, label initial prob]
   val snapshotSize: Long        = args(5).toLong
   val startTime: Long           = args(3).toLong
   val endTime: Long             = args(4).toLong
@@ -19,17 +19,18 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   val omega: String             = if (arg.length < 7) "1" else args(6)
   override val SP: Float = if (arg.length < 8) 0.2F else args(7).toFloat
   val scaled: Boolean = if (arg.length < 9) true else args(8).toBoolean
-  val filter: Float = if (arg.length < 10) 1.0F else args(9).toFloat
+  val commprob: Float = if (arg.length < 10) 1.0F else args(9).toFloat
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       // Assign random labels for all instances in time of a vertex as Map(ts, lab)
     val slabel = rnd.nextLong()
+      val prob = rnd.nextFloat()
       val tlabels =
         snapshots
           .filter(ts => vertex.aliveAtWithWindow(ts, snapshotSize))
 //          .map(ts => (ts, rnd.nextLong()))
-          .map(ts => (ts, slabel))
+          .map(ts => (ts, if ( prob < commprob) slabel else rnd.nextLong()))
           .toArray
       vertex.setState("mlpalabel", tlabels)
       val message = (vertex.ID(), tlabels.map(x => (x._1, x._2)))
@@ -111,10 +112,10 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
     }
 //    nei_weights =
       var nei_filt = nei_weights.toArray.sortBy(-_._2)
-      nei_filt = nei_filt.take((nei_weights.size*filter).toInt)
+//      nei_filt = nei_filt.take((nei_weights.size*filter).toInt)
 //    nei_weights
 
-      nei_filt = if (nei_filt.nonEmpty) nei_filt else nei_weights.toArray.take(1)
+//      nei_filt = if (nei_filt.nonEmpty) nei_filt else nei_weights.toArray.take(1)
       nei_filt.groupBy(_._1).mapValues(x => x.map(_._2).sum) // (ID -> Freq)
   }
 

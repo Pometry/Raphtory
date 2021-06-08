@@ -1,13 +1,10 @@
 package com.raphtory.dev.algorithms
 
-import com.github.mjakubowski84.parquet4s.ParquetWriter
-import com.raphtory.algorithms.{fd, sortOrdering}
 import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
 import org.apache.parquet.hadoop.ParquetFileWriter
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.{ParMap, immutable}
-import scala.collection.parallel.mutable.ParArray
 import scala.io.Source
 
 /**
@@ -22,10 +19,7 @@ class MultiLayerLPAparams(args: Array[String]) extends MultiLayerLPA(args) {
   val nodesf: String = if (arg.length < 11) url else args(10)
   val commlab: Array[String] = if (nodesf.isEmpty) Array[String]() else dllCommFile(nodesf)
 
-  def dllCommFile(url:String): Array[String] ={
-    val html = if(url.startsWith("http")) Source.fromURL(url) else Source.fromFile(url)
-    html.mkString.split("\n")
-  }
+
   override def selectiveProc(v: VertexVisitor, ts: Long, gp: Array[Long]): Unit = {
     val word = v.getPropertyValue("Word").get.asInstanceOf[String]
     if (commlab.contains(word)) {
@@ -40,24 +34,36 @@ class MultiLayerLPAparams(args: Array[String]) extends MultiLayerLPA(args) {
       .map(vertex =>
         (
           vertex.getPropertyValue("Word").getOrElse(vertex.ID()).toString,
-          vertex.getOrSetState[Map[Long, Array[Long]]]("neilab", Map[Long, Array[Long]]())
+          vertex.getOrSetState[Map[Long, Array[Long]]]("neilab", Map[Long, Array[Long]]()),
+          vertex.getState[Array[(Long, Long)]]("mlpalabel")
         )
       )
-      .flatMap(f => f._2.map(x => (f._1, x._1, x._2)))
-      //      .flatMap(f =>  f._1.toArray.map(x => (x._2._2, "\""+x._1.toString+f._2+"\"")))
+      .flatMap(f=> f._3.map(x=> (f._1, x._1, x._2, f._2.getOrElse(x._1,Array[Long]()))))
+//      .flatMap(f => f._2.map(x => (f._1, x._1, x._2)))
+//      //      .flatMap(f =>  f._1.toArray.map(x => (x._2._2, "\""+x._1.toString+f._2+"\"")))
       .groupBy(f => f._1)
-      .map(f => (f._1, f._2.map(x=>(x._2,x._3)).toArray))
+      .map(f => (f._1, f._2.map(x=>(x._2,x._3, x._4)).toArray))
+//      .map(f => (f._1, f._2.map(x=>(x._2,x._3)).toArray))
 
 
   override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[String, Array[(Long, Array[Long])]]]].flatten
-    val text = "{" + endResults.map { wd =>
-      val comts =  wd._2.map{cts=>
-        s""""${cts._1}": [ ${cts._2.mkString(",")} ]"""
+    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[String, Array[(Long, Long, Array[Long])]]]].flatten
+    val selc = "{" + endResults
+      .filter(x=> x._2.head._3.nonEmpty)
+      .map { wd =>
+      val comts =  wd._2.map{cts =>
+        s""""${cts._1}": [ ${cts._3.mkString(",")} ]"""
       }.mkString(",")
       s""""${wd._1}": { $comts } """
     }.mkString(",") + "}"
-//  println(text)
+
+    val comms = s"""[ ${endResults.flatMap(x=> x._2.map(f=>(f._2, x._1+"_"+f._1.toString)))
+      .groupBy(f => f._1).mapValues(x => x.map(_._2)).values
+      .map(x => s"""["${x.mkString("\",\"")}"]""")
+      .mkString(",")}]"""
+
+    val text = s""" {"communities": $comms, "selc": $selc } """
+//    println(text)
     writeOut(text, output_file)
   }
 
@@ -118,4 +124,9 @@ class MultiLayerLPAparams(args: Array[String]) extends MultiLayerLPA(args) {
 //        finally writer.close()
 //    }
 //  }
+
+  def dllCommFile(url:String): Array[String] ={
+    val html = if(url.startsWith("http")) Source.fromURL(url) else Source.fromFile(url)
+    html.mkString.split("\n")
+  }
 }
