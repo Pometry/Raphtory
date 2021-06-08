@@ -119,7 +119,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
                                      viewCompleteTime: Long
                                    ): Unit = {
     val er      = extractData(results)
-    val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
+    val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
     val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
       .mkString(",")}],"""+
       s""""communities": [${commtxt.mkString(",")}],"""+
