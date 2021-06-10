@@ -83,7 +83,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int) extends RaphtoryActor {
       log.debug(s"The cluster was started with [$managerCount] Partition Managers and [$minimumRouters] >= Routers.")
       state.copy(clusterUp = true)
     } else {
-      println(s"${state.roLiveMap.size} $minimumRouters ${state.pmLiveMap.size} $managerCount")
+      println(s"Cluster Starting: ${state.roLiveMap.size}/$minimumRouters Routers and ${state.pmLiveMap.size}/$managerCount Partitions Live")
       state
     }
   }

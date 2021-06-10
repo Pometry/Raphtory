@@ -8,7 +8,7 @@ object DegreeBasic{
   def apply() = new DegreeBasic(Array())
 }
 
-class DegreeBasic(args:Array[String]) extends Analyser[(Int, Int, Int, Array[(Int, Int, Int)])](args){
+class DegreeBasic(args:Array[String]) extends Analyser[(Int, Int, Int, Array[(Long, Int, Int)])](args){
   object sortOrdering extends Ordering[Int] {
     def compare(key1: Int, key2: Int) = key2.compareTo(key1)
   }
@@ -16,7 +16,7 @@ class DegreeBasic(args:Array[String]) extends Analyser[(Int, Int, Int, Array[(In
 
   override def setup(): Unit = {}
 
-  override def returnResults(): Any = {
+  override def returnResults(): (Int, Int, Int, Array[(Long, Int, Int)]) = {
     val degree = view.getVertices().map { vertex =>
       val outDegree = vertex.getOutEdges.size
       val inDegree  = vertex.getIncEdges.size
@@ -25,15 +25,14 @@ class DegreeBasic(args:Array[String]) extends Analyser[(Int, Int, Int, Array[(In
     val totalV   = degree.size
     val totalOut = degree.map(x => x._2).sum
     val totalIn  = degree.map(x => x._3).sum
-//    val topUsers = degree.toArray.sortBy(x => x._3)(sortOrdering).take(20)
-    (totalV, totalOut, totalIn)//, topUsers)
+    val topUsers = degree.toArray.sortBy(x => x._3)(sortOrdering).take(20)
+    (totalV, totalOut, totalIn, topUsers)
   }
 
   override def defineMaxSteps(): Int = 1
 
-  override def extractResults(results: List[(Int, Int, Int, Array[(Int, Int, Int)])]): Map[String, Any] = {
+  override def extractResults(results: List[(Int, Int, Int, Array[(Long, Int, Int)])]): Map[String, Any] = {
     val endResults  = results
-  //  val output_file = System.getenv().getOrDefault("PROJECT_OUTPUT", "/app/defout.csv").trim
     val totalVert   = endResults.map(x => x._1).sum
     val totalEdge   = endResults.map(x => x._3).sum
 

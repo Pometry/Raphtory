@@ -33,8 +33,7 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
     case CompileNewAnalyser(jobId, analyser, args) =>
       AnalyserUtils.compileNewAnalyser(analyser, args.toArray) match {
         case Success(analyser) =>
-          sender() ! AnalyserPresent
-          val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount)
+          val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount,sender())
         case Failure(e) =>
           sender ! FailedToCompile(e.getStackTrace.toString)
           log.error("fail to compile new analyser: " + e.getMessage)
@@ -43,8 +42,8 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
     case LoadPredefinedAnalyser(jobId, className, args) =>
       AnalyserUtils.loadPredefinedAnalyser(className, args.toArray) match {
         case Success(analyser) =>
-          sender() ! AnalyserPresent
-          val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount)
+          val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount,sender())
+
         case Failure(e) =>
           sender ! FailedToCompile(e.getStackTrace.toString)
           log.error("fail to compile predefined analyser: " + e.getMessage)
@@ -58,9 +57,9 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
     case unhandled =>
       log.error(s"ReaderWorker [$workerId] belonging to Reader [$managerId] received unknown [$unhandled].")
   }
-  private def buildSubtaskWorker(jobId: String, analyser: Analyser[Any], managerCount: Int): ActorRef =
+  private def buildSubtaskWorker(jobId: String, analyser: Analyser[Any], managerCount: Int,taskRef:ActorRef): ActorRef =
     context.system.actorOf(
-            Props(AnalysisSubtaskWorker(managerCount, managerId, workerId, storage, analyser, jobId))
+            Props(AnalysisSubtaskWorker(managerCount, managerId, workerId, storage, analyser, jobId,taskRef))
               .withDispatcher("reader-dispatcher"),
             s"Manager_${managerId}_reader_${workerId}_analysis_subtask_worker_$jobId"
     )
