@@ -100,7 +100,7 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
       //.filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.getState[Long]("lpalabel"), vertex.ID()))
       .groupBy(f => f._1)
-      .map(f => (f._1, f._2.map(_._2)))
+      .map(f => (f._1, f._2.map(_._2).toList))
 
   override def extractResults(results: List[Any]): Map[String, Any] = {
     val er      = extractData(results)
@@ -116,7 +116,7 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
   }
 
   def extractData(results: List[Any]): fd = {
-    val endResults = results.asInstanceOf[List[immutable.ParHashMap[Long, ParArray[String]]]]
+    val endResults = results.asInstanceOf[List[immutable.ParHashMap[Long, List[String]]]]
     try {
       val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
       val groupedNonIslands   = grouped.filter(x => x._2.size > 1)
