@@ -128,5 +128,5 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       .flatMap(f => f._1.map(x => (x._2, f._2 + "_" + x._1.toString)))
       //      .flatMap(f =>  f._1.toArray.map(x => (x._2._2, "\""+x._1.toString+f._2+"\"")))
       .groupBy(f => f._1)
-      .map(f => (f._1, f._2.map(_._2)))
+      .map(f => (f._1, f._2.map(_._2).toList))
 }
