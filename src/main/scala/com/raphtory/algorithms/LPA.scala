@@ -104,10 +104,10 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
 
   override def extractResults(results: List[Any]): Map[String, Any] = {
     val er      = extractData(results)
-    val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
+    val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
     val text = s"""{"top5":[${er.top5
       .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
-       s"""communities": [${commtxt.mkString(",")}]}"""
+       s""""communities": [${commtxt.mkString(",")}]}"""
     output_file match {
       case "" => println(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
