@@ -34,7 +34,7 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
   override def preStart() {
     log.debug("Spout is being started.")
     mediator ! DistributedPubSubMediator.Put(self)
-    context.system.scheduler.scheduleOnce(7 seconds, self, StateCheck)
+    context.system.scheduler.schedule(10 seconds,1 seconds, self, StateCheck)
     context.system.scheduler.scheduleOnce(1 seconds, self, IsSafe)
   }
 
@@ -45,7 +45,6 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
     case StateCheck => processStateCheckMessage(safe)
     case ClusterStatusResponse(clusterUp,pmCounter,rmCounter) =>
       context.become(work(clusterUp,pmCounter,rmCounter))
-      context.system.scheduler.scheduleOnce(1 second, self, StateCheck)
     case IsSafe    => processIsSafeMessage(safe,pmCounter,rmCounter)
     case WorkPlease => processWorkPlease()
     case unhandled => log.error(s"Unable to handle message [$unhandled].")

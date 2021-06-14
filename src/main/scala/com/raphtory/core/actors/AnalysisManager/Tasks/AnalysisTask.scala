@@ -161,9 +161,11 @@ abstract class AnalysisTask(
       val newTotalSentMessage     = totalSentMessage + sentMessages
       if (newReadyCount == workerCount)
         if (newTotalReceivedMessage == newTotalSentMessage) {
+          println(s"Received total $newTotalReceivedMessage sent total $newTotalSentMessage")
           messagetoAllJobWorkers(SetupNextStep(jobId))
           context.become(waitAllReadyForNextStep(subtaskState, 0))
         } else {
+          println(s"not finished: Received total $newTotalReceivedMessage sent total $newTotalSentMessage")
           messagetoAllJobWorkers(CheckMessages(jobId))
           context.become(checkMessages(subtaskState, 0, 0, 0))
         }
