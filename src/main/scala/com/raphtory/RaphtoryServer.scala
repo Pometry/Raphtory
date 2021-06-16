@@ -36,15 +36,16 @@ object RaphtoryServer extends App {
     case "partitionManager" => partition()
     case "spout" => spout()
     case "analysisManager" =>analysis()
-    case "watchdog" => watchDog()
     case "local" => local()
   }
 
   def seedNode() = {
     val seedLoc = s"${sys.env.getOrElse("HOST_IP","127.0.0.1")}:${conf.getInt("settings.bport")}"
-    println(s"Creating seed node at $seedLoc")
+    println(s"Creating seed node and watchdog at $seedLoc")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
     system.actorOf(Props(new SeedActor()), "cluster")
+    system.actorOf(Props(new WatermarkManager(managerCount = partitionCount)),"WatermarkManager")
+    system.actorOf(Props(new WatchDog(managerCount = partitionCount, minimumRouters = routerCount)), "WatchDog")
   }
 
   def router() = {
@@ -76,14 +77,6 @@ object RaphtoryServer extends App {
     system.actorOf(Props[AnalysisManager].withDispatcher("misc-dispatcher"), s"AnalysisManager")
     AnalysisRestApi(system)
   }
-
-  def watchDog() = {
-    println("Creating Watchdog")
-    implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
-    system.actorOf(Props(new WatermarkManager(managerCount = partitionCount)),"WatermarkManager")
-    system.actorOf(Props(new WatchDog(managerCount = partitionCount, minimumRouters = routerCount)), "WatchDog")
-  }
-
 
   def local() = {
     println("putting up cluster in one node")
