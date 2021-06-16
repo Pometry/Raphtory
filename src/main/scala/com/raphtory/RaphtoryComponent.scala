@@ -33,13 +33,14 @@ class RaphtoryComponent(component:String,partitionCount:Int,routerCount:Int,port
     case "partitionManager" => partition()
     case "spout" => spout()
     case "analysisManager" =>analysis()
-    case "watchdog" => watchDog()
   }
   def seedNode() = {
     val seedLoc = s"127.0.0.1:$port"
-    println(s"Creating seed node at $seedLoc")
+    println(s"Creating seed node and watchdog at $seedLoc")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
     system.actorOf(Props(new SeedActor()), "cluster")
+    system.actorOf(Props(new WatermarkManager(managerCount = partitionCount)),"WatermarkManager")
+    system.actorOf(Props(new WatchDog(managerCount = partitionCount, minimumRouters = routerCount)), "WatchDog")
   }
   def initialiseActorSystem(seeds: List[String]): ActorSystem = {
     var config = ConfigFactory.load()
@@ -87,12 +88,6 @@ class RaphtoryComponent(component:String,partitionCount:Int,routerCount:Int,port
     system.actorOf(Props[AnalysisManager].withDispatcher("misc-dispatcher"), s"AnalysisManager")
   }
 
-  def watchDog() = {
-    println("Cluster Up, informing Partition Managers and Routers")
-    implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
-    system.actorOf(Props(new WatermarkManager(managerCount = partitionCount)),"WatermarkManager")
-    system.actorOf(Props(new WatchDog(managerCount = partitionCount, minimumRouters = routerCount)), "WatchDog")
-  }
 }
 
 
