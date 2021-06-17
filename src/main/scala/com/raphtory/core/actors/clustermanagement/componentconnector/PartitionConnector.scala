@@ -14,6 +14,7 @@ import scala.concurrent.Future
 
 class PartitionConnector(managerCount: Int, routerCount:Int) extends ComponentConnector(initialManagerCount = managerCount,initialRouterCount = routerCount) {
   override def callTheWatchDog(): Future[Any] = {
+    log.debug(s"Attempting to retrieve Partition Id from WatchDog.")
     mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionId, localAffinity = false)
   }
 

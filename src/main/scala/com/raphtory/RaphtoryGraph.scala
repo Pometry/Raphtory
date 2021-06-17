@@ -1,9 +1,10 @@
 package com.raphtory
 
 import akka.actor.{ActorSystem, Props}
+import com.raphtory.RaphtoryServer.{partitionCount, routerCount}
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.clustermanagement.componentconnector.{PartitionConnector, RouterConnector}
+import com.raphtory.core.actors.clustermanagement.componentconnector.{PartitionConnector, RouterConnector, SpoutConnector}
 import com.raphtory.core.actors.clustermanagement.{WatchDog, WatermarkManager}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
@@ -33,7 +34,7 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   system.actorOf(Props(new WatermarkManager(partitionNumber)),"WatermarkManager")
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
 
-  system.actorOf(Props(new SpoutAgent(spout)), "Spout")
+  system.actorOf(Props(new SpoutConnector(partitionCount,routerCount,spout)), "PartitionManager")
   system.actorOf(Props(new RouterConnector( partitionNumber, minimumRouters,graphBuilder)), s"Routers")
   system.actorOf(Props(new PartitionConnector(partitionNumber,minimumRouters)), s"PartitionManager")
 
