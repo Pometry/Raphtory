@@ -2,7 +2,7 @@ package com.raphtory.core.actors.spout
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.clustermanagement.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
+import com.raphtory.core.actors.clustermanagement.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, PartitionUp, SpoutUp}
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.spout.SpoutAgent.CommonMessage._
 import com.raphtory.core.model.communication._
@@ -65,6 +65,7 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
 
   private def processIsSafeMessage(safe: Boolean,pmCount:Int,roCount:Int): Unit = {
     log.debug(s"Spout is handling [IsSafe] message.")
+    mediator ! DistributedPubSubMediator.Send("/user/WatchDog", SpoutUp(0), localAffinity = false)
     if (safe) {
       datasource.setupDataSource()
       partitionManagers=pmCount

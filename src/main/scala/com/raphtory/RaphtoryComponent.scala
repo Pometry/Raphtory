@@ -1,8 +1,9 @@
 package com.raphtory
 import akka.actor.{ActorSystem, Props}
 import com.esotericsoftware.kryo.Kryo
+import com.raphtory.RaphtoryServer.{partitionCount, routerCount}
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.clustermanagement.componentconnector.{PartitionConnector, RouterConnector}
+import com.raphtory.core.actors.clustermanagement.componentconnector.{PartitionConnector, RouterConnector, SpoutConnector}
 import com.raphtory.core.actors.clustermanagement.{SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
@@ -71,7 +72,7 @@ class RaphtoryComponent(component:String,partitionCount:Int,routerCount:Int,port
     println("Creating Update Generator")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
     val spout = Class.forName(classPath).getConstructor().newInstance().asInstanceOf[Spout[Any]]
-    system.actorOf(Props(new SpoutAgent(spout)), "Spout")
+    system.actorOf(Props(new SpoutConnector(partitionCount,routerCount,spout)), "PartitionManager")
   }
 
   def analysis() = {

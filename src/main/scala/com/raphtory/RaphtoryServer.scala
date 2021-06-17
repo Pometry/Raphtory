@@ -8,7 +8,7 @@ import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.clustermanagement.componentconnector.{PartitionConnector, RouterConnector}
+import com.raphtory.core.actors.clustermanagement.componentconnector.{PartitionConnector, RouterConnector, SpoutConnector}
 import com.raphtory.core.actors.clustermanagement.{SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
@@ -69,7 +69,8 @@ object RaphtoryServer extends App {
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
     val spoutPath = s"${sys.env.getOrElse("SPOUT", "")}"
     val spout = Class.forName(spoutPath).getConstructor().newInstance().asInstanceOf[Spout[Any]]
-    system.actorOf(Props(new SpoutAgent(spout)), "Spout")
+    system.actorOf(Props(new SpoutConnector(partitionCount,routerCount,spout)), "PartitionManager")
+
   }
 
   def analysis() = {
