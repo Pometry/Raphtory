@@ -1,23 +1,15 @@
 package com.raphtory
-import java.lang.management.ManagementFactory
-import java.net.InetAddress
-
-import akka.actor.{ActorSystem, Address, ExtendedActorSystem, Props}
-import akka.event.LoggingAdapter
-import akka.management.cluster.bootstrap.ClusterBootstrap
-import akka.management.javadsl.AkkaManagement
+import akka.actor.{ActorSystem, Props}
 import com.esotericsoftware.kryo.Kryo
-import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.ClusterManagement.componentConnector.{PartitionConnector, RouterConnector}
-import com.raphtory.core.actors.ClusterManagement.{SeedActor, WatchDog, WatermarkManager}
-import com.raphtory.core.actors.Router.GraphBuilder
-import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
-import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory}
+import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
+import com.raphtory.core.actors.clustermanagement.componentconnector.{PartitionConnector, RouterConnector}
+import com.raphtory.core.actors.clustermanagement.{SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.graphbuilder.GraphBuilder
+import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 
 import scala.collection.JavaConversions
-import scala.collection.JavaConversions._
 import scala.language.postfixOps
-import scala.sys.process._
 //main function
 class RaphtoryComponent(component:String,partitionCount:Int,routerCount:Int,port:Int,classPath:String="") {
   val conf    = ConfigFactory.load()

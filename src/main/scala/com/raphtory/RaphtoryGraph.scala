@@ -1,12 +1,12 @@
 package com.raphtory
 
 import akka.actor.{ActorSystem, Props}
-import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi.message._
-import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.ClusterManagement.componentConnector.{PartitionConnector, RouterConnector}
-import com.raphtory.core.actors.ClusterManagement.{WatchDog, WatermarkManager}
-import com.raphtory.core.actors.Router.GraphBuilder
-import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
+import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
+import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
+import com.raphtory.core.actors.clustermanagement.componentconnector.{PartitionConnector, RouterConnector}
+import com.raphtory.core.actors.clustermanagement.{WatchDog, WatermarkManager}
+import com.raphtory.core.actors.graphbuilder.GraphBuilder
+import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 
 object RaphtoryGraph {

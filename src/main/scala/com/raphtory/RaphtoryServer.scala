@@ -7,11 +7,11 @@ import akka.actor.{ActorSystem, Address, ExtendedActorSystem, Props}
 import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
-import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.ClusterManagement.componentConnector.{PartitionConnector, RouterConnector}
-import com.raphtory.core.actors.ClusterManagement.{SeedActor, WatchDog, WatermarkManager}
-import com.raphtory.core.actors.Router.GraphBuilder
-import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
+import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
+import com.raphtory.core.actors.clustermanagement.componentconnector.{PartitionConnector, RouterConnector}
+import com.raphtory.core.actors.clustermanagement.{SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.graphbuilder.GraphBuilder
+import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory}
 
 import scala.collection.JavaConversions

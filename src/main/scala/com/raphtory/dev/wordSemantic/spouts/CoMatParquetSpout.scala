@@ -2,7 +2,7 @@ package com.raphtory.dev.wordSemantic.spouts
 
 import java.io.File
 
-import com.raphtory.core.actors.Spout.Spout
+import com.raphtory.core.actors.spout.Spout
 import com.typesafe.scalalogging.LazyLogging
 import com.github.mjakubowski84.parquet4s.ParquetReader
 
