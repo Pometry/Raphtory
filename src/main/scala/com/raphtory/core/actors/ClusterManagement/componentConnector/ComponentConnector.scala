@@ -1,18 +1,14 @@
-package com.raphtory.core.actors.ClusterManagement
+package com.raphtory.core.actors.ClusterManagement.componentConnector
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
+import akka.actor.{ActorRef, Cancellable, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
 import com.raphtory.core.actors.ClusterManagement.WatchDog.Message.{AssignedId, PartitionsCount, RequestPartitionId, RequestRouterId}
 import com.raphtory.core.actors.PartitionManager.Workers.IngestionWorker
 import com.raphtory.core.actors.PartitionManager.{Reader, Writer}
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.Router.{GraphBuilder, RouterManager}
 import com.raphtory.core.model.EntityStorage
-import com.raphtory.core.model.communication._
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -20,19 +16,12 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 
-object RaphtoryReplicator {
-  def apply[T](actorType: String, initialManagerCount: Int,initialRouterCount:Int, graphBuilder: GraphBuilder[T]): RaphtoryReplicator[T] =
-    new RaphtoryReplicator(actorType, initialManagerCount,initialRouterCount, graphBuilder)
 
-  def apply[T](actorType: String, initialManagerCount: Int,initialRouterCount:Int): RaphtoryReplicator[T] =
-    new RaphtoryReplicator(actorType, initialManagerCount,initialRouterCount, null)
+case class UpdatedCounter(newValue: Int)
 
-  object Message {
-    case class UpdatedCounter(newValue: Int)
-  }
-}
 
-class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initialRouterCount:Int, graphBuilder: GraphBuilder[T])
+
+abstract class ComponentConnector(initialManagerCount: Int, initialRouterCount:Int, initialSpoutCount:Int=1,initialAnalysisManagerCount:Int=1)
         extends RaphtoryActor {
 
   // TODO Make implicit timeouts as secondary (curried), optional implicit parameter
@@ -48,6 +37,10 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
+
+  def callTheWatchDog(): Future[Any]
+
+  def giveBirth(assignedId: Int): Unit
 
   override def preStart(): Unit = {
     log.debug("Replicator [{}] is being started.")
@@ -102,63 +95,6 @@ class RaphtoryReplicator[T](actorType: String, initialManagerCount: Int, initial
         actorRef ! UpdatedCounter(currentCount)
     }
   }
-
-  def callTheWatchDog(): Future[Any] = {
-    log.debug(s"Attempting to retrieve Replicator Id from WatchDog.")
-
-    val watchDogPath = "/user/WatchDog"
-
-    actorType match {
-      case "Partition Manager" =>
-        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestPartitionId, localAffinity = false)
-      case "Router" =>
-        mediator ? DistributedPubSubMediator.Send(watchDogPath, RequestRouterId, localAffinity = false)
-    }
-  }
-
-  def giveBirth(assignedId: Int): Unit = {
-    log.debug(s"Attempting to instantiate new [{}].", actorType)
-
-    actorType match {
-      case "Partition Manager" => createNewPartitionManager(assignedId)
-      case "Router" => createNewRouter(assignedId)
-    }
-  }
-
-  // TODO Expose 10 in range to be a class parameter
-  def createNewPartitionManager(assignedId: Int): Unit = {
-    log.info(s"Partition Manager $assignedId has come online.")
-
-    var workers: ParTrieMap[Int, ActorRef]       = new ParTrieMap[Int, ActorRef]()
-    var storages: ParTrieMap[Int, EntityStorage] = new ParTrieMap[Int, EntityStorage]()
-
-    for (index <- 0 until totalWorkers) {
-      val storage     = new EntityStorage(currentCount,assignedId,index)
-      storages.put(index, storage)
-
-      val managerName = s"Manager_${assignedId}_child_$index"
-      workers.put(
-              index,
-              context.system
-                .actorOf(Props(new IngestionWorker(index,assignedId, storage,currentCount)).withDispatcher("worker-dispatcher"), managerName)
-      )
-    }
-
-    actorRef = context.system.actorOf(Props(new Writer(myId,  currentCount, workers, storages)), s"Manager_$myId")
-
-    actorRefReader = context.system.actorOf(Props(new Reader(myId,  currentCount, storages)), s"ManagerReader_$myId")
-
-  }
-
-  def createNewRouter(assignedId: Int): Unit = {
-    log.info(s"Router $assignedId has come online.")
-
-    actorRef = context.system.actorOf(
-      Props(new RouterManager(myId, currentCount, initialRouterCount, graphBuilder)).withDispatcher("misc-dispatcher"),
-      "router"
-    )
-  }
-
 
   private def scheduleTasks(): Unit = {
     log.debug("Preparing to schedule tasks in Replicator.")

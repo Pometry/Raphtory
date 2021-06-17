@@ -3,7 +3,8 @@ package com.raphtory
 import akka.actor.{ActorSystem, Props}
 import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi.message._
 import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.ClusterManagement.componentConnector.{PartitionConnector, RouterConnector}
+import com.raphtory.core.actors.ClusterManagement.{WatchDog, WatermarkManager}
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
@@ -33,8 +34,8 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
 
   system.actorOf(Props(new SpoutAgent(spout)), "Spout")
-  system.actorOf(Props(RaphtoryReplicator.apply("Router", partitionNumber, minimumRouters,graphBuilder)), s"Routers")
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager", partitionNumber,minimumRouters)), s"PartitionManager")
+  system.actorOf(Props(new RouterConnector( partitionNumber, minimumRouters,graphBuilder)), s"Routers")
+  system.actorOf(Props(new PartitionConnector(partitionNumber,minimumRouters)), s"PartitionManager")
 
   val analysisManager = system.actorOf(Props[AnalysisManager].withDispatcher("misc-dispatcher"), s"AnalysisManager")
   AnalysisRestApi(system)

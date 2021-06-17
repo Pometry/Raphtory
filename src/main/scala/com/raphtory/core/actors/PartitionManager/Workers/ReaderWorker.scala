@@ -4,13 +4,10 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message.KillTask
 import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
-import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.model.EntityStorage
-import com.raphtory.core.model.communication._
 import com.raphtory.core.utils.AnalyserUtils
 
 import scala.util.Failure
