@@ -30,13 +30,17 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
   mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart() {
-    context.system.scheduler.scheduleOnce(Duration(5, SECONDS), self, StartUp)
+    context.system.scheduler.schedule(Duration(5, SECONDS),Duration(5, SECONDS), self, StartUp)
   }
 
   override def receive: Receive = init()
 
   def init(): Receive = {
     case StartUp =>
+      mediator ! new DistributedPubSubMediator.Send(
+        "/user/WatchDog",
+        AnalysisManagerUp(0)
+      ) //ask if the cluster is safe to use
       mediator ! new DistributedPubSubMediator.Send(
               "/user/WatchDog",
               ClusterStatusRequest
