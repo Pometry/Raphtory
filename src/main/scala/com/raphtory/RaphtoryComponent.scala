@@ -8,7 +8,8 @@ import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
 import com.esotericsoftware.kryo.Kryo
 import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.ClusterManagement.componentConnector.{PartitionConnector, RouterConnector}
+import com.raphtory.core.actors.ClusterManagement.{SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory}
@@ -65,13 +66,13 @@ class RaphtoryComponent(component:String,partitionCount:Int,routerCount:Int,port
     println("Creating Router")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
     val graphBuilder = Class.forName(classPath).getConstructor().newInstance().asInstanceOf[GraphBuilder[Any]]
-    system.actorOf(Props(RaphtoryReplicator("Router", partitionCount, routerCount,graphBuilder)), "Routers")
+    system.actorOf(Props(new RouterConnector(partitionCount, routerCount,graphBuilder)), "Routers")
   }
 
   def partition() = {
     println(s"Creating Partition Manager...")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
-    system.actorOf(Props(RaphtoryReplicator(actorType = "Partition Manager", initialManagerCount = partitionCount,initialRouterCount = routerCount)), "PartitionManager")
+    system.actorOf(Props(new PartitionConnector(partitionCount,routerCount)), "PartitionManager")
   }
 
   def spout() = {

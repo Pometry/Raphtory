@@ -8,7 +8,8 @@ import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
 import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.ClusterManagement.componentConnector.{PartitionConnector, RouterConnector}
+import com.raphtory.core.actors.ClusterManagement.{SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.Router.GraphBuilder
 import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory}
@@ -54,13 +55,13 @@ object RaphtoryServer extends App {
 
     val builderPath  = s"${sys.env.getOrElse("GRAPHBUILDER", "")}"
     val graphBuilder = Class.forName(builderPath).getConstructor().newInstance().asInstanceOf[GraphBuilder[Any]]
-    system.actorOf(Props(RaphtoryReplicator("Router", partitionCount, routerCount,graphBuilder)), "Routers")
+    system.actorOf(Props(new RouterConnector(partitionCount, routerCount,graphBuilder)), "Routers")
   }
 
   def partition() = {
     println(s"Creating Partition Manager...")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
-    system.actorOf(Props(RaphtoryReplicator(actorType = "Partition Manager", initialManagerCount = partitionCount,initialRouterCount = routerCount)), "PartitionManager")
+    system.actorOf(Props(new PartitionConnector(partitionCount,routerCount)), "PartitionManager")
   }
 
   def spout() = {
