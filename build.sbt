@@ -100,7 +100,7 @@ lazy val basicSettings = Seq(
                 "-unchecked"
         ),
         testOptions in Test += Tests.Argument("-oDF"),
-        version := "latest"
+        version := "post"
 )
 
 lazy val dockerStuff = Seq(
