@@ -19,7 +19,10 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   override val SP: Float = if (arg.length < 8) 0.2F else args(7).toFloat
   val scaled: Boolean = if (arg.length < 9) true else args(8).toBoolean
   val commprob: Float = if (arg.length < 10) 1.0F else args(9).toFloat
+//  val TMP: Long = if (arg.length < 11) 1000L else args(10).toLong
+  var countvote: Long = 0L
 
+  var lastManStanding = (0L, -1L, -1L, -1)
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       // Assign random labels for all instances in time of a vertex as Map(ts, lab)
@@ -38,11 +41,17 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
 
   override def analyse(): Unit = {
     val t1 = System.currentTimeMillis()
+    lastManStanding = (0L, -1L, -1L, -1)
     view.getMessagedVertices().foreach { vertex =>
+
       val vlabel    = vertex.getState[Array[(Long, Long)]]("mlpalabel").toMap
       val msgQueue  = vertex.messageQueue[(Long, List[(Long, Long)])]
+      var voteStatus = vertex.getOrSetState[Int]("vote", 0)
       var voteCount = 0
-      val newLabel = vlabel.map { tv =>
+      val newLabel = if (voteStatus > 3) {
+        voteCount = vlabel.size
+        vlabel.toArray
+      } else vlabel.map { tv =>
         val ts     = tv._1
         val Curlab = tv._2
         // Get weights/labels of neighbours of vertex at time ts
@@ -68,8 +77,17 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
         } else Curlab
 
         // Update node label and broadcast
-        if (newlab == Curlab) voteCount += 1
-        newlab = if (rnd.nextFloat() < SP) Curlab else newlab
+        val prob = scala.util.Random.nextFloat()
+        if (newlab == Curlab) {
+          voteCount += 1
+        }else{
+          lastManStanding = (vertex.ID(), Curlab, newlab, voteStatus)
+        }
+//        if ((vertex.ID()%TMP==0L)) println(s"--- ${vertex.ID()} k: $Curlab k+1: $newlab" )
+
+        newlab = if (prob < SP) Curlab else newlab
+//        if ((vertex.ID()%TMP==0L)) println(s"--- ${vertex.ID()}: $prob ? $SP -> ${prob < SP} $Curlab $newlab" )
+
         (ts,newlab)
       }.toArray
 
@@ -78,12 +96,20 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       vertex.messageAllNeighbours(message)
 
       // Vote to halt if all instances of vertex haven't changed their labels
-      if (voteCount == vlabel.size) vertex.voteToHalt()
+      if (voteCount == vlabel.size) {
+        voteStatus += 1
+        vertex.voteToHalt()
+      }else{
+        voteStatus = 0
+        countvote += 1L
+      }
+      vertex.setState("vote", voteStatus)
     }
-        if (workerID==1)
+//        if (workerID==1)
           println(
-                  s"Superstep: ${view.superStep}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
+                  s"Superstep: ${view.superStep} \t WiD: $workerID \t Still processing: $countvote \t Status: ${lastManStanding} "//${System.currentTimeMillis() - t1}"
           )
+    countvote = 0L
   }
   def selectiveProc(v: Vertex, ts: Long, gp: Array[Long]): Unit = {}
   def interLayerWeights(x: String, v: Vertex, ts: Long): Float =
