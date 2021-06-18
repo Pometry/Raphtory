@@ -1,11 +1,11 @@
-package com.raphtory.core.actors.AnalysisManager.Tasks
+package com.raphtory.core.actors.analysismanager.tasks
 
 import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message
-import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
-import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
-import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.SubtaskState
+import com.raphtory.core.actors.analysismanager.AnalysisManager.Message
+import com.raphtory.core.actors.analysismanager.AnalysisManager.Message._
+import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
+import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.SubtaskState
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 import kamon.Kamon
@@ -161,11 +161,9 @@ abstract class AnalysisTask(
       val newTotalSentMessage     = totalSentMessage + sentMessages
       if (newReadyCount == workerCount)
         if (newTotalReceivedMessage == newTotalSentMessage) {
-          println(s"Received total $newTotalReceivedMessage sent total $newTotalSentMessage")
           messagetoAllJobWorkers(SetupNextStep(jobId))
           context.become(waitAllReadyForNextStep(subtaskState, 0))
         } else {
-          println(s"not finished: Received total $newTotalReceivedMessage sent total $newTotalSentMessage")
           messagetoAllJobWorkers(CheckMessages(jobId))
           context.become(checkMessages(subtaskState, 0, 0, 0))
         }

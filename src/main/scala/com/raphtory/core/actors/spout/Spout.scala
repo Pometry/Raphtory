@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.Spout
+package com.raphtory.core.actors.spout
 
 
 trait Spout[+T]{

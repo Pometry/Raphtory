@@ -1,6 +1,6 @@
 package com.raphtory.dev.allcommands
 
-import com.raphtory.core.actors.Spout.Spout
+import com.raphtory.core.actors.spout.Spout
 
 import scala.util.Random
 

@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.AnalysisManager
+package com.raphtory.core.actors.analysismanager
 
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -6,12 +6,12 @@ import akka.actor.Props
 import akka.actor.Stash
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message.{JobKilled, _}
-import com.raphtory.core.actors.AnalysisManager.AnalysisManager.State
-import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi.message._
-import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message.FailedToCompile
-import com.raphtory.core.actors.AnalysisManager.Tasks.Subtasks._
-import com.raphtory.core.actors.ClusterManagement.WatchDog.Message._
+import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.{JobKilled, _}
+import com.raphtory.core.actors.analysismanager.AnalysisManager.State
+import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
+import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message.FailedToCompile
+import com.raphtory.core.actors.analysismanager.tasks.subtasks._
+import com.raphtory.core.actors.clustermanagement.WatchDog.Message._
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser, LoadExternalAnalyser}
 import com.raphtory.core.utils.AnalyserUtils
@@ -30,13 +30,17 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
   mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart() {
-    context.system.scheduler.scheduleOnce(Duration(5, SECONDS), self, StartUp)
+    context.system.scheduler.schedule(Duration(5, SECONDS),Duration(5, SECONDS), self, StartUp)
   }
 
   override def receive: Receive = init()
 
   def init(): Receive = {
     case StartUp =>
+      mediator ! new DistributedPubSubMediator.Send(
+        "/user/WatchDog",
+        AnalysisManagerUp(0)
+      ) //ask if the cluster is safe to use
       mediator ! new DistributedPubSubMediator.Send(
               "/user/WatchDog",
               ClusterStatusRequest

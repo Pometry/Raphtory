@@ -1,11 +1,11 @@
-package com.raphtory.core.actors.PartitionManager.Workers
+package com.raphtory.core.actors.partitionmanager.workers
 
 import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.ClusterManagement.WatermarkManager.Message._
-import com.raphtory.core.actors.PartitionManager.Workers.IngestionWorker.Message.Watermark
+import com.raphtory.core.actors.clustermanagement.WatermarkManager.Message._
+import com.raphtory.core.actors.partitionmanager.workers.IngestionWorker.Message.Watermark
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.Router.RouterWorker.CommonMessage.RouterWorkerTimeSync
+import com.raphtory.core.actors.graphbuilder.RouterWorker.CommonMessage.RouterWorkerTimeSync
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
 import kamon.Kamon

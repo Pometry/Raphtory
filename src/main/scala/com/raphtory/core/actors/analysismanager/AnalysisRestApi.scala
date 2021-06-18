@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.AnalysisManager
+package com.raphtory.core.actors.analysismanager
 
 import akka.actor._
 import akka.cluster.pubsub._
@@ -9,9 +9,9 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import com.raphtory.core.actors.AnalysisManager.AnalysisManager.Message._
-import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi.http._
-import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi.message._
+import com.raphtory.core.actors.analysismanager.AnalysisManager.Message._
+import com.raphtory.core.actors.analysismanager.AnalysisRestApi.http._
+import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
 import spray.json.DefaultJsonProtocol._
 import spray.json.RootJsonFormat
 

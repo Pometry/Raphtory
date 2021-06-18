@@ -1,6 +1,6 @@
 package com.raphtory.dev.allcommands
 
-import com.raphtory.core.actors.Router.GraphBuilder
+import com.raphtory.core.actors.graphbuilder.GraphBuilder
 import com.raphtory.core.model.communication._
 import spray.json._
 
