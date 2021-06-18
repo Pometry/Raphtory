@@ -3,7 +3,7 @@ package com.raphtory.core.analysis
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.PartitionManager.Workers.AnalysisSubtaskWorker
+import com.raphtory.core.actors.partitionmanager.workers.AnalysisSubtaskWorker
 import com.raphtory.core.analysis.entity.Vertex
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandler}

@@ -1,17 +1,17 @@
-package com.raphtory.core.actors.Router
+package com.raphtory.core.actors.graphbuilder
 
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.util.Timeout
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.Router.RouterWorker.CommonMessage.{DataFinishedSync, RouterWorkerTimeSync, StartUp, TimeBroadcast}
-import com.raphtory.core.actors.Router.RouterWorker.State
-import com.raphtory.core.actors.Spout.SpoutAgent.CommonMessage.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
+import com.raphtory.core.actors.graphbuilder.RouterWorker.CommonMessage.{DataFinishedSync, RouterWorkerTimeSync, StartUp, TimeBroadcast}
+import com.raphtory.core.actors.graphbuilder.RouterWorker.State
+import com.raphtory.core.actors.spout.SpoutAgent.CommonMessage.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.model.communication._
 import kamon.Kamon
 import akka.pattern.ask
-import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
-import com.raphtory.core.actors.ClusterManagement.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
+import com.raphtory.core.actors.clustermanagement.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
+import com.raphtory.core.actors.clustermanagement.componentconnector.UpdatedCounter
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap

@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.Router
+package com.raphtory.core.actors.graphbuilder
 
 import com.raphtory.core.model.communication._
 
@@ -8,7 +8,7 @@ trait GraphBuilder[T] {
 
   private var updates: List[GraphUpdate] = List.empty
 
-  private[Router] def getUpdates(tuple: T): List[GraphUpdate] = {
+  private[graphbuilder] def getUpdates(tuple: T): List[GraphUpdate] = {
     try parseTuple(tuple)
     catch {
       case e: Exception => println(s"Tuple broken: $tuple")

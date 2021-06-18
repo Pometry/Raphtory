@@ -1,8 +1,8 @@
-package com.raphtory.core.actors.ClusterManagement
+package com.raphtory.core.actors.clustermanagement
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.ClusterManagement.WatermarkManager.Message._
+import com.raphtory.core.actors.clustermanagement.WatermarkManager.Message._
 import com.raphtory.core.actors.RaphtoryActor
 import kamon.Kamon
 

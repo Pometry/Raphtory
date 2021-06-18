@@ -1,11 +1,11 @@
-package com.raphtory.core.actors.PartitionManager
+package com.raphtory.core.actors.partitionmanager
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
-import com.raphtory.core.actors.AnalysisManager.Tasks.AnalysisTask.Message._
-import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
-import com.raphtory.core.actors.PartitionManager.Workers.ReaderWorker
+import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
+import com.raphtory.core.actors.clustermanagement.componentconnector.UpdatedCounter
+import com.raphtory.core.actors.partitionmanager.workers.ReaderWorker
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._

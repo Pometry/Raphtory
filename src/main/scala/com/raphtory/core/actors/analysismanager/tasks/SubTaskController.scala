@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.AnalysisManager.Tasks
+package com.raphtory.core.actors.analysismanager.tasks
 
 import scala.collection.immutable.NumericRange
 

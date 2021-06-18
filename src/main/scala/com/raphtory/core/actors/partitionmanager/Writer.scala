@@ -1,10 +1,10 @@
-package com.raphtory.core.actors.PartitionManager
+package com.raphtory.core.actors.partitionmanager
 
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.ClusterManagement.RaphtoryReplicator.Message.UpdatedCounter
-import com.raphtory.core.actors.ClusterManagement.WatchDog.Message.PartitionUp
+import com.raphtory.core.actors.clustermanagement.WatchDog.Message.PartitionUp
+import com.raphtory.core.actors.clustermanagement.componentconnector.UpdatedCounter
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
