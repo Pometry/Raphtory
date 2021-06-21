@@ -48,7 +48,8 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       val msgQueue  = vertex.messageQueue[(Long, List[(Long, Long)])]
       var voteStatus = vertex.getOrSetState[Int]("vote", 0)
       var voteCount = 0
-      val newLabel = if (voteStatus > 3) {
+      val newLabel = if (voteStatus > 2) {
+        vertex.voteToHalt()
         voteCount = vlabel.size
         vlabel.toArray
       } else vlabel.map { tv =>
@@ -96,13 +97,13 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       vertex.messageAllNeighbours(message)
 
       // Vote to halt if all instances of vertex haven't changed their labels
-      if (voteCount == vlabel.size) {
+      if ((voteStatus > 2) | (voteCount == vlabel.size)) {
         voteStatus += 1
-        vertex.voteToHalt()
       }else{
         voteStatus = 0
         countvote += 1L
       }
+
       vertex.setState("vote", voteStatus)
     }
 //        if (workerID==1)
