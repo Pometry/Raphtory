@@ -23,6 +23,7 @@ final case class GraphLens(
 ) {
   private var voteCount            = new AtomicInteger(0)
   private var vertexCount          = new AtomicInteger(0)
+  var t1 = System.currentTimeMillis()
 
   private val viewTimer = Kamon
     .gauge("Raphtory_View_Build_Time")
@@ -64,7 +65,10 @@ final case class GraphLens(
     result
   }
 
-  def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
+  def checkVotes(): Boolean = {
+    println(s"$superStep - $workerId : \t ${vertexCount.get() - voteCount.get()} / ${vertexCount.get()}")
+    vertexCount.get() == voteCount.get()
+  }
 
   //TODO hide away
   def sendMessage(msg: VertexMessage): Unit = messageHandler.sendMessage(msg)
@@ -73,6 +77,8 @@ final case class GraphLens(
   def vertexVoted(): Unit = voteCount.incrementAndGet()
 
   def nextStep(): Unit    = {
+    println(s"Superstep: $superStep \t WiD: $workerId \t Exec: ${System.currentTimeMillis() - t1}")
+    t1 = System.currentTimeMillis()
     voteCount.set(0)
     vertexCount.set(0)
     superStep += 1
