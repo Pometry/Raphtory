@@ -8,6 +8,7 @@ import com.raphtory.core.actors.clustermanagement.WatchDog.Message.{AssignedId, 
 import com.raphtory.core.actors.partitionmanager.workers.IngestionWorker
 import com.raphtory.core.actors.partitionmanager.{Reader, Writer}
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import com.raphtory.core.model.EntityStorage
 
 import scala.collection.mutable
