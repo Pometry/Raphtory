@@ -27,21 +27,18 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
 
 //  val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   //root.setLevel(Level.ERROR)
-  val system = ActorSystem("Citation-system")
+  val system = ActorSystem("Raphtory")
 
   val partitionNumber = 1
   val minimumRouters  = 1
   system.actorOf(Props(new WatermarkManager(partitionNumber)),"WatermarkManager")
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
 
-  system.actorOf(Props(new SpoutConnector(partitionCount,routerCount,spout)), "PartitionManager")
+  system.actorOf(Props(new SpoutConnector(partitionCount,routerCount,spout)), "Spoutmanager")
   system.actorOf(Props(new RouterConnector( partitionNumber, minimumRouters,graphBuilder)), s"Routers")
   system.actorOf(Props(new PartitionConnector(partitionNumber,minimumRouters)), s"PartitionManager")
-  system.actorOf(Props(new AnalysisManagerConnector(partitionCount,routerCount)), "AnalysisManagerConnector")
 
-  //TODO fix below
-  val analysisManager = system.actorOf(Props[AnalysisManager].withDispatcher("misc-dispatcher"), s"AnalysisManager")
-  AnalysisRestApi(system)
+  val analysisManager = system.actorOf(Props(new AnalysisManagerConnector(partitionCount,routerCount)), "AnalysisManagerConnector")
 
   //TODO tidy these, but will be done with full analysis Overhall
   def rangeQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long,args:Array[String]):Unit = {
