@@ -26,6 +26,16 @@ object RaphtoryEdge {
     e
   }
 
+  def apply(parquet: ParquetEdge): RaphtoryEdge = {
+    val edge = if(parquet.split)
+      new SplitRaphtoryEdge(parquet.workerID, parquet.history.head._1, parquet.src, parquet.dst, parquet.history.head._2)
+    else
+      new RaphtoryEdge(parquet.workerID, parquet.history.head._1, parquet.src, parquet.dst, parquet.history.head._2)
+    parquet.history.foreach(update=> if(update._2) edge.revive(update._1) else edge.kill(update._1))
+    parquet.properties.foreach(prop=> edge.properties +=((prop.key,Property(prop))))
+    edge
+  }
+
 }
 
 /**
@@ -39,5 +49,5 @@ class RaphtoryEdge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initi
   def getSrcId: Long   = srcId
   def getDstId: Long   = dstId
   def getWorkerID: Int = workerID
-  def serialise(): ParquetEdge = ParquetEdge(srcId,dstId,history.toList,properties.map(x=> x._2.serialise(x._1)).toList)
+  def serialise(): ParquetEdge = ParquetEdge(srcId,dstId,false,workerID,history.toList,properties.map(x=> x._2.serialise(x._1)).toList)
 }

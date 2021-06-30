@@ -24,6 +24,15 @@ object RaphtoryVertex {
     v
   }
 
+  def apply(parquet: ParquetVertex):RaphtoryVertex = {
+    val vertex = new RaphtoryVertex(parquet.history.head._1,parquet.id,parquet.history.head._2)
+    parquet.history.foreach(update=> if(update._2) vertex.revive(update._1) else vertex.kill(update._1))
+    parquet.properties.foreach(prop=> vertex.properties +=((prop.key,Property(prop))))
+    parquet.incoming.foreach(edge=> vertex.incomingEdges+=((edge.src,RaphtoryEdge(edge))))
+    parquet.outgoing.foreach(edge=> vertex.outgoingEdges+=((edge.dst,RaphtoryEdge(edge))))
+    vertex
+  }
+
 }
 
 class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)

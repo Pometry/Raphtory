@@ -12,3 +12,15 @@ abstract class Property {
   def serialise(key:String): ParquetProperty
 }
 
+object Property{
+  def apply(parquet: ParquetProperty):Property = {
+    if(parquet.immutable)
+      new ImmutableProperty(parquet.history.head._1,parquet.history.head._2)
+    else {
+      val prop = new MutableProperty(parquet.history.head._1,parquet.history.head._2)
+      prop.previousState ++= parquet.history
+      prop
+    }
+  }
+}
+
