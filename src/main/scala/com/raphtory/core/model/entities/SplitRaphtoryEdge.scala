@@ -1,5 +1,7 @@
 package com.raphtory.core.model.entities
 
+import com.raphtory.core.actors.partitionmanager.workers.ParquetEdge
+
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 
@@ -36,4 +38,6 @@ class SplitRaphtoryEdge(
     dstID: Long,
     initialValue: Boolean)
   extends RaphtoryEdge(workerID, msgTime, srcID, dstID, initialValue) {
+  override def serialise(): ParquetEdge = ParquetEdge(srcID,dstID,true,workerID,history.toList,properties.map(x=> x._2.serialise(x._1)).toList)
+
 }

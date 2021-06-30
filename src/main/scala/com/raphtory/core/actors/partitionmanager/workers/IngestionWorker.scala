@@ -9,13 +9,15 @@ import com.raphtory.core.actors.graphbuilder.RouterWorker.CommonMessage.RouterWo
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
 import kamon.Kamon
-
 import java.util.concurrent.atomic.AtomicInteger
+
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import com.github.mjakubowski84.parquet4s.{ ParquetReader, ParquetWriter }
+import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetWriter}
+import com.raphtory.core.model.entities.RaphtoryVertex
+
 
 
 case class queueItem(routerEpoch:Int,timestamp:Long)extends Ordered[queueItem] {
@@ -332,13 +334,31 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: R
   }
 
   def serialiseGraphPartition() = {
-    ParquetWriter.writeAndClose(s"/Users/Mirate/github/test/$partitionID/$workerId.parquet", storage.vertices.map(x=>x._2.serialise()).toArray.toIterable)
+    ParquetWriter.writeAndClose(s"/Users/Mirate/github/test/$partitionID/$workerId/graph.parquet", storage.vertices.map(x=>x._2.serialise()).toArray.toIterable)
+    ParquetWriter.writeAndClose(s"/Users/Mirate/github/test/$partitionID/$workerId/state.parquet", List(StorageState(storage.managerCount,storage.oldestTime,storage.newestTime,storage.windowTime)).toIterable)
+  }
+  def deserialiseGraphPartitions() = {
+    val graph = ParquetReader.read[ParquetVertex](s"/Users/Mirate/github/test/$partitionID/$workerId/graph.parquet")
+    try {
+      graph.foreach(vertex => storage.vertices+=((vertex.id,RaphtoryVertex(vertex))))
+    } finally graph.close()
+
+    val state = ParquetReader.read[StorageState](s"/Users/Mirate/github/test/$partitionID/$workerId/graph.parquet")
+    try {
+      state.foreach(stats => {
+        storage.managerCount=stats.managerCount
+        storage.oldestTime=stats.oldestTime
+        storage.newestTime=stats.newestTime
+        storage.windowTime=stats.windowTime
+      })
+    } finally state.close()
   }
 
 }
 case class ParquetProperty(key:String,immutable:Boolean,history:List[(Long,String)])
-case class ParquetEdge(src:Long,dst:Long,History:List[(Long,Boolean)],properties:List[ParquetProperty])
-case class ParquetVertex(id:Long,History:List[(Long,Boolean)],properties:List[ParquetProperty],incoming:List[ParquetEdge],outgoing:List[ParquetEdge])
+case class ParquetEdge(src:Long, dst:Long, split:Boolean, workerID:Int, history:List[(Long,Boolean)], properties:List[ParquetProperty])
+case class ParquetVertex(id:Long, history:List[(Long,Boolean)], properties:List[ParquetProperty], incoming:List[ParquetEdge], outgoing:List[ParquetEdge])
+case class StorageState(managerCount:Int,oldestTime: Long,newestTime: Long,windowTime: Long )
 object IngestionWorker {
   object Message {
     case object Watermark
