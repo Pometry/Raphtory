@@ -12,6 +12,10 @@ import scala.concurrent.ExecutionContext
 
 class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
+  val workerPaths = for {
+    i <- 0 until managerCount
+    j <- 0 until totalWorkers
+  } yield s"/user/Manager_${i}_child_$j"
 
   override def preStart(): Unit = {
     context.system.scheduler.scheduleOnce(delay = 60.seconds, receiver = self, message = "probe")
@@ -30,11 +34,6 @@ class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
   }
 
   def probeWatermark() = {
-    val workerPaths = for {
-      i <- 0 until managerCount
-      j <- 0 until totalWorkers
-    } yield s"/user/Manager_${i}_child_$j"
-
     workerPaths.foreach { workerPath =>
       mediator ! new DistributedPubSubMediator.Send(
         workerPath,
@@ -52,7 +51,17 @@ class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
       val max = safeMessageMap.maxBy(x=> x._2)
       val min = safeMessageMap.minBy(x=> x._2)
       println(s". Minimum Watermark: ${min._1} ${min._2} Maximum Watermark: ${max._1} ${max._2}")
-      context.system.scheduler.scheduleOnce(delay = 10.seconds, receiver = self, message = "probe")
+      if(max._2==min._2 && max._2!=0){
+        println("Saving final state")
+        workerPaths.foreach { workerPath =>
+          mediator ! new DistributedPubSubMediator.Send(
+            workerPath,
+            SaveState
+          )
+        }
+      }
+      else
+        context.system.scheduler.scheduleOnce(delay = 10.seconds, receiver = self, message = "probe")
     }
   }
 }
@@ -61,5 +70,6 @@ object WatermarkManager {
   object Message {
     case object ProbeWatermark
     case class WatermarkTime(time:Long)
+    case object SaveState
   }
 }

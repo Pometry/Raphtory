@@ -1,5 +1,6 @@
 package com.raphtory.core.model.entities
 
+import com.raphtory.core.actors.partitionmanager.workers.ParquetEdge
 import com.raphtory.core.model.EntityStorage
 
 import scala.collection.mutable
@@ -38,5 +39,5 @@ class RaphtoryEdge(workerID: Int, msgTime: Long, srcId: Long, dstId: Long, initi
   def getSrcId: Long   = srcId
   def getDstId: Long   = dstId
   def getWorkerID: Int = workerID
-
+  def serialise(): ParquetEdge = ParquetEdge(srcId,dstId,history.toList,properties.map(x=> x._2.serialise(x._1)).toList)
 }

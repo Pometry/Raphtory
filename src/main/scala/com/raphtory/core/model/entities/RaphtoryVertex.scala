@@ -1,5 +1,6 @@
 package com.raphtory.core.model.entities
 
+import com.raphtory.core.actors.partitionmanager.workers.ParquetVertex
 import com.raphtory.core.analysis.GraphLens
 import com.raphtory.core.analysis.entity.{Edge, Vertex}
 import com.raphtory.core.model.EntityStorage
@@ -68,6 +69,8 @@ class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
       },
       lens)
   }
+
+  def serialise(): ParquetVertex = ParquetVertex(vertexId,history.toList,properties.map(x=> x._2.serialise(x._1)).toList,incomingEdges.map(x=>x._2.serialise()).toList,outgoingEdges.map(x=>x._2.serialise()).toList)
 
 
 }

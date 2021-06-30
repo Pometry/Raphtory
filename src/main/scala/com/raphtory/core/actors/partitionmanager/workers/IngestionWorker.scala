@@ -15,6 +15,8 @@ import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import com.github.mjakubowski84.parquet4s.{ ParquetReader, ParquetWriter }
+
 
 case class queueItem(routerEpoch:Int,timestamp:Long)extends Ordered[queueItem] {
   def compare(that: queueItem): Int = that.routerEpoch-this.routerEpoch
@@ -72,6 +74,7 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
     case Watermark => processWatermarkRequest(); //println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
     case ProbeWatermark => mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager", WatermarkTime(storage.windowTime), localAffinity = false)
     case req: RouterWorkerTimeSync => processRouterTimeSync(req);
+    case SaveState => serialiseGraphPartition();
     case x => log.warning(s"IngestionWorker [{}] received unknown [{}] message.", workerId, x)
   }
 
@@ -328,8 +331,14 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: R
     scheduledTaskMap.put("watermark", watermarkCancellable)
   }
 
-}
+  def serialiseGraphPartition() = {
+    ParquetWriter.writeAndClose(s"/Users/Mirate/github/test/$partitionID/$workerId.parquet", storage.vertices.map(x=>x._2.serialise()).toArray.toIterable)
+  }
 
+}
+case class ParquetProperty(key:String,immutable:Boolean,history:List[(Long,String)])
+case class ParquetEdge(src:Long,dst:Long,History:List[(Long,Boolean)],properties:List[ParquetProperty])
+case class ParquetVertex(id:Long,History:List[(Long,Boolean)],properties:List[ParquetProperty],incoming:List[ParquetEdge],outgoing:List[ParquetEdge])
 object IngestionWorker {
   object Message {
     case object Watermark
