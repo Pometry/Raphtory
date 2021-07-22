@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
-import com.raphtory.core.actors.clustermanagement.componentconnector.UpdatedCounter
+import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 import com.raphtory.core.actors.partitionmanager.workers.ReaderWorker
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.model.EntityStorage

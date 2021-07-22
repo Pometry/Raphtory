@@ -2,7 +2,6 @@ package com.raphtory.core.actors.partitionmanager.workers
 
 import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.clustermanagement.WatermarkManager.Message._
 import com.raphtory.core.actors.partitionmanager.workers.IngestionWorker.Message.Watermark
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.graphbuilder.RouterWorker.CommonMessage.RouterWorkerTimeSync
@@ -16,6 +15,7 @@ import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetWriter}
+import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{ProbeWatermark, SaveState, WatermarkTime}
 import com.raphtory.core.model.entities.RaphtoryVertex
 
 

@@ -1,10 +1,10 @@
-package com.raphtory.core.actors.clustermanagement.componentconnector
+package com.raphtory.core.actors.orchestration.componentconnector
 
 import akka.actor.Props
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.clustermanagement.WatchDog.Message.RequestRouterId
 import com.raphtory.core.actors.graphbuilder.{GraphBuilder, RouterManager}
 import akka.pattern.ask
+import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.RequestRouterId
 
 import scala.concurrent.Future
 

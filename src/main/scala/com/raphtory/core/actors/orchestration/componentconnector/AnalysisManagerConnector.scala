@@ -1,12 +1,12 @@
-package com.raphtory.core.actors.clustermanagement.componentconnector
+package com.raphtory.core.actors.orchestration.componentconnector
 import akka.actor.{ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
-import com.raphtory.core.actors.clustermanagement.WatchDog.Message.{PartitionsCount, RequestAnalysisId}
 import akka.pattern.ask
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message.StartAnalysis
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
+import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{PartitionsCount, RequestAnalysisId}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, MILLISECONDS}
@@ -26,10 +26,8 @@ class AnalysisManagerConnector(managerCount: Int, routerCount:Int) extends Compo
   }
 
   private def requesthandler(request: Any) = if(analysismanager!=null){
-    println("hello 2")
     analysismanager ! request
   }  else {
-    println("hello")
     context.system.scheduler.scheduleOnce(Duration(2000, MILLISECONDS), self, request)
   }
 

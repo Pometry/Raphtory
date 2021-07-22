@@ -1,14 +1,14 @@
-package com.raphtory.core.actors.clustermanagement
+package com.raphtory.core.actors.orchestration.clustermanager
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.clustermanagement.WatermarkManager.Message._
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{ProbeWatermark, WatermarkTime}
 import kamon.Kamon
 
-import scala.concurrent.duration._
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
@@ -51,17 +51,7 @@ class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
       val max = safeMessageMap.maxBy(x=> x._2)
       val min = safeMessageMap.minBy(x=> x._2)
       println(s". Minimum Watermark: ${min._1} ${min._2} Maximum Watermark: ${max._1} ${max._2}")
-      if(max._2==min._2 && max._2!=0){
-        println("Saving final state")
-        workerPaths.foreach { workerPath =>
-          mediator ! new DistributedPubSubMediator.Send(
-            workerPath,
-            SaveState
-          )
-        }
-      }
-      else
-        context.system.scheduler.scheduleOnce(delay = 10.seconds, receiver = self, message = "probe")
+      context.system.scheduler.scheduleOnce(delay = 10.seconds, receiver = self, message = "probe")
     }
   }
 }
