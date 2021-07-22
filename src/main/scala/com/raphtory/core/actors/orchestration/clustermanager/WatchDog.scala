@@ -1,16 +1,14 @@
-package com.raphtory.core.actors.clustermanagement
+package com.raphtory.core.actors.orchestration.clustermanager
 
 /**
   * Created by Mirate on 11/07/2017.
   */
 import akka.actor.ActorRef
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.event.LoggingReceive
-import com.raphtory.core.actors.clustermanagement.WatchDog.ActorState
-import com.raphtory.core.actors.clustermanagement.WatchDog.Message._
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.model.communication._
+import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.ActorState
+import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._

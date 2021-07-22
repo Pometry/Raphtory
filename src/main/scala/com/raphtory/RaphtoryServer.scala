@@ -8,9 +8,9 @@ import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.clustermanagement.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
-import com.raphtory.core.actors.clustermanagement.{SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
+import com.raphtory.core.actors.orchestration.clustermanager.{SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory}
 

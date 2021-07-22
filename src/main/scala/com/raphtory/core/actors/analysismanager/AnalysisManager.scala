@@ -11,8 +11,8 @@ import com.raphtory.core.actors.analysismanager.AnalysisManager.State
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message.FailedToCompile
 import com.raphtory.core.actors.analysismanager.tasks.subtasks._
-import com.raphtory.core.actors.clustermanagement.WatchDog.Message._
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message._
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser, LoadExternalAnalyser}
 import com.raphtory.core.utils.AnalyserUtils
 
