@@ -1,10 +1,12 @@
 package com.raphtory.dev.lotr
 
 import com.raphtory.RaphtoryComponent
+
 import scala.language.postfixOps
+import scala.util.Random
 
 object LOTRDistributed extends App {
-  val partitionCount =3
+  val partitionCount =1
   val routerCount =3
   new RaphtoryComponent("seedNode",partitionCount,routerCount,1600)
   new RaphtoryComponent("analysisManager",partitionCount,routerCount,1602)
@@ -13,7 +15,7 @@ object LOTRDistributed extends App {
   new RaphtoryComponent("router",partitionCount,routerCount,1605,"com.raphtory.dev.lotr.LOTRGraphBuilder")
   new RaphtoryComponent("router",partitionCount,routerCount,1606,"com.raphtory.dev.lotr.LOTRGraphBuilder")
   new RaphtoryComponent("partitionManager",partitionCount,routerCount,1614)
-  new RaphtoryComponent("partitionManager",partitionCount,routerCount,1615)
-  new RaphtoryComponent("partitionManager",partitionCount,routerCount,1616)
+  //new RaphtoryComponent("partitionManager",partitionCount,routerCount,1615)
+  //new RaphtoryComponent("partitionManager",partitionCount,routerCount,1616)
 
 }
