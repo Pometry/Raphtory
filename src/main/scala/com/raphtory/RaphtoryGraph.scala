@@ -1,15 +1,14 @@
 package com.raphtory
 
 import akka.actor.{ActorSystem, Props}
-import ch.qos.logback.classic.Level
-import com.raphtory.api.Analyser
-import com.raphtory.core.actors.AnalysisManager.AnalysisRestApi._
-import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.ClusterManagement.{RaphtoryReplicator, WatchDog, WatermarkManager}
-import com.raphtory.core.actors.Router.GraphBuilder
-import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
-import kamon.Kamon
-import org.slf4j.LoggerFactory
+import com.raphtory.RaphtoryServer.{partitionCount, routerCount}
+import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
+import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
+import com.raphtory.core.actors.clustermanagement.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
+import com.raphtory.core.actors.clustermanagement.{WatchDog, WatermarkManager}
+import com.raphtory.core.actors.graphbuilder.GraphBuilder
+import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
+import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 
 object RaphtoryGraph {
   def apply[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) : RaphtoryGraph[T] =
@@ -35,46 +34,48 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   system.actorOf(Props(new WatermarkManager(partitionNumber)),"WatermarkManager")
   system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
 
-  system.actorOf(Props(new SpoutAgent(spout)), "Spout")
-  system.actorOf(Props(RaphtoryReplicator.apply("Router", partitionNumber, minimumRouters,graphBuilder)), s"Routers")
-  system.actorOf(Props(RaphtoryReplicator("Partition Manager", partitionNumber,minimumRouters)), s"PartitionManager")
+  system.actorOf(Props(new SpoutConnector(partitionCount,routerCount,spout)), "PartitionManager")
+  system.actorOf(Props(new RouterConnector( partitionNumber, minimumRouters,graphBuilder)), s"Routers")
+  system.actorOf(Props(new PartitionConnector(partitionNumber,minimumRouters)), s"PartitionManager")
+  system.actorOf(Props(new AnalysisManagerConnector(partitionCount,routerCount)), "AnalysisManagerConnector")
 
-  val analysisManager = system.actorOf(Props[AnalysisManager], s"AnalysisManager")
+  //TODO fix below
+  val analysisManager = system.actorOf(Props[AnalysisManager].withDispatcher("misc-dispatcher"), s"AnalysisManager")
   AnalysisRestApi(system)
 
   //TODO tidy these, but will be done with full analysis Overhall
-  def rangeQuery(analyser:Analyser,start:Long,end:Long,increment:Long,args:Array[String]):Unit = {
-    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,"false",0L,Array[Long](),args,"")
+  def rangeQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long,args:Array[String]):Unit = {
+    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,start,end,increment,List.empty,args,"")
   }
 
-  def rangeQuery(analyser:Analyser,start:Long,end:Long,increment:Long,window:Long,args:Array[String]):Unit = {
-    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,"true",window,Array[Long](),args,"")
+  def rangeQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long,window:Long,args:Array[String]):Unit = {
+    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,start,end,increment, List(window),args,"")
   }
-  def rangeQuery(analyser:Analyser,start:Long,end:Long,increment:Long,windowBatch:Array[Long],args:Array[String]):Unit = {
-    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,start,end,increment,"batched",0L,windowBatch,args,"")
-  }
-
-  def viewQuery(analyser:Analyser,timestamp:Long,args:Array[String]):Unit = {
-    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,"false",0L,Array[Long](),args,"")
+  def rangeQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long,windowBatch:List[Long],args:Array[String]):Unit = {
+    analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,start,end,increment,windowBatch,args,"")
   }
 
-  def viewQuery(analyser:Analyser,timestamp:Long,window:Long,args:Array[String]):Unit = {
-    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,"true",window,Array[Long](),args,"")
-  }
-  def viewQuery(analyser:Analyser,timestamp:Long,windowBatch:Array[Long],args:Array[String]):Unit = {
-    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,timestamp,"batched",0L,windowBatch,args,"")
+  def viewQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,timestamp:Long,args:Array[String]):Unit = {
+    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,timestamp,List.empty,args,"")
   }
 
-  def liveQuery(analyser:Analyser,repeat:Long,eventTime:Boolean,args:Array[String]):Unit = {
-    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime,"false",0L,Array[Long](),args,"")
+  def viewQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,timestamp:Long,window:Long,args:Array[String]):Unit = {
+    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,timestamp, List(window),args,"")
+  }
+  def viewQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,timestamp:Long,windowBatch:List[Long],args:Array[String]):Unit = {
+    analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,timestamp, windowBatch,args,"")
   }
 
-  def liveQuery(analyser:Analyser,repeat:Long,eventTime:Boolean,window:Long,args:Array[String]):Unit = {
-    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime,"true",window,Array[Long](),args,"")
+  def liveQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,repeat:Long,eventTime:Boolean,args:Array[String]):Unit = {
+    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,repeat,eventTime, List.empty,args,"")
   }
 
-  def liveQuery(analyser:Analyser,repeat:Long,eventTime:Boolean,windowBatch:Array[Long],args:Array[String]):Unit = {
-    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,repeat,eventTime,"batched",0L,windowBatch,args,"")
+  def liveQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,repeat:Long,eventTime:Boolean,window:Long,args:Array[String]):Unit = {
+    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,repeat,eventTime,List(window),args,"")
+  }
+
+  def liveQuery[S<:Serializable](analyser:Analyser[S],serialiser:AggregateSerialiser,repeat:Long,eventTime:Boolean,windowBatch:List[Long],args:Array[String]):Unit = {
+    analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,repeat,eventTime, windowBatch,args,"")
   }
 
 }

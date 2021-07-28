@@ -1,12 +1,12 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 
-class WattsCascade(args:Array[String]) extends Analyser(args){
+class WattsCascade(args:Array[String]) extends Analyser[Any](args){
 
   // Set initial seed of infected nodes
   val infectedSeed = Array(290,1459,65,1)
@@ -56,26 +56,15 @@ class WattsCascade(args:Array[String]) extends Analyser(args){
 
   override def defineMaxSteps(): Int = 100
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int)]]
     val totalV = endResults.map (x => x._1).sum
     val totalInfected = endResults.map (x => x._2).sum
     val propInfected = if (totalV > 0) totalInfected.toDouble/totalV.toDouble else 0
 
-    val text = s"""{"time":$timeStamp,"totalV":$totalV,"cascadeSize":$totalInfected,"cascadeProp":$propInfected,"viewTime":$viewCompleteTime}"""
+    val text = s"""{"totalV":$totalV,"cascadeSize":$totalInfected,"cascadeProp":$propInfected}"""
     println(text)
-    publishData(text)
+    Map[String,Any]()
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long):
-  Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int)]]
-    val totalV = endResults.map (x => x._1).sum
-    val totalInfected = endResults.map (x => x._2).sum
-    val propInfected = if (totalV > 0) totalInfected.toDouble/totalV.toDouble else 0
-
-    val text = s"""{"time":$timestamp,"windowSize":$windowSize,"totalV":$totalV,"cascadeSize":$totalInfected,"cascadeProp":$propInfected,"viewTime":$viewCompleteTime}"""
-    println(text)
-    publishData(text)
-  }
 }

@@ -30,10 +30,10 @@ object ResultsCompare extends App{
     val database: MongoDatabase = mongo.getDatabase("raphtory").withCodecRegistry(codecRegistry)
 
     val baseCollection: MongoCollection[StateCheckResult] = database.getCollection(baseCollectionID)
-    val base = Await.result(baseCollection.find().toFuture(), Duration.Inf).map(state=>(TimeParams(state.time,state.window),state)).toMap
+    val base = Await.result(baseCollection.find().toFuture(), Duration.Inf).map(state=>(TimeParams(state.time,state.windowsize),state)).toMap
 
     val compareCollection: MongoCollection[StateCheckResult] = database.getCollection(compareCollectionID)
-    val compare = Await.result(compareCollection.find().toFuture(), Duration.Inf).map(state=>(TimeParams(state.time,state.window),state)).toMap
+    val compare = Await.result(compareCollection.find().toFuture(), Duration.Inf).map(state=>(TimeParams(state.time,state.windowsize),state)).toMap
 
     val stateResult = base.map(baseValue=> baseValue._2.compareTo(compare(baseValue._1)))
     if(stateResult.fold(true){(x,y) =>x&&y})
@@ -74,7 +74,7 @@ object ResultsCompare extends App{
       println(incorrectResults)
     }
 
-    val timeResults = base.map(baseValue=> (((compare(baseValue._1).viewTime)-baseValue._2.viewTime).toDouble/baseValue._2.viewTime)*100)
+    val timeResults = base.map(baseValue=> ((compare(baseValue._1).viewTime).toDouble/baseValue._2.viewTime.toDouble)*100)
     val meanPercent = timeResults.sum/timeResults.size
     if(meanPercent<0)
       println(s"The second connected components run was on average $meanPercent% slower than the first")
@@ -85,7 +85,7 @@ object ResultsCompare extends App{
 
 }
 case class TimeParams(time:Long,window:Long)
-case class StateCheckResult(time:Long,window:Long,viewTime:Long,vertices:Long,maxDeg:Long,totalInEdges:Long,totalOutEdges:Long,vdeletionstotal:Long,vcreationstotal:Long,
+case class StateCheckResult(time:Long,windowsize:Long,viewTime:Long,vertices:Long,maxDeg:Long,totalInEdges:Long,totalOutEdges:Long,vdeletionstotal:Long,vcreationstotal:Long,
                             outedgedeletionstotal:Long,outedgecreationstotal:Long,inedgedeletionstotal:Long,inedgecreationstotal:Long,
                             properties:Long,propertyhistory:Long,outedgeProperties:Long,outedgePropertyHistory:Long,inedgeProperties:Long,inedgePropertyHistory:Long){
   def compareTo(compare:StateCheckResult):Boolean = {

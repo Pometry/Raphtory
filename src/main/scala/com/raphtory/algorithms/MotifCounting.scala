@@ -1,10 +1,11 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.Analyser
-import com.raphtory.core.model.analysis.entityVisitors.EdgeVisitor
+import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.analysis.entity.Edge
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.mutable.{ParIterable, ParMap}
+import scala.collection.parallel.ParIterable
+import scala.collection.parallel.mutable.ParMap
 import scala.reflect.io.Path
 
 
@@ -33,7 +34,7 @@ object MotifCounting {
   def apply(args: Array[String]): MotifCounting = new MotifCounting(args)
 }
 
-class MotifCounting(args: Array[String]) extends Analyser(args) { //IM: better manage args
+class MotifCounting(args: Array[String]) extends Analyser[Any](args) { //IM: better manage args
   //args = [delta, edge weight, top]
   val top: Int         = if (args.length == 0) 0 else args.head.toInt
   val weight: String = if (args.length < 2) "weight" else args(1)
@@ -59,34 +60,24 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //IM: better m
       }
       .toMap
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: List[Any]): Map[String, Any] = {
     val endResults = results.asInstanceOf[ArrayBuffer[ParMap[Long, (Double, Double)]]].flatten
     val filtered      = endResults.filter(x=> (x._2._1>0)|(x._2._2>0)).map(x => s""""${x._1}":{"mc1":${x._2._1}, "mc2":${x._2._2}}""")
     val total         = filtered.length
     val count         = if (top == 0) filtered else filtered.take(top)
     val text          =
-    s"""{"time":$timestamp,"total": $total, "motifs":{ ${count.mkString(",")} },"viewTime":$viewCompleteTime}"""
-    writeOut(text, output_file)
-  }
+s"""{"total": $total, "motifs":{ ${count.mkString(",")} }}"""
 
-  override def processWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSize: Long,
-      viewCompleteTime: Long
-  ): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[ParMap[Long, (Double, Double)]]].flatten
-    val filtered      = endResults.filter(x=> (x._2._1>0)|(x._2._2>0)).map(x => s""""${x._1}":{"mc1":${x._2._1}, "mc2":${x._2._2}}""")
-    val total         = filtered.length
-    val count         = if (top == 0) filtered else filtered.take(top)
-    val text          = s"""{"time":$timestamp,"windowsize":$windowSize,"total": $total,"motifs":{ ${count
-      .mkString(",")} },"viewTime":$viewCompleteTime}"""
-    writeOut(text, output_file)
+    output_file match {
+      case "" => println(text)
+      case _  => Path(output_file).createFile().appendAll(text + "\n")
+    }
+    Map[String,Any]()
   }
 
   override def defineMaxSteps(): Int = 10
 
-  def motifCounting(mType: Int, inc: ParIterable[EdgeVisitor], outc: ParIterable[EdgeVisitor]): Double = {
+  def motifCounting(mType: Int, inc: ParIterable[Edge], outc: ParIterable[Edge]): Double = {
     var t_in   = inc.flatMap(e => e.getHistory().keys).toArray.sorted
     var t_out  = outc.flatMap(e => e.getHistory().keys).toArray.sorted
     val tEdges = t_in ++ t_out
@@ -119,8 +110,8 @@ class MotifCounting(args: Array[String]) extends Analyser(args) { //IM: better m
   }
   def nChoosek(n: Long, k: Long = 2): Long         = if (k == 0L) 1L else (n * nChoosek(n - 1, k - 1)) / k
   def mean(a: Array[Double]): Double =    if (a.nonEmpty) a.sum / a.length else 0.0 //the fact i have to build this is maddening dont touch me
-  def checkActivity(edges: ParIterable[EdgeVisitor], t1: Long, t2: Long): Boolean =    edges.exists(e => e.getHistory().exists(k => k._1 >= t1 && k._1 < t2)) //  IM: change this to range
-  def getTimes(edge: EdgeVisitor, time: Long): Iterable[Long] =    edge.getHistory().filter { case (t, true) => t >= time & t < time + delta }.keys
-  def getProperties(edges: ParIterable[EdgeVisitor], time: Long, prop: String): Array[Double] =
+  def checkActivity(edges: ParIterable[Edge], t1: Long, t2: Long): Boolean =    edges.exists(e => e.getHistory().exists(k => k._1 >= t1 && k._1 < t2)) //  IM: change this to range
+  def getTimes(edge: Edge, time: Long): Iterable[Long] =    edge.getHistory().filter { case (t, true) => t >= time & t < time + delta }.keys
+  def getProperties(edges: ParIterable[Edge], time: Long, prop: String): Array[Double] =
     edges.map(e => getTimes(e, time).foldLeft(0.0) {  case (a, b) => a + e.getPropertyValueAt(prop, b).getOrElse(0.0).asInstanceOf[Double] }).toArray
 }

@@ -1,6 +1,6 @@
 package com.raphtory.dev.blockchain.graphbuilders
 
-import com.raphtory.core.actors.Router.GraphBuilder
+import com.raphtory.core.actors.graphbuilder.GraphBuilder
 import com.raphtory.core.model.communication.{Type, _}
 
 class bitcoin_mixers_GB extends GraphBuilder[String] {

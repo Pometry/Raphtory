@@ -1,11 +1,12 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.Analyser
-import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.analysis.entity.Vertex
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.collection.parallel.mutable.ParArray
+import scala.tools.nsc.io.Path
 
 /**
 Description
@@ -33,7 +34,7 @@ object LPA {
   def apply(args: Array[String]): LPA = new LPA(args)
 }
 
-class LPA(args: Array[String]) extends Analyser(args) {
+class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
   //args = [top output, edge property, max iterations]
 
   val arg: Array[String] = args.map(_.trim)
@@ -92,43 +93,31 @@ class LPA(args: Array[String]) extends Analyser(args) {
   }
 
 
-  def doSomething(v: VertexVisitor, gp: Array[Long]): Unit = {}
+  def doSomething(v: Vertex, gp: Array[Long]): Unit = {}
 
   override def returnResults(): Any =
     view.getVertices()
       //.filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.getState[Long]("lpalabel"), vertex.ID()))
       .groupBy(f => f._1)
-      .map(f => (f._1, f._2.map(_._2)))
+      .map(f => (f._1, f._2.map(_._2).toList))
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
-    println(s"$workerID -- Merging up results..")
+  override def extractResults(results: List[Any]): Map[String, Any] = {
     val er      = extractData(results)
     val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
-    val text = s"""{"time":$timestamp,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
-      .mkString(",")}],"""+
-      s""""communities": [${commtxt.mkString(",")}] ,"""+
-      s""""viewTime":$viewCompleteTime}"""
-    writeOut(text, output_file)
+
+    val text = s"""{"top5":[${er.top5
+      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
+       s""""communities": [${commtxt.mkString(",")}]}"""
+    output_file match {
+      case "" => println(text)
+      case _  => Path(output_file).createFile().appendAll(text + "\n")
+    }
+    Map[String,Any]()
   }
 
-  override def processWindowResults(
-                                     results: ArrayBuffer[Any],
-                                     timestamp: Long,
-                                     windowSize: Long,
-                                     viewCompleteTime: Long
-                                   ): Unit = {
-    val er      = extractData(results)
-    val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
-      .mkString(",")}],"""+
-      s""""communities": [${commtxt.mkString(",")}],"""+
-      s""""viewTime":$viewCompleteTime}"""
-    writeOut(text, output_file)
-  }
-
-  def extractData(results: ArrayBuffer[Any]): fd = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, ParArray[String]]]]
+  def extractData(results: List[Any]): fd = {
+    val endResults = results.asInstanceOf[List[immutable.ParHashMap[Long, List[String]]]]
     try {
       val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
       val groupedNonIslands   = grouped.filter(x => x._2.size > 1)
@@ -140,7 +129,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
       val communities         = if (top == 0) sorted.map(_._2) else sorted.map(_._2).take(top)
       fd(top5, total, totalIslands, communities)
     } catch {
-      case _: UnsupportedOperationException => fd(Array(0), 0, 0, Array(ArrayBuffer("0")))
+      case _: UnsupportedOperationException => fd(Array(0), 0, 0, Array(List("0")))
     }
   }
 
@@ -148,4 +137,4 @@ class LPA(args: Array[String]) extends Analyser(args) {
 
 }
 
-case class fd(top5: Array[Int], total: Int, totalIslands: Int, communities: Array[ArrayBuffer[String]])
+case class fd(top5: Array[Int], total: Int, totalIslands: Int, communities: Array[List[String]])

@@ -1,13 +1,15 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
+
 object lotrExample {
   def apply(args: Array[String]): lotrExample = new lotrExample(args)
 }
-class lotrExample(args:Array[String]) extends Analyser(args) {
+
+class lotrExample(args:Array[String]) extends Analyser[Any](args) {
   val SEP: Int = if (args.length == 0) 3 else args.head.toInt
 
   override def setup(): Unit = {
@@ -43,30 +45,19 @@ class lotrExample(args:Array[String]) extends Analyser(args) {
 
   override def defineMaxSteps(): Int = 6
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
     try {
       val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
-      val direct = if (grouped.size>0) grouped(SEP-1) else 0
+      val direct = if (grouped.nonEmpty) grouped(SEP - 1) else 0
       val total = grouped.values.sum
-      val text = s"""{"time":$timestamp,"total":${total},"direct":${direct},"viewTime":$viewCompleteTime}"""
+      val text = s"""{"total":${total},"direct":$direct}"""
       println(text)
     } catch {
       case e: UnsupportedOperationException => println("null")
     }
+    Map[String,Any]()
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
 
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
-    try {
-      val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
-      val direct = if (grouped.size>0) grouped(SEP-1) else 0
-      val total = grouped.values.sum
-      val text = s"""{"time":$timestamp,"windowsize":$windowSize, "total":${total},"direct":${direct},"viewTime":$viewCompleteTime}"""
-      println(text)
-    } catch {
-      case e: UnsupportedOperationException => println("null")
-    }
-  }
 }

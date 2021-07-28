@@ -1,12 +1,9 @@
 package com.raphtory.dev.algorithms
 
-import com.raphtory.algorithms.sortOrdering
-import com.raphtory.api.Analyser
-import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
-import scala.collection.parallel.mutable.ParArray
 import scala.io.Source
 
 /**
@@ -35,7 +32,7 @@ object devLPA {
   def apply(args: Array[String]): devLPA = new devLPA(args)
 }
 
-class devLPA(args: Array[String]) extends Analyser(args) {
+class devLPA(args: Array[String]) extends Analyser[Any](args) {
   //args = [top output, edge property, max iterations, outfile, commfile]
 
   val arg: Array[String] = args.map(_.trim)
@@ -88,7 +85,6 @@ class devLPA(args: Array[String]) extends Analyser(args) {
         newLabel =  if (rnd.nextFloat() < SP) vlabel else newLabel
         vertex.setState("lpalabel", newLabel)
         vertex.messageAllNeighbours((vertex.ID(), newLabel))
-        doSomething(vertex, gp.map(_._1).toArray)
       } catch {
         case e: Exception => println(e, vertex.ID())
       }
@@ -100,7 +96,6 @@ class devLPA(args: Array[String]) extends Analyser(args) {
   }
 
 
-  def doSomething(v: VertexVisitor, gp: Array[Long]): Unit = {}
 
   override def returnResults(): Any =
     view.getVertices()
@@ -111,7 +106,7 @@ class devLPA(args: Array[String]) extends Analyser(args) {
 //      .groupBy(f => f._1)
 //      .map(f => (f._1, f._2.map(_._2)))
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: List[Any]): Map[String,Any] = {
     println(s"$workerID -- Merging up results..")
 //    val er      = extractData(results)
 val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(Long, String)]]].flatten
@@ -124,45 +119,25 @@ val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(Long, S
 //      .mkString(",")}],"""+
 //      s""""communities": [${commtxt.mkString(",")}] ,"""+
 //      s""""viewTime":$viewCompleteTime}"""
-    writeOut(text, output_file)
+    Map[String,Any]()
   }
-
-  override def processWindowResults(
-                                     results: ArrayBuffer[Any],
-                                     timestamp: Long,
-                                     windowSize: Long,
-                                     viewCompleteTime: Long
-                                   ): Unit = {
-//    val er      = extractData(results)
-val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(Long, String)]]].flatten
-    val text = endResults.map { x =>
-      //      val lab = rnd.nextLong()
-      s"${x._2},${x._1}"
-    }.mkString("\n")
-//    val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
-//    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":${er.total},"totalIslands":${er.totalIslands},"top5":[${er.top5
-//      .mkString(",")}],"""+
-//      s""""communities": [${commtxt.mkString(",")}],"""+
-//      s""""viewTime":$viewCompleteTime}"""
-    writeOut(text, output_file)
-  }
-
-  def extractData(results: ArrayBuffer[Any]): fd = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, ParArray[String]]]]
-    try {
-      val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
-      val groupedNonIslands   = grouped.filter(x => x._2.size > 1)
-      val sorted              = grouped.toArray.sortBy(_._2.size)(sortOrdering)
-      val top5                = sorted.map(_._2.size).take(5)
-      val total               = grouped.size
-      val totalWithoutIslands = groupedNonIslands.size
-      val totalIslands        = total - totalWithoutIslands
-      val communities         = if (top == 0) sorted.map(_._2) else sorted.map(_._2).take(top)
-      fd(top5, total, totalIslands, communities)
-    } catch {
-      case _: UnsupportedOperationException => fd(Array(0), 0, 0, Array(ArrayBuffer("0")))
-    }
-  }
+//
+//  def extractData(results: ArrayBuffer[Any]): fd = {
+//    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, ParArray[String]]]]
+//    try {
+//      val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
+//      val groupedNonIslands   = grouped.filter(x => x._2.size > 1)
+//      val sorted              = grouped.toArray.sortBy(_._2.size)(sortOrdering)
+//      val top5                = sorted.map(_._2.size).take(5)
+//      val total               = grouped.size
+//      val totalWithoutIslands = groupedNonIslands.size
+//      val totalIslands        = total - totalWithoutIslands
+//      val communities         = if (top == 0) sorted.map(_._2) else sorted.map(_._2).take(top)
+//      fd(top5, total, totalIslands, communities)
+//    } catch {
+//      case _: UnsupportedOperationException => fd(Array(0), 0, 0, Array(ArrayBuffer("0")))
+//    }
+//  }
 
   override def defineMaxSteps(): Int = maxIter
 

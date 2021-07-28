@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.entity.Vertex
 
 import java.time.LocalDateTime
 import scala.collection.parallel.ParMap
@@ -77,10 +77,10 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
           }
 
         //Get labels of past/future instances of vertex
-        if (vlabel.contains(ts - snapshotSize))
-          nei_labs.append((vlabel(ts - snapshotSize)._2, interLayerWeights(omega, vertex, ts - snapshotSize)))
-        if (vlabel.contains(ts + snapshotSize))
-          nei_labs.append((vlabel(ts + snapshotSize)._2, interLayerWeights(omega, vertex, ts)))
+        //if (vlabel.contains(ts - snapshotSize)) //TODO reenable
+        //  nei_labs.append((vlabel(ts - snapshotSize)._2, interLayerWeights(omega, vertex, ts - snapshotSize)))
+        //if (vlabel.contains(ts + snapshotSize))
+        //  nei_labs.append((vlabel(ts + snapshotSize)._2, interLayerWeights(omega, vertex, ts)))
 
         val Oldlab = tv._2._1
         val Curlab = tv._2._2
@@ -111,11 +111,11 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
     }
     if (debug & (workerID == 1))
       println(
-              s"Superstep: ${view.superStep()}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
+        s"Superstep: ${view.superStep}    Time: ${LocalDateTime.now()}   ExecTime: ${System.currentTimeMillis() - t1}"
       )
   }
 
-  def interLayerWeights(x: String, v: VertexVisitor, ts: Long): Double =
+  def interLayerWeights(x: String, v: Vertex, ts: Long): Double =
     x match {
       case "average" =>
         val neilabs = weightFunction(v, ts)
@@ -123,7 +123,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
       case _ => omega.toDouble
     }
 
-  def weightFunction(v: VertexVisitor, ts: Long): ParMap[Long, Double] =
+  def weightFunction(v: Vertex, ts: Long): ParMap[Long, Double] =
     (v.getInCEdgesBetween(ts - snapshotSize, ts) ++ v.getOutEdgesBetween(ts - snapshotSize, ts))
       .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0).asInstanceOf[Double]))
       .groupBy(_._1)
