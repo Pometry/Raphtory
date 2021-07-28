@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.entity.Vertex
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -35,7 +35,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
 
   override val output_file: String = System.getenv().getOrDefault("CBOD_OUTPUT_PATH", "").trim
 
-  override def doSomething(v: VertexVisitor, neighborLabels: Array[Long]): Unit = {
+  override def doSomething(v: Vertex, neighborLabels: Array[Long]): Unit = {
     val vlabel       = v.getState[(Long, Long)]("lpalabel")._2
     val outlierScore = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)
     v.setState("outlierscore", outlierScore)
@@ -47,7 +47,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
       .filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.ID(), vertex.getOrSetState[Double]("outlierscore", -1.0)))
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Double]]].flatten
 
     val outliers  = endResults.filter(_._2 > cutoff)
@@ -56,34 +56,12 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
     val top5       = sorted.map(_._1).take(5)
     val total     = outliers.length
     val out       = if (top == 0) sortedstr else sortedstr.take(top)
-    val text = s"""{"time":$timestamp,"total":$total,"top5":[${top5.mkString(",")}],"outliers":{${out
-      .mkString(",")}},"viewTime":$viewCompleteTime}"""
+    val text = s"""{"total":$total,"top5":[${top5.mkString(",")}],"outliers":{${out
+      .mkString(",")}}}"""
     output_file match {
       case "" => println(text)
-      case "mongo" => publishData(text)
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
-  }
-
-  override def processWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSize: Long,
-      viewCompleteTime: Long
-  ): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Double]]].flatten
-    val outliers   = endResults.filter(_._2 > cutoff)
-    val sorted     = outliers.sortBy(-_._2)
-    val sortedstr  = sorted.map(x => s""""${x._1}":${x._2}""")
-    val top5        = sorted.map(_._1).take(5)
-    val total      = outliers.length
-    val out        = if (top == 0) sortedstr else sortedstr.take(top)
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":$total,"top5":[${top5
-      .mkString(",")}],"outliers":{${out.mkString(",")}},"viewTime":$viewCompleteTime}"""
-    output_file match {
-      case "" => println(text)
-      case "mongo" => publishData(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
+    Map[String,Any]()
   }
 }

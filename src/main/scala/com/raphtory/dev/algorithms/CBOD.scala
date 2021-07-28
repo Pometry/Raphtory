@@ -1,18 +1,16 @@
 package com.raphtory.dev.algorithms
 
-import com.raphtory.api.Analyser
-import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.analysis.entity.Vertex
 
-import java.time.LocalDateTime
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
-import scala.reflect.io.Path
 
 object CBOD {
   def apply(args: Array[String]): CBOD = new CBOD(args)
 }
 
-class CBOD(args: Array[String]) extends Analyser(args) {
+class CBOD(args: Array[String]) extends Analyser[Any](args) {
   //args = [top , edge property, maxIter, cutoff]
 
   val arg: Array[String] = args.map(_.trim)
@@ -38,7 +36,7 @@ class CBOD(args: Array[String]) extends Analyser(args) {
     val t0 = System.currentTimeMillis()
     if (debug)
       println(
-        s"{BtwSuperstep: ${view.superStep()}, workerID: ${workerID},  ExecTime: ${t0 - b0}}"
+        s"{BtwSuperstep: ${view.superStep}, workerID: ${workerID},  ExecTime: ${t0 - b0}}"
       )
     view.getMessagedVertices().foreach { vertex =>
       val t1 = System.currentTimeMillis()
@@ -77,18 +75,18 @@ class CBOD(args: Array[String]) extends Analyser(args) {
       }
       if (filter.contains(vertex.ID()) & debug)
         println(
-          s"{Superstep: ${view.superStep()},workerID: ${workerID}, vID: ${vertex.ID()},ExecTime: ${System.currentTimeMillis() - t1}}"
+          s"{Superstep: ${view.superStep},workerID: ${workerID}, vID: ${vertex.ID()},ExecTime: ${System.currentTimeMillis() - t1}}"
         )
     }
     if (debug)
     println(
-      s"{workerID: ${workerID},Superstep: ${view.superStep()},  ExecTime: ${System.currentTimeMillis() - t0}}"
+      s"{workerID: ${workerID},Superstep: ${view.superStep},  ExecTime: ${System.currentTimeMillis() - t0}}"
     )
     b0 = System.currentTimeMillis()
   }
 //  def doSomething(v: VertexVisitor, gp: Array[Long]): Unit = {}
 
-  def doSomething(v: VertexVisitor, neighborLabels: Array[Long]): Unit = {
+  def doSomething(v: Vertex, neighborLabels: Array[Long]): Unit = {
     val vlabel       = v.getState[(Long, Long)]("lpalabel")._2
     val outlierScore = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)
     v.setState("outlierscore", outlierScore)
@@ -100,37 +98,20 @@ class CBOD(args: Array[String]) extends Analyser(args) {
       .filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.getPropertyValue("ID").getOrElse("Unknown"), vertex.getOrSetState[Double]("outlierscore", -1.0)))
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: List[Any]): Map[String,Any] = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[String, Double]]].flatten
-
-    val sorted  = endResults.filter(_._2 > cutoff)
-//    val sorted    = outliers.sortBy(-_._2)
-    val sortedstr = sorted.map(x => s""""${x._1}":${x._2}""")
-//    val top5       = sorted.map(_._1).take(5)
-    val total     = sorted.length
-    val out       = if (top == 0) sortedstr else sortedstr.take(top)
-    val text = s"""{"time":$timestamp,"total":$total,"outliers":{${out
-      .mkString(",")}},"viewTime":$viewCompleteTime}"""
-    writeOut(text, output_file)
+//
+//    val sorted  = endResults.filter(_._2 > cutoff)
+////    val sorted    = outliers.sortBy(-_._2)
+//    val sortedstr = sorted.map(x => s""""${x._1}":${x._2}""")
+////    val top5       = sorted.map(_._1).take(5)
+//    val total     = sorted.length
+//    val out       = if (top == 0) sortedstr else sortedstr.take(top)
+//    val text = s"""{"time":$timestamp,"total":$total,"outliers":{${out
+//      .mkString(",")}},"viewTime":$viewCompleteTime}"""
+    Map[String,Any]()
   }
 
-  override def processWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSize: Long,
-      viewCompleteTime: Long
-  ): Unit = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[String, Double]]].flatten
-    val sorted   = endResults.filter(_._2 > cutoff)
-//    val sorted     = outliers.sortBy(-_._2)
-    val sortedstr  = sorted.map(x => s""""${x._1}":${x._2}""")
-//    val top5        = sorted.map(_._1).take(5)
-    val total      = sorted.length
-    val out        = if (top == 0) sortedstr else sortedstr.take(top)
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"total":$total,"outliers":{${out
-      .mkString(",")}},"viewTime":$viewCompleteTime}"""
-    writeOut(text, output_file)
-  }
 
   override def defineMaxSteps(): Int = maxIter
 }

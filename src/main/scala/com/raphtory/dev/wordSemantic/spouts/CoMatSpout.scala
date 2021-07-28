@@ -3,7 +3,7 @@ package com.raphtory.dev.wordSemantic.spouts
 import java.io._
 import java.util.zip.GZIPInputStream
 
-import com.raphtory.core.actors.Spout.Spout
+import com.raphtory.core.actors.spout.Spout
 import com.typesafe.scalalogging.LazyLogging
 
 class CoMatSpout extends Spout[String] {

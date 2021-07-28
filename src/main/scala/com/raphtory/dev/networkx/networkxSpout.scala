@@ -2,7 +2,7 @@ package com.raphtory.dev.networkx
 
 import java.time.LocalDateTime
 
-import com.raphtory.core.actors.Spout.Spout
+import com.raphtory.core.actors.spout.Spout
 
 import scala.collection.mutable
 import scala.language.postfixOps

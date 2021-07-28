@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -9,8 +9,8 @@ object ConnectedComponents {
   def apply():ConnectedComponents = new ConnectedComponents(Array())
 }
 
-class ConnectedComponents(args:Array[String]) extends Analyser(args){
-  val output_file: String = System.getenv().getOrDefault("CC_OUTPUT_PATH", "").trim
+class ConnectedComponents(args:Array[String]) extends Analyser[List[(Long, Int)]](args){
+
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       vertex.setState("cclabel", vertex.ID)
@@ -28,27 +28,22 @@ class ConnectedComponents(args:Array[String]) extends Analyser(args){
         vertex.voteToHalt()
     }
 
-  override def returnResults(): Any =
+  override def returnResults(): List[(Long, Int)] = {
     view.getVertices()
       .map(vertex => vertex.getState[Long]("cclabel"))
       .groupBy(f => f)
-      .map(f => (f._1, f._2.size))
+      .map(f => (f._1, f._2.size)).toList
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  }
+
+  override def extractResults(results: List[List[(Long, Int)]]): Map[String, Any] = {
     val er = extractData(results)
-    val text = s"""{"time":$timestamp,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime},"""
-    writeOut(text, output_file)
+    Map[String,Any]("top5"-> er.top5,"total"->er.total,"totalIslands"->er.totalIslands,"proportion"->er.proportion,"clustersGT2"->er.totalGT2)
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
-      val er = extractData(results)
-      val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5.mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"proportion":${er.proportion},"clustersGT2":${er.totalGT2},"viewTime":$viewCompleteTime},"""
-      writeOut(text, output_file)
 
-  }
-
-  def extractData(results:ArrayBuffer[Any]):extractedData ={
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Int]]]
+  def extractData(results:List[List[(Long, Int)]]):extractedData ={
+    val endResults = results
     try {
       val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
       val groupedNonIslands = grouped.filter(x => x._2 > 1)

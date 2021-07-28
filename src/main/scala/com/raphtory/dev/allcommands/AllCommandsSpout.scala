@@ -1,6 +1,6 @@
 package com.raphtory.dev.allcommands
 
-import com.raphtory.core.actors.Spout.Spout
+import com.raphtory.core.actors.spout.Spout
 
 import scala.util.Random
 
@@ -32,12 +32,13 @@ class AllCommandsSpout extends Spout[String] {
   def distribution(): String = {
     val random = rnd.nextFloat()
     // genVertexAdd()
-    if (random <= vprob) genVertexAdd()
+//    if (random <= vprob) genVertexAdd()
     //else genEdgeAdd()
-    else if (random <= eprob) genEdgeAdd()
+//    else
+      if (random <= eprob) genEdgeAdd()
     //  else genEdgeRemoval()
     else if (random <= 0.98) genEdgeRemoval()
-    else genVertexRemoval()
+    else genEdgeRemoval()//genVertexRemoval()
   }
 
   def genVertexAdd(): String =
