@@ -1,6 +1,5 @@
-package com.raphtory.core.actors.clustermanagement
+package com.raphtory.core.actors.orchestration.clustermanager
 
-import akka.actor.{Actor, ActorLogging}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
 import com.raphtory.core.actors.RaphtoryActor
