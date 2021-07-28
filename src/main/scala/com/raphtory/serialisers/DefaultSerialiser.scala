@@ -4,13 +4,8 @@ import com.raphtory.core.analysis.api.AggregateSerialiser
 
 import scala.reflect.io.Path
 
-
+case class Nested(string:String)
 class DefaultSerialiser extends AggregateSerialiser{
-  private val saveData  = System.getenv().getOrDefault("ANALYSIS_SAVE_OUTPUT", "false").trim.toBoolean
-  private val mongoIP   = System.getenv().getOrDefault("ANALYSIS_MONGO_HOST", "localhost").trim
-  private val mongoPort = System.getenv().getOrDefault("ANALYSIS_MONGO_PORT", "27017").trim
-  private val dbname    = System.getenv().getOrDefault("ANALYSIS_MONGO_DB_NAME", "raphtory").trim
-//  private val mongo = MongoClient(MongoClientURI(s"mongodb://${InetAddress.getByName(mongoIP).getHostAddress}:$mongoPort"))
   private val output_file: String = System.getenv().getOrDefault("OUTPUT_PATH", "").trim
 
   override def serialiseView(results: Map[String, Any], timestamp: Long, jobID: String, viewTime: Long): Unit = {
@@ -33,11 +28,17 @@ class DefaultSerialiser extends AggregateSerialiser{
     case v:Int    => s"""${v.toString}"""
     case v:Double => s"""${v.toString}"""
     case v:Float  => s"""${v.toString}"""
+    case v:Nested => v.string
     case v:Array[String] => v.map(individualValue).mkString("[", ",", "]") //TODO compress to one array type, cases being a pain in the ass
     case v:Array[Int] => v.map(individualValue).mkString("[", ",", "]")
     case v:Array[Double] => v.map(individualValue).mkString("[", ",", "]")
     case v:Array[Float] => v.map(individualValue).mkString("[", ",", "]")
-
+    case v:Array[Nested] => v.map(individualValue).mkString("[", ",", "]")
+    case v: List[String] => v.map(individualValue).mkString("[", ",", "]") //TODO compress to one array type, cases being a pain in the ass
+    case v: List[Int] => v.map(individualValue).mkString("[", ",", "]")
+    case v: List[Double] => v.map(individualValue).mkString("[", ",", "]")
+    case v: List[Float] => v.map(individualValue).mkString("[", ",", "]")
+    case v: Map[String, Any] => v.map { case (key, value) => valueToString(key, value) }.mkString("{", ",", "}")
   }
   
   private def valueToString(key: String, value: Any):String = s""""$key":${individualValue(value)}"""

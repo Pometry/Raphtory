@@ -1,19 +1,21 @@
-package com.raphtory.core.actors.clustermanagement
+package com.raphtory.core.actors.orchestration.clustermanager
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.clustermanagement.WatermarkManager.Message._
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{ProbeWatermark, WatermarkTime}
 import kamon.Kamon
 
-
-import java.time.LocalDateTime
-import scala.concurrent.duration._
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
+  val workerPaths = for {
+    i <- 0 until managerCount
+    j <- 0 until totalWorkers
+  } yield s"/user/Manager_${i}_child_$j"
 
   override def preStart(): Unit = {
     context.system.scheduler.scheduleOnce(delay = 60.seconds, receiver = self, message = "probe")
@@ -32,11 +34,6 @@ class WatermarkManager(managerCount: Int) extends RaphtoryActor  {
   }
 
   def probeWatermark() = {
-    val workerPaths = for {
-      i <- 0 until managerCount
-      j <- 0 until totalWorkers
-    } yield s"/user/Manager_${i}_child_$j"
-
     workerPaths.foreach { workerPath =>
       mediator ! new DistributedPubSubMediator.Send(
         workerPath,
@@ -63,5 +60,6 @@ object WatermarkManager {
   object Message {
     case object ProbeWatermark
     case class WatermarkTime(time:Long)
+    case object SaveState
   }
 }

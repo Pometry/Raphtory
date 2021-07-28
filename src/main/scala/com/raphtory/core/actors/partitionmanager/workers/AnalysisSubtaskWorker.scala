@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.KillTask
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
-import com.raphtory.core.actors.clustermanagement.componentconnector.UpdatedCounter
+import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 import com.raphtory.core.actors.partitionmanager.workers.AnalysisSubtaskWorker.State
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.GraphLens
