@@ -3,9 +3,9 @@ import akka.actor.{ActorSystem, Props}
 import com.esotericsoftware.kryo.Kryo
 import com.raphtory.RaphtoryServer.{partitionCount, routerCount}
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.clustermanagement.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
-import com.raphtory.core.actors.clustermanagement.{SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
+import com.raphtory.core.actors.orchestration.clustermanager.{SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 

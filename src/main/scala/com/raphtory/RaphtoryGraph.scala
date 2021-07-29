@@ -4,9 +4,9 @@ import akka.actor.{ActorSystem, Props}
 import com.raphtory.RaphtoryServer.{partitionCount, routerCount}
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.clustermanagement.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
-import com.raphtory.core.actors.clustermanagement.{WatchDog, WatermarkManager}
+import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
+import com.raphtory.core.actors.orchestration.clustermanager.{WatchDog, WatermarkManager}
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 

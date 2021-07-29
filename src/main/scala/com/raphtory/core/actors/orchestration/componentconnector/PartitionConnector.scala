@@ -1,10 +1,10 @@
-package com.raphtory.core.actors.clustermanagement.componentconnector
+package com.raphtory.core.actors.orchestration.componentconnector
 
 
 import akka.actor.{ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.clustermanagement.WatchDog.Message.RequestPartitionId
 import akka.pattern.ask
+import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.RequestPartitionId
 import com.raphtory.core.actors.partitionmanager.workers.IngestionWorker
 import com.raphtory.core.actors.partitionmanager.{Reader, Writer}
 import com.raphtory.core.model.EntityStorage

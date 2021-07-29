@@ -10,8 +10,8 @@ import com.raphtory.core.actors.spout.SpoutAgent.CommonMessage.{AllocateTuple, D
 import com.raphtory.core.model.communication._
 import kamon.Kamon
 import akka.pattern.ask
-import com.raphtory.core.actors.clustermanagement.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
-import com.raphtory.core.actors.clustermanagement.componentconnector.UpdatedCounter
+import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
+import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap

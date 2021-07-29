@@ -2,10 +2,10 @@ package com.raphtory.core.actors.graphbuilder
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.clustermanagement.WatchDog.Message.RouterUp
-import com.raphtory.core.actors.clustermanagement.componentconnector.UpdatedCounter
+import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.graphbuilder.RouterManager.Message._
+import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.RouterUp
 import com.raphtory.core.model.communication._
 
 import scala.concurrent.ExecutionContext
