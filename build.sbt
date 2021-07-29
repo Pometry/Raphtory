@@ -78,7 +78,8 @@ val hadoop = "org.apache.hadoop" % "hadoop-client" % "3.3.0"
 // https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk
 //val aws =  "com.amazonaws" % "aws-java-sdk" % "1.11.897"
 val parquet = "com.github.mjakubowski84" %% "parquet4s-core" % "1.6.0"
-//val h3 = "com.uber" % "h3" % "3.6.4"
+val h3 = "com.uber" % "h3" % "3.7.0"
+
 val kryo = "io.altoo" %% "akka-kryo-serialization" % "2.2.0"
 
 val IP = java.net.InetAddress.getLocalHost.getHostAddress
@@ -196,8 +197,8 @@ lazy val raphtory = project
                     parquet,
                     hadoop,
                     akka_spray,
-                    kryo
-                   // h3
+                    kryo,
+                    h3
             )
   )
   .settings(

@@ -30,6 +30,11 @@ logs
 
 #raphtory env
 mainproject/.env
+
+# sbt 
+sbt-*.zip
+sbt
+
 mainproject/build.sbt
 *.class
 *.log
