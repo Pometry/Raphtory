@@ -1,6 +1,5 @@
 package com.raphtory.dev.algorithms
 
-import com.github.nscala_time.time.Imports.LocalDateTime
 import com.raphtory.algorithms.LPA
 import com.raphtory.core.analysis.entity.Vertex
 
@@ -19,30 +18,19 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   override val SP: Float = if (arg.length < 8) 0.2F else args(7).toFloat
   val scaled: Boolean = if (arg.length < 9) true else args(8).toBoolean
   val commprob: Float = if (arg.length < 10) 1.0F else args(9).toFloat
-<<<<<<< HEAD
-=======
 //  val TMP: Long = if (arg.length < 11) 1000L else args(10).toLong
   var countvote: Long = 0L
->>>>>>> tsu-test
 
   var lastManStanding = (0L, -1L, -1L, -1,-1)
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
       // Assign random labels for all instances in time of a vertex as Map(ts, lab)
-<<<<<<< HEAD
-    val slabel = rnd.nextLong()
-=======
       val slabel = rnd.nextLong()
->>>>>>> tsu-test
       val prob = rnd.nextFloat()
       val tlabels =
         snapshots
           .filter(ts => vertex.aliveAtWithWindow(ts, snapshotSize))
-<<<<<<< HEAD
-//          .map(ts => (ts, rnd.nextLong()))
-=======
           //          .map(ts => (ts, rnd.nextLong()))
->>>>>>> tsu-test
           .map(ts => (ts, if ( prob < commprob) slabel else rnd.nextLong()))
           .toArray
       vertex.setState("mlpalabel", tlabels)
@@ -147,15 +135,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       nei_weights = nei_weights.map(x => (x._1, x._2 / scale))
 
     }
-<<<<<<< HEAD
-//    nei_weights =
-      var nei_filt = nei_weights.toArray.sortBy(-_._2)
-//      nei_filt = nei_filt.take((nei_weights.size*filter).toInt)
-//    nei_weights
 
-//      nei_filt = if (nei_filt.nonEmpty) nei_filt else nei_weights.toArray.take(1)
-      nei_filt.groupBy(_._1).mapValues(x => x.map(_._2).sum) // (ID -> Freq)
-=======
     //    nei_weights =
     //      var nei_filt = nei_weights.toArray.sortBy(-_._2)
     //      nei_filt = nei_filt.take((nei_weights.size*filter).toInt)
@@ -163,7 +143,6 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
 
     //      nei_filt = if (nei_filt.nonEmpty) nei_filt else nei_weights.toArray.take(1)
     nei_weights.toArray.groupBy(_._1).mapValues(x => x.map(_._2).sum) // (ID -> Freq)
->>>>>>> tsu-test
   }
 
   def scaling(freq: Array[Float]): Float = math.sqrt(freq.map(math.pow(_, 2)).sum).toFloat

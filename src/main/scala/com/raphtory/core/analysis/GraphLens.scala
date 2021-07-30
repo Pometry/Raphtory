@@ -66,7 +66,7 @@ final case class GraphLens(
   }
 
   def checkVotes(): Boolean = {
-    println(s"$superStep - $workerId : \t ${vertexCount.get() - voteCount.get()} / ${vertexCount.get()}")
+//    println(s"$superStep - $workerId : \t ${vertexCount.get() - voteCount.get()} / ${vertexCount.get()}")
     vertexCount.get() == voteCount.get()
   }
 

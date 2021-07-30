@@ -1,6 +1,7 @@
 package com.raphtory.dev.algorithms
 
 import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.analysis.entity.Vertex
 
 import scala.collection.mutable
 import scala.io.Source
@@ -12,6 +13,8 @@ Gets the 2-hop network for select nodes.
 class getNeighborhood(args: Array[String]) extends Analyser[Any](args) {
   val url                  = "https://raphtorydatasets.blob.core.windows.net/top-tier/misc/selnodes.csv"
   val nodesf: String       = if (args.length < 1) url else args.head
+  val neiSize: Int       = if (args.length < 2) 100 else args(1).toInt
+  val property: String       = if (args.length < 3) "Frequency" else args(2)
   val words: Array[String] = if (nodesf.isEmpty) Array[String]() else dllCommFile(nodesf)
   val output_file: String  = System.getenv().getOrDefault("OUTPUT_PATH", "").trim
 
@@ -20,28 +23,30 @@ class getNeighborhood(args: Array[String]) extends Analyser[Any](args) {
     html.mkString.split("\n")
   }
 
-  override def setup(): Unit =
-
+  override def setup(): Unit = {
     view.getVertices().filter(v => words.contains(v.getPropertyValue("Word").getOrElse(v.ID()).toString)).foreach {
       vertex =>
-        val wd = vertex.getPropertyValue("Word").getOrElse(vertex.ID()).toString
         vertex.setState("state", mutable.Map((2, List())))
-        vertex.messageAllNeighbours((wd, 2))
+        messageSelect(vertex, 2)
+//        vertex.messageAllNeighbours((wd, 2))
     }
+  }
 
-  override def analyse(): Unit =
+  override def analyse(): Unit = {
     view.getMessagedVertices().foreach { vertex =>
       val msgQ   = vertex.messageQueue[(String, Int)]
       val msq    = msgQ.groupBy(_._2).map(f => (f._1 - 1, f._2.map(_._1)))
       var st     = mutable.Map(msq.toSeq: _*)
       val prevst = vertex.getOrSetState[mutable.Map[Int, List[String]]]("state", mutable.Map[Int, List[String]]())
       prevst.foreach(x => st(x._1) = x._2 ++ st.getOrElse(x._1, List[String]()))
-      val wd = vertex.getPropertyValue("Word").getOrElse(vertex.ID()).toString
       vertex.setState("state", st)
       val pos = st.keys.min
-      //      if ((wd == "attempting") |(wd == "deliberated" )) println(wd, st.keys.mkString(","), st.values.map(v=> v.mkString(",")).mkString("|"),pos)
-      if (pos > 0) vertex.messageAllNeighbours((wd, pos))
+      if (pos > 0) {
+        messageSelect(vertex, pos)
+//        vertex.messageAllNeighbours((wd, pos))
+      }
     }
+  }
 
 
   override def returnResults(): Any =
@@ -83,5 +88,13 @@ class getNeighborhood(args: Array[String]) extends Analyser[Any](args) {
       case _  => Path(output_file).createFile().appendAll(text + "\n")
     }
     Map[String, Any]()
+  }
+
+  def messageSelect(vertex: Vertex, pos: Int): Unit ={
+    val wd = vertex.getPropertyValue("Word").getOrElse(vertex.ID()).toString
+    val nei = vertex.getEdges.map(e=> e.ID() -> e.getPropertyValue(property).getOrElse(1.0F).asInstanceOf[Float])
+      .groupBy(_._1).mapValues(_.map(_._2).max)
+      .toArray.sortBy(-_._2).take(neiSize).map(_._1)
+    nei.foreach(x=> vertex.messageNeighbour(x,(wd, pos)))
   }
 }
