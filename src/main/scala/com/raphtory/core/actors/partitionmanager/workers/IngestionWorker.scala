@@ -3,13 +3,13 @@ package com.raphtory.core.actors.partitionmanager.workers
 import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.partitionmanager.workers.IngestionWorker.Message.Watermark
-import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.{MailboxTrackedActor, RaphtoryActor}
 import com.raphtory.core.actors.graphbuilder.RouterWorker.CommonMessage.RouterWorkerTimeSync
 import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
 import kamon.Kamon
-import java.util.concurrent.atomic.AtomicInteger
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
@@ -25,7 +25,7 @@ case class queueItem(routerEpoch:Int,timestamp:Long)extends Ordered[queueItem] {
 }
 
 // TODO Re-add compression (removed during commit Log-Revamp)
-final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage,managerCount:Int) extends RaphtoryActor {
+final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorage,managerCount:Int) extends RaphtoryActor with MailboxTrackedActor {
   private implicit val executionContext: ExecutionContext = context.system.dispatcher
 
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator
@@ -49,7 +49,7 @@ final class IngestionWorker(workerId: Int,partitionID:Int, storage: EntityStorag
   private val safeMessageMap = ParTrieMap[String, queueItem]()
   private val vDeleteCountdownMap = ParTrieMap[(String,Int), AtomicInteger]()
 
-  override def receive: Receive = {
+  override def receive: Receive = mailboxTrackedReceive {
     case TrackedGraphUpdate(channelId, channelTime, req: VertexAdd) => processVertexAddRequest(channelId, channelTime, req); //Add a new vertex
     case TrackedGraphUpdate(channelId, channelTime, req: EdgeAdd) => processEdgeAddRequest(channelId, channelTime, req) //Add an edge
 
