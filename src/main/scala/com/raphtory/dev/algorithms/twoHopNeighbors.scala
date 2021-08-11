@@ -10,7 +10,7 @@ import scala.tools.nsc.io.Path
 /**
 Gets the 2-hop network for select nodes.
 **/
-class getNeighborhood(args: Array[String]) extends Analyser[Any](args) {
+class twoHopNeighbors(args: Array[String]) extends Analyser[Any](args) {
   val url                  = "https://raphtorydatasets.blob.core.windows.net/top-tier/misc/selnodes.csv"
   val nodesf: String       = if (args.length < 1) url else args.head
   val neiSize: Int       = if (args.length < 2) 100 else args(1).toInt
@@ -59,6 +59,7 @@ class getNeighborhood(args: Array[String]) extends Analyser[Any](args) {
                 vertex.getOrSetState[mutable.Map[Int, List[String]]]("state", mutable.Map[Int, List[String]]())
         )
       )
+      .filterNot(f=> f._2.isEmpty)
       .toList
 //          .groupBy(f => f._1)
 //          .map(f => (f._1, f._2.map(_._2)))
@@ -72,12 +73,14 @@ class getNeighborhood(args: Array[String]) extends Analyser[Any](args) {
       .flatten
       .groupBy(f => f._1)
       .mapValues(x => x.flatMap(_._2).toMap)
+    val fil1=endResults.filter(ch => ch._2.keys.toArray.contains(1))
+    val fil0=endResults.filter(ch => ch._2.keys.toArray.contains(0))
     val root = words.map { wd =>
-      (wd, endResults.filter(ch => ch._2.keys.toArray.contains(1)).filter(ch => ch._2(1).contains(wd)).keys)
+      (wd, fil1.filter(ch => ch._2(1).contains(wd)).keys)
     }
     println("got roots...")
     val leaf = root.flatMap(_._2).distinct.filterNot(words.contains(_)).map { wd =>
-      (wd, endResults.filter(ch => ch._2.keys.toArray.contains(0)).filter(ch => ch._2(0).contains(wd)).keys)
+      (wd, fil0.filter(ch => ch._2(0).contains(wd)).keys)
     }
     println("got leaves...")
     val text =
