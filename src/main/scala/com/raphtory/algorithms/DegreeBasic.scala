@@ -10,7 +10,7 @@ object DegreeBasic{
 
 class DegreeBasic(args:Array[String]) extends Analyser[(Int, Int, Int, Array[(Long, Int, Int)])](args){
   object sortOrdering extends Ordering[Int] {
-    def compare(key1: Int, key2: Int) = key2.compareTo(key1)
+    def compare(key1: Int, key2: Int): Int = key2.compareTo(key1)
   }
   override def analyse(): Unit = {}
 
@@ -41,15 +41,7 @@ class DegreeBasic(args:Array[String]) extends Analyser[(Int, Int, Int, Array[(Lo
       catch {
         case e: ArithmeticException => 0
       }
-
-val startTime   = System.currentTimeMillis()
-    val text = s"""{"vertices":$totalVert,"edges":$totalEdge,"degree":$degree}"""
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","DegreeBasic.json").trim
-   // writeLines(output_file, text, "")
-    println(text)
-    //publishData(text)
-    Map[String,Any]()
+    Map[String,Any]("vertices"->totalVert,"edges"->totalEdge, "degree"->degree)
   }
 
 }

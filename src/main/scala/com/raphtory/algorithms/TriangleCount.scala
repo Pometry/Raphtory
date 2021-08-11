@@ -9,7 +9,7 @@ import scala.collection.mutable.ArrayBuffer
   * I will send the message '5' and '7' to my neighbours. Then each vertex checks its incoming messages and sees if any
   * of the messages received correspond to ids of its neighbours. */
 
-class TriangleCount(args:Array[String]) extends Analyser[Any](args) {
+class TriangleCount(args:Array[String]) extends Analyser[(Int,Int,Double)](args) {
 
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
@@ -35,7 +35,7 @@ class TriangleCount(args:Array[String]) extends Analyser[Any](args) {
 
   }
 
-  override def returnResults(): Any = {
+  override def returnResults(): (Int,Int,Double) = {
     val triangleStats  = view.getVertices().map {
       vertex => (vertex.getState[Int]("triangles"), vertex.getOutEdges.size + vertex.getIncEdges.size)
     }.map {
@@ -49,19 +49,19 @@ class TriangleCount(args:Array[String]) extends Analyser[Any](args) {
 
   override def defineMaxSteps(): Int = 5
 
-  override def extractResults(results: List[Any]): Map[String, Any] = {
+  override def extractResults(results: List[(Int,Int,Double)]): Map[String, Any] = {
     val startTime   = System.currentTimeMillis()
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Double)]]
+    val endResults = results
     val totalVert = endResults.map( x => x._1 ).sum
     val totalTri = endResults.map( x => x._2 ).sum/3
     val avgCluster = if (totalVert > 0) endResults.map( x => x._3 ).sum/totalVert else 0.0
 //    val clusterCoeff =
 //      try endResults.map(x => x._3).sum/totalVert.toFloat
 //      catch { case e: ArithmeticException => 0.0 }
-    val text = s"""{"totTriangles":$totalTri,"avgCluster":$avgCluster,"concatTime":${System
-      .currentTimeMillis() - startTime}},"""
-    println(text)
-    Map[String,Any]()
+//    val text = s"""{"totTriangles":$totalTri,"avgCluster":$avgCluster,"concatTime":${System
+//      .currentTimeMillis() - startTime}},"""
+//    println(text)
+    Map[String,Any]("vertices"->totalVert,"totalTri"->totalTri,"avgCluster"->avgCluster)
   }
 
 }
