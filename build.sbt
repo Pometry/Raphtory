@@ -120,6 +120,7 @@ lazy val raphtory = project
     libraryDependencies ++= Seq(
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
     ),
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test,
     Compile / PB.targets := Seq(
       scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
     )
