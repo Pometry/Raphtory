@@ -125,7 +125,8 @@ class MultiLayerLPA2(args: Array[String]) extends LPA(args) {
 
   def scaling(freq: Array[Float]): Float = math.sqrt(freq.map(math.pow(_, 2)).sum).toFloat
 
-  override def returnResults(): Any =
+  override def returnResults(): Any = {
+    println(s"mLPA - wID: $workerID totNodes: ${view.getVertices().size}")
     view
       .getVertices()
       .map(vertex =>
@@ -138,4 +139,5 @@ class MultiLayerLPA2(args: Array[String]) extends LPA(args) {
       //      .flatMap(f =>  f._1.toArray.map(x => (x._2._2, "\""+x._1.toString+f._2+"\"")))
       .groupBy(f => f._1)
       .map(f => (f._1, f._2.map(_._2).toList))
+  }
 }
