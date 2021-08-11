@@ -117,6 +117,7 @@ lazy val raphtory = project
     libraryDependencies += "org.apache.hadoop"             % "hadoop-client"                      % "3.3.0",
     libraryDependencies += "io.altoo"                      %% "akka-kryo-serialization"           % "2.2.0",
     libraryDependencies += "com.thesamet.scalapb"          %% "compilerplugin"                    % "0.11.1",
+    libraryDependencies += "net.openhft"                   % "zero-allocation-hashing"            % "0.15",
     libraryDependencies ++= Seq(
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
     ),

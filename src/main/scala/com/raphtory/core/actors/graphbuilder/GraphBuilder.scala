@@ -1,6 +1,11 @@
 package com.raphtory.core.actors.graphbuilder
 
+import java.nio.ByteBuffer
+
 import com.raphtory.core.model.communication._
+import net.jpountz.xxhash.XXHash64
+import net.openhft.hashing
+import net.openhft.hashing.LongHashFunction
 
 import scala.util.hashing.MurmurHash3
 
@@ -18,7 +23,7 @@ trait GraphBuilder[T] {
     toReturn
   }
 
-  protected def assignID(uniqueChars: String): Long = MurmurHash3.stringHash(uniqueChars)
+  protected def assignID(uniqueChars: String): Long = LongHashFunction.xx3().hashChars(uniqueChars)
 
   protected def parseTuple(tuple: T): Unit
 
