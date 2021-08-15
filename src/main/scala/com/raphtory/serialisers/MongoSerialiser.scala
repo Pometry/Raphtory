@@ -1,13 +1,11 @@
 package com.raphtory.serialisers
 
-import java.net.InetAddress
 
 import com.mongodb.DBObject
 import com.mongodb.casbah.{MongoClient, MongoClientURI}
 import com.mongodb.util.JSON
 import com.raphtory.core.analysis.api.AggregateSerialiser
 import java.net.InetAddress
-import scala.collection.JavaConverters._
 
 object MongoSerialiser {
   new MongoSerialiser
