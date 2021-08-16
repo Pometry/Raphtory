@@ -24,15 +24,21 @@ class AllCommandsTest extends FunSuite {
   val pm3 = new RaphtoryComponent("partitionManager",partitionCount,routerCount,1616)
   val pm4 = new RaphtoryComponent("partitionManager",partitionCount,routerCount,1617)
 
-  test("Watermark Test") {
+  test("Warmup and Ingestion Test") {
       implicit val timeout: Timeout = 20.second
       try {
-        val future = seedNode.getWatermarker.get ? WhatsTheTime
-        val timestamp = Await.result(future, timeout.duration).asInstanceOf[WatermarkTime].time
-        println(timestamp)
-        assert(timestamp==timestamp)
+        var currentTimestamp = 0L
+        Thread.sleep(60000) //Wait the initial watermarker warm up time
+        for (i <- 1 to 6){
+          Thread.sleep(10000)
+          val future = seedNode.getWatermarker.get ? WhatsTheTime
+          currentTimestamp = Await.result(future, timeout.duration).asInstanceOf[WatermarkTime].time
+        }
+        assert(currentTimestamp==299868)
     } catch {
       case _: java.util.concurrent.TimeoutException => assert(false)
     }
   }
+
+  
 }
