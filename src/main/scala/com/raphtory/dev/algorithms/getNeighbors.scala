@@ -12,13 +12,13 @@ import scala.tools.nsc.io.Path
 **/
 class getNeighbors(args: Array[String]) extends Analyser[Any](args) {
   val node: String       = if (args.length < 1) "" else args.head
-//  val property: String       = if (args.length < 3) "Frequency" else args(2)
+  val name: String       = if (args.length < 3) "Word" else args(2)
   val output_file: String  = System.getenv().getOrDefault("OUTPUT_PATH", "").trim
 
 
   override def setup(): Unit = {
     view.getVertices()
-      .filter(v =>v.getPropertyValue("Word").getOrElse(v.ID()).toString==node)
+      .filter(v =>v.getPropertyValue(name).getOrElse(v.ID()).toString==node)
     .foreach {
     vertex =>
       vertex.messageAllNeighbours(true)
@@ -38,7 +38,7 @@ class getNeighbors(args: Array[String]) extends Analyser[Any](args) {
       .getVertices()
       .filter(v => v.getOrSetState[Boolean]("neighbor", false)).toList
     if (nodes.isEmpty)  List() else
-      nodes.map{v=> v.getPropertyValue("Word").getOrElse(v.ID()).toString}
+      nodes.map{v=> v.getPropertyValue(name).getOrElse(v.ID()).toString}
   }
   override def defineMaxSteps(): Int = 10
 

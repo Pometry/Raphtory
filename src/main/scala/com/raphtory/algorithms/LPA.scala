@@ -45,8 +45,6 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
   val rnd    = new scala.util.Random
 
   val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
-  val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
-  val debug             = System.getenv().getOrDefault("DEBUG2", "false").trim.toBoolean //for printing debug messages
   val SP = 0.2F // Stickiness probability
 
   override def setup(): Unit = {
@@ -86,10 +84,6 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
         case e: Exception => println(e, vertex.ID())
       }
     }
-//    if (workerID==1)
-//      println(
-//        s"{workerID: ${workerID},Superstep: ${view.superStep()}}"
-//      )
   }
 
 
@@ -106,14 +100,8 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
     val er      = extractData(results)
     val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
 
-    val text = s"""{"top5":[${er.top5
-      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
-       s""""communities": [${commtxt.mkString(",")}]}"""
-    output_file match {
-      case "" => println(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
-    Map[String,Any]()
+    Map[String,Any]("top5"->er.top5,"total"->er.total,"totalIslands"->er.totalIslands,
+       "communities"->commtxt)
   }
 
   def extractData(results: List[Any]): fd = {
