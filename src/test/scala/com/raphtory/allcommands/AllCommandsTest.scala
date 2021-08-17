@@ -1,20 +1,28 @@
 package com.raphtory.allcommands
 
+import akka.actor.ActorRef
 import com.raphtory.RaphtoryComponent
 import org.scalatest.FunSuite
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.algorithms.StateTest
+import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.{AreYouFinished, ManagingTask, TaskFinished}
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.RangeAnalysisRequest
 import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
 import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.resultcomparison.{StateCheckResult, TimeParams}
 import com.raphtory.serialisers.DefaultSerialiser
+import spray.json._
+import com.raphtory.resultcomparison.comparisonJsonProtocol._
 
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 
 class AllCommandsTest extends FunSuite {
-  //SET
+  //set FILE_SPOUT_DIRECTORY=src/test/scala/com/raphtory/data/allcommands
+  //    FILE_SPOUT_FILENAME=testupdates.txt
+  //    OUTPUT_PATH=src/test/scala/com/raphtory/data/allcommands/output
+
   val partitionCount =4
   val routerCount =3
   val seedNode = new RaphtoryComponent("seedNode",partitionCount,routerCount,1600)
@@ -27,6 +35,21 @@ class AllCommandsTest extends FunSuite {
   val pm2 = new RaphtoryComponent("partitionManager",partitionCount,routerCount,1615)
   val pm3 = new RaphtoryComponent("partitionManager",partitionCount,routerCount,1616)
   val pm4 = new RaphtoryComponent("partitionManager",partitionCount,routerCount,1617)
+
+
+
+
+  test ("scratch space"){
+    val testData = scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/output").getLines()
+      .map(line=>line.parseJson.convertTo[StateCheckResult])
+      .map(state=>(TimeParams(state.time,state.windowsize),state))
+    val standardData = scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/statetest.json").getLines()
+      .map(line=> line.parseJson.convertTo[StateCheckResult])
+      .map(state=>(TimeParams(state.time,state.windowsize),state))
+
+    //    if(stateResult.fold(true){(x,y) =>x&&y})
+    assert(true)
+  }
 
   test("Warmup and Ingestion Test") {
       implicit val timeout: Timeout = 20.second
@@ -47,8 +70,20 @@ class AllCommandsTest extends FunSuite {
   test("Graph State Test"){
     val stateTest = new StateTest(Array()).getClass.getCanonicalName
     val serialiser = new DefaultSerialiser().getClass.getCanonicalName
-    analysisManager.getAnalysisManager.get !
-      RangeAnalysisRequest(stateTest,serialiser,1,290001,10000, List(1000,10000,100000,1000000),Array(),"")
+    try {
+      //First we run the test and see if it finishes in a reasonable time
+      implicit val timeout: Timeout = 120.second
+      val future      = analysisManager.getAnalysisManager.get ? RangeAnalysisRequest(stateTest,serialiser,1,290001,10000, List(1000,10000,100000,1000000),Array(),"")
+      val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
+      val future2     = taskManager ? AreYouFinished
+      val result      = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
+
+
+      assert(result)
+    } catch {
+      case _: java.util.concurrent.TimeoutException => assert(false)
+    }
 
   }
+
 }
