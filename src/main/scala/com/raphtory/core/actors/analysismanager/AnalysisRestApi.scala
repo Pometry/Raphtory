@@ -12,6 +12,7 @@ import akka.util.Timeout
 import com.raphtory.core.actors.analysismanager.AnalysisManager.Message._
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.http._
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
+import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 import spray.json.DefaultJsonProtocol._
 import spray.json.RootJsonFormat
 
@@ -156,6 +157,17 @@ object AnalysisRestApi {
     case class RangeAnalysisRequest(
         analyserName: String,
         serialiserName:String,
+        start: Long,
+        end: Long,
+        jump: Long,
+        windowSet: List[Long],
+        args: Array[String],
+        rawFile: String
+    ) extends AnalysisRequest
+
+    case class TestAnalysisRequest(
+        analyser: Analyser[Any],
+        serialiser:AggregateSerialiser,
         start: Long,
         end: Long,
         jump: Long,
