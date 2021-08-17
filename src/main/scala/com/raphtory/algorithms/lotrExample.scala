@@ -47,7 +47,7 @@ class lotrExample(args:Array[String]) extends Analyser[List[(Int,Int)]](args) {
   override def defineMaxSteps(): Int = 6
 
   override def extractResults(results: List[List[(Int,Int)]]): Map[String,Any]  = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
+    val endResults = results//.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
     try {
       val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
       val direct = if (grouped.nonEmpty) grouped(SEP - 1) else 0
