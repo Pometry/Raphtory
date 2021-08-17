@@ -45,7 +45,6 @@ class DefaultSerialiser extends AggregateSerialiser{
   def writeOut(data:String, outpath: String): Unit ={
     outpath match {
       case "" => println(data)
-      //        case "mongo" => mongo.getDB(dbname).getCollection(jobID).insert(JSON.parse(data).asInstanceOf[DBObject])
       case _  => Path(outpath).createFile().appendAll(data + "\n")
     }
   }
