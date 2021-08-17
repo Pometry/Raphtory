@@ -67,7 +67,7 @@ class StateTest(args:Array[String]) extends Analyser[PartitionState](args){
     val inedgeProperties = degDist.map( x => x._14).sum
     val inedgePropertyHistory = degDist.map( x => x._15).sum
 
-    (totalV, totalDeg, inDeg, outDeg, degSq, maxDeg,
+    PartitionState(totalV, totalDeg, inDeg, outDeg, degSq, maxDeg,
       vdeletionstotal,vcreationstotal,
       outedgedeletionstotal,outedgecreationstotal,
       inedgedeletionstotal,inedgecreationstotal,
