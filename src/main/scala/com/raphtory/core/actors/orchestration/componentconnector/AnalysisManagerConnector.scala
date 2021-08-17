@@ -4,7 +4,6 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
-import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message.StartAnalysis
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{PartitionsCount, RequestAnalysisId}
 
@@ -16,13 +15,13 @@ class AnalysisManagerConnector(managerCount: Int, routerCount:Int) extends Compo
   var analysismanager:ActorRef = null
 
   override def receive: Receive = {
-    case msg: String if msg == "tick" => processHeartbeatMessage(msg)
-    case req: PartitionsCount         => processPartitionsCountRequest(req)
-    case _: SubscribeAck              =>
-    case request: LiveAnalysisRequest => requesthandler(request)
-    case request: ViewAnalysisRequest => requesthandler(request)
-    case request: RangeAnalysisRequest => requesthandler(request)
-    case x                            => log.warning(s"Replicator received unknown [{}] message.", x)
+    case msg: String if msg == "tick"      => processHeartbeatMessage(msg)
+    case req: PartitionsCount              => processPartitionsCountRequest(req)
+    case _: SubscribeAck                   =>
+    case request: LiveAnalysisRequest      => requesthandler(request)
+    case request: ViewAnalysisRequest      => requesthandler(request)
+    case request: RangeAnalysisRequest     => requesthandler(request)
+    case x                                 => log.warning(s"Replicator received unknown [{}] message.", x)
   }
 
   private def requesthandler(request: Any) = if(analysismanager!=null){

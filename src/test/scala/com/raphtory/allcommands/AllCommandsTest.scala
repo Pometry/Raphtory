@@ -5,7 +5,7 @@ import org.scalatest.FunSuite
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.algorithms.StateTest
-import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.{RangeAnalysisRequest, TestAnalysisRequest}
+import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.RangeAnalysisRequest
 import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.serialisers.DefaultSerialiser
@@ -45,10 +45,10 @@ class AllCommandsTest extends FunSuite {
   }
 
   test("Graph State Test"){
-    val stateTest:Analyser[Any] = new StateTest(Array())
-    val serialiser = new DefaultSerialiser()
+    val stateTest = new StateTest(Array()).getClass.getCanonicalName
+    val serialiser = new DefaultSerialiser().getClass.getCanonicalName
     analysisManager.getAnalysisManager.get !
-      TestAnalysisRequest(stateTest,serialiser,1,290001,10000, List(1000,10000,100000,1000000),Array(),"")
+      RangeAnalysisRequest(stateTest,serialiser,1,290001,10000, List(1000,10000,100000,1000000),Array(),"")
 
   }
 }
