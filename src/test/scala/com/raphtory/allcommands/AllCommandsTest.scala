@@ -4,7 +4,11 @@ import com.raphtory.RaphtoryComponent
 import org.scalatest.FunSuite
 import akka.pattern.ask
 import akka.util.Timeout
+import com.raphtory.algorithms.StateTest
+import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.{RangeAnalysisRequest, TestAnalysisRequest}
 import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
+import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.serialisers.DefaultSerialiser
 
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
@@ -34,11 +38,17 @@ class AllCommandsTest extends FunSuite {
           val future = seedNode.getWatermarker.get ? WhatsTheTime
           currentTimestamp = Await.result(future, timeout.duration).asInstanceOf[WatermarkTime].time
         }
-        assert(currentTimestamp==299868)
+        assert(currentTimestamp==299868) //all data is ingested and the minimum watermark is set to the last line in the data
     } catch {
       case _: java.util.concurrent.TimeoutException => assert(false)
     }
   }
 
-  
+  test("Graph State Test"){
+    val stateTest:Analyser[Any] = new StateTest(Array())
+    val serialiser = new DefaultSerialiser()
+    analysisManager.getAnalysisManager.get !
+      TestAnalysisRequest(stateTest,serialiser,1,290001,10000, List(1000,10000,100000,1000000),Array(),"")
+
+  }
 }
