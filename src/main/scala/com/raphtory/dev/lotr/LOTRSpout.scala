@@ -6,7 +6,7 @@ import scala.collection.mutable
 class LOTRSpout extends Spout[String] {
  val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
     val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //
-    val filename = directory + "/" + fileName
+    val filename = "/home/tsunade/qmul/raphtory/src/main/scala/com/raphtory/dev/lotr/lotr.csv"//directory + "/" + fileName
   val fileQueue = mutable.Queue[String]()
 	
   override def setupDataSource(): Unit = {
