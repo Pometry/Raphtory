@@ -2,9 +2,6 @@ package com.raphtory.algorithms
 
 import com.raphtory.core.analysis.api.Analyser
 
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.immutable
-
 object lotrExample {
   def apply(args: Array[String]): lotrExample = new lotrExample(args)
 }
@@ -47,15 +44,14 @@ class lotrExample(args:Array[String]) extends Analyser[List[(Int,Int)]](args) {
   override def defineMaxSteps(): Int = 6
 
   override def extractResults(results: List[List[(Int,Int)]]): Map[String,Any]  = {
-    val endResults = results//.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
     try {
-      val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
+      val grouped = results.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
       val direct = if (grouped.nonEmpty) grouped(SEP - 1) else 0
       val total = grouped.values.sum
       Map("total"->total,"direct"->direct)
     } catch {
-      case e: UnsupportedOperationException => println("null")
-      Map[String,Any]()
+      case _: UnsupportedOperationException => println("null")
+        Map[String,Any]()
     }
   }
 }

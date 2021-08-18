@@ -1,4 +1,4 @@
-package examples.lotr
+package com.raphtory.dev.lotr
 
 import com.raphtory.core.analysis.api.Analyser
 
@@ -6,12 +6,12 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 
 object SixDegreesOfGandalf{
-  def apply(seperation:Int): SixDegreesOfGandalf = new SixDegreesOfGandalf(Array(seperation.toString))
+  def apply(args: Array[String]): SixDegreesOfGandalf = new SixDegreesOfGandalf(args: Array[String])
 }
 
 class SixDegreesOfGandalf(args: Array[String]) extends Analyser[List[(Int,Int)]](args){
 
-  val SEP=args(0).toInt
+  val SEP: Int =args(0).toInt
 
   override def analyse(): Unit = {
     view.getMessagedVertices().foreach { vertex =>
@@ -48,15 +48,14 @@ class SixDegreesOfGandalf(args: Array[String]) extends Analyser[List[(Int,Int)]]
   override def defineMaxSteps(): Int = 100
 
   override def extractResults(results: List[List[(Int,Int)]]): Map[String,Any]  = {
-    val endResults = results//.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
     try {
-      val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
-      val direct = if (grouped.size>0) grouped(SEP-1) else 0
+      val grouped = results.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
+      val direct = if (grouped.nonEmpty) grouped(SEP - 1) else 0
       val total = grouped.values.sum
-      val text = s"""{"total":${total},"direct":${direct}}"""
-      println(text)
+      Map("total"->total,"direct"->direct)
     } catch {
-      case e: Exception => println("null")
+      case _: UnsupportedOperationException => println("null")
+        Map[String,Any]()
     }
-    Map[String,Any]()
-  }}
+  }
+}
