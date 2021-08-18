@@ -57,7 +57,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
     }
 
   override def analyse(): Unit = {
-    try view.getMessagedVertices().foreach { vertex =>
+    view.getMessagedVertices().foreach { vertex =>
       val vlabel    = vertex.getState[List[(Long, Long)]]("mlpalabel").toMap
       val msgQueue  = vertex.messageQueue[(Long, List[(Long, Long)])]
       var voteStatus = vertex.getOrSetState[Boolean]("vote", false)
@@ -94,7 +94,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
 
         newlab = if (rnd.nextFloat() < SP) Curlab else newlab
         (ts, newlab)
-      }.toList
+      }.toArray
 
       // Update node label and broadcast
       vertex.setState("mlpalabel", newLabel)
@@ -109,8 +109,6 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
         false
       vertex.setState("vote", voteStatus)
 
-    } catch {
-      case e: Exception => println("Something went wrong with mLPA!", e)
     }
   }
   def interLayerWeights(x: String, v: Vertex, ts: Long): Float =

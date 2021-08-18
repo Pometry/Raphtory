@@ -66,15 +66,21 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
       context.become(work(state.copy(managerCount = newValue)))
 
     case request: LiveAnalysisRequest =>
-      val newState = state.updateCurrentTask(_ ++ spawnLiveAnalysisManager(state.managerCount, request))
+      val taskManager = spawnLiveAnalysisManager(state.managerCount, request)
+      val newState = state.updateCurrentTask(_ ++ taskManager)
+      sender() ! ManagingTask(taskManager.get._2)
       context.become(work(newState))
 
     case request: ViewAnalysisRequest =>
-      val newState = state.updateCurrentTask(_ ++ spawnViewAnalysisManager(state.managerCount, request))
+      val taskManager = spawnViewAnalysisManager(state.managerCount, request)
+      val newState = state.updateCurrentTask(_ ++ taskManager)
+      sender() ! ManagingTask(taskManager.get._2)
       context.become(work(newState))
 
     case request: RangeAnalysisRequest =>
-      val newState = state.updateCurrentTask(_ ++ spawnRangeAnalysisManager(state.managerCount, request))
+      val taskManager = spawnRangeAnalysisManager(state.managerCount, request)
+      val newState = state.updateCurrentTask(_ ++ taskManager)
+      sender() ! ManagingTask(taskManager.get._2)
       context.become(work(newState))
 
     case RequestResults(jobId) =>
@@ -226,5 +232,8 @@ object AnalysisManager {
     case object JobKilled
     case class ResultsForApiPI(results: Array[String])
     case object JobDoesntExist
+    case class ManagingTask(actor:ActorRef)
+    case object AreYouFinished
+    case class TaskFinished(result:Boolean)
   }
 }

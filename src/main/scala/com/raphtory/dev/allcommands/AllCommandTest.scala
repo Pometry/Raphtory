@@ -7,8 +7,8 @@ import scala.language.postfixOps
 object AllCommandTest extends App {
   val partitionCount =2
   val routerCount =2
-  val source = "com.raphtory.dev.allcommands.AllCommandsSpout"
-  val builder = "com.raphtory.dev.allcommands.AllCommandsBuilder"
+  val source = "com.raphtory.allcommands.AllCommandsSpout"
+  val builder = "com.raphtory.allcommands.AllCommandsBuilder"
 //  val source = "com.raphtory.dev.wordSemantic.spouts.CoMatSpout"
 //val source = "com.raphtory.spouts.FileSpout"
 //  val builder = "com.raphtory.dev.wordSemantic.graphbuilders.CSVGraphBuilder"//CoMatGB"
