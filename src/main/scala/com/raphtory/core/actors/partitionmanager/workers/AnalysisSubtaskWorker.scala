@@ -101,7 +101,7 @@ final case class AnalysisSubtaskWorker(
           sender ! EndStep(analyzer.view.superStep, messageCount, analyzer.view.checkVotes())
           context.become(work(state.copy(sentMessageCount = messageCount)))
 
-        case Failure(e) => log.error(s"Failed to run nextStep due to [$e].")
+        case Failure(e) => log.error(s"Failed to run nextStep due to [${e.getStackTrace.mkString("\n")}].")
       }
       stepMetric(analyzer).update(System.currentTimeMillis() - beforeTime)
 
@@ -109,7 +109,7 @@ final case class AnalysisSubtaskWorker(
       log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives Finish.")
       Try(analyzer.returnResults()) match {
         case Success(result) => sender ! ReturnResults(result)
-        case Failure(e)      => log.error(s"Failed to run nextStep due to [$e].")
+        case Failure(e)      => log.error(s"Failed to run nextStep due to [${e.getStackTrace.mkString("\n")}].")
       }
 
     case msg: VertexMessage =>
