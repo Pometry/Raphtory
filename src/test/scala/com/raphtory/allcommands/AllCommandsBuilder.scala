@@ -1,4 +1,4 @@
-package com.raphtory.dev.allcommands
+package com.raphtory.allcommands
 
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
 import com.raphtory.core.model.communication._

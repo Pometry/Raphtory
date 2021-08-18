@@ -3,8 +3,8 @@ import akka.actor.{ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
+import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.ManagingTask
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
-import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message.StartAnalysis
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{PartitionsCount, RequestAnalysisId}
 
@@ -14,21 +14,26 @@ import scala.concurrent.duration.{Duration, MILLISECONDS}
 class AnalysisManagerConnector(managerCount: Int, routerCount:Int) extends ComponentConnector(initialManagerCount = managerCount,initialRouterCount = routerCount)  {
 
   var analysismanager:ActorRef = null
+  var monitor:ActorRef = _
 
   override def receive: Receive = {
-    case msg: String if msg == "tick" => processHeartbeatMessage(msg)
-    case req: PartitionsCount         => processPartitionsCountRequest(req)
-    case _: SubscribeAck              =>
-    case request: LiveAnalysisRequest => requesthandler(request)
-    case request: ViewAnalysisRequest => requesthandler(request)
-    case request: RangeAnalysisRequest => requesthandler(request)
-    case x                            => log.warning(s"Replicator received unknown [{}] message.", x)
+    case msg: String if msg == "tick"      => processHeartbeatMessage(msg)
+    case req: PartitionsCount              => processPartitionsCountRequest(req)
+    case _: SubscribeAck                   =>
+    case request: LiveAnalysisRequest      => requesthandler(request)
+    case request: ViewAnalysisRequest      => requesthandler(request)
+    case request: RangeAnalysisRequest     => requesthandler(request)
+    case taskInfo:ManagingTask             => if(monitor!=null) monitor ! taskInfo
+    case x                                 => log.warning(s"Replicator received unknown [{}] message.", x)
   }
 
-  private def requesthandler(request: Any) = if(analysismanager!=null){
-    analysismanager ! request
-  }  else {
-    context.system.scheduler.scheduleOnce(Duration(2000, MILLISECONDS), self, request)
+  private def requesthandler(request: Any) = {
+    monitor = sender()
+    if(analysismanager!=null){
+      analysismanager ! request
+    }  else {
+      context.system.scheduler.scheduleOnce(Duration(2000, MILLISECONDS), self, request)
+    }
   }
 
   override def callTheWatchDog(): Future[Any] = {
