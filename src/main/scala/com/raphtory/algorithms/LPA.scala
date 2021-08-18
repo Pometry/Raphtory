@@ -34,7 +34,7 @@ object LPA {
   def apply(args: Array[String]): LPA = new LPA(args)
 }
 
-class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
+class LPA(args: Array[String]) extends Analyser[Any](args) {
   //args = [top output, edge property, max iterations]
 
   val arg: Array[String] = args.map(_.trim)
@@ -44,7 +44,6 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
   val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
   val rnd    = new scala.util.Random
 
-  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
   val SP = 0.2F // Stickiness probability
 
   override def setup(): Unit = {
@@ -61,7 +60,7 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
         val vlabel = vertex.getState[Long]("lpalabel")
 
         // Get neighbourhood Frequencies -- relevant to weighted LPA
-        val vneigh = vertex.getOutEdges ++ vertex.getIncEdges
+        val vneigh = vertex.getEdges
         val neigh_freq = vneigh.map { e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float]) }
           .groupBy(_._1)
           .mapValues(x => x.map(_._2).sum)
