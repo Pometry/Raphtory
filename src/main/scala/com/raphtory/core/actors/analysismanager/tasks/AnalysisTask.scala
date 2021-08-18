@@ -34,6 +34,8 @@ abstract class AnalysisTask(
   private val maxStep: Int     = analyser.defineMaxSteps()
   private val workerCount: Int = managerCount * totalWorkers
 
+  private var monitor:ActorRef = _
+
   protected def buildSubTaskController(readyTimestamp: Long): SubTaskController
 
   override def preStart() {
@@ -49,6 +51,7 @@ abstract class AnalysisTask(
       messageToAllReaderWorkers(req)
       sender ! JobKilled
       context.stop(self)
+    case AreYouFinished => monitor = sender() // register to message out later
     case unhandled     => log.error(s"Not handled message in $description: " + unhandled)
   }
 
@@ -103,6 +106,8 @@ abstract class AnalysisTask(
             log.info(s"no more sub tasks for $jobId")
             messagetoAllJobWorkers(KillTask(jobId))
             self ! PoisonPill
+            if(monitor!=null)monitor ! TaskFinished(true)
+
         }
       } else
         context.become(checkTime(taskController, readyTimes, currentRange))

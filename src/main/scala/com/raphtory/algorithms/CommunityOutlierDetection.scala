@@ -33,8 +33,6 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
   //args = [top , edge property, maxIter, cutoff]
   val cutoff: Double = if (args.length < 4) 0.0 else args(3).toDouble
 
-  override val output_file: String = System.getenv().getOrDefault("CBOD_OUTPUT_PATH", "").trim
-
   override def doSomething(v: Vertex, neighborLabels: Array[Long]): Unit = {
     val vlabel       = v.getState[(Long, Long)]("lpalabel")._2
     val outlierScore = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)

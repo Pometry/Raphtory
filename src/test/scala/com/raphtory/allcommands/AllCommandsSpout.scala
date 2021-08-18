@@ -1,8 +1,6 @@
-package com.raphtory.dev.allcommands
+package com.raphtory.allcommands
 
 import com.raphtory.core.actors.spout.Spout
-
-import scala.util.Random
 
 class AllCommandsSpout extends Spout[String] {
 
