@@ -30,6 +30,8 @@ abstract class Analyser[T<:Any](args:Array[String]) extends java.io.Serializable
     this.workerID = id
   }
 
+  def getArgs():Array[String] = args
+
   def analyse(): Unit
   def setup(): Unit
   def returnResults(): T
