@@ -3,7 +3,7 @@ package com.raphtory.algorithms
 import com.raphtory.core.analysis.api.Analyser
 
 object lotrExample {
-  def apply(args: Array[String]): lotrExample = new lotrExample(args)
+  def apply(separation: Int): lotrExample = new lotrExample(Array(separation.toString))
 }
 
 class lotrExample(args:Array[String]) extends Analyser[List[(Int,Int)]](args) {

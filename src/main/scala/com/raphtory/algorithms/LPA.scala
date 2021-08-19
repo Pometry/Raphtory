@@ -4,7 +4,7 @@ import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.analysis.entity.Vertex
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.immutable
+import scala.collection.parallel.ParMap
 import scala.collection.parallel.mutable.ParArray
 import scala.tools.nsc.io.Path
 
@@ -31,10 +31,10 @@ Notes
   The returned communities may differ on multiple executions.
   **/
 object LPA {
-  def apply(args: Array[String]): LPA = new LPA(args)
+  def apply(top: Int, weight: String, maxIter: Int): LPA = new LPA(Array(top.toString, weight, maxIter.toString))
 }
 
-class LPA(args: Array[String]) extends Analyser[Any](args) {
+class LPA(args: Array[String]) extends Analyser[ParMap[Long, List[String]]](args) {
   //args = [top output, edge property, max iterations]
 
   val arg: Array[String] = args.map(_.trim)
@@ -56,7 +56,7 @@ class LPA(args: Array[String]) extends Analyser[Any](args) {
 
   override def analyse(): Unit = {
     view.getMessagedVertices().foreach { vertex =>
-      try {
+//      try {
         val vlabel = vertex.getState[Long]("lpalabel")
 
         // Get neighbourhood Frequencies -- relevant to weighted LPA
@@ -79,23 +79,23 @@ class LPA(args: Array[String]) extends Analyser[Any](args) {
         vertex.setState("lpalabel", newLabel)
         vertex.messageAllNeighbours((vertex.ID(), newLabel))
         doSomething(vertex, gp.map(_._1).toArray)
-      } catch {
-        case e: Exception => println(e, vertex.ID())
-      }
+//      } catch {
+//        case e: Exception => println(e, vertex.ID())
+//      }
     }
   }
 
 
   def doSomething(v: Vertex, gp: Array[Long]): Unit = {}
 
-  override def returnResults(): Any =
+  override def returnResults(): ParMap[Long, List[String]] =
     view.getVertices()
       //.filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.getState[Long]("lpalabel"), vertex.ID()))
       .groupBy(f => f._1)
-      .map(f => (f._1, f._2.map(_._2).toList))
+      .mapValues(f => f.map(_._2.toString).toList)
 
-  override def extractResults(results: List[Any]): Map[String, Any] = {
+  override def extractResults(results: List[ParMap[Long, List[String]]]): Map[String, Any] = {
     val er      = extractData(results)
     val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
 
@@ -103,8 +103,8 @@ class LPA(args: Array[String]) extends Analyser[Any](args) {
        "communities"->commtxt)
   }
 
-  def extractData(results: List[Any]): fd = {
-    val endResults = results.asInstanceOf[List[immutable.ParHashMap[Long, List[String]]]]
+  def extractData(results: List[ParMap[Long, List[String]]]): fd = {
+    val endResults = results//.asInstanceOf[List[]]]
     try {
       val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
       val groupedNonIslands   = grouped.filter(x => x._2.size > 1)

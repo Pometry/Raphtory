@@ -6,7 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 
 object SixDegreesOfGandalf{
-  def apply(args: Array[String]): SixDegreesOfGandalf = new SixDegreesOfGandalf(args: Array[String])
+def apply(seperation:Int): SixDegreesOfGandalf = new SixDegreesOfGandalf(Array(seperation.toString))
 }
 
 class SixDegreesOfGandalf(args: Array[String]) extends Analyser[List[(Int,Int)]](args){

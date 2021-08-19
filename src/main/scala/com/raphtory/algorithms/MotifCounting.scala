@@ -28,7 +28,8 @@ Description
   **/
 
 object MotifCounting {
-  def apply(args: Array[String]): MotifCounting = new MotifCounting(args)
+  def apply(top:Int, weight:String, delta: Long):
+  MotifCounting = new MotifCounting(Array(top, weight, delta).map(_.toString))
 }
 
 class MotifCounting(args: Array[String]) extends Analyser[List[(Long, (Double, Double))]](args) {
@@ -36,9 +37,6 @@ class MotifCounting(args: Array[String]) extends Analyser[List[(Long, (Double, D
   val top: Int         = if (args.length == 0) 0 else args.head.toInt
   val weight: String = if (args.length < 2) "weight" else args(1)
   val delta: Long  = if (args.length < 3) throw new Exception else args(2).toLong
-
-  val output_file: String = System.getenv().getOrDefault("MC_OUTPUT_PATH", "").trim
-  val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
 
   override def setup(): Unit = {}
 

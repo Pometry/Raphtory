@@ -32,7 +32,11 @@ Notes
   The returned communities may differ on multiple executions.
   **/
 object MultilayerLPA {
-  def apply(args: Array[String]): MultilayerLPA = new MultilayerLPA(args)
+  def apply(top: Int, weight: String, maxIter: Int, snapshotSize: Long ,
+   startTime: Long,
+  endTime: Long,
+            omega: String):
+  MultilayerLPA = new MultilayerLPA(Array(top, weight, maxIter,snapshotSize, startTime,endTime, omega).map(_.toString))
 }
 
 class MultilayerLPA(args: Array[String]) extends LPA(args) {
@@ -94,7 +98,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
 
         newlab = if (rnd.nextFloat() < SP) Curlab else newlab
         (ts, newlab)
-      }.toArray
+      }
 
       // Update node label and broadcast
       vertex.setState("mlpalabel", newLabel)
@@ -125,7 +129,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
       .groupBy(_._1)
       .mapValues(x => x.map(_._2).sum / x.size) // (ID -> Freq)
 
-  override def returnResults(): Any =
+  override def returnResults(): ParMap[Long, List[String]] =
     view
       .getVertices()
       .map(vertex =>
@@ -135,8 +139,9 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
         )
       )
       .flatMap{f =>
-       f._1.map(x => (x._2, f._2 + "_" + x._1.toString))}
+       f._1.toArray
+         .map(x => (x._2, f._2 + "_" + x._1.toString))}
       .groupBy(f => f._1)
-      .map(f => (f._1, f._2.map(_._2).toList))
+      .mapValues(f=> f.map(_._2).toList)
 
 }

@@ -5,6 +5,9 @@ import com.raphtory.core.analysis.api.Analyser
 /**
   * Gets neighbors of node n.
 **/
+object getNeighbors {
+  def apply(node: String, name: String): getNeighbors = new getNeighbors(Array(node,name))
+}
 
 class getNeighbors(args: Array[String]) extends Analyser[List[String]](args) {
   val node: String = args.head

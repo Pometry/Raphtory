@@ -8,11 +8,16 @@ import scala.collection.mutable
 /**
   *Gets the 2-hop network for node n.
 **/
+object twoHopNeighbors {
+  def apply(node: String, name: String,weight: String, neighborSize: Int) :
+  twoHopNeighbors = new twoHopNeighbors(Array(node,name, neighborSize.toString, weight))
+}
+
 class twoHopNeighbors(args: Array[String]) extends Analyser[List[(String, mutable.Map[Int, List[String]])]](args) {
   var node: String     = args.head
   val name: String     = if (args.length < 2) "" else args(1)
   val neiSize: Int     = if (args.length < 3) 0 else args(2).toInt
-  val property: String = if (args.length < 4) "weight" else args(3)
+  val weight: String = if (args.length < 4) "weight" else args(3)
 
   override def setup(): Unit =
     view.getVertices()

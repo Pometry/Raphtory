@@ -3,6 +3,8 @@ package com.raphtory.dev.algorithms
 import com.raphtory.algorithms.LPA
 import com.raphtory.core.analysis.entity.Vertex
 
+import scala.collection.parallel.ParMap
+
 class MultiLayerLPA2(args: Array[String]) extends LPA(args) {
   //args = [top, weight, maxiter, start, end, layer-size, omega, stickiness prob, scaled, label initial prob]
   val snapshotSize: Long        = args(5).toLong
@@ -125,7 +127,7 @@ class MultiLayerLPA2(args: Array[String]) extends LPA(args) {
 
   def scaling(freq: Array[Float]): Float = math.sqrt(freq.map(math.pow(_, 2)).sum).toFloat
 
-  override def returnResults(): Any = {
+  override def returnResults(): ParMap[Long, List[String]] = {
     println(s"mLPA - wID: $workerID totNodes: ${view.getVertices().size}")
     view
       .getVertices()
