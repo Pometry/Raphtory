@@ -3,6 +3,8 @@ package com.raphtory.dev.algorithms
 import com.raphtory.algorithms.LPA
 import com.raphtory.core.analysis.entity.Vertex
 
+import scala.collection.parallel.ParMap
+
 
 object MultiLayerLPA {
   def apply(args: Array[String]): MultiLayerLPA = new MultiLayerLPA(args)
@@ -147,7 +149,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
 
   def scaling(freq: Array[Float]): Float = math.sqrt(freq.map(math.pow(_, 2)).sum).toFloat
 
-  override def returnResults(): Any =
+  override def returnResults(): ParMap[Long, List[String]] =
     view
       .getVertices()
       .map(vertex =>
