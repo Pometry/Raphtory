@@ -226,14 +226,15 @@ object AnalysisManager {
       copy(currentTasks = f(currentTasks))
   }
   object Message {
+    case class  RequestResults(jobId: String)
+    case class  KillTask(jobId: String)
+    case class  ResultsForApiPI(results: Array[String])
+    case class  ManagingTask(actor:ActorRef)
+    case class  TaskFinished(result:Boolean)
     case object StartUp
-    case class RequestResults(jobId: String)
-    case class KillTask(jobId: String)
     case object JobKilled
-    case class ResultsForApiPI(results: Array[String])
     case object JobDoesntExist
-    case class ManagingTask(actor:ActorRef)
     case object AreYouFinished
-    case class TaskFinished(result:Boolean)
+    case object JobFailed
   }
 }
