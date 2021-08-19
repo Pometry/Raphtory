@@ -45,6 +45,9 @@ final case class Vertex(
   def getInCEdgesBefore(time: Long): ParIterable[Edge]            = getIncEdges.filter(_.activityBefore(time))
   def getInCEdgesBetween(min: Long, max: Long): ParIterable[Edge] = getIncEdges.filter(_.activityBetween(min, max))
 
+  //all edges
+  def getEdges: ParIterable[Edge]                                 = getIncEdges ++ getOutEdges
+
   //out edges individual
   def getOutEdge(id: Long): Option[Edge]                  = internalOutgoingEdges.get(id)
   def getOutEdgeAfter(id: Long, time: Long): Option[Edge] = internalOutgoingEdges.get(id).filter(_.activityAfter(time))

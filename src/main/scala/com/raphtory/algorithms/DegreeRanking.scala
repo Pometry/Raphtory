@@ -24,20 +24,20 @@ class DegreeRanking(args:Array[String]) extends Analyser[Any](args){
       view.getVertices().map { vertex =>
         val outDegree = vertex.getOutEdges.size
         val inDegree = vertex.getIncEdges.size
-        (vertex.ID, outDegree, inDegree)}
+        (vertex.ID(), outDegree, inDegree)}
     }
 
     val totalV   = degree.size
     val totalOut = degree.map(x => x._2).sum
     val totalIn  = degree.map(x => x._3).sum
     val topUsers = degree.toArray.sortBy(x => x._3)(sortOrdering).take(20)
-    (totalV, totalOut, totalIn, topUsers)
+    (totalV, totalOut, totalIn, topUsers.toList)
   }
 
   override def defineMaxSteps(): Int = 1
 
   override def extractResults(results: List[Any]): Map[String,Any]  = {
-    val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
+    val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, List[(Int, Int, Int)])]]
 
     val startTime   = System.currentTimeMillis()
     val totalVert   = endResults.map(x => x._1).sum
@@ -53,11 +53,8 @@ class DegreeRanking(args:Array[String]) extends Analyser[Any](args){
       .map(x => s"""{"id":${x._1},"indegree":${x._3},"outdegree":${x._2}}""")
       .foreach(x => bestUserArray += x + ",")
     bestUserArray = if (bestUserArray.length > 1) bestUserArray.dropRight(1) + "]" else bestUserArray + "]"
-    val text =
-      s"""{"vertices":$totalVert,"edges":$totalEdge,"degree":$degree,"bestusers":$bestUserArray,"concatTime":${System
-        .currentTimeMillis() - startTime}},"""
-    //    writeLines(output_file, text, "{\"views\":[")
-    println(text)
-    Map[String,Any]()
+
+    Map("vertices"->totalVert,"edges"->totalEdge,"degree"->degree,"bestusers"->bestUserArray,"concatTime"->(System
+      .currentTimeMillis() - startTime))
   }
 }

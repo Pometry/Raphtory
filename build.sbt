@@ -25,12 +25,12 @@ lazy val globalSettings = Seq(
     "-unchecked"
   ),
   testOptions in Test += Tests.Argument("-oDF"),
-  version := "dev",
+  version := "latest",
   // docker settings
   maintainer := "Ben Steer <ben.steer@pometry.com>",
   dockerBaseImage := "miratepuffin/raphtory-redis:latest",
   dockerExposedPorts := Seq(2551, 8080, 2552,25520, 1600, 11600,8081,46339,9100),
-  dockerRepository := Some("miratepuffin"),
+  dockerRepository := Some("tsukitsune"),
   dockerEntrypoint := Seq("bash"),
   dockerCommands ++= Seq(
     Cmd("ENV", "PATH=/opt/docker/bin:${PATH}"),

@@ -3,10 +3,7 @@ package com.raphtory.algorithms
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.analysis.entity.Edge
 
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ParIterable
-import scala.collection.parallel.mutable.ParMap
-import scala.reflect.io.Path
 
 
 /**
@@ -34,11 +31,11 @@ object MotifCounting {
   def apply(args: Array[String]): MotifCounting = new MotifCounting(args)
 }
 
-class MotifCounting(args: Array[String]) extends Analyser[Any](args) { //IM: better manage args
+class MotifCounting(args: Array[String]) extends Analyser[List[(Long, (Double, Double))]](args) {
   //args = [delta, edge weight, top]
   val top: Int         = if (args.length == 0) 0 else args.head.toInt
   val weight: String = if (args.length < 2) "weight" else args(1)
-  val delta: Long  = if (args.length < 3) throw new Exception else args(2).toLong //IM: remove exception later
+  val delta: Long  = if (args.length < 3) throw new Exception else args(2).toLong
 
   val output_file: String = System.getenv().getOrDefault("MC_OUTPUT_PATH", "").trim
   val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
@@ -47,7 +44,7 @@ class MotifCounting(args: Array[String]) extends Analyser[Any](args) { //IM: bet
 
   override def analyse(): Unit = {}
 
-  override def returnResults(): Any =
+  override def returnResults(): List[(Long, (Double, Double))] = {
     view
       .getVertices()
       .filter(v => v.Type() == nodeType)
@@ -58,21 +55,17 @@ class MotifCounting(args: Array[String]) extends Analyser[Any](args) { //IM: bet
         val count2 = motifCounting(2, inc, outc)
         (vertex.ID(), (count1, count2))
       }
-      .toMap
+      .toList
+  }
 
-  override def extractResults(results: List[Any]): Map[String, Any] = {
-    val endResults = results.asInstanceOf[ArrayBuffer[ParMap[Long, (Double, Double)]]].flatten
-    val filtered      = endResults.filter(x=> (x._2._1>0)|(x._2._2>0)).map(x => s""""${x._1}":{"mc1":${x._2._1}, "mc2":${x._2._2}}""")
+  override def extractResults(results: List[List[(Long, (Double, Double))]]): Map[String, Any] = {
+    val endResults = results.flatten
+    val filtered      = endResults.filter(x=> (x._2._1>0)|(x._2._2>0))
+      .map(x => s""""${x._1}":{"mc1":${x._2._1}, "mc2":${x._2._2}}""")
     val total         = filtered.length
     val count         = if (top == 0) filtered else filtered.take(top)
-    val text          =
-s"""{"total": $total, "motifs":{ ${count.mkString(",")} }}"""
 
-    output_file match {
-      case "" => println(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
-    Map[String,Any]()
+    Map("total"->total, "motifs"->count)
   }
 
   override def defineMaxSteps(): Int = 10

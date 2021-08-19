@@ -2,14 +2,11 @@ package com.raphtory.algorithms
 
 import com.raphtory.core.analysis.api.Analyser
 
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.immutable
-
 object lotrExample {
   def apply(args: Array[String]): lotrExample = new lotrExample(args)
 }
 
-class lotrExample(args:Array[String]) extends Analyser[Any](args) {
+class lotrExample(args:Array[String]) extends Analyser[List[(Int,Int)]](args) {
   val SEP: Int = if (args.length == 0) 3 else args.head.toInt
 
   override def setup(): Unit = {
@@ -18,11 +15,11 @@ class lotrExample(args:Array[String]) extends Analyser[Any](args) {
       val name = vertex.getPropertyValue("name").getOrElse("")
       if (name == "Gandalf"){
         sep_state = SEP
+        vertex.messageAllNeighbours(sep_state - 1)
       }else{
         sep_state = 0
       }
       vertex.setState("separation", sep_state)
-      vertex.messageAllNeighbours(sep_state - 1)
     }
   }
 
@@ -36,28 +33,25 @@ class lotrExample(args:Array[String]) extends Analyser[Any](args) {
     }
   }
 
-  override def returnResults(): Any =
+  override def returnResults(): List[(Int,Int)] =
     view.getVertices()
       .filter(vertex => vertex.getState[Int]("separation") > 0)
       .map(v => (v.ID(), v.getState[Int]("separation")))
       .groupBy(f => f._2)
       .map(f => (f._1, f._2.size))
+      .toList
 
   override def defineMaxSteps(): Int = 6
 
-  override def extractResults(results: List[Any]): Map[String,Any]  = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Int, Int]]]
+  override def extractResults(results: List[List[(Int,Int)]]): Map[String,Any]  = {
     try {
-      val grouped = endResults.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
+      val grouped = results.flatten.groupBy(f => f._1).mapValues(x => x.map(_._2).sum)
       val direct = if (grouped.nonEmpty) grouped(SEP - 1) else 0
       val total = grouped.values.sum
-      val text = s"""{"total":${total},"direct":$direct}"""
-      println(text)
+      Map("total"->total,"direct"->direct)
     } catch {
-      case e: UnsupportedOperationException => println("null")
+      case _: UnsupportedOperationException => println("null")
+        Map[String,Any]()
     }
-    Map[String,Any]()
   }
-
-
 }
