@@ -2,7 +2,7 @@ package com.raphtory.core.actors.partitionmanager.workers
 
 import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.KillTask
+import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.{JobFailed, KillTask}
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 import com.raphtory.core.actors.partitionmanager.workers.AnalysisSubtaskWorker.State
@@ -88,9 +88,16 @@ final case class AnalysisSubtaskWorker(
 
     case _: SetupNextStep =>
       log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives SetupNextStep.")
-      analyzer.view.nextStep()
-      context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
-      sender ! SetupNextStepDone
+      Try(analyzer.view.nextStep()) match {
+        case Success(_) =>
+          context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
+          sender ! SetupNextStepDone
+        case Failure(e) => {
+          log.error(s"Failed to run setup due to [${e.getStackTrace.mkString("\n")}].")
+          sender ! JobFailed
+        }
+      }
+
 
     case _: StartNextStep =>
       log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives StartNextStep.")
@@ -101,7 +108,10 @@ final case class AnalysisSubtaskWorker(
           sender ! EndStep(analyzer.view.superStep, messageCount, analyzer.view.checkVotes())
           context.become(work(state.copy(sentMessageCount = messageCount)))
 
-        case Failure(e) => log.error(s"Failed to run nextStep due to [${e.getStackTrace.mkString("\n")}].")
+        case Failure(e) => {
+          log.error(s"Failed to run nextStep due to [${e.getStackTrace.mkString("\n")}].")
+          sender ! JobFailed
+        }
       }
       stepMetric(analyzer).update(System.currentTimeMillis() - beforeTime)
 
@@ -109,7 +119,11 @@ final case class AnalysisSubtaskWorker(
       log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives Finish.")
       Try(analyzer.returnResults()) match {
         case Success(result) => sender ! ReturnResults(result)
-        case Failure(e)      => log.error(s"Failed to run nextStep due to [${e.getStackTrace.mkString("\n")}].")
+        case Failure(e)      => {
+          log.error(s"Failed to run nextStep due to [${e.getStackTrace.mkString("\n")}].")
+          sender ! JobFailed
+        }
+
       }
 
     case msg: VertexMessage =>
