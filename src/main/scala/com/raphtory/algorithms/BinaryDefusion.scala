@@ -28,7 +28,7 @@ class BinaryDefusion(args:Array[String]) extends Analyser[Any](args) {
         val toSend = vertex.getOrSetState("infected", view.superStep).asInstanceOf[Int]
         vertex.getOutEdges.foreach { neighbour =>
           if (Random.nextBoolean())
-            vertex.messageNeighbour(neighbour.ID, toSend)
+            vertex.messageNeighbour(neighbour.ID(), toSend)
         }
       }
     }

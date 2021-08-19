@@ -34,7 +34,7 @@ object LPA {
   def apply(args: Array[String]): LPA = new LPA(args)
 }
 
-class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
+class LPA(args: Array[String]) extends Analyser[Any](args) {
   //args = [top output, edge property, max iterations]
 
   val arg: Array[String] = args.map(_.trim)
@@ -44,9 +44,6 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
   val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
   val rnd    = new scala.util.Random
 
-  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
-  val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
-  val debug             = System.getenv().getOrDefault("DEBUG2", "false").trim.toBoolean //for printing debug messages
   val SP = 0.2F // Stickiness probability
 
   override def setup(): Unit = {
@@ -63,7 +60,7 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
         val vlabel = vertex.getState[Long]("lpalabel")
 
         // Get neighbourhood Frequencies -- relevant to weighted LPA
-        val vneigh = vertex.getOutEdges ++ vertex.getIncEdges
+        val vneigh = vertex.getEdges
         val neigh_freq = vneigh.map { e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float]) }
           .groupBy(_._1)
           .mapValues(x => x.map(_._2).sum)
@@ -86,10 +83,6 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
         case e: Exception => println(e, vertex.ID())
       }
     }
-//    if (workerID==1)
-//      println(
-//        s"{workerID: ${workerID},Superstep: ${view.superStep()}}"
-//      )
   }
 
 
@@ -100,23 +93,18 @@ class LPA(args: Array[String]) extends Analyser[Any](args) { //im: change type
       //.filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.getState[Long]("lpalabel"), vertex.ID()))
       .groupBy(f => f._1)
-      .map(f => (f._1, f._2.map(_._2)))
+      .map(f => (f._1, f._2.map(_._2).toList))
 
   override def extractResults(results: List[Any]): Map[String, Any] = {
     val er      = extractData(results)
-    val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
-    val text = s"""{"top5":[${er.top5
-      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
-       s"""communities": [${commtxt.mkString(",")}]}"""
-    output_file match {
-      case "" => println(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
-    Map[String,Any]()
+    val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
+
+    Map[String,Any]("top5"->er.top5,"total"->er.total,"totalIslands"->er.totalIslands,
+       "communities"->commtxt)
   }
 
   def extractData(results: List[Any]): fd = {
-    val endResults = results.asInstanceOf[List[immutable.ParHashMap[Long, ParArray[String]]]]
+    val endResults = results.asInstanceOf[List[immutable.ParHashMap[Long, List[String]]]]
     try {
       val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
       val groupedNonIslands   = grouped.filter(x => x._2.size > 1)

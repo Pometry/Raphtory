@@ -25,13 +25,9 @@ class OutDegreeAverage(args:Array[String]) extends Analyser[Any](args){
 
     val degree =
       try totalEdge.toDouble / totalVert.toDouble
-      catch { case e: ArithmeticException => 0 }
+      catch { case _: ArithmeticException => 0 }
 
-    val text =
-      s"""{"vertices":$totalVert,"edges":$totalEdge,"degree":$degree}"""
-    //    writeLines(output_file, text, "{\"views\":[")
-    println(text)
-    Map[String,Any]()
+    Map("vertices"->totalVert,"edges"->totalEdge,"degree"->degree)
   }
 
 }
