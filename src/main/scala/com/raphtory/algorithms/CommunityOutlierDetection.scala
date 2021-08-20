@@ -3,7 +3,7 @@ package com.raphtory.algorithms
 import com.raphtory.core.analysis.entity.Vertex
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.immutable
+import scala.collection.parallel.{ParMap, immutable}
 import scala.reflect.io.Path
 
 /**
@@ -26,29 +26,31 @@ Returns
                   Returns `top` nodes with outlier score higher than `cutoff` if specified.
 **/
 object CommunityOutlierDetection {
-  def apply(args: Array[String]): CommunityOutlierDetection = new CommunityOutlierDetection(args)
+  def apply(top: Int, weight: String, maxIter: Int, cutoff: Double):
+  CommunityOutlierDetection = new CommunityOutlierDetection(Array(top.toString, weight, maxIter.toString,cutoff.toString))
 }
 
 class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
   //args = [top , edge property, maxIter, cutoff]
   val cutoff: Double = if (args.length < 4) 0.0 else args(3).toDouble
 
-  override val output_file: String = System.getenv().getOrDefault("CBOD_OUTPUT_PATH", "").trim
-
   override def doSomething(v: Vertex, neighborLabels: Array[Long]): Unit = {
-    val vlabel       = v.getState[(Long, Long)]("lpalabel")._2
+    val vlabel       = v.getState[Long]("lpalabel")
     val outlierScore = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)
     v.setState("outlierscore", outlierScore)
   }
 
-  override def returnResults(): Any =
+  override def returnResults(): ParMap[Long, List[String]] =
     view
       .getVertices()
-      .filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.ID(), vertex.getOrSetState[Double]("outlierscore", -1.0)))
+      .groupBy(f => f._1)
+      .mapValues(f => f.map(_._2.toString).toList)
 
-  override def extractResults(results: List[Any]): Map[String,Any]  = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, Double]]].flatten
+
+   override def extractResults(results: List[ParMap[Long, List[String]]]): Map[String,Any]  = {
+    val endResults = results.flatten
+      .map(x=>(x._1, x._2.head.toFloat))
 
     val outliers  = endResults.filter(_._2 > cutoff)
     val sorted    = outliers.sortBy(-_._2)
@@ -56,12 +58,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
     val top5       = sorted.map(_._1).take(5)
     val total     = outliers.length
     val out       = if (top == 0) sortedstr else sortedstr.take(top)
-    val text = s"""{"total":$total,"top5":[${top5.mkString(",")}],"outliers":{${out
-      .mkString(",")}}}"""
-    output_file match {
-      case "" => println(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
-    Map[String,Any]()
+
+    Map("total"->total,"top5"->top5,"outliers"->out)
   }
 }

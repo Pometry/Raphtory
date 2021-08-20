@@ -71,7 +71,7 @@ trait MailboxTrackedActor extends Actor with ActorLogging {
 
   def mailboxTrackedReceive(work: Receive): Receive = {
     case m =>
-      log.info(s"${self.path} mailbox size [${mailBoxCounter.current(self.path)}]")
+//      log.info(s"${self.path} mailbox size [${mailBoxCounter.current(self.path)}]")
       work(m)
   }
 }

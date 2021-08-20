@@ -7,9 +7,9 @@
     </encoder>
   </appender>
 
-  <logger name="slick.lifted" level="ERROR" />
+  <logger name="slick.lifted" level="INFO" />
 
-  <root level="ERROR">
+  <root level="INFO">
     <appender-ref ref="STDOUT" />
   </root>
 </configuration>
