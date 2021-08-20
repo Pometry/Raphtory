@@ -45,7 +45,6 @@ class MotifCounting(args: Array[String]) extends Analyser[List[(Long, (Double, D
   override def returnResults(): List[(Long, (Double, Double))] = {
     view
       .getVertices()
-      .filter(v => v.Type() == nodeType)
       .map { vertex =>
         val inc    = vertex.getIncEdges
         val outc   = vertex.getOutEdges
