@@ -1,11 +1,11 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParArray
 
-class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
+class TemporalTriangleCount(args:Array[String]) extends Analyser[Any](args) {
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
@@ -49,11 +49,11 @@ class TemporalTriangleCount(args:Array[String]) extends Analyser(args) {
 
 
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     val endResults = results.asInstanceOf[ArrayBuffer[ParArray[String]]].flatten.toArray
-    val toPublish = s"""{"timestamp":$timeStamp,triangles:[""" +endResults.map(triangle => triangle+",").fold("")(_+_).dropRight(1)+"]}"
+    val toPublish = s"""{triangles:[""" +endResults.map(triangle => triangle+",").fold("")(_+_).dropRight(1)+"]}"
     println(toPublish)
-    publishData(toPublish)
+    Map[String,Any]()
   }
 
   override def defineMaxSteps(): Int = 2
