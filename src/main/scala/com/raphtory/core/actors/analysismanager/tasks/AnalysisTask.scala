@@ -34,6 +34,8 @@ abstract class AnalysisTask(
   private val maxStep: Int     = analyser.defineMaxSteps()
   private val workerCount: Int = managerCount * totalWorkers
 
+  private var monitor:ActorRef = _
+
   protected def buildSubTaskController(readyTimestamp: Long): SubTaskController
 
   override def preStart() {
@@ -49,6 +51,7 @@ abstract class AnalysisTask(
       messageToAllReaderWorkers(req)
       sender ! JobKilled
       context.stop(self)
+    case AreYouFinished => monitor = sender() // register to message out later
     case unhandled     => log.error(s"Not handled message in $description: " + unhandled)
   }
 
@@ -101,8 +104,7 @@ abstract class AnalysisTask(
             context.become(checkTime(Some(controller), List.empty, Some(range)))
           case None =>
             log.info(s"no more sub tasks for $jobId")
-            messagetoAllJobWorkers(KillTask(jobId))
-            self ! PoisonPill
+            killJob()
         }
       } else
         context.become(checkTime(taskController, readyTimes, currentRange))
@@ -119,6 +121,7 @@ abstract class AnalysisTask(
           context.become(preStepSubtask(subtaskState, 0, 0))
         }
         else context.become(waitAllReadyForSetupTask(subtaskState, newReadyCount))
+      case JobFailed => killJob()
     }
 
   private def preStepSubtask(subtaskState: SubtaskState, readyCount: Int, sentMessageCount: Int): Receive =
@@ -136,6 +139,8 @@ abstract class AnalysisTask(
             context.become(checkMessages(subtaskState, 0, 0, 0))
           }
         else context.become(preStepSubtask(subtaskState, newReadyCount, newSendMessageCount))
+
+      case JobFailed => killJob()
     }
 
   private def waitAllReadyForNextStep(subtaskState: SubtaskState, readyCount: Int): Receive =
@@ -147,6 +152,8 @@ abstract class AnalysisTask(
           context.become(stepWork(subtaskState, 0, 0, true))
         }
         else context.become(waitAllReadyForNextStep(subtaskState, newReadyCount))
+
+      case JobFailed => killJob()
     }
 
   private def checkMessages(
@@ -194,6 +201,8 @@ abstract class AnalysisTask(
         }
       else
         context.become(stepWork(subtaskState, newReadyCount, newTotalSentMessages, newVoteToHaltForAll))
+
+    case JobFailed => killJob()
   }
 
   private def finishSubtask(subtaskState: SubtaskState, readyCount: Int, allResults: List[Any]): Receive =
@@ -232,6 +241,8 @@ abstract class AnalysisTask(
       case StartNextSubtask =>
         messageToAllReaderWorkers(TimeCheck)
         context.become(checkTime(Some(subtaskState.taskController), List.empty, None))
+
+      case JobFailed => killJob()
     }
 
   private def messageToAllReaders[T](msg: T): Unit =
@@ -243,7 +254,11 @@ abstract class AnalysisTask(
   private def messagetoAllJobWorkers[T](msg:T):Unit =
     workerList.values.foreach(worker => worker ! msg)
 
-
+  private def killJob() = {
+    messagetoAllJobWorkers(KillTask(jobId))
+    self ! PoisonPill
+    if(monitor!=null)monitor ! TaskFinished(true)
+  }
 
 }
 

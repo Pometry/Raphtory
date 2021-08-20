@@ -20,7 +20,7 @@ class DegreeDistribution(args:Array[String]) extends Analyser[Any](args){
     }
     val totalV = degDist.size
     val totalDeg = degDist.map( x => x._3).sum
-    val maxDeg = if (degDist.size > 0) degDist.map(x => x._3).max else 0
+    val maxDeg = if (degDist.nonEmpty) degDist.map(x => x._3).max else 0
     val inDegSq = degDist.map( x => x._1 * x._1).sum
     val outDegSq = degDist.map( x => x._2 * x._2).sum
     val degSq = degDist.map( x => x._3 * x._3).sum
@@ -38,10 +38,11 @@ class DegreeDistribution(args:Array[String]) extends Analyser[Any](args){
     val meanOutDegSq = if (totalVert > 0) endResults.map(x => x._4/totalVert.toDouble).sum else 0.0
     val meanDegSq = if (totalVert > 0) endResults.map(x => x._5/totalVert.toDouble).sum else 0.0
 
-    val text =
-      s"""{"vertices":$totalVert, "maxDeg":$maxDeg,"avgSquaredDeg":$meanDegSq,"avgSquaredInDeg":$meanInDegSq,"avgSquaredOutDeg":$meanOutDegSq}"""
-    println(text)
-    Map[String,Any]()
+    Map("vertices"->totalVert,
+        "maxDeg"->maxDeg,
+        "avgSquaredDeg"->meanDegSq,
+        "avgSquaredInDeg"->meanInDegSq,
+        "avgSquaredOutDeg"->meanOutDegSq)
   }
 
 }

@@ -4,13 +4,23 @@ import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
-class StateTest(args:Array[String]) extends Analyser[(Int, Int, Int, Int, Int, Int,Int,Int,Int,Int, Int, Int, Int, Int,Int,Int,Int,Int)](args){
+case class PartitionState(totalV:Int, totalDeg:Int, inDeg:Int,
+                 outDeg:Int, degSq:Int, maxDeg:Int,
+                 vdeletionstotal:Int,vcreationstotal:Int,
+                 outedgedeletionstotal:Int,outedgecreationstotal:Int,
+                 inedgedeletionstotal:Int,inedgecreationstotal:Int,
+                 properties:Int,propertyhistory:Int,outedgeProperties:Int,
+                 outedgePropertyHistory:Int,inedgeProperties:Int,
+                 inedgePropertyHistory:Int)
+
+
+class StateTest(args:Array[String]) extends Analyser[PartitionState](args){
 
   override def analyse(): Unit = {}
 
   override def setup(): Unit = {}
 
-  override def returnResults(): (Int, Int, Int, Int, Int, Int,Int,Int,Int,Int, Int, Int, Int, Int,Int,Int,Int,Int) = {
+  override def returnResults(): PartitionState = {
     val degDist = view.getVertices().map {
       vertex =>
         val inDeg = vertex.getIncEdges.size
@@ -57,7 +67,7 @@ class StateTest(args:Array[String]) extends Analyser[(Int, Int, Int, Int, Int, I
     val inedgeProperties = degDist.map( x => x._14).sum
     val inedgePropertyHistory = degDist.map( x => x._15).sum
 
-    (totalV, totalDeg, inDeg, outDeg, degSq, maxDeg,
+    PartitionState(totalV, totalDeg, inDeg, outDeg, degSq, maxDeg,
       vdeletionstotal,vcreationstotal,
       outedgedeletionstotal,outedgecreationstotal,
       inedgedeletionstotal,inedgecreationstotal,
@@ -66,27 +76,27 @@ class StateTest(args:Array[String]) extends Analyser[(Int, Int, Int, Int, Int, I
 
   override def defineMaxSteps(): Int = 1
 
-  override def extractResults(results: List[(Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)]): Map[String, Any] = {
-    val totalVert = results.map( x => x._1 ).sum
-    val totDeg = results.map(x => x._2).sum
-    val maxDeg = results.map(x => x._6).max
-    val InEdge = results.map(x => x._3).sum
-    val OutEdge = results.map(x => x._4).sum
+  override def extractResults(results: List[PartitionState]): Map[String, Any] = {
+    val totalVert = results.map( x => x.totalV ).sum
+    val totDeg = results.map(x => x.totalDeg).sum
+    val maxDeg = results.map(x => x.maxDeg).max
+    val InEdge = results.map(x => x.inDeg).sum
+    val OutEdge = results.map(x => x.outDeg).sum
     //val DegSq = if (totalVert > 0) endResults.map(x => x._5/totalVert.toDouble).sum else 0.0
-    val vdeletionstotal = results.map( x => x._7).sum
-    val vcreationstotal = results.map( x => x._8).sum
-    val outedgedeletionstotal = results.map( x => x._9).sum
-    val outedgecreationstotal = results.map( x => x._10).sum
-    val inedgedeletionstotal = results.map( x => x._11).sum
-    val inedgecreationstotal = results.map( x => x._12).sum
+    val vdeletionstotal = results.map( x => x.vdeletionstotal).sum
+    val vcreationstotal = results.map( x => x.vcreationstotal).sum
+    val outedgedeletionstotal = results.map( x => x.outedgedeletionstotal).sum
+    val outedgecreationstotal = results.map( x => x.outedgecreationstotal).sum
+    val inedgedeletionstotal = results.map( x => x.inedgedeletionstotal).sum
+    val inedgecreationstotal = results.map( x => x.inedgecreationstotal).sum
 
-    val properties = results.map( x => x._13).sum
-    val propertyhistory = results.map( x => x._14).sum
-    val outedgeProperties = results.map( x => x._15).sum
-    val outedgePropertyHistory = results.map( x => x._16).sum
+    val properties = results.map( x => x.properties).sum
+    val propertyhistory = results.map( x => x.propertyhistory).sum
+    val outedgeProperties = results.map( x => x.outedgeProperties).sum
+    val outedgePropertyHistory = results.map( x => x.outedgePropertyHistory).sum
 
-    val inedgeProperties = results.map( x => x._17).sum
-    val inedgePropertyHistory = results.map( x => x._18).sum
+    val inedgeProperties = results.map( x => x.inedgeProperties).sum
+    val inedgePropertyHistory = results.map( x => x.inedgePropertyHistory).sum
 
     Map[String,Any]("vertices"->totalVert,"maxDeg"->maxDeg,"totalInEdges"->InEdge,"totalOutEdges"->OutEdge,
       "vdeletionstotal"->vdeletionstotal,"vcreationstotal"->vcreationstotal,"outedgedeletionstotal"->outedgedeletionstotal,

@@ -12,6 +12,7 @@ class SpoutConnector[T](managerCount: Int, routerCount:Int,spout: Spout[T]) exte
   override def callTheWatchDog(): Future[Any] = {
     log.debug(s"Attempting to retrieve Spout Id from WatchDog.")
     mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestSpoutId, localAffinity = false)
+
   }
 
   override def giveBirth(assignedId: Int): Unit = {

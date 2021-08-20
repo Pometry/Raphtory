@@ -5,6 +5,7 @@ import com.raphtory.core.analysis.api.Analyser
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
 import scala.io.Source
+import scala.tools.nsc.io.Path
 
 /**
 Description
@@ -119,6 +120,10 @@ val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(Long, S
 //      .mkString(",")}],"""+
 //      s""""communities": [${commtxt.mkString(",")}] ,"""+
 //      s""""viewTime":$viewCompleteTime}"""
+    output_file match {
+      case "" => println(text)
+      case _  => Path(output_file).createFile().appendAll(text + "\n")
+    }
     Map[String,Any]()
   }
 //
