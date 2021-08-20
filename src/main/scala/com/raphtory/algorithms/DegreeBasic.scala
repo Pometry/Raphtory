@@ -1,22 +1,20 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 
-import scala.collection.mutable.ArrayBuffer
-
-object DegreeBasic{
+object DegreeBasic {
   def apply() = new DegreeBasic(Array())
 }
 
-class DegreeBasic(args:Array[String]) extends Analyser(args){
+class DegreeBasic(args: Array[String]) extends Analyser[(Int, Int, Int, List[(Long, Int, Int)])](args) {
   object sortOrdering extends Ordering[Int] {
-    def compare(key1: Int, key2: Int) = key2.compareTo(key1)
+    def compare(key1: Int, key2: Int): Int = key2.compareTo(key1)
   }
   override def analyse(): Unit = {}
 
   override def setup(): Unit = {}
 
-  override def returnResults(): Any = {
+  override def returnResults(): (Int, Int, Int, List[(Long, Int, Int)]) = {
     val degree = view.getVertices().map { vertex =>
       val outDegree = vertex.getOutEdges.size
       val inDegree  = vertex.getIncEdges.size
@@ -26,52 +24,21 @@ class DegreeBasic(args:Array[String]) extends Analyser(args){
     val totalOut = degree.map(x => x._2).sum
     val totalIn  = degree.map(x => x._3).sum
     val topUsers = degree.toArray.sortBy(x => x._3)(sortOrdering).take(20)
-    (totalV, totalOut, totalIn, topUsers)
+    (totalV, totalOut, totalIn, topUsers.toList)
   }
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
-    val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
-  //  val output_file = System.getenv().getOrDefault("PROJECT_OUTPUT", "/app/defout.csv").trim
-    val totalVert   = endResults.map(x => x._1).sum
-    val totalEdge   = endResults.map(x => x._3).sum
+  override def extractResults(results: List[(Int, Int, Int, List[(Long, Int, Int)])]): Map[String, Any] = {
+    val totalVert = results.map(x => x._1).sum
+    val totalEdge = results.map(x => x._3).sum
 
     val degree =
       try totalEdge.toDouble / totalVert.toDouble
       catch {
         case e: ArithmeticException => 0
       }
-
-val startTime   = System.currentTimeMillis()
-    val text = s"""{"time":$timestamp,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree}"""
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","DegreeBasic.json").trim
-   // writeLines(output_file, text, "")
-    println(text)
-    //publishData(text)
+    Map[String, Any]("vertices" -> totalVert, "edges" -> totalEdge, "degree" -> degree)
   }
 
-  override def processWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSize: Long,
-      viewCompleteTime: Long
-  ): Unit = {
-    val endResults  = results.asInstanceOf[ArrayBuffer[(Int, Int, Int, Array[(Int, Int, Int)])]]
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","DegreeBasic.json").trim
-    val totalVert   = endResults.map(x => x._1).sum
-    val totalEdge   = endResults.map(x => x._3).sum
-    val degree =
-      try totalEdge.toDouble / totalVert.toDouble
-      catch {
-        case e: ArithmeticException => 0
-      }
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"vertices":$totalVert,"edges":$totalEdge,"degree":$degree},"""
-  //  writeLines(output_file, text, "")
-    println(text)
-  //  publishData(text)
-
-  }
 }

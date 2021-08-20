@@ -7,10 +7,11 @@ import akka.actor.{ActorSystem, Address, ExtendedActorSystem, Props}
 import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
-import com.raphtory.core.actors.AnalysisManager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.ClusterManagement.{RaphtoryReplicator, SeedActor, WatchDog, WatermarkManager}
-import com.raphtory.core.actors.Router.GraphBuilder
-import com.raphtory.core.actors.Spout.{Spout, SpoutAgent}
+import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
+import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
+import com.raphtory.core.actors.graphbuilder.GraphBuilder
+import com.raphtory.core.actors.orchestration.clustermanager.{SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory}
 
 import scala.collection.JavaConversions
@@ -36,15 +37,16 @@ object RaphtoryServer extends App {
     case "partitionManager" => partition()
     case "spout" => spout()
     case "analysisManager" =>analysis()
-    case "watchdog" => watchDog()
     case "local" => local()
   }
 
   def seedNode() = {
     val seedLoc = s"${sys.env.getOrElse("HOST_IP","127.0.0.1")}:${conf.getInt("settings.bport")}"
-    println(s"Creating seed node at $seedLoc")
+    println(s"Creating seed node and watchdog at $seedLoc")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
     system.actorOf(Props(new SeedActor()), "cluster")
+    system.actorOf(Props(new WatermarkManager(managerCount = partitionCount)),"WatermarkManager")
+    system.actorOf(Props(new WatchDog(managerCount = partitionCount, minimumRouters = routerCount)), "WatchDog")
   }
 
   def router() = {
@@ -53,13 +55,13 @@ object RaphtoryServer extends App {
 
     val builderPath  = s"${sys.env.getOrElse("GRAPHBUILDER", "")}"
     val graphBuilder = Class.forName(builderPath).getConstructor().newInstance().asInstanceOf[GraphBuilder[Any]]
-    system.actorOf(Props(RaphtoryReplicator("Router", partitionCount, routerCount,graphBuilder)), "Routers")
+    system.actorOf(Props(new RouterConnector(partitionCount, routerCount,graphBuilder)), "Routers")
   }
 
   def partition() = {
     println(s"Creating Partition Manager...")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
-    system.actorOf(Props(RaphtoryReplicator(actorType = "Partition Manager", initialManagerCount = partitionCount,initialRouterCount = routerCount)), "PartitionManager")
+    system.actorOf(Props(new PartitionConnector(partitionCount,routerCount)), "PartitionManager")
   }
 
   def spout() = {
@@ -67,23 +69,16 @@ object RaphtoryServer extends App {
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
     val spoutPath = s"${sys.env.getOrElse("SPOUT", "")}"
     val spout = Class.forName(spoutPath).getConstructor().newInstance().asInstanceOf[Spout[Any]]
-    system.actorOf(Props(new SpoutAgent(spout)), "Spout")
+    system.actorOf(Props(new SpoutConnector(partitionCount,routerCount,spout)), "PartitionManager")
+
   }
 
   def analysis() = {
     println("Creating Analysis Manager")
     implicit val system: ActorSystem = initialiseActorSystem(List(locateSeed()))
-    system.actorOf(Props[AnalysisManager], s"AnalysisManager")
-    AnalysisRestApi(system)
-  }
+    system.actorOf(Props(new AnalysisManagerConnector(partitionCount,routerCount)), "AnalysisManagerConnector")
 
-  def watchDog() = {
-    println("Creating Watchdog")
-    implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
-    system.actorOf(Props(new WatermarkManager(managerCount = partitionCount)),"WatermarkManager")
-    system.actorOf(Props(new WatchDog(managerCount = partitionCount, minimumRouters = routerCount)), "WatchDog")
   }
-
 
   def local() = {
     println("putting up cluster in one node")
@@ -94,10 +89,11 @@ object RaphtoryServer extends App {
 
   def locateSeed(): String =
     if (docker) {
-      while (!("nc seedNode 1600" !).equals(0)) {
-        println("Waiting for seednode to come online")
-        Thread.sleep(3000)
-      }
+     // while (!("nc -l seedNode -p 1600 -w 1" !).equals(0)) {
+     //   println("Waiting for seednode to come online.")
+        Thread.sleep(20000)
+      //}
+      println("Seed Found!")
       InetAddress.getByName("seedNode").getHostAddress() + ":1600"
     } else "127.0.0.1:1600"
 
@@ -117,7 +113,7 @@ object RaphtoryServer extends App {
         "akka.cluster.seed-nodes",
         ConfigValueFactory.fromIterable(
           JavaConversions.asJavaIterable(
-            seeds.map(_ => s"akka.tcp://$clusterSystemName@$seedLoc")
+            seeds.map(_ => s"akka://$clusterSystemName@$seedLoc")
           )
         )
       )
@@ -136,12 +132,12 @@ object RaphtoryServer extends App {
   case class SocketAddress(host: String, port: String)
   case class SystemConfig(bindAddress: SocketAddress, tcpAddress: SocketAddress, seeds: List[ConfigValue], roles: List[ConfigValue])
   def parseConfig(config: Config): SystemConfig = {
-    val bindHost    = config.getString("akka.remote.netty.tcp.bind-hostname")
-    val bindPort    = config.getString("akka.remote.netty.tcp.bind-port")
+    val bindHost    = config.getString("akka.remote.artery.canonical.bind-hostname")
+    val bindPort    = config.getString("akka.remote.artery.canonical.bind-port")
     val bindAddress = SocketAddress(bindHost, bindPort)
 
-    val tcpHost    = config.getString("akka.remote.netty.tcp.hostname")
-    val tcpPort    = config.getString("akka.remote.netty.tcp.port")
+    val tcpHost    = config.getString("akka.remote.artery.canonical.hostname")
+    val tcpPort    = config.getString("akka.remote.artery.canonical.port")
     val tcpAddress = SocketAddress(tcpHost, tcpPort)
 
     val seeds = config.getList("akka.cluster.seed-nodes").toList

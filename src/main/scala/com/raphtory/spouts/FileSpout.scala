@@ -3,7 +3,7 @@ package com.raphtory.spouts
 import java.io._
 import java.util.zip.GZIPInputStream
 
-import com.raphtory.core.actors.Spout.Spout
+import com.raphtory.core.actors.spout.Spout
 import com.typesafe.scalalogging.LazyLogging
 
 class FileSpout extends Spout[String] {
@@ -109,7 +109,7 @@ object FileManager extends LazyLogging {
   private def getListOfFiles(dir: String): List[File] = {
     val d = new File(dir)
     if (d.exists && d.isDirectory) {
-      val files = getRecursiveListOfFiles(d)
+      val files = getRecursiveListOfFiles(d).sorted
       files.filter(f => f.isFile && !f.isHidden)
     }
     else {

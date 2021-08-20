@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -8,7 +8,7 @@ import scala.collection.parallel.immutable
 
 /** Warning: will generate large amount of data, best to run on small numbers of snapshots */
 
-class Distributions(args:Array[String]) extends Analyser(args){
+class Distributions(args:Array[String]) extends Analyser[Any](args){
 
   object sortOrdering extends Ordering[Int] {
     def compare(key1: Int, key2: Int) = key2.compareTo(key1)
@@ -37,7 +37,7 @@ class Distributions(args:Array[String]) extends Analyser(args){
 
   override def defineMaxSteps(): Int = 1
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: List[Any]): Map[String,Any]  = {
     var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
     var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","Distributions.json").trim
     val er = extractData(results)
@@ -47,29 +47,12 @@ class Distributions(args:Array[String]) extends Analyser(args){
     val weightDistArr = er.weightDist
     val edgeDistArr = er.edgeWeights
 
-    val text = s"""{"time":$timeStamp,"degDist":$degDistArr,"weightDist":$weightDistArr, "edgeDist":$edgeDistArr,"viewTime":$viewCompleteTime}"""
+    val text = s"""{"degDist":$degDistArr,"weightDist":$weightDistArr, "edgeDist":$edgeDistArr}"""
     println(text)
-    publishData(text)
-    writeLines(output_file, text, "{\"views\":[")
+    Map[String,Any]()
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","Distributions.json").trim
-    val er = extractData(results)
-    val startTime   = System.currentTimeMillis()
-
-    val degDistArr = er.degDist
-    val weightDistArr = er.weightDist
-    val edgeDistArr = er.weightDist
-
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"degDist":$degDistArr,"weightDist":$weightDistArr, "edgeDist":$edgeDistArr,"viewTime":$viewCompleteTime}"""
-    println(text)
-    publishData(text)
-    writeLines(output_file, text, "{\"views\":[")
-  }
-
-  def extractData(results: ArrayBuffer[Any]): extractedData = {
+  def extractData(results: List[Any]): extractedData = {
     val endResults = results.asInstanceOf[ArrayBuffer[(immutable.ParHashMap[Int, Int], immutable.ParHashMap[Int, Int], immutable.ParHashMap[(Long,Long), Int])]]
     val degreeDist = endResults.map(x => x._1)
       .flatten

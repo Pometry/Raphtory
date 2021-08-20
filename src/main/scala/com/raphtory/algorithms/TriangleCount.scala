@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.Analyser
+import com.raphtory.core.analysis.api.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -9,7 +9,7 @@ import scala.collection.mutable.ArrayBuffer
   * I will send the message '5' and '7' to my neighbours. Then each vertex checks its incoming messages and sees if any
   * of the messages received correspond to ids of its neighbours. */
 
-class TriangleCount(args:Array[String]) extends Analyser(args) {
+class TriangleCount(args:Array[String]) extends Analyser[(Int,Int,Double)](args) {
 
   override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
@@ -35,7 +35,7 @@ class TriangleCount(args:Array[String]) extends Analyser(args) {
 
   }
 
-  override def returnResults(): Any = {
+  override def returnResults(): (Int,Int,Double) = {
     val triangleStats  = view.getVertices().map {
       vertex => (vertex.getState[Int]("triangles"), vertex.getOutEdges.size + vertex.getIncEdges.size)
     }.map {
@@ -49,37 +49,19 @@ class TriangleCount(args:Array[String]) extends Analyser(args) {
 
   override def defineMaxSteps(): Int = 5
 
-  override def processResults(results: ArrayBuffer[Any], timeStamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: List[(Int,Int,Double)]): Map[String, Any] = {
     val startTime   = System.currentTimeMillis()
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Double)]]
+    val endResults = results
     val totalVert = endResults.map( x => x._1 ).sum
     val totalTri = endResults.map( x => x._2 ).sum/3
     val avgCluster = if (totalVert > 0) endResults.map( x => x._3 ).sum/totalVert else 0.0
 //    val clusterCoeff =
 //      try endResults.map(x => x._3).sum/totalVert.toFloat
 //      catch { case e: ArithmeticException => 0.0 }
-    val text = s"""{"time":$timeStamp,"totTriangles":$totalTri,"avgCluster":$avgCluster,"viewTime":$viewCompleteTime,"concatTime":${System
-      .currentTimeMillis() - startTime}},"""
-    publishData(text)
-    println(text)
+//    val text = s"""{"totTriangles":$totalTri,"avgCluster":$avgCluster,"concatTime":${System
+//      .currentTimeMillis() - startTime}},"""
+//    println(text)
+    Map[String,Any]("vertices"->totalVert,"totalTri"->totalTri,"avgCluster"->avgCluster)
   }
 
-  override def processWindowResults(results: ArrayBuffer[Any], timestamp: Long, windowSize: Long, viewCompleteTime: Long): Unit = {
-    val startTime   = System.currentTimeMillis()
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Int, Double)]]
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","TriangleCount.json").trim
-    val totalVert = endResults.map( x => x._1 ).sum
-    val totalTri = endResults.map( x => x._2 ).sum/3
-    val avgCluster = if (totalVert > 0) endResults.map( x => x._3 ).sum/totalVert else 0.0
-    //    val clusterCoeff =
-    //      try endResults.map(x => x._3).sum/totalVert.toFloat
-    //      catch { case e: ArithmeticException => 0.0 }
-    val text =
-      s"""{"time":$timestamp,"windowsize":$windowSize,"totTriangles":$totalTri,"avgCluster":$avgCluster,"viewTime":$viewCompleteTime,"concatTime":${System
-        .currentTimeMillis() - startTime}}"""
-    writeLines(output_file, text, "{\"views\":[")
-    publishData(text)
-    println(text)
-  }
 }

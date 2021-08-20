@@ -1,12 +1,12 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.Analyser
-import com.raphtory.core.model.analysis.entityVisitors.VertexVisitor
+import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.analysis.entity.Vertex
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.parallel.immutable
+import scala.collection.parallel.ParMap
 import scala.collection.parallel.mutable.ParArray
-import scala.reflect.io.Path
+import scala.tools.nsc.io.Path
 
 /**
 Description
@@ -31,10 +31,10 @@ Notes
   The returned communities may differ on multiple executions.
   **/
 object LPA {
-  def apply(args: Array[String]): LPA = new LPA(args)
+  def apply(top: Int, weight: String, maxIter: Int): LPA = new LPA(Array(top.toString, weight, maxIter.toString))
 }
 
-class LPA(args: Array[String]) extends Analyser(args) {
+class LPA(args: Array[String]) extends Analyser[ParMap[Long, List[String]]](args) {
   //args = [top output, edge property, max iterations]
 
   val arg: Array[String] = args.map(_.trim)
@@ -42,99 +42,69 @@ class LPA(args: Array[String]) extends Analyser(args) {
   val top: Int         = if (arg.length == 0) 0 else arg.head.toInt
   val weight: String       = if (arg.length < 2) "" else arg(1)
   val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
+  val rnd    = new scala.util.Random
 
+  val SP = 0.2F // Stickiness probability
 
-  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
-  val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
-
-  override def setup(): Unit =
+  override def setup(): Unit = {
     view.getVertices().foreach { vertex =>
-      val lab = (scala.util.Random.nextLong(), scala.util.Random.nextLong())
+      val lab = rnd.nextLong()
       vertex.setState("lpalabel", lab)
-      vertex.messageAllNeighbours((vertex.ID(), lab._2))
+      vertex.messageAllNeighbours((vertex.ID(),lab))
     }
+  }
 
-  override def analyse(): Unit =
+  override def analyse(): Unit = {
     view.getMessagedVertices().foreach { vertex =>
-      try {
-        val Vlabel   = vertex.getState[(Long, Long)]("lpalabel")._2
-        val Oldlabel = vertex.getState[(Long, Long)]("lpalabel")._1
+//      try {
+        val vlabel = vertex.getState[Long]("lpalabel")
 
         // Get neighbourhood Frequencies -- relevant to weighted LPA
-        val vneigh = vertex.getOutEdges ++ vertex.getIncEdges
-        val neigh_freq = vneigh
-          .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1L).asInstanceOf[Long]))
+        val vneigh = vertex.getEdges
+        val neigh_freq = vneigh.map { e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float]) }
           .groupBy(_._1)
-          .mapValues(x => x.map(_._2).sum / x.size)
+          .mapValues(x => x.map(_._2).sum)
 
         // Process neighbour labels into (label, frequency)
-        val gp = vertex.messageQueue[(Long,  Long)].map(v => (v._2, neigh_freq(v._1)))
+        val gp = vertex.messageQueue[(Long, Long)].map { v => (v._2, neigh_freq.getOrElse(v._1, 1.0F))}
 
         // Get label most prominent in neighborhood of vertex
         val maxlab = gp.groupBy(_._1).mapValues(_.map(_._2).sum)
+        var newLabel =  maxlab.filter(_._2 == maxlab.values.max).keySet.max
 
         // Update node label and broadcast
-        val newLabel = maxlab.filter(_._2 == maxlab.values.max).keySet.max
-        val nlab = newLabel match {
-          case Vlabel | Oldlabel =>
-            vertex.voteToHalt()
-            (List(Vlabel, Oldlabel).min, List(Vlabel, Oldlabel).max)
-          case _ => (Vlabel, newLabel)
-        }
-        vertex.setState("lpalabel", nlab)
-        vertex.messageAllNeighbours((vertex.ID(), nlab._2))
+        if (newLabel == vlabel)
+          vertex.voteToHalt()
+        newLabel =  if (rnd.nextFloat() < SP) vlabel else newLabel
+        vertex.setState("lpalabel", newLabel)
+        vertex.messageAllNeighbours((vertex.ID(), newLabel))
         doSomething(vertex, gp.map(_._1).toArray)
-      } catch {
-        case e: Exception => println(e, vertex.ID())
-      }
+//      } catch {
+//        case e: Exception => println(e, vertex.ID())
+//      }
     }
+  }
 
-  def doSomething(v: VertexVisitor, gp: Array[Long]): Unit = {}
 
-  override def returnResults(): Any =
-    view
-      .getVertices()
-      .filter(v => v.Type() == nodeType)
-      .map(vertex => (vertex.getState[(Long, Long)]("lpalabel")._2, vertex.ID()))
+  def doSomething(v: Vertex, gp: Array[Long]): Unit = {}
+
+  override def returnResults(): ParMap[Long, List[String]] =
+    view.getVertices()
+      //.filter(v => v.Type() == nodeType)
+      .map(vertex => (vertex.getState[Long]("lpalabel"), vertex.ID()))
       .groupBy(f => f._1)
-      .map(f => (f._1, f._2.map(_._2)))
+      .mapValues(f => f.map(_._2.toString).toList)
 
-  override def processResults(results: ArrayBuffer[Any], timestamp: Long, viewCompleteTime: Long): Unit = {
+  override def extractResults(results: List[ParMap[Long, List[String]]]): Map[String, Any] = {
     val er      = extractData(results)
-    val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
-    val text = s"""{"time":$timestamp,"top5":[${er.top5
-      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
-       s"""communities": [${commtxt.mkString(",")}],"""+
-      s"""viewTime":$viewCompleteTime}"""
-    output_file match {
-      case "" => println(text)
-      case "mongo" => publishData(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
+    val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
+
+    Map[String,Any]("top5"->er.top5,"total"->er.total,"totalIslands"->er.totalIslands,
+       "communities"->commtxt)
   }
 
-  override def processWindowResults(
-      results: ArrayBuffer[Any],
-      timestamp: Long,
-      windowSize: Long,
-      viewCompleteTime: Long
-  ): Unit = {
-    val er      = extractData(results)
-    val commtxt = er.communities.map(x => s"""[${x.mkString(",")}]""")
-    val text = s"""{"time":$timestamp,"windowsize":$windowSize,"top5":[${er.top5
-      .mkString(",")}],"total":${er.total},"totalIslands":${er.totalIslands},"""+
-      s"""communities": [${commtxt.mkString(",")}],"""+
-      s"""viewTime":$viewCompleteTime}"""
-    output_file match {
-      case "" => println(text)
-      case "mongo" => publishData(text)
-      case _  => Path(output_file).createFile().appendAll(text + "\n")
-    }
-    publishData(text)
-  }
-
-  def extractData(results: ArrayBuffer[Any]): fd = {
-    val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[Long, ParArray[String]]]]
+  def extractData(results: List[ParMap[Long, List[String]]]): fd = {
+    val endResults = results//.asInstanceOf[List[]]]
     try {
       val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))
       val groupedNonIslands   = grouped.filter(x => x._2.size > 1)
@@ -146,7 +116,7 @@ class LPA(args: Array[String]) extends Analyser(args) {
       val communities         = if (top == 0) sorted.map(_._2) else sorted.map(_._2).take(top)
       fd(top5, total, totalIslands, communities)
     } catch {
-      case _: UnsupportedOperationException => fd(Array(0), 0, 0, Array(ArrayBuffer("0")))
+      case _: UnsupportedOperationException => fd(Array(0), 0, 0, Array(List("0")))
     }
   }
 
@@ -154,4 +124,4 @@ class LPA(args: Array[String]) extends Analyser(args) {
 
 }
 
-case class fd(top5: Array[Int], total: Int, totalIslands: Int, communities: Array[ArrayBuffer[String]])
+case class fd(top5: Array[Int], total: Int, totalIslands: Int, communities: Array[List[String]])
