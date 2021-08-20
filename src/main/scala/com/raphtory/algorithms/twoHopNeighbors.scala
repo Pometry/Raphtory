@@ -17,7 +17,7 @@ class twoHopNeighbors(args: Array[String]) extends Analyser[List[(String, mutabl
   var node: String     = args.head
   val name: String     = if (args.length < 2) "" else args(1)
   val neiSize: Int     = if (args.length < 3) 0 else args(2).toInt
-  val weight: String = if (args.length < 4) "weight" else args(3)
+  val property: String = if (args.length < 4) "weight" else args(3)
 
   override def setup(): Unit =
     view.getVertices()
