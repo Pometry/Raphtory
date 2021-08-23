@@ -27,7 +27,7 @@ class OutDegreeAverage(args:Array[String]) extends Analyser[Any](args){
       try totalEdge.toDouble / totalVert.toDouble
       catch { case _: ArithmeticException => 0 }
 
-    Map("vertices"->totalVert,"edges"->totalEdge,"degree"->degree)
+
   }
 
 }
