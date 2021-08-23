@@ -34,7 +34,6 @@ Static graphs, which require data to be manually reloaded for updates, have been
 Check out these links for more information:
 
 - [Detailed overview](https://raphtory.github.io/) on the research
-- [Introduction to temporal graphs](https://chorograph.com/demo) and see some of the exciting software built on top of Raphtory
 - Raphtory [article](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs) on the Alan Turing Institute site
 
 ## Community and Changelog  
