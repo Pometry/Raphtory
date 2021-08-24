@@ -1,7 +1,6 @@
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/6665739/130599699-8e09c14b-1820-4ee9-ac04-f98eb2976b15.png" alt="Raphtory" height="200"/>
+  <img src="https://user-images.githubusercontent.com/6665739/130641943-fa7fcdb8-a0e7-4aa4-863f-3df61b5de775.png" alt="Raphtory" height="250"/>
 </p>
-<h1 align="center">Raphtory</h1>
 
 Open-source platform for distributed real-time temporal graph analytics. Load and process large dynamic graphs across time.
 
