@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raphtory.github.io/images/raphtory-logo-round.png" alt="Raphtory" width="120" height="120"/>
+  <img src="https://user-images.githubusercontent.com/6665739/130599699-8e09c14b-1820-4ee9-ac04-f98eb2976b15.png" alt="Raphtory" height="200"/>
 </p>
 <h1 align="center">Raphtory</h1>
 
