@@ -58,17 +58,12 @@ final class IngestionWorker(workerId: Int, partitionID:Int, storage: GraphPartit
     case TrackedGraphEffect(channelId, channelTime, req: RemoteReturnDeaths) => processRemoteReturnDeathsRequest(channelId, channelTime, req) //The remote worker has returned all removals in the destination node -- for new edges
     case TrackedGraphEffect(channelId, channelTime, req: EdgeSyncAck) => processEdgeSyncAck(channelId, channelTime, req) //The remote worker acknowledges the completion of an edge sync
 
-    case TrackedGraphEffect(channelId, channelTime, req: DstAddForOtherWorker) => processDstAddForOtherWorkerRequest(channelId, channelTime, req) //A local writer has requested a new edge sync for a destination node in this worker
-    case TrackedGraphEffect(channelId, channelTime, req: DstResponseFromOtherWorker) => processDstResponseFromOtherWorkerRequest(channelId, channelTime, req) //The local writer has responded with the deletions for local split edge to allow the main writer to insert them
-
     case TrackedGraphUpdate(channelId, channelTime, req: EdgeDelete) => processEdgeDeleteRequest(channelId, channelTime, req) //Delete an Edge
     case TrackedGraphEffect(channelId, channelTime, req: RemoteEdgeRemovalNew) => processRemoteEdgeRemovalNewRequest(channelId, channelTime, req) //A remote worker is asking for a new edge to be removed for a destination node in this worker
     case TrackedGraphEffect(channelId, channelTime, req: RemoteEdgeRemoval) => processRemoteEdgeRemovalRequest(channelId, channelTime, req) //A remote worker is asking for the deletion of an existing edge
-    case TrackedGraphEffect(channelId, channelTime, req: DstWipeForOtherWorker) => processDstWipeForOtherWorkerRequest(channelId, channelTime, req) //A local worker is asking for a new edge sync for a destination node for this worker
 
     case TrackedGraphUpdate(channelId, channelTime, req: VertexDelete) => processVertexDeleteRequest(channelId, channelTime, req) //Delete a vertex and all associated edges
     case TrackedGraphEffect(channelId, channelTime, req: RemoteEdgeRemovalFromVertex) => processRemoteEdgeRemovalRequestFromVertex(channelId, channelTime, req) //Does exactly the same as above, but for when the removal comes form a vertex
-    case TrackedGraphEffect(channelId, channelTime, req: EdgeRemoveForOtherWorker) => processEdgeRemoveForOtherWorkerRequest(channelId, channelTime, req) //Handle the deletion of an outgoing edge from a vertex deletion on a local worker
     case TrackedGraphEffect(channelId, channelTime, req: ReturnEdgeRemoval) => processReturnEdgeRemovalRequest(channelId, channelTime, req) // Excatly the same as above, but for a remote worker
 
     case TrackedGraphEffect(channelId, channelTime, req: VertexRemoveSyncAck) => processVertexRemoveSyncAck(channelId, channelTime, req)
@@ -141,20 +136,6 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: R
     addToWatermarkQueue(channelId, channelTime, req.msgTime)
   }
 
-  def processDstAddForOtherWorkerRequest(channelId: String, channelTime: Int, req: DstAddForOtherWorker): Unit = { //local worker asking this one to deal with an incoming edge
-    log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    val effect = storage.vertexWorkerRequest(req.msgTime, req.srcId, req.dstId, req.edge, req.present, channelId, channelTime)
-    sendEffectMessage(effect)
-    storage.timings(req.msgTime)
-    intraWorkerUpdates.increment()
-  }
-
-  def processDstResponseFromOtherWorkerRequest(channelId: String, channelTime: Int, req: DstResponseFromOtherWorker): Unit = { //local worker responded for a new edge so can watermark, if existing edge will just be an ack
-    log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    storage.vertexWorkerRequestEdgeHandler(req.msgTime, req.srcId, req.dstId, req.removeList)
-    addToWatermarkQueue(channelId, channelTime, req.msgTime)
-  }
-
 
   def processEdgeDeleteRequest(channelId: String, channelTime: Int, update: EdgeDelete): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$update] request.")
@@ -187,14 +168,6 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: R
     interWorkerUpdates.increment()
   }
 
-  def processDstWipeForOtherWorkerRequest(channelId: String, channelTime: Int, req: DstWipeForOtherWorker): Unit = {
-    log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    val effect = storage.vertexWipeWorkerRequest(req.msgTime, req.srcId, req.dstId, req.edge, req.present, channelId, channelTime)
-    sendEffectMessage(effect)
-    storage.timings(req.msgTime)
-    intraWorkerUpdates.increment()
-  }
-
 
   def processVertexDeleteRequest(channelId: String, channelTime: Int, update: VertexDelete): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$update] request.")
@@ -223,20 +196,12 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: R
     }
   }
 
-
   def processRemoteEdgeRemovalRequestFromVertex(channelId: String, channelTime: Int, req: RemoteEdgeRemovalFromVertex): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$req] request.")
     val effect = storage.remoteEdgeRemovalFromVertex(req.msgTime, req.srcId, req.dstId, channelId, channelTime)
     sendEffectMessage(effect)
     storage.timings(req.msgTime)
     interWorkerUpdates.increment()
-  }
-
-  def processEdgeRemoveForOtherWorkerRequest(channelId: String, channelTime: Int, req: EdgeRemoveForOtherWorker): Unit = { //local worker has destination and needs this worker to sort the edge removal
-    log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    val effect = storage.edgeRemovalFromOtherWorker(req.msgTime, req.srcId, req.dstId, channelId, channelTime)
-    sendEffectMessage(effect)
-    intraWorkerUpdates.increment()
   }
 
   def processReturnEdgeRemovalRequest(channelId: String, channelTime: Int, req: ReturnEdgeRemoval): Unit = { //remote worker same as above
@@ -307,12 +272,9 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: R
     addToWatermarkQueue(req.routerId,req.routerTime,req.msgTime)
   }
 
-  private def sendEffectMessage[T <: GraphUpdateEffect](msg: TrackedGraphEffect[T]): Unit = {
-    mediator ! new DistributedPubSubMediator.Send(
-      getManager(msg.effect.updateId, managerCount),
-      msg
-    )
-  }
+  private def sendEffectMessage[T <: GraphUpdateEffect](msg: TrackedGraphEffect[T]): Unit =
+    mediator ! new DistributedPubSubMediator.Send(getManager(msg.effect.updateId, managerCount), msg)
+
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
   override def preStart() {

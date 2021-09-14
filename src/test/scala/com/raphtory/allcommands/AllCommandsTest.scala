@@ -56,37 +56,6 @@ class AllCommandsTest extends FunSuite {
     }
   }
 
-  test("Graph State Test"){
-    val stateTest = new StateTest(Array()).getClass.getCanonicalName
-    val serialiser = new DefaultSerialiser().getClass.getCanonicalName
-    try {
-      //First we run the test and see if it finishes in a reasonable time
-      implicit val timeout: Timeout = 120.second
-      val future = analysisManager.getAnalysisManager.get ? RangeAnalysisRequest(stateTest, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array(), "")
-      val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
-      val future2 = taskManager ? AreYouFinished
-      val result = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
-
-      val testData = HashMap[TimeParams, StateCheckResult]() ++=
-        scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/output").getLines()
-          .map(line => line.parseJson.convertTo[StateCheckResult])
-          .map(state => (TimeParams(state.time, state.windowsize), state))
-      val standardData = HashMap[TimeParams, StateCheckResult]() ++=
-        scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/statetest.json").getLines()
-          .map(line => line.parseJson.convertTo[StateCheckResult])
-          .map(state => (TimeParams(state.time, state.windowsize), state))
-
-      val correctResults = testData.map(row => row._2.compareTo(standardData(row._1))).fold(true) { (x, y) => x && y }
-      if (correctResults) {
-        new File("src/test/scala/com/raphtory/data/allcommands/output").delete()
-      }
-      assert(correctResults)
-    }
-      catch {
-      case _: java.util.concurrent.TimeoutException => assert(false)
-    }
-  }
-
   test("Connected Components Test"){
     val connectedComponents = ConnectedComponents().getClass.getCanonicalName
     val serialiser = new DefaultSerialiser().getClass.getCanonicalName
@@ -105,6 +74,37 @@ class AllCommandsTest extends FunSuite {
       val standardData = HashMap[TimeParams, ConnectedComponentsResults]() ++=
         scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/connectedcomponents.json").getLines()
           .map(line => line.parseJson.convertTo[ConnectedComponentsResults])
+          .map(state => (TimeParams(state.time, state.windowsize), state))
+
+      val correctResults = testData.map(row => row._2.compareTo(standardData(row._1))).fold(true) { (x, y) => x && y }
+      if (correctResults) {
+        new File("src/test/scala/com/raphtory/data/allcommands/output").delete()
+      }
+      assert(correctResults)
+    }
+    catch {
+      case _: java.util.concurrent.TimeoutException => assert(false)
+    }
+  }
+
+  test("Graph State Test"){
+    val stateTest = new StateTest(Array()).getClass.getCanonicalName
+    val serialiser = new DefaultSerialiser().getClass.getCanonicalName
+    try {
+      //First we run the test and see if it finishes in a reasonable time
+      implicit val timeout: Timeout = 120.second
+      val future = analysisManager.getAnalysisManager.get ? RangeAnalysisRequest(stateTest, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array(), "")
+      val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
+      val future2 = taskManager ? AreYouFinished
+      val result = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
+
+      val testData = HashMap[TimeParams, StateCheckResult]() ++=
+        scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/output").getLines()
+          .map(line => line.parseJson.convertTo[StateCheckResult])
+          .map(state => (TimeParams(state.time, state.windowsize), state))
+      val standardData = HashMap[TimeParams, StateCheckResult]() ++=
+        scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/statetest.json").getLines()
+          .map(line => line.parseJson.convertTo[StateCheckResult])
           .map(state => (TimeParams(state.time, state.windowsize), state))
 
       val correctResults = testData.map(row => row._2.compareTo(standardData(row._1))).fold(true) { (x, y) => x && y }

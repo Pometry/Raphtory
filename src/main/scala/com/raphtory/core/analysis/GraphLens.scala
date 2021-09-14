@@ -34,21 +34,21 @@ final case class GraphLens(
   private lazy val vertexMap: ParTrieMap[Long, Vertex] = {
     val startTime = System.currentTimeMillis()
 
-//    val result = window match {
-//      case None =>
-//        storage.vertices.collect {
-//          case (k, v) if v.aliveAt(timestamp) =>
-//            k -> v.viewAt(timestamp,this)
-//        }
-//      case Some(w) => {
-//        storage.vertices.collect {
-//          case (k, v) if v.aliveAtWithWindow(timestamp, w) =>
-//            k -> v.viewAtWithWindow(timestamp, w,this)
-//        }
-//    }
-//    }
+    val result = window match {
+      case None =>
+        storage.getVertices.collect {
+          case (k, v) if v.aliveAt(timestamp) =>
+            k -> v.viewAt(timestamp,this)
+        }
+      case Some(w) => {
+        storage.getVertices.collect {
+          case (k, v) if v.aliveAtWithWindow(timestamp, w) =>
+            k -> v.viewAtWithWindow(timestamp, w,this)
+        }
+    }
+    }
     viewTimer.update(System.currentTimeMillis() - startTime)
-    ParTrieMap[Long,Vertex]()
+    result
   }
 
   def getVertices(): ParIterable[Vertex] = {
@@ -85,6 +85,11 @@ final case class GraphLens(
   }
 
   def receiveMessage(msg: VertexMessage): Unit = {
+    try {
       vertexMap(msg.vertexId).receiveMessage(msg)
+    }
+    catch {
+      case e:Exception => println(e)
+    }
   }
 }
