@@ -15,9 +15,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetWriter}
 import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{ProbeWatermark, SaveState, WatermarkTime}
-import com.raphtory.core.model.implementations.entities.RaphtoryVertex
-import com.raphtory.core.model.storage.GraphPartition
-
+import com.raphtory.core.model.GraphPartition
+import com.raphtory.core.model.implementations.objectgraph.entities.RaphtoryVertex
 
 
 case class queueItem(routerEpoch:Int,timestamp:Long)extends Ordered[queueItem] {

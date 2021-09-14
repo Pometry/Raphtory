@@ -7,7 +7,7 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.model.storage.GraphPartition
+import com.raphtory.core.model.GraphPartition
 import com.raphtory.core.utils.AnalyserUtils
 
 import scala.util.Failure

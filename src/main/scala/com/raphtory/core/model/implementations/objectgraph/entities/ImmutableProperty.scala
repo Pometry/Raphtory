@@ -1,4 +1,4 @@
-package com.raphtory.core.model.implementations.entities
+package com.raphtory.core.model.implementations.objectgraph.entities
 
 import com.raphtory.core.actors.partitionmanager.workers.ParquetProperty
 

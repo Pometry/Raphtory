@@ -7,8 +7,8 @@ import akka.pattern.ask
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.RequestPartitionId
 import com.raphtory.core.actors.partitionmanager.workers.IngestionWorker
 import com.raphtory.core.actors.partitionmanager.{Reader, Writer}
+import com.raphtory.core.model.GraphPartition
 import com.raphtory.core.model.implementations.objectgraph.ObjectBasedPartition
-import com.raphtory.core.model.storage.GraphPartition
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future

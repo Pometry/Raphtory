@@ -1,8 +1,8 @@
 package com.raphtory.core.model.implementations.objectgraph
 
+import com.raphtory.core.model.GraphPartition
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.implementations.entities.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
-import com.raphtory.core.model.storage.GraphPartition
+import com.raphtory.core.model.implementations.objectgraph.entities.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
 
 import scala.collection.parallel.mutable.ParTrieMap
 
