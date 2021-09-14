@@ -27,15 +27,15 @@ abstract class GraphPartition(initManagerCount: Int, partitionID: Int, workerID:
     * Ingesting Edges
     * */
 
-  def addEdge(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int, properties: Properties, edgeType: Option[Type]): Option[TrackedGraphEffect[GraphUpdateEffect]]
-  def syncNewEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, srcDeaths: List[(Long, Boolean)], edgeType: Option[Type], channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect]
+  def addEdge(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Option[Type], channelId: String, channelTime: Int): Option[TrackedGraphEffect[GraphUpdateEffect]]
+  def syncNewEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, srcRemovals: List[Long], edgeType: Option[Type], channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect]
   def syncExistingEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect]
 
   def removeEdge(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int): Option[TrackedGraphEffect[GraphUpdateEffect]]
-  def syncNewEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, srcDeaths: List[(Long, Boolean)], channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect]
+  def syncNewEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, srcRemovals: List[Long], channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect]
   def syncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect]
 
-  def syncExistingRemovals(msgTime: Long, srcId: Long, dstId: Long, dstDeaths: List[(Long, Boolean)]): Unit
+  def syncExistingRemovals(msgTime: Long, srcId: Long, dstId: Long, dstRemovals: List[Long]): Unit
 
 
   def getVertices():ParTrieMap[Long,RaphtoryVertex]
