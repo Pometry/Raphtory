@@ -2,7 +2,7 @@ package com.raphtory.core.analysis.entity
 
 import com.raphtory.core.analysis.GraphLens
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.implementations.entities.RaphtoryVertex
+import com.raphtory.core.model.implementations.objectgraph.entities.RaphtoryVertex
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ParIterable

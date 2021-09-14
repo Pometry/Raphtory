@@ -6,8 +6,8 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.PartitionUp
+import com.raphtory.core.model.GraphPartition
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.storage.GraphPartition
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap

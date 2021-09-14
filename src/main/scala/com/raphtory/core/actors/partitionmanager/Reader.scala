@@ -7,8 +7,8 @@ import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 import com.raphtory.core.actors.partitionmanager.workers.ReaderWorker
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.model.GraphPartition
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.storage.GraphPartition
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.util.{Failure, Success, Try}

@@ -4,8 +4,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.partitionmanager.workers.AnalysisSubtaskWorker
 import com.raphtory.core.analysis.entity.Vertex
+import com.raphtory.core.model.GraphPartition
 import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandler}
-import com.raphtory.core.model.storage.GraphPartition
 import kamon.Kamon
 
 import scala.collection.parallel.ParIterable
@@ -84,12 +84,7 @@ final case class GraphLens(
     superStep += 1
   }
 
-  def receiveMessage(msg: VertexMessage): Unit = {
-    try {
-      vertexMap(msg.vertexId).receiveMessage(msg)
-    }
-    catch {
-      case e:Exception => println(e)
-    }
-  }
+  def receiveMessage(msg: VertexMessage): Unit = vertexMap(msg.vertexId).receiveMessage(msg)
+
+
 }
