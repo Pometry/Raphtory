@@ -1,4 +1,4 @@
-package com.raphtory.core.model.entities
+package com.raphtory.core.model.implementations.entities
 
 import com.raphtory.core.actors.partitionmanager.workers.ParquetVertex
 import com.raphtory.core.analysis.GraphLens
