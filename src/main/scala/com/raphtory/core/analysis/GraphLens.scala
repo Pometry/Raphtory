@@ -77,7 +77,7 @@ final case class GraphLens(
   def vertexVoted(): Unit = voteCount.incrementAndGet()
 
   def nextStep(): Unit    = {
-    println(s"Superstep: $superStep \t WiD: $workerId \t Exec: ${System.currentTimeMillis() - t1}")
+    //println(s"Superstep: $superStep \t WiD: $workerId \t Exec: ${System.currentTimeMillis() - t1}")
     t1 = System.currentTimeMillis()
     voteCount.set(0)
     vertexCount.set(0)
