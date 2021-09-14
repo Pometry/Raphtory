@@ -53,18 +53,18 @@ final class IngestionWorker(workerId: Int, partitionID:Int, storage: GraphPartit
     case TrackedGraphUpdate(channelId, channelTime, req: VertexAdd) => processVertexAddRequest(channelId, channelTime, req); //Add a new vertex
     case TrackedGraphUpdate(channelId, channelTime, req: EdgeAdd) => processEdgeAddRequest(channelId, channelTime, req) //Add an edge
 
-    case TrackedGraphEffect(channelId, channelTime, req: SyncNewEdgeAdd) => processRemoteEdgeAddNewRequest(channelId, channelTime, req) //A writer has requested a new edge sync for a destination node in this worker
-    case TrackedGraphEffect(channelId, channelTime, req: SyncExistingEdgeAdd) => processRemoteEdgeAddRequest(channelId, channelTime, req) // A writer has requested an existing edge sync for a destination node on in this worker
-    case TrackedGraphEffect(channelId, channelTime, req: SyncExistingRemovals) => processRemoteReturnDeathsRequest(channelId, channelTime, req) //The remote worker has returned all removals in the destination node -- for new edges
+    case TrackedGraphEffect(channelId, channelTime, req: SyncNewEdgeAdd) => processSyncNewEdgeAdd(channelId, channelTime, req) //A writer has requested a new edge sync for a destination node in this worker
+    case TrackedGraphEffect(channelId, channelTime, req: SyncExistingEdgeAdd) => processSyncExistingEdgeAdd(channelId, channelTime, req) // A writer has requested an existing edge sync for a destination node on in this worker
+    case TrackedGraphEffect(channelId, channelTime, req: SyncExistingRemovals) => processSyncExistingRemovals(channelId, channelTime, req) //The remote worker has returned all removals in the destination node -- for new edges
     case TrackedGraphEffect(channelId, channelTime, req: EdgeSyncAck) => processEdgeSyncAck(channelId, channelTime, req) //The remote worker acknowledges the completion of an edge sync
 
-    case TrackedGraphUpdate(channelId, channelTime, req: EdgeDelete) => processEdgeDeleteRequest(channelId, channelTime, req) //Delete an Edge
-    case TrackedGraphEffect(channelId, channelTime, req: SyncNewEdgeRemoval) => processRemoteEdgeRemovalNewRequest(channelId, channelTime, req) //A remote worker is asking for a new edge to be removed for a destination node in this worker
-    case TrackedGraphEffect(channelId, channelTime, req: SyncExistingEdgeRemoval) => processRemoteEdgeRemovalRequest(channelId, channelTime, req) //A remote worker is asking for the deletion of an existing edge
+    case TrackedGraphUpdate(channelId, channelTime, req: EdgeDelete) => processEdgeDelete(channelId, channelTime, req) //Delete an Edge
+    case TrackedGraphEffect(channelId, channelTime, req: SyncNewEdgeRemoval) => processSyncNewEdgeRemoval(channelId, channelTime, req) //A remote worker is asking for a new edge to be removed for a destination node in this worker
+    case TrackedGraphEffect(channelId, channelTime, req: SyncExistingEdgeRemoval) => processSyncExistingEdgeRemoval(channelId, channelTime, req) //A remote worker is asking for the deletion of an existing edge
 
-    case TrackedGraphUpdate(channelId, channelTime, req: VertexDelete) => processVertexDeleteRequest(channelId, channelTime, req) //Delete a vertex and all associated edges
-    case TrackedGraphEffect(channelId, channelTime, req: OutboundEdgeRemovalViaVertex) => processRemoteEdgeRemovalRequestFromVertex(channelId, channelTime, req) //Does exactly the same as above, but for when the removal comes form a vertex
-    case TrackedGraphEffect(channelId, channelTime, req: InboundEdgeRemovalViaVertex) => processReturnEdgeRemovalRequest(channelId, channelTime, req) // Excatly the same as above, but for a remote worker
+    case TrackedGraphUpdate(channelId, channelTime, req: VertexDelete) => processVertexDelete(channelId, channelTime, req) //Delete a vertex and all associated edges
+    case TrackedGraphEffect(channelId, channelTime, req: OutboundEdgeRemovalViaVertex) => processOutboundEdgeRemovalViaVertex(channelId, channelTime, req) //Does exactly the same as above, but for when the removal comes form a vertex
+    case TrackedGraphEffect(channelId, channelTime, req: InboundEdgeRemovalViaVertex) => processInboundEdgeRemovalViaVertex(channelId, channelTime, req) // Excatly the same as above, but for a remote worker
 
     case TrackedGraphEffect(channelId, channelTime, req: VertexRemoveSyncAck) => processVertexRemoveSyncAck(channelId, channelTime, req)
 
@@ -92,7 +92,7 @@ final class IngestionWorker(workerId: Int, partitionID:Int, storage: GraphPartit
 
   def processEdgeAddRequest(channelId: String, channelTime: Int, update: EdgeAdd): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$update] request.")
-    val maybeEffect = storage.addEdge(update.updateTime, update.srcId, update.dstId, channelId, channelTime, update.properties, update.eType)
+    val maybeEffect = storage.addEdge(update.updateTime, update.srcId, update.dstId, update.properties, update.eType, channelId, channelTime)
     maybeEffect.foreach(sendEffectMessage)
     routerUpdates.increment()
     trackEdgeAdd(update.updateTime, maybeEffect.isEmpty, channelId, channelTime)
@@ -105,7 +105,7 @@ final class IngestionWorker(workerId: Int, partitionID:Int, storage: GraphPartit
     }
   }
 
-  def processRemoteEdgeAddRequest(channelId: String, channelTime: Int, req: SyncExistingEdgeAdd): Unit = {
+  def processSyncExistingEdgeAdd(channelId: String, channelTime: Int, req: SyncExistingEdgeAdd): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$req] request.")
     val effect = storage.syncExistingEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, channelId, channelTime)
     sendEffectMessage(effect)
@@ -113,9 +113,9 @@ final class IngestionWorker(workerId: Int, partitionID:Int, storage: GraphPartit
     interWorkerUpdates.increment()
   }
 
-  def processRemoteEdgeAddNewRequest(channelId: String, channelTime: Int, req: SyncNewEdgeAdd): Unit = {
+  def processSyncNewEdgeAdd(channelId: String, channelTime: Int, req: SyncNewEdgeAdd): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    val effect = storage.syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.kills, req.vType, channelId, channelTime)
+    val effect = storage.syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType, channelId, channelTime)
     sendEffectMessage(effect)
     remoteEdgeAddTrack(req.msgTime)
     interWorkerUpdates.increment()
@@ -125,9 +125,9 @@ final class IngestionWorker(workerId: Int, partitionID:Int, storage: GraphPartit
     storage.timings(msgTime)
   }
 //
-def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: SyncExistingRemovals): Unit = { //when the new edge add is responded to we can say it is synced
+def processSyncExistingRemovals(channelId: String, channelTime: Int, req: SyncExistingRemovals): Unit = { //when the new edge add is responded to we can say it is synced
   log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-  storage.syncExistingRemovals(req.msgTime, req.srcId, req.dstId, req.kills)
+  storage.syncExistingRemovals(req.msgTime, req.srcId, req.dstId, req.removals)
   addToWatermarkQueue(channelId, channelTime, req.msgTime)
 }
 
@@ -137,7 +137,7 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: S
   }
 
 
-  def processEdgeDeleteRequest(channelId: String, channelTime: Int, update: EdgeDelete): Unit = {
+  def processEdgeDelete(channelId: String, channelTime: Int, update: EdgeDelete): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$update] request.")
     val maybeEffect = storage.removeEdge(update.updateTime, update.srcId, update.dstId, channelId, channelTime)
     maybeEffect.foreach(sendEffectMessage)
@@ -152,15 +152,15 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: S
     }
   }
 
-  def processRemoteEdgeRemovalNewRequest(channelId: String, channelTime: Int, req: SyncNewEdgeRemoval): Unit = {
+  def processSyncNewEdgeRemoval(channelId: String, channelTime: Int, req: SyncNewEdgeRemoval): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$req] request.")
-    val effect = storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.kills, channelId, channelTime)
+    val effect = storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals, channelId, channelTime)
     sendEffectMessage(effect)
     storage.timings(req.msgTime)
     interWorkerUpdates.increment()
   }
 
-  def processRemoteEdgeRemovalRequest(channelId: String, channelTime: Int, req: SyncExistingEdgeRemoval): Unit = {
+  def processSyncExistingEdgeRemoval(channelId: String, channelTime: Int, req: SyncExistingEdgeRemoval): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$req] request.")
     val effect = storage.syncExistingEdgeRemoval(req.msgTime, req.srcId, req.dstId, channelId, channelTime)
     sendEffectMessage(effect)
@@ -169,7 +169,7 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: S
   }
 
 
-  def processVertexDeleteRequest(channelId: String, channelTime: Int, update: VertexDelete): Unit = {
+  def processVertexDelete(channelId: String, channelTime: Int, update: VertexDelete): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$update] request.")
     val messages = storage.removeVertex(update.updateTime, update.srcId, channelId, channelTime)
     messages.foreach(x => sendEffectMessage(x))
@@ -196,7 +196,7 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: S
     }
   }
 
-  def processRemoteEdgeRemovalRequestFromVertex(channelId: String, channelTime: Int, req: OutboundEdgeRemovalViaVertex): Unit = {
+  def processOutboundEdgeRemovalViaVertex(channelId: String, channelTime: Int, req: OutboundEdgeRemovalViaVertex): Unit = {
     log.debug(s"IngestionWorker [$workerId] received [$req] request.")
     val effect = storage.outboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId, channelId, channelTime)
     sendEffectMessage(effect)
@@ -204,7 +204,7 @@ def processRemoteReturnDeathsRequest(channelId: String, channelTime: Int, req: S
     interWorkerUpdates.increment()
   }
 
-  def processReturnEdgeRemovalRequest(channelId: String, channelTime: Int, req: InboundEdgeRemovalViaVertex): Unit = { //remote worker same as above
+  def processInboundEdgeRemovalViaVertex(channelId: String, channelTime: Int, req: InboundEdgeRemovalViaVertex): Unit = { //remote worker same as above
     log.debug(s"IngestionWorker [$workerId] received [$req] request.")
     val effect = storage.inboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId, channelId, channelTime)
     sendEffectMessage(effect)
