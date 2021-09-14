@@ -10,8 +10,11 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
   /**
     * Map of vertices contained in the partition
     */
+
+
   val vertices = ParTrieMap[Long, RaphtoryVertex]()
 
+  override def getVertices(): ParTrieMap[Long, RaphtoryVertex] = vertices
 
   def addProperties(msgTime: Long, entity: RaphtoryEntity, properties: Properties): Unit =
     properties.property.foreach {
@@ -51,67 +54,8 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
         vertex
     }
 
-  def vertexWorkerRequest(
-                           msgTime: Long,
-                           srcId: Long,
-                           dstId: Long,
-                           edge: RaphtoryEdge,
-                           present: Boolean,
-                           channelId: String,
-                           channelTime: Int
-                         ): TrackedGraphEffect[GraphUpdateEffect] = {
-    val dstVertex = addVertex(msgTime, dstId, Properties(), None) //if the worker creating an edge does not deal with the destination
-    if (!present) {
-      dstVertex.incrementEdgesRequiringSync()
-      dstVertex addIncomingEdge edge // do the same for the destination node
-      TrackedGraphEffect(
-        channelId,
-        channelTime,
-        DstResponseFromOtherWorker(msgTime, srcId, dstId, dstVertex.removeList)
-      )
-    } else
-      TrackedGraphEffect(channelId, channelTime, EdgeSyncAck(msgTime, srcId))
-  }
 
-  def vertexWipeWorkerRequest(
-                               msgTime: Long,
-                               srcId: Long,
-                               dstId: Long,
-                               edge: RaphtoryEdge,
-                               present: Boolean,
-                               channelId: String,
-                               channelTime: Int
-                             ): TrackedGraphEffect[GraphUpdateEffect] = {
-    val dstVertex = getVertexOrPlaceholder(msgTime, dstId) // if the worker creating an edge does not deal with do the same for the destination ID
-    if (!present) {
-      dstVertex.incrementEdgesRequiringSync()
-      dstVertex addIncomingEdge edge // do the same for the destination node
-      TrackedGraphEffect(
-        channelId,
-        channelTime,
-        DstResponseFromOtherWorker(msgTime, srcId, dstId, dstVertex.removeList)
-      )
-    } else
-      TrackedGraphEffect(channelId, channelTime, EdgeSyncAck(msgTime, srcId))
-  }
-
-  def vertexWorkerRequestEdgeHandler(
-                                      msgTime: Long,
-                                      srcId: Long,
-                                      dstId: Long,
-                                      removeList: List[(Long, Boolean)]
-                                    ): Unit =
-    getVertexOrPlaceholder(msgTime, srcId).getOutgoingEdge(dstId) match {
-      case Some(edge) => edge killList removeList //add the dst removes into the edge
-      case None => logger.error(s"no edge from $srcId to $dstId")
-    }
-
-  def removeVertex(
-                    msgTime: Long,
-                    srcId: Long,
-                    channelId: String,
-                    channelTime: Int
-                  ): List[TrackedGraphEffect[GraphUpdateEffect]] = {
+  def removeVertex(msgTime: Long, srcId: Long, channelId: String, channelTime: Int): List[TrackedGraphEffect[GraphUpdateEffect]] = {
     val vertex = vertices.get(srcId) match {
       case Some(v) =>
         v kill msgTime
@@ -128,25 +72,10 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
         edge._2 match {
           case remoteEdge: SplitRaphtoryEdge =>
             remoteEdge kill msgTime
-            Some[TrackedGraphEffect[GraphUpdateEffect]](
-              TrackedGraphEffect(
-                channelId,
-                channelTime,
-                ReturnEdgeRemoval(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId)
-              )
-            )
+            Some[TrackedGraphEffect[GraphUpdateEffect]](TrackedGraphEffect(channelId, channelTime, ReturnEdgeRemoval(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId)))
           case edge => //if it is a local edge -- opperated by the same worker, therefore we can perform an action -- otherwise we must inform the other local worker to handle this
-            if (edge.getWorkerID == workerID) {
-              edge kill msgTime
-              None
-            } else
-              Some[TrackedGraphEffect[GraphUpdateEffect]](
-                TrackedGraphEffect(
-                  channelId,
-                  channelTime,
-                  EdgeRemoveForOtherWorker(msgTime, edge.getSrcId, edge.getDstId)
-                )
-              )
+            edge kill msgTime
+            None
         }
       }
       .toList
@@ -156,13 +85,7 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
         edge._2 match {
           case remoteEdge: SplitRaphtoryEdge =>
             remoteEdge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
-            Some[TrackedGraphEffect[GraphUpdateEffect]](
-              TrackedGraphEffect(
-                channelId,
-                channelTime,
-                RemoteEdgeRemovalFromVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId)
-              )
-            )
+            Some[TrackedGraphEffect[GraphUpdateEffect]](TrackedGraphEffect(channelId, channelTime, RemoteEdgeRemovalFromVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId)))
           case edge =>
             edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
             None
@@ -172,26 +95,15 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
       .flatten
     val messages = messagesForIncoming ++ messagesForOutgoing
     if (messages.size != vertex.getEdgesRequringSync())
-      logger.error(
-        s"The number of Messages to sync [${messages.size}] does not match to system value [${vertex.getEdgesRequringSync()}]"
-      )
+      logger.error(s"The number of Messages to sync [${messages.size}] does not match to system value [${vertex.getEdgesRequringSync()}]")
     messages
   }
 
   /**
     * Edges Methods
     */
-  def addEdge(
-               msgTime: Long,
-               srcId: Long,
-               dstId: Long,
-               channelId: String,
-               channelTime: Int,
-               properties: Properties,
-               edgeType: Option[Type]
-             ): Option[TrackedGraphEffect[GraphUpdateEffect]] = {
-    val local = checkDst(dstId, managerCount, managerID) //is the dst on this machine
-    val sameWorker = checkWorker(dstId, managerCount, workerID) // is the dst handled by the same worker
+  def addEdge(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int, properties: Properties, edgeType: Option[Type]): Option[TrackedGraphEffect[GraphUpdateEffect]] = {
+    val local = checkDst(dstId, managerCount, managerID,workerID) //is the dst on this machine
     val srcVertex = addVertex(msgTime, srcId, Properties(), None) // create or revive the source ID
 
     val (present, edge) = srcVertex.getOutgoingEdge(dstId) match {
@@ -212,62 +124,41 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
         (false, newEdge)
     }
 
-    val maybeEffect: Option[TrackedGraphEffect[GraphUpdateEffect]] = if (present) {
-      edge revive msgTime //if the edge was previously created we need to revive it
-      if (local)
-        if (sameWorker) {
-          if (srcId != dstId)
+    val maybeEffect: Option[TrackedGraphEffect[GraphUpdateEffect]] =
+      if (present) {
+        edge revive msgTime //if the edge was previously created we need to revive it
+        if (local) {
+          if (srcId != dstId) {
             addVertex(msgTime, dstId, Properties(), None) // do the same for the destination ID
-
+          }
           None
-        } else
-          Some(TrackedGraphEffect(channelId, channelTime, DstAddForOtherWorker(msgTime, srcId, dstId, edge, present)))
-      else
-        Some(
-          TrackedGraphEffect(channelId, channelTime, RemoteEdgeAdd(msgTime, srcId, dstId, properties))
-        ) // inform the partition dealing with the destination node*/
-    } else {
-      val deaths = srcVertex.removeList //we extract the removals from the src
-      edge killList deaths // add them to the edge
-      if (local)
-        if (sameWorker) {
+        }
+        else
+          Some(TrackedGraphEffect(channelId, channelTime, RemoteEdgeAdd(msgTime, srcId, dstId, properties))) // inform the partition dealing with the destination node*/
+      }
+      else {
+        val deaths = srcVertex.removeList //we extract the removals from the src
+        edge killList deaths // add them to the edge
+        if (local) {
           if (srcId != dstId) {
             val dstVertex = addVertex(msgTime, dstId, Properties(), None) // do the same for the destination ID
             dstVertex addIncomingEdge (edge) // add it to the dst as would not have been seen
             edge killList dstVertex.removeList //add the dst removes into the edge
-          } else
-            srcVertex addIncomingEdge (edge)
-          // a self loop should be in the incoming map as well
+          }
+          else
+            srcVertex addIncomingEdge (edge) // a self loop should be in the incoming map as well
           None
-        } else
-          Some(TrackedGraphEffect(channelId, channelTime, DstAddForOtherWorker(msgTime, srcId, dstId, edge, present)))
-      else {
-        srcVertex
-          .incrementEdgesRequiringSync() //if its not fully local and is new then increment the count for edges requireing a watermark count
-        Some(
-          TrackedGraphEffect(
-            channelId,
-            channelTime,
-            RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths, edgeType)
-          )
-        )
+        }
+        else {
+          srcVertex.incrementEdgesRequiringSync() //if its not fully local and is new then increment the count for edges requireing a watermark count
+          Some(TrackedGraphEffect(channelId, channelTime, RemoteEdgeAddNew(msgTime, srcId, dstId, properties, deaths, edgeType)))
+        }
       }
-    }
     addProperties(msgTime, edge, properties)
-
     maybeEffect
   }
 
-  def remoteEdgeAddNew(
-                        msgTime: Long,
-                        srcId: Long,
-                        dstId: Long,
-                        properties: Properties,
-                        srcDeaths: List[(Long, Boolean)],
-                        edgeType: Option[Type],
-                        channelId: String,
-                        channelTime: Int
-                      ): TrackedGraphEffect[GraphUpdateEffect] = {
+  def remoteEdgeAddNew(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, srcDeaths: List[(Long, Boolean)], edgeType: Option[Type], channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = addVertex(msgTime, dstId, Properties(), None) //create or revive the destination node
     val edge = new SplitRaphtoryEdge(workerID, msgTime, srcId, dstId, initialValue = true)
     copySplitEdgeCount.increment()
@@ -282,14 +173,7 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
     TrackedGraphEffect(channelId, channelTime, RemoteReturnDeaths(msgTime, srcId, dstId, deaths))
   }
 
-  def remoteEdgeAdd(
-                     msgTime: Long,
-                     srcId: Long,
-                     dstId: Long,
-                     properties: Properties,
-                     channelId: String,
-                     channelTime: Int
-                   ): TrackedGraphEffect[GraphUpdateEffect] = {
+  def remoteEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = addVertex(msgTime, dstId, Properties(), None) // revive the destination node
     dstVertex.getIncomingEdge(srcId) match {
       case Some(edge) =>
@@ -300,16 +184,8 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
     TrackedGraphEffect(channelId, channelTime, EdgeSyncAck(msgTime, srcId))
   }
 
-  def removeEdge(
-                  msgTime: Long,
-                  srcId: Long,
-                  dstId: Long,
-                  channelId: String,
-                  channelTime: Int
-                ): Option[TrackedGraphEffect[GraphUpdateEffect]] = {
-    val local = checkDst(dstId, managerCount, managerID)
-    val sameWorker = checkWorker(dstId, managerCount, workerID) // is the dst handled by the same worker
-
+  def removeEdge(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int): Option[TrackedGraphEffect[GraphUpdateEffect]] = {
+    val local = checkDst(dstId, managerCount, managerID,workerID)
     val srcVertex: RaphtoryVertex = getVertexOrPlaceholder(msgTime, srcId)
 
     val (present, edge) = srcVertex.getOutgoingEdge(dstId) match {
@@ -330,42 +206,29 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
     if (present) {
       edge kill msgTime
       if (local)
-        if (sameWorker)
           None
-        else // if it is a different worker, ask that other worker to complete the dst part of the edge
-          Some(TrackedGraphEffect(channelId, channelTime, DstWipeForOtherWorker(msgTime, srcId, dstId, edge, present)))
       else
-        Some(
-          TrackedGraphEffect(channelId, channelTime, RemoteEdgeRemoval(msgTime, srcId, dstId))
-        ) // inform the partition dealing with the destination node
-    } else {
+        Some(TrackedGraphEffect(channelId, channelTime, RemoteEdgeRemoval(msgTime, srcId, dstId))) // inform the partition dealing with the destination node
+    }
+    else {
       val deaths = srcVertex.removeList
       edge killList deaths
-      if (local)
-        if (sameWorker) {
+      if (local){
           if (srcId != dstId) {
             val dstVertex = getVertexOrPlaceholder(msgTime, dstId) // do the same for the destination ID
             dstVertex addIncomingEdge (edge) // do the same for the destination node
             edge killList dstVertex.removeList //add the dst removes into the edge
           }
           None
-        } else // if it is a different worker, ask that other worker to complete the dst part of the edge
-          Some(TrackedGraphEffect(channelId, channelTime, DstWipeForOtherWorker(msgTime, srcId, dstId, edge, present)))
+      }
       else {
-        srcVertex
-          .incrementEdgesRequiringSync() //if its not fully local and is new then increment the count for edges requireing a watermark count
+        srcVertex.incrementEdgesRequiringSync() //if its not fully local and is new then increment the count for edges requireing a watermark count
         Some(TrackedGraphEffect(channelId, channelTime, RemoteEdgeRemovalNew(msgTime, srcId, dstId, deaths)))
       }
     }
   }
 
-  def returnEdgeRemoval(
-                         msgTime: Long,
-                         srcId: Long,
-                         dstId: Long,
-                         channelId: String,
-                         channelTime: Int
-                       ): TrackedGraphEffect[GraphUpdateEffect] = { //for the source getting an update about deletions from a remote worker
+  def returnEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = { //for the source getting an update about deletions from a remote worker
     getVertexOrPlaceholder(msgTime, srcId).getOutgoingEdge(dstId) match {
       case Some(edge) => edge kill msgTime
       case None => //todo should this happen
@@ -373,27 +236,7 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
     TrackedGraphEffect(channelId, channelTime, VertexRemoveSyncAck(msgTime, dstId))
   }
 
-  def edgeRemovalFromOtherWorker(
-                                  msgTime: Long,
-                                  srcId: Long,
-                                  dstId: Long,
-                                  channelId: String,
-                                  channelTime: Int
-                                ): TrackedGraphEffect[GraphUpdateEffect] = {
-    getVertexOrPlaceholder(msgTime, srcId).getOutgoingEdge(dstId) match {
-      case Some(edge) => edge kill msgTime
-      case None => //todo should this happen?
-    }
-    TrackedGraphEffect(channelId, channelTime, VertexRemoveSyncAck(msgTime, dstId))
-  }
-
-  def remoteEdgeRemoval(
-                         msgTime: Long,
-                         srcId: Long,
-                         dstId: Long,
-                         channelId: String,
-                         channelTime: Int
-                       ): TrackedGraphEffect[GraphUpdateEffect] = {
+  def remoteEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.getIncomingEdge(srcId) match {
       case Some(e) => e kill msgTime
@@ -402,13 +245,7 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
     TrackedGraphEffect(channelId, channelTime, EdgeSyncAck(msgTime, srcId))
   }
 
-  def remoteEdgeRemovalFromVertex(
-                                   msgTime: Long,
-                                   srcId: Long,
-                                   dstId: Long,
-                                   channelId: String,
-                                   channelTime: Int
-                                 ): TrackedGraphEffect[GraphUpdateEffect] = {
+  def remoteEdgeRemovalFromVertex(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.getIncomingEdge(srcId) match {
       case Some(e) => e kill msgTime
@@ -417,14 +254,7 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
     TrackedGraphEffect(channelId, channelTime, VertexRemoveSyncAck(msgTime, srcId))
   }
 
-  def remoteEdgeRemovalNew(
-                            msgTime: Long,
-                            srcId: Long,
-                            dstId: Long,
-                            srcDeaths: List[(Long, Boolean)],
-                            channelId: String,
-                            channelTime: Int
-                          ): TrackedGraphEffect[GraphUpdateEffect] = {
+  def remoteEdgeRemovalNew(msgTime: Long, srcId: Long, dstId: Long, srcDeaths: List[(Long, Boolean)], channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.incrementEdgesRequiringSync()
     copySplitEdgeCount.increment()

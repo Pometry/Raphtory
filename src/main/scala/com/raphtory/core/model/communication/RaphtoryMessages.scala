@@ -44,11 +44,6 @@ case class RemoteEdgeRemovalNew(msgTime: Long, srcId: Long, dstId: Long, kills: 
 case class RemoteReturnDeaths(msgTime: Long, srcId: Long, dstId: Long, kills: List[(Long, Boolean)]) extends GraphUpdateEffect(srcId)
 case class ReturnEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(srcId)
 
-//BLOCK FROM WORKER SYNC
-case class DstAddForOtherWorker(msgTime: Long, srcId: Long, dstId: Long, edge: RaphtoryEdge, present: Boolean) extends GraphUpdateEffect(dstId)
-case class DstWipeForOtherWorker(msgTime: Long, srcId: Long, dstId: Long, edge: RaphtoryEdge, present: Boolean) extends GraphUpdateEffect(dstId)
-case class DstResponseFromOtherWorker(msgTime: Long, srcId: Long, dstId: Long, removeList: List[(Long, Boolean)]) extends GraphUpdateEffect(srcId)
-case class EdgeRemoveForOtherWorker(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(srcId)
 case class EdgeSyncAck(msgTime: Long, srcId: Long) extends GraphUpdateEffect(srcId)
 case class VertexRemoveSyncAck(msgTime: Long, override val updateId: Long) extends GraphUpdateEffect(updateId)
 
