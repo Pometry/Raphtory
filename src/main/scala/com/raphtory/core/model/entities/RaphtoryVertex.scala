@@ -3,7 +3,7 @@ package com.raphtory.core.model.entities
 import com.raphtory.core.actors.partitionmanager.workers.ParquetVertex
 import com.raphtory.core.analysis.GraphLens
 import com.raphtory.core.analysis.entity.{Edge, Vertex}
-import com.raphtory.core.model.EntityStorage
+import com.raphtory.core.model.storage.GraphPartition
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -15,7 +15,7 @@ object RaphtoryVertex {
       vertexId: Int,
       previousState: mutable.TreeMap[Long, Boolean],
       properties: ParTrieMap[String, Property],
-      storage: EntityStorage
+      storage: GraphPartition
   ) = {
     val v = new RaphtoryVertex(creationTime, vertexId, initialValue = true)
     v.history = previousState

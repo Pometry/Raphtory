@@ -6,8 +6,8 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.PartitionUp
-import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication._
+import com.raphtory.core.model.storage.GraphPartition
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -23,7 +23,7 @@ class Writer(
     id: Int,
     managerCountVal: Int,
     workers: ParTrieMap[Int, ActorRef],
-    storage: ParTrieMap[Int, EntityStorage]
+    storage: ParTrieMap[Int, GraphPartition]
 ) extends RaphtoryActor {
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()

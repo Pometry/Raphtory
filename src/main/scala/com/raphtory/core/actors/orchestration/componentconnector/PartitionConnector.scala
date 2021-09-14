@@ -7,7 +7,8 @@ import akka.pattern.ask
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.RequestPartitionId
 import com.raphtory.core.actors.partitionmanager.workers.IngestionWorker
 import com.raphtory.core.actors.partitionmanager.{Reader, Writer}
-import com.raphtory.core.model.EntityStorage
+import com.raphtory.core.model.storage.GraphPartition
+import com.raphtory.core.model.storage.implementations.ObjectBasedPartition
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
@@ -22,10 +23,10 @@ class PartitionConnector(managerCount: Int, routerCount:Int) extends ComponentCo
     log.info(s"Partition Manager $assignedId has come online.")
 
     var workers: ParTrieMap[Int, ActorRef]       = new ParTrieMap[Int, ActorRef]()
-    var storages: ParTrieMap[Int, EntityStorage] = new ParTrieMap[Int, EntityStorage]()
+    var storages: ParTrieMap[Int, GraphPartition] = new ParTrieMap[Int, GraphPartition]()
 
     for (index <- 0 until totalWorkers) {
-      val storage     = new EntityStorage(currentCount,assignedId,index)
+      val storage     = new ObjectBasedPartition(currentCount,assignedId,index)
       storages.put(index, storage)
 
       val managerName = s"Manager_${assignedId}_child_$index"
