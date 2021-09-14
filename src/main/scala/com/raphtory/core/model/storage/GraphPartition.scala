@@ -1,7 +1,7 @@
 package com.raphtory.core.model.storage
 
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.entities.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
+import com.raphtory.core.model.implementations.entities.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 

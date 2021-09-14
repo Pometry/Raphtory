@@ -1,7 +1,7 @@
 package com.raphtory.core.analysis.entity
 
 import com.raphtory.core.analysis.GraphLens
-import com.raphtory.core.model.entities.RaphtoryEntity
+import com.raphtory.core.model.implementations.entities.RaphtoryEntity
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap

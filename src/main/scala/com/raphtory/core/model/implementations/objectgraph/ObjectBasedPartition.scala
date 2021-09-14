@@ -1,9 +1,8 @@
-package com.raphtory.core.model.storage.implementations
+package com.raphtory.core.model.implementations.objectgraph
 
-import com.raphtory.core.model.communication.{DoubleProperty, DstAddForOtherWorker, DstResponseFromOtherWorker, DstWipeForOtherWorker, EdgeRemoveForOtherWorker, EdgeSyncAck, FloatProperty, GraphUpdateEffect, ImmutableProperty, LongProperty, Properties, RemoteEdgeAdd, RemoteEdgeAddNew, RemoteEdgeRemoval, RemoteEdgeRemovalFromVertex, RemoteEdgeRemovalNew, RemoteReturnDeaths, ReturnEdgeRemoval, StringProperty, TrackedGraphEffect, Type, VertexRemoveSyncAck}
-import com.raphtory.core.model.entities.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
+import com.raphtory.core.model.communication._
+import com.raphtory.core.model.implementations.entities.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
 import com.raphtory.core.model.storage.GraphPartition
-import kamon.Kamon
 
 import scala.collection.parallel.mutable.ParTrieMap
 
