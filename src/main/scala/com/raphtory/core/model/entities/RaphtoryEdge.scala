@@ -1,7 +1,7 @@
 package com.raphtory.core.model.entities
 
 import com.raphtory.core.actors.partitionmanager.workers.ParquetEdge
-import com.raphtory.core.model.EntityStorage
+import com.raphtory.core.model.storage.GraphPartition
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -17,7 +17,7 @@ object RaphtoryEdge {
       dstID: Long,
       previousState: mutable.TreeMap[Long, Boolean],
       properties: ParTrieMap[String, Property],
-      storage: EntityStorage
+      storage: GraphPartition
   ) = {
 
     val e = new RaphtoryEdge(workerID, creationTime, srcID, dstID, initialValue = true)

@@ -3,12 +3,13 @@ package com.raphtory.core.analysis.api
 import com.raphtory.core.analysis.entity.Vertex
 
 
+
 abstract class GraphAlgorithm {
   def algorithm(graph:GraphPerspective)
 }
-
-class GraphPerspective{
-  def filter(f:(Vertex)=>Boolean):GraphPerspective= {this}
+//at all of these steps do we have access to time time + window
+class GraphPerspective{ //are these mutable
+  def filter(f:(Vertex)=>Boolean):GraphPerspective= {this} //delete from graph completely
   def step(f:(Vertex)=>Unit):GraphPerspective= {this}
   def iterate(f:(Vertex)=>Unit, iterations:Int):GraphPerspective = {this}
   def select[S](f:Vertex=>S):VertexResult[S] ={new VertexResult(List[S]())}
@@ -20,11 +21,9 @@ class VertexResult[S](results:List[S]){
   def distributedSave(f:(S)=>Map[String,Any]): Unit = {}
 }
 
-class CollectedResult[S](results:List[S]){
+class CollectedResult[S](results:List[S]){ // convert to just extract the results
   def save(f:(List[S])=>Map[String,Any]): Unit = {}
 }
-
-
 
 
 class ConnectedComponentsCollect extends GraphAlgorithm {

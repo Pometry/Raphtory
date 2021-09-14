@@ -7,7 +7,7 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.model.EntityStorage
+import com.raphtory.core.model.storage.GraphPartition
 import com.raphtory.core.utils.AnalyserUtils
 
 import scala.util.Failure
@@ -16,7 +16,7 @@ import scala.util.Success
 
 case class ViewJob(jobID: String, timestamp: Long, window: Long)
 
-final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: Int, storage: EntityStorage)
+final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: Int, storage: GraphPartition)
         extends RaphtoryActor {
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)

@@ -9,9 +9,9 @@ import com.raphtory.core.actors.partitionmanager.workers.AnalysisSubtaskWorker.S
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.GraphLens
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.model.EntityStorage
 import com.raphtory.core.model.communication.VertexMessage
 import com.raphtory.core.model.communication.VertexMessageHandler
+import com.raphtory.core.model.storage.GraphPartition
 import kamon.Kamon
 
 import scala.collection.mutable
@@ -20,13 +20,13 @@ import scala.util.Success
 import scala.util.Try
 
 final case class AnalysisSubtaskWorker(
-    initManagerCount: Int,
-    managerId: Int,
-    workerId: Int,
-    storage: EntityStorage,
-    analyzer: Analyser[Any],
-    jobId: String,
-    taskManager:ActorRef
+                                        initManagerCount: Int,
+                                        managerId: Int,
+                                        workerId: Int,
+                                        storage: GraphPartition,
+                                        analyzer: Analyser[Any],
+                                        jobId: String,
+                                        taskManager:ActorRef
 ) extends RaphtoryActor {
 
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator
@@ -144,7 +144,7 @@ final case class AnalysisSubtaskWorker(
   private def stepMetric(analyser: Analyser[Any]) =
     Kamon
       .gauge("Raphtory_Superstep_Time")
-      .withTag("Partition", storage.managerID)
+      .withTag("Partition", storage.getPartitionID)
       .withTag("Worker", workerId)
       .withTag("JobID", jobId)
       .withTag("timestamp", analyzer.view.timestamp)
