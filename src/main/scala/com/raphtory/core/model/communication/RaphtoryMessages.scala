@@ -1,6 +1,6 @@
 package com.raphtory.core.model.communication
 
-import com.raphtory.core.model.implementations.objectgraph.entities.RaphtoryEdge
+import com.raphtory.core.model.implementations.objectgraph.entities.internal.RaphtoryEdge
 
 import scala.collection.mutable
 

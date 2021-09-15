@@ -12,7 +12,7 @@ class BinaryDefusion(args:Array[String]) extends Analyser[Any](args) {
     view.getVertices().foreach { vertex =>
       if (vertex.ID() == infectedNode) {
         val toSend = vertex.getOrSetState("infected", view.superStep).asInstanceOf[Int]
-        vertex.getOutEdges.foreach { neighbour =>
+        vertex.getOutEdges().foreach { neighbour =>
           if (Random.nextBoolean())
             vertex.messageNeighbour(neighbour.ID(), toSend)
         }
@@ -26,7 +26,7 @@ class BinaryDefusion(args:Array[String]) extends Analyser[Any](args) {
         vertex.voteToHalt() //already infected
       else {
         val toSend = vertex.getOrSetState("infected", view.superStep).asInstanceOf[Int]
-        vertex.getOutEdges.foreach { neighbour =>
+        vertex.getOutEdges().foreach { neighbour =>
           if (Random.nextBoolean())
             vertex.messageNeighbour(neighbour.ID(), toSend)
         }

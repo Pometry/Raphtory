@@ -1,7 +1,7 @@
 package com.raphtory.algorithms
 
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.analysis.entity.Vertex
+import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.mutable
 
@@ -64,7 +64,7 @@ class twoHopNeighbors(args: Array[String]) extends Analyser[List[(String, mutabl
     A.filter(ch => ch._2.keys.toArray.contains(h))
   def messageSelect(vertex: Vertex, pos: Int): Unit = {
     val wd = vertex.getPropertyValue(name).getOrElse(vertex.ID()).toString
-    var nei = vertex.getEdges
+    var nei = vertex.getEdges()
       .map(e => e.ID() -> e.getPropertyValue(property).getOrElse(1.0f).asInstanceOf[Float])
       .groupBy(_._1)
       .mapValues(_.map(_._2).max)

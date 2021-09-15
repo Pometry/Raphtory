@@ -1,10 +1,12 @@
-package com.raphtory.core.model
+package com.raphtory.core.model.graph
 
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.implementations.objectgraph.entities.RaphtoryVertex
+import com.raphtory.core.model.graph.visitor.Vertex
+import com.raphtory.core.model.implementations.objectgraph.entities.internal.RaphtoryVertex
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.parallel.mutable.ParTrieMap
 
 /**
@@ -37,8 +39,10 @@ abstract class GraphPartition(initManagerCount: Int, partitionID: Int, workerID:
 
   def syncExistingRemovals(msgTime: Long, srcId: Long, dstId: Long, dstRemovals: List[Long]): Unit
 
-
-  def getVertices():ParTrieMap[Long,RaphtoryVertex]
+  /**
+    * Analysis Functions
+    * */
+  def getVertices(graphPerspective: GraphPerspective, time:Long, window:Long = -1):TrieMap[Long,Vertex]
 
 
 

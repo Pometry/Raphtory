@@ -2,7 +2,7 @@
 //
 //import com.github.mjakubowski84.parquet4s.ParquetWriter
 //import com.raphtory.algorithms.{LPA, sortOrdering}
-//import com.raphtory.core.analysis.entity.Vertex
+//import com.raphtory.core.model.graph.access.Vertex
 //import org.apache.parquet.hadoop.ParquetFileWriter
 //
 //import java.time.LocalDateTime

@@ -38,7 +38,7 @@ class WattsCascade(args:Array[String]) extends Analyser[Any](args){
 
   override def analyse(): Unit = {
     view.getVertices().foreach { vertex =>
-      val degree = vertex.getIncEdges.size + vertex.getOutEdges.size
+      val degree = vertex.getInEdges().size + vertex.getOutEdges().size
       val newLabel = if (degree > 0 && !vertex.getState[Boolean]("infected")) (vertex.messageQueue[Double].sum/degree > threshold) else vertex.getState[Boolean]("infected")
       if (newLabel != vertex.getState[Boolean]("infected")) {
         vertex.messageAllNeighbours(1.0)

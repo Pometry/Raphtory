@@ -1,9 +1,12 @@
 package com.raphtory.core.model.implementations.objectgraph
 
-import com.raphtory.core.model.GraphPartition
+import com.raphtory.core.analysis.ObjectGraphLens
 import com.raphtory.core.model.communication._
-import com.raphtory.core.model.implementations.objectgraph.entities.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
+import com.raphtory.core.model.graph.{GraphPartition, GraphPerspective}
+import com.raphtory.core.model.graph.visitor.Vertex
+import com.raphtory.core.model.implementations.objectgraph.entities.internal.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.parallel.mutable.ParTrieMap
 
 class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int) extends GraphPartition(initManagerCount: Int, managerID: Int, workerID: Int){
@@ -13,8 +16,6 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
 
 
   val vertices = ParTrieMap[Long, RaphtoryVertex]()
-
-  override def getVertices(): ParTrieMap[Long, RaphtoryVertex] = vertices
 
   def addProperties(msgTime: Long, entity: RaphtoryEntity, properties: Properties): Unit =
     properties.property.foreach {
@@ -274,4 +275,11 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
       case None => /*todo Should this happen*/
     }
 
+  /**
+    * Analysis Functions
+    * */
+  override def getVertices(perspective:GraphPerspective, time: Long, window: Long): TrieMap[Long, Vertex] = {
+    val lens = perspective.asInstanceOf[ObjectGraphLens]
+    vertices.map(v => (v._1,v._2.viewAt(time,lens).asInstanceOf[Vertex])).seq
+  }
 }

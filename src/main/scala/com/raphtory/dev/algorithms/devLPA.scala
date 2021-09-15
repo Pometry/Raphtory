@@ -68,7 +68,7 @@ class devLPA(args: Array[String]) extends Analyser[Any](args) {
         val vlabel = vertex.getState[Long]("lpalabel")
 
         // Get neighbourhood Frequencies -- relevant to weighted LPA
-        val vneigh = vertex.getOutEdges ++ vertex.getIncEdges
+        val vneigh = vertex.getOutEdges() ++ vertex.getInEdges()
         val neigh_freq = vneigh.map { e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float]) }
           .groupBy(_._1)
           .mapValues(x => x.map(_._2).sum)

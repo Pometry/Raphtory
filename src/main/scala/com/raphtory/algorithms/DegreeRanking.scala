@@ -17,13 +17,13 @@ class DegreeRanking(args:Array[String]) extends Analyser[Any](args){
     val degree =
       if (weighted) {
       view.getVertices().map { vertex =>
-      val outDegree = vertex.getOutEdges.map{e => e.getHistory().size}.sum
-      val inDegree = vertex.getIncEdges.map{e => e.getHistory().size}.sum
+      val outDegree = vertex.getOutEdges().map{e => e.history().size}.sum
+      val inDegree = vertex.getInEdges().map{ e => e.history().size}.sum
       (vertex.ID, outDegree, inDegree)}}
     else {
       view.getVertices().map { vertex =>
-        val outDegree = vertex.getOutEdges.size
-        val inDegree = vertex.getIncEdges.size
+        val outDegree = vertex.getOutEdges().size
+        val inDegree = vertex.getInEdges().size
         (vertex.ID(), outDegree, inDegree)}
     }
 

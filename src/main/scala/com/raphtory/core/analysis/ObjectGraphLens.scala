@@ -3,15 +3,17 @@ package com.raphtory.core.analysis
 import java.util.concurrent.atomic.AtomicInteger
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.partitionmanager.workers.AnalysisSubtaskWorker
-import com.raphtory.core.analysis.entity.Vertex
-import com.raphtory.core.model.GraphPartition
 import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandler}
+import com.raphtory.core.model.graph.{GraphPartition, GraphPerspective}
+import com.raphtory.core.model.graph.visitor.Vertex
+import com.raphtory.core.model.implementations.objectgraph.entities.external.ObjectVertex
 import kamon.Kamon
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.parallel.ParIterable
 import scala.collection.parallel.mutable.ParTrieMap
 
-final case class GraphLens(
+final case class ObjectGraphLens(
                             jobId: String,
                             timestamp: Long,
                             window: Option[Long],
@@ -19,7 +21,7 @@ final case class GraphLens(
                             private val workerId: Int,
                             private val storage: GraphPartition,
                             private val messageHandler:VertexMessageHandler
-) {
+) extends GraphPerspective(jobId, timestamp, window){
   private var voteCount            = new AtomicInteger(0)
   private var vertexCount          = new AtomicInteger(0)
   var t1 = System.currentTimeMillis()
@@ -31,38 +33,33 @@ final case class GraphLens(
     .withTag("JobID", jobId)
     .withTag("timestamp", timestamp)
 
-  private lazy val vertexMap: ParTrieMap[Long, Vertex] = {
+  private lazy val vertexMap: TrieMap[Long,Vertex] = {
     val startTime = System.currentTimeMillis()
 
     val result = window match {
       case None =>
-        storage.getVertices.collect {
-          case (k, v) if v.aliveAt(timestamp) =>
-            k -> v.viewAt(timestamp,this)
-        }
+        storage.getVertices(this,timestamp)
       case Some(w) => {
-        storage.getVertices.collect {
-          case (k, v) if v.aliveAtWithWindow(timestamp, w) =>
-            k -> v.viewAtWithWindow(timestamp, w,this)
-        }
-    }
+        storage.getVertices(this,timestamp,w)
+      }
     }
     viewTimer.update(System.currentTimeMillis() - startTime)
     result
   }
 
-  def getVertices(): ParIterable[Vertex] = {
+  def getVertices(): List[Vertex] = {
     vertexCount.set(vertexMap.size)
-    vertexMap.map(x=>x._2)
+    vertexMap.values.toList
   }
-  def getMessagedVertices(): ParIterable[Vertex] = {
+
+  def getMessagedVertices(): List[Vertex] = {
     val startTime = System.currentTimeMillis()
     val result    = vertexMap.collect {
-      case (k, vertex) if vertex.hasMessage() => vertex
+      case (id,vertex) if vertex.hasMessage() => vertex
     }
     viewTimer.update(System.currentTimeMillis() - startTime)
     vertexCount.set(result.size)
-    result
+    result.toList
   }
 
   def checkVotes(): Boolean = {
@@ -84,7 +81,7 @@ final case class GraphLens(
     superStep += 1
   }
 
-  def receiveMessage(msg: VertexMessage): Unit = vertexMap(msg.vertexId).receiveMessage(msg)
+  def receiveMessage(msg: VertexMessage): Unit = vertexMap(msg.vertexId).asInstanceOf[ObjectVertex].receiveMessage(msg)
 
 
 }

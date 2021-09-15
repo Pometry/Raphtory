@@ -7,11 +7,11 @@ import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 import com.raphtory.core.actors.partitionmanager.workers.AnalysisSubtaskWorker.State
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.analysis.GraphLens
+import com.raphtory.core.analysis.ObjectGraphLens
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.model.GraphPartition
 import com.raphtory.core.model.communication.VertexMessage
 import com.raphtory.core.model.communication.VertexMessageHandler
+import com.raphtory.core.model.graph.GraphPartition
 import kamon.Kamon
 
 import scala.collection.mutable
@@ -49,7 +49,7 @@ final case class AnalysisSubtaskWorker(
       log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is SetupTaskWorker.")
       val initStep       = 0
       val messageHandler = new VertexMessageHandler(neighbours, state.managerCount,jobId)
-      val graphLens      = GraphLens(jobId, timestamp, window, initStep, workerId, storage, messageHandler)
+      val graphLens      = ObjectGraphLens(jobId, timestamp, window, initStep, workerId, storage, messageHandler)
       analyzer.sysSetup(graphLens, messageHandler, workerId)
       context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
       sender ! SetupSubtaskDone
