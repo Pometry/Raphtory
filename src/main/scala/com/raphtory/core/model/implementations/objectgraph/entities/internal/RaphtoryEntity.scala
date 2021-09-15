@@ -1,4 +1,4 @@
-package com.raphtory.core.model.implementations.objectgraph.entities
+package com.raphtory.core.model.implementations.objectgraph.entities.internal
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap

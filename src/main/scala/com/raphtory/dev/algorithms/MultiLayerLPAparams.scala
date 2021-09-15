@@ -1,7 +1,7 @@
 //package com.raphtory.dev.algorithms
 //
 //import com.github.mjakubowski84.parquet4s.ParquetWriter
-//import com.raphtory.core.analysis.entity.Vertex
+//import com.raphtory.core.model.graph.access.Vertex
 //import org.apache.parquet.hadoop.ParquetFileWriter
 //
 //import scala.collection.mutable.ArrayBuffer

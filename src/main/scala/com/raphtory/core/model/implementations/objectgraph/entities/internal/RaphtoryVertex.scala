@@ -1,12 +1,14 @@
-package com.raphtory.core.model.implementations.objectgraph.entities
+package com.raphtory.core.model.implementations.objectgraph.entities.internal
 
 import com.raphtory.core.actors.partitionmanager.workers.ParquetVertex
-import com.raphtory.core.analysis.GraphLens
-import com.raphtory.core.analysis.entity.{Edge, Vertex}
-import com.raphtory.core.model.GraphPartition
+import com.raphtory.core.analysis.ObjectGraphLens
+import com.raphtory.core.model.graph.{GraphPartition, visitor}
+import com.raphtory.core.model.graph.visitor.{Edge, Vertex}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
+import com.raphtory.core.model.implementations.objectgraph.entities.external.ObjectEdge
+import com.raphtory.core.model.implementations.objectgraph.entities.external.ObjectVertex
 
 /** Companion Vertex object (extended creator for storage loads) */
 object RaphtoryVertex {
@@ -53,28 +55,28 @@ class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   def getOutgoingEdge(id: Long): Option[RaphtoryEdge] = outgoingEdges.get(id)
   def getIncomingEdge(id: Long): Option[RaphtoryEdge] = incomingEdges.get(id)
 
-  def viewAt(time: Long,lens:GraphLens): Vertex = {
-    Vertex(this,
+  def viewAt(time: Long,lens:ObjectGraphLens): ObjectVertex = {
+    new ObjectVertex(this,
       incomingEdges.collect {
         case (k, edge) if edge.aliveAt(time) =>
-          k -> Edge(edge, k, lens)
+          k -> new ObjectEdge(edge, k, lens)
       },
       outgoingEdges.collect {
         case (k, edge) if edge.aliveAt(time) =>
-          k -> Edge(edge, k, lens)
+          k ->new ObjectEdge(edge, k, lens)
       },
       lens)
   }
 
-  def viewAtWithWindow(time: Long, windowSize: Long,lens:GraphLens): Vertex = {
-    Vertex(this,
+  def viewAtWithWindow(time: Long, windowSize: Long,lens:ObjectGraphLens): Vertex = {
+    new ObjectVertex(this,
       incomingEdges.collect {
         case (k, edge) if edge.aliveAtWithWindow(time,windowSize) =>
-          k -> Edge(edge, k, lens)
+          k -> new ObjectEdge(edge, k, lens)
       },
       outgoingEdges.collect {
         case (k, edge) if edge.aliveAtWithWindow(time,windowSize) =>
-          k -> Edge(edge, k, lens)
+          k -> new ObjectEdge(edge, k, lens)
       },
       lens)
   }

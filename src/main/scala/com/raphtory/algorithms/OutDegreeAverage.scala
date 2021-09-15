@@ -9,7 +9,7 @@ class OutDegreeAverage(args:Array[String]) extends Analyser[Any](args){
   override def analyse(): Unit = {}
   override def setup(): Unit   = {}
   override def returnResults(): Any = {
-    val outedges = view.getVertices().map { vertex =>vertex.getOutEdges.size}.filter(x=>x>0)
+    val outedges = view.getVertices().map { vertex =>vertex.getOutEdges().size}.filter(x=>x>0)
     val degree = outedges.sum
     val totalV   = outedges.size
     (totalV, degree)

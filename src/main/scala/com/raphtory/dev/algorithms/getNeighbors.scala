@@ -1,7 +1,7 @@
 package com.raphtory.dev.algorithms
 
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.analysis.entity.Vertex
+import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.mutable
 import scala.io.Source

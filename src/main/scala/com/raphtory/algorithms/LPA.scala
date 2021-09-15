@@ -1,7 +1,7 @@
 package com.raphtory.algorithms
 
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.analysis.entity.Vertex
+import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ParMap
@@ -34,7 +34,7 @@ object LPA {
   def apply(top: Int, weight: String, maxIter: Int): LPA = new LPA(Array(top.toString, weight, maxIter.toString))
 }
 
-class LPA(args: Array[String]) extends Analyser[ParMap[Long, List[String]]](args) {
+class LPA(args: Array[String]) extends Analyser[Map[Long, List[String]]](args) {
   //args = [top output, edge property, max iterations]
 
   val arg: Array[String] = args.map(_.trim)
@@ -60,7 +60,7 @@ class LPA(args: Array[String]) extends Analyser[ParMap[Long, List[String]]](args
         val vlabel = vertex.getState[Long]("lpalabel")
 
         // Get neighbourhood Frequencies -- relevant to weighted LPA
-        val vneigh = vertex.getEdges
+        val vneigh = vertex.getEdges()
         val neigh_freq = vneigh.map { e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float]) }
           .groupBy(_._1)
           .mapValues(x => x.map(_._2).sum)
@@ -88,14 +88,14 @@ class LPA(args: Array[String]) extends Analyser[ParMap[Long, List[String]]](args
 
   def doSomething(v: Vertex, gp: Array[Long]): Unit = {}
 
-  override def returnResults(): ParMap[Long, List[String]] =
+  override def returnResults(): Map[Long, List[String]] =
     view.getVertices()
       //.filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.getState[Long]("lpalabel"), vertex.ID()))
       .groupBy(f => f._1)
       .mapValues(f => f.map(_._2.toString).toList)
 
-  override def extractResults(results: List[ParMap[Long, List[String]]]): Map[String, Any] = {
+  override def extractResults(results: List[Map[Long, List[String]]]): Map[String, Any] = {
     val er      = extractData(results)
     val commtxt = er.communities.map(x => s"""["${x.mkString("\",\"")}"]""")
 
@@ -103,7 +103,7 @@ class LPA(args: Array[String]) extends Analyser[ParMap[Long, List[String]]](args
        "communities"->commtxt)
   }
 
-  def extractData(results: List[ParMap[Long, List[String]]]): fd = {
+  def extractData(results: List[Map[Long, List[String]]]): fd = {
     val endResults = results//.asInstanceOf[List[]]]
     try {
       val grouped             = endResults.flatten.groupBy(f => f._1).mapValues(x => x.flatMap(_._2))

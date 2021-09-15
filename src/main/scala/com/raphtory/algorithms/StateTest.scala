@@ -23,24 +23,24 @@ class StateTest(args:Array[String]) extends Analyser[PartitionState](args){
   override def returnResults(): PartitionState = {
     val degDist = view.getVertices().map {
       vertex =>
-        val inDeg = vertex.getIncEdges.size
-        val outDeg = vertex.getOutEdges.size
+        val inDeg = vertex.getInEdges().size
+        val outDeg = vertex.getOutEdges().size
         val deg = inDeg + outDeg
-        val vdeletions = vertex.getHistory().count(f =>f._2 ==false)
-        val vcreations = vertex.getHistory().count(f =>f._2 ==true)
-        val outedgedeletions =vertex.getOutEdges.map(f=>f.getHistory().count(f =>f._2 ==false)).sum
-        val outedgecreations =vertex.getOutEdges.map(f=>f.getHistory().count(f =>f._2 ==true)).sum
+        val vdeletions = vertex.history().count(f => !f.event)
+        val vcreations = vertex.history().count(f =>f.event)
+        val outedgedeletions =vertex.getOutEdges().map(f=>f.history().count(f => !f.event)).sum
+        val outedgecreations =vertex.getOutEdges().map(f=>f.history().count(f => f.event)).sum
 
-        val inedgedeletions =vertex.getIncEdges.map(f=>f.getHistory().count(f =>f._2 ==false)).sum
-        val inedgecreations =vertex.getIncEdges.map(f=>f.getHistory().count(f =>f._2 ==true)).sum
+        val inedgedeletions =vertex.getInEdges().map(f=>f.history().count(f => !f.event)).sum
+        val inedgecreations =vertex.getInEdges().map(f=>f.history().count(f => f.event)).sum
 
         val properties = vertex.getPropertySet().size
-        val propertyhistory = vertex.getPropertySet().keys.toArray.map(x=> vertex.getPropertyHistory(x).size).sum
-        val outedgeProperties = vertex.getOutEdges.map(edge => edge.getPropertySet().size).sum
-        val outedgePropertyHistory = vertex.getOutEdges.map(edge => edge.getPropertySet().keys.toArray.map(x=> edge.getPropertyHistory(x).size).sum).sum
+        val propertyhistory = vertex.getPropertySet().toArray.map(x=> vertex.getPropertyHistory(x).size).sum
+        val outedgeProperties = vertex.getOutEdges().map(edge => edge.getPropertySet().size).sum
+        val outedgePropertyHistory = vertex.getOutEdges().map(edge => edge.getPropertySet().toArray.map(x=> edge.getPropertyHistory(x).size).sum).sum
 
-        val inedgeProperties = vertex.getIncEdges.map(edge => edge.getPropertySet().size).sum
-        val inedgePropertyHistory = vertex.getIncEdges.map(edge => edge.getPropertySet().keys.toArray.map(x=> edge.getPropertyHistory(x).size).sum).sum
+        val inedgeProperties = vertex.getInEdges().map(edge => edge.getPropertySet().size).sum
+        val inedgePropertyHistory = vertex.getInEdges().map(edge => edge.getPropertySet().toArray.map(x=> edge.getPropertyHistory(x).size).sum).sum
 
         (inDeg, outDeg, deg,vdeletions,vcreations,outedgedeletions,outedgecreations,inedgedeletions,inedgecreations,properties,propertyhistory,outedgeProperties,outedgePropertyHistory,inedgeProperties,inedgePropertyHistory)
     }

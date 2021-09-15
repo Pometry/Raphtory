@@ -1,7 +1,7 @@
 package com.raphtory.dev.algorithms
 
 import com.raphtory.algorithms.LPA
-import com.raphtory.core.analysis.entity.Vertex
+import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.parallel.ParMap
 
@@ -129,7 +129,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
 
   def weightFunction(v: Vertex, ts: Long): Map[Long, Float] = {
     var nei_weights =
-      (v.getInCEdgesBetween(ts - snapshotSize, ts) ++ v.getOutEdgesBetween(ts - snapshotSize, ts)).map(e =>
+      (v.getInEdges(after =ts - snapshotSize, before = ts) ++ v.getOutEdges(after = ts - snapshotSize, before = ts)).map(e =>
         (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float])
       )
     if (scaled) {
@@ -149,7 +149,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
 
   def scaling(freq: Array[Float]): Float = math.sqrt(freq.map(math.pow(_, 2)).sum).toFloat
 
-  override def returnResults(): ParMap[Long, List[String]] =
+  override def returnResults(): Map[Long, List[String]] =
     view
       .getVertices()
       .map(vertex =>

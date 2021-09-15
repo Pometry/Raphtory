@@ -1,7 +1,6 @@
 package com.raphtory.core.analysis.api
 
-import com.raphtory.core.analysis.entity.Vertex
-
+import com.raphtory.core.model.graph.visitor.Vertex
 
 
 abstract class GraphAlgorithm {

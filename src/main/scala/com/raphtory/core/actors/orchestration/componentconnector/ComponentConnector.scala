@@ -9,7 +9,7 @@ import com.raphtory.core.actors.partitionmanager.{Reader, Writer}
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{AssignedId, PartitionsCount}
-import com.raphtory.core.model.GraphPartition
+import com.raphtory.core.model.graph.GraphPartition
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
