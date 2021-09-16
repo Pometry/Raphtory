@@ -278,8 +278,8 @@ class ObjectBasedPartition(initManagerCount: Int, managerID: Int, workerID: Int)
   /**
     * Analysis Functions
     * */
-  override def getVertices(perspective:GraphPerspective, time: Long, window: Long): TrieMap[Long, Vertex] = {
+  override def getVertices(perspective:GraphPerspective, time: Long, window: Long=Long.MaxValue): TrieMap[Long, Vertex] = {
     val lens = perspective.asInstanceOf[ObjectGraphLens]
-    vertices.map(v => (v._1,v._2.viewAt(time,lens).asInstanceOf[Vertex])).seq
+    vertices.collect{case (id,vertex) if(vertex.aliveAtWithWindow(time,window)) => (id,vertex.viewAtWithWindow(time,window,lens)) }.seq //(v._1,v._2.viewAt(time,lens).asInstanceOf[Vertex])).seq
   }
 }
