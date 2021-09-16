@@ -52,7 +52,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
       // Assign random labels for all instances in time of a vertex as Map(ts, lab)
       val tlabels =
         snapshots
-          .filter(ts => vertex.aliveAtWithWindow(ts, snapshotSize))
+          .filter(ts => vertex.aliveAt(ts, snapshotSize))
           .map(ts => (ts, rnd.nextLong()))
           .toList
       vertex.setState("mlpalabel", tlabels)

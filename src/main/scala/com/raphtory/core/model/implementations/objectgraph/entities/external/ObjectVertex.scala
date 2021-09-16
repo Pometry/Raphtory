@@ -29,24 +29,38 @@ class ObjectVertex(private val v: RaphtoryVertex,
 
   def voteToHalt(): Unit = lens.vertexVoted()
 
-  def aliveAt(time: Long): Boolean = v.aliveAt(time)
-
-  def aliveAtWithWindow(time: Long, window: Long): Boolean = v.aliveAtWithWindow(time, window)
-
   //out edges whole
-  def getOutEdges(after:Long=0L,before:Long=Long.MaxValue): List[Edge] = internalOutgoingEdges.map(x => x._2).toList
+  def getOutEdges(after:Long=0L,before:Long=Long.MaxValue): List[Edge] = allEdge(internalOutgoingEdges,after,before)
 
   //in edges whole
-  def getInEdges(after:Long=0L,before:Long=Long.MaxValue): List[Edge] = internalIncomingEdges.map(x => x._2).toList
+  def getInEdges(after:Long=0L,before:Long=Long.MaxValue): List[Edge] = allEdge(internalIncomingEdges,after,before)
 
-  //all edges
-  def getEdges(after:Long=0L,before:Long=Long.MaxValue): List[Edge] = getInEdges() ++ getOutEdges()
+      //all edges
+  def getEdges(after:Long=0L,before:Long=Long.MaxValue): List[Edge] = getInEdges(after,before) ++ getOutEdges(after,before)
 
   //out edges individual
-  def getOutEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge] = internalOutgoingEdges.get(id)
-
+  def getOutEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge] = individualEdge(internalOutgoingEdges,after,before,id)
   //In edges individual
-  def getInEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge] = internalIncomingEdges.get(id)
+  def getInEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge]  = individualEdge(internalIncomingEdges,after,before,id)
+
+
+  private def allEdge(edges:ParTrieMap[Long, Edge],after:Long,before:Long) = {
+    if(after==0&&before==Long.MaxValue)
+      edges.map(x => x._2).toList
+    else
+      edges.collect {
+        case (id, edge) if edge.active(after,before) => edge
+      }.toList
+  }
+
+  private def individualEdge(edges:ParTrieMap[Long, Edge],after:Long,before:Long,id:Long) = {
+    if(after==0&&before==Long.MaxValue)
+      edges.get(id)
+    else  edges.get(id) match {
+      case Some(edge) => if(edge.active(after,before)) Some(edge) else None
+      case None => None
+    }
+  }
 
 
   // state related

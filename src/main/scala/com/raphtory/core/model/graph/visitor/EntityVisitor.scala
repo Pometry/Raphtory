@@ -23,5 +23,6 @@ abstract class EntityVisitor {
   //functionality to access the history of the edge + helpers
   def history():List[HistoricEvent]
   def active(after:Long=Long.MaxValue,before: Long=Long.MaxValue): Boolean
+  def aliveAt(time: Long, window: Long=Long.MaxValue): Boolean
 }
 case class HistoricEvent(time:Long,event:Boolean)

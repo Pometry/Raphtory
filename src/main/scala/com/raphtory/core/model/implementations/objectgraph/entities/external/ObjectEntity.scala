@@ -54,7 +54,9 @@ abstract class ObjectEntity(entity: RaphtoryEntity, view: ObjectGraphLens) exten
       }.toList
     }
 
+  def aliveAt(time: Long): Boolean = entity.aliveAt(time)
 
+  def aliveAt(time: Long, window: Long): Boolean = entity.aliveAtWithWindow(time, window)
 
   def active(after: Long=0, before: Long=Long.MaxValue): Boolean = entity.history.exists(k => k._1 > after && k._1 <= before)
 

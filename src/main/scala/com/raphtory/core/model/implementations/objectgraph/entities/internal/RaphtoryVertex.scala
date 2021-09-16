@@ -55,18 +55,6 @@ class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   def getOutgoingEdge(id: Long): Option[RaphtoryEdge] = outgoingEdges.get(id)
   def getIncomingEdge(id: Long): Option[RaphtoryEdge] = incomingEdges.get(id)
 
-  def viewAt(time: Long,lens:ObjectGraphLens): ObjectVertex = {
-    new ObjectVertex(this,
-      incomingEdges.collect {
-        case (k, edge) if edge.aliveAt(time) =>
-          k -> new ObjectEdge(edge, k, lens)
-      },
-      outgoingEdges.collect {
-        case (k, edge) if edge.aliveAt(time) =>
-          k ->new ObjectEdge(edge, k, lens)
-      },
-      lens)
-  }
 
   def viewAtWithWindow(time: Long, windowSize: Long,lens:ObjectGraphLens): Vertex = {
     new ObjectVertex(this,
