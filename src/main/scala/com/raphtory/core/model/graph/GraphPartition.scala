@@ -42,7 +42,7 @@ abstract class GraphPartition(initManagerCount: Int, partitionID: Int, workerID:
   /**
     * Analysis Functions
     * */
-  def getVertices(graphPerspective: GraphPerspective, time:Long, window:Long = -1):TrieMap[Long,Vertex]
+  def getVertices(graphPerspective: GraphPerspective, time:Long, window:Long = Long.MaxValue):TrieMap[Long,Vertex]
 
 
 
