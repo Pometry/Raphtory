@@ -22,9 +22,6 @@ trait Vertex extends EntityVisitor {
   def messageAllNeighbours(message: Any)
   def messageAllIngoingNeighbors(message: Any): Unit
 
-  def aliveAt(time: Long): Boolean
-  def aliveAtWithWindow(time: Long, window: Long): Boolean
-
   //all edges
   def getEdges(after:Long=0L,before:Long=Long.MaxValue): List[Edge]
   //all out edges

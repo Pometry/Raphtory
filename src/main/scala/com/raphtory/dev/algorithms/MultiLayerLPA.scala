@@ -31,7 +31,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       val prob = rnd.nextFloat()
       val tlabels =
         snapshots
-          .filter(ts => vertex.aliveAtWithWindow(ts, snapshotSize))
+          .filter(ts => vertex.aliveAt(ts, snapshotSize))
           //          .map(ts => (ts, rnd.nextLong()))
           .map(ts => (ts, if ( prob < commprob) slabel else rnd.nextLong()))
           .toArray
