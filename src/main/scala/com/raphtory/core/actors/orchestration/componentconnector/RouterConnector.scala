@@ -8,7 +8,7 @@ import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.Re
 
 import scala.concurrent.Future
 
-class RouterConnector[T](managerCount: Int, routerCount:Int,graphBuilder: GraphBuilder[T]) extends ComponentConnector(initialManagerCount = managerCount,initialRouterCount = routerCount) {
+class RouterConnector[T](graphBuilder: GraphBuilder[T]) extends ComponentConnector() {
 
   override def callTheWatchDog(): Future[Any] = {
     log.debug(s"Attempting to retrieve Router Id from WatchDog.")
@@ -19,7 +19,7 @@ class RouterConnector[T](managerCount: Int, routerCount:Int,graphBuilder: GraphB
     log.info(s"Router $assignedId has come online.")
 
     actorRef = context.system.actorOf(
-      Props(new RouterManager(myId, currentCount, routerCount, graphBuilder)).withDispatcher("misc-dispatcher"),
+      Props(new RouterManager(myId, graphBuilder)).withDispatcher("misc-dispatcher"),
       "router"
     )
   }

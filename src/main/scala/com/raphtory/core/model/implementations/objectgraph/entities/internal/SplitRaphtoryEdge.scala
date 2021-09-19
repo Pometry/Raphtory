@@ -10,14 +10,13 @@ import scala.collection.parallel.mutable.ParTrieMap
   */
 object SplitRaphtoryEdge {
   def apply(
-      workerID: Int,
       creationTime: Long,
       srcID: Long,
       dstID: Long,
       previousState: mutable.TreeMap[Long, Boolean],
       properties: ParTrieMap[String, Property]
   ) = {
-    val e = new SplitRaphtoryEdge(workerID: Int, creationTime, srcID, dstID, initialValue = true)
+    val e = new SplitRaphtoryEdge(creationTime, srcID, dstID, initialValue = true)
     e.history = previousState
     e.properties = properties
     e
@@ -32,12 +31,11 @@ object SplitRaphtoryEdge {
   *
   */
 class SplitRaphtoryEdge(
-    workerID: Int,
     msgTime: Long,
     srcID: Long,
     dstID: Long,
     initialValue: Boolean)
-  extends RaphtoryEdge(workerID, msgTime, srcID, dstID, initialValue) {
-  override def serialise(): ParquetEdge = ParquetEdge(srcID,dstID,true,workerID,history.toList,properties.map(x=> x._2.serialise(x._1)).toList)
+  extends RaphtoryEdge(msgTime, srcID, dstID, initialValue) {
+  override def serialise(): ParquetEdge = ParquetEdge(srcID,dstID,true,history.toList,properties.map(x=> x._2.serialise(x._1)).toList)
 
 }

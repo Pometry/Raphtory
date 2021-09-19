@@ -11,7 +11,6 @@ import com.raphtory.core.model.communication._
 import kamon.Kamon
 import akka.pattern.ask
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
-import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -24,17 +23,13 @@ import scala.concurrent.duration._
 class RouterWorker[T](
     val graphBuilder: GraphBuilder[T],
     val routerId: Int,
-    val workerID: Int,
-    val initialManagerCount: Int,
-    val initialRouterCount: Int
 ) extends RaphtoryActor {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
   //println(s"Router $routerId $workerID with $initialManagerCount $initialRouterCount")
   private val messageIDs = ParTrieMap[String, Int]()
   private var safe = false
 
-  private val routerWorkerUpdates =
-    Kamon.counter("Raphtory_Router_Output").withTag("Router", routerId).withTag("Worker", workerID)
+  private val routerWorkerUpdates = Kamon.counter("Raphtory_Router_Output").withTag("Router", routerId)
   var update = 0
   // todo: wvv let people know parseTuple will create a list of update message
   //  and this trait will handle logic to send to graph
@@ -49,7 +44,7 @@ class RouterWorker[T](
 
   }
 
-  override def receive: Receive = work(State(initialManagerCount, 0L, false,0L))
+  override def receive: Receive = work(State(0L, false,0L))
 
   private def work(state: State): Receive = {
     case StartUp     =>
@@ -57,37 +52,33 @@ class RouterWorker[T](
         mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest) //ask if the cluster is safe to use
         context.system.scheduler.scheduleOnce(1.second, self, StartUp)  // repeat every 1 second until safe
       }
-    case ClusterStatusResponse(clusterUp, _, _) =>
+    case ClusterStatusResponse(clusterUp) =>
       if (clusterUp) safe = true
 
     case SpoutOnline => context.sender() ! WorkPlease
     case NoWork =>
       context.system.scheduler.scheduleOnce(delay = 1.second, receiver = context.sender(), message = WorkPlease)
 
-    case msg: UpdatedCounter =>
-      log.debug(s"RouterWorker [$routerId] received [$msg] request.")
-      if (state.managerCount < msg.newValue) context.become(work(state.copy(managerCount = msg.newValue)))
-
     case AllocateTuple(record: T) => //todo: wvv AllocateTuple should hold type of record instead of using Any
       log.debug(s"RouterWorker [$routerId] received AllocateTuple[$record] request.")
-      val newNewestTimes = parseTupleAndSendGraph(record, state.managerCount)
+      val newNewestTimes = parseTupleAndSendGraph(record)
       val newNewestTime  = (state.newestTime :: newNewestTimes).max
       if (newNewestTime > state.newestTime)
         context.become(work(state.copy(newestTime = newNewestTime)))
       context.sender() ! WorkPlease
 
     case TimeBroadcast =>
-      broadcastRouterWorkerTimeSync(state.managerCount, state.newestTime)
+      broadcastRouterWorkerTimeSync(state.newestTime)
       context.system.scheduler.scheduleOnce(delay = 5.seconds, receiver = self, message = TimeBroadcast)
 
     case DataFinished =>
-      getAllRouterWorkers(initialRouterCount).foreach { workerPath =>
+      getAllRouterWorkers().foreach { workerPath =>
         mediator ! new DistributedPubSubMediator.Send(
                 workerPath,
                 DataFinishedSync(state.newestTime)
         )
         if (state.restRouterNewestFinishedTime > state.newestTime) {
-          broadcastRouterWorkerTimeSync(state.managerCount, state.restRouterNewestFinishedTime)
+          broadcastRouterWorkerTimeSync(state.restRouterNewestFinishedTime)
         }
         val newNewestTime = state.newestTime max state.restRouterNewestFinishedTime
         context.become(work(state.copy(newestTime = newNewestTime, dataFinished = true)))
@@ -96,7 +87,7 @@ class RouterWorker[T](
     case DataFinishedSync(time) =>
       if (state.dataFinished) {
         if (time > state.newestTime) {
-          broadcastRouterWorkerTimeSync(state.managerCount, time)
+          broadcastRouterWorkerTimeSync(time)
           context.become(work(state.copy(newestTime = time)))
         }
       } else {
@@ -105,22 +96,16 @@ class RouterWorker[T](
     case unhandled => log.warning(s"RouterWorker received unknown [$unhandled] message.")
   }
 
-  private def parseTupleAndSendGraph(
-      record: T,
-      managerCount: Int
-  ): List[Long] =
-    graphBuilder.getUpdates(record).map(update => sendGraphUpdate(update, managerCount))
+  private def parseTupleAndSendGraph(record: T): List[Long] =
+    graphBuilder.getUpdates(record).map(update => sendGraphUpdate(update))
 
-  private def sendGraphUpdate(
-      message: GraphUpdate,
-      managerCount: Int,
-  ): Long = {
+  private def sendGraphUpdate(message: GraphUpdate): Long = {
     update += 1
     routerWorkerUpdates.increment()
-    val path             = getManager(message.srcId, managerCount)
+    val path             = getWriter(message.srcId)
     val id               = getMessageIDForWriter(path)
 
-    val sentMessage = TrackedGraphUpdate(s"${routerId}_$workerID", id, message)
+    val sentMessage = TrackedGraphUpdate(s"$routerId", id, message)
     log.debug(s"RouterWorker sending message [$sentMessage] to PubSub")
 
     mediator ! DistributedPubSubMediator.Send(path, sentMessage, localAffinity = false)
@@ -137,25 +122,13 @@ class RouterWorker[T](
         0
     }
 
-  def getAllWriterWorkers(managerCount: Int): Array[String] = {
-    val workers = mutable.ArrayBuffer[String]()
-    for (i <- 0 until managerCount)
-      for (j <- 0 until totalWorkers)
-        workers += s"/user/Manager_${i}_child_$j"
-    workers.toArray
-  }
-
-  def broadcastRouterWorkerTimeSync(managerCount: Int, time: Long) = {
+  
+  def broadcastRouterWorkerTimeSync(time: Long) = {
     if(safe) {
-      val workerPaths = for {
-        i <- 0 until managerCount
-        j <- 0 until totalWorkers
-      } yield s"/user/Manager_${i}_child_$j"
-
-      workerPaths.foreach { workerPath =>
+        getAllWriters().foreach { workerPath =>
         mediator ! new DistributedPubSubMediator.Send(
           workerPath,
-          RouterWorkerTimeSync(time, s"${routerId}_$workerID", getMessageIDForWriter(workerPath))
+          RouterWorkerTimeSync(time, s"$routerId", getMessageIDForWriter(workerPath))
         )
       }
     }
@@ -174,7 +147,6 @@ object RouterWorker {
   }
 
   private case class State(
-                            managerCount: Int,
                             newestTime: Long,
                             dataFinished: Boolean,
                             restRouterNewestFinishedTime: Long

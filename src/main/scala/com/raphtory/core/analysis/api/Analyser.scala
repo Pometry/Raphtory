@@ -24,10 +24,9 @@ abstract class Analyser[T<:Any](args:Array[String]) extends java.io.Serializable
   var workerID: Int                                 = 0
 
   private var toPublish:mutable.ArrayBuffer[String] = ArrayBuffer()
-  final def sysSetup(proxy: ObjectGraphLens, messageHandler:VertexMessageHandler, id: Int) = {
+  final def sysSetup(proxy: ObjectGraphLens, messageHandler:VertexMessageHandler) = {
     this.view = proxy
     this.messageHandler = messageHandler
-    this.workerID = id
   }
 
   def getArgs():Array[String] = args

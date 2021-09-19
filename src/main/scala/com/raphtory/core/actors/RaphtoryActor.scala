@@ -1,65 +1,63 @@
 package com.raphtory.core.actors
 
 import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Cancellable, Timers}
+import com.raphtory.core.actors.RaphtoryActor.{partitionMachineCount, partitionsPerMachine, routerMachineCount, totalPartitions, totalRouters, workersPerRouter}
+import com.typesafe.config.ConfigFactory
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
+object RaphtoryActor {
+  private val conf = ConfigFactory.load()
+  val partitionsTopic        = "/partitionsCount"
+  val partitionMachineCount  = conf.getInt("raphtory.partitionCount")//sys.env.getOrElse("PARTITION_MIN","1").toInt
+  val routerMachineCount     = conf.getInt("raphtory.routerCount") //sys.env.getOrElse("ROUTER_MIN","1").toInt
+  val partitionsPerMachine   = 10
+  val workersPerRouter       = 5
+  val spoutCount:Int         = 1
+  val analysisCount:Int      = 1
+  val totalPartitions        = partitionMachineCount*partitionsPerMachine
+  val totalRouters           = routerMachineCount*workersPerRouter
+}
+
 trait RaphtoryActor extends Actor with ActorLogging with Timers {
 
-  val partitionsTopic    = "/partitionsCount"
-  val totalWorkers = 10 //must be power of 10
-
   //get the partition a vertex is stored in
-  def checkDst(dstID: Long, managerCount: Int, managerID: Int): Boolean = ((dstID.abs % (managerCount * totalWorkers)) / totalWorkers).toInt == managerID //check if destination is also local
-  def checkWorker(dstID: Long, managerCount: Int, workerID: Int): Boolean = ((dstID.abs % (managerCount * totalWorkers)) % totalWorkers).toInt == workerID //check if destination is also local
 
-    def getManager(srcId: Long, managerCount: Int): String = {
-      val mod     = srcId.abs % (managerCount * totalWorkers)
-      val manager = mod / totalWorkers
-      val worker  = mod % totalWorkers
-      s"/user/Manager_${manager}_child_$worker"
+    def getWriter(srcId: Long): String = {
+      s"/user/write_${(srcId.abs % totalPartitions).toInt }"
     }
 
-    def getReader(srcId: Long, managerCount: Int): String = {
-      val mod     = srcId.abs % (managerCount * totalWorkers)
-    val manager = mod / totalWorkers
-    val worker  = mod % totalWorkers
-    s"/user/Manager_${manager}_reader_$worker"
-  }
-
-  def getAllRouterWorkers(managerCount: Int): Array[String] = {
+  def getAllRouterWorkers(): Array[String] = {
     val workers = mutable.ArrayBuffer[String]()
-    for (i <- 0 until managerCount)
-      for (j <- 0 until totalWorkers)
-        workers += s"/user/router/router_${i}_Worker_$j"
+    for (i <- 0 until totalRouters)
+      workers += s"/user/route_$i"
     workers.toArray
   }
 
 
-  def getAllReaders(managerCount: Int): Array[String] = {
+  def getAllReaderManagers(): Array[String] = {
     val workers = mutable.ArrayBuffer[String]()
-    for (i <- 0 until managerCount)
+    for (i <- 0 until partitionMachineCount)
       workers += s"/user/ManagerReader_$i"
     workers.toArray
   }
 
-  def getAllReaderWorkers(managerCount: Int): Array[String] = {
+  def getAllReaders(): Array[String] = {
     val workers = mutable.ArrayBuffer[String]()
-    for (i <- 0 until managerCount)
-      for (j <- 0 until totalWorkers)
-        workers += s"/user/Manager_${i}_reader_$j"
+    for (i <- 0 until totalPartitions)
+        workers += s"/user/read_$i"
     workers.toArray
   }
 
-  def getAllJobWorkers(managerCount: Int,jobID:String): Array[String] = {
+  def getAllWriters(): Array[String] = {
     val workers = mutable.ArrayBuffer[String]()
-    for (i <- 0 until managerCount)
-      for (j <- 0 until totalWorkers)
-        workers += s"/user/Manager_${i}_reader_${j}_analysis_subtask_worker_$jobID"
+    for (i <- 0 until totalPartitions)
+      workers += s"/user/write_$i"
     workers.toArray
   }
+
 
   def scheduleTask(initialDelay: FiniteDuration, interval: FiniteDuration, receiver: ActorRef, message: Any)(
     implicit context: ActorContext,

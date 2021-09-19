@@ -12,6 +12,7 @@ import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message.FailedToCompile
 import com.raphtory.core.actors.analysismanager.tasks.subtasks._
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.RaphtoryActor.totalPartitions
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message._
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser, LoadExternalAnalyser}
 import com.raphtory.core.utils.AnalyserUtils
@@ -46,13 +47,9 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
               ClusterStatusRequest
       ) //ask if the cluster is safe to use
 
-    case ClusterStatusResponse(clusterUp, _, _) =>
-      if (clusterUp) mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", RequestPartitionCount)
+    case ClusterStatusResponse(clusterUp) =>
+      if (clusterUp) context.become(work(State(Map.empty)))
       else context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, StartUp)
-
-    case PartitionsCount(count) =>
-      context.become(work(State(count, Map.empty)))
-      unstashAll()
 
     case _: AnalysisRequest => stash()
 
@@ -62,23 +59,20 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
   def work(state: State): Receive = {
     case StartUp => // do nothing as it is ready
 
-    case PartitionsCount(newValue) =>
-      context.become(work(state.copy(managerCount = newValue)))
-
     case request: LiveAnalysisRequest =>
-      val taskManager = spawnLiveAnalysisManager(state.managerCount, request)
+      val taskManager = spawnLiveAnalysisManager(request)
       val newState = state.updateCurrentTask(_ ++ taskManager)
       sender() ! ManagingTask(taskManager.get._2)
       context.become(work(newState))
 
     case request: ViewAnalysisRequest =>
-      val taskManager = spawnViewAnalysisManager(state.managerCount, request)
+      val taskManager = spawnViewAnalysisManager(request)
       val newState = state.updateCurrentTask(_ ++ taskManager)
       sender() ! ManagingTask(taskManager.get._2)
       context.become(work(newState))
 
     case request: RangeAnalysisRequest =>
-      val taskManager = spawnRangeAnalysisManager(state.managerCount, request)
+      val taskManager = spawnRangeAnalysisManager(request)
       val newState = state.updateCurrentTask(_ ++ taskManager)
       sender() ! ManagingTask(taskManager.get._2)
       context.become(work(newState))
@@ -101,7 +95,7 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
     case unhandled => log.error(s"unexpected message $unhandled")
   }
 
-  private def spawnLiveAnalysisManager(managerCount: Int, request: LiveAnalysisRequest): Option[(String, ActorRef)] = {
+  private def spawnLiveAnalysisManager(request: LiveAnalysisRequest): Option[(String, ActorRef)] = {
     import request._
     val jobId = analyserName + "_" + System.currentTimeMillis()
     log.info(s"Live Analysis Task received, your job ID is $jobId")
@@ -111,7 +105,6 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
         val ref = context.system.actorOf(
                 Props(
                         LiveAnalysisTask(
-                                managerCount,
                                 jobId,
                                 args,
                                 analyser,
@@ -130,18 +123,16 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
     }
   }
 
-  private def spawnViewAnalysisManager(managerCount: Int, request: ViewAnalysisRequest): Option[(String, ActorRef)] = {
+  private def spawnViewAnalysisManager(request: ViewAnalysisRequest): Option[(String, ActorRef)] = {
     import request._
     val jobId = analyserName + "_" + System.currentTimeMillis()
     log.info(s"View Analysis Task received, your job ID is $jobId")
     getAnalyser(analyserName, args, rawFile).map {
       case (newAnalyser, analyser) =>
         val ref =
-
           context.system.actorOf(
                   Props(
                           ViewAnalysisTask(
-                                  managerCount,
                                   jobId,
                                   args,
                                   analyser,
@@ -158,10 +149,7 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
     }
   }
 
-  private def spawnRangeAnalysisManager(
-      managerCount: Int,
-      request: RangeAnalysisRequest
-  ): Option[(String, ActorRef)] = {
+  private def spawnRangeAnalysisManager(request: RangeAnalysisRequest): Option[(String, ActorRef)] = {
     import request._
     val jobId = analyserName + "_" + System.currentTimeMillis()
     log.info(
@@ -173,7 +161,6 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
           context.system.actorOf(
                   Props(
                           RangeAnalysisTask(
-                                  managerCount,
                                   jobId,
                                   args,
                                   analyser,
@@ -221,7 +208,7 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
 }
 
 object AnalysisManager {
-  private case class State(managerCount: Int, currentTasks: Map[String, ActorRef]) {
+  private case class State(currentTasks: Map[String, ActorRef]) {
     def updateCurrentTask(f: Map[String, ActorRef] => Map[String, ActorRef]): State =
       copy(currentTasks = f(currentTasks))
   }

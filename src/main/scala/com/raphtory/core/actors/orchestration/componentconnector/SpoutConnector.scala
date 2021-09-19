@@ -8,7 +8,7 @@ import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.Re
 
 import scala.concurrent.Future
 
-class SpoutConnector[T](managerCount: Int, routerCount:Int,spout: Spout[T]) extends ComponentConnector(initialManagerCount = managerCount,initialRouterCount = routerCount) {
+class SpoutConnector[T](spout: Spout[T]) extends ComponentConnector() {
   override def callTheWatchDog(): Future[Any] = {
     log.debug(s"Attempting to retrieve Spout Id from WatchDog.")
     mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestSpoutId, localAffinity = false)

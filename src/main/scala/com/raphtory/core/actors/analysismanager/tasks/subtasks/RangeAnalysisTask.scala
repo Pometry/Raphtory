@@ -4,7 +4,6 @@ import com.raphtory.core.actors.analysismanager.tasks.{AnalysisTask, SubTaskCont
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 
 final case class RangeAnalysisTask(
-    managerCount: Int,
     jobID: String,
     args: Array[String],
     analyser: Analyser[Any],
@@ -15,7 +14,7 @@ final case class RangeAnalysisTask(
     windows: List[Long],
     newAnalyser: Boolean,
     rawFile: String
-) extends AnalysisTask(jobID: String, args, analyser, serialiser, managerCount, newAnalyser, rawFile) {
+) extends AnalysisTask(jobID: String, args, analyser, serialiser, newAnalyser, rawFile) {
   override protected def buildSubTaskController(readyTimestamp: Long): SubTaskController =
     SubTaskController.fromRangeTask(start, end, jump, windows)
 }

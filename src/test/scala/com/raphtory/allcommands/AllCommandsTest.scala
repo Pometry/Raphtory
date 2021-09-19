@@ -25,18 +25,16 @@ class AllCommandsTest extends FunSuite {
   //    FILE_SPOUT_FILENAME=testupdates.txt
   //    OUTPUT_PATH=src/test/scala/com/raphtory/data/allcommands/output
 
-  val partitionCount =4
-  val routerCount =3
-  val seedNode = new RaphtoryComponent("seedNode",partitionCount,routerCount,1600)
-  val analysisManager = new RaphtoryComponent("analysisManager",partitionCount,routerCount,1602)
-  val spout= new RaphtoryComponent("spout",partitionCount,routerCount,1603,"com.raphtory.spouts.FileSpout")
-  val router1 = new RaphtoryComponent("router",partitionCount,routerCount,1604,"com.raphtory.allcommands.AllCommandsBuilder")
-  val router2 = new RaphtoryComponent("router",partitionCount,routerCount,1605,"com.raphtory.allcommands.AllCommandsBuilder")
-  val router3 = new RaphtoryComponent("router",partitionCount,routerCount,1606,"com.raphtory.allcommands.AllCommandsBuilder")
-  val pm1 = new RaphtoryComponent("partitionManager",partitionCount,routerCount,1614)
-  val pm2 = new RaphtoryComponent("partitionManager",partitionCount,routerCount,1615)
-  val pm3 = new RaphtoryComponent("partitionManager",partitionCount,routerCount,1616)
-  val pm4 = new RaphtoryComponent("partitionManager",partitionCount,routerCount,1617)
+  val seedNode = new RaphtoryComponent("seedNode",1600)
+  val analysisManager = new RaphtoryComponent("analysisManager",1602)
+  val spout= new RaphtoryComponent("spout",1603,"com.raphtory.spouts.FileSpout")
+  val router1 = new RaphtoryComponent("router",1604,"com.raphtory.allcommands.AllCommandsBuilder")
+  val router2 = new RaphtoryComponent("router",1605,"com.raphtory.allcommands.AllCommandsBuilder")
+  val router3 = new RaphtoryComponent("router",1606,"com.raphtory.allcommands.AllCommandsBuilder")
+  val pm1 = new RaphtoryComponent("partitionManager",1614)
+  val pm2 = new RaphtoryComponent("partitionManager",1615)
+  val pm3 = new RaphtoryComponent("partitionManager",1616)
+  val pm4 = new RaphtoryComponent("partitionManager",1617)
 
 
 
@@ -52,6 +50,37 @@ class AllCommandsTest extends FunSuite {
         }
         assert(currentTimestamp==299868) //all data is ingested and the minimum watermark is set to the last line in the data
     } catch {
+      case _: java.util.concurrent.TimeoutException => assert(false)
+    }
+  }
+
+  test("Graph State Test"){
+    val stateTest = new StateTest(Array()).getClass.getCanonicalName
+    val serialiser = new DefaultSerialiser().getClass.getCanonicalName
+    try {
+      //First we run the test and see if it finishes in a reasonable time
+      implicit val timeout: Timeout = 120.second
+      val future = analysisManager.getAnalysisManager.get ? RangeAnalysisRequest(stateTest, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array(), "")
+      val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
+      val future2 = taskManager ? AreYouFinished
+      val result = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
+
+      val testData = HashMap[TimeParams, StateCheckResult]() ++=
+        scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/output").getLines()
+          .map(line => line.parseJson.convertTo[StateCheckResult])
+          .map(state => (TimeParams(state.time, state.windowsize), state))
+      val standardData = HashMap[TimeParams, StateCheckResult]() ++=
+        scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/statetest.json").getLines()
+          .map(line => line.parseJson.convertTo[StateCheckResult])
+          .map(state => (TimeParams(state.time, state.windowsize), state))
+
+      val correctResults = testData.map(row => row._2.compareTo(standardData(row._1))).fold(true) { (x, y) => x && y }
+      if (correctResults) {
+        new File("src/test/scala/com/raphtory/data/allcommands/output").delete()
+      }
+      assert(correctResults)
+    }
+    catch {
       case _: java.util.concurrent.TimeoutException => assert(false)
     }
   }
@@ -87,36 +116,7 @@ class AllCommandsTest extends FunSuite {
     }
   }
 
-  test("Graph State Test"){
-    val stateTest = new StateTest(Array()).getClass.getCanonicalName
-    val serialiser = new DefaultSerialiser().getClass.getCanonicalName
-    try {
-      //First we run the test and see if it finishes in a reasonable time
-      implicit val timeout: Timeout = 120.second
-      val future = analysisManager.getAnalysisManager.get ? RangeAnalysisRequest(stateTest, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array(), "")
-      val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
-      val future2 = taskManager ? AreYouFinished
-      val result = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
 
-      val testData = HashMap[TimeParams, StateCheckResult]() ++=
-        scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/output").getLines()
-          .map(line => line.parseJson.convertTo[StateCheckResult])
-          .map(state => (TimeParams(state.time, state.windowsize), state))
-      val standardData = HashMap[TimeParams, StateCheckResult]() ++=
-        scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/statetest.json").getLines()
-          .map(line => line.parseJson.convertTo[StateCheckResult])
-          .map(state => (TimeParams(state.time, state.windowsize), state))
-
-      val correctResults = testData.map(row => row._2.compareTo(standardData(row._1))).fold(true) { (x, y) => x && y }
-      if (correctResults) {
-        new File("src/test/scala/com/raphtory/data/allcommands/output").delete()
-      }
-      assert(correctResults)
-    }
-    catch {
-      case _: java.util.concurrent.TimeoutException => assert(false)
-    }
-  }
 
 
 

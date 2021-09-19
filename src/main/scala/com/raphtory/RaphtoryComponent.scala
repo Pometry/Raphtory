@@ -1,7 +1,6 @@
 package com.raphtory
 import akka.actor.{ActorRef, ActorSystem, Props}
 import com.esotericsoftware.kryo.Kryo
-import com.raphtory.RaphtoryServer.{partitionCount, routerCount}
 import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
 import com.raphtory.core.actors.orchestration.clustermanager.{SeedActor, WatchDog, WatermarkManager}
@@ -11,7 +10,7 @@ import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import scala.collection.JavaConversions
 import scala.language.postfixOps
 //main function
-class RaphtoryComponent(component:String,partitionCount:Int,routerCount:Int,port:Int,classPath:String="") {
+class RaphtoryComponent(component:String,port:Int,classPath:String="") {
   val conf    = ConfigFactory.load()
   val clusterSystemName  = "Raphtory"
   val kryo = new Kryo()
@@ -51,34 +50,34 @@ class RaphtoryComponent(component:String,partitionCount:Int,routerCount:Int,port
     println(s"Creating seed node and watchdog at $seedLoc")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
     seedNodeRef = system.actorOf(Props(new SeedActor()), "cluster")
-    watermarkerRef = system.actorOf(Props(new WatermarkManager(managerCount = partitionCount)),"WatermarkManager")
-    watchdogRef = system.actorOf(Props(new WatchDog(managerCount = partitionCount, minimumRouters = routerCount)), "WatchDog")
+    watermarkerRef = system.actorOf(Props(new WatermarkManager()),"WatermarkManager")
+    watchdogRef = system.actorOf(Props(new WatchDog()), "WatchDog")
   }
 
   def router() = {
     println("Creating Router")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
     val graphBuilder = Class.forName(classPath).getConstructor().newInstance().asInstanceOf[GraphBuilder[Any]]
-    routerRef =system.actorOf(Props(new RouterConnector(partitionCount, routerCount,graphBuilder)), "Routers")
+    routerRef =system.actorOf(Props(new RouterConnector(graphBuilder)), "Routers")
   }
 
   def partition() = {
     println(s"Creating Partition Manager...")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
-    partitionManagerRef = system.actorOf(Props(new PartitionConnector(partitionCount,routerCount)), "PartitionManager")
+    partitionManagerRef = system.actorOf(Props(new PartitionConnector()), "PartitionManager")
   }
 
   def spout() = {
     println("Creating Update Generator")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
     val spout = Class.forName(classPath).getConstructor().newInstance().asInstanceOf[Spout[Any]]
-    spoutRef = system.actorOf(Props(new SpoutConnector(partitionCount,routerCount,spout)), "SpoutConnector")
+    spoutRef = system.actorOf(Props(new SpoutConnector(spout)), "SpoutConnector")
   }
 
   def analysis() = {
     println("Creating Analysis Manager")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
-    analysisManagerRef = system.actorOf(Props(new AnalysisManagerConnector(partitionCount,routerCount)), "AnalysisManagerConnector")
+    analysisManagerRef = system.actorOf(Props(new AnalysisManagerConnector()), "AnalysisManagerConnector")
 
   }
 

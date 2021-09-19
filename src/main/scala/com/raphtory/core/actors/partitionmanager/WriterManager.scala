@@ -3,8 +3,8 @@ package com.raphtory.core.actors.partitionmanager
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Terminated}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.RaphtoryActor.partitionsPerMachine
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.PartitionUp
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graph.GraphPartition
@@ -19,11 +19,11 @@ import scala.language.postfixOps
   * Is sent commands which have been processed by the command Processor
   * Will process these, storing information in graph entities which may be updated if they already exist
   * */
-class Writer(
-    id: Int,
-    managerCountVal: Int,
-    workers: ParTrieMap[Int, ActorRef],
-    storage: ParTrieMap[Int, GraphPartition]
+class WriterManager(
+                     id: Int,
+                     managerCountVal: Int,
+                     writers: ParTrieMap[Int, ActorRef],
+                     storage: ParTrieMap[Int, GraphPartition]
 ) extends RaphtoryActor {
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
@@ -31,7 +31,7 @@ class Writer(
 
   // Id which refers to the partitions position in the graph manager map
   val managerId: Int    = id
-  val children: Int     = totalWorkers
+  val children: Int     = partitionsPerMachine
   var lastLogTime: Long = System.currentTimeMillis() / 1000
 
   // should the handled messages be printed to terminal
@@ -73,7 +73,6 @@ class Writer(
   override def receive: Receive = {
     case msg: String if msg == "count"      => processCountMessage(msg)
     case msg: String if msg == "keep_alive" => processKeepAliveMessage(msg)
-    case req: UpdatedCounter                => processUpdatedCounterRequest(req)
     case Terminated(child) =>
       log.warning(s"WriterWorker with patch [{}] belonging to Writer [{}] has died.", child.path, managerId)
     case x => log.warning(s"Writer [{}] received unknown [{}] message.", managerId, x)
@@ -95,20 +94,6 @@ class Writer(
     mediator ! DistributedPubSubMediator.Send(sendPath, sendMessage, localAffinity = false)
 
     log.debug(s"DistributedPubSubMediator sent message [{}] to path [{}].", sendMessage, sendPath)
-  }
-
-  def processUpdatedCounterRequest(req: UpdatedCounter): Unit = {
-    log.debug(s"Writer [{}] received request [{}].", managerId, req)
-
-    managerCount = req.newValue
-
-    if (storage.isEmpty)
-      log.warning("Entity storage is empty. The request [{}] will not be acted upon.", req)
-    else
-      storage.values.foreach { entityStorage =>
-        log.debug(s"Setting manager count for [$entityStorage] to [$managerCount].")
-        entityStorage.setManagerCount(managerCount)
-      }
   }
 
   private def scheduleTasks(): Unit = {

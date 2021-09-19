@@ -5,8 +5,9 @@ import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.util.Timeout
 import com.raphtory.core.actors.partitionmanager.workers.IngestionWorker
-import com.raphtory.core.actors.partitionmanager.{Reader, Writer}
+import com.raphtory.core.actors.partitionmanager.{ReaderManager, WriterManager}
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.RaphtoryActor.partitionsTopic
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{AssignedId, PartitionsCount}
 import com.raphtory.core.model.graph.GraphPartition
@@ -18,11 +19,7 @@ import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 
 
-case class UpdatedCounter(newValue: Int)
-
-
-
-abstract class ComponentConnector(initialManagerCount: Int, initialRouterCount:Int, initialSpoutCount:Int=1,initialAnalysisManagerCount:Int=1)
+abstract class ComponentConnector()
         extends RaphtoryActor {
 
   // TODO Make implicit timeouts as secondary (curried), optional implicit parameter
@@ -31,13 +28,12 @@ abstract class ComponentConnector(initialManagerCount: Int, initialRouterCount:I
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
 
   var myId: Int                = -1
-  var currentCount: Int        = initialManagerCount
   var actorRef: ActorRef       = _
   var actorRefReader: ActorRef = _
 
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
+  //mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
 
   def callTheWatchDog(): Future[Any]
 
@@ -60,7 +56,6 @@ abstract class ComponentConnector(initialManagerCount: Int, initialRouterCount:I
 
   def receive: Receive = {
     case msg: String if msg == "tick" => processHeartbeatMessage(msg)
-    case req: PartitionsCount         => processPartitionsCountRequest(req)
     case _: SubscribeAck              =>
     case x                            => log.warning(s"Replicator received unknown [{}] message.", x)
   }
@@ -84,18 +79,7 @@ abstract class ComponentConnector(initialManagerCount: Int, initialRouterCount:I
       }
   }
 
-  def processPartitionsCountRequest(req: PartitionsCount): Unit = {
-    log.debug(s"Replicator received [{}] request.", req)
 
-    if (req.count > currentCount) {
-      currentCount = req.count
-
-      if (actorRef != null)
-        actorRef ! UpdatedCounter(currentCount)
-      if (actorRefReader != null)
-        actorRef ! UpdatedCounter(currentCount)
-    }
-  }
 
   private def scheduleTasks(): Unit = {
     log.debug("Preparing to schedule tasks in Replicator.")
@@ -105,3 +89,19 @@ abstract class ComponentConnector(initialManagerCount: Int, initialRouterCount:I
     scheduledTaskMap.put("tick", tickCancellable)
   }
 }
+
+
+//case req: PartitionsCount         => processPartitionsCountRequest(req)
+
+//  def processPartitionsCountRequest(req: PartitionsCount): Unit = {
+//    log.debug(s"Replicator received [{}] request.", req)
+//
+//    if (req.count > totalPartitions) {
+//      currentCount = req.count
+//
+//      if (actorRef != null)
+//        actorRef ! UpdatedCounter(currentCount)
+//      if (actorRefReader != null)
+//        actorRef ! UpdatedCounter(currentCount)
+//    }
+//  }

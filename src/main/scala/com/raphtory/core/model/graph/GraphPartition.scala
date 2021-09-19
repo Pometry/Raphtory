@@ -1,5 +1,6 @@
 package com.raphtory.core.model.graph
 
+import com.raphtory.core.actors.RaphtoryActor.totalPartitions
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graph.visitor.Vertex
 import com.raphtory.core.model.implementations.objectgraph.entities.internal.RaphtoryVertex
@@ -13,7 +14,7 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Singleton representing the Storage for the entities
   */
 
-abstract class GraphPartition(initManagerCount: Int, partitionID: Int, workerID: Int) extends LazyLogging {
+abstract class GraphPartition(partitionID: Int) extends LazyLogging {
 
   /**
     * Ingesting Vertices
@@ -46,23 +47,20 @@ abstract class GraphPartition(initManagerCount: Int, partitionID: Int, workerID:
 
 
 
-  var managerCount: Int = initManagerCount
   var oldestTime: Long = Long.MaxValue
   var newestTime: Long = 0
   var windowTime: Long = 0
 
   val vertexCount =
-    Kamon.counter("Raphtory_Vertex_Count").withTag("actor", s"PartitionWriter_$partitionID").withTag("ID", workerID)
+    Kamon.counter("Raphtory_Vertex_Count").withTag("actor", s"PartitionWriter_$partitionID")
   val localEdgeCount =
-    Kamon.counter("Raphtory_Local_Edge_Count").withTag("actor", s"PartitionWriter_$partitionID").withTag("ID", workerID)
+    Kamon.counter("Raphtory_Local_Edge_Count").withTag("actor", s"PartitionWriter_$partitionID")
   val copySplitEdgeCount = Kamon
     .counter("Raphtory_Copy_Split_Edge_Count")
     .withTag("actor", s"PartitionWriter_$partitionID")
-    .withTag("ID", workerID)
   val masterSplitEdgeCount = Kamon
     .counter("Raphtory_Master_Split_Edge_Count")
     .withTag("actor", s"PartitionWriter_$partitionID")
-    .withTag("ID", workerID)
 
   def timings(updateTime: Long) = {
     if (updateTime < oldestTime && updateTime > 0) oldestTime = updateTime
@@ -70,15 +68,9 @@ abstract class GraphPartition(initManagerCount: Int, partitionID: Int, workerID:
       newestTime = updateTime //this isn't thread safe, but is only an approx for the archiving
   }
 
-  def setManagerCount(count: Int) = this.managerCount = count
-
   def getPartitionID = partitionID
-  def getWorkerID = workerID
 
 
 
-   def checkDst(dstID: Long, managerCount: Int, managerID: Int,workerID:Int): Boolean =
-     (((dstID.abs % (managerCount * 10)) / 10).toInt == managerID) &&
-       (((dstID.abs % (managerCount * 10)) % 10).toInt == workerID) //check if destination is also local)
-
+   def checkDst(dstID: Long): Boolean = (((dstID.abs % totalPartitions )).toInt == partitionID)
 }

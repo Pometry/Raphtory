@@ -7,13 +7,14 @@ import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.event.LoggingReceive
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.RaphtoryActor.{analysisCount, partitionMachineCount, partitionsTopic, routerMachineCount, spoutCount}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.ActorState
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class WatchDog(managerCount: Int, minimumRouters: Int,spoutCount:Int=1,analysisCount:Int=1) extends RaphtoryActor {
+class WatchDog() extends RaphtoryActor {
 
 
   implicit val executionContext: ExecutionContext = context.system.dispatcher
@@ -26,7 +27,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int,spoutCount:Int=1,analysisC
   override def preStart(): Unit = {
     log.debug("WatchDog is being started.")
     context.system.scheduler.scheduleOnce(10.seconds, self, Tick)
-    context.system.scheduler.scheduleOnce(3.minute, self, RefreshManagerCount)
+    //context.system.scheduler.scheduleOnce(3.minute, self, RefreshManagerCount)
   }
 
   override def receive: Receive =
@@ -38,12 +39,12 @@ class WatchDog(managerCount: Int, minimumRouters: Int,spoutCount:Int=1,analysisC
       context.become(work(newState))
       context.system.scheduler.scheduleOnce(10.seconds, self, Tick)
 
-    case RefreshManagerCount =>
-      mediator ! DistributedPubSubMediator.Publish(partitionsTopic, PartitionsCount(state.pmCounter))
-      context.system.scheduler.scheduleOnce(1.minute, self, RefreshManagerCount)
+    //case RefreshManagerCount =>
+    //  mediator ! DistributedPubSubMediator.Publish(partitionsTopic, PartitionsCount(state.pmCounter))
+      //context.system.scheduler.scheduleOnce(1.minute, self, RefreshManagerCount)
 
     case ClusterStatusRequest =>
-      sender ! ClusterStatusResponse(state.clusterUp, state.pmCounter, state.roCounter)
+      sender ! ClusterStatusResponse(state.clusterUp)
 
     case RequestPartitionCount =>
       log.debug(s"Sending Partition Manager count [${state.pmCounter}].")
@@ -70,7 +71,7 @@ class WatchDog(managerCount: Int, minimumRouters: Int,spoutCount:Int=1,analysisC
       val newCounter = state.pmCounter + 1
       log.debug(s"Propagating the new total partition managers [$newCounter] to all the subscribers.")
       context.become(work(state.copy(pmCounter = newCounter)))
-      mediator ! DistributedPubSubMediator.Publish(partitionsTopic, PartitionsCount(newCounter))
+      //mediator ! DistributedPubSubMediator.Publish(partitionsTopic, PartitionsCount(newCounter))
 
     case RequestRouterId =>
       sender ! AssignedId(state.roCounter)
@@ -93,15 +94,15 @@ class WatchDog(managerCount: Int, minimumRouters: Int,spoutCount:Int=1,analysisC
   private def handleTick(state: ActorState): ActorState = {
     checkMapTime(state.pmLiveMap, "Partition Manager")
     checkMapTime(state.roLiveMap, "Router")
-    if (state.roLiveMap.size >= minimumRouters &&
-        state.pmLiveMap.size >= managerCount &&
+    if (state.roLiveMap.size >= routerMachineCount &&
+        state.pmLiveMap.size >= partitionMachineCount &&
         state.spLiveMap.size >= spoutCount &&
         state.anLiveMap.size >= analysisCount ) {
       log.info("Partition managers, Spout, Analysis Manager and Routers have joined cluster.")
-      log.debug(s"The cluster was started with [$managerCount] Partition Managers, [$minimumRouters] Routers, 1 Spout and 1 Analysis Manager.")
+      log.debug(s"The cluster was started with [$partitionMachineCount] Partition Managers, [$routerMachineCount] Routers, 1 Spout and 1 Analysis Manager.")
       state.copy(clusterUp = true)
     } else {
-      println(s"Cluster Starting: ${state.roLiveMap.size}/$minimumRouters Routers, ${state.pmLiveMap.size}/$managerCount Partitions, ${state.spLiveMap.size}/$spoutCount Spouts, ${state.anLiveMap.size}/$analysisCount Analysis Managers")
+      println(s"Cluster Starting: ${state.roLiveMap.size}/$routerMachineCount Routers, ${state.pmLiveMap.size}/$partitionMachineCount Partitions, ${state.spLiveMap.size}/$spoutCount Spouts, ${state.anLiveMap.size}/$analysisCount Analysis Managers")
       state
     }
   }
@@ -123,7 +124,7 @@ object WatchDog {
     case class SpoutUp(id: Int)
     case class AnalysisManagerUp(id: Int)
     case object ClusterStatusRequest
-    case class ClusterStatusResponse(clusterUp: Boolean, pmCounter: Int, roCounter: Int)
+    case class ClusterStatusResponse(clusterUp: Boolean)
     case class AssignedId(id: Int)
     case object RequestPartitionId
     case object RequestRouterId

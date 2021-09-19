@@ -18,7 +18,6 @@ final case class ObjectGraphLens(
                             timestamp: Long,
                             window: Option[Long],
                             var superStep: Int,
-                            private val workerId: Int,
                             private val storage: GraphPartition,
                             private val messageHandler:VertexMessageHandler
 ) extends GraphPerspective(jobId, timestamp, window){
@@ -29,7 +28,6 @@ final case class ObjectGraphLens(
   private val viewTimer = Kamon
     .gauge("Raphtory_View_Build_Time")
     .withTag("Partition", storage.getPartitionID)
-    .withTag("Worker", workerId)
     .withTag("JobID", jobId)
     .withTag("timestamp", timestamp)
 
@@ -67,7 +65,6 @@ final case class ObjectGraphLens(
     vertexCount.get() == voteCount.get()
   }
 
-  //TODO hide away
   def sendMessage(msg: VertexMessage): Unit = messageHandler.sendMessage(msg)
 
 
@@ -81,7 +78,13 @@ final case class ObjectGraphLens(
     superStep += 1
   }
 
-  def receiveMessage(msg: VertexMessage): Unit = vertexMap(msg.vertexId).asInstanceOf[ObjectVertex].receiveMessage(msg)
+  def receiveMessage(msg: VertexMessage): Unit = {
+    try{vertexMap(msg.vertexId).asInstanceOf[ObjectVertex].receiveMessage(msg)}
+    catch {
+      case e:Exception => e.printStackTrace()
+    }
+
+  }
 
 
 }
