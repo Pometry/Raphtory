@@ -10,15 +10,14 @@ import scala.concurrent.duration.FiniteDuration
 
 object RaphtoryActor {
   private val conf = ConfigFactory.load()
-  val partitionsTopic        = "/partitionsCount"
-  val partitionMachineCount  = conf.getInt("raphtory.partitionCount")//sys.env.getOrElse("PARTITION_MIN","1").toInt
-  val routerMachineCount     = conf.getInt("raphtory.routerCount") //sys.env.getOrElse("ROUTER_MIN","1").toInt
-  val partitionsPerMachine   = 10
-  val workersPerRouter       = 5
-  val spoutCount:Int         = 1
-  val analysisCount:Int      = 1
-  val totalPartitions        = partitionMachineCount*partitionsPerMachine
-  val totalRouters           = routerMachineCount*workersPerRouter
+  val partitionMachineCount : Int = conf.getInt("Raphtory.partitionMachineCount")//sys.env.getOrElse("PARTITION_MIN","1").toInt
+  val routerMachineCount    : Int = conf.getInt("Raphtory.routerMachineCount") //sys.env.getOrElse("ROUTER_MIN","1").toInt
+  val partitionsPerMachine  : Int = conf.getInt("Raphtory.partitionsPerMachine")
+  val workersPerRouter      : Int = conf.getInt("Raphtory.workersPerRouter")
+  val spoutCount            : Int = 1
+  val analysisCount         : Int = 1
+  val totalPartitions       : Int = partitionMachineCount*partitionsPerMachine
+  val totalRouters          : Int = routerMachineCount*workersPerRouter
 }
 
 trait RaphtoryActor extends Actor with ActorLogging with Timers {
