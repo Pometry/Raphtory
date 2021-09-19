@@ -27,8 +27,7 @@ object RaphtoryServer extends App {
   val clusterSystemName  = "Raphtory"
   val ssn: String               = java.util.UUID.randomUUID.toString
 
-  val partitionCount = sys.env.getOrElse("PARTITION_MIN","1").toInt
-  val routerCount = sys.env.getOrElse("ROUTER_MIN","1").toInt
+
   val docker = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
   args(0) match {
@@ -45,8 +44,8 @@ object RaphtoryServer extends App {
     println(s"Creating seed node and watchdog at $seedLoc")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
     system.actorOf(Props(new SeedActor()), "cluster")
-    system.actorOf(Props(new WatermarkManager(managerCount = partitionCount)),"WatermarkManager")
-    system.actorOf(Props(new WatchDog(managerCount = partitionCount, minimumRouters = routerCount)), "WatchDog")
+    system.actorOf(Props(new WatermarkManager()),"WatermarkManager")
+    system.actorOf(Props(new WatchDog()), "WatchDog")
   }
 
   def router() = {
@@ -55,13 +54,13 @@ object RaphtoryServer extends App {
 
     val builderPath  = s"${sys.env.getOrElse("GRAPHBUILDER", "")}"
     val graphBuilder = Class.forName(builderPath).getConstructor().newInstance().asInstanceOf[GraphBuilder[Any]]
-    system.actorOf(Props(new RouterConnector(partitionCount, routerCount,graphBuilder)), "Routers")
+    system.actorOf(Props(new RouterConnector(graphBuilder)), "Routers")
   }
 
   def partition() = {
     println(s"Creating Partition Manager...")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
-    system.actorOf(Props(new PartitionConnector(partitionCount,routerCount)), "PartitionManager")
+    system.actorOf(Props(new PartitionConnector()), "PartitionManager")
   }
 
   def spout() = {
@@ -69,14 +68,14 @@ object RaphtoryServer extends App {
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
     val spoutPath = s"${sys.env.getOrElse("SPOUT", "")}"
     val spout = Class.forName(spoutPath).getConstructor().newInstance().asInstanceOf[Spout[Any]]
-    system.actorOf(Props(new SpoutConnector(partitionCount,routerCount,spout)), "PartitionManager")
+    system.actorOf(Props(new SpoutConnector(spout)), "PartitionManager")
 
   }
 
   def analysis() = {
     println("Creating Analysis Manager")
     implicit val system: ActorSystem = initialiseActorSystem(List(locateSeed()))
-    system.actorOf(Props(new AnalysisManagerConnector(partitionCount,routerCount)), "AnalysisManagerConnector")
+    system.actorOf(Props(new AnalysisManagerConnector()), "AnalysisManagerConnector")
 
   }
 

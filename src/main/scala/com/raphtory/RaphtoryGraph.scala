@@ -1,7 +1,6 @@
 package com.raphtory
 
 import akka.actor.{ActorSystem, Props}
-import com.raphtory.RaphtoryServer.{partitionCount, routerCount}
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
@@ -29,16 +28,14 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   //root.setLevel(Level.ERROR)
   val system = ActorSystem("Raphtory")
 
-  val partitionNumber = 1
-  val minimumRouters  = 1
-  system.actorOf(Props(new WatermarkManager(partitionNumber)),"WatermarkManager")
-  system.actorOf(Props(new WatchDog(partitionNumber, minimumRouters)), "WatchDog")
+  system.actorOf(Props(new WatermarkManager()),"WatermarkManager")
+  system.actorOf(Props(new WatchDog()), "WatchDog")
 
-  system.actorOf(Props(new SpoutConnector(partitionCount,routerCount,spout)), "Spoutmanager")
-  system.actorOf(Props(new RouterConnector( partitionNumber, minimumRouters,graphBuilder)), s"Routers")
-  system.actorOf(Props(new PartitionConnector(partitionNumber,minimumRouters)), s"PartitionManager")
+  system.actorOf(Props(new SpoutConnector(spout)), "Spoutmanager")
+  system.actorOf(Props(new RouterConnector(graphBuilder)), s"Routers")
+  system.actorOf(Props(new PartitionConnector()), s"PartitionManager")
 
-  val analysisManager = system.actorOf(Props(new AnalysisManagerConnector(partitionCount,routerCount)), "AnalysisManagerConnector")
+  val analysisManager = system.actorOf(Props(new AnalysisManagerConnector()), "AnalysisManagerConnector")
 
   //TODO tidy these, but will be done with full analysis Overhall
   def rangeQuery[S<:Object](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long):Unit = {

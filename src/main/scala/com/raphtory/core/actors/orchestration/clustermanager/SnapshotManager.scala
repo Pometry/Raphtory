@@ -9,23 +9,12 @@ class SnapshotManager(managerCount: Int) extends RaphtoryActor {
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
-  val workerPaths = for {
-    i <- 0 until managerCount
-    j <- 0 until totalWorkers
-  } yield s"/user/Manager_${i}_child_$j"
-
   override def receive: Receive = {
     case WatermarkTime(time:Long) => saveState(time)
   }
 
-  def saveState(time:Long) ={
-    workerPaths.foreach { workerPath =>
-                mediator ! new DistributedPubSubMediator.Send(
-                  workerPath,
-                  SaveState
-                )
-              }
-  }
+  def saveState(time:Long) =
+    getAllWriters().foreach { workerPath =>mediator ! new DistributedPubSubMediator.Send(workerPath, SaveState)}
 }
 
 

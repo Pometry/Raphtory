@@ -4,7 +4,6 @@ import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.{JobFailed, KillTask}
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
-import com.raphtory.core.actors.orchestration.componentconnector.UpdatedCounter
 import com.raphtory.core.actors.partitionmanager.workers.AnalysisSubtaskWorker.State
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.analysis.ObjectGraphLens
@@ -20,9 +19,7 @@ import scala.util.Success
 import scala.util.Try
 
 final case class AnalysisSubtaskWorker(
-                                        initManagerCount: Int,
-                                        managerId: Int,
-                                        workerId: Int,
+                                        partition: Int,
                                         storage: GraphPartition,
                                         analyzer: Analyser[Any],
                                         jobId: String,
@@ -31,31 +28,29 @@ final case class AnalysisSubtaskWorker(
 
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-
+  println(s"hello I am ${self.path}")
 
   override def preStart(): Unit = {
-    log.debug(
-      s"AnalysisSubtaskWorker ${self.path} for Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is being started."
-    )
-    taskManager ! AnalyserPresent((managerId,workerId),self)
+    log.debug(s"AnalysisSubtaskWorker ${self.path} for Job [$jobId] belonging to Reader [$partition] is being started.")
+    taskManager ! AnalyserPresent(partition,self)
   }
 
-  override def postStop(): Unit = log.info(s"Worker $workerId for $jobId Killed")
+  override def postStop(): Unit = log.info(s"Worker for $jobId Killed")
 
-  override def receive: Receive = work(State(0, 0, initManagerCount))
+  override def receive: Receive = work(State(0, 0))
 
   private def work(state: State): Receive = {
     case SetupSubtask(neighbours, timestamp, window) =>
-      log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is SetupTaskWorker.")
+      log.debug(s"Job [$jobId] belonging to Reader [$partition] is SetupTaskWorker.")
       val initStep       = 0
-      val messageHandler = new VertexMessageHandler(neighbours, state.managerCount,jobId)
-      val graphLens      = ObjectGraphLens(jobId, timestamp, window, initStep, workerId, storage, messageHandler)
-      analyzer.sysSetup(graphLens, messageHandler, workerId)
+      val messageHandler = new VertexMessageHandler(neighbours,jobId)
+      val graphLens      = ObjectGraphLens(jobId, timestamp, window, initStep, storage, messageHandler)
+      analyzer.sysSetup(graphLens, messageHandler)
       context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
       sender ! SetupSubtaskDone
 
     case _: StartSubtask =>
-      log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] is StartSubtask.")
+      log.debug(s"Job [$jobId] belonging to Reader [$partition] is StartSubtask.")
       val beforeTime = System.currentTimeMillis()
       analyzer.setup()
       val messagesSent = analyzer.messageHandler.getCountandReset()
@@ -64,11 +59,10 @@ final case class AnalysisSubtaskWorker(
       stepMetric(analyzer).update(System.currentTimeMillis() - beforeTime)
 
     case _: CheckMessages =>
-      log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives CheckMessages.")
+      log.debug(s"Job [$jobId] belonging to Reader [$partition] receives CheckMessages.")
       Kamon
         .gauge("Raphtory_Analysis_Messages_Received")
-        .withTag("actor", s"Reader_$managerId")
-        .withTag("ID", workerId)
+        .withTag("actor", s"Reader_$partition")
         .withTag("jobID", jobId)
         .withTag("Timestamp", analyzer.view.timestamp)
         .withTag("Superstep", analyzer.view.superStep)
@@ -76,9 +70,7 @@ final case class AnalysisSubtaskWorker(
 
       Kamon
         .gauge("Raphtory_Analysis_Messages_Sent")
-        .withTag("actor", s"Reader_$managerId")
-        .withTag("ID", workerId)
-        .withTag("ID", workerId)
+        .withTag("actor", s"Reader_$partition")
         .withTag("jobID", jobId)
         .withTag("Timestamp", analyzer.view.timestamp)
         .withTag("Superstep", analyzer.view.superStep)
@@ -87,7 +79,7 @@ final case class AnalysisSubtaskWorker(
       sender ! MessagesReceived(state.receivedMessageCount, state.sentMessageCount)
 
     case _: SetupNextStep =>
-      log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives SetupNextStep.")
+      log.debug(s"Job [$jobId] belonging to Reader [$partition] receives SetupNextStep.")
       Try(analyzer.view.nextStep()) match {
         case Success(_) =>
           context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
@@ -100,7 +92,7 @@ final case class AnalysisSubtaskWorker(
 
 
     case _: StartNextStep =>
-      log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives StartNextStep.")
+      log.debug(s"Job [$jobId] belonging to Reader [$partition] receives StartNextStep.")
       val beforeTime = System.currentTimeMillis()
       Try(analyzer.analyse()) match {
         case Success(_) =>
@@ -116,7 +108,7 @@ final case class AnalysisSubtaskWorker(
       stepMetric(analyzer).update(System.currentTimeMillis() - beforeTime)
 
     case _: Finish =>
-      log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives Finish.")
+      log.debug(s"Job [$jobId] belonging to Reader [$partition] receives Finish.")
       Try(analyzer.returnResults()) match {
         case Success(result) => sender ! ReturnResults(result)
         case Failure(e)      => {
@@ -127,12 +119,9 @@ final case class AnalysisSubtaskWorker(
       }
 
     case msg: VertexMessage =>
-      log.debug(s"Job [$jobId] belonging to ReaderWorker [$workerId] Reader [$managerId] receives VertexMessage.")
+      log.debug(s"Job [$jobId] belonging to Reader [$partition] receives VertexMessage.")
       analyzer.view.receiveMessage(msg)
       context.become(work(state.updateReceivedMessageCount(_ + 1)))
-
-    case UpdatedCounter(newValue) =>
-      context.become(work(state.copy(managerCount = newValue)))
 
     case KillTask(jobID) => self ! PoisonPill
 
@@ -145,7 +134,6 @@ final case class AnalysisSubtaskWorker(
     Kamon
       .gauge("Raphtory_Superstep_Time")
       .withTag("Partition", storage.getPartitionID)
-      .withTag("Worker", workerId)
       .withTag("JobID", jobId)
       .withTag("timestamp", analyzer.view.timestamp)
       .withTag("superstep", analyser.view.superStep)
@@ -153,7 +141,7 @@ final case class AnalysisSubtaskWorker(
 }
 
 object AnalysisSubtaskWorker {
-  private case class State(sentMessageCount: Int, receivedMessageCount: Int, managerCount: Int) {
+  private case class State(sentMessageCount: Int, receivedMessageCount: Int) {
     def updateReceivedMessageCount(f: Int => Int): State = copy(receivedMessageCount = f(receivedMessageCount))
   }
   object Message {

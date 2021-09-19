@@ -7,6 +7,7 @@ import com.raphtory.core.actors.analysismanager.AnalysisManager.Message._
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.SubtaskState
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.RaphtoryActor.{partitionMachineCount, totalPartitions}
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 import kamon.Kamon
 
@@ -21,18 +22,15 @@ abstract class AnalysisTask(
     args: Array[String],
     analyser: Analyser[Any],
     serialiser:AggregateSerialiser,
-    managerCount: Int,
     newAnalyser: Boolean,
     rawFile: String
 ) extends RaphtoryActor {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
-
   private val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
   //mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
-  private val workerList = mutable.Map[(Int,Int),ActorRef]()
+  private val workerList = mutable.Map[Int,ActorRef]()
   private val maxStep: Int     = analyser.defineMaxSteps()
-  private val workerCount: Int = managerCount * totalWorkers
 
   private var monitor:ActorRef = _
 
@@ -60,14 +58,16 @@ abstract class AnalysisTask(
       messageToAllReaders(ReaderWorkersOnline)
 
     case ReaderWorkersAck => //count up number of acks and if == number of workers, check if analyser present
-      if (readyCount + 1 != managerCount)
+      if (readyCount + 1 != partitionMachineCount) {
         context.become(checkReaderWorker(readyCount + 1))
-      else if (newAnalyser) {
+      } else if (newAnalyser) {
         messageToAllReaderWorkers(CompileNewAnalyser(jobId, rawFile, args.toList))
         context.become(checkAnalyser(0))
       } else {
+        println("checking analyser")
         messageToAllReaderWorkers(LoadPredefinedAnalyser(jobId, analyser.getClass.getCanonicalName, args.toList))
         context.become(checkAnalyser(0))
+
       }
   }
 
@@ -77,7 +77,8 @@ abstract class AnalysisTask(
 
     case AnalyserPresent(workerID,actor) => //analyser confirmed to be present within workers, send setup request to workers
       workerList += ((workerID,actor))
-      if (readyCount + 1 == workerCount) {
+      println(s"got worker $workerID")
+      if (readyCount + 1 == totalPartitions) {
         messageToAllReaderWorkers(TimeCheck)
         context.become(checkTime(None, List.empty, None))
       } else context.become(checkAnalyser(readyCount + 1))
@@ -90,7 +91,7 @@ abstract class AnalysisTask(
   ): Receive = withDefaultMessageHandler("check time") {
     case TimeResponse(time) =>
       val readyTimes = time :: readyTimeList
-      if (readyTimes.size == workerCount) {
+      if (readyTimes.size == totalPartitions) {
         val controller = taskController.getOrElse(buildSubTaskController(time))
         val readyTime  = readyTimes.min
         currentRange.orElse(controller.nextRange(readyTime)) match {
@@ -116,7 +117,7 @@ abstract class AnalysisTask(
     withDefaultMessageHandler("ready for setup task") {
       case SetupSubtaskDone =>
         val newReadyCount = readyCount + 1
-        if (newReadyCount == workerCount) {
+        if (newReadyCount == totalPartitions) {
           messagetoAllJobWorkers(StartSubtask(jobId))
           context.become(preStepSubtask(subtaskState, 0, 0))
         }
@@ -129,8 +130,8 @@ abstract class AnalysisTask(
       case Ready(messagesSent) =>
         val newReadyCount       = readyCount + 1
         val newSendMessageCount = sentMessageCount + messagesSent
-        log.debug(s"setup workers $newReadyCount / $workerCount")
-        if (newReadyCount == workerCount)
+        log.debug(s"setup workers $newReadyCount / $totalPartitions")
+        if (newReadyCount == totalPartitions)
           if (newSendMessageCount == 0) {
             messagetoAllJobWorkers(SetupNextStep(jobId))
             context.become(waitAllReadyForNextStep(subtaskState, 0))
@@ -147,7 +148,7 @@ abstract class AnalysisTask(
     withDefaultMessageHandler("ready for next step") {
       case SetupNextStepDone =>
         val newReadyCount = readyCount + 1
-        if (newReadyCount == workerCount) {
+        if (newReadyCount == totalPartitions) {
           messagetoAllJobWorkers(StartNextStep(jobId))
           context.become(stepWork(subtaskState, 0, 0, true))
         }
@@ -166,7 +167,7 @@ abstract class AnalysisTask(
       val newReadyCount           = readyCount + 1
       val newTotalReceivedMessage = totalReceivedMessage + receivedMessages
       val newTotalSentMessage     = totalSentMessage + sentMessages
-      if (newReadyCount == workerCount)
+      if (newReadyCount == totalPartitions)
         if (newTotalReceivedMessage == newTotalSentMessage) {
           messagetoAllJobWorkers(SetupNextStep(jobId))
           context.become(waitAllReadyForNextStep(subtaskState, 0))
@@ -188,7 +189,7 @@ abstract class AnalysisTask(
       val newReadyCount        = readyCount + 1
       val newTotalSentMessages = totalSentMessages + sentMessageCount
       val newVoteToHaltForAll  = if (voteToHalt) voteToHaltForAll else false
-      if (newReadyCount == workerCount)
+      if (newReadyCount == totalPartitions)
         if (superStep == maxStep || newVoteToHaltForAll) {
           messagetoAllJobWorkers(Finish(jobId))
           context.become(finishSubtask(subtaskState, 0, List.empty))
@@ -210,7 +211,7 @@ abstract class AnalysisTask(
       case ReturnResults(results) =>
         val newReadyCount = readyCount + 1
         val newAllResults = allResults :+ results
-        if (newReadyCount == workerCount) {
+        if (newReadyCount == totalPartitions) {
           val startTime = System.currentTimeMillis()
           val viewTime = Kamon
             .gauge("Raphtory_View_Time_Total")
@@ -246,10 +247,10 @@ abstract class AnalysisTask(
     }
 
   private def messageToAllReaders[T](msg: T): Unit =
-    getAllReaders(managerCount).foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
+    getAllReaderManagers().foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
 
   private def messageToAllReaderWorkers[T](msg: T): Unit =
-    getAllReaderWorkers(managerCount).foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
+    getAllReaders().foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
 
   private def messagetoAllJobWorkers[T](msg:T):Unit =
     workerList.values.foreach(worker => worker ! msg)
@@ -274,13 +275,13 @@ object AnalysisTask {
     case class CompileNewAnalyser(jobId: String, analyserRaw: String, args: List[String])
     case class LoadPredefinedAnalyser(jobId: String, className: String, args: List[String])
     case class FailedToCompile(stackTrace: String)
-    case class AnalyserPresent(worker:(Int,Int),me:ActorRef)
+    case class AnalyserPresent(worker:Int,me:ActorRef)
 
     case object TimeCheck
     case class TimeResponse(time: Long)
     case object RecheckTime
 
-    case class SetupSubtask(neighbours: mutable.Map[(Int,Int),ActorRef], timestamp: Long, window: Option[Long])
+    case class SetupSubtask(neighbours: mutable.Map[Int,ActorRef], timestamp: Long, window: Option[Long])
     case object ReadyToRock
     case object SetupSubtaskDone
     case class StartSubtask(jobId: String)

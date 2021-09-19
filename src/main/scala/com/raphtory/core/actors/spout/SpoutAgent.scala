@@ -3,6 +3,7 @@ package com.raphtory.core.actors.spout
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.RaphtoryActor.{partitionMachineCount, routerMachineCount}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, SpoutUp}
 import com.raphtory.core.actors.spout.SpoutAgent.CommonMessage._
 import com.raphtory.core.model.communication._
@@ -21,8 +22,6 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
 
   private val spoutTuples = Kamon.counter("Raphtory_Spout_Tuples").withTag("actor", self.path.name)
   private var count       = 0
-  private var partitionManagers = 0
-  private var routers = 0
 
   private def recordUpdate(): Unit = {
     spoutTuples.increment()
@@ -38,15 +37,16 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
     context.system.scheduler.scheduleOnce(1 seconds, self, IsSafe)
   }
 
-  final override def receive: Receive = work(false,1,1)
+  final override def receive: Receive = work(false)
 
 
-  private def work(safe: Boolean, pmCounter:Int, rmCounter:Int): Receive = {
+  private def work(safe: Boolean): Receive = {
     case StateCheck => processStateCheckMessage(safe)
-    case ClusterStatusResponse(clusterUp,pmCounter,rmCounter) =>
-      context.become(work(clusterUp,pmCounter,rmCounter))
-    case IsSafe    => processIsSafeMessage(safe,pmCounter,rmCounter)
-    case WorkPlease => processWorkPlease()
+    case ClusterStatusResponse(clusterUp) =>
+      context.become(work(clusterUp))
+    case IsSafe    => processIsSafeMessage(safe)
+    case WorkPlease =>
+      processWorkPlease()
     case unhandled => log.error(s"Unable to handle message [$unhandled].")
   }
 
@@ -63,22 +63,20 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
     }
   }
 
-  private def processIsSafeMessage(safe: Boolean,pmCount:Int,roCount:Int): Unit = {
+  private def processIsSafeMessage(safe: Boolean): Unit = {
     log.debug(s"Spout is handling [IsSafe] message.")
     mediator ! DistributedPubSubMediator.Send("/user/WatchDog", SpoutUp(0), localAffinity = false)
     if (safe) {
       datasource.setupDataSource()
-      partitionManagers=pmCount
-      routers=roCount
-      getAllRouterWorkers(roCount).foreach { workerPath =>
+      getAllRouterWorkers().foreach { workerPath =>
         mediator ! DistributedPubSubMediator.Send(
           workerPath,
           SpoutOnline,
           false
         )
       }
-      println(s"Number of routers: $routers")
-      println(s"Number of partitions: $partitionManagers")
+      println(s"Number of routers: $partitionMachineCount")
+      println(s"Number of partitions: $routerMachineCount")
 
     } else{
       context.system.scheduler.scheduleOnce(delay = 1 second, receiver = self, message = IsSafe)

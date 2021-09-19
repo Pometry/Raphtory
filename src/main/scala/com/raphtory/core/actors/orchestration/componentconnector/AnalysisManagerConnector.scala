@@ -11,14 +11,13 @@ import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{P
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 
-class AnalysisManagerConnector(managerCount: Int, routerCount:Int) extends ComponentConnector(initialManagerCount = managerCount,initialRouterCount = routerCount)  {
+class AnalysisManagerConnector() extends ComponentConnector()  {
 
   var analysismanager:ActorRef = null
   var monitor:ActorRef = _
 
   override def receive: Receive = {
     case msg: String if msg == "tick"      => processHeartbeatMessage(msg)
-    case req: PartitionsCount              => processPartitionsCountRequest(req)
     case _: SubscribeAck                   =>
     case request: LiveAnalysisRequest      => requesthandler(request)
     case request: ViewAnalysisRequest      => requesthandler(request)

@@ -16,21 +16,21 @@ import scala.util.Success
 
 case class ViewJob(jobID: String, timestamp: Long, window: Long)
 
-final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: Int, storage: GraphPartition)
+final case class ReaderWorker(partition: Int, storage: GraphPartition)
         extends RaphtoryActor {
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart(): Unit =
-    log.debug(s"ReaderWorker [$workerId] belonging to Reader [$managerId] is being started.")
+    log.debug(s"Reader $partition is starting.")
 
-  override def receive: Receive = work(initManagerCount)
+  override def receive: Receive = work()
 
-  private def work(managerCount: Int): Receive = {
+  private def work(): Receive = {
     case CompileNewAnalyser(jobId, analyser, args) =>
       AnalyserUtils.compileNewAnalyser(analyser, args.toArray) match {
         case Success(analyser) =>
-          val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount,sender())
+          val subtaskWorker = buildSubtaskWorker(jobId, analyser,sender())
         case Failure(e) =>
           sender ! FailedToCompile(e.getStackTrace.toString)
           log.error("fail to compile new analyser: " + e.getMessage)
@@ -39,7 +39,7 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
     case LoadPredefinedAnalyser(jobId, className, args) =>
       AnalyserUtils.loadPredefinedAnalyser(className, args.toArray) match {
         case Success(analyser) =>
-          val subtaskWorker = buildSubtaskWorker(jobId, analyser, managerCount,sender())
+          val subtaskWorker = buildSubtaskWorker(jobId, analyser,sender())
 
         case Failure(e) =>
           sender ! FailedToCompile(e.getStackTrace.toString)
@@ -48,16 +48,16 @@ final case class ReaderWorker(initManagerCount: Int, managerId: Int, workerId: I
       }
 
     case TimeCheck =>
-      log.debug(s"Reader [$workerId] received TimeCheck.")
+      log.debug(s"Reader [$partition] received TimeCheck.")
       sender ! TimeResponse(storage.windowTime)
 
     case unhandled =>
-      log.error(s"ReaderWorker [$workerId] belonging to Reader [$managerId] received unknown [$unhandled].")
+      log.error(s"Reader [$partition] received unknown [$unhandled].")
   }
-  private def buildSubtaskWorker(jobId: String, analyser: Analyser[Any], managerCount: Int,taskRef:ActorRef): ActorRef =
+  private def buildSubtaskWorker(jobID: String, analyser: Analyser[Any], taskRef:ActorRef): ActorRef =
     context.system.actorOf(
-            Props(AnalysisSubtaskWorker(managerCount, managerId, workerId, storage, analyser, jobId,taskRef))
+            Props(AnalysisSubtaskWorker(partition, storage, analyser, jobID,taskRef))
               .withDispatcher("reader-dispatcher"),
-            s"Manager_${managerId}_reader_${workerId}_analysis_subtask_worker_$jobId"
+            s"read_${partition}_$jobID"
     )
 }
