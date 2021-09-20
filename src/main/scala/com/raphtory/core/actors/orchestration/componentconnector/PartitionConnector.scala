@@ -7,7 +7,7 @@ import akka.pattern.ask
 import com.raphtory.core.actors.RaphtoryActor.{partitionMachineCount, partitionsPerMachine}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.RequestPartitionId
 import com.raphtory.core.actors.partitionmanager.workers.{IngestionWorker, ReaderWorker}
-import com.raphtory.core.actors.partitionmanager.{ReaderManager, WriterManager}
+import com.raphtory.core.actors.partitionmanager.PartitionManager
 import com.raphtory.core.model.graph.GraphPartition
 import com.raphtory.core.model.implementations.objectgraph.ObjectBasedPartition
 
@@ -47,9 +47,7 @@ class PartitionConnector() extends ComponentConnector() {
     }
 
 
-    actorRef = context.system.actorOf(Props(new WriterManager(myId,  partitionMachineCount, writers, storages)), s"Manager_$myId")
-
-    actorRefReader = context.system.actorOf(Props(new ReaderManager(myId,  partitionMachineCount, readers, storages)), s"ManagerReader_$myId")
+    actorRef = context.system.actorOf(Props(new PartitionManager(myId, writers,readers,storages)), s"Manager_$myId")
 
   }
 
