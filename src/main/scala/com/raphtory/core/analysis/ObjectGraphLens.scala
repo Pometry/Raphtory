@@ -2,7 +2,7 @@ package com.raphtory.core.analysis
 
 import java.util.concurrent.atomic.AtomicInteger
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.partitionmanager.workers.AnalysisSubtaskWorker
+import com.raphtory.core.actors.partitionmanager.QueryExecutor
 import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandler}
 import com.raphtory.core.model.graph.{GraphPartition, GraphPerspective}
 import com.raphtory.core.model.graph.visitor.Vertex

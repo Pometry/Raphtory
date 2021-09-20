@@ -1,6 +1,6 @@
 package com.raphtory.core.model.implementations.objectgraph.entities.internal
 
-import com.raphtory.core.actors.partitionmanager.workers.ParquetVertex
+import com.raphtory.core.actors.partitionmanager.ParquetVertex
 import com.raphtory.core.analysis.ObjectGraphLens
 import com.raphtory.core.model.graph.{GraphPartition, visitor}
 import com.raphtory.core.model.graph.visitor.{Edge, Vertex}

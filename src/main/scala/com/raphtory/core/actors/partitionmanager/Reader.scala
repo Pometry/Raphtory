@@ -1,17 +1,14 @@
-package com.raphtory.core.actors.partitionmanager.workers
+package com.raphtory.core.actors.partitionmanager
 
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
+import akka.actor.{ActorRef, Props}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.model.graph.GraphPartition
 import com.raphtory.core.utils.AnalyserUtils
 
-import scala.util.Failure
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 
 case class ViewJob(jobID: String, timestamp: Long, window: Long)
@@ -56,7 +53,7 @@ final case class ReaderWorker(partition: Int, storage: GraphPartition)
   }
   private def buildSubtaskWorker(jobID: String, analyser: Analyser[Any], taskRef:ActorRef): ActorRef =
     context.system.actorOf(
-            Props(AnalysisSubtaskWorker(partition, storage, analyser, jobID,taskRef))
+            Props(QueryExecutor(partition, storage, analyser, jobID,taskRef))
               .withDispatcher("reader-dispatcher"),
             s"read_${partition}_$jobID"
     )

@@ -1,24 +1,20 @@
-package com.raphtory.core.actors.partitionmanager.workers
+package com.raphtory.core.actors.partitionmanager
 
 import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.{JobFailed, KillTask}
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
-import com.raphtory.core.actors.partitionmanager.workers.AnalysisSubtaskWorker.State
-import com.raphtory.core.actors.RaphtoryActor
+import com.raphtory.core.actors.partitionmanager.QueryExecutor.State
 import com.raphtory.core.analysis.ObjectGraphLens
 import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.model.communication.VertexMessage
-import com.raphtory.core.model.communication.VertexMessageHandler
+import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandler}
 import com.raphtory.core.model.graph.GraphPartition
 import kamon.Kamon
 
-import scala.collection.mutable
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
-final case class AnalysisSubtaskWorker(
+final case class QueryExecutor(
                                         partition: Int,
                                         storage: GraphPartition,
                                         analyzer: Analyser[Any],
@@ -28,7 +24,6 @@ final case class AnalysisSubtaskWorker(
 
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  println(s"hello I am ${self.path}")
 
   override def preStart(): Unit = {
     log.debug(s"AnalysisSubtaskWorker ${self.path} for Job [$jobId] belonging to Reader [$partition] is being started.")
@@ -140,7 +135,7 @@ final case class AnalysisSubtaskWorker(
 
 }
 
-object AnalysisSubtaskWorker {
+object QueryExecutor {
   private case class State(sentMessageCount: Int, receivedMessageCount: Int) {
     def updateReceivedMessageCount(f: Int => Int): State = copy(receivedMessageCount = f(receivedMessageCount))
   }

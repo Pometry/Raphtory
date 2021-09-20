@@ -1,6 +1,6 @@
 package com.raphtory.core.model.implementations.objectgraph.entities.internal
 
-import com.raphtory.core.actors.partitionmanager.workers.ParquetProperty
+import com.raphtory.core.actors.partitionmanager.ParquetProperty
 
 abstract class Property {
   def update(msgTime: Long, newValue: Any): Unit
