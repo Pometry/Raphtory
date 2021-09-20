@@ -2,9 +2,11 @@ package com.raphtory.core.actors.partitionmanager
 
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Terminated}
+import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.RaphtoryActor.partitionsPerMachine
+import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message.{ReaderWorkersAck, ReaderWorkersOnline}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.PartitionUp
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graph.GraphPartition
@@ -19,10 +21,10 @@ import scala.language.postfixOps
   * Is sent commands which have been processed by the command Processor
   * Will process these, storing information in graph entities which may be updated if they already exist
   * */
-class WriterManager(
+class PartitionManager(
                      id: Int,
-                     managerCountVal: Int,
                      writers: ParTrieMap[Int, ActorRef],
+                     readers: ParTrieMap[Int, ActorRef],
                      storage: ParTrieMap[Int, GraphPartition]
 ) extends RaphtoryActor {
 
@@ -37,7 +39,6 @@ class WriterManager(
   // should the handled messages be printed to terminal
   val printing: Boolean = false
 
-  var managerCount: Int          = managerCountVal
   var messageCount: Int          = 0
   var secondaryMessageCount: Int = 0
   var workerMessageCount: Int    = 0
@@ -56,7 +57,7 @@ class WriterManager(
   }
 
   override def preStart(): Unit = {
-    log.debug("Writer [{}] is being started.", managerId)
+    log.debug("PartitionManager [{}] is being started.", managerId)
 
     scheduleTasks()
   }
@@ -73,9 +74,13 @@ class WriterManager(
   override def receive: Receive = {
     case msg: String if msg == "count"      => processCountMessage(msg)
     case msg: String if msg == "keep_alive" => processKeepAliveMessage(msg)
+    case ReaderWorkersOnline     => sender ! ReaderWorkersAck
+
     case Terminated(child) =>
-      log.warning(s"WriterWorker with patch [{}] belonging to Writer [{}] has died.", child.path, managerId)
-    case x => log.warning(s"Writer [{}] received unknown [{}] message.", managerId, x)
+      log.warning(s"Worker with path [{}] belonging to Manager [{}] has died.", child.path, managerId)
+    case SubscribeAck              =>
+
+    case x => log.warning(s"Partition Manager [{}] received unknown [{}] message.", managerId, x)
   }
 
   def processCountMessage(msg: String): Unit = {

@@ -247,7 +247,7 @@ abstract class AnalysisTask(
     }
 
   private def messageToAllReaders[T](msg: T): Unit =
-    getAllReaderManagers().foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
+    getAllPartitionManagers().foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
 
   private def messageToAllReaderWorkers[T](msg: T): Unit =
     getAllReaders().foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))

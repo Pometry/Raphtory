@@ -7,7 +7,7 @@ import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.event.LoggingReceive
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.RaphtoryActor.{analysisCount, partitionMachineCount, partitionsTopic, routerMachineCount, spoutCount}
+import com.raphtory.core.actors.RaphtoryActor.{analysisCount, partitionMachineCount, routerMachineCount, spoutCount}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.ActorState
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message._
 

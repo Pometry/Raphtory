@@ -36,10 +36,10 @@ trait RaphtoryActor extends Actor with ActorLogging with Timers {
   }
 
 
-  def getAllReaderManagers(): Array[String] = {
+  def getAllPartitionManagers(): Array[String] = {
     val workers = mutable.ArrayBuffer[String]()
     for (i <- 0 until partitionMachineCount)
-      workers += s"/user/ManagerReader_$i"
+      workers += s"/user/Manager_$i"
     workers.toArray
   }
 
