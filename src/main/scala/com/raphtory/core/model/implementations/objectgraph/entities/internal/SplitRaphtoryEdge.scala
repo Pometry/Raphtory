@@ -1,6 +1,6 @@
 package com.raphtory.core.model.implementations.objectgraph.entities.internal
 
-import com.raphtory.core.actors.partitionmanager.workers.ParquetEdge
+import com.raphtory.core.actors.partitionmanager.ParquetEdge
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap

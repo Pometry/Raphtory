@@ -4,8 +4,7 @@ import akka.actor.{ActorRef, Cancellable, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.util.Timeout
-import com.raphtory.core.actors.partitionmanager.workers.IngestionWorker
-import com.raphtory.core.actors.partitionmanager.PartitionManager
+import com.raphtory.core.actors.partitionmanager.{IngestionWorker, PartitionManager}
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{AssignedId, PartitionsCount}

@@ -77,7 +77,6 @@ abstract class AnalysisTask(
 
     case AnalyserPresent(workerID,actor) => //analyser confirmed to be present within workers, send setup request to workers
       workerList += ((workerID,actor))
-      println(s"got worker $workerID")
       if (readyCount + 1 == totalPartitions) {
         messageToAllReaderWorkers(TimeCheck)
         context.become(checkTime(None, List.empty, None))

@@ -1,11 +1,13 @@
-package com.raphtory.core.actors.partitionmanager.workers
+package com.raphtory.core.actors.partitionmanager
 
 import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.partitionmanager.workers.IngestionWorker.Message.Watermark
-import com.raphtory.core.actors.{MailboxTrackedActor, RaphtoryActor}
 import com.raphtory.core.actors.graphbuilder.RouterWorker.CommonMessage.RouterWorkerTimeSync
+import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{ProbeWatermark, WatermarkTime}
+import com.raphtory.core.actors.partitionmanager.IngestionWorker.Message.Watermark
+import com.raphtory.core.actors.{MailboxTrackedActor, RaphtoryActor}
 import com.raphtory.core.model.communication._
+import com.raphtory.core.model.graph.GraphPartition
 import kamon.Kamon
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -13,10 +15,6 @@ import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetWriter}
-import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{ProbeWatermark, SaveState, WatermarkTime}
-import com.raphtory.core.model.graph.GraphPartition
-import com.raphtory.core.model.implementations.objectgraph.entities.internal.RaphtoryVertex
 
 
 case class queueItem(routerEpoch:Int,timestamp:Long)extends Ordered[queueItem] {
