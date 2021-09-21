@@ -21,7 +21,6 @@ import scala.sys.process._
 //main function
 
 object RaphtoryServer extends App {
-//  Kamon.init() //start tool logging
   printJavaOptions()
   val conf    = ConfigFactory.load()
   val clusterSystemName  = "Raphtory"

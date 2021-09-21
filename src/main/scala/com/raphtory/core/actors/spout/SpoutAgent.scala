@@ -7,7 +7,6 @@ import com.raphtory.core.actors.RaphtoryActor.{partitionMachineCount, routerMach
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, SpoutUp}
 import com.raphtory.core.actors.spout.SpoutAgent.CommonMessage._
 import com.raphtory.core.model.communication._
-import kamon.Kamon
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -20,11 +19,9 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
   implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("spout-dispatcher")
   //implicit val executionContext: ExecutionContext = context.system.dispatcher
 
-  private val spoutTuples = Kamon.counter("Raphtory_Spout_Tuples").withTag("actor", self.path.name)
   private var count       = 0
 
   private def recordUpdate(): Unit = {
-    spoutTuples.increment()
     count += 1
   }
 

@@ -7,7 +7,6 @@ import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandle
 import com.raphtory.core.model.graph.{GraphPartition, GraphPerspective}
 import com.raphtory.core.model.graph.visitor.Vertex
 import com.raphtory.core.model.implementations.objectgraph.entities.external.ObjectVertex
-import kamon.Kamon
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.parallel.ParIterable
@@ -25,15 +24,7 @@ final case class ObjectGraphLens(
   private var vertexCount          = new AtomicInteger(0)
   var t1 = System.currentTimeMillis()
 
-  private val viewTimer = Kamon
-    .gauge("Raphtory_View_Build_Time")
-    .withTag("Partition", storage.getPartitionID)
-    .withTag("JobID", jobId)
-    .withTag("timestamp", timestamp)
-
   private lazy val vertexMap: TrieMap[Long,Vertex] = {
-    val startTime = System.currentTimeMillis()
-
     val result = window match {
       case None =>
         storage.getVertices(this,timestamp)
@@ -41,7 +32,6 @@ final case class ObjectGraphLens(
         storage.getVertices(this,timestamp,w)
       }
     }
-    viewTimer.update(System.currentTimeMillis() - startTime)
     result
   }
 
@@ -51,11 +41,9 @@ final case class ObjectGraphLens(
   }
 
   def getMessagedVertices(): List[Vertex] = {
-    val startTime = System.currentTimeMillis()
     val result    = vertexMap.collect {
       case (id,vertex) if vertex.hasMessage() => vertex
     }
-    viewTimer.update(System.currentTimeMillis() - startTime)
     vertexCount.set(result.size)
     result.toList
   }
