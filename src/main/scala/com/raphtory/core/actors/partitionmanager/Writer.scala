@@ -8,7 +8,6 @@ import com.raphtory.core.actors.partitionmanager.IngestionWorker.Message.Waterma
 import com.raphtory.core.actors.{MailboxTrackedActor, RaphtoryActor}
 import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graph.GraphPartition
-import kamon.Kamon
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
@@ -30,16 +29,6 @@ final class IngestionWorker(partitionID:Int, storage: GraphPartition) extends Ra
   private var increments =0
   private var updates = 0
   private var updates2 =0
-
-  private val routerUpdates       = Kamon.counter("Raphtory_Router_Updates").withTag("actor",s"PartitionWriter_$partitionID")
-  private val interWorkerUpdates  = Kamon.counter("Raphtory_Inter_Worker_Updates").withTag("actor",s"PartitionWriter_$partitionID")
-  private val intraWorkerUpdates  = Kamon.counter("Raphtory_Intra_Worker_Updates").withTag("actor",s"PartitionWriter_$partitionID")
-  private val synchronisedUpdates = Kamon.counter("Raphtory_Synchronised_Updates").withTag("actor",s"PartitionWriter_$partitionID")
-
-  private val safeTime            = Kamon.gauge("Raphtory_Safe_Time").withTag("actor",s"PartitionWriter_$partitionID")
-  private val latestTime          = Kamon.gauge("Raphtory_Latest_Time").withTag("actor",s"PartitionWriter_$partitionID")
-  private val earliestTime        = Kamon.gauge("Raphtory_Earliest_Time").withTag("actor",s"PartitionWriter_$partitionID")
-
 
   private val queuedMessageMap = ParTrieMap[String, mutable.PriorityQueue[queueItem]]()
   private val safeMessageMap = ParTrieMap[String, queueItem]()
@@ -75,7 +64,6 @@ final class IngestionWorker(partitionID:Int, storage: GraphPartition) extends Ra
   def processVertexAddRequest(channelId: String, channelTime: Int, update: VertexAdd): Unit = {
     log.debug(s"IngestionWorker [$partitionID] received [$update] request.")
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
-    routerUpdates.increment()
     trackVertexAdd(update.updateTime, channelId, channelTime)
   }
 
@@ -90,7 +78,6 @@ final class IngestionWorker(partitionID:Int, storage: GraphPartition) extends Ra
     log.debug(s"IngestionWorker [$partitionID] received [$update] request.")
     val maybeEffect = storage.addEdge(update.updateTime, update.srcId, update.dstId, update.properties, update.eType, channelId, channelTime)
     maybeEffect.foreach(sendEffectMessage)
-    routerUpdates.increment()
     trackEdgeAdd(update.updateTime, maybeEffect.isEmpty, channelId, channelTime)
   }
 
@@ -106,7 +93,6 @@ final class IngestionWorker(partitionID:Int, storage: GraphPartition) extends Ra
     val effect = storage.syncExistingEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, channelId, channelTime)
     sendEffectMessage(effect)
     remoteEdgeAddTrack(req.msgTime)
-    interWorkerUpdates.increment()
   }
 
   def processSyncNewEdgeAdd(channelId: String, channelTime: Int, req: SyncNewEdgeAdd): Unit = {
@@ -114,7 +100,6 @@ final class IngestionWorker(partitionID:Int, storage: GraphPartition) extends Ra
     val effect = storage.syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType, channelId, channelTime)
     sendEffectMessage(effect)
     remoteEdgeAddTrack(req.msgTime)
-    interWorkerUpdates.increment()
   }
 
   private def remoteEdgeAddTrack(msgTime: Long): Unit = {
@@ -138,7 +123,6 @@ def processSyncExistingRemovals(channelId: String, channelTime: Int, req: SyncEx
     val maybeEffect = storage.removeEdge(update.updateTime, update.srcId, update.dstId, channelId, channelTime)
     maybeEffect.foreach(sendEffectMessage)
     trackEdgeDelete(update.updateTime, maybeEffect.isEmpty, channelId, channelTime)
-    routerUpdates.increment()
   }
 
   private def trackEdgeDelete(msgTime: Long, local: Boolean, channelId: String, channelTime: Int): Unit = {
@@ -153,7 +137,6 @@ def processSyncExistingRemovals(channelId: String, channelTime: Int, req: SyncEx
     val effect = storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals, channelId, channelTime)
     sendEffectMessage(effect)
     storage.timings(req.msgTime)
-    interWorkerUpdates.increment()
   }
 
   def processSyncExistingEdgeRemoval(channelId: String, channelTime: Int, req: SyncExistingEdgeRemoval): Unit = {
@@ -161,7 +144,6 @@ def processSyncExistingRemovals(channelId: String, channelTime: Int, req: SyncEx
     val effect = storage.syncExistingEdgeRemoval(req.msgTime, req.srcId, req.dstId, channelId, channelTime)
     sendEffectMessage(effect)
     storage.timings(req.msgTime)
-    interWorkerUpdates.increment()
   }
 
 
@@ -170,7 +152,6 @@ def processSyncExistingRemovals(channelId: String, channelTime: Int, req: SyncEx
     val messages = storage.removeVertex(update.updateTime, update.srcId, channelId, channelTime)
     messages.foreach(x => sendEffectMessage(x))
     trackVertexDelete(update.updateTime, channelId, channelTime, messages.size)
-    routerUpdates.increment()
   }
 
   private def trackVertexDelete(msgTime: Long, channelId: String, channelTime: Int, totalCount: Int): Unit = {
@@ -197,14 +178,12 @@ def processSyncExistingRemovals(channelId: String, channelTime: Int, req: SyncEx
     val effect = storage.outboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId, channelId, channelTime)
     sendEffectMessage(effect)
     storage.timings(req.msgTime)
-    interWorkerUpdates.increment()
   }
 
   def processInboundEdgeRemovalViaVertex(channelId: String, channelTime: Int, req: InboundEdgeRemovalViaVertex): Unit = { //remote worker same as above
     log.debug(s"IngestionWorker [$partitionID] received [$req] request.")
     val effect = storage.inboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId, channelId, channelTime)
     sendEffectMessage(effect)
-    interWorkerUpdates.increment()
   }
 
   private def addToWatermarkQueue(channelId:String, channelTime:Int, msgTime:Long) = {
@@ -216,7 +195,6 @@ def processSyncExistingRemovals(channelId: String, channelTime: Int, req: SyncEx
         queuedMessageMap put(channelId,queue)
     }
     updates+=1
-    synchronisedUpdates.increment()
   }
 
 
@@ -237,9 +215,6 @@ def processSyncExistingRemovals(channelId: String, channelTime: Int, req: SyncEx
         val min = timestamps.min
         if(storage.windowTime<min)
           storage.windowTime = min
-        latestTime.update(storage.newestTime)
-        earliestTime.update(storage.oldestTime)
-        safeTime.update(storage.windowTime)
       }
   }
 

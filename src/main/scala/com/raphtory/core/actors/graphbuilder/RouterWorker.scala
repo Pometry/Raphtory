@@ -8,7 +8,6 @@ import com.raphtory.core.actors.graphbuilder.RouterWorker.CommonMessage.{DataFin
 import com.raphtory.core.actors.graphbuilder.RouterWorker.State
 import com.raphtory.core.actors.spout.SpoutAgent.CommonMessage.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.model.communication._
-import kamon.Kamon
 import akka.pattern.ask
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
 
@@ -29,7 +28,6 @@ class RouterWorker[T](
   private val messageIDs = ParTrieMap[String, Int]()
   private var safe = false
 
-  private val routerWorkerUpdates = Kamon.counter("Raphtory_Router_Output").withTag("Router", routerId)
   var update = 0
   // todo: wvv let people know parseTuple will create a list of update message
   //  and this trait will handle logic to send to graph
@@ -101,7 +99,6 @@ class RouterWorker[T](
 
   private def sendGraphUpdate(message: GraphUpdate): Long = {
     update += 1
-    routerWorkerUpdates.increment()
     val path             = getWriter(message.srcId)
     val id               = getMessageIDForWriter(path)
 

@@ -10,7 +10,6 @@ import com.raphtory.core.analysis.ObjectGraphLens
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandler}
 import com.raphtory.core.model.graph.GraphPartition
-import kamon.Kamon
 
 import scala.util.{Failure, Success, Try}
 
@@ -27,7 +26,7 @@ final case class QueryExecutor(
 
   override def preStart(): Unit = {
     log.debug(s"AnalysisSubtaskWorker ${self.path} for Job [$jobId] belonging to Reader [$partition] is being started.")
-    taskManager ! AnalyserPresent(partition,self)
+    taskManager ! AnalyserPresent(partition, self)
   }
 
   override def postStop(): Unit = log.info(s"Worker for $jobId Killed")
@@ -37,40 +36,22 @@ final case class QueryExecutor(
   private def work(state: State): Receive = {
     case SetupSubtask(neighbours, timestamp, window) =>
       log.debug(s"Job [$jobId] belonging to Reader [$partition] is SetupTaskWorker.")
-      val initStep       = 0
-      val messageHandler = new VertexMessageHandler(neighbours,jobId)
-      val graphLens      = ObjectGraphLens(jobId, timestamp, window, initStep, storage, messageHandler)
+      val initStep = 0
+      val messageHandler = new VertexMessageHandler(neighbours, jobId)
+      val graphLens = ObjectGraphLens(jobId, timestamp, window, initStep, storage, messageHandler)
       analyzer.sysSetup(graphLens, messageHandler)
       context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
       sender ! SetupSubtaskDone
 
     case _: StartSubtask =>
       log.debug(s"Job [$jobId] belonging to Reader [$partition] is StartSubtask.")
-      val beforeTime = System.currentTimeMillis()
       analyzer.setup()
       val messagesSent = analyzer.messageHandler.getCountandReset()
       sender ! Ready(messagesSent)
       context.become(work(state.copy(sentMessageCount = messagesSent)))
-      stepMetric(analyzer).update(System.currentTimeMillis() - beforeTime)
 
     case _: CheckMessages =>
       log.debug(s"Job [$jobId] belonging to Reader [$partition] receives CheckMessages.")
-      Kamon
-        .gauge("Raphtory_Analysis_Messages_Received")
-        .withTag("actor", s"Reader_$partition")
-        .withTag("jobID", jobId)
-        .withTag("Timestamp", analyzer.view.timestamp)
-        .withTag("Superstep", analyzer.view.superStep)
-        .update(state.receivedMessageCount)
-
-      Kamon
-        .gauge("Raphtory_Analysis_Messages_Sent")
-        .withTag("actor", s"Reader_$partition")
-        .withTag("jobID", jobId)
-        .withTag("Timestamp", analyzer.view.timestamp)
-        .withTag("Superstep", analyzer.view.superStep)
-        .update(state.sentMessageCount)
-
       sender ! MessagesReceived(state.receivedMessageCount, state.sentMessageCount)
 
     case _: SetupNextStep =>
@@ -88,7 +69,6 @@ final case class QueryExecutor(
 
     case _: StartNextStep =>
       log.debug(s"Job [$jobId] belonging to Reader [$partition] receives StartNextStep.")
-      val beforeTime = System.currentTimeMillis()
       Try(analyzer.analyse()) match {
         case Success(_) =>
           val messageCount = analyzer.messageHandler.getCountandReset()
@@ -100,13 +80,12 @@ final case class QueryExecutor(
           sender ! JobFailed
         }
       }
-      stepMetric(analyzer).update(System.currentTimeMillis() - beforeTime)
 
     case _: Finish =>
       log.debug(s"Job [$jobId] belonging to Reader [$partition] receives Finish.")
       Try(analyzer.returnResults()) match {
         case Success(result) => sender ! ReturnResults(result)
-        case Failure(e)      => {
+        case Failure(e) => {
           log.error(s"Failed to run nextStep due to [${e.getStackTrace.mkString("\n")}].")
           sender ! JobFailed
         }
@@ -124,15 +103,6 @@ final case class QueryExecutor(
 
 
   }
-
-  private def stepMetric(analyser: Analyser[Any]) =
-    Kamon
-      .gauge("Raphtory_Superstep_Time")
-      .withTag("Partition", storage.getPartitionID)
-      .withTag("JobID", jobId)
-      .withTag("timestamp", analyzer.view.timestamp)
-      .withTag("superstep", analyser.view.superStep)
-
 }
 
 object QueryExecutor {

@@ -9,8 +9,6 @@ import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.Ro
 import com.raphtory.core.model.communication._
 
 import scala.concurrent.ExecutionContext
-//import kamon.metric.CounterMetric
-//import kamon.metric.GaugeMetric
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -33,9 +31,6 @@ final case class RouterManager[T](routerId: Int, graphBuilder: GraphBuilder[T])
 
   private val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-
-//  val kGauge: GaugeMetric     = Kamon.gauge("raphtory.benchmarker")
-//  val kCounter: CounterMetric = Kamon.counter("raphtory.counters")
 
   override def preStart(): Unit = {
     log.debug(s"RouterManager [$routerId] is being started.")

@@ -38,7 +38,6 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
         v
       case None => //if it does not exist
         val v = new RaphtoryVertex(msgTime, srcId, initialValue = true) //create a new vertex
-        vertexCount.increment()
         v.setType(vertexType.map(_.name))
         vertices put(srcId, v) //put it in the map
         v
@@ -52,7 +51,6 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
     vertices.get(id) match {
       case Some(vertex) => vertex
       case None =>
-        vertexCount.increment()
         val vertex = new RaphtoryVertex(msgTime, id, initialValue = true)
         vertices put(id, vertex)
         vertex wipe()
@@ -66,7 +64,6 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
         v kill msgTime
         v
       case None => //if the removal has arrived before the creation
-        vertexCount.increment()
         val v = new RaphtoryVertex(msgTime, srcId, initialValue = false) //create a placeholder
         vertices put(srcId, v) //add it to the map
         v
@@ -116,13 +113,9 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
         (true, e)
       case None => //if it does not
         val newEdge = if (local) {
-          val created = new RaphtoryEdge(msgTime, srcId, dstId, initialValue = true) //create the new edge, local or remote
-          localEdgeCount.increment()
-          created
+          new RaphtoryEdge(msgTime, srcId, dstId, initialValue = true) //create the new edge, local or remote
         } else {
-          val created = new SplitRaphtoryEdge(msgTime, srcId, dstId, initialValue = true)
-          masterSplitEdgeCount.increment()
-          created
+          new SplitRaphtoryEdge(msgTime, srcId, dstId, initialValue = true)
         }
         newEdge.setType(edgeType.map(_.name))
         srcVertex.addOutgoingEdge(newEdge) //add this edge to the vertex
@@ -166,7 +159,6 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
   def syncNewEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, srcRemovals: List[Long], edgeType: Option[Type], channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = addVertexInternal(msgTime, dstId, Properties(), None) //create or revive the destination node
     val edge = new SplitRaphtoryEdge(msgTime, srcId, dstId, initialValue = true)
-    copySplitEdgeCount.increment()
     dstVertex addIncomingEdge (edge) //add the edge to the associated edges of the destination node
     val deaths = dstVertex.removeList //get the destination node deaths
     edge killList srcRemovals //pass source node death lists to the edge
@@ -198,10 +190,8 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
         (true, e)
       case None =>
         val newEdge = if (local) {
-          localEdgeCount.increment()
           new RaphtoryEdge(msgTime, srcId, dstId, initialValue = false)
         } else {
-          masterSplitEdgeCount.increment()
           new SplitRaphtoryEdge(msgTime, srcId, dstId, initialValue = false)
         }
         srcVertex.addOutgoingEdge(newEdge) // add the edge to the associated edges of the source node
@@ -260,7 +250,6 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
   def syncNewEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, srcRemovals: List[Long], channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.incrementEdgesRequiringSync()
-    copySplitEdgeCount.increment()
     val edge = new SplitRaphtoryEdge(msgTime, srcId, dstId, initialValue = false)
     dstVertex addIncomingEdge (edge) //add the edge to the destination nodes associated list
     val deaths = dstVertex.removeList //get the destination node deaths

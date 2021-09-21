@@ -9,7 +9,6 @@ import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.SubtaskState
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.RaphtoryActor.{partitionMachineCount, totalPartitions}
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
-import kamon.Kamon
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -199,15 +198,6 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
         val newReadyCount = readyCount + 1
         val newAllResults = allResults :+ results
         if (newReadyCount == totalPartitions) {
-          val startTime = System.currentTimeMillis()
-          val viewTime = Kamon
-            .gauge("Raphtory_View_Time_Total")
-            .withTag("jobID", jobId)
-            .withTag("Timestamp", subtaskState.range.timestamp)
-          val concatTime = Kamon
-            .gauge("Raphtory_View_Concatenation_Time")
-            .withTag("jobID", jobId)
-            .withTag("Timestamp", subtaskState.range.timestamp)
           Try {
             val viewTime = System.currentTimeMillis() - subtaskState.startTimestamp
             subtaskState.range.window match {
@@ -221,8 +211,6 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
             case Failure(e) =>
               log.error(e, "fail to process result")
           }
-          concatTime.update(System.currentTimeMillis() - startTime)
-          viewTime.update(System.currentTimeMillis() - subtaskState.startTimestamp)
         } else
           context.become(finishSubtask(subtaskState, newReadyCount, newAllResults))
 

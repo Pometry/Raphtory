@@ -5,7 +5,6 @@ import com.raphtory.core.model.communication._
 import com.raphtory.core.model.graph.visitor.Vertex
 import com.raphtory.core.model.implementations.objectgraph.entities.internal.RaphtoryVertex
 import com.typesafe.scalalogging.LazyLogging
-import kamon.Kamon
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.parallel.mutable.ParTrieMap
@@ -50,17 +49,6 @@ abstract class GraphPartition(partitionID: Int) extends LazyLogging {
   var oldestTime: Long = Long.MaxValue
   var newestTime: Long = 0
   var windowTime: Long = 0
-
-  val vertexCount =
-    Kamon.counter("Raphtory_Vertex_Count").withTag("actor", s"PartitionWriter_$partitionID")
-  val localEdgeCount =
-    Kamon.counter("Raphtory_Local_Edge_Count").withTag("actor", s"PartitionWriter_$partitionID")
-  val copySplitEdgeCount = Kamon
-    .counter("Raphtory_Copy_Split_Edge_Count")
-    .withTag("actor", s"PartitionWriter_$partitionID")
-  val masterSplitEdgeCount = Kamon
-    .counter("Raphtory_Master_Split_Edge_Count")
-    .withTag("actor", s"PartitionWriter_$partitionID")
 
   def timings(updateTime: Long) = {
     if (updateTime < oldestTime && updateTime > 0) oldestTime = updateTime

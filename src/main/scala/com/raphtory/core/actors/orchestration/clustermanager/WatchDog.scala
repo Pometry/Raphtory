@@ -98,7 +98,6 @@ class WatchDog() extends RaphtoryActor {
         state.pmLiveMap.size >= partitionMachineCount &&
         state.spLiveMap.size >= spoutCount &&
         state.anLiveMap.size >= analysisCount ) {
-      log.info("Partition managers, Spout, Analysis Manager and Routers have joined cluster.")
       log.debug(s"The cluster was started with [$partitionMachineCount] Partition Managers, [$routerMachineCount] Routers, 1 Spout and 1 Analysis Manager.")
       state.copy(clusterUp = true)
     } else {
