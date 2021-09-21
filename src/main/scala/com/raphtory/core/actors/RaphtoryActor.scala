@@ -1,12 +1,14 @@
 package com.raphtory.core.actors
 
 import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Cancellable, Timers}
-import com.raphtory.core.actors.RaphtoryActor.{partitionServers, partitionsPerServer, builderServers, totalPartitions, totalBuilders, buildersPerServer}
+import com.raphtory.core.actors.RaphtoryActor.{builderServers, buildersPerServer, partitionServers, partitionsPerServer, totalBuilders, totalPartitions}
+import com.raphtory.core.analysis.api.Analyser
 import com.typesafe.config.ConfigFactory
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
 
 object RaphtoryActor {
   private val conf = ConfigFactory.load()
@@ -54,6 +56,10 @@ trait RaphtoryActor extends Actor with ActorLogging with Timers {
       workers += s"/user/write_$i"
     workers.toArray
   }
+
+  def loadPredefinedAnalyser(className: String, args: Array[String]): Try[Analyser[Any]] =
+    Try(Class.forName(className).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser[Any]])
+      .orElse(Try(Class.forName(className).getConstructor().newInstance().asInstanceOf[Analyser[Any]]))
 
 
   def scheduleTask(initialDelay: FiniteDuration, interval: FiniteDuration, receiver: ActorRef, message: Any)(

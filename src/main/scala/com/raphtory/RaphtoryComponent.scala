@@ -3,7 +3,7 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import com.esotericsoftware.kryo.Kryo
 import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, BuilderConnector, SpoutConnector}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
-import com.raphtory.core.actors.orchestration.clustermanager.{SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.orchestration.raphtoryleader.{SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 

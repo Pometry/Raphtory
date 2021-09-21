@@ -6,7 +6,7 @@ import akka.pattern.ask
 import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.ManagingTask
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{PartitionsCount, RequestAnalysisId}
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatchDog.Message.{PartitionsCount, RequestAnalysisId}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, MILLISECONDS}

@@ -1,9 +1,9 @@
-package com.raphtory.core.actors.orchestration.clustermanager
+package com.raphtory.core.actors.orchestration.raphtoryleader
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{SaveState, WatermarkTime}
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatermarkManager.Message.{SaveState, WatermarkTime}
 
 class SnapshotManager(managerCount: Int) extends RaphtoryActor {
   val mediator: ActorRef = DistributedPubSub(context.system).mediator

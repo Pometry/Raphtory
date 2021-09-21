@@ -9,7 +9,7 @@ import com.raphtory.core.actors.graphbuilder.BuilderExecutor.State
 import com.raphtory.core.actors.spout.SpoutAgent.CommonMessage.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.model.communication._
 import akka.pattern.ask
-import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, BuilderUp}
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, BuilderUp}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap

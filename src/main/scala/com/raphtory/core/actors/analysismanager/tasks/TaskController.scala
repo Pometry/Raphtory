@@ -4,13 +4,7 @@ import scala.collection.immutable.NumericRange
 
 case class TaskTimeRange(timestamp: Long, window: Option[Long])
 
-final case class SubTaskController(
-    timestamps: Stream[Long],
-    windows: List[Long],
-    waitTime: Long,
-    overrideTimestamp: Boolean
-) {
-
+final case class SubTaskController(timestamps: Stream[Long], windows: List[Long], waitTime: Long, overrideTimestamp: Boolean) {
 
   private var subTasks: Stream[TaskTimeRange] = windows match {
     case Nil => timestamps.map(TaskTimeRange(_, None))

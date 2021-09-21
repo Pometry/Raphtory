@@ -1,4 +1,4 @@
-package com.raphtory.core.actors.orchestration.clustermanager
+package com.raphtory.core.actors.orchestration.raphtoryleader
 
 /**
   * Created by Mirate on 11/07/2017.
@@ -8,8 +8,8 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.event.LoggingReceive
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.RaphtoryActor.{analysisCount, builderServers, buildersPerServer, partitionServers, spoutCount, totalBuilders, totalPartitions}
-import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.ActorState
-import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message._
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatchDog.ActorState
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatchDog.Message._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -82,6 +82,8 @@ class WatchDog() extends RaphtoryActor {
       val newCounter = state.anCounter + 1
       context.become(work(state.copy(anCounter = newCounter)))
 
+
+
     case unhandled => log.error(s"WatchDog received unknown [$unhandled] message.")
   }
 
@@ -92,10 +94,9 @@ class WatchDog() extends RaphtoryActor {
         state.pmLiveMap.size >= partitionServers &&
         state.spLiveMap.size >= spoutCount &&
         state.anLiveMap.size >= analysisCount ) {
-      log.debug(s"The cluster was started with [$totalPartitions] Partition Managers, [$totalBuilders] Graph Builders, 1 Spout and 1 Analysis Manager.")
+      println(s"Cluster Started: ${totalBuilders} Graph Builders, $totalPartitions Partitions, $spoutCount Spout, $analysisCount Analysis Manager")
       state.copy(clusterUp = true)
     } else {
-      println(s"Cluster Starting: ${totalBuilders} Graph Builders, $totalPartitions Partitions, $spoutCount Spouts, $analysisCount Analysis Managers")
       state
     }
   }

@@ -21,7 +21,7 @@ final case class ReaderWorker(partition: Int, storage: GraphPartition) extends R
 
   private def work(): Receive = {
     case LoadAnalyser(jobId, className, args) =>
-      AnalyserUtils.loadPredefinedAnalyser(className, args.toArray) match {
+      loadPredefinedAnalyser(className, args.toArray) match {
         case Success(analyser) => buildQueryExecutor(jobId, analyser,sender())
         case Failure(e) => log.error("Analyser Could not be loaded: " + e.getMessage)
       }

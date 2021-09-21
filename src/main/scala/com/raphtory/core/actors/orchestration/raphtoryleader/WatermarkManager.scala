@@ -1,11 +1,11 @@
-package com.raphtory.core.actors.orchestration.clustermanager
+package com.raphtory.core.actors.orchestration.raphtoryleader
 
 import java.util.concurrent.atomic.AtomicLong
 import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.RaphtoryActor.totalPartitions
-import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{ProbeWatermark, WatermarkTime, WhatsTheTime}
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatermarkManager.Message.{ProbeWatermark, WatermarkTime, WhatsTheTime}
 
 import java.time.LocalDateTime
 import scala.collection.parallel.mutable.ParTrieMap
@@ -45,7 +45,8 @@ class WatermarkManager extends RaphtoryActor  {
     safeMessageMap put(sender().path.toString,u.time)
     counter +=1
     if(counter==totalPartitions) {
-      val watermark = safeMessageMap.map(x=>x._2).min
+      safeTimestamp.set(safeMessageMap.map(x=>x._2).min)
+
       val max = safeMessageMap.maxBy(x=> x._2)
       val min = safeMessageMap.minBy(x=> x._2)
       println(s" ${ LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))} . Minimum Watermark: ${min._1} ${min._2} Maximum Watermark: ${max._1} ${max._2}")

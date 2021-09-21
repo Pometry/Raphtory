@@ -5,7 +5,7 @@ import akka.actor.{ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.pattern.ask
 import com.raphtory.core.actors.RaphtoryActor.{partitionServers, partitionsPerServer}
-import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.RequestPartitionId
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatchDog.Message.RequestPartitionId
 import com.raphtory.core.actors.partitionmanager.{IngestionWorker, PartitionManager, ReaderWorker}
 import com.raphtory.core.model.graph.GraphPartition
 import com.raphtory.core.model.implementations.objectgraph.ObjectBasedPartition
