@@ -1,7 +1,7 @@
 package com.raphtory.dev.lotr
 
-import com.raphtory.RaphtoryGraph
 import com.raphtory.algorithms.{ConnectedComponents, StateTest}
+import com.raphtory.core.build.RaphtoryGraph
 import com.raphtory.serialisers.{DefaultSerialiser, MongoSerialiser}
 
 object LOTRDeployment extends App{

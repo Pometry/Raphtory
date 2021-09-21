@@ -1,6 +1,6 @@
 package com.raphtory.dev.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.Analyser
 
 import scala.util.Random
 

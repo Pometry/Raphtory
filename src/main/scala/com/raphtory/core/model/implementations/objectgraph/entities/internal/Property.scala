@@ -1,6 +1,5 @@
 package com.raphtory.core.model.implementations.objectgraph.entities.internal
 
-import com.raphtory.core.actors.partitionmanager.ParquetProperty
 
 abstract class Property {
   def update(msgTime: Long, newValue: Any): Unit
@@ -9,18 +8,18 @@ abstract class Property {
   def valuesAfter(time:Long):Array[Any]
   def currentValue(): Any
   def creation():Long
-  def serialise(key:String): ParquetProperty
+  //def serialise(key:String): ParquetProperty
 }
 
 object Property{
-  def apply(parquet: ParquetProperty):Property = {
-    if(parquet.immutable)
-      new ImmutableProperty(parquet.history.head._1,parquet.history.head._2)
-    else {
-      val prop = new MutableProperty(parquet.history.head._1,parquet.history.head._2)
-      prop.previousState ++= parquet.history
-      prop
-    }
-  }
+//  def apply(parquet: ParquetProperty):Property = {
+//    if(parquet.immutable)
+//      new ImmutableProperty(parquet.history.head._1,parquet.history.head._2)
+//    else {
+//      val prop = new MutableProperty(parquet.history.head._1,parquet.history.head._2)
+//      prop.previousState ++= parquet.history
+//      prop
+//    }
+//  }
 }
 

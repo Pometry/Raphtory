@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.Analyser
 
 object DegreeBasic {
   def apply() = new DegreeBasic(Array())

@@ -1,6 +1,6 @@
 package com.raphtory.dev.lotr
 
-import com.raphtory.core.actors.graphbuilder.GraphBuilder
+import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.model.communication._
 
 class LOTRGraphBuilder extends GraphBuilder[String]{

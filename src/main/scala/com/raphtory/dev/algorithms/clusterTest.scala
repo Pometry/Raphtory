@@ -1,6 +1,6 @@
 package com.raphtory.dev.algorithms
 
-import com.raphtory.RaphtoryComponent
+import com.raphtory.core.build.RaphtoryComponent
 
 import scala.language.postfixOps
 

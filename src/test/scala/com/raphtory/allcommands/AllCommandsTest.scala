@@ -1,15 +1,15 @@
 package com.raphtory.allcommands
 
 import akka.actor.ActorRef
-import com.raphtory.RaphtoryComponent
 import org.scalatest.FunSuite
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.algorithms.{ConnectedComponents, StateTest}
-import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.{AreYouFinished, ManagingTask, TaskFinished}
-import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.RangeAnalysisRequest
-import com.raphtory.core.actors.orchestration.raphtoryleader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.components.analysismanager.AnalysisManager.Message.{AreYouFinished, ManagingTask, TaskFinished}
+import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.RangeAnalysisRequest
+import com.raphtory.core.components.orchestration.raphtoryleader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
+import com.raphtory.core.build.RaphtoryComponent
+import com.raphtory.core.model.algorithm.Analyser
 import com.raphtory.resultcomparison.comparisonJsonProtocol._
 import com.raphtory.resultcomparison.{ConnectedComponentsResults, RaphtoryResultComparitor, StateCheckResult, TimeParams, comparisonJsonProtocol}
 import com.raphtory.serialisers.DefaultSerialiser
