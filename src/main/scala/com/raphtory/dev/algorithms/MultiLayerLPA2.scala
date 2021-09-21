@@ -1,7 +1,7 @@
 package com.raphtory.dev.algorithms
 
 import com.raphtory.algorithms.LPA
-import com.raphtory.core.analysis.entity.Vertex
+import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.parallel.ParMap
 
@@ -25,7 +25,7 @@ class MultiLayerLPA2(args: Array[String]) extends LPA(args) {
       val prob   = rnd.nextFloat()
       val tlabels =
         snapshots
-          .filter(ts => vertex.aliveAtWithWindow(ts, snapshotSize))
+          .filter(ts => vertex.aliveAt(ts, snapshotSize))
           //          .map(ts => (ts, rnd.nextLong()))
           .map(ts => (ts, if (prob < commprob) slabel else rnd.nextLong()))
           .toArray
@@ -108,7 +108,7 @@ class MultiLayerLPA2(args: Array[String]) extends LPA(args) {
 
   def weightFunction(v: Vertex, ts: Long): Map[Long, Float] = {
     var nei_weights =
-      (v.getInCEdgesBetween(ts - snapshotSize, ts) ++ v.getOutEdgesBetween(ts - snapshotSize, ts)).map(e =>
+      (v.getInEdges(ts - snapshotSize, ts) ++ v.getOutEdges(ts - snapshotSize, ts)).map(e =>
         (e.ID(), e.getPropertyValue(weight).getOrElse(1.0f).asInstanceOf[Float])
       )
     if (scaled) {
@@ -127,7 +127,7 @@ class MultiLayerLPA2(args: Array[String]) extends LPA(args) {
 
   def scaling(freq: Array[Float]): Float = math.sqrt(freq.map(math.pow(_, 2)).sum).toFloat
 
-  override def returnResults(): ParMap[Long, List[String]] = {
+  override def returnResults(): Map[Long, List[String]] = {
     println(s"mLPA - wID: $workerID totNodes: ${view.getVertices().size}")
     view
       .getVertices()

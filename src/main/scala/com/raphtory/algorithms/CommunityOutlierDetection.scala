@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.entity.Vertex
+import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.{ParMap, immutable}
@@ -40,7 +40,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
     v.setState("outlierscore", outlierScore)
   }
 
-  override def returnResults(): ParMap[Long, List[String]] =
+  override def returnResults(): Map[Long, List[String]] =
     view
       .getVertices()
       .map(vertex => (vertex.ID(), vertex.getOrSetState[Double]("outlierscore", -1.0)))
@@ -48,7 +48,7 @@ class CommunityOutlierDetection(args: Array[String]) extends LPA(args) {
       .mapValues(f => f.map(_._2.toString).toList)
 
 
-   override def extractResults(results: List[ParMap[Long, List[String]]]): Map[String,Any]  = {
+   override def extractResults(results: List[Map[Long, List[String]]]): Map[String,Any]  = {
     val endResults = results.flatten
       .map(x=>(x._1, x._2.head.toFloat))
 

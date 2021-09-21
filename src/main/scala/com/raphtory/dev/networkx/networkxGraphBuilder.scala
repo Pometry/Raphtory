@@ -1,7 +1,8 @@
 package com.raphtory.dev.networkx
 
-import com.raphtory.core.actors.graphbuilder.GraphBuilder
-import com.raphtory.core.model.communication._
+import com.raphtory.core.components.graphbuilder.GraphBuilder
+import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.model.graph.{FloatProperty, Properties, StringProperty}
 
 class networkxGraphBuilder extends GraphBuilder[String]{
 

@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -20,15 +20,15 @@ class Distributions(args:Array[String]) extends Analyser[Any](args){
 
   override def returnResults(): Any = {
     val degreeDist = view.getVertices().map{
-      vertex => vertex.getOutEdges.size + vertex.getIncEdges.size
+      vertex => vertex.getOutEdges().size + vertex.getInEdges().size
     } .groupBy(f => f)
       .map(f => (f._1, f._2.size))
     val weightDist = view.getVertices().map{
-      vertex => vertex.getOutEdges.map(e => e.getHistory().size).sum + vertex.getIncEdges.map(e => e.getHistory().size).sum
+      vertex => vertex.getOutEdges().map(e => e.history().size).sum + vertex.getInEdges().map(e => e.history().size).sum
     }.groupBy(f => f)
       .map(f => (f._1, f._2.size))
     val edgeWeights = view.getVertices().map{
-      vertex => vertex.getOutEdges.map(e => ((List(e.src(),e.dst()).min, List(e.src(),e.dst()).max), e.getHistory().size))
+      vertex => vertex.getOutEdges().map(e => ((List(e.src(),e.dst()).min, List(e.src(),e.dst()).max), e.history().size))
     }.flatten
       .groupBy(f => f._1)
       .map (f => (f._1, f._2.map(_._2).sum))

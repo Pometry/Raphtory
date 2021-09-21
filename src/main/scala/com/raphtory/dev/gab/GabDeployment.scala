@@ -1,7 +1,7 @@
 package com.raphtory.dev.gab
 
-import com.raphtory.RaphtoryGraph
 import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic, TriangleCount}
+import com.raphtory.core.build.RaphtoryGraph
 import com.raphtory.dev.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.serialisers.{DefaultSerialiser, MongoSerialiser}
 import com.raphtory.spouts.FileSpout
@@ -23,3 +23,4 @@ object GabDeployment extends App{
 //  rg.viewQuery(DegreeBasic(),timestamp = 10000,windowBatch=Array(100,50,10),arguments)
 }
 //curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","analyserName":"com.raphtory.algorithms.ConnectedComponents","start":1470797917000,"end":1525368897000,"jump":86400000,"windowType":"batched","windowSet":[31536000000,2592000000,604800000,86400000,3600000]}' 127.0.0.1:8081/RangeAnalysisRequest
+

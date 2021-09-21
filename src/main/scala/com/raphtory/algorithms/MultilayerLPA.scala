@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.entity.Vertex
+import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.parallel.ParMap
 
@@ -52,7 +52,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
       // Assign random labels for all instances in time of a vertex as Map(ts, lab)
       val tlabels =
         snapshots
-          .filter(ts => vertex.aliveAtWithWindow(ts, snapshotSize))
+          .filter(ts => vertex.aliveAt(ts, snapshotSize))
           .map(ts => (ts, rnd.nextLong()))
           .toList
       vertex.setState("mlpalabel", tlabels)
@@ -123,13 +123,13 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
       case _ => omega.toFloat
     }
 
-  def weightFunction(v: Vertex, ts: Long): ParMap[Long, Float] =
-    (v.getInCEdgesBetween(ts - snapshotSize, ts) ++ v.getOutEdgesBetween(ts - snapshotSize, ts))
+  def weightFunction(v: Vertex, ts: Long): Map[Long, Float] =
+    (v.getInEdges(after=ts - snapshotSize,before=ts) ++ v.getOutEdges(after=ts - snapshotSize, before=ts))
       .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float]))
       .groupBy(_._1)
       .mapValues(x => x.map(_._2).sum / x.size) // (ID -> Freq)
 
-  override def returnResults(): ParMap[Long, List[String]] =
+  override def returnResults(): Map[Long, List[String]] =
     view
       .getVertices()
       .map(vertex =>

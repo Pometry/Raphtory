@@ -1,6 +1,6 @@
 package com.raphtory.dev.lotr
 
-import com.raphtory.core.actors.spout.Spout
+import com.raphtory.core.components.spout.Spout
 import scala.collection.mutable
 
 class LOTRSpout extends Spout[String] {

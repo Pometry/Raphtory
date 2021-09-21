@@ -1,6 +1,6 @@
 package com.raphtory.examples.gab.analysis
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -16,7 +16,7 @@ class GabMostUsedTopics(args:Array[String]) extends Analyser[Any](args){
     var results = ArrayBuffer[(String, Int, String)]()
     view.getVertices().foreach { vertex =>
       if (vertex.getPropertyValue("type").getOrElse("no type").equals("topic")) {
-        val ingoingNeighbors = vertex.getIncEdges.size
+        val ingoingNeighbors = vertex.getInEdges().size
         results.synchronized {
           vertex.getPropertyValue("id") match {
             case None =>

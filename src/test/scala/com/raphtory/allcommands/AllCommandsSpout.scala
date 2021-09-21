@@ -1,6 +1,6 @@
 package com.raphtory.allcommands
 
-import com.raphtory.core.actors.spout.Spout
+import com.raphtory.core.components.spout.Spout
 
 class AllCommandsSpout extends Spout[String] {
 

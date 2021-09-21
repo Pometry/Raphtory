@@ -1,7 +1,7 @@
 package com.raphtory.dev.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
-import com.raphtory.core.analysis.entity.Vertex
+import com.raphtory.core.model.algorithm.Analyser
+import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -45,7 +45,7 @@ class CBOD(args: Array[String]) extends Analyser[Any](args) {
         val Oldlabel = vertex.getState[(Long, Long)]("lpalabel")._1
 
         // Get neighbourhood Frequencies -- relevant to weighted LPA
-        val vneigh = vertex.getOutEdges ++ vertex.getIncEdges
+        val vneigh = vertex.getOutEdges() ++ vertex.getInEdges()
         val neigh_freq = if (weight.isEmpty)
           (vneigh.map(_.ID()).toSet zip Array.fill(vneigh.toSet.size)(1L)).toMap
         else vneigh

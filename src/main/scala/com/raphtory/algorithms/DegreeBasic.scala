@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.Analyser
 
 object DegreeBasic {
   def apply() = new DegreeBasic(Array())
@@ -16,8 +16,8 @@ class DegreeBasic(args: Array[String]) extends Analyser[(Int, Int, Int, List[(Lo
 
   override def returnResults(): (Int, Int, Int, List[(Long, Int, Int)]) = {
     val degree = view.getVertices().map { vertex =>
-      val outDegree = vertex.getOutEdges.size
-      val inDegree  = vertex.getIncEdges.size
+      val outDegree = vertex.getOutEdges().size
+      val inDegree  = vertex.getInEdges().size
       (vertex.ID(), outDegree, inDegree)
     }
     val totalV   = degree.size
