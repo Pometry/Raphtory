@@ -8,7 +8,7 @@ import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
+import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, BuilderConnector, SpoutConnector}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
 import com.raphtory.core.actors.orchestration.clustermanager.{SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
@@ -31,7 +31,7 @@ object RaphtoryServer extends App {
 
   args(0) match {
     case "seedNode" => seedNode()
-    case "router" => router()
+    case "builder" => builder()
     case "partitionManager" => partition()
     case "spout" => spout()
     case "analysisManager" =>analysis()
@@ -47,13 +47,13 @@ object RaphtoryServer extends App {
     system.actorOf(Props(new WatchDog()), "WatchDog")
   }
 
-  def router() = {
-    println("Creating Router")
+  def builder() = {
+    println("Creating Graph Builder")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
 
     val builderPath  = s"${sys.env.getOrElse("GRAPHBUILDER", "")}"
     val graphBuilder = Class.forName(builderPath).getConstructor().newInstance().asInstanceOf[GraphBuilder[Any]]
-    system.actorOf(Props(new RouterConnector(graphBuilder)), "Routers")
+    system.actorOf(Props(new BuilderConnector(graphBuilder)), "Builder")
   }
 
   def partition() = {

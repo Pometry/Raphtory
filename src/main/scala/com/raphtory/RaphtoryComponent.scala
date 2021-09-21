@@ -1,7 +1,7 @@
 package com.raphtory
 import akka.actor.{ActorRef, ActorSystem, Props}
 import com.esotericsoftware.kryo.Kryo
-import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
+import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, BuilderConnector, SpoutConnector}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
 import com.raphtory.core.actors.orchestration.clustermanager.{SeedActor, WatchDog, WatermarkManager}
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
@@ -22,7 +22,7 @@ class RaphtoryComponent(component:String,port:Int,classPath:String="") {
   private var seedNodeRef:ActorRef = _
   private var watermarkerRef:ActorRef = _
   private var watchdogRef:ActorRef = _
-  private var routerRef:ActorRef = _
+  private var builderRef:ActorRef = _
   private var partitionManagerRef:ActorRef = _
   private var spoutRef:ActorRef = _
   private var analysisManagerRef:ActorRef = _
@@ -30,7 +30,7 @@ class RaphtoryComponent(component:String,port:Int,classPath:String="") {
   def getSeedNode:Option[ActorRef] = Option(seedNodeRef)
   def getWatermarker:Option[ActorRef] = Option(watermarkerRef)
   def getWatchdog:Option[ActorRef] = Option(watchdogRef)
-  def getRouter:Option[ActorRef] = Option(routerRef)
+  def getBuilder:Option[ActorRef] = Option(builderRef)
   def getPartition:Option[ActorRef] = Option(partitionManagerRef)
   def getSpout:Option[ActorRef] = Option(spoutRef)
   def getAnalysisManager:Option[ActorRef] = Option(analysisManagerRef)
@@ -38,7 +38,7 @@ class RaphtoryComponent(component:String,port:Int,classPath:String="") {
 
   component match {
     case "seedNode" => seedNode()
-    case "router" => router()
+    case "builder" => builder()
     case "partitionManager" => partition()
     case "spout" => spout()
     case "analysisManager" =>analysis()
@@ -54,11 +54,11 @@ class RaphtoryComponent(component:String,port:Int,classPath:String="") {
     watchdogRef = system.actorOf(Props(new WatchDog()), "WatchDog")
   }
 
-  def router() = {
-    println("Creating Router")
+  def builder() = {
+    println("Creating Graph Builder")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List("127.0.0.1:1600"))
     val graphBuilder = Class.forName(classPath).getConstructor().newInstance().asInstanceOf[GraphBuilder[Any]]
-    routerRef =system.actorOf(Props(new RouterConnector(graphBuilder)), "Routers")
+    builderRef =system.actorOf(Props(new BuilderConnector(graphBuilder)), "Builder")
   }
 
   def partition() = {

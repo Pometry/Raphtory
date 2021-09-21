@@ -6,7 +6,7 @@ import com.raphtory.core.actors.graphbuilder.GraphBuilder
 import com.raphtory.core.model.communication.{Type, _}
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
-//In this router we needed to transform the data that was sent by the spout by turning it into a epoch value (long value)
+//In this builder we needed to transform the data that was sent by the spout by turning it into a epoch value (long value)
 // in order to be accepted by Raphtory to create the corresponding entity.
 // for the gab dataset, a filter is applied to exclude those lines in where the parent post id ir the parent user id
 // is equal to -1. Columns 2 and 5 correspond to the userid and parentUserid in the file.
