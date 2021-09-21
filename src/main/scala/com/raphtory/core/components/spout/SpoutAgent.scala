@@ -6,7 +6,7 @@ import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.RaphtoryActor.{builderServers, partitionServers}
 import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, SpoutUp}
 import com.raphtory.core.components.spout.SpoutAgent.CommonMessage._
-import com.raphtory.core.model.communication._
+import com.raphtory.core.implementations.objectgraph.messaging._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._

@@ -1,4 +1,4 @@
-package com.raphtory.core.model.implementations.objectgraph.entities.internal
+package com.raphtory.core.implementations.objectgraph.entities.internal
 
 import com.raphtory.core.model.graph.GraphPartition
 

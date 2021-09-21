@@ -6,11 +6,11 @@ import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.analysismanager.AnalysisManager.Message.{JobFailed, KillTask}
 import com.raphtory.core.components.analysismanager.tasks.AnalysisTask.Message._
 import com.raphtory.core.components.partitionmanager.QueryExecutor.State
+import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
 import com.raphtory.core.model.algorithm.Analyser
-import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandler}
-import com.raphtory.core.model.graph.GraphPartition
-import com.raphtory.core.model.implementations.objectgraph
-import com.raphtory.core.model.implementations.objectgraph.ObjectGraphLens
+import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
+import com.raphtory.core.model.graph.{GraphPartition, VertexMessage}
+import com.raphtory.core.implementations
 
 import scala.util.{Failure, Success, Try}
 
@@ -39,7 +39,7 @@ final case class QueryExecutor(
       log.debug(s"Job [$jobId] belonging to Reader [$partition] is SetupTaskWorker.")
       val initStep = 0
       val messageHandler = new VertexMessageHandler(neighbours, jobId)
-      val graphLens = objectgraph.ObjectGraphLens(jobId, timestamp, window, initStep, storage, messageHandler)
+      val graphLens = implementations.objectgraph.ObjectGraphLens(jobId, timestamp, window, initStep, storage, messageHandler)
       analyzer.sysSetup(graphLens, messageHandler)
       context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
       sender ! SetupSubtaskDone

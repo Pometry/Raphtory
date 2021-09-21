@@ -6,9 +6,9 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.pattern.ask
 import com.raphtory.core.components.RaphtoryActor.{partitionServers, partitionsPerServer}
 import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.RequestPartitionId
-import com.raphtory.core.components.partitionmanager.{Writer, PartitionManager, Reader}
+import com.raphtory.core.components.partitionmanager.{PartitionManager, Reader, Writer}
+import com.raphtory.core.implementations.objectgraph.ObjectBasedPartition
 import com.raphtory.core.model.graph.GraphPartition
-import com.raphtory.core.model.implementations.objectgraph.ObjectBasedPartition
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future

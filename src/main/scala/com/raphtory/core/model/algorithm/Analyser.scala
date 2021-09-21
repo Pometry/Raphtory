@@ -1,7 +1,7 @@
 package com.raphtory.core.model.algorithm
 
-import com.raphtory.core.model.communication.VertexMessageHandler
-import com.raphtory.core.model.implementations.objectgraph.ObjectGraphLens
+import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
+import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

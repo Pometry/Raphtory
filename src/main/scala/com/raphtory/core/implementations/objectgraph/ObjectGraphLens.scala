@@ -1,9 +1,9 @@
-package com.raphtory.core.model.implementations.objectgraph
+package com.raphtory.core.implementations.objectgraph
 
-import com.raphtory.core.model.communication.{VertexMessage, VertexMessageHandler}
+import com.raphtory.core.implementations.objectgraph.entities.external.ObjectVertex
+import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
 import com.raphtory.core.model.graph.visitor.Vertex
-import com.raphtory.core.model.graph.{GraphPartition, GraphPerspective}
-import com.raphtory.core.model.implementations.objectgraph.entities.external.ObjectVertex
+import com.raphtory.core.model.graph.{GraphPartition, GraphPerspective, VertexMessage}
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap

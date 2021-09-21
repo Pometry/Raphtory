@@ -42,7 +42,7 @@
 ////import java.time.LocalDateTime
 ////
 ////import com.raphtory.core.components.Spout.Spout
-////import com.raphtory.core.model.communication.StringSpoutGoing
+////import com.raphtory.core.implementations.objectgraph.communication.StringSpoutGoing
 ////
 ////import scala.concurrent.duration._
 ////import scala.language.postfixOps

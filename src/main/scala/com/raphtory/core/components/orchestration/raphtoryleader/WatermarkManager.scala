@@ -49,7 +49,7 @@ class WatermarkManager extends RaphtoryActor  {
 
       val max = safeMessageMap.maxBy(x=> x._2)
       val min = safeMessageMap.minBy(x=> x._2)
-      println(s" ${ LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))} . Minimum Watermark: ${min._1} ${min._2} Maximum Watermark: ${max._1} ${max._2}")
+      log.info(s"Minimum Watermark: ${min._1} ${min._2} Maximum Watermark: ${max._1} ${max._2}")
       context.system.scheduler.scheduleOnce(delay = 10.seconds, receiver = self, message = "probe")
       counter=0
     }

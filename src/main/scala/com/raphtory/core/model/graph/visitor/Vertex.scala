@@ -1,8 +1,8 @@
 package com.raphtory.core.model.graph.visitor
 
-import com.raphtory.core.model.communication.{VertexMessage, VertexMultiQueue}
-import com.raphtory.core.model.implementations.objectgraph.ObjectGraphLens
-import com.raphtory.core.model.implementations.objectgraph.entities.internal.RaphtoryVertex
+import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
+import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryVertex
+import com.raphtory.core.implementations.objectgraph.messaging.VertexMultiQueue
 
 import scala.collection.parallel.ParIterable
 import scala.collection.parallel.mutable.ParTrieMap
