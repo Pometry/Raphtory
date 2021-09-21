@@ -10,7 +10,7 @@ import akka.management.javadsl.AkkaManagement
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, BuilderConnector, SpoutConnector}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
-import com.raphtory.core.actors.orchestration.raphtoryleader.{SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.orchestration.raphtoryleader.{WatchDog, WatermarkManager}
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory}
 
@@ -30,7 +30,7 @@ object RaphtoryServer extends App {
   val docker = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
 
   args(0) match {
-    case "seedNode" => seedNode()
+    case "leader" => leader()
     case "builder" => builder()
     case "partitionManager" => partition()
     case "spout" => spout()
@@ -38,11 +38,10 @@ object RaphtoryServer extends App {
     case "local" => local()
   }
 
-  def seedNode() = {
+  def leader() = {
     val seedLoc = s"${sys.env.getOrElse("HOST_IP","127.0.0.1")}:${conf.getInt("settings.bport")}"
-    println(s"Creating seed node and watchdog at $seedLoc")
+    println(s"Creating leader at $seedLoc")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
-    system.actorOf(Props(new SeedActor()), "cluster")
     system.actorOf(Props(new WatermarkManager()),"WatermarkManager")
     system.actorOf(Props(new WatchDog()), "WatchDog")
   }

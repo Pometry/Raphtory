@@ -4,6 +4,8 @@ package com.raphtory.core.actors.orchestration.raphtoryleader
   * Created by Mirate on 11/07/2017.
   */
 import akka.actor.ActorRef
+import akka.cluster.Cluster
+import akka.cluster.ClusterEvent.{InitialStateAsEvents, MemberEvent, MemberExited, MemberRemoved, MemberUp, UnreachableMember}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.event.LoggingReceive
 import com.raphtory.core.actors.RaphtoryActor
@@ -20,11 +22,14 @@ class WatchDog() extends RaphtoryActor {
 
   private val maxTimeInMillis = 30000
 
+  val cluster: Cluster = Cluster(context.system)
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart(): Unit = {
     log.debug("WatchDog is being started.")
+    cluster.subscribe(self, initialStateMode = InitialStateAsEvents, classOf[MemberEvent], classOf[UnreachableMember])
+
     context.system.scheduler.scheduleOnce(10.seconds, self, Tick)
   }
 
@@ -82,7 +87,11 @@ class WatchDog() extends RaphtoryActor {
       val newCounter = state.anCounter + 1
       context.become(work(state.copy(anCounter = newCounter)))
 
-
+     //TODO do something with these
+    case evt: MemberUp          =>
+    case evt: MemberRemoved     =>
+    case evt: UnreachableMember =>
+    case evt: MemberExited      =>
 
     case unhandled => log.error(s"WatchDog received unknown [$unhandled] message.")
   }
