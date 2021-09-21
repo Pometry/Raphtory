@@ -4,7 +4,7 @@ package com.raphtory.core.actors.orchestration.componentconnector
 import akka.actor.{ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.pattern.ask
-import com.raphtory.core.actors.RaphtoryActor.{partitionMachineCount, partitionsPerMachine}
+import com.raphtory.core.actors.RaphtoryActor.{partitionServers, partitionsPerServer}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.RequestPartitionId
 import com.raphtory.core.actors.partitionmanager.{IngestionWorker, PartitionManager, ReaderWorker}
 import com.raphtory.core.model.graph.GraphPartition
@@ -25,8 +25,8 @@ class PartitionConnector() extends ComponentConnector() {
     var writers:  ParTrieMap[Int, ActorRef]       = new ParTrieMap[Int, ActorRef]()
     var storages: ParTrieMap[Int, GraphPartition] = new ParTrieMap[Int, GraphPartition]()
     var readers:  ParTrieMap[Int, ActorRef]       = new ParTrieMap[Int, ActorRef]()
-    val startRange = assignedId*partitionsPerMachine
-    val endRange = startRange+partitionsPerMachine
+    val startRange = assignedId*partitionsPerServer
+    val endRange = startRange+partitionsPerServer
     for (index <- startRange until endRange) {
       val storage     = new ObjectBasedPartition(index)
       storages.put(index, storage)

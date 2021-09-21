@@ -2,7 +2,7 @@ package com.raphtory.core.actors.partitionmanager
 
 import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.actors.graphbuilder.BuilderExecutor.CommonMessage.RouterWorkerTimeSync
+import com.raphtory.core.actors.graphbuilder.BuilderExecutor.CommonMessage.BuilderTimeSync
 import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{ProbeWatermark, WatermarkTime}
 import com.raphtory.core.actors.partitionmanager.IngestionWorker.Message.Watermark
 import com.raphtory.core.actors.RaphtoryActor
@@ -17,8 +17,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 
-case class queueItem(routerEpoch:Int,timestamp:Long)extends Ordered[queueItem] {
-  def compare(that: queueItem): Int = that.routerEpoch-this.routerEpoch
+case class queueItem(builderEpoch:Int, timestamp:Long)extends Ordered[queueItem] {
+  def compare(that: queueItem): Int = that.builderEpoch-this.builderEpoch
 }
 
 // TODO Re-add compression (removed during commit Log-Revamp)
@@ -56,7 +56,7 @@ final class IngestionWorker(partitionID:Int, storage: GraphPartition) extends Ra
 
     case Watermark => processWatermarkRequest(); //println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
     case ProbeWatermark => mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager", WatermarkTime(storage.windowTime), localAffinity = false)
-    case req: RouterWorkerTimeSync => processRouterTimeSync(req);
+    case req: BuilderTimeSync => processBuilderTimeSync(req);
     //case SaveState => serialiseGraphPartition();
     case x => log.warning(s"IngestionWorker [{}] received unknown [{}] message.", partitionID, x)
   }
@@ -191,7 +191,7 @@ def processSyncExistingRemovals(channelId: String, channelTime: Int, req: SyncEx
     queuedMessageMap.get(channelId) match {
       case Some(queue) => queue += queueItem(channelTime,msgTime)
       case None =>
-        val queue = new mutable.PriorityQueue[queueItem]()(Ordering.by[queueItem, Int](f=>f.routerEpoch).reverse)
+        val queue = new mutable.PriorityQueue[queueItem]()(Ordering.by[queueItem, Int](f=>f.builderEpoch).reverse)
         queue += queueItem(channelTime,msgTime)
         queuedMessageMap put(channelId,queue)
     }
@@ -220,29 +220,29 @@ def processSyncExistingRemovals(channelId: String, channelTime: Int, req: SyncEx
   }
 
   import scala.util.control.Breaks._
-  private def setSafePoint(routerName:String,messageQueue:mutable.PriorityQueue[queueItem]) = {
+  private def setSafePoint(builderName:String, messageQueue:mutable.PriorityQueue[queueItem]) = {
 
-    var currentSafePoint = safeMessageMap.get(routerName) match {
+    var currentSafePoint = safeMessageMap.get(builderName) match {
       case Some(value) => value
       case None => queueItem(-1,0)
     }
     breakable {
       while (messageQueue nonEmpty)
-        if (messageQueue.head.routerEpoch == currentSafePoint.routerEpoch + 1)
+        if (messageQueue.head.builderEpoch == currentSafePoint.builderEpoch + 1)
           currentSafePoint = messageQueue.dequeue()
-        else if (messageQueue.head.routerEpoch == currentSafePoint.routerEpoch)
+        else if (messageQueue.head.builderEpoch == currentSafePoint.builderEpoch)
           currentSafePoint = messageQueue.dequeue()
         else {
          break
         }
     }
-    safeMessageMap put(routerName, currentSafePoint)
+    safeMessageMap put(builderName, currentSafePoint)
     currentSafePoint
   }
 
-  private def processRouterTimeSync(req:RouterWorkerTimeSync) ={
+  private def processBuilderTimeSync(req:BuilderTimeSync) ={
     storage.timings(req.msgTime)
-    addToWatermarkQueue(req.routerId,req.routerTime,req.msgTime)
+    addToWatermarkQueue(req.BuilderId,req.builderTime,req.msgTime)
   }
 
   private def sendEffectMessage[T <: GraphUpdateEffect](msg: TrackedGraphEffect[T]): Unit =

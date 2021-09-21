@@ -3,7 +3,7 @@ package com.raphtory
 import akka.actor.{ActorSystem, Props}
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, RouterConnector, SpoutConnector}
+import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, BuilderConnector, SpoutConnector}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
 import com.raphtory.core.actors.orchestration.clustermanager.{WatchDog, WatermarkManager}
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
@@ -29,7 +29,7 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   system.actorOf(Props(new WatchDog()), "WatchDog")
 
   system.actorOf(Props(new SpoutConnector(spout)), "Spoutmanager")
-  system.actorOf(Props(new RouterConnector(graphBuilder)), s"Routers")
+  system.actorOf(Props(new BuilderConnector(graphBuilder)), s"Builders")
   system.actorOf(Props(new PartitionConnector()), s"PartitionManager")
 
   val analysisManager = system.actorOf(Props(new AnalysisManagerConnector()), "AnalysisManagerConnector")

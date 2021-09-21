@@ -1,7 +1,7 @@
 package com.raphtory.core.actors
 
 import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Cancellable, Timers}
-import com.raphtory.core.actors.RaphtoryActor.{partitionMachineCount, partitionsPerMachine, routerMachineCount, totalPartitions, totalRouters, workersPerRouter}
+import com.raphtory.core.actors.RaphtoryActor.{partitionServers, partitionsPerServer, builderServers, totalPartitions, totalBuilders, buildersPerServer}
 import com.typesafe.config.ConfigFactory
 
 import scala.collection.mutable
@@ -10,27 +10,25 @@ import scala.concurrent.duration.FiniteDuration
 
 object RaphtoryActor {
   private val conf = ConfigFactory.load()
-  val partitionMachineCount : Int = conf.getInt("Raphtory.partitionMachineCount")//sys.env.getOrElse("PARTITION_MIN","1").toInt
-  val routerMachineCount    : Int = conf.getInt("Raphtory.routerMachineCount") //sys.env.getOrElse("ROUTER_MIN","1").toInt
-  val partitionsPerMachine  : Int = conf.getInt("Raphtory.partitionsPerMachine")
-  val workersPerRouter      : Int = conf.getInt("Raphtory.workersPerRouter")
+  val partitionServers      : Int = conf.getInt("Raphtory.partitionServers")
+  val builderServers        : Int = conf.getInt("Raphtory.builderServers")
+  val partitionsPerServer   : Int = conf.getInt("Raphtory.partitionsPerServer")
+  val buildersPerServer     : Int = conf.getInt("Raphtory.buildersPerServer")
   val spoutCount            : Int = 1
   val analysisCount         : Int = 1
-  val totalPartitions       : Int = partitionMachineCount*partitionsPerMachine
-  val totalRouters          : Int = routerMachineCount*workersPerRouter
+  val totalPartitions       : Int = partitionServers*partitionsPerServer
+  val totalBuilders         : Int = builderServers*buildersPerServer
 }
 
 trait RaphtoryActor extends Actor with ActorLogging with Timers {
 
-  //get the partition a vertex is stored in
+  def getWriter(srcId: Long): String = {
+     s"/user/write_${(srcId.abs % totalPartitions).toInt }"
+  }
 
-    def getWriter(srcId: Long): String = {
-      s"/user/write_${(srcId.abs % totalPartitions).toInt }"
-    }
-
-  def getAllRouterWorkers(): Array[String] = {
+  def getAllGraphBuilders(): Array[String] = {
     val workers = mutable.ArrayBuffer[String]()
-    for (i <- 0 until totalRouters)
+    for (i <- 0 until totalBuilders)
       workers += s"/user/route_$i"
     workers.toArray
   }
@@ -38,7 +36,7 @@ trait RaphtoryActor extends Actor with ActorLogging with Timers {
 
   def getAllPartitionManagers(): Array[String] = {
     val workers = mutable.ArrayBuffer[String]()
-    for (i <- 0 until partitionMachineCount)
+    for (i <- 0 until partitionServers)
       workers += s"/user/Manager_$i"
     workers.toArray
   }

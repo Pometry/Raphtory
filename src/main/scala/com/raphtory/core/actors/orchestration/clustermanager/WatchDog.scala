@@ -7,7 +7,7 @@ import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.event.LoggingReceive
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.RaphtoryActor.{analysisCount, partitionMachineCount, routerMachineCount, spoutCount}
+import com.raphtory.core.actors.RaphtoryActor.{analysisCount, builderServers, buildersPerServer, partitionServers, spoutCount, totalBuilders, totalPartitions}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.ActorState
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message._
 
@@ -15,7 +15,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class WatchDog() extends RaphtoryActor {
-
 
   implicit val executionContext: ExecutionContext = context.system.dispatcher
 
@@ -27,21 +26,16 @@ class WatchDog() extends RaphtoryActor {
   override def preStart(): Unit = {
     log.debug("WatchDog is being started.")
     context.system.scheduler.scheduleOnce(10.seconds, self, Tick)
-    //context.system.scheduler.scheduleOnce(3.minute, self, RefreshManagerCount)
   }
 
   override def receive: Receive =
-    work(ActorState(clusterUp = false, pmLiveMap = Map.empty, roLiveMap = Map.empty,spLiveMap = Map.empty,anLiveMap = Map.empty, pmCounter = 0, roCounter = 0,spCounter=0,anCounter = 0))
+    work(ActorState(clusterUp = false, pmLiveMap = Map.empty, gbLiveMap = Map.empty,spLiveMap = Map.empty,anLiveMap = Map.empty, pmCounter = 0, roCounter = 0,spCounter=0,anCounter = 0))
 
   private def work(state: ActorState): Receive = LoggingReceive {
     case Tick =>
       val newState = handleTick(state)
       context.become(work(newState))
       context.system.scheduler.scheduleOnce(10.seconds, self, Tick)
-
-    //case RefreshManagerCount =>
-    //  mediator ! DistributedPubSubMediator.Publish(partitionsTopic, PartitionsCount(state.pmCounter))
-      //context.system.scheduler.scheduleOnce(1.minute, self, RefreshManagerCount)
 
     case ClusterStatusRequest =>
       sender ! ClusterStatusResponse(state.clusterUp)
@@ -54,9 +48,9 @@ class WatchDog() extends RaphtoryActor {
       val newMap = state.pmLiveMap + (id -> System.currentTimeMillis())
       context.become(work(state.copy(pmLiveMap = newMap)))
 
-    case RouterUp(id) =>
-      val newMap = state.roLiveMap + (id -> System.currentTimeMillis())
-      context.become(work(state.copy(roLiveMap = newMap)))
+    case BuilderUp(id) =>
+      val newMap = state.gbLiveMap + (id -> System.currentTimeMillis())
+      context.become(work(state.copy(gbLiveMap = newMap)))
 
     case SpoutUp(id) =>
       val newMap = state.spLiveMap + (id -> System.currentTimeMillis())
@@ -73,7 +67,7 @@ class WatchDog() extends RaphtoryActor {
       context.become(work(state.copy(pmCounter = newCounter)))
       //mediator ! DistributedPubSubMediator.Publish(partitionsTopic, PartitionsCount(newCounter))
 
-    case RequestRouterId =>
+    case RequestBuilderId =>
       sender ! AssignedId(state.roCounter)
       val newCounter = state.roCounter + 1
       context.become(work(state.copy(roCounter = newCounter)))
@@ -93,15 +87,15 @@ class WatchDog() extends RaphtoryActor {
 
   private def handleTick(state: ActorState): ActorState = {
     checkMapTime(state.pmLiveMap, "Partition Manager")
-    checkMapTime(state.roLiveMap, "Router")
-    if (state.roLiveMap.size >= routerMachineCount &&
-        state.pmLiveMap.size >= partitionMachineCount &&
+    checkMapTime(state.gbLiveMap, "Builder")
+    if (state.gbLiveMap.size >= totalBuilders &&
+        state.pmLiveMap.size >= partitionServers &&
         state.spLiveMap.size >= spoutCount &&
         state.anLiveMap.size >= analysisCount ) {
-      log.debug(s"The cluster was started with [$partitionMachineCount] Partition Managers, [$routerMachineCount] Routers, 1 Spout and 1 Analysis Manager.")
+      log.debug(s"The cluster was started with [$totalPartitions] Partition Managers, [$totalBuilders] Graph Builders, 1 Spout and 1 Analysis Manager.")
       state.copy(clusterUp = true)
     } else {
-      println(s"Cluster Starting: ${state.roLiveMap.size}/$routerMachineCount Routers, ${state.pmLiveMap.size}/$partitionMachineCount Partitions, ${state.spLiveMap.size}/$spoutCount Spouts, ${state.anLiveMap.size}/$analysisCount Analysis Managers")
+      println(s"Cluster Starting: ${totalBuilders} Graph Builders, $totalPartitions Partitions, $spoutCount Spouts, $analysisCount Analysis Managers")
       state
     }
   }
@@ -118,7 +112,7 @@ object WatchDog {
   object Message {
     case object Tick
     case object RefreshManagerCount
-    case class RouterUp(id: Int)
+    case class BuilderUp(id: Int)
     case class PartitionUp(id: Int)
     case class SpoutUp(id: Int)
     case class AnalysisManagerUp(id: Int)
@@ -126,21 +120,21 @@ object WatchDog {
     case class ClusterStatusResponse(clusterUp: Boolean)
     case class AssignedId(id: Int)
     case object RequestPartitionId
-    case object RequestRouterId
+    case object RequestBuilderId
     case object RequestSpoutId
     case object RequestAnalysisId
     case object RequestPartitionCount
     case class PartitionsCount(count: Int)
   }
   private case class ActorState(
-      clusterUp: Boolean,
-      pmLiveMap: Map[Int, Long],
-      roLiveMap: Map[Int, Long],
-      spLiveMap: Map[Int, Long],
-      anLiveMap: Map[Int, Long],
-      pmCounter: Int,
-      roCounter: Int,
-      spCounter: Int,
-      anCounter: Int
+                                 clusterUp: Boolean,
+                                 pmLiveMap: Map[Int, Long],
+                                 gbLiveMap: Map[Int, Long],
+                                 spLiveMap: Map[Int, Long],
+                                 anLiveMap: Map[Int, Long],
+                                 pmCounter: Int,
+                                 roCounter: Int,
+                                 spCounter: Int,
+                                 anCounter: Int
   )
 }

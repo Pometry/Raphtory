@@ -7,7 +7,7 @@ import com.raphtory.core.actors.analysismanager.AnalysisManager.Message._
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message._
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.SubtaskState
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.RaphtoryActor.{partitionMachineCount, totalPartitions}
+import com.raphtory.core.actors.RaphtoryActor.{partitionServers, totalPartitions}
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 
 import scala.collection.mutable
@@ -50,7 +50,7 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
       messageToAllReaders(ReaderWorkersOnline)
 
     case ReaderWorkersAck => //count up number of acks and if == number of workers, check if analyser present
-      if (readyCount + 1 != partitionMachineCount) {
+      if (readyCount + 1 != partitionServers) {
         context.become(checkReaderWorker(readyCount + 1))
       }
       else {

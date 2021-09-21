@@ -5,7 +5,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.RaphtoryActor.partitionsPerMachine
+import com.raphtory.core.actors.RaphtoryActor.partitionsPerServer
 import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message.{ReaderWorkersAck, ReaderWorkersOnline}
 import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.PartitionUp
 import com.raphtory.core.model.communication._
@@ -33,7 +33,7 @@ class PartitionManager(
 
   // Id which refers to the partitions position in the graph manager map
   val managerId: Int    = id
-  val children: Int     = partitionsPerMachine
+  val children: Int     = partitionsPerServer
   var lastLogTime: Long = System.currentTimeMillis() / 1000
 
   // should the handled messages be printed to terminal
