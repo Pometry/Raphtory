@@ -10,11 +10,7 @@ import com.raphtory.core.utils.AnalyserUtils
 
 import scala.util.{Failure, Success}
 
-
-case class ViewJob(jobID: String, timestamp: Long, window: Long)
-
-final case class ReaderWorker(partition: Int, storage: GraphPartition)
-        extends RaphtoryActor {
+final case class ReaderWorker(partition: Int, storage: GraphPartition) extends RaphtoryActor {
   private val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
 
@@ -24,24 +20,10 @@ final case class ReaderWorker(partition: Int, storage: GraphPartition)
   override def receive: Receive = work()
 
   private def work(): Receive = {
-    case CompileNewAnalyser(jobId, analyser, args) =>
-      AnalyserUtils.compileNewAnalyser(analyser, args.toArray) match {
-        case Success(analyser) =>
-          val subtaskWorker = buildSubtaskWorker(jobId, analyser,sender())
-        case Failure(e) =>
-          sender ! FailedToCompile(e.getStackTrace.toString)
-          log.error("fail to compile new analyser: " + e.getMessage)
-      }
-
-    case LoadPredefinedAnalyser(jobId, className, args) =>
+    case LoadAnalyser(jobId, className, args) =>
       AnalyserUtils.loadPredefinedAnalyser(className, args.toArray) match {
-        case Success(analyser) =>
-          val subtaskWorker = buildSubtaskWorker(jobId, analyser,sender())
-
-        case Failure(e) =>
-          sender ! FailedToCompile(e.getStackTrace.toString)
-          log.error("fail to compile predefined analyser: " + e.getMessage)
-
+        case Success(analyser) => buildQueryExecutor(jobId, analyser,sender())
+        case Failure(e) => log.error("Analyser Could not be loaded: " + e.getMessage)
       }
 
     case TimeCheck =>
@@ -51,7 +33,8 @@ final case class ReaderWorker(partition: Int, storage: GraphPartition)
     case unhandled =>
       log.error(s"Reader [$partition] received unknown [$unhandled].")
   }
-  private def buildSubtaskWorker(jobID: String, analyser: Analyser[Any], taskRef:ActorRef): ActorRef =
+
+  private def buildQueryExecutor(jobID: String, analyser: Analyser[Any], taskRef:ActorRef): ActorRef =
     context.system.actorOf(
             Props(QueryExecutor(partition, storage, analyser, jobID,taskRef))
               .withDispatcher("reader-dispatcher"),

@@ -9,7 +9,6 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.{JobKilled, _}
 import com.raphtory.core.actors.analysismanager.AnalysisManager.State
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
-import com.raphtory.core.actors.analysismanager.tasks.AnalysisTask.Message.FailedToCompile
 import com.raphtory.core.actors.analysismanager.tasks.subtasks._
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.RaphtoryActor.totalPartitions
@@ -38,14 +37,8 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
 
   def init(): Receive = {
     case StartUp =>
-      mediator ! new DistributedPubSubMediator.Send(
-        "/user/WatchDog",
-        AnalysisManagerUp(0)
-      ) //ask if the cluster is safe to use
-      mediator ! new DistributedPubSubMediator.Send(
-              "/user/WatchDog",
-              ClusterStatusRequest
-      ) //ask if the cluster is safe to use
+      mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", AnalysisManagerUp(0)) //ask if the cluster is safe to use
+      mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest) //ask if the cluster is safe to use
 
     case ClusterStatusResponse(clusterUp) =>
       if (clusterUp) context.become(work(State(Map.empty)))
@@ -100,25 +93,11 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
     val jobId = analyserName + "_" + System.currentTimeMillis()
     log.info(s"Live Analysis Task received, your job ID is $jobId")
 
-    getAnalyser(analyserName, args, request.rawFile).map {
-      case (newAnalyser, analyser) =>
+    getAnalyser(analyserName, args).map {
+      case analyser =>
         val ref = context.system.actorOf(
-                Props(
-                        LiveAnalysisTask(
-                                jobId,
-                                args,
-                                analyser,
-                                getSerialiser(serialiserName), //TODO tidy up
-                                repeatTime,
-                                eventTime,
-                                windowSet,
-                                newAnalyser,
-                                rawFile
-                        )
-                ).withDispatcher("analysis-dispatcher"),
-                s"LiveAnalysisTask_$jobId"
-        )
-
+                Props(LiveAnalysisTask(jobId, args, analyser, getSerialiser(serialiserName), repeatTime, eventTime, windowSet))
+                  .withDispatcher("analysis-dispatcher"), s"LiveAnalysisTask_$jobId")
         (jobId, ref)
     }
   }
@@ -127,24 +106,12 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
     import request._
     val jobId = analyserName + "_" + System.currentTimeMillis()
     log.info(s"View Analysis Task received, your job ID is $jobId")
-    getAnalyser(analyserName, args, rawFile).map {
-      case (newAnalyser, analyser) =>
+    getAnalyser(analyserName, args).map {
+      case analyser =>
         val ref =
           context.system.actorOf(
-                  Props(
-                          ViewAnalysisTask(
-                                  jobId,
-                                  args,
-                                  analyser,
-                                  getSerialiser(serialiserName), //TODO tidy up
-                                  timestamp,
-                                  windowSet,
-                                  newAnalyser,
-                                  rawFile
-                          )
-                  ).withDispatcher("analysis-dispatcher"),
-                  s"ViewAnalysisTask_$jobId"
-          )
+                  Props(ViewAnalysisTask(jobId, args, analyser, getSerialiser(serialiserName), timestamp, windowSet))
+                    .withDispatcher("analysis-dispatcher"), s"ViewAnalysisTask_$jobId")
         (jobId, ref)
     }
   }
@@ -152,43 +119,23 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
   private def spawnRangeAnalysisManager(request: RangeAnalysisRequest): Option[(String, ActorRef)] = {
     import request._
     val jobId = analyserName + "_" + System.currentTimeMillis()
-    log.info(
-            s"Range Analysis Task received, your job ID is $jobId, running $analyserName, between $start and $end jumping $jump at a time."
-    )
-    getAnalyser(analyserName, args, rawFile).map {
-      case (newAnalyser, analyser) =>
-        val ref =
-          context.system.actorOf(
-                  Props(
-                          RangeAnalysisTask(
-                                  jobId,
-                                  args,
-                                  analyser,
-                                  getSerialiser(serialiserName), //TODO tidy up
-                                  start,
-                                  end,
-                                  jump,
-                                  windowSet,
-                                  newAnalyser,
-                                  rawFile
-                          )
-                  ).withDispatcher("analysis-dispatcher"),
-                  s"RangeAnalysisTask_$jobId"
-          )
+    log.info(s"Range Analysis Task received, your job ID is $jobId, running $analyserName, between $start and $end jumping $jump at a time.")
+    getAnalyser(analyserName, args).map {
+      case analyser =>
+        val ref = context.system.actorOf(
+                    Props(RangeAnalysisTask(jobId, args, analyser, getSerialiser(serialiserName),start, end, jump, windowSet))
+                    .withDispatcher("analysis-dispatcher"), s"RangeAnalysisTask_$jobId")
         (jobId, ref)
     }
   }
 
   private def getAnalyser(
       analyserName: String,
-      args: Array[String],
-      rawFile: String
-  ): Option[(Boolean, Analyser[Any])] = {
+      args: Array[String]): Option[Analyser[Any]] = {
     val tryExist = AnalyserUtils.loadPredefinedAnalyser(analyserName, args)
-
     tryExist match {
-      case Success(analyser) => Some((false, analyser))
-      case Failure(_)        => compileNewAnalyser(rawFile, args).map((true, _))
+      case Success(analyser) => Some(analyser)
+      case Failure(_)        => None
     }
   }
 
@@ -196,15 +143,6 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
        serialiserName: String,
   ):  AggregateSerialiser= AnalyserUtils.loadPredefinedSerialiser(serialiserName)
 
-
-  private def compileNewAnalyser(rawFile: String, args: Array[String]): Option[Analyser[Any]] =
-    AnalyserUtils.compileNewAnalyser(rawFile, args) match {
-      case Success(analyser) => Some(analyser)
-      case Failure(e) =>
-        sender ! FailedToCompile(e.getStackTrace.mkString(","))
-        log.info(e.getMessage)
-        None
-    }
 }
 
 object AnalysisManager {

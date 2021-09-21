@@ -17,14 +17,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-abstract class AnalysisTask(
-    jobId: String,
-    args: Array[String],
-    analyser: Analyser[Any],
-    serialiser:AggregateSerialiser,
-    newAnalyser: Boolean,
-    rawFile: String
-) extends RaphtoryActor {
+abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analyser[Any], serialiser:AggregateSerialiser) extends RaphtoryActor {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
   private val mediator = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
@@ -60,21 +53,16 @@ abstract class AnalysisTask(
     case ReaderWorkersAck => //count up number of acks and if == number of workers, check if analyser present
       if (readyCount + 1 != partitionMachineCount) {
         context.become(checkReaderWorker(readyCount + 1))
-      } else if (newAnalyser) {
-        messageToAllReaderWorkers(CompileNewAnalyser(jobId, rawFile, args.toList))
-        context.become(checkAnalyser(0))
-      } else {
+      }
+      else {
         println("checking analyser")
-        messageToAllReaderWorkers(LoadPredefinedAnalyser(jobId, analyser.getClass.getCanonicalName, args.toList))
+        messageToAllReaderWorkers(LoadAnalyser(jobId, analyser.getClass.getCanonicalName, args.toList))
         context.become(checkAnalyser(0))
 
       }
   }
 
   private def checkAnalyser(readyCount: Int): Receive = withDefaultMessageHandler("check analyser") {
-    case FailedToCompile(stackTrace) => //Your code is broke scrub
-      log.info(s"$sender failed to compiled, stacktrace returned: \n $stackTrace")
-
     case AnalyserPresent(workerID,actor) => //analyser confirmed to be present within workers, send setup request to workers
       workerList += ((workerID,actor))
       if (readyCount + 1 == totalPartitions) {
@@ -271,9 +259,7 @@ object AnalysisTask {
     case object ReaderWorkersOnline
     case object ReaderWorkersAck
 
-    case class CompileNewAnalyser(jobId: String, analyserRaw: String, args: List[String])
-    case class LoadPredefinedAnalyser(jobId: String, className: String, args: List[String])
-    case class FailedToCompile(stackTrace: String)
+    case class LoadAnalyser(jobId: String, className: String, args: List[String])
     case class AnalyserPresent(worker:Int,me:ActorRef)
 
     case object TimeCheck
