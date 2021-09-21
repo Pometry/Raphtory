@@ -36,8 +36,7 @@ final case class AnalysisRestApi(system: ActorSystem) {
             in.repeatTime.getOrElse(0),
             in.eventTime.getOrElse(false),
             in.windowSet.getOrElse(List.empty),
-            in.args.getOrElse(Array()),
-            in.rawFile.getOrElse("")
+            in.args.getOrElse(Array())
           )
           mediator ! new DistributedPubSubMediator.Send("/user/AnalysisManager", request)
           complete(s"Your Task Has been successfully submitted as a Live Analysis Task!")
@@ -49,8 +48,7 @@ final case class AnalysisRestApi(system: ActorSystem) {
           in.serialiserName,
           in.timestamp,
           in.windowSet.getOrElse(List.empty),
-          in.args.getOrElse(Array()),
-          in.rawFile.getOrElse("")
+          in.args.getOrElse(Array())
         )
         mediator ! new DistributedPubSubMediator.Send("/user/AnalysisManager", request)
         complete(s"Your Task Has been successfully submitted as a View Analysis Task!")
@@ -64,8 +62,7 @@ final case class AnalysisRestApi(system: ActorSystem) {
           in.end,
           in.jump,
           in.windowSet.getOrElse(List.empty),
-          in.args.getOrElse(Array()),
-          in.rawFile.getOrElse("")
+          in.args.getOrElse(Array())
         )
         mediator ! new DistributedPubSubMediator.Send("/user/AnalysisManager", request)
         complete(s"Your Task Has been successfully submitted as a Range Analysis Task!")
@@ -140,8 +137,7 @@ object AnalysisRestApi {
         repeatTime: Long,
         eventTime: Boolean,
         windowSet: List[Long],
-        args: Array[String],
-        rawFile: String
+        args: Array[String]
     ) extends AnalysisRequest
 
     case class ViewAnalysisRequest(
@@ -149,8 +145,7 @@ object AnalysisRestApi {
         serialiserName:String,
         timestamp: Long,
         windowSet: List[Long],
-        args: Array[String],
-        rawFile: String
+        args: Array[String]
     ) extends AnalysisRequest
 
     case class RangeAnalysisRequest(
@@ -160,8 +155,7 @@ object AnalysisRestApi {
         end: Long,
         jump: Long,
         windowSet: List[Long],
-        args: Array[String],
-        rawFile: String
+        args: Array[String]
     ) extends AnalysisRequest
   }
 

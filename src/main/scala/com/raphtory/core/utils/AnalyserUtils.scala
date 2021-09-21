@@ -9,13 +9,8 @@ object AnalyserUtils {
     Try(LoadExternalAnalyser(rawFile, args).newAnalyser)
 
   def loadPredefinedAnalyser(className: String, args: Array[String]): Try[Analyser[Any]] =
-    Try(
-            Class
-              .forName(className)
-              .getConstructor(classOf[Array[String]])
-              .newInstance(args)
-              .asInstanceOf[Analyser[Any]]
-    ).orElse(Try(Class.forName(className).getConstructor().newInstance().asInstanceOf[Analyser[Any]]))
+    Try(Class.forName(className).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser[Any]])
+      .orElse(Try(Class.forName(className).getConstructor().newInstance().asInstanceOf[Analyser[Any]]))
 
   def loadPredefinedSerialiser(className:String):AggregateSerialiser = {
     Class.forName(className).getConstructor().newInstance().asInstanceOf[AggregateSerialiser]
