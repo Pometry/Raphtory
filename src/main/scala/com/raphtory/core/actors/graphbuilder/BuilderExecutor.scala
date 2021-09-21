@@ -4,12 +4,12 @@ import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.util.Timeout
 import com.raphtory.core.actors.RaphtoryActor
-import com.raphtory.core.actors.graphbuilder.RouterWorker.CommonMessage.{DataFinishedSync, RouterWorkerTimeSync, StartUp, TimeBroadcast}
-import com.raphtory.core.actors.graphbuilder.RouterWorker.State
+import com.raphtory.core.actors.graphbuilder.BuilderExecutor.CommonMessage.{DataFinishedSync, KeepAlive, RouterWorkerTimeSync, StartUp, TimeBroadcast}
+import com.raphtory.core.actors.graphbuilder.BuilderExecutor.State
 import com.raphtory.core.actors.spout.SpoutAgent.CommonMessage.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.model.communication._
 import akka.pattern.ask
-import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
+import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, RouterUp}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -19,7 +19,7 @@ import scala.concurrent.duration._
 // TODO Add val name which sub classes that extend this trait must overwrite
 //  e.g. BlockChainRouter val name = "Blockchain Router"
 //  Log.debug that read 'Router' should then read 'Blockchain Router'
-class RouterWorker[T](
+class BuilderExecutor[T](
     val graphBuilder: GraphBuilder[T],
     val routerId: Int,
 ) extends RaphtoryActor {
@@ -39,12 +39,17 @@ class RouterWorker[T](
     log.debug(s"RouterWorker [$routerId] is being started.")
     context.system.scheduler.scheduleOnce(delay = 5.seconds, receiver = self, message = TimeBroadcast)
     context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, StartUp) // wait 10 seconds to start
+    context.system.scheduler.schedule(0 seconds, 10 seconds, self, KeepAlive)
+
 
   }
 
   override def receive: Receive = work(State(0L, false,0L))
 
   private def work(state: State): Receive = {
+    case KeepAlive =>
+      mediator ! DistributedPubSubMediator.Send("/user/WatchDog", RouterUp(routerId), localAffinity = false)
+
     case StartUp     =>
       if (!safe) {
         mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest) //ask if the cluster is safe to use
@@ -135,10 +140,11 @@ class RouterWorker[T](
 
 
 
-object RouterWorker {
+object BuilderExecutor {
   object CommonMessage {
     case object StartUp
     case object TimeBroadcast
+    case object KeepAlive
     case class DataFinishedSync(time:Long)
     case class RouterWorkerTimeSync(msgTime:Long, routerId:String, routerTime:Int)
   }
