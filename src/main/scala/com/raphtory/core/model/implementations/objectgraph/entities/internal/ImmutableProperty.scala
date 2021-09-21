@@ -1,7 +1,5 @@
 package com.raphtory.core.model.implementations.objectgraph.entities.internal
 
-import com.raphtory.core.actors.partitionmanager.ParquetProperty
-
 class ImmutableProperty(creationTime: Long, value: Any) extends Property {
   var earliestTime: Long                = creationTime
   override def valueAt(time: Long): Any = if (time >= earliestTime) value else ""
@@ -13,6 +11,6 @@ class ImmutableProperty(creationTime: Long, value: Any) extends Property {
 
   override def values(): Array[(Long,Any)] = Array[(Long,Any)]((creationTime,value))
 
-  def serialise(key:String):ParquetProperty = ParquetProperty(key,true,List((earliestTime,value.toString)))
+ // def serialise(key:String):ParquetProperty = ParquetProperty(key,true,List((earliestTime,value.toString)))
 
 }

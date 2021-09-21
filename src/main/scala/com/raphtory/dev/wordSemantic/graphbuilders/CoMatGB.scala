@@ -1,6 +1,6 @@
 package com.raphtory.dev.wordSemantic.graphbuilders
 
-import com.raphtory.core.actors.graphbuilder.GraphBuilder
+import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.model.communication._
 
 class CoMatGB extends GraphBuilder[String] {

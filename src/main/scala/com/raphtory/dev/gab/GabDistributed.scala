@@ -1,5 +1,6 @@
 package com.raphtory.dev.gab
-import com.raphtory.RaphtoryComponent
+import com.raphtory.core.build.RaphtoryComponent
+
 import scala.language.postfixOps
 
 object GabDistributed extends App {

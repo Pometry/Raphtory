@@ -3,7 +3,7 @@ package com.raphtory.core.model.communication
 import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.actors.RaphtoryActor.totalPartitions
+import com.raphtory.core.components.RaphtoryActor.totalPartitions
 
 import scala.collection.mutable
 

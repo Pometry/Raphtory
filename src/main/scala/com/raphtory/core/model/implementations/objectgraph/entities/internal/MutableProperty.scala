@@ -1,7 +1,5 @@
 package com.raphtory.core.model.implementations.objectgraph.entities.internal
 
-import com.raphtory.core.actors.partitionmanager.ParquetProperty
-
 import scala.collection.mutable
 
 /** *
@@ -49,7 +47,7 @@ class MutableProperty(creationTime: Long, value: Any) extends Property {
 
   override def values(): Array[(Long,Any)] =  {previousState.toArray}
 
-  def serialise(key:String):ParquetProperty = ParquetProperty(key,false,previousState.map(x=>(x._1,x._2.toString)).toList)
+  //def serialise(key:String):ParquetProperty = ParquetProperty(key,false,previousState.map(x=>(x._1,x._2.toString)).toList)
 
 
 }

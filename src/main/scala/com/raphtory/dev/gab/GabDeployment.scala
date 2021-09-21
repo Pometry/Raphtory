@@ -1,7 +1,7 @@
 package com.raphtory.dev.gab
 
-import com.raphtory.RaphtoryGraph
 import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic, TriangleCount}
+import com.raphtory.core.build.RaphtoryGraph
 import com.raphtory.dev.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.serialisers.{DefaultSerialiser, MongoSerialiser}
 import com.raphtory.spouts.FileSpout

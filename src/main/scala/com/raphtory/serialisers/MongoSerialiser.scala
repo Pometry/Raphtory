@@ -4,7 +4,8 @@ package com.raphtory.serialisers
 import com.mongodb.DBObject
 import com.mongodb.casbah.{MongoClient, MongoClientURI}
 import com.mongodb.util.JSON
-import com.raphtory.core.analysis.api.AggregateSerialiser
+import com.raphtory.core.model.algorithm.AggregateSerialiser
+
 import java.net.InetAddress
 
 object MongoSerialiser {

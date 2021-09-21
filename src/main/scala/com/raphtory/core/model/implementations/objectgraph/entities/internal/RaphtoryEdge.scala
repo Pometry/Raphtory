@@ -1,6 +1,5 @@
 package com.raphtory.core.model.implementations.objectgraph.entities.internal
 
-import com.raphtory.core.actors.partitionmanager.ParquetEdge
 import com.raphtory.core.model.graph.GraphPartition
 
 import scala.collection.mutable
@@ -10,15 +9,7 @@ import scala.collection.parallel.mutable.ParTrieMap
   * Companion Edge object (extended creator for storage loads)
   */
 object RaphtoryEdge {
-  def apply(
-      workerID: Int,
-      creationTime: Long,
-      srcID: Long,
-      dstID: Long,
-      previousState: mutable.TreeMap[Long, Boolean],
-      properties: ParTrieMap[String, Property],
-      storage: GraphPartition
-  ) = {
+  def apply(workerID: Int, creationTime: Long, srcID: Long, dstID: Long, previousState: mutable.TreeMap[Long, Boolean], properties: ParTrieMap[String, Property], storage: GraphPartition) = {
 
     val e = new RaphtoryEdge(creationTime, srcID, dstID, initialValue = true)
     e.history = previousState
@@ -26,15 +17,15 @@ object RaphtoryEdge {
     e
   }
 
-  def apply(parquet: ParquetEdge): RaphtoryEdge = {
-    val edge = if(parquet.split)
-      new SplitRaphtoryEdge(parquet.history.head._1, parquet.src, parquet.dst, parquet.history.head._2)
-    else
-      new RaphtoryEdge(parquet.history.head._1, parquet.src, parquet.dst, parquet.history.head._2)
-    parquet.history.foreach(update=> if(update._2) edge.revive(update._1) else edge.kill(update._1))
-    parquet.properties.foreach(prop=> edge.properties +=((prop.key,Property(prop))))
-    edge
-  }
+//  def apply(parquet: ParquetEdge): RaphtoryEdge = {
+//    val edge = if(parquet.split)
+//      new SplitRaphtoryEdge(parquet.history.head._1, parquet.src, parquet.dst, parquet.history.head._2)
+//    else
+//      new RaphtoryEdge(parquet.history.head._1, parquet.src, parquet.dst, parquet.history.head._2)
+//    parquet.history.foreach(update=> if(update._2) edge.revive(update._1) else edge.kill(update._1))
+//    parquet.properties.foreach(prop=> edge.properties +=((prop.key,Property(prop))))
+//    edge
+//  }
 
 }
 
@@ -48,5 +39,5 @@ class RaphtoryEdge(msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolea
 
   def getSrcId: Long   = srcId
   def getDstId: Long   = dstId
-  def serialise(): ParquetEdge = ParquetEdge(srcId,dstId,false,history.toList,properties.map(x=> x._2.serialise(x._1)).toList)
+//  def serialise(): ParquetEdge = ParquetEdge(srcId,dstId,false,history.toList,properties.map(x=> x._2.serialise(x._1)).toList)
 }

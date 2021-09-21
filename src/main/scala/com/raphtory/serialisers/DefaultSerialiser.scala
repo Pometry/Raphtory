@@ -1,6 +1,6 @@
 package com.raphtory.serialisers
 
-import com.raphtory.core.analysis.api.AggregateSerialiser
+import com.raphtory.core.model.algorithm.AggregateSerialiser
 
 import scala.reflect.io.Path
 
