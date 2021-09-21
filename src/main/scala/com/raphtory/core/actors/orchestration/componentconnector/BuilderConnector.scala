@@ -5,7 +5,7 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.graphbuilder.{GraphBuilder, BuilderExecutor}
 import akka.pattern.ask
 import com.raphtory.core.actors.RaphtoryActor.buildersPerServer
-import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.RequestBuilderId
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatchDog.Message.RequestBuilderId
 
 import scala.concurrent.Future
 

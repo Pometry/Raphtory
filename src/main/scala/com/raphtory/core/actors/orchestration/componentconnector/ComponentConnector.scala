@@ -7,7 +7,7 @@ import akka.util.Timeout
 import com.raphtory.core.actors.partitionmanager.{IngestionWorker, PartitionManager}
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
-import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{AssignedId, PartitionsCount}
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatchDog.Message.{AssignedId, PartitionsCount}
 import com.raphtory.core.model.graph.GraphPartition
 
 import scala.collection.mutable

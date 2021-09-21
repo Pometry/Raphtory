@@ -8,7 +8,7 @@ import akka.util.Timeout
 import com.raphtory.algorithms.{ConnectedComponents, StateTest}
 import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.{AreYouFinished, ManagingTask, TaskFinished}
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message.RangeAnalysisRequest
-import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
 import com.raphtory.core.analysis.api.Analyser
 import com.raphtory.resultcomparison.comparisonJsonProtocol._
 import com.raphtory.resultcomparison.{ConnectedComponentsResults, RaphtoryResultComparitor, StateCheckResult, TimeParams, comparisonJsonProtocol}
@@ -59,7 +59,7 @@ class AllCommandsTest extends FunSuite {
     val serialiser = new DefaultSerialiser().getClass.getCanonicalName
     try {
       //First we run the test and see if it finishes in a reasonable time
-      implicit val timeout: Timeout = 120.second
+      implicit val timeout: Timeout = 180.second
       val future = analysisManager.getAnalysisManager.get ? RangeAnalysisRequest(stateTest, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array())
       val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
       val future2 = taskManager ? AreYouFinished

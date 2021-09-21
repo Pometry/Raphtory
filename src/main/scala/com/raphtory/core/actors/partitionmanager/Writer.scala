@@ -3,7 +3,7 @@ package com.raphtory.core.actors.partitionmanager
 import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.graphbuilder.BuilderExecutor.CommonMessage.BuilderTimeSync
-import com.raphtory.core.actors.orchestration.clustermanager.WatermarkManager.Message.{ProbeWatermark, WatermarkTime}
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatermarkManager.Message.{ProbeWatermark, WatermarkTime}
 import com.raphtory.core.actors.partitionmanager.IngestionWorker.Message.Watermark
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.orchestration.MailboxTrackedActor

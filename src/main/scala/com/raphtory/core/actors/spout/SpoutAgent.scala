@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.RaphtoryActor.{builderServers, partitionServers}
-import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, SpoutUp}
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, SpoutUp}
 import com.raphtory.core.actors.spout.SpoutAgent.CommonMessage._
 import com.raphtory.core.model.communication._
 
@@ -72,9 +72,6 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
           false
         )
       }
-      println(s"Number of graph builders: $builderServers")
-      println(s"Number of partitions: $partitionServers")
-
     } else{
       context.system.scheduler.scheduleOnce(delay = 1 second, receiver = self, message = IsSafe)
     }

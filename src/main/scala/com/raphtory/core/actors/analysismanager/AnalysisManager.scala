@@ -9,10 +9,11 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.actors.analysismanager.AnalysisManager.Message.{JobKilled, _}
 import com.raphtory.core.actors.analysismanager.AnalysisManager.State
 import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
-import com.raphtory.core.actors.analysismanager.tasks.subtasks._
+import com.raphtory.core.actors.analysismanager.tasks._
 import com.raphtory.core.actors.RaphtoryActor
 import com.raphtory.core.actors.RaphtoryActor.totalPartitions
-import com.raphtory.core.actors.orchestration.clustermanager.WatchDog.Message._
+import com.raphtory.core.actors.analysismanager.tasks.{LiveAnalysisTask, RangeAnalysisTask, ViewAnalysisTask}
+import com.raphtory.core.actors.orchestration.raphtoryleader.WatchDog.Message._
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser, LoadExternalAnalyser}
 import com.raphtory.core.utils.AnalyserUtils
 
@@ -132,16 +133,16 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
   private def getAnalyser(
       analyserName: String,
       args: Array[String]): Option[Analyser[Any]] = {
-    val tryExist = AnalyserUtils.loadPredefinedAnalyser(analyserName, args)
+    val tryExist = loadPredefinedAnalyser(analyserName, args)
     tryExist match {
       case Success(analyser) => Some(analyser)
       case Failure(_)        => None
     }
   }
 
-  private def getSerialiser(
-       serialiserName: String,
-  ):  AggregateSerialiser= AnalyserUtils.loadPredefinedSerialiser(serialiserName)
+  private def getSerialiser(serialiserName: String):  AggregateSerialiser =
+    Class.forName(serialiserName).getConstructor().newInstance().asInstanceOf[AggregateSerialiser]
+
 
 }
 

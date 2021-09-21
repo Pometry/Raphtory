@@ -5,7 +5,7 @@ import com.raphtory.core.actors.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.actors.analysismanager.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, BuilderConnector, SpoutConnector}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
-import com.raphtory.core.actors.orchestration.clustermanager.{WatchDog, WatermarkManager}
+import com.raphtory.core.actors.orchestration.raphtoryleader.{WatchDog, WatermarkManager}
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
 import com.raphtory.core.analysis.api.{AggregateSerialiser, Analyser}
 
