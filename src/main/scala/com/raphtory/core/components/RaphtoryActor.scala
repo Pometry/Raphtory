@@ -24,85 +24,45 @@ object RaphtoryActor {
 
 trait RaphtoryActor extends Actor with ActorLogging with Timers {
 
-  def getWriter(srcId: Long): String = {
-     s"/user/write_${(srcId.abs % totalPartitions).toInt }"
-  }
+  private lazy val builders     :Array[String]    = (for (i <- 0 until totalBuilders)    yield           s"/user/build_$i"   ).toArray
+  private lazy val pms          :Array[String]    = (for (i <- 0 until partitionServers) yield           s"/user/Manager_$i" ).toArray
+  private lazy val readers      :Array[String]    = (for (i <- 0 until totalPartitions)  yield           s"/user/read_$i"    ).toArray
+  private lazy val writerA      :Array[String]    = (for (i <- 0 until totalPartitions)  yield           s"/user/write_$i"   ).toArray
+  private lazy val writerM      :Map[Long,String] = (for (i <- 0 until totalPartitions)  yield (i.toLong,s"/user/write_$i")  ).toMap
 
-  def getAllGraphBuilders(): Array[String] = {
-    val workers = mutable.ArrayBuffer[String]()
-    for (i <- 0 until totalBuilders)
-      workers += s"/user/route_$i"
-    workers.toArray
-  }
-
-
-  def getAllPartitionManagers(): Array[String] = {
-    val workers = mutable.ArrayBuffer[String]()
-    for (i <- 0 until partitionServers)
-      workers += s"/user/Manager_$i"
-    workers.toArray
-  }
-
-  def getAllReaders(): Array[String] = {
-    val workers = mutable.ArrayBuffer[String]()
-    for (i <- 0 until totalPartitions)
-        workers += s"/user/read_$i"
-    workers.toArray
-  }
-
-  def getAllWriters(): Array[String] = {
-    val workers = mutable.ArrayBuffer[String]()
-    for (i <- 0 until totalPartitions)
-      workers += s"/user/write_$i"
-    workers.toArray
-  }
+  def getAllGraphBuilders()     : Array[String] = builders
+  def getAllPartitionManagers() : Array[String] = pms
+  def getAllReaders()           : Array[String] = readers
+  def getAllWriters()           : Array[String] = writerA
+  def getWriter(srcId:Long)     : String        = writerM(srcId.abs % totalPartitions)
 
   def loadPredefinedAnalyser(className: String, args: Array[String]): Try[Analyser[Any]] =
     Try(Class.forName(className).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser[Any]])
       .orElse(Try(Class.forName(className).getConstructor().newInstance().asInstanceOf[Analyser[Any]]))
 
+  def scheduleTask(initialDelay: FiniteDuration, interval: FiniteDuration, receiver: ActorRef, message: Any)
+                  (implicit context: ActorContext, executor: ExecutionContext, sender: ActorRef = Actor.noSender): Cancellable = {
+      val scheduler = context.system.scheduler
+      val cancellable = scheduler.schedule(initialDelay, interval, receiver, message)(executor,self)
+      context.system.log.debug("The message [{}] has been scheduled for send to [{}].", message, receiver.path)
+      cancellable
+    }
 
-  def scheduleTask(initialDelay: FiniteDuration, interval: FiniteDuration, receiver: ActorRef, message: Any)(
-    implicit context: ActorContext,
-    executor: ExecutionContext,
-    sender: ActorRef = Actor.noSender
-  ): Cancellable = {
-    val scheduler = context.system.scheduler
-
-    val cancellable = scheduler.schedule(initialDelay, interval, receiver, message)(executor,self)
-    context.system.log.debug("The message [{}] has been scheduled for send to [{}].", message, receiver.path)
-
-    cancellable
-  }
-
-  def scheduleTaskOnce(
-                        delay: FiniteDuration,
-                        receiver: ActorRef,
-                        message: Any
-                      )(implicit context: ActorContext, executor: ExecutionContext, sender: ActorRef = Actor.noSender): Cancellable = {
-    val scheduler = context.system.scheduler
-
-    val cancellable = scheduler.scheduleOnce(delay, receiver, message)(executor,self)
-    context.system.log.debug("The message [{}] has been scheduled for send to [{}].", message, receiver.path)
-
-    cancellable
-  }
+  def scheduleTaskOnce(delay: FiniteDuration, receiver: ActorRef, message: Any)
+                      (implicit context: ActorContext, executor: ExecutionContext, sender: ActorRef = Actor.noSender): Cancellable = {
+      val scheduler = context.system.scheduler
+      val cancellable = scheduler.scheduleOnce(delay, receiver, message)(executor,self)
+      context.system.log.debug("The message [{}] has been scheduled for send to [{}].", message, receiver.path)
+      cancellable
+    }
 
   def cancelTask(key: String, task: Cancellable)(implicit context: ActorContext): Boolean = {
     task.cancel()
-
     val isCancelled = task.isCancelled
-
     if (isCancelled)
       context.system.log.debug("The task [{}] has been cancelled.", key)
     else
       context.system.log.debug("Failed to cancel the task [{}].", key)
-
     isCancelled
   }
-
-  object sortOrdering extends Ordering[Long] {
-    def compare(key1: Long, key2: Long) = key2.compareTo(key1)
-  }
-
 }
