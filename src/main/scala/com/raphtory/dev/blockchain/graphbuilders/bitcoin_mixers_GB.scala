@@ -1,7 +1,8 @@
 package com.raphtory.dev.blockchain.graphbuilders
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.model.communication.{Type, _}
+import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.model.graph.{FloatProperty, Properties, Type}
 
 class bitcoin_mixers_GB extends GraphBuilder[String] {
 

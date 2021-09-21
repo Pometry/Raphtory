@@ -1,10 +1,10 @@
-package com.raphtory.core.model.implementations.objectgraph
+package com.raphtory.core.implementations.objectgraph
 
 import com.raphtory.core.components.RaphtoryActor.totalPartitions
-import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graph.{GraphPartition, GraphPerspective}
+import com.raphtory.core.implementations.objectgraph.entities.internal.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
+import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.model.graph.{DoubleProperty, EdgeSyncAck, FloatProperty, GraphPartition, GraphPerspective, GraphUpdateEffect, ImmutableProperty, InboundEdgeRemovalViaVertex, LongProperty, OutboundEdgeRemovalViaVertex, Properties, StringProperty, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, Type, VertexRemoveSyncAck}
 import com.raphtory.core.model.graph.visitor.Vertex
-import com.raphtory.core.model.implementations.objectgraph.entities.internal.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.parallel.mutable.ParTrieMap

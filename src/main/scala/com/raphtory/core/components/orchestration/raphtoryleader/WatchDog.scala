@@ -38,8 +38,10 @@ class WatchDog() extends RaphtoryActor {
 
   private def work(state: ActorState): Receive = LoggingReceive {
     case Tick =>
-      val newState = handleTick(state)
-      context.become(work(newState))
+      if(!state.clusterUp) {
+        val newState = handleTick(state)
+        context.become(work(newState))
+      }
       context.system.scheduler.scheduleOnce(10.seconds, self, Tick)
 
     case ClusterStatusRequest =>

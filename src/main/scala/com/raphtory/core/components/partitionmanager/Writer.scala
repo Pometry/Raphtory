@@ -7,8 +7,8 @@ import com.raphtory.core.components.orchestration.raphtoryleader.WatermarkManage
 import com.raphtory.core.components.partitionmanager.Writer.Message.Watermark
 import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.orchestration.MailboxTrackedActor
-import com.raphtory.core.model.communication._
-import com.raphtory.core.model.graph.GraphPartition
+import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.model.graph.{EdgeAdd, EdgeDelete, EdgeSyncAck, GraphPartition, GraphUpdateEffect, InboundEdgeRemovalViaVertex, OutboundEdgeRemovalViaVertex, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, TrackedGraphUpdate, VertexAdd, VertexDelete, VertexRemoveSyncAck}
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable

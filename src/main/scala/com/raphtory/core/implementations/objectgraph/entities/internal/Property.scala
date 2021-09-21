@@ -1,5 +1,4 @@
-package com.raphtory.core.model.implementations.objectgraph.entities.internal
-
+package com.raphtory.core.implementations.objectgraph.entities.internal
 
 abstract class Property {
   def update(msgTime: Long, newValue: Any): Unit

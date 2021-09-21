@@ -8,7 +8,7 @@ import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.RaphtoryActor.partitionsPerServer
 import com.raphtory.core.components.analysismanager.tasks.AnalysisTask.Message.{ReaderWorkersAck, ReaderWorkersOnline}
 import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.PartitionUp
-import com.raphtory.core.model.communication._
+import com.raphtory.core.implementations.objectgraph.messaging._
 import com.raphtory.core.model.graph.GraphPartition
 
 import scala.collection.mutable

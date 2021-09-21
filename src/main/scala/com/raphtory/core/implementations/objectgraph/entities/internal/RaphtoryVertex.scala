@@ -1,13 +1,12 @@
-package com.raphtory.core.model.implementations.objectgraph.entities.internal
+package com.raphtory.core.implementations.objectgraph.entities.internal
 
+import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
+import com.raphtory.core.implementations.objectgraph.entities.external.{ObjectEdge, ObjectVertex}
 import com.raphtory.core.model.graph.{GraphPartition, visitor}
 import com.raphtory.core.model.graph.visitor.{Edge, Vertex}
-import com.raphtory.core.model.implementations.objectgraph.ObjectGraphLens
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
-import com.raphtory.core.model.implementations.objectgraph.entities.external.ObjectEdge
-import com.raphtory.core.model.implementations.objectgraph.entities.external.ObjectVertex
 
 /** Companion Vertex object (extended creator for storage loads) */
 object RaphtoryVertex {

@@ -1,8 +1,9 @@
 package com.raphtory.core.components.graphbuilder
 
-import java.nio.ByteBuffer
 
-import com.raphtory.core.model.communication._
+import java.nio.ByteBuffer
+import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.model.graph.{EdgeAdd, EdgeDelete, GraphUpdate, Properties, Type, VertexAdd, VertexDelete}
 import net.jpountz.xxhash.XXHash64
 import net.openhft.hashing
 import net.openhft.hashing.LongHashFunction

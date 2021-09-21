@@ -1,9 +1,8 @@
 package com.raphtory.dev.gab.graphbuilders
 
 import java.time.OffsetDateTime
-
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.model.communication.{ Properties, StringProperty}
+import com.raphtory.core.model.graph.{Properties, StringProperty}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
 
