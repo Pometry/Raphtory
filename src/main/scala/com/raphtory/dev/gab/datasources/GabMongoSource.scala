@@ -3,7 +3,7 @@ package com.raphtory.examples.gab.datasources
 import akka.actor.Cancellable
 import ch.qos.logback.classic.Level
 import com.mongodb.casbah.Imports.{MongoConnection, _}
-import com.raphtory.core.actors.spout.Spout
+import com.raphtory.core.components.spout.Spout
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable

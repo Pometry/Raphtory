@@ -1,7 +1,9 @@
 package com.raphtory.allcommands
 
-import com.raphtory.core.actors.graphbuilder.GraphBuilder
-import com.raphtory.core.model.communication._
+import com.raphtory.core.components.graphbuilder.GraphBuilder
+import com.raphtory.core.model.graph
+import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.model.graph.{FloatProperty, Properties}
 import spray.json._
 
 class AllCommandsBuilder extends GraphBuilder[String]{
@@ -27,7 +29,7 @@ class AllCommandsBuilder extends GraphBuilder[String]{
     val srcId   = command.fields("srcID").toString().toInt //extract the srcID
     if (command.fields.contains("properties")) { //if there are properties within the command
 
-      val properties = Properties(command.fields("properties").asJsObject.fields.map( pair => {  //add all of the pairs to the map
+      val properties = graph.Properties(command.fields("properties").asJsObject.fields.map(pair => {  //add all of the pairs to the map
          FloatProperty(pair._1, pair._2.toString().toFloat)
        }).toSeq:_*)
 

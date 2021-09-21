@@ -1,6 +1,6 @@
 package com.raphtory.dev.stackoverflow
 
-import com.raphtory.core.actors.graphbuilder.GraphBuilder
+import com.raphtory.core.components.graphbuilder.GraphBuilder
 
 class SOBuilder extends GraphBuilder[String]{
   override protected def parseTuple(tuple: String): Unit = {

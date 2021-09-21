@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -14,14 +14,14 @@ class WeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
-      val outEdges = vertex.getOutEdges
+      val outEdges = vertex.getOutEdges()
       val outDegree = outEdges.size
 
       if (outDegree > 0) {
-        val toSend = 1.0/outEdges.map(e=> e.getHistory().size).sum
+        val toSend = 1.0/outEdges.map(e=> e.history().size).sum
         vertex.setState("prlabel",toSend)
         outEdges.foreach(edge => {
-          val modifyer = edge.getHistory().size
+          val modifyer = edge.history().size
           edge.send(toSend*modifyer)
         })
       } else {
@@ -36,12 +36,12 @@ class WeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
       val newLabel = (1-d) + d * messages.sum
       vertex.setState("prlabel",newLabel)
       if (Math.abs(newLabel-currentLabel)/currentLabel > 0.01) {
-        val outEdges = vertex.getOutEdges
+        val outEdges = vertex.getOutEdges()
         val outDegree = outEdges.size
         if (outDegree > 0) {
-          val toSend = newLabel/outEdges.map(e=> e.getHistory().size).sum
+          val toSend = newLabel/outEdges.map(e=> e.history().size).sum
           outEdges.foreach(edge => {
-            val modifyer = edge.getHistory().size
+            val modifyer = edge.history().size
             edge.send(toSend*modifyer)
           })
         }

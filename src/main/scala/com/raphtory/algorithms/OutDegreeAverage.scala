@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -9,7 +9,7 @@ class OutDegreeAverage(args:Array[String]) extends Analyser[Any](args){
   override def analyse(): Unit = {}
   override def setup(): Unit   = {}
   override def returnResults(): Any = {
-    val outedges = view.getVertices().map { vertex =>vertex.getOutEdges.size}.filter(x=>x>0)
+    val outedges = view.getVertices().map { vertex =>vertex.getOutEdges().size}.filter(x=>x>0)
     val degree = outedges.sum
     val totalV   = outedges.size
     (totalV, degree)
@@ -26,8 +26,8 @@ class OutDegreeAverage(args:Array[String]) extends Analyser[Any](args){
     val degree =
       try totalEdge.toDouble / totalVert.toDouble
       catch { case _: ArithmeticException => 0 }
+    Map[String,Any](("degree",degree))
 
-    Map("vertices"->totalVert,"edges"->totalEdge,"degree"->degree)
   }
 
 }

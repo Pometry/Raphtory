@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -13,17 +13,17 @@ class DegreeDistribution(args:Array[String]) extends Analyser[Any](args){
   override def returnResults(): Any = {
     val degDist = view.getVertices().map {
       vertex =>
-        val inDeg = vertex.getIncEdges.size
-        val outDeg = vertex.getOutEdges.size
+        val inDeg = vertex.getInEdges().size
+        val outDeg = vertex.getOutEdges().size
         val deg = inDeg + outDeg
         (inDeg, outDeg, deg)
     }
     val totalV = degDist.size
     val totalDeg = degDist.map( x => x._3).sum
     val maxDeg = if (degDist.nonEmpty) degDist.map(x => x._3).max else 0
-    val inDegSq = degDist.map( x => x._1 * x._1).sum
-    val outDegSq = degDist.map( x => x._2 * x._2).sum
-    val degSq = degDist.map( x => x._3 * x._3).sum
+    val inDegSq = degDist.map { case (in, _, _) => in * in}.sum
+    val outDegSq = degDist.map{ case (_, out, _) => out * out}.sum
+    val degSq = degDist.map{ case (_, _, degree) => degree * degree}.sum
     (totalV, totalDeg, inDegSq, outDegSq, degSq, maxDeg)
   }
 

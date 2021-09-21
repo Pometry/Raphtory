@@ -1,7 +1,7 @@
 package com.raphtory.dev.stackoverflow
 
-import com.raphtory.RaphtoryGraph
 import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic, StateTest}
+import com.raphtory.core.build.RaphtoryGraph
 import com.raphtory.serialisers.DefaultSerialiser
 import com.raphtory.spouts.FileSpout
 

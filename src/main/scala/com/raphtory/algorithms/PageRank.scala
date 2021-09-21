@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -14,7 +14,7 @@ class PageRank(args:Array[String]) extends Analyser[(Int, List[(Long,Double)])](
 
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>
-      val outEdges = vertex.getOutEdges
+      val outEdges = vertex.getOutEdges()
       val outDegree = outEdges.size
       if (outDegree > 0) {
         val toSend = 1.0/outDegree
@@ -33,7 +33,7 @@ class PageRank(args:Array[String]) extends Analyser[(Int, List[(Long,Double)])](
       val newLabel = 1 - d + d * vertex.messageQueue[Double].sum
       vertex.setState("prlabel",newLabel)
       if (Math.abs(newLabel-currentLabel)/currentLabel > 0.01) {
-        val outEdges = vertex.getOutEdges
+        val outEdges = vertex.getOutEdges()
         val outDegree = outEdges.size
         if (outDegree > 0) {
           val toSend = newLabel/outDegree
