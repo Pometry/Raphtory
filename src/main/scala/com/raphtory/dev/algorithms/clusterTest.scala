@@ -7,7 +7,7 @@ import scala.language.postfixOps
 object clusterTest extends App {
   val source = "com.raphtory.dev.wordSemantic.spouts.CoMatSpout"//spouts.FileSpout"
   val builder = "com.raphtory.dev.wordSemantic.graphbuilders.CoMatGB"//dev.blockchain.graphbuilders.chab_C2C_GB"
-  new RaphtoryComponent("seedNode",1600)
+  new RaphtoryComponent("leader",1600)
   new RaphtoryComponent("watchdog",1601)
   new RaphtoryComponent("analysisManager",1602)
   new RaphtoryComponent("spout",1603,source)

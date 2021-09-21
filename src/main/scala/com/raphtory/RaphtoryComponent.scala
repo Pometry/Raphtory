@@ -3,7 +3,7 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import com.esotericsoftware.kryo.Kryo
 import com.raphtory.core.actors.orchestration.componentconnector.{AnalysisManagerConnector, PartitionConnector, BuilderConnector, SpoutConnector}
 import com.raphtory.core.actors.graphbuilder.GraphBuilder
-import com.raphtory.core.actors.orchestration.raphtoryleader.{SeedActor, WatchDog, WatermarkManager}
+import com.raphtory.core.actors.orchestration.raphtoryleader.{WatchDog, WatermarkManager}
 import com.raphtory.core.actors.spout.{Spout, SpoutAgent}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 
@@ -19,7 +19,6 @@ class RaphtoryComponent(component:String,port:Int,classPath:String="") {
   kryo.register(scala.Tuple2.getClass,3002)
   kryo.register(classOf[scala.Tuple2[Long,Boolean]],3003)
 
-  private var seedNodeRef:ActorRef = _
   private var watermarkerRef:ActorRef = _
   private var watchdogRef:ActorRef = _
   private var builderRef:ActorRef = _
@@ -27,7 +26,6 @@ class RaphtoryComponent(component:String,port:Int,classPath:String="") {
   private var spoutRef:ActorRef = _
   private var analysisManagerRef:ActorRef = _
 
-  def getSeedNode:Option[ActorRef] = Option(seedNodeRef)
   def getWatermarker:Option[ActorRef] = Option(watermarkerRef)
   def getWatchdog:Option[ActorRef] = Option(watchdogRef)
   def getBuilder:Option[ActorRef] = Option(builderRef)
@@ -37,7 +35,7 @@ class RaphtoryComponent(component:String,port:Int,classPath:String="") {
 
 
   component match {
-    case "seedNode" => seedNode()
+    case "leader" => leader()
     case "builder" => builder()
     case "partitionManager" => partition()
     case "spout" => spout()
@@ -45,11 +43,10 @@ class RaphtoryComponent(component:String,port:Int,classPath:String="") {
   }
 
 
-  def seedNode() = {
-    val seedLoc = s"127.0.0.1:$port"
-    println(s"Creating seed node and watchdog at $seedLoc")
-    implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
-    seedNodeRef = system.actorOf(Props(new SeedActor()), "cluster")
+  def leader() = {
+    val address = s"127.0.0.1:$port"
+    println(s"Creating leader at $address")
+    implicit val system: ActorSystem = initialiseActorSystem(seeds = List(address))
     watermarkerRef = system.actorOf(Props(new WatermarkManager()),"WatermarkManager")
     watchdogRef = system.actorOf(Props(new WatchDog()), "WatchDog")
   }

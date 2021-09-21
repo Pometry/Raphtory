@@ -25,7 +25,7 @@ class AllCommandsTest extends FunSuite {
   //    FILE_SPOUT_FILENAME=testupdates.txt
   //    OUTPUT_PATH=src/test/scala/com/raphtory/data/allcommands/output
 
-  val seedNode = new RaphtoryComponent("seedNode",1600)
+  val leader = new RaphtoryComponent("leader",1600)
   val analysisManager = new RaphtoryComponent("analysisManager",1602)
   val spout= new RaphtoryComponent("spout",1603,"com.raphtory.spouts.FileSpout")
   val builder1 = new RaphtoryComponent("builder",1604,"com.raphtory.allcommands.AllCommandsBuilder")
@@ -45,7 +45,7 @@ class AllCommandsTest extends FunSuite {
           Thread.sleep(60000) //Wait the initial watermarker warm up time
           for (i <- 1 to 6){
             Thread.sleep(10000)
-            val future = seedNode.getWatermarker.get ? WhatsTheTime
+            val future = leader.getWatermarker.get ? WhatsTheTime
             currentTimestamp = Await.result(future, timeout.duration).asInstanceOf[WatermarkTime].time
           }
           assert(currentTimestamp==299868) //all data is ingested and the minimum watermark is set to the last line in the data

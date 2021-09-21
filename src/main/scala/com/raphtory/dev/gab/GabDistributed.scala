@@ -3,7 +3,7 @@ import com.raphtory.RaphtoryComponent
 import scala.language.postfixOps
 
 object GabDistributed extends App {
-  new RaphtoryComponent("seedNode",1600)
+  new RaphtoryComponent("leader",1600)
   new RaphtoryComponent("analysisManager",1602)
   new RaphtoryComponent("spout",1603,"com.raphtory.dev.lotr.LOTRSpout")
   new RaphtoryComponent("builder",1604,"com.raphtory.dev.gab.graphbuilders.GabUserGraphBuilder")
