@@ -36,7 +36,7 @@ class CBOD(args: Array[String]) extends Analyser[Any](args) {
     val t0 = System.currentTimeMillis()
     if (debug)
       println(
-        s"{BtwSuperstep: ${view.superStep}, workerID: ${workerID},  ExecTime: ${t0 - b0}}"
+        s"{BtwSuperstep: ${view.superStep}, ExecTime: ${t0 - b0}}"
       )
     view.getMessagedVertices().foreach { vertex =>
       val t1 = System.currentTimeMillis()
@@ -75,12 +75,12 @@ class CBOD(args: Array[String]) extends Analyser[Any](args) {
       }
       if (filter.contains(vertex.ID()) & debug)
         println(
-          s"{Superstep: ${view.superStep},workerID: ${workerID}, vID: ${vertex.ID()},ExecTime: ${System.currentTimeMillis() - t1}}"
+          s"{Superstep: ${view.superStep}, vID: ${vertex.ID()},ExecTime: ${System.currentTimeMillis() - t1}}"
         )
     }
     if (debug)
     println(
-      s"{workerID: ${workerID},Superstep: ${view.superStep},  ExecTime: ${System.currentTimeMillis() - t0}}"
+      s"{Superstep: ${view.superStep},  ExecTime: ${System.currentTimeMillis() - t0}}"
     )
     b0 = System.currentTimeMillis()
   }
