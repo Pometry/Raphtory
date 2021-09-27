@@ -38,7 +38,7 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
     case RequestResults(_) =>
       sender ! ResultsForApiPI(Array())//TODO remove
     case req: KillTask =>
-      messageToAllReaderWorkers(req)
+      messageToAllReaders(req)
       sender ! JobKilled
       context.stop(self)
     case AreYouFinished => monitor = sender() // register to message out later
@@ -47,7 +47,7 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
 
   private def checkReaderWorker(readyCount: Int): Receive = withDefaultMessageHandler("check reader worker") {
     case StartAnalysis => //received message to start from Orchestrator
-      messageToAllReaders(ReaderWorkersOnline)
+      messagePartitionManagers(ReaderWorkersOnline)
 
     case ReaderWorkersAck => //count up number of acks and if == number of workers, check if analyser present
       if (readyCount + 1 != partitionServers) {
@@ -55,7 +55,7 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
       }
       else {
         println("checking analyser")
-        messageToAllReaderWorkers(LoadAnalyser(jobId, analyser.getClass.getCanonicalName, args.toList))
+        messageToAllReaders(LoadAnalyser(jobId, analyser.getClass.getCanonicalName, args.toList))
         context.become(checkAnalyser(0))
 
       }
@@ -65,7 +65,7 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
     case AnalyserPresent(workerID,actor) => //analyser confirmed to be present within workers, send setup request to workers
       workerList += ((workerID,actor))
       if (readyCount + 1 == totalPartitions) {
-        messageToAllReaderWorkers(TimeCheck)
+        messageToAllReaders(TimeCheck)
         context.become(checkTime(None, List.empty, None))
       } else context.become(checkAnalyser(readyCount + 1))
   }
@@ -96,7 +96,7 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
       } else
         context.become(checkTime(taskController, readyTimes, currentRange))
     case RecheckTime => //if the time was previous out of scope, wait and then recheck
-      messageToAllReaderWorkers(TimeCheck)
+      messageToAllReaders(TimeCheck)
   }
 
   private def waitAllReadyForSetupTask(subtaskState: SubtaskState, readyCount: Int): Receive =
@@ -215,16 +215,16 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
           context.become(finishSubtask(subtaskState, newReadyCount, newAllResults))
 
       case StartNextSubtask =>
-        messageToAllReaderWorkers(TimeCheck)
+        messageToAllReaders(TimeCheck)
         context.become(checkTime(Some(subtaskState.taskController), List.empty, None))
 
       case JobFailed => killJob()
     }
 
-  private def messageToAllReaders[T](msg: T): Unit =
+  private def messagePartitionManagers[T](msg: T): Unit =
     getAllPartitionManagers().foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
 
-  private def messageToAllReaderWorkers[T](msg: T): Unit =
+  private def messageToAllReaders[T](msg: T): Unit =
     getAllReaders().foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
 
   private def messagetoAllJobWorkers[T](msg:T):Unit =
