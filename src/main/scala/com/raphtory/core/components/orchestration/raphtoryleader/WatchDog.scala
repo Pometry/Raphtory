@@ -63,7 +63,7 @@ class WatchDog() extends RaphtoryActor {
       val newMap = state.spLiveMap + (id -> System.currentTimeMillis())
       context.become(work(state.copy(spLiveMap = newMap)))
 
-    case AnalysisManagerUp(id) =>
+    case QueryManagerUp(id) =>
       val newMap = state.anLiveMap + (id -> System.currentTimeMillis())
       context.become(work(state.copy(anLiveMap = newMap)))
 
@@ -127,7 +127,7 @@ object WatchDog {
     case class BuilderUp(id: Int)
     case class PartitionUp(id: Int)
     case class SpoutUp(id: Int)
-    case class AnalysisManagerUp(id: Int)
+    case class QueryManagerUp(id: Int)
     case object ClusterStatusRequest
     case class ClusterStatusResponse(clusterUp: Boolean)
     case class AssignedId(id: Int)

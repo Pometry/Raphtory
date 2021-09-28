@@ -37,7 +37,7 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
 
   def init(): Receive = {
     case StartUp =>
-      mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", AnalysisManagerUp(0)) //ask if the cluster is safe to use
+      mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", QueryManagerUp(0)) //ask if the cluster is safe to use
       mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest) //ask if the cluster is safe to use
 
     case ClusterStatusResponse(clusterUp) =>
