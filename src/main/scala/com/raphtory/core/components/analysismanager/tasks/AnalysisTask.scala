@@ -254,19 +254,19 @@ object AnalysisTask {
     case class TimeResponse(time: Long)
     case object RecheckTime
 
-    case class SetupSubtask(neighbours: mutable.Map[Int,ActorRef], timestamp: Long, window: Option[Long])
+    case class  SetupSubtask(neighbours: mutable.Map[Int,ActorRef], timestamp: Long, window: Option[Long])
     case object ReadyToRock
     case object SetupSubtaskDone
-    case class StartSubtask(jobId: String)
-    case class Ready(messages: Int)
-    case class SetupNextStep(jobId: String)
+    case class  StartSubtask(jobId: String)
+    case class  Ready(messages: Int)
+    case class  SetupNextStep(jobId: String)
     case object SetupNextStepDone
-    case class StartNextStep(jobId: String)
-    case class CheckMessages(jobId: String)
-    case class MessagesReceived(receivedMessages: Int, sentMessages: Int)
-    case class EndStep(superStep: Int, sentMessageCount: Int, voteToHalt: Boolean)
-    case class Finish(jobId: String)
-    case class ReturnResults(results: Any)
+    case class  StartNextStep(jobId: String)
+    case class  CheckMessages(jobId: String)
+    case class  MessagesReceived(receivedMessages: Int, sentMessages: Int)
+    case class  EndStep(superStep: Int, sentMessageCount: Int, voteToHalt: Boolean)
+    case class  Finish(jobId: String)
+    case class  ReturnResults(results: Any)
     case object StartNextSubtask
   }
 }
