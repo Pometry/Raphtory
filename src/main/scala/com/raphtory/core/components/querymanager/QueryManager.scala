@@ -79,7 +79,7 @@ class QueryManager extends RaphtoryActor with ActorLogging with Stash {
 
   private def spawnRangeQuery(id:String, query: RangeQuery): ActorRef = {
     log.info(s"Range Query received, your job ID is $id")
-    context.system.actorOf(Props(RangeQueryHandler(id,query.algorithm,query.start,,query.end,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), id)
+    context.system.actorOf(Props(RangeQueryHandler(id,query.algorithm,query.start,query.end,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), id)
   }
 
   private def spawnLiveQuery(id:String, query: LiveQuery): ActorRef = {
