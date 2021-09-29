@@ -4,13 +4,15 @@ import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.RaphtoryActor.totalPartitions
-import com.raphtory.core.components.querymanager.QueryHandler.Message.{EstablishExecutor, ExecutorEstablished, StartAnalysis, TimeCheck, TimeResponse}
-import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, JobKilled, KillTask, TaskFinished}
+import com.raphtory.core.components.analysismanager.tasks.AnalysisTask.SubtaskState
+import com.raphtory.core.components.analysismanager.tasks.{SubTaskController, TaskTimeRange}
+import com.raphtory.core.components.querymanager.QueryHandler.Message.{CreatePerspective, EstablishExecutor, ExecutorEstablished, PerspectiveEstablished, RecheckTime, StartAnalysis, StartSubtask, TimeCheck, TimeResponse}
+import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, JobFailed, JobKilled, KillTask, TaskFinished}
 import com.raphtory.core.model.algorithm.GraphAlgorithm
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{Duration, MILLISECONDS}
+import scala.concurrent.duration.{Duration, MILLISECONDS, SECONDS}
 import scala.reflect.ClassTag.Any
 import scala.util.{Failure, Success}
 
@@ -20,22 +22,64 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
 
   private var monitor:ActorRef = _
 
-  protected def buildSubTaskController(latestTimestamp: Long): PerspectiveController
+  protected def buildPerspectiveController(latestTimestamp: Long): PerspectiveController
   override def preStart() = context.system.scheduler.scheduleOnce(Duration(1, MILLISECONDS), self, StartAnalysis)
   override def receive: Receive = spawnExecutors(0)
 
   private def spawnExecutors(readyCount: Int): Receive = withDefaultMessageHandler("spawn executors") {
-    case StartAnalysis => {
+    case StartAnalysis =>
       messageToAllReaders(EstablishExecutor(jobID))
-    }
+
     case ExecutorEstablished(workerID,actor) => //analyser confirmed to be present within workers, send setup request to workers
       workerList += ((workerID,actor))
-      if (readyCount + 1 == totalPartitions) {
-
-        //context.become(checkTime(None, List.empty, None))
-      } else context.become(spawnExecutors(readyCount + 1))
+      if (readyCount + 1 == totalPartitions)
+        kickOffJob()
+      else
+        context.become(spawnExecutors(readyCount + 1))
   }
 
+  private def establishPerspective(perspectiveController: PerspectiveController, currentPerspective: Perspective): Receive = withDefaultMessageHandler("execute") {
+    case RecheckTime =>
+      recheckTime(currentPerspective)
+    case PerspectiveEstablished =>
+      println("howdy")
+//      val newReadyCount = readyCount + 1
+//      if (newReadyCount == totalPartitions) {
+//        //messagetoAllJobWorkers(StartSubtask(jobId))
+//        context.become(preStepSubtask(subtaskState, 0, 0))
+//      }
+//      else context.become(waitAllReadyForSetupTask(subtaskState, newReadyCount))
+//    case JobFailed => killJob()
+
+  }
+
+
+  private def kickOffJob() = {
+    val latestTime = safeTime()
+    val perspectiveController = buildPerspectiveController(latestTime)
+    val currentPerspective = perspectiveController.nextPerspective()
+    currentPerspective match {
+      case Some(range) if range.timestamp <= latestTime =>
+        log.info(s"$range for Job $jobID is ready to start")
+        messagetoAllJobWorkers(CreatePerspective(workerList, range.timestamp, range.window))
+      case Some(range) =>
+        log.info(s"$range for Job $jobID is not ready. Rechecking")
+        context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
+        context.become(establishPerspective(buildPerspectiveController(latestTime),range))
+      case None =>
+        log.info(s"no more sub tasks for $jobID")
+        killJob()
+    }
+  }
+
+  private def recheckTime(perspective: Perspective):Unit = {
+    val time = safeTime()
+    println(time)
+    if (perspective.timestamp <= time)
+      messagetoAllJobWorkers(CreatePerspective(workerList, perspective.timestamp, perspective.window))
+    else
+      context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
+  }
 
 
   private def withDefaultMessageHandler(description: String)(handler: Receive): Receive = handler.orElse {
