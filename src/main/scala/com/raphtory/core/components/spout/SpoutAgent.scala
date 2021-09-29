@@ -16,7 +16,7 @@ import scala.language.postfixOps
 
 class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
   // todo: wvv should assign the dispatcher when create the actor
-  implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("spout-dispatcher")
+  //implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("spout-dispatcher")
   //implicit val executionContext: ExecutionContext = context.system.dispatcher
 
   private var count       = 0
@@ -24,8 +24,6 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
   private def recordUpdate(): Unit = {
     count += 1
   }
-
-  private val mediator = DistributedPubSub(context.system).mediator
 
   override def preStart() {
     log.debug("Spout is being started.")

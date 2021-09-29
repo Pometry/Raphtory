@@ -18,9 +18,6 @@ import scala.concurrent.duration._
 
 
 final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryActor with MailboxTrackedActor {
-  private implicit val executionContext: ExecutionContext = context.system.dispatcher
-  private val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   private var increments = 0
   private var updates = 0

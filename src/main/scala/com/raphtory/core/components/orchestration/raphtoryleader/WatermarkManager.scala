@@ -13,7 +13,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class WatermarkManager extends RaphtoryActor  {
-  implicit val executionContext: ExecutionContext = context.system.dispatcher
 
   override def preStart(): Unit = {
     context.system.scheduler.scheduleOnce(delay = 60.seconds, receiver = self, message = "probe")
@@ -22,9 +21,6 @@ class WatermarkManager extends RaphtoryActor  {
 
   private val safeMessageMap = ParTrieMap[String, Long]()
   var counter = 0;
-
-  val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   override def receive: Receive = {
     case "probe" => probeWatermark()

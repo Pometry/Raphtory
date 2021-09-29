@@ -18,14 +18,10 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 
 class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) extends RaphtoryActor {
-  implicit val executionContext: ExecutionContext = context.system.dispatcher
   private val messageIDs = ParTrieMap[String, Int]()
   private var safe = false
 
   var update = 0
-
-  final protected val mediator = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart(): Unit = {
     log.debug(s"Builder Executor [$builderID] is being started.")

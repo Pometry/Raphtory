@@ -16,10 +16,6 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analyser[Any], serialiser:AggregateSerialiser) extends RaphtoryActor {
-  implicit val executionContext: ExecutionContext = context.system.dispatcher
-  private val mediator = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
-  //mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
   private val workerList = mutable.Map[Int,ActorRef]()
   private val maxStep: Int     = analyser.defineMaxSteps()
 

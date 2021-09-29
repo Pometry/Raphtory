@@ -4,19 +4,17 @@ import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.RaphtoryActor.totalPartitions
-import com.raphtory.core.components.querymanager.QueryHandler.Message.{EstablishExecutor, ExecutorEstablished, StartAnalysis, TimeCheck}
+import com.raphtory.core.components.querymanager.QueryHandler.Message.{EstablishExecutor, ExecutorEstablished, StartAnalysis, TimeCheck, TimeResponse}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, JobKilled, KillTask, TaskFinished}
 import com.raphtory.core.model.algorithm.GraphAlgorithm
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{Duration, MILLISECONDS}
+import scala.reflect.ClassTag.Any
+import scala.util.{Failure, Success}
 
 abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends RaphtoryActor{
-  implicit val executionContext: ExecutionContext = context.system.dispatcher
-
-  private val mediator = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   private val workerList = mutable.Map[Int,ActorRef]()
 
@@ -33,8 +31,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
     case ExecutorEstablished(workerID,actor) => //analyser confirmed to be present within workers, send setup request to workers
       workerList += ((workerID,actor))
       if (readyCount + 1 == totalPartitions) {
-        println("all executors spawned")
-        //messageToAllReaders(TimeCheck)
+
         //context.become(checkTime(None, List.empty, None))
       } else context.become(spawnExecutors(readyCount + 1))
   }

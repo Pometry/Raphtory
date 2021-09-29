@@ -6,8 +6,6 @@ import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.orchestration.raphtoryleader.WatermarkManager.Message.{SaveState, WatermarkTime}
 
 class SnapshotManager(managerCount: Int) extends RaphtoryActor {
-  val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   override def receive: Receive = {
     case WatermarkTime(time:Long) => saveState(time)

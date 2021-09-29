@@ -29,7 +29,6 @@ class PartitionManager(
 ) extends RaphtoryActor {
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
-  implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
 
   // Id which refers to the partitions position in the graph manager map
   val managerId: Int    = id
@@ -42,10 +41,6 @@ class PartitionManager(
   var messageCount: Int          = 0
   var secondaryMessageCount: Int = 0
   var workerMessageCount: Int    = 0
-
-  val mediator: ActorRef = DistributedPubSub(context.system).mediator // get the mediator for sending cluster messages
-
-  mediator ! DistributedPubSubMediator.Put(self)
 
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
