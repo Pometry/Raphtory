@@ -3,10 +3,9 @@ package com.raphtory.core.components.querymanager
 import akka.actor.{ActorLogging, ActorRef, Props, Stash}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.RaphtoryActor
-import com.raphtory.core.components.analysismanager.AnalysisManager.Message.{JobDoesntExist, KillTask, ManagingTask, StartUp}
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.AnalysisRequest
 import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, QueryManagerUp}
-import com.raphtory.core.components.querymanager.QueryManager.Message.{EndQuery, LiveQuery, PointQuery, QueryNotPresent, RangeQuery}
+import com.raphtory.core.components.querymanager.QueryManager.Message.{EndQuery, LiveQuery, ManagingTask, PointQuery, QueryNotPresent, RangeQuery, StartUp}
 import com.raphtory.core.components.querymanager.QueryManager.State
 import com.raphtory.core.components.querymanager.handler.{LiveQueryHandler, PointQueryHandler, RangeQueryHandler}
 import com.raphtory.core.model.algorithm.GraphAlgorithm
@@ -113,5 +112,16 @@ object QueryManager {
     case class LiveQuery(algorithm:GraphAlgorithm, increment: Long, windows: List[Long])
     case class EndQuery(jobID:String)
     case class QueryNotPresent(jobID:String)
+
+    case class  RequestResults(jobId: String)
+    case class  KillTask(jobId: String)
+    case class  ResultsForApiPI(results: Array[String])
+    case class  ManagingTask(actor:ActorRef)
+    case class  TaskFinished(result:Boolean)
+    case object StartUp
+    case object JobKilled
+    case object JobDoesntExist
+    case object AreYouFinished
+    case object JobFailed
   }
 }
