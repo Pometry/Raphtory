@@ -8,7 +8,7 @@ import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.Anal
 import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, QueryManagerUp}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{EndQuery, LiveQuery, PointQuery, QueryNotPresent, RangeQuery}
 import com.raphtory.core.components.querymanager.QueryManager.State
-import com.raphtory.core.components.querymanager.handler.{LiveQueryHandler, PointQueryHandler, QueryHandler, RangeQueryHandler}
+import com.raphtory.core.components.querymanager.handler.{LiveQueryHandler, PointQueryHandler, RangeQueryHandler}
 import com.raphtory.core.model.algorithm.GraphAlgorithm
 
 import scala.concurrent.ExecutionContext
