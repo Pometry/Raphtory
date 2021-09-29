@@ -2,8 +2,9 @@ package com.raphtory.core.components.querymanager
 
 import scala.collection.immutable.NumericRange
 
+case class Perspective(timestamp: Long, window: Option[Long])
 class PerspectiveController(timestamps: Stream[Long], windows: List[Long]) {
-  case class Perspective(timestamp: Long, window: Option[Long])
+
 
   private var perspectives: Stream[Perspective] = windows match {
     case Nil => timestamps.map(Perspective(_, None))

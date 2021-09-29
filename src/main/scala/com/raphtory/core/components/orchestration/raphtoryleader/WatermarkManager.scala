@@ -6,6 +6,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.RaphtoryActor.totalPartitions
 import com.raphtory.core.components.orchestration.raphtoryleader.WatermarkManager.Message.{ProbeWatermark, WatermarkTime, WhatsTheTime}
+import com.raphtory.core.components.querymanager.QueryHandler.Message.{TimeCheck, TimeResponse}
 
 import java.time.LocalDateTime
 import scala.collection.parallel.mutable.ParTrieMap
@@ -23,9 +24,10 @@ class WatermarkManager extends RaphtoryActor  {
   var counter = 0;
 
   override def receive: Receive = {
-    case "probe" => probeWatermark()
+    case "probe"         => probeWatermark()
     case u:WatermarkTime => processWatermarkTime(u)
-    case WhatsTheTime => sender() ! WatermarkTime(safeTimestamp.get())
+    case WhatsTheTime    => sender() ! WatermarkTime(safeTimestamp.get())
+    case TimeCheck       => sender() ! TimeResponse(safeTimestamp.get())
   }
 
   def probeWatermark() = {

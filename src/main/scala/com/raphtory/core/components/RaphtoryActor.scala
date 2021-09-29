@@ -45,12 +45,16 @@ trait RaphtoryActor extends Actor with ActorLogging with Timers {
   def getAllWriters()           : Array[String] = writerA
   def getWriter(srcId:Long)     : String        = writerM(srcId.abs % totalPartitions)
 
-  def safeTime() = {
-    val test = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", TimeCheck, localAffinity = false)
-      test.onComplete(f=>f match {
-      case Success(time:TimeResponse) => time.time
-      case Failure(exception) => exception.printStackTrace()
-    })
+  def safeTime():Long = {
+    var time:Long = 0L
+    (mediator ? DistributedPubSubMediator.Send("/user/WatermarkManager", TimeCheck, localAffinity = false))
+      .onComplete {
+        case Success(response: TimeResponse) =>
+          time = response.time
+        case Failure(exception) =>
+          exception.printStackTrace()
+      }
+    time
   }
 
   def loadPredefinedAnalyser(className: String, args: Array[String]): Try[Analyser[Any]] =
