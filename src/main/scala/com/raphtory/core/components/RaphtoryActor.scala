@@ -1,14 +1,19 @@
 package com.raphtory.core.components
 
 import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Cancellable, Timers}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import akka.pattern.ask
+import akka.util.Timeout
 import com.raphtory.core.components.RaphtoryActor.{builderServers, buildersPerServer, partitionServers, partitionsPerServer, totalBuilders, totalPartitions}
+import com.raphtory.core.components.querymanager.QueryHandler.Message.{TimeCheck, TimeResponse}
 import com.raphtory.core.model.algorithm.Analyser
 import com.typesafe.config.ConfigFactory
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration._
 
 object RaphtoryActor {
   private val conf = ConfigFactory.load()
@@ -23,6 +28,10 @@ object RaphtoryActor {
 }
 
 trait RaphtoryActor extends Actor with ActorLogging with Timers {
+  implicit val executionContext: ExecutionContext = context.system.dispatcher
+  val mediator: ActorRef = DistributedPubSub(context.system).mediator
+  mediator ! DistributedPubSubMediator.Put(self)
+  implicit val timeout: Timeout = 60.seconds
 
   private lazy val builders     :Array[String]    = (for (i <- 0 until totalBuilders)    yield           s"/user/build_$i"   ).toArray
   private lazy val pms          :Array[String]    = (for (i <- 0 until partitionServers) yield           s"/user/Manager_$i" ).toArray
@@ -35,6 +44,14 @@ trait RaphtoryActor extends Actor with ActorLogging with Timers {
   def getAllReaders()           : Array[String] = readers
   def getAllWriters()           : Array[String] = writerA
   def getWriter(srcId:Long)     : String        = writerM(srcId.abs % totalPartitions)
+
+  def safeTime() = {
+    val test = mediator ? DistributedPubSubMediator.Send("/user/WatchDog", TimeCheck, localAffinity = false)
+      test.onComplete(f=>f match {
+      case Success(time:TimeResponse) => time.time
+      case Failure(exception) => exception.printStackTrace()
+    })
+  }
 
   def loadPredefinedAnalyser(className: String, args: Array[String]): Try[Analyser[Any]] =
     Try(Class.forName(className).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser[Any]])

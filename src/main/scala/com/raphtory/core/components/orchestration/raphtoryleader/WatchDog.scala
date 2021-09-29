@@ -18,13 +18,9 @@ import scala.concurrent.duration._
 
 class WatchDog() extends RaphtoryActor {
 
-  implicit val executionContext: ExecutionContext = context.system.dispatcher
-
   private val maxTimeInMillis = 30000
 
   val cluster: Cluster = Cluster(context.system)
-  val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart(): Unit = {
     log.debug("WatchDog is being started.")

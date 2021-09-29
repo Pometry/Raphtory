@@ -16,10 +16,6 @@ import scala.tools.scalap.scalax.rules.scalasig.ScalaSigEntryParsers.ref
 
 class QueryManager extends RaphtoryActor with ActorLogging with Stash {
 
-  implicit val executionContext: ExecutionContext = context.system.dispatcher
-
-  final protected val mediator = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart() {
     context.system.scheduler.scheduleOnce(Duration(5, SECONDS), self, StartUp)

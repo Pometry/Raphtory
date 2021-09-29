@@ -21,16 +21,12 @@ abstract class ComponentConnector()
         extends RaphtoryActor {
 
   // TODO Make implicit timeouts as secondary (curried), optional implicit parameter
-  implicit val timeout: Timeout = 10.seconds
-  implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
 
   var myId: Int                = -1
   var actorRef: ActorRef       = _
   var actorRefReader: ActorRef = _
 
-  val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
   //mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
 
   def callTheWatchDog(): Future[Any]

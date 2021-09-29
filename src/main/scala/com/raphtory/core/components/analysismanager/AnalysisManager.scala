@@ -24,10 +24,6 @@ import scala.util.Success
 import scala.util.Try
 
 final case class AnalysisManager() extends RaphtoryActor with ActorLogging with Stash {
-  implicit val executionContext: ExecutionContext = context.system.dispatcher
-
-  final protected val mediator = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart() {
     context.system.scheduler.schedule(Duration(5, SECONDS),Duration(5, SECONDS), self, StartUp)

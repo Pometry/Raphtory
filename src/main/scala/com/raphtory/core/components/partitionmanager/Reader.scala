@@ -10,8 +10,7 @@ import com.raphtory.core.model.graph.GraphPartition
 import scala.util.{Failure, Success}
 
 final case class Reader(partition: Int, storage: GraphPartition) extends RaphtoryActor {
-  private val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
+
 
   override def preStart(): Unit =
     log.debug(s"Reader $partition is starting.")

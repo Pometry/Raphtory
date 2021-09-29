@@ -11,9 +11,6 @@ import com.raphtory.core.model.graph.GraphPartition
 
 case class QueryExecutor(partition: Int, storage: GraphPartition, jobId: String, handlerRef:ActorRef) extends RaphtoryActor {
 
-  private val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
-
   override def preStart(): Unit = {
     log.debug(s"Query Executor ${self.path} for Job [$jobId] belonging to Reader [$partition] started.")
     handlerRef ! ExecutorEstablished(partition, self)

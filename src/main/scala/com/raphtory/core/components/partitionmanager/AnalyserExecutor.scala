@@ -16,9 +16,6 @@ import scala.util.{Failure, Success, Try}
 
 final case class AnalyserExecutor(partition: Int, storage: GraphPartition, analyzer: Analyser[Any], jobId: String, taskManager:ActorRef) extends RaphtoryActor {
 
-  private val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
-
   override def preStart(): Unit = {
     log.debug(s"AnalysisSubtaskWorker ${self.path} for Job [$jobId] belonging to Reader [$partition] is being started.")
     println("sending back")
