@@ -5,7 +5,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.AnalysisRequest
 import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, QueryManagerUp}
-import com.raphtory.core.components.querymanager.QueryManager.Message.{EndQuery, LiveQuery, ManagingTask, PointQuery, QueryNotPresent, RangeQuery, StartUp}
+import com.raphtory.core.components.querymanager.QueryManager.Message.{EndQuery, LiveQuery, ManagingTask, PointQuery, Query, QueryNotPresent, RangeQuery, StartUp}
 import com.raphtory.core.components.querymanager.QueryManager.State
 import com.raphtory.core.components.querymanager.handler.{LiveQueryHandler, PointQueryHandler, RangeQueryHandler}
 import com.raphtory.core.model.algorithm.GraphAlgorithm
@@ -33,10 +33,13 @@ class QueryManager extends RaphtoryActor with ActorLogging with Stash {
       mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest) //ask if the cluster is safe to use
 
     case ClusterStatusResponse(clusterUp) =>
-      if (clusterUp) context.become(work(State(Map.empty)))
+      if (clusterUp) {
+        context.become(work(State(Map.empty)))
+        unstashAll
+      }
       else context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, StartUp)
 
-    case _: AnalysisRequest =>
+    case _: Query =>
       stash()
 
     case unhandled =>
@@ -73,22 +76,22 @@ class QueryManager extends RaphtoryActor with ActorLogging with Stash {
 
   private def spawnPointQuery(id:String, query: PointQuery): ActorRef = {
     log.info(s"Point Query received, your job ID is $id")
-    context.system.actorOf(Props(PointQueryHandler(id,query.algorithm,query.timestamp,query.windows)).withDispatcher("analysis-dispatcher"), id)
+    context.system.actorOf(Props(PointQueryHandler(id,query.algorithm,query.timestamp,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
   }
 
   private def spawnRangeQuery(id:String, query: RangeQuery): ActorRef = {
     log.info(s"Range Query received, your job ID is $id")
-    context.system.actorOf(Props(RangeQueryHandler(id,query.algorithm,query.start,query.end,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), id)
+    context.system.actorOf(Props(RangeQueryHandler(id,query.algorithm,query.start,query.end,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
   }
 
   private def spawnLiveQuery(id:String, query: LiveQuery): ActorRef = {
     log.info(s"Range Query received, your job ID is $id")
-    context.system.actorOf(Props(LiveQueryHandler(id,query.algorithm,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), id)
+    context.system.actorOf(Props(LiveQueryHandler(id,query.algorithm,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
   }
 
 
   private def getID(algorithm:GraphAlgorithm):String = {
-    algorithm.getClass + "_" + System.currentTimeMillis()
+    algorithm.getClass.getCanonicalName + "_" + System.currentTimeMillis()
   }
 
   private def trackNewQuery(state:State,jobID:String,queryHandler:ActorRef):Unit = {
@@ -107,9 +110,11 @@ object QueryManager {
       copy(currentQueries = f(currentQueries))
   }
   object Message {
-    case class PointQuery(algorithm:GraphAlgorithm, timestamp: Long, windows: List[Long])
-    case class RangeQuery(algorithm:GraphAlgorithm, start: Long, end: Long, increment: Long, windows: List[Long])
-    case class LiveQuery(algorithm:GraphAlgorithm, increment: Long, windows: List[Long])
+    sealed trait Query
+
+    case class PointQuery(algorithm:GraphAlgorithm, timestamp: Long, windows: List[Long]) extends Query
+    case class RangeQuery(algorithm:GraphAlgorithm, start: Long, end: Long, increment: Long, windows: List[Long]) extends Query
+    case class LiveQuery(algorithm:GraphAlgorithm, increment: Long, windows: List[Long]) extends Query
     case class EndQuery(jobID:String)
     case class QueryNotPresent(jobID:String)
 
