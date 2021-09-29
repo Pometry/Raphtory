@@ -2,46 +2,43 @@ package com.raphtory.core.components.orchestration.componentconnector
 import akka.actor.{ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
+import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.RequestQueryId
+import com.raphtory.core.components.querymanager.QueryManager.Message.{LiveQuery, ManagingTask, PointQuery, RangeQuery}
 import akka.pattern.ask
-import com.raphtory.core.components.querymanager.QueryManager.Message.ManagingTask
-import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
-import com.raphtory.core.components.analysismanager.{AnalysisManager, AnalysisRestApi}
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.{PartitionsCount, RequestQueryId}
+import com.raphtory.core.components.querymanager.QueryManager
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 
-class AnalysisManagerConnector() extends ComponentConnector()  {
-
-  var analysismanager:ActorRef = null
+class QueryManagerConnector extends ComponentConnector {
+  var queryManager:ActorRef = null
   var monitor:ActorRef = _
 
   override def receive: Receive = {
     case msg: String if msg == "tick"      => processHeartbeatMessage(msg)
     case _: SubscribeAck                   =>
-    case request: LiveAnalysisRequest      => requesthandler(request)
-    case request: ViewAnalysisRequest      => requesthandler(request)
-    case request: RangeAnalysisRequest     => requesthandler(request)
+    case request: LiveQuery                => requesthandler(request)
+    case request: PointQuery               => requesthandler(request)
+    case request: RangeQuery               => requesthandler(request)
     case taskInfo:ManagingTask             => if(monitor!=null) monitor ! taskInfo
     case x                                 => log.warning(s"Replicator received unknown [{}] message.", x)
   }
 
   private def requesthandler(request: Any) = {
     monitor = sender()
-    if(analysismanager!=null){
-      analysismanager ! request
+    if(queryManager!=null){
+      queryManager ! request
     }  else {
       context.system.scheduler.scheduleOnce(Duration(2000, MILLISECONDS), self, request)
     }
   }
 
   override def callTheWatchDog(): Future[Any] = {
-    log.debug(s"Attempting to retrieve Analysis Manager Id from WatchDog.")
+    log.debug(s"Attempting to retrieve Query Manager Id from WatchDog.")
     mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestQueryId, localAffinity = false)
   }
 
   override def giveBirth(assignedId: Int): Unit = {
-    AnalysisRestApi(context.system)
-    analysismanager = context.system.actorOf(Props[AnalysisManager].withDispatcher("misc-dispatcher"), s"AnalysisManager")
+    queryManager = context.system.actorOf(Props[QueryManager].withDispatcher("misc-dispatcher"), s"QueryManager")
   }
 }

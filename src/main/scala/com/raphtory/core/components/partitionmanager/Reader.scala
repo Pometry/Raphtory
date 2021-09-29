@@ -25,7 +25,9 @@ final case class Reader(partition: Int, storage: GraphPartition) extends Raphtor
         case Failure(e) => log.error("Analyser Could not be loaded: " + e.getMessage)
       }
 
-    case EstablishExecutor(jobID) =>  buildQueryExecutor(jobID,sender())
+    case EstablishExecutor(jobID) =>  {
+      buildQueryExecutor(jobID,sender())
+    }
 
     case TimeCheck =>
       log.debug(s"Reader [$partition] received TimeCheck.")

@@ -21,6 +21,7 @@ final case class AnalyserExecutor(partition: Int, storage: GraphPartition, analy
 
   override def preStart(): Unit = {
     log.debug(s"AnalysisSubtaskWorker ${self.path} for Job [$jobId] belonging to Reader [$partition] is being started.")
+    println("sending back")
     taskManager ! ExecutorEstablished(partition, self)
   }
 

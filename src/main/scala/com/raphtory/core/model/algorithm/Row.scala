@@ -16,3 +16,6 @@ class Row(values:Any*){
   def getDouble(index:Int) :Double  = getAs[Double](index)
 
 }
+object Row{
+  def apply(values: Any*): Row = new Row(values)
+}

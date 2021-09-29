@@ -27,14 +27,16 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
   override def receive: Receive = spawnExecutors(0)
 
   private def spawnExecutors(readyCount: Int): Receive = withDefaultMessageHandler("spawn executors") {
-    case StartAnalysis => messageToAllReaders(EstablishExecutor(jobID))
+    case StartAnalysis => {
+      messageToAllReaders(EstablishExecutor(jobID))
+    }
     case ExecutorEstablished(workerID,actor) => //analyser confirmed to be present within workers, send setup request to workers
       workerList += ((workerID,actor))
       if (readyCount + 1 == totalPartitions) {
         println("all executors spawned")
         //messageToAllReaders(TimeCheck)
         //context.become(checkTime(None, List.empty, None))
-      } //else context.become(checkAnalyser(readyCount + 1))
+      } else context.become(spawnExecutors(readyCount + 1))
   }
 
 

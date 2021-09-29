@@ -84,7 +84,7 @@ class WatchDog() extends RaphtoryActor {
       val newCounter = state.spCounter + 1
       context.become(work(state.copy(spCounter = newCounter)))
 
-    case RequestAnalysisId =>
+    case RequestQueryId =>
       sender ! AssignedId(state.anCounter)
       val newCounter = state.anCounter + 1
       context.become(work(state.copy(anCounter = newCounter)))
@@ -134,7 +134,7 @@ object WatchDog {
     case object RequestPartitionId
     case object RequestBuilderId
     case object RequestSpoutId
-    case object RequestAnalysisId
+    case object RequestQueryId
     case object RequestPartitionCount
     case class PartitionsCount(count: Int)
   }

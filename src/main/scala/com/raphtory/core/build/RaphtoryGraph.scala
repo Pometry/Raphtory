@@ -1,12 +1,14 @@
 package com.raphtory.core.build
 
 import akka.actor.{ActorSystem, Props}
+import com.raphtory.core.components.RaphtoryActor.{builderServers, partitionServers}
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.orchestration.componentconnector.{AnalysisManagerConnector, BuilderConnector, PartitionConnector, SpoutConnector}
+import com.raphtory.core.components.orchestration.componentconnector.{AnalysisManagerConnector, BuilderConnector, PartitionConnector, QueryManagerConnector, SpoutConnector}
 import com.raphtory.core.components.orchestration.raphtoryleader.{WatchDog, WatermarkManager}
+import com.raphtory.core.components.querymanager.QueryManager.Message.PointQuery
 import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.model.algorithm.{AggregateSerialiser, Analyser}
+import com.raphtory.core.model.algorithm.{AggregateSerialiser, Analyser, GraphAlgorithm}
 
 object RaphtoryGraph {
   def apply[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) : RaphtoryGraph[T] =
@@ -28,10 +30,19 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   system.actorOf(Props(new WatchDog()), "WatchDog")
 
   system.actorOf(Props(new SpoutConnector(spout)), "Spoutmanager")
-  system.actorOf(Props(new BuilderConnector(graphBuilder)), s"Builders")
-  system.actorOf(Props(new PartitionConnector()), s"PartitionManager")
+
+  for(i<-0 until builderServers)
+    system.actorOf(Props(new BuilderConnector(graphBuilder)), s"Builder_$i")
+
+  for(i<-0 until partitionServers)
+    system.actorOf(Props(new PartitionConnector()), s"PartitionManager_$i")
 
   val analysisManager = system.actorOf(Props(new AnalysisManagerConnector()), "AnalysisManagerConnector")
+  val queryManager    = system.actorOf(Props(new QueryManagerConnector()), "QueryManagerConnector")
+
+  def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]) = {
+    queryManager ! PointQuery(graphAlgorithm,timestamp,windows)
+  }
 
   //TODO tidy these, but will be done with full analysis Overhall
   def rangeQuery[S<:Object](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long):Unit = {
