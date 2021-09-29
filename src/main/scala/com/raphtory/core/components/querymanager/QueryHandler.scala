@@ -1,4 +1,4 @@
-package com.raphtory.core.components.querymanager.handler
+package com.raphtory.core.components.querymanager
 
 import com.raphtory.core.components.RaphtoryActor
 
