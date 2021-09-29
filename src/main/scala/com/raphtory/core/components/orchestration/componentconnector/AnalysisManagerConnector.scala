@@ -3,7 +3,7 @@ import akka.actor.{ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.pattern.ask
-import com.raphtory.core.components.analysismanager.AnalysisManager.Message.ManagingTask
+import com.raphtory.core.components.querymanager.QueryManager.Message.ManagingTask
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import com.raphtory.core.components.analysismanager.{AnalysisManager, AnalysisRestApi}
 import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.{PartitionsCount, RequestAnalysisId}

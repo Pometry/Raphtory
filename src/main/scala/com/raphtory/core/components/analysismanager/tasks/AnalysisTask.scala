@@ -2,9 +2,8 @@ package com.raphtory.core.components.analysismanager.tasks
 
 import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.analysismanager.AnalysisManager.Message
-import com.raphtory.core.components.analysismanager.AnalysisManager.Message._
-import com.raphtory.core.components.analysismanager.tasks.AnalysisTask.Message._
+import com.raphtory.core.components.querymanager.QueryManager.Message._
+import com.raphtory.core.components.querymanager.QueryHandler.Message._
 import com.raphtory.core.components.analysismanager.tasks.AnalysisTask.SubtaskState
 import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.RaphtoryActor.{partitionServers, totalPartitions}
@@ -62,7 +61,7 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
   }
 
   private def checkAnalyser(readyCount: Int): Receive = withDefaultMessageHandler("check analyser") {
-    case AnalyserPresent(workerID,actor) => //analyser confirmed to be present within workers, send setup request to workers
+    case ExecutorEstablished(workerID,actor) => //analyser confirmed to be present within workers, send setup request to workers
       workerList += ((workerID,actor))
       if (readyCount + 1 == totalPartitions) {
         messageToAllReaders(TimeCheck)
@@ -83,7 +82,7 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
         currentRange.orElse(controller.nextRange(readyTime)) match {
           case Some(range) if range.timestamp <= readyTime =>
             log.info(s"Range $range for Job $jobId is ready to start")
-            messagetoAllJobWorkers(SetupSubtask(workerList, range.timestamp, range.window))
+            messagetoAllJobWorkers(CreatePerspective(workerList, range.timestamp, range.window))
             context.become(waitAllReadyForSetupTask(SubtaskState(range, System.currentTimeMillis(), controller), 0))
           case Some(range) =>
             log.info(s"Range $range for Job $jobId is not ready. Recheck")
@@ -101,7 +100,7 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
 
   private def waitAllReadyForSetupTask(subtaskState: SubtaskState, readyCount: Int): Receive =
     withDefaultMessageHandler("ready for setup task") {
-      case SetupSubtaskDone =>
+      case PerspectiveEstablished =>
         val newReadyCount = readyCount + 1
         if (newReadyCount == totalPartitions) {
           messagetoAllJobWorkers(StartSubtask(jobId))
@@ -241,32 +240,4 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
 object AnalysisTask {
   private case class SubtaskState(range: TaskTimeRange, startTimestamp: Long, taskController: SubTaskController)
 
-  object Message {
-    case object StartAnalysis
-
-    case object ReaderWorkersOnline
-    case object ReaderWorkersAck
-
-    case class LoadAnalyser(jobId: String, className: String, args: List[String])
-    case class AnalyserPresent(worker:Int,me:ActorRef)
-
-    case object TimeCheck
-    case class TimeResponse(time: Long)
-    case object RecheckTime
-
-    case class  SetupSubtask(neighbours: mutable.Map[Int,ActorRef], timestamp: Long, window: Option[Long])
-    case object ReadyToRock
-    case object SetupSubtaskDone
-    case class  StartSubtask(jobId: String)
-    case class  Ready(messages: Int)
-    case class  SetupNextStep(jobId: String)
-    case object SetupNextStepDone
-    case class  StartNextStep(jobId: String)
-    case class  CheckMessages(jobId: String)
-    case class  MessagesReceived(receivedMessages: Int, sentMessages: Int)
-    case class  EndStep(superStep: Int, sentMessageCount: Int, voteToHalt: Boolean)
-    case class  Finish(jobId: String)
-    case class  ReturnResults(results: Any)
-    case object StartNextSubtask
-  }
 }
