@@ -31,12 +31,12 @@ object PerspectiveController {
 
   def rangeQueryController(start:Long,end:Long,increment:Long,windows:List[Long]=List()): PerspectiveController = {
     val timestamps: Stream[Long] = {
-      val raw = NumericRange.inclusive(start, end, increment).toList
+      val raw = NumericRange.inclusive(start, end, increment).toStream
       raw.lastOption match {
         case Some(last) if last != end => raw :+ end
         case _                         => raw
       }
-    }.toStream
+    }
     new PerspectiveController(timestamps,windows)
   }
 
