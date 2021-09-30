@@ -6,7 +6,7 @@ import com.raphtory.core.components.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.orchestration.componentconnector.{AnalysisManagerConnector, BuilderConnector, PartitionConnector, QueryManagerConnector, SpoutConnector}
 import com.raphtory.core.components.orchestration.raphtoryleader.{WatchDog, WatermarkManager}
-import com.raphtory.core.components.querymanager.QueryManager.Message.PointQuery
+import com.raphtory.core.components.querymanager.QueryManager.Message.{LiveQuery, PointQuery, RangeQuery}
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.model.algorithm.{AggregateSerialiser, Analyser, GraphAlgorithm}
 
@@ -40,19 +40,25 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   val analysisManager = system.actorOf(Props(new AnalysisManagerConnector()), "AnalysisManagerConnector")
   val queryManager    = system.actorOf(Props(new QueryManagerConnector()), "QueryManagerConnector")
 
-  def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]) = {
+  def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
     queryManager ! PointQuery(graphAlgorithm,timestamp,windows)
+  }
+  def rangeQuery(graphAlgorithm: GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
+    queryManager ! RangeQuery(graphAlgorithm,start,end,increment,windows)
+  }
+  def liveQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
+    queryManager ! LiveQuery(graphAlgorithm,timestamp,windows)
   }
 
   //TODO tidy these, but will be done with full analysis Overhall
-  def rangeQuery[S<:Object](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long):Unit = {
+  def oldrangeQuery[S<:Object](analyser:Analyser[S], serialiser:AggregateSerialiser, start:Long, end:Long, increment:Long):Unit = {
     analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,start,end,increment,List.empty,analyser.getArgs())
   }
 
-  def rangeQuery[S<:Object](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long,window:Long):Unit = {
+  def oldrangeQuery[S<:Object](analyser:Analyser[S], serialiser:AggregateSerialiser, start:Long, end:Long, increment:Long, window:Long):Unit = {
     analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,start,end,increment, List(window),analyser.getArgs())
   }
-  def rangeQuery[S<:Object](analyser:Analyser[S],serialiser:AggregateSerialiser,start:Long,end:Long,increment:Long,windowBatch:List[Long]):Unit = {
+  def oldrangeQuery[S<:Object](analyser:Analyser[S], serialiser:AggregateSerialiser, start:Long, end:Long, increment:Long, windowBatch:List[Long]):Unit = {
     analysisManager ! RangeAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,start,end,increment,windowBatch,analyser.getArgs())
   }
 
@@ -67,15 +73,15 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
     analysisManager ! ViewAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,timestamp, windowBatch,analyser.getArgs())
   }
 
-  def liveQuery[S<:Object](analyser:Analyser[S],serialiser:AggregateSerialiser,repeat:Long,eventTime:Boolean):Unit = {
+  def oldliveQuery[S<:Object](analyser:Analyser[S], serialiser:AggregateSerialiser, repeat:Long, eventTime:Boolean):Unit = {
     analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,repeat,eventTime, List.empty,analyser.getArgs())
   }
 
-  def liveQuery[S<:Object](analyser:Analyser[S],serialiser:AggregateSerialiser,repeat:Long,eventTime:Boolean,window:Long):Unit = {
+  def oldliveQuery[S<:Object](analyser:Analyser[S], serialiser:AggregateSerialiser, repeat:Long, eventTime:Boolean, window:Long):Unit = {
     analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,repeat,eventTime,List(window),analyser.getArgs())
   }
 
-  def liveQuery[S<:Object](analyser:Analyser[S],serialiser:AggregateSerialiser,repeat:Long,eventTime:Boolean,windowBatch:List[Long]):Unit = {
+  def oldliveQuery[S<:Object](analyser:Analyser[S], serialiser:AggregateSerialiser, repeat:Long, eventTime:Boolean, windowBatch:List[Long]):Unit = {
     analysisManager ! LiveAnalysisRequest(analyser.getClass.getCanonicalName,serialiser.getClass.getCanonicalName,repeat,eventTime, windowBatch,analyser.getArgs())
   }
 
