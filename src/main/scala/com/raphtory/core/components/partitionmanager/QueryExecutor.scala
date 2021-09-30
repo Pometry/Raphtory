@@ -4,12 +4,12 @@ import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.partitionmanager.QueryExecutor.State
-import com.raphtory.core.components.querymanager.QueryHandler.Message.{CreatePerspective, ExecutorEstablished, MessagesReceived, PerspectiveEstablished}
+import com.raphtory.core.components.querymanager.QueryHandler.Message.{CreatePerspective, ExecutorEstablished, GraphFunctionComplete, PerspectiveEstablished, TableBuilt, TableFunctionComplete}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, KillTask}
 import com.raphtory.core.implementations
 import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
-import com.raphtory.core.model.algorithm.{Iterate, Select, Step, VertexFilter}
+import com.raphtory.core.model.algorithm.{Iterate, Select, Step, TableFilter, VertexFilter, WriteTo}
 import com.raphtory.core.model.graph.GraphPartition
 import com.raphtory.core.model.graph.visitor.Vertex
 
@@ -30,23 +30,34 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
         receivedMessageCount = 0)
       ))
       sender ! PerspectiveEstablished
-    case Step(f)               => {
-      println(s"Partition $partition have been asked to do a Step operation. Not sure How yet :'( ")
-      sender() ! MessagesReceived(0,0)
+    case Step(f) => {
+      println(s"Partition $partition have been asked to do a Step operation.")
+      sender() ! GraphFunctionComplete(0,0)
     }
     case Iterate(f,iterations) => {
-      println(s"Partition $partition have been asked to do an Iterate operation. Not sure How yet :'( ")
-      sender() ! MessagesReceived(0,0)
+      println(s"Partition $partition have been asked to do an Iterate operation.")
+      sender() ! GraphFunctionComplete(0,0)
     }
-    case VertexFilter(f)       => {
-      println(s"Partition $partition have been asked to do a Filter operation. Not sure How yet :'( ")
-      sender() ! MessagesReceived(0,0)
+    case VertexFilter(f) => {
+      println(s"Partition $partition have been asked to do a Graph Filter operation.")
+      sender() ! GraphFunctionComplete(0,0)
     }
-    case Select(f)             => {
-      println(s"Partition $partition have been asked to do a Select operation. Not sure How yet :'( ")
-      sender() ! MessagesReceived(0,0)
+    case Select(f) => {
+      println(s"Partition $partition have been asked to do a Select operation.")
+      sender() ! TableBuilt
     }
-   }
+
+    case TableFilter(f) => {
+      println(s"Partition $partition have been asked to do a Table Filter operation.")
+      sender() ! TableFunctionComplete
+    }
+
+    case WriteTo(f) => {
+      println(s"Partition $partition have been asked to do a Table WriteTo operation.")
+      sender() ! TableFunctionComplete
+    }
+
+  }
 
   private def withDefaultMessageHandler(description: String)(handler: Receive): Receive = handler.orElse {
     case req: KillTask =>

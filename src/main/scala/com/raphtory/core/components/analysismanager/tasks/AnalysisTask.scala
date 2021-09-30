@@ -144,7 +144,7 @@ abstract class AnalysisTask(jobId: String, args: Array[String], analyser: Analys
       totalReceivedMessage: Int,
       totalSentMessage: Int
   ): Receive = withDefaultMessageHandler("check message") {
-    case MessagesReceived(receivedMessages, sentMessages) =>
+    case GraphFunctionComplete(receivedMessages, sentMessages) =>
       val newReadyCount           = readyCount + 1
       val newTotalReceivedMessage = totalReceivedMessage + receivedMessages
       val newTotalSentMessage     = totalSentMessage + sentMessages

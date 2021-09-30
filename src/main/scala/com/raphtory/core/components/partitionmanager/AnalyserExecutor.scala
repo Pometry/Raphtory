@@ -45,7 +45,7 @@ final case class AnalyserExecutor(partition: Int, storage: GraphPartition, analy
 
     case _: CheckMessages =>
       log.debug(s"Job [$jobId] belonging to Reader [$partition] receives CheckMessages.")
-      sender ! MessagesReceived(state.receivedMessageCount, state.sentMessageCount)
+      sender ! GraphFunctionComplete(state.receivedMessageCount, state.sentMessageCount)
 
     case _: SetupNextStep =>
       log.debug(s"Job [$jobId] belonging to Reader [$partition] receives SetupNextStep.")
