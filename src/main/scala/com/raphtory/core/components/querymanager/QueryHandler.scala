@@ -42,30 +42,30 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
     case RecheckTime =>
       recheckTime(currentPerspective)
     case PerspectiveEstablished =>
-      println("howdy")
+
 //      val newReadyCount = readyCount + 1
 //      if (newReadyCount == totalPartitions) {
 //        //messagetoAllJobWorkers(StartSubtask(jobId))
 //        context.become(preStepSubtask(subtaskState, 0, 0))
 //      }
 //      else context.become(waitAllReadyForSetupTask(subtaskState, newReadyCount))
-//    case JobFailed => killJob()
+    case JobFailed => killJob()
 
   }
 
 
   private def kickOffJob() = {
-    val latestTime = safeTime()
+    val latestTime = whatsTheTime()
     val perspectiveController = buildPerspectiveController(latestTime)
     val currentPerspective = perspectiveController.nextPerspective()
     currentPerspective match {
-      case Some(range) if range.timestamp <= latestTime =>
-        log.info(s"$range for Job $jobID is ready to start")
-        messagetoAllJobWorkers(CreatePerspective(workerList, range.timestamp, range.window))
-      case Some(range) =>
-        log.info(s"$range for Job $jobID is not ready. Rechecking")
+      case Some(perspective) if perspective.timestamp <= latestTime =>
+        log.info(s"$perspective for Job $jobID is ready to start")
+        messagetoAllJobWorkers(CreatePerspective(workerList, perspective.timestamp, perspective.window))
+      case Some(perspective) =>
+        log.info(s"$perspective for Job $jobID is not ready, currently at $latestTime. Rechecking")
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
-        context.become(establishPerspective(buildPerspectiveController(latestTime),range))
+        context.become(establishPerspective(buildPerspectiveController(latestTime),perspective))
       case None =>
         log.info(s"no more sub tasks for $jobID")
         killJob()
@@ -73,12 +73,13 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
   }
 
   private def recheckTime(perspective: Perspective):Unit = {
-    val time = safeTime()
-    println(time)
+    val time = whatsTheTime()
     if (perspective.timestamp <= time)
       messagetoAllJobWorkers(CreatePerspective(workerList, perspective.timestamp, perspective.window))
-    else
+    else {
+      log.info(s"$perspective for Job $jobID is not ready, currently at $time. Rechecking")
       context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
+    }
   }
 
 
