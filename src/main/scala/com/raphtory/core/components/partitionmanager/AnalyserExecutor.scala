@@ -30,7 +30,7 @@ final case class AnalyserExecutor(partition: Int, storage: GraphPartition, analy
     case CreatePerspective(neighbours, timestamp, window) =>
       log.debug(s"Job [$jobId] belonging to Reader [$partition] is SetupTaskWorker.")
       val initStep = 0
-      val messageHandler = new VertexMessageHandler(neighbours, jobId)
+      val messageHandler = new VertexMessageHandler(neighbours)
       val graphLens = implementations.objectgraph.ObjectGraphLens(jobId, timestamp, window, initStep, storage, messageHandler)
       analyzer.sysSetup(graphLens, messageHandler)
       context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))

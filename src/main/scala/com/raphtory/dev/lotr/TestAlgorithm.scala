@@ -7,7 +7,6 @@ class TestAlgorithm extends GraphAlgorithm{
     graph
       .step(v=> v.setState("test","test"))
       .select(v=> Row(v.ID(),v.getState[String]("test")))
-
   }
 }
 object TestAlgorithm{
