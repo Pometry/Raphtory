@@ -40,7 +40,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
         context.become(spawnExecutors(readyCount + 1))
   }
 
-  private def establishPerspective(state:State,readyCount:Int): Receive = withDefaultMessageHandler("execute") {
+  private def establishPerspective(state:State,readyCount:Int): Receive = withDefaultMessageHandler("establish perspective") {
     case RecheckTime =>
       recheckTime(state.currentPerspective)
     case PerspectiveEstablished =>
@@ -75,7 +75,8 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
             case Some(f: GraphFunction) =>
               messagetoAllJobWorkers(f)
               context.become(executeGraph(state, 0, 0, 0))
-            case None => killJob()
+            case None =>
+              killJob()
           }
           context.become(executeGraph(state, 0,0,0))
         } else {
@@ -106,9 +107,6 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
     }
   }
 
-  private def sendNextGraphStep(graphPerspective: ObjectGraphPerspective) = {
-
-  }
 
   private def recheckTime(perspective: Perspective):Unit = {
     val time = whatsTheTime()
@@ -122,10 +120,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
 
 
   private def withDefaultMessageHandler(description: String)(handler: Receive): Receive = handler.orElse {
-    case req: KillTask =>
-      messageToAllReaders(req)
-      sender ! JobKilled
-      context.stop(self)
+    case req: KillTask => killJob()
     case AreYouFinished => monitor = sender() // register to message out later
     case unhandled     => log.error(s"Not handled message in $description: " + unhandled)
   }
@@ -141,6 +136,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
 
   private def killJob() = {
     messagetoAllJobWorkers(KillTask(jobID))
+    log.info(s"$jobID has no more perspectives. Query Handler ending execution.")
     self ! PoisonPill
     if(monitor!=null)monitor ! TaskFinished(true)
   }
