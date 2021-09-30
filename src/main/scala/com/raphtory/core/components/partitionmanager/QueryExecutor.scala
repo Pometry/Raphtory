@@ -35,7 +35,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       sender() ! GraphFunctionComplete(0,0)
     }
     case Iterate(f,iterations) => {
-      println(s"Partition $partition have been asked to do an Iterate operation.")
+      println(s"Partition $partition have been asked to do an Iterate operation. There are $iterations Iterations remaining")
       sender() ! GraphFunctionComplete(0,0)
     }
     case VertexFilter(f) => {

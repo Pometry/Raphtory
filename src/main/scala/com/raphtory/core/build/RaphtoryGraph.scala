@@ -46,8 +46,8 @@ class RaphtoryGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   def rangeQuery(graphAlgorithm: GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
     queryManager ! RangeQuery(graphAlgorithm,start,end,increment,windows)
   }
-  def liveQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
-    queryManager ! LiveQuery(graphAlgorithm,timestamp,windows)
+  def liveQuery(graphAlgorithm: GraphAlgorithm,increment:Long,windows:List[Long]=List()) = {
+    queryManager ! LiveQuery(graphAlgorithm,increment,windows)
   }
 
   //TODO tidy these, but will be done with full analysis Overhall
