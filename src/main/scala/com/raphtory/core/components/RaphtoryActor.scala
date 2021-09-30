@@ -5,12 +5,13 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.core.components.RaphtoryActor.{builderServers, buildersPerServer, partitionServers, partitionsPerServer, totalBuilders, totalPartitions}
+import com.raphtory.core.components.orchestration.raphtoryleader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{TimeCheck, TimeResponse}
 import com.raphtory.core.model.algorithm.Analyser
 import com.typesafe.config.ConfigFactory
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
@@ -45,16 +46,12 @@ trait RaphtoryActor extends Actor with ActorLogging with Timers {
   def getAllWriters()           : Array[String] = writerA
   def getWriter(srcId:Long)     : String        = writerM(srcId.abs % totalPartitions)
 
-  def safeTime():Long = {
-    var time:Long = 0L
-    (mediator ? DistributedPubSubMediator.Send("/user/WatermarkManager", TimeCheck, localAffinity = false))
-      .onComplete {
-        case Success(response: TimeResponse) =>
-          time = response.time
-        case Failure(exception) =>
-          exception.printStackTrace()
-      }
-    time
+  def whatsTheTime():Long = {
+    val time: WatermarkTime = Await.result(
+      (mediator ? DistributedPubSubMediator.Send("/user/WatermarkManager", WhatsTheTime, localAffinity = false)),
+      1 minutes
+    ).asInstanceOf[WatermarkTime]
+    time.time
   }
 
   def loadPredefinedAnalyser(className: String, args: Array[String]): Try[Analyser[Any]] =

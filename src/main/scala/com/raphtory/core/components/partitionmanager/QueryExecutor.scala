@@ -24,6 +24,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobId: String,
       val graphLens = implementations.objectgraph.ObjectGraphLens(jobId, timestamp, window, 0, storage, messageHandler)
       context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
       sender ! PerspectiveEstablished
+
   }
 
 }

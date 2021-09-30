@@ -16,9 +16,9 @@ import scala.concurrent.duration._
 class WatermarkManager extends RaphtoryActor  {
 
   override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(delay = 60.seconds, receiver = self, message = "probe")
+    context.system.scheduler.scheduleOnce(delay = 10.seconds, receiver = self, message = "probe")
   }
-  val safeTimestamp:AtomicLong = new AtomicLong(0)
+  var safeTimestamp:Long = 0L
 
   private val safeMessageMap = ParTrieMap[String, Long]()
   var counter = 0;
@@ -26,8 +26,9 @@ class WatermarkManager extends RaphtoryActor  {
   override def receive: Receive = {
     case "probe"         => probeWatermark()
     case u:WatermarkTime => processWatermarkTime(u)
-    case WhatsTheTime    => sender() ! WatermarkTime(safeTimestamp.get())
-    case TimeCheck       => sender() ! TimeResponse(safeTimestamp.get())
+    case WhatsTheTime    =>
+      val time = safeTimestamp
+      sender() ! WatermarkTime(time)
   }
 
   def probeWatermark() = {
@@ -43,10 +44,9 @@ class WatermarkManager extends RaphtoryActor  {
     safeMessageMap put(sender().path.toString,u.time)
     counter +=1
     if(counter==totalPartitions) {
-      safeTimestamp.set(safeMessageMap.map(x=>x._2).min)
-
       val max = safeMessageMap.maxBy(x=> x._2)
       val min = safeMessageMap.minBy(x=> x._2)
+      safeTimestamp = min._2
       log.info(s"Minimum Watermark: ${min._1} ${min._2} Maximum Watermark: ${max._1} ${max._2}")
       context.system.scheduler.scheduleOnce(delay = 10.seconds, receiver = self, message = "probe")
       counter=0
