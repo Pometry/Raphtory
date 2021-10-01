@@ -37,6 +37,20 @@ final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[
     result.toList
   }
 
+  def runGraphFunction(f:Vertex=>Unit):Unit = {
+    vertexMap.foreach{ case (id,vertex) =>f(vertex)}
+    vertexCount.set(vertexMap.size)
+  }
+
+  def runMessagedGraphFunction(f:Vertex=>Unit):Unit = {
+    val size = vertexMap.collect{ case (id, vertex) if vertex.hasMessage() => f(vertex)}.size
+    vertexCount.set(size)
+  }
+
+  def getMessageHandler():VertexMessageHandler = {
+    messageHandler
+  }
+
   def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
 
   def sendMessage(msg: VertexMessage): Unit = messageHandler.sendMessage(msg)
