@@ -17,6 +17,7 @@ class VertexMessageHandler(neighbours: mutable.Map[Int,ActorRef]) {
   }
 
   def getCountandReset():Int = messageCount.getAndSet(0)
+  def getCount():Int = messageCount.get()
 
   def getReaderJobWorker(srcId: Long): ActorRef = {
     neighbours((srcId.abs % totalPartitions).toInt)
