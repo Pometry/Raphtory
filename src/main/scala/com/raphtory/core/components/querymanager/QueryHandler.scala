@@ -51,7 +51,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
     case PerspectiveEstablished =>
       if (readyCount + 1 == totalPartitions) {
         self ! StartGraph
-        context.become(executeGraph(state, null, 0,0,0,false))
+        context.become(executeGraph(state, null, 0, 0, 0, true))
       }
       else
         context.become(establishPerspective(state, readyCount + 1))
@@ -60,7 +60,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
   }
 
   //execute the steps of the graph algorithm until a select is run
-  private def executeGraph(state:State,currentOpperation:GraphFunction,readyCount:Int,sentMessageCount: Int, receivedMessageCount: Int,allVoteToHalt:Boolean): Receive = withDefaultMessageHandler("Execute Graph") {
+  private def executeGraph(state: State, currentOpperation: GraphFunction, readyCount: Int, receivedMessageCount: Int, sentMessageCount: Int, allVoteToHalt: Boolean):Receive = withDefaultMessageHandler("Execute Graph") {
     case StartGraph =>
       val graphPerspective = new ObjectGraphPerspective()
       algorithm.algorithm(graphPerspective)
@@ -68,12 +68,14 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
       graphPerspective.getNextOperation() match {
         case Some(f:GraphFunction) =>
           messagetoAllJobWorkers(f)
-          context.become(executeGraph(state.copy(graphPerspective=graphPerspective,table=table),f, 0,0,0,false))
+          context.become(executeGraph(state.copy(graphPerspective=graphPerspective,table=table), f, 0, 0, 0, true))
         case None => killJob()
       }
 
     case GraphFunctionComplete(receivedMessages, sentMessages,votedToHalt) =>
-      if ( (readyCount+1) == totalPartitions)
+      val totalSentMessages = sentMessageCount+sentMessages
+      val totalReceivedMessages = (receivedMessageCount+receivedMessages)
+      if ( (readyCount+1) == totalPartitions) {
         if ( (receivedMessageCount+receivedMessages) == (sentMessageCount+sentMessages) ) {
           currentOpperation match {
             case Iterate(f, iterations) =>
@@ -81,7 +83,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
                 nextGraphOperation(state)
               else  {
                 messagetoAllJobWorkers(Iterate(f, iterations-1))
-                context.become(executeGraph(state, Iterate(f, iterations-1), 0,0,0,false))
+                context.become(executeGraph(state, Iterate(f, iterations-1), 0, 0, 0, true))
               }
             case _ =>
               nextGraphOperation(state)
@@ -89,10 +91,12 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
         }
         else {
           messagetoAllJobWorkers(CheckMessages(jobID))
-          context.become(executeGraph(state,currentOpperation, 0,0,0,allVoteToHalt))
+          println(s"$sentMessageCount $receivedMessageCount $allVoteToHalt")
+          context.become(executeGraph(state, currentOpperation, 0, 0, 0, allVoteToHalt))
         }
+      }
       else
-        context.become(executeGraph(state,currentOpperation,(readyCount+1),(receivedMessageCount+receivedMessages),(sentMessageCount+sentMessages),(allVoteToHalt&&votedToHalt)))
+        context.become(executeGraph(state, currentOpperation, (readyCount+1), totalReceivedMessages, totalSentMessages, (votedToHalt&allVoteToHalt)))
   }
 
   //once the select has been run, execute all of the table functions until we hit a writeTo
@@ -149,7 +153,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
 
       case Some(f: GraphFunction) =>
         messagetoAllJobWorkers(f)
-        context.become(executeGraph(state,f, 0, 0, 0,false))
+        context.become(executeGraph(state, f, 0, 0, 0, true))
 
       case None =>
         executeNextPerspective(state.perspectiveController)
