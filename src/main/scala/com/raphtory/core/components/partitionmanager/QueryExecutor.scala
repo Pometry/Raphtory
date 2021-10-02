@@ -38,7 +38,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       sender ! PerspectiveEstablished
 
     case Step(f) =>
-      log.info(s"Partition $partition have been asked to do a Step operation.")
+      //log.info(s"Partition $partition have been asked to do a Step operation.")
       state.graphLens.nextStep()
       state.graphLens.runGraphFunction(f)
       val sentMessages = state.graphLens.getMessageHandler().getCount()
@@ -46,7 +46,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       context.become(work(state.copy(sentMessageCount=sentMessages)))
 
     case Iterate(f,iterations) =>
-      log.info(s"Partition $partition have been asked to do an Iterate operation. There are $iterations Iterations remaining")
+      //log.info(s"Partition $partition have been asked to do an Iterate operation. There are $iterations Iterations remaining")
       state.graphLens.nextStep()
       state.graphLens.runMessagedGraphFunction(f)
       val sentMessages = state.graphLens.getMessageHandler().getCount()
@@ -54,25 +54,27 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       context.become(work(state.copy(votedToHalt = state.graphLens.checkVotes(),sentMessageCount = sentMessages)))
 
     case VertexFilter(f) =>
-      log.info(s"Partition $partition have been asked to do a Graph Filter operation.")
+      log.info(s"Partition $partition have been asked to do a Graph Filter operation. Not yet implemented")
       sender() ! GraphFunctionComplete(0,0)
 
     case Select(f) =>
       log.info(s"Partition $partition have been asked to do a Select operation.")
+      state.graphLens.executeSelect(f)
       sender() ! TableBuilt
 
 
     case TableFilter(f) =>
       log.info(s"Partition $partition have been asked to do a Table Filter operation.")
+      state.graphLens.filteredTable(f)
       sender() ! TableFunctionComplete
 
 
-    case WriteTo(f) =>
+    case WriteTo(address) =>
       log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
+      println(state.graphLens.getDataTable())
       sender() ! TableFunctionComplete
 
     case _: CheckMessages =>
-      println(state.receivedMessageCount + " " + state.sentMessageCount)
       log.debug(s"Job [$jobID] belonging to Reader [$partition] receives CheckMessages.")
       sender ! GraphFunctionComplete(state.receivedMessageCount, state.sentMessageCount,state.votedToHalt)
   }

@@ -2,6 +2,7 @@ package com.raphtory.core.implementations.objectgraph
 
 import com.raphtory.core.implementations.objectgraph.entities.external.ObjectVertex
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
+import com.raphtory.core.model.algorithm.Row
 import com.raphtory.core.model.graph.visitor.Vertex
 import com.raphtory.core.model.graph.{GraphPartition, GraphPerspective, VertexMessage}
 
@@ -23,6 +24,21 @@ final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[
     }
     result
   }
+
+  private var dataTable: List[Row] = List()
+
+  def executeSelect(f:Vertex=>Row) = {
+    dataTable = vertexMap.collect {
+      case (id, vertex) => f(vertex)
+    }.toList
+    dataTable
+  }
+
+  def filteredTable(f:Row=>Boolean) = {
+    dataTable=dataTable.filter(f)
+    dataTable
+  }
+  def getDataTable():List[Row] = dataTable
 
   def getVertices(): List[Vertex] = {
     vertexCount.set(vertexMap.size)
