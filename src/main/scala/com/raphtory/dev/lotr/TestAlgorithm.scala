@@ -21,7 +21,7 @@ class TestAlgorithm extends GraphAlgorithm{
             vertex.voteToHalt()
       }, 100)
       .select(vertex => Row(Array(vertex.ID(),vertex.getState[Long]("cclabel"))))
-      .filter(r=> r.get(0).asInstanceOf[Long]==18174)
+      //.filter(r=> r.get(0).asInstanceOf[Long]==18174)
       .writeTo("/Users/bensteer/github/output")
   }
 }
