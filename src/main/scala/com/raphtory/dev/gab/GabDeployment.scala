@@ -3,6 +3,7 @@ package com.raphtory.dev.gab
 import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic, TriangleCount}
 import com.raphtory.core.build.RaphtoryGraph
 import com.raphtory.dev.gab.graphbuilders.GabUserGraphBuilder
+import com.raphtory.dev.lotr.TestAlgorithm
 import com.raphtory.serialisers.{DefaultSerialiser, MongoSerialiser}
 import com.raphtory.spouts.FileSpout
 
@@ -11,10 +12,11 @@ object GabDeployment extends App{
   val builder = new GabUserGraphBuilder()
   val rg = RaphtoryGraph[String](source,builder)
   val arguments = Array[String]()
+  rg.pointQuery(TestAlgorithm(),1476113855000L,List(31536000000L))
 
-  rg.oldrangeQuery(ConnectedComponents(),new DefaultSerialiser, start= 1470797917000L,end = 1476113868000L,increment = 86400000L,windowBatch=List(3600000L,86400000L,604800000L,2592000000L,31536000000L))
-  rg.oldrangeQuery(new TriangleCount(Array()), new DefaultSerialiser, start=1470797917000L,
-    end = 1525368897000L,increment = 86400000L,window=86400000L)
+  //rg.oldrangeQuery(ConnectedComponents(),new DefaultSerialiser, start= 1470797917000L,end = 1476113868000L,increment = 86400000L,windowBatch=List(3600000L,86400000L,604800000L,2592000000L,31536000000L))
+  //rg.oldrangeQuery(new TriangleCount(Array()), new DefaultSerialiser, start=1470797917000L,
+  //  end = 1525368897000L,increment = 86400000L,window=86400000L)
   //rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,window=100,arguments)
   //rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,windowBatch=Array(3600,36000,360000),arguments)
 

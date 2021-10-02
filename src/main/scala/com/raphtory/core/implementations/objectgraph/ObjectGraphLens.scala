@@ -9,8 +9,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
 
 final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends GraphPerspective(jobId, timestamp, window) {
-  private var voteCount = new AtomicInteger(0)
-  private var vertexCount = new AtomicInteger(0)
+  private val voteCount = new AtomicInteger(0)
+  private val vertexCount = new AtomicInteger(0)
   var t1 = System.currentTimeMillis()
 
   private lazy val vertexMap: TrieMap[Long, Vertex] = {

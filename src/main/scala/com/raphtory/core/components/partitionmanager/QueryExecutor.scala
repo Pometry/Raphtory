@@ -23,6 +23,12 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
   override def receive: Receive = work(State(null,0, 0,false))
 
   private def work(state: State): Receive = withDefaultMessageHandler("work") {
+
+    case msg: VertexMessage =>
+      log.debug(s"Job [$jobID] belonging to Reader [$partition] receives VertexMessage.")
+      state.graphLens.receiveMessage(msg)
+      context.become(work(state.updateReceivedMessageCount(_ + 1)))
+
     case CreatePerspective(neighbours, timestamp, window) =>
       context.become(work(state.copy(
         graphLens = ObjectGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours)),
@@ -44,7 +50,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       state.graphLens.nextStep()
       state.graphLens.runMessagedGraphFunction(f)
       val sentMessages = state.graphLens.getMessageHandler().getCount()
-      sender() ! GraphFunctionComplete(sentMessages,state.receivedMessageCount,state.graphLens.checkVotes())
+      sender() ! GraphFunctionComplete(state.receivedMessageCount,sentMessages,state.graphLens.checkVotes())
       context.become(work(state.copy(votedToHalt = state.graphLens.checkVotes(),sentMessageCount = sentMessages)))
 
     case VertexFilter(f) =>
@@ -65,14 +71,9 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
       sender() ! TableFunctionComplete
 
-
-    case msg: VertexMessage =>
-      log.debug(s"Job [$jobID] belonging to Reader [$partition] receives VertexMessage.")
-      state.graphLens.receiveMessage(msg)
-      context.become(work(state.updateReceivedMessageCount(_ + 1)))
-
     case _: CheckMessages =>
-      log.info(s"Job [$jobID] belonging to Reader [$partition] receives CheckMessages.")
+      println(state.receivedMessageCount + " " + state.sentMessageCount)
+      log.debug(s"Job [$jobID] belonging to Reader [$partition] receives CheckMessages.")
       sender ! GraphFunctionComplete(state.receivedMessageCount, state.sentMessageCount,state.votedToHalt)
   }
 
