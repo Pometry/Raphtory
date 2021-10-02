@@ -13,6 +13,9 @@ import com.raphtory.core.model.algorithm.{Iterate, Select, Step, TableFilter, Ve
 import com.raphtory.core.model.graph.{GraphPartition, VertexMessage}
 import com.raphtory.core.model.graph.visitor.Vertex
 
+import java.io.File
+import scala.io.Source
+
 case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String, handlerRef:ActorRef) extends RaphtoryActor {
 
   override def preStart(): Unit = {
@@ -71,7 +74,11 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
 
     case WriteTo(address) =>
       log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
-      println(state.graphLens.getDataTable())
+      state.graphLens.getDataTable().foreach(row=>{
+        new File(s"$address/$jobID").mkdirs()
+        reflect.io.File(s"$address/$jobID/partition-$partition").writeAll(row.getValues().mkString(","))
+      })
+
       sender() ! TableFunctionComplete
 
     case _: CheckMessages =>
