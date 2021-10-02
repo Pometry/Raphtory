@@ -91,7 +91,6 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
         }
         else {
           messagetoAllJobWorkers(CheckMessages(jobID))
-          println(s"$sentMessageCount $receivedMessageCount $allVoteToHalt")
           context.become(executeGraph(state, currentOpperation, 0, 0, 0, allVoteToHalt))
         }
       }

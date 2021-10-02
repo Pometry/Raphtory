@@ -75,7 +75,9 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
     case WriteTo(address) =>
       log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
       state.graphLens.getDataTable().foreach(row=>{
-        new File(s"$address/$jobID").mkdirs()
+        val dir = new File(s"$address/$jobID")
+        if(!dir.exists())
+          dir.mkdirs()
         reflect.io.File(s"$address/$jobID/partition-$partition").writeAll(row.getValues().mkString(","))
       })
 
