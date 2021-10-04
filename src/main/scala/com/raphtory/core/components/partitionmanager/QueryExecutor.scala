@@ -2,7 +2,7 @@ package com.raphtory.core.components.partitionmanager
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.RaphtoryActor
+import com.raphtory.core.components.actor.RaphtoryActor
 import com.raphtory.core.components.partitionmanager.QueryExecutor.State
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, ExecutorEstablished, GraphFunctionComplete, PerspectiveEstablished, TableBuilt, TableFunctionComplete}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, KillTask}
@@ -74,11 +74,17 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
 
     case WriteTo(address) =>
       log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
+      val dir = new File(s"$address/$jobID")
+      if(!dir.exists())
+        dir.mkdirs()
       state.graphLens.getDataTable().foreach(row=>{
-        val dir = new File(s"$address/$jobID")
-        if(!dir.exists())
-          dir.mkdirs()
-        reflect.io.File(s"$address/$jobID/partition-$partition").writeAll(row.getValues().mkString(","))
+        state.graphLens.window match {
+          case Some(window) =>
+            reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(s"${state.graphLens.timestamp},$window,"+row.getValues().mkString(",")+"\n")
+          case None =>
+            reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(s"${state.graphLens.timestamp},"+row.getValues().mkString(",")+"\n")
+
+        }
       })
 
       sender() ! TableFunctionComplete

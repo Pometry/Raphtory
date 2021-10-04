@@ -1,13 +1,13 @@
 package com.raphtory.dev.lotr
 
 import com.raphtory.algorithms.{ConnectedComponents, StateTest}
-import com.raphtory.core.build.RaphtoryGraph
+import com.raphtory.core.build.RaphtoryNode
 import com.raphtory.serialisers.{DefaultSerialiser, MongoSerialiser}
 
 object LOTRDeployment extends App{
   val source  = new LOTRSpout()
   val builder = new LOTRGraphBuilder()
-  val rg = RaphtoryGraph[String](source,builder)
+  val rg = RaphtoryNode[String](source,builder)
   val arguments = Array("3")
   rg.pointQuery(TestAlgorithm(),10000,List(10000, 1000,100))
 

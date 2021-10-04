@@ -1,20 +1,17 @@
-package com.raphtory.core.components
+package com.raphtory.core.components.actor
 
 import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.core.components.RaphtoryActor.{builderServers, buildersPerServer, partitionServers, partitionsPerServer, totalBuilders, totalPartitions}
-import com.raphtory.core.components.orchestration.raphtoryleader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
-import com.raphtory.core.components.querymanager.QueryHandler.Message.{TimeCheck, TimeResponse}
+import com.raphtory.core.components.actor.RaphtoryActor._
+import com.raphtory.core.components.raphtoryleader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
 import com.raphtory.core.model.algorithm.Analyser
 import com.typesafe.config.ConfigFactory
 
-import scala.collection.mutable
+import scala.concurrent.duration.{FiniteDuration, _}
 import scala.concurrent.{Await, ExecutionContext}
-import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success, Try}
-import scala.concurrent.duration._
+import scala.util.Try
 
 object RaphtoryActor {
   private val conf = ConfigFactory.load()

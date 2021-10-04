@@ -9,11 +9,11 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.analysismanager.AnalysisManager.State
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.components.analysismanager.tasks._
-import com.raphtory.core.components.RaphtoryActor
-import com.raphtory.core.components.RaphtoryActor.totalPartitions
+import com.raphtory.core.components.actor.RaphtoryActor._
+import com.raphtory.core.components.actor.RaphtoryActor
 import com.raphtory.core.components.analysismanager.tasks.{LiveAnalysisTask, RangeAnalysisTask, ViewAnalysisTask}
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message._
 import com.raphtory.core.components.querymanager.QueryManager.Message._
+import com.raphtory.core.components.raphtoryleader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, QueryManagerUp}
 import com.raphtory.core.model.algorithm.{AggregateSerialiser, Analyser}
 
 import scala.concurrent.ExecutionContext

@@ -1,13 +1,13 @@
-package com.raphtory.core.components.orchestration.componentconnector
+package com.raphtory.core.build.componentconnector
 
 import akka.actor.{ActorRef, Cancellable, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.util.Timeout
-import com.raphtory.core.components.partitionmanager.{Writer, PartitionManager}
-import com.raphtory.core.components.RaphtoryActor
+import com.raphtory.core.components.actor.RaphtoryActor
+import com.raphtory.core.components.partitionmanager.{PartitionManager, Writer}
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.{AssignedId, PartitionsCount}
+import com.raphtory.core.components.raphtoryleader.WatchDog.Message.AssignedId
 import com.raphtory.core.model.graph.GraphPartition
 
 import scala.collection.mutable
