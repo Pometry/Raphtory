@@ -1,11 +1,11 @@
-package com.raphtory.core.components.raphtoryleader
+package com.raphtory.core.components.leader
 
 import java.util.concurrent.atomic.AtomicLong
 import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.actor.RaphtoryActor._
+import com.raphtory.core.components.management.RaphtoryActor._
 import WatermarkManager.Message.{ProbeWatermark, WatermarkTime, WhatsTheTime}
-import com.raphtory.core.components.actor.RaphtoryActor
+import com.raphtory.core.components.management.RaphtoryActor
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{TimeCheck, TimeResponse}
 
 import java.time.LocalDateTime

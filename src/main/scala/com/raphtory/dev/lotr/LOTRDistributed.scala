@@ -1,6 +1,5 @@
 package com.raphtory.dev.lotr
 
-import com.raphtory.core.build.{RaphtoryNode}
 import com.raphtory.dev.gab.graphbuilders.GabUserGraphBuilder
 
 import scala.language.postfixOps

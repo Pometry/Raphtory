@@ -2,9 +2,9 @@ package com.raphtory.core.components.spout
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.actor.RaphtoryActor._
-import com.raphtory.core.components.actor.RaphtoryActor
-import com.raphtory.core.components.raphtoryleader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, SpoutUp}
+import com.raphtory.core.components.management.RaphtoryActor._
+import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.leader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, SpoutUp}
 import com.raphtory.core.components.spout.SpoutAgent.CommonMessage._
 import com.raphtory.core.implementations.objectgraph.messaging._
 

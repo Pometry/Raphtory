@@ -8,8 +8,8 @@ import com.raphtory.core.components.graphbuilder.BuilderExecutor.State
 import com.raphtory.core.components.spout.SpoutAgent.CommonMessage.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.implementations.objectgraph.messaging._
 import akka.pattern.ask
-import com.raphtory.core.components.actor.RaphtoryActor
-import com.raphtory.core.components.raphtoryleader.WatchDog.Message.{BuilderUp, ClusterStatusRequest, ClusterStatusResponse}
+import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.leader.WatchDog.Message.{BuilderUp, ClusterStatusRequest, ClusterStatusResponse}
 import com.raphtory.core.model.graph.{GraphUpdate, TrackedGraphUpdate}
 
 import scala.collection.mutable

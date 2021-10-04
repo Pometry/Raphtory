@@ -1,21 +1,20 @@
-package com.raphtory.core.build
+package com.raphtory.core.build.server
 
 import akka.actor.{ActorSystem, Address, ExtendedActorSystem, Props}
 import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
+import com.raphtory.core.components.management.connectors.{AnalysisManagerConnector, BuilderConnector, PartitionConnector, SpoutConnector}
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.build.componentconnector.{AnalysisManagerConnector, BuilderConnector, PartitionConnector, SpoutConnector}
-import com.raphtory.core.components.raphtoryleader.{WatchDog, WatermarkManager}
+import com.raphtory.core.components.leader.{WatchDog, WatermarkManager}
 import com.raphtory.core.components.spout.Spout
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFactory}
 
 import java.lang.management.ManagementFactory
 import java.net.InetAddress
 import scala.collection.JavaConversions
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
-object RaphtoryServer extends App {
+object RaphtoryService extends App {
   printJavaOptions()
   val conf = ConfigFactory.load()
   val clusterSystemName = "Raphtory"
@@ -72,12 +71,12 @@ object RaphtoryServer extends App {
 
   }
 
-//  def local() = {
-//    println("putting up cluster in one node")
-//    val spoutPath = s"${sys.env.getOrElse("SPOUT", "")}"
-//    val builderPath = s"${sys.env.getOrElse("GRAPHBUILDER", "")}"
-//    RaphtoryNode[Any](spoutPath, builderPath)
-//  }
+  //  def local() = {
+  //    println("putting up cluster in one node")
+  //    val spoutPath = s"${sys.env.getOrElse("SPOUT", "")}"
+  //    val builderPath = s"${sys.env.getOrElse("GRAPHBUILDER", "")}"
+  //    RaphtoryNode[Any](spoutPath, builderPath)
+  //  }
 
   def locateSeed(): String =
     if (docker) {

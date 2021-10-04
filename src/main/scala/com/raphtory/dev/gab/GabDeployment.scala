@@ -1,7 +1,7 @@
 package com.raphtory.dev.gab
 
 import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic, TriangleCount}
-import com.raphtory.core.build.RaphtoryNode
+import com.raphtory.core.build.server.RaphtoryPD
 import com.raphtory.dev.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.dev.lotr.TestAlgorithm
 import com.raphtory.serialisers.{DefaultSerialiser, MongoSerialiser}
@@ -10,7 +10,7 @@ import com.raphtory.spouts.FileSpout
 object GabDeployment extends App{
   val source  = new FileSpout()
   val builder = new GabUserGraphBuilder()
-  val rg = RaphtoryNode[String](source,builder)
+  val rg = RaphtoryPD[String](source,builder)
   val arguments = Array[String]()
   rg.rangeQuery(TestAlgorithm(),start= 1470797917000L,end = 1476113868000L,increment = 86400000L,List(3600000L,86400000L,604800000L,2592000000L,31536000000L))
 
