@@ -1,11 +1,11 @@
-package com.raphtory.core.components.orchestration.raphtoryleader
+package com.raphtory.core.components.raphtoryleader
 
 import java.util.concurrent.atomic.AtomicLong
 import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.RaphtoryActor
-import com.raphtory.core.components.RaphtoryActor.totalPartitions
-import com.raphtory.core.components.orchestration.raphtoryleader.WatermarkManager.Message.{ProbeWatermark, WatermarkTime, WhatsTheTime}
+import com.raphtory.core.components.actor.RaphtoryActor._
+import WatermarkManager.Message.{ProbeWatermark, WatermarkTime, WhatsTheTime}
+import com.raphtory.core.components.actor.RaphtoryActor
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{TimeCheck, TimeResponse}
 
 import java.time.LocalDateTime
@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 class WatermarkManager extends RaphtoryActor  {
 
   override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(delay = 10.seconds, receiver = self, message = "probe")
+    context.system.scheduler.scheduleOnce(delay = 70.seconds, receiver = self, message = "probe")
   }
   var safeTimestamp:Long = 0L
 

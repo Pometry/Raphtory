@@ -2,7 +2,7 @@ package com.raphtory.core.components.partitionmanager
 
 import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.RaphtoryActor
+import com.raphtory.core.components.actor.RaphtoryActor
 import com.raphtory.core.components.querymanager.QueryManager.Message.{JobFailed, KillTask}
 import com.raphtory.core.components.querymanager.QueryHandler.Message._
 import com.raphtory.core.components.partitionmanager.AnalyserExecutor.State
@@ -18,7 +18,6 @@ final case class AnalyserExecutor(partition: Int, storage: GraphPartition, analy
 
   override def preStart(): Unit = {
     log.debug(s"AnalysisSubtaskWorker ${self.path} for Job [$jobId] belonging to Reader [$partition] is being started.")
-    println("sending back")
     taskManager ! ExecutorEstablished(partition, self)
   }
 

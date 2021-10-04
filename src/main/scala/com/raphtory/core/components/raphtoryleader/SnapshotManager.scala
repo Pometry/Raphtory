@@ -1,9 +1,9 @@
-package com.raphtory.core.components.orchestration.raphtoryleader
+package com.raphtory.core.components.raphtoryleader
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.RaphtoryActor
-import com.raphtory.core.components.orchestration.raphtoryleader.WatermarkManager.Message.{SaveState, WatermarkTime}
+import WatermarkManager.Message.{SaveState, WatermarkTime}
+import com.raphtory.core.components.actor.RaphtoryActor
 
 class SnapshotManager(managerCount: Int) extends RaphtoryActor {
 

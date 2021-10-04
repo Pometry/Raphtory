@@ -1,10 +1,10 @@
-package com.raphtory.core.components.orchestration.componentconnector
+package com.raphtory.core.build.componentconnector
 
 import akka.actor.Props
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.spout.{Spout, SpoutAgent}
 import akka.pattern.ask
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.RequestSpoutId
+import com.raphtory.core.components.raphtoryleader.WatchDog.Message.RequestSpoutId
 
 import scala.concurrent.Future
 

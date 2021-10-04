@@ -1,4 +1,4 @@
-package com.raphtory.core.components.orchestration.raphtoryleader
+package com.raphtory.core.components.raphtoryleader
 
 /**
   * Created by Mirate on 11/07/2017.
@@ -8,10 +8,10 @@ import akka.cluster.Cluster
 import akka.cluster.ClusterEvent.{InitialStateAsEvents, MemberEvent, MemberExited, MemberRemoved, MemberUp, UnreachableMember}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.event.LoggingReceive
-import com.raphtory.core.components.RaphtoryActor
-import com.raphtory.core.components.RaphtoryActor.{analysisCount, builderServers, buildersPerServer, partitionServers, spoutCount, totalBuilders, totalPartitions}
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.ActorState
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message._
+import com.raphtory.core.components.actor.RaphtoryActor._
+import WatchDog.ActorState
+import WatchDog.Message._
+import com.raphtory.core.components.actor.RaphtoryActor
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._

@@ -2,12 +2,12 @@ package com.raphtory.core.components.querymanager
 
 import akka.actor.{ActorLogging, ActorRef, Props, Stash}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.RaphtoryActor
+import com.raphtory.core.components.actor.RaphtoryActor
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.AnalysisRequest
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, QueryManagerUp}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{EndQuery, LiveQuery, ManagingTask, PointQuery, Query, QueryNotPresent, RangeQuery, StartUp}
 import com.raphtory.core.components.querymanager.QueryManager.State
 import com.raphtory.core.components.querymanager.handler.{LiveQueryHandler, PointQueryHandler, RangeQueryHandler}
+import com.raphtory.core.components.raphtoryleader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, QueryManagerUp}
 import com.raphtory.core.model.algorithm.GraphAlgorithm
 
 import scala.concurrent.ExecutionContext

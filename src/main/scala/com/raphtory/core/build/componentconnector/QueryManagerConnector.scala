@@ -1,11 +1,11 @@
-package com.raphtory.core.components.orchestration.componentconnector
+package com.raphtory.core.build.componentconnector
 import akka.actor.{ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.RequestQueryId
 import com.raphtory.core.components.querymanager.QueryManager.Message.{LiveQuery, ManagingTask, PointQuery, RangeQuery}
 import akka.pattern.ask
 import com.raphtory.core.components.querymanager.QueryManager
+import com.raphtory.core.components.raphtoryleader.WatchDog.Message.RequestQueryId
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, MILLISECONDS}
