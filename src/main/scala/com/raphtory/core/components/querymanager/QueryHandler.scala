@@ -2,8 +2,8 @@ package com.raphtory.core.components.querymanager
 
 import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.actor.RaphtoryActor._
-import com.raphtory.core.components.actor.RaphtoryActor
+import com.raphtory.core.components.management.RaphtoryActor._
+import com.raphtory.core.components.management.RaphtoryActor
 import com.raphtory.core.components.analysismanager.tasks.AnalysisTask.SubtaskState
 import com.raphtory.core.components.analysismanager.tasks.{SubTaskController, TaskTimeRange}
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, EstablishExecutor, ExecutorEstablished, GraphFunctionComplete, PerspectiveEstablished, RecheckTime, SetupNextStep, StartAnalysis, StartGraph, StartSubtask, TableBuilt, TableFunctionComplete, TimeCheck, TimeResponse}

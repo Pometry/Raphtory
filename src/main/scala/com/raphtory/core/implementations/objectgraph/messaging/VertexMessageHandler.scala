@@ -2,7 +2,7 @@ package com.raphtory.core.implementations.objectgraph.messaging
 
 import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.ActorRef
-import com.raphtory.core.components.actor.RaphtoryActor._
+import com.raphtory.core.components.management.RaphtoryActor._
 import com.raphtory.core.model.graph.VertexMessage
 
 import scala.collection.mutable
