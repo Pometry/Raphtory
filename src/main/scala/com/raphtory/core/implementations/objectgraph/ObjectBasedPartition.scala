@@ -1,6 +1,5 @@
 package com.raphtory.core.implementations.objectgraph
 
-import com.raphtory.core.components.RaphtoryActor.totalPartitions
 import com.raphtory.core.implementations.objectgraph.entities.internal.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
 import com.raphtory.core.implementations.objectgraph.messaging._
 import com.raphtory.core.model.graph.{DoubleProperty, EdgeSyncAck, FloatProperty, GraphPartition, GraphPerspective, GraphUpdateEffect, ImmutableProperty, InboundEdgeRemovalViaVertex, LongProperty, OutboundEdgeRemovalViaVertex, Properties, StringProperty, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, Type, VertexRemoveSyncAck}

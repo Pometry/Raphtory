@@ -2,13 +2,12 @@ package com.raphtory.core.implementations.objectgraph.messaging
 
 import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.ActorRef
-import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.components.RaphtoryActor.totalPartitions
+import com.raphtory.core.components.management.RaphtoryActor._
 import com.raphtory.core.model.graph.VertexMessage
 
 import scala.collection.mutable
 
-class VertexMessageHandler(neighbours: mutable.Map[Int,ActorRef],jobID:String) {
+class VertexMessageHandler(neighbours: mutable.Map[Int,ActorRef]) {
 
   val messageCount = new AtomicInteger(0)
 
@@ -18,9 +17,15 @@ class VertexMessageHandler(neighbours: mutable.Map[Int,ActorRef],jobID:String) {
   }
 
   def getCountandReset():Int = messageCount.getAndSet(0)
+  def getCount():Int = messageCount.get()
 
   def getReaderJobWorker(srcId: Long): ActorRef = {
     neighbours((srcId.abs % totalPartitions).toInt)
   }
 
+}
+object VertexMessageHandler {
+  def apply(neighbours: mutable.Map[Int,ActorRef]) = {
+    new VertexMessageHandler(neighbours)
+  }
 }

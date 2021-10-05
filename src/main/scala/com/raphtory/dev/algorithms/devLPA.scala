@@ -108,7 +108,6 @@ class devLPA(args: Array[String]) extends Analyser[Any](args) {
 //      .map(f => (f._1, f._2.map(_._2)))
 
   override def extractResults(results: List[Any]): Map[String,Any] = {
-    println(s"$workerID -- Merging up results..")
 //    val er      = extractData(results)
 val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParIterable[(Long, String)]]].flatten
     val text = endResults.map { x =>

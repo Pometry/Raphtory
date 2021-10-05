@@ -6,14 +6,14 @@ import akka.actor.Props
 import akka.actor.Stash
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.components.analysismanager.AnalysisManager.Message.{JobKilled, _}
 import com.raphtory.core.components.analysismanager.AnalysisManager.State
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.components.analysismanager.tasks._
-import com.raphtory.core.components.RaphtoryActor
-import com.raphtory.core.components.RaphtoryActor.totalPartitions
+import com.raphtory.core.components.management.RaphtoryActor._
+import com.raphtory.core.components.management.RaphtoryActor
 import com.raphtory.core.components.analysismanager.tasks.{LiveAnalysisTask, RangeAnalysisTask, ViewAnalysisTask}
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message._
+import com.raphtory.core.components.querymanager.QueryManager.Message._
+import com.raphtory.core.components.leader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, QueryManagerUp}
 import com.raphtory.core.model.algorithm.{AggregateSerialiser, Analyser}
 
 import scala.concurrent.ExecutionContext
@@ -24,10 +24,6 @@ import scala.util.Success
 import scala.util.Try
 
 final case class AnalysisManager() extends RaphtoryActor with ActorLogging with Stash {
-  implicit val executionContext: ExecutionContext = context.system.dispatcher
-
-  final protected val mediator = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart() {
     context.system.scheduler.schedule(Duration(5, SECONDS),Duration(5, SECONDS), self, StartUp)
@@ -37,7 +33,7 @@ final case class AnalysisManager() extends RaphtoryActor with ActorLogging with 
 
   def init(): Receive = {
     case StartUp =>
-      mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", AnalysisManagerUp(0)) //ask if the cluster is safe to use
+      mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", QueryManagerUp(0)) //ask if the cluster is safe to use
       mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest) //ask if the cluster is safe to use
 
     case ClusterStatusResponse(clusterUp) =>
@@ -149,17 +145,5 @@ object AnalysisManager {
   private case class State(currentTasks: Map[String, ActorRef]) {
     def updateCurrentTask(f: Map[String, ActorRef] => Map[String, ActorRef]): State =
       copy(currentTasks = f(currentTasks))
-  }
-  object Message {
-    case class  RequestResults(jobId: String)
-    case class  KillTask(jobId: String)
-    case class  ResultsForApiPI(results: Array[String])
-    case class  ManagingTask(actor:ActorRef)
-    case class  TaskFinished(result:Boolean)
-    case object StartUp
-    case object JobKilled
-    case object JobDoesntExist
-    case object AreYouFinished
-    case object JobFailed
   }
 }

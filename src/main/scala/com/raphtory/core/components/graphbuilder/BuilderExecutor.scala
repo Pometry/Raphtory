@@ -3,13 +3,13 @@ package com.raphtory.core.components.graphbuilder
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.util.Timeout
-import com.raphtory.core.components.RaphtoryActor
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.CommonMessage.{BuilderTimeSync, DataFinishedSync, KeepAlive, StartUp, TimeBroadcast}
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.State
 import com.raphtory.core.components.spout.SpoutAgent.CommonMessage.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.implementations.objectgraph.messaging._
 import akka.pattern.ask
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.{BuilderUp, ClusterStatusRequest, ClusterStatusResponse}
+import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.leader.WatchDog.Message.{BuilderUp, ClusterStatusRequest, ClusterStatusResponse}
 import com.raphtory.core.model.graph.{GraphUpdate, TrackedGraphUpdate}
 
 import scala.collection.mutable
@@ -18,14 +18,10 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 
 class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) extends RaphtoryActor {
-  implicit val executionContext: ExecutionContext = context.system.dispatcher
   private val messageIDs = ParTrieMap[String, Int]()
   private var safe = false
 
   var update = 0
-
-  final protected val mediator = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart(): Unit = {
     log.debug(s"Builder Executor [$builderID] is being started.")

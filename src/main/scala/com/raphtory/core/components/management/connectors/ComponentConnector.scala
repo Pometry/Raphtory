@@ -1,13 +1,13 @@
-package com.raphtory.core.components.orchestration.componentconnector
+package com.raphtory.core.components.management.connectors
 
 import akka.actor.{ActorRef, Cancellable, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.util.Timeout
-import com.raphtory.core.components.partitionmanager.{Writer, PartitionManager}
-import com.raphtory.core.components.RaphtoryActor
+import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.partitionmanager.{PartitionManager, Writer}
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.{AssignedId, PartitionsCount}
+import com.raphtory.core.components.leader.WatchDog.Message.AssignedId
 import com.raphtory.core.model.graph.GraphPartition
 
 import scala.collection.mutable
@@ -21,16 +21,12 @@ abstract class ComponentConnector()
         extends RaphtoryActor {
 
   // TODO Make implicit timeouts as secondary (curried), optional implicit parameter
-  implicit val timeout: Timeout = 10.seconds
-  implicit val executionContext = context.system.dispatchers.lookup("misc-dispatcher")
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()
 
   var myId: Int                = -1
   var actorRef: ActorRef       = _
   var actorRefReader: ActorRef = _
 
-  val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
   //mediator ! DistributedPubSubMediator.Subscribe(partitionsTopic, self)
 
   def callTheWatchDog(): Future[Any]

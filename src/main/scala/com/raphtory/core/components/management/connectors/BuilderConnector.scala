@@ -1,11 +1,11 @@
-package com.raphtory.core.components.orchestration.componentconnector
+package com.raphtory.core.components.management.connectors
 
 import akka.actor.Props
 import akka.cluster.pubsub.DistributedPubSubMediator
-import com.raphtory.core.components.graphbuilder.{GraphBuilder, BuilderExecutor}
+import com.raphtory.core.components.graphbuilder.{BuilderExecutor, GraphBuilder}
 import akka.pattern.ask
-import com.raphtory.core.components.RaphtoryActor.buildersPerServer
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.RequestBuilderId
+import com.raphtory.core.components.management.RaphtoryActor._
+import com.raphtory.core.components.leader.WatchDog.Message.RequestBuilderId
 
 import scala.concurrent.Future
 

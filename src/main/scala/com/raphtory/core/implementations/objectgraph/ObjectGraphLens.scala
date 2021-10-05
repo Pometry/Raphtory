@@ -2,22 +2,16 @@ package com.raphtory.core.implementations.objectgraph
 
 import com.raphtory.core.implementations.objectgraph.entities.external.ObjectVertex
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
+import com.raphtory.core.model.algorithm.Row
 import com.raphtory.core.model.graph.visitor.Vertex
 import com.raphtory.core.model.graph.{GraphPartition, GraphPerspective, VertexMessage}
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
 
-final case class ObjectGraphLens(
-                                  jobId: String,
-                                  timestamp: Long,
-                                  window: Option[Long],
-                                  var superStep: Int,
-                                  private val storage: GraphPartition,
-                                  private val messageHandler: VertexMessageHandler
-                                ) extends GraphPerspective(jobId, timestamp, window) {
-  private var voteCount = new AtomicInteger(0)
-  private var vertexCount = new AtomicInteger(0)
+final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends GraphPerspective(jobId, timestamp, window) {
+  private val voteCount = new AtomicInteger(0)
+  private val vertexCount = new AtomicInteger(0)
   var t1 = System.currentTimeMillis()
 
   private lazy val vertexMap: TrieMap[Long, Vertex] = {
@@ -30,6 +24,21 @@ final case class ObjectGraphLens(
     }
     result
   }
+
+  private var dataTable: List[Row] = List()
+
+  def executeSelect(f:Vertex=>Row) = {
+    dataTable = vertexMap.collect {
+      case (id, vertex) => f(vertex)
+    }.toList
+    dataTable
+  }
+
+  def filteredTable(f:Row=>Boolean) = {
+    dataTable=dataTable.filter(f)
+    dataTable
+  }
+  def getDataTable():List[Row] = dataTable
 
   def getVertices(): List[Vertex] = {
     vertexCount.set(vertexMap.size)
@@ -44,18 +53,27 @@ final case class ObjectGraphLens(
     result.toList
   }
 
-  def checkVotes(): Boolean = {
-    //    println(s"$superStep - $workerId : \t ${vertexCount.get() - voteCount.get()} / ${vertexCount.get()}")
-    vertexCount.get() == voteCount.get()
+  def runGraphFunction(f:Vertex=>Unit):Unit = {
+    vertexMap.foreach{ case (id,vertex) =>f(vertex)}
+    vertexCount.set(vertexMap.size)
   }
 
-  def sendMessage(msg: VertexMessage): Unit = messageHandler.sendMessage(msg)
+  def runMessagedGraphFunction(f:Vertex=>Unit):Unit = {
+    val size = vertexMap.collect{ case (id, vertex) if vertex.hasMessage() => f(vertex)}.size
+    vertexCount.set(size)
+  }
 
+  def getMessageHandler():VertexMessageHandler = {
+    messageHandler
+  }
+
+  def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
+
+  def sendMessage(msg: VertexMessage): Unit = messageHandler.sendMessage(msg)
 
   def vertexVoted(): Unit = voteCount.incrementAndGet()
 
   def nextStep(): Unit = {
-    //println(s"Superstep: $superStep \t WiD: $workerId \t Exec: ${System.currentTimeMillis() - t1}")
     t1 = System.currentTimeMillis()
     voteCount.set(0)
     vertexCount.set(0)

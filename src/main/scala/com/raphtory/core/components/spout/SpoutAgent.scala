@@ -2,9 +2,9 @@ package com.raphtory.core.components.spout
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.RaphtoryActor
-import com.raphtory.core.components.RaphtoryActor.{builderServers, partitionServers}
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, SpoutUp}
+import com.raphtory.core.components.management.RaphtoryActor._
+import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.leader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, SpoutUp}
 import com.raphtory.core.components.spout.SpoutAgent.CommonMessage._
 import com.raphtory.core.implementations.objectgraph.messaging._
 
@@ -16,7 +16,7 @@ import scala.language.postfixOps
 
 class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
   // todo: wvv should assign the dispatcher when create the actor
-  implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("spout-dispatcher")
+  //implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("spout-dispatcher")
   //implicit val executionContext: ExecutionContext = context.system.dispatcher
 
   private var count       = 0
@@ -24,8 +24,6 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
   private def recordUpdate(): Unit = {
     count += 1
   }
-
-  private val mediator = DistributedPubSub(context.system).mediator
 
   override def preStart() {
     log.debug("Spout is being started.")

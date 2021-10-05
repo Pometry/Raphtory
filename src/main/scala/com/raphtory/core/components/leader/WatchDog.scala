@@ -1,4 +1,4 @@
-package com.raphtory.core.components.orchestration.raphtoryleader
+package com.raphtory.core.components.leader
 
 /**
   * Created by Mirate on 11/07/2017.
@@ -8,23 +8,19 @@ import akka.cluster.Cluster
 import akka.cluster.ClusterEvent.{InitialStateAsEvents, MemberEvent, MemberExited, MemberRemoved, MemberUp, UnreachableMember}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.event.LoggingReceive
-import com.raphtory.core.components.RaphtoryActor
-import com.raphtory.core.components.RaphtoryActor.{analysisCount, builderServers, buildersPerServer, partitionServers, spoutCount, totalBuilders, totalPartitions}
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.ActorState
-import com.raphtory.core.components.orchestration.raphtoryleader.WatchDog.Message._
+import com.raphtory.core.components.management.RaphtoryActor._
+import WatchDog.ActorState
+import WatchDog.Message._
+import com.raphtory.core.components.management.RaphtoryActor
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class WatchDog() extends RaphtoryActor {
 
-  implicit val executionContext: ExecutionContext = context.system.dispatcher
-
   private val maxTimeInMillis = 30000
 
   val cluster: Cluster = Cluster(context.system)
-  val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   override def preStart(): Unit = {
     log.debug("WatchDog is being started.")
@@ -63,7 +59,7 @@ class WatchDog() extends RaphtoryActor {
       val newMap = state.spLiveMap + (id -> System.currentTimeMillis())
       context.become(work(state.copy(spLiveMap = newMap)))
 
-    case AnalysisManagerUp(id) =>
+    case QueryManagerUp(id) =>
       val newMap = state.anLiveMap + (id -> System.currentTimeMillis())
       context.become(work(state.copy(anLiveMap = newMap)))
 
@@ -84,7 +80,7 @@ class WatchDog() extends RaphtoryActor {
       val newCounter = state.spCounter + 1
       context.become(work(state.copy(spCounter = newCounter)))
 
-    case RequestAnalysisId =>
+    case RequestQueryId =>
       sender ! AssignedId(state.anCounter)
       val newCounter = state.anCounter + 1
       context.become(work(state.copy(anCounter = newCounter)))
@@ -127,14 +123,14 @@ object WatchDog {
     case class BuilderUp(id: Int)
     case class PartitionUp(id: Int)
     case class SpoutUp(id: Int)
-    case class AnalysisManagerUp(id: Int)
+    case class QueryManagerUp(id: Int)
     case object ClusterStatusRequest
     case class ClusterStatusResponse(clusterUp: Boolean)
     case class AssignedId(id: Int)
     case object RequestPartitionId
     case object RequestBuilderId
     case object RequestSpoutId
-    case object RequestAnalysisId
+    case object RequestQueryId
     case object RequestPartitionCount
     case class PartitionsCount(count: Int)
   }

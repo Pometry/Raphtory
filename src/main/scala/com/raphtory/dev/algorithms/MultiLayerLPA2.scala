@@ -92,9 +92,7 @@ class MultiLayerLPA2(args: Array[String]) extends LPA(args) {
       vertex.setState("vote", voteStatus)
     }
     if (countvote == 1)
-      println(
-              s"WiD: $workerID \t Still processing: $countvote / ${messaged.size} \t Status:$lastManStanding "
-      )
+      println(s"Still processing: $countvote / ${messaged.size} \t Status:$lastManStanding ")
     countvote = 0L
   }
   def selectiveProc(v: Vertex, ts: Long, gp: Array[Long]): Unit = {}
@@ -128,7 +126,7 @@ class MultiLayerLPA2(args: Array[String]) extends LPA(args) {
   def scaling(freq: Array[Float]): Float = math.sqrt(freq.map(math.pow(_, 2)).sum).toFloat
 
   override def returnResults(): Map[Long, List[String]] = {
-    println(s"mLPA - wID: $workerID totNodes: ${view.getVertices().size}")
+    println(s"mLPA totNodes: ${view.getVertices().size}")
     view
       .getVertices()
       .map(vertex =>
