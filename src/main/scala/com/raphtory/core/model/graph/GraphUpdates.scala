@@ -28,7 +28,7 @@ case class EdgeAdd(updateTime: Long, srcId: Long, dstId: Long, properties: Prope
 case class EdgeDelete(updateTime: Long, srcId: Long, dstId: Long) extends GraphUpdate
 
 //Required sync after an update has been applied to a partition
-sealed abstract class GraphUpdateEffect(val updateId: Long) extends Serializable {val msgTime: Long}
+sealed abstract class GraphUpdateEffect(val updateId: Long) {val msgTime: Long}
 
 case class SyncNewEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, removals: List[Long], vType: Option[Type]) extends GraphUpdateEffect(dstId)
 case class SyncExistingEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties) extends GraphUpdateEffect(dstId)
