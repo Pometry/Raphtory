@@ -29,7 +29,7 @@ trait RaphtoryActor extends Actor with ActorLogging with Timers {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  implicit val timeout: Timeout = 60.seconds
+  implicit val timeout: Timeout = 5.seconds
 
   private lazy val builders     :Array[String]    = (for (i <- 0 until totalBuilders)    yield           s"/user/build_$i"   ).toArray
   private lazy val pms          :Array[String]    = (for (i <- 0 until partitionServers) yield           s"/user/Manager_$i" ).toArray

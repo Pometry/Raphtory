@@ -69,7 +69,6 @@ object ComponentFactory {
         )
       )
     )
-    println(config.getString("akka-kryo-serialization.kryo-initializer"))
     config = config.withValue("akka.remote.artery.canonical.bind-port", ConfigValueFactory.fromAnyRef(port))
     config = config.withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(port))
     config = config.withValue("akka.remote.artery.canonical.hostname", ConfigValueFactory.fromAnyRef("127.0.0.1"))
