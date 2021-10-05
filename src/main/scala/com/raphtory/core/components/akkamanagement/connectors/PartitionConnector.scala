@@ -1,10 +1,10 @@
-package com.raphtory.core.components.management.connectors
+package com.raphtory.core.components.akkamanagement.connectors
 
 
 import akka.actor.{ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.pattern.ask
-import com.raphtory.core.components.management.RaphtoryActor._
+import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.partitionmanager.{PartitionManager, Reader, Writer}
 import com.raphtory.core.components.leader.WatchDog.Message.RequestPartitionId
 import com.raphtory.core.implementations.objectgraph.ObjectBasedPartition

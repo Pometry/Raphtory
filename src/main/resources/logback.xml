@@ -8,8 +8,9 @@
   </appender>
 
   <logger name="slick.lifted" level="WARN" />
+  <logger name="io.altoo.akka" level="DEBUG" />
 
-  <root level="WARN">
+  <root level="DEBUG">
     <appender-ref ref="STDOUT" />
   </root>
 </configuration>

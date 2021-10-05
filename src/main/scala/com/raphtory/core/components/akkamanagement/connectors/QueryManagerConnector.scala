@@ -1,4 +1,4 @@
-package com.raphtory.core.components.management.connectors
+package com.raphtory.core.components.akkamanagement.connectors
 import akka.actor.{ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck

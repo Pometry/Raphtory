@@ -1,10 +1,10 @@
-package com.raphtory.core.components.management
+package com.raphtory.core.components.akkamanagement
 
 import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.core.components.management.RaphtoryActor._
+import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.leader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
 import com.raphtory.core.model.algorithm.Analyser
 import com.typesafe.config.ConfigFactory

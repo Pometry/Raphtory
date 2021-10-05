@@ -1,8 +1,8 @@
 package com.raphtory.core.build.server
 
 import akka.actor.{ActorRef, ActorSystem}
-import com.raphtory.core.components.management.RaphtoryActor._
-import com.raphtory.core.components.management.ComponentFactory
+import com.raphtory.core.components.akkamanagement.RaphtoryActor._
+import com.raphtory.core.components.akkamanagement.ComponentFactory
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.querymanager.QueryManager.Message.{LiveQuery, PointQuery, RangeQuery}
@@ -15,9 +15,10 @@ object RaphtoryPD {
 }
 
 class RaphtoryPD[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
-  val system = ActorSystem("Raphtory")
   var port = 1601
   val seedloc = "127.0.0.1:1601"
+  val system = ComponentFactory.initialiseActorSystem(List(seedloc),port)
+
 
   val (watermarker,watchDog) = ComponentFactory.leader(port)
   val analysisManager = ComponentFactory.analysis(seedloc,nextPort)

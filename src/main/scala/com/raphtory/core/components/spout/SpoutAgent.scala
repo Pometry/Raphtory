@@ -2,10 +2,10 @@ package com.raphtory.core.components.spout
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.management.RaphtoryActor._
-import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.akkamanagement.RaphtoryActor._
+import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.leader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, SpoutUp}
-import com.raphtory.core.components.spout.SpoutAgent.CommonMessage._
+import com.raphtory.core.components.spout.SpoutAgent.Message._
 import com.raphtory.core.implementations.objectgraph.messaging._
 
 import scala.concurrent.ExecutionContext
@@ -97,7 +97,7 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
 }
 
 object SpoutAgent {
-  object CommonMessage {
+  object Message {
     case object StateCheck
     case object IsSafe
     case object WorkPlease
