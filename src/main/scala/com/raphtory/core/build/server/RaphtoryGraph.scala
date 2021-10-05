@@ -5,9 +5,9 @@ import com.raphtory.core.build.server.RaphtoryService.spout
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.leader.{WatchDog, WatermarkManager}
-import com.raphtory.core.components.management.ComponentFactory
-import com.raphtory.core.components.management.RaphtoryActor.{builderServers, partitionServers}
-import com.raphtory.core.components.management.connectors.{BuilderConnector, PartitionConnector, QueryManagerConnector, SpoutConnector}
+import com.raphtory.core.components.akkamanagement.ComponentFactory
+import com.raphtory.core.components.akkamanagement.RaphtoryActor.{builderServers, partitionServers}
+import com.raphtory.core.components.akkamanagement.connectors.{BuilderConnector, PartitionConnector, QueryManagerConnector, SpoutConnector}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{LiveQuery, PointQuery, RangeQuery}
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.model.algorithm.{AggregateSerialiser, Analyser, GraphAlgorithm}

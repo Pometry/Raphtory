@@ -3,12 +3,12 @@ package com.raphtory.core.components.graphbuilder
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.util.Timeout
-import com.raphtory.core.components.graphbuilder.BuilderExecutor.CommonMessage.{BuilderTimeSync, DataFinishedSync, KeepAlive, StartUp, TimeBroadcast}
+import com.raphtory.core.components.graphbuilder.BuilderExecutor.Message.{BuilderTimeSync, DataFinishedSync, KeepAlive, StartUp, TimeBroadcast}
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.State
-import com.raphtory.core.components.spout.SpoutAgent.CommonMessage.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
+import com.raphtory.core.components.spout.SpoutAgent.Message.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.implementations.objectgraph.messaging._
 import akka.pattern.ask
-import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.leader.WatchDog.Message.{BuilderUp, ClusterStatusRequest, ClusterStatusResponse}
 import com.raphtory.core.model.graph.{GraphUpdate, TrackedGraphUpdate}
 
@@ -127,7 +127,7 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
 
 
 object BuilderExecutor {
-  object CommonMessage {
+  object Message {
     case object StartUp
     case object TimeBroadcast
     case object KeepAlive

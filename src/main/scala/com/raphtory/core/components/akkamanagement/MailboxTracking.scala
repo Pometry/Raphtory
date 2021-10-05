@@ -1,4 +1,4 @@
-package com.raphtory.core.components.management
+package com.raphtory.core.components.akkamanagement
 
 import akka.actor.{Actor, ActorLogging, ActorPath, ActorRef, ActorSystem, ClassicActorSystemProvider, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider}
 import akka.dispatch._

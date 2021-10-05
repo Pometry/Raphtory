@@ -1,10 +1,10 @@
-package com.raphtory.core.components.management.connectors
+package com.raphtory.core.components.akkamanagement.connectors
 
 import akka.actor.Props
 import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.graphbuilder.{BuilderExecutor, GraphBuilder}
 import akka.pattern.ask
-import com.raphtory.core.components.management.RaphtoryActor._
+import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.leader.WatchDog.Message.RequestBuilderId
 
 import scala.concurrent.Future
