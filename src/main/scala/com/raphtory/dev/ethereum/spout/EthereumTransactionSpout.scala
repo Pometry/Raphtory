@@ -33,12 +33,12 @@ class EthereumTransactionSpout extends Spout[EthereumTransaction] {
     if (filePaths.size == 0){
       dataSourceComplete()
     } else {
-        val nextFile = filePaths.take(1).head
-        filePaths = filePaths.tail
-        val parquetIterable = ParquetReader.read[EthereumTransaction](nextFile)
-        fileQueue ++= parquetIterable
-        parquetIterable.close()
-      }
+      println(filePaths.size)
+      val nextFile = filePaths.take(1).head
+      filePaths = filePaths.tail
+      val parquetIterable = ParquetReader.read[EthereumTransaction](nextFile)
+      parquetIterable.foreach { tx => fileQueue += tx}
+    }
     Some(fileQueue.dequeue())
   }
 
