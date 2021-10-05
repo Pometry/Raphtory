@@ -14,9 +14,9 @@ import com.raphtory.core.model.algorithm.{AggregateSerialiser, Analyser, GraphAl
 
 class RaphtoryGraph [T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
     val system = ComponentFactory.initialiseActorSystem(List("127.0.0.1:1600"),1600)
+      private val watchDog = system.actorOf(Props(new WatchDog()), "WatchDog")
+      system.actorOf(Props(new WatermarkManager(watchDog)),"WatermarkManager")
 
-      system.actorOf(Props(new WatermarkManager()),"WatermarkManager")
-      system.actorOf(Props(new WatchDog()), "WatchDog")
 
       system.actorOf(Props(new SpoutConnector(spout)), "Spoutmanager")
 
