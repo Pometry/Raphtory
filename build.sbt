@@ -115,6 +115,8 @@ lazy val raphtory = project
     libraryDependencies += "com.thesamet.scalapb"          %% "compilerplugin"                    % "0.11.1",
     libraryDependencies += "net.openhft"                   % "zero-allocation-hashing"            % "0.15",
     libraryDependencies += "de.javakaffee"                 % "kryo-serializers"                   % "0.45",
+    libraryDependencies += "com.lightbend.akka" %% "akka-stream-alpakka-avroparquet" % "3.0.3",
+    libraryDependencies += "com.typesafe.akka" %% "akka-stream" % "2.6.14",
     libraryDependencies ++= Seq(
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
     ),
