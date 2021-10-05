@@ -2,12 +2,15 @@ package com.raphtory.core.components.management
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.serializers.ClosureSerializer.Closure
+import com.esotericsoftware.kryo.serializers.ClosureSerializer
 import com.raphtory.core.components.management.connectors._
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.leader.{WatchDog, WatermarkManager}
 import com.raphtory.core.components.spout.Spout
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 
+import java.lang.invoke.SerializedLambda
 import scala.collection.JavaConversions
 
 object ComponentFactory {
@@ -19,11 +22,15 @@ object ComponentFactory {
   kryo.register(scala.Tuple2.getClass, 3002)
   kryo.register(classOf[scala.Tuple2[Long, Boolean]], 3003)
 
+  kryo.register(classOf[SerializedLambda].getClass)
+  kryo.register(classOf[Closure].getClass, new ClosureSerializer)
+
   def leader(port: Int): (ActorRef, ActorRef) = {
     val address = s"127.0.0.1:$port"
     println(s"Creating leader at $address")
     val system: ActorSystem = initialiseActorSystem(seeds = List(address), port)
-    (system.actorOf(Props(new WatermarkManager()), "WatermarkManager"), system.actorOf(Props(new WatchDog()), "WatchDog"))
+    val watchDog = system.actorOf(Props(new WatchDog()), "WatchDog")
+    (system.actorOf(Props(new WatermarkManager(watchDog)), "WatermarkManager"), watchDog)
   }
 
   def builder(seed: String, port: Int, graphbuilder: GraphBuilder[Any]): ActorRef = {

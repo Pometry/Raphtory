@@ -5,6 +5,7 @@ import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.management.RaphtoryActor._
 import WatermarkManager.Message.{ProbeWatermark, WatermarkTime, WhatsTheTime}
+import com.raphtory.core.components.leader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
 import com.raphtory.core.components.management.RaphtoryActor
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{TimeCheck, TimeResponse}
 
@@ -13,10 +14,12 @@ import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class WatermarkManager extends RaphtoryActor  {
+class WatermarkManager(watchDog: ActorRef) extends RaphtoryActor  {
+
+  var clusterUp = false
 
   override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(delay = 70.seconds, receiver = self, message = "probe")
+    context.system.scheduler.scheduleOnce(delay = 5.seconds, receiver = self, message = "clusterUp")
   }
   var safeTimestamp:Long = 0L
 
@@ -24,6 +27,12 @@ class WatermarkManager extends RaphtoryActor  {
   var counter = 0;
 
   override def receive: Receive = {
+    case "clusterUp"     => watchDog ! ClusterStatusRequest
+    case ClusterStatusResponse(clusterUp) =>
+      if(clusterUp)
+        probeWatermark()
+      else
+        context.system.scheduler.scheduleOnce(delay = 5.seconds, receiver = self, message = "clusterUp")
     case "probe"         => probeWatermark()
     case u:WatermarkTime => processWatermarkTime(u)
     case WhatsTheTime    =>

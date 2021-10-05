@@ -13,6 +13,7 @@ import com.typesafe.config.{Config, ConfigFactory, ConfigValue, ConfigValueFacto
 import java.lang.management.ManagementFactory
 import java.net.InetAddress
 import scala.collection.JavaConversions
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object RaphtoryService extends App {
   printJavaOptions()
@@ -36,8 +37,9 @@ object RaphtoryService extends App {
     val seedLoc = s"${sys.env.getOrElse("HOST_IP", "127.0.0.1")}:${conf.getInt("settings.bport")}"
     println(s"Creating leader at $seedLoc")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
-    system.actorOf(Props(new WatermarkManager()), "WatermarkManager")
-    system.actorOf(Props(new WatchDog()), "WatchDog")
+    val watchDog = system.actorOf(Props(new WatchDog()), "WatchDog")
+    system.actorOf(Props(new WatermarkManager(watchDog)), "WatermarkManager")
+
   }
 
   def builder() = {
