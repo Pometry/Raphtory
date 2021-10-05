@@ -1,116 +1,111 @@
 package com.raphtory.core.components.partitionmanager
 
-import akka.actor.{ActorRef, PoisonPill}
+import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.RaphtoryActor
-import com.raphtory.core.components.analysismanager.AnalysisManager.Message.{JobFailed, KillTask}
-import com.raphtory.core.components.analysismanager.tasks.AnalysisTask.Message._
+import com.raphtory.core.components.management.RaphtoryActor
 import com.raphtory.core.components.partitionmanager.QueryExecutor.State
-import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
-import com.raphtory.core.model.algorithm.Analyser
-import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
-import com.raphtory.core.model.graph.{GraphPartition, VertexMessage}
+import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, ExecutorEstablished, GraphFunctionComplete, PerspectiveEstablished, TableBuilt, TableFunctionComplete}
+import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, KillTask}
 import com.raphtory.core.implementations
+import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
+import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
+import com.raphtory.core.model.algorithm.{Iterate, Select, Step, TableFilter, VertexFilter, WriteTo}
+import com.raphtory.core.model.graph.{GraphPartition, VertexMessage}
+import com.raphtory.core.model.graph.visitor.Vertex
 
-import scala.util.{Failure, Success, Try}
+import java.io.File
+import scala.io.Source
 
-final case class QueryExecutor(
-                                        partition: Int,
-                                        storage: GraphPartition,
-                                        analyzer: Analyser[Any],
-                                        jobId: String,
-                                        taskManager:ActorRef
-) extends RaphtoryActor {
-
-  private val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
+case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String, handlerRef:ActorRef) extends RaphtoryActor {
 
   override def preStart(): Unit = {
-    log.debug(s"AnalysisSubtaskWorker ${self.path} for Job [$jobId] belonging to Reader [$partition] is being started.")
-    taskManager ! AnalyserPresent(partition, self)
+    log.debug(s"Query Executor ${self.path} for Job [$jobID] belonging to Reader [$partition] started.")
+    handlerRef ! ExecutorEstablished(partition, self)
   }
 
-  override def postStop(): Unit = log.info(s"Worker for $jobId Killed")
+  override def receive: Receive = work(State(null,0, 0,false))
 
-  override def receive: Receive = work(State(0, 0))
-
-  private def work(state: State): Receive = {
-    case SetupSubtask(neighbours, timestamp, window) =>
-      log.debug(s"Job [$jobId] belonging to Reader [$partition] is SetupTaskWorker.")
-      val initStep = 0
-      val messageHandler = new VertexMessageHandler(neighbours, jobId)
-      val graphLens = implementations.objectgraph.ObjectGraphLens(jobId, timestamp, window, initStep, storage, messageHandler)
-      analyzer.sysSetup(graphLens, messageHandler)
-      context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
-      sender ! SetupSubtaskDone
-
-    case _: StartSubtask =>
-      log.debug(s"Job [$jobId] belonging to Reader [$partition] is StartSubtask.")
-      analyzer.setup()
-      val messagesSent = analyzer.messageHandler.getCountandReset()
-      sender ! Ready(messagesSent)
-      context.become(work(state.copy(sentMessageCount = messagesSent)))
-
-    case _: CheckMessages =>
-      log.debug(s"Job [$jobId] belonging to Reader [$partition] receives CheckMessages.")
-      sender ! MessagesReceived(state.receivedMessageCount, state.sentMessageCount)
-
-    case _: SetupNextStep =>
-      log.debug(s"Job [$jobId] belonging to Reader [$partition] receives SetupNextStep.")
-      Try(analyzer.view.nextStep()) match {
-        case Success(_) =>
-          context.become(work(state.copy(sentMessageCount = 0, receivedMessageCount = 0)))
-          sender ! SetupNextStepDone
-        case Failure(e) => {
-          log.error(s"Failed to run setup due to [${e.getStackTrace.mkString("\n")}].")
-          sender ! JobFailed
-        }
-      }
-
-
-    case _: StartNextStep =>
-      log.debug(s"Job [$jobId] belonging to Reader [$partition] receives StartNextStep.")
-      Try(analyzer.analyse()) match {
-        case Success(_) =>
-          val messageCount = analyzer.messageHandler.getCountandReset()
-          sender ! EndStep(analyzer.view.superStep, messageCount, analyzer.view.checkVotes())
-          context.become(work(state.copy(sentMessageCount = messageCount)))
-
-        case Failure(e) => {
-          log.error(s"Failed to run nextStep due to [${e.getStackTrace.mkString("\n")}].")
-          sender ! JobFailed
-        }
-      }
-
-    case _: Finish =>
-      log.debug(s"Job [$jobId] belonging to Reader [$partition] receives Finish.")
-      Try(analyzer.returnResults()) match {
-        case Success(result) => sender ! ReturnResults(result)
-        case Failure(e) => {
-          log.error(s"Failed to run nextStep due to [${e.getStackTrace.mkString("\n")}].")
-          sender ! JobFailed
-        }
-
-      }
+  private def work(state: State): Receive = withDefaultMessageHandler("work") {
 
     case msg: VertexMessage =>
-      log.debug(s"Job [$jobId] belonging to Reader [$partition] receives VertexMessage.")
-      analyzer.view.receiveMessage(msg)
+      log.debug(s"Job [$jobID] belonging to Reader [$partition] receives VertexMessage.")
+      state.graphLens.receiveMessage(msg)
       context.become(work(state.updateReceivedMessageCount(_ + 1)))
 
-    case KillTask(jobID) => self ! PoisonPill
+    case CreatePerspective(neighbours, timestamp, window) =>
+      context.become(work(state.copy(
+        graphLens = ObjectGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours)),
+        sentMessageCount = 0,
+        receivedMessageCount = 0)
+      ))
+      sender ! PerspectiveEstablished
 
-    case unhandled => log.error(s"Unexpected message [$unhandled].")
+    case Step(f) =>
+      //log.info(s"Partition $partition have been asked to do a Step operation.")
+      state.graphLens.nextStep()
+      state.graphLens.runGraphFunction(f)
+      val sentMessages = state.graphLens.getMessageHandler().getCount()
+      sender() ! GraphFunctionComplete(sentMessages,state.receivedMessageCount)
+      context.become(work(state.copy(sentMessageCount=sentMessages)))
+
+    case Iterate(f,iterations) =>
+      //log.info(s"Partition $partition have been asked to do an Iterate operation. There are $iterations Iterations remaining")
+      state.graphLens.nextStep()
+      state.graphLens.runMessagedGraphFunction(f)
+      val sentMessages = state.graphLens.getMessageHandler().getCount()
+      sender() ! GraphFunctionComplete(state.receivedMessageCount,sentMessages,state.graphLens.checkVotes())
+      context.become(work(state.copy(votedToHalt = state.graphLens.checkVotes(),sentMessageCount = sentMessages)))
+
+    case VertexFilter(f) =>
+      log.info(s"Partition $partition have been asked to do a Graph Filter operation. Not yet implemented")
+      sender() ! GraphFunctionComplete(0,0)
+
+    case Select(f) =>
+      log.info(s"Partition $partition have been asked to do a Select operation.")
+      state.graphLens.executeSelect(f)
+      sender() ! TableBuilt
 
 
+    case TableFilter(f) =>
+      log.info(s"Partition $partition have been asked to do a Table Filter operation.")
+      state.graphLens.filteredTable(f)
+      sender() ! TableFunctionComplete
+
+
+    case WriteTo(address) =>
+      log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
+      val dir = new File(s"$address/$jobID")
+      if(!dir.exists())
+        dir.mkdirs()
+      state.graphLens.getDataTable().foreach(row=>{
+        state.graphLens.window match {
+          case Some(window) =>
+            reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(s"${state.graphLens.timestamp},$window,"+row.getValues().mkString(",")+"\n")
+          case None =>
+            reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(s"${state.graphLens.timestamp},"+row.getValues().mkString(",")+"\n")
+
+        }
+      })
+
+      sender() ! TableFunctionComplete
+
+    case _: CheckMessages =>
+      log.debug(s"Job [$jobID] belonging to Reader [$partition] receives CheckMessages.")
+      sender ! GraphFunctionComplete(state.receivedMessageCount, state.sentMessageCount,state.votedToHalt)
   }
+
+  private def withDefaultMessageHandler(description: String)(handler: Receive): Receive = handler.orElse {
+    case req: KillTask =>
+      context.stop(self)
+      log.info(s"Executor for Partition $partition Job $jobID has been terminated")
+    case unhandled     => log.error(s"Not handled message in $description: " + unhandled)
+  }
+
+
 }
 
 object QueryExecutor {
-  private case class State(sentMessageCount: Int, receivedMessageCount: Int) {
+  private case class State(graphLens: ObjectGraphLens,sentMessageCount: Int, receivedMessageCount: Int,votedToHalt:Boolean) {
     def updateReceivedMessageCount(f: Int => Int): State = copy(receivedMessageCount = f(receivedMessageCount))
-  }
-  object Message {
-    case class SetupTaskWorker(timestamp: Long, window: Option[Long])
   }
 }

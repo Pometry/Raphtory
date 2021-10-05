@@ -9,7 +9,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import com.raphtory.core.components.analysismanager.AnalysisManager.Message._
+import com.raphtory.core.components.querymanager.QueryManager.Message._
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.http._
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message._
 import spray.json.DefaultJsonProtocol._

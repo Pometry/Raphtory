@@ -3,10 +3,10 @@ package com.raphtory.core.components.partitionmanager
 import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.CommonMessage.BuilderTimeSync
-import com.raphtory.core.components.orchestration.raphtoryleader.WatermarkManager.Message.{ProbeWatermark, WatermarkTime}
 import com.raphtory.core.components.partitionmanager.Writer.Message.Watermark
-import com.raphtory.core.components.RaphtoryActor
-import com.raphtory.core.components.orchestration.MailboxTrackedActor
+import com.raphtory.core.components.management.RaphtoryActor._
+import com.raphtory.core.components.management.{MailboxTrackedActor, RaphtoryActor}
+import com.raphtory.core.components.leader.WatermarkManager.Message.{ProbeWatermark, WatermarkTime}
 import com.raphtory.core.implementations.objectgraph.messaging._
 import com.raphtory.core.model.graph.{EdgeAdd, EdgeDelete, EdgeSyncAck, GraphPartition, GraphUpdateEffect, InboundEdgeRemovalViaVertex, OutboundEdgeRemovalViaVertex, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, TrackedGraphUpdate, VertexAdd, VertexDelete, VertexRemoveSyncAck}
 
@@ -18,9 +18,6 @@ import scala.concurrent.duration._
 
 
 final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryActor with MailboxTrackedActor {
-  private implicit val executionContext: ExecutionContext = context.system.dispatcher
-  private val mediator: ActorRef = DistributedPubSub(context.system).mediator
-  mediator ! DistributedPubSubMediator.Put(self)
 
   private var increments = 0
   private var updates = 0

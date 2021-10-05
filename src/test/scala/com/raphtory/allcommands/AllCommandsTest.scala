@@ -5,14 +5,15 @@ import org.scalatest.FunSuite
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.algorithms.{ConnectedComponents, StateTest}
-import com.raphtory.core.components.analysismanager.AnalysisManager.Message.{AreYouFinished, ManagingTask, TaskFinished}
+import com.raphtory.core.build.server.RaphtoryPD
+import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, ManagingTask, TaskFinished}
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.RangeAnalysisRequest
-import com.raphtory.core.components.orchestration.raphtoryleader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
-import com.raphtory.core.build.RaphtoryComponent
+import com.raphtory.core.components.leader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
 import com.raphtory.core.model.algorithm.Analyser
 import com.raphtory.resultcomparison.comparisonJsonProtocol._
 import com.raphtory.resultcomparison.{ConnectedComponentsResults, RaphtoryResultComparitor, StateCheckResult, TimeParams, comparisonJsonProtocol}
 import com.raphtory.serialisers.DefaultSerialiser
+import com.raphtory.spouts.FileSpout
 import spray.json._
 
 import java.io.File
@@ -24,19 +25,10 @@ class AllCommandsTest extends FunSuite {
   //set FILE_SPOUT_DIRECTORY=src/test/scala/com/raphtory/data/allcommands
   //    FILE_SPOUT_FILENAME=testupdates.txt
   //    OUTPUT_PATH=src/test/scala/com/raphtory/data/allcommands/output
-
-  val leader = new RaphtoryComponent("leader",1600)
-  val analysisManager = new RaphtoryComponent("analysisManager",1602)
-  val spout= new RaphtoryComponent("spout",1603,"com.raphtory.spouts.FileSpout")
-  val builder1 = new RaphtoryComponent("builder",1604,"com.raphtory.allcommands.AllCommandsBuilder")
-  val builder2 = new RaphtoryComponent("builder",1605,"com.raphtory.allcommands.AllCommandsBuilder")
-  val builder3 = new RaphtoryComponent("builder",1606,"com.raphtory.allcommands.AllCommandsBuilder")
-  val pm1 = new RaphtoryComponent("partitionManager",1614)
-  val pm2 = new RaphtoryComponent("partitionManager",1615)
-  val pm3 = new RaphtoryComponent("partitionManager",1616)
-  val pm4 = new RaphtoryComponent("partitionManager",1617)
-
-
+  val node = RaphtoryPD(new FileSpout(),new AllCommandsBuilder())
+  val watermarker     = node.getWatermarker()
+  val watchdog        = node.getWatchdog()
+  val analysisManager = node.getAnalysisManager()
 
   test("Warmup and Ingestion Test") {
         implicit val timeout: Timeout = 20.second
@@ -45,7 +37,7 @@ class AllCommandsTest extends FunSuite {
           Thread.sleep(60000) //Wait the initial watermarker warm up time
           for (i <- 1 to 6){
             Thread.sleep(10000)
-            val future = leader.getWatermarker.get ? WhatsTheTime
+            val future = watermarker ? WhatsTheTime
             currentTimestamp = Await.result(future, timeout.duration).asInstanceOf[WatermarkTime].time
           }
           assert(currentTimestamp==299868) //all data is ingested and the minimum watermark is set to the last line in the data
@@ -60,7 +52,7 @@ class AllCommandsTest extends FunSuite {
     try {
       //First we run the test and see if it finishes in a reasonable time
       implicit val timeout: Timeout = 180.second
-      val future = analysisManager.getAnalysisManager.get ? RangeAnalysisRequest(stateTest, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array())
+      val future = analysisManager ? RangeAnalysisRequest(stateTest, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array())
       val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
       val future2 = taskManager ? AreYouFinished
       val result = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
@@ -91,7 +83,7 @@ class AllCommandsTest extends FunSuite {
     try {
       //First we run the test and see if it finishes in a reasonable time
       implicit val timeout: Timeout = 300.second
-      val future = analysisManager.getAnalysisManager.get ? RangeAnalysisRequest(connectedComponents, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array())
+      val future = analysisManager ? RangeAnalysisRequest(connectedComponents, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array())
       val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
       val future2 = taskManager ? AreYouFinished
       val result = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
