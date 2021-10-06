@@ -11,19 +11,18 @@ class RaphtoryClient(leader:String,port:Int) {
   val system = ComponentFactory.initialiseActorSystem(List(leader),port)
   val mediator: ActorRef = DistributedPubSub(system).mediator
 
+
   def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
     mediator ! DistributedPubSubMediator.Send("/user/QueryManager",
       PointQuery(graphAlgorithm,timestamp,windows), localAffinity = false)
-
   }
   def rangeQuery(graphAlgorithm: GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
     mediator ! DistributedPubSubMediator.Send("/user/QueryManager",
       RangeQuery(graphAlgorithm,start,end,increment,windows), localAffinity = false)
-
   }
   def liveQuery(graphAlgorithm: GraphAlgorithm,increment:Long,windows:List[Long]=List()) = {
     mediator ! DistributedPubSubMediator.Send("/user/QueryManager",
       LiveQuery(graphAlgorithm,increment,windows), localAffinity = false)
-
   }
+
 }
