@@ -79,7 +79,7 @@ lazy val raphtory = project
     isSnapshot := true,
     mappings in Universal += file(s"${baseDirectory.value}/Build-Scripts/env-setter.sh") -> "bin/env-setter.sh",
     assemblyMergeStrategy in assembly := mergeStrategy,
-    mainClass in assembly := Some("com.raphtory.Go"),
+    mainClass in assembly := Some("com.raphtory.go"),
     javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default",
     javaAgents +=          "org.aspectj"                   % "aspectjweaver"                      % "1.8.13",
     libraryDependencies += "org.scala-lang"                % "scala-reflect"                      % "2.12.4",
