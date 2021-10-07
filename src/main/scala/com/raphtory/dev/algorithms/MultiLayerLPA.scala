@@ -1,6 +1,6 @@
 package com.raphtory.dev.algorithms
 
-import com.raphtory.algorithms.LPA
+import com.raphtory.algorithms.old.LPA
 import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.parallel.ParMap
