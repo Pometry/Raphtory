@@ -8,29 +8,27 @@ import java.io.{BufferedReader, FileReader}
 import scala.collection.mutable
 
 class EthereumGraphBuilder extends GraphBuilder[EthereumTransaction]{
+  val tagFile = System.getenv().getOrDefault("TAG_FILE", "/app/tags.csv").trim
+  // Load tags
+  val br = new BufferedReader(new FileReader(tagFile))
+  val tagMap = new mutable.HashMap[String, mutable.Set[String]]()
+  var line : String = null
+  while ( {line = br.readLine; line != null}) {
+    line = br.readLine()
+    val fileLine = line.split(",").map(_.trim)
+    val address = fileLine(0).trim
+    val tag = fileLine(1).trim
+    if (tagMap.contains(address)) {
+      val tagList = tagMap.getOrElse(address, mutable.Set[String]())
+      tagList += (tag)
+      tagMap(address) = tagList
+    } else {
+      tagMap += (address -> mutable.Set[String](tag))
+    }
+  }
+  br.close()
 
   override def parseTuple(ethTx: EthereumTransaction) = {
-
-    val tagFile = System.getenv().getOrDefault("TAG_FILE", "/app/tags.csv").trim
-    // Load tags
-    val br = new BufferedReader(new FileReader(tagFile))
-    val tagMap = new mutable.HashMap[String, mutable.Set[String]]()
-    var line : String = null
-    while ( {line = br.readLine; line != null}) {
-      line = br.readLine()
-      val fileLine = line.split(",").map(_.trim)
-      val address = fileLine(0).trim
-      val tag = fileLine(1).trim
-      if (tagMap.contains(address)) {
-        val tagList = tagMap.getOrElse(address, mutable.Set[String]())
-        tagList += (tag)
-        tagMap(address) = tagList
-      } else {
-        tagMap += (address -> mutable.Set[String](tag))
-      }
-    }
-    br.close()
-
     val hash = ethTx.hash
     if (hash!="hash"){
       val blockNumber = ethTx.block_number.toString.toLong

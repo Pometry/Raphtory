@@ -14,7 +14,7 @@ import scala.collection.mutable
 
 class EthereumTransactionSpout extends Spout[EthereumTransaction] {
 
-  val MAX_QUEUE_SIZE = 300000
+  val MAX_QUEUE_SIZE = 400000
   private val envDirectory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
   private val directory = new File(envDirectory)
   val fileFilter = new WildcardFileFilter("*.parquet")
@@ -31,19 +31,19 @@ class EthereumTransactionSpout extends Spout[EthereumTransaction] {
   override def setupDataSource(): Unit = {}
 
   override def generateData(): Option[EthereumTransaction] = {
-    if ((fileQueue.size %  1000) == 0){
-      println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
-    }
+    //    if ((fileQueue.size %  1000) == 0){
+    //      println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
+    //    }
     if (filePaths.size == 0){
       dataSourceComplete()
     } else if (fileQueue.size < MAX_QUEUE_SIZE) {
         println("Spout: Files remaining "+filePaths.size.toString)
-        println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
+        //        println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
         val nextFile = filePaths.take(1).head
         filePaths = filePaths.tail
         val parquetIterable = ParquetReader.read[EthereumTransaction](nextFile)
         parquetIterable.foreach { tx => fileQueue += tx }
-        println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
+        //        println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
     }
     Some(fileQueue.dequeue())
   }
