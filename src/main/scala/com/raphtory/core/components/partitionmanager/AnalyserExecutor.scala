@@ -2,7 +2,7 @@ package com.raphtory.core.components.partitionmanager
 
 import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.querymanager.QueryManager.Message.{JobFailed, KillTask}
 import com.raphtory.core.components.querymanager.QueryHandler.Message._
 import com.raphtory.core.components.partitionmanager.AnalyserExecutor.State

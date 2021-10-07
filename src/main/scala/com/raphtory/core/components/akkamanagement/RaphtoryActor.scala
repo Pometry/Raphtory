@@ -1,10 +1,10 @@
-package com.raphtory.core.components.management
+package com.raphtory.core.components.akkamanagement
 
 import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Cancellable, Timers}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.core.components.management.RaphtoryActor._
+import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.leader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
 import com.raphtory.core.model.algorithm.Analyser
 import com.typesafe.config.ConfigFactory
@@ -29,7 +29,7 @@ trait RaphtoryActor extends Actor with ActorLogging with Timers {
   implicit val executionContext: ExecutionContext = context.system.dispatcher
   val mediator: ActorRef = DistributedPubSub(context.system).mediator
   mediator ! DistributedPubSubMediator.Put(self)
-  implicit val timeout: Timeout = 60.seconds
+  implicit val timeout: Timeout = 5.seconds
 
   private lazy val builders     :Array[String]    = (for (i <- 0 until totalBuilders)    yield           s"/user/build_$i"   ).toArray
   private lazy val pms          :Array[String]    = (for (i <- 0 until partitionServers) yield           s"/user/Manager_$i" ).toArray

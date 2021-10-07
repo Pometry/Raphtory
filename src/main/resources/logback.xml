@@ -9,7 +9,7 @@
 
   <logger name="slick.lifted" level="INFO" />
 
-  <root level="INFO">3
+  <root level="INFO">
     <appender-ref ref="STDOUT" />
   </root>
 </configuration>

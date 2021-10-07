@@ -4,7 +4,7 @@ import akka.actor.{ActorSystem, Address, ExtendedActorSystem, Props}
 import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
-import com.raphtory.core.components.management.connectors.{AnalysisManagerConnector, BuilderConnector, PartitionConnector, SpoutConnector}
+import com.raphtory.core.components.akkamanagement.connectors.{AnalysisManagerConnector, BuilderConnector, PartitionConnector, SpoutConnector}
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.leader.{WatchDog, WatermarkManager}
 import com.raphtory.core.components.spout.Spout
@@ -52,7 +52,7 @@ object RaphtoryService extends App {
   }
 
   def partition() = {
-    println(s"Creating Partition Manager...")
+    println(s"Creating Partition Manager")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(locateSeed()))
     system.actorOf(Props(new PartitionConnector()), "PartitionManager")
   }

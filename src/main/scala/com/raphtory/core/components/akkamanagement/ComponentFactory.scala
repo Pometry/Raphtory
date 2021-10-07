@@ -1,10 +1,10 @@
-package com.raphtory.core.components.management
+package com.raphtory.core.components.akkamanagement
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.serializers.ClosureSerializer.Closure
 import com.esotericsoftware.kryo.serializers.ClosureSerializer
-import com.raphtory.core.components.management.connectors._
+import com.raphtory.core.components.akkamanagement.connectors._
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.leader.{WatchDog, WatermarkManager}
 import com.raphtory.core.components.spout.Spout
@@ -16,14 +16,7 @@ import scala.collection.JavaConversions
 object ComponentFactory {
   val conf = ConfigFactory.load()
   val clusterSystemName = "Raphtory"
-  val kryo = new Kryo()
-  kryo.register(Array[Tuple2[Long, Boolean]]().getClass, 3000)
-  kryo.register(classOf[Array[scala.Tuple2[Long, Boolean]]], 3001)
-  kryo.register(scala.Tuple2.getClass, 3002)
-  kryo.register(classOf[scala.Tuple2[Long, Boolean]], 3003)
 
-  kryo.register(classOf[SerializedLambda].getClass)
-  kryo.register(classOf[Closure].getClass, new ClosureSerializer)
 
   def leader(port: Int): (ActorRef, ActorRef) = {
     val address = s"127.0.0.1:$port"
@@ -76,10 +69,10 @@ object ComponentFactory {
         )
       )
     )
-
     config = config.withValue("akka.remote.artery.canonical.bind-port", ConfigValueFactory.fromAnyRef(port))
     config = config.withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(port))
     config = config.withValue("akka.remote.artery.canonical.hostname", ConfigValueFactory.fromAnyRef("127.0.0.1"))
     ActorSystem(clusterSystemName, config)
   }
+
 }
