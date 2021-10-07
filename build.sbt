@@ -1,5 +1,5 @@
 import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
-https://github.com/Raphtory/Raphtory/pull/168/conflict?name=src%252Fmain%252Fresources%252Fapplication.conf&ancestor_oid=fc9f4a5b736685ae780b5a6d9b8c079c54063620&base_oid=ac0958dffdf3835ce8b9e33049dfb8ec223abe28&head_oid=572b231c143a63dc8e8ee95e2e1a01278a6587f5import com.typesafe.sbt.packager.docker.Cmd
+import com.typesafe.sbt.packager.docker.Cmd
 import sbtassembly.MergeStrategy
 
 lazy val root = Project(id = "raphtory", base = file(".")) aggregate (raphtory)
