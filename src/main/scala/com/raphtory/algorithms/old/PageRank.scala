@@ -1,10 +1,10 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.old
 
 import com.raphtory.core.model.algorithm.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 
-class WeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
+class PageRank(args:Array[String]) extends Analyser[(Int, List[(Long,Double)])](args) {
   object sortOrdering extends Ordering[Double] {
     def compare(key1: Double, key2: Double) = key2.compareTo(key1)
   }
@@ -16,13 +16,11 @@ class WeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
     view.getVertices().foreach { vertex =>
       val outEdges = vertex.getOutEdges()
       val outDegree = outEdges.size
-
       if (outDegree > 0) {
-        val toSend = 1.0/outEdges.map(e=> e.history().size).sum
+        val toSend = 1.0/outDegree
         vertex.setState("prlabel",toSend)
         outEdges.foreach(edge => {
-          val modifyer = edge.history().size
-          edge.send(toSend*modifyer)
+          edge.send(toSend)
         })
       } else {
         vertex.setState("prlabel",0.0)
@@ -32,17 +30,15 @@ class WeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
   override def analyse(): Unit =
     view.getMessagedVertices().foreach {vertex =>
       val currentLabel = vertex.getState[Double]("prlabel")
-      val messages = vertex.messageQueue[Double]
-      val newLabel = (1-d) + d * messages.sum
+      val newLabel = 1 - d + d * vertex.messageQueue[Double].sum
       vertex.setState("prlabel",newLabel)
       if (Math.abs(newLabel-currentLabel)/currentLabel > 0.01) {
         val outEdges = vertex.getOutEdges()
         val outDegree = outEdges.size
         if (outDegree > 0) {
-          val toSend = newLabel/outEdges.map(e=> e.history().size).sum
+          val toSend = newLabel/outDegree
           outEdges.foreach(edge => {
-            val modifyer = edge.history().size
-            edge.send(toSend*modifyer)
+            edge.send(toSend)
           })
         }
       }
@@ -51,28 +47,25 @@ class WeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
       }
     }
 
-  override def returnResults(): Any = {
+  override def returnResults(): (Int, List[(Long,Double)]) = {
     val pageRankings = view.getVertices().map { vertex =>
       val pr = vertex.getState[Double]("prlabel")
-      (vertex.ID, pr)
+      (vertex.ID(), pr)
     }
     val totalV = pageRankings.size
-    val topUsers = pageRankings.toArray.sortBy(x => x._2)(sortOrdering).take(10)
+    val topUsers = pageRankings.toList.sortBy(x => x._2)(sortOrdering).take(100)
     (totalV, topUsers)
   }
 
-  override def defineMaxSteps(): Int = 10
+  override def defineMaxSteps(): Int = 20
 
-  override def extractResults(results: List[Any]): Map[String,Any]  = {
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
-    val totalVert = endResults.map(x => x._1).sum
-    val bestUsers = endResults.flatMap(_._2)
+  override def extractResults(results: List[(Int, List[(Long,Double)])]): Map[String,Any]  = {
+    val totalVert = results.map(x => x._1).sum
+    val bestUsers = results.flatMap(x => x._2)
       .sortBy(x => x._2)(sortOrdering)
-      .take(10)
+      .take(100)
       .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
-    val text = s"""{"vertices":$totalVert,"bestusers":$bestUsers}"""
-    println(text)
-    Map[String,Any]()
+    Map[String,Any]("vertices"->totalVert,"bestusers"->bestUsers)
   }
 
 }
