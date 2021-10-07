@@ -5,13 +5,13 @@ package com.raphtory.core.components.leader
   */
 import akka.actor.ActorRef
 import akka.cluster.Cluster
-import akka.cluster.ClusterEvent.{InitialStateAsEvents, MemberEvent, MemberExited, MemberRemoved, MemberUp, UnreachableMember}
+import akka.cluster.ClusterEvent.{InitialStateAsEvents, MemberEvent, MemberExited, MemberJoined, MemberLeft, MemberRemoved, MemberUp, UnreachableMember}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.event.LoggingReceive
-import com.raphtory.core.components.management.RaphtoryActor._
+import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import WatchDog.ActorState
 import WatchDog.Message._
-import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.akkamanagement.RaphtoryActor
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -87,7 +87,9 @@ class WatchDog() extends RaphtoryActor {
 
      //TODO do something with these
     case evt: MemberUp          =>
+    case evt: MemberJoined      =>
     case evt: MemberRemoved     =>
+    case evt: MemberLeft        =>
     case evt: UnreachableMember =>
     case evt: MemberExited      =>
 

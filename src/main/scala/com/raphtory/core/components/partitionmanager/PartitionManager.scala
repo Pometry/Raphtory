@@ -4,8 +4,8 @@ import akka.actor.SupervisorStrategy.Resume
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Terminated}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.management.RaphtoryActor._
-import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.akkamanagement.RaphtoryActor._
+import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{ReaderWorkersAck, ReaderWorkersOnline}
 import com.raphtory.core.components.leader.WatchDog.Message.PartitionUp
 import com.raphtory.core.implementations.objectgraph.messaging._
