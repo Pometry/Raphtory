@@ -115,7 +115,7 @@ lazy val raphtory = project
     libraryDependencies += "net.openhft"                   % "zero-allocation-hashing"            % "0.15",
     libraryDependencies += "com.twitter"                  %% "chill"                              % "0.10.0",
     libraryDependencies += "com.twitter"                  %% "chill-akka"                         % "0.10.0",
-      libraryDependencies ++= Seq(
+    libraryDependencies ++= Seq(
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
     ),
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test,
