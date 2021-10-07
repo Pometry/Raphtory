@@ -1,5 +1,5 @@
 import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
-import com.typesafe.sbt.packager.docker.Cmd
+https://github.com/Raphtory/Raphtory/pull/168/conflict?name=src%252Fmain%252Fresources%252Fapplication.conf&ancestor_oid=fc9f4a5b736685ae780b5a6d9b8c079c54063620&base_oid=ac0958dffdf3835ce8b9e33049dfb8ec223abe28&head_oid=572b231c143a63dc8e8ee95e2e1a01278a6587f5import com.typesafe.sbt.packager.docker.Cmd
 import sbtassembly.MergeStrategy
 
 lazy val root = Project(id = "raphtory", base = file(".")) aggregate (raphtory)
@@ -79,7 +79,7 @@ lazy val raphtory = project
     isSnapshot := true,
     mappings in Universal += file(s"${baseDirectory.value}/Build-Scripts/env-setter.sh") -> "bin/env-setter.sh",
     assemblyMergeStrategy in assembly := mergeStrategy,
-    mainClass in assembly := Some("com.raphtory.Go"),
+    mainClass in assembly := Some("com.raphtory.go"),
     javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default",
     javaAgents +=          "org.aspectj"                   % "aspectjweaver"                      % "1.8.13",
     libraryDependencies += "org.scala-lang"                % "scala-reflect"                      % "2.12.4",
@@ -113,9 +113,12 @@ lazy val raphtory = project
     libraryDependencies += "org.apache.hadoop"             % "hadoop-client"                      % "3.3.0",
     libraryDependencies += "com.thesamet.scalapb"          %% "compilerplugin"                    % "0.11.1",
     libraryDependencies += "net.openhft"                   % "zero-allocation-hashing"            % "0.15",
+    libraryDependencies += "de.javakaffee"                 % "kryo-serializers"                   % "0.45",
+    libraryDependencies += "com.lightbend.akka"           %% "akka-stream-alpakka-avroparquet"    % "3.0.3",
+    libraryDependencies += "com.typesafe.akka"            %% "akka-stream"                        % "2.6.14",
     libraryDependencies += "com.twitter"                  %% "chill"                              % "0.10.0",
     libraryDependencies += "com.twitter"                  %% "chill-akka"                         % "0.10.0",
-      libraryDependencies ++= Seq(
+    libraryDependencies ++= Seq(
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
     ),
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test,
