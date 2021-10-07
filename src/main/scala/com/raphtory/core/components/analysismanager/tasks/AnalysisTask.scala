@@ -5,8 +5,8 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.querymanager.QueryManager.Message._
 import com.raphtory.core.components.querymanager.QueryHandler.Message._
 import com.raphtory.core.components.analysismanager.tasks.AnalysisTask.SubtaskState
-import com.raphtory.core.components.management.RaphtoryActor._
-import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.akkamanagement.RaphtoryActor._
+import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.model.algorithm.{AggregateSerialiser, Analyser}
 
 import scala.collection.mutable

@@ -111,11 +111,11 @@ lazy val raphtory = project
     libraryDependencies += "org.mongodb.scala"             %% "mongo-scala-driver"                % "2.9.0",
     libraryDependencies += "com.github.mjakubowski84"      %% "parquet4s-core"                    % "1.6.0",
     libraryDependencies += "org.apache.hadoop"             % "hadoop-client"                      % "3.3.0",
-    libraryDependencies += "io.altoo"                      %% "akka-kryo-serialization"           % "2.2.0",
     libraryDependencies += "com.thesamet.scalapb"          %% "compilerplugin"                    % "0.11.1",
     libraryDependencies += "net.openhft"                   % "zero-allocation-hashing"            % "0.15",
-    libraryDependencies += "de.javakaffee"                 % "kryo-serializers"                   % "0.45",
-    libraryDependencies ++= Seq(
+    libraryDependencies += "com.twitter"                  %% "chill"                              % "0.10.0",
+    libraryDependencies += "com.twitter"                  %% "chill-akka"                         % "0.10.0",
+      libraryDependencies ++= Seq(
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
     ),
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test,

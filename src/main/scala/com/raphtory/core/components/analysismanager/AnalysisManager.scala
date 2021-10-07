@@ -9,8 +9,8 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import com.raphtory.core.components.analysismanager.AnalysisManager.State
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message._
 import com.raphtory.core.components.analysismanager.tasks._
-import com.raphtory.core.components.management.RaphtoryActor._
-import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.akkamanagement.RaphtoryActor._
+import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.analysismanager.tasks.{LiveAnalysisTask, RangeAnalysisTask, ViewAnalysisTask}
 import com.raphtory.core.components.querymanager.QueryManager.Message._
 import com.raphtory.core.components.leader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, QueryManagerUp}
