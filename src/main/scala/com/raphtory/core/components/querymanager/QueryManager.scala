@@ -2,7 +2,7 @@ package com.raphtory.core.components.querymanager
 
 import akka.actor.{ActorLogging, ActorRef, Props, Stash}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.management.RaphtoryActor
+import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.AnalysisRequest
 import com.raphtory.core.components.querymanager.QueryManager.Message.{EndQuery, LiveQuery, ManagingTask, PointQuery, Query, QueryNotPresent, RangeQuery, StartUp}
 import com.raphtory.core.components.querymanager.QueryManager.State

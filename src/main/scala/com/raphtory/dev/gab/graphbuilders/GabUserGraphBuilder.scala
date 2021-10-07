@@ -24,9 +24,9 @@ class GabUserGraphBuilder extends GraphBuilder[String] {
     //val targetNode=fileLine(4).toInt
     if (targetNode > 0 && targetNode != sourceNode) {
       val creationDate = dateToUnixTime(timestamp = fileLine(0).slice(0, 19))
-      addVertex(creationDate, sourceNode, Type("User"))
-      addVertex(creationDate, targetNode, Type("User"))
-      addEdge(creationDate, sourceNode, targetNode, Type("User to User"))
+      //addVertex(creationDate, sourceNode, Type("User"))
+      //addVertex(creationDate, targetNode, Type("User"))
+      addEdge(creationDate, sourceNode, targetNode)
 //      sendGraphUpdate(VertexAddWithProperties(creationDate, sourceNode, Properties(StringProperty("test1","value1"),StringProperty("test2","Value2")),Type("User")))
 //      sendGraphUpdate(VertexAddWithProperties(creationDate, targetNode, Properties(StringProperty("test1","value1"),StringProperty("test2","Value2")),Type("User")))
 //      sendGraphUpdate(EdgeAddWithProperties(creationDate, sourceNode, targetNode, Properties(StringProperty("test1","value1"),StringProperty("test2","Value2")),Type("User To User")))
