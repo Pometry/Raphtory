@@ -34,16 +34,17 @@ class EthereumTransactionSpout extends Spout[EthereumTransaction] {
     //    if ((fileQueue.size %  1000) == 0){
     //      println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
     //    }
-    if (filePaths.size == 0 && fileQueue.size == 0){
+    if (filePaths.size == 0) {
       dataSourceComplete()
+      return None
     } else if (fileQueue.size < MAX_QUEUE_SIZE) {
-        println("Spout: Files remaining "+filePaths.size.toString)
-        //        println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
-        val nextFile = filePaths.take(1).head
-        filePaths = filePaths.tail
-        val parquetIterable = ParquetReader.read[EthereumTransaction](nextFile)
-        parquetIterable.foreach { tx => fileQueue += tx }
-        //        println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
+      println("Spout: Files remaining " + filePaths.size.toString)
+      //        println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
+      val nextFile = filePaths.take(1).head
+      filePaths = filePaths.tail
+      val parquetIterable = ParquetReader.read[EthereumTransaction](nextFile)
+      parquetIterable.foreach { tx => fileQueue += tx }
+      //        println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
     }
     Some(fileQueue.dequeue())
   }
