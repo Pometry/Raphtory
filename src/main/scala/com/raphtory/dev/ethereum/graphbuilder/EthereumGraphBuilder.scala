@@ -42,11 +42,11 @@ class EthereumGraphBuilder extends GraphBuilder[EthereumTransaction]{
       val value      = ethTx.value.toString.toFloat / 1e18
       val timeStamp  = ethTx.block_timestamp.toString.toLong
       addVertex(timeStamp, srcID, Properties(
-        ImmutableProperty("name",sourceNode),
+        ImmutableProperty("address",sourceNode),
         StringProperty("tags",sourceNodeTags.toString())
       ),Type("Address"))
       addVertex(timeStamp, tarID, Properties(
-        ImmutableProperty("name",targetNode),
+        ImmutableProperty("address",targetNode),
         StringProperty("tags",targetNodeTags.toString())
       ),Type("Address"))
       addEdge(timeStamp,srcID,tarID, Properties(
