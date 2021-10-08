@@ -44,8 +44,9 @@ class EthereumTransactionSpout extends Spout[EthereumTransaction] {
       filePaths = filePaths.tail
       val parquetIterable = ParquetReader.read[EthereumTransaction](nextFile)
       parquetIterable.foreach { tx => fileQueue += tx }
-      //        println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
+
     }
+    println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
     Some(fileQueue.dequeue())
   }
 

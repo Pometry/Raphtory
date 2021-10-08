@@ -14,5 +14,5 @@ object Runner extends App {
   val startTime = 1458700699
   val infectedNodes: Set[String] = Set("0x33e1a1ae6d566e20dc21f247126981d001b659ce")
   val graphQuery = new TaintAlgorithm(startTime, infectedNodes)
-  rg.pointQuery(graphQuery,timestamp = 1458703235 )
+  rg.pointQuery(graphQuery,1458704235 )
 }

@@ -2,7 +2,7 @@ package com.raphtory.dev.ethereum.analysis
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
-class TaintAlgorithm(startTime: Int, infectedNodes: Set[String]) extends GraphAlgorithm{
+class TaintAlgorithm(startTime: Long, infectedNodes: Set[String]) extends GraphAlgorithm{
 
   println("NODES THAT ARE INFECTED ->")
   println(infectedNodes)
@@ -32,8 +32,8 @@ class TaintAlgorithm(startTime: Int, infectedNodes: Set[String]) extends GraphAl
           else
             vertex.voteToHalt()
       }, 100)
-      .select(vertex => Row(Array(vertex.ID(),vertex.getState[String]("taintStatus"))))
-      //.filter(r=> r.get(0).asInstanceOf[Long]==18174)
+      .select(vertex => Row(vertex.ID(),vertex.getStateOrElse[String]("taintStatus","clean")))
+      //.filter(r=> ! (r.getString(1) equals "clean"))
       .writeTo("/tmp/taint_output")
   }
 }

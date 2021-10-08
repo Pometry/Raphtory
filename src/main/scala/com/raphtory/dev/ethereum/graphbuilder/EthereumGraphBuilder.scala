@@ -55,7 +55,9 @@ class EthereumGraphBuilder extends GraphBuilder[EthereumTransaction]{
         DoubleProperty("value", value)
       )
       )
+      println(hash)
     }
+
 
   }
 }
