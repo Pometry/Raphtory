@@ -71,6 +71,12 @@ class ObjectVertex(private val v: RaphtoryVertex,
   def getState[T: ClassTag](key: String) =
     computationValues(key).asInstanceOf[T]
 
+  def getStateOrElse[T: ClassTag](key: String,value:T) =
+    if (computationValues contains key)
+     computationValues(key).asInstanceOf[T]
+    else
+      value
+
   def containsState(key: String): Boolean =
     computationValues.contains(key)
 
