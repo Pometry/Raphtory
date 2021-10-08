@@ -1,6 +1,6 @@
 package com.raphtory.dev.stackoverflow
 
-import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic, StateTest}
+import com.raphtory.algorithms.old.DegreeBasic
 import com.raphtory.core.build.server.RaphtoryPD
 import com.raphtory.serialisers.DefaultSerialiser
 import com.raphtory.spouts.FileSpout

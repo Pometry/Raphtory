@@ -1,4 +1,4 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.old
 
 import com.raphtory.core.model.algorithm.Analyser
 import com.raphtory.core.model.graph.visitor.Vertex
