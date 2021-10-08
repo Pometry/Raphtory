@@ -26,7 +26,7 @@ class EthereumTransactionSpout extends Spout[EthereumTransaction] {
   var filePaths = files.map { file => file.getAbsolutePath }
   filePaths = filePaths.toArray.sorted
 
-  val fileQueue = mutable.Queue[EthereumTransaction]()
+  val dataQueue = mutable.Queue[EthereumTransaction]()
   var prevQueueSize = 0
   override def setupDataSource(): Unit = {}
 
@@ -34,20 +34,18 @@ class EthereumTransactionSpout extends Spout[EthereumTransaction] {
     //    if ((fileQueue.size %  1000) == 0){
     //      println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
     //    }
-    if (filePaths.size == 0) {
+    if (filePaths.size == 0 && dataQueue.size == 0) {
       dataSourceComplete()
       return None
-    } else if (fileQueue.size < MAX_QUEUE_SIZE) {
-      println("Spout: Files remaining " + filePaths.size.toString)
+    } else if (dataQueue.size < MAX_QUEUE_SIZE && filePaths.size != 0) {
+      //      println("Spout: Files remaining " + filePaths.size.toString)
       //        println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
       val nextFile = filePaths.take(1).head
       filePaths = filePaths.tail
       val parquetIterable = ParquetReader.read[EthereumTransaction](nextFile)
-      parquetIterable.foreach { tx => fileQueue += tx }
-
+      parquetIterable.foreach { tx => dataQueue += tx }
     }
-    println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
-    Some(fileQueue.dequeue())
+    Some(dataQueue.dequeue)
   }
 
   override def closeDataSource():  Unit = {}

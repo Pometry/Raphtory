@@ -30,34 +30,29 @@ class EthereumGraphBuilder extends GraphBuilder[EthereumTransaction]{
 
   override def parseTuple(ethTx: EthereumTransaction) = {
     val hash = ethTx.hash
-    if (hash!="hash"){
-      val blockNumber = ethTx.block_number.toString.toLong
-      val txindex = ethTx.transaction_index.toString.toLong
-      val sourceNode = if(ethTx.from_address == null) "none" else ethTx.from_address.toString.trim
-      val srcID      = assignID(sourceNode)
-      val targetNode = if(ethTx.to_address == null) "none" else ethTx.to_address.toString.trim
-      val tarID = assignID(targetNode)
-      val sourceNodeTags = tagMap.getOrElse(sourceNode, mutable.Set[String]())
-      val targetNodeTags = tagMap.getOrElse(targetNode, mutable.Set[String]())
-      val value      = ethTx.value.toString.toFloat / 1e18
-      val timeStamp  = ethTx.block_timestamp.toString.toLong
-      addVertex(timeStamp, srcID, Properties(
-        ImmutableProperty("address",sourceNode),
-        StringProperty("tags",sourceNodeTags.toString())
-      ),Type("Address"))
-      addVertex(timeStamp, tarID, Properties(
-        ImmutableProperty("address",targetNode),
-        StringProperty("tags",targetNodeTags.toString())
-      ),Type("Address"))
-      addEdge(timeStamp,srcID,tarID, Properties(
-        StringProperty("hash", hash),
-        LongProperty("blockNumber", blockNumber),
-        DoubleProperty("value", value)
-      )
-      )
-      println(hash)
-    }
-
-
+    val blockNumber = ethTx.block_number.toString.toLong
+    val txindex = ethTx.transaction_index.toString.toLong
+    val sourceNode = if(ethTx.from_address == null) "none" else ethTx.from_address.getOrElse("none")
+    val srcID      = assignID(sourceNode)
+    val targetNode = if(ethTx.to_address == null) "none" else ethTx.from_address.getOrElse("none")
+    val tarID = assignID(targetNode)
+    val sourceNodeTags = tagMap.getOrElse(sourceNode, mutable.Set[String]())
+    val targetNodeTags = tagMap.getOrElse(targetNode, mutable.Set[String]())
+    val value      = ethTx.value.toString.toFloat / 1e18
+    val timeStamp  = ethTx.block_timestamp.toString.toLong
+    addVertex(timeStamp, srcID, Properties(
+      ImmutableProperty("address",sourceNode),
+      StringProperty("tags",sourceNodeTags.toString())
+    ),Type("Address"))
+    addVertex(timeStamp, tarID, Properties(
+      ImmutableProperty("address",targetNode),
+      StringProperty("tags",targetNodeTags.toString())
+    ),Type("Address"))
+    addEdge(timeStamp,srcID,tarID, Properties(
+      StringProperty("hash", hash),
+      LongProperty("blockNumber", blockNumber),
+      DoubleProperty("value", value)
+    )
+    )
   }
 }
