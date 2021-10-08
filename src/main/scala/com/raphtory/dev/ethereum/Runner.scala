@@ -10,9 +10,9 @@ import com.raphtory.dev.ethereum.analysis.TaintAlgorithm
 object Runner extends App {
   val source = new EthereumTransactionSpout()
   val builder = new EthereumGraphBuilder()
-  val bb = new RaphtoryGraph[EthereumTransaction](source, builder)
-  val defaultSerialiser = new DefaultSerialiser()
-  val startTime = 1200200
-  val infectedNodes: Set[String] = Set("0x78ff59159fafb4a337fd158fcf8d9603a7c6f03a")
+  val rg = new RaphtoryGraph[EthereumTransaction](source, builder)
+  val startTime = 1458700699
+  val infectedNodes: Set[String] = Set("0x33e1a1ae6d566e20dc21f247126981d001b659ce")
   val graphQuery = new TaintAlgorithm(startTime, infectedNodes)
+  rg.pointQuery(graphQuery,timestamp = 1458703235 )
 }

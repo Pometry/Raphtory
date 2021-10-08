@@ -33,9 +33,9 @@ class EthereumGraphBuilder extends GraphBuilder[EthereumTransaction]{
     if (hash!="hash"){
       val blockNumber = ethTx.block_number.toString.toLong
       val txindex = ethTx.transaction_index.toString.toLong
-      val sourceNode = if(ethTx.from_address == null) "none" else ethTx.from_address.toString
+      val sourceNode = if(ethTx.from_address == null) "none" else ethTx.from_address.toString.trim
       val srcID      = assignID(sourceNode)
-      val targetNode = if(ethTx.to_address == null) "none" else ethTx.to_address.toString
+      val targetNode = if(ethTx.to_address == null) "none" else ethTx.to_address.toString.trim
       val tarID = assignID(targetNode)
       val sourceNodeTags = tagMap.getOrElse(sourceNode, mutable.Set[String]())
       val targetNodeTags = tagMap.getOrElse(targetNode, mutable.Set[String]())

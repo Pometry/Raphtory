@@ -4,14 +4,23 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
 class TaintAlgorithm(startTime: Int, infectedNodes: Set[String]) extends GraphAlgorithm{
 
+  println("NODES THAT ARE INFECTED ->")
+  println(infectedNodes)
+  println("*****")
+
   override def algorithm(graph: GraphPerspective): Unit = {
+    println("Running algorithm")
+    println(infectedNodes)
     graph
       .step({
         vertex =>
-          if (infectedNodes contains vertex.getPropertyValue("address").getOrElse("unknown").toString){
+          println(infectedNodes.size)
+          if (infectedNodes contains vertex.getPropertyValue("address").get.toString){
             vertex.setState("taintStatus", true)
             vertex.getOutEdges(after = startTime).foreach(edge => edge.send("tainted"))
+            println("**********Node found")
           }
+          println(vertex.getPropertyValue("address").get.toString)
       })
       .iterate({
         vertex =>
@@ -25,7 +34,7 @@ class TaintAlgorithm(startTime: Int, infectedNodes: Set[String]) extends GraphAl
       }, 100)
       .select(vertex => Row(Array(vertex.ID(),vertex.getState[String]("taintStatus"))))
       //.filter(r=> r.get(0).asInstanceOf[Long]==18174)
-      .writeTo("taint_output")
+      .writeTo("/tmp/taint_output")
   }
 }
 
