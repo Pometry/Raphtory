@@ -1,8 +1,8 @@
-package com.raphtory.dev.lotr
+package com.raphtory.algorithms.newer
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
-class TestAlgorithm extends GraphAlgorithm{
+class ConnectedComponents(path:String) extends GraphAlgorithm{
   override def algorithm(graph: GraphPerspective): Unit = {
     graph
       .step({
@@ -20,11 +20,11 @@ class TestAlgorithm extends GraphAlgorithm{
           else
             vertex.voteToHalt()
       }, 100)
-      .select(vertex => Row(Array(vertex.ID(),vertex.getState[Long]("cclabel"))))
+      .select(vertex => Row(vertex.ID(),vertex.getState[Long]("cclabel")))
       //.filter(r=> r.get(0).asInstanceOf[Long]==18174)
-      .writeTo("/Users/bensteer/github/output")
+      .writeTo(path)
   }
 }
-object TestAlgorithm{
-  def apply() = new TestAlgorithm()
+object ConnectedComponents{
+  def apply(path:String) = new ConnectedComponents(path)
 }

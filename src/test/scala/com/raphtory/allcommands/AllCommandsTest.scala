@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import org.scalatest.FunSuite
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.algorithms.{ConnectedComponents, StateTest}
+import com.raphtory.algorithms.old.{ConnectedComponents, StateTest}
 import com.raphtory.core.build.server.RaphtoryPD
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, ManagingTask, TaskFinished}
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.RangeAnalysisRequest
