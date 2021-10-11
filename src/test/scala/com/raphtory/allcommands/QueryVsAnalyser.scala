@@ -47,7 +47,7 @@ class QueryVsAnalyser extends FunSuite {
     try {
       //First we run the test and see if it finishes in a reasonable time
       implicit val timeout: Timeout = 180.second
-      val future = analysisManager ? RangeAnalysisRequest(stateTest, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array())
+      val future = queryManager ? RangeAnalysisRequest(stateTest, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array())
       val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
       val future2 = taskManager ? AreYouFinished
       val result = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
@@ -78,7 +78,7 @@ class QueryVsAnalyser extends FunSuite {
     try {
       //First we run the test and see if it finishes in a reasonable time
       implicit val timeout: Timeout = 300.second
-      val future = analysisManager ? RangeAnalysisRequest(connectedComponents, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array())
+      val future = queryManager ? RangeAnalysisRequest(connectedComponents, serialiser, 1, 290001, 10000, List(1000, 10000, 100000, 1000000), Array())
       val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
       val future2 = taskManager ? AreYouFinished
       val result = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
