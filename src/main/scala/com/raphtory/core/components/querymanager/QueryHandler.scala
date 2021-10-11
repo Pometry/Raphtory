@@ -66,6 +66,10 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
       algorithm.algorithm(graphPerspective)
       val table = graphPerspective.getTable()
       graphPerspective.getNextOperation() match {
+        case Some(f:Select) =>
+          messagetoAllJobWorkers(f)
+          context.become(executeTable(state.copy(graphPerspective=graphPerspective,table=table), 0))
+
         case Some(f:GraphFunction) =>
           messagetoAllJobWorkers(f)
           context.become(executeGraph(state.copy(graphPerspective=graphPerspective,table=table), f, 0, 0, 0, true))

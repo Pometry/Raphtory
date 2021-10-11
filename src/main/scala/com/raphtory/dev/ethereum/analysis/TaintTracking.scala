@@ -32,8 +32,8 @@ class TaintAlgorithm(startTime: Long, infectedNodes: Set[String]) extends GraphA
           else
             vertex.voteToHalt()
       }, 100)
-      .select(vertex => Row(vertex.ID(),vertex.getStateOrElse[String]("taintStatus","clean")))
-      //.filter(r=> ! (r.getString(1) equals "clean"))
+      .select(vertex => Row(vertex.ID(),vertex.getStateOrElse[Boolean]("taintStatus",false)))
+      .filter(r=>(r.getBool(1)))
       .writeTo("/tmp/taint_output")
   }
 }
