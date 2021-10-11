@@ -16,8 +16,8 @@ class EthereumGraphBuilder extends GraphBuilder[EthereumTransaction]{
   while ( {line = br.readLine; line != null}) {
     line = br.readLine()
     val fileLine = line.split(",").map(_.trim)
-    val address = fileLine(0).trim
-    val tag = fileLine(1).trim
+    val address = fileLine(0).trim.toLowerCase
+    val tag = fileLine(1).trim.toLowerCase
     if (tagMap.contains(address)) {
       val tagList = tagMap.getOrElse(address, mutable.Set[String]())
       tagList += (tag)
@@ -34,7 +34,7 @@ class EthereumGraphBuilder extends GraphBuilder[EthereumTransaction]{
     val txindex = ethTx.transaction_index.toString.toLong
     val sourceNode = if(ethTx.from_address == null) "none" else ethTx.from_address.getOrElse("none")
     val srcID      = assignID(sourceNode)
-    val targetNode = if(ethTx.to_address == null) "none" else ethTx.from_address.getOrElse("none")
+    val targetNode = if(ethTx.to_address == null) "none" else ethTx.to_address.getOrElse("none")
     val tarID = assignID(targetNode)
     val sourceNodeTags = tagMap.getOrElse(sourceNode, mutable.Set[String]())
     val targetNodeTags = tagMap.getOrElse(targetNode, mutable.Set[String]())
