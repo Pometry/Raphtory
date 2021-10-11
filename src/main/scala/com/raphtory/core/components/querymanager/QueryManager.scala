@@ -87,9 +87,8 @@ class QueryManager extends RaphtoryActor with ActorLogging with Stash {
 
 
   private def getID(algorithm:GraphAlgorithm):String = {
-    val path= algorithm.getClass.getCanonicalName.split(".")
-    //path(path.size-1)+"_" + System.currentTimeMillis()
-    algorithm.getClass.getCanonicalName+"_"+ System.currentTimeMillis()
+    val path= algorithm.getClass.getCanonicalName.split("\\.")
+    path(path.size-1)+"_" + System.currentTimeMillis()
   }
 
   private def trackNewQuery(state:State,jobID:String,queryHandler:ActorRef):Unit = {
