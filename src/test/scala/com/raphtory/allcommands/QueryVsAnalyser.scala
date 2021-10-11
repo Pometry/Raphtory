@@ -1,32 +1,29 @@
 package com.raphtory.allcommands
 
-import akka.actor.ActorRef
-import org.scalatest.FunSuite
 import akka.pattern.ask
 import akka.util.Timeout
 import com.raphtory.algorithms.old.{ConnectedComponents, StateTest}
 import com.raphtory.core.build.server.RaphtoryPD
-import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, ManagingTask, TaskFinished}
 import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.RangeAnalysisRequest
 import com.raphtory.core.components.leader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
-import com.raphtory.core.model.algorithm.Analyser
+import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, ManagingTask, TaskFinished}
 import com.raphtory.resultcomparison.comparisonJsonProtocol._
-import com.raphtory.resultcomparison.{ConnectedComponentsResults, RaphtoryResultComparitor, StateCheckResult, TimeParams, comparisonJsonProtocol}
+import com.raphtory.resultcomparison.{ConnectedComponentsResults, StateCheckResult, TimeParams}
 import com.raphtory.serialisers.DefaultSerialiser
 import com.raphtory.spouts.FileSpout
+import org.scalatest.FunSuite
 import spray.json._
 
 import java.io.File
 import scala.collection.mutable.HashMap
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
-class AllCommandsTest extends FunSuite {
-
+class QueryVsAnalyser extends FunSuite {
   val node = RaphtoryPD(new FileSpout("src/test/scala/com/raphtory/data/allcommands","testupdates.txt"),new AllCommandsBuilder())
   val watermarker     = node.getWatermarker()
   val watchdog        = node.getWatchdog()
-  val analysisManager = node.getAnalysisManager()
+  val queryManager = node.getQueryManager()
 
   test("Warmup and Ingestion Test") {
         implicit val timeout: Timeout = 20.second

@@ -8,7 +8,7 @@ import com.raphtory.spouts.FileSpout
 
 object SODeployment extends App {
 
-  val source = new FileSpout()
+  val source = new FileSpout("temp")
   val builder = new SOBuilder()
   val rg = RaphtoryPD[String](source,builder)
   val arguments = Array[String]()

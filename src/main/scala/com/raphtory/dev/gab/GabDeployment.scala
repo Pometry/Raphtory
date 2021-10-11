@@ -7,7 +7,7 @@ import com.raphtory.serialisers.{DefaultSerialiser, MongoSerialiser}
 import com.raphtory.spouts.FileSpout
 
 object GabDeployment extends App{
-  val source  = new FileSpout()
+  val source  = new FileSpout(directory = "src/main/scala/com/raphtory/dev/gab",fileName = "gabNetwork500.csv")
   val builder = new GabUserGraphBuilder()
   val rg = RaphtoryPD[String](source,builder)
   val arguments = Array[String]()
