@@ -6,15 +6,7 @@ import java.util.zip.GZIPInputStream
 import com.raphtory.core.components.spout.Spout
 import com.typesafe.scalalogging.LazyLogging
 
-class FileSpout extends Spout[String] {
-  //TODO work out loggging here
-  //log.info("initialise FileSpout")
-  private val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
-  private val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim //gabNetwork500.csv
-  private val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
-  //  private val JUMP       = System.getenv().getOrDefault("FILE_SPOUT_BLOCK_SIZE", "10").trim.toInt
-  private val INCREMENT = System.getenv().getOrDefault("FILE_SPOUT_INCREMENT", "0").trim.toInt
-  private val TIME = System.getenv().getOrDefault("FILE_SPOUT_TIME", "60").trim.toInt
+class FileSpout(directory:String,fileName:String="",dropHeader:Boolean=false) extends Spout[String] {
 
   private var fileManager = FileManager(directory, fileName, dropHeader)
 
