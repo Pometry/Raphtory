@@ -57,23 +57,23 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       context.become(work(state.copy(votedToHalt = state.graphLens.checkVotes(),sentMessageCount = sentMessages)))
 
     case VertexFilter(f) =>
-      log.info(s"Partition $partition have been asked to do a Graph Filter operation. Not yet implemented")
+      //log.info(s"Partition $partition have been asked to do a Graph Filter operation. Not yet implemented")
       sender() ! GraphFunctionComplete(0,0)
 
     case Select(f) =>
-      log.info(s"Partition $partition have been asked to do a Select operation.")
+      //log.info(s"Partition $partition have been asked to do a Select operation.")
       state.graphLens.executeSelect(f)
       sender() ! TableBuilt
 
 
     case TableFilter(f) =>
-      log.info(s"Partition $partition have been asked to do a Table Filter operation.")
+      //log.info(s"Partition $partition have been asked to do a Table Filter operation.")
       state.graphLens.filteredTable(f)
       sender() ! TableFunctionComplete
 
 
     case WriteTo(address) =>
-      log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
+      //log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
       val dir = new File(s"$address/$jobID")
       if(!dir.exists())
         dir.mkdirs()
