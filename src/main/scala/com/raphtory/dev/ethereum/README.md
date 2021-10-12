@@ -69,7 +69,7 @@ The results are in the following format, as a csv file.
 
 Time infection was run, address of node infected, status, List of transactions it was infected by. 
 The list will contain, the taint status, the transaction hash, time of infection, 
-value of coins it received and the node it was infected by. 
+ and the node it was infected by. 
 
 ### Use cases
 
