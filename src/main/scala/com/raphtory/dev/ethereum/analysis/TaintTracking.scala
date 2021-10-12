@@ -19,47 +19,48 @@ class TaintAlgorithm(startTime: Long, infectedNodes: Set[String], stopNodes: Set
             // tell all the other nodes that it interacts with, after starTime, that they are also infected
             // but also send the properties of when the infection happened
             vertex.getOutEdges(after = startTime).foreach(edge => edge.send(
-              Tuple4("tainted", edge.getPropertyValue("hash").get.toString, edge.getPropertyValue("blockNumber").get.toString, edge.getPropertyValue("value").get.toString)
+              Tuple5("tainted", edge.getPropertyValue("hash").get.toString, edge.getPropertyValue("blockNumber").get.toString, edge.getPropertyValue("value").get.toString, vertex.getPropertyValue("address").get.toString)
             ))
           }
       })
       .iterate({
         vertex =>
           // make an array with the status
-          // fill this array with all the status messages if theres any
-          val status = vertex.messageQueue[(String, String, String, String)].map(item => item._1).distinct
-          // check if any of the messages are the keyword tainted
-          if (status contains "tainted") {
-            // check if it was previous tainted
-            var state: Boolean = vertex.getOrSetState("taintStatus", false)
-            // if not set the new state, which contains the sources of taint
-            if (state == false) {
-              val stateTxs = vertex.messageQueue[(String, String, String, String)].map(item => item)
-              vertex.setState("taintTransactions", stateTxs)
-              vertex.setState("taintStatus", true)
-            }
-            else {
-              // otherwise set a brand new state
-              val oldState: List[(String, String, String, String)] = vertex.getState("taintTransactions")
-              val newState = state :: oldState
-              vertex.setState("taintTransactions", newState)
-            }
-
-            // if we have no stop nodes set, then continue the taint spreading
-            if (stopNodes.size == 0){
-              vertex.getOutEdges(after = startTime).foreach(edge => edge.send(
-                ("tainted", edge.getPropertyValue("hash").get.toString, edge.getPropertyValue("blockNumber").get.toString, edge.getPropertyValue("value").get.toString)
+          // fill this array with all the status newMessages if theres any
+          if (vertex.hasMessage()) {
+            val newMessages = vertex.messageQueue[(String, String, String, String,String)].map(item => item)
+            val status = newMessages.map(item => item._1).distinct
+            // check if any of the newMessages are the keyword tainted
+            if (status contains "tainted") {
+              // check if it was previous tainted
+              // if not set the new state, which contains the sources of taint
+              if (vertex.getOrSetState("taintStatus", false) == false) {
+                vertex.setState("taintTransactions", newMessages)
+                vertex.setState("taintStatus", true)
+              }
+              else {
+                // otherwise set a brand new state
+                val oldState: List[(String, String, String, String, String)] = vertex.getState("taintTransactions")
+                val newState = List.concat(newMessages, oldState).distinct
+                vertex.setState("taintTransactions", newState)
+              }
+              // if we have no stop nodes set, then continue the taint spreading
+              if (stopNodes.size == 0) {
+                vertex.getOutEdges(after = startTime).foreach(edge => edge.send({
+                  ("tainted", edge.getPropertyValue("hash").get.toString, edge.getPropertyValue("blockNumber").get.toString, edge.getPropertyValue("value").get.toString,vertex.getPropertyValue("address").get.toString)
+                }
                 ))
+              }
+              else if (!(stopNodes contains vertex.getPropertyValue("address").get.toString.toLowerCase.trim)) {
+                // otherwise if we contain stop nodes and we dont have to stop then keep going
+                vertex.getOutEdges(after = startTime).foreach(edge => edge.send({
+                  ("tainted", edge.getPropertyValue("hash").get.toString, edge.getPropertyValue("blockNumber").get.toString, edge.getPropertyValue("value").get.toString, vertex.getPropertyValue("address").get.toString)
+                }))
+              }
             }
-            else if (!(stopNodes contains vertex.getPropertyValue("address").get.toString.toLowerCase.trim)) {
-              // otherwise if we contain stop nodes and we dont have to stop then keep going
-              vertex.getOutEdges(after = startTime).foreach(edge => edge.send(
-                ("tainted", edge.getPropertyValue("hash").get.toString, edge.getPropertyValue("blockNumber").get.toString, edge.getPropertyValue("value").get.toString)
-                ))
-            }
+            else
+              vertex.voteToHalt()
           }
-          else
-            vertex.voteToHalt()
       }, 100)
       .select(vertex => Row(
         vertex.getPropertyValue("address").get.toString,
