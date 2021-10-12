@@ -47,5 +47,36 @@ max_priority_fee_per_gas        int
 transaction_type              int64
 ```
 
-As of 7 Oct 2021, this code and the dev branch of Raphtory ingests at 
-approximately 20k transactions a second. 
+# Algorithms
+
+## Simple taint tracking
+
+This simple taint tracking algorithm will follow the taint a node spreads, following
+its transactions and who they infect over time until any stop conditions are met, or
+until the graph is complete.
+
+### Parameters
+
+`startTime` - the unix time for when to start the algorithm
+
+`infectedNodes` - a set of nodes to start from (their addresses as lowercase strings)
+
+`stopNodes` - a set of nodes where the infection stops (their addresses as lowercase strings)
+
+### Result
+
+The results are in the following format, as a csv file. 
+
+Time infection was run, address of node infected, status, List of transactions it was infected by. 
+The list will contain, the taint status, the transaction hash, time of infection, 
+value of coins it received and the node it was infected by. 
+
+### Use cases
+
+This can be used to follow the spread of, for example, illicit funds within a network. 
+For example, lets say at time T1 a Node steals coins. We can mark the thief as infected, 
+and then identify which other nodes they spread their coins to. 
+
+Alternatively, it can be used to follow the spread of an infection. Lets say Person A 
+was infected at time T1, then they infected person B at time T2. This can then follow
+Person B and time T2 onwards, identifying anyone they have infected. 
