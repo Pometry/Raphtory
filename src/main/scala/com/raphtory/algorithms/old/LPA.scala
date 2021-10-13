@@ -1,6 +1,5 @@
 package com.raphtory.algorithms.old
 
-import com.raphtory.core.model.algorithm.Analyser
 import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer

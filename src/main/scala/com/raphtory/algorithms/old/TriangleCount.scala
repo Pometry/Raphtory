@@ -1,7 +1,5 @@
 package com.raphtory.algorithms.old
 
-import com.raphtory.core.model.algorithm.Analyser
-
 import scala.collection.mutable.ArrayBuffer
 
 /** Each vertex wants to check how many pairs of its neighbours are connected. It does this by messaging all its

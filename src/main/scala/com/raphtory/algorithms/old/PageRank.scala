@@ -1,7 +1,5 @@
 package com.raphtory.algorithms.old
 
-import com.raphtory.core.model.algorithm.Analyser
-
 import scala.collection.mutable.ArrayBuffer
 
 class PageRank(args:Array[String]) extends Analyser[(Int, List[(Long,Double)])](args) {
