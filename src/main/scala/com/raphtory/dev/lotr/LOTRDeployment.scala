@@ -10,7 +10,7 @@ object LOTRDeployment extends App{
   val rg = RaphtoryPD[String](source,builder)
   //rg.pointQuery(ConnectedComponents("/Users/bensteer/github/output"),1000)
   rg.pointQuery(GraphState("/Users/bensteer/github/output"),32000)
-  //rg.rangeQuery(TestAlgorithm(),10000,32000,1000,List(10000, 1000,100))
+  rg.rangeQuery(ConnectedComponents("/Users/bensteer/github/output"),10000,32000,1000,List(10000, 1000,100))
   //rg.rangeQuery(new ConnectedComponents(Array()), serialiser = new DefaultSerialiser, start=1, end = 32674, increment=1000,windowBatch=List(10000, 1000,100))
   //rg.viewQuery(SixDegreesOfGandalf(seperation = 3), serialiser = new DefaultSerialiser,timestamp = 5000)
 

@@ -3,7 +3,7 @@ package com.raphtory.resultcomparison
 import spray.json.DefaultJsonProtocol
 
 object comparisonJsonProtocol extends DefaultJsonProtocol {
-  implicit val stateCheck = jsonFormat19(StateCheckResult)
+  implicit val stateCheck = jsonFormat18(StateCheckResult)
   implicit val connectedComponentsResults = jsonFormat8(ConnectedComponentsResults)
 }
 
@@ -13,13 +13,12 @@ abstract class RaphtoryResultComparitor[T](time:Long,windowsize:Long) {
   def compareTo(compare: T): Boolean
 }
 
-case class StateCheckResult(val time:Long, val windowsize:Long, viewTime:Long, vertices:Long, maxDeg:Long, totalInEdges:Long, totalOutEdges:Long, vdeletionstotal:Long, vcreationstotal:Long,
+case class StateCheckResult(val time:Long, val windowsize:Long, viewTime:Long, vertices:Long, totalInEdges:Long, totalOutEdges:Long, vdeletionstotal:Long, vcreationstotal:Long,
                             outedgedeletionstotal:Long, outedgecreationstotal:Long, inedgedeletionstotal:Long, inedgecreationstotal:Long,
                             properties:Long, propertyhistory:Long, outedgeProperties:Long, outedgePropertyHistory:Long, inedgeProperties:Long, inedgePropertyHistory:Long)
                             extends  RaphtoryResultComparitor[StateCheckResult](time, windowsize) {
   def compareTo(compare: StateCheckResult):Boolean = {
-    this.vertices == compare.vertices &&
-      maxDeg==compare.maxDeg &&
+    val x = this.vertices == compare.vertices &&
       totalInEdges==compare.totalInEdges &&
       totalOutEdges==compare.totalOutEdges &&
       vdeletionstotal==compare.vdeletionstotal &&
@@ -34,7 +33,13 @@ case class StateCheckResult(val time:Long, val windowsize:Long, viewTime:Long, v
       outedgePropertyHistory==compare.outedgePropertyHistory &&
       inedgeProperties==compare.inedgeProperties &&
       inedgePropertyHistory==compare.inedgePropertyHistory
+
+    if(!x)
+      println(this + "   "+ compare)
+    x
   }
+
+
 }
 
 case class ConnectedComponentsResults(val time:Long, val windowsize:Long, viewTime:Long, top5:List[Long], total:Long, totalIslands:Long, proportion:Double, clustersGT2:Long)
