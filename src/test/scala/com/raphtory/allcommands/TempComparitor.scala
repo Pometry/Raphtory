@@ -1,24 +1,19 @@
 package com.raphtory.allcommands
 
-import com.raphtory.algorithms.old.sortOrdering
+import com.raphtory.algorithms.old.{Analyser, ConnectedComponents, StateTest, sortOrdering}
 import com.raphtory.resultcomparison.StateCheckResult
 import spray.json._
+
 import java.io.File
-
-
 import akka.actor.ActorRef
 import org.scalatest.FunSuite
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.algorithms.old.{ConnectedComponents, StateTest}
 import com.raphtory.core.build.server.RaphtoryPD
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, ManagingTask, TaskFinished}
-import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.RangeAnalysisRequest
 import com.raphtory.core.components.leader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
-import com.raphtory.core.model.algorithm.Analyser
 import com.raphtory.resultcomparison.comparisonJsonProtocol._
 import com.raphtory.resultcomparison.{ConnectedComponentsResults, RaphtoryResultComparitor, StateCheckResult, TimeParams, comparisonJsonProtocol}
-import com.raphtory.serialisers.DefaultSerialiser
 import com.raphtory.spouts.FileSpout
 import spray.json._
 
@@ -29,7 +24,7 @@ import scala.concurrent.duration._
 
 
 object TempComparitor extends App {
-  val testDataCC = groupConnectedComponentsData(new File("/Users/bensteer/github/output/ConnectedComponents_1633990578443"))
+  val testDataCC = groupConnectedComponentsData(new File("/Users/bensteer/github/output/ConnectedComponents_1634144185822"))
 
   val standardDataCC = HashMap[TimeParams, ConnectedComponentsResults]() ++=
     scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/connectedcomponents.json").getLines()
@@ -39,7 +34,7 @@ object TempComparitor extends App {
   val correctResultsCC = testDataCC.map(row => row._2.compareTo(standardDataCC(row._1))).fold(true) { (x, y) => x && y }
   println(correctResultsCC)
 
-  val testDataGS = groupGraphStateData(new File("/Users/bensteer/github/output/GraphState_1634135650098"))
+  val testDataGS = groupGraphStateData(new File("/Users/bensteer/github/output/GraphState_1634144087680"))
 
   val standardDataGS = HashMap[TimeParams, StateCheckResult]() ++=
     scala.io.Source.fromFile("src/test/scala/com/raphtory/data/allcommands/statetest.json").getLines()
@@ -62,7 +57,7 @@ object TempComparitor extends App {
       .map{
         case ((timestamp,window),lines) =>
           val result = lines.map(_.split(",").drop(2).map(_.toLong))
-            .map(line=> StateCheckResult(timestamp.toLong,window.toLong, viewTime = 0, vertices = 1, totalInEdges = line(1), totalOutEdges = line(2), vdeletionstotal = line(3), vcreationstotal = line(4), outedgedeletionstotal = line(5), outedgecreationstotal = line(6), inedgedeletionstotal = line(7), inedgecreationstotal = line(8), properties = line(9), propertyhistory = line(10), outedgeProperties = line(11), outedgePropertyHistory = line(12), inedgeProperties = line(13), inedgePropertyHistory = line(14)))
+            .map(line=> StateCheckResult(timestamp.toLong,window.toLong, viewTime = 0, vertices = 1, totalInEdges = line(0), totalOutEdges = line(1), vdeletionstotal = line(3), vcreationstotal = line(4), outedgedeletionstotal = line(5), outedgecreationstotal = line(6), inedgedeletionstotal = line(7), inedgecreationstotal = line(8), properties = line(9), propertyhistory = line(10), outedgeProperties = line(11), outedgePropertyHistory = line(12), inedgeProperties = line(13), inedgePropertyHistory = line(14)))
             .fold(StateCheckResult(timestamp.toLong,window.toLong,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0))(combine)
           (TimeParams(timestamp.toLong,window.toLong),result)
       }

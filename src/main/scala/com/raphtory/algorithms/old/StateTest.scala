@@ -1,7 +1,5 @@
 package com.raphtory.algorithms.old
 
-import com.raphtory.core.model.algorithm.Analyser
-
 import scala.collection.mutable.ArrayBuffer
 
 case class PartitionState(totalV:Int, totalDeg:Int, inDeg:Int,

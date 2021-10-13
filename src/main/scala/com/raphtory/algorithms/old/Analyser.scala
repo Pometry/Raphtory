@@ -1,4 +1,4 @@
-package com.raphtory.core.model.algorithm
+package com.raphtory.algorithms.old
 
 import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler

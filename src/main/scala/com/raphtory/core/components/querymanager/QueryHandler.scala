@@ -4,11 +4,9 @@ import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
-import com.raphtory.core.components.analysismanager.tasks.AnalysisTask.SubtaskState
-import com.raphtory.core.components.analysismanager.tasks.{SubTaskController, TaskTimeRange}
-import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, EstablishExecutor, ExecutorEstablished, GraphFunctionComplete, PerspectiveEstablished, RecheckTime, SetupNextStep, StartAnalysis, StartGraph, StartSubtask, TableBuilt, TableFunctionComplete, TimeCheck, TimeResponse}
+import com.raphtory.core.components.querymanager.QueryHandler.Message._
 import com.raphtory.core.components.querymanager.QueryHandler.State
-import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, JobFailed, JobKilled, KillTask, TaskFinished}
+import com.raphtory.core.components.querymanager.QueryManager.Message._
 import com.raphtory.core.implementations.objectgraph.algorithm.{ObjectGraphPerspective, ObjectTable}
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphFunction, Iterate, Select, Table, TableFunction}
 
@@ -55,8 +53,6 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
       }
       else
         context.become(establishPerspective(state, readyCount + 1))
-    case JobFailed => killJob()
-
   }
 
   //execute the steps of the graph algorithm until a select is run
@@ -176,7 +172,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
   }
 
   private def withDefaultMessageHandler(description: String)(handler: Receive): Receive = handler.orElse {
-    case req: KillTask => killJob()
+    case req: EndQuery => killJob()
     case AreYouFinished => monitor = sender() // register to message out later
     case unhandled     => log.error(s"Not handled message in $description: " + unhandled)
   }
@@ -189,7 +185,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
     workerList.values.foreach(worker => worker ! msg)
 
   private def killJob() = {
-    messagetoAllJobWorkers(KillTask(jobID))
+    messagetoAllJobWorkers(EndQuery(jobID))
     log.info(s"$jobID has no more perspectives. Query Handler ending execution.")
     self ! PoisonPill
     if(monitor!=null)monitor ! TaskFinished(true)
@@ -204,34 +200,19 @@ object QueryHandler {
 
   object Message{
     case object StartAnalysis
-
-    case object ReaderWorkersOnline
-    case object ReaderWorkersAck
-
-    case class LoadAnalyser(jobId: String, className: String, args: List[String])
     case class EstablishExecutor(jobID:String)
     case class ExecutorEstablished(worker:Int, me:ActorRef)
 
-    case object TimeCheck
-    case class TimeResponse(time: Long)
-    case object RecheckTime
+    case class  CreatePerspective(neighbours: mutable.Map[Int,ActorRef], timestamp: Long, window: Option[Long])
+    case object PerspectiveEstablished
 
     case object StartGraph
+    case class  GraphFunctionComplete(receivedMessages: Int, sentMessages: Int,votedToHalt:Boolean=false)
+
     case object TableBuilt
     case object TableFunctionComplete
 
-    case class  CreatePerspective(neighbours: mutable.Map[Int,ActorRef], timestamp: Long, window: Option[Long])
-    case object PerspectiveEstablished
-    case class  StartSubtask(jobId: String)
-    case class  Ready(messages: Int)
-    case class  SetupNextStep(jobId: String)
-    case object SetupNextStepDone
-    case class  StartNextStep(jobId: String)
+    case object RecheckTime
     case class  CheckMessages(jobId: String)
-    case class  GraphFunctionComplete(receivedMessages: Int, sentMessages: Int,votedToHalt:Boolean=false)
-    case class  EndStep(superStep: Int, sentMessageCount: Int, voteToHalt: Boolean)
-    case class  Finish(jobId: String)
-    case class  ReturnResults(results: Any)
-    case object StartNextSubtask
   }
 }

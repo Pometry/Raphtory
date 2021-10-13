@@ -5,7 +5,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.partitionmanager.QueryExecutor.State
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, ExecutorEstablished, GraphFunctionComplete, PerspectiveEstablished, TableBuilt, TableFunctionComplete}
-import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, KillTask}
+import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, EndQuery}
 import com.raphtory.core.implementations
 import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
@@ -95,7 +95,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
   }
 
   private def withDefaultMessageHandler(description: String)(handler: Receive): Receive = handler.orElse {
-    case req: KillTask =>
+    case req: EndQuery =>
       context.stop(self)
       log.info(s"Executor for Partition $partition Job $jobID has been terminated")
     case unhandled     => log.error(s"Not handled message in $description: " + unhandled)
