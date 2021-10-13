@@ -56,20 +56,20 @@ class QueryVsAnalyser extends FunSuite {
     }
   }
 
-  test("Connected Components Test"){
-    try {
-      //First we run the test and see if it finishes in a reasonable time
-      implicit val timeout: Timeout = 300.second
-      val future = queryManager ? RangeQuery(ConnectedComponents("/Users/bensteer/github/output"), 1, 290001, 10000, List(1000, 10000, 100000, 1000000))
-      val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
-      val future2 = taskManager ? AreYouFinished
-      val result = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
-      assert(true)
-    }
-    catch {
-      case _: java.util.concurrent.TimeoutException => assert(false)
-    }
-  }
+//  test("Connected Components Test"){
+//    try {
+//      //First we run the test and see if it finishes in a reasonable time
+//      implicit val timeout: Timeout = 300.second
+//      val future = queryManager ? RangeQuery(ConnectedComponents("/Users/bensteer/github/output"), 1, 290001, 10000, List(1000, 10000, 100000, 1000000))
+//      val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
+//      val future2 = taskManager ? AreYouFinished
+//      val result = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
+//      assert(true)
+//    }
+//    catch {
+//      case _: java.util.concurrent.TimeoutException => assert(false)
+//    }
+//  }
 
 
 
