@@ -6,6 +6,7 @@ import com.raphtory.core.model.graph.visitor.{EntityVisitor, HistoricEvent}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
+import scala.reflect.ClassTag
 
 abstract class ObjectEntity(entity: RaphtoryEntity, view: ObjectGraphLens) extends EntityVisitor{
   def Type() = entity.getType
@@ -18,29 +19,31 @@ abstract class ObjectEntity(entity: RaphtoryEntity, view: ObjectGraphLens) exten
       entity.properties.filter(p => p._2.creation() <= view.timestamp).map(f => (f._1)).toList
   }
 
-  def getPropertyValue(key: String): Option[Any] =
+  def getPropertyValue[T: ClassTag](key: String): Option[T] =
     entity.properties.get(key) match {
-      case Some(p) => Some(p.valueAt(view.timestamp))
+      case Some(p) => Some(p.valueAt(view.timestamp).asInstanceOf[T])
       case None    => None
     }
 
-  def getPropertyValueAt(key: String, time: Long): Option[Any] =
+  def getPropertyValueAt[T: ClassTag](key: String, time: Long): Option[T] =
     entity.properties.get(key) match {
-      case Some(p) => Some(p.valueAt(time))
-      case None    => None
-    }
-  def getPropertyValues(key: String, after: Long, before: Long): Option[List[Any]] =
-    entity.properties.get(key) match {
-      case Some(p) => Some(p.valuesAfter(after).toList)
+      case Some(p) => Some(p.valueAt(time).asInstanceOf[T])
       case None    => None
     }
 
-  def getPropertyHistory(key: String): Option[List[(Long, Any)]] =
+  //TODo ADD Before
+  def getPropertyValues[T: ClassTag](key: String, after: Long, before: Long): Option[List[T]] =
+    entity.properties.get(key) match {
+      case Some(p) => Some(p.valuesAfter(after).toList.map(_.asInstanceOf[T]))
+      case None    => None
+    }
+
+  def getPropertyHistory[T: ClassTag](key: String): Option[List[(Long, T)]] =
     (entity.properties.get(key), view.window) match {
       case (Some(p), Some(w)) =>
-        Some(p.values().filter(k => k._1 <= view.timestamp && k._1 >= view.timestamp - w).toList)
+        Some(p.values().filter(k => k._1 <= view.timestamp && k._1 >= view.timestamp - w).toList.map(x=> (x._1,x._2.asInstanceOf[T])))
       case (Some(p), None) =>
-        Some(p.values().filter(k => k._1 <= view.timestamp).toList)
+        Some(p.values().filter(k => k._1 <= view.timestamp).toList.map(x=> (x._1,x._2.asInstanceOf[T])))
       case (None, _) => None
     }
 
