@@ -48,7 +48,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
       recheckTime(state.currentPerspective)
     case p:PerspectiveEstablished =>
       if (readyCount + 1 == totalPartitions) {
-        messageToAllReaders(SetMetaData(vertexCount+p.vertices))
+        messagetoAllJobWorkers(SetMetaData(vertexCount+p.vertices))
         context.become(establishPerspective(state, 0,vertexCount+p.vertices))
       }
       else
@@ -57,16 +57,16 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
     case MetaDataSet =>
       if (readyCount + 1 == totalPartitions) {
         self ! StartGraph
-        context.become(executeGraph(state, null, 0, 0, 0, true))
+        context.become(executeGraph(state, null, vertexCount, 0, 0, 0, true))
       }
       else
         context.become(establishPerspective(state, readyCount + 1,vertexCount))
   }
 
   //execute the steps of the graph algorithm until a select is run
-  private def executeGraph(state: State, currentOpperation: GraphFunction, readyCount: Int, receivedMessageCount: Int, sentMessageCount: Int, allVoteToHalt: Boolean):Receive = withDefaultMessageHandler("Execute Graph") {
+  private def executeGraph(state: State, currentOpperation: GraphFunction, vertexCount:Int, readyCount: Int, receivedMessageCount: Int, sentMessageCount: Int, allVoteToHalt: Boolean):Receive = withDefaultMessageHandler("Execute Graph") {
     case StartGraph =>
-      val graphPerspective = new ObjectGraphPerspective()
+      val graphPerspective = new ObjectGraphPerspective(vertexCount)
       algorithm.algorithm(graphPerspective)
       val table = graphPerspective.getTable()
       graphPerspective.getNextOperation() match {
@@ -76,7 +76,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
 
         case Some(f:GraphFunction) =>
           messagetoAllJobWorkers(f)
-          context.become(executeGraph(state.copy(graphPerspective=graphPerspective,table=table), f, 0, 0, 0, true))
+          context.become(executeGraph(state.copy(graphPerspective=graphPerspective,table=table), f, vertexCount,0, 0, 0, true))
         case None => killJob()
       }
 
@@ -88,22 +88,22 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
           currentOpperation match {
             case Iterate(f, iterations) =>
               if(iterations==1||allVoteToHalt)
-                nextGraphOperation(state)
+                nextGraphOperation(state,vertexCount)
               else  {
                 messagetoAllJobWorkers(Iterate(f, iterations-1))
-                context.become(executeGraph(state, Iterate(f, iterations-1), 0, 0, 0, true))
+                context.become(executeGraph(state, Iterate(f, iterations-1), vertexCount,0, 0, 0, true))
               }
             case _ =>
-              nextGraphOperation(state)
+              nextGraphOperation(state,vertexCount)
           }
         }
         else {
           messagetoAllJobWorkers(CheckMessages(jobID))
-          context.become(executeGraph(state, currentOpperation, 0, 0, 0, allVoteToHalt))
+          context.become(executeGraph(state, currentOpperation,vertexCount, 0, 0, 0, allVoteToHalt))
         }
       }
       else
-        context.become(executeGraph(state, currentOpperation, (readyCount+1), totalReceivedMessages, totalSentMessages, (votedToHalt&allVoteToHalt)))
+        context.become(executeGraph(state, currentOpperation, vertexCount, (readyCount+1), totalReceivedMessages, totalSentMessages, (votedToHalt&allVoteToHalt)))
   }
 
   //once the select has been run, execute all of the table functions until we hit a writeTo
@@ -152,7 +152,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
     }
   }
 
-  private def nextGraphOperation(state:State) = {
+  private def nextGraphOperation(state:State,vertexCount:Int) = {
     state.graphPerspective.getNextOperation() match {
       case Some(f:Select) =>
         messagetoAllJobWorkers(f)
@@ -160,7 +160,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
 
       case Some(f: GraphFunction) =>
         messagetoAllJobWorkers(f)
-        context.become(executeGraph(state, f, 0, 0, 0, true))
+        context.become(executeGraph(state, f,vertexCount, 0, 0, 0, true))
 
       case None =>
         executeNextPerspective(state.perspectiveController)

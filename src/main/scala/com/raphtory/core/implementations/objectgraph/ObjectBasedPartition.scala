@@ -2,7 +2,7 @@ package com.raphtory.core.implementations.objectgraph
 
 import com.raphtory.core.implementations.objectgraph.entities.internal.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
 import com.raphtory.core.implementations.objectgraph.messaging._
-import com.raphtory.core.model.graph.{DoubleProperty, EdgeSyncAck, FloatProperty, GraphPartition, GraphPerspective, GraphUpdateEffect, ImmutableProperty, InboundEdgeRemovalViaVertex, LongProperty, OutboundEdgeRemovalViaVertex, Properties, StringProperty, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, Type, VertexRemoveSyncAck}
+import com.raphtory.core.model.graph.{DoubleProperty, EdgeSyncAck, FloatProperty, GraphPartition, InternalGraphView, GraphUpdateEffect, ImmutableProperty, InboundEdgeRemovalViaVertex, LongProperty, OutboundEdgeRemovalViaVertex, Properties, StringProperty, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, Type, VertexRemoveSyncAck}
 import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.concurrent.TrieMap
@@ -266,7 +266,7 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
   /**
     * Analysis Functions
     * */
-  override def getVertices(perspective:GraphPerspective, time: Long, window: Long=Long.MaxValue): TrieMap[Long, Vertex] = {
+  override def getVertices(perspective:InternalGraphView, time: Long, window: Long=Long.MaxValue): TrieMap[Long, Vertex] = {
     val lens = perspective.asInstanceOf[ObjectGraphLens]
     vertices.collect{case (id,vertex) if(vertex.aliveAtWithWindow(time,window)) => (id,vertex.viewAtWithWindow(time,window,lens)) }.seq //(v._1,v._2.viewAt(time,lens).asInstanceOf[Vertex])).seq
   }

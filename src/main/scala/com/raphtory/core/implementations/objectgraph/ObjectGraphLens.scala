@@ -4,12 +4,12 @@ import com.raphtory.core.implementations.objectgraph.entities.external.ObjectVer
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
 import com.raphtory.core.model.algorithm.Row
 import com.raphtory.core.model.graph.visitor.Vertex
-import com.raphtory.core.model.graph.{GraphPartition, GraphPerspective, VertexMessage}
+import com.raphtory.core.model.graph.{GraphPartition, InternalGraphView, VertexMessage}
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
 
-final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends GraphPerspective(jobId, timestamp, window) {
+final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends InternalGraphView(jobId, timestamp, window) {
   private val voteCount = new AtomicInteger(0)
   private val vertexCount = new AtomicInteger(0)
   var t1 = System.currentTimeMillis()
@@ -42,6 +42,9 @@ final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[
 
   def filteredTable(f:Row=>Boolean):Unit =
     dataTable=dataTable.filter(f)
+
+  def explodeTable(f:Row=>List[Row]):Unit =
+    dataTable = dataTable.flatMap(f)
 
   def getDataTable():List[Row] =
     dataTable
