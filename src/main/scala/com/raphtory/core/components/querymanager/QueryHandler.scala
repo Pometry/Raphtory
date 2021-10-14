@@ -43,16 +43,24 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
   }
 
   //build the perspective within the QueryExecutor for each partition -- the view to be analysed
-  private def establishPerspective(state:State,readyCount:Int): Receive = withDefaultMessageHandler("establish perspective") {
+  private def establishPerspective(state:State,readyCount:Int,vertexCount:Int): Receive = withDefaultMessageHandler("establish perspective") {
     case RecheckTime =>
       recheckTime(state.currentPerspective)
-    case PerspectiveEstablished =>
+    case p:PerspectiveEstablished =>
+      if (readyCount + 1 == totalPartitions) {
+        messageToAllReaders(SetMetaData(vertexCount+p.vertices))
+        context.become(establishPerspective(state, 0,vertexCount+p.vertices))
+      }
+      else
+        context.become(establishPerspective(state, readyCount + 1,vertexCount+p.vertices))
+
+    case MetaDataSet =>
       if (readyCount + 1 == totalPartitions) {
         self ! StartGraph
         context.become(executeGraph(state, null, 0, 0, 0, true))
       }
       else
-        context.become(establishPerspective(state, readyCount + 1))
+        context.become(establishPerspective(state, readyCount + 1,vertexCount))
   }
 
   //execute the steps of the graph algorithm until a select is run
@@ -123,11 +131,11 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
       case Some(perspective) if perspective.timestamp <= latestTime =>
         log.info(s"$perspective for Job $jobID is starting")
         messagetoAllJobWorkers(CreatePerspective(workerList, perspective.timestamp, perspective.window))
-        context.become(establishPerspective(State(perspectiveController, perspective, null,null),0))
+        context.become(establishPerspective(State(perspectiveController, perspective, null,null),0,0))
       case Some(perspective) =>
         log.info(s"$perspective for Job $jobID is not ready, currently at $latestTime. Rechecking")
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
-        context.become(establishPerspective(State(perspectiveController, perspective, null,null),0))
+        context.become(establishPerspective(State(perspectiveController, perspective, null,null),0,0))
       case None =>
         log.info(s"no more perspectives to run for $jobID")
         killJob()
@@ -204,7 +212,9 @@ object QueryHandler {
     case class ExecutorEstablished(worker:Int, me:ActorRef)
 
     case class  CreatePerspective(neighbours: mutable.Map[Int,ActorRef], timestamp: Long, window: Option[Long])
-    case object PerspectiveEstablished
+    case class  PerspectiveEstablished(vertices:Int)
+    case class  SetMetaData(vertices:Int)
+    case object MetaDataSet
 
     case object StartGraph
     case class  GraphFunctionComplete(receivedMessages: Int, sentMessages: Int,votedToHalt:Boolean=false)

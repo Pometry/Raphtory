@@ -3,7 +3,6 @@ package com.raphtory.dev.gab
 import com.raphtory.algorithms.newer.ConnectedComponents
 import com.raphtory.core.build.server.RaphtoryPD
 import com.raphtory.dev.gab.graphbuilders.GabUserGraphBuilder
-import com.raphtory.serialisers.{DefaultSerialiser, MongoSerialiser}
 import com.raphtory.spouts.FileSpout
 
 object GabDeployment extends App{
