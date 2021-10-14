@@ -13,4 +13,8 @@ abstract class GraphPerspective{
   def step(f:(Vertex)=>Unit):GraphPerspective
   def iterate(f:(Vertex)=>Unit, iterations:Int):GraphPerspective
   def select(f:Vertex=>Row):Table
+
+
+  //MetaData
+  def nodeCount():Int
 }

@@ -4,6 +4,7 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
 class ConnectedComponents(path:String) extends GraphAlgorithm{
   override def algorithm(graph: GraphPerspective): Unit = {
+    val nodeCount = graph.nodeCount()
     graph
       .step({
         vertex =>

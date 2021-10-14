@@ -4,7 +4,7 @@ import akka.actor.{ActorSystem, Address, ExtendedActorSystem, Props}
 import akka.event.LoggingAdapter
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
-import com.raphtory.core.components.akkamanagement.connectors.{AnalysisManagerConnector, BuilderConnector, PartitionConnector, SpoutConnector}
+import com.raphtory.core.components.akkamanagement.connectors.{BuilderConnector, PartitionConnector, SpoutConnector}
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.leader.{WatchDog, WatermarkManager}
 import com.raphtory.core.components.spout.Spout
@@ -29,8 +29,7 @@ object RaphtoryService extends App {
     case "builder" => builder()
     case "partitionManager" => partition()
     case "spout" => spout()
-    case "analysisManager" => analysis()
-    //case "local" => local()
+    //TODO query manager
   }
 
   def leader() = {
@@ -65,20 +64,6 @@ object RaphtoryService extends App {
     system.actorOf(Props(new SpoutConnector(spout)), "PartitionManager")
 
   }
-
-  def analysis() = {
-    println("Creating Analysis Manager")
-    implicit val system: ActorSystem = initialiseActorSystem(List(locateSeed()))
-    system.actorOf(Props(new AnalysisManagerConnector()), "AnalysisManagerConnector")
-
-  }
-
-  //  def local() = {
-  //    println("putting up cluster in one node")
-  //    val spoutPath = s"${sys.env.getOrElse("SPOUT", "")}"
-  //    val builderPath = s"${sys.env.getOrElse("GRAPHBUILDER", "")}"
-  //    RaphtoryNode[Any](spoutPath, builderPath)
-  //  }
 
   def locateSeed(): String =
     if (docker) {

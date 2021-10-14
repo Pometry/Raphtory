@@ -1,7 +1,5 @@
 package com.raphtory.algorithms.old
 
-import com.raphtory.core.model.algorithm.Analyser
-
 object lotrExample {
   def apply(separation: Int): lotrExample = new lotrExample(Array(separation.toString))
 }

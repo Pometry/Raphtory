@@ -1,6 +1,6 @@
 package com.raphtory.dev.algorithms
 
-import com.raphtory.core.model.algorithm.Analyser
+import com.raphtory.algorithms.old.Analyser
 
 import scala.io.Source
 import scala.tools.nsc.io.Path

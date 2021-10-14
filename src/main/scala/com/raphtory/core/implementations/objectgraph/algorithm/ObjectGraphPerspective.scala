@@ -6,7 +6,7 @@ import com.raphtory.core.model.graph.visitor.Vertex
 import scala.collection.mutable
 
 
-class ObjectGraphPerspective  extends GraphPerspective{
+class ObjectGraphPerspective(vertices:Int)  extends GraphPerspective{
   val graphOpps = mutable.Queue[GraphFunction]()
   val table     = new ObjectTable()
 
@@ -33,5 +33,7 @@ class ObjectGraphPerspective  extends GraphPerspective{
   def getNextOperation():Option[GraphFunction] = if (graphOpps.nonEmpty) Some(graphOpps.dequeue()) else None
 
   def getTable() = table
+
+  override def nodeCount(): Int = vertices
 
 }

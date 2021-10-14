@@ -42,7 +42,7 @@ abstract class GraphPartition(partitionID: Int) extends LazyLogging {
   /**
     * Analysis Functions
     * */
-  def getVertices(graphPerspective: GraphPerspective, time:Long, window:Long = Long.MaxValue):TrieMap[Long,Vertex]
+  def getVertices(graphPerspective: InternalGraphView, time:Long, window:Long = Long.MaxValue):TrieMap[Long,Vertex]
 
 
 
