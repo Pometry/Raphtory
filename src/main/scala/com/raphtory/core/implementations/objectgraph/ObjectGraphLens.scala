@@ -4,15 +4,19 @@ import com.raphtory.core.implementations.objectgraph.entities.external.ObjectVer
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
 import com.raphtory.core.model.algorithm.Row
 import com.raphtory.core.model.graph.visitor.Vertex
-import com.raphtory.core.model.graph.{GraphPartition, GraphPerspective, VertexMessage}
+import com.raphtory.core.model.graph.{GraphPartition, InternalGraphView, VertexMessage}
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
 
-final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends GraphPerspective(jobId, timestamp, window) {
+final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends InternalGraphView(jobId, timestamp, window) {
   private val voteCount = new AtomicInteger(0)
   private val vertexCount = new AtomicInteger(0)
   var t1 = System.currentTimeMillis()
+
+  private var fullGraphSize = 0
+  def getFullGraphSize = fullGraphSize
+  def setGraphSize(size:Int) = fullGraphSize = size
 
   private lazy val vertexMap: TrieMap[Long, Vertex] = {
     val result = window match {
@@ -25,33 +29,26 @@ final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[
     result
   }
 
+  def getSize()=vertexMap.size
+
   private var dataTable: List[Row] = List()
 
-  def executeSelect(f:Vertex=>Row) = {
+  def executeSelect(f:Vertex=>Row):Unit = {
     dataTable = vertexMap.collect {
       case (id, vertex) => f(vertex)
     }.toList
     dataTable
   }
 
-  def filteredTable(f:Row=>Boolean) = {
+  def filteredTable(f:Row=>Boolean):Unit =
     dataTable=dataTable.filter(f)
+
+  def explodeTable(f:Row=>List[Row]):Unit =
+    dataTable = dataTable.flatMap(f)
+
+  def getDataTable():List[Row] =
     dataTable
-  }
-  def getDataTable():List[Row] = dataTable
 
-  def getVertices(): List[Vertex] = {
-    vertexCount.set(vertexMap.size)
-    vertexMap.values.toList
-  }
-
-  def getMessagedVertices(): List[Vertex] = {
-    val result = vertexMap.collect {
-      case (id, vertex) if vertex.hasMessage() => vertex
-    }
-    vertexCount.set(result.size)
-    result.toList
-  }
 
   def runGraphFunction(f:Vertex=>Unit):Unit = {
     vertexMap.foreach{ case (id,vertex) =>f(vertex)}

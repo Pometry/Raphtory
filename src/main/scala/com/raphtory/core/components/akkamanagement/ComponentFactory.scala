@@ -44,12 +44,6 @@ object ComponentFactory {
     system.actorOf(Props(new SpoutConnector(spout)), "SpoutConnector")
   }
 
-  def analysis(seed: String, port: Int): ActorRef = {
-    println("Creating Analysis Manager")
-    val system: ActorSystem = initialiseActorSystem(seeds = List(seed), port)
-    system.actorOf(Props(new AnalysisManagerConnector()), "AnalysisManagerConnector")
-  }
-
   def query(seed: String, port: Int): ActorRef = {
     println("Creating Query Manager")
     val system: ActorSystem = initialiseActorSystem(seeds = List(seed), port)

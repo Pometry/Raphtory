@@ -6,7 +6,6 @@ import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
-import com.raphtory.core.components.querymanager.QueryHandler.Message.{ReaderWorkersAck, ReaderWorkersOnline}
 import com.raphtory.core.components.leader.WatchDog.Message.PartitionUp
 import com.raphtory.core.implementations.objectgraph.messaging._
 import com.raphtory.core.model.graph.GraphPartition
@@ -69,7 +68,6 @@ class PartitionManager(
   override def receive: Receive = {
     case msg: String if msg == "count"      => processCountMessage(msg)
     case msg: String if msg == "keep_alive" => processKeepAliveMessage(msg)
-    case ReaderWorkersOnline     => sender ! ReaderWorkersAck
 
     case Terminated(child) =>
       log.warning(s"Worker with path [{}] belonging to Manager [{}] has died.", child.path, managerId)

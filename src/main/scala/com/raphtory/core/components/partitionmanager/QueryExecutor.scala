@@ -4,12 +4,12 @@ import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.partitionmanager.QueryExecutor.State
-import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, ExecutorEstablished, GraphFunctionComplete, PerspectiveEstablished, TableBuilt, TableFunctionComplete}
-import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, KillTask}
+import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, ExecutorEstablished, GraphFunctionComplete, MetaDataSet, PerspectiveEstablished, SetMetaData, TableBuilt, TableFunctionComplete}
+import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, EndQuery}
 import com.raphtory.core.implementations
 import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
-import com.raphtory.core.model.algorithm.{Iterate, Select, Step, TableFilter, VertexFilter, WriteTo}
+import com.raphtory.core.model.algorithm.{Explode, Iterate, Select, Step, TableFilter, VertexFilter, WriteTo}
 import com.raphtory.core.model.graph.{GraphPartition, VertexMessage}
 import com.raphtory.core.model.graph.visitor.Vertex
 
@@ -33,12 +33,17 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       context.become(work(state.updateReceivedMessageCount(_ + 1)))
 
     case CreatePerspective(neighbours, timestamp, window) =>
+      val lens =  ObjectGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours))
       context.become(work(state.copy(
-        graphLens = ObjectGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours)),
+        graphLens = lens,
         sentMessageCount = 0,
         receivedMessageCount = 0)
       ))
-      sender ! PerspectiveEstablished
+      handlerRef ! PerspectiveEstablished(lens.getSize())
+
+    case SetMetaData(vertices) =>
+      state.graphLens.setGraphSize(vertices)
+      handlerRef ! MetaDataSet
 
     case Step(f) =>
       //log.info(s"Partition $partition have been asked to do a Step operation.")
@@ -57,23 +62,27 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       context.become(work(state.copy(votedToHalt = state.graphLens.checkVotes(),sentMessageCount = sentMessages)))
 
     case VertexFilter(f) =>
-      log.info(s"Partition $partition have been asked to do a Graph Filter operation. Not yet implemented")
+      //log.info(s"Partition $partition have been asked to do a Graph Filter operation. Not yet implemented")
       sender() ! GraphFunctionComplete(0,0)
 
     case Select(f) =>
-      log.info(s"Partition $partition have been asked to do a Select operation.")
+      //log.info(s"Partition $partition have been asked to do a Select operation.")
       state.graphLens.executeSelect(f)
       sender() ! TableBuilt
 
 
     case TableFilter(f) =>
-      log.info(s"Partition $partition have been asked to do a Table Filter operation.")
+      //log.info(s"Partition $partition have been asked to do a Table Filter operation.")
       state.graphLens.filteredTable(f)
       sender() ! TableFunctionComplete
 
+    case Explode(f) =>
+      //log.info(s"Partition $partition have been asked to do a Table Filter operation.")
+      state.graphLens.explodeTable(f)
+      sender() ! TableFunctionComplete
 
     case WriteTo(address) =>
-      log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
+      //log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
       val dir = new File(s"$address/$jobID")
       if(!dir.exists())
         dir.mkdirs()
@@ -95,7 +104,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
   }
 
   private def withDefaultMessageHandler(description: String)(handler: Receive): Receive = handler.orElse {
-    case req: KillTask =>
+    case req: EndQuery =>
       context.stop(self)
       log.info(s"Executor for Partition $partition Job $jobID has been terminated")
     case unhandled     => log.error(s"Not handled message in $description: " + unhandled)

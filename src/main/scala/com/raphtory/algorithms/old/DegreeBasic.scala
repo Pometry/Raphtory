@@ -1,7 +1,5 @@
 package com.raphtory.algorithms.old
 
-import com.raphtory.core.model.algorithm.Analyser
-
 object DegreeBasic {
   def apply() = new DegreeBasic(Array())
 }

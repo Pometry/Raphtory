@@ -7,7 +7,6 @@ import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import WatermarkManager.Message.{ProbeWatermark, WatermarkTime, WhatsTheTime}
 import com.raphtory.core.components.leader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
-import com.raphtory.core.components.querymanager.QueryHandler.Message.{TimeCheck, TimeResponse}
 
 import java.time.LocalDateTime
 import scala.collection.parallel.mutable.ParTrieMap

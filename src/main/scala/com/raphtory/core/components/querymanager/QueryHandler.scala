@@ -4,11 +4,9 @@ import akka.actor.{ActorRef, PoisonPill}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
-import com.raphtory.core.components.analysismanager.tasks.AnalysisTask.SubtaskState
-import com.raphtory.core.components.analysismanager.tasks.{SubTaskController, TaskTimeRange}
-import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, EstablishExecutor, ExecutorEstablished, GraphFunctionComplete, PerspectiveEstablished, RecheckTime, SetupNextStep, StartAnalysis, StartGraph, StartSubtask, TableBuilt, TableFunctionComplete, TimeCheck, TimeResponse}
+import com.raphtory.core.components.querymanager.QueryHandler.Message._
 import com.raphtory.core.components.querymanager.QueryHandler.State
-import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, JobFailed, JobKilled, KillTask, TaskFinished}
+import com.raphtory.core.components.querymanager.QueryManager.Message._
 import com.raphtory.core.implementations.objectgraph.algorithm.{ObjectGraphPerspective, ObjectTable}
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphFunction, Iterate, Select, Table, TableFunction}
 
@@ -45,30 +43,40 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
   }
 
   //build the perspective within the QueryExecutor for each partition -- the view to be analysed
-  private def establishPerspective(state:State,readyCount:Int): Receive = withDefaultMessageHandler("establish perspective") {
+  private def establishPerspective(state:State,readyCount:Int,vertexCount:Int): Receive = withDefaultMessageHandler("establish perspective") {
     case RecheckTime =>
       recheckTime(state.currentPerspective)
-    case PerspectiveEstablished =>
+    case p:PerspectiveEstablished =>
       if (readyCount + 1 == totalPartitions) {
-        self ! StartGraph
-        context.become(executeGraph(state, null, 0, 0, 0, true))
+        messagetoAllJobWorkers(SetMetaData(vertexCount+p.vertices))
+        context.become(establishPerspective(state, 0,vertexCount+p.vertices))
       }
       else
-        context.become(establishPerspective(state, readyCount + 1))
-    case JobFailed => killJob()
+        context.become(establishPerspective(state, readyCount + 1,vertexCount+p.vertices))
 
+    case MetaDataSet =>
+      if (readyCount + 1 == totalPartitions) {
+        self ! StartGraph
+        context.become(executeGraph(state, null, vertexCount, 0, 0, 0, true))
+      }
+      else
+        context.become(establishPerspective(state, readyCount + 1,vertexCount))
   }
 
   //execute the steps of the graph algorithm until a select is run
-  private def executeGraph(state: State, currentOpperation: GraphFunction, readyCount: Int, receivedMessageCount: Int, sentMessageCount: Int, allVoteToHalt: Boolean):Receive = withDefaultMessageHandler("Execute Graph") {
+  private def executeGraph(state: State, currentOpperation: GraphFunction, vertexCount:Int, readyCount: Int, receivedMessageCount: Int, sentMessageCount: Int, allVoteToHalt: Boolean):Receive = withDefaultMessageHandler("Execute Graph") {
     case StartGraph =>
-      val graphPerspective = new ObjectGraphPerspective()
+      val graphPerspective = new ObjectGraphPerspective(vertexCount)
       algorithm.algorithm(graphPerspective)
       val table = graphPerspective.getTable()
       graphPerspective.getNextOperation() match {
+        case Some(f:Select) =>
+          messagetoAllJobWorkers(f)
+          context.become(executeTable(state.copy(graphPerspective=graphPerspective,table=table), 0))
+
         case Some(f:GraphFunction) =>
           messagetoAllJobWorkers(f)
-          context.become(executeGraph(state.copy(graphPerspective=graphPerspective,table=table), f, 0, 0, 0, true))
+          context.become(executeGraph(state.copy(graphPerspective=graphPerspective,table=table), f, vertexCount,0, 0, 0, true))
         case None => killJob()
       }
 
@@ -80,22 +88,22 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
           currentOpperation match {
             case Iterate(f, iterations) =>
               if(iterations==1||allVoteToHalt)
-                nextGraphOperation(state)
+                nextGraphOperation(state,vertexCount)
               else  {
                 messagetoAllJobWorkers(Iterate(f, iterations-1))
-                context.become(executeGraph(state, Iterate(f, iterations-1), 0, 0, 0, true))
+                context.become(executeGraph(state, Iterate(f, iterations-1), vertexCount,0, 0, 0, true))
               }
             case _ =>
-              nextGraphOperation(state)
+              nextGraphOperation(state,vertexCount)
           }
         }
         else {
           messagetoAllJobWorkers(CheckMessages(jobID))
-          context.become(executeGraph(state, currentOpperation, 0, 0, 0, allVoteToHalt))
+          context.become(executeGraph(state, currentOpperation,vertexCount, 0, 0, 0, allVoteToHalt))
         }
       }
       else
-        context.become(executeGraph(state, currentOpperation, (readyCount+1), totalReceivedMessages, totalSentMessages, (votedToHalt&allVoteToHalt)))
+        context.become(executeGraph(state, currentOpperation, vertexCount, (readyCount+1), totalReceivedMessages, totalSentMessages, (votedToHalt&allVoteToHalt)))
   }
 
   //once the select has been run, execute all of the table functions until we hit a writeTo
@@ -123,11 +131,11 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
       case Some(perspective) if perspective.timestamp <= latestTime =>
         log.info(s"$perspective for Job $jobID is starting")
         messagetoAllJobWorkers(CreatePerspective(workerList, perspective.timestamp, perspective.window))
-        context.become(establishPerspective(State(perspectiveController, perspective, null,null),0))
+        context.become(establishPerspective(State(perspectiveController, perspective, null,null),0,0))
       case Some(perspective) =>
         log.info(s"$perspective for Job $jobID is not ready, currently at $latestTime. Rechecking")
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
-        context.become(establishPerspective(State(perspectiveController, perspective, null,null),0))
+        context.become(establishPerspective(State(perspectiveController, perspective, null,null),0,0))
       case None =>
         log.info(s"no more perspectives to run for $jobID")
         killJob()
@@ -144,7 +152,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
     }
   }
 
-  private def nextGraphOperation(state:State) = {
+  private def nextGraphOperation(state:State,vertexCount:Int) = {
     state.graphPerspective.getNextOperation() match {
       case Some(f:Select) =>
         messagetoAllJobWorkers(f)
@@ -152,7 +160,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
 
       case Some(f: GraphFunction) =>
         messagetoAllJobWorkers(f)
-        context.become(executeGraph(state, f, 0, 0, 0, true))
+        context.become(executeGraph(state, f,vertexCount, 0, 0, 0, true))
 
       case None =>
         executeNextPerspective(state.perspectiveController)
@@ -172,7 +180,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
   }
 
   private def withDefaultMessageHandler(description: String)(handler: Receive): Receive = handler.orElse {
-    case req: KillTask => killJob()
+    case req: EndQuery => killJob()
     case AreYouFinished => monitor = sender() // register to message out later
     case unhandled     => log.error(s"Not handled message in $description: " + unhandled)
   }
@@ -185,7 +193,7 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
     workerList.values.foreach(worker => worker ! msg)
 
   private def killJob() = {
-    messagetoAllJobWorkers(KillTask(jobID))
+    messagetoAllJobWorkers(EndQuery(jobID))
     log.info(s"$jobID has no more perspectives. Query Handler ending execution.")
     self ! PoisonPill
     if(monitor!=null)monitor ! TaskFinished(true)
@@ -200,34 +208,21 @@ object QueryHandler {
 
   object Message{
     case object StartAnalysis
-
-    case object ReaderWorkersOnline
-    case object ReaderWorkersAck
-
-    case class LoadAnalyser(jobId: String, className: String, args: List[String])
     case class EstablishExecutor(jobID:String)
     case class ExecutorEstablished(worker:Int, me:ActorRef)
 
-    case object TimeCheck
-    case class TimeResponse(time: Long)
-    case object RecheckTime
+    case class  CreatePerspective(neighbours: mutable.Map[Int,ActorRef], timestamp: Long, window: Option[Long])
+    case class  PerspectiveEstablished(vertices:Int)
+    case class  SetMetaData(vertices:Int)
+    case object MetaDataSet
 
     case object StartGraph
+    case class  GraphFunctionComplete(receivedMessages: Int, sentMessages: Int,votedToHalt:Boolean=false)
+
     case object TableBuilt
     case object TableFunctionComplete
 
-    case class  CreatePerspective(neighbours: mutable.Map[Int,ActorRef], timestamp: Long, window: Option[Long])
-    case object PerspectiveEstablished
-    case class  StartSubtask(jobId: String)
-    case class  Ready(messages: Int)
-    case class  SetupNextStep(jobId: String)
-    case object SetupNextStepDone
-    case class  StartNextStep(jobId: String)
+    case object RecheckTime
     case class  CheckMessages(jobId: String)
-    case class  GraphFunctionComplete(receivedMessages: Int, sentMessages: Int,votedToHalt:Boolean=false)
-    case class  EndStep(superStep: Int, sentMessageCount: Int, voteToHalt: Boolean)
-    case class  Finish(jobId: String)
-    case class  ReturnResults(results: Any)
-    case object StartNextSubtask
   }
 }

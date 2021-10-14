@@ -1,7 +1,6 @@
 package com.raphtory.dev.ethereum
 
 import com.raphtory.core.build.server.RaphtoryGraph
-import com.raphtory.serialisers.DefaultSerialiser
 import com.raphtory.dev.ethereum.spout.EthereumTransactionSpout
 import com.raphtory.dev.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.dev.ethereum.analysis.TaintAlgorithm
