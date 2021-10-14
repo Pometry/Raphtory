@@ -14,6 +14,10 @@ final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[
   private val vertexCount = new AtomicInteger(0)
   var t1 = System.currentTimeMillis()
 
+  private var fullGraphSize = 0
+  def getFullGraphSize = fullGraphSize
+  def setGraphSize(size:Int) = fullGraphSize = size
+
   private lazy val vertexMap: TrieMap[Long, Vertex] = {
     val result = window match {
       case None =>
@@ -25,33 +29,23 @@ final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[
     result
   }
 
+  def getSize()=vertexMap.size
+
   private var dataTable: List[Row] = List()
 
-  def executeSelect(f:Vertex=>Row) = {
+  def executeSelect(f:Vertex=>Row):Unit = {
     dataTable = vertexMap.collect {
       case (id, vertex) => f(vertex)
     }.toList
     dataTable
   }
 
-  def filteredTable(f:Row=>Boolean) = {
+  def filteredTable(f:Row=>Boolean):Unit =
     dataTable=dataTable.filter(f)
+
+  def getDataTable():List[Row] =
     dataTable
-  }
-  def getDataTable():List[Row] = dataTable
 
-  def getVertices(): List[Vertex] = {
-    vertexCount.set(vertexMap.size)
-    vertexMap.values.toList
-  }
-
-  def getMessagedVertices(): List[Vertex] = {
-    val result = vertexMap.collect {
-      case (id, vertex) if vertex.hasMessage() => vertex
-    }
-    vertexCount.set(result.size)
-    result.toList
-  }
 
   def runGraphFunction(f:Vertex=>Unit):Unit = {
     vertexMap.foreach{ case (id,vertex) =>f(vertex)}

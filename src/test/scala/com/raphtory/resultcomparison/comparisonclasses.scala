@@ -20,7 +20,6 @@ case class StateCheckResult(val time:Long, val windowsize:Long, viewTime:Long, v
   def compareTo(compare: StateCheckResult):Boolean = {
     val x = this.vertices == compare.vertices &&
       totalInEdges==compare.totalInEdges &&
-      //totalOutEdges==compare.totalOutEdges &&
       vdeletionstotal==compare.vdeletionstotal &&
       vcreationstotal==compare.vcreationstotal &&
       outedgedeletionstotal==compare.outedgedeletionstotal &&

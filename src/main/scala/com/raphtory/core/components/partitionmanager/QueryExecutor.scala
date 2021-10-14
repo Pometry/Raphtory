@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.partitionmanager.QueryExecutor.State
-import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, ExecutorEstablished, GraphFunctionComplete, PerspectiveEstablished, TableBuilt, TableFunctionComplete}
+import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, ExecutorEstablished, GraphFunctionComplete, MetaDataSet, PerspectiveEstablished, SetMetaData, TableBuilt, TableFunctionComplete}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, EndQuery}
 import com.raphtory.core.implementations
 import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
@@ -38,7 +38,11 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
         sentMessageCount = 0,
         receivedMessageCount = 0)
       ))
-      sender ! PerspectiveEstablished
+      sender ! PerspectiveEstablished(state.graphLens.getSize())
+
+    case SetMetaData(vertices) =>
+      state.graphLens.setGraphSize(vertices)
+      sender() ! MetaDataSet
 
     case Step(f) =>
       //log.info(s"Partition $partition have been asked to do a Step operation.")

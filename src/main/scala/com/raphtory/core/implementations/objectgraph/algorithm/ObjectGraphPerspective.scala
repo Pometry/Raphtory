@@ -34,4 +34,6 @@ class ObjectGraphPerspective  extends GraphPerspective{
 
   def getTable() = table
 
+  override def nodeCount(): Int = 1
+
 }
