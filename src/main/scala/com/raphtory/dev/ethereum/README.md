@@ -57,19 +57,28 @@ until the graph is complete.
 
 ### Parameters
 
-`startTime` - the unix time for when to start the algorithm
+`startTime (Long)` - the unix time for when to start the algorithm
 
-`infectedNodes` - a set of nodes to start from (their addresses as lowercase strings)
+`infectedNodes Set(String)` - a set of nodes to start from (their addresses as lowercase strings)
 
-`stopNodes` - a set of nodes where the infection stops (their addresses as lowercase strings)
+`stopNodes Set(String)` - a set of nodes where the infection stops (their addresses as lowercase strings)
 
 ### Result
 
-The results are in the following format, as a csv file. 
+The results are in the following format, as a csv file: 
 
-Time infection was run, address of node infected, status, List of transactions it was infected by. 
-The list will contain, the taint status, the transaction hash, time of infection, 
- and the node it was infected by. 
+`timeAlgorithmRun (Long)` - Time infection was run
+
+`infectedNode (String)` - address of node infected
+
+`infectedBy (String)` - node it was infected by
+
+`infectionTime (Long)` - time of infection
+
+`transaction (String)` - transaction hash of infection
+
+`value (Double)` - value of ETH during infection
+
 
 ### Use cases
 
