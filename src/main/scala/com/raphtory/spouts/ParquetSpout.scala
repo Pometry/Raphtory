@@ -1,18 +1,17 @@
-package com.raphtory.dev.ethereum.spout
+package com.raphtory.spouts
 
+import com.github.mjakubowski84.parquet4s.ParquetReader
 import com.raphtory.core.components.spout.Spout
+import com.raphtory.dev.ethereum.EthereumTransaction
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.filefilter.{DirectoryFileFilter, WildcardFileFilter}
-import org.apache.hadoop.conf.Configuration
-import com.github.mjakubowski84.parquet4s.ParquetReader
-import com.raphtory.dev.ethereum.EthereumTransaction
 
 import java.io.File
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
-
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
-class EthereumTransactionSpout extends Spout[EthereumTransaction] {
+class ParquetSpout[T] extends Spout[T] {
 
   val MAX_QUEUE_SIZE = 400000
   private val envDirectory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
@@ -26,11 +25,11 @@ class EthereumTransactionSpout extends Spout[EthereumTransaction] {
   var filePaths = files.map { file => file.getAbsolutePath }
   filePaths = filePaths.toArray.sorted
 
-  val dataQueue = mutable.Queue[EthereumTransaction]()
+  val dataQueue = mutable.Queue[T]()
   var prevQueueSize = 0
   override def setupDataSource(): Unit = {}
 
-  override def generateData(): Option[EthereumTransaction] = {
+  override def generateData(): Option[T] = {
     //    if ((fileQueue.size %  1000) == 0){
     //      println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
     //    }
@@ -42,7 +41,7 @@ class EthereumTransactionSpout extends Spout[EthereumTransaction] {
       //        println("Spout: Queue has "+fileQueue.size.toString+" items remaining")
       val nextFile = filePaths.take(1).head
       filePaths = filePaths.tail
-      val parquetIterable = ParquetReader.read[EthereumTransaction](nextFile)
+      val parquetIterable = ParquetReader.read[T](nextFile)
       parquetIterable.foreach { tx => dataQueue += tx }
     }
     Some(dataQueue.dequeue)

@@ -1,13 +1,13 @@
 package com.raphtory.dev.ethereum
 
 import com.raphtory.core.build.server.RaphtoryGraph
-import com.raphtory.dev.ethereum.spout.EthereumTransactionSpout
 import com.raphtory.dev.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.dev.ethereum.analysis.TaintAlgorithm
+import com.raphtory.spouts.ParquetSpout
 
 
 object Runner extends App {
-  val source = new EthereumTransactionSpout()
+  val source = new ParquetSpout[EthereumTransaction]()
   val builder = new EthereumGraphBuilder()
   val rg = new RaphtoryGraph[EthereumTransaction](source, builder)
   val startTime = 1574728983
