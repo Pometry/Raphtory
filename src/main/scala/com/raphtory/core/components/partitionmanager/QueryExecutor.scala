@@ -9,7 +9,7 @@ import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFin
 import com.raphtory.core.implementations
 import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
-import com.raphtory.core.model.algorithm.{Iterate, Select, Step, TableFilter, VertexFilter, WriteTo}
+import com.raphtory.core.model.algorithm.{Explode, Iterate, Select, Step, TableFilter, VertexFilter, WriteTo}
 import com.raphtory.core.model.graph.{GraphPartition, VertexMessage}
 import com.raphtory.core.model.graph.visitor.Vertex
 
@@ -33,16 +33,17 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       context.become(work(state.updateReceivedMessageCount(_ + 1)))
 
     case CreatePerspective(neighbours, timestamp, window) =>
+      val lens =  ObjectGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours))
       context.become(work(state.copy(
-        graphLens = ObjectGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours)),
+        graphLens = lens,
         sentMessageCount = 0,
         receivedMessageCount = 0)
       ))
-      sender ! PerspectiveEstablished(state.graphLens.getSize())
+      handlerRef ! PerspectiveEstablished(lens.getSize())
 
     case SetMetaData(vertices) =>
       state.graphLens.setGraphSize(vertices)
-      sender() ! MetaDataSet
+      handlerRef ! MetaDataSet
 
     case Step(f) =>
       //log.info(s"Partition $partition have been asked to do a Step operation.")
@@ -75,6 +76,10 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       state.graphLens.filteredTable(f)
       sender() ! TableFunctionComplete
 
+    case Explode(f) =>
+      //log.info(s"Partition $partition have been asked to do a Table Filter operation.")
+      state.graphLens.explodeTable(f)
+      sender() ! TableFunctionComplete
 
     case WriteTo(address) =>
       //log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
