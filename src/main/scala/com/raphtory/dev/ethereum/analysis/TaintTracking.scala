@@ -27,6 +27,7 @@ class TaintAlgorithm(startTime: Long, infectedNodes: Set[String], stopNodes: Set
                 event =>
                   if (event.event & event.time >= startTime) {
                     // if it was a sent transaction and the time is after the start, mark as an edge
+                    // TODO explain reasoning for full complete taint
                     edge.send(Tuple5("tainted",
                     edge.getPropertyValueAt("hash", event.time).getOrElse(""),
                     event.time,
@@ -41,8 +42,10 @@ class TaintAlgorithm(startTime: Long, infectedNodes: Set[String], stopNodes: Set
       .iterate({
         vertex =>
           // check if any node has received a message
+          // TODO DELETE HAS MESSAGE IF
           if (vertex.hasMessage()) {
             // obtain the messages as a set
+            // TODO confluence page, things to add to docs e.g. any messagequeue access clears the queue
             val newMessages = vertex.messageQueue[(String, String, Long, String,String)].map(item => item).distinct
             // obtain the min time it was infected
             val infectionTime = newMessages.map(item => item._3).min
@@ -101,6 +104,7 @@ class TaintAlgorithm(startTime: Long, infectedNodes: Set[String], stopNodes: Set
           }
       }, 100)
       // get all vertexes and their status
+      // TODO BEN ROW SELECT WRITE A MAP FUNCTION WHICH MAKES INDIVIDUAL ROWS
       .select(vertex => Row(
         vertex.getPropertyValue("address").get.toString,
         vertex.getStateOrElse("taintStatus", false),
