@@ -2,9 +2,9 @@ package com.raphtory.core.model.graph.visitor
 
 import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryEntity
 
-
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParTrieMap
+import scala.reflect.ClassTag
 
 abstract class EntityVisitor {
   def Type()
@@ -14,11 +14,11 @@ abstract class EntityVisitor {
   def earliestActivity():HistoricEvent
 
   def getPropertySet(): List[String]
-  def getPropertyValue(key: String): Option[Any]
-  def getPropertyValueAt(key: String, time: Long): Option[Any]
-  def getPropertyValues(key: String, after: Long=Long.MaxValue, before: Long=Long.MaxValue): Option[List[Any]]
+  def getPropertyValue[T: ClassTag](key: String): Option[T]
+  def getPropertyValueAt[T: ClassTag](key: String, time: Long): Option[T]
+  def getPropertyValues[T: ClassTag](key: String, after: Long=Long.MaxValue, before: Long=Long.MaxValue): Option[List[T]]
 
-  def getPropertyHistory(key: String): Option[List[(Long, Any)]]
+  def getPropertyHistory[T: ClassTag](key: String): Option[List[(Long, T)]]
 
   //functionality to access the history of the edge + helpers
   def history():List[HistoricEvent]
