@@ -1,6 +1,6 @@
 package com.raphtory.spouts
 
-import com.github.mjakubowski84.parquet4s.ParquetReader
+import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetRecordDecoder}
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.dev.ethereum.EthereumTransaction
 import org.apache.commons.io.FileUtils
@@ -9,9 +9,8 @@ import org.apache.commons.io.filefilter.{DirectoryFileFilter, WildcardFileFilter
 import java.io.File
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
-import scala.reflect.ClassTag
 
-class ParquetSpout[T] extends Spout[T] {
+class ParquetSpout[T](implicit pr: ParquetRecordDecoder[T]) extends Spout[T] {
 
   val MAX_QUEUE_SIZE = 400000
   private val envDirectory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
