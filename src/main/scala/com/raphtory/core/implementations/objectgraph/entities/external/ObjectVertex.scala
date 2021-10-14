@@ -4,7 +4,7 @@ import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
 import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryVertex
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMultiQueue
 import com.raphtory.core.model.graph.VertexMessage
-import com.raphtory.core.model.graph.visitor.{Edge, EntityVisitor, Vertex}
+import com.raphtory.core.model.graph.visitor.{Edge, EntityVisitor, ExplodedEdge, Vertex}
 
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.reflect.ClassTag
@@ -44,6 +44,24 @@ class ObjectVertex(private val v: RaphtoryVertex,
   //In edges individual
   def getInEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge]  = individualEdge(internalIncomingEdges,after,before,id)
 
+
+  override def explodeEdges(after: Long, before: Long): List[ExplodedEdge] = getEdges(after, before).flatMap(_.explode())
+
+  override def explodeOutEdges(after: Long, before: Long): List[ExplodedEdge] = getOutEdges(after,before).flatMap(_.explode())
+
+  override def explodeInEdges(after: Long, before: Long): List[ExplodedEdge] = getInEdges(after,before).flatMap(_.explode())
+
+  override def explodeOutEdge(id: Long, after: Long, before: Long): Option[List[ExplodedEdge]] =
+    getOutEdge(id,after,before) match {
+      case Some(e) => Some(e.explode())
+      case None => None
+    }
+
+  override def explodeInEdge(id: Long, after: Long, before: Long): Option[List[ExplodedEdge]] =
+    getInEdge(id,after,before) match {
+      case Some(e) => Some(e.explode())
+      case None => None
+    }
 
   private def allEdge(edges:ParTrieMap[Long, Edge],after:Long,before:Long) = {
     if(after==0&&before==Long.MaxValue)
@@ -115,4 +133,6 @@ class ObjectVertex(private val v: RaphtoryVertex,
   def receiveMessage(msg: VertexMessage): Unit = {
     multiQueue.receiveMessage(lens.superStep, msg.data)
   }
+
+
 }

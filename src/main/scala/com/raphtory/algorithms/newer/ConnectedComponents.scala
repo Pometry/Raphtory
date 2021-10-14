@@ -4,7 +4,6 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
 class ConnectedComponents(path:String) extends GraphAlgorithm{
   override def algorithm(graph: GraphPerspective): Unit = {
-    val nodeCount = graph.nodeCount()
     graph
       .step({
         vertex =>
@@ -22,8 +21,8 @@ class ConnectedComponents(path:String) extends GraphAlgorithm{
             vertex.voteToHalt()
       }, 100)
       .select(vertex => Row(vertex.ID(),vertex.getState[Long]("cclabel")))
-      //.filter(r=> r.get(0).asInstanceOf[Long]==18174)
       .writeTo(path)
+
   }
 }
 object ConnectedComponents{
