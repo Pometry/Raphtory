@@ -125,7 +125,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
 
   def weightFunction(v: Vertex, ts: Long): Map[Long, Float] =
     (v.getInEdges(after=ts - snapshotSize,before=ts) ++ v.getOutEdges(after=ts - snapshotSize, before=ts))
-      .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float]))
+      .map(e => (e.ID(), e.getProperty(weight).getOrElse(1.0F).asInstanceOf[Float]))
       .groupBy(_._1)
       .mapValues(x => x.map(_._2).sum / x.size) // (ID -> Freq)
 
@@ -135,7 +135,7 @@ class MultilayerLPA(args: Array[String]) extends LPA(args) {
       .map(vertex =>
         (
           vertex.getState[List[(Long, Long)]]("mlpalabel"),
-          vertex.getPropertyValue("Word").getOrElse(vertex.ID()).toString
+          vertex.getProperty("Word").getOrElse(vertex.ID()).toString
         )
       )
       .flatMap{f =>

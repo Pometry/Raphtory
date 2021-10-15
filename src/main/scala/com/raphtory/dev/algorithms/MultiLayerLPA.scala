@@ -130,7 +130,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
   def weightFunction(v: Vertex, ts: Long): Map[Long, Float] = {
     var nei_weights =
       (v.getInEdges(after =ts - snapshotSize, before = ts) ++ v.getOutEdges(after = ts - snapshotSize, before = ts)).map(e =>
-        (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float])
+        (e.ID(), e.getProperty(weight).getOrElse(1.0F).asInstanceOf[Float])
       )
     if (scaled) {
       val scale = scaling(nei_weights.map(_._2).toArray)
@@ -155,7 +155,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
       .map(vertex =>
         (
           vertex.getState[Array[(Long, Long)]]("mlpalabel"),
-          vertex.getPropertyValue("Word").getOrElse(vertex.ID()).toString
+          vertex.getProperty("Word").getOrElse(vertex.ID()).toString
         )
       )
       .flatMap(f => f._1.map(x => (x._2, f._2 + "_" + x._1.toString)))

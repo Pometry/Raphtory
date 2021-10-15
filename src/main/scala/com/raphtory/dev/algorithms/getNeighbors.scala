@@ -18,7 +18,7 @@ class getNeighbors(args: Array[String]) extends Analyser[Any](args) {
 
   override def setup(): Unit = {
     view.getVertices()
-      .filter(v =>v.getPropertyValue(name).getOrElse(v.ID()).toString==node)
+      .filter(v =>v.getProperty(name).getOrElse(v.ID()).toString==node)
     .foreach {
     vertex =>
       vertex.messageAllNeighbours(true)
@@ -38,7 +38,7 @@ class getNeighbors(args: Array[String]) extends Analyser[Any](args) {
       .getVertices()
       .filter(v => v.getOrSetState[Boolean]("neighbor", false)).toList
     if (nodes.isEmpty)  List() else
-      nodes.map{v=> v.getPropertyValue(name).getOrElse(v.ID()).toString}
+      nodes.map{v=> v.getProperty(name).getOrElse(v.ID()).toString}
   }
   override def defineMaxSteps(): Int = 10
 

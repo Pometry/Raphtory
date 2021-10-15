@@ -49,7 +49,7 @@ class CBOD(args: Array[String]) extends Analyser[Any](args) {
         val neigh_freq = if (weight.isEmpty)
           (vneigh.map(_.ID()).toSet zip Array.fill(vneigh.toSet.size)(1L)).toMap
         else vneigh
-          .map(e => (e.ID(), e.getPropertyValue(weight).getOrElse(1L).asInstanceOf[Long]))
+          .map(e => (e.ID(), e.getProperty(weight).getOrElse(1L).asInstanceOf[Long]))
           .groupBy(_._1)
           .mapValues(x => x.map(_._2).sum / x.size)
 
@@ -96,7 +96,7 @@ class CBOD(args: Array[String]) extends Analyser[Any](args) {
     view
       .getVertices()
       .filter(v => v.Type() == nodeType)
-      .map(vertex => (vertex.getPropertyValue("ID").getOrElse("Unknown"), vertex.getOrSetState[Double]("outlierscore", -1.0)))
+      .map(vertex => (vertex.getProperty("ID").getOrElse("Unknown"), vertex.getOrSetState[Double]("outlierscore", -1.0)))
 
   override def extractResults(results: List[Any]): Map[String,Any] = {
     val endResults = results.asInstanceOf[ArrayBuffer[immutable.ParHashMap[String, Double]]].flatten

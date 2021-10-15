@@ -10,7 +10,7 @@ class lotrExample(args:Array[String]) extends Analyser[List[(Int,Int)]](args) {
   override def setup(): Unit = {
     var sep_state = 0
     view.getVertices().foreach{vertex =>
-      val name = vertex.getPropertyValue("name").getOrElse("")
+      val name = vertex.getProperty("name").getOrElse("")
       if (name == "Gandalf"){
         sep_state = SEP
         vertex.messageAllNeighbours(sep_state - 1)

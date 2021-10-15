@@ -19,13 +19,21 @@ abstract class ObjectEntity(entity: RaphtoryEntity, view: ObjectGraphLens) exten
       entity.properties.filter(p => p._2.creation() <= view.timestamp).map(f => (f._1)).toList
   }
 
-  def getPropertyValue[T: ClassTag](key: String): Option[T] =
+  def getProperty[T: ClassTag](key: String): Option[T] =
     entity.properties.get(key) match {
       case Some(p) => Some(p.valueAt(view.timestamp).asInstanceOf[T])
       case None    => None
     }
 
-  def getPropertyValueAt[T: ClassTag](key: String, time: Long): Option[T] =
+  def getPropertyOrElse[T: ClassTag](key: String,otherwise:T): T = {
+    entity.properties.get(key) match {
+      case Some(p) => (p.valueAt(view.timestamp).asInstanceOf[T])
+      case None    => otherwise
+    }
+  }
+
+
+  def getPropertyAt[T: ClassTag](key: String, time: Long): Option[T] =
     entity.properties.get(key) match {
       case Some(p) => Some(p.valueAt(time).asInstanceOf[T])
       case None    => None

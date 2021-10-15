@@ -55,7 +55,7 @@ class devLPA(args: Array[String]) extends Analyser[Any](args) {
     val commlab = if (commurl.isEmpty) Map[String, Long]() else dllCommFile(commurl)
     view.getVertices().foreach { vertex =>
       val lab = if (rnd.nextFloat() < commprob)
-        commlab.getOrElse(vertex.getPropertyValue("Word").getOrElse("").asInstanceOf[String], rnd.nextLong())
+        commlab.getOrElse(vertex.getProperty("Word").getOrElse("").asInstanceOf[String], rnd.nextLong())
       else rnd.nextLong()
       vertex.setState("lpalabel", lab)
       vertex.messageAllNeighbours((vertex.ID(),lab))
@@ -69,7 +69,7 @@ class devLPA(args: Array[String]) extends Analyser[Any](args) {
 
         // Get neighbourhood Frequencies -- relevant to weighted LPA
         val vneigh = vertex.getOutEdges() ++ vertex.getInEdges()
-        val neigh_freq = vneigh.map { e => (e.ID(), e.getPropertyValue(weight).getOrElse(1.0F).asInstanceOf[Float]) }
+        val neigh_freq = vneigh.map { e => (e.ID(), e.getProperty(weight).getOrElse(1.0F).asInstanceOf[Float]) }
           .groupBy(_._1)
           .mapValues(x => x.map(_._2).sum)
 
@@ -102,7 +102,7 @@ class devLPA(args: Array[String]) extends Analyser[Any](args) {
     view.getVertices()
       //.filter(v => v.Type() == nodeType)
       .map(vertex => (vertex.getState[Long]("lpalabel"),
-        vertex.getPropertyValue("Word").getOrElse(vertex.ID()).toString
+        vertex.getProperty("Word").getOrElse(vertex.ID()).toString
       ))
 //      .groupBy(f => f._1)
 //      .map(f => (f._1, f._2.map(_._2)))

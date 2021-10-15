@@ -29,7 +29,7 @@ class getWordHash(args: Array[String]) extends Analyser[Any](args) {
     view
       .getVertices()
       .filter(v => wds.keys.toArray.contains(v.ID())).toList
-      .map{v=> (v.ID(), v.getPropertyValue("Word").getOrElse(v.ID()).toString, wds.getOrElse(v.ID(), "Unknown"))}
+      .map{v=> (v.ID(), v.getProperty("Word").getOrElse(v.ID()).toString, wds.getOrElse(v.ID(), "Unknown"))}
   }
 
   override def defineMaxSteps(): Int = 10

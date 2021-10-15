@@ -15,14 +15,14 @@ class GabMostUsedTopics(args:Array[String]) extends Analyser[Any](args){
     //println("Analyzing")
     var results = ArrayBuffer[(String, Int, String)]()
     view.getVertices().foreach { vertex =>
-      if (vertex.getPropertyValue("type").getOrElse("no type").equals("topic")) {
+      if (vertex.getProperty("type").getOrElse("no type").equals("topic")) {
         val ingoingNeighbors = vertex.getInEdges().size
         results.synchronized {
-          vertex.getPropertyValue("id") match {
+          vertex.getProperty("id") match {
             case None =>
             case Some(id) =>
               results +:= (id.toString, ingoingNeighbors, vertex
-                .getPropertyValue("title")
+                .getProperty("title")
                 .getOrElse("no title")
                 .toString)
           }

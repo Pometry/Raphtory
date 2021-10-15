@@ -20,7 +20,7 @@ class twoHopNeighbors(args: Array[String]) extends Analyser[List[(String, mutabl
 
   override def setup(): Unit =
     view.getVertices()
-      .filter(v => v.getPropertyValue(name).getOrElse(v.ID()).toString == node)
+      .filter(v => v.getProperty(name).getOrElse(v.ID()).toString == node)
       .foreach { vertex =>
         vertex.setState("state", mutable.Map((2, List())))
         messageSelect(vertex, 2)
@@ -43,7 +43,7 @@ class twoHopNeighbors(args: Array[String]) extends Analyser[List[(String, mutabl
       .getVertices()
       .map(vertex =>
         (
-                vertex.getPropertyValue(name).getOrElse(vertex.ID()).toString,
+                vertex.getProperty(name).getOrElse(vertex.ID()).toString,
                 vertex.getOrSetState[mutable.Map[Int, List[String]]]("state", mutable.Map[Int, List[String]]())
         )
       )
@@ -62,9 +62,9 @@ class twoHopNeighbors(args: Array[String]) extends Analyser[List[(String, mutabl
   def getHop(A:Map[String,Map[Int, List[String]]], h: Int): Map[String,Map[Int, List[String]]] =
     A.filter(ch => ch._2.keys.toArray.contains(h))
   def messageSelect(vertex: Vertex, pos: Int): Unit = {
-    val wd = vertex.getPropertyValue(name).getOrElse(vertex.ID()).toString
+    val wd = vertex.getProperty(name).getOrElse(vertex.ID()).toString
     var nei = vertex.getEdges()
-      .map(e => e.ID() -> e.getPropertyValue(property).getOrElse(1.0f).asInstanceOf[Float])
+      .map(e => e.ID() -> e.getProperty(property).getOrElse(1.0f).asInstanceOf[Float])
       .groupBy(_._1)
       .mapValues(_.map(_._2).max)
       .toArray

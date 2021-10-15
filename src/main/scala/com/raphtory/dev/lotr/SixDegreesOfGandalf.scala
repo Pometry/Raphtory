@@ -26,7 +26,7 @@ class SixDegreesOfGandalf(args: Array[String]) extends Analyser[List[(Int,Int)]]
   override def setup(): Unit = {
     var sep_state = 0
     view.getVertices().foreach{vertex =>
-      val name = vertex.getPropertyValue("name").getOrElse("")
+      val name = vertex.getProperty("name").getOrElse("")
       if (name == "Gandalf"){
         sep_state = SEP //user-defined parameter to determine degree of separation
         vertex.messageAllNeighbours(sep_state)

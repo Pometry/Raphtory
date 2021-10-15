@@ -14,8 +14,9 @@ abstract class EntityVisitor {
   def earliestActivity():HistoricEvent
 
   def getPropertySet(): List[String]
-  def getPropertyValue[T: ClassTag](key: String): Option[T]
-  def getPropertyValueAt[T: ClassTag](key: String, time: Long): Option[T]
+  def getProperty[T: ClassTag](key: String): Option[T]
+  def getPropertyOrElse[T: ClassTag](key: String,otherwise:T): T
+  def getPropertyAt[T: ClassTag](key: String, time: Long): Option[T]
   def getPropertyValues[T: ClassTag](key: String, after: Long=Long.MaxValue, before: Long=Long.MaxValue): Option[List[T]]
 
   def getPropertyHistory[T: ClassTag](key: String): Option[List[(Long, T)]]

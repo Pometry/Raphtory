@@ -20,7 +20,7 @@ class ObjectExplodedEdge(objectEdge: ObjectEdge,timestamp:Long) extends Exploded
     objectEdge.getPropertySet()
 
   override def getPropertyValue(key: String): Option[Any] =
-    objectEdge.getPropertyValueAt(key,timestamp)
+    objectEdge.getPropertyAt(key,timestamp)
 
   override def send(data: Any): Unit =
     objectEdge.send(data)
