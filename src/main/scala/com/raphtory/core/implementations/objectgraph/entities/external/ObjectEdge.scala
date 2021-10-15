@@ -3,7 +3,7 @@ package com.raphtory.core.implementations.objectgraph.entities.external
 import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
 import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryEdge
 import com.raphtory.core.model.graph.VertexMessage
-import com.raphtory.core.model.graph.visitor.Edge
+import com.raphtory.core.model.graph.visitor.{Edge, ExplodedEdge}
 
 class ObjectEdge(edge: RaphtoryEdge, id: Long, view: ObjectGraphLens) extends ObjectEntity(edge,view) with Edge {
   def ID() = id
@@ -15,5 +15,7 @@ class ObjectEdge(edge: RaphtoryEdge, id: Long, view: ObjectGraphLens) extends Ob
   def send(data: Any): Unit =
     view.sendMessage(VertexMessage(id, data))
 
-
+  override def explode(): List[ExplodedEdge] = history().map( event => {
+    new ObjectExplodedEdge(this,event.time)
+  })
 }

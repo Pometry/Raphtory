@@ -33,10 +33,22 @@ trait Vertex extends EntityVisitor {
   //individual in edge
   def getInEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge]
 
+  //all edges
+  def explodeEdges(after:Long=0L,before:Long=Long.MaxValue): List[ExplodedEdge]
+  //all out edges
+  def explodeOutEdges(after:Long=0L,before:Long=Long.MaxValue): List[ExplodedEdge]
+  //all in edges
+  def explodeInEdges(after:Long=0L,before:Long=Long.MaxValue): List[ExplodedEdge]
+  //individual out edge
+  def explodeOutEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[List[ExplodedEdge]]
+  //individual in edge
+  def explodeInEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[List[ExplodedEdge]]
+
 
   // analytical state
   def setState(key: String, value: Any): Unit
   def getState[T: ClassTag](key: String):T
+  def getStateOrElse[T: ClassTag](key: String,value:T):T
   def containsState(key: String): Boolean
   def getOrSetState[T: ClassTag](key: String, value: T): T
   def appendToState[T: ClassTag](key: String, value: Any):Unit

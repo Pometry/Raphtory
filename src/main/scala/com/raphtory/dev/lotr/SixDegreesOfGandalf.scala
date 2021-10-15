@@ -1,6 +1,6 @@
 package com.raphtory.dev.lotr
 
-import com.raphtory.core.model.algorithm.Analyser
+import com.raphtory.algorithms.old.Analyser
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable

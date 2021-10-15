@@ -1,14 +1,12 @@
 package com.raphtory.dev.gab
 
-import com.raphtory.algorithms.{ConnectedComponents, DegreeBasic, TriangleCount}
+import com.raphtory.algorithms.newer.ConnectedComponents
 import com.raphtory.core.build.server.RaphtoryPD
 import com.raphtory.dev.gab.graphbuilders.GabUserGraphBuilder
-import com.raphtory.dev.lotr.TestAlgorithm
-import com.raphtory.serialisers.{DefaultSerialiser, MongoSerialiser}
 import com.raphtory.spouts.FileSpout
 
 object GabDeployment extends App{
-  val source  = new FileSpout()
+  val source  = new FileSpout(directory = "src/main/scala/com/raphtory/dev/gab",fileName = "gabNetwork500.csv")
   val builder = new GabUserGraphBuilder()
   val rg = RaphtoryPD[String](source,builder)
   val arguments = Array[String]()

@@ -6,7 +6,6 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.util.Timeout
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.partitionmanager.{PartitionManager, Writer}
-import com.raphtory.core.components.analysismanager.AnalysisRestApi.message.{LiveAnalysisRequest, RangeAnalysisRequest, ViewAnalysisRequest}
 import com.raphtory.core.components.leader.WatchDog.Message.AssignedId
 import com.raphtory.core.model.graph.GraphPartition
 
