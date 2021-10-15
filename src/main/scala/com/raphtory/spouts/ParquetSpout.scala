@@ -2,7 +2,6 @@ package com.raphtory.spouts
 
 import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetRecordDecoder}
 import com.raphtory.core.components.spout.Spout
-import com.raphtory.dev.ethereum.EthereumTransaction
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.filefilter.{DirectoryFileFilter, WildcardFileFilter}
 
