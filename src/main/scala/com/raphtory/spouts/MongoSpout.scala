@@ -1,4 +1,5 @@
-package com.raphtory.examples.gab.datasources
+package com.raphtory.spouts
+
 
 import akka.actor.Cancellable
 import ch.qos.logback.classic.Level
@@ -9,21 +10,15 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 import scala.language.postfixOps
 
-final class GabMongoSpout extends Spout[String] {
+class MongoSpout(IP:String, port:Int, database:String, collection:String ) extends Spout[String] {
 
-  //private val redis    = new RedisClient("moe", 6379)
-  //private val redisKey = "gab-posts"
   private var sched: Cancellable = null
 
-  //val options: MongoClientOptions = MongoClientOptions.builder.addCommandListener(new LoggingClusterListener).build()
-  //ddClusterListener(new LoggingClusterListener).build
-  private val mongoConn = MongoConnection("138.37.32.67", 27017)
-  private val mongoColl = mongoConn("gab")("posts")
+  private val mongoConn = MongoConnection(IP, port)
+  private val mongoColl = mongoConn(database)(collection)
   private var window    = 1000
   private var postMin   = 0
   private var postMax   = 1001
-
-
 
   val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[ch.qos.logback.classic.Logger]
   root.setLevel(Level.ERROR)
@@ -36,7 +31,6 @@ final class GabMongoSpout extends Spout[String] {
     queue.dequeue()
 
   }
-
 
   private def getNextPosts() = {
 
@@ -53,9 +47,5 @@ final class GabMongoSpout extends Spout[String] {
   }
 
   override def setupDataSource(): Unit = {}
-
-
-
   override def closeDataSource(): Unit = {}
 }
-//redis-server --dir /home/moe/ben/gab --dbfilename gab.rdb --daemonize yes

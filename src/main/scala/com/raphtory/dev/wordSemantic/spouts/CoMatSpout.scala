@@ -6,10 +6,7 @@ import java.util.zip.GZIPInputStream
 import com.raphtory.core.components.spout.Spout
 import com.typesafe.scalalogging.LazyLogging
 
-class CoMatSpout extends Spout[String] {
-   val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
-   val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim 
-   val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
+class CoMatSpout(directory:String,fileName:String="",dropHeader:Boolean=false) extends Spout[String] {
 
    var fileManager = FileManager(directory, fileName, dropHeader)
 
@@ -85,7 +82,7 @@ case class FileManager  ( currentFileReader: Option[BufferedReader],
 }
 
 object FileManager extends LazyLogging {
-   val joiner     = System.getenv().getOrDefault("FILE_SPOUT_JOINER", "/").trim //gabNetwork500.csv
+   val joiner = "/"
   def apply(dir: String, fileName: String, dropHeader: Boolean): FileManager = {
     val filesToRead =
       if (fileName.isEmpty)

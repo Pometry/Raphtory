@@ -6,9 +6,7 @@ import com.raphtory.core.model.graph.{FloatProperty, Properties, StringProperty}
 
 import scala.collection.mutable
 
-class CoMatGBFiltered extends GraphBuilder[String] {
-
-  val THR: Double = System.getenv().getOrDefault("COOC_FREQ_THRESHOLD ", "0.1").trim.toDouble
+class CoMatGBFiltered(THR:Double) extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String) = {
     //println(record)

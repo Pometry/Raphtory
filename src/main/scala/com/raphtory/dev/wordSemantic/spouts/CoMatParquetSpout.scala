@@ -8,10 +8,8 @@ import com.github.mjakubowski84.parquet4s.ParquetReader
 
 case class Update(_1: Long, _2: String, _3:String, _4:Long)
 
-class CoMatParquetSpout() extends Spout[Update] {
-  private val directory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
-  private val fileName = System.getenv().getOrDefault("FILE_SPOUT_FILENAME", "").trim
-  private val dropHeader = System.getenv().getOrDefault("FILE_SPOUT_DROP_HEADER", "false").trim.toBoolean
+//TODO see if works with Default Parquet Reader
+class CoMatParquetSpout(directory:String,fileName:String="",dropHeader:Boolean=false) extends Spout[Update] {
 
   private var fileManager = ParquetManager(directory, fileName, dropHeader)
 
@@ -75,7 +73,7 @@ final case class ParquetManager private (
 }
 
 object ParquetManager extends LazyLogging {
-  private val joiner     = System.getenv().getOrDefault("FILE_SPOUT_JOINER", "/").trim //gabNetwork500.csv
+  private val joiner = "/"
   def apply(dir: String, fileName: String, dropHeader: Boolean): ParquetManager = {
     val filesToRead =
       if (fileName.isEmpty)

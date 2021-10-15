@@ -38,8 +38,8 @@
 //  val top: Int         = if (args.length == 0) 0 else args.head.toInt
 //  val weight: String = if (args.length < 2) "weight" else args(1)
 //
-//  val output_file: String = System.getenv().getOrDefault("MC2_OUTPUT_PATH", "").trim
-//  val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
+//  val output_file: String = ""
+//  val nodeType: String    = ""
 //
 //  override def setup(): Unit = {}
 //

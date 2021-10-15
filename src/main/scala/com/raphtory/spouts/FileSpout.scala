@@ -7,7 +7,6 @@ import com.raphtory.core.components.spout.Spout
 import com.typesafe.scalalogging.LazyLogging
 
 class FileSpout(directory:String,fileName:String="",dropHeader:Boolean=false) extends Spout[String] {
-
   private var fileManager = FileManager(directory, fileName, dropHeader)
 
   override def generateData(): Option[String] = {
@@ -81,7 +80,7 @@ final case class FileManager private (
 }
 
 object FileManager extends LazyLogging {
-  private val joiner     = System.getenv().getOrDefault("FILE_SPOUT_JOINER", "/").trim //gabNetwork500.csv
+  private val joiner =  "/"
   def apply(dir: String, fileName: String, dropHeader: Boolean): FileManager = {
     val filesToRead =
       if (fileName.isEmpty)

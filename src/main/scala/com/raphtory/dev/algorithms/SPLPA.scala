@@ -22,8 +22,8 @@
 //  val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
 //  val b: Float = if (arg.length < 4) 0.999F else arg(2).toFloat
 //  val STOP = 3
-//  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
-//  val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
+//  val output_file: String = ""
+//  val nodeType: String    = ""
 //
 //  override def setup(): Unit = {
 //    view.getVertices().foreach { vertex =>

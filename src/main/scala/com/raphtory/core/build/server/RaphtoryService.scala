@@ -21,8 +21,7 @@ object RaphtoryService extends App {
   val clusterSystemName = "Raphtory"
   val ssn: String = java.util.UUID.randomUUID.toString
 
-
-  val docker = System.getenv().getOrDefault("DOCKER", "false").trim.toBoolean
+  val docker =  false
 
   args(0) match {
     case "leader" => leader()

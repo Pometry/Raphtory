@@ -46,9 +46,8 @@ class devLPA(args: Array[String]) extends Analyser[Any](args) {
   val commprob: Float = if  (arg.length < 6) 1.0F else arg(5).toFloat
   val rnd    = new scala.util.Random
 
-//  val output_file: String = System.getenv().getOrDefault("LPA_OUTPUT_PATH", "").trim
-  val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
-  val debug             = System.getenv().getOrDefault("DEBUG2", "false").trim.toBoolean //for printing debug messages
+  val nodeType: String    = ""
+  val debug             = false
   val SP = 0.2F // Stickiness probability
 
   override def setup(): Unit = {

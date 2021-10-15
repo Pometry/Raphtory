@@ -14,7 +14,7 @@ class getWordHash(args: Array[String]) extends Analyser[Any](args) {
   println(wl.length)
   val wds= (if (args.length < 1) wl else dllCommFile(args.head))
   .map(_.split(",")).map(x=> (x.last.trim.toLong, x(2))).toMap
-  val output_file: String  = System.getenv().getOrDefault("OUTPUT_PATH", "").trim
+  val output_file: String  = ""
 
   def dllCommFile(url: String): Array[String] = {
     val html = if (url.startsWith("http")) Source.fromURL(url) else Source.fromFile(url)

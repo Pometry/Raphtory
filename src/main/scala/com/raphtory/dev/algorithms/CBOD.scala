@@ -18,12 +18,12 @@ class CBOD(args: Array[String]) extends Analyser[Any](args) {
   val top: Int         = if (arg.length == 0) 0 else arg.head.toInt
   val weight: String       = if (arg.length < 2) "" else arg(1)
   val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
-  private val debug             = System.getenv().getOrDefault("DEBUG2", "false").trim.toBoolean //for printing debug messages
+  private val debug             = false //for printing debug messages
 
   val cutoff: Double = if (args.length < 4) 0.0 else args(3).toDouble
   val filter: Array[Long] = if (args.length < 5) Array() else args(4).split("-").map(_.toLong)
-  val output_file: String = System.getenv().getOrDefault("CBOD_OUTPUT_PATH", "").trim
-  val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
+  val output_file: String = ""
+  val nodeType: String    = ""
   var b0 = System.currentTimeMillis()
   override def setup(): Unit =
     view.getVertices().foreach { vertex =>

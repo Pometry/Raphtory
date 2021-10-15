@@ -6,7 +6,7 @@ class DegreeRanking(args:Array[String]) extends Analyser[Any](args){
   object sortOrdering extends Ordering[Int] {
     def compare(key1: Int, key2: Int) = key2.compareTo(key1)
   }
-  var output_file: String = System.getenv().getOrDefault("DR_OUTPUT_PATH", "").trim
+  var output_file: String = ""
   val weighted = false
 
   override def analyse(): Unit = {}

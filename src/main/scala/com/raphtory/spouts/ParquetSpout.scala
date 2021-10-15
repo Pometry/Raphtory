@@ -9,14 +9,13 @@ import java.io.File
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 
-class ParquetSpout[T](implicit pr: ParquetRecordDecoder[T]) extends Spout[T] {
+class ParquetSpout[T](directory:String)(implicit pr: ParquetRecordDecoder[T]) extends Spout[T] {
 
   val MAX_QUEUE_SIZE = 400000
-  private val envDirectory = System.getenv().getOrDefault("FILE_SPOUT_DIRECTORY", "/app").trim
-  private val directory = new File(envDirectory)
+  private val dir = new File(directory)
   val fileFilter = new WildcardFileFilter("*.parquet")
   val files = FileUtils listFiles(
-    directory,
+    dir,
     fileFilter,
     DirectoryFileFilter.DIRECTORY
   )

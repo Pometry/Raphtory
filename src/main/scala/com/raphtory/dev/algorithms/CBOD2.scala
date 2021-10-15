@@ -18,11 +18,10 @@
 //  val top: Int         = if (arg.length == 0) 0 else arg.head.toInt
 //  val weight: String       = if (arg.length < 2) "" else arg(1)
 //  val maxIter: Int       = if (arg.length < 3) 500 else arg(2).toInt
-//  private val debug             = System.getenv().getOrDefault("DEBUG2", "false").trim.toBoolean //for printing debug messages
 //
 //  val cutoff: Float = if (args.length < 4) 0.0F else args(3).toFloat
-//  val output_file: String = System.getenv().getOrDefault("CBOD_OUTPUT_PATH", "").trim
-//  val nodeType: String    = System.getenv().getOrDefault("NODE_TYPE", "").trim
+//  val output_file: String = ""
+//  val nodeType: String    = ""
 //  var b0 = System.currentTimeMillis()
 //  val SP = 0.2 // Stickiness probability
 //  val rnd    = new scala.util.Random//(111)

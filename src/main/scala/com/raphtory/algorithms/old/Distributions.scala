@@ -36,8 +36,8 @@ class Distributions(args:Array[String]) extends Analyser[Any](args){
   override def defineMaxSteps(): Int = 1
 
   override def extractResults(results: List[Any]): Map[String,Any]  = {
-    var output_folder = System.getenv().getOrDefault("OUTPUT_FOLDER", "/app").trim
-    var output_file = output_folder + "/" + System.getenv().getOrDefault("OUTPUT_FILE","Distributions.json").trim
+    var output_folder = "/app"
+    var output_file = output_folder + "/" + "Distributions.json"
     val er = extractData(results)
     val startTime   = System.currentTimeMillis()
 

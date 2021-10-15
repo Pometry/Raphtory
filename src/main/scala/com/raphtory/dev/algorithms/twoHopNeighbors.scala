@@ -16,7 +16,7 @@ class twoHopNeighbors(args: Array[String]) extends Analyser[Any](args) {
   val neiSize: Int       = if (args.length < 2) 100 else args(1).toInt
   val property: String       = if (args.length < 3) "Frequency" else args(2)
   val words: Array[String] = if (nodesf.isEmpty) Array[String]() else dllCommFile(nodesf)
-  val output_file: String  = System.getenv().getOrDefault("OUTPUT_PATH", "").trim
+  val output_file: String  = ""
 
   def dllCommFile(url: String): Array[String] = {
     val html = if (url.startsWith("http")) Source.fromURL(url) else Source.fromFile(url)

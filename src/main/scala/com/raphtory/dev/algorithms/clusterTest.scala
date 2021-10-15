@@ -7,5 +7,5 @@ import com.raphtory.dev.wordSemantic.spouts.CoMatSpout
 import scala.language.postfixOps
 
 object clusterTest extends App {
-  RaphtoryPD(new CoMatSpout(),new CoMatGB())
+  RaphtoryPD(new CoMatSpout(""),new CoMatGB())
 }

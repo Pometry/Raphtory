@@ -13,7 +13,7 @@ import scala.tools.nsc.io.Path
 class getNeighbors(args: Array[String]) extends Analyser[Any](args) {
   val node: String       = if (args.length < 1) "" else args.head
   val name: String       = if (args.length < 3) "Word" else args(2)
-  val output_file: String  = System.getenv().getOrDefault("OUTPUT_PATH", "").trim
+  val output_file: String  = ""
 
 
   override def setup(): Unit = {
