@@ -5,11 +5,11 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 object LOTRClient extends App {
   val client = new RaphtoryClient("127.0.0.1:1601",1700)
 
-  client.pointQuery(new testAlgo,10000,List(10000, 1000,100))
+  client.pointQuery(new bestALgo,10000,List(10000, 1000,100))
 }
 
 
-class testAlgo()extends GraphAlgorithm {
+class bestALgo()extends GraphAlgorithm {
   override def algorithm(graph: GraphPerspective): Unit = {
   val count = graph.nodeCount()
   graph.step(v=> v.setState("key",count))

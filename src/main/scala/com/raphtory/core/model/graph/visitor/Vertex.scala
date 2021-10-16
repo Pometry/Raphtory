@@ -17,10 +17,16 @@ trait Vertex extends EntityVisitor {
   def messageQueue[T: ClassTag]: List[T]
   def voteToHalt(): Unit
   //Send message
+  def messageSelf(data: Any):Unit
   def messageNeighbour(vertexId: Long, data: Any): Unit
   def messageAllOutgoingNeighbors(message: Any): Unit
   def messageAllNeighbours(message: Any)
   def messageAllIngoingNeighbors(message: Any): Unit
+
+  //Get Neighbours
+  def getAllNeighbours(after:Long=0L,before:Long=Long.MaxValue): List[Long]
+  def getOutNeighbours(after:Long=0L,before:Long=Long.MaxValue): List[Long]
+  def getInNeighbours(after:Long=0L,before:Long=Long.MaxValue): List[Long]
 
   //all edges
   def getEdges(after:Long=0L,before:Long=Long.MaxValue): List[Edge]
