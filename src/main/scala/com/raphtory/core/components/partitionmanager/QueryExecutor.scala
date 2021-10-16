@@ -66,6 +66,8 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       sender() ! GraphFunctionComplete(0,0)
 
     case Select(f) =>
+      state.graphLens.nextStep()
+
       //log.info(s"Partition $partition have been asked to do a Select operation.")
       state.graphLens.executeSelect(f)
       sender() ! TableBuilt
