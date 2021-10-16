@@ -9,7 +9,7 @@ class TriangleCount(path:String) extends GraphAlgorithm {
       vertex =>
         vertex.setState("triangles",0)
         // Message all neighbours not equal to myself the list of IDs greater than my own
-        val neighbours = vertex.getEdges().map(_.ID()).filter(_!=vertex.ID()).toSet
+        val neighbours = vertex.getAllNeighbours().toSet
         neighbours.foreach({
           nb =>
             vertex.messageNeighbour(nb, neighbours)
@@ -17,7 +17,7 @@ class TriangleCount(path:String) extends GraphAlgorithm {
     })
       .iterate({
         vertex =>
-          val neighbours = vertex.getEdges().map(_.ID()).filter(_!=vertex.ID()).toSet
+          val neighbours = vertex.getAllNeighbours().toSet
           val queue = vertex.messageQueue[Set[Long]]
           var tri = 0
           queue.foreach(
