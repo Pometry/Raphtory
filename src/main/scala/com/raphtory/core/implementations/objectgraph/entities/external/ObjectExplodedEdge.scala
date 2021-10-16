@@ -24,4 +24,6 @@ class ObjectExplodedEdge(objectEdge: ObjectEdge,timestamp:Long) extends Exploded
 
   override def send(data: Any): Unit =
     objectEdge.send(data)
+
+  override def getTimestamp():Long = timestamp
 }

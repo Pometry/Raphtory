@@ -117,6 +117,9 @@ class ObjectVertex(private val v: RaphtoryVertex,
     }
 
   //Send message
+  override def messageSelf(data: Any): Unit =
+    lens.sendMessage(VertexMessage(ID(), data))
+
   def messageNeighbour(vertexId: Long, data: Any): Unit =
     lens.sendMessage(VertexMessage(vertexId, data))
 
@@ -133,6 +136,15 @@ class ObjectVertex(private val v: RaphtoryVertex,
   def receiveMessage(msg: VertexMessage): Unit = {
     multiQueue.receiveMessage(lens.superStep, msg.data)
   }
+
+  override def getOutNeighbours(after: Long, before: Long): List[Long] =
+    getOutEdges(after, before).map(_.dst())
+
+  override def getInNeighbours(after: Long, before: Long): List[Long] =
+    getInEdges(after, before).map(_.src())
+
+  override def getAllNeighbours(after: Long, before: Long): List[Long] =
+    (getInNeighbours() ++ getOutNeighbours()).distinct
 
 
 }
