@@ -7,7 +7,7 @@ import com.raphtory.core.build.client.ClientHandler.State
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.leader.WatchDog.Message.{AssignedId, ClusterStatusRequest, ClusterStatusResponse, RequestBuilderId}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{LiveQuery, PointQuery, RangeQuery}
-import com.raphtory.core.model.algorithm.GraphAlgorithm
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphFunction, TableFunction}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -25,36 +25,36 @@ class ClientHandler extends RaphtoryActor with Stash{
       if(!state.clusterUp)
         clusterUp()
 
-    case PointQuery(graphAlgorithm,timestamp,windows) =>
+    case PointQuery(name,algorithm,timestamp,windows) =>
       if(state.clusterUp)
-        pointQuery(graphAlgorithm,timestamp,windows)
+        pointQuery(name,algorithm,timestamp,windows)
       else
         stash()
 
-    case RangeQuery(graphAlgorithm,start,end,increment,windows) =>
+    case RangeQuery(name,algorithm,start,end,increment,windows) =>
       if(state.clusterUp)
-        rangeQuery(graphAlgorithm,start,end,increment,windows)
+        rangeQuery(name,algorithm,start,end,increment,windows)
       else
         stash()
 
-    case LiveQuery(graphAlgorithm,increment,windows) =>
+    case LiveQuery(name,algorithm,increment,windows) =>
       if(state.clusterUp)
-        liveQuery(graphAlgorithm,increment,windows)
+        liveQuery(name,algorithm,increment,windows)
       else
         stash()
   }
 
-  def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
+  def pointQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), timestamp:Long, windows:List[Long]=List()) = {
     mediator ! DistributedPubSubMediator.Send("/user/QueryManager",
-      PointQuery(graphAlgorithm,timestamp,windows), localAffinity = false)
+      PointQuery(name,algorithm,timestamp,windows), localAffinity = false)
   }
-  def rangeQuery(graphAlgorithm: GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
+  def rangeQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]),start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
     mediator ! DistributedPubSubMediator.Send("/user/QueryManager",
-      RangeQuery(graphAlgorithm,start,end,increment,windows), localAffinity = false)
+      RangeQuery(name,algorithm,start,end,increment,windows), localAffinity = false)
   }
-  def liveQuery(graphAlgorithm: GraphAlgorithm,increment:Long,windows:List[Long]=List()) = {
+  def liveQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]),increment:Long,windows:List[Long]=List()) = {
     mediator ! DistributedPubSubMediator.Send("/user/QueryManager",
-      LiveQuery(graphAlgorithm,increment,windows), localAffinity = false)
+      LiveQuery(name,algorithm,increment,windows), localAffinity = false)
   }
 
   def clusterUp():Unit = {

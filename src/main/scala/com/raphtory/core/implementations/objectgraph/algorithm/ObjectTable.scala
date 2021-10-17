@@ -7,8 +7,12 @@ import scala.collection.mutable
 class ObjectTable extends Table{
   val tableOpps = mutable.Queue[TableFunction]()
 
+  def bulkAdd(tableFuncs:List[TableFunction]) = tableFuncs.foreach(f=> tableOpps.enqueue(f))
+
+
   override def filter(f: Row => Boolean): Table = {
-    tableOpps.enqueue(TableFilter(f))
+    def closurefunc(v:Row):Boolean = f(v)
+    tableOpps.enqueue(TableFilter(closurefunc))
     this
   }
   override def writeTo(address: String): Unit = {
@@ -16,7 +20,8 @@ class ObjectTable extends Table{
   }
 
   override def explode(f: Row => List[Row]): Table = {
-    tableOpps.enqueue(Explode(f))
+    def closurefunc(v:Row):List[Row] = f(v)
+    tableOpps.enqueue(Explode(closurefunc))
     this
   }
 
