@@ -36,7 +36,7 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
     case KeepAlive =>
       mediator ! DistributedPubSubMediator.Send("/user/WatchDog", BuilderUp(builderID), localAffinity = false)
 
-    case StartUp     =>
+    case StartUp   =>
       if (!safe) {
         mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest) //ask if the cluster is safe to use
         context.system.scheduler.scheduleOnce(1.second, self, StartUp)  // repeat every 1 second until safe

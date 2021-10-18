@@ -1,5 +1,5 @@
 package com.raphtory.core.model.algorithm
-abstract class GraphAlgorithm {
+abstract class GraphAlgorithm extends Serializable {
   def algorithm(graph:GraphPerspective)
 }
 
