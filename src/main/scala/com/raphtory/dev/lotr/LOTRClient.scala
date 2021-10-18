@@ -4,9 +4,13 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 object LOTRClient extends App {
   val client = new RaphtoryClient("127.0.0.1:1601",1700)
 
-  client.pointQuery(cc,10000,List(10000, 1000,100))
+  client.pointQuery(bb,10000,List(10000, 1000,100))
 }
-
+object bb extends GraphAlgorithm {
+  override def algorithm(graph: GraphPerspective): Unit = {
+    graph.filter(v=>true)
+  }
+}
 
 object cc extends GraphAlgorithm {
   override def algorithm(graph: GraphPerspective): Unit = {

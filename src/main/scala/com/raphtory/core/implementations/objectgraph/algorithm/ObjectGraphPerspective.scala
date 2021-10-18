@@ -19,26 +19,22 @@ class ObjectGraphPerspective(vertices:Int)  extends GraphPerspective{
   def bulkAdd(graphFuncs:List[GraphFunction]) = graphFuncs.foreach(f=> graphOpps.enqueue(f))
 
   override def filter(f: Vertex => Boolean): GraphPerspective = {
-    val func = new ClosureEncap().filterClosure(f)
-    graphOpps.enqueue(VertexFilter(func))
+    graphOpps.enqueue(VertexFilter(f))
     this
   }
 
   override def step(f: Vertex => Unit): GraphPerspective = {
-    def closurefunc(v:Vertex):Unit = f(v)
-    graphOpps.enqueue(Step(closurefunc))
+    graphOpps.enqueue(Step(f))
     this
   }
 
   override def iterate(f: Vertex => Unit, iterations: Int): GraphPerspective = {
-    def closurefunc(v:Vertex):Unit = f(v)
-    graphOpps.enqueue(Iterate(closurefunc,iterations))
+    graphOpps.enqueue(Iterate(f,iterations))
     this
   }
 
   override def select(f: Vertex => Row): Table = {
-    def closurefunc(v:Vertex):Row = f(v)
-    graphOpps.enqueue(Select(closurefunc))
+    graphOpps.enqueue(Select(f))
     table
   }
 
