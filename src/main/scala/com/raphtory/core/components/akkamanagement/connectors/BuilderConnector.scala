@@ -21,8 +21,7 @@ class BuilderConnector[T](graphBuilder: GraphBuilder[T]) extends ComponentConnec
     val startRange = assignedId*buildersPerServer
     val endRange = startRange+buildersPerServer
     (startRange until endRange).map { i =>
-      val tempGraphBuilder = Class.forName(graphBuilder.getClass.getCanonicalName).getConstructor().newInstance().asInstanceOf[GraphBuilder[T]]
-      context.system.actorOf(Props(new BuilderExecutor(tempGraphBuilder, i)).withDispatcher("builder-dispatcher"), s"build_$i")
+      context.system.actorOf(Props(new BuilderExecutor(graphBuilder, i)).withDispatcher("builder-dispatcher"), s"build_$i")
     }.toList
 
   }

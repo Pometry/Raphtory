@@ -3,10 +3,10 @@ package com.raphtory.core.model.algorithm
 import com.raphtory.core.model.graph.visitor.Vertex
 
 sealed trait GraphFunction
-case   class Step(f:(Vertex)=>Unit) extends GraphFunction
-case   class Iterate(f:(Vertex)=>Unit, iterations:Int) extends GraphFunction
-case   class VertexFilter(f:(Vertex)=>Boolean) extends GraphFunction
-case   class Select(f:Vertex=>Row) extends GraphFunction
+final case class Step(f:(Vertex)=>Unit) extends GraphFunction
+final case class Iterate(f:(Vertex)=>Unit, iterations:Int) extends GraphFunction
+final case class VertexFilter(f:(Vertex)=>Boolean) extends GraphFunction
+final case class Select(f:Vertex=>Row) extends GraphFunction
 
 abstract class GraphPerspective{
   def filter(f:(Vertex)=>Boolean):GraphPerspective

@@ -16,7 +16,7 @@ import scala.concurrent.duration.{Duration, MILLISECONDS, SECONDS}
 import scala.reflect.ClassTag.Any
 import scala.util.{Failure, Success}
 
-abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends RaphtoryActor{
+abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFuncs:List[TableFunction]) extends RaphtoryActor{
 
   private val workerList = mutable.Map[Int,ActorRef]()
 
@@ -67,8 +67,9 @@ abstract class QueryHandler(jobID:String,algorithm:GraphAlgorithm) extends Rapht
   private def executeGraph(state: State, currentOpperation: GraphFunction, vertexCount:Int, readyCount: Int, receivedMessageCount: Int, sentMessageCount: Int, allVoteToHalt: Boolean):Receive = withDefaultMessageHandler("Execute Graph") {
     case StartGraph =>
       val graphPerspective = new ObjectGraphPerspective(vertexCount)
-      algorithm.algorithm(graphPerspective)
+      graphPerspective.bulkAdd(graphFuncs)
       val table = graphPerspective.getTable()
+      table.bulkAdd(tableFuncs)
       graphPerspective.getNextOperation() match {
         case Some(f:Select) =>
           messagetoAllJobWorkers(f)

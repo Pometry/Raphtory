@@ -9,7 +9,8 @@ import com.raphtory.core.components.akkamanagement.RaphtoryActor.{builderServers
 import com.raphtory.core.components.akkamanagement.connectors.{BuilderConnector, PartitionConnector, QueryManagerConnector, SpoutConnector}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{LiveQuery, PointQuery, RangeQuery}
 import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.model.algorithm.{GraphAlgorithm}
+import com.raphtory.core.implementations.objectgraph.algorithm.ObjectGraphPerspective
+import com.raphtory.core.model.algorithm.GraphAlgorithm
 
 class RaphtoryGraph [T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
     val system = ComponentFactory.initialiseActorSystem(List("127.0.0.1:1600"),1600)
@@ -30,13 +31,30 @@ class RaphtoryGraph [T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
 
 
     def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
-      queryManager ! PointQuery(graphAlgorithm,timestamp,windows)
+      queryManager ! PointQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),timestamp,windows)
     }
     def rangeQuery(graphAlgorithm: GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
-      queryManager ! RangeQuery(graphAlgorithm,start,end,increment,windows)
+      queryManager ! RangeQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),start,end,increment,windows)
     }
     def liveQuery(graphAlgorithm: GraphAlgorithm,increment:Long,windows:List[Long]=List()) = {
-      queryManager ! LiveQuery(graphAlgorithm,increment,windows)
+      queryManager ! LiveQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),increment,windows)
     }
+
+  private def getFuncs(graphAlgorithm: GraphAlgorithm) ={
+    val graphPerspective = new ObjectGraphPerspective(0)
+    graphAlgorithm.algorithm(graphPerspective)
+    (graphPerspective.graphOpps.toList, graphPerspective.getTable().tableOpps.toList)
+  }
+
+  private def getID(algorithm:GraphAlgorithm):String = {
+    try{
+      val path= algorithm.getClass.getCanonicalName.split("\\.")
+      path(path.size-1)+"_" + System.currentTimeMillis()
+    }
+    catch {
+      case e:NullPointerException => "Anon_Func_"+System.currentTimeMillis()
+    }
+
+  }
 
   }

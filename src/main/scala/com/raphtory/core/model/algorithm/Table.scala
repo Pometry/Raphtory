@@ -5,9 +5,10 @@ package com.raphtory.core.model.algorithm
 
 sealed trait TableFunction
 
-case class TableFilter(f:(Row)=>Boolean) extends TableFunction
-case class WriteTo(address:String)       extends TableFunction
-case class Explode(f:Row=>List[Row])     extends TableFunction
+final case class TableFilter(f:(Row)=>Boolean) extends TableFunction
+final case class Explode(f:Row=>List[Row])     extends TableFunction
+final case class WriteTo(address:String)       extends TableFunction
+
 
 abstract class Table {
   def filter(f:Row=>Boolean):Table
