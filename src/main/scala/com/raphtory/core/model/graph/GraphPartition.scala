@@ -42,7 +42,7 @@ abstract class GraphPartition(partitionID: Int) extends LazyLogging {
   /**
     * Analysis Functions
     * */
-  def getVertices(graphPerspective: InternalGraphView, time:Long, window:Long = Long.MaxValue):TrieMap[Long,Vertex]
+  def getVertices(graphPerspective: GraphLens, time:Long, window:Long = Long.MaxValue):TrieMap[Long,Vertex]
 
 
 
@@ -53,12 +53,9 @@ abstract class GraphPartition(partitionID: Int) extends LazyLogging {
   def timings(updateTime: Long) = {
     if (updateTime < oldestTime && updateTime > 0) oldestTime = updateTime
     if (updateTime > newestTime)
-      newestTime = updateTime //this isn't thread safe, but is only an approx for the archiving
+      newestTime = updateTime
   }
 
-  def getPartitionID = partitionID
-
-
-
+   def getPartitionID = partitionID
    def checkDst(dstID: Long): Boolean = (((dstID.abs % totalPartitions )).toInt == partitionID)
 }

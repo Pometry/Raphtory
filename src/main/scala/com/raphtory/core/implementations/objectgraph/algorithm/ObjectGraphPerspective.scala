@@ -12,6 +12,7 @@ class ClosureEncap {
   }
 }
 
+
 class ObjectGraphPerspective(vertices:Int)  extends GraphPerspective{
   val graphOpps = mutable.Queue[GraphFunction]()
   val table     = new ObjectTable()
@@ -24,7 +25,8 @@ class ObjectGraphPerspective(vertices:Int)  extends GraphPerspective{
   }
 
   override def step(f: Vertex => Unit): GraphPerspective = {
-    graphOpps.enqueue(Step(f))
+
+    graphOpps.enqueue(Step(FuncSerialiser.converter(f)))
     this
   }
 
