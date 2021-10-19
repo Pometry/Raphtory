@@ -1,4 +1,4 @@
-package com.raphtory.algorithms.newer
+package com.raphtory.algorithms
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 

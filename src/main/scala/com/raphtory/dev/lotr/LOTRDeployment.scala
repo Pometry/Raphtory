@@ -1,6 +1,6 @@
 package com.raphtory.dev.lotr
 
-import com.raphtory.algorithms.newer.{ConnectedComponents, GraphState, TriangleCount}
+import com.raphtory.algorithms.newer.TriangleCount
 
 import com.raphtory.core.build.server.RaphtoryPD
 

@@ -1,6 +1,6 @@
 package com.raphtory.dev.gab
 
-import com.raphtory.algorithms.newer.ConnectedComponents
+import com.raphtory.algorithms.ConnectedComponents
 import com.raphtory.core.build.server.RaphtoryPD
 import com.raphtory.dev.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.spouts.FileSpout
