@@ -22,9 +22,9 @@ class ConnectedComponents(path:String) extends GraphAlgorithm{
       }, 100)
       .select(vertex => Row(vertex.ID(),vertex.getState[Long]("cclabel")))
       .writeTo(path)
-
   }
 }
+
 object ConnectedComponents{
   def apply(path:String) = new ConnectedComponents(path)
 }

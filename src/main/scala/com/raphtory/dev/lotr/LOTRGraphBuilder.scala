@@ -19,4 +19,6 @@ class LOTRGraphBuilder extends GraphBuilder[String]{
     addVertex(timeStamp, tarID, Properties(ImmutableProperty("name",targetNode)),Type("Character"))
     addEdge(timeStamp,srcID,tarID, Type("Character Co-occurence"))
   }
+
 }
+

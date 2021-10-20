@@ -26,7 +26,7 @@ class ObjectGraphPerspective(vertices:Int)  extends GraphPerspective{
 
   override def step(f: Vertex => Unit): GraphPerspective = {
 
-    graphOpps.enqueue(Step(FuncSerialiser.converter(f)))
+    graphOpps.enqueue(Step(f))
     this
   }
 

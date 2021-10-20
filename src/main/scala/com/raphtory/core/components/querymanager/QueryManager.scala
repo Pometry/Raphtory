@@ -102,11 +102,14 @@ object QueryManager {
   }
   object Message {
     case object StartUp
+    
+    type Windows = List[Long]
+    def Windows(xs: Long*) = List(xs: _*)
 
     sealed trait Query
-    case class PointQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), timestamp: Long, windows: List[Long]) extends Query
-    case class RangeQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), start: Long, end: Long, increment: Long, windows: List[Long]) extends Query
-    case class LiveQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), increment: Long, windows: List[Long]) extends Query
+    case class PointQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), timestamp: Long, windows: Windows) extends Query
+    case class RangeQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), start: Long, end: Long, increment: Long, windows: Windows) extends Query
+    case class LiveQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), increment: Long, windows: Windows) extends Query
     case class EndQuery(jobID:String)
     case class QueryNotPresent(jobID:String)
 

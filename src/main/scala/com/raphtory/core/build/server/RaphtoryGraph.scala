@@ -58,3 +58,9 @@ class RaphtoryGraph [T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   }
 
   }
+
+object RaphtoryGraph {
+  def apply[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) = {
+    new RaphtoryGraph[T](spout,graphBuilder)
+  }
+}
