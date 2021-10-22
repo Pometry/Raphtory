@@ -12,3 +12,4 @@ class LOTRDistributed extends RaphtoryService[String]{
   override def defineBuilder: GraphBuilder[String] = new LOTRGraphBuilder()
 
 }
+

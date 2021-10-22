@@ -31,14 +31,14 @@ abstract class RaphtoryService[T] {
     val config = ConfigFactory.load()
     val leaderLoc  = config.getString("Raphtory.leaderLoc")
     val port = config.getInt("Raphtory.port")
-    ComponentFactory.spout(leaderLoc,port,spout)
+    ComponentFactory.spout(leaderLoc,port,defineSpout)
   }
 
   def builderDeploy(): Unit = {
     val config = ConfigFactory.load()
     val leaderLoc  = config.getString("Raphtory.leaderLoc")
     val port = config.getInt("Raphtory.port")
-    ComponentFactory.builder(leaderLoc,port,graphBuilder.asInstanceOf[GraphBuilder[Any]])
+    ComponentFactory.builder(leaderLoc,port,defineBuilder.asInstanceOf[GraphBuilder[Any]])
   }
 
   def partitionDeploy(): Unit = {
