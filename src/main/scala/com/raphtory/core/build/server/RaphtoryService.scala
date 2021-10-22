@@ -28,14 +28,13 @@ object RaphtoryService extends App {
     case "builder" => builder()
     case "partitionManager" => partition()
     case "spout" => spout()
-    //TODO query manager
   }
 
   def leader() = {
     val seedLoc = s"${sys.env.getOrElse("HOST_IP", "127.0.0.1")}:${conf.getInt("settings.bport")}"
     println(s"Creating leader at $seedLoc")
     implicit val system: ActorSystem = initialiseActorSystem(seeds = List(seedLoc))
-    val watchDog = system.actorOf(Props(new WatchDog()), "WatchDog")
+    val watchDog = system.actorOf(Props(new WatchDog), "WatchDog")
     system.actorOf(Props(new WatermarkManager(watchDog)), "WatermarkManager")
 
   }

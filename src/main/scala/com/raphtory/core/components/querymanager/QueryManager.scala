@@ -102,9 +102,9 @@ object QueryManager {
   }
   object Message {
     case object StartUp
-    
+
     type Windows = List[Long]
-    def Windows(xs: Long*) = List(xs: _*)
+    def Windows(list: Long*) = List(list: _*)
 
     sealed trait Query
     case class PointQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), timestamp: Long, windows: Windows) extends Query

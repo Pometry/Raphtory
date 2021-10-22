@@ -1,7 +1,7 @@
 package com.raphtory.dev.stackoverflow
 
 import com.raphtory.algorithms.old.DegreeBasic
-import com.raphtory.core.build.server.RaphtoryPD
+import com.raphtory.core.build.server.RaphtoryGraph
 import com.raphtory.spouts.FileSpout
 
 
@@ -9,7 +9,7 @@ object SODeployment extends App {
 
   val source = new FileSpout("temp")
   val builder = new SOBuilder()
-  val rg = RaphtoryPD[String](source,builder)
+  val rg = RaphtoryGraph[String](source,builder)
   val arguments = Array[String]()
 
 //  rg.rangeQuery(new DegreeBasic(Array()), new DefaultSerialiser, start = 1254192988L, end = 1457262355L, increment = 86400L,arguments)

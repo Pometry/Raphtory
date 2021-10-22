@@ -8,17 +8,17 @@ import com.raphtory.core.components.akkamanagement.connectors._
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.leader.{WatchDog, WatermarkManager}
 import com.raphtory.core.components.spout.Spout
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 import java.lang.invoke.SerializedLambda
 import scala.collection.JavaConversions
 
 object ComponentFactory {
-  val conf = ConfigFactory.load()
+
   val clusterSystemName = "Raphtory"
 
 
-  def leader(port: Int): (ActorRef, ActorRef) = {
+  def leader(port: Int,conf:Config = ConfigFactory.load()): (ActorRef, ActorRef) = {
     val address = s"127.0.0.1:$port"
     println(s"Creating leader at $address")
     val system: ActorSystem = initialiseActorSystem(seeds = List(address), port)
