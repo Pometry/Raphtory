@@ -1,16 +1,17 @@
 package com.raphtory.core.build.server
 
 import com.raphtory.core.components.akkamanagement.ComponentFactory
-import com.raphtory.core.components.akkamanagement.RaphtoryActor.conf
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.Spout
 import com.typesafe.config.ConfigFactory
 
-class RaphtoryService[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
+abstract class RaphtoryService[T] {
+
+  def defineSpout():Spout[T]
+  def defineBuilder: GraphBuilder[T]
 
 
   def main(args: Array[String]): Unit = {
-
     args(0) match {
       case "leader" => leaderDeploy()
       case "spout" => spoutDeploy()
@@ -52,7 +53,6 @@ class RaphtoryService[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
     val leaderLoc  = config.getString("Raphtory.leaderLoc")
     val port = config.getInt("Raphtory.port")
     ComponentFactory.query(leaderLoc,port)
-
   }
 
 
