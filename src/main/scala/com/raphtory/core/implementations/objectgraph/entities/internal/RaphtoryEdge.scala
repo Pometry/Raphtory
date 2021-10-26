@@ -3,13 +3,12 @@ package com.raphtory.core.implementations.objectgraph.entities.internal
 import com.raphtory.core.model.graph.GraphPartition
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 
 /**
   * Companion Edge object (extended creator for storage loads)
   */
 object RaphtoryEdge {
-  def apply(workerID: Int, creationTime: Long, srcID: Long, dstID: Long, previousState: mutable.TreeMap[Long, Boolean], properties: ParTrieMap[String, Property], storage: GraphPartition) = {
+  def apply(workerID: Int, creationTime: Long, srcID: Long, dstID: Long, previousState: mutable.TreeMap[Long, Boolean], properties: mutable.Map[String, Property], storage: GraphPartition) = {
 
     val e = new RaphtoryEdge(creationTime, srcID, dstID, initialValue = true)
     e.history = previousState

@@ -24,7 +24,7 @@ class GraphState(path:String) extends GraphAlgorithm{
         val inedgeProperties = vertex.getInEdges().map(edge => edge.getPropertySet().size).sum
         val inedgePropertyHistory = vertex.getInEdges().map(edge => edge.getPropertySet().toArray.map(x=> edge.getPropertyHistory(x).size).sum).sum
 
-        Row(inDeg, outDeg,deg, vdeletions,vcreations,outedgedeletions,outedgecreations,inedgedeletions,inedgecreations,properties,propertyhistory,outedgeProperties,outedgePropertyHistory,inedgeProperties,inedgePropertyHistory)
+        Row(vertex.ID(),inDeg, outDeg,deg, vdeletions,vcreations,outedgedeletions,outedgecreations,inedgedeletions,inedgecreations,properties,propertyhistory,outedgeProperties,outedgePropertyHistory,inedgeProperties,inedgePropertyHistory)
     })
       .writeTo(path)
   }

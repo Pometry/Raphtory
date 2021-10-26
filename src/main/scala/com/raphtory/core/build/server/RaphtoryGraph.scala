@@ -1,7 +1,6 @@
 package com.raphtory.core.build.server
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import com.raphtory.core.build.server.RaphtoryService.spout
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.leader.{WatchDog, WatermarkManager}
 import com.raphtory.core.components.akkamanagement.ComponentFactory

@@ -10,7 +10,7 @@ import com.raphtory.core.components.leader.WatchDog.Message.RequestPartitionId
 import com.raphtory.core.implementations.objectgraph.ObjectBasedPartition
 import com.raphtory.core.model.graph.GraphPartition
 
-import scala.collection.parallel.mutable.ParTrieMap
+import scala.collection.mutable
 import scala.concurrent.Future
 
 class PartitionConnector() extends ComponentConnector() {
@@ -22,9 +22,9 @@ class PartitionConnector() extends ComponentConnector() {
   override def giveBirth(assignedId: Int): Unit = {
     log.info(s"Partition Manager $assignedId has come online.")
 
-    var writers:  ParTrieMap[Int, ActorRef]       = new ParTrieMap[Int, ActorRef]()
-    var storages: ParTrieMap[Int, GraphPartition] = new ParTrieMap[Int, GraphPartition]()
-    var readers:  ParTrieMap[Int, ActorRef]       = new ParTrieMap[Int, ActorRef]()
+    var writers:  mutable.Map[Int, ActorRef]       = mutable.Map[Int, ActorRef]()
+    var storages: mutable.Map[Int, GraphPartition] = mutable.Map[Int, GraphPartition]()
+    var readers:  mutable.Map[Int, ActorRef]       = mutable.Map[Int, ActorRef]()
     val startRange = assignedId*partitionsPerServer
     val endRange = startRange+partitionsPerServer
     for (index <- startRange until endRange) {
@@ -41,7 +41,7 @@ class PartitionConnector() extends ComponentConnector() {
       readers.put(
         index,
         context.system
-          .actorOf(Props(Reader(index, storage)).withDispatcher("reader-dispatcher"), readerName)
+          .actorOf(Props(new Reader(index, storage)).withDispatcher("reader-dispatcher"), readerName)
       )
     }
 

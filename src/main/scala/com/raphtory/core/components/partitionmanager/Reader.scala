@@ -9,7 +9,7 @@ import com.raphtory.core.model.graph.GraphPartition
 
 import scala.util.{Failure, Success}
 
-final case class Reader(partition: Int, storage: GraphPartition) extends RaphtoryActor {
+final class Reader(partition: Int, storage: GraphPartition) extends RaphtoryActor {
 
   override def preStart(): Unit = log.debug(s"Reader $partition is starting.")
   override def receive: Receive = work()

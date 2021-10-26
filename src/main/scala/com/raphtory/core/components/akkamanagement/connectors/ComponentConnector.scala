@@ -10,7 +10,6 @@ import com.raphtory.core.components.leader.WatchDog.Message.AssignedId
 import com.raphtory.core.model.graph.GraphPartition
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps

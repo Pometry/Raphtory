@@ -8,6 +8,7 @@ import com.raphtory.core.components.akkamanagement.connectors._
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.leader.{WatchDog, WatermarkManager}
 import com.raphtory.core.components.spout.Spout
+import com.rits.cloning.Cloner
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 import java.lang.invoke.SerializedLambda
@@ -17,6 +18,10 @@ object ComponentFactory {
 
   val clusterSystemName = "Raphtory"
 
+  val cloner = new Cloner
+  def newGraphBuilder(gb:GraphBuilder[Any])={
+    cloner.deepClone(gb).asInstanceOf[GraphBuilder[Any]]
+  }
 
   def leader(port: Int,conf:Config = ConfigFactory.load()): (ActorRef, ActorRef) = {
     val address = s"127.0.0.1:$port"
@@ -29,7 +34,7 @@ object ComponentFactory {
   def builder(seed: String, port: Int, graphbuilder: GraphBuilder[Any]): ActorRef = {
     println("Creating Graph Builder")
     val system: ActorSystem = initialiseActorSystem(seeds = List(seed), port)
-    system.actorOf(Props(new BuilderConnector(graphbuilder)), "Builder")
+    system.actorOf(Props(new BuilderConnector(newGraphBuilder(graphbuilder))), "Builder")
   }
 
   def partition(seed: String, port: Int): ActorRef = {

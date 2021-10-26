@@ -3,7 +3,6 @@ package com.raphtory.core.model.graph.visitor
 import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryEntity
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 import scala.reflect.ClassTag
 
 abstract class EntityVisitor {

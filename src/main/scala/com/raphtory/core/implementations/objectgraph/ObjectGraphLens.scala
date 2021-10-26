@@ -4,10 +4,11 @@ import com.raphtory.core.implementations.objectgraph.entities.external.ObjectVer
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
 import com.raphtory.core.model.algorithm.Row
 import com.raphtory.core.model.graph.visitor.Vertex
-import com.raphtory.core.model.graph.{GraphPartition, GraphLens, VertexMessage}
+import com.raphtory.core.model.graph.{GraphLens, GraphPartition, VertexMessage}
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 
 final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends GraphLens(jobId, timestamp, window) {
   private val voteCount = new AtomicInteger(0)
@@ -18,7 +19,7 @@ final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[
   def getFullGraphSize = fullGraphSize
   def setGraphSize(size:Int) = fullGraphSize = size
 
-  private lazy val vertexMap: TrieMap[Long, Vertex] = {
+  private lazy val vertexMap: mutable.Map[Long, Vertex] = {
     val result = window match {
       case None =>
         storage.getVertices(this, timestamp)
@@ -37,7 +38,6 @@ final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[
     dataTable = vertexMap.collect {
       case (id, vertex) => f(vertex)
     }.toList
-    dataTable
   }
 
   def filteredTable(f:Row=>Boolean):Unit =
@@ -46,8 +46,9 @@ final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[
   def explodeTable(f:Row=>List[Row]):Unit =
     dataTable = dataTable.flatMap(f)
 
-  def getDataTable():List[Row] =
+  def getDataTable():List[Row] = {
     dataTable
+  }
 
 
   def runGraphFunction(f:Vertex=>Unit):Unit = {

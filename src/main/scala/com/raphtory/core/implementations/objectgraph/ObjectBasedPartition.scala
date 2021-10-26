@@ -2,11 +2,11 @@ package com.raphtory.core.implementations.objectgraph
 
 import com.raphtory.core.implementations.objectgraph.entities.internal.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
 import com.raphtory.core.implementations.objectgraph.messaging._
-import com.raphtory.core.model.graph.{DoubleProperty, EdgeSyncAck, FloatProperty, GraphPartition, GraphLens, GraphUpdateEffect, ImmutableProperty, InboundEdgeRemovalViaVertex, LongProperty, OutboundEdgeRemovalViaVertex, Properties, StringProperty, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, Type, VertexRemoveSyncAck}
+import com.raphtory.core.model.graph.{DoubleProperty, EdgeSyncAck, FloatProperty, GraphLens, GraphPartition, GraphUpdateEffect, ImmutableProperty, InboundEdgeRemovalViaVertex, LongProperty, OutboundEdgeRemovalViaVertex, Properties, StringProperty, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, Type, VertexRemoveSyncAck}
 import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.parallel.mutable.ParTrieMap
+import scala.collection.mutable
 
 class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int){
   /**
@@ -14,7 +14,7 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
     */
 
 
-  val vertices = ParTrieMap[Long, RaphtoryVertex]()
+  val vertices = mutable.Map[Long, RaphtoryVertex]()
 
   def addProperties(msgTime: Long, entity: RaphtoryEntity, properties: Properties): Unit =
     properties.property.foreach {
@@ -36,8 +36,8 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
         v
       case None => //if it does not exist
         val v = new RaphtoryVertex(msgTime, srcId, initialValue = true) //create a new vertex
+        vertices.+=((srcId, v))//put it in the map)
         v.setType(vertexType.map(_.name))
-        vertices put(srcId, v) //put it in the map
         v
     }
     addProperties(msgTime, vertex, properties)
@@ -266,8 +266,13 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
   /**
     * Analysis Functions
     * */
-  override def getVertices(lens:GraphLens, time: Long, window: Long=Long.MaxValue): TrieMap[Long, Vertex] = {
+  override def getVertices(lens:GraphLens, time: Long, window: Long=Long.MaxValue): mutable.Map[Long, Vertex] = {
     val lenz = lens.asInstanceOf[ObjectGraphLens]
-    vertices.collect{case (id,vertex) if(vertex.aliveAtWithWindow(time,window)) => (id,vertex.viewAtWithWindow(time,window,lenz)) }.seq //(v._1,v._2.viewAt(time,lens).asInstanceOf[Vertex])).seq
+    val deletions = vertices.map(v=> v._2.history.count { case (time, update) => !update }).sum
+    val creations = vertices.map(v=> v._2.history.count { case (time, update) => update }).sum
+    val x = vertices.collect{
+      case (id,vertex) if(vertex.aliveAtWithWindow(time,window)) => (id,vertex.viewAtWithWindow(time,window,lenz))
+    }
+    x
   }
 }

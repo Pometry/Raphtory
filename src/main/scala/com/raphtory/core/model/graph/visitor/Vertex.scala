@@ -5,7 +5,7 @@ import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryV
 import com.raphtory.core.implementations.objectgraph.messaging.VertexMultiQueue
 
 import scala.collection.parallel.ParIterable
-import scala.collection.parallel.mutable.ParTrieMap
+
 import scala.reflect.ClassTag
 
 trait Vertex extends EntityVisitor {

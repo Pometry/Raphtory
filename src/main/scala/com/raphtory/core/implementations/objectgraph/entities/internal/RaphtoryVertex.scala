@@ -6,7 +6,6 @@ import com.raphtory.core.model.graph.{GraphPartition, visitor}
 import com.raphtory.core.model.graph.visitor.{Edge, Vertex}
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 
 /** Companion Vertex object (extended creator for storage loads) */
 object RaphtoryVertex {
@@ -14,7 +13,7 @@ object RaphtoryVertex {
       creationTime: Long,
       vertexId: Int,
       previousState: mutable.TreeMap[Long, Boolean],
-      properties: ParTrieMap[String, Property],
+      properties: mutable.Map[String, Property],
       storage: GraphPartition
   ) = {
     val v = new RaphtoryVertex(creationTime, vertexId, initialValue = true)
@@ -38,8 +37,8 @@ object RaphtoryVertex {
 class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
         extends RaphtoryEntity(msgTime, initialValue) {
 
-  var incomingEdges = ParTrieMap[Long, RaphtoryEdge]() //Map of all edges associated with the vertex
-  var outgoingEdges = ParTrieMap[Long, RaphtoryEdge]()
+  var incomingEdges = mutable.Map[Long, RaphtoryEdge]() //Map of all edges associated with the vertex
+  var outgoingEdges = mutable.Map[Long, RaphtoryEdge]()
 
   private var edgesRequiringSync = 0
 

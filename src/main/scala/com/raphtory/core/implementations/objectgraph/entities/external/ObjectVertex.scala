@@ -6,13 +6,13 @@ import com.raphtory.core.implementations.objectgraph.messaging.VertexMultiQueue
 import com.raphtory.core.model.graph.VertexMessage
 import com.raphtory.core.model.graph.visitor.{Edge, EntityVisitor, ExplodedEdge, Vertex}
 
-import scala.collection.parallel.mutable.ParTrieMap
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 class ObjectVertex(private val v: RaphtoryVertex,
-  private val internalIncomingEdges: ParTrieMap[Long, Edge],
-  private val internalOutgoingEdges: ParTrieMap[Long, Edge],
-  private val lens: ObjectGraphLens
+                   private val internalIncomingEdges: mutable.Map[Long, Edge],
+                   private val internalOutgoingEdges: mutable.Map[Long, Edge],
+                   private val lens: ObjectGraphLens
   ) extends ObjectEntity(v,lens) with Vertex {
 
   override def ID() = v.vertexId
@@ -63,7 +63,7 @@ class ObjectVertex(private val v: RaphtoryVertex,
       case None => None
     }
 
-  private def allEdge(edges:ParTrieMap[Long, Edge],after:Long,before:Long) = {
+  private def allEdge(edges:mutable.Map[Long, Edge],after:Long,before:Long) = {
     if(after==0&&before==Long.MaxValue)
       edges.map(x => x._2).toList
     else
@@ -72,7 +72,7 @@ class ObjectVertex(private val v: RaphtoryVertex,
       }.toList
   }
 
-  private def individualEdge(edges:ParTrieMap[Long, Edge],after:Long,before:Long,id:Long) = {
+  private def individualEdge(edges:mutable.Map[Long, Edge],after:Long,before:Long,id:Long) = {
     if(after==0&&before==Long.MaxValue)
       edges.get(id)
     else  edges.get(id) match {

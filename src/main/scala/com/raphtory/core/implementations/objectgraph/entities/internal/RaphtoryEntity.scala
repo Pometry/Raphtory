@@ -1,7 +1,6 @@
 package com.raphtory.core.implementations.objectgraph.entities.internal
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 
 /** *
   * Represents Graph Entities (Edges and Vertices)
@@ -15,13 +14,13 @@ abstract class RaphtoryEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   // Properties from that entity
   private var entityType: Option[String]               = None
-  var properties: ParTrieMap[String, Property] = ParTrieMap[String, Property]()
+  var properties: mutable.Map[String, Property] = mutable.Map[String, Property]()
 
   // History of that entity
   object HistoryOrdering extends Ordering[Long] {
     def compare(key1: Long, key2: Long) = key2.compareTo(key1)
   }
-  var history: mutable.TreeMap[Long, Boolean]   = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+  var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
 
   var oldestPoint: Long = creationTime
   var newestPoint: Long = creationTime

@@ -12,7 +12,6 @@ import com.raphtory.core.model.graph.{EdgeAdd, EdgeDelete, EdgeSyncAck, GraphPar
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -22,10 +21,11 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
   private var increments = 0
   private var updates = 0
   private var updates2 = 0
+  private var vertexAdds = 0
 
-  private val queuedMessageMap = ParTrieMap[String, mutable.PriorityQueue[queueItem]]()
-  private val safeMessageMap = ParTrieMap[String, queueItem]()
-  private val vDeleteCountdownMap = ParTrieMap[(String, Int), AtomicInteger]()
+  private val queuedMessageMap = mutable.Map[String, mutable.PriorityQueue[queueItem]]()
+  private val safeMessageMap = mutable.Map[String, queueItem]()
+  private val vDeleteCountdownMap = mutable.Map[(String, Int), AtomicInteger]()
 
   override def receive: Receive = mailboxTrackedReceive {
     case TrackedGraphUpdate(channelId, channelTime, req: VertexAdd) => processVertexAddRequest(channelId, channelTime, req) //Add a new vertex
@@ -57,12 +57,14 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
   def processVertexAddRequest(channelId: String, channelTime: Int, update: VertexAdd): Unit = {
     log.debug(s"IngestionWorker [$partitionID] received [$update] request.")
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
+
     trackVertexAdd(update.updateTime, channelId, channelTime)
   }
 
   private def trackVertexAdd(msgTime: Long, channelId: String, channelTime: Int): Unit = {
     //Vertex Adds the message time straight into queue as no sync
     storage.timings(msgTime)
+    vertexAdds+=1
     addToWatermarkQueue(channelId, channelTime, msgTime)
   }
 
@@ -198,8 +200,7 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
         setSafePoint(queue._1, queue._2)
       })
       val timestamps = queueState.map(q => q.timestamp)
-      // println(s"$increments Writer Worker $partitionID $workerId $timestamps")
-
+      //// println(s"$increments Writer Worker $partitionID $workerId $timestamps")
       //        println(s"Writer Worker $partitionID $workerId ${queueState.mkString("[",",","]")} ${storage.vertices.size}")
       //println(s"$increments Writer Worker $partitionID $workerId ${timestamps.min} ${storage.vertices.size} $updates ${updates-updates2}")
       updates2 = updates

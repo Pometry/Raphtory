@@ -8,6 +8,7 @@ import com.raphtory.core.components.querymanager.QueryManager.Message.{LiveQuery
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.implementations.objectgraph.algorithm.ObjectGraphPerspective
 import com.raphtory.core.model.algorithm.GraphAlgorithm
+import com.rits.cloning.Cloner
 
 object RaphtoryPD {
   def apply[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) : RaphtoryPD[T] =

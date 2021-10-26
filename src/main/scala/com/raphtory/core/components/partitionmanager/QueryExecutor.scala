@@ -67,8 +67,6 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
 
     case Select(f) =>
       state.graphLens.nextStep()
-
-      //log.info(s"Partition $partition have been asked to do a Select operation.")
       state.graphLens.executeSelect(f)
       sender() ! TableBuilt
 
@@ -86,18 +84,18 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
     case WriteTo(address) =>
       //log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
       val dir = new File(s"$address/$jobID")
-      if(!dir.exists())
+      if(!dir.exists()) {
         dir.mkdirs()
-      state.graphLens.getDataTable().foreach(row=>{
-        state.graphLens.window match {
-          case Some(window) =>
-            reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(s"${state.graphLens.timestamp},$window,"+row.getValues().mkString(",")+"\n")
-          case None =>
-            reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(s"${state.graphLens.timestamp},"+row.getValues().mkString(",")+"\n")
-
+      }
+      val window = state.graphLens.window
+      val timestamp = state.graphLens.timestamp
+      val datatable = state.graphLens.getDataTable().map(row => {
+        window match {
+          case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}"
+          case None => s"$timestamp,${row.getValues().mkString(",")}"
         }
-      })
-
+      }).mkString("\n")
+      reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(datatable)
       sender() ! TableFunctionComplete
 
     case _: CheckMessages =>

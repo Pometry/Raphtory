@@ -5,7 +5,6 @@ import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryE
 import com.raphtory.core.model.graph.visitor.{EntityVisitor, HistoricEvent}
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 import scala.reflect.ClassTag
 
 abstract class ObjectEntity(entity: RaphtoryEntity, view: ObjectGraphLens) extends EntityVisitor{

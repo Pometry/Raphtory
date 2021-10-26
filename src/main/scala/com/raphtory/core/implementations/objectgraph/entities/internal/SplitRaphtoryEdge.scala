@@ -1,13 +1,12 @@
 package com.raphtory.core.implementations.objectgraph.entities.internal
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 
 /**
   * Companion Edge object (extended creator for storage loads)
   */
 object SplitRaphtoryEdge {
-  def apply(creationTime: Long, srcID: Long, dstID: Long, previousState: mutable.TreeMap[Long, Boolean], properties: ParTrieMap[String, Property]) = {
+  def apply(creationTime: Long, srcID: Long, dstID: Long, previousState: mutable.TreeMap[Long, Boolean], properties: mutable.Map[String, Property]) = {
     val e = new SplitRaphtoryEdge(creationTime, srcID, dstID, initialValue = true)
     e.history = previousState
     e.properties = properties

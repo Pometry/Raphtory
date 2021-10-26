@@ -14,12 +14,10 @@ class AllCommandsBuilder extends GraphBuilder[String]{
     val commandKey = parsedOBJ.fields //get the command type
     if (commandKey.contains("VertexAdd"))
       vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject)
-    //else if(commandKey.contains("VertexUpdateProperties")) vertexUpdateProperties(parsedOBJ.getFields("VertexUpdateProperties").head.asJsObject)
     else if (commandKey.contains("VertexRemoval"))
       vertexRemoval(parsedOBJ.getFields("VertexRemoval").head.asJsObject)
     else if (commandKey.contains("EdgeAdd"))
       edgeAdd(parsedOBJ.getFields("EdgeAdd").head.asJsObject) //if addVertex, parse to handling function
-    //   else if(commandKey.contains("EdgeUpdateProperties")) edgeUpdateProperties(parsedOBJ.getFields("EdgeUpdateProperties").head.asJsObject)
     else if (commandKey.contains("EdgeRemoval"))
       edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject)
   }
