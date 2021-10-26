@@ -94,8 +94,9 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
           case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}"
           case None => s"$timestamp,${row.getValues().mkString(",")}"
         }
-      }).mkString("\n")
-      reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(datatable)
+      }).mkString("\n") + "\n"
+      if(! (datatable equals("\n")))
+        reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(datatable)
       sender() ! TableFunctionComplete
 
     case _: CheckMessages =>
