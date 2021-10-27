@@ -4,6 +4,7 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
 import scala.collection.mutable
 
+// TODO ADD ARG SO CAN CHECK ONE NODE AT A TIME RATHER THAN WHOLE GRAPH
 class twoHopNeighbour(output: String = "/tmp/twoHopNeighbour") extends GraphAlgorithm {
   override def algorithm(graph: GraphPerspective): Unit = {
     graph
