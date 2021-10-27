@@ -6,7 +6,6 @@ import com.raphtory.core.components.spout.Spout
 import com.typesafe.config.ConfigFactory
 
 abstract class RaphtoryService[T] {
-
   def defineSpout():Spout[T]
   def defineBuilder: GraphBuilder[T]
 
