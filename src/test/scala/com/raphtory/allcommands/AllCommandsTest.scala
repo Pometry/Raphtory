@@ -70,8 +70,6 @@ class AllCommandsTest extends FunSuite {
     try {
       val result = algorithmTest(GraphState(testDir),500)
       println(result)
-      //assert(result equals "e716531a7bd32c5713712533d648f4eeb8243bae8b9107780d47737f24e35477")
-      //assert(result equals "f238fba1446eadb18f77b150bb0a8ec0b5da62faf29474fb37854264090f6f90")
       assert(result equals "1ecba4857ff7cf946a270d9e42f9035f774318437743078a24b8676fb68070c2")
     }
     catch {
@@ -84,8 +82,6 @@ class AllCommandsTest extends FunSuite {
     try {
       val result = algorithmTest(ConnectedComponents(testDir),300)
       println(result)
-      //assert(result equals "3c2d7458ebce49f538fec7819ae8744f22f834d9c1a4be7e13d338ef2e7bfd58")
-      //assert(result equals "1d374d99bb7fa7772de44af200731361779f969256a9febea55296393ecf2f8a")
       assert(result equals "238b0004e9c9468963beb44070cdd5ee8795e19596d9107397c4446391471430")
     }
     catch {
@@ -134,21 +130,14 @@ class AllCommandsTest extends FunSuite {
 
   test("hashtest") {
 
-    val dir1 = new File(testDir+s"/sgs").listFiles.filter(_.isFile)
+    val dir1 = new File(testDir+s"/ConnectedComponents_1635294366131").listFiles.filter(_.isFile)
     val results1 = (for(i <- dir1) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted(sortOrdering)
 
-    val dir2 = new File(testDir+s"/scc").listFiles.filter(_.isFile)
+    val dir2 = new File(testDir+s"/ConnectedComponents_1635294568324").listFiles.filter(_.isFile)
     val results2 = (for(i <- dir2) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted(sortOrdering)
 
-    val dir3 = new File(testDir+s"/GraphState_1635258650746").listFiles.filter(_.isFile)
-    val results3 = (for(i <- dir3) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted(sortOrdering)
-
-    val dir4 = new File(testDir+s"/ConnectedComponents_1635258687369").listFiles.filter(_.isFile)
-    val results4 = (for(i <- dir4) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted(sortOrdering)
-
-
-    results2.foreach(i=>
-     if(!results4.contains(i))
+    results1.foreach(i=>
+     if(!results2.contains(i))
       println(i))
 
   }

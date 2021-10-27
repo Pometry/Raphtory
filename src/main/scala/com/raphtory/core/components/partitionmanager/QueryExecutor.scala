@@ -28,7 +28,6 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
   private def work(state: State): Receive = withDefaultMessageHandler("work") {
 
     case msg: VertexMessage =>
-      log.debug(s"Job [$jobID] belonging to Reader [$partition] receives VertexMessage.")
       state.graphLens.receiveMessage(msg)
       context.become(work(state.updateReceivedMessageCount(_ + 1)))
 

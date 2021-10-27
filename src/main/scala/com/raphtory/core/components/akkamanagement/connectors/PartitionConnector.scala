@@ -22,9 +22,9 @@ class PartitionConnector() extends ComponentConnector() {
   override def giveBirth(assignedId: Int): Unit = {
     log.info(s"Partition Manager $assignedId has come online.")
 
-    var writers:  mutable.Map[Int, ActorRef]       = mutable.Map[Int, ActorRef]()
-    var storages: mutable.Map[Int, GraphPartition] = mutable.Map[Int, GraphPartition]()
-    var readers:  mutable.Map[Int, ActorRef]       = mutable.Map[Int, ActorRef]()
+    val writers:  mutable.Map[Int, ActorRef]       = mutable.Map[Int, ActorRef]()
+    val storages: mutable.Map[Int, GraphPartition] = mutable.Map[Int, GraphPartition]()
+    val readers:  mutable.Map[Int, ActorRef]       = mutable.Map[Int, ActorRef]()
     val startRange = assignedId*partitionsPerServer
     val endRange = startRange+partitionsPerServer
     for (index <- startRange until endRange) {

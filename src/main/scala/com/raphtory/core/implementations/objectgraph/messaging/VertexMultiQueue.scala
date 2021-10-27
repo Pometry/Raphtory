@@ -8,10 +8,20 @@ final class VertexMultiQueue {
   private val oddMessageQueue: ListBuffer[Any]  = ListBuffer.empty
 
   def getMessageQueue(superStep: Int): List[Any] =
-    if (superStep % 2 == 0) evenMessageQueue.toList else oddMessageQueue.toList
+    if (superStep % 2 == 0) {
+      evenMessageQueue.toList
+    } else
+      oddMessageQueue.toList
 
   def clearQueue(superStep: Int): Unit = if (superStep % 2 == 0) evenMessageQueue.clear() else oddMessageQueue.clear()
 
-  def receiveMessage(superStep: Int, data: Any):Unit = if ((superStep+1) % 2 == 0) evenMessageQueue += data else oddMessageQueue += data
+  def receiveMessage(superStep: Int, data: Any):Unit = {
+
+    if ((superStep) % 2 == 0){
+      evenMessageQueue += data
+    } else {
+      oddMessageQueue += data
+    }
+  }
 
 }

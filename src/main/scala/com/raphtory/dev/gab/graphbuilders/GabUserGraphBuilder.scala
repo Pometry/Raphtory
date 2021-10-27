@@ -34,21 +34,8 @@ class GabUserGraphBuilder extends GraphBuilder[String] {
   }
 
   def dateToUnixTime(timestamp: => String): Long = {
-    //if(timestamp == null) return null;
-    // println("TIME FUNC: "+ timestamp)
-    //val sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'+'HH:mm")
     val sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
-    //println(sdf)
     val dt = sdf.parse(timestamp)
-    //println(dt)
-    val epoch = dt.getTime
-    //println("*******EPOCH: "+epoch)
-    epoch
-    //=======
-    //    val epoch = dt.getTime
-    //   // println(epoch)
-    //    epoch
-    //>>>>>>> upstream/master
-
+    dt.getTime
   }
 }

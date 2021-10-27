@@ -61,7 +61,6 @@
 //      s""""${wd._1}": { $comts } """
 //    }.mkString(",") + "}"
 //    output_file match {
-//      case "" => println(text)
 //      //        case "mongo" => mongo.getDB(dbname).getCollection(jobID).insert(JSON.parse(data).asInstanceOf[DBObject])
 //      case _ => Path(output_file).createFile().appendAll(text + "\n")
 //    }

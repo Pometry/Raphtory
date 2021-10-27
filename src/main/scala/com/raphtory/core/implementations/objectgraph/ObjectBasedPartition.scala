@@ -268,8 +268,6 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
     * */
   override def getVertices(lens:GraphLens, time: Long, window: Long=Long.MaxValue): mutable.Map[Long, Vertex] = {
     val lenz = lens.asInstanceOf[ObjectGraphLens]
-    val deletions = vertices.map(v=> v._2.history.count { case (time, update) => !update }).sum
-    val creations = vertices.map(v=> v._2.history.count { case (time, update) => update }).sum
     val x = vertices.collect{
       case (id,vertex) if(vertex.aliveAtWithWindow(time,window)) => (id,vertex.viewAtWithWindow(time,window,lenz))
     }

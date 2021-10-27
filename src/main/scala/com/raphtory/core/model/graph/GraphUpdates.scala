@@ -52,4 +52,4 @@ case class TrackedGraphUpdate[+T <: GraphUpdate](channelId: String, channelTime:
 case class TrackedGraphEffect[T <: GraphUpdateEffect](channelId: String, channelTime: Int, effect: T)
 
 
-case class VertexMessage(vertexId: Long, data: Any)
+case class VertexMessage(superstep:Int,vertexId: Long, data: Any)

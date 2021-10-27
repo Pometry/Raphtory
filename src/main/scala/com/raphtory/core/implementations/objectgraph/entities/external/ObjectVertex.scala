@@ -20,7 +20,9 @@ class ObjectVertex(private val v: RaphtoryVertex,
   private val multiQueue: VertexMultiQueue = new VertexMultiQueue() //Map of queues for all ongoing processing
   private var computationValues: Map[String, Any] = Map.empty //Partial results kept between supersteps in calculation
 
-  def hasMessage(): Boolean = multiQueue.getMessageQueue(lens.superStep).nonEmpty
+  def hasMessage(): Boolean = {
+    multiQueue.getMessageQueue(lens.superStep).nonEmpty
+  }
 
   def messageQueue[T: ClassTag]: List[T] = { //clears queue after getting it to make sure not there for next iteration
     val queue = multiQueue.getMessageQueue(lens.superStep).map(_.asInstanceOf[T])
@@ -118,10 +120,12 @@ class ObjectVertex(private val v: RaphtoryVertex,
 
   //Send message
   override def messageSelf(data: Any): Unit =
-    lens.sendMessage(VertexMessage(ID(), data))
+    lens.sendMessage(VertexMessage(lens.superStep+1,ID(), data))
 
-  def messageNeighbour(vertexId: Long, data: Any): Unit =
-    lens.sendMessage(VertexMessage(vertexId, data))
+  def messageNeighbour(vertexId: Long, data: Any): Unit = {
+    val message = VertexMessage(lens.superStep+1,vertexId, data)
+    lens.sendMessage(message)
+  }
 
   def messageAllOutgoingNeighbors(message: Any): Unit =
     internalOutgoingEdges.keys.foreach(vId => messageNeighbour(vId, message))
@@ -134,7 +138,7 @@ class ObjectVertex(private val v: RaphtoryVertex,
 
   // todo hide
   def receiveMessage(msg: VertexMessage): Unit = {
-    multiQueue.receiveMessage(lens.superStep, msg.data)
+    multiQueue.receiveMessage(msg.superstep, msg.data)
   }
 
   override def getOutNeighbours(after: Long, before: Long): List[Long] =

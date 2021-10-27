@@ -60,7 +60,6 @@
 //      }
 ////      vertex.messageAllNeighbours((vertex.ID(),newLabel))
 //      doSomething(vertex, gp.map(_._1).toArray)
-//      if (List(5,38,84, 9).contains(vertex.ID())) println( s"{ID: ${vertex.ID()},Superstep: ${view.superStep()}, old: $vlabel, new: $newLabel, flag: $vflag}")
 //    }
 //    view.getVertices().foreach{v=>
 //      v.messageAllNeighbours((v.ID(), v.getState[Long]("lpalabel")))

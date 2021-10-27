@@ -23,8 +23,5 @@ class CSVGraphBuilder extends GraphBuilder[String] {
       Properties(FloatProperty("Frequency", coocWeight))
     )
 
-    //    } catch {
-    //      case e: Exception => println(e, row)
-    //    }
   }
 }

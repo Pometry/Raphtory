@@ -13,7 +13,7 @@ class ObjectEdge(edge: RaphtoryEdge, id: Long, view: ObjectGraphLens) extends Ob
   def dst() = edge.getDstId
 
   def send(data: Any): Unit =
-    view.sendMessage(VertexMessage(id, data))
+    view.sendMessage(VertexMessage(view.superStep+1,id, data))
 
   override def explode(): List[ExplodedEdge] = history().map( event => {
     new ObjectExplodedEdge(this,event.time)
