@@ -4,11 +4,18 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
 import scala.collection.mutable
 
-// TODO ADD ARG SO CAN CHECK ONE NODE AT A TIME RATHER THAN WHOLE GRAPH
-class twoHopNeighbour(output: String = "/tmp/twoHopNeighbour") extends GraphAlgorithm {
+class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour") extends GraphAlgorithm {
   override def algorithm(graph: GraphPerspective): Unit = {
     graph
-      .step(vertex => vertex.getEdges().foreach(edge => edge.send(("twoHopRequest", vertex.ID, 0))))
+      .step(
+        vertex =>
+          if (nodeID == -1){
+            vertex.getEdges().foreach(edge => edge.send(("twoHopRequest", vertex.ID, 0)))
+          }
+          else if (vertex.ID() == nodeID){
+            vertex.getEdges().foreach(edge => edge.send(("twoHopRequest", vertex.ID, 0)))
+          }
+      )
       .iterate(
         { vertex =>
           val newMessages = vertex.messageQueue[(String, Long, Long)]
@@ -53,5 +60,5 @@ class twoHopNeighbour(output: String = "/tmp/twoHopNeighbour") extends GraphAlgo
 }
 
 object twoHopNeighbour {
-  def apply(output: String) = new twoHopNeighbour(output)
+  def apply(nodeID: Long= -1, output: String= "/tmp/twoHopNeighbour") = new twoHopNeighbour(nodeID, output)
 }
