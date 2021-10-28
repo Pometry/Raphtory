@@ -88,9 +88,9 @@ abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFun
         if ( (receivedMessageCount+receivedMessages) == (sentMessageCount+sentMessages) ) {
           currentOpperation match {
             case Iterate(f, iterations) =>
-              if(iterations==1||allVoteToHalt)
+              if(iterations==1||(allVoteToHalt&&votedToHalt)) {
                 nextGraphOperation(state,vertexCount)
-              else  {
+              } else  {
                 messagetoAllJobWorkers(Iterate(f, iterations-1))
                 context.become(executeGraph(state, Iterate(f, iterations-1), vertexCount,0, 0, 0, true))
               }

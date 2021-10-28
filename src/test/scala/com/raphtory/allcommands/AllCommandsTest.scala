@@ -31,25 +31,6 @@ class AllCommandsTest extends FunSuite {
   val watchdog        = node.getWatchdog()
   val queryManager    = node.getQueryManager()
 
-  object sortOrdering extends Ordering[String] {
-    def compare(line1: String, line2: String): Int = {
-      val vertex1 = line1.split(",").take(3).map(_.toInt)
-      val vertex2 = line2.split(",").take(3).map(_.toInt)
-      if(vertex1(0) > vertex2(0)) 1
-      else if (vertex1(0) < vertex2(0)) -1
-      else{
-        if(vertex1(1) > vertex2(1)) 1
-        else if (vertex1(1) < vertex2(1)) -1
-        else{
-          if(vertex1(2) > vertex2(2)) 1
-          else if (vertex1(2) < vertex2(2)) -1
-          else 0
-        }
-      }
-
-    }
-  }
-
   test("Warmup and Ingestion Test") {
         implicit val timeout: Timeout = 20.second
         try {
@@ -82,7 +63,7 @@ class AllCommandsTest extends FunSuite {
     try {
       val result = algorithmTest(ConnectedComponents(testDir),300)
       println(result)
-      assert(result equals "238b0004e9c9468963beb44070cdd5ee8795e19596d9107397c4446391471430")
+      assert(result equals "fe1f5f87ad80941dd11448c1dfaf6aab2c45fab2f1ba9581d179124dc1ad2429")
     }
     catch {
       case _: java.util.concurrent.TimeoutException =>
@@ -124,22 +105,25 @@ class AllCommandsTest extends FunSuite {
     catch {
       case e:NullPointerException => "Anon_Func_"+System.currentTimeMillis()
     }
-
   }
 
+  object sortOrdering extends Ordering[String] {
+    def compare(line1: String, line2: String): Int = {
+      val vertex1 = line1.split(",").take(3).map(_.toInt)
+      val vertex2 = line2.split(",").take(3).map(_.toInt)
+      if(vertex1(0) > vertex2(0)) 1
+      else if (vertex1(0) < vertex2(0)) -1
+      else{
+        if(vertex1(1) > vertex2(1)) 1
+        else if (vertex1(1) < vertex2(1)) -1
+        else{
+          if(vertex1(2) > vertex2(2)) 1
+          else if (vertex1(2) < vertex2(2)) -1
+          else 0
+        }
+      }
 
-  test("hashtest") {
-
-    val dir1 = new File(testDir+s"/ConnectedComponents_1635294366131").listFiles.filter(_.isFile)
-    val results1 = (for(i <- dir1) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted(sortOrdering)
-
-    val dir2 = new File(testDir+s"/ConnectedComponents_1635294568324").listFiles.filter(_.isFile)
-    val results2 = (for(i <- dir2) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted(sortOrdering)
-
-    results1.foreach(i=>
-     if(!results2.contains(i))
-      println(i))
-
+    }
   }
 }
 

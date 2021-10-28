@@ -119,6 +119,7 @@ lazy val raphtory = project
     libraryDependencies += "com.twitter"                  %% "chill"                              % "0.10.0",
     libraryDependencies += "com.twitter"                  %% "chill-akka"                         % "0.10.0",
     libraryDependencies += "io.github.kostaskougios"      % "cloning"                             % "1.10.3",
+    libraryDependencies += "org.mapdb"                    % "mapdb"                               % "3.0.8",
 
       libraryDependencies ++= Seq(
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
