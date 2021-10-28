@@ -1,6 +1,6 @@
 package com.raphtory.dev.lotr
 
-import com.raphtory.algorithms.newer.{BinaryDiffusion, LPA, ConnectedComponents, GraphState, TriangleCount}
+import com.raphtory.algorithms.newer.{BinaryDiffusion, twoHopNeighbour, ConnectedComponents, GraphState, TriangleCount}
 
 import com.raphtory.core.build.server.{RaphtoryPD, RaphtoryGraph}
 import net.openhft.hashing.LongHashFunction
@@ -12,10 +12,7 @@ object LOTRDeployment extends App{
 
   val startNode = LongHashFunction.xx3().hashChars("Gandalf")
   //rg.pointQuery(GraphState("/Users/bensteer/github/output"),32000)
-
-  val gandalfid: Array[Long] = Array(startNode)
-  val seedx = 10
-  rg.pointQuery(new LPA(),31816)
+  rg.pointQuery(new twoHopNeighbour(nodeID=startNode),31816)
   //rg.rangeQuery(ConnectedComponents("/Users/bensteer/github/output"),10000,32000,1000,List(10000, 1000,100))
 
 }
