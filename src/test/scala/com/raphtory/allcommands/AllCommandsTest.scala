@@ -10,8 +10,6 @@ import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFin
 import com.raphtory.core.components.leader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
 import com.raphtory.core.implementations.pojograph.algorithm.ObjectGraphPerspective
 import com.raphtory.core.model.algorithm.GraphAlgorithm
-import com.raphtory.resultcomparison.comparisonJsonProtocol._
-import com.raphtory.resultcomparison.{ConnectedComponentsResults, RaphtoryResultComparitor, StateCheckResult, TimeParams, comparisonJsonProtocol}
 import com.raphtory.spouts.FileSpout
 import spray.json._
 import com.google.common.hash.Hashing
@@ -35,12 +33,15 @@ class AllCommandsTest extends FunSuite {
         implicit val timeout: Timeout = 20.second
         try {
           var currentTimestamp = 0L
-          Thread.sleep(60000) //Wait the initial watermarker warm up time
-          for (i <- 1 to 3){
-            Thread.sleep(10000)
+          var ingesting = true
+          val startingTime = System.currentTimeMillis()
+         while(ingesting){
+            Thread.sleep(1000)
             val future = watermarker ? WhatsTheTime
             currentTimestamp = Await.result(future, timeout.duration).asInstanceOf[WatermarkTime].time
+            if(currentTimestamp==299868) ingesting=false
           }
+          println(s"Ingestion Took ${System.currentTimeMillis()-startingTime} milliseconds to complete")
           assert(currentTimestamp==299868) //all data is ingested and the minimum watermark is set to the last line in the data
         } catch {
       case _: java.util.concurrent.TimeoutException => assert(false)
@@ -50,7 +51,6 @@ class AllCommandsTest extends FunSuite {
   test("Graph State Test"){
     try {
       val result = algorithmTest(GraphState(testDir),500)
-      println(result)
       assert(result equals "1ecba4857ff7cf946a270d9e42f9035f774318437743078a24b8676fb68070c2")
     }
     catch {
@@ -62,7 +62,6 @@ class AllCommandsTest extends FunSuite {
   test("Connected Components Test"){
     try {
       val result = algorithmTest(ConnectedComponents(testDir),300)
-      println(result)
       assert(result equals "fe1f5f87ad80941dd11448c1dfaf6aab2c45fab2f1ba9581d179124dc1ad2429")
     }
     catch {
@@ -77,7 +76,7 @@ class AllCommandsTest extends FunSuite {
     implicit val timeout: Timeout = time.second
     val queryName = getID(algorithm)
     val funcs = getFuncs(algorithm)
-
+    val startingTime = System.currentTimeMillis()
 
     val future = queryManager ? RangeQuery(queryName,funcs, 1, 290001, 10000, Windows(1000, 10000, 100000, 1000000))
     //val future = queryManager ? PointQuery(queryName,funcs, 299860)
@@ -85,7 +84,7 @@ class AllCommandsTest extends FunSuite {
     val future2 = taskManager ? AreYouFinished
 
     val result = Await.result(future2, timeout.duration).asInstanceOf[TaskFinished].result
-
+    println(s"Task completed in ${System.currentTimeMillis()-startingTime} milliseconds")
     val dir = new File(testDir+s"/$queryName").listFiles.filter(_.isFile)
     val results = (for(i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted(sortOrdering).flatten
     Hashing.sha256().hashString(results, StandardCharsets.UTF_8).toString

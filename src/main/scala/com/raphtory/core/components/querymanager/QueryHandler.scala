@@ -26,6 +26,9 @@ abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFun
   override def preStart() = context.system.scheduler.scheduleOnce(Duration(1, MILLISECONDS), self, StartAnalysis)
   override def receive: Receive = spawnExecutors(0)
 
+  private var currentPerspective = Perspective(-1,Some(-1))
+  private var lasttime = 0L
+
   ////OPERATION STATES
   //Communicate with all readers and get them to spawn a QueryExecutor for their partition
   private def spawnExecutors(readyCount: Int): Receive = withDefaultMessageHandler("spawn executors") {
@@ -128,18 +131,40 @@ abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFun
   private def executeNextPerspective(perspectiveController: PerspectiveController) = {
     val latestTime = whatsTheTime()
     val currentPerspective = perspectiveController.nextPerspective()
+
     currentPerspective match {
       case Some(perspective) if perspective.timestamp <= latestTime =>
-        log.info(s"$perspective for Job $jobID is starting")
+        //log.info(s"$perspective for Job $jobID is starting")
+        logTime(perspective)
         messagetoAllJobWorkers(CreatePerspective(workerList, perspective.timestamp, perspective.window))
         context.become(establishPerspective(State(perspectiveController, perspective, null,null),0,0))
       case Some(perspective) =>
         log.info(s"$perspective for Job $jobID is not ready, currently at $latestTime. Rechecking")
+        logTime(perspective)
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
         context.become(establishPerspective(State(perspectiveController, perspective, null,null),0,0))
       case None =>
         log.info(s"no more perspectives to run for $jobID")
         killJob()
+    }
+  }
+
+  private def logTime(perspective: Perspective) = {
+    if(currentPerspective.timestamp!=(-1)){
+
+      currentPerspective.window match {
+        case Some(window) =>
+          log.info(s"For $jobID - Perspective at Time ${currentPerspective.timestamp} with Window $window took ${System.currentTimeMillis()-lasttime} milliseconds to run.")
+        case None =>
+          log.info(s"For $jobID - Perspective at Time ${currentPerspective.timestamp} took ${System.currentTimeMillis()-lasttime} milliseconds to run. ")
+      }
+      lasttime = System.currentTimeMillis()
+      currentPerspective = perspective
+
+    }
+    else{
+      currentPerspective = perspective
+      lasttime = System.currentTimeMillis()
     }
   }
 
