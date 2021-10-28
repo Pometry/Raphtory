@@ -4,6 +4,23 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
 import scala.collection.mutable
 
+/*
+  Description: Two hop neighbours.
+  given a start node, or not given the start_node, this will
+  go through all nodes in the graph and find their two-hop neighbours.
+  The algorithm works as follows,
+  in the first step the node messages all its neighbours, saying that it is
+  asking for a two-hop analysis.
+  When the node receives this request, it then finds all of its neighbours
+  and replies to the node in the form (response, neighbour, me).
+  Warning: As this sends alot of messages between nodes, running this for the
+  entire graph with a large number of iterations may cause you to run out of memory.
+  Therefore it is most optimal to run with a select node at a time.
+  The number of iterations makes a difference to ensure all messages have been read.
+  Output: The result is then aggregated and output into a csv file which has the following
+  output:   (time the algorithm was run, start node, first hop, second hop).
+ */
+
 class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour") extends GraphAlgorithm {
   override def algorithm(graph: GraphPerspective): Unit = {
     graph
@@ -36,7 +53,7 @@ class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour")
             twoHops = twoHops.distinct
             vertex.setState("twoHops", twoHops)
           }
-        }, 5
+        }, 100
       )
       .select(vertex =>
         Row(
