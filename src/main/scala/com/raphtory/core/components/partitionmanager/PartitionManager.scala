@@ -7,11 +7,10 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.leader.WatchDog.Message.PartitionUp
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.pojograph.messaging._
 import com.raphtory.core.model.graph.GraphPartition
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -22,9 +21,9 @@ import scala.language.postfixOps
   * */
 class PartitionManager(
                      id: Int,
-                     writers: ParTrieMap[Int, ActorRef],
-                     readers: ParTrieMap[Int, ActorRef],
-                     storage: ParTrieMap[Int, GraphPartition]
+                     writers: mutable.Map[Int, ActorRef],
+                     readers: mutable.Map[Int, ActorRef],
+                     storage: mutable.Map[Int, GraphPartition]
 ) extends RaphtoryActor {
 
   private val scheduledTaskMap: mutable.HashMap[String, Cancellable] = mutable.HashMap[String, Cancellable]()

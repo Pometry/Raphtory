@@ -1,13 +1,12 @@
 package com.raphtory.dev.wordSemantic.graphbuilders
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.pojograph.messaging._
 import com.raphtory.core.model.graph.{FloatProperty, Properties, StringProperty}
 
 class CoMatGB extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String) = {
-    //println(record)
     try {
     var dp = tuple.split(" ").map(_.trim)
     val occurenceTime = dp.head.toLong//DateFormatting(dp.head) //.slice(4, dp.head.length)

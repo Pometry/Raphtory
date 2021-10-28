@@ -51,9 +51,6 @@ trait RaphtoryActor extends Actor with ActorLogging with Timers {
     time.time
   }
 
-  def loadPredefinedAnalyser(className: String, args: Array[String]): Try[Analyser[Any]] =
-    Try(Class.forName(className).getConstructor(classOf[Array[String]]).newInstance(args).asInstanceOf[Analyser[Any]])
-      .orElse(Try(Class.forName(className).getConstructor().newInstance().asInstanceOf[Analyser[Any]]))
 
   def scheduleTask(initialDelay: FiniteDuration, interval: FiniteDuration, receiver: ActorRef, message: Any)
                   (implicit context: ActorContext, executor: ExecutionContext, sender: ActorRef = Actor.noSender): Cancellable = {

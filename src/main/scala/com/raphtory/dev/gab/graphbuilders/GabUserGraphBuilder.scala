@@ -2,7 +2,7 @@ package com.raphtory.dev.gab.graphbuilders
 
 import java.text.SimpleDateFormat
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.pojograph.messaging._
 import com.raphtory.core.model.graph.Type
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
@@ -34,21 +34,8 @@ class GabUserGraphBuilder extends GraphBuilder[String] {
   }
 
   def dateToUnixTime(timestamp: => String): Long = {
-    //if(timestamp == null) return null;
-    // println("TIME FUNC: "+ timestamp)
-    //val sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'+'HH:mm")
     val sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
-    //println(sdf)
     val dt = sdf.parse(timestamp)
-    //println(dt)
-    val epoch = dt.getTime
-    //println("*******EPOCH: "+epoch)
-    epoch
-    //=======
-    //    val epoch = dt.getTime
-    //   // println(epoch)
-    //    epoch
-    //>>>>>>> upstream/master
-
+    dt.getTime
   }
 }

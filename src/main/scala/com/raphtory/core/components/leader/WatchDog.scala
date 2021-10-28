@@ -12,11 +12,12 @@ import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import WatchDog.ActorState
 import WatchDog.Message._
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
+import com.typesafe.config.Config
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class WatchDog() extends RaphtoryActor {
+class WatchDog extends RaphtoryActor {
 
   private val maxTimeInMillis = 30000
 

@@ -6,19 +6,18 @@ import akka.util.Timeout
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.Message.{BuilderTimeSync, DataFinishedSync, KeepAlive, StartUp, TimeBroadcast}
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.State
 import com.raphtory.core.components.spout.SpoutAgent.Message.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.pojograph.messaging._
 import akka.pattern.ask
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.leader.WatchDog.Message.{BuilderUp, ClusterStatusRequest, ClusterStatusResponse}
 import com.raphtory.core.model.graph.{GraphUpdate, TrackedGraphUpdate}
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 
 class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) extends RaphtoryActor {
-  private val messageIDs = ParTrieMap[String, Int]()
+  private val messageIDs = mutable.Map[String, Int]()
   private var safe = false
 
   var update = 0
@@ -51,9 +50,14 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
     case AllocateTuple(record: T) => //todo: wvv AllocateTuple should hold type of record instead of using Any
       log.debug(s"Builder Executor [$builderID] received AllocateTuple[$record] request.")
       val newNewestTimes = parseTupleAndSendGraph(record)
-      val newNewestTime  = (state.newestTime :: newNewestTimes).max
-      if (newNewestTime > state.newestTime)
-        context.become(work(state.copy(newestTime = newNewestTime)))
+      try{
+        val newNewestTime  = (state.newestTime :: newNewestTimes).max
+        if (newNewestTime > state.newestTime)
+          context.become(work(state.copy(newestTime = newNewestTime)))
+      }catch {
+        case e:Exception => println("error")
+      }
+
       context.sender() ! WorkPlease
 
     case TimeBroadcast =>
@@ -85,8 +89,14 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
     case unhandled => log.warning(s"Builder Executor received unknown [$unhandled] message.")
   }
 
-  private def parseTupleAndSendGraph(record: T): List[Long] =
-    graphBuilder.getUpdates(record).map(update => sendGraphUpdate(update))
+  private def parseTupleAndSendGraph(record: T): List[Long] = {
+    try{
+      graphBuilder.getUpdates(record).map(update => sendGraphUpdate(update))
+    }
+    catch {
+      case e:Exception => List()
+    }
+  }
 
   private def sendGraphUpdate(message: GraphUpdate): Long = {
     update += 1

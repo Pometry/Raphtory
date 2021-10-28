@@ -1,13 +1,13 @@
 package com.raphtory.core.model.graph
 
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
-import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryVertex
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.pojograph.entities.internal.RaphtoryVertex
+import com.raphtory.core.implementations.pojograph.messaging._
 import com.raphtory.core.model.graph.visitor.Vertex
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.parallel.mutable.ParTrieMap
+import scala.collection.mutable
 
 /**
   * Singleton representing the Storage for the entities
@@ -42,7 +42,7 @@ abstract class GraphPartition(partitionID: Int) extends LazyLogging {
   /**
     * Analysis Functions
     * */
-  def getVertices(graphPerspective: GraphLens, time:Long, window:Long = Long.MaxValue):TrieMap[Long,Vertex]
+  def getVertices(graphPerspective: GraphLens, time:Long, window:Long = Long.MaxValue):mutable.Map[Long,Vertex]
 
 
 

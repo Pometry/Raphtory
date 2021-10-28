@@ -7,9 +7,10 @@ import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import WatermarkManager.Message.{ProbeWatermark, WatermarkTime, WhatsTheTime}
 import com.raphtory.core.components.leader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
+import com.typesafe.config.Config
 
 import java.time.LocalDateTime
-import scala.collection.parallel.mutable.ParTrieMap
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -22,7 +23,7 @@ class WatermarkManager(watchDog: ActorRef) extends RaphtoryActor  {
   }
   var safeTimestamp:Long = 0L
 
-  private val safeMessageMap = ParTrieMap[String, Long]()
+  private val safeMessageMap = mutable.Map[String, Long]()
   var counter = 0;
 
   override def receive: Receive = {

@@ -7,7 +7,7 @@ import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.querymanager.QueryHandler.Message._
 import com.raphtory.core.components.querymanager.QueryHandler.State
 import com.raphtory.core.components.querymanager.QueryManager.Message._
-import com.raphtory.core.implementations.objectgraph.algorithm.{ObjectGraphPerspective, ObjectTable}
+import com.raphtory.core.implementations.pojograph.algorithm.{ObjectGraphPerspective, PojoTable}
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphFunction, Iterate, Select, Table, TableFunction}
 
 import scala.collection.mutable
@@ -25,6 +25,9 @@ abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFun
   protected def buildPerspectiveController(latestTimestamp: Long): PerspectiveController
   override def preStart() = context.system.scheduler.scheduleOnce(Duration(1, MILLISECONDS), self, StartAnalysis)
   override def receive: Receive = spawnExecutors(0)
+
+  private var currentPerspective = Perspective(-1,Some(-1))
+  private var lasttime = 0L
 
   ////OPERATION STATES
   //Communicate with all readers and get them to spawn a QueryExecutor for their partition
@@ -88,9 +91,9 @@ abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFun
         if ( (receivedMessageCount+receivedMessages) == (sentMessageCount+sentMessages) ) {
           currentOpperation match {
             case Iterate(f, iterations) =>
-              if(iterations==1||allVoteToHalt)
+              if(iterations==1||(allVoteToHalt&&votedToHalt)) {
                 nextGraphOperation(state,vertexCount)
-              else  {
+              } else  {
                 messagetoAllJobWorkers(Iterate(f, iterations-1))
                 context.become(executeGraph(state, Iterate(f, iterations-1), vertexCount,0, 0, 0, true))
               }
@@ -128,18 +131,40 @@ abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFun
   private def executeNextPerspective(perspectiveController: PerspectiveController) = {
     val latestTime = whatsTheTime()
     val currentPerspective = perspectiveController.nextPerspective()
+
     currentPerspective match {
       case Some(perspective) if perspective.timestamp <= latestTime =>
-        log.info(s"$perspective for Job $jobID is starting")
+        //log.info(s"$perspective for Job $jobID is starting")
+        logTime(perspective)
         messagetoAllJobWorkers(CreatePerspective(workerList, perspective.timestamp, perspective.window))
         context.become(establishPerspective(State(perspectiveController, perspective, null,null),0,0))
       case Some(perspective) =>
         log.info(s"$perspective for Job $jobID is not ready, currently at $latestTime. Rechecking")
+        logTime(perspective)
         context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
         context.become(establishPerspective(State(perspectiveController, perspective, null,null),0,0))
       case None =>
         log.info(s"no more perspectives to run for $jobID")
         killJob()
+    }
+  }
+
+  private def logTime(perspective: Perspective) = {
+    if(currentPerspective.timestamp!=(-1)){
+
+      currentPerspective.window match {
+        case Some(window) =>
+          log.info(s"For $jobID - Perspective at Time ${currentPerspective.timestamp} with Window $window took ${System.currentTimeMillis()-lasttime} milliseconds to run.")
+        case None =>
+          log.info(s"For $jobID - Perspective at Time ${currentPerspective.timestamp} took ${System.currentTimeMillis()-lasttime} milliseconds to run. ")
+      }
+      lasttime = System.currentTimeMillis()
+      currentPerspective = perspective
+
+    }
+    else{
+      currentPerspective = perspective
+      lasttime = System.currentTimeMillis()
     }
   }
 
@@ -203,7 +228,7 @@ abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFun
 }
 
 object QueryHandler {
-  private case class State(perspectiveController: PerspectiveController, currentPerspective: Perspective, graphPerspective: ObjectGraphPerspective,table:ObjectTable) {
+  private case class State(perspectiveController: PerspectiveController, currentPerspective: Perspective, graphPerspective: ObjectGraphPerspective,table:PojoTable) {
     def updatePerspective(f: Perspective => Perspective): State = copy(currentPerspective = f(currentPerspective))
   }
 

@@ -7,8 +7,8 @@ import com.raphtory.core.components.partitionmanager.QueryExecutor.State
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, ExecutorEstablished, GraphFunctionComplete, MetaDataSet, PerspectiveEstablished, SetMetaData, TableBuilt, TableFunctionComplete}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, EndQuery}
 import com.raphtory.core.implementations
-import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
-import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
+import com.raphtory.core.implementations.pojograph.messaging.VertexMessageHandler
 import com.raphtory.core.model.algorithm.{Explode, Iterate, Select, Step, TableFilter, VertexFilter, WriteTo}
 import com.raphtory.core.model.graph.{GraphPartition, VertexMessage}
 import com.raphtory.core.model.graph.visitor.Vertex
@@ -28,12 +28,11 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
   private def work(state: State): Receive = withDefaultMessageHandler("work") {
 
     case msg: VertexMessage =>
-      log.debug(s"Job [$jobID] belonging to Reader [$partition] receives VertexMessage.")
       state.graphLens.receiveMessage(msg)
       context.become(work(state.updateReceivedMessageCount(_ + 1)))
 
     case CreatePerspective(neighbours, timestamp, window) =>
-      val lens =  ObjectGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours))
+      val lens =  PojoGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours))
       context.become(work(state.copy(
         graphLens = lens,
         sentMessageCount = 0,
@@ -67,8 +66,6 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
 
     case Select(f) =>
       state.graphLens.nextStep()
-
-      //log.info(s"Partition $partition have been asked to do a Select operation.")
       state.graphLens.executeSelect(f)
       sender() ! TableBuilt
 
@@ -86,18 +83,19 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
     case WriteTo(address) =>
       //log.info(s"Partition $partition have been asked to do a Table WriteTo operation.")
       val dir = new File(s"$address/$jobID")
-      if(!dir.exists())
+      if(!dir.exists()) {
         dir.mkdirs()
-      state.graphLens.getDataTable().foreach(row=>{
-        state.graphLens.window match {
-          case Some(window) =>
-            reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(s"${state.graphLens.timestamp},$window,"+row.getValues().mkString(",")+"\n")
-          case None =>
-            reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(s"${state.graphLens.timestamp},"+row.getValues().mkString(",")+"\n")
-
+      }
+      val window = state.graphLens.window
+      val timestamp = state.graphLens.timestamp
+      val datatable = state.graphLens.getDataTable().map(row => {
+        window match {
+          case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}"
+          case None => s"$timestamp,${row.getValues().mkString(",")}"
         }
-      })
-
+      }).mkString("\n") + "\n"
+      if(! (datatable equals("\n")))
+        reflect.io.File(s"$address/$jobID/partition-$partition").appendAll(datatable)
       sender() ! TableFunctionComplete
 
     case _: CheckMessages =>
@@ -116,7 +114,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
 }
 
 object QueryExecutor {
-  private case class State(graphLens: ObjectGraphLens,sentMessageCount: Int, receivedMessageCount: Int,votedToHalt:Boolean) {
+  private case class State(graphLens: PojoGraphLens, sentMessageCount: Int, receivedMessageCount: Int, votedToHalt:Boolean) {
     def updateReceivedMessageCount(f: Int => Int): State = copy(receivedMessageCount = f(receivedMessageCount))
   }
 }

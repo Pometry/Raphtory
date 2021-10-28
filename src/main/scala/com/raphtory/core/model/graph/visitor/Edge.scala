@@ -1,7 +1,7 @@
 package com.raphtory.core.model.graph.visitor
 
-import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
-import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryEdge
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
+import com.raphtory.core.implementations.pojograph.entities.internal.RaphtoryEdge
 import com.raphtory.core.model.graph.VertexMessage
 
 trait Edge extends EntityVisitor {

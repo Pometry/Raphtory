@@ -1,7 +1,7 @@
 package com.raphtory.dev.lotr
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.pojograph.messaging._
 import com.raphtory.core.model.graph.{ImmutableProperty, Properties, Type}
 
 class LOTRGraphBuilder extends GraphBuilder[String]{
@@ -19,4 +19,6 @@ class LOTRGraphBuilder extends GraphBuilder[String]{
     addVertex(timeStamp, tarID, Properties(ImmutableProperty("name",targetNode)),Type("Character"))
     addEdge(timeStamp,srcID,tarID, Type("Character Co-occurence"))
   }
+
 }
+
