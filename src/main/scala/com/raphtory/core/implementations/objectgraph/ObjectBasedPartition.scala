@@ -6,6 +6,8 @@ import com.raphtory.core.model.graph.{DoubleProperty, EdgeSyncAck, FloatProperty
 import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.concurrent.TrieMap
+import collection.JavaConverters._
+
 import scala.collection.mutable
 
 class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int){
@@ -67,29 +69,25 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
         v
     }
 
-    val messagesForIncoming = vertex.incomingEdges
-      .map { edge =>
-        edge._2 match {
-          case remoteEdge: SplitRaphtoryEdge =>
-            remoteEdge kill msgTime
-            Some[TrackedGraphEffect[GraphUpdateEffect]](TrackedGraphEffect(channelId, channelTime, InboundEdgeRemovalViaVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId)))
-          case edge => //if it is a local edge -- opperated by the same worker, therefore we can perform an action -- otherwise we must inform the other local worker to handle this
-            edge kill msgTime
-            None
-        }
+    val messagesForIncoming = vertex.incomingEdges.values().asScala
+      .map {
+        case remoteEdge: SplitRaphtoryEdge =>
+          remoteEdge kill msgTime
+          Some[TrackedGraphEffect[GraphUpdateEffect]](TrackedGraphEffect(channelId, channelTime, InboundEdgeRemovalViaVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId)))
+        case edge => //if it is a local edge -- opperated by the same worker, therefore we can perform an action -- otherwise we must inform the other local worker to handle this
+          edge kill msgTime
+          None
       }
       .toList
       .flatten
-    val messagesForOutgoing = vertex.outgoingEdges
-      .map { edge =>
-        edge._2 match {
-          case remoteEdge: SplitRaphtoryEdge =>
-            remoteEdge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
-            Some[TrackedGraphEffect[GraphUpdateEffect]](TrackedGraphEffect(channelId, channelTime, OutboundEdgeRemovalViaVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId)))
-          case edge =>
-            edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
-            None
-        }
+    val messagesForOutgoing = vertex.outgoingEdges.values().asScala
+      .map {
+        case remoteEdge: SplitRaphtoryEdge =>
+          remoteEdge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
+          Some[TrackedGraphEffect[GraphUpdateEffect]](TrackedGraphEffect(channelId, channelTime, OutboundEdgeRemovalViaVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId)))
+        case edge =>
+          edge kill msgTime //outgoing edge always opperated by the same worker, therefore we can perform an action
+          None
       }
       .toList
       .flatten

@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 //TODO Currently broken and needs to be updated with new comparison
 class AllCommandsTest extends FunSuite {
 
-  val testDir = "/Users/bensteer/github/output" //TODO CHANGE TO USER PARAM
+  val testDir = "/tmp" //TODO CHANGE TO USER PARAM
   val node = RaphtoryPD(new FileSpout("src/test/scala/com/raphtory/data/allcommands","testupdates.txt"),new AllCommandsBuilder())
   val watermarker     = node.getWatermarker()
   val watchdog        = node.getWatchdog()

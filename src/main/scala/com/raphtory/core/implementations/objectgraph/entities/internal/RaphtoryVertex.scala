@@ -4,6 +4,9 @@ import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
 import com.raphtory.core.implementations.objectgraph.entities.external.{ObjectEdge, ObjectVertex}
 import com.raphtory.core.model.graph.{GraphPartition, visitor}
 import com.raphtory.core.model.graph.visitor.{Edge, Vertex}
+import net.openhft.chronicle.map.ChronicleMap
+
+import collection.JavaConverters._
 
 import scala.collection.mutable
 
@@ -37,8 +40,17 @@ object RaphtoryVertex {
 class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
         extends RaphtoryEntity(msgTime, initialValue) {
 
-  var incomingEdges = mutable.Map[Long, RaphtoryEdge]() //Map of all edges associated with the vertex
-  var outgoingEdges = mutable.Map[Long, RaphtoryEdge]()
+  val incomingEdges = ChronicleMap.of(classOf[java.lang.Long], classOf[RaphtoryEdge])
+    .entries(500)
+    .averageValueSize(1000)
+    .name(vertexId+"in")
+    .create()
+
+  val outgoingEdges = ChronicleMap.of(classOf[java.lang.Long], classOf[RaphtoryEdge])
+    .entries(500)
+    .averageValueSize(1000)
+    .name(vertexId+"out")
+    .create()
 
   private var edgesRequiringSync = 0
 
@@ -49,20 +61,24 @@ class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   def addOutgoingEdge(edge: RaphtoryEdge): Unit = outgoingEdges.put(edge.getDstId, edge)
   def addAssociatedEdge(edge: RaphtoryEdge): Unit =
     if (edge.getSrcId == vertexId) addOutgoingEdge(edge) else addIncomingEdge(edge)
-  def getOutgoingEdge(id: Long): Option[RaphtoryEdge] = outgoingEdges.get(id)
-  def getIncomingEdge(id: Long): Option[RaphtoryEdge] = incomingEdges.get(id)
+  def getOutgoingEdge(id: Long): Option[RaphtoryEdge] = Option(outgoingEdges.get(id))
+  def getIncomingEdge(id: Long): Option[RaphtoryEdge] = Option(incomingEdges.get(id))
 
 
   def viewAtWithWindow(time: Long, windowSize: Long,lens:ObjectGraphLens): Vertex = {
+    val newInc = incomingEdges.keySet().asScala.collect {
+      case key if incomingEdges.get(key).aliveAtWithWindow(time, windowSize) =>
+        key.toLong -> new ObjectEdge(incomingEdges.get(key), key, lens)
+    }.toSeq
+
+    val newOut = outgoingEdges.keySet().asScala.collect {
+      case key if outgoingEdges.get(key).aliveAtWithWindow(time, windowSize) =>
+        key.toLong -> new ObjectEdge(outgoingEdges.get(key), key, lens)
+    }.toSeq
+
     new ObjectVertex(this,
-      incomingEdges.collect {
-        case (k, edge) if edge.aliveAtWithWindow(time,windowSize) =>
-          k -> new ObjectEdge(edge, k, lens)
-      },
-      outgoingEdges.collect {
-        case (k, edge) if edge.aliveAtWithWindow(time,windowSize) =>
-          k -> new ObjectEdge(edge, k, lens)
-      },
+      mutable.Map(newInc:_*),
+      mutable.Map(newOut:_*),
       lens)
   }
 

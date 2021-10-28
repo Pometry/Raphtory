@@ -9,6 +9,8 @@ object LOTRDeployment extends App{
   val source  = new FileSpout("src/main/scala/com/raphtory/dev/lotr/")
   val builder = new LOTRGraphBuilder()
   val rg = RaphtoryGraph[String](source,builder)
+
+  rg.pointQuery(TriangleCount("/tmp/lotroutput"),31816)
 }
 
 

@@ -10,7 +10,7 @@ import scala.collection.mutable
   * @param creationTime ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced
   */
-abstract class RaphtoryEntity(val creationTime: Long, isInitialValue: Boolean) {
+abstract class RaphtoryEntity(val creationTime: Long, isInitialValue: Boolean) extends Serializable {
 
   // Properties from that entity
   private var entityType: Option[String]               = None
