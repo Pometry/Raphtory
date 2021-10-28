@@ -1,7 +1,7 @@
-package com.raphtory.core.implementations.objectgraph.entities.internal
+package com.raphtory.core.implementations.pojograph.entities.internal
 
-import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
-import com.raphtory.core.implementations.objectgraph.entities.external.{ObjectEdge, ObjectVertex}
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
+import com.raphtory.core.implementations.pojograph.entities.external.{PojoEdge, PojoVertex}
 import com.raphtory.core.model.graph.{GraphPartition, visitor}
 import com.raphtory.core.model.graph.visitor.{Edge, Vertex}
 
@@ -53,15 +53,15 @@ class RaphtoryVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   def getIncomingEdge(id: Long): Option[RaphtoryEdge] = incomingEdges.get(id)
 
 
-  def viewAtWithWindow(time: Long, windowSize: Long,lens:ObjectGraphLens): Vertex = {
-    new ObjectVertex(this,
+  def viewAtWithWindow(time: Long, windowSize: Long,lens:PojoGraphLens): Vertex = {
+    new PojoVertex(this,
       incomingEdges.collect {
         case (k, edge) if edge.aliveAtWithWindow(time,windowSize) =>
-          k -> new ObjectEdge(edge, k, lens)
+          k -> new PojoEdge(edge, k, lens)
       },
       outgoingEdges.collect {
         case (k, edge) if edge.aliveAtWithWindow(time,windowSize) =>
-          k -> new ObjectEdge(edge, k, lens)
+          k -> new PojoEdge(edge, k, lens)
       },
       lens)
   }

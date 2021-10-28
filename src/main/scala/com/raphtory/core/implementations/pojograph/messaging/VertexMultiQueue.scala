@@ -1,4 +1,4 @@
-package com.raphtory.core.implementations.objectgraph.messaging
+package com.raphtory.core.implementations.pojograph.messaging
 
 import scala.collection.mutable.ListBuffer
 

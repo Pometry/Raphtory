@@ -1,14 +1,14 @@
-package com.raphtory.core.implementations.objectgraph
+package com.raphtory.core.implementations.pojograph
 
-import com.raphtory.core.implementations.objectgraph.entities.internal.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.pojograph.entities.internal.{RaphtoryEdge, RaphtoryEntity, RaphtoryVertex, SplitRaphtoryEdge}
+import com.raphtory.core.implementations.pojograph.messaging._
 import com.raphtory.core.model.graph.{DoubleProperty, EdgeSyncAck, FloatProperty, GraphLens, GraphPartition, GraphUpdateEffect, ImmutableProperty, InboundEdgeRemovalViaVertex, LongProperty, OutboundEdgeRemovalViaVertex, Properties, StringProperty, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, Type, VertexRemoveSyncAck}
 import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
-class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int){
+class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
   /**
     * Map of vertices contained in the partition
     */
@@ -267,7 +267,7 @@ class ObjectBasedPartition(partition: Int) extends GraphPartition(partition: Int
     * Analysis Functions
     * */
   override def getVertices(lens:GraphLens, time: Long, window: Long=Long.MaxValue): mutable.Map[Long, Vertex] = {
-    val lenz = lens.asInstanceOf[ObjectGraphLens]
+    val lenz = lens.asInstanceOf[PojoGraphLens]
     val x = vertices.collect{
       case (id,vertex) if(vertex.aliveAtWithWindow(time,window)) => (id,vertex.viewAtWithWindow(time,window,lenz))
     }

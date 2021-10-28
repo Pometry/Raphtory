@@ -1,13 +1,13 @@
-package com.raphtory.core.implementations.objectgraph.entities.external
+package com.raphtory.core.implementations.pojograph.entities.external
 
-import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
-import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryEntity
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
+import com.raphtory.core.implementations.pojograph.entities.internal.RaphtoryEntity
 import com.raphtory.core.model.graph.visitor.{EntityVisitor, HistoricEvent}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-abstract class ObjectEntity(entity: RaphtoryEntity, view: ObjectGraphLens) extends EntityVisitor{
+abstract class PojoEntity(entity: RaphtoryEntity, view: PojoGraphLens) extends EntityVisitor{
   def Type() = entity.getType
 
   def firstActivityAfter(time: Long) = history.filter(k => k.time >= time).minBy(x => x.time)

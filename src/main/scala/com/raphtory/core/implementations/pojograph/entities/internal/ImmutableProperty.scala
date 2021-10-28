@@ -1,4 +1,4 @@
-package com.raphtory.core.implementations.objectgraph.entities.internal
+package com.raphtory.core.implementations.pojograph.entities.internal
 
 class ImmutableProperty(creationTime: Long, value: Any) extends Property {
   var earliestTime: Long                = creationTime

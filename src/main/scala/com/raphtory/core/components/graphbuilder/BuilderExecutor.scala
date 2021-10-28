@@ -6,7 +6,7 @@ import akka.util.Timeout
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.Message.{BuilderTimeSync, DataFinishedSync, KeepAlive, StartUp, TimeBroadcast}
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.State
 import com.raphtory.core.components.spout.SpoutAgent.Message.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.pojograph.messaging._
 import akka.pattern.ask
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.leader.WatchDog.Message.{BuilderUp, ClusterStatusRequest, ClusterStatusResponse}

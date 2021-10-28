@@ -1,4 +1,4 @@
-package com.raphtory.core.implementations.objectgraph.algorithm
+package com.raphtory.core.implementations.pojograph.algorithm
 
 import com.raphtory.core.model.algorithm.{GraphFunction, GraphPerspective, Iterate, Row, Select, Step, Table, VertexFilter}
 import com.raphtory.core.model.graph.visitor.Vertex
@@ -15,7 +15,7 @@ class ClosureEncap {
 
 class ObjectGraphPerspective(vertices:Int)  extends GraphPerspective{
   val graphOpps = mutable.Queue[GraphFunction]()
-  val table     = new ObjectTable()
+  val table     = new PojoTable()
 
   def bulkAdd(graphFuncs:List[GraphFunction]) = graphFuncs.foreach(f=> graphOpps.enqueue(f))
 

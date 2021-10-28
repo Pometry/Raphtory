@@ -9,10 +9,6 @@ abstract class RaphtoryService[T] {
   def defineSpout():Spout[T]
   def defineBuilder: GraphBuilder[T]
 
-  import org.mapdb._
-
-  val db: DB = ???
-
   def main(args: Array[String]): Unit = {
     args(0) match {
       case "leader" => leaderDeploy()

@@ -1,4 +1,4 @@
-package com.raphtory.core.implementations.objectgraph.messaging
+package com.raphtory.core.implementations.pojograph.messaging
 
 import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.ActorRef

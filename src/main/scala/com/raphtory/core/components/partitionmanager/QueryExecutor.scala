@@ -7,8 +7,8 @@ import com.raphtory.core.components.partitionmanager.QueryExecutor.State
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, ExecutorEstablished, GraphFunctionComplete, MetaDataSet, PerspectiveEstablished, SetMetaData, TableBuilt, TableFunctionComplete}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, EndQuery}
 import com.raphtory.core.implementations
-import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
-import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
+import com.raphtory.core.implementations.pojograph.messaging.VertexMessageHandler
 import com.raphtory.core.model.algorithm.{Explode, Iterate, Select, Step, TableFilter, VertexFilter, WriteTo}
 import com.raphtory.core.model.graph.{GraphPartition, VertexMessage}
 import com.raphtory.core.model.graph.visitor.Vertex
@@ -32,7 +32,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       context.become(work(state.updateReceivedMessageCount(_ + 1)))
 
     case CreatePerspective(neighbours, timestamp, window) =>
-      val lens =  ObjectGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours))
+      val lens =  PojoGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours))
       context.become(work(state.copy(
         graphLens = lens,
         sentMessageCount = 0,
@@ -114,7 +114,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
 }
 
 object QueryExecutor {
-  private case class State(graphLens: ObjectGraphLens,sentMessageCount: Int, receivedMessageCount: Int,votedToHalt:Boolean) {
+  private case class State(graphLens: PojoGraphLens, sentMessageCount: Int, receivedMessageCount: Int, votedToHalt:Boolean) {
     def updateReceivedMessageCount(f: Int => Int): State = copy(receivedMessageCount = f(receivedMessageCount))
   }
 }

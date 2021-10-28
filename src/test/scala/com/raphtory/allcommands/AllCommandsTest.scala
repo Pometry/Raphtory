@@ -8,7 +8,7 @@ import com.raphtory.RaphtoryPD
 import com.raphtory.algorithms.GraphState
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, ManagingTask, PointQuery, RangeQuery, TaskFinished, Windows}
 import com.raphtory.core.components.leader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
-import com.raphtory.core.implementations.objectgraph.algorithm.ObjectGraphPerspective
+import com.raphtory.core.implementations.pojograph.algorithm.ObjectGraphPerspective
 import com.raphtory.core.model.algorithm.GraphAlgorithm
 import com.raphtory.resultcomparison.comparisonJsonProtocol._
 import com.raphtory.resultcomparison.{ConnectedComponentsResults, RaphtoryResultComparitor, StateCheckResult, TimeParams, comparisonJsonProtocol}

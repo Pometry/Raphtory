@@ -6,7 +6,7 @@ import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.querymanager.QueryManager.Message.{LiveQuery, PointQuery, RangeQuery}
 import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.implementations.objectgraph.algorithm.ObjectGraphPerspective
+import com.raphtory.core.implementations.pojograph.algorithm.ObjectGraphPerspective
 import com.raphtory.core.model.algorithm.GraphAlgorithm
 import com.rits.cloning.Cloner
 

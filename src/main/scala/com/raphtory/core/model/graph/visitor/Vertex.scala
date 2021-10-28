@@ -1,8 +1,8 @@
 package com.raphtory.core.model.graph.visitor
 
-import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
-import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryVertex
-import com.raphtory.core.implementations.objectgraph.messaging.VertexMultiQueue
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
+import com.raphtory.core.implementations.pojograph.entities.internal.RaphtoryVertex
+import com.raphtory.core.implementations.pojograph.messaging.VertexMultiQueue
 
 import scala.collection.parallel.ParIterable
 

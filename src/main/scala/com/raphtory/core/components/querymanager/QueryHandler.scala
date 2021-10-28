@@ -7,7 +7,7 @@ import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.querymanager.QueryHandler.Message._
 import com.raphtory.core.components.querymanager.QueryHandler.State
 import com.raphtory.core.components.querymanager.QueryManager.Message._
-import com.raphtory.core.implementations.objectgraph.algorithm.{ObjectGraphPerspective, ObjectTable}
+import com.raphtory.core.implementations.pojograph.algorithm.{ObjectGraphPerspective, PojoTable}
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphFunction, Iterate, Select, Table, TableFunction}
 
 import scala.collection.mutable
@@ -203,7 +203,7 @@ abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFun
 }
 
 object QueryHandler {
-  private case class State(perspectiveController: PerspectiveController, currentPerspective: Perspective, graphPerspective: ObjectGraphPerspective,table:ObjectTable) {
+  private case class State(perspectiveController: PerspectiveController, currentPerspective: Perspective, graphPerspective: ObjectGraphPerspective,table:PojoTable) {
     def updatePerspective(f: Perspective => Perspective): State = copy(currentPerspective = f(currentPerspective))
   }
 

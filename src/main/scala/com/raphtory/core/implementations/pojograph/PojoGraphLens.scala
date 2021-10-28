@@ -1,7 +1,7 @@
-package com.raphtory.core.implementations.objectgraph
+package com.raphtory.core.implementations.pojograph
 
-import com.raphtory.core.implementations.objectgraph.entities.external.ObjectVertex
-import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
+import com.raphtory.core.implementations.pojograph.entities.external.PojoVertex
+import com.raphtory.core.implementations.pojograph.messaging.VertexMessageHandler
 import com.raphtory.core.model.algorithm.Row
 import com.raphtory.core.model.graph.visitor.Vertex
 import com.raphtory.core.model.graph.{GraphLens, GraphPartition, VertexMessage}
@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
-final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends GraphLens(jobId, timestamp, window) {
+final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends GraphLens(jobId, timestamp, window) {
   private val voteCount = new AtomicInteger(0)
   private val vertexCount = new AtomicInteger(0)
   var t1 = System.currentTimeMillis()
@@ -80,7 +80,7 @@ final case class ObjectGraphLens(jobId: String, timestamp: Long, window: Option[
 
   def receiveMessage(msg: VertexMessage): Unit = {
     try {
-      vertexMap(msg.vertexId).asInstanceOf[ObjectVertex].receiveMessage(msg)
+      vertexMap(msg.vertexId).asInstanceOf[PojoVertex].receiveMessage(msg)
     }
     catch {
       case e: Exception => e.printStackTrace()

@@ -1,19 +1,19 @@
-package com.raphtory.core.implementations.objectgraph.entities.external
+package com.raphtory.core.implementations.pojograph.entities.external
 
-import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
-import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryVertex
-import com.raphtory.core.implementations.objectgraph.messaging.VertexMultiQueue
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
+import com.raphtory.core.implementations.pojograph.entities.internal.RaphtoryVertex
+import com.raphtory.core.implementations.pojograph.messaging.VertexMultiQueue
 import com.raphtory.core.model.graph.VertexMessage
 import com.raphtory.core.model.graph.visitor.{Edge, EntityVisitor, ExplodedEdge, Vertex}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-class ObjectVertex(private val v: RaphtoryVertex,
-                   private val internalIncomingEdges: mutable.Map[Long, Edge],
-                   private val internalOutgoingEdges: mutable.Map[Long, Edge],
-                   private val lens: ObjectGraphLens
-  ) extends ObjectEntity(v,lens) with Vertex {
+class PojoVertex(private val v: RaphtoryVertex,
+                 private val internalIncomingEdges: mutable.Map[Long, Edge],
+                 private val internalOutgoingEdges: mutable.Map[Long, Edge],
+                 private val lens: PojoGraphLens
+  ) extends PojoEntity(v,lens) with Vertex {
 
   override def ID() = v.vertexId
 
