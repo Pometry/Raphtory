@@ -14,29 +14,20 @@ class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:Strin
   override def algorithm(graph: GraphPerspective): Unit = {
     graph.step({
       vertex =>
-        val outEdges = vertex.getOutEdges()
-        val outDegree = outEdges.size
-        if (outDegree > 0) {
-          val toSend = 1.0/outDegree
-          vertex.setState("prlabel",toSend)
-          outEdges.foreach(edge => {
-            edge.send(toSend)
-          })
-        } else {
-          vertex.setState("prlabel",0.0)
-        }
+        val initLabel=1.0
+        val outDegree=vertex.getOutNeighbours().size
+        vertex.setState("prlabel",initLabel)
+        if (outDegree>0.0)
+          vertex.messageAllOutgoingNeighbors(initLabel/outDegree)
       }).iterate({ vertex =>
       val currentLabel = vertex.getState[Double]("prlabel")
-      val newLabel = 1 - dampingFactor + dampingFactor * vertex.messageQueue[Double].sum
+      val newLabel = (1 - dampingFactor) + dampingFactor * vertex.messageQueue[Double].sum
       vertex.setState("prlabel", newLabel)
-      if (Math.abs(newLabel - currentLabel) / currentLabel > 0.01) {
-        val outEdges = vertex.getOutEdges()
+      if (Math.abs(newLabel - currentLabel) / currentLabel > 0.000001) {
+        val outEdges = vertex.getOutNeighbours()
         val outDegree = outEdges.size
         if (outDegree > 0) {
-          val toSend = newLabel / outDegree
-          outEdges.foreach(edge => {
-            edge.send(toSend)
-          })
+          vertex.messageAllOutgoingNeighbors(newLabel/outDegree)
         }
       }
       else {
@@ -46,15 +37,13 @@ class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:Strin
       .select({
         vertex =>
           Row(
-            vertex.ID(),
+            vertex.getPropertyOrElse("name", vertex.ID()),
             vertex.getStateOrElse("prlabel", -1)
           )
       })
       .writeTo(output)
   }
 }
-
-
 
 object PageRank{
   def apply(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:String = "/tmp/PageRank") =
