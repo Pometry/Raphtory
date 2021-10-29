@@ -8,22 +8,19 @@ import com.raphtory.core.components.leader.WatchDog.Message.{ClusterStatusReques
 import com.raphtory.core.components.spout.SpoutAgent.Message._
 import com.raphtory.core.implementations.pojograph.messaging._
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.reflect.ClassTag
 
 
 
-class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
+class SpoutAgent[T:ClassTag](datasource:Spout[T]) extends RaphtoryActor {
   // todo: wvv should assign the dispatcher when create the actor
   //implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("spout-dispatcher")
   //implicit val executionContext: ExecutionContext = context.system.dispatcher
-
-  private var count       = 0
-
-  private def recordUpdate(): Unit = {
-    count += 1
-  }
 
   override def preStart() {
     log.debug("Spout is being started.")
@@ -78,16 +75,32 @@ class SpoutAgent(datasource:Spout[Any]) extends RaphtoryActor {
 
 
   def sendData(sender:ActorRef): Unit = {
-
-      datasource.generateData() match {
+    val tuples = ArrayBuffer[T]()
+    for(i<-0 until RaphtoryActor.batchsize) {
+      val tuple = datasource.generateData()
+      tuple match {
         case Some(work) =>
-          val message = AllocateTuple(work)
-          sender ! message
-          recordUpdate()
-//          if (count % 10000 == 0) println(s"Spout at Message $count")
-        case None if !datasource.isComplete() =>   sender ! NoWork
-        case _ => sender ! DataFinished
-    }
+          tuples += work
+        case None if !datasource.isComplete() =>
+          if(tuples.isEmpty)
+            sender ! NoWork
+          else
+            sender ! AllocateTuples[T](tuples.toArray)
+
+          return
+        case _ =>
+          if(tuples.isEmpty)
+            sender ! DataFinished
+          else
+            sender ! AllocateTuples[T](tuples.toArray)
+
+          return
+      }
+    }//if we make it to the end can send the whole batch
+    sender ! AllocateTuples[T](tuples.toArray)
+
+
+
   }
 
   def AllocateSpoutTask(duration: FiniteDuration, task: Any): Cancellable = {
@@ -104,6 +117,6 @@ object SpoutAgent {
     case object NoWork
     case object SpoutOnline
     case object DataFinished
-    case class AllocateTuple(record: Any)
+    case class AllocateTuples[T](record:Array[T])
   }
 }

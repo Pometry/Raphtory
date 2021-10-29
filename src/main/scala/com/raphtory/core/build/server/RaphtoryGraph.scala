@@ -11,7 +11,9 @@ import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.implementations.pojograph.algorithm.ObjectGraphPerspective
 import com.raphtory.core.model.algorithm.GraphAlgorithm
 
-class RaphtoryGraph [T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
+import scala.reflect.ClassTag
+
+class RaphtoryGraph [T:ClassTag](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
     val system = ComponentFactory.initialiseActorSystem(List("127.0.0.1:1600"),1600)
       private val watchDog = system.actorOf(Props(new WatchDog()), "WatchDog")
       system.actorOf(Props(new WatermarkManager(watchDog)),"WatermarkManager")
@@ -53,7 +55,7 @@ class RaphtoryGraph [T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   }
 
 object RaphtoryGraph {
-  def apply[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) = {
+  def apply[T:ClassTag](spout: Spout[T], graphBuilder: GraphBuilder[T]) = {
     new RaphtoryGraph[T](spout,graphBuilder)
   }
 }

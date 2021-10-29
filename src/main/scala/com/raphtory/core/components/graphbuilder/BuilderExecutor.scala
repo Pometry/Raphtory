@@ -5,7 +5,7 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.util.Timeout
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.Message.{BuilderTimeSync, DataFinishedSync, KeepAlive, StartUp, TimeBroadcast}
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.State
-import com.raphtory.core.components.spout.SpoutAgent.Message.{AllocateTuple, DataFinished, NoWork, SpoutOnline, WorkPlease}
+import com.raphtory.core.components.spout.SpoutAgent.Message.{AllocateTuples, DataFinished, NoWork, SpoutOnline, WorkPlease}
 import com.raphtory.core.implementations.pojograph.messaging._
 import akka.pattern.ask
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
@@ -47,9 +47,12 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
     case NoWork =>
       context.system.scheduler.scheduleOnce(delay = 1.second, receiver = context.sender(), message = WorkPlease)
 
-    case AllocateTuple(record: T) => //todo: wvv AllocateTuple should hold type of record instead of using Any
-      log.debug(s"Builder Executor [$builderID] received AllocateTuple[$record] request.")
-      val newNewestTimes = parseTupleAndSendGraph(record)
+    case e:AllocateTuples[T] => //todo: wvv AllocateTuple should hold type of record instead of using Any
+      val newNewestTimes = (
+        for(record <- e.record)
+          yield parseTupleAndSendGraph(record)
+        ).flatten.toList
+
       try{
         val newNewestTime  = (state.newestTime :: newNewestTimes).max
         if (newNewestTime > state.newestTime)
