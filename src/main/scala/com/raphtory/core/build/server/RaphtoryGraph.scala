@@ -30,20 +30,14 @@ class RaphtoryGraph [T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
 
 
     def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
-      queryManager ! PointQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),timestamp,windows)
+      queryManager ! PointQuery(getID(graphAlgorithm),graphAlgorithm,timestamp,windows)
     }
     def rangeQuery(graphAlgorithm: GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
-      queryManager ! RangeQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),start,end,increment,windows)
+      queryManager ! RangeQuery(getID(graphAlgorithm),graphAlgorithm,start,end,increment,windows)
     }
     def liveQuery(graphAlgorithm: GraphAlgorithm,increment:Long,windows:List[Long]=List()) = {
-      queryManager ! LiveQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),increment,windows)
+      queryManager ! LiveQuery(getID(graphAlgorithm),graphAlgorithm,increment,windows)
     }
-
-  private def getFuncs(graphAlgorithm: GraphAlgorithm) ={
-    val graphPerspective = new ObjectGraphPerspective(0)
-    graphAlgorithm.algorithm(graphPerspective)
-    (graphPerspective.graphOpps.toList, graphPerspective.getTable().tableOpps.toList)
-  }
 
   private def getID(algorithm:GraphAlgorithm):String = {
     try{

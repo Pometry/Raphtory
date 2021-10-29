@@ -41,7 +41,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       handlerRef ! PerspectiveEstablished(lens.getSize())
 
     case SetMetaData(vertices) =>
-      state.graphLens.setGraphSize(vertices)
+      state.graphLens.setFullGraphSize(vertices)
       handlerRef ! MetaDataSet
 
     case Step(f) =>

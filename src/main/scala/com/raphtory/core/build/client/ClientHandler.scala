@@ -44,15 +44,15 @@ class ClientHandler extends RaphtoryActor with Stash{
         stash()
   }
 
-  def pointQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), timestamp:Long, windows:List[Long]=List()) = {
+  def pointQuery(name:String,algorithm:GraphAlgorithm, timestamp:Long, windows:List[Long]=List()) = {
     mediator ! DistributedPubSubMediator.Send("/user/QueryManager",
       PointQuery(name,algorithm,timestamp,windows), localAffinity = false)
   }
-  def rangeQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]),start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
+  def rangeQuery(name:String,algorithm:GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
     mediator ! DistributedPubSubMediator.Send("/user/QueryManager",
       RangeQuery(name,algorithm,start,end,increment,windows), localAffinity = false)
   }
-  def liveQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]),increment:Long,windows:List[Long]=List()) = {
+  def liveQuery(name:String,algorithm:GraphAlgorithm,increment:Long,windows:List[Long]=List()) = {
     mediator ! DistributedPubSubMediator.Send("/user/QueryManager",
       LiveQuery(name,algorithm,increment,windows), localAffinity = false)
   }

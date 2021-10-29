@@ -4,9 +4,11 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
 class ConnectedComponents(path:String) extends GraphAlgorithm{
   override def algorithm(graph: GraphPerspective): Unit = {
+    val size = graph.nodeCount()
     graph
       .step({
         vertex =>
+          println(size)
           vertex.setState("cclabel", vertex.ID)
           vertex.messageAllNeighbours(vertex.ID)
       })
