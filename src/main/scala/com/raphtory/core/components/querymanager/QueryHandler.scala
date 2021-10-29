@@ -89,12 +89,12 @@ abstract class QueryHandler(jobID:String,algorithm: GraphAlgorithm) extends Raph
       if ( (readyCount+1) == totalPartitions) {
         if ( (receivedMessageCount+receivedMessages) == (sentMessageCount+sentMessages) ) {
           currentOpperation match {
-            case Iterate(f, iterations) =>
+            case Iterate(f, iterations,executeMessagedOnly) =>
               if(iterations==1||(allVoteToHalt&&votedToHalt)) {
                 nextGraphOperation(state,vertexCount)
               } else  {
-                messagetoAllJobWorkers(Iterate(f, iterations-1))
-                context.become(executeGraph(state, Iterate(f, iterations-1), vertexCount,0, 0, 0, true))
+                messagetoAllJobWorkers(Iterate(f, iterations-1,executeMessagedOnly))
+                context.become(executeGraph(state, Iterate(f, iterations-1,executeMessagedOnly), vertexCount,0, 0, 0, true))
               }
             case _ =>
               nextGraphOperation(state,vertexCount)

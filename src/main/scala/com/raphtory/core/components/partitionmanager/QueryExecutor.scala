@@ -52,10 +52,14 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       sender() ! GraphFunctionComplete(sentMessages,state.receivedMessageCount)
       context.become(work(state.copy(sentMessageCount=sentMessages)))
 
-    case Iterate(f,iterations) =>
+    case Iterate(f,iterations,executeMessagedOnly) =>
       //log.info(s"Partition $partition have been asked to do an Iterate operation. There are $iterations Iterations remaining")
       state.graphLens.nextStep()
-      state.graphLens.runMessagedGraphFunction(f)
+      if(executeMessagedOnly)
+        state.graphLens.runMessagedGraphFunction(f)
+      else
+        state.graphLens.runGraphFunction(f)
+
       val sentMessages = state.graphLens.getMessageHandler().getCount()
       sender() ! GraphFunctionComplete(state.receivedMessageCount,sentMessages,state.graphLens.checkVotes())
       context.become(work(state.copy(votedToHalt = state.graphLens.checkVotes(),sentMessageCount = sentMessages)))
