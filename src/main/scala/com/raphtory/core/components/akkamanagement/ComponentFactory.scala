@@ -59,6 +59,7 @@ object ComponentFactory {
   def initialiseActorSystem(seeds: List[String], port: Int): ActorSystem = {
     var config = ConfigFactory.load()
     val seedLoc = seeds.head
+    val IP = config.getString("Raphtory.myLoc")
 
     config = config.withValue(
       "akka.cluster.seed-nodes",
@@ -70,7 +71,7 @@ object ComponentFactory {
     )
     config = config.withValue("akka.remote.artery.canonical.bind-port", ConfigValueFactory.fromAnyRef(port))
     config = config.withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(port))
-    config = config.withValue("akka.remote.artery.canonical.hostname", ConfigValueFactory.fromAnyRef("127.0.0.1"))
+    config = config.withValue("akka.remote.artery.canonical.hostname", ConfigValueFactory.fromAnyRef(IP))
     ActorSystem(clusterSystemName, config)
   }
 
