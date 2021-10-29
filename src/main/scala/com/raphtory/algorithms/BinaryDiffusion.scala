@@ -1,6 +1,7 @@
-package com.raphtory.algorithms.newer
+package com.raphtory.algorithms
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+
 import scala.util.Random
 
 class BinaryDiffusion(infectedNode:Long, seed:Long, outputFolder:String) extends GraphAlgorithm {
