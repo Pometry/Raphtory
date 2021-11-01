@@ -19,7 +19,7 @@ class RaphtoryPD[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   var port = 1600
   val seedloc = "127.0.0.1:1600"
 
-  val (watermarker,watchDog) = ComponentFactory.leader(port)
+  val (watermarker,watchDog) = ComponentFactory.leader("127.0.0.1",port)
   val queryManager = ComponentFactory.query(seedloc,nextPort)
 
   val spoutRef = ComponentFactory.spout(seedloc,nextPort,spout)

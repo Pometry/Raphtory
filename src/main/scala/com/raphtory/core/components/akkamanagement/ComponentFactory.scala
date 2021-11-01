@@ -23,10 +23,10 @@ object ComponentFactory {
     cloner.deepClone(gb).asInstanceOf[GraphBuilder[Any]]
   }
 
-  def leader(port: Int,conf:Config = ConfigFactory.load()): (ActorRef, ActorRef) = {
-    val address = s"127.0.0.1:$port"
-    println(s"Creating leader at $address")
-    val system: ActorSystem = initialiseActorSystem(seeds = List(address), port)
+  def leader(address:String,port: Int,conf:Config = ConfigFactory.load()): (ActorRef, ActorRef) = {
+    val leaderLoc = address+":"+port
+    println(s"Creating leader at $leaderLoc")
+    val system: ActorSystem = initialiseActorSystem(seeds = List(leaderLoc), port)
     val watchDog = system.actorOf(Props(new WatchDog()), "WatchDog")
     (system.actorOf(Props(new WatermarkManager(watchDog)), "WatermarkManager"), watchDog)
   }
@@ -52,14 +52,14 @@ object ComponentFactory {
   def query(seed: String, port: Int): ActorRef = {
     println("Creating Query Manager")
     val system: ActorSystem = initialiseActorSystem(seeds = List(seed), port)
-    system.actorOf(Props(new QueryManagerConnector()), "AnalysisManagerConnector")
+    system.actorOf(Props(new QueryManagerConnector()), "QueryManagerConnector")
   }
 
 
   def initialiseActorSystem(seeds: List[String], port: Int): ActorSystem = {
     var config = ConfigFactory.load()
     val seedLoc = seeds.head
-    val IP = config.getString("Raphtory.myLoc")
+    val IP = config.getString("Raphtory.bindAddress")
 
     config = config.withValue(
       "akka.cluster.seed-nodes",

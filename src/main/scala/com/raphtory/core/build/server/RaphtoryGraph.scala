@@ -27,7 +27,6 @@ class RaphtoryGraph [T:ClassTag](spout: Spout[T], graphBuilder: GraphBuilder[T])
       for(i<-0 until partitionServers)
         system.actorOf(Props(new PartitionConnector()), s"PartitionManager_$i")
 
-    //  val analysisManager = system.actorOf(Props(new AnalysisManagerConnector()), "AnalysisManagerConnector")
     val queryManager    = system.actorOf(Props(new QueryManagerConnector()), "QueryManagerConnector")
 
 
