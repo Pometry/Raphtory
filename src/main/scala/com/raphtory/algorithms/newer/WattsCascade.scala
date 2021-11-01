@@ -37,7 +37,7 @@ class WattsCascade(infectedSeed:Array[Long], UNIFORM_RANDOM:Int = 1, UNIFORM_SAM
             vertex.setState("infected",true)
           } else
             vertex.voteToHalt()
-      }, 100)
+      }, 100, true)
       .select({ vertex => Row(
         vertex.ID,
         vertex.getPropertyOrElse[String]("name", "None"),
