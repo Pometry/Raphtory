@@ -1,5 +1,4 @@
 import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
-import com.typesafe.sbt.packager.docker.Cmd
 import sbtassembly.MergeStrategy
 
 lazy val root = Project(id = "raphtory", base = file(".")) aggregate (raphtory)
@@ -25,17 +24,6 @@ lazy val globalSettings = Seq(
     "-unchecked"
   ),
   testOptions in Test += Tests.Argument("-oDF"),
-  version := "latest",
-  // docker settings
-  maintainer := "Ben Steer <ben.steer@pometry.com>",
-  dockerBaseImage := "miratepuffin/raphtory-redis:latest",
-  dockerExposedPorts := Seq(2551, 8080, 2552,25520, 1600, 11600,8081,46339,9100),
-  dockerRepository := Some("tsukitsune"),
-  dockerEntrypoint := Seq("bash"),
-  dockerCommands ++= Seq(
-    Cmd("ENV", "PATH=/opt/docker/bin:${PATH}"),
-    Cmd("RUN", "chmod 755 bin/env-setter.sh")
-  )
 )
 
 lazy val mergeStrategy: String => MergeStrategy = {
@@ -77,7 +65,6 @@ lazy val raphtory = project
     name        := "Raphtory",
     description := "Raphtory Distributed Graph Stream Processing",
     isSnapshot := true,
-    mappings in Universal += file(s"${baseDirectory.value}/Build-Scripts/env-setter.sh") -> "bin/env-setter.sh",
     assemblyMergeStrategy in assembly := mergeStrategy,
     mainClass in assembly := Some("com.raphtory.core.build.server.RaphtoryGraph"),
     javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default",
@@ -120,13 +107,7 @@ lazy val raphtory = project
     libraryDependencies += "com.twitter"                  %% "chill-akka"                         % "0.10.0",
     libraryDependencies += "io.github.kostaskougios"      % "cloning"                             % "1.10.3",
     libraryDependencies += "net.openhft" % "chronicle-map" % "3.22ea5",
-
-
-      libraryDependencies ++= Seq(
-      "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
-    ),
+    libraryDependencies ++= Seq("com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"),
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test,
-    Compile / PB.targets := Seq(
-      scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
-    )
+    Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb")
   )

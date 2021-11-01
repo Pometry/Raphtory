@@ -2,7 +2,7 @@ package com.raphtory.allcommands
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.model.graph
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.generic.messaging._
 import com.raphtory.core.model.graph.{FloatProperty, Properties}
 import spray.json._
 

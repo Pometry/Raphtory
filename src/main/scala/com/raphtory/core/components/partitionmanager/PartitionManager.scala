@@ -7,7 +7,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.leader.WatchDog.Message.PartitionUp
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.generic.messaging._
 import com.raphtory.core.model.graph.GraphPartition
 
 import scala.collection.mutable

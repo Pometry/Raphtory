@@ -7,8 +7,9 @@ import com.raphtory.core.components.partitionmanager.QueryExecutor.State
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, ExecutorEstablished, GraphFunctionComplete, MetaDataSet, PerspectiveEstablished, SetMetaData, TableBuilt, TableFunctionComplete}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, EndQuery}
 import com.raphtory.core.implementations
-import com.raphtory.core.implementations.objectgraph.ObjectGraphLens
-import com.raphtory.core.implementations.objectgraph.messaging.VertexMessageHandler
+import com.raphtory.core.implementations.generic
+import com.raphtory.core.implementations.generic.GenericGraphLens
+import com.raphtory.core.implementations.generic.messaging.VertexMessageHandler
 import com.raphtory.core.model.algorithm.{Explode, Iterate, Select, Step, TableFilter, VertexFilter, WriteTo}
 import com.raphtory.core.model.graph.{GraphPartition, VertexMessage}
 import com.raphtory.core.model.graph.visitor.Vertex
@@ -32,7 +33,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       context.become(work(state.updateReceivedMessageCount(_ + 1)))
 
     case CreatePerspective(neighbours, timestamp, window) =>
-      val lens =  ObjectGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours))
+      val lens =  generic.GenericGraphLens(jobID, timestamp, window, 0, storage, VertexMessageHandler(neighbours))
       context.become(work(state.copy(
         graphLens = lens,
         sentMessageCount = 0,
@@ -41,7 +42,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       handlerRef ! PerspectiveEstablished(lens.getSize())
 
     case SetMetaData(vertices) =>
-      state.graphLens.setGraphSize(vertices)
+      state.graphLens.setFullGraphSize(vertices)
       handlerRef ! MetaDataSet
 
     case Step(f) =>
@@ -52,10 +53,14 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       sender() ! GraphFunctionComplete(sentMessages,state.receivedMessageCount)
       context.become(work(state.copy(sentMessageCount=sentMessages)))
 
-    case Iterate(f,iterations) =>
+    case Iterate(f,iterations,executeMessagedOnly) =>
       //log.info(s"Partition $partition have been asked to do an Iterate operation. There are $iterations Iterations remaining")
       state.graphLens.nextStep()
-      state.graphLens.runMessagedGraphFunction(f)
+      if(executeMessagedOnly)
+        state.graphLens.runMessagedGraphFunction(f)
+      else
+        state.graphLens.runGraphFunction(f)
+
       val sentMessages = state.graphLens.getMessageHandler().getCount()
       sender() ! GraphFunctionComplete(state.receivedMessageCount,sentMessages,state.graphLens.checkVotes())
       context.become(work(state.copy(votedToHalt = state.graphLens.checkVotes(),sentMessageCount = sentMessages)))
@@ -114,7 +119,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
 }
 
 object QueryExecutor {
-  private case class State(graphLens: ObjectGraphLens,sentMessageCount: Int, receivedMessageCount: Int,votedToHalt:Boolean) {
+  private case class State(graphLens: GenericGraphLens, sentMessageCount: Int, receivedMessageCount: Int, votedToHalt:Boolean) {
     def updateReceivedMessageCount(f: Int => Int): State = copy(receivedMessageCount = f(receivedMessageCount))
   }
 }

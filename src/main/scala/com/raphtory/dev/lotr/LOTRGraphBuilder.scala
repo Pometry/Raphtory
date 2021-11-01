@@ -1,7 +1,7 @@
 package com.raphtory.dev.lotr
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.generic.messaging._
 import com.raphtory.core.model.graph.{ImmutableProperty, Properties, Type}
 
 class LOTRGraphBuilder extends GraphBuilder[String]{

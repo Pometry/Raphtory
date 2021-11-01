@@ -25,7 +25,7 @@ class TriangleCount(path:String) extends GraphAlgorithm {
               tri+=nbs.intersect(neighbours).size
           )
           vertex.setState("triangles",tri/2)
-      },1)
+      },1,true)
       .select(
         vertex => Row(vertex.getPropertyOrElse("name", vertex.ID()), vertex.getState[Int]("triangles"))
       )

@@ -71,17 +71,17 @@ class QueryManager extends RaphtoryActor with ActorLogging with Stash {
 
   private def spawnPointQuery(id:String, query: PointQuery): ActorRef = {
     log.info(s"Point Query received, your job ID is $id")
-    context.system.actorOf(Props(PointQueryHandler(id,query.algorithm._1,query.algorithm._2,query.timestamp,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
+    context.system.actorOf(Props(PointQueryHandler(id,query.algorithm,query.timestamp,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
   }
 
   private def spawnRangeQuery(id:String, query: RangeQuery): ActorRef = {
     log.info(s"Range Query received, your job ID is $id")
-    context.system.actorOf(Props(RangeQueryHandler(id,query.algorithm._1,query.algorithm._2,query.start,query.end,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
+    context.system.actorOf(Props(RangeQueryHandler(id,query.algorithm,query.start,query.end,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
   }
 
   private def spawnLiveQuery(id:String, query: LiveQuery): ActorRef = {
     log.info(s"Range Query received, your job ID is $id")
-    context.system.actorOf(Props(LiveQueryHandler(id,query.algorithm._1,query.algorithm._2,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
+    context.system.actorOf(Props(LiveQueryHandler(id,query.algorithm,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
   }
 
 
@@ -105,9 +105,9 @@ object QueryManager {
     def Windows(list: Long*) = List(list: _*)
 
     sealed trait Query
-    case class PointQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), timestamp: Long, windows: Windows=List()) extends Query
-    case class RangeQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), start: Long, end: Long, increment: Long, windows: Windows=List()) extends Query
-    case class LiveQuery(name:String,algorithm:(List[GraphFunction],List[TableFunction]), increment: Long, windows: Windows=List()) extends Query
+    case class PointQuery(name:String,algorithm:GraphAlgorithm, timestamp: Long, windows: Windows=List()) extends Query
+    case class RangeQuery(name:String,algorithm:GraphAlgorithm, start: Long, end: Long, increment: Long, windows: Windows=List()) extends Query
+    case class LiveQuery(name:String,algorithm:GraphAlgorithm, increment: Long, windows: Windows=List()) extends Query
     case class EndQuery(jobID:String)
     case class QueryNotPresent(jobID:String)
 

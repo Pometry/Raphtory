@@ -28,7 +28,7 @@ class HamzaCentrality extends GraphAlgorithm{
 
             vertex.messageAllNeighbours(newSet)
           }
-      }, 100)
+      }, 100,true)
       .select { vertex =>
         val degree = vertex.getState[Seq[Long]]("vertexSet").size
         val characterName = vertex.getPropertyOrElse[String]("name","unknown")

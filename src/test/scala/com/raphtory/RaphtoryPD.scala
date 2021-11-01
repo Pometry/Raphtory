@@ -6,7 +6,7 @@ import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.querymanager.QueryManager.Message.{LiveQuery, PointQuery, RangeQuery}
 import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.implementations.objectgraph.algorithm.ObjectGraphPerspective
+import com.raphtory.core.implementations.generic.algorithm.ObjectGraphPerspective
 import com.raphtory.core.model.algorithm.GraphAlgorithm
 import com.rits.cloning.Cloner
 
@@ -19,7 +19,7 @@ class RaphtoryPD[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   var port = 1600
   val seedloc = "127.0.0.1:1600"
 
-  val (watermarker,watchDog) = ComponentFactory.leader(port)
+  val (watermarker,watchDog) = ComponentFactory.leader("127.0.0.1",port)
   val queryManager = ComponentFactory.query(seedloc,nextPort)
 
   val spoutRef = ComponentFactory.spout(seedloc,nextPort,spout)
@@ -40,24 +40,18 @@ class RaphtoryPD[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   def getPartitions()     :List[ActorRef] = partitions.toList
 
   def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
-    queryManager ! PointQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),timestamp,windows)
+    queryManager ! PointQuery(getID(graphAlgorithm),graphAlgorithm,timestamp,windows)
   }
   def rangeQuery(graphAlgorithm: GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
-    queryManager ! RangeQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),start,end,increment,windows)
+    queryManager ! RangeQuery(getID(graphAlgorithm),graphAlgorithm,start,end,increment,windows)
   }
   def liveQuery(graphAlgorithm: GraphAlgorithm,increment:Long,windows:List[Long]=List()) = {
-    queryManager ! LiveQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),increment,windows)
+    queryManager ! LiveQuery(getID(graphAlgorithm),graphAlgorithm,increment,windows)
   }
 
   private def nextPort() = {
     port = port+1
     port
-  }
-
-  private def getFuncs(graphAlgorithm: GraphAlgorithm) ={
-    val graphPerspective = new ObjectGraphPerspective(0)
-    graphAlgorithm.algorithm(graphPerspective)
-    (graphPerspective.graphOpps.toList, graphPerspective.getTable().tableOpps.toList)
   }
 
   private def getID(algorithm:GraphAlgorithm):String = {

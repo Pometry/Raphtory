@@ -1,8 +1,8 @@
 package com.raphtory.core.model.graph
 
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
-import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryVertex
-import com.raphtory.core.implementations.objectgraph.messaging._
+import com.raphtory.core.implementations.chroniclegraph.entities.internal.ChronicleVertex
+import com.raphtory.core.implementations.generic.messaging._
 import com.raphtory.core.model.graph.visitor.Vertex
 import com.typesafe.scalalogging.LazyLogging
 

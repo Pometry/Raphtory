@@ -1,6 +1,6 @@
 package com.raphtory.core.model.graph.visitor
 
-import com.raphtory.core.implementations.objectgraph.entities.internal.RaphtoryEntity
+import com.raphtory.core.implementations.chroniclegraph.entities.internal.ChronicleEntity
 
 import scala.collection.mutable
 import scala.reflect.ClassTag

@@ -19,7 +19,7 @@ class BuilderConnector[T](graphBuilder: GraphBuilder[T]) extends ComponentConnec
 
   val cloner = new Cloner
   def newGraphBuilder()={
-    cloner.deepClone(graphBuilder).asInstanceOf[GraphBuilder[Any]]
+    cloner.deepClone(graphBuilder).asInstanceOf[GraphBuilder[T]]
   }
 
   override def giveBirth(assignedId: Int): Unit = {
@@ -27,7 +27,7 @@ class BuilderConnector[T](graphBuilder: GraphBuilder[T]) extends ComponentConnec
     val startRange = assignedId*buildersPerServer
     val endRange = startRange+buildersPerServer
     (startRange until endRange).map { i =>
-      context.system.actorOf(Props(new BuilderExecutor(newGraphBuilder(), i)).withDispatcher("builder-dispatcher"), s"build_$i")
+      context.system.actorOf(Props(new BuilderExecutor[T](newGraphBuilder(), i)).withDispatcher("builder-dispatcher"), s"build_$i")
     }.toList
 
   }
