@@ -6,8 +6,9 @@ import scala.collection.mutable
 
 /*
   Description: Two hop neighbours.
-  given a start node, or not given the start_node, this will
-  go through all nodes in the graph and find their two-hop neighbours.
+  This algorithm will return the two hop neighbours of each node
+  in the graph. If the user provides a node ID, then it will
+  only return the two hop neighbours of that node.
   The algorithm works as follows,
   in the first step the node messages all its neighbours, saying that it is
   asking for a two-hop analysis.
@@ -26,10 +27,7 @@ class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour")
     graph
       .step(
         vertex =>
-          if (nodeID == -1){
-            vertex.getEdges().foreach(edge => edge.send(("twoHopRequest", vertex.ID, 0)))
-          }
-          else if (vertex.ID() == nodeID){
+          if (nodeID == -1 || vertex.ID() == nodeID){
             vertex.getEdges().foreach(edge => edge.send(("twoHopRequest", vertex.ID, 0)))
           }
       )
@@ -53,7 +51,7 @@ class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour")
             twoHops = twoHops.distinct
             vertex.setState("twoHops", twoHops)
           }
-        }, 100
+        }, 25, true
       )
       .select(vertex =>
         Row(
