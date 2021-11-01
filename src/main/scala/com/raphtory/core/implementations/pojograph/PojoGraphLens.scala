@@ -17,7 +17,7 @@ final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Lo
 
   private var fullGraphSize = 0
   def getFullGraphSize = fullGraphSize
-  def setGraphSize(size:Int) = fullGraphSize = size
+  def setFullGraphSize(size:Int) = fullGraphSize = size
 
   private lazy val vertexMap: mutable.Map[Long, Vertex] = {
     val result = window match {

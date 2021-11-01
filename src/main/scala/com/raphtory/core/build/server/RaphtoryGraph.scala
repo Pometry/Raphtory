@@ -11,7 +11,9 @@ import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.implementations.pojograph.algorithm.ObjectGraphPerspective
 import com.raphtory.core.model.algorithm.GraphAlgorithm
 
-class RaphtoryGraph [T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
+import scala.reflect.ClassTag
+
+class RaphtoryGraph [T:ClassTag](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
     val system = ComponentFactory.initialiseActorSystem(List("127.0.0.1:1600"),1600)
       private val watchDog = system.actorOf(Props(new WatchDog()), "WatchDog")
       system.actorOf(Props(new WatermarkManager(watchDog)),"WatermarkManager")
@@ -30,20 +32,14 @@ class RaphtoryGraph [T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
 
 
     def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
-      queryManager ! PointQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),timestamp,windows)
+      queryManager ! PointQuery(getID(graphAlgorithm),graphAlgorithm,timestamp,windows)
     }
     def rangeQuery(graphAlgorithm: GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
-      queryManager ! RangeQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),start,end,increment,windows)
+      queryManager ! RangeQuery(getID(graphAlgorithm),graphAlgorithm,start,end,increment,windows)
     }
     def liveQuery(graphAlgorithm: GraphAlgorithm,increment:Long,windows:List[Long]=List()) = {
-      queryManager ! LiveQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),increment,windows)
+      queryManager ! LiveQuery(getID(graphAlgorithm),graphAlgorithm,increment,windows)
     }
-
-  private def getFuncs(graphAlgorithm: GraphAlgorithm) ={
-    val graphPerspective = new ObjectGraphPerspective(0)
-    graphAlgorithm.algorithm(graphPerspective)
-    (graphPerspective.graphOpps.toList, graphPerspective.getTable().tableOpps.toList)
-  }
 
   private def getID(algorithm:GraphAlgorithm):String = {
     try{
@@ -59,7 +55,7 @@ class RaphtoryGraph [T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
   }
 
 object RaphtoryGraph {
-  def apply[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) = {
+  def apply[T:ClassTag](spout: Spout[T], graphBuilder: GraphBuilder[T]) = {
     new RaphtoryGraph[T](spout,graphBuilder)
   }
 }

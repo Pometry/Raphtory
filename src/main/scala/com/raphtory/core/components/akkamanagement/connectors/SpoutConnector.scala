@@ -7,8 +7,9 @@ import akka.pattern.ask
 import com.raphtory.core.components.leader.WatchDog.Message.RequestSpoutId
 
 import scala.concurrent.Future
+import scala.reflect.ClassTag
 
-class SpoutConnector[T](spout: Spout[T]) extends ComponentConnector() {
+class SpoutConnector[T:ClassTag](spout: Spout[T]) extends ComponentConnector() {
   override def callTheWatchDog(): Future[Any] = {
     log.debug(s"Attempting to retrieve Spout Id from WatchDog.")
     mediator ? DistributedPubSubMediator.Send("/user/WatchDog", RequestSpoutId, localAffinity = false)
@@ -16,6 +17,6 @@ class SpoutConnector[T](spout: Spout[T]) extends ComponentConnector() {
   }
 
   override def giveBirth(assignedId: Int): Unit = {
-    context.system.actorOf(Props(new SpoutAgent(spout)), "Spout")
+    context.system.actorOf(Props(new SpoutAgent[T](spout)), "Spout")
   }
 }

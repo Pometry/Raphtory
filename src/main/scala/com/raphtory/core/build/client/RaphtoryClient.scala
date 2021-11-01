@@ -12,12 +12,6 @@ class RaphtoryClient(leader:String,port:Int) {
   val system = ComponentFactory.initialiseActorSystem(List(leader),port)
   val handler = system.actorOf(Props(new ClientHandler),"clientHandler")
 
-  private def getFuncs(graphAlgorithm: GraphAlgorithm) ={
-    val graphPerspective = new ObjectGraphPerspective(0)
-    graphAlgorithm.algorithm(graphPerspective)
-    (graphPerspective.graphOpps.toList, graphPerspective.getTable().tableOpps.toList)
-  }
-
   private def getID(algorithm:GraphAlgorithm):String = {
     try{
       val path= algorithm.getClass.getCanonicalName.split("\\.")
@@ -30,13 +24,13 @@ class RaphtoryClient(leader:String,port:Int) {
   }
 
   def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
-    handler ! PointQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),timestamp,windows)
+    handler ! PointQuery(getID(graphAlgorithm),graphAlgorithm,timestamp,windows)
   }
   def rangeQuery(graphAlgorithm: GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
-    handler ! RangeQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),start,end,increment,windows)
+    handler ! RangeQuery(getID(graphAlgorithm),graphAlgorithm,start,end,increment,windows)
   }
   def liveQuery(graphAlgorithm: GraphAlgorithm,increment:Long,windows:List[Long]=List()) = {
-    handler ! LiveQuery(getID(graphAlgorithm),getFuncs(graphAlgorithm),increment,windows)
+    handler ! LiveQuery(getID(graphAlgorithm),graphAlgorithm,increment,windows)
   }
 
 }

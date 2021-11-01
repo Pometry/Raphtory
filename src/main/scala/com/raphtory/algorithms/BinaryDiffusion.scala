@@ -1,6 +1,7 @@
-package com.raphtory.algorithms.newer
+package com.raphtory.algorithms
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+
 import scala.util.Random
 
 class BinaryDiffusion(infectedNode:Long, seed:Long, outputFolder:String) extends GraphAlgorithm {
@@ -26,7 +27,7 @@ class BinaryDiffusion(infectedNode:Long, seed:Long, outputFolder:String) extends
               edge => if (randomiser.nextBoolean()) edge.send(infectedStatus)
             }
           }
-      }, 100)
+      }, 100,true)
       .select(vertex => Row(vertex.ID(), vertex.getStateOrElse("infected", false)))
       .filter(row => row.get(1) == true)
       .writeTo(outputFolder)

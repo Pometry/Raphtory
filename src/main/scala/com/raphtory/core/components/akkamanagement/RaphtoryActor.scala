@@ -23,6 +23,7 @@ object RaphtoryActor {
   val analysisCount         : Int = 1
   val totalPartitions       : Int = partitionServers*partitionsPerServer
   val totalBuilders         : Int = builderServers*buildersPerServer
+  val batchsize             : Int = conf.getInt("Raphtory.builderBatchSize")
 }
 
 trait RaphtoryActor extends Actor with ActorLogging with Timers {

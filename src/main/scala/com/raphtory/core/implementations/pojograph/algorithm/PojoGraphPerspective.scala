@@ -30,8 +30,8 @@ class ObjectGraphPerspective(vertices:Int)  extends GraphPerspective{
     this
   }
 
-  override def iterate(f: Vertex => Unit, iterations: Int): GraphPerspective = {
-    graphOpps.enqueue(Iterate(f,iterations))
+  override def iterate(f: Vertex => Unit, iterations: Int,executeMessagedOnly:Boolean): GraphPerspective = {
+    graphOpps.enqueue(Iterate(f,iterations,executeMessagedOnly))
     this
   }
 

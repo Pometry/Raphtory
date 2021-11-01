@@ -16,7 +16,7 @@ import scala.concurrent.duration.{Duration, MILLISECONDS, SECONDS}
 import scala.reflect.ClassTag.Any
 import scala.util.{Failure, Success}
 
-abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFuncs:List[TableFunction]) extends RaphtoryActor{
+abstract class QueryHandler(jobID:String,algorithm: GraphAlgorithm) extends RaphtoryActor{
 
   private val workerList = mutable.Map[Int,ActorRef]()
 
@@ -70,9 +70,8 @@ abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFun
   private def executeGraph(state: State, currentOpperation: GraphFunction, vertexCount:Int, readyCount: Int, receivedMessageCount: Int, sentMessageCount: Int, allVoteToHalt: Boolean):Receive = withDefaultMessageHandler("Execute Graph") {
     case StartGraph =>
       val graphPerspective = new ObjectGraphPerspective(vertexCount)
-      graphPerspective.bulkAdd(graphFuncs)
+      algorithm.algorithm(graphPerspective)
       val table = graphPerspective.getTable()
-      table.bulkAdd(tableFuncs)
       graphPerspective.getNextOperation() match {
         case Some(f:Select) =>
           messagetoAllJobWorkers(f)
@@ -90,12 +89,12 @@ abstract class QueryHandler(jobID:String,graphFuncs:List[GraphFunction],tableFun
       if ( (readyCount+1) == totalPartitions) {
         if ( (receivedMessageCount+receivedMessages) == (sentMessageCount+sentMessages) ) {
           currentOpperation match {
-            case Iterate(f, iterations) =>
+            case Iterate(f, iterations,executeMessagedOnly) =>
               if(iterations==1||(allVoteToHalt&&votedToHalt)) {
                 nextGraphOperation(state,vertexCount)
               } else  {
-                messagetoAllJobWorkers(Iterate(f, iterations-1))
-                context.become(executeGraph(state, Iterate(f, iterations-1), vertexCount,0, 0, 0, true))
+                messagetoAllJobWorkers(Iterate(f, iterations-1,executeMessagedOnly))
+                context.become(executeGraph(state, Iterate(f, iterations-1,executeMessagedOnly), vertexCount,0, 0, 0, true))
               }
             case _ =>
               nextGraphOperation(state,vertexCount)

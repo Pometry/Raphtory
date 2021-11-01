@@ -75,10 +75,9 @@ class AllCommandsTest extends FunSuite {
   def algorithmTest(algorithm: GraphAlgorithm,time:Int):String = {
     implicit val timeout: Timeout = time.second
     val queryName = getID(algorithm)
-    val funcs = getFuncs(algorithm)
     val startingTime = System.currentTimeMillis()
 
-    val future = queryManager ? RangeQuery(queryName,funcs, 1, 290001, 10000, Windows(1000, 10000, 100000, 1000000))
+    val future = queryManager ? RangeQuery(queryName,algorithm, 1, 290001, 10000, Windows(1000, 10000, 100000, 1000000))
     //val future = queryManager ? PointQuery(queryName,funcs, 299860)
     val taskManager = Await.result(future, timeout.duration).asInstanceOf[ManagingTask].actor
     val future2 = taskManager ? AreYouFinished
@@ -88,12 +87,6 @@ class AllCommandsTest extends FunSuite {
     val dir = new File(testDir+s"/$queryName").listFiles.filter(_.isFile)
     val results = (for(i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted(sortOrdering).flatten
     Hashing.sha256().hashString(results, StandardCharsets.UTF_8).toString
-  }
-
-  private def getFuncs(graphAlgorithm: GraphAlgorithm) ={
-    val graphPerspective = new ObjectGraphPerspective(0)
-    graphAlgorithm.algorithm(graphPerspective)
-    (graphPerspective.graphOpps.toList, graphPerspective.getTable().tableOpps.toList)
   }
 
   private def getID(algorithm:GraphAlgorithm):String = {
