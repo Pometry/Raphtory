@@ -4,9 +4,8 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
 class OutDegreeAverage(output:String) extends GraphAlgorithm {
   override def algorithm(graph: GraphPerspective): Unit = {
-    var nodeCount = 0L
+    val nodeCount = graph.nodeCount()
     graph
-      .step({v => nodeCount += 1})
       .select({
         vertex =>
           val id = vertex.ID()
