@@ -1,6 +1,7 @@
-package com.raphtory.algorithms.newer
+package com.raphtory.algorithms
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+
 import scala.util.Random
 
 class WattsCascade(infectedSeed:Array[Long], UNIFORM_RANDOM:Int = 1, UNIFORM_SAMEVAL:Int = 2, threshold_choice:Double = 1.0, seed:Int = -1, output:String = "/tmp/wattsCascade") extends GraphAlgorithm {
