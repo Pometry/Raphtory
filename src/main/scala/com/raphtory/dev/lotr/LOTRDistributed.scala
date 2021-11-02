@@ -7,7 +7,7 @@ import com.raphtory.spouts.FileSpout
 
 object LOTRDistributed extends RaphtoryService[String]{
 
-  override def defineSpout(): Spout[String] =  new FileSpout("src/main/scala/com/raphtory/dev/lotr/")
+  override def defineSpout(): Spout[String] =  new FileSpout("src/main/scala/com/raphtory/dev/lotr", "lotr.csv")
 
   override def defineBuilder: GraphBuilder[String] = new LOTRGraphBuilder()
 
