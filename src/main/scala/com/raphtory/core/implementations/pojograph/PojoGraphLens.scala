@@ -1,16 +1,16 @@
 package com.raphtory.core.implementations.pojograph
 
-import com.raphtory.core.implementations.chroniclegraph.external.ChronicleExVertex
 import com.raphtory.core.implementations.generic.messaging.VertexMessageHandler
-import com.raphtory.core.implementations.pojograph.entities.external.{PojoExEntity, PojoExVertex}
+import com.raphtory.core.implementations.pojograph.entities.external.PojoExVertex
 import com.raphtory.core.model.algorithm.Row
 import com.raphtory.core.model.graph.visitor.Vertex
-import com.raphtory.core.model.graph.{GraphLens, GraphPartition, VertexMessage}
+import com.raphtory.core.model.graph.{GraphLens, GraphPartition, LensInterface, VertexMessage}
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
-final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends GraphLens(jobId, timestamp, window) {
+final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler)
+  extends GraphLens(jobId, timestamp, window) with LensInterface {
   private val voteCount = new AtomicInteger(0)
   private val vertexCount = new AtomicInteger(0)
   var t1 = System.currentTimeMillis()
@@ -90,5 +90,7 @@ final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Lo
 
   }
 
+  override def getWindow(): Option[Long] = window
 
+  override def getTimestamp(): Long = timestamp
 }

@@ -1,8 +1,8 @@
 package com.raphtory.core.implementations.pojograph.entities.external
 
 import com.raphtory.core.implementations.generic.messaging.VertexMultiQueue
-import com.raphtory.core.implementations.pojograph.PojoGraphLens
-import com.raphtory.core.implementations.pojograph.entities.internal.PojoVertex
+import com.raphtory.core.implementations.pojograph.{PojoGraphLens}
+import com.raphtory.core.implementations.pojograph.entities.internal.{PojoVertex}
 import com.raphtory.core.model.graph.VertexMessage
 import com.raphtory.core.model.graph.visitor.{Edge, ExplodedEdge, Vertex}
 

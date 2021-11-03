@@ -1,6 +1,5 @@
 package com.raphtory.core.implementations.pojograph
 
-import com.raphtory.core.implementations.chroniclegraph.external.ChronicleExEdge
 import com.raphtory.core.implementations.pojograph.entities.internal.{PojoEdge, PojoEntity, PojoVertex, SplitEdge}
 import com.raphtory.core.model.graph.{DoubleProperty, EdgeSyncAck, FloatProperty, GraphLens, GraphPartition, GraphUpdateEffect, ImmutableProperty, InboundEdgeRemovalViaVertex, LongProperty, OutboundEdgeRemovalViaVertex, Properties, StringProperty, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, Type, VertexRemoveSyncAck}
 import com.raphtory.core.model.graph.visitor.Vertex

@@ -6,7 +6,7 @@ import com.raphtory.core.build.server.RaphtoryGraph
 import com.raphtory.spouts.FileSpout
 
 object LOTRDeployment extends App{
-  val source  = new FileSpout("src/main/scala/com/raphtory/dev/lotr/")
+  val source  = new FileSpout("src/main/scala/com/raphtory/dev/lotr/","lotr.csv")
   val builder = new LOTRGraphBuilder()
   val rg = RaphtoryGraph[String](source,builder)
 

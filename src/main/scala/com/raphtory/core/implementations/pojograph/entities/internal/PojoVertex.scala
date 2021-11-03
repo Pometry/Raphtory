@@ -1,5 +1,6 @@
 package com.raphtory.core.implementations.pojograph.entities.internal
 
+
 import com.raphtory.core.implementations.pojograph.PojoGraphLens
 import com.raphtory.core.implementations.pojograph.entities.external.{PojoExEdge, PojoExVertex}
 import com.raphtory.core.model.graph.{GraphPartition, visitor}

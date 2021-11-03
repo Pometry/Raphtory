@@ -7,7 +7,6 @@ import akka.pattern.ask
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.partitionmanager.{PartitionManager, Reader, Writer}
 import com.raphtory.core.components.leader.WatchDog.Message.RequestPartitionId
-import com.raphtory.core.implementations.chroniclegraph.ChroniclePartition
 import com.raphtory.core.implementations.pojograph.PojoBasedPartition
 import com.raphtory.core.model.graph.GraphPartition
 

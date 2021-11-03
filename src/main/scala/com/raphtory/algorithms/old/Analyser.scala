@@ -1,18 +1,18 @@
 package com.raphtory.algorithms.old
 
 import com.raphtory.core.implementations.generic.messaging.VertexMessageHandler
-import com.raphtory.core.implementations.pojograph.PojoGraphLens
+import com.raphtory.core.model.graph.GraphLens
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 
 abstract class Analyser[T<:Any](args:Array[String]) extends java.io.Serializable {
-  implicit var view: PojoGraphLens                = null
+  implicit var view: GraphLens                = null
   implicit var messageHandler: VertexMessageHandler = null
 
   private var toPublish:mutable.ArrayBuffer[String] = ArrayBuffer()
-  final def sysSetup(proxy: PojoGraphLens, messageHandler:VertexMessageHandler) = {
+  final def sysSetup(proxy: GraphLens, messageHandler:VertexMessageHandler) = {
     this.view = proxy
     this.messageHandler = messageHandler
   }
