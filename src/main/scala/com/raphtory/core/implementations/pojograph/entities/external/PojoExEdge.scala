@@ -1,11 +1,11 @@
 package com.raphtory.core.implementations.pojograph.entities.external
 
 import com.raphtory.core.implementations.pojograph.PojoGraphLens
-import com.raphtory.core.implementations.pojograph.entities.internal.RaphtoryEdge
+import com.raphtory.core.implementations.pojograph.entities.internal.{PojoEdge}
 import com.raphtory.core.model.graph.VertexMessage
 import com.raphtory.core.model.graph.visitor.{Edge, ExplodedEdge}
 
-class PojoEdge(edge: RaphtoryEdge, id: Long, view: PojoGraphLens) extends PojoEntity(edge,view) with Edge {
+class PojoExEdge(edge: PojoEdge, id: Long, view: PojoGraphLens) extends PojoExEntity(edge,view) with Edge {
   def ID() = id
 
   def src() = edge.getSrcId

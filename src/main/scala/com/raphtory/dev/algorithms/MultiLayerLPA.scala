@@ -113,7 +113,7 @@ class MultiLayerLPA(args: Array[String]) extends LPA(args) {
     val voteflag = countvote
         if (voteflag==1)
           println(
-                  s"Superstep: ${view.superStep}\t Still processing: ${voteflag} / ${messaged.size} \t Status: ${lastManStanding} "//${System.currentTimeMillis() - t1}"
+                  s"Superstep:\t Still processing: ${voteflag} / ${messaged.size} \t Status: ${lastManStanding} "//${System.currentTimeMillis() - t1}"
           )
     countvote = 0L
   }

@@ -1,5 +1,6 @@
 package com.raphtory.core.implementations.pojograph.entities.internal
 
+
 import scala.collection.mutable
 
 /** *
@@ -10,7 +11,7 @@ import scala.collection.mutable
   * @param creationTime ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced
   */
-abstract class RaphtoryEntity(val creationTime: Long, isInitialValue: Boolean) {
+abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   // Properties from that entity
   private var entityType: Option[String]               = None

@@ -1,7 +1,7 @@
 package com.raphtory.dev.blockchain.graphbuilders
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.implementations.pojograph.messaging._
+import com.raphtory.core.implementations.generic.messaging._
 import com.raphtory.core.model.graph.{FloatProperty, Properties, Type}
 
 class chab_full_GB extends GraphBuilder[String] {

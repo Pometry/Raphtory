@@ -8,8 +8,7 @@ import com.raphtory.RaphtoryPD
 import com.raphtory.algorithms.GraphState
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, ManagingTask, PointQuery, RangeQuery, TaskFinished, Windows}
 import com.raphtory.core.components.leader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
-import com.raphtory.core.implementations.pojograph.algorithm.ObjectGraphPerspective
-import com.raphtory.core.model.algorithm.GraphAlgorithm
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GenericGraphPerspective}
 import com.raphtory.spouts.FileSpout
 import spray.json._
 import com.google.common.hash.Hashing
@@ -23,7 +22,7 @@ import scala.concurrent.duration._
 //TODO Currently broken and needs to be updated with new comparison
 class AllCommandsTest extends FunSuite {
 
-  val testDir = "/Users/bensteer/github/output" //TODO CHANGE TO USER PARAM
+  val testDir = "/tmp" //TODO CHANGE TO USER PARAM
   val node = RaphtoryPD(new FileSpout("src/test/scala/com/raphtory/data/allcommands","testupdates.txt"),new AllCommandsBuilder())
   val watermarker     = node.getWatermarker()
   val watchdog        = node.getWatchdog()
@@ -50,7 +49,7 @@ class AllCommandsTest extends FunSuite {
 
   test("Graph State Test"){
     try {
-      val result = algorithmTest(GraphState(testDir),500)
+      val result = algorithmTest(GraphState(testDir),1000)
       assert(result equals "1ecba4857ff7cf946a270d9e42f9035f774318437743078a24b8676fb68070c2")
     }
     catch {
@@ -61,7 +60,7 @@ class AllCommandsTest extends FunSuite {
 
   test("Connected Components Test"){
     try {
-      val result = algorithmTest(ConnectedComponents(testDir),300)
+      val result = algorithmTest(ConnectedComponents(testDir),1000)
       assert(result equals "fe1f5f87ad80941dd11448c1dfaf6aab2c45fab2f1ba9581d179124dc1ad2429")
     }
     catch {

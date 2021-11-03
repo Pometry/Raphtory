@@ -3,7 +3,7 @@ package com.raphtory.dev.gab.graphbuilders
 import java.text.SimpleDateFormat
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.implementations.pojograph.messaging._
+import com.raphtory.core.implementations.generic.messaging._
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
 //In this builder we needed to transform the data that was sent by the spout by turning it into a epoch value (long value)

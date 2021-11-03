@@ -1,10 +1,8 @@
-package com.raphtory.core.implementations.pojograph.algorithm
-
-import com.raphtory.core.model.algorithm.{Explode, GraphFunction, Row, Table, TableFilter, TableFunction, WriteTo}
+package com.raphtory.core.model.algorithm
 
 import scala.collection.mutable
 
-class PojoTable extends Table{
+class GenericTable extends Table{
   val tableOpps = mutable.Queue[TableFunction]()
 
   def bulkAdd(tableFuncs:List[TableFunction]) = tableFuncs.foreach(f=> tableOpps.enqueue(f))
