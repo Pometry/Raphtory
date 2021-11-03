@@ -1,8 +1,8 @@
-package com.raphtory.core.implementations.generic.entity.external
+package com.raphtory.core.implementations.chroniclegraph.external
 
 import com.raphtory.core.model.graph.visitor.ExplodedEdge
 
-class GenericExplodedEdge(objectEdge: GenericEdge, timestamp:Long) extends ExplodedEdge{
+class ChronicleExplodedEdge(objectEdge: ChronicleExEdge, timestamp:Long) extends ExplodedEdge{
 
   override def Type(): Unit =
     objectEdge.Type()

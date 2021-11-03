@@ -1,20 +1,19 @@
-package com.raphtory.core.implementations.generic.entity.external
+package com.raphtory.core.implementations.chroniclegraph.external
 
 import com.raphtory.core.implementations.chroniclegraph.entities.internal.ChronicleVertex
-import com.raphtory.core.implementations.generic.GenericGraphLens
-import com.raphtory.core.implementations.generic.entity.internal.InternalVertex
 import com.raphtory.core.implementations.generic.messaging.VertexMultiQueue
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
 import com.raphtory.core.model.graph.VertexMessage
 import com.raphtory.core.model.graph.visitor.{Edge, EntityVisitor, ExplodedEdge, Vertex}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-class GenericVertex(private val v: InternalVertex,
-                    private val internalIncomingEdges: mutable.Map[Long, Edge],
-                    private val internalOutgoingEdges: mutable.Map[Long, Edge],
-                    private val lens: GenericGraphLens
-  ) extends GenericEntity(v,lens) with Vertex {
+class ChronicleExVertex(private val v: ChronicleVertex,
+                        private val internalIncomingEdges: mutable.Map[Long, Edge],
+                        private val internalOutgoingEdges: mutable.Map[Long, Edge],
+                        private val lens: PojoGraphLens
+  ) extends ChronicleExEntity(v,lens) with Vertex {
 
   override def ID() = v.vertexId
 

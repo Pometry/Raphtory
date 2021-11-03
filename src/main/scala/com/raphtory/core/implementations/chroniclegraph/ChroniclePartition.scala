@@ -1,8 +1,8 @@
 package com.raphtory.core.implementations.chroniclegraph
 
-import com.raphtory.core.implementations.chroniclegraph.entities.internal.{ChronicleEntity, ChronicleEdge, ChronicleVertex, SplitEdge}
-import com.raphtory.core.implementations.generic.GenericGraphLens
+import com.raphtory.core.implementations.chroniclegraph.entities.internal.{ChronicleEdge, ChronicleEntity, ChronicleVertex, SplitEdge}
 import com.raphtory.core.implementations.generic.messaging._
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
 import com.raphtory.core.model.graph.{DoubleProperty, EdgeSyncAck, FloatProperty, GraphLens, GraphPartition, GraphUpdateEffect, ImmutableProperty, InboundEdgeRemovalViaVertex, LongProperty, OutboundEdgeRemovalViaVertex, Properties, StringProperty, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, Type, VertexRemoveSyncAck}
 import com.raphtory.core.model.graph.visitor.Vertex
 
@@ -14,7 +14,6 @@ class ChroniclePartition(partition: Int) extends GraphPartition(partition: Int){
   /**
     * Map of vertices contained in the partition
     */
-
 
   val vertices = mutable.Map[Long, ChronicleVertex]()
 
@@ -265,7 +264,7 @@ class ChroniclePartition(partition: Int) extends GraphPartition(partition: Int){
     * Analysis Functions
     * */
   override def getVertices(lens:GraphLens, time: Long, window: Long=Long.MaxValue): mutable.Map[Long, Vertex] = {
-    val lenz = lens.asInstanceOf[GenericGraphLens]
+    val lenz = lens.asInstanceOf[PojoGraphLens]
     val x = vertices.collect{
       case (id,vertex) if(vertex.aliveAtWithWindow(time,window)) => (id,vertex.viewAtWithWindow(time,window,lenz))
     }

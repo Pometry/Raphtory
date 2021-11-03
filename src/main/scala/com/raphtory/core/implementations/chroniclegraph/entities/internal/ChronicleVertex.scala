@@ -1,8 +1,7 @@
 package com.raphtory.core.implementations.chroniclegraph.entities.internal
 
-import com.raphtory.core.implementations.generic.GenericGraphLens
-import com.raphtory.core.implementations.generic.entity.external.{GenericEdge, GenericVertex}
-import com.raphtory.core.implementations.generic.entity.internal.{InternalProperty, InternalVertex}
+import com.raphtory.core.implementations.chroniclegraph.external.{ChronicleExEdge, ChronicleExVertex}
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
 import com.raphtory.core.model.graph.{GraphPartition, visitor}
 import com.raphtory.core.model.graph.visitor.{Edge, Vertex}
 import net.openhft.chronicle.map.ChronicleMap
@@ -10,26 +9,8 @@ import net.openhft.chronicle.map.ChronicleMap
 import collection.JavaConverters._
 import scala.collection.mutable
 
-/** Companion Vertex object (extended creator for storage loads) */
-object ChronicleVertex {
-  def apply(
-             creationTime: Long,
-             vertexId: Int,
-             previousState: mutable.TreeMap[Long, Boolean],
-             properties: mutable.Map[String, InternalProperty],
-             storage: GraphPartition
-  ) = {
-    val v = new ChronicleVertex(creationTime, vertexId, initialValue = true)
-    v.history = previousState
-    //v.associatedEdges = associatedEdges
-    v.properties = properties
-    v
-  }
-
-}
-
 class ChronicleVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
-        extends ChronicleEntity(msgTime, initialValue) with InternalVertex {
+        extends ChronicleEntity(msgTime, initialValue) {
 
   val incomingEdges = ChronicleMap.of(classOf[java.lang.Long], classOf[ChronicleEdge])
     .entries(500)
@@ -56,21 +37,22 @@ class ChronicleVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   def getIncomingEdge(id: Long): Option[ChronicleEdge] = Option(incomingEdges.get(id))
 
 
-  def viewAtWithWindow(time: Long, windowSize: Long,lens:GenericGraphLens): Vertex = {
+  def viewAtWithWindow(time: Long, windowSize: Long,lens:PojoGraphLens): Vertex = {
     val newInc = incomingEdges.keySet().asScala.collect {
       case key if incomingEdges.get(key).aliveAtWithWindow(time, windowSize) =>
-        key.toLong -> new GenericEdge(incomingEdges.get(key), key, lens)
+        key.toLong -> new ChronicleExEdge(incomingEdges.get(key), key, lens)
     }.toSeq
 
     val newOut = outgoingEdges.keySet().asScala.collect {
       case key if outgoingEdges.get(key).aliveAtWithWindow(time, windowSize) =>
-        key.toLong -> new GenericEdge(outgoingEdges.get(key), key, lens)
+        key.toLong -> new ChronicleExEdge(outgoingEdges.get(key), key, lens)
     }.toSeq
 
-    new GenericVertex(this,
+    new ChronicleExVertex(this,
       mutable.Map(newInc:_*),
       mutable.Map(newOut:_*),
       lens)
   }
 
+  override def createHistory(): ChronicleMap[Long, Boolean] = ???
 }

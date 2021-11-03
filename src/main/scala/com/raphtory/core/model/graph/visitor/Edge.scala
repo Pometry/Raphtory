@@ -1,9 +1,5 @@
 package com.raphtory.core.model.graph.visitor
 
-import com.raphtory.core.implementations.generic.GenericGraphLens
-import com.raphtory.core.implementations.generic.entity.internal.InternalEdge
-import com.raphtory.core.model.graph.VertexMessage
-
 trait Edge extends EntityVisitor {
 
   //information about the edge meta data

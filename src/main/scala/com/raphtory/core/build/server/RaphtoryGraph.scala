@@ -8,8 +8,7 @@ import com.raphtory.core.components.akkamanagement.RaphtoryActor.{builderServers
 import com.raphtory.core.components.akkamanagement.connectors.{BuilderConnector, PartitionConnector, QueryManagerConnector, SpoutConnector}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{LiveQuery, PointQuery, RangeQuery}
 import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.implementations.generic.algorithm.ObjectGraphPerspective
-import com.raphtory.core.model.algorithm.GraphAlgorithm
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GenericGraphPerspective}
 
 import scala.reflect.ClassTag
 

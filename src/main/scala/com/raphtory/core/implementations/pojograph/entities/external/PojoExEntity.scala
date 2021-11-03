@@ -1,14 +1,12 @@
-package com.raphtory.core.implementations.generic.entity.external
+package com.raphtory.core.implementations.pojograph.entities.external
 
-import com.raphtory.core.implementations.chroniclegraph.entities.internal.ChronicleEntity
-import com.raphtory.core.implementations.generic.GenericGraphLens
-import com.raphtory.core.implementations.generic.entity.internal.InternalEntity
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
+import com.raphtory.core.implementations.pojograph.entities.internal.PojoEntity
 import com.raphtory.core.model.graph.visitor.{EntityVisitor, HistoricEvent}
 
-import scala.collection.mutable
 import scala.reflect.ClassTag
 
-abstract class GenericEntity(entity: InternalEntity, view: GenericGraphLens) extends EntityVisitor{
+abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends EntityVisitor{
   def Type() = entity.getType
 
   def firstActivityAfter(time: Long) = history.filter(k => k.time >= time).minBy(x => x.time)
@@ -16,7 +14,7 @@ abstract class GenericEntity(entity: InternalEntity, view: GenericGraphLens) ext
   def earliestActivity()             = history.minBy(k => k.time)
 
   def getPropertySet(): List[String] = {
-      entity.properties().filter(p => p._2.creation() <= view.timestamp).map(f => (f._1)).toList
+      entity.properties.filter(p => p._2.creation() <= view.timestamp).map(f => (f._1)).toList
   }
 
   def getProperty[T: ClassTag](key: String): Option[T] =

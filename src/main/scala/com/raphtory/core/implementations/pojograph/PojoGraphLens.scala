@@ -1,7 +1,8 @@
-package com.raphtory.core.implementations.generic
+package com.raphtory.core.implementations.pojograph
 
-import com.raphtory.core.implementations.generic.entity.external.GenericVertex
+import com.raphtory.core.implementations.chroniclegraph.external.ChronicleExVertex
 import com.raphtory.core.implementations.generic.messaging.VertexMessageHandler
+import com.raphtory.core.implementations.pojograph.entities.external.{PojoExEntity, PojoExVertex}
 import com.raphtory.core.model.algorithm.Row
 import com.raphtory.core.model.graph.visitor.Vertex
 import com.raphtory.core.model.graph.{GraphLens, GraphPartition, VertexMessage}
@@ -9,7 +10,7 @@ import com.raphtory.core.model.graph.{GraphLens, GraphPartition, VertexMessage}
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
-final case class GenericGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends GraphLens(jobId, timestamp, window) {
+final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends GraphLens(jobId, timestamp, window) {
   private val voteCount = new AtomicInteger(0)
   private val vertexCount = new AtomicInteger(0)
   var t1 = System.currentTimeMillis()
@@ -81,7 +82,7 @@ final case class GenericGraphLens(jobId: String, timestamp: Long, window: Option
 
   def receiveMessage(msg: VertexMessage): Unit = {
     try {
-      vertexMap(msg.vertexId).asInstanceOf[GenericVertex].receiveMessage(msg)
+      vertexMap(msg.vertexId).asInstanceOf[PojoExVertex].receiveMessage(msg)
     }
     catch {
       case e: Exception => e.printStackTrace()

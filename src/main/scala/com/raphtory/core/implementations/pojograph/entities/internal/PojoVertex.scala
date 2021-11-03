@@ -1,15 +1,14 @@
 package com.raphtory.core.implementations.pojograph.entities.internal
 
-import com.raphtory.core.implementations.generic.GenericGraphLens
-import com.raphtory.core.implementations.generic.entity.external.{GenericEdge, GenericVertex}
-import com.raphtory.core.implementations.generic.entity.internal.{InternalEdge, InternalProperty, InternalVertex}
+import com.raphtory.core.implementations.pojograph.PojoGraphLens
+import com.raphtory.core.implementations.pojograph.entities.external.{PojoExEdge, PojoExVertex}
 import com.raphtory.core.model.graph.{GraphPartition, visitor}
 import com.raphtory.core.model.graph.visitor.{Edge, Vertex}
 
 import scala.collection.mutable
 
 class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
-        extends PojoEntity(msgTime, initialValue) with InternalVertex {
+        extends PojoEntity(msgTime, initialValue) {
 
   var incomingEdges = mutable.Map[Long, PojoEdge]() //Map of all edges associated with the vertex
   var outgoingEdges = mutable.Map[Long, PojoEdge]()
@@ -27,15 +26,15 @@ class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   def getIncomingEdge(id: Long): Option[PojoEdge] = incomingEdges.get(id)
 
 
-  def viewAtWithWindow(time: Long, windowSize: Long,lens:GenericGraphLens): Vertex = {
-    new GenericVertex(this,
+  def viewAtWithWindow(time: Long, windowSize: Long,lens:PojoGraphLens): Vertex = {
+    new PojoExVertex(this,
       incomingEdges.collect {
         case (k, edge) if edge.aliveAtWithWindow(time,windowSize) =>
-          k -> new GenericEdge(edge, k, lens)
+          k -> new PojoExEdge(edge, k, lens)
       },
       outgoingEdges.collect {
         case (k, edge) if edge.aliveAtWithWindow(time,windowSize) =>
-          k -> new GenericEdge(edge, k, lens)
+          k -> new PojoExEdge(edge, k, lens)
       },
       lens)
   }

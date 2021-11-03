@@ -1,6 +1,5 @@
 package com.raphtory.core.implementations.pojograph.entities.internal
 
-import com.raphtory.core.implementations.generic.entity.internal.InternalProperty
 
 import scala.collection.mutable
 
@@ -16,7 +15,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   // Properties from that entity
   private var entityType: Option[String]               = None
-  var properties: mutable.Map[String, InternalProperty] = mutable.Map[String, InternalProperty]()
+  var properties: mutable.Map[String, Property] = mutable.Map[String, Property]()
 
   // History of that entity
   object HistoryOrdering extends Ordering[Long] {
@@ -54,7 +53,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   /** *
     * override the apply method so that we can do edge/vertex("key") to easily retrieve properties
     */
-  def apply(property: String): InternalProperty = properties(property)
+  def apply(property: String): Property = properties(property)
 
 
 

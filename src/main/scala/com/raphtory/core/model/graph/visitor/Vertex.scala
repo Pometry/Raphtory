@@ -1,10 +1,7 @@
 package com.raphtory.core.model.graph.visitor
 
-import com.raphtory.core.implementations.chroniclegraph.entities.internal.ChronicleVertex
-import com.raphtory.core.implementations.generic.GenericGraphLens
-import com.raphtory.core.implementations.generic.messaging.VertexMultiQueue
 
-import scala.collection.parallel.ParIterable
+
 import scala.reflect.ClassTag
 
 trait Vertex extends EntityVisitor {

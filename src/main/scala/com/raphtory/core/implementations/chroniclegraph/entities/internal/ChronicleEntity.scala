@@ -1,7 +1,8 @@
 package com.raphtory.core.implementations.chroniclegraph.entities.internal
 
-import com.raphtory.core.implementations.generic.entity.internal.{InternalEdge, InternalEntity, InternalProperty}
+import net.openhft.chronicle.map.ChronicleMap
 
+import scala.collection.convert.ImplicitConversions.`map AsScalaConcurrentMap`
 import scala.collection.mutable
 
 /** *
@@ -12,23 +13,25 @@ import scala.collection.mutable
   * @param creationTime ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced
   */
-abstract class ChronicleEntity(val creationTime: Long, isInitialValue: Boolean) extends Serializable with InternalEntity{
+abstract class ChronicleEntity(val creationTime: Long, isInitialValue: Boolean) extends Serializable{
 
   // Properties from that entity
-  private var entityType: Option[String]               = None
-  var properties: mutable.Map[String, InternalProperty] = mutable.Map[String, InternalProperty]()
 
-  // History of that entity
-  object HistoryOrdering extends Ordering[Long] {
-    def compare(key1: Long, key2: Long) = key2.compareTo(key1)
-  }
-  var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+  def createHistory():ChronicleMap[Long,Boolean]
+
+  val history:ChronicleMap[Long,Boolean] = createHistory()
+
+  private var entityType: Option[String]               = None
+
+
+  var properties: mutable.Map[String, Property] = mutable.Map[String, Property]()
+
 
   var oldestPoint: Long = creationTime
   var newestPoint: Long = creationTime
 
   // History of that entity
-  def removeList: List[Long] = history.filter(f=> !f._2).map(_._1).toList
+  def removeList: List[Long] = history.filter(f => !f._2).keys.toList
   //.filter(f => if(!f._2) f._1).toList
 
   def setType(newType: Option[String]): Unit = newType.foreach(nt => entityType = entityType.orElse(Some(nt)))
@@ -54,7 +57,7 @@ abstract class ChronicleEntity(val creationTime: Long, isInitialValue: Boolean) 
   /** *
     * override the apply method so that we can do edge/vertex("key") to easily retrieve properties
     */
-  def apply(property: String): InternalProperty = properties(property)
+  def apply(property: String): Property = properties(property)
 
 
 
@@ -73,7 +76,7 @@ abstract class ChronicleEntity(val creationTime: Long, isInitialValue: Boolean) 
         }
     }
 
-  def wipe() = history = mutable.TreeMap()(HistoryOrdering)
+  def wipe() = history.clear()
 
 
   protected def closestTime(time: Long): (Long, Boolean) = {

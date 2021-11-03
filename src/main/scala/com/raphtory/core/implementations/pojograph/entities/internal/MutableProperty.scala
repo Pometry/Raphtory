@@ -1,6 +1,5 @@
 package com.raphtory.core.implementations.pojograph.entities.internal
 
-import com.raphtory.core.implementations.generic.entity.internal.InternalProperty
 
 import scala.collection.mutable
 
@@ -10,7 +9,7 @@ import scala.collection.mutable
   * @param creationTime
   * @param value         Property value
   */
-class MutableProperty(creationTime: Long, value: Any) extends InternalProperty {
+class MutableProperty(creationTime: Long, value: Any) extends Property {
   object HistoryOrdering extends Ordering[Long] {
     def compare(key1: Long, key2: Long) = key2.compareTo(key1)
   }
