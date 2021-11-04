@@ -5,7 +5,8 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
-import com.raphtory.core.components.akkamanagement.RaphtoryActor
+import com.raphtory.core.components.akkamanagement.{MailboxTrackingExtension, MailboxTrackingExtensionImpl, RaphtoryActor}
+import com.raphtory.core.components.graphbuilder.BuilderExecutor.Message.{DataFinishedSync, PartitionRequest}
 import com.raphtory.core.components.leader.WatchDog.Message.PartitionUp
 import com.raphtory.core.implementations.generic.messaging._
 import com.raphtory.core.model.graph.GraphPartition
@@ -31,14 +32,9 @@ class PartitionManager(
   // Id which refers to the partitions position in the graph manager map
   val managerId: Int    = id
   val children: Int     = partitionsPerServer
-  var lastLogTime: Long = System.currentTimeMillis() / 1000
 
-  // should the handled messages be printed to terminal
-  val printing: Boolean = false
 
-  var messageCount: Int          = 0
-  var secondaryMessageCount: Int = 0
-  var workerMessageCount: Int    = 0
+  val mailBoxCounter: MailboxTrackingExtensionImpl = MailboxTrackingExtension(context.system)
 
   /**
     * Set up partition to report how many messages it has processed in the last X seconds
@@ -76,11 +72,16 @@ class PartitionManager(
   }
 
   def processCountMessage(msg: String): Unit = {
-    log.debug(s"Writer [{}] received [{}] message.", managerId, msg)
-
-    val newTime        = System.currentTimeMillis() / 1000
-    var timeDifference = newTime - lastLogTime
-    if (timeDifference == 0) timeDifference = 1
+//    writers.foreach{
+//      case (id,writer) =>
+//        if(mailBoxCounter.current(writer.path) < RaphtoryActor.partitionMinQueue)
+//          getAllGraphBuilders().foreach { workerPath =>
+//            mediator ! new DistributedPubSubMediator.Send(
+//              workerPath,
+//              PartitionRequest(id)
+//            )
+//          }
+//    }
   }
 
   def processKeepAliveMessage(msg: String): Unit = {

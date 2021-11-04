@@ -2,8 +2,8 @@ package com.raphtory.core.components.partitionmanager
 
 import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.graphbuilder.BuilderExecutor.Message.BuilderTimeSync
-import com.raphtory.core.components.partitionmanager.Writer.Message.Watermark
+import com.raphtory.core.components.graphbuilder.BuilderExecutor.Message.{BuilderTimeSync, PartitionRequest}
+import com.raphtory.core.components.partitionmanager.Writer.Message.{RequestData, Watermark}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.akkamanagement.{MailboxTrackedActor, RaphtoryActor}
 import com.raphtory.core.components.leader.WatermarkManager.Message.{ProbeWatermark, WatermarkTime}
@@ -22,6 +22,8 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
   private var updates = 0
   private var updates2 = 0
   private var vertexAdds = 0
+
+  private var updatesBefore = 0
 
   private val queuedMessageMap = mutable.Map[String, mutable.PriorityQueue[queueItem]]()
   private val safeMessageMap = mutable.Map[String, queueItem]()
@@ -47,12 +49,26 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
     case TrackedGraphEffect(channelId, channelTime, req: VertexRemoveSyncAck) => processVertexRemoveSyncAck(channelId, channelTime, req)
 
     case Watermark => processWatermarkRequest(); //println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
+    case RequestData => requestData()
     case ProbeWatermark => mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager", WatermarkTime(storage.windowTime), localAffinity = false)
     case req: BuilderTimeSync => processBuilderTimeSync(req);
     //case SaveState => serialiseGraphPartition();
     case x => log.warning(s"IngestionWorker [{}] received unknown [{}] message.", partitionID, x)
   }
 
+
+  def requestData() = {
+    getAllGraphBuilders().foreach { workerPath =>
+      mediator ! new DistributedPubSubMediator.Send(
+        workerPath,
+        PartitionRequest(partitionID)
+      )}
+    if(updatesBefore<updates)
+      self! RequestData
+    else
+      scheduleTaskOnce(1 seconds, receiver = self, message = RequestData)
+    updatesBefore = updates
+  }
 
   def processVertexAddRequest(channelId: String, channelTime: Int, update: VertexAdd): Unit = {
     log.debug(s"IngestionWorker [$partitionID] received [$update] request.")
@@ -200,9 +216,6 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
         setSafePoint(queue._1, queue._2)
       })
       val timestamps = queueState.map(q => q.timestamp)
-      //// println(s"$increments Writer Worker $partitionID $workerId $timestamps")
-      //        println(s"Writer Worker $partitionID $workerId ${queueState.mkString("[",",","]")} ${storage.vertices.size}")
-      //println(s"$increments Writer Worker $partitionID $workerId ${timestamps.min} ${storage.vertices.size} $updates ${updates-updates2}")
       updates2 = updates
       increments += 1
 
@@ -259,10 +272,11 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
   }
 
   private def scheduleTasks(): Unit = {
-    log.debug("Preparing to schedule tasks in Spout.")
     val watermarkCancellable =
       scheduleTask(initialDelay = 10 seconds, interval = 5 second, receiver = self, message = Watermark)
     scheduledTaskMap.put("watermark", watermarkCancellable)
+
+      scheduleTaskOnce(10 seconds, receiver = self, message = RequestData)
   }
 
   case class queueItem(builderEpoch:Int, timestamp:Long)extends Ordered[queueItem] {
@@ -273,6 +287,7 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
 object Writer {
   object Message {
     case object Watermark
+    case object RequestData
   }
 }
 //  def serialiseGraphPartition() = {
