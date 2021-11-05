@@ -1,5 +1,6 @@
 package com.raphtory.core.implementations.pojograph
 
+import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.implementations.pojograph.entities.internal.{PojoEdge, PojoEntity, PojoVertex, SplitEdge}
 import com.raphtory.core.model.graph.{DoubleProperty, EdgeSyncAck, FloatProperty, GraphLens, GraphPartition, GraphUpdateEffect, ImmutableProperty, InboundEdgeRemovalViaVertex, LongProperty, OutboundEdgeRemovalViaVertex, Properties, StringProperty, SyncExistingEdgeAdd, SyncExistingEdgeRemoval, SyncExistingRemovals, SyncNewEdgeAdd, SyncNewEdgeRemoval, TrackedGraphEffect, Type, VertexRemoveSyncAck}
 import com.raphtory.core.model.graph.visitor.Vertex
@@ -132,13 +133,17 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
           Some(TrackedGraphEffect(channelId, channelTime, SyncExistingEdgeAdd(msgTime, srcId, dstId, properties))) // inform the partition dealing with the destination node*/
       }
       else {
-        val deaths = srcVertex.removeList //we extract the removals from the src
-        edge killList deaths // add them to the edge
+        val deaths = if(RaphtoryActor.hasDeletions) {
+          val list = srcVertex.removeList
+          edge killList list // add them to the edge
+          list
+        } else List() //we extract the removals from the src
+
         if (local) {
           if (srcId != dstId) {
             val dstVertex = addVertexInternal(msgTime, dstId, Properties(), None) // do the same for the destination ID
             dstVertex addIncomingEdge (edge) // add it to the dst as would not have been seen
-            edge killList dstVertex.removeList //add the dst removes into the edge
+            if(RaphtoryActor.hasDeletions) edge killList dstVertex.removeList //add the dst removes into the edge
           }
           else
             srcVertex addIncomingEdge (edge) // a self loop should be in the incoming map as well
@@ -157,9 +162,13 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
     val dstVertex = addVertexInternal(msgTime, dstId, Properties(), None) //create or revive the destination node
     val edge = new SplitEdge(msgTime, srcId, dstId, initialValue = true)
     dstVertex addIncomingEdge (edge) //add the edge to the associated edges of the destination node
-    val deaths = dstVertex.removeList //get the destination node deaths
-    edge killList srcRemovals //pass source node death lists to the edge
-    edge killList deaths // pass destination node death lists to the edge
+    val deaths = if(RaphtoryActor.hasDeletions) {
+      val list = dstVertex.removeList
+      edge killList srcRemovals //pass source node death lists to the edge
+      edge killList list // pass destination node death lists to the edge
+      list
+    } else List() //get the destination node deaths
+
 
     addProperties(msgTime, edge, properties)
     dstVertex.incrementEdgesRequiringSync()
@@ -203,13 +212,17 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
         Some(TrackedGraphEffect(channelId, channelTime, SyncExistingEdgeRemoval(msgTime, srcId, dstId))) // inform the partition dealing with the destination node
     }
     else {
-      val deaths = srcVertex.removeList
-      edge killList deaths
+      val deaths = if(RaphtoryActor.hasDeletions) {
+        val list = srcVertex.removeList
+        edge killList list
+        list
+      } else List()
+
       if (local){
           if (srcId != dstId) {
             val dstVertex = getVertexOrPlaceholder(msgTime, dstId) // do the same for the destination ID
             dstVertex addIncomingEdge (edge) // do the same for the destination node
-            edge killList dstVertex.removeList //add the dst removes into the edge
+            if(RaphtoryActor.hasDeletions) edge killList dstVertex.removeList //add the dst removes into the edge
           }
           None
       }
@@ -249,18 +262,23 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
     dstVertex.incrementEdgesRequiringSync()
     val edge = new SplitEdge(msgTime, srcId, dstId, initialValue = false)
     dstVertex addIncomingEdge (edge) //add the edge to the destination nodes associated list
-    val deaths = dstVertex.removeList //get the destination node deaths
-    edge killList srcRemovals //pass source node death lists to the edge
-    edge killList deaths // pass destination node death lists to the edge
+    val deaths = if(RaphtoryActor.hasDeletions) {
+      val list = dstVertex.removeList
+      edge killList srcRemovals //pass source node death lists to the edge
+      edge killList list // pass destination node death lists to the edge
+      list
+    } else List()//get the destination node deaths
+
     TrackedGraphEffect(channelId, channelTime, SyncExistingRemovals(msgTime, srcId, dstId, deaths))
   }
 
-  def syncExistingRemovals(msgTime: Long, srcId: Long, dstId: Long, dstRemovals: List[Long]): Unit =
-  //logger.info(s"Received deaths for $srcId --> $dstId from ${getManager(dstId, managerCount)}")
-    getVertexOrPlaceholder(msgTime, srcId).getOutgoingEdge(dstId) match {
-      case Some(edge) => edge killList dstRemovals
-      case None => /*todo Should this happen*/
-    }
+  def syncExistingRemovals(msgTime: Long, srcId: Long, dstId: Long, dstRemovals: List[Long]): Unit = {
+    if(RaphtoryActor.hasDeletions)
+      getVertexOrPlaceholder(msgTime, srcId).getOutgoingEdge(dstId) match {
+        case Some(edge) => edge killList dstRemovals
+        case None => /*todo Should this happen*/
+      }
+  }
 
   /**
     * Analysis Functions
