@@ -8,31 +8,28 @@ class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:Strin
     graph.step({
       vertex =>
         val initLabel=1.0
-        val outDegree=vertex.getOutNeighbours().size
         vertex.setState("prlabel",initLabel)
+        val outDegree=vertex.getOutNeighbours().size
         if (outDegree>0.0)
           vertex.messageAllOutgoingNeighbors(initLabel/outDegree)
-        vertex.messageSelf(0.0) // ensure all vertices are included in subsequent iterate steps
     }).
       iterate({ vertex =>
-        // for
-        val vname = vertex.getPropertyOrElse("name",vertex.ID().toString) // for output/logging purposes
+        val vname = vertex.getPropertyOrElse("name",vertex.ID().toString) // for logging purposes
         val currentLabel = vertex.getState[Double]("prlabel")
 
         val queue = vertex.messageQueue[Double]
         val newLabel = (1 - dampingFactor) + dampingFactor * queue.sum
         vertex.setState("prlabel", newLabel)
 
-        val outEdges = vertex.getOutNeighbours()
-        val outDegree = outEdges.size
+        val outDegree = vertex.getOutNeighbours().size
         if (outDegree > 0) {
           vertex.messageAllOutgoingNeighbors(newLabel/outDegree)
         }
-        vertex.messageSelf(0.0) // ensure all vertices are included in subsequent iterate steps
+
         if (Math.abs(newLabel - currentLabel) / currentLabel < 0.00001) {
           vertex.voteToHalt()
         }
-      }, iterateSteps,false)
+      }, iterateSteps,false) // make iterate act on all vertices, not just messaged ones
       .select({
         vertex =>
           Row(
