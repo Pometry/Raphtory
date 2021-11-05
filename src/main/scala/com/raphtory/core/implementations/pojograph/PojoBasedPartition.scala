@@ -56,7 +56,7 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
     }
 
 
-  def removeVertex(msgTime: Long, srcId: Long, channelId: String, channelTime: Int): List[TrackedGraphEffect[GraphUpdateEffect]] = {
+  def removeVertex(msgTime: Long, srcId: Long, channelId: Int, channelTime: Int): List[TrackedGraphEffect[GraphUpdateEffect]] = {
     val vertex = vertices.get(srcId) match {
       case Some(v) =>
         v kill msgTime
@@ -102,7 +102,7 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
   /**
     * Edges Methods
     */
-  def addEdge(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Option[Type], channelId: String, channelTime: Int): Option[TrackedGraphEffect[GraphUpdateEffect]] = {
+  def addEdge(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Option[Type], channelId: Int, channelTime: Int): Option[TrackedGraphEffect[GraphUpdateEffect]] = {
     val local = checkDst(dstId) //is the dst on this machine
     val srcVertex = addVertexInternal(msgTime, srcId, Properties(), None) // create or revive the source ID
 
@@ -158,7 +158,7 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
     maybeEffect
   }
 
-  def syncNewEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, srcRemovals: List[Long], edgeType: Option[Type], channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
+  def syncNewEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, srcRemovals: List[Long], edgeType: Option[Type], channelId: Int, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = addVertexInternal(msgTime, dstId, Properties(), None) //create or revive the destination node
     val edge = new SplitEdge(msgTime, srcId, dstId, initialValue = true)
     dstVertex addIncomingEdge (edge) //add the edge to the associated edges of the destination node
@@ -176,7 +176,7 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
     TrackedGraphEffect(channelId, channelTime, SyncExistingRemovals(msgTime, srcId, dstId, deaths))
   }
 
-  def syncExistingEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
+  def syncExistingEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties, channelId: Int, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = addVertexInternal(msgTime, dstId, Properties(), None) // revive the destination node
     dstVertex.getIncomingEdge(srcId) match {
       case Some(edge) =>
@@ -187,7 +187,7 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
     TrackedGraphEffect(channelId, channelTime, EdgeSyncAck(msgTime, srcId))
   }
 
-  def removeEdge(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int): Option[TrackedGraphEffect[GraphUpdateEffect]] = {
+  def removeEdge(msgTime: Long, srcId: Long, dstId: Long, channelId: Int, channelTime: Int): Option[TrackedGraphEffect[GraphUpdateEffect]] = {
     val local = checkDst(dstId)
     val srcVertex: PojoVertex = getVertexOrPlaceholder(msgTime, srcId)
 
@@ -233,7 +233,7 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
     }
   }
 
-  def inboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = { //for the source getting an update about deletions from a remote worker
+  def inboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long, channelId: Int, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = { //for the source getting an update about deletions from a remote worker
     getVertexOrPlaceholder(msgTime, srcId).getOutgoingEdge(dstId) match {
       case Some(edge) => edge kill msgTime
       case None =>
@@ -241,7 +241,7 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
     TrackedGraphEffect(channelId, channelTime, VertexRemoveSyncAck(msgTime, dstId))
   }
 
-  def syncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
+  def syncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, channelId: Int, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     getVertexOrPlaceholder(msgTime, dstId).getIncomingEdge(srcId) match {
       case Some(e) => e kill msgTime
       case None => //logger.info(s"Worker ID $workerID Manager ID $managerID: remoteEdgeRemoval with no incoming edge")
@@ -249,7 +249,7 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
     TrackedGraphEffect(channelId, channelTime, EdgeSyncAck(msgTime, srcId))
   }
 
-  def outboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long, channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
+  def outboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long, channelId: Int, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     getVertexOrPlaceholder(msgTime, dstId).getIncomingEdge(srcId) match {
       case Some(e) => e kill msgTime
       case None => //logger.info(s"Worker ID $workerID Manager ID $managerID: remoteEdgeRemovalFromVertex with no incoming edge")
@@ -257,7 +257,7 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
     TrackedGraphEffect(channelId, channelTime, VertexRemoveSyncAck(msgTime, srcId))
   }
 
-  def syncNewEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, srcRemovals: List[Long], channelId: String, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
+  def syncNewEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, srcRemovals: List[Long], channelId: Int, channelTime: Int): TrackedGraphEffect[GraphUpdateEffect] = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.incrementEdgesRequiringSync()
     val edge = new SplitEdge(msgTime, srcId, dstId, initialValue = false)

@@ -2,6 +2,7 @@ package com.raphtory.core.model.graph
 
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.Message.BuilderOutput
 
+
 /**
   * Created by Mirate on 30/05/2017.
   */
@@ -50,8 +51,9 @@ case class VertexRemoveSyncAck(msgTime: Long, override val updateId: Long) exten
 
 
 //Wrapper to include watermarking channel ID's
-case class TrackedGraphUpdate[+T <: GraphUpdate](channelId: String, channelTime:Int, update: T) extends BuilderOutput
-case class TrackedGraphEffect[T <: GraphUpdateEffect](channelId: String, channelTime: Int, effect: T)
+case class TrackedGraphUpdate[+T <: GraphUpdate](channelTime:Int, update: T) extends BuilderOutput
+case class TrackedGraphEffect[T <: GraphUpdateEffect](channelId: Int, channelTime: Int, effect: T)
+case class GraphUpdateBatch[T <: BuilderOutput](channelID:Int, update: Array[T]) extends BuilderOutput
 
 
 case class VertexMessage(superstep:Int,vertexId: Long, data: Any)

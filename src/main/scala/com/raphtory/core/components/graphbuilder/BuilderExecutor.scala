@@ -11,7 +11,7 @@ import com.raphtory.core.implementations.generic.messaging._
 import akka.pattern.ask
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.leader.WatchDog.Message.{BuilderUp, ClusterStatusRequest, ClusterStatusResponse}
-import com.raphtory.core.model.graph.{GraphUpdate, TrackedGraphUpdate}
+import com.raphtory.core.model.graph.{GraphUpdate, GraphUpdateBatch, TrackedGraphUpdate}
 
 import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContext}
@@ -19,8 +19,8 @@ import scala.concurrent.duration._
 
 class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) extends RaphtoryActor {
   private val messageIDs = mutable.Map[String, Int]()
-  private val updateCache = mutable.Map[String, mutable.Queue[BuilderOutput]]()
-  getAllWriters().foreach(name => updateCache.put(name, new mutable.Queue[BuilderOutput]()))
+  private val updateCache = mutable.Map[String, mutable.ArrayBuffer[BuilderOutput]]()
+  getAllWriters().foreach(name => updateCache.put(name, mutable.ArrayBuffer[BuilderOutput]()))
   private var cacheSize = 0L
   private var safe = false
   private var spoutref:ActorRef = _
@@ -74,11 +74,10 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
       val partitionID = getAllWriters()(id)
       updateCache.get(partitionID) match {
         case Some(queue) =>
-          queue.dequeueAll(message =>{
-            sendMessage(partitionID,message)
-            cacheSize -= 1
-            true
-          }) //send and remove all from queue
+          val array = queue.toArray
+          cacheSize-=array.size
+          sendMessage(partitionID,GraphUpdateBatch(builderID,array))
+          updateCache.put(partitionID, mutable.ArrayBuffer[BuilderOutput]())
           if (cacheSize < RaphtoryActor.builderMaxCache  && spoutref != null)
             spoutref ! WorkPlease
         case None => //do nothing as no updates for this entity
@@ -128,13 +127,13 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
     val path = getWriter(message.srcId)
     val id = getMessageIDForWriter(path)
 
-    val trackedMessage = TrackedGraphUpdate(s"$builderID", id, message)
+    val trackedMessage = TrackedGraphUpdate(id, message)
     updateCache.get(path) match {
       case Some(queue) =>
-        queue.enqueue(trackedMessage)
+        queue += trackedMessage
       case None =>
-        val queue = new mutable.Queue[BuilderOutput]()
-        queue.enqueue(trackedMessage)
+        val queue = new mutable.ArrayBuffer[BuilderOutput]()
+        queue += trackedMessage
         updateCache.put(path, queue)
     }
     cacheSize+=1
@@ -161,11 +160,11 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
       getAllWriters().foreach { workerPath =>
         updateCache.get(workerPath) match {
           case Some(queue) =>
-            queue.enqueue(BuilderTimeSync(time, s"$builderID", getMessageIDForWriter(workerPath)))
+            queue += (BuilderTimeSync(time, builderID, getMessageIDForWriter(workerPath)))
             cacheSize +=1
           case None =>
-            val queue = new mutable.Queue[BuilderOutput]()
-            queue.enqueue(BuilderTimeSync(time, s"$builderID", getMessageIDForWriter(workerPath)))
+            val queue = new mutable.ArrayBuffer[BuilderOutput]()
+            queue += (BuilderTimeSync(time, builderID, getMessageIDForWriter(workerPath)))
             updateCache.put(workerPath, queue)
             cacheSize +=1
         }
@@ -185,7 +184,7 @@ object BuilderExecutor {
     case class PartitionRequest(partitionID:Int)
     case class DataFinishedSync(time:Long)
     trait BuilderOutput
-    case class BuilderTimeSync(msgTime:Long, BuilderId:String, builderTime:Int) extends BuilderOutput
+    case class BuilderTimeSync(msgTime:Long, BuilderId:Int, builderTime:Int) extends BuilderOutput
   }
 
   private case class State(
