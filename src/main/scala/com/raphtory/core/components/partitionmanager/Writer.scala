@@ -23,6 +23,7 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
   private var updates2 = 0
   private var vertexAdds = 0
 
+  private var pullCount = 0
   private var updatesBefore = 0
 
   private val queuedMessageMap = mutable.Map[Int, mutable.PriorityQueue[queueItem]]()
@@ -62,11 +63,11 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
 
 
   def requestData() = {
-    getAllGraphBuilders().foreach { workerPath =>
-      mediator ! new DistributedPubSubMediator.Send(
-        workerPath,
-        PartitionRequest(partitionID)
-      )}
+
+    val workerPath = getAllGraphBuilders()(pullCount%RaphtoryActor.totalBuilders)
+    mediator ! new DistributedPubSubMediator.Send(workerPath,PartitionRequest(partitionID))
+    pullCount+=1
+
     if(updatesBefore<updates)
       self! RequestData
     else
