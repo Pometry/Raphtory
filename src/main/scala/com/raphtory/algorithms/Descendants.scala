@@ -27,7 +27,6 @@ class Descendants(path:String, seed:String, time:Long, delta:Long=Long.MaxValue,
           .filter(e => e.firstActivityAfter(earliestTime).time < earliestTime + delta)
           outEdges.foreach({
             e =>
-              println(earliestTime,e.history())
               vertex.messageNeighbour(e.ID(), e.firstActivityAfter(earliestTime).time)
           })
       },executeMessagedOnly = true, iterations = 100)
