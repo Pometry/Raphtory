@@ -19,7 +19,7 @@ class ConnectedComponents(path:String) extends GraphAlgorithm{
           }
           else
             vertex.voteToHalt()
-      }, 100,true)
+      }, iterations = 100, executeMessagedOnly = true)
       .select(vertex => Row(vertex.ID(),vertex.getState[Long]("cclabel")))
       .writeTo(path)
   }
