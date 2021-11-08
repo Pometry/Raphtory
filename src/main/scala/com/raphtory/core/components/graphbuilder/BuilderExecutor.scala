@@ -76,7 +76,8 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
         case Some(queue) =>
           val array = queue.toArray
           cacheSize-=array.size
-          sendMessage(partitionID,GraphUpdateBatch(builderID,array))
+          if(array.nonEmpty)
+            sendMessage(partitionID,GraphUpdateBatch(builderID,array))
           updateCache.put(partitionID, mutable.ArrayBuffer[BuilderOutput]())
           if (cacheSize < RaphtoryActor.builderMaxCache  && spoutref != null)
             spoutref ! WorkPlease

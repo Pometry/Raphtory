@@ -71,16 +71,18 @@ class PartitionManager(
     case x => log.warning(s"Partition Manager [{}] received unknown [{}] message.", managerId, x)
   }
 
+  private val writerPullCount = mutable.Map[ActorRef,Int]()
+  writers.foreach { case (i,writer) => writerPullCount.put(writer,0)}
+
   def processCountMessage(msg: String): Unit = {
     writers.foreach{
       case (id,writer) =>
-        if(mailBoxCounter.current(writer.path) < RaphtoryActor.partitionMinQueue)
-          getAllGraphBuilders().foreach { workerPath =>
-            mediator ! new DistributedPubSubMediator.Send(
-              workerPath,
-              PartitionRequest(id)
-            )
-          }
+        if(mailBoxCounter.current(writer.path) < RaphtoryActor.partitionMinQueue) {
+          val pullcount = writerPullCount(writer)
+          val chosenBuilder = getAllGraphBuilders()(pullcount%RaphtoryActor.totalBuilders)
+          mediator ! new DistributedPubSubMediator.Send(chosenBuilder, PartitionRequest(id))
+          writerPullCount.put(writer,pullcount+1)
+        }
     }
   }
 
