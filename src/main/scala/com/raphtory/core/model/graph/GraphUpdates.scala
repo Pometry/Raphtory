@@ -54,6 +54,7 @@ case class VertexRemoveSyncAck(msgTime: Long, override val updateId: Long) exten
 case class TrackedGraphUpdate[+T <: GraphUpdate](channelTime:Int, update: T) extends BuilderOutput
 case class TrackedGraphEffect[T <: GraphUpdateEffect](channelId: Int, channelTime: Int, effect: T)
 case class GraphUpdateBatch[T <: BuilderOutput](channelID:Int, update: Array[T]) extends BuilderOutput
+case class GraphSyncBatch[T <: TrackedGraphEffect[GraphUpdateEffect]](updates: Array[T])
 
 
 case class VertexMessage(superstep:Int,vertexId: Long, data: Any)
