@@ -58,3 +58,4 @@ case class GraphSyncBatch[T <: TrackedGraphEffect[GraphUpdateEffect]](updates: A
 
 
 case class VertexMessage(superstep:Int,vertexId: Long, data: Any)
+case class VertexMessageBatch(data: Array[VertexMessage])

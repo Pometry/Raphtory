@@ -8,7 +8,7 @@ import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFin
 import com.raphtory.core.implementations.generic.messaging.VertexMessageHandler
 import com.raphtory.core.implementations.pojograph.PojoGraphLens
 import com.raphtory.core.model.algorithm.{Explode, Iterate, Select, Step, TableFilter, VertexFilter, WriteTo}
-import com.raphtory.core.model.graph.{GraphPartition, LensInterface, VertexMessage}
+import com.raphtory.core.model.graph.{GraphPartition, LensInterface, VertexMessage, VertexMessageBatch}
 
 import java.io.File
 
@@ -22,6 +22,10 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
   override def receive: Receive = work(State(null,0, 0,false))
 
   private def work(state: State): Receive = withDefaultMessageHandler("work") {
+
+    case VertexMessageBatch(msgBatch) =>
+      msgBatch.foreach(message =>state.graphLens.receiveMessage(message))
+      context.become(work(state.updateReceivedMessageCount(_ + msgBatch.size)))
 
     case msg: VertexMessage =>
       state.graphLens.receiveMessage(msg)
@@ -45,6 +49,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       state.graphLens.nextStep()
       state.graphLens.runGraphFunction(f)
       val sentMessages = state.graphLens.getMessageHandler().getCount()
+      state.graphLens.getMessageHandler().flushMessages
       sender() ! GraphFunctionComplete(sentMessages,state.receivedMessageCount)
       context.become(work(state.copy(sentMessageCount=sentMessages)))
 
@@ -57,6 +62,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
         state.graphLens.runGraphFunction(f)
 
       val sentMessages = state.graphLens.getMessageHandler().getCount()
+      state.graphLens.getMessageHandler().flushMessages
       sender() ! GraphFunctionComplete(state.receivedMessageCount,sentMessages,state.graphLens.checkVotes())
       context.become(work(state.copy(votedToHalt = state.graphLens.checkVotes(),sentMessageCount = sentMessages)))
 
