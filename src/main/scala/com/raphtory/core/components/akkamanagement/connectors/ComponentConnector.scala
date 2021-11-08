@@ -65,7 +65,9 @@ abstract class ComponentConnector()
 
           myId = -1
 
-        case e: Exception => log.error("Failed to retrieve Replicator Id due to [{}].", e)
+        case e: Exception => {e.printStackTrace()
+          log.error("Failed to retrieve Replicator Id due to [{}].", e)
+        }
       }
   }
 

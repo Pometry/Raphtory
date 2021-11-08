@@ -61,7 +61,7 @@ class PartitionManager(
   }
 
   override def receive: Receive = {
-    case msg: String if msg == "count"      => processCountMessage(msg)
+    case msg: String if msg == "pull"      => processCountMessage(msg)
     case msg: String if msg == "keep_alive" => processKeepAliveMessage(msg)
 
     case Terminated(child) =>
@@ -72,17 +72,31 @@ class PartitionManager(
   }
 
   def processCountMessage(msg: String): Unit = {
-//    writers.foreach{
-//      case (id,writer) =>
-//        if(mailBoxCounter.current(writer.path) < RaphtoryActor.partitionMinQueue)
-//          getAllGraphBuilders().foreach { workerPath =>
-//            mediator ! new DistributedPubSubMediator.Send(
-//              workerPath,
-//              PartitionRequest(id)
-//            )
-//          }
-//    }
+    writers.foreach{
+      case (id,writer) =>
+        if(mailBoxCounter.current(writer.path) < RaphtoryActor.partitionMinQueue)
+          getAllGraphBuilders().foreach { workerPath =>
+            mediator ! new DistributedPubSubMediator.Send(
+              workerPath,
+              PartitionRequest(id)
+            )
+          }
+    }
   }
+
+
+//  def requestData() = {
+//
+//    val workerPath = getAllGraphBuilders()(pullCount%RaphtoryActor.totalBuilders)
+//    mediator ! new DistributedPubSubMediator.Send(workerPath,PartitionRequest(partitionID))
+//    pullCount+=1
+//
+//    if(updatesBefore<updates)
+//      self! RequestData
+//    else
+//      scheduleTaskOnce(1 seconds, receiver = self, message = RequestData)
+//    updatesBefore = updates
+//  }
 
   def processKeepAliveMessage(msg: String): Unit = {
     log.debug(s"Writer [{}] received [{}] message.", managerId, msg)
@@ -98,8 +112,8 @@ class PartitionManager(
     log.debug("Preparing to schedule tasks in Writer [{}].", managerId)
 
     val countCancellable =
-      scheduleTask(initialDelay = 10 seconds, interval = 1 seconds, receiver = self, message = "count")
-    scheduledTaskMap.put("count", countCancellable)
+      scheduleTask(initialDelay = 1 seconds, interval = 100 millisecond, receiver = self, message = "pull")
+    scheduledTaskMap.put("pull", countCancellable)
 
     val keepAliveCancellable =
       scheduleTask(initialDelay = 10 seconds, interval = 10 seconds, receiver = self, message = "keep_alive")

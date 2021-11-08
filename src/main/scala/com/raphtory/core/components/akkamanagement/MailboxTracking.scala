@@ -7,12 +7,15 @@ import com.typesafe.config.Config
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
-class SizeTrackedMailbox extends MailboxType with ProducesMessageQueue[SizeTrackedMailbox.MailboxTrackedMessageQueue] {
+class SizeTrackedMailbox(settings: ActorSystem.Settings, config: Config) extends MailboxType with ProducesMessageQueue[SizeTrackedMailbox.MailboxTrackedMessageQueue] {
+
   import SizeTrackedMailbox._
 
-  def this(settings: ActorSystem.Settings, config: Config) = {
-    this()
-  }
+
+//  def this(settings: ActorSystem.Settings, config: Config) = {
+//    this(settings: ActorSystem.Settings, config: Config)
+//  }
+
 
   final override def create(owner: Option[ActorRef], system: Option[ActorSystem]): MessageQueue =
     (owner, system) match {
@@ -22,6 +25,9 @@ class SizeTrackedMailbox extends MailboxType with ProducesMessageQueue[SizeTrack
 }
 
 object SizeTrackedMailbox {
+  def apply(settings: ActorSystem.Settings, config: Config) = {
+    new SizeTrackedMailbox(settings: ActorSystem.Settings, config: Config)
+  }
   // This is the MessageQueue implementation
   class MailboxTrackedMessageQueue(actorPath: ActorPath, counter: MailboxTrackingExtensionImpl)
           extends UnboundedMailbox.MessageQueue {
@@ -71,7 +77,7 @@ trait MailboxTrackedActor extends Actor with ActorLogging {
 
   def mailboxTrackedReceive(work: Receive): Receive = {
     case m =>
-    //  log.info(s"${self.path} mailbox size [${mailBoxCounter.current(self.path)}]")
+      //log.info(s"${self.path} mailbox size [${mailBoxCounter.current(self.path)}]")
       work(m)
   }
 }

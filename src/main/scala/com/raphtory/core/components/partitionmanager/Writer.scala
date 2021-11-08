@@ -3,7 +3,7 @@ package com.raphtory.core.components.partitionmanager
 import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.Message.{BuilderOutput, BuilderTimeSync, PartitionRequest}
-import com.raphtory.core.components.partitionmanager.Writer.Message.{EffectPublish, RequestData, Watermark}
+import com.raphtory.core.components.partitionmanager.Writer.Message.{EffectPublish, Watermark}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.akkamanagement.{MailboxTrackedActor, RaphtoryActor}
 import com.raphtory.core.components.leader.WatermarkManager.Message.{ProbeWatermark, WatermarkTime}
@@ -61,7 +61,6 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
       })
 
     case Watermark => processWatermarkRequest(); //println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
-    case RequestData => requestData()
     case EffectPublish => sendEffectMessages()
     case ProbeWatermark => mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager", WatermarkTime(storage.windowTime), localAffinity = false)
     //case SaveState => serialiseGraphPartition();
@@ -69,18 +68,6 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
   }
 
 
-  def requestData() = {
-
-    val workerPath = getAllGraphBuilders()(pullCount%RaphtoryActor.totalBuilders)
-    mediator ! new DistributedPubSubMediator.Send(workerPath,PartitionRequest(partitionID))
-    pullCount+=1
-
-    if(updatesBefore<updates)
-      self! RequestData
-    else
-      scheduleTaskOnce(1 seconds, receiver = self, message = RequestData)
-    updatesBefore = updates
-  }
 
   def processVertexAddRequest(channelId: Int, channelTime: Int, update: VertexAdd): Unit = {
     log.debug(s"IngestionWorker [$partitionID] received [$update] request.")
@@ -299,7 +286,6 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
       scheduleTask(initialDelay = 10 seconds, interval = 5 second, receiver = self, message = Watermark)
     scheduledTaskMap.put("watermark", watermarkCancellable)
 
-    scheduleTaskOnce(10 seconds, receiver = self, message = RequestData)
     scheduleTaskOnce(10 seconds, receiver = self, message = EffectPublish)
   }
 
@@ -311,7 +297,6 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
 object Writer {
   object Message {
     case object Watermark
-    case object RequestData
     case object EffectPublish
   }
 }
