@@ -261,7 +261,7 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
         mediator ! new DistributedPubSubMediator.Send(partitionName, GraphSyncBatch(queue.toArray))
     }
     getAllWriters().foreach(name => updateCache.put(name, mutable.ArrayBuffer[TrackedGraphEffect[GraphUpdateEffect]]()))
-    scheduleTaskOnce(5 second, receiver = self, message = EffectPublish)
+    scheduleTaskOnce(1 second, receiver = self, message = EffectPublish)
 
   }
 
