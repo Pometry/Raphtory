@@ -10,6 +10,7 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
   def Type() = entity.getType
 
   def firstActivityAfter(time: Long) = history.filter(k => k.time >= time).minBy(x => x.time)
+  def lastActivityBefore(time: Long) = history.filter(k => k.time <= time).maxBy(x => x.time)
   def latestActivity()               = history.head
   def earliestActivity()             = history.minBy(k => k.time)
 

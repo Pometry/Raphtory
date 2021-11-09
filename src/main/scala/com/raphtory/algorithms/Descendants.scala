@@ -2,7 +2,13 @@ package com.raphtory.algorithms
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
-class Descendants(path:String, seed:String, time:Long, delta:Long=Long.MaxValue, directed:Boolean=true) extends GraphAlgorithm{
+class Descendants(path:String,
+                  seed:String,
+                  time:Long,
+                  delta:Long=Long.MaxValue,
+                  directed:Boolean=true)
+  extends GraphAlgorithm{
+
   override def algorithm(graph: GraphPerspective): Unit = {
     graph.step({
       vertex =>
@@ -36,5 +42,10 @@ class Descendants(path:String, seed:String, time:Long, delta:Long=Long.MaxValue,
 }
 
 object Descendants {
-  def apply(path:String, seed:String, time:Long, delta:Long=Long.MaxValue, directed:Boolean=true) = new Descendants(path, seed, time, delta, directed)
+  def apply(path:String,
+            seed:String,
+            time:Long,
+            delta:Long=Long.MaxValue,
+            directed:Boolean=true)
+  = new Descendants(path, seed, time, delta, directed)
 }
