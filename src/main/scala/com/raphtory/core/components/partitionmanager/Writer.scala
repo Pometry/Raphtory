@@ -44,6 +44,20 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
         case req: BuilderTimeSync => processBuilderTimeSync(req);
 
       })
+
+    case TrackedGraphEffect(channelId, channelTime, req: SyncNewEdgeAdd) => processSyncNewEdgeAdd(channelId, channelTime, req) //A writer has requested a new edge sync for a destination node in this worker
+    case TrackedGraphEffect(channelId, channelTime, req: SyncExistingEdgeAdd) => processSyncExistingEdgeAdd(channelId, channelTime, req) // A writer has requested an existing edge sync for a destination node on in this worker
+    case TrackedGraphEffect(channelId, channelTime, req: SyncExistingRemovals) => processSyncExistingRemovals(channelId, channelTime, req) //The remote worker has returned all removals in the destination node -- for new edges
+    case TrackedGraphEffect(channelId, channelTime, req: EdgeSyncAck) => processEdgeSyncAck(channelId, channelTime, req) //The remote worker acknowledges the completion of an edge sync
+
+    case TrackedGraphEffect(channelId, channelTime, req: SyncNewEdgeRemoval) => processSyncNewEdgeRemoval(channelId, channelTime, req) //A remote worker is asking for a new edge to be removed for a destination node in this worker
+    case TrackedGraphEffect(channelId, channelTime, req: SyncExistingEdgeRemoval) => processSyncExistingEdgeRemoval(channelId, channelTime, req) //A remote worker is asking for the deletion of an existing edge
+
+    case TrackedGraphEffect(channelId, channelTime, req: OutboundEdgeRemovalViaVertex) => processOutboundEdgeRemovalViaVertex(channelId, channelTime, req) //Does exactly the same as above, but for when the removal comes form a vertex
+    case TrackedGraphEffect(channelId, channelTime, req: InboundEdgeRemovalViaVertex) => processInboundEdgeRemovalViaVertex(channelId, channelTime, req) // Excatly the same as above, but for a remote worker
+
+    case TrackedGraphEffect(channelId, channelTime, req: VertexRemoveSyncAck) => processVertexRemoveSyncAck(channelId, channelTime, req)
+
     case GraphSyncBatch(updates) =>
       updates.foreach(update => update match {
         case TrackedGraphEffect(channelId, channelTime, req: SyncNewEdgeAdd) => processSyncNewEdgeAdd(channelId, channelTime, req) //A writer has requested a new edge sync for a destination node in this worker
@@ -252,6 +266,7 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
   }
 
   private def queueEffectMessage(msg: TrackedGraphEffect[GraphUpdateEffect]): Unit = {
+    //mediator ! new DistributedPubSubMediator.Send(getWriter(msg.effect.updateId), msg)
     updateCache(getWriter(msg.effect.updateId)) += msg
   }
 
