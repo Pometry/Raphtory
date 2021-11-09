@@ -25,6 +25,7 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
   private var safe = false
   private var spoutref:ActorRef = _
   var update = 0
+  private var workRequestPending = false
 
   override def preStart(): Unit = {
     log.debug(s"Builder Executor [$builderID] is being started.")
@@ -32,6 +33,14 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
     context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, StartUp) // wait 10 seconds to start
     context.system.scheduler.schedule(0 seconds, 10 seconds, self, KeepAlive)
   }
+
+  def handleWorkRequest() = {
+    if(!workRequestPending) {
+      spoutref ! WorkPlease
+      workRequestPending=true
+    }
+  }
+
 
   override def receive: Receive = work(State(0L, false, 0L))
 
@@ -49,11 +58,12 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
 
     case SpoutOnline =>
       spoutref = context.sender()
-      spoutref ! WorkPlease
+      handleWorkRequest()
     case NoWork =>
       context.system.scheduler.scheduleOnce(delay = 1.second, receiver = context.sender(), message = WorkPlease)
 
-    case e: AllocateTuples[T] => //todo: wvv AllocateTuple should hold type of record instead of using Any
+    case e: AllocateTuples[T] =>
+      workRequestPending = false
       val newNewestTimes = (
         for (record <- e.record)
           yield parseTupleAndSendGraph(record)
@@ -68,7 +78,7 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
       }
 
       if (cacheSize < RaphtoryActor.builderMaxCache)
-        context.sender() ! WorkPlease
+        handleWorkRequest()
 
     case PartitionRequest(id) =>
       val partitionID = getAllWriters()(id)
@@ -80,7 +90,7 @@ class BuilderExecutor[T](val graphBuilder: GraphBuilder[T], val builderID: Int) 
             sendMessage(partitionID,GraphUpdateBatch(builderID,array))
           updateCache.put(partitionID, mutable.ArrayBuffer[BuilderOutput]())
           if (cacheSize < RaphtoryActor.builderMaxCache  && spoutref != null)
-            spoutref ! WorkPlease
+            handleWorkRequest()
         case None => //do nothing as no updates for this entity
       }
 
