@@ -24,6 +24,9 @@ object RaphtoryActor {
   val totalPartitions       : Int = partitionServers*partitionsPerServer
   val totalBuilders         : Int = builderServers*buildersPerServer
   val batchsize             : Int = conf.getInt("Raphtory.builderBatchSize")
+  val builderMaxCache       : Int = conf.getInt("Raphtory.builderMaxCache")
+  val partitionMinQueue     : Int = conf.getInt("Raphtory.partitionMinQueue")
+  val hasDeletions          : Boolean = conf.getBoolean("Raphtory.hasDeletions")
 }
 
 trait RaphtoryActor extends Actor with ActorLogging with Timers {

@@ -21,7 +21,6 @@ class WatermarkManager(watchDog: ActorRef) extends RaphtoryActor  {
   override def preStart(): Unit = {
     context.system.scheduler.scheduleOnce(delay = 5.seconds, receiver = self, message = "clusterUp")
   }
-  var safeTimestamp:Long = 0L
 
   private val safeMessageMap = mutable.Map[String, Long]()
   var counter = 0;
@@ -36,7 +35,7 @@ class WatermarkManager(watchDog: ActorRef) extends RaphtoryActor  {
     case "probe"         => probeWatermark()
     case u:WatermarkTime => processWatermarkTime(u)
     case WhatsTheTime    =>
-      val time = safeTimestamp
+      val time = if(safeMessageMap.size == RaphtoryActor.totalPartitions) safeMessageMap.minBy(x=> x._2)._2 else 0L
       sender() ! WatermarkTime(time)
   }
 
@@ -55,12 +54,12 @@ class WatermarkManager(watchDog: ActorRef) extends RaphtoryActor  {
     if(counter==totalPartitions) {
       val max = safeMessageMap.maxBy(x=> x._2)
       val min = safeMessageMap.minBy(x=> x._2)
-      safeTimestamp = min._2
       log.info(s"Minimum Watermark: ${min._1} ${min._2} Maximum Watermark: ${max._1} ${max._2}")
-      context.system.scheduler.scheduleOnce(delay = 10.seconds, receiver = self, message = "probe")
+      context.system.scheduler.scheduleOnce(delay = 1.seconds, receiver = self, message = "probe")
       counter=0
     }
   }
+
 }
 
 object WatermarkManager {

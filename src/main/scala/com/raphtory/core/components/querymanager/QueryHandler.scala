@@ -16,6 +16,7 @@ import scala.reflect.ClassTag.Any
 import scala.util.{Failure, Success}
 
 abstract class QueryHandler(jobID:String,algorithm: GraphAlgorithm) extends RaphtoryActor{
+  import akka.remote.artery.TestManagementCommands
 
   private val workerList = mutable.Map[Int,ActorRef]()
 

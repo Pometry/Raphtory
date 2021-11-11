@@ -1,11 +1,11 @@
 package com.raphtory.core.implementations.generic.messaging
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 
 final class VertexMultiQueue {
-  private val evenMessageQueue: ListBuffer[Any] = ListBuffer.empty
-  private val oddMessageQueue: ListBuffer[Any]  = ListBuffer.empty
+  private val evenMessageQueue: ArrayBuffer[Any] = ArrayBuffer.empty
+  private val oddMessageQueue: ArrayBuffer[Any]  = ArrayBuffer.empty
 
   def getMessageQueue(superStep: Int): List[Any] =
     if (superStep % 2 == 0) {
