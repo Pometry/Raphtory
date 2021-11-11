@@ -53,7 +53,7 @@ class LPA(top: Int= 0, weight: String= "", maxIter: Int = 500, seed:Long= -1, ou
         newLabel =  if (rnd.nextFloat() < SP) vlabel else newLabel
         vertex.setState("lpalabel", newLabel)
         vertex.messageAllNeighbours((vertex.ID(), newLabel))
-    }, maxIter).select({
+    }, maxIter,true).select({
       vertex => Row(
         vertex.ID(),
         vertex.getState("lpalabel"),

@@ -11,7 +11,7 @@ import scala.collection.mutable
   */
 class MutableProperty(creationTime: Long, value: Any) extends Property {
 
-  var previousState: mutable.TreeMap[Long, Any]   = mutable.TreeMap()(HistoryOrdering)
+  var previousState: mutable.ArrayBuffer[(Long, Any)] = mutable.ArrayBuffer()
   // add in the initial information
   update(creationTime, value)
 
@@ -24,7 +24,7 @@ class MutableProperty(creationTime: Long, value: Any) extends Property {
       earliest=msgTime
       earliestval=newValue
     }
-    previousState.put(msgTime, newValue)
+    previousState+=((msgTime, newValue))
   }
 
   def valueAt(time: Long): Any = {
