@@ -7,6 +7,7 @@ abstract class EntityVisitor {
   def Type()
 
   def firstActivityAfter(time: Long):HistoricEvent
+  def lastActivityBefore(time: Long):HistoricEvent
   def latestActivity():HistoricEvent
   def earliestActivity():HistoricEvent
 
