@@ -24,7 +24,6 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
 
   var oldestPoint: Long = creationTime
-  var newestPoint: Long = creationTime
 
   // History of that entity
   def removeList: List[Long] = history.filter(f=> !f._2).map(_._1).toList
@@ -44,8 +43,6 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   }
 
   def checkOldestNewest(msgTime: Long) = {
-    if (msgTime > newestPoint)
-      newestPoint = msgTime
     if (oldestPoint > msgTime) //check if the current point in history is the oldest
       oldestPoint = msgTime
   }
@@ -76,24 +73,15 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
 
   protected def closestTime(time: Long): (Long, Boolean) = {
-    var closestTime: Long = -1
-    var value             = false
-    for ((k, v) <- history)
-      if (k <= time)
-        if ((time - k) < (time - closestTime)) {
-          closestTime = k
-          value = v
-        }
-    (closestTime, value)
+
+    history.range(time,Long.MinValue).headOption match {
+      case Some(value) =>
+        value
+      case None => (-1,false)
+    }
   }
 
-  def aliveAt(time: Long): Boolean =
-    if (time < oldestPoint)
-      false
-    else {
-      val closest = closestTime(time)
-      closest._2
-    }
+  def aliveAt(time: Long): Boolean = if (time < oldestPoint) false else closestTime(time)._2
 
   def aliveAtWithWindow(time: Long, windowSize: Long): Boolean =
     if (time < oldestPoint)

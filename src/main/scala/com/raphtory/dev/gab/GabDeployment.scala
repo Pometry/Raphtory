@@ -10,7 +10,7 @@ object GabDeployment extends App{
   val builder = new GabUserGraphBuilder()
   val rg = RaphtoryGraph[String](source,builder)
   val arguments = Array[String]()
-  //rg.rangeQuery(TestAlgorithm(),start= 1470797917000L,end = 1476113868000L,increment = 86400000L,List(3600000L,86400000L,604800000L,2592000000L,31536000000L))
+  rg.rangeQuery(ConnectedComponents("/tmp"),start= 1470797917000L,end = 1476113868000L,increment = 86400000L,List(3600000L,86400000L,604800000L,2592000000L,31536000000L))
 
   //rg.oldrangeQuery(ConnectedComponents(),new DefaultSerialiser, start= 1470797917000L,end = 1476113868000L,increment = 86400000L,windowBatch=List(3600000L,86400000L,604800000L,2592000000L,31536000000L))
   //rg.oldrangeQuery(new TriangleCount(Array()), new DefaultSerialiser, start=1470797917000L,
