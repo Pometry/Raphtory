@@ -18,9 +18,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   var properties: mutable.Map[String, Property] = mutable.Map[String, Property]()
 
   // History of that entity
-  object HistoryOrdering extends Ordering[Long] {
-    def compare(key1: Long, key2: Long) = key2.compareTo(key1)
-  }
+
   var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
 
   var oldestPoint: Long = creationTime
