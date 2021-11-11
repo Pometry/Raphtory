@@ -3,7 +3,7 @@ package com.raphtory.core.components.partitionmanager
 import akka.actor.{ActorRef, Cancellable}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.graphbuilder.BuilderExecutor.Message.{BuilderOutput, BuilderTimeSync, PartitionRequest}
-import com.raphtory.core.components.partitionmanager.Writer.Message.{EffectPublish, Watermark}
+import com.raphtory.core.components.partitionmanager.Writer.Message.{Dedupe, EffectPublish, Watermark}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.akkamanagement.{MailboxTrackedActor, RaphtoryActor}
 import com.raphtory.core.components.leader.WatermarkManager.Message.{ProbeWatermark, WatermarkTime}
@@ -76,6 +76,7 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
 
     case Watermark => processWatermarkRequest(); //println(s"$workerId ${storage.newestTime} ${storage.windowTime} ${storage.newestTime-storage.windowTime}")
     case EffectPublish => sendEffectMessages()
+    case Dedupe => dedupe()
     case ProbeWatermark => mediator ! DistributedPubSubMediator.Send("/user/WatermarkManager", WatermarkTime(storage.windowTime), localAffinity = false)
     //case SaveState => serialiseGraphPartition();
     case x => log.warning(s"IngestionWorker [{}] received unknown [{}] message.", partitionID, x)
@@ -238,6 +239,11 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
     }
   }
 
+  private def dedupe():Unit = {
+    storage.deduplicate()
+    scheduleTaskOnce(3 minute, receiver = self, message = Dedupe)
+  }
+
   import scala.util.control.Breaks._
 
   private def setSafePoint(builderName: Int, messageQueue: mutable.PriorityQueue[queueItem]) = {
@@ -302,6 +308,7 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
     scheduledTaskMap.put("watermark", watermarkCancellable)
 
     scheduleTaskOnce(10 seconds, receiver = self, message = EffectPublish)
+    scheduleTaskOnce(10 seconds, receiver = self, message = Dedupe)
   }
 
   case class queueItem(builderEpoch:Int, timestamp:Long)extends Ordered[queueItem] {
@@ -313,6 +320,7 @@ object Writer {
   object Message {
     case object Watermark
     case object EffectPublish
+    case object Dedupe
   }
 }
 //  def serialiseGraphPartition() = {

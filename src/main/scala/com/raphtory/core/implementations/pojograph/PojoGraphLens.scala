@@ -32,12 +32,14 @@ final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Lo
     result
   }
 
-  def getSize() = vertexMap.size
+  private lazy val vertices: Array[(Long,Vertex)] = vertexMap.toArray
+
+  def getSize() = vertices.size
 
   private var dataTable: List[Row] = List()
 
   def executeSelect(f: Vertex => Row): Unit = {
-    dataTable = vertexMap.collect {
+    dataTable = vertices.collect {
       case (id, vertex) => f(vertex)
     }.toList
   }
@@ -54,12 +56,12 @@ final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Lo
 
 
   def runGraphFunction(f: Vertex => Unit): Unit = {
-    vertexMap.foreach { case (id, vertex) => f(vertex) }
-    vertexCount.set(vertexMap.size)
+    vertices.foreach { case (id, vertex) => f(vertex) }
+    vertexCount.set(vertices.size)
   }
 
   def runMessagedGraphFunction(f: Vertex => Unit): Unit = {
-    val size = vertexMap.collect { case (id, vertex) if vertex.hasMessage() => f(vertex) }.size
+    val size = vertices.collect { case (id, vertex) if vertex.hasMessage() => f(vertex) }.size
     vertexCount.set(size)
   }
 

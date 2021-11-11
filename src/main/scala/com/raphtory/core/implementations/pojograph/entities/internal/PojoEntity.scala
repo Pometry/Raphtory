@@ -22,6 +22,14 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   //var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
   var history: mutable.ArrayBuffer[(Long, Boolean)] = mutable.ArrayBuffer()
   history+=((creationTime,isInitialValue))
+  var toClean = false
+
+  def dedupe() = {
+    if(toClean){
+      history = history.distinct
+      toClean=false
+    }
+  }
 
   var oldestPoint: Long = creationTime
 
@@ -33,16 +41,18 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   def getType: String                = entityType.getOrElse("")
 
   def revive(msgTime: Long): Unit = {
-    checkOldestNewest(msgTime)
+    checkOldestTime(msgTime)
     history += ((msgTime, true))
+    toClean=true
   }
 
   def kill(msgTime: Long): Unit = {
-    checkOldestNewest(msgTime)
+    checkOldestTime(msgTime)
     history += ((msgTime, false))
+    toClean=true
   }
 
-  def checkOldestNewest(msgTime: Long) = {
+  def checkOldestTime(msgTime: Long) = {
     if (oldestPoint > msgTime) //check if the current point in history is the oldest
       oldestPoint = msgTime
   }
