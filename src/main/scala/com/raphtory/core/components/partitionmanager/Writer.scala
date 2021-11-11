@@ -304,7 +304,7 @@ final class Writer(partitionID:Int, storage: GraphPartition) extends RaphtoryAct
 
   private def scheduleTasks(): Unit = {
     val watermarkCancellable =
-      scheduleTask(initialDelay = 10 seconds, interval = 5 second, receiver = self, message = Watermark)
+      scheduleTask(initialDelay = 1 seconds, interval = 1 second, receiver = self, message = Watermark)
     scheduledTaskMap.put("watermark", watermarkCancellable)
 
     scheduleTaskOnce(10 seconds, receiver = self, message = EffectPublish)
