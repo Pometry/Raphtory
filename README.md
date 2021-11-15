@@ -1,9 +1,13 @@
 <p align="center">
-  <img src="https://raphtory.github.io/images/raphtory-logo-round.png" alt="Raphtory" width="120" height="120"/>
+  <img src="https://user-images.githubusercontent.com/6665739/130641943-fa7fcdb8-a0e7-4aa4-863f-3df61b5de775.png" alt="Raphtory" height="250"/>
 </p>
-<h1 align="center">Raphtory</h1>
 
 Open-source platform for distributed real-time temporal graph analytics. Load and process large dynamic graphs across time.
+
+[![test and build](https://github.com/Raphtory/Raphtory/actions/workflows/test_and_build.yml/badge.svg?branch=main&event=push)](https://github.com/Raphtory/Raphtory/actions/workflows/test_and_build.yml?query=branch%3Amain+event%3Apush++)
+[![test and build](https://github.com/Raphtory/Raphtory/actions/workflows/test_and_build.yml/badge.svg?event=schedule)](https://github.com/Raphtory/Raphtory/actions/workflows/test_and_build.yml?query=event%3Aschedule++)
+[![Latest Tag](https://img.shields.io/github/v/tag/Raphtory/Raphtory?include_prereleases)](https://github.com/Raphtory/Raphtory/tags)
+[![Latest Release](https://img.shields.io/github/v/release/Raphtory/Raphtory?color=%233D9970&include_prereleases)](https://github.com/Raphtory/Raphtory/releases)
 
 ## Table of Contents
 - [Getting started](#getting-started)
@@ -34,7 +38,6 @@ Static graphs, which require data to be manually reloaded for updates, have been
 Check out these links for more information:
 
 - [Detailed overview](https://raphtory.github.io/) on the research
-- [Introduction to temporal graphs](https://chorograph.com/demo) and see some of the exciting software built on top of Raphtory
 - Raphtory [article](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs) on the Alan Turing Institute site
 
 ## Community and Changelog  
