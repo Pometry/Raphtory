@@ -5,8 +5,9 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 /**
 Description
   The algorithms identifies 2-edge-1-node temporal motifs; It detects one type of motifs:
-  For each vertex, for each incoming edge it checks whether there are any outgoing edges that occur after
-
+  For each incoming edge a vertex has, the algorithm checks whether there are any outgoing 
+  edges which occur after it and returns a count of these.
+  
 Parameters
   fileOutput (String) : The path where the output will be saved. If not specified, defaults to /tmp/PageRank
 
