@@ -4,7 +4,7 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
 /**
 Description
-  Returns the number of triangles and clustering coefficient.
+  Returns the number of triangles.
   The triangle count algorithm counts the number of triangles
   (triplet of nodes which all pairwise share a link) that each
   vertex is a member of, from which additionally the global graph
