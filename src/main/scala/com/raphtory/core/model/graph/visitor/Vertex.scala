@@ -1,10 +1,6 @@
 package com.raphtory.core.model.graph.visitor
 
-import com.raphtory.core.implementations.pojograph.PojoGraphLens
-import com.raphtory.core.implementations.pojograph.entities.internal.RaphtoryVertex
-import com.raphtory.core.implementations.pojograph.messaging.VertexMultiQueue
 
-import scala.collection.parallel.ParIterable
 
 import scala.reflect.ClassTag
 

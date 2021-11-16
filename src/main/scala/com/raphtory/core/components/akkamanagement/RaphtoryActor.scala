@@ -4,7 +4,6 @@ import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Cancellable, Tim
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.algorithms.old.Analyser
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.leader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
 import com.typesafe.config.ConfigFactory
@@ -24,6 +23,9 @@ object RaphtoryActor {
   val totalPartitions       : Int = partitionServers*partitionsPerServer
   val totalBuilders         : Int = builderServers*buildersPerServer
   val batchsize             : Int = conf.getInt("Raphtory.builderBatchSize")
+  val builderMaxCache       : Int = conf.getInt("Raphtory.builderMaxCache")
+  val partitionMinQueue     : Int = conf.getInt("Raphtory.partitionMinQueue")
+  val hasDeletions          : Boolean = conf.getBoolean("Raphtory.hasDeletions")
 }
 
 trait RaphtoryActor extends Actor with ActorLogging with Timers {

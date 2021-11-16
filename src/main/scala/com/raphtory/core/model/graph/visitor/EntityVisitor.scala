@@ -1,7 +1,5 @@
 package com.raphtory.core.model.graph.visitor
 
-import com.raphtory.core.implementations.pojograph.entities.internal.RaphtoryEntity
-
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
@@ -9,6 +7,7 @@ abstract class EntityVisitor {
   def Type()
 
   def firstActivityAfter(time: Long):HistoricEvent
+  def lastActivityBefore(time: Long):HistoricEvent
   def latestActivity():HistoricEvent
   def earliestActivity():HistoricEvent
 

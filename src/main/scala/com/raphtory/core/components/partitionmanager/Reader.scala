@@ -2,7 +2,6 @@ package com.raphtory.core.components.partitionmanager
 
 import akka.actor.{ActorRef, Props}
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.algorithms.old.Analyser
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.querymanager.QueryHandler.Message._
 import com.raphtory.core.model.graph.GraphPartition

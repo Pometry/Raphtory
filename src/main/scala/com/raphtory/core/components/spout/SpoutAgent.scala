@@ -6,7 +6,7 @@ import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.leader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, SpoutUp}
 import com.raphtory.core.components.spout.SpoutAgent.Message._
-import com.raphtory.core.implementations.pojograph.messaging._
+import com.raphtory.core.implementations.generic.messaging._
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

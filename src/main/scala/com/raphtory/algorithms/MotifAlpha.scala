@@ -2,12 +2,19 @@ package com.raphtory.algorithms
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
-/*
+/**
+Description
+  The algorithms identifies 2-edge-1-node temporal motifs; It detects one type of motifs:
+  For each incoming edge a vertex has, the algorithm checks whether there are any outgoing 
+  edges which occur after it and returns a count of these.
+  
+Parameters
+  fileOutput (String) : The path where the output will be saved. If not specified, defaults to /tmp/PageRank
 
-This is an implementation of the alpha_1 motif from the paper
-Detecting Mixing Services via Mining Bitcoin Transaction Network With Hybrid Motifs
- */
-
+Returns
+  ID (Long) : Vertex ID
+  Number of Type1 motifs (Long) : Number of Type-1 motifs.
+**/
 class MotifAlpha(fileOutput:String="/tmp/motif_alpha") extends GraphAlgorithm {
 
   override def algorithm(graph: GraphPerspective): Unit = {

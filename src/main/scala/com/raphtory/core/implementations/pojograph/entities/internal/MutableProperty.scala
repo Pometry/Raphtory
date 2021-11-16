@@ -1,5 +1,6 @@
 package com.raphtory.core.implementations.pojograph.entities.internal
 
+
 import scala.collection.mutable
 
 /** *

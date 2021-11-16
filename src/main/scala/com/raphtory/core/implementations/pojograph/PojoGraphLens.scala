@@ -1,23 +1,25 @@
 package com.raphtory.core.implementations.pojograph
 
-import com.raphtory.core.implementations.pojograph.entities.external.PojoVertex
-import com.raphtory.core.implementations.pojograph.messaging.VertexMessageHandler
+import com.raphtory.core.implementations.generic.messaging.VertexMessageHandler
+import com.raphtory.core.implementations.pojograph.entities.external.PojoExVertex
 import com.raphtory.core.model.algorithm.Row
 import com.raphtory.core.model.graph.visitor.Vertex
-import com.raphtory.core.model.graph.{GraphLens, GraphPartition, VertexMessage}
+import com.raphtory.core.model.graph.{GraphLens, GraphPartition, LensInterface, VertexMessage}
 
 import java.util.concurrent.atomic.AtomicInteger
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
-final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler) extends GraphLens(jobId, timestamp, window) {
+final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Long], var superStep: Int, private val storage: GraphPartition, private val messageHandler: VertexMessageHandler)
+  extends GraphLens(jobId, timestamp, window) with LensInterface {
   private val voteCount = new AtomicInteger(0)
   private val vertexCount = new AtomicInteger(0)
   var t1 = System.currentTimeMillis()
 
   private var fullGraphSize = 0
+
   def getFullGraphSize = fullGraphSize
-  def setFullGraphSize(size:Int) = fullGraphSize = size
+
+  def setFullGraphSize(size: Int) = fullGraphSize = size
 
   private lazy val vertexMap: mutable.Map[Long, Vertex] = {
     val result = window match {
@@ -30,38 +32,38 @@ final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Lo
     result
   }
 
-  def getSize()=vertexMap.size
+  def getSize() = vertexMap.size
 
   private var dataTable: List[Row] = List()
 
-  def executeSelect(f:Vertex=>Row):Unit = {
+  def executeSelect(f: Vertex => Row): Unit = {
     dataTable = vertexMap.collect {
       case (id, vertex) => f(vertex)
     }.toList
   }
 
-  def filteredTable(f:Row=>Boolean):Unit =
-    dataTable=dataTable.filter(f)
+  def filteredTable(f: Row => Boolean): Unit =
+    dataTable = dataTable.filter(f)
 
-  def explodeTable(f:Row=>List[Row]):Unit =
+  def explodeTable(f: Row => List[Row]): Unit =
     dataTable = dataTable.flatMap(f)
 
-  def getDataTable():List[Row] = {
+  def getDataTable(): List[Row] = {
     dataTable
   }
 
 
-  def runGraphFunction(f:Vertex=>Unit):Unit = {
-    vertexMap.foreach{ case (id,vertex) =>f(vertex)}
+  def runGraphFunction(f: Vertex => Unit): Unit = {
+    vertexMap.foreach { case (id, vertex) => f(vertex) }
     vertexCount.set(vertexMap.size)
   }
 
-  def runMessagedGraphFunction(f:Vertex=>Unit):Unit = {
-    val size = vertexMap.collect{ case (id, vertex) if vertex.hasMessage() => f(vertex)}.size
+  def runMessagedGraphFunction(f: Vertex => Unit): Unit = {
+    val size = vertexMap.collect { case (id, vertex) if vertex.hasMessage() => f(vertex) }.size
     vertexCount.set(size)
   }
 
-  def getMessageHandler():VertexMessageHandler = {
+  def getMessageHandler(): VertexMessageHandler = {
     messageHandler
   }
 
@@ -80,7 +82,7 @@ final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Lo
 
   def receiveMessage(msg: VertexMessage): Unit = {
     try {
-      vertexMap(msg.vertexId).asInstanceOf[PojoVertex].receiveMessage(msg)
+      vertexMap(msg.vertexId).asInstanceOf[PojoExVertex].receiveMessage(msg)
     }
     catch {
       case e: Exception => e.printStackTrace()
@@ -88,5 +90,7 @@ final case class PojoGraphLens(jobId: String, timestamp: Long, window: Option[Lo
 
   }
 
+  override def getWindow(): Option[Long] = window
 
+  override def getTimestamp(): Long = timestamp
 }

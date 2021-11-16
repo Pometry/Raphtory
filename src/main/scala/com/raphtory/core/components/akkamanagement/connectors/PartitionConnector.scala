@@ -36,7 +36,7 @@ class PartitionConnector() extends ComponentConnector() {
       writers.put(
         index,
         context.system
-          .actorOf(Props(new Writer(index, storage)).withDispatcher("worker-dispatcher"), writeName)
+          .actorOf(Props(new Writer(index, storage)).withDispatcher("worker-dispatcher").withMailbox("my-custom-mailbox"), writeName)
       )
       readers.put(
         index,

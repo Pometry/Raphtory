@@ -1,20 +1,16 @@
 package com.raphtory.core.components.partitionmanager
 
 import akka.actor.ActorRef
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import com.raphtory.core.components.akkamanagement.RaphtoryActor
 import com.raphtory.core.components.partitionmanager.QueryExecutor.State
 import com.raphtory.core.components.querymanager.QueryHandler.Message.{CheckMessages, CreatePerspective, ExecutorEstablished, GraphFunctionComplete, MetaDataSet, PerspectiveEstablished, SetMetaData, TableBuilt, TableFunctionComplete}
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, EndQuery}
-import com.raphtory.core.implementations
+import com.raphtory.core.implementations.generic.messaging.VertexMessageHandler
 import com.raphtory.core.implementations.pojograph.PojoGraphLens
-import com.raphtory.core.implementations.pojograph.messaging.VertexMessageHandler
 import com.raphtory.core.model.algorithm.{Explode, Iterate, Select, Step, TableFilter, VertexFilter, WriteTo}
-import com.raphtory.core.model.graph.{GraphPartition, VertexMessage}
-import com.raphtory.core.model.graph.visitor.Vertex
+import com.raphtory.core.model.graph.{GraphPartition, LensInterface, VertexMessage, VertexMessageBatch}
 
 import java.io.File
-import scala.io.Source
 
 case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String, handlerRef:ActorRef) extends RaphtoryActor {
 
@@ -26,6 +22,10 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
   override def receive: Receive = work(State(null,0, 0,false))
 
   private def work(state: State): Receive = withDefaultMessageHandler("work") {
+
+    case VertexMessageBatch(msgBatch) =>
+      msgBatch.foreach(message =>state.graphLens.receiveMessage(message))
+      context.become(work(state.updateReceivedMessageCount(_ + msgBatch.size)))
 
     case msg: VertexMessage =>
       state.graphLens.receiveMessage(msg)
@@ -49,6 +49,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       state.graphLens.nextStep()
       state.graphLens.runGraphFunction(f)
       val sentMessages = state.graphLens.getMessageHandler().getCount()
+      state.graphLens.getMessageHandler().flushMessages
       sender() ! GraphFunctionComplete(sentMessages,state.receivedMessageCount)
       context.become(work(state.copy(sentMessageCount=sentMessages)))
 
@@ -61,6 +62,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
         state.graphLens.runGraphFunction(f)
 
       val sentMessages = state.graphLens.getMessageHandler().getCount()
+      state.graphLens.getMessageHandler().flushMessages
       sender() ! GraphFunctionComplete(state.receivedMessageCount,sentMessages,state.graphLens.checkVotes())
       context.become(work(state.copy(votedToHalt = state.graphLens.checkVotes(),sentMessageCount = sentMessages)))
 
@@ -90,8 +92,8 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
       if(!dir.exists()) {
         dir.mkdirs()
       }
-      val window = state.graphLens.window
-      val timestamp = state.graphLens.timestamp
+      val window = state.graphLens.getWindow()
+      val timestamp = state.graphLens.getTimestamp()
       val datatable = state.graphLens.getDataTable().map(row => {
         window match {
           case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}"
@@ -118,7 +120,7 @@ case class QueryExecutor(partition: Int, storage: GraphPartition, jobID: String,
 }
 
 object QueryExecutor {
-  private case class State(graphLens: PojoGraphLens, sentMessageCount: Int, receivedMessageCount: Int, votedToHalt:Boolean) {
+  private case class State(graphLens: LensInterface, sentMessageCount: Int, receivedMessageCount: Int, votedToHalt:Boolean) {
     def updateReceivedMessageCount(f: Int => Int): State = copy(receivedMessageCount = f(receivedMessageCount))
   }
 }
