@@ -11,19 +11,21 @@ Description
   all vertex labels have converged. The algorithm is synchronous since every vertex updates its label at the same time.
 
 Parameters
-  top (Int)       – The number of top largest communities to return. (default: 0)
-                      If not specified, Raphtory will return all detected communities.
-  weight (String) - Edge property (default: ""). To be specified in case of weighted graph.
-  maxIter (Int)   - Maximum iterations for LPA to run. (default: 500)
-  seed    (Long)  - The seed for randomness, if empty then random seed is selected by system
+  top (Int) : The number of top largest communities to return. (Default: 0) If not specified, Raphtory will return all detected communities.
+  weight (String) : Edge property (Default: ""). To be specified in case of weighted graph.
+  maxIter (Int) : Maximum iterations for algorithm to run. (Default: 500)
+  seed (Long) : Value used for the random selection, can be set to ensure same result is returned per run. If not specified, it will generate a random seed.
+  output (String) : The path where the output will be saved. If not specified, defaults to /tmp/LPA
+
 Returns
-  total (Int)     – Number of detected communities.
-  communities (List(List(Long))) – Communities sorted by their sizes. Returns largest top communities if specified.
+  ID (Long) : Vertex ID
+  Label (Long) : The ID of the community this belongs to
 
 Notes
-  This implementation of LPA incorporated probabilistic elements which makes it non-deterministic;
-  The returned communities may differ on multiple executions.
-  **/
+  This implementation of LPA incorporated probabilistic elements which makes it
+  non-deterministic; The returned communities may differ on multiple executions.
+  Which is why you may want to set the seed if testing.
+**/
 class LPA(top: Int= 0, weight: String= "", maxIter: Int = 500, seed:Long= -1, output:String= "/tmp/LPA") extends GraphAlgorithm {
 
   val rnd    = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)

@@ -2,6 +2,28 @@ package com.raphtory.algorithms
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
+
+/**
+Description
+  Page Rank algorithm ranks nodes depending on their connections to determine how important
+  the node is. This assumes a node is more important if it receives more connections from others.
+  Each vertex begins with an initial state. If it has any neighbours, it sends them a message
+  which is the inital label / the number of neighbours.
+  Each vertex, checks its messages and computes a new label based on: the total value of
+  messages received and the damping factor. This new value is propogated to all outgoing neighbours.
+  A vertex will stop propogating messages if its value becomes stagnant (i.e. has a change of less
+  than 0.00001) This process is repeated for a number of iterate step times. Most algorithms should
+  converge after approx. 20 iterations.
+
+Parameters
+  dampingFactor (Double) : Probability that a node will be randomly selected by a user traversing the graph, defaults to 0.85.
+  iterateSteps (Int) : Number of times for the algorithm to run.
+  output (String) : The path where the output will be saved. If not specified, defaults to /tmp/PageRank
+
+Returns
+  ID (Long) : Vertex ID
+  Page Rank (Double) : Rank of the node
+**/
 class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:String = "/tmp/PageRank") extends  GraphAlgorithm {
 
   override def algorithm(graph: GraphPerspective): Unit = {
