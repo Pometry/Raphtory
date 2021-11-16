@@ -14,7 +14,7 @@ Parameters
   top (Int) : The number of top largest communities to return. (Default: 0) If not specified, Raphtory will return all detected communities.
   weight (String) : Edge property (Default: ""). To be specified in case of weighted graph.
   maxIter (Int) : Maximum iterations for algorithm to run. (Default: 500)
-  seed (Lond) : Value used for the random selection, can be set to ensure same result is returned per run. If not specified, it will generate a random seed.
+  seed (Long) : Value used for the random selection, can be set to ensure same result is returned per run. If not specified, it will generate a random seed.
   output (String) : The path where the output will be saved. If not specified, defaults to /tmp/LPA
 
 Returns
