@@ -18,7 +18,7 @@ Parameters
 Returns
   Infected ID (Long) : ID of the infected vertex
   Edge ID (Long) : Edge that propogated the infection
-  Time (Long) : Time of infectino
+  Time (Long) : Time of infection
   Infector ID (Long) : Node that spread the infection
 **/
 class GenericTaint(startTime: Long, infectedNodes: Set[Long], stopNodes: Set[Long] = Set(), output: String = "/tmp/generic_taint") extends GraphAlgorithm{
