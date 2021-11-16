@@ -9,31 +9,30 @@ import scala.util.Random
 /**
 Description
   This returns the communities of the constructed multi-layer graph as detected by synchronous label propagation.
-
   This transforms the graph into a multi-layer graph where the same vertices on different layers are handled as
   distinct vertices. The algorithm then runs a version of LPA on this view of the graph and returns communities that
   share the same label that can span both vertices on the same layer and other layers.
 
 Parameters
-  top (Int)           – The number of top largest communities to return. (default: 0)
-                        If not specified, Raphtory will return all detected communities.
-  weight (String)     - Edge property (default: ""). To be specified in case of weighted graph.
-  maxIter (Int)       - Maximum iterations for LPA to run. (default: 500)
-  layers (List(Long)) - List of layer timestamps.
-  layerSize (Long)    - Size of a single layer that spans all events occurring within this period.
-  omega (Double)      - Weight of temporal edge that are created between two layers for two persisting instances of a node.
-                        (Default: 1.0) If "-1", the weights are assigned based on an average of the neighborhood of two layers.
-  seed (Long)         - Seed for random elements. (Default: -1).
-  output (String)     - Directory path that points to where to store the results. (Default: "/tmp/mLPA")
+  top (Int) : The number of top largest communities to return. (default: 0) If not specified, Raphtory will return all detected communities.
+  weight (String) : Edge property (default: ""). To be specified in case of weighted graph.
+  maxIter (Int) : Maximum iterations for LPA to run. (default: 500)
+  layers (List(Long)) : List of layer timestamps.
+  layerSize (Long) : Size of a single layer that spans all events occurring within this period.
+  omega (Double) : Weight of temporal edge that are created between two layers for two persisting instances of a node. (Default: 1.0) If "-1", the weights are assigned based on an average of the neighborhood of two layers.
+  seed (Long) : Seed for random elements. (Default: -1).
+  output (String) : Directory path that points to where to store the results. (Default: "/tmp/mLPA")
 
 Returns
   total (Int)     – Number of detected communities.
   communities (List(List(Long))) – Communities sorted by their sizes. Returns largest top communities if specified.
 
 Notes
-  This implementation is based on LPA, which incorporates probabilistic elements; This makes it non-deterministic i.e.
+  This implementation is based on LPA, which incorporates probabilistic elements;
+  This makes it non-deterministic i.e.
   The returned communities may differ on multiple executions.
-  **/
+  You can set a seed if you want to make this deterministic.
+**/
 class MultilayerLPA(
                      top: Int = 0,
                      weight: String = "",
