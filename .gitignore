@@ -77,3 +77,6 @@ logs
 /src/main/scala/com/raphtory/dev/algorithms/test.scala
 
 testupdates.txt
+
+# local files
+src/main/scala/com/raphtory/lotr
