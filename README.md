@@ -31,7 +31,7 @@ If you want to see how Raphtory runs without reading a mountain of documentation
 
 1. Clone the [example](https://github.com/Raphtory/Examples) repo and pick one of the examples inside that takes your fancy. 
 2. Download the [latest stable release](https://github.com/Raphtory/Raphtory/releases/latest) of the `raphtory.jar` and move it into the lib directory of your chosen example project. 
-   * **Here be dragons:** You can also pick the nightly build, but there may be some quirks yet to be ironed out. If you find any please report the issue on git or on slack.
+   * **Here be dragons:** You can also pick the nightly build, but there may be some quirks yet to be ironed out. If you find any please report the issue on [Jira](https://raphtory.atlassian.net/jira/software/projects/RAPH/issues/) or on [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA).
 3. Install SBT by following their [guide](https://www.scala-sbt.org/1.x/docs/Setup.html). The example project uses SBT to compile the source code. 
 4. Initiate SBT by changing into the example project directory in the terminal and running the command `sbt`. You will know when the SBT interactive shell has started once it shows `>`.
 5. Execute `compile` to build the project. 
@@ -45,7 +45,8 @@ If you want to see how Raphtory runs without reading a mountain of documentation
 
 - Follow the latest development on the official [blog](https://raphtory.github.io/blog/)
 - Follow the Raphtory [Twitter](https://twitter.com/raphtory)
-- Join the [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) group (we are always happy to answer any questions and chat about the project!) Feel free to join the #raphtory-development and #askaway channel to discuss current issues, ask your questions or raise issues.
+- Join the [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) group (we are always happy to answer any questions and chat about the project!) Feel free to join the #raphtory-development and #askaway channel to discuss current issues or ask any questions.
+- Raise issues and bugs on the Raphtory [Jira](https://raphtory.atlassian.net/jira/software/projects/RAPH/issues/) board 
 
 ## Contributors
 
