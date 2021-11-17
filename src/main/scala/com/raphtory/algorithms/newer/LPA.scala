@@ -39,7 +39,7 @@ class LPA(top: Int= 0, weight: String= "", maxIter: Int = 500, seed:Long= -1, ou
       vertex =>
         val vlabel = vertex.getState[Long]("lpalabel")
         val vneigh = vertex.getEdges()
-        val neigh_freq = vneigh.map { e => (e.ID(), e.getProperty(weight).getOrElse(1.0F).asInstanceOf[Float]) }
+        val neigh_freq = vneigh.map { e => (e.ID(), e.getProperty(weight).getOrElse(e.history().size).asInstanceOf[Float]) }
           .groupBy(_._1)
           .mapValues(x => x.map(_._2).sum)
         // Process neighbour labels into (label, frequency)
@@ -53,7 +53,7 @@ class LPA(top: Int= 0, weight: String= "", maxIter: Int = 500, seed:Long= -1, ou
         newLabel =  if (rnd.nextFloat() < SP) vlabel else newLabel
         vertex.setState("lpalabel", newLabel)
         vertex.messageAllNeighbours((vertex.ID(), newLabel))
-    }, maxIter).select({
+    }, maxIter,true).select({
       vertex => Row(
         vertex.ID(),
         vertex.getState("lpalabel"),
