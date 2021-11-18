@@ -4,7 +4,6 @@ import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Cancellable, Tim
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.algorithms.old.Analyser
 import com.raphtory.core.components.akkamanagement.RaphtoryActor._
 import com.raphtory.core.components.leader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
 import com.typesafe.config.ConfigFactory

@@ -19,11 +19,20 @@ import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 
+
 //TODO Currently broken and needs to be updated with new comparison
 class AllCommandsTest extends FunSuite {
 
+  def downloadData(): Unit ={
+    import sys.process._
+    if(!new File("testupdates.txt").exists())
+      "wget https://raw.githubusercontent.com/Raphtory/Data/main/testupdates.txt" !
+  }
+
+  downloadData()
+
   val testDir = "/tmp" //TODO CHANGE TO USER PARAM
-  val node = RaphtoryPD(new FileSpout("src/test/scala/com/raphtory/data/allcommands","testupdates.txt"),new AllCommandsBuilder())
+  val node = RaphtoryPD(new FileSpout(".","testupdates.txt"),new AllCommandsBuilder())
   val watermarker     = node.getWatermarker()
   val watchdog        = node.getWatchdog()
   val queryManager    = node.getQueryManager()
