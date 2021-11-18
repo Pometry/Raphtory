@@ -106,7 +106,7 @@ class WatchDog extends RaphtoryActor {
         state.pmLiveMap.size >= partitionServers &&
         state.spLiveMap.size >= spoutCount &&
         state.anLiveMap.size >= analysisCount ) {
-      println(s"Cluster Started: ${totalBuilders} Graph Builders, $totalPartitions Partitions, $spoutCount Spout, $analysisCount Analysis Manager")
+      println(s"Cluster Started: ${totalBuilders} Graph Builders, $totalPartitions Partitions, $spoutCount Spout, $analysisCount Query Manager")
       state.copy(clusterUp = true)
     } else {
       state
