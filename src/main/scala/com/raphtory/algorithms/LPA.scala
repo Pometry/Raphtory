@@ -56,6 +56,7 @@ class LPA(top: Int= 0, weight: String= "", maxIter: Int = 500, seed:Long= -1, ou
         vertex.setState("lpalabel", newLabel)
         vertex.messageAllNeighbours((vertex.ID(), newLabel))
     }, maxIter,false).select({
+
       vertex => Row(
         vertex.ID(),
         vertex.getState("lpalabel"),

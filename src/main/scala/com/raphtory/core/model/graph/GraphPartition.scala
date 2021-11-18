@@ -38,6 +38,9 @@ abstract class GraphPartition(partitionID: Int) extends LazyLogging {
 
   def syncExistingRemovals(msgTime: Long, srcId: Long, dstId: Long, dstRemovals: List[Long]): Unit
 
+
+  def deduplicate()
+
   /**
     * Analysis Functions
     * */
