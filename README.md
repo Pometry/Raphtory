@@ -31,7 +31,7 @@ We also have a [page](https://raphtory.github.io/algorithms/) for algorithms imp
 If you want to see how Raphtory runs without reading a mountain of documentation you can quickly get set up with an example Raphtory project via these steps:
 
 1. Clone the [example](https://github.com/Raphtory/Examples) repo and pick one of the examples inside that takes your fancy. 
-2. Download the [latest stable release](https://github.com/Raphtory/Raphtory/releases/latest) of the `raphtory.jar` and move it into the lib directory of your chosen example project. 
+2. Download the [latest stable release](https://github.com/Raphtory/Raphtory/releases) of the `raphtory.jar` and move it into the lib directory of your chosen example project. 
    * **Here be dragons:** You can also pick the nightly build, but there may be some quirks yet to be ironed out. If you find any please report the issue on [Jira](https://raphtory.atlassian.net/jira/software/projects/RAPH/issues/) or on [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA).
 3. Install SBT by following their [guide](https://www.scala-sbt.org/1.x/docs/Setup.html). The example project uses SBT to compile the source code. 
 4. Initiate SBT by changing into the example project directory in the terminal and running the command `sbt`. You will know when the SBT interactive shell has started once it shows `>`.
