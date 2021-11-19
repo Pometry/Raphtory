@@ -1,15 +1,15 @@
 package com.raphtory.allcommands
 
-import com.raphtory.core.actors.spout.Spout
+import com.raphtory.core.components.spout.Spout
 
 class AllCommandsSpout extends Spout[String] {
 
   var totalCount = 100
   var freq = 1000
-  var pool: Int = System.getenv().getOrDefault("ENTITY_POOL", "10000").toInt
-  var time: Int = System.getenv().getOrDefault("TIME_RANGE", "300000").toInt
-  var vprob: Double = System.getenv().getOrDefault("VPROB", "0.3").toDouble
-  var eprob: Double = System.getenv().getOrDefault("EPROB", "0.7").toDouble
+  var pool: Int = 10000
+  var time: Int = 300000
+  var vprob: Double = 0.3
+  var eprob: Double = 0.7
   var msgID = 0
   val rnd = new scala.util.Random(123)
   override def setupDataSource(): Unit = {}

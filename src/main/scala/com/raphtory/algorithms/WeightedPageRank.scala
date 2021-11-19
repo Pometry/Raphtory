@@ -1,78 +1,54 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
-import scala.collection.mutable.ArrayBuffer
+class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, output:String = "/tmp/PageRank") extends  GraphAlgorithm{
 
-class WeightedPageRank(args:Array[String]) extends Analyser[Any](args) {
-  object sortOrdering extends Ordering[Double] {
-    def compare(key1: Double, key2: Double) = key2.compareTo(key1)
-  }
-
-  // damping factor, (1-d) is restart probability
-  val d = 0.85
-
-  override def setup(): Unit =
-    view.getVertices().foreach { vertex =>
-      val outEdges = vertex.getOutEdges
-      val outDegree = outEdges.size
-
-      if (outDegree > 0) {
-        val toSend = 1.0/outEdges.map(e=> e.getHistory().size).sum
-        vertex.setState("prlabel",toSend)
-        outEdges.foreach(edge => {
-          val modifyer = edge.getHistory().size
-          edge.send(toSend*modifyer)
+  override def algorithm(graph: GraphPerspective): Unit = {
+    graph.step({
+      vertex =>
+        val initLabel = 1.0F
+        vertex.setState("prlabel", initLabel)
+        val outWeight = vertex.getOutEdges()
+          .map(e => e.getPropertyOrElse("weight", e.history().size))
+          .sum
+        vertex.getOutEdges().foreach({
+          e =>
+            vertex.messageNeighbour(e.ID, e.getPropertyOrElse("weight", e.history().size).toFloat / outWeight)
         })
-      } else {
-        vertex.setState("prlabel",0.0)
-      }
-    }
+    })
+      .iterate({ vertex =>
+        val vname = vertex.getPropertyOrElse("name",vertex.ID().toString) // for logging purposes
+        val currentLabel = vertex.getState[Float]("prlabel")
 
-  override def analyse(): Unit =
-    view.getMessagedVertices().foreach {vertex =>
-      val currentLabel = vertex.getState[Double]("prlabel")
-      val messages = vertex.messageQueue[Double]
-      val newLabel = (1-d) + d * messages.sum
-      vertex.setState("prlabel",newLabel)
-      if (Math.abs(newLabel-currentLabel)/currentLabel > 0.01) {
-        val outEdges = vertex.getOutEdges
-        val outDegree = outEdges.size
-        if (outDegree > 0) {
-          val toSend = newLabel/outEdges.map(e=> e.getHistory().size).sum
-          outEdges.foreach(edge => {
-            val modifyer = edge.getHistory().size
-            edge.send(toSend*modifyer)
-          })
+        val queue = vertex.messageQueue[Float]
+        val newLabel = (1 - dampingFactor) + dampingFactor * queue.sum
+        vertex.setState("prlabel", newLabel)
+
+        val outWeight = vertex.getOutEdges()
+          .map(e => e.getPropertyOrElse("weight", e.history().size))
+          .sum
+        vertex.getOutEdges().foreach({
+          e =>
+            vertex.messageNeighbour(e.ID, newLabel * e.getPropertyOrElse("weight", e.history().size).toFloat / outWeight)
+        })
+
+        if (Math.abs(newLabel - currentLabel) / currentLabel < 0.00001) {
+          vertex.voteToHalt()
         }
-      }
-      else {
-        vertex.voteToHalt()
-      }
-    }
-
-  override def returnResults(): Any = {
-    val pageRankings = view.getVertices().map { vertex =>
-      val pr = vertex.getState[Double]("prlabel")
-      (vertex.ID, pr)
-    }
-    val totalV = pageRankings.size
-    val topUsers = pageRankings.toArray.sortBy(x => x._2)(sortOrdering).take(10)
-    (totalV, topUsers)
+      }, iterateSteps, false)
+      .select({
+        vertex =>
+          Row(
+            vertex.getPropertyOrElse("name", vertex.ID()),
+            vertex.getStateOrElse("prlabel", -1)
+          )
+      })
+      .writeTo(output)
   }
+}
 
-  override def defineMaxSteps(): Int = 10
-
-  override def extractResults(results: List[Any]): Map[String,Any]  = {
-    val endResults = results.asInstanceOf[ArrayBuffer[(Int, Array[(Long,Double)])]]
-    val totalVert = endResults.map(x => x._1).sum
-    val bestUsers = endResults.flatMap(_._2)
-      .sortBy(x => x._2)(sortOrdering)
-      .take(10)
-      .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
-    val text = s"""{"vertices":$totalVert,"bestusers":$bestUsers}"""
-    println(text)
-    Map[String,Any]()
-  }
-
+object WeightedPageRank{
+  def apply(dampingFactor:Float = 0.85F, iterateSteps:Int = 100, output:String = "/tmp/PageRank") =
+    new WeightedPageRank(dampingFactor, iterateSteps, output)
 }

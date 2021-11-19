@@ -3,7 +3,7 @@ package com.raphtory.spouts
 import java.util
 import java.util.Properties
 
-import com.raphtory.core.actors.spout.Spout
+import com.raphtory.core.components.spout.Spout
 import org.apache.kafka.clients.consumer.KafkaConsumer
 
 import scala.annotation.tailrec
@@ -11,22 +11,16 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
-final case class KafkaSpout() extends Spout[String] {
-  private val kafkaServer   = System.getenv().getOrDefault("KAFKA_ADDRESS", "127.0.0.1").trim
-  private val kafkaIp       = System.getenv().getOrDefault("KAFKA_PORT", "9092").trim
-  private val offset        = System.getenv().getOrDefault("KAFKA_OFFSET", "earliest").trim
-  private val groupId       = System.getenv().getOrDefault("KAFKA_GROUP", "group" + Random.nextLong()).trim
-  private val topic         = System.getenv().getOrDefault("KAFKA_TOPIC", "sample_topic").trim
-  private val restart       = System.getenv().getOrDefault("RESTART_RATE", "10").trim.toInt
-  private val startingSpeed = System.getenv().getOrDefault("STARTING_SPEED", "1000").trim.toInt
+final case class KafkaSpout(IP:String,port:String,offset:String="earliest",groupId:String = "group" + Random.nextLong(), topic:String) extends Spout[String] {
 
-  private var kafkaManager = KafkaManager(kafkaServer, kafkaIp, groupId, topic, offset)
+  private var kafkaManager = KafkaManager(IP, port, groupId, topic, offset)
   val messageQueue = mutable.Queue[String]()
+
   override def setupDataSource(): Unit = {}
 
   override def generateData(): Option[String] = {
     if(messageQueue isEmpty) {
-      val (newManager, block) = kafkaManager.nextNLine(startingSpeed / 100)
+      val (newManager, block) = kafkaManager.nextNLine( 10)
       kafkaManager = newManager
       block.foreach(str => messageQueue += str)
       if(messageQueue isEmpty) //still empty

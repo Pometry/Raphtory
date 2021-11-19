@@ -1,71 +1,69 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
-import scala.collection.mutable.ArrayBuffer
 
-class PageRank(args:Array[String]) extends Analyser[(Int, List[(Long,Double)])](args) {
-  object sortOrdering extends Ordering[Double] {
-    def compare(key1: Double, key2: Double) = key2.compareTo(key1)
-  }
+/**
+Description
+  Page Rank algorithm ranks nodes depending on their connections to determine how important
+  the node is. This assumes a node is more important if it receives more connections from others.
+  Each vertex begins with an initial state. If it has any neighbours, it sends them a message
+  which is the inital label / the number of neighbours.
+  Each vertex, checks its messages and computes a new label based on: the total value of
+  messages received and the damping factor. This new value is propogated to all outgoing neighbours.
+  A vertex will stop propogating messages if its value becomes stagnant (i.e. has a change of less
+  than 0.00001) This process is repeated for a number of iterate step times. Most algorithms should
+  converge after approx. 20 iterations.
 
-  // damping factor, (1-d) is restart probability
-  val d = 0.85
+Parameters
+  dampingFactor (Double) : Probability that a node will be randomly selected by a user traversing the graph, defaults to 0.85.
+  iterateSteps (Int) : Number of times for the algorithm to run.
+  output (String) : The path where the output will be saved. If not specified, defaults to /tmp/PageRank
 
-  override def setup(): Unit =
-    view.getVertices().foreach { vertex =>
-      val outEdges = vertex.getOutEdges
-      val outDegree = outEdges.size
-      if (outDegree > 0) {
-        val toSend = 1.0/outDegree
-        vertex.setState("prlabel",toSend)
-        outEdges.foreach(edge => {
-          edge.send(toSend)
-        })
-      } else {
-        vertex.setState("prlabel",0.0)
-      }
-    }
+Returns
+  ID (Long) : Vertex ID
+  Page Rank (Double) : Rank of the node
+**/
+class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:String = "/tmp/PageRank") extends  GraphAlgorithm {
 
-  override def analyse(): Unit =
-    view.getMessagedVertices().foreach {vertex =>
-      val currentLabel = vertex.getState[Double]("prlabel")
-      val newLabel = 1 - d + d * vertex.messageQueue[Double].sum
-      vertex.setState("prlabel",newLabel)
-      if (Math.abs(newLabel-currentLabel)/currentLabel > 0.01) {
-        val outEdges = vertex.getOutEdges
-        val outDegree = outEdges.size
+  override def algorithm(graph: GraphPerspective): Unit = {
+    graph.step({
+      vertex =>
+        val initLabel=1.0
+        vertex.setState("prlabel",initLabel)
+        val outDegree=vertex.getOutNeighbours().size
+        if (outDegree>0.0)
+          vertex.messageAllOutgoingNeighbors(initLabel/outDegree)
+    }).
+      iterate({ vertex =>
+        val vname = vertex.getPropertyOrElse("name",vertex.ID().toString) // for logging purposes
+        val currentLabel = vertex.getState[Double]("prlabel")
+
+        val queue = vertex.messageQueue[Double]
+        val newLabel = (1 - dampingFactor) + dampingFactor * queue.sum
+        vertex.setState("prlabel", newLabel)
+
+        val outDegree = vertex.getOutNeighbours().size
         if (outDegree > 0) {
-          val toSend = newLabel/outDegree
-          outEdges.foreach(edge => {
-            edge.send(toSend)
-          })
+          vertex.messageAllOutgoingNeighbors(newLabel/outDegree)
         }
-      }
-      else {
-        vertex.voteToHalt()
-      }
-    }
 
-  override def returnResults(): (Int, List[(Long,Double)]) = {
-    val pageRankings = view.getVertices().map { vertex =>
-      val pr = vertex.getState[Double]("prlabel")
-      (vertex.ID(), pr)
-    }
-    val totalV = pageRankings.size
-    val topUsers = pageRankings.toList.sortBy(x => x._2)(sortOrdering).take(100)
-    (totalV, topUsers)
+        if (Math.abs(newLabel - currentLabel) / currentLabel < 0.00001) {
+          vertex.voteToHalt()
+        }
+      }, iterateSteps,false) // make iterate act on all vertices, not just messaged ones
+      .select({
+        vertex =>
+          Row(
+            vertex.getPropertyOrElse("name", vertex.ID()),
+            vertex.getStateOrElse("prlabel", -1)
+          )
+      })
+      .writeTo(output)
   }
+}
 
-  override def defineMaxSteps(): Int = 20
-
-  override def extractResults(results: List[(Int, List[(Long,Double)])]): Map[String,Any]  = {
-    val totalVert = results.map(x => x._1).sum
-    val bestUsers = results.flatMap(x => x._2)
-      .sortBy(x => x._2)(sortOrdering)
-      .take(100)
-      .map(x => s"""{"id":${x._1},"pagerank":${x._2}}""").mkString("[",",","]")
-    Map[String,Any]("vertices"->totalVert,"bestusers"->bestUsers)
-  }
-
+object PageRank{
+  def apply(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:String = "/tmp/PageRank") =
+    new PageRank(dampingFactor, iterateSteps, output)
 }

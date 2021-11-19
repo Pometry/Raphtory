@@ -1,7 +1,9 @@
 package com.raphtory.allcommands
 
-import com.raphtory.core.actors.graphbuilder.GraphBuilder
-import com.raphtory.core.model.communication._
+import com.raphtory.core.components.graphbuilder.GraphBuilder
+import com.raphtory.core.model.graph
+import com.raphtory.core.implementations.generic.messaging._
+import com.raphtory.core.model.graph.{FloatProperty, Properties}
 import spray.json._
 
 class AllCommandsBuilder extends GraphBuilder[String]{
@@ -12,12 +14,10 @@ class AllCommandsBuilder extends GraphBuilder[String]{
     val commandKey = parsedOBJ.fields //get the command type
     if (commandKey.contains("VertexAdd"))
       vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject)
-    //else if(commandKey.contains("VertexUpdateProperties")) vertexUpdateProperties(parsedOBJ.getFields("VertexUpdateProperties").head.asJsObject)
     else if (commandKey.contains("VertexRemoval"))
       vertexRemoval(parsedOBJ.getFields("VertexRemoval").head.asJsObject)
     else if (commandKey.contains("EdgeAdd"))
       edgeAdd(parsedOBJ.getFields("EdgeAdd").head.asJsObject) //if addVertex, parse to handling function
-    //   else if(commandKey.contains("EdgeUpdateProperties")) edgeUpdateProperties(parsedOBJ.getFields("EdgeUpdateProperties").head.asJsObject)
     else if (commandKey.contains("EdgeRemoval"))
       edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject)
   }
@@ -27,7 +27,7 @@ class AllCommandsBuilder extends GraphBuilder[String]{
     val srcId   = command.fields("srcID").toString().toInt //extract the srcID
     if (command.fields.contains("properties")) { //if there are properties within the command
 
-      val properties = Properties(command.fields("properties").asJsObject.fields.map( pair => {  //add all of the pairs to the map
+      val properties = graph.Properties(command.fields("properties").asJsObject.fields.map(pair => {  //add all of the pairs to the map
          FloatProperty(pair._1, pair._2.toString().toFloat)
        }).toSeq:_*)
 

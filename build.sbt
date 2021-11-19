@@ -1,5 +1,4 @@
 import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
-import com.typesafe.sbt.packager.docker.Cmd
 import sbtassembly.MergeStrategy
 
 lazy val root = Project(id = "raphtory", base = file(".")) aggregate (raphtory)
@@ -25,17 +24,6 @@ lazy val globalSettings = Seq(
     "-unchecked"
   ),
   testOptions in Test += Tests.Argument("-oDF"),
-  version := "latest",
-  // docker settings
-  maintainer := "Ben Steer <ben.steer@pometry.com>",
-  dockerBaseImage := "miratepuffin/raphtory-redis:latest",
-  dockerExposedPorts := Seq(2551, 8080, 2552,25520, 1600, 11600,8081,46339,9100),
-  dockerRepository := Some("tsukitsune"),
-  dockerEntrypoint := Seq("bash"),
-  dockerCommands ++= Seq(
-    Cmd("ENV", "PATH=/opt/docker/bin:${PATH}"),
-    Cmd("RUN", "chmod 755 bin/env-setter.sh")
-  )
 )
 
 lazy val mergeStrategy: String => MergeStrategy = {
@@ -77,9 +65,8 @@ lazy val raphtory = project
     name        := "Raphtory",
     description := "Raphtory Distributed Graph Stream Processing",
     isSnapshot := true,
-    mappings in Universal += file(s"${baseDirectory.value}/Build-Scripts/env-setter.sh") -> "bin/env-setter.sh",
     assemblyMergeStrategy in assembly := mergeStrategy,
-    mainClass in assembly := Some("com.raphtory.Go"),
+    mainClass in assembly := Some("com.raphtory.core.build.server.RaphtoryGraph"),
     javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default",
     javaAgents +=          "org.aspectj"                   % "aspectjweaver"                      % "1.8.13",
     libraryDependencies += "org.scala-lang"                % "scala-reflect"                      % "2.12.4",
@@ -101,10 +88,6 @@ lazy val raphtory = project
     libraryDependencies += "com.lightbend.akka.management" %% "akka-management"                   % "1.1.0",
     libraryDependencies += "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % "1.1.0",
     libraryDependencies += "com.lightbend.akka.discovery"  %% "akka-discovery-kubernetes-api"     % "1.1.0",
-    libraryDependencies += "io.kamon"                      %% "kamon-core"                        % "2.1.0",
-    libraryDependencies += "io.kamon"                      %% "kamon-prometheus"                  % "2.1.0",
-    libraryDependencies += "io.kamon"                      %% "kamon-akka"                        % "2.1.0",
-    libraryDependencies += "io.kamon"                      %% "kamon-system-metrics"              % "2.1.0",
     libraryDependencies += "net.liftweb"                   %% "lift-json"                         % "3.3.0",
     libraryDependencies += "commons-lang"                  % "commons-lang"                       % "2.6",
     libraryDependencies += "org.apache.kafka"              %% "kafka"                             % "2.5.0",
@@ -115,14 +98,16 @@ lazy val raphtory = project
     libraryDependencies += "org.mongodb.scala"             %% "mongo-scala-driver"                % "2.9.0",
     libraryDependencies += "com.github.mjakubowski84"      %% "parquet4s-core"                    % "1.6.0",
     libraryDependencies += "org.apache.hadoop"             % "hadoop-client"                      % "3.3.0",
-    libraryDependencies += "io.altoo"                      %% "akka-kryo-serialization"           % "2.2.0",
     libraryDependencies += "com.thesamet.scalapb"          %% "compilerplugin"                    % "0.11.1",
     libraryDependencies += "net.openhft"                   % "zero-allocation-hashing"            % "0.15",
-    libraryDependencies ++= Seq(
-      "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
-    ),
+    libraryDependencies += "de.javakaffee"                 % "kryo-serializers"                   % "0.45",
+    libraryDependencies += "com.lightbend.akka"           %% "akka-stream-alpakka-avroparquet"    % "3.0.3",
+    libraryDependencies += "com.typesafe.akka"            %% "akka-stream"                        % "2.6.14",
+    libraryDependencies += "com.twitter"                  %% "chill"                              % "0.10.0",
+    libraryDependencies += "com.twitter"                  %% "chill-akka"                         % "0.10.0",
+    libraryDependencies += "io.github.kostaskougios"      % "cloning"                             % "1.10.3",
+    libraryDependencies += "net.openhft" % "chronicle-map" % "3.22ea5",
+    libraryDependencies ++= Seq("com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"),
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test,
-    Compile / PB.targets := Seq(
-      scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
-    )
+    Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb")
   )

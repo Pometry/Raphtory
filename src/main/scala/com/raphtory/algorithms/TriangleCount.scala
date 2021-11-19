@@ -1,67 +1,67 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.analysis.api.Analyser
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
-import scala.collection.mutable.ArrayBuffer
+/**
+Description
+  Returns the number of triangles.
+  The triangle count algorithm counts the number of triangles
+  (triplet of nodes which all pairwise share a link) that each
+  vertex is a member of, from which additionally the global graph
+  triangle count and clustering coefficient can be realised.
 
-/** Each vertex wants to check how many pairs of its neighbours are connected. It does this by messaging all its
-  * neighbours the list of neighbours with id greater than its own. So if I'm vertex 3 and my neighbours are 2, 5 and 7
-  * I will send the message '5' and '7' to my neighbours. Then each vertex checks its incoming messages and sees if any
-  * of the messages received correspond to ids of its neighbours. */
+  The algorithm is similar to that of GraphX and fairly straightforward:
+  1. Each vertex compiles a list of neighbours with ID strictly greater than its own,
+  and sends this list to all neighbours as an array.
+  2. Each vertex, starting from a triangle count of zero, looks at the lists of ID
+  sets it has received, computes the intersection size of each list with its own list
+  of neighbours, and adds this to the count.
+  3. The total triangle count of the graph is calculated as the sum of the triangle
+  counts of each vertex, divided by 3 (since each triangle is counted for each of the
+  3 vertices involved).
+  4. The clustering coefficient for each node is calculated as the triangle count for
+  that node divided by the number of possible triangles for that node. The average
+  clustering coefficient is the average of these over all the vertices.
 
-class TriangleCount(args:Array[String]) extends Analyser[(Int,Int,Double)](args) {
+Parameters
+  path String : This takes the path of where the output should be written to
 
-  override def setup(): Unit = {
-    view.getVertices().foreach { vertex =>
-      vertex.setState("triangles", 0)
-      val neighbours = vertex.getIncEdges.map(x=> x.ID).toSet.union(vertex.getOutEdges.map(x=> x.ID).toSet).seq.filter(_ !=vertex.ID())
-      val toSend = neighbours.seq.filter(_ > vertex.ID())
-      neighbours.foreach { nb =>
-        vertex.messageNeighbour(nb, toSend)
-      }
-    }
+Returns
+  ID (Long) : Vertex ID
+  Triangle Count (Long) : Number of triangles
+
+Notes
+  Edges here are treated as undirected, so if the underlying network is directed here,
+  'neighbours' refers to the union of in-neighbours and out-neighbours.
+**/
+class TriangleCount(path:String) extends GraphAlgorithm {
+
+  override def algorithm(graph: GraphPerspective): Unit = {
+    graph.step({
+      vertex =>
+        vertex.setState("triangles",0)
+        val neighbours = vertex.getAllNeighbours().toSet
+        neighbours.foreach({
+          nb =>
+            vertex.messageNeighbour(nb, neighbours)
+        })
+    })
+      .select({
+        vertex =>
+          val neighbours = vertex.getAllNeighbours().toSet
+          val queue = vertex.messageQueue[Set[Long]]
+          var tri = 0
+          queue.foreach(
+            nbs =>
+              tri+=nbs.intersect(neighbours).size
+          )
+          vertex.setState("triangles",tri/2)
+          Row(vertex.getPropertyOrElse("name", vertex.ID()), vertex.getState[Int]("triangles"))
+      })
+      .writeTo(path)
   }
+}
 
-  override def analyse(): Unit = {
-      view.getMessagedVertices().foreach { vertex =>
-        val neighbours = vertex.getIncEdges.map(x=> x.ID()).toSet.union(vertex.getOutEdges.map(x=> x.ID()).toSet).seq.filter(_ != vertex.ID())
-        val queue = vertex.messageQueue[Set[Long]]
-        var totalTriangles = 0
-        queue.foreach { nbs =>
-          totalTriangles += nbs.intersect(neighbours).size
-        }
-        vertex.setState("triangles",totalTriangles)
-      }
-
-  }
-
-  override def returnResults(): (Int,Int,Double) = {
-    val triangleStats  = view.getVertices().map {
-      vertex => (vertex.getState[Int]("triangles"), vertex.getOutEdges.size + vertex.getIncEdges.size)
-    }.map {
-      row => (row._1, if (row._2 > 1) 2.0*row._1/(row._2*(row._2 - 1)) else 0.0 )
-    }
-    val totalV = triangleStats.size
-    val totalTri = triangleStats.map(x => x._1).sum
-    val totalCluster = triangleStats.map(x => x._2).sum
-    (totalV, totalTri, totalCluster)
-  }
-
-  override def defineMaxSteps(): Int = 5
-
-  override def extractResults(results: List[(Int,Int,Double)]): Map[String, Any] = {
-    val startTime   = System.currentTimeMillis()
-    val endResults = results
-    val totalVert = endResults.map( x => x._1 ).sum
-    val totalTri = endResults.map( x => x._2 ).sum/3
-    val avgCluster = if (totalVert > 0) endResults.map( x => x._3 ).sum/totalVert else 0.0
-//    val clusterCoeff =
-//      try endResults.map(x => x._3).sum/totalVert.toFloat
-//      catch { case e: ArithmeticException => 0.0 }
-//    val text = s"""{"totTriangles":$totalTri,"avgCluster":$avgCluster,"concatTime":${System
-//      .currentTimeMillis() - startTime}},"""
-//    println(text)
-    Map[String,Any]("vertices"->totalVert,"totalTri"->totalTri,"avgCluster"->avgCluster)
-  }
-
+object TriangleCount{
+  def apply(path:String) = new TriangleCount(path:String)
 }
