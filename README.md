@@ -20,8 +20,9 @@ The best way to get started with Raphtory is to vist our [website](https://rapht
 
 - [Installation](https://raphtory.github.io/documentation/install)
 - [Building a graph from your data](https://raphtory.github.io/documentation/sprouter)
-- [Running algorithms and writing your own](https://raphtory.github.io/documentation/analysis-qs)
-- [Distributed Deployment](https://raphtory.github.io/documentation/analysis-qs)
+- [Writing algorithms in Raphtory](https://raphtory.github.io/documentation/analysis-explained)
+- [Six Degrees of Gandalf](https://raphtory.github.io/documentation/analysis-qs)
+- [How to Deploy Raphtory](https://raphtory.github.io/documentation/deployment)
 
 We also have a [page](https://raphtory.github.io/algorithms/) for algorithms implemented in Raphtory (both temporal and static). These can be used to analyse your own datasets once ingested or as a basis to implement your own custom algorithms.
 
