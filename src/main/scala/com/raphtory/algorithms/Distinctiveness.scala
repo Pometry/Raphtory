@@ -32,8 +32,12 @@ class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
       vertex =>
         val edges = vertex.getEdges()
         val degree = edges.size
+
+        // sum of edge weights each exponentiated by alpha, purely for D3 & D4
         val weight = edges.map(e => pow(e.getPropertyOrElse("weight", e.history().size), alpha)).sum
+        // sum of edge weights, purely for D3
         val nodeWeight = edges.map(e => e.getPropertyOrElse("weight",e.history().size).toDouble).sum
+
         vertex.messageAllNeighbours(vertex.ID(), degree, weight, nodeWeight)
     })
       .select({
@@ -51,49 +55,41 @@ class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
 
   def D1(vertex: Vertex, messages:List[(Long, Int, Double, Double)], noNodes:Double, alpha:Double): Double = {
     messages.map({
-      msg =>
-        val edge = vertex.getEdge(msg._1).head
+      case(id, degree, _, _) =>
+        val edge = vertex.getEdge(id).head
         val edgeWeight = edge.getPropertyOrElse("weight",edge.history().size).toDouble
-        val degree = msg._2.toDouble
-//        val nodeWeight = msg._3
         edgeWeight*(log10(noNodes-1) - alpha*log10(degree))
     }).sum
   }
 
   def D2(vertex: Vertex, messages:List[(Long, Int, Double, Double)], noNodes:Double, alpha:Double): Double = {
     messages.map({
-      msg =>
-        val degree = msg._2
+      case(_, degree, _, _) =>
         (log10(noNodes-1) - alpha*log10(degree))
     }).sum
   }
 
   def D3(vertex: Vertex, messages:List[(Long, Int, Double, Double)], noNodes:Double, alpha:Double): Double = {
     messages.map({
-      msg =>
-        val edge = vertex.getEdge(msg._1).head
+      case(id, _, nodePowerWeight, nodeSumWeight) =>
+        val edge = vertex.getEdge(id).head
         val edgeWeight = edge.getPropertyOrElse("weight",edge.history().size).toDouble
-        val nodePowerWeight = msg._3
-        val nodeSumWeight = msg._4
         edgeWeight * (log10(nodeSumWeight/2.0) - log10(nodePowerWeight - pow(edgeWeight,alpha)+1))
     }).sum
   }
 
   def D4(vertex: Vertex, messages:List[(Long, Int, Double, Double)], noNodes:Double, alpha:Double): Double = {
     messages.map({
-      msg =>
-        val edge = vertex.getEdge(msg._1).head
+      case(id, _, nodePowerWeight, _) =>
+        val edge = vertex.getEdge(id).head
         val edgeWeight = edge.getPropertyOrElse("weight",edge.history().size)
-        val degree = msg._2
-        val nodeWeight = msg._3
-        pow(edgeWeight,alpha + 1)/nodeWeight
+        pow(edgeWeight,alpha + 1)/nodePowerWeight
     }).sum
   }
 
   def D5(vertex: Vertex, messages:List[(Long, Int, Double, Double)], noNodes:Double, alpha:Double): Double = {
     messages.map({
-      msg =>
-        val degree = msg._2
+      case(_, degree, _, _)  =>
         pow(degree,-1*alpha)
     }).sum
   }
