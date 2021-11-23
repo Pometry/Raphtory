@@ -71,7 +71,7 @@ class MultilayerLPA(
                     // Get weights/labels of neighbours of vertex at time ts
                     val nei_ts_freq = weightFunction(vertex, ts) // ID -> freq
                     var newlab = if (nei_ts_freq.nonEmpty) {
-                      val nei_labs = msgQueue
+                      var nei_labs = msgQueue
                         .filter(x => nei_ts_freq.keySet.contains(x._1)) // filter messages from neighbours at time ts only
                         .map { msg =>
                           val freq     = nei_ts_freq(msg._1)
@@ -81,11 +81,11 @@ class MultilayerLPA(
 
                       //Get labels of past/future instances of vertex
                       if (vlabel.contains(ts - layerSize))
-                        nei_labs ++ List(
+                        nei_labs = nei_labs ++ List(
                                 (vlabel(ts - layerSize), interLayerWeights(omega, vertex, ts - layerSize))
                         )
                       if (vlabel.contains(ts + layerSize))
-                        nei_labs ++ List((vlabel(ts + layerSize), interLayerWeights(omega, vertex, ts)))
+                        nei_labs = nei_labs ++ List((vlabel(ts + layerSize), interLayerWeights(omega, vertex, ts)))
 
                       // Get label most prominent in neighborhood of vertex
                       val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
@@ -118,7 +118,7 @@ class MultilayerLPA(
       )
       .select { vertex =>
         Row(
-            vertex.getProperty("Word").getOrElse(vertex.ID()).toString,
+            vertex.getProperty("name").getOrElse(vertex.ID()).toString,
             vertex.getState("mlpalabel")
         )
       }
