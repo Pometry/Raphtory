@@ -34,6 +34,8 @@ trait Vertex extends EntityVisitor {
   def getOutEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge]
   //individual in edge
   def getInEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge]
+  //individual in edge
+  def getEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge]
 
   //all edges
   def explodeEdges(after:Long=0L,before:Long=Long.MaxValue): List[ExplodedEdge]
