@@ -107,7 +107,7 @@ jobs:
           allowUpdates: true
           artifacts: ./raphtory-${{ needs.configure.outputs.branch }}-nightly-build-latest.jar
           body: "Nightly build of ${{ needs.configure.outputs.branch }} branch."
-          prerelease: true
+          prerelease: false
         if: needs.configure.outputs.type == 'nightly'
       # Create release and upload artifacts to release if master
       - name: Name artifact for master release

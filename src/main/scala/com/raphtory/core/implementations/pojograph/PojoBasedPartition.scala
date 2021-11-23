@@ -280,6 +280,13 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
       }
   }
 
+  override def deduplicate(): Unit = {
+    vertices.foreach{
+      case (id,vertex) => vertex.dedupe()
+    }
+
+  }
+
   /**
     * Analysis Functions
     * */
@@ -290,4 +297,6 @@ class PojoBasedPartition(partition: Int) extends GraphPartition(partition: Int){
     }
     x
   }
+
+
 }

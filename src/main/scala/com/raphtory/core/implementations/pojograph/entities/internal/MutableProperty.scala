@@ -10,10 +10,8 @@ import scala.collection.mutable
   * @param value         Property value
   */
 class MutableProperty(creationTime: Long, value: Any) extends Property {
-  object HistoryOrdering extends Ordering[Long] {
-    def compare(key1: Long, key2: Long) = key2.compareTo(key1)
-  }
-  var previousState: mutable.TreeMap[Long, Any]   = mutable.TreeMap()(HistoryOrdering)
+
+  var previousState: mutable.ArrayBuffer[(Long, Any)] = mutable.ArrayBuffer()
   // add in the initial information
   update(creationTime, value)
 
@@ -26,7 +24,7 @@ class MutableProperty(creationTime: Long, value: Any) extends Property {
       earliest=msgTime
       earliestval=newValue
     }
-    previousState.put(msgTime, newValue)
+    previousState+=((msgTime, newValue))
   }
 
   def valueAt(time: Long): Any = {

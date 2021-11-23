@@ -66,10 +66,12 @@ class WatchDog extends RaphtoryActor {
 
     case RequestPartitionId =>
       sender() ! AssignedId(state.pmCounter)
+      sender().path.address.host match {
+        case Some(ip) => log.info(s"New partition connecting from $ip assigned ID ${state.pmCounter}")
+        case None =>
+      }
       val newCounter = state.pmCounter + 1
-      log.debug(s"Propagating the new total partition managers [$newCounter] to all the subscribers.")
       context.become(work(state.copy(pmCounter = newCounter)))
-      //mediator ! DistributedPubSubMediator.Publish(partitionsTopic, PartitionsCount(newCounter))
 
     case RequestBuilderId =>
       sender ! AssignedId(state.roCounter)
@@ -104,7 +106,7 @@ class WatchDog extends RaphtoryActor {
         state.pmLiveMap.size >= partitionServers &&
         state.spLiveMap.size >= spoutCount &&
         state.anLiveMap.size >= analysisCount ) {
-      println(s"Cluster Started: ${totalBuilders} Graph Builders, $totalPartitions Partitions, $spoutCount Spout, $analysisCount Analysis Manager")
+      println(s"Cluster Started: ${totalBuilders} Graph Builders, $totalPartitions Partitions, $spoutCount Spout, $analysisCount Query Manager")
       state.copy(clusterUp = true)
     } else {
       state

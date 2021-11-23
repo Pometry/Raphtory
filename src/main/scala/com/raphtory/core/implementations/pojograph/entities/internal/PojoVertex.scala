@@ -40,6 +40,12 @@ class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
       lens)
   }
 
+  override def dedupe() = {
+    super.dedupe()
+    incomingEdges.foreach(_._2.dedupe())
+    outgoingEdges.foreach(_._2.dedupe())
+  }
+
   //def serialise(): ParquetVertex = ParquetVertex(vertexId,history.toList,properties.map(x=> x._2.serialise(x._1)).toList,incomingEdges.map(x=>x._2.serialise()).toList,outgoingEdges.map(x=>x._2.serialise()).toList)
 
 

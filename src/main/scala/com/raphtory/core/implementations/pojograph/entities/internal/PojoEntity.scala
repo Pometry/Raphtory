@@ -18,10 +18,18 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   var properties: mutable.Map[String, Property] = mutable.Map[String, Property]()
 
   // History of that entity
-  object HistoryOrdering extends Ordering[Long] {
-    def compare(key1: Long, key2: Long) = key2.compareTo(key1)
+
+  //var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+  var history: mutable.ArrayBuffer[(Long, Boolean)] = mutable.ArrayBuffer()
+  history+=((creationTime,isInitialValue))
+  var toClean = false
+
+  def dedupe() = {
+    if(toClean){
+      history = history.distinct
+      toClean=false
+    }
   }
-  var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
 
   var oldestPoint: Long = creationTime
 
@@ -33,16 +41,18 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   def getType: String                = entityType.getOrElse("")
 
   def revive(msgTime: Long): Unit = {
-    checkOldestNewest(msgTime)
+    checkOldestTime(msgTime)
     history += ((msgTime, true))
+    toClean=true
   }
 
   def kill(msgTime: Long): Unit = {
-    checkOldestNewest(msgTime)
+    checkOldestTime(msgTime)
     history += ((msgTime, false))
+    toClean=true
   }
 
-  def checkOldestNewest(msgTime: Long) = {
+  def checkOldestTime(msgTime: Long) = {
     if (oldestPoint > msgTime) //check if the current point in history is the oldest
       oldestPoint = msgTime
   }
@@ -69,16 +79,19 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
         }
     }
 
-  def wipe() = history = mutable.TreeMap()(HistoryOrdering)
+  def wipe() = history =  mutable.ArrayBuffer()
 
 
   protected def closestTime(time: Long): (Long, Boolean) = {
-
-    history.range(time,Long.MinValue).headOption match {
-      case Some(value) =>
-        value
-      case None => (-1,false)
-    }
+    var closestTime: Long = -1
+    var value             = false
+    for ((k, v) <- history)
+      if (k <= time)
+        if ((time - k) < (time - closestTime)) {
+          closestTime = k
+          value = v
+        }
+    (closestTime, value)
   }
 
   def aliveAt(time: Long): Boolean = if (time < oldestPoint) false else closestTime(time)._2
