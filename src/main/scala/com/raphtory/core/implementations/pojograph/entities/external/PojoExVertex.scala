@@ -45,6 +45,8 @@ class PojoExVertex(private val v: PojoVertex,
   def getOutEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge] = individualEdge(internalOutgoingEdges,after,before,id)
   //In edges individual
   def getInEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge]  = individualEdge(internalIncomingEdges,after,before,id)
+  // edge individual
+  def getEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge]  = individualEdge(internalIncomingEdges++internalOutgoingEdges,after,before,id)
 
 
   override def explodeEdges(after: Long, before: Long): List[ExplodedEdge] = getEdges(after, before).flatMap(_.explode())
