@@ -27,23 +27,21 @@ class CBOD(weight: String = "", maxIter: Int = 500, cutoff: Double, seed: Long =
         vertex.setState("lpalabel", lab)
         vertex.messageAllNeighbours((vertex.ID(), lab))
       }
-      .iterate(//Run LPA til it converges
-        vertex => lpa(vertex, weight, SP, rnd), maxIter, false
-      )
-      .iterate({ vertex => //Get neighbors' labels
-        val vlabel = vertex.getState[Long]("lpalabel")
-        vertex.messageAllNeighbours(vlabel)
-      }, 1, false)
-      .iterate(// Get outlier score
-              { v =>
-                val vlabel         = v.getState[Long]("lpalabel")
-                val neighborLabels = v.messageQueue[Long]
-                val outlierScore   = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)
-                v.setState("outlierscore", outlierScore)
-              },
-              1,
+      .iterate( //Run LPA til it converges
+              vertex => lpa(vertex, weight, SP, rnd),
+              maxIter,
               false
       )
+      .step { vertex => //Get neighbors' labels
+        val vlabel = vertex.getState[Long]("lpalabel")
+        vertex.messageAllNeighbours(vlabel)
+      }
+      .step { v => // Get outlier score
+        val vlabel         = v.getState[Long]("lpalabel")
+        val neighborLabels = v.messageQueue[Long]
+        val outlierScore   = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)
+        v.setState("outlierscore", outlierScore)
+      }
       .select { vertex =>
         Row(
                 vertex.ID(),
