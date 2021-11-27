@@ -6,6 +6,7 @@
 [![test and build](https://github.com/Raphtory/Raphtory/actions/workflows/test_and_build.yml/badge.svg?event=schedule)](https://github.com/Raphtory/Raphtory/actions/workflows/test_and_build.yml?query=event%3Aschedule++)
 [![Latest Tag](https://img.shields.io/github/v/tag/Raphtory/Raphtory?include_prereleases&sort=semver&color=brightgreen)](https://github.com/Raphtory/Raphtory/tags)
 [![Latest Release](https://img.shields.io/github/v/release/Raphtory/Raphtory?color=brightgreen&include_prereleases&sort=semver)](https://github.com/Raphtory/Raphtory/releases)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 
 Raphtory is an open-source platform for distributed real-time temporal graph analytics, allowing you to load and process large dynamic datsets across time. If you would like a brief summary of what its used for before fully diving into the getting start guide please check out this [article](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs) from the Alan Turing Institute first!
 
@@ -40,6 +41,25 @@ If you want to see how Raphtory runs without reading a mountain of documentation
 7. The rest is then up to you - feel free to explore the data, submit different algorithms and ask any questsions you have on the Raphtory [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA)!   
 
 **Note:** Raphtory is built with Scala. We recommend using IntelliJ IDE for your code. They have a community version which is free. Follow their [guide](https://www.jetbrains.com/idea/download/#section=windows) for installation.
+
+### Conventional Commits
+Raphtory is now **commitizen friendly** which means our commit history is now be dictated by [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) conventions. To add and enforce this convention in our development workflow we are using npm tool called [commitizen](https://github.com/commitizen/cz-cli). In practise, what it means is that we need to have `commitizen` installed on our dev machines as external dev dependency before we could start making contributions.
+
+1. Install nodejs (refer [documentation](https://nodejs.org/en/download/))
+2. Install [commitizen](https://github.com/commitizen/cz-cli)
+   ```
+   $ npm install -g commitizen
+   ```
+3. Install [commitizen adapter](https://github.com/commitizen/cz-cli#adapters)
+   ```
+   $ npm install -g cz-conventional-changelog
+   $ echo '{ "path": "cz-conventional-changelog" }' > ~/.czrc
+   ```
+4. Run `sbt`. This will copy necessary custom hooks from `git-hooks` to `.git/hooks`
+
+You're good to start making contributions. `git commit` should present you now with a serious of questions, answers to which will result in conventional commit.
+
+[![Conventional Commits](https://i.postimg.cc/fRxN5BR2/cc.png)](https://postimg.cc/zyX6GwWK)
 
 
 ## Community and Changelog  
