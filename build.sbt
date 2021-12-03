@@ -111,3 +111,13 @@ lazy val raphtory = project
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test,
     Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb")
   )
+
+// Write custom git hooks to .git/hooks on sbt load
+lazy val startupTransition: State => State = { s: State =>
+  "writeHooks" :: s
+}
+
+onLoad in Global := {
+  val old = (onLoad in Global).value
+  startupTransition compose old
+}
