@@ -4,6 +4,7 @@ import com.raphtory.core.model.algorithm.GraphPerspective
 import com.raphtory.core.model.algorithm.Row
 import com.raphtory.core.model.graph.visitor.Vertex
 
+import scala.collection.mutable.{ListBuffer, Queue}
 import scala.util.Random
 
 /**
@@ -77,15 +78,16 @@ class MultilayerLPA(
                           val freq     = nei_ts_freq(msg._1)
                           val label_ts = msg._2.filter(_._1 == ts).head._2
                           (label_ts, freq) //get label and its frequency at time ts -> (lab, freq)
-                        }
+                        }.to[ListBuffer]
 
                       //Get labels of past/future instances of vertex
-                      if (vlabel.contains(ts - layerSize))
-                        nei_labs ++ List(
-                                (vlabel(ts - layerSize), interLayerWeights(omega, vertex, ts - layerSize))
-                        )
-                      if (vlabel.contains(ts + layerSize))
-                        nei_labs ++ List((vlabel(ts + layerSize), interLayerWeights(omega, vertex, ts)))
+                      if (vlabel.contains(ts - layerSize)) {
+                        nei_labs += ((vlabel(ts - layerSize), interLayerWeights(omega, vertex, ts - layerSize)))
+                      }
+
+                      if (vlabel.contains(ts + layerSize)) {
+                        nei_labs += ((vlabel(ts + layerSize), interLayerWeights(omega, vertex, ts)))
+                      }
 
                       // Get label most prominent in neighborhood of vertex
                       val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
@@ -118,7 +120,7 @@ class MultilayerLPA(
       )
       .select { vertex =>
         Row(
-            vertex.getProperty("Word").getOrElse(vertex.ID()).toString,
+            vertex.getProperty("name").getOrElse(vertex.ID()).toString,
             vertex.getState("mlpalabel")
         )
       }
