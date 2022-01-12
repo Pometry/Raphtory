@@ -11,11 +11,11 @@ class AlgorithmChain(algorithms: Seq[GraphAlgorithm]) extends GraphAlgorithm {
     gp
   }
 
-  override def tableStage(graphPerspective: GraphPerspective): Table = {
+  override def tableStage(graph: GraphPerspective): Table = {
     if(algorithms.nonEmpty)
-      algorithms.last.tableStage(graphPerspective)
+      algorithms.last.tableStage(graph)
     else
-      super.tableStage(graphPerspective)
+      super.tableStage(graph)
   }
 
   override def write(table: Table): Unit = {
