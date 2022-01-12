@@ -1,10 +1,10 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, output:String = "/tmp/PageRank") extends  GraphAlgorithm{
 
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def graphStage(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         val initLabel = 1.0F
@@ -18,7 +18,7 @@ class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, out
         })
     })
       .iterate({ vertex =>
-        val vname = vertex.getPropertyOrElse("name",vertex.ID().toString) // for logging purposes
+        val vname = vertex.getPropertyOrElse("name", vertex.ID().toString) // for logging purposes
         val currentLabel = vertex.getState[Float]("prlabel")
 
         val queue = vertex.messageQueue[Float]
@@ -37,14 +37,20 @@ class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, out
           vertex.voteToHalt()
         }
       }, iterateSteps, false)
-      .select({
-        vertex =>
-          Row(
-            vertex.getPropertyOrElse("name", vertex.ID()),
-            vertex.getStateOrElse("prlabel", -1)
-          )
-      })
-      .writeTo(output)
+  }
+
+  override def tableStage(graph: GraphPerspective): Table = {
+    graph.select({
+      vertex =>
+        Row(
+          vertex.getPropertyOrElse("name", vertex.ID()),
+          vertex.getStateOrElse("prlabel", -1)
+        )
+    })
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(output)
   }
 }
 

@@ -1,11 +1,11 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 import scala.util.Random
 
 class BinaryDiffusion(infectedNode:Long, seed:Long, outputFolder:String) extends GraphAlgorithm {
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def graphStage(graph: GraphPerspective): GraphPerspective = {
     val randomiser = if (seed != -1) new Random(seed) else new Random()
     val infectedStatus = "infected"
     graph
@@ -27,10 +27,16 @@ class BinaryDiffusion(infectedNode:Long, seed:Long, outputFolder:String) extends
               edge => if (randomiser.nextBoolean()) edge.send(infectedStatus)
             }
           }
-      }, 100,true)
-      .select(vertex => Row(vertex.ID(), vertex.getStateOrElse("infected", false)))
+      }, 100, true)
+  }
+
+  override def tableStage(graph: GraphPerspective): Table = {
+    graph.select(vertex => Row(vertex.ID(), vertex.getStateOrElse("infected", false)))
       .filter(row => row.get(1) == true)
-      .writeTo(outputFolder)
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(outputFolder)
   }
 }
 

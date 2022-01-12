@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 
 /**
@@ -23,7 +23,7 @@ Notes
 
 **/
 class ConnectedComponents(path:String) extends GraphAlgorithm{
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def graphStage(graph: GraphPerspective): GraphPerspective = {
     graph
       .step({
         vertex =>
@@ -40,8 +40,14 @@ class ConnectedComponents(path:String) extends GraphAlgorithm{
           else
             vertex.voteToHalt()
       }, iterations = 100, executeMessagedOnly = true)
-      .select(vertex => Row(vertex.ID(),vertex.getState[Long]("cclabel")))
-      .writeTo(path)
+  }
+
+  override def tableStage(graph: GraphPerspective): Table = {
+    graph.select(vertex => Row(vertex.ID(), vertex.getState[Long]("cclabel")))
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(path)
   }
 }
 

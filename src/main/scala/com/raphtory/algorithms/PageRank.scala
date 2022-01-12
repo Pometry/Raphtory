@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 
 /**
@@ -26,17 +26,17 @@ Returns
 **/
 class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:String = "/tmp/PageRank") extends  GraphAlgorithm {
 
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def graphStage(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
-        val initLabel=1.0
-        vertex.setState("prlabel",initLabel)
-        val outDegree=vertex.getOutNeighbours().size
-        if (outDegree>0.0)
-          vertex.messageAllOutgoingNeighbors(initLabel/outDegree)
+        val initLabel = 1.0
+        vertex.setState("prlabel", initLabel)
+        val outDegree = vertex.getOutNeighbours().size
+        if (outDegree > 0.0)
+          vertex.messageAllOutgoingNeighbors(initLabel / outDegree)
     }).
       iterate({ vertex =>
-        val vname = vertex.getPropertyOrElse("name",vertex.ID().toString) // for logging purposes
+        val vname = vertex.getPropertyOrElse("name", vertex.ID().toString) // for logging purposes
         val currentLabel = vertex.getState[Double]("prlabel")
 
         val queue = vertex.messageQueue[Double]
@@ -45,21 +45,27 @@ class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:Strin
 
         val outDegree = vertex.getOutNeighbours().size
         if (outDegree > 0) {
-          vertex.messageAllOutgoingNeighbors(newLabel/outDegree)
+          vertex.messageAllOutgoingNeighbors(newLabel / outDegree)
         }
 
         if (Math.abs(newLabel - currentLabel) / currentLabel < 0.00001) {
           vertex.voteToHalt()
         }
-      }, iterateSteps,false) // make iterate act on all vertices, not just messaged ones
-      .select({
-        vertex =>
-          Row(
-            vertex.getPropertyOrElse("name", vertex.ID()),
-            vertex.getStateOrElse("prlabel", -1)
-          )
-      })
-      .writeTo(output)
+      }, iterateSteps, false) // make iterate act on all vertices, not just messaged ones
+  }
+
+  override def tableStage(graph: GraphPerspective): Table = {
+    graph.select({
+      vertex =>
+        Row(
+          vertex.getPropertyOrElse("name", vertex.ID()),
+          vertex.getStateOrElse("prlabel", -1)
+        )
+    })
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(output)
   }
 }
 

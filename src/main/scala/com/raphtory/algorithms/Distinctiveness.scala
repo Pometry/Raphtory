@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 import com.raphtory.core.model.graph.visitor.Vertex
 
 /**
@@ -26,8 +26,7 @@ import scala.math.{log10, pow}
 
 class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
 
-  override def algorithm(graph: GraphPerspective): Unit = {
-    val N = graph.nodeCount().toDouble
+  override def graphStage(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         val edges = vertex.getEdges()
@@ -36,21 +35,28 @@ class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
         // sum of edge weights each exponentiated by alpha, purely for D3 & D4
         val weight = edges.map(e => pow(e.getPropertyOrElse("weight", e.history().size), alpha)).sum
         // sum of edge weights, purely for D3
-        val nodeWeight = edges.map(e => e.getPropertyOrElse("weight",e.history().size).toDouble).sum
+        val nodeWeight = edges.map(e => e.getPropertyOrElse("weight", e.history().size).toDouble).sum
 
         vertex.messageAllNeighbours(vertex.ID(), degree, weight, nodeWeight)
     })
-      .select({
-        vertex =>
-          val messages = vertex.messageQueue[(Long, Int, Double, Double)]
-          val D1c = D1(vertex, messages, N, alpha)
-          val D2c = D2(vertex, messages, N, alpha)
-          val D3c = D3(vertex, messages, N, alpha)
-          val D4c = D4(vertex, messages, N, alpha)
-          val D5c = D5(vertex, messages, N, alpha)
-          Row(vertex.getPropertyOrElse("name",vertex.ID()),D1c, D2c, D3c, D4c, D5c)
-      })
-      .writeTo(path)
+  }
+
+  override def tableStage(graph: GraphPerspective): Table = {
+    val N = graph.nodeCount().toDouble
+    graph.select({
+      vertex =>
+        val messages = vertex.messageQueue[(Long, Int, Double, Double)]
+        val D1c = D1(vertex, messages, N, alpha)
+        val D2c = D2(vertex, messages, N, alpha)
+        val D3c = D3(vertex, messages, N, alpha)
+        val D4c = D4(vertex, messages, N, alpha)
+        val D5c = D5(vertex, messages, N, alpha)
+        Row(vertex.getPropertyOrElse("name", vertex.ID()), D1c, D2c, D3c, D4c, D5c)
+    })
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(path)
   }
 
   def D1(vertex: Vertex, messages:List[(Long, Int, Double, Double)], noNodes:Double, alpha:Double): Double = {

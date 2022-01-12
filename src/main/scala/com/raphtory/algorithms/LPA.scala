@@ -1,7 +1,7 @@
 package com.raphtory.algorithms
 
 import com.raphtory.algorithms.LPA.lpa
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.util.Random
@@ -35,25 +35,33 @@ class LPA(top: Int= 0, weight: String= "", maxIter: Int = 500, seed:Long= -1, ou
   val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
   val SP = 0.2F // Stickiness probability
 
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def graphStage(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         val lab = rnd.nextLong()
         vertex.setState("lpalabel", lab)
-        vertex.messageAllNeighbours((vertex.ID(),lab))
+        vertex.messageAllNeighbours((vertex.ID(), lab))
     }).iterate({
       vertex =>
         lpa(vertex, weight, SP, rnd)
-    }, maxIter,false).select({
+    }, maxIter, false)
+  }
 
-      vertex => Row(
-        vertex.ID(),
-        vertex.getState("lpalabel"),
-      )
-    }).writeTo(output)
+  override def tableStage(graph: GraphPerspective): Table = {
+    graph.select({
+
+      vertex =>
+        Row(
+          vertex.ID(),
+          vertex.getState("lpalabel"),
+        )
+    })
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(output)
   }
   // TODO AGGREGATION STATS - See old code in old dir
-
 }
 
 object LPA{

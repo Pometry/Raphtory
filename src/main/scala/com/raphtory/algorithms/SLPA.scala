@@ -1,7 +1,8 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
+import scala.collection.mutable
 import scala.collection.mutable.Queue
 import scala.util.Random
 
@@ -31,31 +32,37 @@ Speaker-listener Interaction Dynamic Process by Jierui Xie, Boleslaw K. Szymansk
 
 class SLPA(iterNumber: Int = 50,speakerRule:Rule, listenerRule:Rule, output:String= "/tmp/SLPA") extends GraphAlgorithm {
 
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def graphStage(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       // Initialise vertex memory
       vertex =>
         val memory = Queue(vertex.ID())
-        vertex.setState("memory",memory)
+        vertex.setState("memory", memory)
 
         val message = speakerRule.chooseLabel(memory)
         vertex.messageAllNeighbours(message)
     })
       .iterate({
-      vertex =>
-        val newlab = listenerRule.chooseLabel(Queue(vertex.messageQueue[Long]:_*))
-        val memory = vertex.getState[Queue[Long]]("memory")
-        memory += newlab
+        vertex =>
+          val newlab = listenerRule.chooseLabel(Queue(vertex.messageQueue[Long]: _*))
+          val memory = vertex.getState[Queue[Long]]("memory")
+          memory += newlab
 
-        val message = speakerRule.chooseLabel(memory)
-        vertex.messageAllNeighbours(message)
-    },executeMessagedOnly = true, iterations = iterNumber)
-      .select({
+          val message = speakerRule.chooseLabel(memory)
+          vertex.messageAllNeighbours(message)
+      }, executeMessagedOnly = true, iterations = iterNumber)
+  }
+
+  override def tableStage(graph: GraphPerspective): Table = {
+    graph.select({
       vertex =>
-        val memory = vertex.getState[Queue[Long]]("memory")
-        Row(vertex.getPropertyOrElse("name",vertex.ID()), "["+memory.mkString(" ")+"]")
+        val memory = vertex.getState[mutable.Queue[Long]]("memory")
+        Row(vertex.getPropertyOrElse("name", vertex.ID()), "[" + memory.mkString(" ") + "]")
     })
-      .writeTo(output)
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(output)
   }
 
 }
