@@ -1,4 +1,4 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.generic.dynamic
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 

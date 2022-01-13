@@ -1,6 +1,6 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.generic
 
-import com.raphtory.core.model.algorithm.{GraphPerspective, Row, Table, GraphAlgorithm, Identity}
+import com.raphtory.core.model.algorithm._
 
 /**
 Description

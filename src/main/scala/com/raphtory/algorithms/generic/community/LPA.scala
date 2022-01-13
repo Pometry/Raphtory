@@ -1,8 +1,8 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.generic.community
 
-import com.raphtory.algorithms.LPA.lpa
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 import com.raphtory.core.model.graph.visitor.Vertex
+import com.raphtory.algorithms.generic.community.LPA.lpa
 
 import scala.util.Random
 
