@@ -1,6 +1,5 @@
 package com.raphtory.algorithms
 
-import com.raphtory.algorithms.LPA.lpa
 import com.raphtory.core.model.algorithm.{GraphPerspective, Row, Table, GraphAlgorithm, Identity}
 
 /**
