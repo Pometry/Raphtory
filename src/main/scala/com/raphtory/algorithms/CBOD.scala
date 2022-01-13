@@ -14,14 +14,14 @@ Description
 Parameters
   label (String) - Identifier for community label
   cutoff (Double) - Outlier score threshold (default: 0.0). Identifies the outliers with an outlier score > cutoff.
-  labeler (Option[GraphAlgorithm]) - Community algorithm to run to get labels (None by default)
-
-Returns
-  outliers Map(Long, Double) – Map of (node, outlier score) sorted by their outlier score.
-                  Returns `top` nodes with outlier score higher than `cutoff` if specified.
+  labeler (GraphAlgorithm) - Community algorithm to run to get labels (does nothing by default, i.e., labels should
+be already set on the input graph, either via chaining or defined as properties of the data)
   **/
 class CBOD(label: String = "label", cutoff: Double = 0.0, output: String = "/tmp/CBOD", labeler:GraphAlgorithm = Identity())
         extends GraphAlgorithm {
+  /**
+   Run CBOD algorithm and sets "outlierscore" state
+    **/
   override def graphStage(graph: GraphPerspective): GraphPerspective = {
       labeler.graphStage(graph)
       .step { vertex => //Get neighbors' labels
@@ -36,6 +36,9 @@ class CBOD(label: String = "label", cutoff: Double = 0.0, output: String = "/tmp
       }
   }
 
+  /**
+   * extract vertex ID and outlier score for vertices with outlierscore >= threshold
+   **/
   override def tableStage(graph: GraphPerspective): Table = {
     graph.select { vertex =>
       Row(
