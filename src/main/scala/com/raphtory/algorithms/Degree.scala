@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 /**
 Description
@@ -18,15 +18,18 @@ Returns
   total degree (Long) : The total degree
 **/
 class Degree(path:String) extends GraphAlgorithm{
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph.select({
       vertex =>
-      val inDegree = vertex.getInNeighbours().size
-      val outDegree = vertex.getOutNeighbours().size
-      val totalDegree = vertex.getAllNeighbours().size
-    Row(vertex.getPropertyOrElse("name", vertex.ID()), inDegree, outDegree, totalDegree)
+        val inDegree = vertex.getInNeighbours().size
+        val outDegree = vertex.getOutNeighbours().size
+        val totalDegree = vertex.getAllNeighbours().size
+        Row(vertex.getPropertyOrElse("name", vertex.ID()), inDegree, outDegree, totalDegree)
     })
-      .writeTo(path)
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(path)
   }
 }
 

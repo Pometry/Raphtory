@@ -1,7 +1,5 @@
 package com.raphtory.algorithms
-import com.raphtory.core.model.algorithm.GraphAlgorithm
-import com.raphtory.core.model.algorithm.GraphPerspective
-import com.raphtory.core.model.algorithm.Row
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 import com.raphtory.core.model.graph.visitor.Vertex
 
 import scala.collection.mutable.{ListBuffer, Queue}
@@ -48,91 +46,7 @@ class MultilayerLPA(
   val rnd: Random               = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
   val SP                        = 0.2f // Stickiness probability
 
-  override def algorithm(graph: GraphPerspective): Unit = {
-    graph
-      .step { vertex =>
-        // Assign random labels for all instances in time of a vertex as Map(ts, lab)
-        val tlabels =
-          layers.filter(ts => vertex.aliveAt(ts, layerSize)).map(ts => (ts, rnd.nextLong()))
-        vertex.setState("mlpalabel", tlabels)
-        val message = (vertex.ID(), tlabels.map(x => (x._1, x._2)))
-        vertex.messageAllNeighbours(message)
-      }
-      .iterate(
-              { vertex =>
-                val vlabel     = vertex.getState[List[(Long, Long)]]("mlpalabel").toMap
-                val msgQueue   = vertex.messageQueue[(Long, List[(Long, Long)])]
-                var voteStatus = vertex.getOrSetState[Boolean]("vote", false)
-                var voteCount  = 0
-                val newLabel = vlabel.map {
-                  tv =>
-                    val ts     = tv._1
-                    val Curlab = tv._2
-
-                    // Get weights/labels of neighbours of vertex at time ts
-                    val nei_ts_freq = weightFunction(vertex, ts) // ID -> freq
-                    var newlab = if (nei_ts_freq.nonEmpty) {
-                      val nei_labs = msgQueue
-                        .filter(x => nei_ts_freq.keySet.contains(x._1)) // filter messages from neighbours at time ts only
-                        .map { msg =>
-                          val freq     = nei_ts_freq(msg._1)
-                          val label_ts = msg._2.filter(_._1 == ts).head._2
-                          (label_ts, freq) //get label and its frequency at time ts -> (lab, freq)
-                        }.to[ListBuffer]
-
-                      //Get labels of past/future instances of vertex
-                      if (vlabel.contains(ts - layerSize)) {
-                        nei_labs += ((vlabel(ts - layerSize), interLayerWeights(omega, vertex, ts - layerSize)))
-                      }
-
-                      if (vlabel.contains(ts + layerSize)) {
-                        nei_labs += ((vlabel(ts + layerSize), interLayerWeights(omega, vertex, ts)))
-                      }
-
-                      // Get label most prominent in neighborhood of vertex
-                      val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
-                      max_freq.filter(_._2 == max_freq.values.max).keySet.max
-                    } else Curlab
-
-                    if (newlab == Curlab)
-                      voteCount += 1
-
-                    newlab = if (rnd.nextFloat() < SP) Curlab else newlab
-                    (ts, newlab)
-                }.toList
-
-                // Update node label and broadcast
-                vertex.setState("mlpalabel", newLabel)
-                val message = (vertex.ID(), newLabel)
-                vertex.messageAllNeighbours(message)
-
-                // Update vote status
-                voteStatus = if (voteStatus || (voteCount == vlabel.size)) {
-                  vertex.voteToHalt()
-                  true
-                } else
-                  false
-                vertex.setState("vote", voteStatus)
-
-              },
-              maxIter,
-              true
-      )
-      .select { vertex =>
-        Row(
-            vertex.getProperty("name").getOrElse(vertex.ID()).toString,
-            vertex.getState("mlpalabel")
-        )
-      }
-      .explode{
-        row =>
-          row.get(1).asInstanceOf[List[(Long, Long)]]
-            .map { lts =>
-              Row(lts._2, row.get(0) + "_" + lts._1.toString)
-            }
-      }
-      .writeTo(output)
-
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     def interLayerWeights(omega: Double, v: Vertex, ts: Long): Float =
       omega match {
         case -1 =>
@@ -146,7 +60,98 @@ class MultilayerLPA(
         .map(e => (e.ID(), e.getProperty(weight).getOrElse(1.0f)))
         .groupBy(_._1)
         .mapValues(x => x.map(_._2).sum / x.size) // (ID -> Freq)
+
+    graph
+      .step { vertex =>
+        // Assign random labels for all instances in time of a vertex as Map(ts, lab)
+        val tlabels =
+          layers.filter(ts => vertex.aliveAt(ts, layerSize)).map(ts => (ts, rnd.nextLong()))
+        vertex.setState("mlpalabel", tlabels)
+        val message = (vertex.ID(), tlabels.map(x => (x._1, x._2)))
+        vertex.messageAllNeighbours(message)
+      }
+      .iterate(
+        { vertex =>
+          val vlabel = vertex.getState[List[(Long, Long)]]("mlpalabel").toMap
+          val msgQueue = vertex.messageQueue[(Long, List[(Long, Long)])]
+          var voteStatus = vertex.getOrSetState[Boolean]("vote", false)
+          var voteCount = 0
+          val newLabel = vlabel.map {
+            tv =>
+              val ts = tv._1
+              val Curlab = tv._2
+
+              // Get weights/labels of neighbours of vertex at time ts
+              val nei_ts_freq = weightFunction(vertex, ts) // ID -> freq
+              var newlab = if (nei_ts_freq.nonEmpty) {
+                val nei_labs = msgQueue
+                  .filter(x => nei_ts_freq.keySet.contains(x._1)) // filter messages from neighbours at time ts only
+                  .map { msg =>
+                    val freq = nei_ts_freq(msg._1)
+                    val label_ts = msg._2.filter(_._1 == ts).head._2
+                    (label_ts, freq) //get label and its frequency at time ts -> (lab, freq)
+                  }.to[ListBuffer]
+
+                //Get labels of past/future instances of vertex
+                if (vlabel.contains(ts - layerSize)) {
+                  nei_labs += ((vlabel(ts - layerSize), interLayerWeights(omega, vertex, ts - layerSize)))
+                }
+
+                if (vlabel.contains(ts + layerSize)) {
+                  nei_labs += ((vlabel(ts + layerSize), interLayerWeights(omega, vertex, ts)))
+                }
+
+                // Get label most prominent in neighborhood of vertex
+                val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
+                max_freq.filter(_._2 == max_freq.values.max).keySet.max
+              } else Curlab
+
+              if (newlab == Curlab)
+                voteCount += 1
+
+              newlab = if (rnd.nextFloat() < SP) Curlab else newlab
+              (ts, newlab)
+          }.toList
+
+          // Update node label and broadcast
+          vertex.setState("mlpalabel", newLabel)
+          val message = (vertex.ID(), newLabel)
+          vertex.messageAllNeighbours(message)
+
+          // Update vote status
+          voteStatus = if (voteStatus || (voteCount == vlabel.size)) {
+            vertex.voteToHalt()
+            true
+          } else
+            false
+          vertex.setState("vote", voteStatus)
+
+        },
+        maxIter,
+        true
+      )
   }
+
+  override def tabularise(graph: GraphPerspective): Table = {
+    graph.select { vertex =>
+      Row(
+        vertex.getProperty("name").getOrElse(vertex.ID()).toString,
+        vertex.getState("mlpalabel")
+      )
+    }
+      .explode {
+        row =>
+          row.get(1).asInstanceOf[List[(Long, Long)]]
+            .map { lts =>
+              Row(lts._2, row.get(0) + "_" + lts._1.toString)
+            }
+      }
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(output)
+  }
+
 }
 object MultilayerLPA {
   def apply(
