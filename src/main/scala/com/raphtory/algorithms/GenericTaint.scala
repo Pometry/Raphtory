@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 /**
 Description
@@ -23,14 +23,14 @@ Returns
 **/
 class GenericTaint(startTime: Long, infectedNodes: Set[Long], stopNodes: Set[Long] = Set(), output: String = "/tmp/generic_taint") extends GraphAlgorithm{
 
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     graph
       // the step functions run on every single vertex ONCE at the beginning of the algorithm
       .step({
         // for each vertex in the graph
         vertex =>
           // check if it is one of our infected nodes
-          if (infectedNodes contains vertex.ID){
+          if (infectedNodes contains vertex.ID) {
             // set its state to tainted
             val result = List(("tainted", -1, startTime, "startPoint"))
             // set this node as the beginning state
@@ -50,7 +50,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[Long], stopNodes: Set[Lon
                         edge.ID(),
                         event.time,
                         vertex.ID()
-                        )
+                      )
                       )
                     }
                 )
@@ -91,7 +91,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[Long], stopNodes: Set[Lon
                       edge.ID(),
                       event.time,
                       vertex.ID()
-                      )
+                    )
                     )
                   }
                 )
@@ -107,7 +107,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[Long], stopNodes: Set[Lon
                       edge.ID(),
                       event.time,
                       vertex.ID()
-                      )
+                    )
                     )
                   }
                 )
@@ -117,18 +117,24 @@ class GenericTaint(startTime: Long, infectedNodes: Set[Long], stopNodes: Set[Lon
           else
             vertex.voteToHalt()
       }, 100, true)
-      // get all vertexes and their status
-      .select(vertex => Row(
-        vertex.ID(),
-        vertex.getStateOrElse("taintStatus", false),
-        vertex.getStateOrElse[Any]("taintHistory","false")
-      ))
+    // get all vertexes and their status
+  }
+
+  override def tabularise(graph: GraphPerspective): Table = {
+    graph.select(vertex => Row(
+      vertex.ID(),
+      vertex.getStateOrElse("taintStatus", false),
+      vertex.getStateOrElse[Any]("taintHistory", "false")
+    ))
       // filter for any that had been tainted and save to folder
-      .filter(r=> r.get(1) == true)
-      .explode( row => row.get(2).asInstanceOf[List[(String, Long, Long, Long)]].map(
-        tx => Row( row(0), tx._2, tx._3, tx._4)
+      .filter(r => r.get(1) == true)
+      .explode(row => row.get(2).asInstanceOf[List[(String, Long, Long, Long)]].map(
+        tx => Row(row(0), tx._2, tx._3, tx._4)
       ))
-      .writeTo(output)
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(output)
   }
 }
 

@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 /**
 Description
@@ -17,21 +17,25 @@ Returns
 **/
 class MotifAlpha(fileOutput:String="/tmp/motif_alpha") extends GraphAlgorithm {
 
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph
       .select({
         vertex =>
           if (vertex.explodeInEdges().nonEmpty & vertex.explodeOutEdges().nonEmpty) {
             val out = vertex.explodeInEdges()
               .map(inEdge => vertex.explodeOutEdges()
-                .filter( e => e.getTimestamp() > inEdge.getTimestamp() & e.dst() != inEdge.src() & e.dst() != inEdge.dst()).size).sum
+                .filter(e => e.getTimestamp() > inEdge.getTimestamp() & e.dst() != inEdge.src() & e.dst() != inEdge.dst()).size).sum
             Row(vertex.ID(), out)
           }
-          else{
+          else {
             Row(vertex.ID(), 0)
           }
       }
-      ).writeTo(fileOutput)
+      )
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(fileOutput)
   }
 
 }

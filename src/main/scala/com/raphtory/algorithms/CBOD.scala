@@ -1,64 +1,64 @@
 package com.raphtory.algorithms
-import com.raphtory.algorithms.LPA.lpa
-import com.raphtory.core.model.algorithm.{GraphPerspective, Row}
+
+import com.raphtory.core.model.algorithm.{GraphPerspective, Row, Table, GraphAlgorithm, Identity}
 
 /**
 Description
   Returns outliers detected based on the community structure of the Graph.
 
-  Tha algorithm runs an instance of LPA on the graph, initially, and then defines an outlier score based on a node's
+  The algorithm assumes that the state of each vertex contains a community label (e.g., set by running LPA on the graph, initially)
+  and then defines an outlier score based on a node's
   community membership and how it compares to its neighbors community memberships.
 
 Parameters
-  weight (String) - Edge property (default: ""). To be specified in case of weighted graph.
+  label (String) - Identifier for community label
   cutoff (Double) - Outlier score threshold (default: 0.0). Identifies the outliers with an outlier score > cutoff.
-  maxIter (Int)   - Maximum iterations for LPA to run. (default: 500)
-
-Returns
-  outliers Map(Long, Double) – Map of (node, outlier score) sorted by their outlier score.
-                  Returns `top` nodes with outlier score higher than `cutoff` if specified.
+  labeler (GraphAlgorithm) - Community algorithm to run to get labels (does nothing by default, i.e., labels should
+be already set on the input graph, either via chaining or defined as properties of the data)
   **/
-class CBOD(weight: String = "", maxIter: Int = 500, cutoff: Double, seed: Long = -1, output: String = "/tmp/CBOD")
-        extends LPA {
-  override def algorithm(graph: GraphPerspective): Unit =
-    graph
-      .step { vertex =>
-        val lab = rnd.nextLong()
-        vertex.setState("lpalabel", lab)
-        vertex.messageAllNeighbours((vertex.ID(), lab))
-      }
-      .iterate( //Run LPA til it converges
-              vertex => lpa(vertex, weight, SP, rnd),
-              maxIter,
-              false
-      )
+class CBOD(label: String = "label", cutoff: Double = 0.0, output: String = "/tmp/CBOD", labeler:GraphAlgorithm = Identity())
+        extends GraphAlgorithm {
+  /**
+   Run CBOD algorithm and sets "outlierscore" state
+    **/
+  override def apply(graph: GraphPerspective): GraphPerspective = {
+      labeler.apply(graph)
       .step { vertex => //Get neighbors' labels
-        val vlabel = vertex.getState[Long]("lpalabel")
+        val vlabel = vertex.getState[Long](key = label)
         vertex.messageAllNeighbours(vlabel)
       }
       .step { v => // Get outlier score
-        val vlabel         = v.getState[Long]("lpalabel")
+        val vlabel         = v.getState[Long](key = label)
         val neighborLabels = v.messageQueue[Long]
         val outlierScore   = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)
         v.setState("outlierscore", outlierScore)
       }
-      .select { vertex =>
-        Row(
-                vertex.ID(),
-                vertex.getStateOrElse[Double]("outlierscore", 10.0)
-        )
-      }
+  }
+
+  /**
+   * extract vertex ID and outlier score for vertices with outlierscore >= threshold
+   **/
+  override def tabularise(graph: GraphPerspective): Table = {
+    graph.select { vertex =>
+      Row(
+        vertex.ID(),
+        vertex.getStateOrElse[Double]("outlierscore", 10.0)
+      )
+    }
       .filter(_.get(1).asInstanceOf[Double] >= cutoff)
-      .writeTo(output)
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(output)
+  }
 }
 
 object CBOD {
   def apply(
-      weight: String = "",
-      maxIter: Int = 500,
+      label: String = "label",
       cutoff: Double = 0.0,
-      seed: Long = -1,
-      output: String = "/tmp/CBOD"
+      output: String = "/tmp/CBOD",
+      labeler: GraphAlgorithm = Identity()
   ) =
-    new CBOD(weight, maxIter, cutoff, seed, output)
+    new CBOD(label, cutoff, output, labeler)
 }

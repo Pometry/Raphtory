@@ -29,14 +29,14 @@ class RaphtoryGraph [T:ClassTag](spout: Spout[T], graphBuilder: GraphBuilder[T])
     val queryManager    = system.actorOf(Props(new QueryManagerConnector()), "QueryManagerConnector")
 
 
-    def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
-      queryManager ! PointQuery(getID(graphAlgorithm),graphAlgorithm,timestamp,windows)
+    def pointQuery(algorithm: GraphAlgorithm, timestamp:Long, windows:List[Long]=List()) = {
+      queryManager ! PointQuery(getID(algorithm),algorithm,timestamp,windows)
     }
-    def rangeQuery(graphAlgorithm: GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
-      queryManager ! RangeQuery(getID(graphAlgorithm),graphAlgorithm,start,end,increment,windows)
+    def rangeQuery(algorithm: GraphAlgorithm, start:Long, end:Long, increment:Long, windows:List[Long]=List()) = {
+      queryManager ! RangeQuery(getID(algorithm),algorithm,start,end,increment,windows)
     }
-    def liveQuery(graphAlgorithm: GraphAlgorithm,increment:Long,windows:List[Long]=List()) = {
-      queryManager ! LiveQuery(getID(graphAlgorithm),graphAlgorithm,increment,windows)
+    def liveQuery(algorithm: GraphAlgorithm, increment:Long, windows:List[Long]=List()) = {
+      queryManager ! LiveQuery(getID(algorithm),algorithm,increment,windows)
     }
 
   private def getID(algorithm:GraphAlgorithm):String = {
@@ -56,4 +56,6 @@ object RaphtoryGraph {
   def apply[T:ClassTag](spout: Spout[T], graphBuilder: GraphBuilder[T]) = {
     new RaphtoryGraph[T](spout,graphBuilder)
   }
+
+  type Windows = List[Long]
 }
