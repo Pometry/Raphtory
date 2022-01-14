@@ -3,7 +3,7 @@ package com.raphtory.algorithms
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 class GraphState(path:String) extends GraphAlgorithm{
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph.select(vertex => {
       val inDeg = vertex.getInEdges().size
       val outDeg = vertex.getOutEdges().size

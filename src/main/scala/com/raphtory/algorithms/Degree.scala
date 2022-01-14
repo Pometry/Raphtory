@@ -18,7 +18,7 @@ Returns
   total degree (Long) : The total degree
 **/
 class Degree(path:String) extends GraphAlgorithm{
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph.select({
       vertex =>
         val inDegree = vertex.getInNeighbours().size

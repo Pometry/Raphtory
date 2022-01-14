@@ -9,7 +9,7 @@ class Descendants(path:String,
                   directed:Boolean=true)
   extends GraphAlgorithm{
 
-  override def graphStage(graph: GraphPerspective): GraphPerspective = {
+  override def algorithm(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         if (vertex.ID() == checkID(seed)) {
@@ -38,7 +38,7 @@ class Descendants(path:String,
       }, executeMessagedOnly = true, iterations = 100)
   }
 
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph.select(vertex => Row(vertex.getPropertyOrElse("name", vertex.ID()), vertex.getStateOrElse[Boolean]("descendant", false)))
   }
 

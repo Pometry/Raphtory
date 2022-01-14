@@ -23,7 +23,7 @@ Returns
 **/
 class GenericTaint(startTime: Long, infectedNodes: Set[Long], stopNodes: Set[Long] = Set(), output: String = "/tmp/generic_taint") extends GraphAlgorithm{
 
-  override def graphStage(graph: GraphPerspective): GraphPerspective = {
+  override def algorithm(graph: GraphPerspective): GraphPerspective = {
     graph
       // the step functions run on every single vertex ONCE at the beginning of the algorithm
       .step({
@@ -120,7 +120,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[Long], stopNodes: Set[Lon
     // get all vertexes and their status
   }
 
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph.select(vertex => Row(
       vertex.ID(),
       vertex.getStateOrElse("taintStatus", false),

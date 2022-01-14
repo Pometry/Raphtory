@@ -36,7 +36,7 @@ Notes
 **/
 class TriangleCount(path:String) extends GraphAlgorithm {
 
-  override def graphStage(graph: GraphPerspective): GraphPerspective = {
+  override def algorithm(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         vertex.setState("triangles", 0)
@@ -48,7 +48,7 @@ class TriangleCount(path:String) extends GraphAlgorithm {
     })
   }
 
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph.select({
       vertex =>
         val neighbours = vertex.getAllNeighbours().toSet

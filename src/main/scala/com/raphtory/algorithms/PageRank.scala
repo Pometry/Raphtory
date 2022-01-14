@@ -26,7 +26,7 @@ Returns
 **/
 class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:String = "/tmp/PageRank") extends  GraphAlgorithm {
 
-  override def graphStage(graph: GraphPerspective): GraphPerspective = {
+  override def algorithm(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         val initLabel = 1.0
@@ -54,7 +54,7 @@ class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:Strin
       }, iterateSteps, false) // make iterate act on all vertices, not just messaged ones
   }
 
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph.select({
       vertex =>
         Row(

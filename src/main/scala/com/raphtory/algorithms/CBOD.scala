@@ -21,8 +21,8 @@ class CBOD(label: String = "label", cutoff: Double = 0.0, output: String = "/tmp
   /**
    Run CBOD algorithm and sets "outlierscore" state
     **/
-  override def graphStage(graph: GraphPerspective): GraphPerspective = {
-      labeler.graphStage(graph)
+  override def algorithm(graph: GraphPerspective): GraphPerspective = {
+      labeler.algorithm(graph)
       .step { vertex => //Get neighbors' labels
         val vlabel = vertex.getState[Long](key = label)
         vertex.messageAllNeighbours(vlabel)
@@ -38,7 +38,7 @@ class CBOD(label: String = "label", cutoff: Double = 0.0, output: String = "/tmp
   /**
    * extract vertex ID and outlier score for vertices with outlierscore >= threshold
    **/
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph.select { vertex =>
       Row(
         vertex.ID(),

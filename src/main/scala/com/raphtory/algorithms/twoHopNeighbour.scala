@@ -34,7 +34,7 @@ Warning
   The number of iterations makes a difference to ensure all messages have been read.
 **/
 class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour") extends GraphAlgorithm {
-  override def graphStage(graph: GraphPerspective): GraphPerspective = {
+  override def algorithm(graph: GraphPerspective): GraphPerspective = {
     graph
       .step(
         vertex =>
@@ -66,7 +66,7 @@ class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour")
       )
   }
 
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph.select(vertex =>
       Row(
         vertex.getStateOrElse("twoHopResponse", false),

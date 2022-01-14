@@ -26,7 +26,7 @@ import scala.math.{log10, pow}
 
 class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
 
-  override def graphStage(graph: GraphPerspective): GraphPerspective = {
+  override def algorithm(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         val edges = vertex.getEdges()
@@ -41,7 +41,7 @@ class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
     })
   }
 
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     val N = graph.nodeCount().toDouble
     graph.select({
       vertex =>

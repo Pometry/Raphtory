@@ -23,7 +23,7 @@ Notes
 
 **/
 class ConnectedComponents(path:String) extends GraphAlgorithm{
-  override def graphStage(graph: GraphPerspective): GraphPerspective = {
+  override def algorithm(graph: GraphPerspective): GraphPerspective = {
     graph
       .step({
         vertex =>
@@ -42,7 +42,7 @@ class ConnectedComponents(path:String) extends GraphAlgorithm{
       }, iterations = 100, executeMessagedOnly = true)
   }
 
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph.select(vertex => Row(vertex.ID(), vertex.getState[Long]("cclabel")))
   }
 

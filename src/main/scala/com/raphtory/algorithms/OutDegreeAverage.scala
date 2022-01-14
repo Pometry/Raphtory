@@ -3,7 +3,7 @@ package com.raphtory.algorithms
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 class OutDegreeAverage(output:String) extends GraphAlgorithm {
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     val nodeCount = graph.nodeCount()
     graph
       .select({

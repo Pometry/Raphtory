@@ -17,7 +17,7 @@ Returns
 **/
 class MotifAlpha(fileOutput:String="/tmp/motif_alpha") extends GraphAlgorithm {
 
-  override def tableStage(graph: GraphPerspective): Table = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph
       .select({
         vertex =>
