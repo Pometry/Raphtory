@@ -5,7 +5,7 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row,
 import scala.util.Random
 
 class BinaryDiffusion(infectedNode:Long, seed:Long, outputFolder:String) extends GraphAlgorithm {
-  override def algorithm(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     val randomiser = if (seed != -1) new Random(seed) else new Random()
     val infectedStatus = "infected"
     graph

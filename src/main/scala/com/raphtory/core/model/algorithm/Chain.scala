@@ -1,12 +1,14 @@
 package com.raphtory.core.model.algorithm
 
-class AlgorithmChain(algorithms: Seq[GraphAlgorithm]) extends GraphAlgorithm {
+import scala.Seq
 
-  override def algorithm(graphPerspective: GraphPerspective): GraphPerspective = {
+class Chain(algorithms: Seq[GraphAlgorithm]) extends GraphAlgorithm {
+
+  override def apply(graphPerspective: GraphPerspective): GraphPerspective = {
     var gp = graphPerspective
     if(algorithms.nonEmpty) {
       for(algorithm <- algorithms)
-        gp = algorithm.algorithm(gp)
+        gp = algorithm.apply(gp)
     }
     gp
   }
@@ -25,8 +27,13 @@ class AlgorithmChain(algorithms: Seq[GraphAlgorithm]) extends GraphAlgorithm {
       super.write(table)
   }
 
+  override def ->(graphAlgorithm: GraphAlgorithm):Chain = {
+    Chain(algorithms.toList ++ List(graphAlgorithm))
+  }
+
 }
 
-object AlgorithmChain {
-  def apply(algorithms: GraphAlgorithm*) = new AlgorithmChain(algorithms)
+object Chain {
+  def apply(algorithms: GraphAlgorithm*) = new Chain(algorithms)
+  def apply(algorithms: List[GraphAlgorithm]) = new Chain(algorithms)
 }

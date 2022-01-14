@@ -36,7 +36,7 @@ class WattsCascade(infectedSeed:Array[Long], UNIFORM_RANDOM:Int = 1, UNIFORM_SAM
 
   val randomiser = if (seed != -1) new Random(seed) else new Random()
 
-  override def algorithm(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     graph
       .step({
         vertex =>

@@ -23,7 +23,7 @@ Returns
 **/
 class GenericTaint(startTime: Long, infectedNodes: Set[Long], stopNodes: Set[Long] = Set(), output: String = "/tmp/generic_taint") extends GraphAlgorithm{
 
-  override def algorithm(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     graph
       // the step functions run on every single vertex ONCE at the beginning of the algorithm
       .step({

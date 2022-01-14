@@ -32,7 +32,7 @@ Speaker-listener Interaction Dynamic Process by Jierui Xie, Boleslaw K. Szymansk
 
 class SLPA(iterNumber: Int = 50,speakerRule:Rule, listenerRule:Rule, output:String= "/tmp/SLPA") extends GraphAlgorithm {
 
-  override def algorithm(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       // Initialise vertex memory
       vertex =>

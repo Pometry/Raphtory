@@ -4,7 +4,7 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row,
 
 class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, output:String = "/tmp/PageRank") extends  GraphAlgorithm{
 
-  override def algorithm(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         val initLabel = 1.0F

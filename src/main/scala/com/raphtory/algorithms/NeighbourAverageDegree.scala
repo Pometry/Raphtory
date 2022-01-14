@@ -3,7 +3,7 @@ package com.raphtory.algorithms
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 class NeighbourAverageDegree(path:String) extends GraphAlgorithm{
-  override def algorithm(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         val degree = vertex.getAllNeighbours().size

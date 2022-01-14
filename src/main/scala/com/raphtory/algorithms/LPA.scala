@@ -35,7 +35,7 @@ class LPA(top: Int= 0, weight: String= "", maxIter: Int = 500, seed:Long= -1, ou
   val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
   val SP = 0.2F // Stickiness probability
 
-  override def algorithm(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         val lab = rnd.nextLong()

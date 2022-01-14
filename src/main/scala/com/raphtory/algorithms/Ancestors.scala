@@ -9,7 +9,7 @@ class Ancestors(path:String,
                 directed:Boolean=true)
   extends GraphAlgorithm{
 
-  override def algorithm(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         if (vertex.ID() == checkID(seed)) {

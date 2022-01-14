@@ -21,8 +21,8 @@ class CBOD(label: String = "label", cutoff: Double = 0.0, output: String = "/tmp
   /**
    Run CBOD algorithm and sets "outlierscore" state
     **/
-  override def algorithm(graph: GraphPerspective): GraphPerspective = {
-      labeler.algorithm(graph)
+  override def apply(graph: GraphPerspective): GraphPerspective = {
+      labeler.apply(graph)
       .step { vertex => //Get neighbors' labels
         val vlabel = vertex.getState[Long](key = label)
         vertex.messageAllNeighbours(vlabel)

@@ -26,7 +26,7 @@ import scala.math.{log10, pow}
 
 class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
 
-  override def algorithm(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         val edges = vertex.getEdges()
