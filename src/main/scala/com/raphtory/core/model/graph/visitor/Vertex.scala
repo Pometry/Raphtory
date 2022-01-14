@@ -51,10 +51,12 @@ trait Vertex extends EntityVisitor {
 
   // analytical state
   def setState(key: String, value: Any): Unit
-  def getState[T: ClassTag](key: String):T
-  def getStateOrElse[T: ClassTag](key: String,value:T):T
-  def containsState(key: String): Boolean
-  def getOrSetState[T: ClassTag](key: String, value: T): T
+  // if includeProperties = true, key is looked up first in analytical state with a fall-through to properties if not found
+  def getState[T: ClassTag](key: String, includeProperties: Boolean = false):T
+  def getStateOrElse[T: ClassTag](key: String,value:T, includeProperties: Boolean = false):T
+  def containsState(key: String, includeProperties: Boolean = false): Boolean
+  // if includeProperties = true and value is pulled in from properties, the new value is set as state
+  def getOrSetState[T: ClassTag](key: String, value: T, includeProperties: Boolean = false): T
   def appendToState[T: ClassTag](key: String, value: Any):Unit
 
   // Also need a function for receiving messages, but the user should not have access to this
