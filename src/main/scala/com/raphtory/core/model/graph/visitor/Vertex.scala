@@ -14,10 +14,10 @@ trait Vertex extends EntityVisitor {
   def voteToHalt(): Unit
   //Send message
   def messageSelf(data: Any):Unit
-  def messageNeighbour(vertexId: Long, data: Any): Unit
-  def messageAllOutgoingNeighbors(message: Any): Unit
+  def messageVertex(vertexId: Long, data: Any): Unit
+  def messageOutNeighbours(message: Any): Unit
   def messageAllNeighbours(message: Any)
-  def messageAllIngoingNeighbors(message: Any): Unit
+  def messageInNeighbours(message: Any): Unit
 
   //Get Neighbours
   def getAllNeighbours(after:Long=0L,before:Long=Long.MaxValue): List[Long]

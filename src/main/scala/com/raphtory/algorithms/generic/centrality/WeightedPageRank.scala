@@ -14,7 +14,7 @@ class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, out
           .sum
         vertex.getOutEdges().foreach({
           e =>
-            vertex.messageNeighbour(e.ID, e.getPropertyOrElse("weight", e.history().size).toFloat / outWeight)
+            vertex.messageVertex(e.ID, e.getPropertyOrElse("weight", e.history().size).toFloat / outWeight)
         })
     })
       .iterate({ vertex =>
@@ -30,7 +30,7 @@ class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, out
           .sum
         vertex.getOutEdges().foreach({
           e =>
-            vertex.messageNeighbour(e.ID, newLabel * e.getPropertyOrElse("weight", e.history().size).toFloat / outWeight)
+            vertex.messageVertex(e.ID, newLabel * e.getPropertyOrElse("weight", e.history().size).toFloat / outWeight)
         })
 
         if (Math.abs(newLabel - currentLabel) / currentLabel < 0.00001) {

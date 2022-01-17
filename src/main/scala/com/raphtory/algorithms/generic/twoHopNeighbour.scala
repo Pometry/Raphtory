@@ -51,7 +51,7 @@ class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour")
             vertex.getAllNeighbours().foreach { neighbour =>
               requests.foreach(msg =>
                 if (msg._2 != neighbour) {
-                  vertex.messageNeighbour(msg._2, ("twoHopResponse", neighbour, vertex.ID))
+                  vertex.messageVertex(msg._2, ("twoHopResponse", neighbour, vertex.ID))
                 })
             }
           }
