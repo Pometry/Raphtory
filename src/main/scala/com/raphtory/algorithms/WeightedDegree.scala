@@ -1,6 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 /**
   Description:
@@ -22,19 +22,22 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
 
 class WeightedDegree(weightProperty:String="weight",output:String = "/tmp/WeightedDegree") extends GraphAlgorithm{
 
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def tabularise(graph: GraphPerspective): Table = {
     graph.select({
       vertex =>
         val inWeight = vertex.getInEdges()
-          .map(e => e.getPropertyOrElse(weightProperty,1.0))
+          .map(e => e.getPropertyOrElse(weightProperty, 1.0))
           .sum
         val outWeight = vertex.getOutEdges()
-          .map(e => e.getPropertyOrElse(weightProperty,1.0))
+          .map(e => e.getPropertyOrElse(weightProperty, 1.0))
           .sum
         val totWeight = inWeight + outWeight
-        Row(vertex.getPropertyOrElse("name",vertex.ID()),inWeight,outWeight,totWeight)
+        Row(vertex.getPropertyOrElse("name", vertex.ID()), inWeight, outWeight, totWeight)
     })
-      .writeTo(output)
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(output)
   }
 
 }
