@@ -24,11 +24,11 @@ class CBOD(label: String = "label", cutoff: Double = 0.0, output: String = "/tmp
   override def apply(graph: GraphPerspective): GraphPerspective = {
       labeler.apply(graph)
       .step { vertex => //Get neighbors' labels
-        val vlabel = vertex.getState[Long](key = label)
+        val vlabel = vertex.getState[Long](key = label, includeProperties = true)
         vertex.messageAllNeighbours(vlabel)
       }
       .step { v => // Get outlier score
-        val vlabel         = v.getState[Long](key = label)
+        val vlabel         = v.getState[Long](key = label, includeProperties = true)
         val neighborLabels = v.messageQueue[Long]
         val outlierScore   = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)
         v.setState("outlierscore", outlierScore)
