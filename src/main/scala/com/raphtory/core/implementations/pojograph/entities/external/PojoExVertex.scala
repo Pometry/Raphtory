@@ -143,19 +143,19 @@ class PojoExVertex(private val v: PojoVertex,
   override def messageSelf(data: Any): Unit =
     lens.sendMessage(VertexMessage(lens.superStep+1,ID(), data))
 
-  def messageNeighbour(vertexId: Long, data: Any): Unit = {
+  def messageVertex(vertexId: Long, data: Any): Unit = {
     val message = VertexMessage(lens.superStep+1,vertexId, data)
     lens.sendMessage(message)
   }
 
-  def messageAllOutgoingNeighbors(message: Any): Unit =
-    internalOutgoingEdges.keys.foreach(vId => messageNeighbour(vId, message))
+  def messageOutNeighbours(message: Any): Unit =
+    internalOutgoingEdges.keys.foreach(vId => messageVertex(vId, message))
 
   def messageAllNeighbours(message: Any) =
-    internalOutgoingEdges.keySet.union(internalIncomingEdges.keySet).foreach(vId => messageNeighbour(vId, message))
+    internalOutgoingEdges.keySet.union(internalIncomingEdges.keySet).foreach(vId => messageVertex(vId, message))
 
-  def messageAllIngoingNeighbors(message: Any): Unit =
-    internalIncomingEdges.keys.foreach(vId => messageNeighbour(vId, message))
+  def messageInNeighbours(message: Any): Unit =
+    internalIncomingEdges.keys.foreach(vId => messageVertex(vId, message))
 
   // todo hide
   def receiveMessage(msg: VertexMessage): Unit = {
