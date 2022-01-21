@@ -44,28 +44,37 @@ import com.raphtory.core.model.graph.visitor.Vertex
  *
  */
 class ThreeNodeMotifs(output: String = "/tmp/ThreeNodeMotifs") extends GraphAlgorithm {
-//  Mapping of edge type of left and right edge to star motif (negative values indicate flipped motif)
-  val starMotifIndex = Map((1, 1) -> 0, (2, 2) -> 1, (2, 1) -> 2, (1, 2) -> -2, (2, 0) -> 3, (0, 2) -> -3, (1, 0) -> 4,
-    (0, 1) -> -4, (0, 0) -> 5)
+  //  edge direction constants
+  val inoutEdge = 0
+  val outEdge = 1
+  val inEdge = 2
+  val noEdge = -1
 
-//  Mapping of star motif index and edge type of third edge to triangle motif index
-  val triangleMotifIndex = Map((0, 0) -> 8, (0, 1) -> 6, (0, 2) -> 6, (1, 0) -> 10, (1, 1) -> 6, (1, 2) -> 6,
-    (2, 0) -> 9, (-2, 0) -> 9, (2, 1) -> 6, (-2, 1) -> 7, (2, 2) -> 7, (-2, 2) -> 6, (3, 0) -> 11, (-3, 0) -> 11,
-    (3, 1) -> 8, (-3, 1) -> 9, (3, 2) -> 9, (-3, 2) -> 8, (4, 0) -> 11, (-4, 0) -> 11, (4, 1) -> 9, (-4, 1) -> 10,
-    (4, 2) -> 10, (-4, 2) -> 9, (5, 0) -> 12, (5, 1) -> 11, (5, 2) -> 11)
+  //  Mapping of edge type of left and right edge to star motif (negative values indicate flipped motif)
+  val starMotifIndex = Map((outEdge, outEdge) -> 0, (inEdge, inEdge) -> 1, (inEdge, outEdge) -> 2,
+    (outEdge, inEdge) -> -2, (inEdge, inoutEdge) -> 3, (inoutEdge, inEdge) -> -3, (outEdge, inoutEdge) -> 4,
+    (inoutEdge, outEdge) -> -4, (inoutEdge, inoutEdge) -> 5)
+
+  //  Mapping of star motif index and edge type of third edge to triangle motif index
+  val triangleMotifIndex = Map((0, inoutEdge) -> 8, (0, outEdge) -> 6, (0, inEdge) -> 6, (1, inoutEdge) -> 10,
+    (1, outEdge) -> 6, (1, inEdge) -> 6, (2, inoutEdge) -> 9, (-2, inoutEdge) -> 9, (2, outEdge) -> 6,
+    (-2, outEdge) -> 7, (2, inEdge) -> 7, (-2, inEdge) -> 6, (3, inoutEdge) -> 11, (-3, inoutEdge) -> 11,
+    (3, outEdge) -> 8, (-3, outEdge) -> 9, (3, inEdge) -> 9, (-3, inEdge) -> 8, (4, inoutEdge) -> 11,
+    (-4, inoutEdge) -> 11, (4, outEdge) -> 9, (-4, outEdge) -> 10, (4, inEdge) -> 10, (-4, inEdge) -> 9,
+    (5, inoutEdge) -> 12, (5, outEdge) -> 11, (5, inEdge) -> 11)
 
   def _getEdgeType(vertex: Vertex): Long => Int = {
     val outNeighbours = vertex.getOutNeighbours().toSet
     val inNeighbours = vertex.getInNeighbours().toSet
     vID => {
     if (outNeighbours.contains(vID) && inNeighbours.contains(vID)) {
-      0
+      inoutEdge
     } else if (outNeighbours.contains(vID)) {
-      1
+      outEdge
     } else if (inNeighbours.contains(vID)) {
-      2
+      inEdge
     } else {
-      -1
+      noEdge
     }
     }
   }
@@ -94,7 +103,7 @@ class ThreeNodeMotifs(output: String = "/tmp/ThreeNodeMotifs") extends GraphAlgo
 
         for ((source, second, mType) <- messages) {
           val eType = getEdgeType(second)
-          if (eType >= 0) {
+          if (eType != noEdge) {
 //            if connected, message source back with edge type
             vertex.messageVertex(source, (mType, eType))
           }
@@ -126,4 +135,6 @@ class ThreeNodeMotifs(output: String = "/tmp/ThreeNodeMotifs") extends GraphAlgo
 
 object ThreeNodeMotifs {
   def apply(output: String = "/tmp/ThreeNodeMotifs") = new ThreeNodeMotifs(output)
+
+
 }
