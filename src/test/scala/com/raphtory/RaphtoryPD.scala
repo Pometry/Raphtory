@@ -10,13 +10,12 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GenericGraphPerspectiv
 import com.rits.cloning.Cloner
 
 object RaphtoryPD {
-  def apply[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) : RaphtoryPD[T] =
-    new RaphtoryPD(spout, graphBuilder)
+  def apply[T](spout: Spout[T], graphBuilder: GraphBuilder[T], address: String = "127.0.0.1", port: Int = 1600) : RaphtoryPD[T] =
+    new RaphtoryPD(spout, graphBuilder, address, port)
 }
 
-class RaphtoryPD[T](spout: Spout[T], graphBuilder: GraphBuilder[T]) {
-  var port = 1600
-  val seedloc = "127.0.0.1:1600"
+class RaphtoryPD[T](spout: Spout[T], graphBuilder: GraphBuilder[T], address: String = "127.0.0.1", var port: Int = 1600) {
+  val seedloc = address + ":" + port
 
   val (watermarker,watchDog) = ComponentFactory.leader("127.0.0.1",port)
   val queryManager = ComponentFactory.query(seedloc,nextPort)
