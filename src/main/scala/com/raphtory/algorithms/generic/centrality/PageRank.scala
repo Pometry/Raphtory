@@ -1,4 +1,4 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
@@ -33,7 +33,7 @@ class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:Strin
         vertex.setState("prlabel", initLabel)
         val outDegree = vertex.getOutNeighbours().size
         if (outDegree > 0.0)
-          vertex.messageAllOutgoingNeighbors(initLabel / outDegree)
+          vertex.messageOutNeighbours(initLabel / outDegree)
     }).
       iterate({ vertex =>
         val vname = vertex.getPropertyOrElse("name", vertex.ID().toString) // for logging purposes
@@ -45,7 +45,7 @@ class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:Strin
 
         val outDegree = vertex.getOutNeighbours().size
         if (outDegree > 0) {
-          vertex.messageAllOutgoingNeighbors(newLabel / outDegree)
+          vertex.messageOutNeighbours(newLabel / outDegree)
         }
 
         if (Math.abs(newLabel - currentLabel) / currentLabel < 0.00001) {

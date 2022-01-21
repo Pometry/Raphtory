@@ -1,4 +1,4 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.temporal
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
@@ -18,7 +18,7 @@ class Descendants(path:String,
             .filter(e => e.firstActivityAfter(time).time < time + delta)
           edges.foreach({
             e =>
-              vertex.messageNeighbour(e.ID(), e.firstActivityAfter(time).time)
+              vertex.messageVertex(e.ID(), e.firstActivityAfter(time).time)
           })
           vertex.setState("descendant", false)
         }
@@ -33,7 +33,7 @@ class Descendants(path:String,
             .filter(e => e.firstActivityAfter(earliestTime).time < earliestTime + delta)
           outEdges.foreach({
             e =>
-              vertex.messageNeighbour(e.ID(), e.firstActivityAfter(earliestTime).time)
+              vertex.messageVertex(e.ID(), e.firstActivityAfter(earliestTime).time)
           })
       }, executeMessagedOnly = true, iterations = 100)
   }

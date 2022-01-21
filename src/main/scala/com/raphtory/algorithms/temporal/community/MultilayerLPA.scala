@@ -1,8 +1,9 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.temporal.community
+
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 import com.raphtory.core.model.graph.visitor.Vertex
 
-import scala.collection.mutable.{ListBuffer, Queue}
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 /**

@@ -1,4 +1,4 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.temporal
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
@@ -18,7 +18,7 @@ class Ancestors(path:String,
             .filter(e => e.lastActivityBefore(time).time > time - delta)
           edges.foreach({
             e =>
-              vertex.messageNeighbour(e.ID(), e.lastActivityBefore(time).time)
+              vertex.messageVertex(e.ID(), e.lastActivityBefore(time).time)
           })
           vertex.setState("ancestor", false)
         }
@@ -33,7 +33,7 @@ class Ancestors(path:String,
             .filter(e => e.lastActivityBefore(time).time > latestTime - delta)
           inEdges.foreach({
             e =>
-              vertex.messageNeighbour(e.ID(), e.lastActivityBefore(latestTime).time)
+              vertex.messageVertex(e.ID(), e.lastActivityBefore(latestTime).time)
           })
       }, executeMessagedOnly = true, iterations = 100)
   }

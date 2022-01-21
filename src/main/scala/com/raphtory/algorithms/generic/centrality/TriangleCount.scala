@@ -1,4 +1,4 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
@@ -43,7 +43,7 @@ class TriangleCount(path:String) extends GraphAlgorithm {
         val neighbours = vertex.getAllNeighbours().toSet
         neighbours.foreach({
           nb =>
-            vertex.messageNeighbour(nb, neighbours)
+            vertex.messageVertex(nb, neighbours)
         })
     })
   }
