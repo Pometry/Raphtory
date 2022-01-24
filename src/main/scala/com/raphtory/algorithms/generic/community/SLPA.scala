@@ -57,7 +57,7 @@ class SLPA(iterNumber: Int = 50,speakerRule:Rule, listenerRule:Rule, output:Stri
     graph.select({
       vertex =>
         val memory = vertex.getState[mutable.Queue[Long]]("memory")
-        Row(vertex.getPropertyOrElse("name", vertex.ID()), "[" + memory.mkString(" ") + "]")
+        Row(vertex.name(), "[" + memory.mkString(" ") + "]")
     })
   }
 

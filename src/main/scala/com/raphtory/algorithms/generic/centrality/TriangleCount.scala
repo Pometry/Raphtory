@@ -59,7 +59,7 @@ class TriangleCount(path:String) extends GraphAlgorithm {
             tri += nbs.intersect(neighbours).size
         )
         vertex.setState("triangles", tri / 2)
-        Row(vertex.getPropertyOrElse("name", vertex.ID()), vertex.getState[Int]("triangles"))
+        Row(vertex.name(), vertex.getState[Int]("triangles"))
     })
   }
 

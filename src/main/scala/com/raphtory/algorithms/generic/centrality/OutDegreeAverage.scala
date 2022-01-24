@@ -8,13 +8,12 @@ class OutDegreeAverage(output:String) extends GraphAlgorithm {
     graph
       .select({
         vertex =>
-          val id = vertex.ID()
           val sized =
             try vertex.getOutEdges().size.toDouble / nodeCount.toDouble
             catch {
               case _: ArithmeticException => 0
             }
-          Row(id, sized)
+          Row(vertex.name(), sized)
       })
   }
 

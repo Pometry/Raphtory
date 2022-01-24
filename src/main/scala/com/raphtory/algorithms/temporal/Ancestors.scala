@@ -39,7 +39,7 @@ class Ancestors(path:String,
   }
 
   override def tabularise(graph: GraphPerspective): Table = {
-    graph.select(vertex => Row(vertex.getPropertyOrElse("name", vertex.ID()), vertex.getStateOrElse[Boolean]("ancestor", false)))
+    graph.select(vertex => Row(vertex.name(), vertex.getStateOrElse[Boolean]("ancestor", false)))
   }
 
   override def write(table: Table): Unit = {

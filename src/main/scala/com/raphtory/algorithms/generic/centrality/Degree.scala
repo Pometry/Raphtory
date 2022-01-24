@@ -24,7 +24,7 @@ class Degree(path:String) extends GraphAlgorithm{
         val inDegree = vertex.getInNeighbours().size
         val outDegree = vertex.getOutNeighbours().size
         val totalDegree = vertex.getAllNeighbours().size
-        Row(vertex.getPropertyOrElse("name", vertex.ID()), inDegree, outDegree, totalDegree)
+        Row(vertex.name(), inDegree, outDegree, totalDegree)
     })
   }
 

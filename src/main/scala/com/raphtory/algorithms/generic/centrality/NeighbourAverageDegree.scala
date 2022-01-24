@@ -17,7 +17,7 @@ class NeighbourAverageDegree(path:String) extends GraphAlgorithm{
         val degrees = vertex.messageQueue[Int]
         val degree = vertex.getAllNeighbours().size
         val avgNeigh = if (degree > 0) degrees.sum.toFloat / degree else 0.0
-        Row(vertex.getPropertyOrElse("name", vertex.ID()), degree, avgNeigh)
+        Row(vertex.name(), degree, avgNeigh)
     })
   }
 

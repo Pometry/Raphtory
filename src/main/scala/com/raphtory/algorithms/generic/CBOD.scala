@@ -41,7 +41,7 @@ class CBOD(label: String = "label", cutoff: Double = 0.0, output: String = "/tmp
   override def tabularise(graph: GraphPerspective): Table = {
     graph.select { vertex =>
       Row(
-        vertex.ID(),
+        vertex.name(),
         vertex.getStateOrElse[Double]("outlierscore", 10.0)
       )
     }

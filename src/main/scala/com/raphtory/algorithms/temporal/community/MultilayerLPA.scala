@@ -136,7 +136,7 @@ class MultilayerLPA(
   override def tabularise(graph: GraphPerspective): Table = {
     graph.select { vertex =>
       Row(
-        vertex.getProperty("name").getOrElse(vertex.ID()).toString,
+        vertex.name(),
         vertex.getState("mlpalabel")
       )
     }

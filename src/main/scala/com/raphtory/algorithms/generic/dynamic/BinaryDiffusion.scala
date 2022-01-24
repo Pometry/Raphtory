@@ -31,7 +31,7 @@ class BinaryDiffusion(infectedNode:Long, seed:Long, outputFolder:String) extends
   }
 
   override def tabularise(graph: GraphPerspective): Table = {
-    graph.select(vertex => Row(vertex.ID(), vertex.getStateOrElse("infected", false)))
+    graph.select(vertex => Row(vertex.name(), vertex.getStateOrElse("infected", false)))
       .filter(row => row.get(1) == true)
   }
 
