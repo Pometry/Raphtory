@@ -17,8 +17,6 @@ class PojoExVertex(private val v: PojoVertex,
 
   override def ID() = v.vertexId
 
-  def name(nameProperty:String="name"): String = getPropertyOrElse(nameProperty,ID.toString)
-
   private val multiQueue: VertexMultiQueue = new VertexMultiQueue() //Map of queues for all ongoing processing
   private var computationValues: Map[String, Any] = Map.empty //Partial results kept between supersteps in calculation
 

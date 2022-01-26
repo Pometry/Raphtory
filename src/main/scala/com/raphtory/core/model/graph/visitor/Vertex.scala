@@ -7,7 +7,7 @@ import scala.reflect.ClassTag
 trait Vertex extends EntityVisitor {
 
   def ID():Long
-  def name(nameProperty:String="name"):String
+  def name(nameProperty:String="name"): String = getPropertyOrElse(nameProperty,ID.toString)
 
   //functionality for checking messages
   def hasMessage(): Boolean
