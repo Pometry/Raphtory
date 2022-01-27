@@ -70,7 +70,7 @@ class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour")
     graph.select(vertex =>
       Row(
         vertex.getStateOrElse("twoHopResponse", false),
-        vertex.ID(),
+        vertex.name(),
         vertex.getStateOrElse("twoHops", "")
       )
     )

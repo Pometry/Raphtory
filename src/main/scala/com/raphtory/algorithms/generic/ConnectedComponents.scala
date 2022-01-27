@@ -43,7 +43,7 @@ class ConnectedComponents(path:String) extends GraphAlgorithm{
   }
 
   override def tabularise(graph: GraphPerspective): Table = {
-    graph.select(vertex => Row(vertex.ID(), vertex.getState[Long]("cclabel")))
+    graph.select(vertex => Row(vertex.name(), vertex.getState[Long]("cclabel")))
   }
 
   override def write(table: Table): Unit = {

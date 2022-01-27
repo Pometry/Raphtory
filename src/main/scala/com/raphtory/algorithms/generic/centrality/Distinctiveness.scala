@@ -51,7 +51,7 @@ class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
         val D3c = D3(vertex, messages, N, alpha)
         val D4c = D4(vertex, messages, N, alpha)
         val D5c = D5(vertex, messages, N, alpha)
-        Row(vertex.getPropertyOrElse("name", vertex.ID()), D1c, D2c, D3c, D4c, D5c)
+        Row(vertex.name(), D1c, D2c, D3c, D4c, D5c)
     })
   }
 

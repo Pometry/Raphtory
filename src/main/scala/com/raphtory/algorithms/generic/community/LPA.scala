@@ -52,7 +52,7 @@ class LPA(top: Int= 0, weight: String= "", maxIter: Int = 500, seed:Long= -1, ou
 
       vertex =>
         Row(
-          vertex.ID(),
+          vertex.name(),
           vertex.getState("lpalabel"),
         )
     })

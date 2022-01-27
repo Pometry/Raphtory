@@ -122,7 +122,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[Long], stopNodes: Set[Lon
 
   override def tabularise(graph: GraphPerspective): Table = {
     graph.select(vertex => Row(
-      vertex.ID(),
+      vertex.name(),
       vertex.getStateOrElse("taintStatus", false),
       vertex.getStateOrElse[Any]("taintHistory", "false")
     ))

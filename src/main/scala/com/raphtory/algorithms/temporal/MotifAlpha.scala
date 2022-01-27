@@ -25,10 +25,10 @@ class MotifAlpha(fileOutput:String="/tmp/motif_alpha") extends GraphAlgorithm {
             val out = vertex.explodeInEdges()
               .map(inEdge => vertex.explodeOutEdges()
                 .filter(e => e.getTimestamp() > inEdge.getTimestamp() & e.dst() != inEdge.src() & e.dst() != inEdge.dst()).size).sum
-            Row(vertex.ID(), out)
+            Row(vertex.name(), out)
           }
           else {
-            Row(vertex.ID(), 0)
+            Row(vertex.name(), 0)
           }
       }
       )

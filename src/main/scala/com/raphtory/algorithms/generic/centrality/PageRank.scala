@@ -36,7 +36,7 @@ class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:Strin
           vertex.messageOutNeighbours(initLabel / outDegree)
     }).
       iterate({ vertex =>
-        val vname = vertex.getPropertyOrElse("name", vertex.ID().toString) // for logging purposes
+        val vname = vertex.name() // for logging purposes
         val currentLabel = vertex.getState[Double]("prlabel")
 
         val queue = vertex.messageQueue[Double]
@@ -58,7 +58,7 @@ class PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, output:Strin
     graph.select({
       vertex =>
         Row(
-          vertex.getPropertyOrElse("name", vertex.ID()),
+          vertex.name(),
           vertex.getStateOrElse("prlabel", -1)
         )
     })

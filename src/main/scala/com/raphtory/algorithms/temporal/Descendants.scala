@@ -39,7 +39,7 @@ class Descendants(path:String,
   }
 
   override def tabularise(graph: GraphPerspective): Table = {
-    graph.select(vertex => Row(vertex.getPropertyOrElse("name", vertex.ID()), vertex.getStateOrElse[Boolean]("descendant", false)))
+    graph.select(vertex => Row(vertex.name(), vertex.getStateOrElse[Boolean]("descendant", false)))
   }
 
   override def write(table: Table): Unit = {

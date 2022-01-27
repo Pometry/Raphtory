@@ -32,7 +32,7 @@ class WeightedDegree(weightProperty:String="weight",output:String = "/tmp/Weight
           .map(e => e.getPropertyOrElse(weightProperty, 1.0))
           .sum
         val totWeight = inWeight + outWeight
-        Row(vertex.getPropertyOrElse("name", vertex.ID()), inWeight, outWeight, totWeight)
+        Row(vertex.name(), inWeight, outWeight, totWeight)
     })
   }
 

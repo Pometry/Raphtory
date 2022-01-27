@@ -72,7 +72,7 @@ class WattsCascade(infectedSeed:Array[Long], UNIFORM_RANDOM:Int = 1, UNIFORM_SAM
   override def tabularise(graph: GraphPerspective): Table = {
     graph.select({ vertex =>
       Row(
-        vertex.ID,
+        vertex.name(),
         vertex.getPropertyOrElse[String]("name", "None"),
         vertex.getStateOrElse[Boolean]("infected", false))
     }

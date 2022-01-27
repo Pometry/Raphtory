@@ -43,7 +43,7 @@ class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, out
     graph.select({
       vertex =>
         Row(
-          vertex.getPropertyOrElse("name", vertex.ID()),
+          vertex.name(),
           vertex.getStateOrElse("prlabel", -1)
         )
     })
