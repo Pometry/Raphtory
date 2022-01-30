@@ -1,39 +1,55 @@
 package com.raphtory.algorithms.temporal
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 import com.raphtory.core.model.graph.visitor.Vertex
 /** This is a utility which constructs a multilayer network representation from a temporal network with edges between nodes
   * and their immediate future/past selves. */
 
-class MultilayerExplode(layers: List[Long],
-                        layerSize: Long,
-                        omega: Double = 1.0,
-                        weight: String="weight")
+class MultilayerExplode (path:String,
+  layers: List[Long],
+  layerSize: Long,
+  omega: Double = 1.0,
+  weight: String="weight")
   extends GraphAlgorithm{
 
   override def apply(graph: GraphPerspective): GraphPerspective = {
     graph.step { vertex =>
-      // Assign random labels for all instances in time of a vertex as Map(ts, lab)
       val tlabels =
         layers.filter(ts => vertex.aliveAt(ts, layerSize))
-          .map(ts => (ts, vertex.name()+ts.toString))
+          .groupBy(identity)
+          .mapValues(x => vertex.name()+x.head.toString)
       vertex.setState("multilabels", tlabels)
-      val message = tlabels.map(x => (x._1,x._2))
-        .groupBy(_._1)
-        .mapValues(v => v(0)._2)
-      vertex.messageOutNeighbours(message)
-    }.select({
+      vertex.messageAllNeighbours(vertex.ID(),tlabels)
+
+    }
+  }
+
+  override def tabularise(graph: GraphPerspective): Table = {
+    graph.select({
       vertex =>
-        val myLabs = vertex.getState[List[(Long,String)]]("multilabels")
-        val receivedLabs = vertex.messageQueue[(Long,List[(Long,String)])]
-        val interEdges = myLabs.sliding(2)
-          .map( e => (e(0)._2,e(1)._2))
-        val intraEdges = myLabs.map({
-          lab =>
+        val myLabs = vertex.getState[Map[Long,String]]("multilabels")
+        val receivedLabs = vertex.messageQueue[(Long, Map[Long,String])]
+        val interEdges = myLabs.collect {
+          case (ts, lab) if myLabs.contains(ts + layerSize) => (lab, lab, interLayerWeights(omega,vertex,ts))
+        }.toList
 
-        })
-
+        val intraEdges = receivedLabs.flatMap {
+          case (vID, labmap: Map[Long, String]) =>
+            labmap.collect { case (ts, lab) if myLabs.contains(ts) => (lab, myLabs.getOrElse(ts,""), vertex.getEdge(vID) match {
+              case Some(edge) => edge.getPropertyOrElse(weight,1.0f)
+              case None => 1.0f
+            } ) }
+        }
+        Row(vertex.name(), interEdges++intraEdges)
     })
+      .explode({
+        row => row.getAs[List[(String,String,Float)]](1)
+          .map({case (src,dst,wgt) => Row(src,dst,wgt)})
+      })
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(path)
   }
 
   def interLayerWeights(omega: Double, v: Vertex, ts: Long): Float =
@@ -50,4 +66,12 @@ class MultilayerExplode(layers: List[Long],
       .groupBy(_._1)
       .mapValues(x => x.map(_._2).sum / x.size) // (ID -> Freq)
 
+}
+
+object MultilayerExplode {
+  def apply (path:String,
+             layers: List[Long],
+             layerSize: Long,
+             omega: Double = 1.0,
+             weight: String="weight") = new MultilayerExplode(path,layers,layerSize,omega,weight)
 }
