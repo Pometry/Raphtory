@@ -2,11 +2,26 @@ package com.raphtory.algorithms.temporal
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 import com.raphtory.core.model.graph.visitor.Vertex
-/** This is a utility which constructs a multilayer network representation from a temporal network with edges between nodes
+/**
+  Description
+  * This is a utility which constructs a multilayer network representation from a temporal network with edges between nodes
   * and their immediate future/past selves. Copies are made of each node corresponding to the snapshots in which it is present
-  * and edges of weight omega are added between a node and the copy of itself in the next layer (if present) */
+  * and edges of weight omega are added between a node and the copy of itself in the next layer (if present)
 
-class MultilayerExplode (path:String,
+  Parameters
+    path (String) : output directory for the graph file (default /tmp/mlexplode)
+    layers (List[Long]) : list of layer timestamps
+    layerSize (Long) : size of each layer -- each snapshot will include edges between layer - layersize and layer for
+                        each layer in the layers list
+    omega (Float) : weight given to edges between copies of a node in consecutive layers, default 1.0. If this param is set to -1, the
+                  weight becomes the average weight of that node in the previous layer
+    weight (String) : String property to use for weight, if it exists. The default is "weight".
+
+  Returns
+  Edgelist of new graph. Node names are of the form "original_name"+layer_timestamp
+    src (string), dst (string), weight (float)*/
+
+class MultilayerExplode (path:String="/tmp/mlexplode",
   layers: List[Long],
   layerSize: Long,
   omega: Float = 1.0f,
@@ -82,7 +97,7 @@ class MultilayerExplode (path:String,
 }
 
 object MultilayerExplode {
-  def apply (path:String,
+  def apply (path:String="/tmp/mlexplode",
              layers: List[Long],
              layerSize: Long,
              omega: Float = 1.0f,
