@@ -1,8 +1,10 @@
 package com.raphtory.core.model.graph.visitor
 
-
+import com.raphtory.core.model.algorithm.MergeStrategy
 
 import scala.reflect.ClassTag
+import com.raphtory.core.model.algorithm.MergeStrategy._
+import com.raphtory.core.model.graph.visitor.EdgeDirection.Direction
 
 trait Vertex extends EntityVisitor {
 
@@ -49,6 +51,38 @@ trait Vertex extends EntityVisitor {
   //individual in edge
   def explodeInEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[List[ExplodedEdge]]
 
+  // weight
+  private def directedEdgeWeight(dir : Direction = EdgeDirection.Incoming, weightString : String="weight", mergeStrategy : Merge = MergeStrategy.Sum) : Float = {
+    val eWeights = ( dir match {
+      case EdgeDirection.Incoming =>
+        getInEdges()
+      case EdgeDirection.Outgoing =>
+        getOutEdges()
+      case EdgeDirection.Both =>
+        getEdges()
+    })
+      .map(e=>e.weightOrHistory(weightString))
+    mergeStrategy match {
+      case MergeStrategy.Sum => eWeights.sum
+      case MergeStrategy.Max => eWeights.max
+      case MergeStrategy.Min => eWeights.min
+      case MergeStrategy.Product => eWeights.product
+      case _ => 0.0f
+    }
+  }
+  def inWeight(weightString : String="weight", mergeStrategy : Merge = MergeStrategy.Sum) : Float = {
+    directedEdgeWeight(EdgeDirection.Incoming,weightString,mergeStrategy)
+  }
+  def outWeight(weightString : String="weight", mergeStrategy : Merge = MergeStrategy.Sum) : Float = {
+    directedEdgeWeight(EdgeDirection.Outgoing,weightString,mergeStrategy)
+  }
+  def totWeight(weightString : String="weight", mergeStrategy : Merge = MergeStrategy.Sum) : Float = {
+    mergeStrategy match {
+      case MergeStrategy.Difference => directedEdgeWeight(EdgeDirection.Incoming,weightString,MergeStrategy.Sum)
+        - directedEdgeWeight(EdgeDirection.Outgoing,weightString,MergeStrategy.Sum)
+      case _ => directedEdgeWeight(EdgeDirection.Both, weightString, mergeStrategy)
+    }
+  }
 
   // analytical state
   def setState(key: String, value: Any): Unit

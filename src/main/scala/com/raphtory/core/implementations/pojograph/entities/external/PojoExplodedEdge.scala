@@ -2,6 +2,8 @@ package com.raphtory.core.implementations.pojograph.entities.external
 
 import com.raphtory.core.model.graph.visitor.ExplodedEdge
 
+import scala.reflect.ClassTag
+
 class PojoExplodedEdge(objectEdge: PojoExEdge, timestamp:Long) extends ExplodedEdge{
 
   override def Type(): Unit =
@@ -19,7 +21,7 @@ class PojoExplodedEdge(objectEdge: PojoExEdge, timestamp:Long) extends ExplodedE
   override def getPropertySet(): List[String] =
     objectEdge.getPropertySet()
 
-  override def getPropertyValue(key: String): Option[Any] =
+  override def getPropertyValue[T: ClassTag](key: String): Option[T] =
     objectEdge.getPropertyAt(key,timestamp)
 
   override def send(data: Any): Unit =

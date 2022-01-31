@@ -25,12 +25,8 @@ class WeightedDegree(weightProperty:String="weight",output:String = "/tmp/Weight
   override def tabularise(graph: GraphPerspective): Table = {
     graph.select({
       vertex =>
-        val inWeight = vertex.getInEdges()
-          .map(e => e.getPropertyOrElse(weightProperty, 1.0))
-          .sum
-        val outWeight = vertex.getOutEdges()
-          .map(e => e.getPropertyOrElse(weightProperty, 1.0))
-          .sum
+        val inWeight = vertex.inWeight(weightString = weightProperty)
+        val outWeight = vertex.outWeight(weightString = weightProperty)
         val totWeight = inWeight + outWeight
         Row(vertex.name(), inWeight, outWeight, totWeight)
     })

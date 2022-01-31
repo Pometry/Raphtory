@@ -25,3 +25,8 @@ abstract class EntityVisitor {
   def aliveAt(time: Long, window: Long=Long.MaxValue): Boolean
 }
 case class HistoricEvent(time:Long,event:Boolean)
+
+object EdgeDirection extends Enumeration {
+  type Direction = Value
+  val Incoming, Outgoing, Both = Value
+}

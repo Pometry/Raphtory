@@ -9,28 +9,24 @@ class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, out
       vertex =>
         val initLabel = 1.0F
         vertex.setState("prlabel", initLabel)
-        val outWeight = vertex.getOutEdges()
-          .map(e => e.getPropertyOrElse("weight", e.history().size))
-          .sum
+        val outWeight = vertex.outWeight()
         vertex.getOutEdges().foreach({
           e =>
-            vertex.messageVertex(e.ID, e.getPropertyOrElse("weight", e.history().size).toFloat / outWeight)
+            vertex.messageVertex(e.ID, e.weightOrHistory() / outWeight)
         })
     })
       .iterate({ vertex =>
-        val vname = vertex.getPropertyOrElse("name", vertex.ID().toString) // for logging purposes
+        val vname = vertex.name() // for logging purposes
         val currentLabel = vertex.getState[Float]("prlabel")
 
         val queue = vertex.messageQueue[Float]
         val newLabel = (1 - dampingFactor) + dampingFactor * queue.sum
         vertex.setState("prlabel", newLabel)
 
-        val outWeight = vertex.getOutEdges()
-          .map(e => e.getPropertyOrElse("weight", e.history().size))
-          .sum
+        val outWeight = vertex.outWeight()
         vertex.getOutEdges().foreach({
           e =>
-            vertex.messageVertex(e.ID, newLabel * e.getPropertyOrElse("weight", e.history().size).toFloat / outWeight)
+            vertex.messageVertex(e.ID, newLabel * e.weightOrHistory()/ outWeight)
         })
 
         if (Math.abs(newLabel - currentLabel) / currentLabel < 0.00001) {
