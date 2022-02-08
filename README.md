@@ -7,7 +7,10 @@
 [![Latest Tag](https://img.shields.io/github/v/tag/Raphtory/Raphtory?include_prereleases&sort=semver&color=brightgreen)](https://github.com/Raphtory/Raphtory/tags)
 [![Latest Release](https://img.shields.io/github/v/release/Raphtory/Raphtory?color=brightgreen&include_prereleases&sort=semver)](https://github.com/Raphtory/Raphtory/releases)
 
-Raphtory is an open-source platform for distributed real-time temporal graph analytics, allowing you to load and process large dynamic datsets across time. If you would like a brief summary of what its used for before fully diving into the getting start guide please check out this [article](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs) from the Alan Turing Institute first!
+Raphtory is an open-source platform for distributed real-time temporal graph analytics, allowing you to load and process large dynamic datsets across time. If you would like a brief summary of what its used for before fully diving into the getting started guide please check out this [article](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs) from the Alan Turing Institute first!
+
+## 0.5.0 - Alpha
+We are just putting the final touches to a brand new version of Raphtory which has been completely rebuilt to run on top of Apache Pulsar. This has fixed a number of issues faced in prior versions, notably around message back pressure, and introduces many exciting features including integration with Jupyter. If you would like to try this version prior to the full open source release the jar for this is available [here](https://github.com/Raphtory/Raphtory/releases/tag/0.5.0-alpha) and new documentation is available on [ReadTheDocs](https://raphtory.readthedocs.io/).
 
 ## Table of Contents
 - [Getting started](#getting-started)
