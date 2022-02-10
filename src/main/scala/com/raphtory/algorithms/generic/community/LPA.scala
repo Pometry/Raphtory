@@ -69,7 +69,7 @@ object LPA{
   def lpa(vertex: Vertex, weight: String, SP: Double, rnd:Random): Unit = {
     val vlabel = vertex.getState[Long]("lpalabel")
     val vneigh = vertex.getEdges()
-    val neigh_freq = vneigh.map { e => (e.ID(), e.weightOrHistory()) }
+    val neigh_freq = vneigh.map { e => (e.ID(), e.totalWeight(weightProperty=weight)) }
       .groupBy(_._1)
       .mapValues(x => x.map(_._2).sum)
     // Process neighbour labels into (label, frequency)

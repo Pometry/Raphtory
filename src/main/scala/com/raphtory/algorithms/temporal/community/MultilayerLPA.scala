@@ -58,7 +58,7 @@ class MultilayerLPA(
 
     def weightFunction(v: Vertex, ts: Long): Map[Long, Float] =
       (v.getInEdges(after = ts - layerSize, before = ts) ++ v.getOutEdges(after = ts - layerSize, before = ts))
-        .map(e => (e.ID(), e.weightOrHistory()))
+        .map(e => (e.ID(), e.totalWeight(default = 1.0f)))
         .groupBy(_._1)
         .mapValues(x => x.map(_._2).sum / x.size) // (ID -> Freq)
 

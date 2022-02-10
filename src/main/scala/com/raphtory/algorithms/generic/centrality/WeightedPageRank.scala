@@ -2,7 +2,7 @@ package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
-class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, output:String = "/tmp/PageRank") extends  GraphAlgorithm{
+class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, output:String = "/tmp/PageRank",weightProperty:String="weight") extends  GraphAlgorithm{
 
   override def apply(graph: GraphPerspective): GraphPerspective = {
     graph.step({
@@ -12,7 +12,7 @@ class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, out
         val outWeight = vertex.outWeight()
         vertex.getOutEdges().foreach({
           e =>
-            vertex.messageVertex(e.ID, e.weightOrHistory() / outWeight)
+            vertex.messageVertex(e.ID, e.totalWeight(weightProperty=weightProperty) / outWeight)
         })
     })
       .iterate({ vertex =>
@@ -23,10 +23,10 @@ class WeightedPageRank (dampingFactor:Float = 0.85F, iterateSteps:Int = 100, out
         val newLabel = (1 - dampingFactor) + dampingFactor * queue.sum
         vertex.setState("prlabel", newLabel)
 
-        val outWeight = vertex.outWeight()
+        val outWeight = vertex.outWeight(weightProperty = weightProperty)
         vertex.getOutEdges().foreach({
           e =>
-            vertex.messageVertex(e.ID, newLabel * e.weightOrHistory()/ outWeight)
+            vertex.messageVertex(e.ID, newLabel * e.totalWeight(weightProperty=weightProperty)/ outWeight)
         })
 
         if (Math.abs(newLabel - currentLabel) / currentLabel < 0.00001) {

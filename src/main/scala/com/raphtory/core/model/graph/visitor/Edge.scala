@@ -1,5 +1,8 @@
 package com.raphtory.core.model.graph.visitor
 
+import com.raphtory.core.model.algorithm.MergeStrategy.Merge
+import com.raphtory.core.model.algorithm.{EdgeMergeStrategy, MergeStrategy}
+
 trait Edge extends EntityVisitor {
 
   //information about the edge meta data
@@ -7,11 +10,26 @@ trait Edge extends EntityVisitor {
   def src():Long
   def dst():Long
   def explode():List[ExplodedEdge]
-  def weightOrHistory(weight : String="weight") : Float = {
-    explode().map({
-      e =>
-        e.getPropertyValue[Float](weight).getOrElse(1.0f)
-    }).sum
+  def totalWeight(strategy: Merge = MergeStrategy.Sum, weightProperty:String="weight", default:Float=1.0f): Float = {
+    strategy match {
+      case MergeStrategy.Sum =>
+        EdgeMergeStrategy.sumMerge(this,weightProperty,default)
+      case MergeStrategy.Max =>
+        EdgeMergeStrategy.maxMerge(this,weightProperty,default)
+      case MergeStrategy.Min =>
+        EdgeMergeStrategy.minMerge(this,weightProperty,default)
+      case MergeStrategy.Product =>
+        EdgeMergeStrategy.productMerge(this,weightProperty,default)
+      case MergeStrategy.Average =>
+        EdgeMergeStrategy.avgMerge(this,weightProperty,default)
+      case MergeStrategy.Latest =>
+        EdgeMergeStrategy.latestMerge(this,weightProperty,default)
+      case MergeStrategy.Earliest =>
+        EdgeMergeStrategy.earliestMerge(this,weightProperty, default)
+    }
+  }
+  def totalWeight(f:Edge=>Float) : Float = {
+      EdgeMergeStrategy.customMerge(this,f)
   }
 
   //send a message to the vertex on the other end of the edge

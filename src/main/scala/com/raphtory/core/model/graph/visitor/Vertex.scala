@@ -52,7 +52,9 @@ trait Vertex extends EntityVisitor {
   def explodeInEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[List[ExplodedEdge]]
 
   // weight
-  private def directedEdgeWeight(dir : Direction = EdgeDirection.Incoming, weightString : String="weight", mergeStrategy : Merge = MergeStrategy.Sum) : Float = {
+  private def directedEdgeWeight(dir : Direction = EdgeDirection.Incoming, weightProperty : String="weight",
+                                 edgeMergeStrategy : Merge = MergeStrategy.Sum, vertexMergeStrategy: Merge=MergeStrategy.Sum,
+                                 defaultWeight:Float=1.0f) : Float = {
     val eWeights = ( dir match {
       case EdgeDirection.Incoming =>
         getInEdges()
@@ -61,27 +63,40 @@ trait Vertex extends EntityVisitor {
       case EdgeDirection.Both =>
         getEdges()
     })
-      .map(e=>e.weightOrHistory(weightString))
-    mergeStrategy match {
-      case MergeStrategy.Sum => eWeights.sum
-      case MergeStrategy.Max => eWeights.max
-      case MergeStrategy.Min => eWeights.min
-      case MergeStrategy.Product => eWeights.product
-      case _ => 0.0f
+      .map(e=>(e, e.totalWeight(edgeMergeStrategy, weightProperty, defaultWeight)))
+    vertexMergeStrategy match {
+      case MergeStrategy.Sum =>
+        eWeights.map(_._2).sum
+      case MergeStrategy.Min =>
+        eWeights.map(_._2).min
+      case MergeStrategy.Max =>
+        eWeights.map(_._2).max
+      case MergeStrategy.Product =>
+        eWeights.map(_._2).product
+      case MergeStrategy.Average =>
+        val wgts = eWeights.map(_._2)
+        if (wgts.nonEmpty) wgts.sum/wgts.size else 0.0f
+      case MergeStrategy.Earliest =>
+        eWeights.minBy(x => x._1.latestActivity().time)._2
+      case MergeStrategy.Latest =>
+        eWeights.maxBy(x => x._1.latestActivity().time)._2
     }
   }
-  def inWeight(weightString : String="weight", mergeStrategy : Merge = MergeStrategy.Sum) : Float = {
-    directedEdgeWeight(EdgeDirection.Incoming,weightString,mergeStrategy)
+
+  def inWeight(weightProperty : String="weight", edgeMergeStrategy : Merge = MergeStrategy.Sum,
+               vertexMergeStrategy : Merge = MergeStrategy.Sum, defaultWeight:Float=1.0f) : Float = {
+    directedEdgeWeight(EdgeDirection.Incoming,weightProperty,edgeMergeStrategy, vertexMergeStrategy, defaultWeight)
   }
-  def outWeight(weightString : String="weight", mergeStrategy : Merge = MergeStrategy.Sum) : Float = {
-    directedEdgeWeight(EdgeDirection.Outgoing,weightString,mergeStrategy)
+  def outWeight(weightProperty : String="weight", edgeMergeStrategy : Merge = MergeStrategy.Sum,
+                vertexMergeStrategy : Merge = MergeStrategy.Sum, defaultWeight:Float=1.0f) : Float = {
+    directedEdgeWeight(EdgeDirection.Outgoing,weightProperty,edgeMergeStrategy, vertexMergeStrategy, defaultWeight)
   }
-  def totWeight(weightString : String="weight", mergeStrategy : Merge = MergeStrategy.Sum) : Float = {
-    mergeStrategy match {
-      case MergeStrategy.Difference => directedEdgeWeight(EdgeDirection.Incoming,weightString,MergeStrategy.Sum)
-        - directedEdgeWeight(EdgeDirection.Outgoing,weightString,MergeStrategy.Sum)
-      case _ => directedEdgeWeight(EdgeDirection.Both, weightString, mergeStrategy)
-    }
+  def totWeight(weightProperty : String="weight", edgeMergeStrategy : Merge = MergeStrategy.Sum,
+                vertexMergeStrategy : Merge = MergeStrategy.Sum, defaultWeight:Float=1.0f)  : Float = {
+    directedEdgeWeight(EdgeDirection.Both,weightProperty,edgeMergeStrategy, vertexMergeStrategy, defaultWeight)
+  }
+  def weightBalance(weightProperty:String="weight", defaultWeight:Float=1.0f) : Float = {
+    inWeight(weightProperty, defaultWeight = defaultWeight) - outWeight(weightProperty, defaultWeight = defaultWeight)
   }
 
   // analytical state

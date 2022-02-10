@@ -33,7 +33,7 @@ class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
         val degree = edges.size
 
         // sum of edge weights each exponentiated by alpha, purely for D3 & D4
-        val weight = edges.map(e => pow(e.weightOrHistory(), alpha)).sum
+        val weight = edges.map(e => pow(e.totalWeight(default = 1.0f), alpha)).sum
         // sum of edge weights, purely for D3
         val nodeWeight = vertex.totWeight().toDouble
 
@@ -63,7 +63,7 @@ class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
     messages.map({
       case(id, degree, _, _) =>
         val edge = vertex.getEdge(id).head
-        val edgeWeight = edge.weightOrHistory().toDouble
+        val edgeWeight = edge.totalWeight(default = 1.0f).toDouble
         edgeWeight*(log10(noNodes-1) - alpha*log10(degree))
     }).sum
   }
@@ -79,7 +79,7 @@ class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
     messages.map({
       case(id, _, nodePowerWeight, nodeSumWeight) =>
         val edge = vertex.getEdge(id).head
-        val edgeWeight = edge.weightOrHistory().toDouble
+        val edgeWeight = edge.totalWeight(default = 1.0f).toDouble
         edgeWeight * (log10(nodeSumWeight/2.0) - log10(nodePowerWeight - pow(edgeWeight,alpha)+1))
     }).sum
   }
@@ -88,7 +88,7 @@ class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
     messages.map({
       case(id, _, nodePowerWeight, _) =>
         val edge = vertex.getEdge(id).head
-        val edgeWeight = edge.weightOrHistory()
+        val edgeWeight = edge.totalWeight(default = 1.0f)
         pow(edgeWeight,alpha + 1)/nodePowerWeight
     }).sum
   }
