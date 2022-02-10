@@ -66,20 +66,22 @@ trait Vertex extends EntityVisitor {
       .map(e=>(e, e.totalWeight(edgeMergeStrategy, weightProperty, defaultWeight)))
     vertexMergeStrategy match {
       case MergeStrategy.Sum =>
-        eWeights.map(_._2).sum
+        eWeights.map{case (edge, weight) => weight}.sum
       case MergeStrategy.Min =>
-        eWeights.map(_._2).min
+        eWeights.map{case (edge, weight) => weight}.min
       case MergeStrategy.Max =>
-        eWeights.map(_._2).max
+        eWeights.map{case (edge, weight) => weight}.max
       case MergeStrategy.Product =>
-        eWeights.map(_._2).product
+        eWeights.map{case (edge, weight) => weight}.product
       case MergeStrategy.Average =>
-        val wgts = eWeights.map(_._2)
+        val wgts = eWeights.map{case (edge, weight) => weight}
         if (wgts.nonEmpty) wgts.sum/wgts.size else 0.0f
       case MergeStrategy.Earliest =>
-        eWeights.minBy(x => x._1.latestActivity().time)._2
+        val (earliestEdge, earliestWeight) = eWeights.minBy{case (edge, weight) => edge.latestActivity().time}
+        earliestWeight
       case MergeStrategy.Latest =>
-        eWeights.maxBy(x => x._1.latestActivity().time)._2
+        val (latestEdge, latestWeight) = eWeights.maxBy{case (edge, weight) => edge.latestActivity().time}
+        latestWeight
     }
   }
 
@@ -91,8 +93,8 @@ trait Vertex extends EntityVisitor {
                 vertexMergeStrategy : Merge = MergeStrategy.Sum, defaultWeight:Float=1.0f) : Float = {
     directedEdgeWeight(EdgeDirection.Outgoing,weightProperty,edgeMergeStrategy, vertexMergeStrategy, defaultWeight)
   }
-  def totWeight(weightProperty : String="weight", edgeMergeStrategy : Merge = MergeStrategy.Sum,
-                vertexMergeStrategy : Merge = MergeStrategy.Sum, defaultWeight:Float=1.0f)  : Float = {
+  def totalWeight(weightProperty : String="weight", edgeMergeStrategy : Merge = MergeStrategy.Sum,
+                  vertexMergeStrategy : Merge = MergeStrategy.Sum, defaultWeight:Float=1.0f)  : Float = {
     directedEdgeWeight(EdgeDirection.Both,weightProperty,edgeMergeStrategy, vertexMergeStrategy, defaultWeight)
   }
   def weightBalance(weightProperty:String="weight", defaultWeight:Float=1.0f) : Float = {

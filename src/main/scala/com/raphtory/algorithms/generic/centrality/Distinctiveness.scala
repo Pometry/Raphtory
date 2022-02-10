@@ -35,7 +35,7 @@ class Distinctiveness(path:String, alpha:Double=1.0) extends GraphAlgorithm{
         // sum of edge weights each exponentiated by alpha, purely for D3 & D4
         val weight = edges.map(e => pow(e.totalWeight(default = 1.0f), alpha)).sum
         // sum of edge weights, purely for D3
-        val nodeWeight = vertex.totWeight().toDouble
+        val nodeWeight = vertex.totalWeight().toDouble
 
         vertex.messageAllNeighbours(vertex.ID(), degree, weight, nodeWeight)
     })
