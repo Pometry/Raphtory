@@ -1,0 +1,302 @@
+#!/bin/bash
+
+function usage {
+  cat <<USAGE
+Usage: $0 [options]
+
+Options:
+
+  -d deployment_type        Deployment type. (required)
+                        
+      Deployment types:
+        machine  (Install and run as java process on current machine)
+        docker   (Run on local machine as docker container. Requires docker to be running on local machine)
+        minikube (Run on locally deployed minikube cluster. Requres running minikube cluster)
+
+  -a action                 Action to run. (required)
+
+      Actions for 'machine' deployment type:
+        install
+        install-connectors
+        start
+        stop
+
+      Actions for 'docker' deployment type:
+        start
+        stop
+        logs
+
+      Actions for 'minikube' deployment type:
+        start
+        stop
+
+  -v pulsar version        Version of pulsar to install and use.
+                           Default is set to "2.9.0"
+
+  -p pulsar install path   Path to install location for pulsar binaries.
+                           Must have write and execute permissions for the specified directory
+                           Default set to /usr/local/bin
+                           (use with machine deployment_type)
+
+  -m minikube context      Name of minikube cluster context (required when using 'minikube' action)
+                           To see available contexts, run 'kubectl config get-contexts -o name'
+
+  -q quiet mode            Will suppress logging to terminal where possible
+
+USAGE
+  exit 1
+}
+
+PULSAR_INSTALL_PATH=/usr/local/bin
+PULSAR_VERSION=2.9.0
+PULSAR_HELM_CHART_VERSION=2.7.10
+
+while getopts a:d:v:p:m:q opt
+do
+ case "${opt}" in
+   a) ACTION=${OPTARG};;
+   d) DEPLOYMENT_TYPE=${OPTARG};;
+   v) PULSAR_VERSION=${OPTARG};;
+   p) PULSAR_INSTALL_PATH=${OPTARG};;
+   m) PULSAR_LOCAL_MINIKUBE_CONTEXT=${OPTARG};;
+   q) QUIET="true";;
+   *) usage;;
+ esac
+done
+
+# For helm install, set version to 2.7.4 untill the below issues with helm 2.9.0 are resolved by pulsar team
+# https://github.com/apache/pulsar-helm-chart/issues/188
+# https://github.com/apache/pulsar-helm-chart/issues/190
+[[ $DEPLOYMENT_TYPE -eq "minikube" ]] && PULSAR_VERSION=2.7.4
+
+PULSAR_BIN_PATH="${PULSAR_INSTALL_PATH}/apache-pulsar-${PULSAR_VERSION}"
+PULSAR_CONNECTORS_PATH="${PULSAR_BIN_PATH}/connectors"
+
+machine_binary_install () {
+  echo "Installing pulsar local machine binaries"
+  [ ! -d $PULSAR_INSTALL_PATH ] && echo "Install path '${PULSAR_INSTALL_PATH}' does not exist, cannot install pulsar binaries" && exit 1
+
+  if [ ! -d $PULSAR_BIN_PATH ]; then
+    [ ! -f apache-pulsar-${PULSAR_VERSION}-bin.tar.gz ] && \
+    cd $PULSAR_INSTALL_PATH && \
+    curl -L "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${PULSAR_VERSION}/apache-pulsar-${PULSAR_VERSION}-bin.tar.gz" | tar -xz
+  else
+    echo "Pulsar binaries already installed at '${PULSAR_INSTALL_PATH}/apache-pulsar-${PULSAR_VERSION}'"
+  fi
+}
+
+machine_file_connector_install () {
+  echo "Installing pulsar local machine file connector"
+  [ ! -d $PULSAR_INSTALL_PATH ] && echo "Install path '${PULSAR_INSTALL_PATH}' does not exist, cannot install pulsar connectors" && exit 1
+  [ ! -d $PULSAR_CONNECTORS_PATH ] && mkdir $PULSAR_CONNECTORS_PATH
+  if [ ! -f $PULSAR_CONNECTORS_PATH/pulsar-io-file-${PULSAR_VERSION}.nar ]; then
+    curl -L "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${PULSAR_VERSION}/connectors/pulsar-io-file-${PULSAR_VERSION}.nar" --output ${PULSAR_CONNECTORS_PATH}/pulsar-io-file-${PULSAR_VERSION}.nar
+  else
+   echo "Pulsar file connector is already installed at '${PULSAR_CONNECTORS_PATH}/pulsar-io-file-${PULSAR_VERSION}.nar'"
+  fi
+}
+
+machine_start () {
+  echo "Starting pulsar local machine"
+  [ ! -d $PULSAR_INSTALL_PATH ] && echo "Install path '${PULSAR_INSTALL_PATH}' does not exist, cannot start pulsar" && exit 1
+
+  if [[ "$QUIET" == "true" ]]; then
+    ${PULSAR_BIN_PATH}/bin/pulsar standalone > /dev/null 2>&1 &
+  else
+    ${PULSAR_BIN_PATH}/bin/pulsar standalone &
+  fi
+}
+
+machine_stop () {
+  echo "Stopping pulsar local machine"
+  kill $(ps -ef |grep "apache-pulsar-${PULSAR_VERSION}"|grep -v grep|awk '{print $2}')
+}
+
+docker_start () {
+  echo "Starting pulsar docker"
+  docker run -d --name pulsar-$PULSAR_VERSION\
+  -p 6650:6650  \
+  -p 8080:8080 \
+  -p 2181:2181 \
+  --mount source=pulsardata,target=/pulsar/data \
+  --mount source=pulsarconf,target=/pulsar/conf \
+  apachepulsar/pulsar-all:${PULSAR_VERSION} \
+  bin/pulsar standalone --advertised-address localhost 2>&1 > /dev/null
+}
+
+docker_stop () {
+  echo "Stopping pulsar docker"
+  docker stop pulsar-${PULSAR_VERSION} 2>&1 > /dev/null
+  docker rm pulsar-${PULSAR_VERSION} 2>&1 > /dev/null
+}
+
+docker_logs () {
+  echo "Getting pulsar docker logs"
+  docker logs pulsar-${PULSAR_VERSION}
+}
+
+rosetta_check () {
+  if [[ $(sysctl -n machdep.cpu.brand_string) =~ "M1" ]]; then
+     echo "M1 Chip detected. Checking if rosetta is installed"
+     if [ $(lsbom -f /Library/Apple/System/Library/Receipts/com.apple.pkg.RosettaUpdateAuto.bom|wc -l) -lt 3 ]; then
+       echo "Rosetta install not detected. Installing rosetta" && softwareupdate --install-rosetta --agree-to-license
+     else
+       echo "Rosetta already installed"
+     fi
+  fi
+}
+
+java_checks () {
+  echo "Checking that java zulu 11 fx version is installed"
+  if java --version|grep "OpenJDK Runtime Environment Zulu11"|wc -l 2>&1 > /dev/null && [[ -f $JAVA_HOME/lib/javafx.properties ]]; then
+    echo "Java Zulu11 FX version is installed"
+  else
+    echo "Java Zulu11 FX version is not installed"
+    echo "Please install Java Zulu11 FX version and ensure that JAVA_HOME environment variable is pointing to the installed version"
+    exit 1
+  fi
+}
+
+
+minikube_dependency_checks () {
+  declare -a errors=()
+  echo "Checking minikube dependencies"
+  # Check context has been passed and that context exists in kubectl config
+  if [ -z $PULSAR_LOCAL_MINIKUBE_CONTEXT ];
+  then
+    errors+=('Error: Context not passed in when running script.')
+  else
+    kubectl config get-contexts -o name|grep $PULSAR_LOCAL_MINIKUBE_CONTEXT > /dev/null 2>&1 || \
+    errors+=('Error: Provided context not found in kubectl config')
+  fi
+  # Check kubectl exists
+  kubectl > /dev/null 2>&1 || \
+    errors+=('Error: kubectl not installed or is not accessible from PATH')
+  # Check helm exists
+  helm > /dev/null 2>&1 || \
+    errors+=('Error: helm not installed or is not accessible from PATH')
+
+  [[ ${#errors[@]} > 0 ]] && printf "%s\n" "${errors[@]}" && echo "" && usage && exit 1
+  echo "Minikube dependencies passed"
+}
+
+minikube_existing_check () {
+  echo "Checking for existing pulsar deployment"
+  helm list -n pulsar|grep pulsar-${PULSAR_HELM_CHART_VERSION} >/dev/null && \
+    echo "Error: Pulsar deployment exists" &&
+    usage && \
+    exit 1
+}
+
+minikube_start () {
+  echo "Setting kube context"
+  kubectl config use-context $PULSAR_LOCAL_MINIKUBE_CONTEXT
+  echo "Adding helm repo"
+  helm repo add apache https://pulsar.apache.org/charts
+  helm repo update
+  echo "Installing pulsar helm chart"
+  helm install -n pulsar pulsar apache/pulsar\
+    --version=${PULSAR_HELM_CHART_VERSION} \
+    --create-namespace \
+    --set initialize=true \
+    --set volumes.persistence=false \
+    --set affinity.anti_affinity=false \
+    --set components.autorecovery=false \
+    --set components.pulsar_manager=false \
+    --set zookeeper.replicaCount=1 \
+    --set bookkeeper.replicaCount=1 \
+    --set proxy.replicaCount=1 \
+    --set broker.replicaCount=1 \
+    --set-string broker.configData.autoSkipNonRecoverableData="true" \
+    --set-string broker.configData.managedLedgerDefaultWriteQuorum="1" \
+    --set-string broker.configData.managedLedgerDefaultAckQuorum="1" \
+    --set-string broker.configData.managedLedgerDefaultEnsembleSize="1" \
+    --set monitoring.prometheus=false \
+    --set monitoring.grafana=false \
+    --set images.zookeeper.tag=$PULSAR_VERSION \
+    --set images.bookie.tag=$PULSAR_VERSION \
+    --set images.autorecovery.tag=$PULSAR_VERSION \
+    --set images.broker.tag=$PULSAR_VERSION \
+    --set images.proxy.tag=$PULSAR_VERSION \
+    --set images.functions.tag=$PULSAR_VERSION
+
+  echo "Waiting 5 minutes to allow services to start"
+  sleep 300
+
+  echo "Forwarding ports"
+  kubectl port-forward service/pulsar-broker --namespace pulsar 6650:6650 &
+  kubectl port-forward service/pulsar-broker --namespace pulsar 8080:8080 &
+  kubectl port-forward service/pulsar-zookeeper --namespace pulsar 2181:2181 &
+  echo "Ports forwarded"
+}
+
+minikube_get_proxy_details () {
+  echo "To connect to pulsar broker in minkube, you can connect to the proxy URL's below"
+  minikube service list --profile $PULSAR_LOCAL_MINIKUBE_CONTEXT -n pulsar|egrep "http/|pulsar/"
+}
+
+minikube_stop () {
+  echo "Deleting pulsar helm deployment"
+  helm delete pulsar -n pulsar
+  echo "Killing kubectl processes to terminate forwarding"
+  pkill kubectl
+}
+
+case $DEPLOYMENT_TYPE in
+machine)
+  case $ACTION in
+  install)
+    java_checks
+    rosetta_check
+    machine_binary_install ;;
+  install-connectors)
+    java_checks
+    rosetta_check
+    machine_file_connector_install ;;
+  start)
+    java_checks
+    rosetta_check
+    machine_start ;;
+  stop)
+    machine_stop ;;
+  *)
+    echo "No valid action supplied for machine deployment type"
+    echo ""
+    usage
+    ;;
+  esac
+  ;;
+docker)
+  case $ACTION in
+  start)
+    rosetta_check
+    docker_start ;;
+  stop)
+    docker_stop ;;
+  logs)
+    docker_logs ;;
+  *)
+    echo "No valid action supplied for docker deployment type"
+    usage
+  esac
+  ;;
+minikube)
+  case $ACTION in
+  start)
+    minikube_dependency_checks
+    minikube_existing_check
+    minikube_start
+    minikube_get_proxy_details ;;
+  stop)
+    minikube_dependency_checks
+    minikube_stop ;;
+  *)
+    echo "No valid action supplied for docker deployment type"
+    usage
+  esac
+  ;;
+*) 
+  echo "No valid deployment type supplied"
+  usage
+  ;;
+esac
