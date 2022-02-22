@@ -4,6 +4,7 @@ import com.raphtory.core.algorithm.Row
 import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.graph.visitor.Vertex
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
+import com.raphtory.core.time.Interval
 
 /** @DoNotDocument */
 trait LensInterface {
@@ -27,6 +28,6 @@ trait LensInterface {
 
   def clearMessages(): Unit
 
-  def getWindow(): Option[Long]
+  def getWindow(): Option[Interval]
   def getTimestamp(): Long
 }

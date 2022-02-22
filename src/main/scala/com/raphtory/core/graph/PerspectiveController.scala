@@ -1,13 +1,15 @@
 package com.raphtory.core.graph
 
 import com.raphtory.core.components.querymanager.QueryManagement
+import com.raphtory.core.time.AgnosticInterval
+import com.raphtory.core.time.Interval
 
 import scala.collection.immutable.NumericRange
 
 /** @DoNotDocument */
-case class Perspective(timestamp: Long, window: Option[Long]) extends QueryManagement
+case class Perspective(timestamp: Long, window: Option[Interval]) extends QueryManagement
 
-class PerspectiveController(timestamps: Stream[Long], windows: List[Long]) {
+class PerspectiveController(timestamps: Stream[Long], windows: List[Interval]) {
 
   private var perspectives: Stream[Perspective] = windows match {
     case Nil => timestamps.map(Perspective(_, None))
@@ -31,17 +33,20 @@ class PerspectiveController(timestamps: Stream[Long], windows: List[Long]) {
 
 object PerspectiveController {
 
-  val DEFAULT_PERSPECTIVE_TIME: Long         = -1L
-  val DEFAULT_PERSPECTIVE_WINDOW: Some[Long] = Some(-1L)
+  val DEFAULT_PERSPECTIVE_TIME: Long             = -1L
+  val DEFAULT_PERSPECTIVE_WINDOW: Some[Interval] = Some(AgnosticInterval(-1L))
 
-  def pointQueryController(timestamp: Long, windows: List[Long] = List()): PerspectiveController =
+  def pointQueryController(
+      timestamp: Long,
+      windows: List[Interval] = List()
+  ): PerspectiveController =
     new PerspectiveController(Stream(timestamp), windows)
 
   def rangeQueryController(
       start: Long,
       end: Long,
       increment: Long,
-      windows: List[Long] = List()
+      windows: List[Interval] = List()
   ): PerspectiveController = {
     val timestamps: Stream[Long] = {
       val raw = NumericRange.inclusive(start, end, increment).toStream
@@ -56,7 +61,7 @@ object PerspectiveController {
   def liveQueryController(
       firstAvailableTimestamp: Long,
       repeatIncrement: Long,
-      windows: List[Long] = List()
+      windows: List[Interval] = List()
   ): PerspectiveController = {
     val timestamps = Stream.iterate(firstAvailableTimestamp)(_ + repeatIncrement)
     new PerspectiveController(timestamps, windows)

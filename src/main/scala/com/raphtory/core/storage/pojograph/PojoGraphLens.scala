@@ -8,6 +8,7 @@ import com.raphtory.core.graph.GraphPartition
 import com.raphtory.core.graph.LensInterface
 import com.raphtory.core.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
+import com.raphtory.core.time.Interval
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
@@ -16,7 +17,7 @@ import scala.collection.mutable
 final case class PojoGraphLens(
     jobId: String,
     timestamp: Long,
-    window: Option[Long],
+    window: Option[Interval],
     var superStep: Int,
     private val storage: GraphPartition,
     messageHandler: VertexMessageHandler
@@ -37,15 +38,8 @@ final case class PojoGraphLens(
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
 
-  private lazy val vertexMap: mutable.Map[Long, Vertex] = {
-    val result = window match {
-      case None    =>
-        storage.getVertices(this, timestamp)
-      case Some(w) =>
-        storage.getVertices(this, timestamp, w)
-    }
-    result
-  }
+  private lazy val vertexMap: mutable.Map[Long, Vertex] =
+    storage.getVertices(this, timestamp, window)
 
   private lazy val vertices: Array[(Long, Vertex)] = vertexMap.toArray
 
@@ -111,7 +105,7 @@ final case class PojoGraphLens(
         )
     }
 
-  override def getWindow(): Option[Long] = window
+  override def getWindow(): Option[Interval] = window
 
   override def getTimestamp(): Long = timestamp
 

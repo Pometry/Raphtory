@@ -2,6 +2,7 @@ package com.raphtory.output
 
 import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.algorithm.Row
+import com.raphtory.core.time.Interval
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -11,7 +12,7 @@ class FileOutputFormat(filePath: String) extends OutputFormat {
 
   override def write(
       timestamp: Long,
-      window: Option[Long],
+      window: Option[Interval],
       jobID: String,
       row: Row,
       partitionID: Int

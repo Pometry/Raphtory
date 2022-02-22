@@ -9,6 +9,7 @@ import com.raphtory.core.components.querymanager.RangeQuery
 import com.raphtory.core.components.querytracker.QueryProgressTracker
 import com.raphtory.core.config.ComponentFactory
 import com.raphtory.core.config.PulsarController
+import com.raphtory.core.time.AgnosticInterval
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -41,9 +42,10 @@ private[core] class RaphtoryClient(
       timestamp: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobID = getID(graphAlgorithm)
+    val jobID           = getID(graphAlgorithm)
+    val agnosticWindows = windows map AgnosticInterval
     pulsarController.toQueryManagerProducer sendAsync kryo.serialise(
-            PointQuery(jobID, graphAlgorithm, timestamp, windows, outputFormat)
+            PointQuery(jobID, graphAlgorithm, timestamp, agnosticWindows, outputFormat)
     )
     componentFactory.queryProgressTracker(jobID, scheduler)
   }
@@ -56,9 +58,10 @@ private[core] class RaphtoryClient(
       increment: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobID = getID(graphAlgorithm)
+    val jobID           = getID(graphAlgorithm)
+    val agnosticWindows = windows map AgnosticInterval
     pulsarController.toQueryManagerProducer sendAsync kryo.serialise(
-            RangeQuery(jobID, graphAlgorithm, start, end, increment, windows, outputFormat)
+            RangeQuery(jobID, graphAlgorithm, start, end, increment, agnosticWindows, outputFormat)
     )
     componentFactory.queryProgressTracker(jobID, scheduler)
   }
@@ -69,9 +72,10 @@ private[core] class RaphtoryClient(
       increment: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobID = getID(graphAlgorithm)
+    val jobID           = getID(graphAlgorithm)
+    val agnosticWindows = windows map AgnosticInterval
     pulsarController.toQueryManagerProducer sendAsync kryo.serialise(
-            LiveQuery(jobID, graphAlgorithm, increment, windows, outputFormat)
+            LiveQuery(jobID, graphAlgorithm, increment, agnosticWindows, outputFormat)
     )
     componentFactory.queryProgressTracker(jobID, scheduler)
   }

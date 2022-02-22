@@ -23,6 +23,8 @@ import com.raphtory.core.storage.pojograph.entities.internal.PojoEdge
 import com.raphtory.core.storage.pojograph.entities.internal.PojoEntity
 import com.raphtory.core.storage.pojograph.entities.internal.PojoVertex
 import com.raphtory.core.storage.pojograph.entities.internal.SplitEdge
+import com.raphtory.core.time.TimeUtils._
+import com.raphtory.core.time.Interval
 import com.typesafe.config.Config
 
 import scala.collection.mutable
@@ -429,12 +431,13 @@ class PojoBasedPartition(partition: Int, conf: Config)
   override def getVertices(
       lens: GraphLens,
       time: Long,
-      window: Long = Long.MaxValue
+      window: Option[Interval]
   ): mutable.Map[Long, Vertex] = {
-    val lenz = lens.asInstanceOf[PojoGraphLens]
-    val x    = vertices.collect {
-      case (id, vertex) if vertex.aliveAtWithWindow(time, window) =>
-        (id, vertex.viewAtWithWindow(time, window, lenz))
+    val lenz            = lens.asInstanceOf[PojoGraphLens]
+    val startTime: Long = window.fold(0L)(window => time - window)
+    val x               = vertices.collect {
+      case (id, vertex) if vertex.aliveBetween(startTime, time) =>
+        (id, vertex.viewBetween(startTime, time, lenz))
     }
     x
   }

@@ -4,6 +4,7 @@ import com.raphtory.core.components.graphbuilder.GraphUpdateEffect
 import com.raphtory.core.components.graphbuilder.Properties
 import com.raphtory.core.components.graphbuilder.Type
 import com.raphtory.core.graph.visitor.Vertex
+import com.raphtory.core.time.Interval
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -75,7 +76,7 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   def getVertices(
       graphPerspective: GraphLens,
       time: Long,
-      window: Long = Long.MaxValue
+      window: Option[Interval]
   ): mutable.Map[Long, Vertex]
 
   /**

@@ -7,6 +7,7 @@ import com.raphtory.core.components.querymanager.QueryManagement
 import com.raphtory.core.components.querymanager.QueryManager
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.PerspectiveController
+import com.raphtory.core.time.Interval
 import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
@@ -18,7 +19,7 @@ case class LiveQueryHandler(
     jobID: String,
     algorithm: GraphAlgorithm,
     increment: Long,
-    windows: List[Long],
+    windows: List[Interval],
     outputFormat: OutputFormat,
     conf: Config,
     pulsarController: PulsarController
