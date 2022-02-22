@@ -3,6 +3,7 @@ package com.raphtory.core.components.spout.executor
 import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
+import monix.execution.Scheduler
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.BatchReceivePolicy
 import org.apache.pulsar.client.api.Schema
@@ -29,8 +30,9 @@ class FileSpoutExecutor[T](
     schema: Schema[T],
     lineConverter: (String => T),
     conf: Config,
-    pulsarController: PulsarController
-) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController) {
+    pulsarController: PulsarController,
+    scheduler: Scheduler
+) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler) {
 
   private val topic    = conf.getString("raphtory.spout.topic")
   private val producer = pulsarController.createProducer(schema, topic)
@@ -126,7 +128,6 @@ class FileSpoutExecutor[T](
     // check if exists
     if (!Files.exists(Paths.get(source)))
       throw new FileNotFoundException(s"File '$source' does not exist.")
-
     logger.debug(s"Found file '$source'.")
 
     if (!Files.isReadable(Paths.get(source))) {
@@ -230,7 +231,7 @@ class FileSpoutExecutor[T](
     }
 
     logger.debug("Finished reading all files.")
-    //scheduler.scheduleOnce(10, TimeUnit.SECONDS, new SpoutScheduler()) //TODO turn this back om
+    scheduler.scheduleOnce(10, TimeUnit.SECONDS, new SpoutScheduler())
   }
 
 }
