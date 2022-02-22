@@ -14,7 +14,7 @@ import com.raphtory.core.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.core.components.graphbuilder.VertexAdd
 import com.raphtory.core.components.graphbuilder.VertexDelete
 import com.raphtory.core.components.graphbuilder.VertexRemoveSyncAck
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
 import com.raphtory.core.graph._
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Consumer
@@ -26,29 +26,32 @@ import scala.collection.mutable
 import scala.language.postfixOps
 
 class Writer(
-    partitionID: Int,
-    storage: GraphPartition,
-    conf: Config,
-    pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+              partitionID: Int,
+              storage: GraphPartition,
+              conf: Config,
+              pulsarController: PulsarController
+            ) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
 
   private val neighbours                                = writerSyncProducers()
   private var mgsCount                                  = 0
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
-  override def run(): Unit =
-    cancelableConsumer = Some(startPartitionConsumer(Schema.BYTES, partitionID))
+  private val monixScheduler = new MonixScheduler
+  override val cancelableConsumer =  Some(startPartitionConsumer(Schema.BYTES,partitionID))
+
+  override def run(): Unit = {
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
+  }
 
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
     }
     neighbours.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit = {
+  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
+    var reschedule = true
     deserialise[Any](msg.getValue) match {
       //Updates from the Graph Builder
       case update: VertexAdd                    => processVertexAdd(update)
@@ -60,34 +63,34 @@ class Writer(
       //Syncing Edge Additions
       case update: SyncNewEdgeAdd               =>
         processSyncNewEdgeAdd(
-                update
+          update
         ) //A writer has requested a new edge sync for a destination node in this worker
       case update: SyncExistingEdgeAdd          =>
         processSyncExistingEdgeAdd(
-                update
+          update
         ) // A writer has requested an existing edge sync for a destination node on in this worker
 
       //Syncing Edge Removals
       case update: SyncNewEdgeRemoval           =>
         processSyncNewEdgeRemoval(
-                update
+          update
         ) //A remote worker is asking for a new edge to be removed for a destination node in this worker
       case update: SyncExistingEdgeRemoval      =>
         processSyncExistingEdgeRemoval(
-                update
+          update
         ) //A remote worker is asking for the deletion of an existing edge
 
       //Syncing Vertex Removals
       case update: OutboundEdgeRemovalViaVertex =>
         processOutboundEdgeRemovalViaVertex(
-                update
+          update
         ) //Syncs the deletion of an edge, but for when the removal comes from a vertex
       case update: InboundEdgeRemovalViaVertex  => processInboundEdgeRemovalViaVertex(update)
 
       //Response from storing the destination node being synced
       case update: SyncExistingRemovals =>
         processSyncExistingRemovals(
-                update
+          update
         ) //The remote worker has returned all removals in the destination node -- for new edges
       case update: EdgeSyncAck          =>
         processEdgeSyncAck(update) //The remote worker acknowledges the completion of an edge sync
@@ -95,12 +98,14 @@ class Writer(
 
       case other =>
         logger.error(s"Partition '$partitionID': Received unsupported message type '$other'.")
+        reschedule = false
         throw new IllegalStateException(
-                s"Partition '$partitionID': Received unsupported message '$other'."
+          s"Partition '$partitionID': Received unsupported message '$other'."
         )
     }
 
     printUpdateCount()
+    reschedule
   }
 
   /**
@@ -118,11 +123,11 @@ class Writer(
 
     storage.timings(update.updateTime)
     storage.addEdge(
-            update.updateTime,
-            update.srcId,
-            update.dstId,
-            update.properties,
-            update.eType
+      update.updateTime,
+      update.srcId,
+      update.dstId,
+      update.properties,
+      update.eType
     ) match {
       case Some(value) =>
         neighbours(getWriter(value.updateId)).sendAsync(serialise(value))
@@ -169,7 +174,7 @@ class Writer(
 
   def processSyncExistingEdgeAdd(req: SyncExistingEdgeAdd): Unit = {
     logger.trace(
-            s"Partition '$partitionID': A writer has requested an existing edge sync for a destination node on in this worker."
+      s"Partition '$partitionID': A writer has requested an existing edge sync for a destination node on in this worker."
     )
 
     storage.timings(req.msgTime)
@@ -183,7 +188,7 @@ class Writer(
 
   def processSyncNewEdgeRemoval(req: SyncNewEdgeRemoval): Unit = {
     logger.trace(
-            s"Partition '$partitionID': A remote worker is asking for a new edge to be removed for a destination node in this worker."
+      s"Partition '$partitionID': A remote worker is asking for a new edge to be removed for a destination node in this worker."
     )
 
     storage.timings(req.msgTime)
@@ -193,7 +198,7 @@ class Writer(
 
   def processSyncExistingEdgeRemoval(req: SyncExistingEdgeRemoval): Unit = {
     logger.trace(
-            s"Partition '$partitionID': A remote worker is asking for the deletion of an existing edge."
+      s"Partition '$partitionID': A remote worker is asking for the deletion of an existing edge."
     )
 
     storage.timings(req.msgTime)
@@ -207,7 +212,7 @@ class Writer(
 
   def processOutboundEdgeRemovalViaVertex(req: OutboundEdgeRemovalViaVertex): Unit = {
     logger.trace(
-            s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes from a vertex."
+      s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes from a vertex."
     )
 
     storage.timings(req.msgTime)
@@ -217,7 +222,7 @@ class Writer(
 
   def processInboundEdgeRemovalViaVertex(req: InboundEdgeRemovalViaVertex): Unit = { //remote worker same as above
     logger.trace(
-            s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes to a vertex."
+      s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes to a vertex."
     )
 
     val effect = storage.inboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
@@ -230,7 +235,7 @@ class Writer(
 
   def processSyncExistingRemovals(req: SyncExistingRemovals): Unit = { //when the new edge add is responded to we can say it is synced
     logger.trace(
-            s"Partition '$partitionID': The remote worker has returned all removals in the destination node -- for new edges"
+      s"Partition '$partitionID': The remote worker has returned all removals in the destination node -- for new edges"
     )
 
     storage.syncExistingRemovals(req.msgTime, req.srcId, req.dstId, req.removals)
@@ -239,14 +244,14 @@ class Writer(
 
   def processEdgeSyncAck(req: EdgeSyncAck): Unit = {
     logger.trace(
-            s"Partition '$partitionID': The remote worker acknowledges the completion of an edge sync."
+      s"Partition '$partitionID': The remote worker acknowledges the completion of an edge sync."
     )
 
     untrackEdgeUpdate(
-            req.msgTime,
-            req.srcId,
-            req.dstId,
-            req.fromAddition
+      req.msgTime,
+      req.srcId,
+      req.dstId,
+      req.fromAddition
     ) //when the edge isn't new we will get this response instead
   }
 
@@ -258,7 +263,7 @@ class Writer(
 
   def processVertexRemoveSyncAck(req: VertexRemoveSyncAck): Unit = {
     logger.trace(
-            s"Partition '$partitionID': The remote worker acknowledges the completion of vertex removal."
+      s"Partition '$partitionID': The remote worker acknowledges the completion of vertex removal."
     )
 
     storage.untrackVertexDeletion(req.msgTime, req.updateId)
@@ -278,8 +283,8 @@ class Writer(
       val currentMilli  = Calendar.getInstance().get(Calendar.MILLISECOND)
 
       logger.debug(
-              s"Partition '$partitionID': " +
-                s"'$currentHour:$currentMinute:$currentSecond:$currentMilli' -- Processed '$mgsCount' messages."
+        s"Partition '$partitionID': " +
+          s"'$currentHour:$currentMinute:$currentSecond:$currentMilli' -- Processed '$mgsCount' messages."
       )
     }
   }

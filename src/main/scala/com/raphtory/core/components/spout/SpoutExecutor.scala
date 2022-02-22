@@ -7,6 +7,6 @@ import org.apache.pulsar.client.api.Message
 
 abstract class SpoutExecutor[T](conf: Config, private val pulsarController: PulsarController)
         extends Component[T](conf: Config, pulsarController: PulsarController) {
-  override def handleMessage(msg: Message[T]): Unit = {}
+  override def handleMessage(msg: Message[T]): Boolean = { false }
 
 }

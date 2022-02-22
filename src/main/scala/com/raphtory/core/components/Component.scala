@@ -27,8 +27,9 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   val hasDeletions: Boolean              = conf.getBoolean("raphtory.data.containsDeletions")
   val totalPartitions: Int               = partitionServers * partitionsPerServer
   private val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
+  val cancelableConsumer    : Option[Consumer[T]]= None
 
-  def handleMessage(msg: Message[T])
+  def handleMessage(msg: Message[T]) : Boolean
   def run()
   def stop()
 
@@ -55,12 +56,11 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
 
   // CREATION OF CONSUMERS
   def startGraphBuilderConsumer(schema: Schema[T]): Consumer[T] =
-    pulsarController.createListeningConsumer("GraphBuilder", messageListener, schema, spoutTopic)
+    pulsarController.createListeningConsumer("GraphBuilder", schema, spoutTopic)
 
   def startPartitionConsumer(schema: Schema[T], partitionID: Int): Consumer[T] =
     pulsarController.createListeningConsumer(
             s"Writer_$partitionID",
-            messageListener,
             schema,
             s"${deploymentID}_$partitionID",
             s"${deploymentID}_sync_$partitionID"
@@ -69,7 +69,6 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def startReaderConsumer(schema: Schema[T], partitionID: Int): Consumer[T] =
     pulsarController.createListeningConsumer(
             s"Reader_$partitionID",
-            messageListener,
             schema,
             s"${deploymentID}_jobs"
     )
@@ -77,7 +76,6 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def startQueryExecutorConsumer(schema: Schema[T], partitionID: Int, jobID: String): Consumer[T] =
     pulsarController.createListeningConsumer(
             s"Executor_$partitionID",
-            messageListener,
             schema,
             s"${deploymentID}_${jobID}_$partitionID"
     )
@@ -85,7 +83,6 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def startQueryManagerConsumer(schema: Schema[T]): Consumer[T] =
     pulsarController.createListeningConsumer(
             "QueryManager",
-            messageListener,
             schema,
             s"${deploymentID}_watermark",
             s"${deploymentID}_submission"
@@ -94,7 +91,6 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def startQueryHandlerConsumer(schema: Schema[T], jobID: String): Consumer[T] =
     pulsarController.createListeningConsumer(
             s"QueryHandler_$jobID",
-            messageListener,
             schema,
             s"${deploymentID}_${jobID}_queryHandler"
     )
@@ -102,7 +98,6 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def startQueryTrackerConsumer(schema: Schema[T], deployId_jobId: String): Consumer[T] =
     pulsarController.createListeningConsumer(
             "queryProgressConsumer",
-            messageListener,
             schema,
             s"${deployId_jobId}_querytracking"
     )

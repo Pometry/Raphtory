@@ -7,7 +7,7 @@ import Stages.Stage
 import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.algorithm._
 import com.raphtory.core.components.Component
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
 import com.raphtory.core.graph.Perspective
 import com.raphtory.core.graph.PerspectiveController
 import com.typesafe.config.Config
@@ -20,14 +20,14 @@ import org.apache.pulsar.client.api.Schema
 import java.util.concurrent.TimeUnit
 
 abstract class QueryHandler(
-    queryManager: QueryManager,
-    scheduler: Scheduler,
-    jobID: String,
-    algorithm: GraphAlgorithm,
-    outputFormat: OutputFormat,
-    conf: Config,
-    pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+                             queryManager: QueryManager,
+                             scheduler: Scheduler,
+                             jobID: String,
+                             algorithm: GraphAlgorithm,
+                             outputFormat: OutputFormat,
+                             conf: Config,
+                             pulsarController: PulsarController
+                           ) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
 
   private val self: Producer[Array[Byte]]                 = toQueryHandlerProducer(jobID)
   private val readers: Producer[Array[Byte]]              = toReaderProducer
@@ -60,20 +60,22 @@ abstract class QueryHandler(
     }
   }
   private val recheckTimer                              = new RecheckTimer()
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+
+
+  private val monixScheduler = new MonixScheduler
+  override val cancelableConsumer =  Some(startQueryHandlerConsumer(Schema.BYTES,jobID))
 
   override def run(): Unit = {
     readers sendAsync serialise(EstablishExecutor(jobID))
-    cancelableConsumer = Some(startQueryHandlerConsumer(Schema.BYTES, jobID))
-
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
   }
+
 
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
     }
     self.close()
     readers.close()
@@ -81,14 +83,17 @@ abstract class QueryHandler(
     workerList.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit =
+  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
+    var scheduleAgain = true
     currentState match {
       case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
       case Stages.EstablishPerspective => currentState = establishPerspective(msg)
       case Stages.ExecuteGraph         => currentState = executeGraph(msg)
       case Stages.ExecuteTable         => currentState = executeTable(msg)
-      case Stages.EndTask              => //TODO?
+      case Stages.EndTask              => scheduleAgain = false
     }
+    scheduleAgain
+  }
 
   ////OPERATION STATES
   //Communicate with all readers and get them to spawn a QueryExecutor for their partition
@@ -143,8 +148,8 @@ abstract class QueryHandler(
           allVoteToHalt = true
 
           logger.debug(
-                  s"Job '$jobID': Executing graph with windows '${currentPerspective.window}' " +
-                    s"at timestamp '${currentPerspective.timestamp}'."
+            s"Job '$jobID': Executing graph with windows '${currentPerspective.window}' " +
+              s"at timestamp '${currentPerspective.timestamp}'."
           )
 
           Stages.ExecuteGraph
@@ -198,7 +203,7 @@ abstract class QueryHandler(
               case Iterate(f, iterations, executeMessagedOnly) =>
                 if (iterations == 1 || (allVoteToHalt && votedToHalt)) {
                   logger.debug(
-                          s"Job '$jobID': Starting next operation '${algorithm.getClass.getSimpleName}'."
+                    s"Job '$jobID': Starting next operation '${algorithm.getClass.getSimpleName}'."
                   )
                   nextGraphOperation(vertexCount)
                 }
@@ -210,7 +215,7 @@ abstract class QueryHandler(
                   sentMessageCount = 0
                   allVoteToHalt = true
                   logger.debug(
-                          s"Job '$jobID': Executing '${algorithm.getClass.getSimpleName}' function."
+                    s"Job '$jobID': Executing '${algorithm.getClass.getSimpleName}' function."
                   )
                   Stages.ExecuteGraph
                 }
@@ -220,7 +225,7 @@ abstract class QueryHandler(
           else {
             messagetoAllJobWorkers(CheckMessages(jobID))
             logger.debug(
-                    s"Job '$jobID': Received messages:$receivedMessages , Sent messages: $sentMessages."
+              s"Job '$jobID': Received messages:$receivedMessages , Sent messages: $sentMessages."
             )
             readyCount = 0
             receivedMessageCount = 0
@@ -248,7 +253,7 @@ abstract class QueryHandler(
         }
         else {
           logger.debug(
-                  s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
+            s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
           )
           Stages.ExecuteTable
         }
@@ -261,7 +266,7 @@ abstract class QueryHandler(
         }
         else {
           logger.debug(
-                  s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
+            s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
           )
           Stages.ExecuteTable
         }
@@ -284,7 +289,7 @@ abstract class QueryHandler(
         Stages.EstablishPerspective
       case Some(perspective)                                        =>
         logger.debug(
-                s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'."
+          s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'."
         )
         logTimeTaken(perspective)
         currentPerspective = perspective
@@ -306,13 +311,13 @@ abstract class QueryHandler(
       currentPerspective.window match {
         case Some(window) =>
           logger.trace(
-                  s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' with " +
-                    s"Window $window took ${System.currentTimeMillis() - lastTime} ms to run."
+            s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' with " +
+              s"Window $window took ${System.currentTimeMillis() - lastTime} ms to run."
           )
         case None         =>
           logger.trace(
-                  s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' " +
-                    s"took ${System.currentTimeMillis() - lastTime} ms to run. "
+            s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' " +
+              s"took ${System.currentTimeMillis() - lastTime} ms to run. "
           )
       }
     lastTime = System.currentTimeMillis()
@@ -357,8 +362,8 @@ abstract class QueryHandler(
         receivedMessageCount = 0
         sentMessageCount = 0
         logger.debug(
-                s"Job '$jobID': Executing next perspective with windows '${currentPerspective.window}'" +
-                  s" and timestamp '${currentPerspective.timestamp}'."
+          s"Job '$jobID': Executing next perspective with windows '${currentPerspective.window}'" +
+            s" and timestamp '${currentPerspective.timestamp}'."
         )
         executeNextPerspective()
     }

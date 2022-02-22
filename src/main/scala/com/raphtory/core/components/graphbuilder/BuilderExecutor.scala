@@ -10,23 +10,23 @@ import org.apache.pulsar.client.api.Schema
 
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
+import com.raphtory.core.config.{AsyncConsumer, MonixScheduler}
 
 class BuilderExecutor[T](
-    schema: Schema[T],
-    graphBuilder: GraphBuilder[T],
-    conf: Config,
-    pulsarController: PulsarController
-) extends Component[T](conf, pulsarController) {
+                          schema: Schema[T],
+                          graphBuilder: GraphBuilder[T],
+                          conf: Config,
+                          pulsarController: PulsarController
+                        ) extends Component[T](conf, pulsarController) {
   private val safegraphBuilder = new Cloner().deepClone(graphBuilder)
   private val producers        = toWriterProducers
 
-  var cancelableConsumer: Option[Consumer[T]] = None
+  override val cancelableConsumer  = Some(startGraphBuilderConsumer(schema))
+  private val monixScheduler = new MonixScheduler
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")
-
-    cancelableConsumer = Some(startGraphBuilderConsumer(schema))
-
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
   }
 
   override def stop(): Unit = {
@@ -35,14 +35,14 @@ class BuilderExecutor[T](
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
     }
     producers.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[T]): Unit = {
+  override def handleMessage(msg: Message[T]): Boolean = {
     val data = msg.getValue
     safegraphBuilder.getUpdates(data).foreach(message => sendUpdate(message))
+    true
   }
 
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
