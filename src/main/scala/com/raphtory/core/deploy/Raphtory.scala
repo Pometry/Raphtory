@@ -108,20 +108,20 @@ object Raphtory {
       pulsarController: PulsarController
   ): SpoutExecutor[T] =
     spout match {
-      case spout: FileSpout[T]            =>
+      case spout: FileSpout[T] =>
         new FileSpoutExecutor[T](
                 spout.source,
                 spout.schema,
                 spout.lineConverter,
                 conf,
-                pulsarController
+                pulsarController,
+                scheduler
         )
-      case IdentitySpout()                => new IdentitySpoutExecutor[T](conf, pulsarController)
-      case ResourceSpout(resource)        =>
-        new ResourceSpoutExecutor(resource, conf, pulsarController).asInstanceOf[SpoutExecutor[T]]
+      case IdentitySpout() => new IdentitySpoutExecutor[T](conf, pulsarController, scheduler)
+      case ResourceSpout(resource) =>
+        new ResourceSpoutExecutor(resource, conf, pulsarController, scheduler).asInstanceOf[SpoutExecutor[T]]
       case StaticGraphSpout(fileDataPath) =>
-        new StaticGraphSpoutExecutor(fileDataPath, conf, pulsarController)
-          .asInstanceOf[SpoutExecutor[T]]
+        new StaticGraphSpoutExecutor(fileDataPath, conf, pulsarController, scheduler).asInstanceOf[SpoutExecutor[T]]
 
     }
 
