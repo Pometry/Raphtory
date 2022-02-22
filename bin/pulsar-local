@@ -67,7 +67,7 @@ done
 # For helm install, set version to 2.7.4 untill the below issues with helm 2.9.0 are resolved by pulsar team
 # https://github.com/apache/pulsar-helm-chart/issues/188
 # https://github.com/apache/pulsar-helm-chart/issues/190
-[[ $DEPLOYMENT_TYPE -eq "minikube" ]] && PULSAR_VERSION=2.7.4
+[[ $DEPLOYMENT_TYPE == "minikube" ]] && PULSAR_VERSION=2.7.4
 
 PULSAR_BIN_PATH="${PULSAR_INSTALL_PATH}/apache-pulsar-${PULSAR_VERSION}"
 PULSAR_CONNECTORS_PATH="${PULSAR_BIN_PATH}/connectors"
@@ -120,6 +120,7 @@ docker_start () {
   -p 2181:2181 \
   --mount source=pulsardata,target=/pulsar/data \
   --mount source=pulsarconf,target=/pulsar/conf \
+  --platform linux/amd64
   apachepulsar/pulsar-all:${PULSAR_VERSION} \
   bin/pulsar standalone --advertised-address localhost 2>&1 > /dev/null
 }
