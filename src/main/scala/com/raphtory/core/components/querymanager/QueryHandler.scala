@@ -41,6 +41,7 @@ abstract class QueryHandler(
 
   private var currentPerspective: Perspective =
     Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW)
+  private var graphState: GraphState = GraphState()
 
   private var lastTime: Long            = 0L
   private var readyCount: Int           = 0
@@ -167,33 +168,14 @@ abstract class QueryHandler(
         logger.debug(s"Job '$jobID': Writing results to '${outputFormat.getClass.getSimpleName}'.")
         table = graphPerspective.getTable()
         table.writeTo(outputFormat) //sets output formatter
+        nextGraphOperation(vertexCount)
 
-        graphPerspective.getNextOperation() match {
-          case Some(f: Select)        =>
-            messagetoAllJobWorkers(f)
-            readyCount = 0
-            logger.debug(s"Job '$jobID': Executing Select function.")
-            Stages.ExecuteTable
-
-          case Some(f: GraphFunction) =>
-            messagetoAllJobWorkers(f)
-            currentOperation = f
-            logger.debug(s"Job '$jobID': Executing '${algorithm.getClass.getSimpleName}' function.")
-            readyCount = 0
-            receivedMessageCount = 0
-            sentMessageCount = 0
-            allVoteToHalt = true
-            Stages.ExecuteGraph
-          case None                   =>
-            logger.debug(s"Job '$jobID': Ending Task.")
-            Stages.EndTask
-        }
-
-      case GraphFunctionComplete(receivedMessages, sentMessages, votedToHalt) =>
+      case GraphFunctionComplete(receivedMessages, sentMessages, votedToHalt, graphState) =>
         val totalSentMessages     = sentMessageCount + sentMessages
         val totalReceivedMessages = receivedMessageCount + receivedMessages
         if ((readyCount + 1) == totalPartitions)
           if (totalReceivedMessages == totalSentMessages)
+
             currentOperation match {
               case Iterate(f, iterations, executeMessagedOnly) =>
                 if (iterations == 1 || (allVoteToHalt && votedToHalt)) {
@@ -279,6 +261,7 @@ abstract class QueryHandler(
         logTimeTaken(perspective)
         messagetoAllJobWorkers(CreatePerspective(perspective.timestamp, perspective.window))
         currentPerspective = perspective
+        graphState = GraphState()
         graphPerspective = null
         table = null
         Stages.EstablishPerspective
@@ -342,8 +325,40 @@ abstract class QueryHandler(
         readyCount = 0
         Stages.ExecuteTable
 
+      case Some(f: SelectWithGraph) => {
+        f match {
+          case SelectWithGraph(fun, None) =>
+            messagetoAllJobWorkers(SelectWithGraph(fun, Some(graphState)))
+        }
+        readyCount = 0
+        Stages.ExecuteTable
+      }
+
+      case Some(f: Setup) => {
+        f match {
+          case Setup(fun) =>
+            fun(graphState)
+        }
+        nextGraphOperation(vertexCount)
+      }
+
       case Some(f: GraphFunction) =>
-        messagetoAllJobWorkers(f)
+        f match {
+          case StepWithGraph(fun, None) =>
+            messagetoAllJobWorkers(StepWithGraph(fun, Some(graphState)))
+          case IterateWithGraph(fun, iterations, executeMessagedOnly, None) =>
+            messagetoAllJobWorkers(
+              IterateWithGraph(
+                fun,
+                iterations,
+                executeMessagedOnly,
+                Some(graphState)
+              )
+            )
+          case VertexFilterWithGraph(fun, None) =>
+            messagetoAllJobWorkers(VertexFilterWithGraph(fun, Some(graphState)))
+          case _ => messagetoAllJobWorkers(f)
+        }
         currentOperation = f
         logger.debug(s"Job '$jobID': Executing graph function '${f.getClass.getSimpleName}'.")
         readyCount = 0
