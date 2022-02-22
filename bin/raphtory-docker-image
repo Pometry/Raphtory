@@ -42,7 +42,7 @@ do
 done
 
 DOCKER_BUILD_ARGS=()
-DOCKERFILE="bin/kubernetes/docker/raphtory/Dockerfile"
+DOCKERFILE="bin/docker/raphtory/Dockerfile"
 DOCKER_IMAGE_NAME="raphtory"
 JAR_PATH="tmp/raphtory/jars"
 
