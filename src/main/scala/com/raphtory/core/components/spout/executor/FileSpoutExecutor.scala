@@ -158,14 +158,24 @@ class FileSpoutExecutor[T](
         )
 
         return
+<<<<<<< HEAD
       case error: FileAlreadyExistsException =>
         logger.error(
+=======
+      case error: FileAlreadyExistsException    =>
+        logger.warn(
+>>>>>>> d74dcc13 ([RC] Changing logger.error to logger.warn on File Spout)
                 "FileAlreadyExistsException: Could not create hardlink, file already exists."
         )
 
         return
+<<<<<<< HEAD
       case error: IOException => logger.warn("ERROR(IOException): an I/O error occured "); return;
       case error: SecurityException =>
+=======
+      case error: IOException                   => logger.warn("ERROR(IOException): an I/O error occurred "); return;
+      case error: SecurityException             =>
+>>>>>>> d74dcc13 ([RC] Changing logger.error to logger.warn on File Spout)
         logger.warn("ERROR(SecurityException): Invalid permissions to create hardlink"); return;
     }
 
