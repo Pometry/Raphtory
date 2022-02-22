@@ -1,47 +1,68 @@
 package com.raphtory.algorithms.generic.centrality
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
+import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.core.algorithm.GraphAlgorithm
+import com.raphtory.core.algorithm.GraphPerspective
+import com.raphtory.core.algorithm.Row
+import com.raphtory.core.algorithm.Table
 
 /**
-  Description:
-    This algorithm returns the weight of a node, defined by the weighted sum of incoming, outgoing or total edges to that node.
-    If an edge has a numerical weight property, the name of this property can be specified as a parameter -- default is "weight".
-    In this case, the sum of edge weights for respectively incoming and outgoing edges respectively is returned, as well as the total
-    of these. Otherwise, the number of incoming and outgoing edges (including multiple edges between the same node pairs) is returned,
-    as well as the sum of these.
-
-  Parameters:
-    weightProperty (String) : the property (if any) containing a numerical weight value for each edge, defaults to "weight".
-    output (String) : destination of the output file, defaults to "/tmp/WeightedDegree"
-
-  Returns:
-    inWeight : Sum of weighted incoming edges
-    outWeight : Sum of weighted outgoing edges
-    totWeight : Sum of the above
+  * {s}`WeightedDegree(weightProperty: String = "weight")`
+  *  : compute the weighted degree (i.e. strength)
+  *
+  * This algorithm returns the weighted degree (i.e., strength) of a node, defined by the weighted sum of incoming,
+  * outgoing or total edges to that node. If an edge has a numerical weight property, the name of this property can
+  * be specified as a parameter -- default is "weight". In this case, the sum of edge weights for respectively
+  * incoming and outgoing edges respectively is returned, as well as the total
+  * of these. Otherwise, the number of incoming and outgoing edges (including multiple edges between the same
+  * node pairs) is returned, as well as the sum of these.
+  *
+  * ## Parameters
+  *
+  *  {s}`weightProperty: String = "weight"`
+  *    : the property (if any) containing a numerical weight value for each edge, defaults to "weight".
+  *
+  * ## States
+  *
+  *  {s}`inWeight: Double`
+  *    : Sum of weighted incoming edges
+  *
+  *  {s}`outWeight: Double`
+  *    : Sum of weighted outgoing edges
+  *
+  *  {s}`totWeight: Double`
+  *    : Sum of the above
+  *
+  * ## Returns
+  *
+  *  | vertex name       | total incoming weight | total outgoing weight  | total weight           |
+  *  | ----------------- | --------------------- | ---------------------- | ---------------------- |
+  *  | {s}`name: String` | {s}`inWeight: Double` | {s}`outWeight: Double` | {s}`totWeight: Double` |
+  *
+  * ```{seealso}
+  * [](com.raphtory.algorithms.generic.centrality.Degree)
+  * ```
   */
+class WeightedDegree(weightProperty: String = "weight")
+        extends NodeList(Seq("inStrength", "outStrength", "totStrength")) {
 
-class WeightedDegree(weightProperty:String="weight",output:String = "/tmp/WeightedDegree") extends GraphAlgorithm{
-
-  override def tabularise(graph: GraphPerspective): Table = {
-    graph.select({
-      vertex =>
-        val inWeight = vertex.getInEdges()
-          .map(e => e.getPropertyOrElse(weightProperty, 1.0))
-          .sum
-        val outWeight = vertex.getOutEdges()
-          .map(e => e.getPropertyOrElse(weightProperty, 1.0))
-          .sum
-        val totWeight = inWeight + outWeight
-        Row(vertex.name(), inWeight, outWeight, totWeight)
-    })
-  }
-
-  override def write(table: Table): Unit = {
-    table.writeTo(output)
-  }
-
+  override def apply(graph: GraphPerspective): GraphPerspective =
+    graph.step { vertex =>
+      val inWeight  = vertex
+        .getInEdges()
+        .map(e => e.getPropertyOrElse(weightProperty, 1.0))
+        .sum
+      vertex.setState("inStrength", inWeight)
+      val outWeight = vertex
+        .getOutEdges()
+        .map(e => e.getPropertyOrElse(weightProperty, 1.0))
+        .sum
+      vertex.setState("outStrength", outWeight)
+      val totWeight = inWeight + outWeight
+      vertex.setState("totStrength", totWeight)
+    }
 }
 
 object WeightedDegree {
-  def apply(weightProperty:String="weight",output:String="/tmp/WeightedDegree") = new WeightedDegree(weightProperty,output)
+  def apply(weightProperty: String = "weight") = new WeightedDegree(weightProperty)
 }

@@ -1,118 +1,154 @@
 package com.raphtory.core.components.querymanager
 
-import akka.actor.{ActorLogging, ActorRef, Props, Stash}
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.akkamanagement.RaphtoryActor
-import com.raphtory.core.components.querymanager.QueryManager.Message.{EndQuery, LiveQuery, ManagingTask, PointQuery, Query, QueryNotPresent, RangeQuery, StartUp}
-import com.raphtory.core.components.querymanager.QueryManager.State
-import com.raphtory.core.components.querymanager.handler.{LiveQueryHandler, PointQueryHandler, RangeQueryHandler}
-import com.raphtory.core.components.leader.WatchDog.Message.{ClusterStatusRequest, ClusterStatusResponse, QueryManagerUp}
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphFunction, TableFunction}
+import com.raphtory.core.components.querymanager.handler.RangeQueryHandler
+import com.raphtory.core.components.Component
+import com.raphtory.core.components.querymanager.handler.LiveQueryHandler
+import com.raphtory.core.components.querymanager.handler.PointQueryHandler
+import com.raphtory.core.components.querymanager.handler.RangeQueryHandler
+import com.raphtory.core.config.PulsarController
+import com.typesafe.config.Config
+import monix.execution.Scheduler
+import org.apache.pulsar.client.api.Consumer
+import org.apache.pulsar.client.api.Message
+import org.apache.pulsar.client.api.Schema
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{Duration, SECONDS}
-import scala.tools.scalap.scalax.rules.scalasig.ScalaSigEntryParsers.ref
+import scala.collection.mutable
 
-class QueryManager extends RaphtoryActor with ActorLogging with Stash {
+class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarController)
+        extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+  private val currentQueries                            = mutable.Map[String, QueryHandler]()
+  private val watermarkGlobal                           = globalwatermarkPublisher()
+  private val watermarks                                = mutable.Map[Int, WatermarkTime]()
+  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
+  override def run(): Unit = {
+    logger.debug("Starting Query Manager Consumer.")
 
-  override def preStart() {
-    context.system.scheduler.scheduleOnce(Duration(5, SECONDS), self, StartUp)
+    cancelableConsumer = Some(startQueryManagerConsumer(Schema.BYTES))
   }
 
-  override def receive: Receive = init()
+  override def stop(): Unit = {
+    cancelableConsumer match {
+      case Some(value) =>
+        value.close()
+      case None        =>
+    }
+    currentQueries.foreach(_._2.stop())
+    watermarkGlobal.close()
+  }
 
-  def init(): Receive = {
-    case StartUp =>
-      mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", QueryManagerUp(0))
-      mediator ! new DistributedPubSubMediator.Send("/user/WatchDog", ClusterStatusRequest) //ask if the cluster is safe to use
+  override def handleMessage(msg: Message[Array[Byte]]): Unit =
+    deserialise[QueryManagement](msg.getValue) match {
+      case query: PointQuery        =>
+        val jobID        = query.name
+        logger.debug(
+                s"Handling query name: ${query.name}, windows: ${query.windows}, timestamp: ${query.timestamp}, algorithm: ${query.algorithm}"
+        )
+        val queryHandler = spawnPointQuery(jobID, query)
+        trackNewQuery(jobID, queryHandler)
 
-    case ClusterStatusResponse(clusterUp) =>
-      if (clusterUp) {
-        context.become(work(State(Map.empty)))
-        unstashAll
+      case query: RangeQuery        =>
+        val jobID        = query.name
+        logger.debug(
+                s"Handling query name: ${query.name}, windows: ${query.windows}, algorithm: ${query.algorithm}"
+        )
+        val queryHandler = spawnRangeQuery(jobID, query)
+        trackNewQuery(jobID, queryHandler)
+
+      case query: LiveQuery         =>
+        val jobID        = query.name
+        logger.debug(
+                s"Handling query name: ${query.name}, windows: ${query.windows}, algorithm: ${query.algorithm}"
+        )
+        val queryHandler = spawnLiveQuery(jobID, query)
+        trackNewQuery(jobID, queryHandler)
+
+      case req: EndQuery            =>
+        currentQueries.get(req.jobID) match {
+          case Some(queryhandler) =>
+            currentQueries.remove(req.jobID)
+          case None               => //sender ! QueryNotPresent(req.jobID)
+        }
+      case watermark: WatermarkTime =>
+        logger.trace(s"Setting watermark to '$watermark' for partition '${watermark.partitionID}'.")
+        watermarks.put(watermark.partitionID, watermark)
+    }
+
+  private def spawnPointQuery(id: String, query: PointQuery): QueryHandler = {
+    logger.info(s"Point Query '${query.name}' received, your job ID is '$id'.")
+
+    val queryHandler = new PointQueryHandler(
+            this,
+            scheduler,
+            id,
+            query.algorithm,
+            query.timestamp,
+            query.windows,
+            query.outputFormat,
+            conf,
+            pulsarController
+    )
+    scheduler.execute(queryHandler)
+    queryHandler
+  }
+
+  private def spawnRangeQuery(id: String, query: RangeQuery): QueryHandler = {
+    logger.info(s"Range Query '${query.name}' received, your job ID is '$id'.")
+
+    val queryHandler = new RangeQueryHandler(
+            this,
+            scheduler,
+            id,
+            query.algorithm,
+            query.start,
+            query.end,
+            query.increment,
+            query.windows,
+            query.outputFormat,
+            conf: Config,
+            pulsarController: PulsarController
+    )
+    scheduler.execute(queryHandler)
+    queryHandler
+  }
+
+  private def spawnLiveQuery(id: String, query: LiveQuery): QueryHandler = {
+    logger.info(s"Live Query '${query.name}' received, your job ID is '$id'.")
+
+    val queryHandler = new LiveQueryHandler(
+            this,
+            scheduler,
+            id,
+            query.algorithm,
+            query.increment,
+            query.windows,
+            query.outputFormat,
+            conf,
+            pulsarController
+    )
+    scheduler.execute(queryHandler)
+    queryHandler
+  }
+
+  private def trackNewQuery(jobID: String, queryHandler: QueryHandler): Unit =
+    //sender() ! ManagingTask(queryHandler)
+    currentQueries += ((jobID, queryHandler))
+
+  def whatsTheTime(): Long = {
+    val watermark = if (watermarks.size == totalPartitions) {
+      var safe    = true
+      var minTime = Long.MaxValue
+      var maxTime = Long.MinValue
+      watermarks.foreach {
+        case (key, watermark) =>
+          safe = watermark.safe && safe
+          minTime = Math.min(minTime, watermark.time)
+          maxTime = Math.max(maxTime, watermark.time)
       }
-      else context.system.scheduler.scheduleOnce(Duration(1, SECONDS), self, StartUp)
-
-    case _: Query =>
-      stash()
-
-    case unhandled =>
-      log.error(s"unexpected message $unhandled during init stage")
-  }
-
-  def work(state: State): Receive = {
-    case StartUp => // do nothing as it is ready
-
-    case query: PointQuery =>
-      val jobID = query.name
-      val queryHandler = spawnPointQuery(jobID,query)
-      trackNewQuery(state,jobID, queryHandler)
-
-    case query: RangeQuery =>
-      val jobID = query.name
-      val queryHandler = spawnRangeQuery(jobID,query)
-      trackNewQuery(state,jobID, queryHandler)
-
-    case query: LiveQuery =>
-      val jobID = query.name
-      val queryHandler = spawnLiveQuery(jobID,query)
-      trackNewQuery(state,jobID, queryHandler)
-
-    case req: EndQuery =>
-      state.currentQueries.get(req.jobID) match {
-        case Some(actor) =>
-          context.become(work(state.updateCurrentTask(_ - req.jobID)))
-          actor forward EndQuery
-        case None => sender ! QueryNotPresent(req.jobID)
-      }
-
-  }
-
-  private def spawnPointQuery(id:String, query: PointQuery): ActorRef = {
-    log.info(s"Point Query received, your job ID is $id")
-    context.system.actorOf(Props(PointQueryHandler(id,query.algorithm,query.timestamp,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
-  }
-
-  private def spawnRangeQuery(id:String, query: RangeQuery): ActorRef = {
-    log.info(s"Range Query received, your job ID is $id")
-    context.system.actorOf(Props(RangeQueryHandler(id,query.algorithm,query.start,query.end,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
-  }
-
-  private def spawnLiveQuery(id:String, query: LiveQuery): ActorRef = {
-    log.info(s"Range Query received, your job ID is $id")
-    context.system.actorOf(Props(LiveQueryHandler(id,query.algorithm,query.increment,query.windows)).withDispatcher("analysis-dispatcher"), s"execute_$id")
-  }
-
-
-  private def trackNewQuery(state:State,jobID:String,queryHandler:ActorRef):Unit = {
-    sender() ! ManagingTask(queryHandler)
-    context.become(work(state.updateCurrentTask(_ ++ Map((jobID,queryHandler)))))
-  }
-
-}
-
-
-object QueryManager {
-  private case class State(currentQueries: Map[String, ActorRef]) {
-    def updateCurrentTask(f: Map[String, ActorRef] => Map[String, ActorRef]): State =
-      copy(currentQueries = f(currentQueries))
-  }
-  object Message {
-    case object StartUp
-
-    type Windows = List[Long]
-    def Windows(list: Long*) = List(list: _*)
-
-    sealed trait Query
-    case class PointQuery(name:String,algorithm:GraphAlgorithm, timestamp: Long, windows: Windows=List()) extends Query
-    case class RangeQuery(name:String,algorithm:GraphAlgorithm, start: Long, end: Long, increment: Long, windows: Windows=List()) extends Query
-    case class LiveQuery(name:String,algorithm:GraphAlgorithm, increment: Long, windows: Windows=List()) extends Query
-    case class EndQuery(jobID:String)
-    case class QueryNotPresent(jobID:String)
-
-    case class  ManagingTask(actor:ActorRef)
-    case class  TaskFinished(result:Boolean)
-    case object AreYouFinished
+      if (safe) maxTime else minTime
+    }
+    else 0 // not received a message from each partition yet
+    watermarkGlobal.sendAsync(serialise(watermark))
+    watermark
   }
 }

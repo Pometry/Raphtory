@@ -1,253 +1,414 @@
 package com.raphtory.core.components.querymanager
 
-import akka.actor.{ActorRef, PoisonPill}
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
-import com.raphtory.core.components.akkamanagement.RaphtoryActor._
-import com.raphtory.core.components.akkamanagement.RaphtoryActor
-import com.raphtory.core.components.querymanager.QueryHandler.Message._
-import com.raphtory.core.components.querymanager.QueryHandler.State
-import com.raphtory.core.components.querymanager.QueryManager.Message._
-import com.raphtory.core.model.algorithm.{GenericTable, GraphAlgorithm, GraphFunction, Iterate, GenericGraphPerspective, Select, Table, TableFunction}
+import com.raphtory.core.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
+import com.raphtory.core.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
+import Stages.SpawnExecutors
+import Stages.Stage
+import com.raphtory.core.algorithm.OutputFormat
+import com.raphtory.core.algorithm._
+import com.raphtory.core.components.Component
+import com.raphtory.core.config.PulsarController
+import com.raphtory.core.graph.Perspective
+import com.raphtory.core.graph.PerspectiveController
+import com.typesafe.config.Config
+import monix.execution.Scheduler
+import org.apache.pulsar.client.api.Consumer
+import org.apache.pulsar.client.api.Message
+import org.apache.pulsar.client.api.Producer
+import org.apache.pulsar.client.api.Schema
 
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{Duration, MILLISECONDS, SECONDS}
-import scala.reflect.ClassTag.Any
-import scala.util.{Failure, Success}
+import java.util.concurrent.TimeUnit
 
-abstract class QueryHandler(jobID:String,algorithm: GraphAlgorithm) extends RaphtoryActor{
-  import akka.remote.artery.TestManagementCommands
+abstract class QueryHandler(
+    queryManager: QueryManager,
+    scheduler: Scheduler,
+    jobID: String,
+    algorithm: GraphAlgorithm,
+    outputFormat: OutputFormat,
+    conf: Config,
+    pulsarController: PulsarController
+) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
 
-  private val workerList = mutable.Map[Int,ActorRef]()
+  private val self: Producer[Array[Byte]]                 = toQueryHandlerProducer(jobID)
+  private val readers: Producer[Array[Byte]]              = toReaderProducer
+  private val tracker: Producer[Array[Byte]]              = toQueryTrackerProducer(jobID)
+  private val workerList: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
 
-  private var monitor:ActorRef = _
+  private var perspectiveController: PerspectiveController = _
+  private var graphPerspective: GenericGraphPerspective    = _
+  private var table: GenericTable                          = _
+  private var currentOperation: GraphFunction              = _
+
+  private var currentPerspective: Perspective =
+    Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW)
+
+  private var lastTime: Long            = 0L
+  private var readyCount: Int           = 0
+  private var vertexCount: Int          = 0
+  private var receivedMessageCount: Int = 0
+  private var sentMessageCount: Int     = 0
+  private var allVoteToHalt: Boolean    = true
 
   protected def buildPerspectiveController(latestTimestamp: Long): PerspectiveController
-  override def preStart() = context.system.scheduler.scheduleOnce(Duration(1, MILLISECONDS), self, StartAnalysis)
-  override def receive: Receive = spawnExecutors(0)
 
-  private var currentPerspective = Perspective(-1,Some(-1))
-  private var lasttime = 0L
+  private var currentState: Stage = SpawnExecutors
+
+  class RecheckTimer extends Runnable {
+
+    def run() {
+      self sendAsync serialise(RecheckTime)
+    }
+  }
+  private val recheckTimer                              = new RecheckTimer()
+  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+
+  override def run(): Unit = {
+    readers sendAsync serialise(EstablishExecutor(jobID))
+    cancelableConsumer = Some(startQueryHandlerConsumer(Schema.BYTES, jobID))
+
+    logger.debug(s"Job '$jobID': Starting query handler consumer.")
+  }
+
+  override def stop(): Unit = {
+    cancelableConsumer match {
+      case Some(value) =>
+        value.close()
+      case None        =>
+    }
+    self.close()
+    readers.close()
+    tracker.close()
+    workerList.foreach(_._2.close())
+  }
+
+  override def handleMessage(msg: Message[Array[Byte]]): Unit =
+    currentState match {
+      case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
+      case Stages.EstablishPerspective => currentState = establishPerspective(msg)
+      case Stages.ExecuteGraph         => currentState = executeGraph(msg)
+      case Stages.ExecuteTable         => currentState = executeTable(msg)
+      case Stages.EndTask              => //TODO?
+    }
 
   ////OPERATION STATES
   //Communicate with all readers and get them to spawn a QueryExecutor for their partition
-  private def spawnExecutors(readyCount: Int): Receive = withDefaultMessageHandler("spawn executors") {
-    case StartAnalysis =>
-      messageToAllReaders(EstablishExecutor(jobID))
+  private def spawnExecutors(msg: Message[Array[Byte]]): Stage = {
+    val workerID = deserialise[ExecutorEstablished](msg.getValue).worker
+    logger.debug(s"Job '$jobID': Deserialized worker '$workerID'.")
 
-    case ExecutorEstablished(workerID,actor) =>
-      workerList += ((workerID,actor))
-      if (readyCount + 1 == totalPartitions) {
-        val latestTime = whatsTheTime()
-        val perspectiveController = buildPerspectiveController(latestTime)
-        executeNextPerspective(perspectiveController)
-      } else
-        context.become(spawnExecutors(readyCount + 1))
+    if (readyCount + 1 == totalPartitions) {
+      val latestTime = whatsTheTime()
+      perspectiveController = buildPerspectiveController(latestTime)
+      logger.debug(s"Job '$jobID': Built perspective controller $perspectiveController.")
+
+      readyCount = 0
+      executeNextPerspective()
+    }
+    else {
+      logger.debug(s"Job '$jobID': Spawning executors.")
+
+      readyCount += 1
+      Stages.SpawnExecutors
+    }
   }
 
   //build the perspective within the QueryExecutor for each partition -- the view to be analysed
-  private def establishPerspective(state:State,readyCount:Int,vertexCount:Int): Receive = withDefaultMessageHandler("establish perspective") {
-    case RecheckTime =>
-      recheckTime(state.currentPerspective)
-    case p:PerspectiveEstablished =>
-      if (readyCount + 1 == totalPartitions) {
-        messagetoAllJobWorkers(SetMetaData(vertexCount+p.vertices))
-        context.become(establishPerspective(state, 0,vertexCount+p.vertices))
-      }
-      else
-        context.become(establishPerspective(state, readyCount + 1,vertexCount+p.vertices))
+  private def establishPerspective(msg: Message[Array[Byte]]): Stage =
+    deserialise[QueryManagement](msg.getValue) match {
+      case RecheckTime               =>
+        logger.debug(s"Job '$jobID': Rechecking time of $currentPerspective.")
+        recheckTime(currentPerspective)
 
-    case MetaDataSet =>
-      if (readyCount + 1 == totalPartitions) {
-        self ! StartGraph
-        context.become(executeGraph(state, null, vertexCount, 0, 0, 0, true))
-      }
-      else
-        context.become(establishPerspective(state, readyCount + 1,vertexCount))
-  }
-
-  //execute the steps of the graph algorithm until a select is run
-  private def executeGraph(state: State, currentOpperation: GraphFunction, vertexCount:Int, readyCount: Int, receivedMessageCount: Int, sentMessageCount: Int, allVoteToHalt: Boolean):Receive = withDefaultMessageHandler("Execute Graph") {
-    case StartGraph =>
-      val graphPerspective = new GenericGraphPerspective(vertexCount)
-      algorithm.run(graphPerspective)
-      val table = graphPerspective.getTable()
-      graphPerspective.getNextOperation() match {
-        case Some(f:Select) =>
-          messagetoAllJobWorkers(f)
-          context.become(executeTable(state.copy(graphPerspective=graphPerspective,table=table), 0))
-
-        case Some(f:GraphFunction) =>
-          messagetoAllJobWorkers(f)
-          context.become(executeGraph(state.copy(graphPerspective=graphPerspective,table=table), f, vertexCount,0, 0, 0, true))
-        case None => killJob()
-      }
-
-    case GraphFunctionComplete(receivedMessages, sentMessages,votedToHalt) =>
-      val totalSentMessages = sentMessageCount+sentMessages
-      val totalReceivedMessages = (receivedMessageCount+receivedMessages)
-      if ( (readyCount+1) == totalPartitions) {
-        if ( (receivedMessageCount+receivedMessages) == (sentMessageCount+sentMessages) ) {
-          currentOpperation match {
-            case Iterate(f, iterations,executeMessagedOnly) =>
-              if(iterations==1||(allVoteToHalt&&votedToHalt)) {
-                nextGraphOperation(state,vertexCount)
-              } else  {
-                messagetoAllJobWorkers(Iterate(f, iterations-1,executeMessagedOnly))
-                context.become(executeGraph(state, Iterate(f, iterations-1,executeMessagedOnly), vertexCount,0, 0, 0, true))
-              }
-            case _ =>
-              nextGraphOperation(state,vertexCount)
-          }
+      case p: PerspectiveEstablished =>
+        if (readyCount + 1 == totalPartitions) {
+          vertexCount += p.vertices
+          readyCount = 0
+          messagetoAllJobWorkers(SetMetaData(vertexCount))
+          logger.debug(s"Job '$jobID': Message to all workers vertex count: $vertexCount.")
+          Stages.EstablishPerspective
         }
         else {
-          messagetoAllJobWorkers(CheckMessages(jobID))
-          context.become(executeGraph(state, currentOpperation,vertexCount, 0, 0, 0, allVoteToHalt))
+          vertexCount += p.vertices
+          readyCount += 1
+          Stages.EstablishPerspective
         }
-      }
-      else
-        context.become(executeGraph(state, currentOpperation, vertexCount, (readyCount+1), totalReceivedMessages, totalSentMessages, (votedToHalt&allVoteToHalt)))
-  }
+
+      case MetaDataSet               =>
+        if (readyCount + 1 == totalPartitions) {
+          self sendAsync serialise(StartGraph)
+          readyCount = 0
+          receivedMessageCount = 0
+          sentMessageCount = 0
+          currentOperation = null
+          allVoteToHalt = true
+
+          logger.debug(
+                  s"Job '$jobID': Executing graph with windows '${currentPerspective.window}' " +
+                    s"at timestamp '${currentPerspective.timestamp}'."
+          )
+
+          Stages.ExecuteGraph
+        }
+        else {
+          readyCount += 1
+          Stages.EstablishPerspective
+        }
+    }
+
+  //execute the steps of the graph algorithm until a select is run
+  private def executeGraph(msg: Message[Array[Byte]]): Stage =
+    deserialise[QueryManagement](msg.getValue) match {
+      case StartGraph                                                         =>
+        graphPerspective = new GenericGraphPerspective(vertexCount)
+
+        logger.debug(s"Job '$jobID': Running '${algorithm.getClass.getSimpleName}'.")
+        algorithm.run(graphPerspective)
+
+        logger.debug(s"Job '$jobID': Writing results to '${outputFormat.getClass.getSimpleName}'.")
+        table = graphPerspective.getTable()
+        table.writeTo(outputFormat) //sets output formatter
+
+        graphPerspective.getNextOperation() match {
+          case Some(f: Select)        =>
+            messagetoAllJobWorkers(f)
+            readyCount = 0
+            logger.debug(s"Job '$jobID': Executing Select function.")
+            Stages.ExecuteTable
+
+          case Some(f: GraphFunction) =>
+            messagetoAllJobWorkers(f)
+            currentOperation = f
+            logger.debug(s"Job '$jobID': Executing '${algorithm.getClass.getSimpleName}' function.")
+            readyCount = 0
+            receivedMessageCount = 0
+            sentMessageCount = 0
+            allVoteToHalt = true
+            Stages.ExecuteGraph
+          case None                   =>
+            logger.debug(s"Job '$jobID': Ending Task.")
+            Stages.EndTask
+        }
+
+      case GraphFunctionComplete(receivedMessages, sentMessages, votedToHalt) =>
+        val totalSentMessages     = sentMessageCount + sentMessages
+        val totalReceivedMessages = receivedMessageCount + receivedMessages
+        if ((readyCount + 1) == totalPartitions)
+          if (totalReceivedMessages == totalSentMessages)
+            currentOperation match {
+              case Iterate(f, iterations, executeMessagedOnly) =>
+                if (iterations == 1 || (allVoteToHalt && votedToHalt)) {
+                  logger.debug(
+                          s"Job '$jobID': Starting next operation '${algorithm.getClass.getSimpleName}'."
+                  )
+                  nextGraphOperation(vertexCount)
+                }
+                else {
+                  messagetoAllJobWorkers(Iterate(f, iterations - 1, executeMessagedOnly))
+                  currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
+                  readyCount = 0
+                  receivedMessageCount = 0
+                  sentMessageCount = 0
+                  allVoteToHalt = true
+                  logger.debug(
+                          s"Job '$jobID': Executing '${algorithm.getClass.getSimpleName}' function."
+                  )
+                  Stages.ExecuteGraph
+                }
+              case _                                           =>
+                nextGraphOperation(vertexCount)
+            }
+          else {
+            messagetoAllJobWorkers(CheckMessages(jobID))
+            logger.debug(
+                    s"Job '$jobID': Received messages:$receivedMessages , Sent messages: $sentMessages."
+            )
+            readyCount = 0
+            receivedMessageCount = 0
+            sentMessageCount = 0
+            Stages.ExecuteGraph
+          }
+        else {
+          sentMessageCount = totalSentMessages
+          receivedMessageCount = totalReceivedMessages
+          readyCount += 1
+          allVoteToHalt = votedToHalt & allVoteToHalt
+          Stages.ExecuteGraph
+        }
+    }
 
   //once the select has been run, execute all of the table functions until we hit a writeTo
-  private def executeTable(state:State,readyCount:Int): Receive = withDefaultMessageHandler("Execute Table") {
-    case TableBuilt =>
-      if ( (readyCount+1) == totalPartitions)
-        nextTableOperation(state)
-      else
-        context.become(executeTable(state,(readyCount+1)))
+  private def executeTable(msg: Message[Array[Byte]]): Stage =
+    deserialise[QueryManagement](msg.getValue) match {
+      case TableBuilt            =>
+        readyCount += 1
+        if (readyCount == totalPartitions) {
+          readyCount = 0
+          logger.debug(s"Job '$jobID': Executing next table operation.")
+          nextTableOperation()
+        }
+        else {
+          logger.debug(
+                  s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
+          )
+          Stages.ExecuteTable
+        }
 
-    case TableFunctionComplete =>
-      if ( (readyCount+1) == totalPartitions)
-        nextTableOperation(state)
-      else
-        context.become(executeTable(state,(readyCount+1)))
-  }
-
+      case TableFunctionComplete =>
+        readyCount += 1
+        if (readyCount == totalPartitions) {
+          logger.debug(s"Job '$jobID': Running next table operation.")
+          nextTableOperation()
+        }
+        else {
+          logger.debug(
+                  s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
+          )
+          Stages.ExecuteTable
+        }
+    }
   ////END OPERATION STATES
 
   ///HELPER FUNCTIONS
-  private def executeNextPerspective(perspectiveController: PerspectiveController) = {
+  private def executeNextPerspective(): Stage = {
     val latestTime = whatsTheTime()
-    val currentPerspective = perspectiveController.nextPerspective()
-
-    currentPerspective match {
+    if (currentPerspective.timestamp != -1) //ignore initial placeholder
+      tracker.sendAsync(serialise(currentPerspective))
+    perspectiveController.nextPerspective() match {
       case Some(perspective) if perspective.timestamp <= latestTime =>
-        //log.info(s"$perspective for Job $jobID is starting")
-        logTime(perspective)
-        messagetoAllJobWorkers(CreatePerspective(workerList, perspective.timestamp, perspective.window))
-        context.become(establishPerspective(State(perspectiveController, perspective, null,null),0,0))
-      case Some(perspective) =>
-        log.info(s"$perspective for Job $jobID is not ready, currently at $latestTime. Rechecking")
-        logTime(perspective)
-        context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
-        context.become(establishPerspective(State(perspectiveController, perspective, null,null),0,0))
-      case None =>
-        log.info(s"no more perspectives to run for $jobID")
+        logger.debug(s"Job '$jobID': Perspective '$perspective' is starting.")
+        logTimeTaken(perspective)
+        messagetoAllJobWorkers(CreatePerspective(perspective.timestamp, perspective.window))
+        currentPerspective = perspective
+        graphPerspective = null
+        table = null
+        Stages.EstablishPerspective
+      case Some(perspective)                                        =>
+        logger.debug(
+                s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'."
+        )
+        logTimeTaken(perspective)
+        currentPerspective = perspective
+        graphPerspective = null
+        table = null
+        scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckTimer)
+
+        Stages.EstablishPerspective
+      case None                                                     =>
+        logger.debug(s"Job '$jobID': No more perspectives to run.")
+        //log.info(s"no more perspectives to run for $jobID")
         killJob()
+        Stages.EndTask
     }
   }
 
-  private def logTime(perspective: Perspective) = {
-    if(currentPerspective.timestamp!=(-1)){
-
+  private def logTimeTaken(perspective: Perspective) = {
+    if (currentPerspective.timestamp != DEFAULT_PERSPECTIVE_TIME)
       currentPerspective.window match {
         case Some(window) =>
-          log.info(s"For $jobID - Perspective at Time ${currentPerspective.timestamp} with Window $window took ${System.currentTimeMillis()-lasttime} milliseconds to run.")
-        case None =>
-          log.info(s"For $jobID - Perspective at Time ${currentPerspective.timestamp} took ${System.currentTimeMillis()-lasttime} milliseconds to run. ")
+          logger.trace(
+                  s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' with " +
+                    s"Window $window took ${System.currentTimeMillis() - lastTime} ms to run."
+          )
+        case None         =>
+          logger.trace(
+                  s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' " +
+                    s"took ${System.currentTimeMillis() - lastTime} ms to run. "
+          )
       }
-      lasttime = System.currentTimeMillis()
-      currentPerspective = perspective
-
-    }
-    else{
-      currentPerspective = perspective
-      lasttime = System.currentTimeMillis()
-    }
+    lastTime = System.currentTimeMillis()
   }
 
-  private def recheckTime(perspective: Perspective):Unit = {
+  private def recheckTime(perspective: Perspective): Stage = {
     val time = whatsTheTime()
-    if (perspective.timestamp <= time)
-      messagetoAllJobWorkers(CreatePerspective(workerList, perspective.timestamp, perspective.window))
+    if (perspective.timestamp <= time) {
+      logger.debug(s"Job '$jobID': Created perspective at time $time.")
+
+      messagetoAllJobWorkers(CreatePerspective(perspective.timestamp, perspective.window))
+      Stages.EstablishPerspective
+    }
     else {
-      log.info(s"$perspective for Job $jobID is not ready, currently at $time. Rechecking")
-      context.system.scheduler.scheduleOnce(Duration(10, SECONDS), self, RecheckTime)
+      logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
+
+      scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckTimer)
+      Stages.EstablishPerspective
     }
   }
 
-  private def nextGraphOperation(state:State,vertexCount:Int) = {
-    state.graphPerspective.getNextOperation() match {
-      case Some(f:Select) =>
+  private def nextGraphOperation(vertexCount: Int): Stage =
+    graphPerspective.getNextOperation() match {
+      case Some(f: Select)        =>
+        logger.debug(s"Job '$jobID': Executing Select function.")
         messagetoAllJobWorkers(f)
-        context.become(executeTable(state, 0))
+        readyCount = 0
+        Stages.ExecuteTable
 
       case Some(f: GraphFunction) =>
         messagetoAllJobWorkers(f)
-        context.become(executeGraph(state, f,vertexCount, 0, 0, 0, true))
+        currentOperation = f
+        logger.debug(s"Job '$jobID': Executing graph function '${f.getClass.getSimpleName}'.")
+        readyCount = 0
+        receivedMessageCount = 0
+        sentMessageCount = 0
+        allVoteToHalt = true
+        Stages.ExecuteGraph
 
-      case None =>
-        executeNextPerspective(state.perspectiveController)
+      case None                   =>
+        readyCount = 0
+        receivedMessageCount = 0
+        sentMessageCount = 0
+        logger.debug(
+                s"Job '$jobID': Executing next perspective with windows '${currentPerspective.window}'" +
+                  s" and timestamp '${currentPerspective.timestamp}'."
+        )
+        executeNextPerspective()
     }
-  }
 
-  private def nextTableOperation(state:State) = {
-    state.table.getNextOperation() match {
+  private def nextTableOperation(): Stage =
+    table.getNextOperation() match {
+
       case Some(f: TableFunction) =>
         messagetoAllJobWorkers(f)
-        context.become(executeTable(state, 0))
+        readyCount = 0
+        logger.debug(s"Job '$jobID': Executing table function '${f.getClass.getSimpleName}'.")
 
-      case None =>
-        executeNextPerspective(state.perspectiveController)
+        Stages.ExecuteTable
+
+      case None                   =>
+        readyCount = 0
+        receivedMessageCount = 0
+        sentMessageCount = 0
+        logger.debug(s"Job '$jobID': Executing next perspective.")
+
+        executeNextPerspective()
     }
 
-  }
-
-  private def withDefaultMessageHandler(description: String)(handler: Receive): Receive = handler.orElse {
-    case req: EndQuery => killJob()
-    case AreYouFinished => monitor = sender() // register to message out later
-    case unhandled     => log.error(s"Not handled message in $description: " + unhandled)
-  }
-
-
-  private def messageToAllReaders[T](msg: T): Unit =
-    getAllReaders().foreach(worker => mediator ! new DistributedPubSubMediator.Send(worker, msg))
-
-  private def messagetoAllJobWorkers[T](msg:T):Unit =
-    workerList.values.foreach(worker => worker ! msg)
+  private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
+    workerList.values
+      .foreach { worker =>
+        worker sendAsync serialise(msg)
+      }
 
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
-    log.info(s"$jobID has no more perspectives. Query Handler ending execution.")
-    self ! PoisonPill
-    if(monitor!=null)monitor ! TaskFinished(true)
+    logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
+
+    tracker
+      .flushAsync()
+      .thenApply(_ =>
+        tracker
+          .sendAsync(serialise(JobDone))
+          .thenApply(_ => tracker.closeAsync())
+      )
+
+    //log.info(s"Job '$jobID': Has no more perspectives. Ending Query Handler execution.")
+    //if(monitor!=null)monitor ! TaskFinished(true)
   }
+
+  def whatsTheTime(): Long = queryManager.whatsTheTime()
 
 }
 
-object QueryHandler {
-  private case class State(perspectiveController: PerspectiveController, currentPerspective: Perspective, graphPerspective: GenericGraphPerspective, table:GenericTable) {
-    def updatePerspective(f: Perspective => Perspective): State = copy(currentPerspective = f(currentPerspective))
-  }
-
-  object Message{
-    case object StartAnalysis
-    case class EstablishExecutor(jobID:String)
-    case class ExecutorEstablished(worker:Int, me:ActorRef)
-
-    case class  CreatePerspective(neighbours: mutable.Map[Int,ActorRef], timestamp: Long, window: Option[Long])
-    case class  PerspectiveEstablished(vertices:Int)
-    case class  SetMetaData(vertices:Int)
-    case object MetaDataSet
-
-    case object StartGraph
-    case class  GraphFunctionComplete(receivedMessages: Int, sentMessages: Int,votedToHalt:Boolean=false)
-
-    case object TableBuilt
-    case object TableFunctionComplete
-
-    case object RecheckTime
-    case class  CheckMessages(jobId: String)
-  }
+object Stages extends Enumeration {
+  type Stage = Value
+  val SpawnExecutors, EstablishPerspective, ExecuteGraph, ExecuteTable, EndTask = Value
 }

@@ -1,56 +1,75 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
-
+import com.raphtory.core.algorithm.GraphAlgorithm
+import com.raphtory.core.algorithm.GraphPerspective
+import com.raphtory.core.algorithm.Row
+import com.raphtory.core.algorithm.Table
 
 /**
-Description
-  A connected component of an undirected graph is a set of vertices all of which
-  are connected by paths to each other. This algorithm calculates the number of
-  connected components in the graph and the size of each, and returns some statisics
-  of these.
+  * {s}`ConnectedComponents()`
+  * : Identify connected components
+  *
+  * A connected component of an undirected graph is a set of vertices all of which
+  * are connected by paths to each other. This algorithm identifies the connected component
+  * each vertex belongs to.
+  *
+  * ```{note}
+  * Edges here are treated as undirected, a future feature may be to calculate
+  * weakly/strongly connected components for directed networks.
+  * ```
+  *
+  * ## States
+  *
+  * {s}`cclabel: Long`
+  * : Label of connected component the vertex belongs to (minimum vertex ID in component)
+  *
+  * ## Returns
+  *
+  * | vertex name       | component label    |
+  * | ----------------- | ------------------ |
+  * | {s}`name: String` | {s}`cclabel: Long` |
+  *
+  * ## Implementation
+  *
+  * The algorithm is similar to that of GraphX and fairly straightforward:
+  *
+  *  1. Each node is numbered by its ID, and takes this as an initial connected components label.
+  *
+  *  2. Each node forwards its own label to each of its neighbours.
+  *
+  *  3. Having received a list of labels from neighbouring nodes, each node relabels itself with the smallest
+  *     label it has received (or stays the same if its starting label is smaller than any received).
+  *
+  *  4. The algorithm iterates over steps 2 and 3 until no nodes change their label within an iteration.
+  */
+class ConnectedComponents() extends NodeList(Seq("cclabel")) {
 
-Parameters
-  path String : This takes the path of where the output should be written to
-
-Returns
-  ID (Long) : This is the ID of the vertex
-  Label (Long) : The value of the component it belongs to
-
-Notes
-  Edges here are treated as undirected, a future feature may be to calculate
-  weakly/strongly connected components for directed networks.
-
-**/
-class ConnectedComponents(path:String) extends GraphAlgorithm{
-  override def apply(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): GraphPerspective =
+//    TODO: Uncommenting any of these lines fixes the twitter test
+//    println(s"Finding components for graph with ${graph.nodeCount()} nodes")
+//    println("")
+//    val n = graph.nodeCount()
+//    val x = 0
     graph
-      .step({
-        vertex =>
-          vertex.setState("cclabel", vertex.ID)
-          vertex.messageAllNeighbours(vertex.ID)
-      })
-      .iterate({
-        vertex =>
-          val label = vertex.messageQueue[Long].min
-          if (label < vertex.getState[Long]("cclabel")) {
-            vertex.setState("cclabel", label)
-            vertex messageAllNeighbours label
-          }
-          else
-            vertex.voteToHalt()
-      }, iterations = 100, executeMessagedOnly = true)
-  }
-
-  override def tabularise(graph: GraphPerspective): Table = {
-    graph.select(vertex => Row(vertex.name(), vertex.getState[Long]("cclabel")))
-  }
-
-  override def write(table: Table): Unit = {
-    table.writeTo(path)
-  }
+      .step { vertex =>
+        vertex.setState("cclabel", vertex.ID)
+        vertex.messageAllNeighbours(vertex.ID)
+      }
+      .iterate(
+              { vertex =>
+                val label = vertex.messageQueue[Long].min
+                if (label < vertex.getState[Long]("cclabel")) {
+                  vertex.setState("cclabel", label)
+                  vertex.messageAllNeighbours(label)
+                }
+                else
+                  vertex.voteToHalt()
+              },
+              iterations = 100,
+              executeMessagedOnly = true
+      )
 }
 
-object ConnectedComponents{
-  def apply(path:String) = new ConnectedComponents(path)
+object ConnectedComponents {
+  def apply() = new ConnectedComponents()
 }

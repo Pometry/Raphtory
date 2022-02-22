@@ -1,34 +1,61 @@
-import com.typesafe.sbt.packager.archetypes.scripts.AshScriptPlugin
-import sbtassembly.MergeStrategy
+lazy val root = (project in file("."))
+  .settings(
+      inThisBuild(List(
+          organization := "com.raphtory",
+          scalaVersion := "2.13.7"
+      )),
+      name            := "raphtory-pulsar",
+      version         := "0.1",
+      assembly / test := {}
+  )
 
-lazy val root = Project(id = "raphtory", base = file(".")) aggregate (raphtory)
+Test / parallelExecution := false
 
-val resolutionRepos = Seq(
-  "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/",
-  "Akka Snapshots" at "http://repo.akka.io/snapshots/",
-  "OSS" at "http://oss.sonatype.org/content/repositories/releases",
-  "Mvn" at "http://mvnrepository.com/artifact" // for commons_exec
+Global / concurrentRestrictions := Seq(
+  Tags.limit(Tags.Test, 1),
 )
 
-lazy val globalSettings = Seq(
-  organization := "com.raphtory",
-  startYear := Some(2014),
-  scalaVersion := "2.12.4",
-  packageName := "raphtory",
-  parallelExecution in Test := false,
-  scalacOptions := Seq(
-    "-feature",
-    "-deprecation",
-    "-encoding",
-    "UTF8",
-    "-unchecked"
-  ),
-  testOptions in Test += Tests.Argument("-oDF"),
-)
+val pulsarVersion        = "2.9.0"
+val pulsar4sVersion      = "2.8.0"
+val scalatestVersion     = "3.2.9"
+val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
 
-lazy val mergeStrategy: String => MergeStrategy = {
-  case PathList(xs @ _*) if xs.last == "io.netty.versions.properties" => MergeStrategy.first
-  case PathList(xs @ _*) if xs.last == "module-info.class" => MergeStrategy.first
+val excludeSlf4j = ExclusionRule(organization = "org.slf4j")
+val excludeLog4j = ExclusionRule(organization = "log4j")
+
+
+libraryDependencies += "org.apache.pulsar"            %  "pulsar-common"                          % pulsarVersion
+libraryDependencies += "com.sksamuel.avro4s" % "avro4s-core_2.13" % "4.0.12"
+
+
+libraryDependencies += "org.apache.pulsar"            %  "pulsar-io-file"                         % pulsarVersion
+libraryDependencies += "org.apache.pulsar"            %  "pulsar-functions-api"                   % pulsarVersion
+libraryDependencies += "org.apache.pulsar"            %  "pulsar-client-api"                      % pulsarVersion
+libraryDependencies += "org.apache.pulsar"            %  "pulsar-client-original"                 % pulsarVersion
+libraryDependencies += "org.apache.pulsar"            %  "pulsar-client-messagecrypto-bc"         % pulsarVersion
+libraryDependencies += "org.apache.pulsar"            %  "pulsar-functions-local-runner-original" % pulsarVersion
+libraryDependencies += "org.apache.pulsar"            %  "pulsar-client-admin-original"           % pulsarVersion excludeAll(excludePulsarBinding)
+libraryDependencies += "net.openhft"                  %  "zero-allocation-hashing"                % "0.15" excludeAll(excludeLog4j,excludeSlf4j)
+libraryDependencies += "org.scalatest"                %% "scalatest"                              % scalatestVersion
+libraryDependencies += "org.scalatest"                %% "scalatest"                              % scalatestVersion % Test
+libraryDependencies += "org.apache.logging.log4j"     % "log4j-api"                               % "2.17.1"
+libraryDependencies += "org.apache.logging.log4j"     % "log4j-core"                              % "2.17.1"
+libraryDependencies += "org.apache.logging.log4j"     % "log4j-slf4j-impl"                        % "2.17.1"
+libraryDependencies += "org.slf4j"                    % "slf4j-api"                               % "1.7.36"
+libraryDependencies += "com.twitter"                  %% "chill"                                  % "0.10.0"
+libraryDependencies += "io.spray"                     %% "spray-json"                             % "1.3.6"
+libraryDependencies += "org.apache.zookeeper"         % "zookeeper"                               % "3.7.0"
+libraryDependencies += "io.github.kostaskougios"      % "cloning"                                 % "1.10.3"
+libraryDependencies += "io.fabric8"                   % "kubernetes-client"                       % "5.11.1"
+libraryDependencies += "com.typesafe.scala-logging"   %% "scala-logging"                          % "3.9.4"
+libraryDependencies += "io.monix"                     %% "monix"                                  % "3.4.0"
+libraryDependencies += "com.typesafe"                 % "config"                                   % "1.4.1"
+
+
+libraryDependencies ~= { _.map(_.exclude("org.slf4j","slf4j-log4j12")) }
+
+assembly / assemblyMergeStrategy := {
+  case PathList("META-INF", "MANIFEST.MF") => MergeStrategy.discard
   case x if Assembly.isConfigFile(x) =>
     MergeStrategy.concat
   case PathList(ps @ _*) if Assembly.isReadme(ps.last) || Assembly.isLicenseFile(ps.last) =>
@@ -51,73 +78,4 @@ lazy val mergeStrategy: String => MergeStrategy = {
   case _ => MergeStrategy.first
 }
 
-lazy val raphtory = project
-  .in(
-    file(".")
-  )
-  .enablePlugins(
-    JavaAppPackaging,
-    AshScriptPlugin,
-    JavaAgent
-  )
-  .settings(globalSettings:_*)
-  .settings(
-    name        := "Raphtory",
-    description := "Raphtory Distributed Graph Stream Processing",
-    isSnapshot := true,
-    assemblyMergeStrategy in assembly := mergeStrategy,
-    mainClass in assembly := Some("com.raphtory.core.build.server.RaphtoryGraph"),
-    javaOptions in Universal += "-Dorg.aspectj.tracing.factory=default",
-    javaAgents +=          "org.aspectj"                   % "aspectjweaver"                      % "1.8.13",
-    libraryDependencies += "org.scala-lang"                % "scala-reflect"                      % "2.12.4",
-    libraryDependencies += "org.scala-lang"                % "scala-compiler"                     % "2.12.4",
-    libraryDependencies += "com.typesafe"                  % "config"                             % "1.2.1",
-    libraryDependencies += "com.typesafe.akka"             %% "akka-actor"                        % "2.6.14",
-    libraryDependencies += "com.typesafe.akka"             %% "akka-slf4j"                        % "2.6.14",
-    libraryDependencies += "com.typesafe.akka"             %% "akka-remote"                       % "2.6.14",
-    libraryDependencies += "com.typesafe.akka"             %% "akka-cluster"                      % "2.6.14",
-    libraryDependencies += "com.typesafe.akka"             %% "akka-cluster-tools"                % "2.6.14",
-    libraryDependencies += "com.typesafe.akka"             %% "akka-distributed-data"             % "2.6.14",
-    libraryDependencies += "com.typesafe.akka"             %% "akka-actor-typed"                  % "2.6.14",
-    libraryDependencies += "com.typesafe.akka"             %% "akka-cluster-typed"                % "2.6.14",
-    libraryDependencies += "com.typesafe.akka"             %% "akka-discovery"                    % "2.6.14",
-    libraryDependencies += "com.typesafe.akka"             %% "akka-http"                         % "10.2.4",
-    libraryDependencies += "com.typesafe.akka"             %% "akka-http-spray-json"              % "10.2.4",
-    libraryDependencies += "ch.qos.logback"                % "logback-classic"                    % "1.2.3",
-    libraryDependencies += "io.spray"                      % "spray-json_2.12"                    % "1.3.6",
-    libraryDependencies += "com.lightbend.akka.management" %% "akka-management"                   % "1.1.0",
-    libraryDependencies += "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % "1.1.0",
-    libraryDependencies += "com.lightbend.akka.discovery"  %% "akka-discovery-kubernetes-api"     % "1.1.0",
-    libraryDependencies += "net.liftweb"                   %% "lift-json"                         % "3.3.0",
-    libraryDependencies += "commons-lang"                  % "commons-lang"                       % "2.6",
-    libraryDependencies += "org.apache.kafka"              %% "kafka"                             % "2.5.0",
-    libraryDependencies += "org.apache.kafka"              % "kafka-clients"                      % "2.5.0",
-    libraryDependencies += "joda-time"                     % "joda-time"                          % "2.10.5",
-    libraryDependencies += "org.mongodb"                   %% "casbah-core"                       % "3.1.1",
-    libraryDependencies += "org.mongodb"                   % "mongo-java-driver"                  % "3.12.4",
-    libraryDependencies += "org.mongodb.scala"             %% "mongo-scala-driver"                % "2.9.0",
-    libraryDependencies += "com.github.mjakubowski84"      %% "parquet4s-core"                    % "1.6.0",
-    libraryDependencies += "org.apache.hadoop"             % "hadoop-client"                      % "3.3.0",
-    libraryDependencies += "com.thesamet.scalapb"          %% "compilerplugin"                    % "0.11.1",
-    libraryDependencies += "net.openhft"                   % "zero-allocation-hashing"            % "0.15",
-    libraryDependencies += "de.javakaffee"                 % "kryo-serializers"                   % "0.45",
-    libraryDependencies += "com.lightbend.akka"           %% "akka-stream-alpakka-avroparquet"    % "3.0.3",
-    libraryDependencies += "com.typesafe.akka"            %% "akka-stream"                        % "2.6.14",
-    libraryDependencies += "com.twitter"                  %% "chill"                              % "0.10.0",
-    libraryDependencies += "com.twitter"                  %% "chill-akka"                         % "0.10.0",
-    libraryDependencies += "io.github.kostaskougios"      % "cloning"                             % "1.10.3",
-    libraryDependencies += "net.openhft" % "chronicle-map" % "3.22ea5",
-    libraryDependencies ++= Seq("com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"),
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test,
-    Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb")
-  )
 
-// Write custom git hooks to .git/hooks on sbt load
-lazy val startupTransition: State => State = { s: State =>
-  "writeHooks" :: s
-}
-
-onLoad in Global := {
-  val old = (onLoad in Global).value
-  startupTransition compose old
-}

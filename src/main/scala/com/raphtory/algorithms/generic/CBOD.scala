@@ -1,28 +1,53 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.core.model.algorithm._
+import com.raphtory.core.algorithm._
 
 /**
-Description
-  Returns outliers detected based on the community structure of the Graph.
-
-  The algorithm assumes that the state of each vertex contains a community label (e.g., set by running LPA on the graph, initially)
-  and then defines an outlier score based on a node's
-  community membership and how it compares to its neighbors community memberships.
-
-Parameters
-  label (String) - Identifier for community label
-  cutoff (Double) - Outlier score threshold (default: 0.0). Identifies the outliers with an outlier score > cutoff.
-  labeler (GraphAlgorithm) - Community algorithm to run to get labels (does nothing by default, i.e., labels should
-be already set on the input graph, either via chaining or defined as properties of the data)
-  **/
-class CBOD(label: String = "label", cutoff: Double = 0.0, output: String = "/tmp/CBOD", labeler:GraphAlgorithm = Identity())
+  *  {s}`CBOD(label: String = "community", cutoff: Double = 0.0, labeler:GraphAlgorithm = Identity())`
+  *  : Returns outliers detected based on the community structure of the Graph.
+  *
+  *  The algorithm assumes that the state of each vertex contains a community label
+  *  (e.g., set by running [LPA](com.raphtory.algorithms.generic.community.LPA) on the graph, initially)
+  *  and then defines an outlier score based on a node's
+  *  community membership and how it compares to its neighbors community memberships.
+  *
+  * ## Parameters
+  *
+  *  {s}`label: String = "community"`
+  *  : Identifier for community label (default: "community")
+  *
+  *  {s}`cutoff: Double = 0.0`
+  *  : Outlier score threshold (default: 0.0). Identifies the outliers with an outlier score > cutoff.
+  *
+  *  {s}`labeler: GraphAlgorithm`
+  *  : Community algorithm to run to get labels (does nothing by default, i.e., labels should
+  *    be already set on the input graph, either via chaining or defined as properties of the data)
+  *
+  * ## States
+  *
+  *  {s}`outlierscore: Double`
+  *  : Community-based outlier score for vertex
+  *
+  * ## Returns
+  *
+  *  (only for vertex such that `outlierscore >= cutoff`)
+  *
+  *  | vertex name      | outlier score            |
+  *  |------------------|--------------------------|
+  *  |{s}`name: String` | {s}`outlierscore: Double`|
+  *
+  * ```{seealso}
+  * [](com.raphtory.algorithms.generic.community.LPA)
+  * ```
+  */
+class CBOD(label: String = "community", cutoff: Double = 0.0, labeler: GraphAlgorithm = Identity())
         extends GraphAlgorithm {
+
   /**
-   Run CBOD algorithm and sets "outlierscore" state
-    **/
-  override def apply(graph: GraphPerspective): GraphPerspective = {
-      labeler.apply(graph)
+    *   Run CBOD algorithm and sets "outlierscore" state
+    */
+  override def apply(graph: GraphPerspective): GraphPerspective =
+    labeler(graph)
       .step { vertex => //Get neighbors' labels
         val vlabel = vertex.getState[Long](key = label, includeProperties = true)
         vertex.messageAllNeighbours(vlabel)
@@ -33,32 +58,27 @@ class CBOD(label: String = "label", cutoff: Double = 0.0, output: String = "/tmp
         val outlierScore   = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)
         v.setState("outlierscore", outlierScore)
       }
-  }
 
   /**
-   * extract vertex ID and outlier score for vertices with outlierscore >= threshold
-   **/
-  override def tabularise(graph: GraphPerspective): Table = {
-    graph.select { vertex =>
-      Row(
-        vertex.name(),
-        vertex.getStateOrElse[Double]("outlierscore", 10.0)
-      )
-    }
+    * extract vertex ID and outlier score for vertices with outlierscore >= threshold
+    */
+  override def tabularise(graph: GraphPerspective): Table =
+    graph
+      .select { vertex =>
+        Row(
+                vertex.name(),
+                vertex.getStateOrElse[Double]("outlierscore", 10.0)
+        )
+      }
       .filter(_.get(1).asInstanceOf[Double] >= cutoff)
-  }
-
-  override def write(table: Table): Unit = {
-    table.writeTo(output)
-  }
 }
 
 object CBOD {
+
   def apply(
-      label: String = "label",
+      label: String = "community",
       cutoff: Double = 0.0,
-      output: String = "/tmp/CBOD",
       labeler: GraphAlgorithm = Identity()
   ) =
-    new CBOD(label, cutoff, output, labeler)
+    new CBOD(label, cutoff, labeler)
 }

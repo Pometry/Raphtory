@@ -1,0 +1,71 @@
+#!/bin/bash
+
+function usage {
+  cat <<USAGE
+Usage: $0 [options]
+
+Script to package jars into raphtory image.
+It is expected that you have already logged into your docker registry when using 'push' or 'all' commands
+docker login registry.example.com --username username --password password
+
+Options:
+  -c command                    Which command to run, can be set to 'build', 'push' or 'all'
+  -r docker image repo          Repo URL, used to decide where to push the image to
+  -t docker image tag           Tag to apply to built image
+  -j java docker image name     Name to use to get image for java
+  -k java docker image tag      Tag to use to get image for java
+  -u run as user                RUN_USER to be used in docker image
+  -z jars                       Quoted list of jars to copy into image, separated by space
+
+Examples:
+./raphtory-docker-image -c build -t 1.0.0 -u root
+./raphtory-docker-image -c push -r repo.raphtory.com -t 1.0.0 -u root
+./raphtory-docker-image -c all -r repo.raphtory.com -t 1.0.0 -u root
+./raphtory-docker-image -c all -r repo.raphtory.com -t 1.0.0 -u root -j "eclipse-temurin" -k "11.0.12_7-jdk"
+./raphtory-docker-image -c all -r repo.raphtory.com -t 1.0.0 -u root -j "eclipse-temurin" -k "11.0.12_7-jdk" -z "/tmp/jar1.jar /tmp/jar2.jar"
+USAGE
+  exit 1
+}
+
+while getopts c:r:t:j:k:u:z: opt
+do
+ case "${opt}" in
+   c) COMMAND=${OPTARG};;
+   r) DOCKER_REPO=${OPTARG};;
+   t) DOCKER_IMAGE_TAG=${OPTARG};;
+   j) JAVA_DOCKER_IMAGE_NAME=${OPTARG};;
+   k) JAVA_DOCKER_IMAGE_TAG=${OPTARG};;
+   u) RUN_USER=${OPTARG};;
+   z) JARS=${OPTARG};;
+   *) usage;;
+ esac
+done
+
+DOCKER_BUILD_ARGS=()
+DOCKERFILE="bin/kubernetes/docker/raphtory/Dockerfile"
+DOCKER_IMAGE_NAME="raphtory"
+JAR_PATH="tmp/raphtory/jars"
+
+[[ ! -d $JAR_PATH ]] && mkdir -p $JAR_PATH
+[[ ( -z "$COMMAND" || -z "$DOCKER_IMAGE_TAG" || -z "$DOCKER_REPO") ]] && usage
+[ -n "$JAVA_DOCKER_IMAGE_NAME" ] && DOCKER_BUILD_ARGS+=(--build-arg JAVA_DOCKER_IMAGE_NAME=$JAVA_DOCKER_IMAGE_NAME)
+[ -n "$JAVA_DOCKER_IMAGE_TAG" ] && DOCKER_BUILD_ARGS+=(--build-arg JAVA_DOCKER_IMAGE_TAG=$JAVA_DOCKER_IMAGE_TAG)
+[ -n "$RUN_USER" ] && DOCKER_BUILD_ARGS+=(--build-arg RUN_USER=$RUN_USER)
+
+[ -n "$JARS" ] && \
+for jar in $JARS;
+do
+  cp $jar $JAR_PATH
+done
+
+case $COMMAND in
+  build)
+    docker build "${DOCKER_BUILD_ARGS[@]}" -t "${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" -f ${DOCKERFILE} . ;;
+  push)
+    docker push "${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" ;;
+  all)
+    docker build "${DOCKER_BUILD_ARGS[@]}" -t "${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" -f ${DOCKERFILE} .
+    docker push "${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" ;;
+  *)
+    usage ;;
+esac
