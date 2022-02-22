@@ -170,12 +170,12 @@ class FileSpoutExecutor[T](
 
         return
       case error: FileAlreadyExistsException    =>
-        logger.error(
+        logger.warn(
                 "FileAlreadyExistsException: Could not create hardlink, file already exists."
         )
 
         return
-      case error: IOException                   => logger.warn("ERROR(IOException): an I/O error occured "); return;
+      case error: IOException                   => logger.warn("ERROR(IOException): an I/O error occurred "); return;
       case error: SecurityException             =>
         logger.warn("ERROR(SecurityException): Invalid permissions to create hardlink"); return;
     }
