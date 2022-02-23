@@ -14,7 +14,7 @@ import org.apache.pulsar.client.api.Schema
 import scala.language.postfixOps
 import scala.reflect.runtime.universe._
 
-private[core] class RaphtoryGraph[T: TypeTag](
+private[core] class RaphtoryGraph[T: TypeTag : Manifest](
     spout: SpoutExecutor[T],
     graphBuilder: GraphBuilder[T],
     schema: Schema[T],

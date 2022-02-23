@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-trait GraphBuilder[T] {
+trait GraphBuilder[T] extends Serializable {
   val logger: Logger                            = Logger(LoggerFactory.getLogger(this.getClass))
   private var updates: ArrayBuffer[GraphUpdate] = ArrayBuffer()
 
