@@ -51,9 +51,7 @@ class TriangleCount() extends NodeList(Seq("triangleCount")) {
       .step { vertex =>
         vertex.setState("triangleCount", 0)
         val neighbours = vertex.getAllNeighbours().toSet
-        neighbours.foreach { nb =>
-          vertex.messageVertex(nb, neighbours)
-        }
+        neighbours.foreach(nb => vertex.messageVertex(nb, neighbours))
       }
       .step { vertex =>
         val neighbours = vertex.getAllNeighbours().toSet

@@ -14,10 +14,7 @@ object KubernetesService {
       namespace: String,
       name: String
   ): Service =
-    client.services
-      .inNamespace(namespace)
-      .withName(name)
-      .get
+    client.services.inNamespace(namespace).withName(name).get
 
   def build(
       name: String,
@@ -55,19 +52,12 @@ object KubernetesService {
       namespace: String,
       serviceConfig: Service
   ): Service =
-    client
-      .services()
-      .inNamespace(namespace)
-      .createOrReplace(serviceConfig)
+    client.services().inNamespace(namespace).createOrReplace(serviceConfig)
 
   def delete(
       client: KubernetesClient,
       namespace: String,
       name: String
   ): Boolean =
-    client
-      .services()
-      .inNamespace(namespace)
-      .withName(name)
-      .delete();
+    client.services().inNamespace(namespace).withName(name).delete();
 }

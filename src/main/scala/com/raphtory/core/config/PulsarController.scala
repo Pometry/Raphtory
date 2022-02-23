@@ -13,11 +13,15 @@ import scala.collection.JavaConverters._
 
 class PulsarController(conf: Config) {
   private val pulsarAddress: String = conf.getString("raphtory.pulsar.broker.address")
+  val pulsarAdminAddress: String    = conf.getString("raphtory.pulsar.admin.address")
 
-  private val client: PulsarClient =
-    PulsarClient.builder().ioThreads(10).serviceUrl(pulsarAddress).build()
-
-  val pulsarAdminAddress: String = conf.getString("raphtory.pulsar.admin.address")
+  private val client: PulsarClient  =
+    PulsarClient
+      .builder()
+      .ioThreads(10)
+      .serviceUrl(pulsarAddress)
+      .serviceUrl(pulsarAdminAddress)
+      .build()
 
   val pulsarAdmin = PulsarAdmin.builder
     .serviceHttpUrl(pulsarAdminAddress)
@@ -92,6 +96,7 @@ class PulsarController(conf: Config) {
       .subscribe()
 
   def createConsumer[T](subscriptionName: String, schema: Schema[T], topics: String*): Consumer[T] =
+    //topics.foreach(topic => pulsarAdmin.schemas().createSchema(topic, schema.getSchemaInfo))
     client
       .newConsumer(schema)
       .topics(topics.toList.asJava)
@@ -103,9 +108,5 @@ class PulsarController(conf: Config) {
       .subscribe()
 
   def createProducer[T](schema: Schema[T], topic: String): Producer[T] =
-    client
-      .newProducer(schema)
-      .topic(topic)
-      .blockIfQueueFull(true)
-      .create() //.enableBatching(true)
+    client.newProducer(schema).topic(topic).blockIfQueueFull(true).create() //.enableBatching(true)
 }

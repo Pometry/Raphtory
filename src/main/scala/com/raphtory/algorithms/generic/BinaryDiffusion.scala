@@ -16,9 +16,7 @@ class BinaryDiffusion(
   val randomiser: Random = if (seed != -1) new Random(seed) else new Random()
 
   def randomlyInfect(vertex: Vertex): Unit =
-    vertex.getOutEdges().foreach { edge =>
-      if (randomiser.nextBoolean()) edge.send(infectedStatus)
-    }
+    vertex.getOutEdges().foreach(edge => if (randomiser.nextBoolean()) edge.send(infectedStatus))
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph

@@ -1,5 +1,8 @@
 package com.raphtory.core.components.graphbuilder
 
+import com.raphtory.serialisers.avro
+import org.apache.pulsar.client.api.Schema
+
 sealed trait Property {
   def key: String
   def value: Any
@@ -14,6 +17,10 @@ case class FloatProperty(key: String, value: Float)      extends Property
 case class Properties(property: Property*)
 
 sealed trait GraphAlteration
+
+object GraphAlteration {
+  val schema: Schema[GraphAlteration] = avro.avroSchema[GraphAlteration]
+}
 
 sealed trait GraphUpdate extends GraphAlteration {
   val updateTime: Long

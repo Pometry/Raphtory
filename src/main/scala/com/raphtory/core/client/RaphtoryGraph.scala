@@ -56,9 +56,7 @@ private[core] class RaphtoryGraph[T: TypeTag](
     }
     queryManager.worker.stop()
     spoutworker.worker.stop()
-    graphBuilderworker.foreach { builder =>
-      builder.worker.stop()
-    }
+    graphBuilderworker.foreach(builder => builder.worker.stop())
   }
 
   private def allowIllegalReflection() = {
@@ -71,10 +69,11 @@ private[core] class RaphtoryGraph[T: TypeTag](
       val unsafeField = unsafeClass.getDeclaredField("theUnsafe")
       unsafeField.setAccessible(true)
       val unsafe      = unsafeField.get(null)
-      val offset      = unsafeClass
-        .getMethod("staticFieldOffset", classOf[Field])
-        .invoke(unsafe, loggerField)
-        .asInstanceOf[Long]
+      val offset      =
+        unsafeClass
+          .getMethod("staticFieldOffset", classOf[Field])
+          .invoke(unsafe, loggerField)
+          .asInstanceOf[Long]
       unsafeClass
         .getMethod("putObjectVolatile", classOf[Object], classOf[Long], classOf[Object])
         .invoke(unsafe, loggerClass, offset, null)

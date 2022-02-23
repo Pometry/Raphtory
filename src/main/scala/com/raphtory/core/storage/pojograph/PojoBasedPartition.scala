@@ -33,11 +33,10 @@ class PojoBasedPartition(partition: Int, conf: Config)
   /**
     * Map of vertices contained in the partition
     */
-
   val hasDeletionsPath      = "raphtory.data.containsDeletions"
   val hasDeletions: Boolean = conf.getBoolean(hasDeletionsPath)
   logger.debug(
-          s"Config indicates that data current data contains 'delete' events. " +
+          s"Config indicates that the data contains 'delete' events. " +
             s"To change this modify '$hasDeletionsPath' in the application conf."
   )
 

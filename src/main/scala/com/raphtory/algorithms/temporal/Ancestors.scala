@@ -38,7 +38,6 @@ import com.raphtory.core.algorithm.Table
   *  | ----------------- | ---------------------- |
   *  | {s}`name: String` | {s}`ancestor: Boolean` |
   */
-
 class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed: Boolean = true)
         extends GraphAlgorithm {
 
@@ -49,9 +48,7 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
           val edges = (if (directed) vertex.getInEdges() else vertex.getEdges())
             .filter(e => e.earliestActivity().time < time)
             .filter(e => e.lastActivityBefore(time).time > time - delta)
-          edges.foreach { e =>
-            vertex.messageVertex(e.ID(), e.lastActivityBefore(time).time)
-          }
+          edges.foreach(e => vertex.messageVertex(e.ID(), e.lastActivityBefore(time).time))
           vertex.setState("ancestor", false)
         }
       }
@@ -62,9 +59,8 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
                 val inEdges    = (if (directed) vertex.getInEdges() else vertex.getEdges())
                   .filter(e => e.earliestActivity().time < latestTime)
                   .filter(e => e.lastActivityBefore(time).time > latestTime - delta)
-                inEdges.foreach { e =>
-                  vertex.messageVertex(e.ID(), e.lastActivityBefore(latestTime).time)
-                }
+                inEdges
+                  .foreach(e => vertex.messageVertex(e.ID(), e.lastActivityBefore(latestTime).time))
               },
               executeMessagedOnly = true,
               iterations = 100

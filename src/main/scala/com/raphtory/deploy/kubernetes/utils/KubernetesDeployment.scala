@@ -14,10 +14,7 @@ object KubernetesDeployment {
       name: String,
       namespace: String
   ): Deployment =
-    client.apps.deployments
-      .inNamespace(namespace)
-      .withName(name)
-      .get
+    client.apps.deployments.inNamespace(namespace).withName(name).get
 
   def build(
       name: String,
@@ -73,21 +70,12 @@ object KubernetesDeployment {
       namespace: String,
       deploymentConfig: Deployment
   ): Deployment =
-    client
-      .apps()
-      .deployments()
-      .inNamespace(namespace)
-      .createOrReplace(deploymentConfig)
+    client.apps().deployments().inNamespace(namespace).createOrReplace(deploymentConfig)
 
   def delete(
       client: KubernetesClient,
       namespace: String,
       name: String
   ): Boolean =
-    client
-      .apps()
-      .deployments()
-      .inNamespace(namespace)
-      .withName(name)
-      .delete();
+    client.apps().deployments().inNamespace(namespace).withName(name).delete();
 }
