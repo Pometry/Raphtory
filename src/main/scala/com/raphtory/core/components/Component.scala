@@ -29,9 +29,9 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   val hasDeletions: Boolean              = conf.getBoolean("raphtory.data.containsDeletions")
   val totalPartitions: Int               = partitionServers * partitionsPerServer
   private val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
-  val cancelableConsumer    : Option[Consumer[T]]= None
+  val consumer: Option[Consumer[T]]      = None
 
-  def handleMessage(msg: Message[T]) : Boolean
+  def handleMessage(msg: Message[T]): Boolean
   def run()
   def stop()
 

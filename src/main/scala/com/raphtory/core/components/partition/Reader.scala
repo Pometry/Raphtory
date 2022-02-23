@@ -4,7 +4,9 @@ import com.raphtory.core.components.querymanager.EstablishExecutor
 import com.raphtory.core.components.Component
 import com.raphtory.core.components.querymanager.EstablishExecutor
 import com.raphtory.core.components.querymanager.WatermarkTime
-import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
+import com.raphtory.core.config.AsyncConsumer
+import com.raphtory.core.config.MonixScheduler
+import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.GraphPartition
 import com.typesafe.config.Config
 import monix.execution.Scheduler
@@ -17,17 +19,17 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
 class Reader(
-              partitionID: Int,
-              storage: GraphPartition,
-              scheduler: Scheduler,
-              conf: Config,
-              pulsarController: PulsarController
-            ) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+    partitionID: Int,
+    storage: GraphPartition,
+    scheduler: Scheduler,
+    conf: Config,
+    pulsarController: PulsarController
+) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
 
-  private val executorMap                               = mutable.Map[String, QueryExecutor]()
-  private val watermarkPublish                          = watermarkPublisher()
-  override val cancelableConsumer = Some(startReaderConsumer(Schema.BYTES,partitionID))
-  private val monixScheduler = new MonixScheduler
+  private val executorMap      = mutable.Map[String, QueryExecutor]()
+  private val watermarkPublish = watermarkPublisher()
+  override val consumer        = Some(startReaderConsumer(Schema.BYTES, partitionID))
+  private val monixScheduler   = new MonixScheduler
 
   class Watermarker extends Runnable {
 
@@ -43,10 +45,7 @@ class Reader(
   }
 
   override def stop(): Unit = {
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-    }
+    //consumer.close()
     watermarkPublish.close()
     executorMap.foreach(_._2.stop())
   }

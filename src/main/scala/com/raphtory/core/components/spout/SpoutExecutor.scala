@@ -5,6 +5,7 @@ import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Message
+import org.apache.pulsar.client.api.Schema
 
 abstract class SpoutExecutor[T](
     conf: Config,
@@ -12,5 +13,4 @@ abstract class SpoutExecutor[T](
     scheduler: Scheduler
 ) extends Component[T](conf: Config, pulsarController: PulsarController) {
   override def handleMessage(msg: Message[T]): Boolean = false
-
 }

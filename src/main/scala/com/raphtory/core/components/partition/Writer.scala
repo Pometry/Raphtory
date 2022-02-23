@@ -35,49 +35,46 @@ class Writer(
     pulsarController: PulsarController
 ) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
 
-  private val neighbours                                    = writerSyncProducers()
-  private var mgsCount                                      = 0
-  var cancelableConsumer: Option[Consumer[GraphAlteration]] = None
-  cancelableConsumer = Some(startPartitionConsumer(GraphAlteration.schema, partitionID))
+  private val neighbours = writerSyncProducers()
+  private var mgsCount   = 0
+
+  override val consumer      =
+    Some(startPartitionConsumer(GraphAlteration.schema, partitionID))
   private val monixScheduler = new MonixScheduler
 
   override def run(): Unit =
     monixScheduler.scheduler.execute(AsyncConsumer(this))
 
-  override def stop(): Unit = {
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-    }
+  override def stop(): Unit =
+    //consumer.close()
     neighbours.foreach(_._2.close())
-  }
 
   override def handleMessage(msg: Message[GraphAlteration]): Boolean = {
     var reschedule = true
     msg.getValue match {
       //Updates from the Graph Builder
-      case update: VertexAdd  => processVertexAdd(update)
-      case update: EdgeAdd    => processEdgeAdd(update)
-      case update: EdgeDelete => processEdgeDelete(update)
-      case update: VertexDelete =>
+      case update: VertexAdd                    => processVertexAdd(update)
+      case update: EdgeAdd                      => processEdgeAdd(update)
+      case update: EdgeDelete                   => processEdgeDelete(update)
+      case update: VertexDelete                 =>
         processVertexDelete(update) //Delete a vertex and all associated edges
 
       //Syncing Edge Additions
-      case update: SyncNewEdgeAdd =>
+      case update: SyncNewEdgeAdd               =>
         processSyncNewEdgeAdd(
                 update
         ) //A writer has requested a new edge sync for a destination node in this worker
-      case update: SyncExistingEdgeAdd =>
+      case update: SyncExistingEdgeAdd          =>
         processSyncExistingEdgeAdd(
                 update
         ) // A writer has requested an existing edge sync for a destination node on in this worker
 
       //Syncing Edge Removals
-      case update: SyncNewEdgeRemoval =>
+      case update: SyncNewEdgeRemoval           =>
         processSyncNewEdgeRemoval(
                 update
         ) //A remote worker is asking for a new edge to be removed for a destination node in this worker
-      case update: SyncExistingEdgeRemoval =>
+      case update: SyncExistingEdgeRemoval      =>
         processSyncExistingEdgeRemoval(
                 update
         ) //A remote worker is asking for the deletion of an existing edge
@@ -87,16 +84,16 @@ class Writer(
         processOutboundEdgeRemovalViaVertex(
                 update
         ) //Syncs the deletion of an edge, but for when the removal comes from a vertex
-      case update: InboundEdgeRemovalViaVertex => processInboundEdgeRemovalViaVertex(update)
+      case update: InboundEdgeRemovalViaVertex  => processInboundEdgeRemovalViaVertex(update)
 
       //Response from storing the destination node being synced
       case update: SyncExistingRemovals =>
         processSyncExistingRemovals(
                 update
         ) //The remote worker has returned all removals in the destination node -- for new edges
-      case update: EdgeSyncAck =>
+      case update: EdgeSyncAck          =>
         processEdgeSyncAck(update) //The remote worker acknowledges the completion of an edge sync
-      case update: VertexRemoveSyncAck => processVertexRemoveSyncAck(update)
+      case update: VertexRemoveSyncAck  => processVertexRemoveSyncAck(update)
 
       case other =>
         logger.error(s"Partition '$partitionID': Received unsupported message type '$other'.")
@@ -134,7 +131,7 @@ class Writer(
       case Some(value) =>
         neighbours(getWriter(value.updateId)).sendAsync(value)
         storage.trackEdgeAddition(update.updateTime, update.srcId, update.dstId)
-      case None => //Edge is local
+      case None        => //Edge is local
     }
   }
 
@@ -146,7 +143,7 @@ class Writer(
       case Some(value) =>
         neighbours(getWriter(value.updateId)).sendAsync(value)
         storage.trackEdgeDeletion(update.updateTime, update.srcId, update.dstId)
-      case None => //Edge is local
+      case None        => //Edge is local
     }
   }
 
@@ -167,7 +164,8 @@ class Writer(
     logger.trace("A writer has requested a new edge sync for a destination node in this worker.")
 
     storage.timings(req.msgTime)
-    val effect = storage.syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType)
+    val effect = storage
+      .syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType)
     neighbours(getWriter(effect.updateId)).sendAsync(effect)
   }
 

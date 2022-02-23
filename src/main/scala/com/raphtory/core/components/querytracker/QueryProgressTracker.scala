@@ -11,28 +11,30 @@ import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
-import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
+import com.raphtory.core.config.AsyncConsumer
+import com.raphtory.core.config.MonixScheduler
+import com.raphtory.core.config.PulsarController
 
 import scala.collection.mutable.ListBuffer
 
 class QueryProgressTracker(
-                            deploymentID_jobID: String,
-                            deploymentID: String,
-                            jobID: String,
-                            scheduler: Scheduler,
-                            conf: Config,
-                            pulsarController: PulsarController
-                          ) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+    deploymentID_jobID: String,
+    deploymentID: String,
+    jobID: String,
+    scheduler: Scheduler,
+    conf: Config,
+    pulsarController: PulsarController
+) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
 
-  private val kryo                                              = PulsarKryoSerialiser()
-  implicit private val schema: Schema[Array[Byte]]              = Schema.BYTES
-  private var perspectivesProcessed: Long                       = 0
-  private var jobDone: Boolean                                  = false
-  private val topicId: String                                   = deploymentID_jobID
-  private var perspectivesList: ListBuffer[Perspective]         = new ListBuffer[Perspective]()
-  private var perspectivesDurations: ListBuffer[Long]           = new ListBuffer[Long]()
-  private var latestPerspective: Perspective                    = null
-  override val cancelableConsumer  = Some(startQueryTrackerConsumer(schema, deploymentID + "_" + jobID))
+  private val kryo                                      = PulsarKryoSerialiser()
+  implicit private val schema: Schema[Array[Byte]]      = Schema.BYTES
+  private var perspectivesProcessed: Long               = 0
+  private var jobDone: Boolean                          = false
+  private val topicId: String                           = deploymentID_jobID
+  private var perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
+  private var perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
+  private var latestPerspective: Perspective            = null
+  override val consumer                                 = Some(startQueryTrackerConsumer(schema, deploymentID + "_" + jobID))
 
   logger.info("Starting query progress tracker.")
 
@@ -41,10 +43,8 @@ class QueryProgressTracker(
 
   private val monixScheduler = new MonixScheduler
 
-  override def run(): Unit = {
+  override def run(): Unit =
     monixScheduler.scheduler.execute(AsyncConsumer(this))
-  }
-
 
   def getJobId(): String =
     jobID
@@ -64,15 +64,12 @@ class QueryProgressTracker(
     jobDone
 
   def waitForJob() =
-  //TODO as executor sleep
+    //TODO as executor sleep
     while (!jobDone)
       Thread.sleep(1000)
 
-  def stop(): Unit =
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-    }
+  def stop(): Unit = {}
+  //consumer.close()
 
   override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
     var repeatScheduler = true
@@ -83,11 +80,11 @@ class QueryProgressTracker(
 
         if (p.window.nonEmpty)
           logger.info(
-            s"Job '$jobID': Perspective '${p.timestamp}' with window '${p.window.get}' finished in $perspectiveDuration ms."
+                  s"Job '$jobID': Perspective '${p.timestamp}' with window '${p.window.get}' finished in $perspectiveDuration ms."
           )
         else
           logger.info(
-            s"Job '$jobID': Perspective '${p.timestamp}' finished in $perspectiveDuration ms."
+                  s"Job '$jobID': Perspective '${p.timestamp}' finished in $perspectiveDuration ms."
           )
 
         perspectiveTime = System.currentTimeMillis
@@ -100,8 +97,8 @@ class QueryProgressTracker(
 
       case JobDone        =>
         logger.info(
-          s"Job $jobID: Query completed with $perspectivesProcessed perspectives " +
-            s"and finished in ${System.currentTimeMillis() - startTime} ms."
+                s"Job $jobID: Query completed with $perspectivesProcessed perspectives " +
+                  s"and finished in ${System.currentTimeMillis() - startTime} ms."
         )
 
         jobDone = true
