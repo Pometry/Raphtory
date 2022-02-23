@@ -6,12 +6,14 @@ object RaphtoryKubernetesServices extends KubernetesClient {
 
   def create(): Unit =
     raphtoryKubernetesDeployments.forEach { raphtoryComponent =>
-      if (conf.hasPath(
-                  s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.service.create"
-          ) &&
-          conf.getBoolean(
-                  s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.service.create"
-          )) {
+      if (
+              conf.hasPath(
+                      s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.service.create"
+              ) &&
+              conf.getBoolean(
+                      s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.service.create"
+              )
+      ) {
         val serviceName = s"raphtory-$raphtoryDeploymentId-$raphtoryComponent-svc".toLowerCase()
 
         raphtoryKubernetesLogger.info(
@@ -54,14 +56,16 @@ object RaphtoryKubernetesServices extends KubernetesClient {
                   s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.service.portName"
           )
 
-        } catch {
+        }
+        catch {
           case e: Throwable =>
             raphtoryKubernetesLogger.error(
                     s"Error found when deploying $serviceName service for $raphtoryComponent component",
                     e
             )
         }
-      } else
+      }
+      else
         raphtoryKubernetesLogger.info(
                 s"Setting raphtory.deploy.kubernetes.deployments.$raphtoryComponent.service.create is set to false"
         )
@@ -70,7 +74,7 @@ object RaphtoryKubernetesServices extends KubernetesClient {
   def delete(): Unit =
     raphtoryKubernetesDeployments.forEach { raphtoryComponent =>
       val serviceName = s"raphtory-$raphtoryDeploymentId-$raphtoryComponent-svc".toLowerCase()
-      val service =
+      val service     =
         try Option(
                 KubernetesService.get(
                         client = kubernetesClient,
@@ -87,7 +91,7 @@ object RaphtoryKubernetesServices extends KubernetesClient {
         }
 
       service match {
-        case None =>
+        case None        =>
           raphtoryKubernetesLogger.debug(
                   s"Service $serviceName not found for $raphtoryComponent. Service delete aborted"
           )

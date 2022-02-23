@@ -11,8 +11,14 @@ import scala.collection.JavaConverters._
 class PulsarController(conf: Config) {
   private val pulsarAddress: String = conf.getString("raphtory.pulsar.broker.address")
   val pulsarAdminAddress: String    = conf.getString("raphtory.pulsar.admin.address")
-  private val client: PulsarClient =
-    PulsarClient.builder().ioThreads(10).serviceUrl(pulsarAddress).serviceUrl(pulsarAdminAddress).build()
+
+  private val client: PulsarClient  =
+    PulsarClient
+      .builder()
+      .ioThreads(10)
+      .serviceUrl(pulsarAddress)
+      .serviceUrl(pulsarAdminAddress)
+      .build()
 
   val pulsarAdmin = PulsarAdmin.builder
     .serviceHttpUrl(pulsarAdminAddress)
@@ -49,7 +55,11 @@ class PulsarController(conf: Config) {
       .subscriptionType(SubscriptionType.Shared)
       .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
       .batchReceivePolicy(
-              BatchReceivePolicy.builder().maxNumMessages(10000).timeout(1, TimeUnit.NANOSECONDS).build()
+              BatchReceivePolicy
+                .builder()
+                .maxNumMessages(10000)
+                .timeout(1, TimeUnit.NANOSECONDS)
+                .build()
       )
       .poolMessages(true)
       .messageListener(messageListener)

@@ -1,6 +1,8 @@
 package com.raphtory.core.components.graphbuilder
+
 import com.raphtory.serialisers.avro
 import org.apache.pulsar.client.api.Schema
+
 sealed trait Property {
   def key: String
   def value: Any
@@ -26,8 +28,9 @@ sealed trait GraphUpdate extends GraphAlteration {
 }
 
 //basic update types
-case class VertexAdd(updateTime: Long, srcId: Long, properties: Properties, vType: Option[Type]) extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
-case class VertexDelete(updateTime: Long, srcId: Long)                                           extends GraphUpdate
+case class VertexAdd(updateTime: Long, srcId: Long, properties: Properties, vType: Option[Type])
+        extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
+case class VertexDelete(updateTime: Long, srcId: Long) extends GraphUpdate
 
 case class EdgeAdd(
     updateTime: Long,
@@ -35,7 +38,7 @@ case class EdgeAdd(
     dstId: Long,
     properties: Properties,
     eType: Option[Type]
-) extends GraphUpdate
+)                                                                 extends GraphUpdate
 case class EdgeDelete(updateTime: Long, srcId: Long, dstId: Long) extends GraphUpdate
 
 //Required sync after an update has been applied to a partition
@@ -55,15 +58,18 @@ case class SyncNewEdgeAdd(
 case class SyncExistingEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties)
         extends GraphUpdateEffect(dstId)
 
-case class SyncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(dstId)
+case class SyncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long)
+        extends GraphUpdateEffect(dstId)
 
 case class SyncNewEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, removals: List[Long])
         extends GraphUpdateEffect(dstId)
 
 //Edge removals generated via vertex removals
-case class OutboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(dstId)
+case class OutboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long)
+        extends GraphUpdateEffect(dstId)
 
-case class InboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(srcId)
+case class InboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long)
+        extends GraphUpdateEffect(srcId)
 
 //Responses from a partition receiving any of the above
 case class SyncExistingRemovals(
@@ -74,6 +80,8 @@ case class SyncExistingRemovals(
     fromAddition: Boolean
 ) extends GraphUpdateEffect(srcId)
 
-case class EdgeSyncAck(msgTime: Long, srcId: Long, dstId: Long, fromAddition: Boolean) extends GraphUpdateEffect(srcId)
+case class EdgeSyncAck(msgTime: Long, srcId: Long, dstId: Long, fromAddition: Boolean)
+        extends GraphUpdateEffect(srcId)
 
-case class VertexRemoveSyncAck(msgTime: Long, override val updateId: Long) extends GraphUpdateEffect(updateId)
+case class VertexRemoveSyncAck(msgTime: Long, override val updateId: Long)
+        extends GraphUpdateEffect(updateId)

@@ -79,7 +79,7 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   /**
     * Partition Neighbours
     */
-  val totalPartitions = conf.getInt("raphtory.partitions.countPerServer") * conf.getInt(
+  val totalPartitions                = conf.getInt("raphtory.partitions.countPerServer") * conf.getInt(
           "raphtory.partitions.serverCount"
   )
   def getPartitionID                 = partitionID
@@ -119,9 +119,11 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   def untrackVertexDeletion(timestamp: Long, src: Long): Unit =
     blockingVertexDeletions get (timestamp, src) match {
       case Some(counter) =>
-        if (counter.decrementAndGet() == 0) //if after we remove this value its now zero we can remove from the tree
+        if (
+                counter.decrementAndGet() == 0
+        ) //if after we remove this value its now zero we can remove from the tree
           blockingVertexDeletions -= ((timestamp, src))
-      case None => //??? // this should never happen
+      case None          => //??? // this should never happen
     }
 
 }

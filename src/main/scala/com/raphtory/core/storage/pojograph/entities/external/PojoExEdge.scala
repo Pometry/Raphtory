@@ -6,7 +6,9 @@ import com.raphtory.core.graph.visitor.ExplodedEdge
 import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.core.storage.pojograph.entities.internal.PojoEdge
 
-class PojoExEdge(edge: PojoEdge, id: Long, view: PojoGraphLens) extends PojoExEntity(edge, view) with Edge {
+class PojoExEdge(edge: PojoEdge, id: Long, view: PojoGraphLens)
+        extends PojoExEntity(edge, view)
+        with Edge {
 
   def ID() = id
 
