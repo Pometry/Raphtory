@@ -48,7 +48,7 @@ class BuilderExecutor[T](
 
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
     logger.trace(s"Sending graph update: $graphUpdate")
-    producers(getWriter(graphUpdate.srcId)).sendAsync(serialise(graphUpdate))
+    producers(getWriter(graphUpdate.srcId)).sendAsync(graphUpdate)
 
   }
 }

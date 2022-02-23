@@ -85,8 +85,7 @@ class MultilayerLPA(
       (v.getInEdges(after = ts - layerSize, before = ts) ++ v.getOutEdges(
               after = ts - layerSize,
               before = ts
-      ))
-        .map(e => (e.ID(), e.getProperty(weight).getOrElse(1.0f)))
+      )).map(e => (e.ID(), e.getProperty(weight).getOrElse(1.0f)))
         .groupBy(_._1)
         .view
         .mapValues(x => x.map(_._2).sum / x.size)
@@ -183,9 +182,7 @@ class MultilayerLPA(
         row
           .get(1)
           .asInstanceOf[List[(Long, Long)]]
-          .map { lts =>
-            Row(lts._2, row.get(0) + "_" + lts._1.toString)
-          }
+          .map(lts => Row(lts._2, row.get(0) + "_" + lts._1.toString))
       }
 
 }

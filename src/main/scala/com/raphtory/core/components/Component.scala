@@ -1,7 +1,9 @@
 package com.raphtory.core.components
 
+import com.raphtory.core.components.graphbuilder.GraphAlteration
 import com.raphtory.core.config.PulsarController
 import com.raphtory.serialisers.PulsarKryoSerialiser
+import com.raphtory.serialisers.avro
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.api.Consumer
@@ -103,23 +105,26 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
     )
 
   // CREATION OF PRODUCERS
-  private def producerMapGenerator(topic: String): Map[Int, Producer[Array[Byte]]] = {
+  private def producerMapGenerator[T](topic: String, schema: Schema[T]): Map[Int, Producer[T]] = {
+    //createTopic[T](s"${deploymentID}_$i", schema)
     val producers =
       for (i <- 0.until(totalPartitions))
-        yield (i, pulsarController.createProducer(Schema.BYTES, topic + s"_$i"))
+        yield (i, pulsarController.createProducer(schema, topic + s"_$i"))
+
     producers.toMap
   }
 
-  def toWriterProducers: Map[Int, Producer[Array[Byte]]] = {
-    logger.debug(s"Deployment $deploymentID: Creating producer of topic '$deploymentID' mapping")
-
-    producerMapGenerator(deploymentID)
+  def toWriterProducers: Map[Int, Producer[GraphAlteration]] = {
+    implicit val schema: Schema[GraphAlteration] = GraphAlteration.schema
+    //println(schema.getSchemaInfo.getSchemaDefinition)
+    producerMapGenerator[GraphAlteration](deploymentID, schema)
   }
 
-  def writerSyncProducers(): Map[Int, Producer[Array[Byte]]] = {
+  def writerSyncProducers(): Map[Int, Producer[GraphAlteration]] = {
     logger.debug(s"Deployment $deploymentID: Creating writer sync producer mapping.")
+    implicit val schema: Schema[GraphAlteration] = GraphAlteration.schema
 
-    producerMapGenerator(s"${deploymentID}_sync")
+    producerMapGenerator(s"${deploymentID}_sync", schema)
   }
 
   def toReaderProducer: Producer[Array[Byte]] = {
@@ -131,7 +136,7 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def toQueryExecutorProducers(jobID: String): Map[Int, Producer[Array[Byte]]] = {
     logger.debug(s"Deployment $deploymentID: Creating Query Executor producer mapping.")
 
-    producerMapGenerator(s"${deploymentID}_$jobID")
+    producerMapGenerator(s"${deploymentID}_$jobID", Schema.BYTES)
   }
 
   def toQueryManagerProducer: Producer[Array[Byte]] = {

@@ -25,17 +25,12 @@ object KubernetesSecret {
       namespace: String,
       secret: Secret
   ): Secret =
-    client.secrets
-      .inNamespace(namespace)
-      .createOrReplace(secret)
+    client.secrets.inNamespace(namespace).createOrReplace(secret)
 
   def delete(
       client: KubernetesClient,
       namespace: String,
       name: String
   ): Boolean =
-    client.secrets
-      .inNamespace(namespace)
-      .withName(name)
-      .delete()
+    client.secrets.inNamespace(namespace).withName(name).delete()
 }

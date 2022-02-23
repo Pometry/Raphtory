@@ -26,10 +26,11 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
         componentEnvVars += ("RAPHTORY_JAVA_COMPONENT_NAME" -> raphtoryComponent.toLowerCase())
 
         // Add in config defined env vars
-        val configComponentsEnvVars = conf
-          .getConfig(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.env")
-          .root()
-          .keySet()
+        val configComponentsEnvVars =
+          conf
+            .getConfig(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.env")
+            .root()
+            .keySet()
         val configAllEnvVars        =
           conf.getConfig(s"raphtory.deploy.kubernetes.deployments.all.pods.env").root().keySet()
 

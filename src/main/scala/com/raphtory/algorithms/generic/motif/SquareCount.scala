@@ -33,9 +33,7 @@ class AccumulateCounts() extends GraphAlgorithm {
           vertex.messageVertex(p, CountMessage(localCount))
           vertex.messageVertex(q, CountMessage(localCount))
           count += localCount
-          squareS.foreach { s =>
-            vertex.messageVertex(s, CountMessage(1))
-          }
+          squareS.foreach(s => vertex.messageVertex(s, CountMessage(1)))
         }
         vertex.setState("squareCount", count)
       }
@@ -59,9 +57,9 @@ class CountPR() extends GraphAlgorithm {
               .step { vertex =>
                 val adj = vertex.getState[Array[Long]]("adjPlus")
                 //        message neighbour set for pr and qr counting
-                adj.foreach { neighbour_id =>
+                adj.foreach(neighbour_id =>
                   vertex.messageVertex(neighbour_id, FirstStep(vertex.ID(), adj))
-                }
+                )
               }
               .step { vertex =>
                 val adj = vertex.getState[Array[Long]]("adjPlus")
@@ -127,9 +125,9 @@ class CountPQ() extends GraphAlgorithm {
         var count      = vertex.getStateOrElse[Long]("squareCount", 0L)
         val wedgeCount = mutable.Map[Long, mutable.ArrayBuffer[Long]]()
         vertex.messageQueue[WedgeMessage].foreach { message =>
-          message.s.foreach { s =>
+          message.s.foreach(s =>
             wedgeCount.getOrElseUpdate(s, mutable.ArrayBuffer[Long]()).append(message.p)
-          }
+          )
         }
         wedgeCount.foreach({
           case (s, others) =>

@@ -91,9 +91,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphA
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select { vertex =>
-        Row(vertex.getState[Array[ArrayBuffer[String]]]("walks"))
-      }
+      .select(vertex => Row(vertex.getState[Array[ArrayBuffer[String]]]("walks")))
       .explode(row => row.getAs[Array[ArrayBuffer[String]]](0).map(r => Row(r.toSeq: _*)).toList)
 }
 

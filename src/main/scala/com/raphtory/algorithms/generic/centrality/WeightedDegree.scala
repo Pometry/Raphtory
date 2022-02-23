@@ -48,15 +48,9 @@ class WeightedDegree(weightProperty: String = "weight")
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph.step { vertex =>
-      val inWeight  = vertex
-        .getInEdges()
-        .map(e => e.getPropertyOrElse(weightProperty, 1.0))
-        .sum
+      val inWeight  = vertex.getInEdges().map(e => e.getPropertyOrElse(weightProperty, 1.0)).sum
       vertex.setState("inStrength", inWeight)
-      val outWeight = vertex
-        .getOutEdges()
-        .map(e => e.getPropertyOrElse(weightProperty, 1.0))
-        .sum
+      val outWeight = vertex.getOutEdges().map(e => e.getPropertyOrElse(weightProperty, 1.0)).sum
       vertex.setState("outStrength", outWeight)
       val totWeight = inWeight + outWeight
       vertex.setState("totStrength", totWeight)

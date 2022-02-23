@@ -3,6 +3,7 @@ package com.raphtory.core.components.spout.executor
 import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
+import monix.execution.Scheduler
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.BatchReceivePolicy
 import org.apache.pulsar.client.api.Schema
@@ -29,8 +30,9 @@ class FileSpoutExecutor[T](
     schema: Schema[T],
     lineConverter: (String => T),
     conf: Config,
-    pulsarController: PulsarController
-) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController) {
+    pulsarController: PulsarController,
+    scheduler: Scheduler
+) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler) {
 
   private val topic    = conf.getString("raphtory.spout.topic")
   private val producer = pulsarController.createProducer(schema, topic)
@@ -70,15 +72,12 @@ class FileSpoutExecutor[T](
     source = conf.getString("raphtory.spout.file.local.sourceDirectory")
 
   def setupNamespace(): Unit =
-    try pulsarController.pulsarAdmin
-      .namespaces()
-      .createNamespace("public/raphtory_spout")
+    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_spout")
     catch {
       case error: PulsarAdminException =>
         logger.warn("Namespace already found")
     }
-    finally pulsarController
-      .setRetentionNamespace("public/raphtory_spout")
+    finally pulsarController.setRetentionNamespace("public/raphtory_spout")
 
   def updateFilesRead(): Unit = {
     // get names/path of all files that have been previously read, only prepopulate once
@@ -88,9 +87,7 @@ class FileSpoutExecutor[T](
     }
     logger.debug("Adding previously read files to tracker.")
     if (!fileTrackerConsumer.hasReachedEndOfTopic)
-      fileTrackerConsumer.batchReceive().forEach { msg =>
-        completedFiles.add(new String(msg.getData))
-      }
+      fileTrackerConsumer.batchReceive().forEach(msg => completedFiles.add(new String(msg.getData)))
   }
 
   override def run(): Unit = {
@@ -169,13 +166,15 @@ class FileSpoutExecutor[T](
         )
 
         return
+
       case error: FileAlreadyExistsException    =>
-        logger.error(
+        logger.warn(
                 "FileAlreadyExistsException: Could not create hardlink, file already exists."
         )
 
         return
-      case error: IOException                   => logger.warn("ERROR(IOException): an I/O error occured "); return;
+
+      case error: IOException                   => logger.warn("ERROR(IOException): an I/O error occurred "); return;
       case error: SecurityException             =>
         logger.warn("ERROR(SecurityException): Invalid permissions to create hardlink"); return;
     }
@@ -196,10 +195,7 @@ class FileSpoutExecutor[T](
         readLength += line.length
         progressPercent = Math.ceil(percentage * readLength).toInt
         val test = lineConverter(line)
-        producer
-          .newMessage()
-          .value(test)
-          .sendAsync()
+        producer.newMessage().value(test).sendAsync()
         //        if (progressPercent % divisByTens == 0) {
         //          divisByTens += 10
         //          logger.info(f"Read: $progressPercent%d%% of file.")
@@ -230,7 +226,7 @@ class FileSpoutExecutor[T](
     }
 
     logger.debug("Finished reading all files.")
-    //scheduler.scheduleOnce(10, TimeUnit.SECONDS, new SpoutScheduler()) //TODO turn this back om
+    scheduler.scheduleOnce(10, TimeUnit.SECONDS, new SpoutScheduler())
   }
 
 }

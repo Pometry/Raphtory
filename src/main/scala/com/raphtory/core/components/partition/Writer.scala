@@ -4,6 +4,7 @@ import com.raphtory.core.components.Component
 import com.raphtory.core.components.graphbuilder.EdgeAdd
 import com.raphtory.core.components.graphbuilder.EdgeDelete
 import com.raphtory.core.components.graphbuilder.EdgeSyncAck
+import com.raphtory.core.components.graphbuilder.GraphAlteration
 import com.raphtory.core.components.graphbuilder.InboundEdgeRemovalViaVertex
 import com.raphtory.core.components.graphbuilder.OutboundEdgeRemovalViaVertex
 import com.raphtory.core.components.graphbuilder.SyncExistingEdgeAdd
@@ -22,6 +23,7 @@ import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
+import com.raphtory.core.components.graphbuilder.GraphAlteration
 
 import java.util.Calendar
 import scala.collection.mutable
@@ -32,13 +34,13 @@ class Writer(
     storage: GraphPartition,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
 
   private val neighbours = writerSyncProducers()
   private var mgsCount   = 0
 
   private val monixScheduler      = new MonixScheduler
-  override val cancelableConsumer = Some(startPartitionConsumer(Schema.BYTES, partitionID))
+  override val cancelableConsumer = Some(startPartitionConsumer(GraphAlteration.schema, partitionID))
 
   override def run(): Unit =
     monixScheduler.scheduler.execute(AsyncConsumer(this))
@@ -51,9 +53,10 @@ class Writer(
     neighbours.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
+
+  override def handleMessage(msg: Message[GraphAlteration]): Boolean = {
     var reschedule = true
-    deserialise[Any](msg.getValue) match {
+    msg.getValue match {
       //Updates from the Graph Builder
       case update: VertexAdd                    => processVertexAdd(update)
       case update: EdgeAdd                      => processEdgeAdd(update)
@@ -131,7 +134,7 @@ class Writer(
             update.eType
     ) match {
       case Some(value) =>
-        neighbours(getWriter(value.updateId)).sendAsync(serialise(value))
+        neighbours(getWriter(value.updateId)).sendAsync(value)
         storage.trackEdgeAddition(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
@@ -143,7 +146,7 @@ class Writer(
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId) match {
       case Some(value) =>
-        neighbours(getWriter(value.updateId)).sendAsync(serialise(value))
+        neighbours(getWriter(value.updateId)).sendAsync(value)
         storage.trackEdgeDeletion(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
@@ -154,9 +157,7 @@ class Writer(
 
     val edgeRemovals = storage.removeVertex(update.updateTime, update.srcId)
     if (edgeRemovals.nonEmpty) {
-      edgeRemovals.foreach(effect =>
-        neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
-      )
+      edgeRemovals.foreach(effect => neighbours(getWriter(effect.updateId)).sendAsync(effect))
       storage.trackVertexDeletion(update.updateTime, update.srcId, edgeRemovals.size)
     }
   }
@@ -170,7 +171,7 @@ class Writer(
     storage.timings(req.msgTime)
     val effect = storage
       .syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)).sendAsync(effect)
   }
 
   def processSyncExistingEdgeAdd(req: SyncExistingEdgeAdd): Unit = {
@@ -180,13 +181,12 @@ class Writer(
 
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)).sendAsync(effect)
   }
 
   /**
     * Graph Effects for syncing edge deletions
     */
-
   def processSyncNewEdgeRemoval(req: SyncNewEdgeRemoval): Unit = {
     logger.trace(
             s"Partition '$partitionID': A remote worker is asking for a new edge to be removed for a destination node in this worker."
@@ -194,7 +194,7 @@ class Writer(
 
     storage.timings(req.msgTime)
     val effect = storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)).sendAsync(effect)
   }
 
   def processSyncExistingEdgeRemoval(req: SyncExistingEdgeRemoval): Unit = {
@@ -204,13 +204,12 @@ class Writer(
 
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeRemoval(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)).sendAsync(effect)
   }
 
   /**
     * Graph Effects for syncing vertex deletions
     */
-
   def processOutboundEdgeRemovalViaVertex(req: OutboundEdgeRemovalViaVertex): Unit = {
     logger.trace(
             s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes from a vertex."
@@ -218,7 +217,7 @@ class Writer(
 
     storage.timings(req.msgTime)
     val effect = storage.outboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)).sendAsync(effect)
   }
 
   def processInboundEdgeRemovalViaVertex(req: InboundEdgeRemovalViaVertex): Unit = { //remote worker same as above
@@ -227,13 +226,12 @@ class Writer(
     )
 
     val effect = storage.inboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)).sendAsync(effect)
   }
 
   /**
     * Responses from the secondary server
     */
-
   def processSyncExistingRemovals(req: SyncExistingRemovals): Unit = { //when the new edge add is responded to we can say it is synced
     logger.trace(
             s"Partition '$partitionID': The remote worker has returned all removals in the destination node -- for new edges"

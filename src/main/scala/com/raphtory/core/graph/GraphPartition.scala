@@ -14,14 +14,12 @@ import scala.collection.mutable
 /**
   * Singleton representing the Storage for the entities
   */
-
 abstract class GraphPartition(partitionID: Int, conf: Config) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   /**
     * Ingesting Vertices
     */
-
   def addVertex(msgTime: Long, srcId: Long, properties: Properties, vertexType: Option[Type]): Unit
 
   def removeVertex(msgTime: Long, srcId: Long): List[GraphUpdateEffect]
@@ -31,7 +29,6 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   /**
     * Ingesting Edges
     */
-
   def addEdge(
       msgTime: Long,
       srcId: Long,
@@ -91,7 +88,6 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   /**
     * Watermarking
     */
-
   var oldestTime: Long = Long.MaxValue
   var newestTime: Long = 0
 

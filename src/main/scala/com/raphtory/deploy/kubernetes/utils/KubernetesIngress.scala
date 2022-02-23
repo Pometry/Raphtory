@@ -13,10 +13,7 @@ object KubernetesIngress {
       name: String,
       namespace: String
   ): Ingress =
-    client.network.ingress
-      .inNamespace(namespace)
-      .withName(name)
-      .get
+    client.network.ingress.inNamespace(namespace).withName(name).get
 
   // TODO: Add logic to deal with hosts
   // TODO: Change object to better object that contains proper rule definition
@@ -52,21 +49,12 @@ object KubernetesIngress {
       namespace: String,
       ingressConfig: Ingress
   ): Ingress =
-    client
-      .network()
-      .ingress()
-      .inNamespace(namespace)
-      .createOrReplace(ingressConfig)
+    client.network().ingress().inNamespace(namespace).createOrReplace(ingressConfig)
 
   def delete(
       client: KubernetesClient,
       namespace: String,
       name: String
   ): Boolean =
-    client
-      .network()
-      .ingress()
-      .inNamespace(namespace)
-      .withName(name)
-      .delete()
+    client.network().ingress().inNamespace(namespace).withName(name).delete()
 }

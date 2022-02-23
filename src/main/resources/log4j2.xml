@@ -21,34 +21,14 @@
         </Logger>
         <Logger name="org.apache" level="off">
         </Logger>
-        <Logger name="com.raphtory.components.graphbuilder" level="INFO">
-        </Logger>
-        <Logger name="com.raphtory.components.partition" level="INFO">
-        </Logger>
-        <Logger name="com.raphtory.core.components.partition.Writer" level="INFO">
-        </Logger>
-        <Logger name="com.raphtory.core.components.partition.QueryExecutor" level="INFO">
-        </Logger>
-        <Logger name="com.raphtory.components.querymanager" level="INFO">
-        </Logger>
-        <Logger name="com.raphtory.components.querymanager.handler" level="INFO">
-        </Logger>
-        <Logger name="com.raphtory.components.spout" level="INFO">
-        </Logger>
-        <Logger name="com.raphtory.core.components.Component" level="INFO">
-        </Logger>
         <Logger name="com.raphtory.deploy" level="INFO">
         </Logger>
         <Logger name="com.raphtory.develop" level="INFO">
         </Logger>
-        <Logger name="com.raphtory.helpers" level="INFO">
-        </Logger>
         <Logger name="com.raphtory.core" level="INFO">
         </Logger>
-        <Logger name="com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler" level="INFO">
-        </Logger>
-        <Logger name="com.raphtory.core.storage.pojograph.PojoGraphLens" level="INFO">
-        </Logger>
+<!--        <Logger name="org.apache.pulsar.client.admin" level="DEBUG">-->
+<!--        </Logger>-->
         <Root level="info">
             <AppenderRef ref="Console"/>
         </Root>
