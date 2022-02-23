@@ -53,8 +53,7 @@ import scala.util.Random
   * [](com.raphtory.algorithms.generic.community.SLPA), [](com.raphtory.algorithms.temporal.community.MultilayerLPA)
   * ```
   */
-class LPA(weight: String = "", maxIter: Int = 500, seed: Long = -1)
-        extends NodeList(Seq("community")) {
+class LPA(weight: String = "", maxIter: Int = 500, seed: Long = -1) extends NodeList(Seq("community")) {
 
   val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
   val SP          = 0.2f // Stickiness probability
@@ -84,18 +83,18 @@ object LPA {
     new LPA(weight, maxIter, seed)
 
   def lpa(vertex: Vertex, weight: String, SP: Double, rnd: Random): Unit = {
-    val vlabel     = vertex.getState[Long]("community")
-    val vneigh     = vertex.getEdges()
+    val vlabel = vertex.getState[Long]("community")
+    val vneigh = vertex.getEdges()
     val neigh_freq = vneigh
       .map(e => (e.ID(), e.getProperty(weight).getOrElse(1.0f)))
       .groupBy(_._1)
       .view
       .mapValues(x => x.map(_._2).sum)
     // Process neighbour labels into (label, frequency)
-    val gp         = vertex.messageQueue[(Long, Long)].map(v => (v._2, neigh_freq.getOrElse(v._1, 1.0f)))
+    val gp = vertex.messageQueue[(Long, Long)].map(v => (v._2, neigh_freq.getOrElse(v._1, 1.0f)))
     // Get label most prominent in neighborhood of vertex
-    val maxlab     = gp.groupBy(_._1).view.mapValues(_.map(_._2).sum)
-    var newLabel   = maxlab.filter(_._2 == maxlab.values.max).keySet.max
+    val maxlab   = gp.groupBy(_._1).view.mapValues(_.map(_._2).sum)
+    var newLabel = maxlab.filter(_._2 == maxlab.values.max).keySet.max
     // Update node label and broadcast
     if (newLabel == vlabel)
       vertex.voteToHalt()

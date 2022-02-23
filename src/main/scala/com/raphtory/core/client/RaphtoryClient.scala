@@ -92,15 +92,14 @@ private[core] class RaphtoryClient(
     try {
       val path = algorithm.getClass.getCanonicalName.split("\\.")
       path(path.size - 1) + "_" + System.currentTimeMillis()
-    }
-    catch {
+    } catch {
       case e: NullPointerException => "Anon_Func_" + System.currentTimeMillis()
     }
 
   def setRetentionPerm() = {
     val retentionTime = -1
     val retentionSize = -1
-    val admin         = PulsarAdmin.builder
+    val admin = PulsarAdmin.builder
       .serviceHttpUrl(conf.getString("raphtory.pulsar.admin.address"))
       .tlsTrustCertsFilePath(null)
       .allowTlsInsecureConnection(false)

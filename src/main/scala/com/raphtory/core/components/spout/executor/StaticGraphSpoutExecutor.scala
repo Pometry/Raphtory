@@ -35,8 +35,7 @@ class StaticGraphSpoutExecutor(
 
       // shutdown
       source.close()
-    }
-    catch {
+    } catch {
       case _: java.util.concurrent.TimeoutException =>
         logger.error("Timed out waiting to read a file.")
         // TODO Better error handling / recovery...

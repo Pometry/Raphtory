@@ -61,8 +61,7 @@ class ConnectedComponents() extends NodeList(Seq("cclabel")) {
                 if (label < vertex.getState[Long]("cclabel")) {
                   vertex.setState("cclabel", label)
                   vertex.messageAllNeighbours(label)
-                }
-                else
+                } else
                   vertex.voteToHalt()
               },
               iterations = 100,

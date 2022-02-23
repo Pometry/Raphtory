@@ -60,7 +60,7 @@ case class LiveQuery(
     increment: Long,
     windows: List[Long] = List(),
     outputFormat: OutputFormat
-)                                         extends Query
+) extends Query
 case class EndQuery(jobID: String)        extends QueryManagement
 case class QueryNotPresent(jobID: String) extends QueryManagement
 

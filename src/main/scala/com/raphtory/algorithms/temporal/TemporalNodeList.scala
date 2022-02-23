@@ -46,7 +46,7 @@ class TemporalNodeList(
       .select { vertex =>
         val timestamps =
           vertex.history().filter(event => event.event).map(event => event.time).distinct.sorted
-        val row        = (vertex.name()
+        val row = (vertex.name()
           +: timestamps
           +: properties.map { name =>
             vertex.getStateOrElse(
@@ -73,8 +73,7 @@ class TemporalNodeList(
                 fieldDataSeq(index)
               else
                 fieldData
-            }
-            catch {
+            } catch {
               case _: Throwable => fieldData
             }
           }

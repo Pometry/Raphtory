@@ -14,14 +14,12 @@ import scala.collection.mutable
 /**
   * Singleton representing the Storage for the entities
   */
-
 abstract class GraphPartition(partitionID: Int, conf: Config) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   /**
     * Ingesting Vertices
     */
-
   def addVertex(msgTime: Long, srcId: Long, properties: Properties, vertexType: Option[Type]): Unit
 
   def removeVertex(msgTime: Long, srcId: Long): List[GraphUpdateEffect]
@@ -31,7 +29,6 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   /**
     * Ingesting Edges
     */
-
   def addEdge(
       msgTime: Long,
       srcId: Long,
@@ -82,7 +79,7 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   /**
     * Partition Neighbours
     */
-  val totalPartitions                = conf.getInt("raphtory.partitions.countPerServer") * conf.getInt(
+  val totalPartitions = conf.getInt("raphtory.partitions.countPerServer") * conf.getInt(
           "raphtory.partitions.serverCount"
   )
   def getPartitionID                 = partitionID
@@ -91,7 +88,6 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   /**
     * Watermarking
     */
-
   var oldestTime: Long = Long.MaxValue
   var newestTime: Long = 0
 
@@ -123,11 +119,9 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   def untrackVertexDeletion(timestamp: Long, src: Long): Unit =
     blockingVertexDeletions get (timestamp, src) match {
       case Some(counter) =>
-        if (
-                counter.decrementAndGet() == 0
-        ) //if after we remove this value its now zero we can remove from the tree
+        if (counter.decrementAndGet() == 0) //if after we remove this value its now zero we can remove from the tree
           blockingVertexDeletions -= ((timestamp, src))
-      case None          => //??? // this should never happen
+      case None => //??? // this should never happen
     }
 
 }

@@ -31,7 +31,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
+      case None =>
     }
     currentQueries.foreach(_._2.stop())
     watermarkGlobal.close()
@@ -39,35 +39,35 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
 
   override def handleMessage(msg: Message[Array[Byte]]): Unit =
     deserialise[QueryManagement](msg.getValue) match {
-      case query: PointQuery        =>
-        val jobID        = query.name
+      case query: PointQuery =>
+        val jobID = query.name
         logger.debug(
                 s"Handling query name: ${query.name}, windows: ${query.windows}, timestamp: ${query.timestamp}, algorithm: ${query.algorithm}"
         )
         val queryHandler = spawnPointQuery(jobID, query)
         trackNewQuery(jobID, queryHandler)
 
-      case query: RangeQuery        =>
-        val jobID        = query.name
+      case query: RangeQuery =>
+        val jobID = query.name
         logger.debug(
                 s"Handling query name: ${query.name}, windows: ${query.windows}, algorithm: ${query.algorithm}"
         )
         val queryHandler = spawnRangeQuery(jobID, query)
         trackNewQuery(jobID, queryHandler)
 
-      case query: LiveQuery         =>
-        val jobID        = query.name
+      case query: LiveQuery =>
+        val jobID = query.name
         logger.debug(
                 s"Handling query name: ${query.name}, windows: ${query.windows}, algorithm: ${query.algorithm}"
         )
         val queryHandler = spawnLiveQuery(jobID, query)
         trackNewQuery(jobID, queryHandler)
 
-      case req: EndQuery            =>
+      case req: EndQuery =>
         currentQueries.get(req.jobID) match {
           case Some(queryhandler) =>
             currentQueries.remove(req.jobID)
-          case None               => //sender ! QueryNotPresent(req.jobID)
+          case None => //sender ! QueryNotPresent(req.jobID)
         }
       case watermark: WatermarkTime =>
         logger.trace(s"Setting watermark to '$watermark' for partition '${watermark.partitionID}'.")
@@ -146,8 +146,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
           maxTime = Math.max(maxTime, watermark.time)
       }
       if (safe) maxTime else minTime
-    }
-    else 0 // not received a message from each partition yet
+    } else 0 // not received a message from each partition yet
     watermarkGlobal.sendAsync(serialise(watermark))
     watermark
   }
