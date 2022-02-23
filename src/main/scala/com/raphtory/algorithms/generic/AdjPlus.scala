@@ -36,23 +36,17 @@ import com.raphtory.core.algorithm.Table
 class AdjPlus extends GraphAlgorithm {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
-    graph
-      .step { vertex =>
-        vertex.messageAllNeighbours((vertex.ID(), vertex.degree))
-      }
-      .step { vertex =>
-        val degree = vertex.degree
-        //        Find set of neighbours with higher degree
-        val adj    = vertex
-          .messageQueue[(Long, Int)]
-          .filter { message =>
-            degree < message._2 || (message._2 == degree && vertex.ID() < message._1)
-          }
-          .sortBy(m => (m._2, m._1))
-          .map(message => message._1)
-          .toArray
-        vertex.setState("adjPlus", adj)
-      }
+    graph.step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.degree))).step { vertex =>
+      val degree = vertex.degree
+      //        Find set of neighbours with higher degree
+      val adj = vertex
+        .messageQueue[(Long, Int)]
+        .filter(message => degree < message._2 || (message._2 == degree && vertex.ID() < message._1))
+        .sortBy(m => (m._2, m._1))
+        .map(message => message._1)
+        .toArray
+      vertex.setState("adjPlus", adj)
+    }
 
   override def tabularise(graph: GraphPerspective): Table =
 //    return adjPlus as edge list
@@ -61,15 +55,9 @@ class AdjPlus extends GraphAlgorithm {
         val adj = vertex.getState[Array[Long]]("adjPlus")
         adj.foreach(a => vertex.messageVertex(a, vertex.ID()))
       }
-      .step { vertex =>
-        vertex.messageQueue[Long].foreach { v =>
-          vertex.messageVertex(v, vertex.name())
-        }
-      }
+      .step(vertex => vertex.messageQueue[Long].foreach(v => vertex.messageVertex(v, vertex.name())))
       .select(vertex => Row(vertex.name(), vertex.messageQueue[String]))
-      .explode { row =>
-        row.getAs[List[String]](1).map(v => Row(row.get(0), v))
-      }
+      .explode(row => row.getAs[List[String]](1).map(v => Row(row.get(0), v)))
 }
 
 object AdjPlus {

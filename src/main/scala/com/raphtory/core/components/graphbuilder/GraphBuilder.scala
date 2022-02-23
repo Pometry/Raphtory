@@ -20,9 +20,8 @@ trait GraphBuilder[T] {
     try {
       logger.trace(s"Parsing tuple: $tuple")
       parseTuple(tuple)
-    }
-    catch {
-      case e: Exception     =>
+    } catch {
+      case e: Exception =>
         logger.warn(s"Failed to parse tuple.", e.getMessage)
       case other: Throwable =>
         logger.error("Failed to get updates.", other.getMessage)

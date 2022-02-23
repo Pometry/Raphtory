@@ -35,7 +35,7 @@ class BuilderExecutor[T](
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
+      case None =>
     }
     producers.foreach(_._2.close())
   }
@@ -47,7 +47,7 @@ class BuilderExecutor[T](
 
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
     logger.trace(s"Sending graph update: $graphUpdate")
-    producers(getWriter(graphUpdate.srcId)).sendAsync(serialise(graphUpdate))
+    producers(getWriter(graphUpdate.srcId)).sendAsync(graphUpdate)
 
   }
 }

@@ -45,7 +45,7 @@ import scala.util.Random
   *  Each row of the table corresponds to a single random walk and columns correspond to the vertex at a given step
   */
 class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphAlgorithm {
-  private val rnd                                               = if (seed != -1) new Random(seed) else new Random()
+  private val rnd = if (seed != -1) new Random(seed) else new Random()
 
   protected def selectNeighbour(vertex: Vertex): Long = {
     val neighbours = vertex.getOutNeighbours()
@@ -72,7 +72,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphA
                     vertex.messageVertex(source, StoreMessage(vertex.name(), walkID))
                     vertex.messageVertex(selectNeighbour(vertex), WalkMessage(source, walkID))
                   //          store walks on source node
-                  case StoreMessage(name, walkID)  =>
+                  case StoreMessage(name, walkID) =>
                     val walks = vertex.getState[Array[ArrayBuffer[String]]]("walks")
                     walks(walkID).append(name)
                 },
@@ -83,7 +83,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphA
 //      collect last step of walk
         vertex.messageQueue[Message].foreach {
           case WalkMessage(source, walkID) =>
-          case StoreMessage(name, walkID)  =>
+          case StoreMessage(name, walkID) =>
             val walks = vertex.getState[Array[ArrayBuffer[String]]]("walks")
             walks(walkID).append(name)
         }
@@ -91,9 +91,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphA
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select { vertex =>
-        Row(vertex.getState[Array[ArrayBuffer[String]]]("walks"))
-      }
+      .select(vertex => Row(vertex.getState[Array[ArrayBuffer[String]]]("walks")))
       .explode(row => row.getAs[Array[ArrayBuffer[String]]](0).map(r => Row(r.toSeq: _*)).toList)
 }
 

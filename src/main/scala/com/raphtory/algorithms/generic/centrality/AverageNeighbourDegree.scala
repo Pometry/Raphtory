@@ -28,17 +28,13 @@ import com.raphtory.core.algorithm.Table
 class AverageNeighbourDegree extends NodeList(Seq("avgNeighbourDegree")) {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
-    graph
-      .step { vertex =>
-        vertex.messageAllNeighbours(vertex.degree)
-      }
-      .step { vertex =>
-        val degrees = vertex.messageQueue[Int]
-        vertex.setState(
-                "avgNeighbourDegree",
-                if (vertex.degree > 0) degrees.sum.toFloat / vertex.degree else 0.0
-        )
-      }
+    graph.step(vertex => vertex.messageAllNeighbours(vertex.degree)).step { vertex =>
+      val degrees = vertex.messageQueue[Int]
+      vertex.setState(
+              "avgNeighbourDegree",
+              if (vertex.degree > 0) degrees.sum.toFloat / vertex.degree else 0.0
+      )
+    }
 }
 
 object AverageNeighbourDegree {

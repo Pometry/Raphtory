@@ -5,10 +5,8 @@ import com.raphtory.deploy.kubernetes.utils.KubernetesServiceAccount
 object RaphtoryKubernetesServiceAccounts extends KubernetesClient {
 
   def create(): Unit =
-    if (
-            conf.hasPath("raphtory.deploy.kubernetes.serviceaccount.create") &&
-            conf.getBoolean("raphtory.deploy.kubernetes.serviceaccount.create")
-    ) {
+    if (conf.hasPath("raphtory.deploy.kubernetes.serviceaccount.create") &&
+        conf.getBoolean("raphtory.deploy.kubernetes.serviceaccount.create")) {
       raphtoryKubernetesLogger.info(
               s"Deploying service account $raphtoryKubernetesServiceAccountName"
       )
@@ -29,17 +27,14 @@ object RaphtoryKubernetesServiceAccounts extends KubernetesClient {
                   e
           )
       }
-    }
-    else
+    } else
       raphtoryKubernetesLogger.info(
               s"Setting raphtory.deploy.kubernetes.serviceaccount.create is set to false"
       )
 
   def delete(): Unit =
-    if (
-            conf.hasPath("raphtory.deploy.kubernetes.serviceaccount.delete") &&
-            conf.getBoolean("raphtory.deploy.kubernetes.serviceaccount.delete")
-    ) {
+    if (conf.hasPath("raphtory.deploy.kubernetes.serviceaccount.delete") &&
+        conf.getBoolean("raphtory.deploy.kubernetes.serviceaccount.delete")) {
       val serviceAccount =
         try Option(
                 KubernetesServiceAccount.get(
@@ -56,7 +51,7 @@ object RaphtoryKubernetesServiceAccounts extends KubernetesClient {
         }
 
       serviceAccount match {
-        case None        =>
+        case None =>
           raphtoryKubernetesLogger.debug(
                   s"Service account not found for $raphtoryKubernetesServiceAccountName. Delete aborted"
           )
@@ -76,8 +71,7 @@ object RaphtoryKubernetesServiceAccounts extends KubernetesClient {
               )
           }
       }
-    }
-    else
+    } else
       raphtoryKubernetesLogger.info(
               s"Setting raphtory.deploy.kubernetes.serviceaccount.delete is set to false"
       )

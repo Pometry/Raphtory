@@ -29,8 +29,7 @@ class PojoExVertex(
   def hasMessage(): Boolean =
     multiQueue.getMessageQueue(lens.superStep).nonEmpty
 
-  def messageQueue[T: ClassTag]
-      : List[T] = { //clears queue after getting it to make sure not there for next iteration
+  def messageQueue[T: ClassTag]: List[T] = { //clears queue after getting it to make sure not there for next iteration
     val queue = multiQueue.getMessageQueue(lens.superStep).map(_.asInstanceOf[T])
     multiQueue.clearQueue(lens.superStep)
     queue
@@ -146,7 +145,7 @@ class PojoExVertex(
     computationValues.get(key) match {
       case Some(arr) =>
         setState(key, arr.asInstanceOf[Array[Any]] :+ value)
-      case None      =>
+      case None =>
         setState(key, Array(value))
         value
     }
@@ -164,9 +163,7 @@ class PojoExVertex(
     internalOutgoingEdges.keys.foreach(vId => messageVertex(vId, message))
 
   def messageAllNeighbours(message: Any): Unit =
-    internalOutgoingEdges.keySet
-      .union(internalIncomingEdges.keySet)
-      .foreach(vId => messageVertex(vId, message))
+    internalOutgoingEdges.keySet.union(internalIncomingEdges.keySet).foreach(vId => messageVertex(vId, message))
 
   def messageInNeighbours(message: Any): Unit =
     internalIncomingEdges.keys.foreach(vId => messageVertex(vId, message))
