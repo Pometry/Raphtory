@@ -3,28 +3,39 @@ package com.raphtory.core.algorithm
 import scala.collection.mutable
 import scala.reflect.runtime.universe._
 
-class Accumulator[T](initialValue: T, retainState: Boolean = false, op: (T, T) => T) {
-  var value: T     = initialValue
-  var lastValue: T = initialValue
+abstract class Accumulator[T](initialValue: T, retainState: Boolean = false, op: (T, T) => T) {
+  var value: T = initialValue
+
+  def +=(newValue: T): Unit
+}
+
+private class AccumulatorImplementation[T](
+    initialValue: T,
+    retainState: Boolean = false,
+    op: (T, T) => T
+) extends Accumulator[T](initialValue, retainState, op) {
+  var currentValue: T = initialValue
 
   def +=(newValue: T): Unit =
-    value = op(value, newValue)
+    currentValue = op(currentValue, newValue)
 
   def reset(): Unit = {
-    lastValue = value
-    if (!retainState)
-      value = initialValue
+    if (retainState)
+      value = op(value, currentValue)
+    else
+      value = currentValue
+    currentValue = initialValue
   }
 }
 
-private object Accumulator {
+private object AccumulatorImplementation {
 
   def apply[T](initialValue: T, retainState: Boolean = false, op: (T, T) => T) =
-    new Accumulator[T](initialValue, retainState, op)
+    new AccumulatorImplementation[T](initialValue, retainState, op)
 }
 
 class GraphState {
-  private val state = mutable.Map.empty[String, Accumulator[Any]]
+  private val state = mutable.Map.empty[String, AccumulatorImplementation[Any]]
 
   def newAccumulator[T](
       name: String,
@@ -32,31 +43,33 @@ class GraphState {
       retainState: Boolean = false,
       op: (T, T) => T
   ): Unit =
-    state(name) = Accumulator[T](initialValue, retainState, op)
-      .asInstanceOf[Accumulator[Any]]
+    state(name) = AccumulatorImplementation[T](initialValue, retainState, op)
+      .asInstanceOf[AccumulatorImplementation[Any]]
 
   def newAdder[T](name: String)(implicit numeric: Numeric[T]): Unit =
-    state(name) = Accumulator[T](initialValue = numeric.zero, false, numeric.plus)
-      .asInstanceOf[Accumulator[Any]]
+    state(name) =
+      AccumulatorImplementation[T](initialValue = numeric.zero, retainState = false, numeric.plus)
+        .asInstanceOf[AccumulatorImplementation[Any]]
 
   def newAdder[T](name: String, retainState: Boolean)(implicit numeric: Numeric[T]): Unit =
-    state(name) = Accumulator[T](initialValue = numeric.zero, retainState, numeric.plus)
-      .asInstanceOf[Accumulator[Any]]
+    state(name) =
+      AccumulatorImplementation[T](initialValue = numeric.zero, retainState, numeric.plus)
+        .asInstanceOf[AccumulatorImplementation[Any]]
 
   def newAdder[T](name: String, initialValue: T)(implicit numeric: Numeric[T]): Unit =
-    state(name) = Accumulator[T](initialValue, false, numeric.plus)
-      .asInstanceOf[Accumulator[Any]]
+    state(name) = AccumulatorImplementation[T](initialValue, false, numeric.plus)
+      .asInstanceOf[AccumulatorImplementation[Any]]
 
   def newAdder[T](name: String, initialValue: T, retainState: Boolean)(implicit
       numeric: Numeric[T]
   ): Unit =
-    state(name) = Accumulator[T](initialValue, retainState, numeric.plus)
-      .asInstanceOf[Accumulator[Any]]
+    state(name) = AccumulatorImplementation[T](initialValue, retainState, numeric.plus)
+      .asInstanceOf[AccumulatorImplementation[Any]]
 
   def update(graphState: GraphState): Unit =
     graphState.state.foreach {
       case (name, value) =>
-        state(name) += value.value
+        state(name) += value.currentValue
     }
 
   def rotate(): Unit                                                  =
