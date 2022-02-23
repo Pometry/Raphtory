@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory
 private[core] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def builder[T](
+  def builder[T: Manifest](
       graphbuilder: GraphBuilder[T],
       scheduler: Scheduler,
       schema: Schema[T]
