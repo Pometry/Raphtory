@@ -6,7 +6,8 @@ import org.apache.pulsar.client.api._
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 
 import cats.effect.implicits.catsEffectSyntaxConcurrent
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
@@ -15,7 +16,7 @@ class PulsarController(conf: Config) {
   private val pulsarAddress: String = conf.getString("raphtory.pulsar.broker.address")
   val pulsarAdminAddress: String    = conf.getString("raphtory.pulsar.admin.address")
 
-  private val client: PulsarClient  =
+  private val client: PulsarClient =
     PulsarClient
       .builder()
       .ioThreads(10)
@@ -29,9 +30,9 @@ class PulsarController(conf: Config) {
     .allowTlsInsecureConnection(false)
     .build
 
-  val consumerMaxMessages : Long                    = conf.getLong("raphtory.consumers.maxMessagesForBatch")
-  val consumerBatchTimeout : Long                    = conf.getLong("raphtory.consumers.timeoutForBatchMillis")
-  val consumerPooling      : Boolean                = conf.getBoolean("raphtory.consumers.consumerPoolPolicy")
+  val consumerMaxMessages: Long  = conf.getLong("raphtory.consumers.maxMessagesForBatch")
+  val consumerBatchTimeout: Long = conf.getLong("raphtory.consumers.timeoutForBatchMillis")
+  val consumerPooling: Boolean   = conf.getBoolean("raphtory.consumers.consumerPoolPolicy")
 
   def accessClient: PulsarClient = client
 
@@ -75,10 +76,10 @@ class PulsarController(conf: Config) {
 
   // without message listener
   def createListeningConsumer[T](
-                                  subscriptionName: String,
-                                  schema: Schema[T],
-                                  topics: String*
-                                ): Consumer[T] =
+      subscriptionName: String,
+      schema: Schema[T],
+      topics: String*
+  ): Consumer[T] =
     client
       .newConsumer(schema)
       .topics(topics.toList.asJava)
@@ -86,11 +87,11 @@ class PulsarController(conf: Config) {
       .subscriptionType(SubscriptionType.Shared)
       .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
       .batchReceivePolicy(
-        BatchReceivePolicy
-          .builder()
-          .maxNumMessages(consumerMaxMessages.toInt)
-          .timeout(consumerBatchTimeout.toInt, TimeUnit.NANOSECONDS)
-          .build()
+              BatchReceivePolicy
+                .builder()
+                .maxNumMessages(consumerMaxMessages.toInt)
+                .timeout(consumerBatchTimeout.toInt, TimeUnit.NANOSECONDS)
+                .build()
       )
       .poolMessages(consumerPooling)
       .subscribe()
@@ -103,7 +104,9 @@ class PulsarController(conf: Config) {
       .subscriptionName(subscriptionName)
       .subscriptionType(SubscriptionType.Shared)
       .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-      .batchReceivePolicy(BatchReceivePolicy.builder().maxNumMessages(consumerMaxMessages.toInt).build())
+      .batchReceivePolicy(
+              BatchReceivePolicy.builder().maxNumMessages(consumerMaxMessages.toInt).build()
+      )
       .poolMessages(consumerPooling)
       .subscribe()
 
