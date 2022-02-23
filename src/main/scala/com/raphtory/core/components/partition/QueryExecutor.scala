@@ -16,7 +16,9 @@ import com.raphtory.core.components.querymanager.TableBuilt
 import com.raphtory.core.components.querymanager.TableFunctionComplete
 import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.components.querymanager.VertexMessageBatch
-import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
+import com.raphtory.core.config.AsyncConsumer
+import com.raphtory.core.config.MonixScheduler
+import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.GraphPartition
 import com.raphtory.core.graph.LensInterface
 import com.raphtory.core.storage.pojograph.PojoGraphLens
@@ -31,8 +33,9 @@ class QueryExecutor(
     storage: GraphPartition,
     jobID: String,
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController) {
+    pulsarController: PulsarController,
+    scheduler: Scheduler
+) extends Component[Array[Byte]](conf: Config, pulsarController, scheduler) {
 
   var graphLens: LensInterface  = _
   var sentMessageCount: Int     = 0
@@ -41,17 +44,17 @@ class QueryExecutor(
 
   private val taskManager: Producer[Array[Byte]]          = toQueryHandlerProducer(jobID)
   private val neighbours: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
-  private val monixScheduler = new MonixScheduler
-  override val cancelableConsumer =  Some(startQueryExecutorConsumer(Schema.BYTES,partitionID,jobID))
+
+  override val cancelableConsumer = Some(
+          startQueryExecutorConsumer(Schema.BYTES, partitionID, jobID)
+  )
 
   override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
 
     taskManager sendAsync serialise(ExecutorEstablished(partitionID))
-    monixScheduler.scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer(this))
   }
-
-  override def getScheduler(): Scheduler = monixScheduler.scheduler
 
   override def stop(): Unit = {
     cancelableConsumer match {

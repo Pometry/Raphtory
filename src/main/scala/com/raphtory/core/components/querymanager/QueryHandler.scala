@@ -7,7 +7,8 @@ import Stages.Stage
 import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.algorithm._
 import com.raphtory.core.components.Component
-import com.raphtory.core.config.{AsyncConsumer, PulsarController}
+import com.raphtory.core.config.AsyncConsumer
+import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.Perspective
 import com.raphtory.core.graph.PerspectiveController
 import com.typesafe.config.Config
@@ -27,7 +28,7 @@ abstract class QueryHandler(
     outputFormat: OutputFormat,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController, scheduler) {
 
   private val self: Producer[Array[Byte]]                 = toQueryHandlerProducer(jobID)
   private val readers: Producer[Array[Byte]]              = toReaderProducer
@@ -59,10 +60,8 @@ abstract class QueryHandler(
       self sendAsync serialise(RecheckTime)
     }
   }
-  private val recheckTimer                              = new RecheckTimer()
-  override val cancelableConsumer =  Some(startQueryHandlerConsumer(Schema.BYTES,jobID))
-
-  override def getScheduler(): Scheduler = scheduler
+  private val recheckTimer        = new RecheckTimer()
+  override val cancelableConsumer = Some(startQueryHandlerConsumer(Schema.BYTES, jobID))
 
   override def run(): Unit = {
     readers sendAsync serialise(EstablishExecutor(jobID))

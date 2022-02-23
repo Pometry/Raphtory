@@ -3,7 +3,8 @@ package com.raphtory.core.components.querytracker
 import com.raphtory.core.components.Component
 import com.raphtory.core.components.querymanager.JobDone
 import com.raphtory.core.components.querymanager.QueryManagement
-import com.raphtory.core.config.{AsyncConsumer, PulsarController}
+import com.raphtory.core.config.AsyncConsumer
+import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.Perspective
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
@@ -21,17 +22,20 @@ class QueryProgressTracker(
     scheduler: Scheduler,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController, scheduler) {
 
-  private val kryo                                              = PulsarKryoSerialiser()
-  implicit private val schema: Schema[Array[Byte]]              = Schema.BYTES
-  private var perspectivesProcessed: Long                       = 0
-  private var jobDone: Boolean                                  = false
-  private val topicId: String                                   = deploymentID_jobID
-  private var perspectivesList: ListBuffer[Perspective]         = new ListBuffer[Perspective]()
-  private var perspectivesDurations: ListBuffer[Long]           = new ListBuffer[Long]()
-  private var latestPerspective: Perspective                    = null
-  override val cancelableConsumer  = Some(startQueryTrackerConsumer(schema, deploymentID + "_" + jobID))
+  private val kryo                                      = PulsarKryoSerialiser()
+  implicit private val schema: Schema[Array[Byte]]      = Schema.BYTES
+  private var perspectivesProcessed: Long               = 0
+  private var jobDone: Boolean                          = false
+  private val topicId: String                           = deploymentID_jobID
+  private var perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
+  private var perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
+  private var latestPerspective: Perspective            = null
+
+  override val cancelableConsumer = Some(
+          startQueryTrackerConsumer(schema, deploymentID + "_" + jobID)
+  )
 
   logger.info("Starting query progress tracker.")
 
@@ -60,13 +64,8 @@ class QueryProgressTracker(
     while (!jobDone)
       Thread.sleep(1000)
 
-  override def getScheduler(): Scheduler = {
-    scheduler
-  }
-
-  override def run(): Unit = {
+  override def run(): Unit =
     scheduler.execute(AsyncConsumer(this))
-  }
 
   def stop(): Unit =
     cancelableConsumer match {
@@ -83,11 +82,11 @@ class QueryProgressTracker(
 
         if (p.window.nonEmpty)
           logger.info(
-            s"Job '$jobID': Perspective '${p.timestamp}' with window '${p.window.get}' finished in $perspectiveDuration ms."
+                  s"Job '$jobID': Perspective '${p.timestamp}' with window '${p.window.get}' finished in $perspectiveDuration ms."
           )
         else
           logger.info(
-            s"Job '$jobID': Perspective '${p.timestamp}' finished in $perspectiveDuration ms."
+                  s"Job '$jobID': Perspective '${p.timestamp}' finished in $perspectiveDuration ms."
           )
 
         perspectiveTime = System.currentTimeMillis
@@ -98,10 +97,10 @@ class QueryProgressTracker(
 
         logger.info(s"Job $jobID: Running query, processed $perspectivesProcessed perspectives.")
 
-      case JobDone =>
+      case JobDone        =>
         logger.info(
-          s"Job $jobID: Query completed with $perspectivesProcessed perspectives " +
-            s"and finished in ${System.currentTimeMillis() - startTime} ms."
+                s"Job $jobID: Query completed with $perspectivesProcessed perspectives " +
+                  s"and finished in ${System.currentTimeMillis() - startTime} ms."
         )
 
         jobDone = true

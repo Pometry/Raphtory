@@ -27,7 +27,8 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
     logger.info(s"Creating '$totalBuilders' Graph Builders.")
 
     val builders = for (i <- (0 until totalBuilders)) yield {
-      val builderExecutor = new BuilderExecutor[T](schema, graphbuilder, conf, pulsarController)
+      val builderExecutor =
+        new BuilderExecutor[T](schema, graphbuilder, conf, pulsarController, scheduler)
       scheduler.execute(builderExecutor)
       ThreadedWorker(builderExecutor)
     }
@@ -57,7 +58,7 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
       }
 
       val storage = new PojoBasedPartition(partitionID, conf)
-      val writer  = new Writer(partitionID, storage, conf, pulsarController)
+      val writer  = new Writer(partitionID, storage, conf, pulsarController, scheduler)
       val reader  = new Reader(partitionID, storage, scheduler, conf, pulsarController)
 
       scheduler.execute(writer)

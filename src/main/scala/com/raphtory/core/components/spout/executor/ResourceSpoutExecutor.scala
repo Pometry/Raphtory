@@ -30,8 +30,6 @@ class ResourceSpoutExecutor(
     source.close()
   }
 
-  override def getScheduler(): Scheduler = scheduler
-
   override def run(): Unit =
     readFile(resource)
 

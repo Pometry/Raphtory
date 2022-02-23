@@ -1,7 +1,9 @@
 package com.raphtory.core.components.graphbuilder
 
 import com.raphtory.core.components.Component
-import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
+import com.raphtory.core.config.AsyncConsumer
+import com.raphtory.core.config.MonixScheduler
+import com.raphtory.core.config.PulsarController
 import com.rits.cloning.Cloner
 import com.typesafe.config.Config
 import monix.execution.Scheduler
@@ -16,20 +18,18 @@ class BuilderExecutor[T](
     schema: Schema[T],
     graphBuilder: GraphBuilder[T],
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[T](conf, pulsarController) {
+    pulsarController: PulsarController,
+    scheduler: Scheduler
+) extends Component[T](conf, pulsarController, scheduler) {
   private val safegraphBuilder = new Cloner().deepClone(graphBuilder)
   private val producers        = toWriterProducers
 
-  override val cancelableConsumer  = Some(startGraphBuilderConsumer(schema))
-  private val monixScheduler = new MonixScheduler
+  override val cancelableConsumer = Some(startGraphBuilderConsumer(schema))
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")
-    monixScheduler.scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer(this))
   }
-
-  override def getScheduler(): Scheduler = monixScheduler.scheduler
 
   override def stop(): Unit = {
     logger.debug("Stopping Graph Builder executor.")

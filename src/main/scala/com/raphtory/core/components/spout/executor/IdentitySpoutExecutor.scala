@@ -12,5 +12,4 @@ class IdentitySpoutExecutor[T](
 ) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler: Scheduler) {
   override def stop(): Unit = {}
   override def run(): Unit = {}
-  override def getScheduler(): Scheduler = null
 }

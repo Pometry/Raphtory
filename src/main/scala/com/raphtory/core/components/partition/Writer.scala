@@ -15,7 +15,9 @@ import com.raphtory.core.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.core.components.graphbuilder.VertexAdd
 import com.raphtory.core.components.graphbuilder.VertexDelete
 import com.raphtory.core.components.graphbuilder.VertexRemoveSyncAck
-import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
+import com.raphtory.core.config.AsyncConsumer
+import com.raphtory.core.config.MonixScheduler
+import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph._
 import com.typesafe.config.Config
 import monix.execution.Scheduler
@@ -31,16 +33,19 @@ class Writer(
     partitionID: Int,
     storage: GraphPartition,
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
+    pulsarController: PulsarController,
+    scheduler: Scheduler
+) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController, scheduler) {
 
-  private val neighbours                                    = writerSyncProducers()
-  private var mgsCount                                      = 0
-  private val monixScheduler      = new MonixScheduler
-  override val cancelableConsumer = Some(startPartitionConsumer(GraphAlteration.schema, partitionID))
+  private val neighbours          = writerSyncProducers()
+  private var mgsCount            = 0
+
+  override val cancelableConsumer = Some(
+          startPartitionConsumer(GraphAlteration.schema, partitionID)
+  )
 
   override def run(): Unit =
-    monixScheduler.scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer(this))
 
   override def stop(): Unit = {
     cancelableConsumer match {
@@ -49,8 +54,6 @@ class Writer(
     }
     neighbours.foreach(_._2.close())
   }
-
-  override def getScheduler(): Scheduler = monixScheduler.scheduler
 
   override def handleMessage(msg: Message[GraphAlteration]): Boolean = {
     var reschedule = true
