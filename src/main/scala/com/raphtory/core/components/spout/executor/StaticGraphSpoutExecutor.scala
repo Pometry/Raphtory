@@ -13,7 +13,11 @@ class StaticGraphSpoutExecutor(
     conf: Config,
     pulsarController: PulsarController,
     scheduler: Scheduler
-) extends SpoutExecutor[String](conf: Config, pulsarController: PulsarController, scheduler: Scheduler) {
+) extends SpoutExecutor[String](
+                conf: Config,
+                pulsarController: PulsarController,
+                scheduler: Scheduler
+        ) {
 
   private def readFile(fileDataPath: String): Unit =
     try {
