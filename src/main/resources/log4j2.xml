@@ -25,7 +25,7 @@
         </Logger>
         <Logger name="com.raphtory.develop" level="INFO">
         </Logger>
-        <Logger name="com.raphtory.core" level="INFO">
+        <Logger name="com.raphtory.core" level="DEBUG">
         </Logger>
 <!--        <Logger name="org.apache.pulsar.client.admin" level="DEBUG">-->
 <!--        </Logger>-->

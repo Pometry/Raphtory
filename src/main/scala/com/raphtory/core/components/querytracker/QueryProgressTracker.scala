@@ -24,7 +24,11 @@ class QueryProgressTracker(
     scheduler: Scheduler,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+) extends Component[Array[Byte]](
+                conf: Config,
+                pulsarController: PulsarController,
+                scheduler: Scheduler
+        ) {
 
   private val kryo                                      = PulsarKryoSerialiser()
   implicit private val schema: Schema[Array[Byte]]      = Schema.BYTES
@@ -41,10 +45,8 @@ class QueryProgressTracker(
   val startTime: Long       = System.currentTimeMillis //fetch starting time
   var perspectiveTime: Long = startTime
 
-  private val monixScheduler = new MonixScheduler
-
   override def run(): Unit =
-    monixScheduler.scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer(this))
 
   def getJobId(): String =
     jobID

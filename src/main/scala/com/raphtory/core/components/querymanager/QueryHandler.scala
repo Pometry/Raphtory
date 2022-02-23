@@ -29,7 +29,11 @@ abstract class QueryHandler(
     outputFormat: OutputFormat,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+) extends Component[Array[Byte]](
+                conf: Config,
+                pulsarController: PulsarController,
+                scheduler: Scheduler
+        ) {
 
   private val self: Producer[Array[Byte]]                 = toQueryHandlerProducer(jobID)
   private val readers: Producer[Array[Byte]]              = toReaderProducer
@@ -63,12 +67,11 @@ abstract class QueryHandler(
   }
   private val recheckTimer = new RecheckTimer()
 
-  private val monixScheduler = new MonixScheduler
-  override val consumer      = Some(startQueryHandlerConsumer(Schema.BYTES, jobID))
+  override val consumer = Some(startQueryHandlerConsumer(Schema.BYTES, jobID))
 
   override def run(): Unit = {
     readers sendAsync serialise(EstablishExecutor(jobID))
-    monixScheduler.scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer(this))
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
   }
 
@@ -248,12 +251,8 @@ abstract class QueryHandler(
           logger.debug(s"Job '$jobID': Executing next table operation.")
           nextTableOperation()
         }
-        else {
-          logger.debug(
-                  s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
-          )
+        else
           Stages.ExecuteTable
-        }
 
       case TableFunctionComplete =>
         readyCount += 1
@@ -261,12 +260,8 @@ abstract class QueryHandler(
           logger.debug(s"Job '$jobID': Running next table operation.")
           nextTableOperation()
         }
-        else {
-          logger.debug(
-                  s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
-          )
+        else
           Stages.ExecuteTable
-        }
     }
   ////END OPERATION STATES
 
@@ -347,7 +342,7 @@ abstract class QueryHandler(
       case Some(f: GraphFunction) =>
         messagetoAllJobWorkers(f)
         currentOperation = f
-        logger.debug(s"Job '$jobID': Executing graph function '${f.getClass.getSimpleName}'.")
+        logger.debug(s"Job '$jobID': Executing graph function .")
         readyCount = 0
         receivedMessageCount = 0
         sentMessageCount = 0
@@ -371,7 +366,7 @@ abstract class QueryHandler(
       case Some(f: TableFunction) =>
         messagetoAllJobWorkers(f)
         readyCount = 0
-        logger.debug(s"Job '$jobID': Executing table function '${f.getClass.getSimpleName}'.")
+        logger.debug(s"Job '$jobID': Executing table function.")
 
         Stages.ExecuteTable
 

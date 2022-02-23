@@ -24,12 +24,15 @@ class Reader(
     scheduler: Scheduler,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+) extends Component[Array[Byte]](
+                conf: Config,
+                pulsarController: PulsarController,
+                scheduler: Scheduler
+        ) {
 
   private val executorMap      = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish = watermarkPublisher()
   override val consumer        = Some(startReaderConsumer(Schema.BYTES, partitionID))
-  private val monixScheduler   = new MonixScheduler
 
   class Watermarker extends Runnable {
 
@@ -41,7 +44,7 @@ class Reader(
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
     scheduler.scheduleAtFixedRate(1, 1, TimeUnit.SECONDS, new Watermarker())
-    monixScheduler.scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer(this))
   }
 
   override def stop(): Unit = {
@@ -52,7 +55,8 @@ class Reader(
 
   override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
     val jobID         = deserialise[EstablishExecutor](msg.getValue).jobID
-    val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
+    val queryExecutor =
+      new QueryExecutor(partitionID, storage, jobID, conf, pulsarController, scheduler)
 
     scheduler.execute(queryExecutor)
 

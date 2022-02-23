@@ -17,17 +17,20 @@ import org.apache.pulsar.client.api.Schema
 import scala.collection.mutable
 
 class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarController)
-        extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+        extends Component[Array[Byte]](
+                conf: Config,
+                pulsarController: PulsarController,
+                scheduler: Scheduler
+        ) {
   private val currentQueries  = mutable.Map[String, QueryHandler]()
   private val watermarkGlobal = globalwatermarkPublisher()
   private val watermarks      = mutable.Map[Int, WatermarkTime]()
 
-  override val consumer      = Some(startQueryManagerConsumer(Schema.BYTES))
-  private val monixScheduler = new MonixScheduler
+  override val consumer = Some(startQueryManagerConsumer(Schema.BYTES))
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
-    monixScheduler.scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer(this))
   }
 
   override def stop(): Unit = {
@@ -152,6 +155,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
       if (safe) maxTime else minTime
     }
     else 0 // not received a message from each partition yet
+    logger.debug(s"Global safe watermark set to $watermark")
     watermarkGlobal.sendAsync(serialise(watermark))
     watermark
   }

@@ -25,6 +25,7 @@ import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
 import com.raphtory.output.PulsarOutputFormat
 import com.typesafe.config.Config
+import monix.execution.Scheduler
 import org.apache.pulsar.client.api._
 
 class QueryExecutor(
@@ -32,8 +33,9 @@ class QueryExecutor(
     storage: GraphPartition,
     jobID: String,
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController) {
+    pulsarController: PulsarController,
+    scheduler: Scheduler
+) extends Component[Array[Byte]](conf, pulsarController, scheduler) {
 
   var graphLens: LensInterface  = _
   var sentMessageCount: Int     = 0
@@ -42,14 +44,13 @@ class QueryExecutor(
 
   private val taskManager: Producer[Array[Byte]]          = toQueryHandlerProducer(jobID)
   private val neighbours: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
-  private val monixScheduler                              = new MonixScheduler
   override val consumer                                   = Some(startQueryExecutorConsumer(Schema.BYTES, partitionID, jobID))
 
   override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
 
     taskManager sendAsync serialise(ExecutorEstablished(partitionID))
-    monixScheduler.scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer(this))
   }
 
   override def stop(): Unit = {

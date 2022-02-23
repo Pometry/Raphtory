@@ -196,10 +196,10 @@ class FileSpoutExecutor[T](
         progressPercent = Math.ceil(percentage * readLength).toInt
         val test = lineConverter(line)
         producer.newMessage().value(test).sendAsync()
-        //        if (progressPercent % divisByTens == 0) {
-        //          divisByTens += 10
-        //          logger.info(f"Read: $progressPercent%d%% of file.")
-        //        }
+        if (progressPercent % divisByTens == 0) {
+          divisByTens += 10
+          logger.debug(f"Read: $progressPercent%d%% of file.")
+        }
       }
       source.close()
       logger.debug("Finished reading file.")

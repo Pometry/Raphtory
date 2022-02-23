@@ -20,6 +20,7 @@ import com.raphtory.core.config.MonixScheduler
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph._
 import com.typesafe.config.Config
+import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
@@ -32,18 +33,22 @@ class Writer(
     partitionID: Int,
     storage: GraphPartition,
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
+    pulsarController: PulsarController,
+    scheduler: Scheduler
+) extends Component[GraphAlteration](
+                conf: Config,
+                pulsarController: PulsarController,
+                scheduler: Scheduler
+        ) {
 
   private val neighbours = writerSyncProducers()
   private var mgsCount   = 0
 
-  override val consumer      =
+  override val consumer =
     Some(startPartitionConsumer(GraphAlteration.schema, partitionID))
-  private val monixScheduler = new MonixScheduler
 
   override def run(): Unit =
-    monixScheduler.scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer(this))
 
   override def stop(): Unit =
     //consumer.close()
@@ -270,13 +275,13 @@ class Writer(
 
     // TODO Should this be externalised?
     //  Do we need it now that we have progress tracker?
-    if (mgsCount % 10000 == 0) {
+    if (mgsCount % 1000 == 0) {
       val currentHour   = Calendar.getInstance().get(Calendar.HOUR)
       val currentMinute = Calendar.getInstance().get(Calendar.MINUTE)
       val currentSecond = Calendar.getInstance().get(Calendar.SECOND)
       val currentMilli  = Calendar.getInstance().get(Calendar.MILLISECOND)
 
-      logger.debug(
+      logger.info(
               s"Partition '$partitionID': " +
                 s"'$currentHour:$currentMinute:$currentSecond:$currentMilli' -- Processed '$mgsCount' messages."
       )

@@ -4,8 +4,6 @@ import com.raphtory.core.components.Component
 
 class AsyncConsumer[T](worker: Component[T]) extends Runnable {
 
-  val monixScheduler = new MonixScheduler
-
   def run(): Unit =
     worker.consumer match {
       case Some(consumer) =>
@@ -13,7 +11,7 @@ class AsyncConsumer[T](worker: Component[T]) extends Runnable {
           val reschedule = worker.handleMessage(msg)
           consumer.acknowledgeAsync(msg)
           if (reschedule)
-            monixScheduler.scheduler.execute(this)
+            worker.getScheduler().execute(this)
           else
             worker.stop()
         }

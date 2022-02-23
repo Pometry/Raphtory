@@ -12,22 +12,23 @@ import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 import com.raphtory.core.config.AsyncConsumer
 import com.raphtory.core.config.MonixScheduler
+import monix.execution.Scheduler
 
 class BuilderExecutor[T](
     schema: Schema[T],
     graphBuilder: GraphBuilder[T],
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[T](conf, pulsarController) {
+    pulsarController: PulsarController,
+    scheduler: Scheduler
+) extends Component[T](conf, pulsarController, scheduler) {
   private val safegraphBuilder = new Cloner().deepClone(graphBuilder)
   private val producers        = toWriterProducers
 
-  override val consumer      = Some(startGraphBuilderConsumer(schema))
-  private val monixScheduler = new MonixScheduler
+  override val consumer = Some(startGraphBuilderConsumer(schema))
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")
-    monixScheduler.scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer(this))
   }
 
   override def stop(): Unit = {

@@ -6,6 +6,7 @@ import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.raphtory.serialisers.avro
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
+import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.MessageListener
@@ -15,8 +16,11 @@ import org.slf4j.LoggerFactory
 
 import scala.reflect.runtime.universe._
 
-abstract class Component[T](conf: Config, private val pulsarController: PulsarController)
-        extends Runnable {
+abstract class Component[T](
+    conf: Config,
+    private val pulsarController: PulsarController,
+    scheduler: Scheduler
+) extends Runnable {
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -31,24 +35,11 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   private val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
   val consumer: Option[Consumer[T]]      = None
 
+  def getScheduler(): Scheduler = scheduler
+
   def handleMessage(msg: Message[T]): Boolean
   def run()
   def stop()
-
-  private def messageListener(): MessageListener[T] =
-    (consumer, msg) => {
-      try {
-        handleMessage(msg)
-        consumer.acknowledge(msg)
-      }
-      catch {
-        case e: Exception =>
-          logger.error(s"Deployment $deploymentID: Failed to handle message.")
-          e.printStackTrace()
-
-          consumer.negativeAcknowledge(msg)
-      }
-    }
 
   def serialise(value: Any): Array[Byte] = kryo.serialise(value)
 
