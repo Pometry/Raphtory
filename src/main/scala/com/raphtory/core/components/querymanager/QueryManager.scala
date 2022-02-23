@@ -5,7 +5,7 @@ import com.raphtory.core.components.Component
 import com.raphtory.core.components.querymanager.handler.LiveQueryHandler
 import com.raphtory.core.components.querymanager.handler.PointQueryHandler
 import com.raphtory.core.components.querymanager.handler.RangeQueryHandler
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, PulsarController}
 import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
@@ -19,25 +19,28 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   private val currentQueries                            = mutable.Map[String, QueryHandler]()
   private val watermarkGlobal                           = globalwatermarkPublisher()
   private val watermarks                                = mutable.Map[Int, WatermarkTime]()
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  override val cancelableConsumer =  Some(startQueryManagerConsumer(Schema.BYTES))
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
+    scheduler.execute(AsyncConsumer(this))
+  }
 
-    cancelableConsumer = Some(startQueryManagerConsumer(Schema.BYTES))
+  override def getScheduler(): Scheduler = {
+    scheduler
   }
 
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
     }
     currentQueries.foreach(_._2.stop())
     watermarkGlobal.close()
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit =
+  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
+    var reschedule = true
     deserialise[QueryManagement](msg.getValue) match {
       case query: PointQuery        =>
         val jobID        = query.name
@@ -69,10 +72,13 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
             currentQueries.remove(req.jobID)
           case None               => //sender ! QueryNotPresent(req.jobID)
         }
+        reschedule = false
       case watermark: WatermarkTime =>
         logger.trace(s"Setting watermark to '$watermark' for partition '${watermark.partitionID}'.")
         watermarks.put(watermark.partitionID, watermark)
     }
+    reschedule
+  }
 
   private def spawnPointQuery(id: String, query: PointQuery): QueryHandler = {
     logger.info(s"Point Query '${query.name}' received, your job ID is '$id'.")

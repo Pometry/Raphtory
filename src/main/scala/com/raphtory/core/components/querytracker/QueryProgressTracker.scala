@@ -3,7 +3,7 @@ package com.raphtory.core.components.querytracker
 import com.raphtory.core.components.Component
 import com.raphtory.core.components.querymanager.JobDone
 import com.raphtory.core.components.querymanager.QueryManagement
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, PulsarController}
 import com.raphtory.core.graph.Perspective
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
@@ -31,7 +31,7 @@ class QueryProgressTracker(
   private var perspectivesList: ListBuffer[Perspective]         = new ListBuffer[Perspective]()
   private var perspectivesDurations: ListBuffer[Long]           = new ListBuffer[Long]()
   private var latestPerspective: Perspective                    = null
-  private var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  override val cancelableConsumer  = Some(startQueryTrackerConsumer(schema, deploymentID + "_" + jobID))
 
   logger.info("Starting query progress tracker.")
 
@@ -60,17 +60,22 @@ class QueryProgressTracker(
     while (!jobDone)
       Thread.sleep(1000)
 
-  override def run(): Unit =
-    cancelableConsumer = Some(startQueryTrackerConsumer(Schema.BYTES, topicId))
+  override def getScheduler(): Scheduler = {
+    scheduler
+  }
+
+  override def run(): Unit = {
+    scheduler.execute(AsyncConsumer(this))
+  }
 
   def stop(): Unit =
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
     }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit =
+  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
+    var repeatScheduler = true
     deserialise[QueryManagement](msg.getValue) match {
 
       case p: Perspective =>
@@ -78,11 +83,11 @@ class QueryProgressTracker(
 
         if (p.window.nonEmpty)
           logger.info(
-                  s"Job '$jobID': Perspective '${p.timestamp}' with window '${p.window.get}' finished in $perspectiveDuration ms."
+            s"Job '$jobID': Perspective '${p.timestamp}' with window '${p.window.get}' finished in $perspectiveDuration ms."
           )
         else
           logger.info(
-                  s"Job '$jobID': Perspective '${p.timestamp}' finished in $perspectiveDuration ms."
+            s"Job '$jobID': Perspective '${p.timestamp}' finished in $perspectiveDuration ms."
           )
 
         perspectiveTime = System.currentTimeMillis
@@ -93,16 +98,19 @@ class QueryProgressTracker(
 
         logger.info(s"Job $jobID: Running query, processed $perspectivesProcessed perspectives.")
 
-      case JobDone        =>
+      case JobDone =>
         logger.info(
-                s"Job $jobID: Query completed with $perspectivesProcessed perspectives " +
-                  s"and finished in ${System.currentTimeMillis() - startTime} ms."
+          s"Job $jobID: Query completed with $perspectivesProcessed perspectives " +
+            s"and finished in ${System.currentTimeMillis() - startTime} ms."
         )
 
         jobDone = true
+        repeatScheduler = false
 
       // TODO Need to re-enable below
       // close consumer
       // stop()
     }
+    repeatScheduler
+  }
 }

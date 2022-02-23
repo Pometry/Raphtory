@@ -16,14 +16,14 @@ import com.raphtory.core.components.querymanager.TableBuilt
 import com.raphtory.core.components.querymanager.TableFunctionComplete
 import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.components.querymanager.VertexMessageBatch
-import com.raphtory.core.config.MonixScheduler
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
 import com.raphtory.core.graph.GraphPartition
 import com.raphtory.core.graph.LensInterface
 import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
 import com.raphtory.output.PulsarOutputFormat
 import com.typesafe.config.Config
+import monix.execution.Scheduler
 import org.apache.pulsar.client.api._
 
 class QueryExecutor(
@@ -41,26 +41,29 @@ class QueryExecutor(
 
   private val taskManager: Producer[Array[Byte]]          = toQueryHandlerProducer(jobID)
   private val neighbours: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
-  var cancelableConsumer: Option[Consumer[Array[Byte]]]   = None
+  private val monixScheduler = new MonixScheduler
+  override val cancelableConsumer =  Some(startQueryExecutorConsumer(Schema.BYTES,partitionID,jobID))
 
   override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
 
     taskManager sendAsync serialise(ExecutorEstablished(partitionID))
-    cancelableConsumer = Some(startQueryExecutorConsumer(Schema.BYTES, partitionID, jobID))
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
   }
+
+  override def getScheduler(): Scheduler = monixScheduler.scheduler
 
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
     }
     taskManager.close()
     neighbours.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit = {
+  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
+    var scheduleAgain = true
     deserialise[QueryManagement](msg.getValue) match {
 
       case VertexMessageBatch(msgBatch)                =>
@@ -219,6 +222,7 @@ class QueryExecutor(
                   s"Job '$jobID' at Partition '$partitionID': Received 'EndQuery' message. " +
                     s"This function is not supported yet."
           )
+        scheduleAgain = false
 
       case _: CheckMessages                            =>
         logger.debug(s"Job '$jobID' at Partition '$partitionID': Received 'CheckMessages'.")
@@ -226,6 +230,7 @@ class QueryExecutor(
                 GraphFunctionComplete(receivedMessageCount, sentMessageCount, votedToHalt)
         )
     }
+    scheduleAgain
   }
 
 }

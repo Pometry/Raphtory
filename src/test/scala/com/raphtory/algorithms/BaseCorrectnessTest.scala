@@ -21,6 +21,7 @@ import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.util.concurrent.CompletableFuture
 import scala.util.Random
 
 class BaseCorrectnessTest extends AnyFunSuite {
@@ -72,6 +73,8 @@ class BaseCorrectnessTest extends AnyFunSuite {
             resultsResource
     )
 
-  def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
-    consumer.receive()
+  def receiveMessage(consumer: Consumer[Array[Byte]]): CompletableFuture[Message[Array[Byte]]]= {
+    consumer.receiveAsync()
+  }
+
 }

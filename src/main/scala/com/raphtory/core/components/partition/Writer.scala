@@ -15,9 +15,10 @@ import com.raphtory.core.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.core.components.graphbuilder.VertexAdd
 import com.raphtory.core.components.graphbuilder.VertexDelete
 import com.raphtory.core.components.graphbuilder.VertexRemoveSyncAck
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
 import com.raphtory.core.graph._
 import com.typesafe.config.Config
+import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
@@ -35,21 +36,24 @@ class Writer(
 
   private val neighbours                                    = writerSyncProducers()
   private var mgsCount                                      = 0
-  var cancelableConsumer: Option[Consumer[GraphAlteration]] = None
+  private val monixScheduler      = new MonixScheduler
+  override val cancelableConsumer = Some(startPartitionConsumer(GraphAlteration.schema, partitionID))
 
   override def run(): Unit =
-    cancelableConsumer = Some(startPartitionConsumer(GraphAlteration.schema, partitionID))
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
 
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
     }
     neighbours.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[GraphAlteration]): Unit = {
+  override def getScheduler(): Scheduler = monixScheduler.scheduler
+
+  override def handleMessage(msg: Message[GraphAlteration]): Boolean = {
+    var reschedule = true
     msg.getValue match {
       //Updates from the Graph Builder
       case update: VertexAdd                    => processVertexAdd(update)
@@ -96,12 +100,14 @@ class Writer(
 
       case other =>
         logger.error(s"Partition '$partitionID': Received unsupported message type '$other'.")
+        reschedule = false
         throw new IllegalStateException(
                 s"Partition '$partitionID': Received unsupported message '$other'."
         )
     }
 
     printUpdateCount()
+    reschedule
   }
 
   /**

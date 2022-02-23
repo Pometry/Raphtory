@@ -11,6 +11,6 @@ abstract class SpoutExecutor[T](
     private val pulsarController: PulsarController,
     scheduler: Scheduler
 ) extends Component[T](conf: Config, pulsarController: PulsarController) {
-  override def handleMessage(msg: Message[T]): Unit = {}
+  override def handleMessage(msg: Message[T]): Boolean = { false }
 
 }

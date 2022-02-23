@@ -28,6 +28,10 @@ class PulsarController(conf: Config) {
 
   def accessClient: PulsarClient = client
 
+  val consumerMaxMessages : Long                    = conf.getLong("raphtory.consumers.maxMessagesForBatch")
+  val consumerBatchTimeout : Long                    = conf.getLong("raphtory.consumers.timeoutForBatchMillis")
+  val consumerPooling      : Boolean                = conf.getBoolean("raphtory.consumers.consumerPoolPolicy")
+
   def setRetentionNamespace(
       namespace: String,
       retentionTime: Int = -1,
@@ -63,6 +67,28 @@ class PulsarController(conf: Config) {
       )
       .poolMessages(true)
       .messageListener(messageListener)
+      .subscribe()
+
+  // without message listener
+  def createListeningConsumer[T](
+                                  subscriptionName: String,
+                                  schema: Schema[T],
+                                  topics: String*
+                                ): Consumer[T] =
+    client
+      .newConsumer(schema)
+      .topics(topics.toList.asJava)
+      .subscriptionName(subscriptionName)
+      .subscriptionType(SubscriptionType.Shared)
+      .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+      .batchReceivePolicy(
+        BatchReceivePolicy
+          .builder()
+          .maxNumMessages(consumerMaxMessages.toInt)
+          .timeout(consumerBatchTimeout.toInt, TimeUnit.NANOSECONDS)
+          .build()
+      )
+      .poolMessages(consumerPooling)
       .subscribe()
 
   def createConsumer[T](subscriptionName: String, schema: Schema[T], topics: String*): Consumer[T] =

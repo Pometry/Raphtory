@@ -53,7 +53,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
 
     queryProgressTracker.waitForJob()
 
-    val firstResult = new String(receiveMessage(consumer).getValue)
+    val firstResult = new String(receiveMessage(consumer).get().getValue)
 
     logger.debug(s"Output to Pulsar complete. First result is: '$firstResult'.")
 

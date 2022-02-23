@@ -7,7 +7,7 @@ import Stages.Stage
 import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.algorithm._
 import com.raphtory.core.components.Component
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, PulsarController}
 import com.raphtory.core.graph.Perspective
 import com.raphtory.core.graph.PerspectiveController
 import com.typesafe.config.Config
@@ -60,11 +60,13 @@ abstract class QueryHandler(
     }
   }
   private val recheckTimer                              = new RecheckTimer()
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  override val cancelableConsumer =  Some(startQueryHandlerConsumer(Schema.BYTES,jobID))
+
+  override def getScheduler(): Scheduler = scheduler
 
   override def run(): Unit = {
     readers sendAsync serialise(EstablishExecutor(jobID))
-    cancelableConsumer = Some(startQueryHandlerConsumer(Schema.BYTES, jobID))
+    scheduler.execute(AsyncConsumer(this))
 
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
   }
@@ -73,7 +75,6 @@ abstract class QueryHandler(
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
     }
     self.close()
     readers.close()
@@ -81,14 +82,17 @@ abstract class QueryHandler(
     workerList.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit =
+  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
+    var scheduleAgain = true
     currentState match {
       case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
       case Stages.EstablishPerspective => currentState = establishPerspective(msg)
       case Stages.ExecuteGraph         => currentState = executeGraph(msg)
       case Stages.ExecuteTable         => currentState = executeTable(msg)
-      case Stages.EndTask              => //TODO?
+      case Stages.EndTask              => scheduleAgain = false //TODO?
     }
+    scheduleAgain
+  }
 
   ////OPERATION STATES
   //Communicate with all readers and get them to spawn a QueryExecutor for their partition

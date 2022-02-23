@@ -71,6 +71,8 @@ class FileSpoutExecutor[T](
   if (source == "")
     source = conf.getString("raphtory.spout.file.local.sourceDirectory")
 
+  override def getScheduler(): Scheduler = scheduler
+
   def setupNamespace(): Unit =
     try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_spout")
     catch {

@@ -4,7 +4,7 @@ import com.raphtory.core.components.querymanager.EstablishExecutor
 import com.raphtory.core.components.Component
 import com.raphtory.core.components.querymanager.EstablishExecutor
 import com.raphtory.core.components.querymanager.WatermarkTime
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, PulsarController}
 import com.raphtory.core.graph.GraphPartition
 import com.typesafe.config.Config
 import monix.execution.Scheduler
@@ -26,7 +26,7 @@ class Reader(
 
   private val executorMap                               = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish                          = watermarkPublisher()
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  override val cancelableConsumer = Some(startReaderConsumer(Schema.BYTES,partitionID))
 
   class Watermarker extends Runnable {
 
@@ -35,30 +35,33 @@ class Reader(
     }
   }
 
+  override def getScheduler() : Scheduler = { scheduler }
+
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
 
-    cancelableConsumer = Some(startReaderConsumer(Schema.BYTES, partitionID))
     scheduler.scheduleAtFixedRate(1, 1, TimeUnit.SECONDS, new Watermarker())
+    // same scheduler as watermark!
+    scheduler.execute(AsyncConsumer(this))
   }
 
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
     }
     watermarkPublish.close()
     executorMap.foreach(_._2.stop())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit = {
+  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
     val jobID         = deserialise[EstablishExecutor](msg.getValue).jobID
     val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
 
     scheduler.execute(queryExecutor)
 
     executorMap += ((jobID, queryExecutor))
+    true
   }
 
   def createWatermark(): Unit = {

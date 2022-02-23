@@ -23,6 +23,7 @@ import org.apache.pulsar.client.api.Schema
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.LoggerFactory
 
+import java.util.concurrent.CompletableFuture
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.util.Random
@@ -53,8 +54,9 @@ abstract class BaseRaphtoryAlgoTest[T: TypeTag] extends AnyFunSuite {
   def setSchema(): Schema[T]
   def setup(): Unit = {}
 
-  def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
-    consumer.receive
+  def receiveMessage(consumer: Consumer[Array[Byte]]): CompletableFuture[Message[Array[Byte]]] = {
+    consumer.receiveAsync()
+  }
 
   def algorithmTest(
       algorithm: GraphAlgorithm,

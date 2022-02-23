@@ -58,4 +58,6 @@ class StaticGraphSpoutExecutor(
   override def stop(): Unit =
     logger.debug(s"Stopping spout for '$fileDataPath'.")
 
+  override def getScheduler(): Scheduler = scheduler
+
 }
