@@ -15,7 +15,8 @@ import org.slf4j.LoggerFactory
 
 import scala.reflect.runtime.universe._
 
-abstract class Component[T](conf: Config, private val pulsarController: PulsarController) extends Runnable {
+abstract class Component[T](conf: Config, private val pulsarController: PulsarController)
+        extends Runnable {
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -38,7 +39,8 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
       try {
         handleMessage(msg)
         consumer.acknowledge(msg)
-      } catch {
+      }
+      catch {
         case e: Exception =>
           logger.error(s"Deployment $deploymentID: Failed to handle message.")
           e.printStackTrace()

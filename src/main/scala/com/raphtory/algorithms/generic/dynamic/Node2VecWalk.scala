@@ -90,7 +90,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
                       vertex.messageSelf(WalkMessage(source, vertex.ID, neighbours))
                     else {
                       val lastNeighbourSet = lastNeighbours.toSet
-                      val weights = neighbours.map { n =>
+                      val weights          = neighbours.map { n =>
                         if (n == last)
                           1.0 / p
                         else if (lastNeighbourSet.contains(n))
@@ -103,7 +103,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
                               WalkMessage(source, vertex.ID, neighbours)
                       )
                     }
-                  case StoreMessage(name) =>
+                  case StoreMessage(name)                        =>
                     vertex.getState[ArrayBuffer[String]]("walk").append(name)
                 },
               walkLength - 1,

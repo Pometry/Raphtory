@@ -21,7 +21,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   //var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
   var history: mutable.ArrayBuffer[(Long, Boolean)] = mutable.ArrayBuffer()
   history += ((creationTime, isInitialValue))
-  var toClean = false
+  var toClean                                       = false
 
   def dedupe() =
     if (toClean) {
@@ -37,7 +37,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   def setType(newType: Option[String]): Unit =
     newType.foreach(nt => entityType = entityType.orElse(Some(nt)))
-  def getType: String = entityType.getOrElse("")
+  def getType: String                        = entityType.getOrElse("")
 
   def revive(msgTime: Long): Unit = {
     checkOldestTime(msgTime)
@@ -67,7 +67,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
     properties.get(key) match {
       case Some(p) =>
         p update (msgTime, value)
-      case None =>
+      case None    =>
         if (immutable) properties.put(key, new ImmutableProperty(msgTime, value))
         else
           properties.put(key, new MutableProperty(msgTime, value))

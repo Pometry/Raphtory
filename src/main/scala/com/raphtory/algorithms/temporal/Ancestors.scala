@@ -56,10 +56,11 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
               { vertex =>
                 val latestTime = vertex.messageQueue[Long].max
                 vertex.setState("ancestor", true)
-                val inEdges = (if (directed) vertex.getInEdges() else vertex.getEdges())
+                val inEdges    = (if (directed) vertex.getInEdges() else vertex.getEdges())
                   .filter(e => e.earliestActivity().time < latestTime)
                   .filter(e => e.lastActivityBefore(time).time > latestTime - delta)
-                inEdges.foreach(e => vertex.messageVertex(e.ID(), e.lastActivityBefore(latestTime).time))
+                inEdges
+                  .foreach(e => vertex.messageVertex(e.ID(), e.lastActivityBefore(latestTime).time))
               },
               executeMessagedOnly = true,
               iterations = 100

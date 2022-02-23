@@ -67,7 +67,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends GraphAlgorithm {
                 newMessages.foreach {
                   message =>
                     message match {
-                      case RequestFirstHop(source) =>
+                      case RequestFirstHop(source)            =>
                         vertex
                           .getOutNeighbours()
                           .foreach(n =>
@@ -76,7 +76,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends GraphAlgorithm {
                           )
                       case RequestSecondHop(source, firstHop) =>
                         vertex.messageVertex(source, Response(firstHop, vertex.name()))
-                      case Response(firstHop, secondHop) =>
+                      case Response(firstHop, secondHop)      =>
                         val paths = vertex.getOrSetState[ArrayBuffer[Array[String]]](
                                 "twoHopPaths",
                                 ArrayBuffer[Array[String]]()
@@ -97,7 +97,12 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends GraphAlgorithm {
                 vertex.getStateOrElse("twoHopPaths", ArrayBuffer[Array[String]]())
         )
       )
-      .explode(row => row.getAs[ArrayBuffer[Array[String]]](1).toList.map(hops => Row(row.get(0), hops(0), hops(1))))
+      .explode(row =>
+        row
+          .getAs[ArrayBuffer[Array[String]]](1)
+          .toList
+          .map(hops => Row(row.get(0), hops(0), hops(1)))
+      )
 }
 
 object TwoHopPaths {

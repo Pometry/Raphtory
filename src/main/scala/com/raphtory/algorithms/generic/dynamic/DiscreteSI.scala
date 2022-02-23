@@ -59,8 +59,11 @@ class DiscreteSI(
         if (infectedNodes contains vertex.name()) {
           vertex.setState("infected", true)
           vertex.setState("generation", 0)
-          vertex.getOutEdges().foreach(edge => if (randomiser.nextFloat() < infectionProbability) edge.send(1))
-        } else
+          vertex
+            .getOutEdges()
+            .foreach(edge => if (randomiser.nextFloat() < infectionProbability) edge.send(1))
+        }
+        else
           vertex.setState("infected", false)
       }
       .iterate(

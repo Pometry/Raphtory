@@ -73,7 +73,7 @@ abstract class QueryHandler(
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None =>
+      case None        =>
     }
     self.close()
     readers.close()
@@ -103,7 +103,8 @@ abstract class QueryHandler(
 
       readyCount = 0
       executeNextPerspective()
-    } else {
+    }
+    else {
       logger.debug(s"Job '$jobID': Spawning executors.")
 
       readyCount += 1
@@ -114,7 +115,7 @@ abstract class QueryHandler(
   //build the perspective within the QueryExecutor for each partition -- the view to be analysed
   private def establishPerspective(msg: Message[Array[Byte]]): Stage =
     deserialise[QueryManagement](msg.getValue) match {
-      case RecheckTime =>
+      case RecheckTime               =>
         logger.debug(s"Job '$jobID': Rechecking time of $currentPerspective.")
         recheckTime(currentPerspective)
 
@@ -125,13 +126,14 @@ abstract class QueryHandler(
           messagetoAllJobWorkers(SetMetaData(vertexCount))
           logger.debug(s"Job '$jobID': Message to all workers vertex count: $vertexCount.")
           Stages.EstablishPerspective
-        } else {
+        }
+        else {
           vertexCount += p.vertices
           readyCount += 1
           Stages.EstablishPerspective
         }
 
-      case MetaDataSet =>
+      case MetaDataSet               =>
         if (readyCount + 1 == totalPartitions) {
           self sendAsync serialise(StartGraph)
           readyCount = 0
@@ -146,7 +148,8 @@ abstract class QueryHandler(
           )
 
           Stages.ExecuteGraph
-        } else {
+        }
+        else {
           readyCount += 1
           Stages.EstablishPerspective
         }
@@ -155,7 +158,7 @@ abstract class QueryHandler(
   //execute the steps of the graph algorithm until a select is run
   private def executeGraph(msg: Message[Array[Byte]]): Stage =
     deserialise[QueryManagement](msg.getValue) match {
-      case StartGraph =>
+      case StartGraph                                                         =>
         graphPerspective = new GenericGraphPerspective(vertexCount)
 
         logger.debug(s"Job '$jobID': Running '${algorithm.getClass.getSimpleName}'.")
@@ -166,7 +169,7 @@ abstract class QueryHandler(
         table.writeTo(outputFormat) //sets output formatter
 
         graphPerspective.getNextOperation() match {
-          case Some(f: Select) =>
+          case Some(f: Select)        =>
             messagetoAllJobWorkers(f)
             readyCount = 0
             logger.debug(s"Job '$jobID': Executing Select function.")
@@ -181,7 +184,7 @@ abstract class QueryHandler(
             sentMessageCount = 0
             allVoteToHalt = true
             Stages.ExecuteGraph
-          case None =>
+          case None                   =>
             logger.debug(s"Job '$jobID': Ending Task.")
             Stages.EndTask
         }
@@ -198,7 +201,8 @@ abstract class QueryHandler(
                           s"Job '$jobID': Starting next operation '${algorithm.getClass.getSimpleName}'."
                   )
                   nextGraphOperation(vertexCount)
-                } else {
+                }
+                else {
                   messagetoAllJobWorkers(Iterate(f, iterations - 1, executeMessagedOnly))
                   currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
                   readyCount = 0
@@ -210,7 +214,7 @@ abstract class QueryHandler(
                   )
                   Stages.ExecuteGraph
                 }
-              case _ =>
+              case _                                           =>
                 nextGraphOperation(vertexCount)
             }
           else {
@@ -235,13 +239,14 @@ abstract class QueryHandler(
   //once the select has been run, execute all of the table functions until we hit a writeTo
   private def executeTable(msg: Message[Array[Byte]]): Stage =
     deserialise[QueryManagement](msg.getValue) match {
-      case TableBuilt =>
+      case TableBuilt            =>
         readyCount += 1
         if (readyCount == totalPartitions) {
           readyCount = 0
           logger.debug(s"Job '$jobID': Executing next table operation.")
           nextTableOperation()
-        } else {
+        }
+        else {
           logger.debug(
                   s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
           )
@@ -253,7 +258,8 @@ abstract class QueryHandler(
         if (readyCount == totalPartitions) {
           logger.debug(s"Job '$jobID': Running next table operation.")
           nextTableOperation()
-        } else {
+        }
+        else {
           logger.debug(
                   s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
           )
@@ -276,7 +282,7 @@ abstract class QueryHandler(
         graphPerspective = null
         table = null
         Stages.EstablishPerspective
-      case Some(perspective) =>
+      case Some(perspective)                                        =>
         logger.debug(
                 s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'."
         )
@@ -287,7 +293,7 @@ abstract class QueryHandler(
         scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckTimer)
 
         Stages.EstablishPerspective
-      case None =>
+      case None                                                     =>
         logger.debug(s"Job '$jobID': No more perspectives to run.")
         //log.info(s"no more perspectives to run for $jobID")
         killJob()
@@ -303,7 +309,7 @@ abstract class QueryHandler(
                   s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' with " +
                     s"Window $window took ${System.currentTimeMillis() - lastTime} ms to run."
           )
-        case None =>
+        case None         =>
           logger.trace(
                   s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' " +
                     s"took ${System.currentTimeMillis() - lastTime} ms to run. "
@@ -319,7 +325,8 @@ abstract class QueryHandler(
 
       messagetoAllJobWorkers(CreatePerspective(perspective.timestamp, perspective.window))
       Stages.EstablishPerspective
-    } else {
+    }
+    else {
       logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
 
       scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckTimer)
@@ -329,7 +336,7 @@ abstract class QueryHandler(
 
   private def nextGraphOperation(vertexCount: Int): Stage =
     graphPerspective.getNextOperation() match {
-      case Some(f: Select) =>
+      case Some(f: Select)        =>
         logger.debug(s"Job '$jobID': Executing Select function.")
         messagetoAllJobWorkers(f)
         readyCount = 0
@@ -345,7 +352,7 @@ abstract class QueryHandler(
         allVoteToHalt = true
         Stages.ExecuteGraph
 
-      case None =>
+      case None                   =>
         readyCount = 0
         receivedMessageCount = 0
         sentMessageCount = 0
@@ -366,7 +373,7 @@ abstract class QueryHandler(
 
         Stages.ExecuteTable
 
-      case None =>
+      case None                   =>
         readyCount = 0
         receivedMessageCount = 0
         sentMessageCount = 0
@@ -382,7 +389,9 @@ abstract class QueryHandler(
     messagetoAllJobWorkers(EndQuery(jobID))
     logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
 
-    tracker.flushAsync().thenApply(_ => tracker.sendAsync(serialise(JobDone)).thenApply(_ => tracker.closeAsync()))
+    tracker
+      .flushAsync()
+      .thenApply(_ => tracker.sendAsync(serialise(JobDone)).thenApply(_ => tracker.closeAsync()))
 
     //log.info(s"Job '$jobID': Has no more perspectives. Ending Query Handler execution.")
     //if(monitor!=null)monitor ! TaskFinished(true)
