@@ -67,7 +67,7 @@ class QueryProgressTracker(
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None =>
+      case None        =>
     }
 
   override def handleMessage(msg: Message[Array[Byte]]): Unit =
@@ -93,7 +93,7 @@ class QueryProgressTracker(
 
         logger.info(s"Job $jobID: Running query, processed $perspectivesProcessed perspectives.")
 
-      case JobDone =>
+      case JobDone        =>
         logger.info(
                 s"Job $jobID: Query completed with $perspectivesProcessed perspectives " +
                   s"and finished in ${System.currentTimeMillis() - startTime} ms."

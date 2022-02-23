@@ -78,7 +78,7 @@ class MultilayerLPA(
         case -1 =>
           val neilabs = weightFunction(v, ts)
           neilabs.values.sum / neilabs.size
-        case _ => omega.toFloat
+        case _  => omega.toFloat
       }
 
     def weightFunction(v: Vertex, ts: Long): Map[Long, Float] =
@@ -106,16 +106,18 @@ class MultilayerLPA(
                 val msgQueue   = vertex.messageQueue[(Long, List[(Long, Long)])]
                 var voteStatus = vertex.getOrSetState[Boolean]("vote", false)
                 var voteCount  = 0
-                val newLabel = vlabel.map {
+                val newLabel   = vlabel.map {
                   tv =>
                     val ts     = tv._1
                     val Curlab = tv._2
 
                     // Get weights/labels of neighbours of vertex at time ts
                     val nei_ts_freq = weightFunction(vertex, ts) // ID -> freq
-                    var newlab = if (nei_ts_freq.nonEmpty) {
+                    var newlab      = if (nei_ts_freq.nonEmpty) {
                       val nei_labs = msgQueue
-                        .filter(x => nei_ts_freq.keySet.contains(x._1)) // filter messages from neighbours at time ts only
+                        .filter(x =>
+                          nei_ts_freq.keySet.contains(x._1)
+                        ) // filter messages from neighbours at time ts only
                         .map { msg =>
                           val freq     = nei_ts_freq(msg._1)
                           val label_ts = msg._2.filter(_._1 == ts).head._2
@@ -138,7 +140,8 @@ class MultilayerLPA(
                       // Get label most prominent in neighborhood of vertex
                       val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
                       max_freq.filter(_._2 == max_freq.values.max).keySet.max
-                    } else Curlab
+                    }
+                    else Curlab
 
                     if (newlab == Curlab)
                       voteCount += 1
@@ -156,7 +159,8 @@ class MultilayerLPA(
                 voteStatus = if (voteStatus || (voteCount == vlabel.size)) {
                   vertex.voteToHalt()
                   true
-                } else
+                }
+                else
                   false
                 vertex.setState("vote", voteStatus)
 
@@ -175,7 +179,10 @@ class MultilayerLPA(
         )
       }
       .explode { row =>
-        row.get(1).asInstanceOf[List[(Long, Long)]].map(lts => Row(lts._2, row.get(0) + "_" + lts._1.toString))
+        row
+          .get(1)
+          .asInstanceOf[List[(Long, Long)]]
+          .map(lts => Row(lts._2, row.get(0) + "_" + lts._1.toString))
       }
 
 }

@@ -108,7 +108,7 @@ object Raphtory {
       pulsarController: PulsarController
   ): SpoutExecutor[T] =
     spout match {
-      case spout: FileSpout[T] =>
+      case spout: FileSpout[T]            =>
         new FileSpoutExecutor[T](
                 spout.source,
                 spout.schema,
@@ -117,6 +117,7 @@ object Raphtory {
                 pulsarController,
                 scheduler
         )
+<<<<<<< HEAD
 <<<<<<< HEAD
       case IdentitySpout() => new IdentitySpoutExecutor[T](conf, pulsarController)
       case ResourceSpout(resource) =>
@@ -130,6 +131,15 @@ object Raphtory {
       case StaticGraphSpout(fileDataPath) =>
         new StaticGraphSpoutExecutor(fileDataPath, conf, pulsarController, scheduler).asInstanceOf[SpoutExecutor[T]]
 >>>>>>> ca725f74 (Reenabled file polling via scheduler)
+=======
+      case IdentitySpout()                => new IdentitySpoutExecutor[T](conf, pulsarController, scheduler)
+      case ResourceSpout(resource)        =>
+        new ResourceSpoutExecutor(resource, conf, pulsarController, scheduler)
+          .asInstanceOf[SpoutExecutor[T]]
+      case StaticGraphSpout(fileDataPath) =>
+        new StaticGraphSpoutExecutor(fileDataPath, conf, pulsarController, scheduler)
+          .asInstanceOf[SpoutExecutor[T]]
+>>>>>>> bda178d9 (Updated Scalafmt to 2.6.3)
 
     }
 

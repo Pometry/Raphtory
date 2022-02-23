@@ -7,9 +7,11 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
 
   def create(): Unit =
     raphtoryKubernetesDeployments.forEach { raphtoryComponent =>
-      if (conf.hasPath(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.create") &&
-          conf.getBoolean(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.create")) {
-        val deploymentName: String =
+      if (
+              conf.hasPath(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.create") &&
+              conf.getBoolean(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.create")
+      ) {
+        val deploymentName: String                =
           s"raphtory-$raphtoryDeploymentId-$raphtoryComponent".toLowerCase()
         val deploymentLabels: Map[String, String] = Map(
                 "deployment"         -> "raphtory",
@@ -25,8 +27,11 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
 
         // Add in config defined env vars
         val configComponentsEnvVars =
-          conf.getConfig(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.env").root().keySet()
-        val configAllEnvVars =
+          conf
+            .getConfig(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.env")
+            .root()
+            .keySet()
+        val configAllEnvVars        =
           conf.getConfig(s"raphtory.deploy.kubernetes.deployments.all.pods.env").root().keySet()
 
         configAllEnvVars.forEach { name =>
@@ -42,17 +47,17 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
         }
 
         // For each env var passed in, check if prefix matches and add to componentEnvVars map if it does
-        val systemAllEnvVarsPrefix = s"RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_ALL_PODS_ENV_"
+        val systemAllEnvVarsPrefix       = s"RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_ALL_PODS_ENV_"
         val systemComponentEnvVarsPrefix =
           s"RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_${raphtoryComponent.toUpperCase()}_PODS_ENV_"
 
         systemEnvVars.forEach { (name, value) =>
           name match {
-            case name if name.startsWith(systemAllEnvVarsPrefix) =>
+            case name if name.startsWith(systemAllEnvVarsPrefix)       =>
               componentEnvVars += name.replaceAll(systemAllEnvVarsPrefix, "") -> value
             case name if name.startsWith(systemComponentEnvVarsPrefix) =>
               componentEnvVars += name.replaceAll(systemComponentEnvVarsPrefix, "") -> value
-            case _ =>
+            case _                                                     =>
           }
         }
 
@@ -68,7 +73,8 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
                           name = deploymentName,
                           labels = deploymentLabels,
                           matchLabels = deploymentLabels,
-                          containerName = s"raphtory-$raphtoryDeploymentId-$raphtoryComponent".toLowerCase(),
+                          containerName =
+                            s"raphtory-$raphtoryDeploymentId-$raphtoryComponent".toLowerCase(),
                           containerImagePullPolicy = conf.getString(
                                   s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.imagePullPolicy"
                           ),
@@ -85,14 +91,16 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
                           environmentVariables = componentEnvVars
                   )
           )
-        } catch {
+        }
+        catch {
           case e: Throwable =>
             raphtoryKubernetesLogger.error(
                     s"Error found when deploying $deploymentName deployment for $raphtoryComponent component",
                     e
             )
         }
-      } else
+      }
+      else
         raphtoryKubernetesLogger.info(
                 s"Setting raphtory.deploy.kubernetes.deployments.$raphtoryComponent.create is set to false"
         )
@@ -103,7 +111,7 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
       if (conf.hasPath(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.create")) {
         val deploymentName: String =
           s"raphtory-$raphtoryDeploymentId-$raphtoryComponent".toLowerCase()
-        val deployment =
+        val deployment             =
           try Option(
                   KubernetesDeployment.get(
                           client = kubernetesClient,
@@ -120,7 +128,7 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
           }
 
         deployment match {
-          case None =>
+          case None        =>
             raphtoryKubernetesLogger.debug(
                     s"Deployment $deploymentName not found for $raphtoryComponent. Deployment delete aborted"
             )

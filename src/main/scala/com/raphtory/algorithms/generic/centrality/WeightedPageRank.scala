@@ -61,7 +61,8 @@ class WeightedPageRank(
       .step { vertex =>
         val initLabel = 1.0f
         vertex.setState("prlabel", initLabel)
-        val outWeight = vertex.getOutEdges().map(e => e.getPropertyOrElse(weightProperty, e.history().size)).sum
+        val outWeight =
+          vertex.getOutEdges().map(e => e.getPropertyOrElse(weightProperty, e.history().size)).sum
         vertex.getOutEdges().foreach { e =>
           vertex.messageVertex(
                   e.ID,
@@ -79,11 +80,16 @@ class WeightedPageRank(
                 val newLabel = (1 - dampingFactor) + dampingFactor * queue.sum
                 vertex.setState("prlabel", newLabel)
 
-                val outWeight = vertex.getOutEdges().map(e => e.getPropertyOrElse(weightProperty, e.history().size)).sum
+                val outWeight = vertex
+                  .getOutEdges()
+                  .map(e => e.getPropertyOrElse(weightProperty, e.history().size))
+                  .sum
                 vertex.getOutEdges().foreach { e =>
                   vertex.messageVertex(
                           e.ID,
-                          newLabel * e.getPropertyOrElse(weightProperty, e.history().size).toFloat / outWeight
+                          newLabel * e
+                            .getPropertyOrElse(weightProperty, e.history().size)
+                            .toFloat / outWeight
                   )
                 }
 

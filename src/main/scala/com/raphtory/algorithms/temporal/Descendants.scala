@@ -56,10 +56,12 @@ class Descendants(seed: String, time: Long, delta: Long = Long.MaxValue, directe
               { vertex =>
                 val earliestTime = vertex.messageQueue[Long].min
                 vertex.setState("descendant", true)
-                val outEdges = (if (directed) vertex.getOutEdges() else vertex.getEdges())
+                val outEdges     = (if (directed) vertex.getOutEdges() else vertex.getEdges())
                   .filter(e => e.latestActivity().time > earliestTime)
                   .filter(e => e.firstActivityAfter(earliestTime).time < earliestTime + delta)
-                outEdges.foreach(e => vertex.messageVertex(e.ID(), e.firstActivityAfter(earliestTime).time))
+                outEdges.foreach(e =>
+                  vertex.messageVertex(e.ID(), e.firstActivityAfter(earliestTime).time)
+                )
               },
               executeMessagedOnly = true,
               iterations = 100
