@@ -58,12 +58,18 @@ final case class PojoGraphLens(
       case (id, vertex) => f(vertex)
     }.toList
 
-  def executeSelect(f: (Vertex, GraphState) => Row, graphState: GraphState): Unit =
+  def executeSelect(
+      f: (Vertex, GraphState) => Row,
+      graphState: GraphState
+  ): Unit =
     dataTable = vertices.collect {
       case (id, vertex) => f(vertex, graphState)
     }.toList
 
-  def executeSelect(f: GraphState => Row, graphState: GraphState): Unit =
+  def executeSelect(
+      f: GraphState => Row,
+      graphState: GraphState
+  ): Unit =
     dataTable = List(f(graphState))
 
   def filteredTable(f: Row => Boolean): Unit =
@@ -80,7 +86,10 @@ final case class PojoGraphLens(
     vertexCount.set(vertices.size)
   }
 
-  override def runGraphFunction(f: (Vertex, GraphState) => Unit, graphState: GraphState): Unit = {
+  override def runGraphFunction(
+      f: (Vertex, GraphState) => Unit,
+      graphState: GraphState
+  ): Unit = {
     vertices.foreach { case (id, vertex) => f(vertex, graphState) }
     vertexCount.set(vertices.size)
   }

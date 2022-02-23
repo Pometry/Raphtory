@@ -38,7 +38,7 @@ abstract class QueryHandler(
   private var graphPerspective: GenericGraphPerspective    = _
   private var table: GenericTable                          = _
   private var currentOperation: GraphFunction              = _
-  private var graphState: GraphState                       = _
+  private var graphState: GraphStateImplementation         = _
 
   private var currentPerspective: Perspective =
     Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW)
@@ -157,7 +157,7 @@ abstract class QueryHandler(
     deserialise[QueryManagement](msg.getValue) match {
       case StartGraph                                                                =>
         graphPerspective = new GenericGraphPerspective(vertexCount)
-        graphState = GraphState()
+        graphState = GraphStateImplementation()
 
         logger.debug(s"Job '$jobID': Running '${algorithm.getClass.getSimpleName}'.")
         algorithm.run(graphPerspective)
@@ -246,7 +246,7 @@ abstract class QueryHandler(
         logTimeTaken(perspective)
         messagetoAllJobWorkers(CreatePerspective(perspective.timestamp, perspective.window))
         currentPerspective = perspective
-        graphState = GraphState()
+        graphState = GraphStateImplementation()
         graphPerspective = null
         table = null
         Stages.EstablishPerspective

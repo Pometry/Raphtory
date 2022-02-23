@@ -34,7 +34,24 @@ private object AccumulatorImplementation {
     new AccumulatorImplementation[T](initialValue, retainState, op)
 }
 
-class GraphState {
+abstract class GraphState {
+
+  def newAccumulator[T](
+      name: String,
+      initialValue: T,
+      retainState: Boolean = false,
+      op: (T, T) => T
+  ): Unit
+
+  def newAdder[T: Numeric](name: String): Unit
+  def newAdder[T: Numeric](name: String, initialValue: T): Unit
+  def newAdder[T: Numeric](name: String, retainState: Boolean): Unit
+  def newAdder[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
+
+  def apply[T: TypeTag](name: String): Accumulator[T]
+}
+
+class GraphStateImplementation extends GraphState {
   private val state = mutable.Map.empty[String, AccumulatorImplementation[Any]]
 
   def newAccumulator[T](
@@ -66,19 +83,19 @@ class GraphState {
     state(name) = AccumulatorImplementation[T](initialValue, retainState, numeric.plus)
       .asInstanceOf[AccumulatorImplementation[Any]]
 
-  def update(graphState: GraphState): Unit =
+  def update(graphState: GraphStateImplementation): Unit =
     graphState.state.foreach {
       case (name, value) =>
         state(name) += value.currentValue
     }
 
-  def rotate(): Unit                                                  =
+  def rotate(): Unit                                  =
     state.foreach { case (name, accumulator) => accumulator.reset() }
 
-  def apply[T](name: String)(implicit ev: TypeTag[T]): Accumulator[T] =
+  def apply[T: TypeTag](name: String): Accumulator[T] =
     state(name).asInstanceOf[Accumulator[T]]
 }
 
-object GraphState {
-  def apply() = new GraphState
+object GraphStateImplementation {
+  def apply() = new GraphStateImplementation
 }

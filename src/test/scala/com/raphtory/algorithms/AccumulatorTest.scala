@@ -3,6 +3,7 @@ package com.raphtory.algorithms
 import com.raphtory.core.algorithm.GraphAlgorithm
 import com.raphtory.core.algorithm.GraphPerspective
 import com.raphtory.core.algorithm.GraphState
+import com.raphtory.core.algorithm.GraphStateImplementation
 import com.raphtory.core.algorithm.Row
 import com.raphtory.core.algorithm.Table
 import com.raphtory.core.graph.visitor.Vertex
