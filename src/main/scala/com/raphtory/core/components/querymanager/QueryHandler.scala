@@ -383,10 +383,7 @@ abstract class QueryHandler(
     }
 
   private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
-    workerList.values
-      .foreach { worker =>
-        worker sendAsync serialise(msg)
-      }
+    workerList.values.foreach(worker => worker sendAsync serialise(msg))
 
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
@@ -394,11 +391,7 @@ abstract class QueryHandler(
 
     tracker
       .flushAsync()
-      .thenApply(_ =>
-        tracker
-          .sendAsync(serialise(JobDone))
-          .thenApply(_ => tracker.closeAsync())
-      )
+      .thenApply(_ => tracker.sendAsync(serialise(JobDone)).thenApply(_ => tracker.closeAsync()))
 
     //log.info(s"Job '$jobID': Has no more perspectives. Ending Query Handler execution.")
     //if(monitor!=null)monitor ! TaskFinished(true)
