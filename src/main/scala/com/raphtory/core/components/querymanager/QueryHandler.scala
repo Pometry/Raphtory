@@ -18,6 +18,7 @@ import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
 
 import java.util.concurrent.TimeUnit
+import scala.annotation.tailrec
 
 abstract class QueryHandler(
     queryManager: QueryManager,
@@ -56,9 +57,8 @@ abstract class QueryHandler(
 
   class RecheckTimer extends Runnable {
 
-    def run() {
+    def run(): Unit =
       self sendAsync serialise(RecheckTime)
-    }
   }
   private val recheckTimer                              = new RecheckTimer()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
@@ -166,6 +166,10 @@ abstract class QueryHandler(
         table = graphPerspective.getTable()
         table.writeTo(outputFormat) //sets output formatter
 
+        readyCount = 0
+        receivedMessageCount = 0
+        sentMessageCount = 0
+        allVoteToHalt = true
         nextGraphOperation(vertexCount)
 
       case GraphFunctionComplete(receivedMessages, sentMessages, votedToHalt, state) =>
@@ -177,12 +181,31 @@ abstract class QueryHandler(
         }
         if ((readyCount + 1) == totalPartitions) {
           state match {
-            case Some(state) => graphState.rotate()
-            case None        =>
+            case Some(_) => graphState.rotate()
+            case None    =>
           }
 
-          if (totalReceivedMessages == totalSentMessages)
-            nextGraphOperation(vertexCount)
+          if (totalReceivedMessages == totalSentMessages) {
+            readyCount = 0
+            receivedMessageCount = 0
+            sentMessageCount = 0
+            allVoteToHalt = true
+            currentOperation match {
+              case Iterate(f, iterations, executeMessagedOnly) if iterations > 1                 =>
+                currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
+                messagetoAllJobWorkers(currentOperation)
+                Stages.ExecuteGraph
+              case IterateWithGraph(f, iterations, executeMessagedOnly, state) if iterations > 1 =>
+                currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly, None)
+                messagetoAllJobWorkers(
+                        IterateWithGraph(f, iterations - 1, executeMessagedOnly, Some(graphState))
+                )
+                Stages.ExecuteGraph
+
+              case _                                                                             =>
+                nextGraphOperation(vertexCount)
+            }
+          }
           else {
             messagetoAllJobWorkers(CheckMessages(jobID))
             logger.debug(
@@ -269,7 +292,7 @@ abstract class QueryHandler(
     }
   }
 
-  private def logTimeTaken(perspective: Perspective) = {
+  private def logTimeTaken(perspective: Perspective): Unit = {
     if (currentPerspective.timestamp != DEFAULT_PERSPECTIVE_TIME)
       currentPerspective.window match {
         case Some(window) =>
@@ -302,32 +325,40 @@ abstract class QueryHandler(
     }
   }
 
+  @tailrec
   private def nextGraphOperation(vertexCount: Int): Stage = {
-    readyCount = 0
-    receivedMessageCount = 0
-    sentMessageCount = 0
-    allVoteToHalt = true
-
-    val nextOperation: GraphFunction = currentOperation match {
-      case Iterate(f, iterations, executeMessagedOnly)                      =>
-        if (iterations == 1)
-          graphPerspective.getNextOperation()
-        else
-          Iterate(f, iterations - 1, executeMessagedOnly)
-      case IterateWithGraph(f, iterations, executeMessagedOnly, graphState) =>
-        if (iterations == 1)
-          graphPerspective.getNextOperation()
-        else
-          IterateWithGraph(f, iterations - 1, executeMessagedOnly, graphState)
-      case _                                                                =>
-        graphPerspective.getNextOperation()
-    }
-
-    currentOperation = nextOperation
+    currentOperation = graphPerspective.getNextOperation()
     logger.debug(
-            s"Job '$jobID': Executing graph function '${nextOperation.getClass.getSimpleName}'."
+            s"Job '$jobID': Executing graph function '${currentOperation.getClass.getSimpleName}'."
     )
-    nextOperation match {
+    currentOperation match {
+      case f: Iterate                                                   =>
+        messagetoAllJobWorkers(f)
+        Stages.ExecuteGraph
+
+      case IterateWithGraph(fun, iterations, executeMessagedOnly, None) =>
+        messagetoAllJobWorkers(
+                IterateWithGraph(
+                        fun,
+                        iterations,
+                        executeMessagedOnly,
+                        Some(graphState)
+                )
+        )
+        Stages.ExecuteGraph
+
+      case f: Step                                                      =>
+        messagetoAllJobWorkers(f)
+        Stages.ExecuteGraph
+
+      case StepWithGraph(fun, None)                                     =>
+        messagetoAllJobWorkers(StepWithGraph(fun, Some(graphState)))
+        Stages.ExecuteGraph
+
+      case f: ClearChain                                                =>
+        messagetoAllJobWorkers(f)
+        Stages.ExecuteGraph
+
       case PerspectiveDone()                                            =>
         logger.debug(
                 s"Job '$jobID': Executing next perspective with windows '${currentPerspective.window}'" +
@@ -351,27 +382,8 @@ abstract class QueryHandler(
         fun(graphState)
         nextGraphOperation(vertexCount)
 
-      case StepWithGraph(fun, None)                                     =>
-        messagetoAllJobWorkers(StepWithGraph(fun, Some(graphState)))
-        Stages.ExecuteGraph
-
-      case IterateWithGraph(fun, iterations, executeMessagedOnly, None) =>
-        messagetoAllJobWorkers(
-                IterateWithGraph(
-                        fun,
-                        iterations,
-                        executeMessagedOnly,
-                        Some(graphState)
-                )
-        )
-        Stages.ExecuteGraph
-
       case VertexFilterWithGraph(fun, None)                             =>
         messagetoAllJobWorkers(VertexFilterWithGraph(fun, Some(graphState)))
-        Stages.ExecuteGraph
-
-      case f                                                            =>
-        messagetoAllJobWorkers(f)
         Stages.ExecuteGraph
     }
   }
