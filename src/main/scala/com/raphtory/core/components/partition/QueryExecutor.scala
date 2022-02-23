@@ -234,12 +234,13 @@ class QueryExecutor(
       case GlobalSelect(f, graphState)                                      =>
         logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'Select' query on graph")
         graphLens.nextStep()
-        graphState match {
-          case Some(graphState) =>
-            graphLens.executeSelect(f, graphState)
-          case None             =>
-            throw new Error("Graph state missing")
-        }
+        if (partitionID == 0)
+          graphState match {
+            case Some(graphState) =>
+              graphLens.executeSelect(f, graphState)
+            case None             =>
+              throw new Error("Graph state missing")
+          }
         taskManager sendAsync serialise(TableBuilt)
 
       case TableFilter(f)                                                   =>
