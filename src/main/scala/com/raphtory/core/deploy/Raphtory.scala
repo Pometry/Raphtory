@@ -26,7 +26,7 @@ object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
 
-  def createTypedGraph[T: TypeTag](
+  def createTypedGraph[T: TypeTag : Manifest](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       schema: Schema[T],
@@ -72,7 +72,7 @@ object Raphtory {
     componentFactory.spout(spoutExecutor, scheduler)
   }
 
-  def createGraphBuilder[T](builder: GraphBuilder[T], schema: Schema[T]): Unit = {
+  def createGraphBuilder[T: Manifest](builder: GraphBuilder[T], schema: Schema[T]): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
