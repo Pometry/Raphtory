@@ -18,18 +18,18 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  val pulsarAddress: String              = conf.getString("raphtory.pulsar.broker.address")
-  val pulsarAdminAddress: String         = conf.getString("raphtory.pulsar.admin.address")
-  val spoutTopic: String                 = conf.getString("raphtory.spout.topic")
-  val deploymentID: String               = conf.getString("raphtory.deploy.id")
-  val partitionServers: Int              = conf.getInt("raphtory.partitions.serverCount")
-  val partitionsPerServer: Int           = conf.getInt("raphtory.partitions.countPerServer")
-  val hasDeletions: Boolean              = conf.getBoolean("raphtory.data.containsDeletions")
-  val totalPartitions: Int               = partitionServers * partitionsPerServer
-  private val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
-  val cancelableConsumer    : Option[Consumer[T]]= None
+  val pulsarAddress: String                   = conf.getString("raphtory.pulsar.broker.address")
+  val pulsarAdminAddress: String              = conf.getString("raphtory.pulsar.admin.address")
+  val spoutTopic: String                      = conf.getString("raphtory.spout.topic")
+  val deploymentID: String                    = conf.getString("raphtory.deploy.id")
+  val partitionServers: Int                   = conf.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int                = conf.getInt("raphtory.partitions.countPerServer")
+  val hasDeletions: Boolean                   = conf.getBoolean("raphtory.data.containsDeletions")
+  val totalPartitions: Int                    = partitionServers * partitionsPerServer
+  private val kryo: PulsarKryoSerialiser      = PulsarKryoSerialiser()
+  val cancelableConsumer: Option[Consumer[T]] = None
 
-  def handleMessage(msg: Message[T]) : Boolean
+  def handleMessage(msg: Message[T]): Boolean
   def run()
   def stop()
 

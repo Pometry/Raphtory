@@ -16,7 +16,9 @@ import com.raphtory.core.components.querymanager.TableBuilt
 import com.raphtory.core.components.querymanager.TableFunctionComplete
 import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.components.querymanager.VertexMessageBatch
-import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
+import com.raphtory.core.config.AsyncConsumer
+import com.raphtory.core.config.MonixScheduler
+import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.GraphPartition
 import com.raphtory.core.graph.LensInterface
 import com.raphtory.core.storage.pojograph.PojoGraphLens
@@ -26,12 +28,12 @@ import com.typesafe.config.Config
 import org.apache.pulsar.client.api._
 
 class QueryExecutor(
-                     partitionID: Int,
-                     storage: GraphPartition,
-                     jobID: String,
-                     conf: Config,
-                     pulsarController: PulsarController
-                   ) extends Component[Array[Byte]](conf: Config, pulsarController) {
+    partitionID: Int,
+    storage: GraphPartition,
+    jobID: String,
+    conf: Config,
+    pulsarController: PulsarController
+) extends Component[Array[Byte]](conf: Config, pulsarController) {
 
   var graphLens: LensInterface  = _
   var sentMessageCount: Int     = 0
@@ -40,8 +42,11 @@ class QueryExecutor(
 
   private val taskManager: Producer[Array[Byte]]          = toQueryHandlerProducer(jobID)
   private val neighbours: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
-  private val monixScheduler = new MonixScheduler
-  override val cancelableConsumer =  Some(startQueryExecutorConsumer(Schema.BYTES,partitionID,jobID))
+  private val monixScheduler                              = new MonixScheduler
+
+  override val cancelableConsumer                         = Some(
+          startQueryExecutorConsumer(Schema.BYTES, partitionID, jobID)
+  )
 
   override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
@@ -65,30 +70,30 @@ class QueryExecutor(
 
       case VertexMessageBatch(msgBatch)                =>
         logger.trace(
-          s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessageBatch', '[${msgBatch
-            .mkString(",")}]'."
+                s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessageBatch', '[${msgBatch
+                  .mkString(",")}]'."
         )
         msgBatch.foreach(message => graphLens.receiveMessage(message))
         receivedMessageCount += msgBatch.size
 
       case msg: VertexMessage[_]                       =>
         logger.trace(
-          s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
+                s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
         )
         graphLens.receiveMessage(msg)
         receivedMessageCount += 1
 
       case CreatePerspective(timestamp, window)        =>
         logger.debug(
-          s"Job '$jobID' at Partition '$partitionID': Creating perspective at time '$timestamp' with window '$window'."
+                s"Job '$jobID' at Partition '$partitionID': Creating perspective at time '$timestamp' with window '$window'."
         )
         val lens = PojoGraphLens(
-          jobID,
-          timestamp,
-          window,
-          0,
-          storage,
-          VertexMessageHandler(conf, neighbours)
+                jobID,
+                timestamp,
+                window,
+                0,
+                storage,
+                VertexMessageHandler(conf, neighbours)
         )
         graphLens = lens
         sentMessageCount = 0
@@ -97,7 +102,7 @@ class QueryExecutor(
 
       case SetMetaData(vertices)                       =>
         logger.debug(
-          s"Job $jobID at Partition '$partitionID': Executing 'SetMetaData' function on graph."
+                s"Job $jobID at Partition '$partitionID': Executing 'SetMetaData' function on graph."
         )
 
         graphLens.setFullGraphSize(vertices)
@@ -114,7 +119,7 @@ class QueryExecutor(
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(GraphFunctionComplete(sentMessages, receivedMessageCount))
         logger.debug(
-          s"Job '$jobID' at Partition '$partitionID': Step function produced and sent '$sentMessages' messages."
+                s"Job '$jobID' at Partition '$partitionID': Step function produced and sent '$sentMessages' messages."
         )
         sentMessageCount = sentMessages
 
@@ -123,14 +128,14 @@ class QueryExecutor(
 
         if (executeMessagedOnly) {
           logger.debug(
-            s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on messaged vertices only."
+                  s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on messaged vertices only."
           )
 
           graphLens.runMessagedGraphFunction(f)
         }
         else {
           logger.debug(
-            s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on all vertices."
+                  s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on all vertices."
           )
 
           graphLens.runGraphFunction(f)
@@ -139,13 +144,13 @@ class QueryExecutor(
         val sentMessages = graphLens.getMessageHandler().getCount()
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(
-          GraphFunctionComplete(receivedMessageCount, sentMessages, graphLens.checkVotes())
+                GraphFunctionComplete(receivedMessageCount, sentMessages, graphLens.checkVotes())
         )
         votedToHalt = graphLens.checkVotes()
         sentMessageCount = sentMessages
 
         logger.debug(
-          s"Job '$jobID' at Partition '$partitionID': Iterate function produced and sent '$sentMessages' messages."
+                s"Job '$jobID' at Partition '$partitionID': Iterate function produced and sent '$sentMessages' messages."
         )
       case VertexFilter(f)                             =>
         taskManager sendAsync serialise(GraphFunctionComplete(0, 0))
@@ -163,29 +168,29 @@ class QueryExecutor(
 
       case TableFilter(f)                              =>
         logger.debug(
-          s"Job '$jobID' at Partition '$partitionID': Executing 'TableFilter' query on graph."
+                s"Job '$jobID' at Partition '$partitionID': Executing 'TableFilter' query on graph."
         )
         graphLens.filteredTable(f)
         taskManager sendAsync serialise(TableFunctionComplete)
 
       case Explode(f)                                  =>
         logger.debug(
-          s"Job '$jobID' at Partition '$partitionID': Executing 'Explode' query on graph."
+                s"Job '$jobID' at Partition '$partitionID': Executing 'Explode' query on graph."
         )
         graphLens.explodeTable(f)
         taskManager sendAsync serialise(TableFunctionComplete)
 
       case WriteTo(outputFormat)                       =>
         logger.debug(
-          s"Job '$jobID' at Partition '$partitionID': Writing results to '$outputFormat'."
+                s"Job '$jobID' at Partition '$partitionID': Writing results to '$outputFormat'."
         )
         val producer =
           if (outputFormat.isInstanceOf[PulsarOutputFormat])
             Some(
-              pulsarController.accessClient
-                .newProducer(Schema.STRING)
-                .topic(outputFormat.asInstanceOf[PulsarOutputFormat].pulsarTopic)
-                .create()
+                    pulsarController.accessClient
+                      .newProducer(Schema.STRING)
+                      .topic(outputFormat.asInstanceOf[PulsarOutputFormat].pulsarTopic)
+                      .create()
             )
           else
             None
@@ -196,12 +201,12 @@ class QueryExecutor(
             outputFormat match {
               case format: PulsarOutputFormat =>
                 format.writeToPulsar(
-                  graphLens.getTimestamp(),
-                  graphLens.getWindow(),
-                  jobID,
-                  row,
-                  partitionID,
-                  producer.get
+                        graphLens.getTimestamp(),
+                        graphLens.getWindow(),
+                        jobID,
+                        row,
+                        partitionID,
+                        producer.get
                 )
               case format                     =>
                 format
@@ -216,15 +221,15 @@ class QueryExecutor(
         // It's a Warning, but not a severe one
         if (logger.underlying.isDebugEnabled)
           logger.warn(
-            s"Job '$jobID' at Partition '$partitionID': Received 'EndQuery' message. " +
-              s"This function is not supported yet."
+                  s"Job '$jobID' at Partition '$partitionID': Received 'EndQuery' message. " +
+                    s"This function is not supported yet."
           )
         scheduleAgain = false
 
       case _: CheckMessages                            =>
         logger.debug(s"Job '$jobID' at Partition '$partitionID': Received 'CheckMessages'.")
         taskManager sendAsync serialise(
-          GraphFunctionComplete(receivedMessageCount, sentMessageCount, votedToHalt)
+                GraphFunctionComplete(receivedMessageCount, sentMessageCount, votedToHalt)
         )
     }
     scheduleAgain

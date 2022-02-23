@@ -2,23 +2,21 @@ package com.raphtory.core.config
 
 import com.raphtory.core.components.Component
 
+class AsyncConsumer[T](worker: Component[T]) extends Runnable {
 
-class AsyncConsumer[T](worker : Component[T]) extends Runnable{
+  val monixScheduler = new MonixScheduler
 
-  val monixScheduler =  new MonixScheduler
-
-  def run() : Unit =  {
+  def run(): Unit =
     worker.cancelableConsumer match {
       case Some(consumer) =>
-        consumer.receiveAsync().thenApplyAsync(msg => {
+        consumer.receiveAsync().thenApplyAsync { msg =>
           val reschedule = worker.handleMessage(msg)
           consumer.acknowledgeAsync(msg)
-          if (reschedule) {
+          if (reschedule)
             monixScheduler.scheduler.execute(this)
-          } else {
+          else
             worker.stop()
-          }
-        })
+        }
       //        Async Batching:
       //        consumer.batchReceiveAsync().thenApplyAsync(msgs => {
       //          var reschedule = true
@@ -33,12 +31,11 @@ class AsyncConsumer[T](worker : Component[T]) extends Runnable{
       //          if (allReschedule) monixScheduler.scheduler.execute(this)
       //          else worker.stop()
       //        })
-      case None => throw new Error("Message handling consumer not initialised")
+      case None           => throw new Error("Message handling consumer not initialised")
     }
-  }
 
 }
 
-object AsyncConsumer{
+object AsyncConsumer {
   def apply[T](worker: Component[T]) = new AsyncConsumer[T](worker)
 }

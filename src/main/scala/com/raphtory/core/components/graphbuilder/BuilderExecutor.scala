@@ -10,19 +10,20 @@ import org.apache.pulsar.client.api.Schema
 
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
-import com.raphtory.core.config.{AsyncConsumer, MonixScheduler}
+import com.raphtory.core.config.AsyncConsumer
+import com.raphtory.core.config.MonixScheduler
 
 class BuilderExecutor[T](
-                          schema: Schema[T],
-                          graphBuilder: GraphBuilder[T],
-                          conf: Config,
-                          pulsarController: PulsarController
-                        ) extends Component[T](conf, pulsarController) {
+    schema: Schema[T],
+    graphBuilder: GraphBuilder[T],
+    conf: Config,
+    pulsarController: PulsarController
+) extends Component[T](conf, pulsarController) {
   private val safegraphBuilder = new Cloner().deepClone(graphBuilder)
   private val producers        = toWriterProducers
 
-  override val cancelableConsumer  = Some(startGraphBuilderConsumer(schema))
-  private val monixScheduler = new MonixScheduler
+  override val cancelableConsumer = Some(startGraphBuilderConsumer(schema))
+  private val monixScheduler      = new MonixScheduler
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")
