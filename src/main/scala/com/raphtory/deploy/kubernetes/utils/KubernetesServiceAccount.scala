@@ -10,37 +10,25 @@ object KubernetesServiceAccount {
       client: KubernetesClient,
       name: String
   ): ServiceAccount =
-    client
-      .serviceAccounts()
-      .withName(name)
-      .get
+    client.serviceAccounts().withName(name).get
 
   def build(
       client: KubernetesClient,
       namespace: String,
       name: String
   ): ServiceAccount =
-    new ServiceAccountBuilder()
-      .withNewMetadata()
-      .withName(name)
-      .endMetadata()
-      .build();
+    new ServiceAccountBuilder().withNewMetadata().withName(name).endMetadata().build();
 
   def create(
       client: KubernetesClient,
       namespace: String,
       serviceAccountConfig: ServiceAccount
   ): ServiceAccount =
-    client
-      .serviceAccounts()
-      .inNamespace(namespace)
-      .createOrReplace(serviceAccountConfig)
+    client.serviceAccounts().inNamespace(namespace).createOrReplace(serviceAccountConfig)
 
   def delete(
       client: KubernetesClient,
       name: String
   ): Boolean =
-    client.serviceAccounts
-      .withName(name)
-      .delete
+    client.serviceAccounts.withName(name).delete
 }

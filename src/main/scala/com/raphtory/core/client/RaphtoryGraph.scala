@@ -56,9 +56,7 @@ private[core] class RaphtoryGraph[T: TypeTag](
     }
     queryManager.worker.stop()
     spoutworker.worker.stop()
-    graphBuilderworker.foreach { builder =>
-      builder.worker.stop()
-    }
+    graphBuilderworker.foreach(builder => builder.worker.stop())
   }
 
   private def allowIllegalReflection() = {
@@ -70,16 +68,13 @@ private[core] class RaphtoryGraph[T: TypeTag](
       val unsafeClass = Class.forName("sun.misc.Unsafe")
       val unsafeField = unsafeClass.getDeclaredField("theUnsafe")
       unsafeField.setAccessible(true)
-      val unsafe      = unsafeField.get(null)
-      val offset      = unsafeClass
-        .getMethod("staticFieldOffset", classOf[Field])
-        .invoke(unsafe, loggerField)
-        .asInstanceOf[Long]
+      val unsafe = unsafeField.get(null)
+      val offset =
+        unsafeClass.getMethod("staticFieldOffset", classOf[Field]).invoke(unsafe, loggerField).asInstanceOf[Long]
       unsafeClass
         .getMethod("putObjectVolatile", classOf[Object], classOf[Long], classOf[Object])
         .invoke(unsafe, loggerClass, offset, null)
-    }
-    catch {
+    } catch {
       case ex: Exception =>
         logger.warn("Failed to disable Java 10 access warning:")
         ex.printStackTrace()

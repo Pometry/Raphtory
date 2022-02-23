@@ -13,29 +13,19 @@ object KubernetesSecret {
       name: String,
       secretType: String
   ): Secret =
-    new SecretBuilder().withNewMetadata
-      .withName(name)
-      .endMetadata
-      .addToData(data.asJava)
-      .withType(secretType)
-      .build
+    new SecretBuilder().withNewMetadata.withName(name).endMetadata.addToData(data.asJava).withType(secretType).build
 
   def create(
       client: KubernetesClient,
       namespace: String,
       secret: Secret
   ): Secret =
-    client.secrets
-      .inNamespace(namespace)
-      .createOrReplace(secret)
+    client.secrets.inNamespace(namespace).createOrReplace(secret)
 
   def delete(
       client: KubernetesClient,
       namespace: String,
       name: String
   ): Boolean =
-    client.secrets
-      .inNamespace(namespace)
-      .withName(name)
-      .delete()
+    client.secrets.inNamespace(namespace).withName(name).delete()
 }

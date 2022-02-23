@@ -21,8 +21,7 @@ final class VertexMultiQueue {
     if (superStep % 2 == 0) {
       logger.trace(s"Clearing even message queue at super step '$superStep'.")
       evenMessageQueue.clear()
-    }
-    else {
+    } else {
       logger.trace(s"Clearing odd message queue at super step '$superStep'.")
       oddMessageQueue.clear()
     }

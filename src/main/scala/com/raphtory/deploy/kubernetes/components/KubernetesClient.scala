@@ -6,8 +6,6 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient
 class KubernetesClient extends Config {
 
   val kubernetesClient = new DefaultKubernetesClient(
-          new ConfigBuilder()
-            .withMasterUrl(raphtoryKubernetesMasterUrl)
-            .build()
+          new ConfigBuilder().withMasterUrl(raphtoryKubernetesMasterUrl).build()
   )
 }

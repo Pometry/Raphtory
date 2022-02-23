@@ -10,7 +10,7 @@ class PerspectiveController(timestamps: Stream[Long], windows: List[Long]) {
 
   private var perspectives: Stream[Perspective] = windows match {
     case Nil => timestamps.map(Perspective(_, None))
-    case ws  =>
+    case ws =>
       val descOrderedWindows = ws.sorted.reverse
       for {
         timestamp <- timestamps
@@ -20,7 +20,7 @@ class PerspectiveController(timestamps: Stream[Long], windows: List[Long]) {
 
   def nextPerspective(): Option[Perspective] =
     perspectives match {
-      case Stream.Empty  =>
+      case Stream.Empty =>
         None
       case head #:: tail =>
         perspectives = tail

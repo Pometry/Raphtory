@@ -7,5 +7,5 @@ import com.typesafe.config.Config
 class IdentitySpoutExecutor[T](conf: Config, pulsarController: PulsarController)
         extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController) {
   override def stop(): Unit = {}
-  override def run(): Unit = {}
+  override def run(): Unit  = {}
 }

@@ -45,8 +45,7 @@ class VertexMessageHandler(config: Config, producers: Map[Int, Producer[Array[By
       cache += message
       if (cache.size > maxBatchSize)
         sendCached(producer)
-    }
-    else
+    } else
       producer sendAsync (kryo.serialise(message))
   }
 

@@ -31,8 +31,7 @@ private[core] class ZookeeperIDManager(zookeeperAddress: String, atomicPath: Str
       logger.trace(s"Zookeeper $zookeeperAddress: Atomic integer pre value at '$id'.")
 
       Some(id)
-    }
-    else {
+    } else {
       logger.error(s"Zookeeper $zookeeperAddress: Failed to increment atomic integer.")
 
       None

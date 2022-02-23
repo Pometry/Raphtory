@@ -5,10 +5,8 @@ import com.raphtory.deploy.kubernetes.utils.KubernetesNamespace
 object RaphtoryKubernetesNamespaces extends KubernetesClient {
 
   def create(): Unit =
-    if (
-            conf.hasPath("raphtory.deploy.kubernetes.namespace.create") &&
-            conf.getBoolean("raphtory.deploy.kubernetes.namespace.create")
-    ) {
+    if (conf.hasPath("raphtory.deploy.kubernetes.namespace.create") &&
+        conf.getBoolean("raphtory.deploy.kubernetes.namespace.create")) {
       raphtoryKubernetesLogger.info(s"Deploying $raphtoryKubernetesNamespaceName namespace")
 
       try KubernetesNamespace.create(
@@ -23,17 +21,14 @@ object RaphtoryKubernetesNamespaces extends KubernetesClient {
                   e
           )
       }
-    }
-    else
+    } else
       raphtoryKubernetesLogger.info(
               s"Setting raphtory.deploy.kubernetes.namespace.create is set to false"
       )
 
   def delete(): Unit =
-    if (
-            conf.hasPath("raphtory.deploy.kubernetes.namespace.delete") &&
-            conf.getBoolean("raphtory.deploy.kubernetes.namespace.delete")
-    ) {
+    if (conf.hasPath("raphtory.deploy.kubernetes.namespace.delete") &&
+        conf.getBoolean("raphtory.deploy.kubernetes.namespace.delete")) {
 
       val namespace =
         try Option(
@@ -51,7 +46,7 @@ object RaphtoryKubernetesNamespaces extends KubernetesClient {
         }
 
       namespace match {
-        case None        =>
+        case None =>
           raphtoryKubernetesLogger.debug(
                   s"Namespace $raphtoryKubernetesNamespaceName not found. Delete aborted"
           )
@@ -71,8 +66,7 @@ object RaphtoryKubernetesNamespaces extends KubernetesClient {
               )
           }
       }
-    }
-    else
+    } else
       raphtoryKubernetesLogger.info(
               s"Setting raphtory.deploy.kubernetes.namespace.delete is set to false"
       )
