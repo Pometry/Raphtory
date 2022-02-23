@@ -38,10 +38,10 @@ abstract class QueryHandler(
   private var graphPerspective: GenericGraphPerspective    = _
   private var table: GenericTable                          = _
   private var currentOperation: GraphFunction              = _
+  private var graphState: GraphState                       = _
 
   private var currentPerspective: Perspective =
     Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW)
-  private var graphState: GraphState = GraphState()
 
   private var lastTime: Long            = 0L
   private var readyCount: Int           = 0
@@ -121,18 +121,14 @@ abstract class QueryHandler(
         recheckTime(currentPerspective)
 
       case p: PerspectiveEstablished =>
-        if (readyCount + 1 == totalPartitions) {
-          vertexCount += p.vertices
+        vertexCount += p.vertices
+        readyCount += 1
+        if (readyCount == totalPartitions) {
           readyCount = 0
           messagetoAllJobWorkers(SetMetaData(vertexCount))
           logger.debug(s"Job '$jobID': Message to all workers vertex count: $vertexCount.")
-          Stages.EstablishPerspective
         }
-        else {
-          vertexCount += p.vertices
-          readyCount += 1
-          Stages.EstablishPerspective
-        }
+        Stages.EstablishPerspective
 
       case MetaDataSet               =>
         if (readyCount + 1 == totalPartitions) {
@@ -159,8 +155,9 @@ abstract class QueryHandler(
   //execute the steps of the graph algorithm until a select is run
   private def executeGraph(msg: Message[Array[Byte]]): Stage =
     deserialise[QueryManagement](msg.getValue) match {
-      case StartGraph                                                         =>
+      case StartGraph                                                                =>
         graphPerspective = new GenericGraphPerspective(vertexCount)
+        graphState = GraphState()
 
         logger.debug(s"Job '$jobID': Running '${algorithm.getClass.getSimpleName}'.")
         algorithm.run(graphPerspective)
@@ -168,37 +165,24 @@ abstract class QueryHandler(
         logger.debug(s"Job '$jobID': Writing results to '${outputFormat.getClass.getSimpleName}'.")
         table = graphPerspective.getTable()
         table.writeTo(outputFormat) //sets output formatter
+
         nextGraphOperation(vertexCount)
 
-      case GraphFunctionComplete(receivedMessages, sentMessages, votedToHalt, graphState) =>
+      case GraphFunctionComplete(receivedMessages, sentMessages, votedToHalt, state) =>
         val totalSentMessages     = sentMessageCount + sentMessages
         val totalReceivedMessages = receivedMessageCount + receivedMessages
-        if ((readyCount + 1) == totalPartitions)
-          if (totalReceivedMessages == totalSentMessages)
+        state match {
+          case Some(state) => graphState.update(state)
+          case None        =>
+        }
+        if ((readyCount + 1) == totalPartitions) {
+          state match {
+            case Some(state) => graphState.rotate()
+            case None        =>
+          }
 
-            currentOperation match {
-              case Iterate(f, iterations, executeMessagedOnly) =>
-                if (iterations == 1 || (allVoteToHalt && votedToHalt)) {
-                  logger.debug(
-                          s"Job '$jobID': Starting next operation '${algorithm.getClass.getSimpleName}'."
-                  )
-                  nextGraphOperation(vertexCount)
-                }
-                else {
-                  messagetoAllJobWorkers(Iterate(f, iterations - 1, executeMessagedOnly))
-                  currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
-                  readyCount = 0
-                  receivedMessageCount = 0
-                  sentMessageCount = 0
-                  allVoteToHalt = true
-                  logger.debug(
-                          s"Job '$jobID': Executing '${algorithm.getClass.getSimpleName}' function."
-                  )
-                  Stages.ExecuteGraph
-                }
-              case _                                           =>
-                nextGraphOperation(vertexCount)
-            }
+          if (totalReceivedMessages == totalSentMessages)
+            nextGraphOperation(vertexCount)
           else {
             messagetoAllJobWorkers(CheckMessages(jobID))
             logger.debug(
@@ -209,6 +193,7 @@ abstract class QueryHandler(
             sentMessageCount = 0
             Stages.ExecuteGraph
           }
+        }
         else {
           sentMessageCount = totalSentMessages
           receivedMessageCount = totalReceivedMessages
@@ -317,66 +302,79 @@ abstract class QueryHandler(
     }
   }
 
-  private def nextGraphOperation(vertexCount: Int): Stage =
-    graphPerspective.getNextOperation() match {
-      case Some(f: Select)        =>
-        logger.debug(s"Job '$jobID': Executing Select function.")
-        messagetoAllJobWorkers(f)
-        readyCount = 0
-        Stages.ExecuteTable
+  private def nextGraphOperation(vertexCount: Int): Stage = {
+    readyCount = 0
+    receivedMessageCount = 0
+    sentMessageCount = 0
+    allVoteToHalt = true
 
-      case Some(f: SelectWithGraph) => {
-        f match {
-          case SelectWithGraph(fun, None) =>
-            messagetoAllJobWorkers(SelectWithGraph(fun, Some(graphState)))
-        }
-        readyCount = 0
-        Stages.ExecuteTable
-      }
+    val nextOperation: GraphFunction = currentOperation match {
+      case Iterate(f, iterations, executeMessagedOnly)                      =>
+        if (iterations == 1)
+          graphPerspective.getNextOperation()
+        else
+          Iterate(f, iterations - 1, executeMessagedOnly)
+      case IterateWithGraph(f, iterations, executeMessagedOnly, graphState) =>
+        if (iterations == 1)
+          graphPerspective.getNextOperation()
+        else
+          IterateWithGraph(f, iterations - 1, executeMessagedOnly, graphState)
+      case _                                                                =>
+        graphPerspective.getNextOperation()
+    }
 
-      case Some(f: Setup) => {
-        f match {
-          case Setup(fun) =>
-            fun(graphState)
-        }
-        nextGraphOperation(vertexCount)
-      }
-
-      case Some(f: GraphFunction) =>
-        f match {
-          case StepWithGraph(fun, None) =>
-            messagetoAllJobWorkers(StepWithGraph(fun, Some(graphState)))
-          case IterateWithGraph(fun, iterations, executeMessagedOnly, None) =>
-            messagetoAllJobWorkers(
-              IterateWithGraph(
-                fun,
-                iterations,
-                executeMessagedOnly,
-                Some(graphState)
-              )
-            )
-          case VertexFilterWithGraph(fun, None) =>
-            messagetoAllJobWorkers(VertexFilterWithGraph(fun, Some(graphState)))
-          case _ => messagetoAllJobWorkers(f)
-        }
-        currentOperation = f
-        logger.debug(s"Job '$jobID': Executing graph function '${f.getClass.getSimpleName}'.")
-        readyCount = 0
-        receivedMessageCount = 0
-        sentMessageCount = 0
-        allVoteToHalt = true
-        Stages.ExecuteGraph
-
-      case None                   =>
-        readyCount = 0
-        receivedMessageCount = 0
-        sentMessageCount = 0
+    currentOperation = nextOperation
+    logger.debug(
+            s"Job '$jobID': Executing graph function '${nextOperation.getClass.getSimpleName}'."
+    )
+    nextOperation match {
+      case PerspectiveDone()                                            =>
         logger.debug(
                 s"Job '$jobID': Executing next perspective with windows '${currentPerspective.window}'" +
                   s" and timestamp '${currentPerspective.timestamp}'."
         )
         executeNextPerspective()
+
+      case f: Select                                                    =>
+        messagetoAllJobWorkers(f)
+        Stages.ExecuteTable
+
+      case SelectWithGraph(fun, None)                                   =>
+        messagetoAllJobWorkers(SelectWithGraph(fun, Some(graphState)))
+        Stages.ExecuteTable
+
+      case GlobalSelect(f, None)                                        =>
+        messagetoAllJobWorkers(GlobalSelect(f, Some(graphState)))
+        Stages.ExecuteTable
+
+      case Setup(fun)                                                   =>
+        fun(graphState)
+        nextGraphOperation(vertexCount)
+
+      case StepWithGraph(fun, None)                                     =>
+        messagetoAllJobWorkers(StepWithGraph(fun, Some(graphState)))
+        Stages.ExecuteGraph
+
+      case IterateWithGraph(fun, iterations, executeMessagedOnly, None) =>
+        messagetoAllJobWorkers(
+                IterateWithGraph(
+                        fun,
+                        iterations,
+                        executeMessagedOnly,
+                        Some(graphState)
+                )
+        )
+        Stages.ExecuteGraph
+
+      case VertexFilterWithGraph(fun, None)                             =>
+        messagetoAllJobWorkers(VertexFilterWithGraph(fun, Some(graphState)))
+        Stages.ExecuteGraph
+
+      case f                                                            =>
+        messagetoAllJobWorkers(f)
+        Stages.ExecuteGraph
     }
+  }
 
   private def nextTableOperation(): Stage =
     table.getNextOperation() match {

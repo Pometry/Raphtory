@@ -1,5 +1,6 @@
 package com.raphtory.core.storage.pojograph
 
+import com.raphtory.core.algorithm.GraphState
 import com.raphtory.core.algorithm.Row
 import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.graph.visitor.Vertex
@@ -57,6 +58,14 @@ final case class PojoGraphLens(
       case (id, vertex) => f(vertex)
     }.toList
 
+  def executeSelect(f: (Vertex, GraphState) => Row, graphState: GraphState): Unit =
+    dataTable = vertices.collect {
+      case (id, vertex) => f(vertex, graphState)
+    }.toList
+
+  def executeSelect(f: GraphState => Row, graphState: GraphState): Unit =
+    dataTable = List(f(graphState))
+
   def filteredTable(f: Row => Boolean): Unit =
     dataTable = dataTable.filter(f)
 
@@ -71,8 +80,23 @@ final case class PojoGraphLens(
     vertexCount.set(vertices.size)
   }
 
-  def runMessagedGraphFunction(f: Vertex => Unit): Unit = {
+  override def runGraphFunction(f: (Vertex, GraphState) => Unit, graphState: GraphState): Unit = {
+    vertices.foreach { case (id, vertex) => f(vertex, graphState) }
+    vertexCount.set(vertices.size)
+  }
+
+  override def runMessagedGraphFunction(f: Vertex => Unit): Unit = {
     val size = vertices.collect { case (id, vertex) if vertex.hasMessage() => f(vertex) }.size
+    vertexCount.set(size)
+  }
+
+  override def runMessagedGraphFunction(
+      f: (Vertex, GraphState) => Unit,
+      graphState: GraphState
+  ): Unit = {
+    val size = vertices.collect {
+      case (id, vertex) if vertex.hasMessage() => f(vertex, graphState)
+    }.size
     vertexCount.set(size)
   }
 

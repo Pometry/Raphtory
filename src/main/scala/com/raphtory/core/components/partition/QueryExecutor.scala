@@ -63,7 +63,7 @@ class QueryExecutor(
   override def handleMessage(msg: Message[Array[Byte]]): Unit = {
     deserialise[QueryManagement](msg.getValue) match {
 
-      case VertexMessageBatch(msgBatch)                =>
+      case VertexMessageBatch(msgBatch)                                     =>
         logger.trace(
                 s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessageBatch', '[${msgBatch
                   .mkString(",")}]'."
@@ -71,14 +71,14 @@ class QueryExecutor(
         msgBatch.foreach(message => graphLens.receiveMessage(message))
         receivedMessageCount += msgBatch.size
 
-      case msg: VertexMessage[_]                       =>
+      case msg: VertexMessage[_]                                            =>
         logger.trace(
                 s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
         )
         graphLens.receiveMessage(msg)
         receivedMessageCount += 1
 
-      case CreatePerspective(timestamp, window)        =>
+      case CreatePerspective(timestamp, window)                             =>
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Creating perspective at time '$timestamp' with window '$window'."
         )
@@ -95,7 +95,7 @@ class QueryExecutor(
         receivedMessageCount = 0
         taskManager sendAsync serialise(PerspectiveEstablished(lens.getSize()))
 
-      case SetMetaData(vertices)                       =>
+      case SetMetaData(vertices)                                            =>
         logger.debug(
                 s"Job $jobID at Partition '$partitionID': Executing 'SetMetaData' function on graph."
         )
@@ -104,7 +104,7 @@ class QueryExecutor(
         //TODO currently no handlers, to be added back?
         taskManager sendAsync serialise(MetaDataSet)
 
-      case Step(f)                                     =>
+      case Step(f)                                                          =>
         logger.debug(s"Job $jobID at Partition '$partitionID': Executing 'Step' function on graph.")
 
         graphLens.nextStep()
@@ -118,7 +118,26 @@ class QueryExecutor(
         )
         sentMessageCount = sentMessages
 
-      case Iterate(f, iterations, executeMessagedOnly) =>
+      case StepWithGraph(f, graphState)                                     =>
+        logger.debug(
+                s"Job $jobID at Partition '$partitionID': Executing 'Step' function on graph with accumulators."
+        )
+        graphLens.nextStep()
+        graphState match {
+          case Some(graphState) => graphLens.runGraphFunction(f, graphState)
+          case None             => throw new Error("Graph state missing")
+        }
+        val sentMessages = graphLens.getMessageHandler().getCount()
+        graphLens.getMessageHandler().flushMessages()
+        taskManager sendAsync serialise(
+                GraphFunctionComplete(sentMessages, receivedMessageCount, graphState = graphState)
+        )
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Step function produced and sent '$sentMessages' messages."
+        )
+        sentMessageCount = sentMessages
+
+      case Iterate(f, iterations, executeMessagedOnly)                      =>
         graphLens.nextStep()
 
         if (executeMessagedOnly) {
@@ -147,35 +166,97 @@ class QueryExecutor(
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Iterate function produced and sent '$sentMessages' messages."
         )
-      case VertexFilter(f)                             =>
+
+      case IterateWithGraph(f, iterations, executeMessagedOnly, graphState) =>
+        graphLens.nextStep()
+        graphState match {
+          case Some(graphState) =>
+            if (executeMessagedOnly) {
+              logger.debug(
+                      s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on messaged vertices only."
+              )
+              graphLens.runMessagedGraphFunction(f, graphState)
+            }
+            else {
+              logger.debug(
+                      s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on all vertices."
+              )
+
+              graphLens.runGraphFunction(f, graphState)
+            }
+          case None             => throw new Error("Graph state missing")
+        }
+        val sentMessages = graphLens.getMessageHandler().getCount()
+        graphLens.getMessageHandler().flushMessages()
+        taskManager sendAsync serialise(
+                GraphFunctionComplete(
+                        receivedMessageCount,
+                        sentMessages,
+                        graphLens.checkVotes(),
+                        graphState
+                )
+        )
+        votedToHalt = graphLens.checkVotes()
+        sentMessageCount = sentMessages
+
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Iterate function produced and sent '$sentMessages' messages."
+        )
+
+      case VertexFilter(f)                                                  =>
         taskManager sendAsync serialise(GraphFunctionComplete(0, 0))
 
-      case ClearChain()                                =>
+      case VertexFilterWithGraph(f, graphState)                             =>
+        taskManager sendAsync serialise(GraphFunctionComplete(0, 0))
+
+      case ClearChain()                                                     =>
         logger.debug(s"Job $jobID at Partition '$partitionID': Executing 'ClearChain' on graph.")
         graphLens.clearMessages()
         taskManager sendAsync serialise(GraphFunctionComplete(0, 0))
 
-      case Select(f)                                   =>
+      case Select(f)                                                        =>
         logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'Select' query on graph")
         graphLens.nextStep()
         graphLens.executeSelect(f)
         taskManager sendAsync serialise(TableBuilt)
 
-      case TableFilter(f)                              =>
+      case SelectWithGraph(f, graphState)                                   =>
+        logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'Select' query on graph")
+        graphLens.nextStep()
+        graphState match {
+          case Some(graphState) =>
+            graphLens.executeSelect(f, graphState)
+          case None             =>
+            throw new Error("Graph state missing")
+        }
+        taskManager sendAsync serialise(TableBuilt)
+
+      case GlobalSelect(f, graphState)                                      =>
+        logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'Select' query on graph")
+        graphLens.nextStep()
+        graphState match {
+          case Some(graphState) =>
+            graphLens.executeSelect(f, graphState)
+          case None             =>
+            throw new Error("Graph state missing")
+        }
+        taskManager sendAsync serialise(TableBuilt)
+
+      case TableFilter(f)                                                   =>
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Executing 'TableFilter' query on graph."
         )
         graphLens.filteredTable(f)
         taskManager sendAsync serialise(TableFunctionComplete)
 
-      case Explode(f)                                  =>
+      case Explode(f)                                                       =>
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Executing 'Explode' query on graph."
         )
         graphLens.explodeTable(f)
         taskManager sendAsync serialise(TableFunctionComplete)
 
-      case WriteTo(outputFormat)                       =>
+      case WriteTo(outputFormat)                                            =>
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Writing results to '$outputFormat'."
         )
@@ -212,7 +293,7 @@ class QueryExecutor(
 
         taskManager sendAsync serialise(TableFunctionComplete)
 
-      case EndQuery(jobID)                             =>
+      case EndQuery(jobID)                                                  =>
         // It's a Warning, but not a severe one
         if (logger.underlying.isDebugEnabled)
           logger.warn(
@@ -220,7 +301,7 @@ class QueryExecutor(
                     s"This function is not supported yet."
           )
 
-      case _: CheckMessages                            =>
+      case _: CheckMessages                                                 =>
         logger.debug(s"Job '$jobID' at Partition '$partitionID': Received 'CheckMessages'.")
         taskManager sendAsync serialise(
                 GraphFunctionComplete(receivedMessageCount, sentMessageCount, votedToHalt)
