@@ -4,18 +4,18 @@ import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row,
 
 /**
 Description
-  The algorithms identifies 2-edge-1-node temporal motifs; It detects one type of motifs:
+  The algorithms identifies 2-edge-1-node temporal motifs.
   For each incoming edge a vertex has, the algorithm checks whether there are any outgoing 
   edges which occur after it and returns a count of these.
   
 Parameters
-  fileOutput (String) : The path where the output will be saved. If not specified, defaults to /tmp/PageRank
+  output_dir (String) : Directory path where the output is written to. (Default: "/tmp/tfmotif")
 
 Returns
   ID (Long) : Vertex ID
-  Number of Type1 motifs (Long) : Number of Type-1 motifs.
+  Number of motifs (Long) : Number of motifs.
 **/
-class MotifAlpha(fileOutput:String="/tmp/motif_alpha") extends GraphAlgorithm {
+class tfMotif(fileOutput:String="/tmp/tfmotif") extends GraphAlgorithm {
 
   override def tabularise(graph: GraphPerspective): Table = {
     graph
@@ -40,7 +40,7 @@ class MotifAlpha(fileOutput:String="/tmp/motif_alpha") extends GraphAlgorithm {
 
 }
 
-object MotifAlpha{
-  def apply(path:String) = new MotifAlpha(path)
+object tfMotif{
+  def apply(path:String) = new tfMotif(path)
 }
 
