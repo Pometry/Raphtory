@@ -27,7 +27,8 @@ import com.typesafe.config.Config
 
 import scala.collection.mutable
 
-class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(partition: Int, conf: Config) {
+class PojoBasedPartition(partition: Int, conf: Config)
+        extends GraphPartition(partition: Int, conf: Config) {
 
   /**
     * Map of vertices contained in the partition
@@ -71,7 +72,7 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
         v revive msgTime //add the history point
         logger.trace(s"History point added to vertex: $srcId")
         v
-      case None => //if it does not exist
+      case None    => //if it does not exist
         val v = new PojoVertex(msgTime, srcId, initialValue = true) //create a new vertex
         vertices.+=((srcId, v)) //put it in the map)
         v.setType(vertexType.map(_.name))
@@ -87,7 +88,7 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
   def getVertexOrPlaceholder(msgTime: Long, id: Long): PojoVertex =
     vertices.get(id) match {
       case Some(vertex) => vertex
-      case None =>
+      case None         =>
         val vertex = new PojoVertex(msgTime, id, initialValue = true)
         vertices put (id, vertex)
         vertex.wipe()
@@ -100,7 +101,7 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
         v kill msgTime
         logger.trace(s"Removed vertex $srcId")
         v
-      case None => //if the removal has arrived before the creation
+      case None    => //if the removal has arrived before the creation
         val v = new PojoVertex(msgTime, srcId, initialValue = false) //create a placeholder
         vertices put (srcId, v) //add it to the map
         logger.trace(s"Removed vertex $srcId")
@@ -116,7 +117,7 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
             Some[GraphUpdateEffect](
                     InboundEdgeRemovalViaVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId)
             )
-          case edge => //if it is a local edge -- operated by the same worker, therefore we can perform an action -- otherwise we must inform the other local worker to handle this
+          case edge                  => //if it is a local edge -- operated by the same worker, therefore we can perform an action -- otherwise we must inform the other local worker to handle this
             edge kill msgTime
             logger.trace(s"$msgTime killed in $edge")
             None
@@ -133,7 +134,7 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
             Some[GraphUpdateEffect](
                     OutboundEdgeRemovalViaVertex(msgTime, remoteEdge.getSrcId, remoteEdge.getDstId)
             )
-          case edge =>
+          case edge                  =>
             edge kill msgTime //outgoing edge always operated by the same worker, therefore we can perform an action
             logger.trace(s"$msgTime killed in $edge")
             None
@@ -141,7 +142,7 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
       }
       .toList
       .flatten
-    val messages = messagesForIncoming ++ messagesForOutgoing
+    val messages            = messagesForIncoming ++ messagesForOutgoing
     //if (messages.size != vertex.getEdgesRequiringSync())
     //  logger.error(s"The number of Messages to sync [${messages.size}] does not match to system value [${vertex.getEdgesRequringSync()}]")
     messages
@@ -157,7 +158,7 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
       properties: Properties,
       edgeType: Option[Type]
   ): Option[GraphUpdateEffect] = {
-    val local = checkDst(dstId) //is the dst on this machine
+    val local     = checkDst(dstId) //is the dst on this machine
     logger.trace(s"Dst is on the machine: $local")
     val srcVertex =
       addVertexInternal(msgTime, srcId, Properties(), None) // create or revive the source ID
@@ -166,7 +167,7 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
       case Some(e) => //retrieve the edge if it exists
         logger.trace(s"Edge of srcID: $srcId - dstId: $dstId retrieved")
         (true, e)
-      case None => //if it does not
+      case None    => //if it does not
         val newEdge = if (local) {
           logger.trace(s"New edge created $srcId - $dstId")
           new PojoEdge(
@@ -175,7 +176,8 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
                   dstId,
                   initialValue = true
           ) //create the new edge, local or remote
-        } else {
+        }
+        else {
           logger.trace(s"Split edge $srcId - $dstId between partitions created")
           new SplitEdge(msgTime, srcId, dstId, initialValue = true)
         }
@@ -198,17 +200,20 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
                     None
             ) // do the same for the destination ID
           None
-        } else
+        }
+        else
           Some(
                   SyncExistingEdgeAdd(msgTime, srcId, dstId, properties)
-          ) // inform the partition dealing with the destination node*/
-      } else {
+          )                 // inform the partition dealing with the destination node*/
+      }
+      else {
         val deaths = if (hasDeletions) {
           val list = srcVertex.removeList
           edge killList list // add them to the edge
           logger.trace(s"Added $edge to killList: $list")
           list
-        } else List() //we extract the removals from the src
+        }
+        else List() //we extract the removals from the src
 
         if (local) {
           if (srcId != dstId) {
@@ -218,17 +223,19 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
                       dstId,
                       Properties(),
                       None
-              )                            // do the same for the destination ID
-            dstVertex addIncomingEdge edge // add it to the dst as would not have been seen
+              )                                                  // do the same for the destination ID
+            dstVertex addIncomingEdge edge                       // add it to the dst as would not have been seen
             logger.trace(s"added $edge to $dstVertex")
             if (hasDeletions) edge killList dstVertex.removeList //add the dst removes into the edge
             logger.trace(s"Added ${dstVertex.removeList} to $edge")
-          } else {
+          }
+          else {
             srcVertex addIncomingEdge edge // a self loop should be in the incoming map as well
             logger.trace(s"added $edge to $srcVertex")
           }
           None
-        } else {
+        }
+        else {
           srcVertex
             .incrementEdgesRequiringSync() //if its not fully local and is new then increment the count for edges requiring a watermark count
           Some(SyncNewEdgeAdd(msgTime, srcId, dstId, properties, deaths, edgeType))
@@ -258,7 +265,8 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
       edge killList list        // pass destination node death lists to the edge
       logger.trace(s"Passed source node and destination node death lists to respective edges")
       list
-    } else List() //get the destination node deaths
+    }
+    else List() //get the destination node deaths
 
     addProperties(msgTime, edge, properties)
     logger.trace(s"Added properties $properties")
@@ -282,20 +290,20 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
         logger.trace(s"Revived edge ${edge.getSrcId} - ${edge.getDstId}")
         addProperties(msgTime, edge, properties)
         logger.trace(s"Added properties: $properties to edge")
-      case None => logger.error(s"Error: Edge $srcId $dstId missing from partition $partition.")
+      case None       => logger.error(s"Error: Edge $srcId $dstId missing from partition $partition.")
     }
     EdgeSyncAck(msgTime, srcId, dstId, fromAddition = true)
   }
 
   def removeEdge(msgTime: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect] = {
-    val local = checkDst(dstId)
+    val local                 = checkDst(dstId)
     logger.trace(s"Dst ID exists: $local")
     val srcVertex: PojoVertex = getVertexOrPlaceholder(msgTime, srcId)
 
     val (present, edge) = srcVertex.getOutgoingEdge(dstId) match {
       case Some(e) =>
         (true, e)
-      case None =>
+      case None    =>
         val newEdge =
           if (local)
             new PojoEdge(msgTime, srcId, dstId, initialValue = false)
@@ -316,24 +324,27 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
         Some(
                 SyncExistingEdgeRemoval(msgTime, srcId, dstId)
         ) // inform the partition dealing with the destination node
-    } else {
+    }
+    else {
       val deaths = if (hasDeletions) {
         logger.trace(s"Removing edge $edge")
         val list = srcVertex.removeList
         edge killList list
         list
-      } else List()
+      }
+      else List()
 
       if (local) {
         if (srcId != dstId) {
           val dstVertex =
-            getVertexOrPlaceholder(msgTime, dstId) // do the same for the destination ID
+            getVertexOrPlaceholder(msgTime, dstId)             // do the same for the destination ID
           logger.trace(s"Removing edge $edge of dst vertex: $dstVertex")
           dstVertex addIncomingEdge edge                       // do the same for the destination node
           if (hasDeletions) edge killList dstVertex.removeList //add the dst removes into the edge
         }
         None
-      } else {
+      }
+      else {
         srcVertex
           .incrementEdgesRequiringSync() //if its not fully local and is new then increment the count for edges requireing a watermark count
         Some(SyncNewEdgeRemoval(msgTime, srcId, dstId, deaths))
@@ -373,7 +384,7 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
   ): GraphUpdateEffect = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.incrementEdgesRequiringSync()
-    val edge = new SplitEdge(msgTime, srcId, dstId, initialValue = false)
+    val edge      = new SplitEdge(msgTime, srcId, dstId, initialValue = false)
     dstVertex addIncomingEdge edge //add the edge to the destination nodes associated list
     val deaths = if (hasDeletions) {
       val list = dstVertex.removeList
@@ -381,7 +392,8 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
       edge killList list        // pass destination node death lists to the edge
       logger.trace("Synced New Edge Removals")
       list
-    } else List() //get the destination node deaths
+    }
+    else List() //get the destination node deaths
 
     SyncExistingRemovals(msgTime, srcId, dstId, deaths, fromAddition = false)
   }
@@ -392,7 +404,7 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
         case Some(edge) =>
           edge killList dstRemovals
           logger.trace("Synced Existing Removals")
-        case None => /*todo Should this happen*/
+        case None       => /*todo Should this happen*/
       }
 
   override def deduplicate(): Unit =
@@ -411,7 +423,7 @@ class PojoBasedPartition(partition: Int, conf: Config) extends GraphPartition(pa
       window: Long = Long.MaxValue
   ): mutable.Map[Long, Vertex] = {
     val lenz = lens.asInstanceOf[PojoGraphLens]
-    val x = vertices.collect {
+    val x    = vertices.collect {
       case (id, vertex) if vertex.aliveAtWithWindow(time, window) =>
         (id, vertex.viewAtWithWindow(time, window, lenz))
     }

@@ -27,7 +27,8 @@ class BinaryDiffusion(
             vertex.setState(infectedStatus, true)
             randomlyInfect(vertex)
           }
-        } else if (infectedNodes.contains(vertex.ID())) {
+        }
+        else if (infectedNodes.contains(vertex.ID())) {
           vertex.setState(infectedStatus, true)
           randomlyInfect(vertex)
         }

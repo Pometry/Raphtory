@@ -76,7 +76,8 @@ class FileSpoutExecutor[T](
     catch {
       case error: PulsarAdminException =>
         logger.warn("Namespace already found")
-    } finally pulsarController.setRetentionNamespace("public/raphtory_spout")
+    }
+    finally pulsarController.setRetentionNamespace("public/raphtory_spout")
 
   def updateFilesRead(): Unit = {
     // get names/path of all files that have been previously read, only prepopulate once
@@ -106,12 +107,16 @@ class FileSpoutExecutor[T](
 
   def getListOfFiles(dir: File, regex: Regex, recurse: Boolean): List[File] =
     if (dir.isDirectory) {
-      var found = dir.listFiles.filter(_.isFile).toList.filter(file => regex.findFirstIn(file.getName).isDefined)
+      var found = dir.listFiles
+        .filter(_.isFile)
+        .toList
+        .filter(file => regex.findFirstIn(file.getName).isDefined)
       if (recurse)
         found =
           found ++ dir.listFiles.filter(_.isDirectory).flatMap(getListOfFiles(_, regex, recurse))
       found
-    } else
+    }
+    else
       List(dir)
 
   def readFiles(): Unit = {
@@ -128,7 +133,7 @@ class FileSpoutExecutor[T](
 
     logger.debug(f"$source%s is readable")
     // if so then check recurse, filter
-    val files = getListOfFiles(new File(source), file_regex, recurse)
+    val files               = getListOfFiles(new File(source), file_regex, recurse)
     if (files.isEmpty) return
     // create temp folder if it doesnt exist
     val tempOutputDirectory = new File(outputDirectory)
@@ -138,7 +143,8 @@ class FileSpoutExecutor[T](
         logger.warn(f"ERROR: COULD NOT MAKE DIR  $tempOutputDirectory%s")
         return
       }
-    } else
+    }
+    else
       // if the folder does exist then delete the files inside of it
       tempOutputDirectory.listFiles().foreach(f => f.delete())
     // then hard link each file and copy them to the new folder
@@ -152,7 +158,8 @@ class FileSpoutExecutor[T](
                 fileToCopy.toPath
         )
       }
-    } catch {
+    }
+    catch {
       case error: UnsupportedOperationException =>
         logger.error(
                 "UnsupportedOperationException: System does not support adding an existing file to a directory."
@@ -160,21 +167,21 @@ class FileSpoutExecutor[T](
 
         return
 
-      case error: FileAlreadyExistsException =>
+      case error: FileAlreadyExistsException    =>
         logger.warn(
                 "FileAlreadyExistsException: Could not create hardlink, file already exists."
         )
 
         return
 
-      case error: IOException => logger.warn("ERROR(IOException): an I/O error occurred "); return;
-      case error: SecurityException =>
+      case error: IOException                   => logger.warn("ERROR(IOException): an I/O error occurred "); return;
+      case error: SecurityException             =>
         logger.warn("ERROR(SecurityException): Invalid permissions to create hardlink"); return;
     }
 
     tempOutputDirectory.listFiles.sorted.foreach { f =>
       logger.info(f"Reading $f%s")
-      var source = Source.fromFile(f)
+      var source             = Source.fromFile(f)
       if (f.getPath.toLowerCase.endsWith(".gz"))
         source = Source.fromInputStream(new GZIPInputStream(new FileInputStream(f.getPath)))
       else if (f.getPath.toLowerCase.endsWith(".zip"))
@@ -203,8 +210,8 @@ class FileSpoutExecutor[T](
           logger.warn("ERROR(NoSuchFileException): File does not exist");
         case _: DirectoryNotEmptyException =>
           logger.warn("ERROR(DirectoryNotEmptyException) Cannot delete directory, not empty");
-        case _: IOException       => logger.warn("ERROR(IOException): an IO Error occurred");
-        case _: SecurityException => logger.warn("ERROR(SecurityException) Security error");
+        case _: IOException                => logger.warn("ERROR(IOException): an IO Error occurred");
+        case _: SecurityException          => logger.warn("ERROR(SecurityException) Security error");
       }
     }
     // add file to tracker so we do not read it again

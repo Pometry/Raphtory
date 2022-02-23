@@ -57,7 +57,9 @@ class CountPR() extends GraphAlgorithm {
               .step { vertex =>
                 val adj = vertex.getState[Array[Long]]("adjPlus")
                 //        message neighbour set for pr and qr counting
-                adj.foreach(neighbour_id => vertex.messageVertex(neighbour_id, FirstStep(vertex.ID(), adj)))
+                adj.foreach(neighbour_id =>
+                  vertex.messageVertex(neighbour_id, FirstStep(vertex.ID(), adj))
+                )
               }
               .step { vertex =>
                 val adj = vertex.getState[Array[Long]]("adjPlus")
@@ -65,7 +67,9 @@ class CountPR() extends GraphAlgorithm {
                   val p     = message.p
                   val adj_p = message.adj
                   //          forward neighbour set for pr square counting
-                  adj.foreach(neighbour_id => vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID(), adj_p)))
+                  adj.foreach(neighbour_id =>
+                    vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID(), adj_p))
+                  )
                 }
               }
     )
@@ -92,7 +96,9 @@ class CountQR() extends GraphAlgorithm {
                   val p     = message.p
                   val adj_p = message.adj
                   //          forward neighbour set for pr square counting
-                  adj_p.foreach(neighbour_id => vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID(), adj)))
+                  adj_p.foreach(neighbour_id =>
+                    vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID(), adj))
+                  )
                 }
               }
     )
@@ -119,7 +125,9 @@ class CountPQ() extends GraphAlgorithm {
         var count      = vertex.getStateOrElse[Long]("squareCount", 0L)
         val wedgeCount = mutable.Map[Long, mutable.ArrayBuffer[Long]]()
         vertex.messageQueue[WedgeMessage].foreach { message =>
-          message.s.foreach(s => wedgeCount.getOrElseUpdate(s, mutable.ArrayBuffer[Long]()).append(message.p))
+          message.s.foreach(s =>
+            wedgeCount.getOrElseUpdate(s, mutable.ArrayBuffer[Long]()).append(message.p)
+          )
         }
         wedgeCount.foreach({
           case (s, others) =>
@@ -165,7 +173,8 @@ object CountPQ {
   *  | ----------------- | ---------------------- |
   *  | {s}`name: String` | {s}`squareCount: Long` |
   */
-class SquareCount() extends Chain(Seq(AdjPlus(), CountPR(), CountQR(), CountPQ(), NodeList("squareCount")))
+class SquareCount()
+        extends Chain(Seq(AdjPlus(), CountPR(), CountQR(), CountPQ(), NodeList("squareCount")))
 
 object SquareCount {
   def apply() = new SquareCount()

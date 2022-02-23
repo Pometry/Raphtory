@@ -8,8 +8,16 @@ import org.apache.pulsar.client.api.Schema
 
 import scala.io.Source
 
-class ResourceSpoutExecutor(resource: String, conf: Config, pulsarController: PulsarController, scheduler: Scheduler)
-        extends SpoutExecutor[String](conf: Config, pulsarController: PulsarController, scheduler: Scheduler) {
+class ResourceSpoutExecutor(
+    resource: String,
+    conf: Config,
+    pulsarController: PulsarController,
+    scheduler: Scheduler
+) extends SpoutExecutor[String](
+                conf: Config,
+                pulsarController: PulsarController,
+                scheduler: Scheduler
+        ) {
 
   private def readFile(fileDataPath: String): Unit = {
     // We assume that Pulsar standalone is running on the users machine before continuing

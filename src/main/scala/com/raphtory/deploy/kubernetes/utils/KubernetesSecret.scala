@@ -13,7 +13,12 @@ object KubernetesSecret {
       name: String,
       secretType: String
   ): Secret =
-    new SecretBuilder().withNewMetadata.withName(name).endMetadata.addToData(data.asJava).withType(secretType).build
+    new SecretBuilder().withNewMetadata
+      .withName(name)
+      .endMetadata
+      .addToData(data.asJava)
+      .withType(secretType)
+      .build
 
   def create(
       client: KubernetesClient,

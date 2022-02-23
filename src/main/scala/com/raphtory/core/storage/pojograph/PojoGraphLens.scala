@@ -38,7 +38,7 @@ final case class PojoGraphLens(
 
   private lazy val vertexMap: mutable.Map[Long, Vertex] = {
     val result = window match {
-      case None =>
+      case None    =>
         storage.getVertices(this, timestamp)
       case Some(w) =>
         storage.getVertices(this, timestamp, w)

@@ -7,14 +7,16 @@ object RaphtoryKubernetesIngresses extends KubernetesClient {
 
   def create(): Unit =
     raphtoryKubernetesDeployments.forEach { raphtoryComponent =>
-      if (conf.hasPath(
-                  s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.ingress.create"
-          ) &&
-          conf.getBoolean(
-                  s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.ingress.create"
-          )) {
+      if (
+              conf.hasPath(
+                      s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.ingress.create"
+              ) &&
+              conf.getBoolean(
+                      s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.ingress.create"
+              )
+      ) {
         val serviceName = s"raphtory-$raphtoryDeploymentId-$raphtoryComponent-svc".toLowerCase()
-        val service =
+        val service     =
           try Option(
                   KubernetesService.get(
                           client = kubernetesClient,
@@ -32,7 +34,7 @@ object RaphtoryKubernetesIngresses extends KubernetesClient {
 
         // TODO: This should check ingress and service in match, check with Ben on how this is done in scala
         service match {
-          case None =>
+          case None        =>
             raphtoryKubernetesLogger.debug(
                     s"Service $serviceName not found for $raphtoryComponent component. Ingress deployment aborted"
             )
@@ -43,7 +45,7 @@ object RaphtoryKubernetesIngresses extends KubernetesClient {
 
             val ingressNamePrefix: String =
               s"raphtory-$raphtoryDeploymentId-$raphtoryComponent".toLowerCase()
-            val ingressName: String = s"$ingressNamePrefix-ingress"
+            val ingressName: String       = s"$ingressNamePrefix-ingress"
 
             try KubernetesIngress.create(
                     client = kubernetesClient,
@@ -69,7 +71,8 @@ object RaphtoryKubernetesIngresses extends KubernetesClient {
                 )
             }
         }
-      } else
+      }
+      else
         raphtoryKubernetesLogger.info(
                 s"Setting raphtory.deploy.kubernetes.deployments.$raphtoryComponent.ingress.create is set to false"
         )
@@ -79,8 +82,8 @@ object RaphtoryKubernetesIngresses extends KubernetesClient {
     raphtoryKubernetesDeployments.forEach { raphtoryComponent =>
       val ingressNamePrefix: String =
         s"raphtory-$raphtoryDeploymentId-$raphtoryComponent".toLowerCase()
-      val ingressName: String = s"$ingressNamePrefix-ingress"
-      val ingress =
+      val ingressName: String       = s"$ingressNamePrefix-ingress"
+      val ingress                   =
         try Option(
                 KubernetesIngress.get(
                         client = kubernetesClient,
@@ -97,7 +100,7 @@ object RaphtoryKubernetesIngresses extends KubernetesClient {
         }
 
       ingress match {
-        case None =>
+        case None        =>
           raphtoryKubernetesLogger.debug(
                   s"Ingress $ingressName not found for $raphtoryComponent component"
           )

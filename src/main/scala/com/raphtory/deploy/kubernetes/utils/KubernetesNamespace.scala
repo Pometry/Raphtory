@@ -28,7 +28,11 @@ object KubernetesNamespace {
       name: String,
       labels: Map[String, String] = Map()
   ): Namespace = {
-    val ns = new NamespaceBuilder().withNewMetadata.withName(name).addToLabels(labels.asJava).endMetadata.build
+    val ns = new NamespaceBuilder().withNewMetadata
+      .withName(name)
+      .addToLabels(labels.asJava)
+      .endMetadata
+      .build
 
     client.namespaces().createOrReplace(ns)
   }

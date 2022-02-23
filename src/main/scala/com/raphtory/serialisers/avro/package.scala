@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets
 import scala.annotation.implicitNotFound
 
 package object avro {
+
   class AvroPulsarSchema[T: Manifest: SchemaFor: Encoder: Decoder](
       // Note that this is a `var` because we need to implement `setSchemaInfoProvider`
       private var schemaInfoProvider: Option[SchemaInfoProvider] = None
@@ -27,8 +28,8 @@ package object avro {
 
     private def avroSchemaByVersion(schemaVersion: Option[Array[Byte]]): org.apache.avro.Schema = {
       val schemaFromVersion = for {
-        provider <- schemaInfoProvider
-        version  <- schemaVersion
+        provider        <- schemaInfoProvider
+        version         <- schemaVersion
         // Pulsar's `SchemaInfoProvider`s use a local cache so calling `get` on the future should be ok.
         pulsarSchemaInfo = provider.getSchemaByVersion(version).get
         parser           = new org.apache.avro.Schema.Parser

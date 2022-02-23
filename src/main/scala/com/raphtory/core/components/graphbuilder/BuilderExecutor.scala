@@ -35,7 +35,7 @@ class BuilderExecutor[T](
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None =>
+      case None        =>
     }
     producers.foreach(_._2.close())
   }
