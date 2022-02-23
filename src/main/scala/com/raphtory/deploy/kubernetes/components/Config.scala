@@ -18,7 +18,7 @@ class Config {
 
   val raphtoryKubernetesDeployments: util.Set[String] =
     conf.getConfig("raphtory.deploy.kubernetes.deployments").root().keySet()
-  val raphtoryKubernetesMasterUrl: String             = conf.getString("raphtory.deploy.kubernetes.master.url")
+  val raphtoryKubernetesMasterUrl: String = conf.getString("raphtory.deploy.kubernetes.master.url")
 
   val raphtoryKubernetesLogger: KubernetesLogger =
     com.raphtory.deploy.kubernetes.utils.KubernetesLogger()

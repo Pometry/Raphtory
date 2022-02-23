@@ -6,11 +6,10 @@ import com.raphtory.core.graph.visitor.Vertex
 sealed trait GraphFunction                 extends QueryManagement
 final case class Step(f: (Vertex) => Unit) extends GraphFunction
 
-final case class Iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean)
-        extends GraphFunction
-final case class VertexFilter(f: (Vertex) => Boolean) extends GraphFunction
-final case class Select(f: Vertex => Row)             extends GraphFunction
-final case class ClearChain()                         extends GraphFunction
+final case class Iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean) extends GraphFunction
+final case class VertexFilter(f: (Vertex) => Boolean)                                        extends GraphFunction
+final case class Select(f: Vertex => Row)                                                    extends GraphFunction
+final case class ClearChain()                                                                extends GraphFunction
 
 abstract class GraphPerspective {
   def filter(f: (Vertex) => Boolean): GraphPerspective

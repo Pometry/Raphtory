@@ -44,12 +44,11 @@ import com.raphtory.core.algorithm.Table
   *  | ----------------- | ------------------ | --------------------- | ----------------- |
   *  | {s}`name: String` | {s}`edge.ID: Long` | {s}`event.time: Long` | {s}`name: String` |
   */
-class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
-        extends GraphAlgorithm {
+class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set()) extends GraphAlgorithm {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph
-      // the step functions run on every single vertex ONCE at the beginning of the algorithm
+    // the step functions run on every single vertex ONCE at the beginning of the algorithm
       .step {
         // for each vertex in the graph
         vertex =>
@@ -82,7 +81,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
               { vertex =>
                 // check if any node has received a message
                 // obtain the messages as a set
-                val newMessages   =
+                val newMessages =
                   vertex.messageQueue[(String, Long, Long, Long)].map(item => item).distinct
                 // obtain the min time it was infected
                 val infectionTime = newMessages.map(item => item._3).min
@@ -94,12 +93,11 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
                   if (!vertex.getOrSetState("taintStatus", false)) {
                     vertex.setState("taintHistory", newMessages)
                     vertex.setState("taintStatus", true)
-                  }
-                  else {
+                  } else {
                     // otherwise set a brand new state, first get the old txs it was tainted by
                     val oldState: List[(String, Long, Long, Long)] = vertex.getState("taintHistory")
                     // add the new transactions and old ones together
-                    val newState                                   = List.concat(newMessages, oldState).distinct
+                    val newState = List.concat(newMessages, oldState).distinct
                     // set this as the new state
                     vertex.setState("taintHistory", newState)
                   }
@@ -129,8 +127,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
                               edge.send(Tuple4("tainted", edge.ID(), event.time, vertex.name()))
                           )
                       )
-                }
-                else
+                } else
                   vertex.voteToHalt()
               },
               100,
@@ -150,10 +147,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
       // filter for any that had been tainted and save to folder
       .filter(r => r.get(1) == true)
       .explode(row =>
-        row
-          .get(2)
-          .asInstanceOf[List[(String, Long, Long, String)]]
-          .map(tx => Row(row(0), tx._2, tx._3, tx._4))
+        row.get(2).asInstanceOf[List[(String, Long, Long, String)]].map(tx => Row(row(0), tx._2, tx._3, tx._4))
       )
 }
 

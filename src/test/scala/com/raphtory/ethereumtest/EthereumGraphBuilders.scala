@@ -35,7 +35,7 @@ class EthereumTxGraphBuilder() extends GraphBuilder[EthereumTransaction] {
 class EthereumGraphBuilder() extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String): Unit = {
-    val line        = new String(tuple)
+    val line = new String(tuple)
     if (line contains "block_hash")
       return
     val fileLine    = line.replace("\"", "").split(",").map(_.trim)

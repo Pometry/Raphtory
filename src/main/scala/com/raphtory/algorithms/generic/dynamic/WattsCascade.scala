@@ -67,11 +67,11 @@ class WattsCascade[T: Threshold](
 
   private val get_threshold: () => Double = {
     threshold match {
-      case v: Double                         => () => v
+      case v: Double => () => v
       case s: Threshold.RANDOM_SAME_VAL.type =>
         val t = randomiser.nextFloat()
         () => t
-      case u: Threshold.UNIFORM_RANDOM.type  => randomiser.nextFloat
+      case u: Threshold.UNIFORM_RANDOM.type => randomiser.nextFloat
     }
   }
 
@@ -81,8 +81,7 @@ class WattsCascade[T: Threshold](
         if (infectedSeed.contains(vertex.name())) {
           vertex.setState("infected", true)
           vertex.messageOutNeighbours(true)
-        }
-        else
+        } else
           vertex.setState("infected", false)
         vertex.setState("threshold", get_threshold())
         vertex.setState("numInfectedNeighbours", 0)
@@ -96,10 +95,7 @@ class WattsCascade[T: Threshold](
                   vertex.voteToHalt()
                 else {
                   val degree = vertex.inDegree
-                  if (
-                          numInfectedNeighbours.toDouble / degree >= vertex
-                            .getState[Double]("threshold")
-                  ) {
+                  if (numInfectedNeighbours.toDouble / degree >= vertex.getState[Double]("threshold")) {
                     vertex.setState("infected", true)
                     vertex.messageOutNeighbours(true)
                   }
@@ -125,8 +121,8 @@ object WattsCascade {
   object Threshold {
     object UNIFORM_RANDOM
     object RANDOM_SAME_VAL
-    implicit val threshold: Threshold[Double]                = new Threshold[Double] {}
-    implicit val uniform_rnd: Threshold[UNIFORM_RANDOM.type] = new Threshold[UNIFORM_RANDOM.type] {}
+    implicit val threshold: Threshold[Double]                = new Threshold[Double]               {}
+    implicit val uniform_rnd: Threshold[UNIFORM_RANDOM.type] = new Threshold[UNIFORM_RANDOM.type]  {}
     implicit val same_rnd: Threshold[RANDOM_SAME_VAL.type]   = new Threshold[RANDOM_SAME_VAL.type] {}
   }
 }

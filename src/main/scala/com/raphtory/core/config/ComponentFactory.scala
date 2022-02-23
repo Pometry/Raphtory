@@ -49,7 +49,7 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
     val partitions = for (i <- 0 until totalPartitions) yield {
       val partitionID = idManager.getNextAvailableID() match {
         case Some(id) => id
-        case None     =>
+        case None =>
           throw new Exception(
                   s"Failed to retrieve Partition ID. " +
                     s"ID Manager at Zookeeper '$idManager' was unreachable."

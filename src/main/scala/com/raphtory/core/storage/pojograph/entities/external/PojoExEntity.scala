@@ -38,7 +38,7 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
           case Some(v) => Some(v.asInstanceOf[T])
           case None    => None
         }
-      case None    => None
+      case None => None
     }
 
   //TODo ADD Before
@@ -57,14 +57,11 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
                   .toList
                   .map(x => (x._1, x._2.asInstanceOf[T]))
         )
-      case (Some(p), None)    =>
+      case (Some(p), None) =>
         Some(
-                p.values()
-                  .filter(k => k._1 <= view.timestamp)
-                  .toList
-                  .map(x => (x._1, x._2.asInstanceOf[T]))
+                p.values().filter(k => k._1 <= view.timestamp).toList.map(x => (x._1, x._2.asInstanceOf[T]))
         )
-      case (None, _)          => None
+      case (None, _) => None
     }
 
   def history(): List[HistoricEvent] =
@@ -74,7 +71,7 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
           case (time, state) if time <= view.timestamp && time >= view.timestamp - w =>
             HistoricEvent(time, state)
         }.toList
-      case None    =>
+      case None =>
         entity.history.collect {
           case (time, state) if time <= view.timestamp => HistoricEvent(time, state)
         }.toList

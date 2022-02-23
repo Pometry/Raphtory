@@ -46,7 +46,7 @@ class Reader(
     cancelableConsumer match {
       case Some(value) =>
         value.close()
-      case None        =>
+      case None =>
     }
     watermarkPublish.close()
     executorMap.foreach(_._2.stop())

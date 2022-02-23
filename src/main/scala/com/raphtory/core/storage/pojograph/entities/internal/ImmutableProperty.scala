@@ -9,8 +9,8 @@ class ImmutableProperty(creationTime: Long, value: Any) extends Property {
 
   override def update(msgTime: Long, newValue: Any): Unit =
     if (msgTime <= earliestTime) earliestTime = msgTime
-  override def currentValue(): Any                        = value
-  override def creation(): Long                           = earliestTime
+  override def currentValue(): Any = value
+  override def creation(): Long    = earliestTime
 
   override def values(): Array[(Long, Any)] = Array[(Long, Any)]((creationTime, value))
 
