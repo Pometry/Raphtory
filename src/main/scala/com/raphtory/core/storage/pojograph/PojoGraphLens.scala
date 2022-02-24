@@ -57,6 +57,11 @@ final case class PojoGraphLens(
       case (id, vertex) => f(vertex)
     }.toList
 
+  def explodeSelect(f: Vertex => List[Row]): Unit =
+    dataTable = vertices.collect {
+      case (_ , vertex) => f(vertex)
+    }.flatten.toList
+
   def filteredTable(f: Row => Boolean): Unit =
     dataTable = dataTable.filter(f)
 
