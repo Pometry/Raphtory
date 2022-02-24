@@ -26,9 +26,11 @@ import com.raphtory.core.algorithm.GraphPerspective
 class NeighbourNames extends GraphAlgorithm {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
-    graph.step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.name()))).step { vertex =>
-      vertex.setState("neighbourNames", vertex.messageQueue[(Long, String)].toMap)
-    }
+    graph
+      .step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.name())))
+      .step { vertex =>
+        vertex.setState("neighbourNames", vertex.messageQueue[(Long, String)].toMap)
+      }
 }
 
 object NeighbourNames {
