@@ -1,0 +1,135 @@
+---
+stages:
+  - test
+  - build
+  - package
+  - release
+
+variables:
+  DOCKER_IMAGE: "eclipse-temurin:11.0.12_7-jdk"
+  
+  # To be set in gitlab variables
+  # GITLAB_RUNNER_TAG
+  # GITLAB_USER_NAME
+  # GITLAB_USER_EMAIL
+  # GITLAB_ACCESS_TOKEN
+
+.rule-default-branch-push-or-schedule:
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"'
+      when: on_success
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: on_success
+    - when: never
+
+.rule-default-branch:
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"'
+      when: on_success
+    - when: never
+
+sbt-test:
+  stage: test
+  image: "${DOCKER_IMAGE}"
+  tags:
+    - ${GITLAB_RUNNER_TAG}
+  script:
+    - |
+      export PULSAR_VERSION=2.9.0 && \
+      cd /usr/local/bin && \
+      curl -L "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${PULSAR_VERSION}/apache-pulsar-${PULSAR_VERSION}-bin.tar.gz" -o apache-pulsar-${PULSAR_VERSION}-bin.tar.gz && \
+      tar xf apache-pulsar-${PULSAR_VERSION}-bin.tar.gz && \
+      rm -rf apache-pulsar-${PULSAR_VERSION}-bin.tar.gz && \
+      cd apache-pulsar-${PULSAR_VERSION} && mkdir connectors && cd connectors && \
+      curl -L "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${PULSAR_VERSION}/connectors/pulsar-io-file-${PULSAR_VERSION}.nar" -o pulsar-io-file-${PULSAR_VERSION}.nar
+    - /usr/local/bin/$(ls /usr/local/bin|grep apache-pulsar|grep -v "tar.gz"|sort|tail -1)/bin/pulsar standalone &
+    - |
+      export SBT_VERSION=1.5.5 && \
+      curl -L "https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.zip" -o sbt-${SBT_VERSION}.zip && \
+      apt-get update && apt-get install unzip && unzip sbt-${SBT_VERSION}.zip
+    - sbt test
+  only:
+    - branches
+    - schedules
+    - merge_requests
+
+build-package:
+  stage: build
+  image: "${DOCKER_IMAGE}"
+  tags:
+    - ${GITLAB_RUNNER_TAG}
+  extends:
+    - .rule-default-branch-push-or-schedule
+  script:
+    - sbt assembly
+    - TARGET_BUILT_JAR=$(find . -name raphtory*.jar)
+    - mv $TARGET_BUILT_JAR raphtory.jar
+  needs:
+    - sbt-test
+  artifacts:
+    paths:
+      - raphtory.jar
+
+set-versions:
+  stage: build
+  image: "${DOCKER_IMAGE}"
+  tags:
+    - ${GITLAB_RUNNER_TAG}
+  extends:
+    - .rule-default-branch-push-or-schedule
+  script:
+    - bash $CI_PROJECT_DIR/.scripts/set_versions.sh
+    - cat variables.env
+  artifacts:
+    reports:
+      dotenv: variables.env
+  needs:
+    - sbt-test
+
+create-tag:
+  stage: release
+  image:
+    name: alpine/git
+    entrypoint: [""]
+  tags:
+    - ${GITLAB_RUNNER_TAG}
+  extends:
+    - .rule-default-branch-push-or-schedule
+  script:
+    - git config user.email "${GITLAB_USER_EMAIL}"
+    - git config user.name "${GITLAB_USER_NAME}"
+    - git remote add tag-origin https://oauth2:${GITLAB_ACCESS_TOKEN}@gitlab.com/${CI_PROJECT_PATH}
+    - if [[ -z $TAG_MESSAGE ]]; then TAG_MESSAGE=${CI_COMMIT_MESSAGE}; fi
+    - if [[ -n $TAG ]]; then git tag -a "${TAG}" -m "${TAG_MESSAGE}"; fi
+    - if [[ -n $TAG ]]; then git push tag-origin "${TAG}"; fi
+  needs:
+    - sbt-test
+    - build-package
+    - set-versions
+
+create-release:
+  stage: release
+  image: "registry.gitlab.com/gitlab-org/release-cli:latest"
+  tags:
+    - ${GITLAB_RUNNER_TAG}
+  extends:
+    - .rule-default-branch
+  script:
+    - if [[ -z $TAG_MESSAGE ]]; then TAG_MESSAGE=${CI_COMMIT_MESSAGE}; fi
+    - mv raphtory.jar $JAR_NAME
+  release:
+    name: "${TAG}"
+    tag_name: "${TAG}"
+    description: 'Automated release'
+    assets:
+      links:
+        - name: "${JAR_NAME}"
+          url: "https://gitlab.com/${CI_PROJECT_PATH}/-/jobs/${CI_JOB_ID}/artifacts/file/${JAR_NAME}"
+  artifacts:
+    paths:
+      - raphtory*.jar
+  needs:
+    - sbt-test
+    - build-package
+    - set-versions
+    - create-tag
