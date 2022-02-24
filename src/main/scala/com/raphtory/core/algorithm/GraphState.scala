@@ -9,7 +9,7 @@ abstract class Accumulator[T] {
 }
 
 /**
-  *  {s}`GraphState
+  *  {s}`GraphState`
   *    : Public {s}`GraphState` interface for global accumulators
   *
   *  The {s}`GraphState` tracks global (graph-level) variables during algorithm execution.
@@ -49,7 +49,7 @@ abstract class Accumulator[T] {
   *    {s}`contains(name: String): Boolean`
   *      : Check if graph state with `name` exists
   *
-  * # Accumulator
+  *  # Accumulator
   *
   *  {s}`Accumulator[T]`
   *    : Public accumulator interface
