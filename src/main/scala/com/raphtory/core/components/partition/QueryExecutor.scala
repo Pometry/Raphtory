@@ -1,5 +1,6 @@
 package com.raphtory.core.components.partition
 
+import com.raphtory.core.algorithm
 import com.raphtory.core.components.querymanager._
 import com.raphtory.core.algorithm._
 import com.raphtory.core.components.Component
@@ -159,6 +160,12 @@ class QueryExecutor(
         logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'Select' query on graph")
         graphLens.nextStep()
         graphLens.executeSelect(f)
+        taskManager sendAsync serialise(TableBuilt)
+
+      case ExplodeSelect(f)                            =>
+        logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'ExplodeSelect' query on graph")
+        graphLens.nextStep()
+        graphLens.explodeSelect(f)
         taskManager sendAsync serialise(TableBuilt)
 
       case TableFilter(f)                              =>
