@@ -40,7 +40,6 @@ class CountNodesTwice extends GraphAlgorithm {
       .step { (vertex: Vertex, globalState: GraphState) =>
         globalState("nodeCount") += 1
         globalState("nodeCountDoubled") += 1
-        globalState("nodeCount")
       }
       .step { (vertex: Vertex, globalState: GraphState) =>
         globalState("nodeCount") += 1
