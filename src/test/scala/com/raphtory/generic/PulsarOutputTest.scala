@@ -16,7 +16,7 @@ import scala.language.postfixOps
 import scala.sys.process._
 
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
-  val outputFormat: PulsarOutputFormat = PulsarOutputFormat("ConnectedComponents" + deploymentID)
+  val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)
 
   override def setSpout(): Spout[String]               = FileSpout(s"/tmp/lotr.csv")
   override def setGraphBuilder(): GraphBuilder[String] = new LOTRGraphBuilder()
@@ -29,7 +29,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
 
   val consumer =
     pulsarController
-      .createConsumer("pulsarOutputTest", Schema.BYTES, "ConnectedComponents" + deploymentID)
+      .createConsumer("pulsarOutputTest", Schema.BYTES, "EdgeList" + deploymentID)
 
   logger.info("Consumer created.")
 
