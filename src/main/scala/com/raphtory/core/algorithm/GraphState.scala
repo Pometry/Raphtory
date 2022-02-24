@@ -4,7 +4,7 @@ import scala.collection.mutable
 import scala.reflect.runtime.universe._
 
 abstract class Accumulator[T](initialValue: T, retainState: Boolean = false, op: (T, T) => T) {
-  var value: T = initialValue
+  def value: T
 
   def +=(newValue: T): Unit
 }
