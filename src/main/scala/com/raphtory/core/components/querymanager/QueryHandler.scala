@@ -175,6 +175,12 @@ abstract class QueryHandler(
             logger.debug(s"Job '$jobID': Executing Select function.")
             Stages.ExecuteTable
 
+          case Some(f: ExplodeSelect) =>
+            messagetoAllJobWorkers(f)
+            readyCount = 0
+            logger.debug(s"Job '$jobID': Executing ExplodeSelect function.")
+            Stages.ExecuteTable
+
           case Some(f: GraphFunction) =>
             messagetoAllJobWorkers(f)
             currentOperation = f
@@ -338,6 +344,12 @@ abstract class QueryHandler(
     graphPerspective.getNextOperation() match {
       case Some(f: Select)        =>
         logger.debug(s"Job '$jobID': Executing Select function.")
+        messagetoAllJobWorkers(f)
+        readyCount = 0
+        Stages.ExecuteTable
+
+      case Some(f: ExplodeSelect) =>
+        logger.debug(s"Job '$jobID': Executing ExplodeSelect function.")
         messagetoAllJobWorkers(f)
         readyCount = 0
         Stages.ExecuteTable
