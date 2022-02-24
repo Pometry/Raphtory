@@ -195,8 +195,8 @@ abstract class QueryHandler(
           }
         }
         else {
-          sentMessageCount = totalSentMessages
-          receivedMessageCount = totalReceivedMessages
+          sentMessageCount += totalSentMessages
+          receivedMessageCount += totalReceivedMessages
           readyCount += 1
           allVoteToHalt = votedToHalt & allVoteToHalt
           Stages.ExecuteGraph
