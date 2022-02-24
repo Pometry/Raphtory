@@ -120,17 +120,14 @@ abstract class Component[T](
     producers.toMap
   }
 
-  def toWriterProducers: Map[Int, Producer[GraphAlteration]] = {
-    implicit val schema: Schema[GraphAlteration] = GraphAlteration.schema
+  def toWriterProducers: Map[Int, Producer[Array[Byte]]] =
     //println(schema.getSchemaInfo.getSchemaDefinition)
-    producerMapGenerator[GraphAlteration](deploymentID, schema)
-  }
+    producerMapGenerator[Array[Byte]](deploymentID, Schema.BYTES)
 
-  def writerSyncProducers(): Map[Int, Producer[GraphAlteration]] = {
+  def writerSyncProducers(): Map[Int, Producer[Array[Byte]]] = {
     logger.debug(s"Deployment $deploymentID: Creating writer sync producer mapping.")
-    implicit val schema: Schema[GraphAlteration] = GraphAlteration.schema
 
-    producerMapGenerator(s"${deploymentID}_sync", schema)
+    producerMapGenerator(s"${deploymentID}_sync", Schema.BYTES)
   }
 
   def toReaderProducer: Producer[Array[Byte]] = {

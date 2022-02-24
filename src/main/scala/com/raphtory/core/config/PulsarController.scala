@@ -12,7 +12,7 @@ class PulsarController(conf: Config) {
   private val pulsarAddress: String = conf.getString("raphtory.pulsar.broker.address")
   val pulsarAdminAddress: String    = conf.getString("raphtory.pulsar.admin.address")
 
-  private val client: PulsarClient  =
+  private val client: PulsarClient =
     PulsarClient
       .builder()
       .ioThreads(10)
@@ -28,9 +28,9 @@ class PulsarController(conf: Config) {
 
   def accessClient: PulsarClient = client
 
-  val consumerMaxMessages : Long                    = conf.getLong("raphtory.consumers.maxMessagesForBatch")
-  val consumerBatchTimeout : Long                    = conf.getLong("raphtory.consumers.timeoutForBatchMillis")
-  val consumerPooling      : Boolean                = conf.getBoolean("raphtory.consumers.consumerPoolPolicy")
+  val consumerMaxMessages: Long  = conf.getLong("raphtory.consumers.maxMessagesForBatch")
+  val consumerBatchTimeout: Long = conf.getLong("raphtory.consumers.timeoutForBatchMillis")
+  val consumerPooling: Boolean   = conf.getBoolean("raphtory.consumers.consumerPoolPolicy")
 
   def setRetentionNamespace(
       namespace: String,
@@ -59,11 +59,7 @@ class PulsarController(conf: Config) {
       .subscriptionType(SubscriptionType.Shared)
       .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
       .batchReceivePolicy(
-              BatchReceivePolicy
-                .builder()
-                .maxNumMessages(10000)
-                .timeout(1, TimeUnit.NANOSECONDS)
-                .build()
+              BatchReceivePolicy.DEFAULT_POLICY
       )
       .poolMessages(true)
       .messageListener(messageListener)
@@ -71,10 +67,10 @@ class PulsarController(conf: Config) {
 
   // without message listener
   def createListeningConsumer[T](
-                                  subscriptionName: String,
-                                  schema: Schema[T],
-                                  topics: String*
-                                ): Consumer[T] =
+      subscriptionName: String,
+      schema: Schema[T],
+      topics: String*
+  ): Consumer[T] =
     client
       .newConsumer(schema)
       .topics(topics.toList.asJava)
@@ -82,11 +78,11 @@ class PulsarController(conf: Config) {
       .subscriptionType(SubscriptionType.Shared)
       .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
       .batchReceivePolicy(
-        BatchReceivePolicy
-          .builder()
-          .maxNumMessages(consumerMaxMessages.toInt)
-          .timeout(consumerBatchTimeout.toInt, TimeUnit.NANOSECONDS)
-          .build()
+              BatchReceivePolicy
+                .builder()
+                .maxNumMessages(consumerMaxMessages.toInt)
+                .timeout(consumerBatchTimeout.toInt, TimeUnit.NANOSECONDS)
+                .build()
       )
       .poolMessages(consumerPooling)
       .subscribe()
