@@ -38,17 +38,23 @@ class EdgeList(
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .explodeSelect{ vertex =>
+      .explodeSelect { vertex =>
         val neighbourMap = vertex.getState[Map[Long, String]]("neighbourNames")
-        val row = Row(
-          vertex.name(),
-          vertex.getOutEdges().map { edge =>
-            neighbourMap(edge.dst()) +: properties
-              .map(name => edge.getPropertyOrElse(name, defaults.getOrElse(name, None)))
-          }
-        )
-          row.getAs[List[Seq[String]]](1).map { neighbourProperties =>
-          val rowList = row.get(0) +: neighbourProperties
+        val name         = vertex.name()
+        Row(
+                name,
+                vertex
+                  .getOutEdges()
+                  .map { edge =>
+                    neighbourMap(edge.dst()) +:
+                      properties
+                        .map(name =>
+                          edge
+                            .getPropertyOrElse(name, defaults.getOrElse(name, None))
+                        )
+                  }
+        ).getAs[List[Seq[String]]](1).map { neighbourProperties =>
+          val rowList = name +: neighbourProperties
           Row(rowList: _*)
         }
       }

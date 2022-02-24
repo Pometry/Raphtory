@@ -25,8 +25,8 @@ class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
       producer: Producer[String]
   ) = {
     val value = window match {
-      case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}\n"
-      case None    => s"$timestamp,${row.getValues().mkString(",")}\n"
+      case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}"
+      case None    => s"$timestamp,${row.getValues().mkString(",")}"
     }
     producer.sendAsync(value)
   }
