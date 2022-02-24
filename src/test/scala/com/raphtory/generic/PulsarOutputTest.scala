@@ -1,7 +1,8 @@
 package com.raphtory.generic
 
 import com.raphtory.BaseRaphtoryAlgoTest
-import com.raphtory.algorithms.generic.{ConnectedComponents, EdgeList}
+import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
@@ -55,7 +56,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
 
     val firstResult = new String(receiveMessage(consumer).getValue)
 
-    logger.debug(s"Output to Pulsar complete. First result is: '$firstResult'.")
+    logger.info(s"Output to Pulsar complete. First result is: '$firstResult'.")
 
     assert(firstResult.nonEmpty)
   }
