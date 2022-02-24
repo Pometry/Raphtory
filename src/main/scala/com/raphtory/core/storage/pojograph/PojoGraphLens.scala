@@ -27,12 +27,12 @@ final case class PojoGraphLens(
   var t1                    = System.currentTimeMillis()
   private var fullGraphSize = 0
 
-  def getFullGraphSize = {
+  def getFullGraphSize: Int = {
     logger.trace(s"Current Graph size at '$fullGraphSize'.")
     fullGraphSize
   }
 
-  def setFullGraphSize(size: Int) = {
+  def setFullGraphSize(size: Int): Unit = {
     fullGraphSize = size
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
@@ -49,7 +49,7 @@ final case class PojoGraphLens(
 
   private lazy val vertices: Array[(Long, Vertex)] = vertexMap.toArray
 
-  def getSize() = vertices.size
+  def getSize(): Int = vertices.size
 
   private var dataTable: List[Row] = List()
 
