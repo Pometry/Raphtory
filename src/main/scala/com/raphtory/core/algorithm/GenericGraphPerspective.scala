@@ -33,7 +33,7 @@ class GenericGraphPerspective(vertices: Int) extends GraphPerspective {
   }
 
   override def explodeSelect(f: Vertex => List[Row]): Table = {
-    graphOpps.enqueue(explodeSelect(f))
+    graphOpps.enqueue(ExplodeSelect(f))
     table
   }
 

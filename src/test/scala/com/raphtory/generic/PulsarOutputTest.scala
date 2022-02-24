@@ -1,7 +1,7 @@
 package com.raphtory.generic
 
 import com.raphtory.BaseRaphtoryAlgoTest
-import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.{ConnectedComponents, EdgeList}
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
@@ -43,7 +43,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
   test("Outputting to Pulsar") {
     val queryProgressTracker =
       graph.rangeQuery(
-              graphAlgorithm = ConnectedComponents(),
+              graphAlgorithm = EdgeList(),
               outputFormat = outputFormat,
               start = 1,
               end = 32674,
