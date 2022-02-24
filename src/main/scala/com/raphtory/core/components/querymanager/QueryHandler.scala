@@ -166,10 +166,6 @@ abstract class QueryHandler(
         table = graphPerspective.getTable()
         table.writeTo(outputFormat) //sets output formatter
 
-        readyCount = 0
-        receivedMessageCount = 0
-        sentMessageCount = 0
-        allVoteToHalt = true
         nextGraphOperation(vertexCount)
 
       case GraphFunctionComplete(receivedMessages, sentMessages, votedToHalt, state) =>
@@ -185,27 +181,8 @@ abstract class QueryHandler(
             case None    =>
           }
 
-          if (totalReceivedMessages == totalSentMessages) {
-            readyCount = 0
-            receivedMessageCount = 0
-            sentMessageCount = 0
-            allVoteToHalt = true
-            currentOperation match {
-              case Iterate(f, iterations, executeMessagedOnly) if iterations > 1                 =>
-                currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
-                messagetoAllJobWorkers(currentOperation)
-                Stages.ExecuteGraph
-              case IterateWithGraph(f, iterations, executeMessagedOnly, state) if iterations > 1 =>
-                currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly, None)
-                messagetoAllJobWorkers(
-                        IterateWithGraph(f, iterations - 1, executeMessagedOnly, Some(graphState))
-                )
-                Stages.ExecuteGraph
-
-              case _                                                                             =>
-                nextGraphOperation(vertexCount)
-            }
-          }
+          if (totalReceivedMessages == totalSentMessages)
+            nextGraphOperation(vertexCount)
           else {
             messagetoAllJobWorkers(CheckMessages(jobID))
             logger.debug(
@@ -327,7 +304,20 @@ abstract class QueryHandler(
 
   @tailrec
   private def nextGraphOperation(vertexCount: Int): Stage = {
-    currentOperation = graphPerspective.getNextOperation()
+    readyCount = 0
+    receivedMessageCount = 0
+    sentMessageCount = 0
+    allVoteToHalt = true
+
+    currentOperation match {
+      case Iterate(f, iterations, executeMessagedOnly) if iterations > 1                 =>
+        currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
+      case IterateWithGraph(f, iterations, executeMessagedOnly, state) if iterations > 1 =>
+        currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly, None)
+      case _                                                                             =>
+        currentOperation = graphPerspective.getNextOperation()
+    }
+
     logger.debug(
             s"Job '$jobID': Executing graph function '${currentOperation.getClass.getSimpleName}'."
     )
