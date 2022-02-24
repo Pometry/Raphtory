@@ -134,7 +134,10 @@ class FileSpoutExecutor[T](
     logger.debug(f"$source%s is readable")
     // if so then check recurse, filter
     val files               = getListOfFiles(new File(source), file_regex, recurse)
-    if (files.isEmpty) return
+    if (files.isEmpty) {
+      scheduler.scheduleOnce(10, TimeUnit.SECONDS, new SpoutScheduler())
+      return
+    }
     // create temp folder if it doesnt exist
     val tempOutputDirectory = new File(outputDirectory)
     logger.debug(s"Creating temp folder '$tempOutputDirectory'.")
