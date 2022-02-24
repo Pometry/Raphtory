@@ -38,22 +38,36 @@ class EdgeList(
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select { vertex =>
+      .explodeSelect{ vertex =>
         val neighbourMap = vertex.getState[Map[Long, String]]("neighbourNames")
-        Row(
-                vertex.name(),
-                vertex.getOutEdges().map { edge =>
-                  neighbourMap(edge.dst()) +: properties
-                    .map(name => edge.getPropertyOrElse(name, defaults.getOrElse(name, None)))
-                }
+        val row = Row(
+          vertex.name(),
+          vertex.getOutEdges().map { edge =>
+            neighbourMap(edge.dst()) +: properties
+              .map(name => edge.getPropertyOrElse(name, defaults.getOrElse(name, None)))
+          }
         )
-      }
-      .explode { row =>
-        row.getAs[List[Seq[String]]](1).map { neighbourProperties =>
+          row.getAs[List[Seq[String]]](1).map { neighbourProperties =>
           val rowList = row.get(0) +: neighbourProperties
           Row(rowList: _*)
         }
       }
+//      .select { vertex =>
+//        val neighbourMap = vertex.getState[Map[Long, String]]("neighbourNames")
+//        Row(
+//                vertex.name(),
+//                vertex.getOutEdges().map { edge =>
+//                  neighbourMap(edge.dst()) +: properties
+//                    .map(name => edge.getPropertyOrElse(name, defaults.getOrElse(name, None)))
+//                }
+//        )
+//      }
+//      .explode { row =>
+//        row.getAs[List[Seq[String]]](1).map { neighbourProperties =>
+//          val rowList = row.get(0) +: neighbourProperties
+//          Row(rowList: _*)
+//        }
+//      }
 }
 
 object EdgeList {
