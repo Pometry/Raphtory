@@ -39,13 +39,14 @@ class Writer(
 
   private val neighbours          = writerSyncProducers()
   private var mgsCount            = 0
+  val monixScheduler = new MonixScheduler
 
   override val cancelableConsumer = Some(
           startPartitionConsumer(GraphAlteration.schema, partitionID)
   )
 
   override def run(): Unit =
-    scheduler.execute(AsyncConsumer(this))
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
 
   override def stop(): Unit = {
     cancelableConsumer match {

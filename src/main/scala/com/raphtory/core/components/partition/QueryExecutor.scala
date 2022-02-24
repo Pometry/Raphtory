@@ -44,6 +44,7 @@ class QueryExecutor(
 
   private val taskManager: Producer[Array[Byte]]          = toQueryHandlerProducer(jobID)
   private val neighbours: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
+  val monixScheduler = new MonixScheduler
 
   override val cancelableConsumer = Some(
           startQueryExecutorConsumer(Schema.BYTES, partitionID, jobID)
@@ -53,7 +54,7 @@ class QueryExecutor(
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
 
     taskManager sendAsync serialise(ExecutorEstablished(partitionID))
-    scheduler.execute(AsyncConsumer(this))
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
   }
 
   override def stop(): Unit = {

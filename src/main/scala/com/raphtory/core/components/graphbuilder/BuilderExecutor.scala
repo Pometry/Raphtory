@@ -23,12 +23,13 @@ class BuilderExecutor[T](
 ) extends Component[T](conf, pulsarController, scheduler) {
   private val safegraphBuilder = new Cloner().deepClone(graphBuilder)
   private val producers        = toWriterProducers
+  val monixScheduler = new MonixScheduler
 
   override val cancelableConsumer = Some(startGraphBuilderConsumer(schema))
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")
-    scheduler.execute(AsyncConsumer(this))
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
   }
 
   override def stop(): Unit = {

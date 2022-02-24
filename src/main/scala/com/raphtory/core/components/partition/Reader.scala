@@ -4,8 +4,7 @@ import com.raphtory.core.components.querymanager.EstablishExecutor
 import com.raphtory.core.components.Component
 import com.raphtory.core.components.querymanager.EstablishExecutor
 import com.raphtory.core.components.querymanager.WatermarkTime
-import com.raphtory.core.config.AsyncConsumer
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
 import com.raphtory.core.graph.GraphPartition
 import com.typesafe.config.Config
 import monix.execution.Scheduler
@@ -28,6 +27,7 @@ class Reader(
   private val executorMap         = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish    = watermarkPublisher()
   override val cancelableConsumer = Some(startReaderConsumer(Schema.BYTES, partitionID))
+  val monixScheduler = new MonixScheduler
 
   class Watermarker extends Runnable {
 
@@ -40,8 +40,7 @@ class Reader(
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
 
     scheduler.scheduleAtFixedRate(1, 1, TimeUnit.SECONDS, new Watermarker())
-    // same scheduler as watermark!
-    scheduler.execute(AsyncConsumer(this))
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
   }
 
   override def stop(): Unit = {

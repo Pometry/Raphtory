@@ -3,8 +3,7 @@ package com.raphtory.core.components.querytracker
 import com.raphtory.core.components.Component
 import com.raphtory.core.components.querymanager.JobDone
 import com.raphtory.core.components.querymanager.QueryManagement
-import com.raphtory.core.config.AsyncConsumer
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
 import com.raphtory.core.graph.Perspective
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
@@ -32,6 +31,7 @@ class QueryProgressTracker(
   private var perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
   private var perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
   private var latestPerspective: Perspective            = null
+  val monixScheduler = new MonixScheduler
 
   override val cancelableConsumer = Some(
           startQueryTrackerConsumer(schema, deploymentID + "_" + jobID)
@@ -65,7 +65,7 @@ class QueryProgressTracker(
       Thread.sleep(1000)
 
   override def run(): Unit =
-    scheduler.execute(AsyncConsumer(this))
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
 
   def stop(): Unit =
     cancelableConsumer match {

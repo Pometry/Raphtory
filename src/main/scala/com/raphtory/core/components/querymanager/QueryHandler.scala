@@ -7,8 +7,7 @@ import Stages.Stage
 import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.algorithm._
 import com.raphtory.core.components.Component
-import com.raphtory.core.config.AsyncConsumer
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
 import com.raphtory.core.graph.Perspective
 import com.raphtory.core.graph.PerspectiveController
 import com.typesafe.config.Config
@@ -62,11 +61,11 @@ abstract class QueryHandler(
   }
   private val recheckTimer        = new RecheckTimer()
   override val cancelableConsumer = Some(startQueryHandlerConsumer(Schema.BYTES, jobID))
+  val monixScheduler = new MonixScheduler
 
   override def run(): Unit = {
     readers sendAsync serialise(EstablishExecutor(jobID))
-    scheduler.execute(AsyncConsumer(this))
-
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
   }
 

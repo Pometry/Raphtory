@@ -5,8 +5,7 @@ import com.raphtory.core.components.Component
 import com.raphtory.core.components.querymanager.handler.LiveQueryHandler
 import com.raphtory.core.components.querymanager.handler.PointQueryHandler
 import com.raphtory.core.components.querymanager.handler.RangeQueryHandler
-import com.raphtory.core.config.AsyncConsumer
-import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.{AsyncConsumer, MonixScheduler, PulsarController}
 import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
@@ -25,10 +24,12 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   private val watermarkGlobal     = globalwatermarkPublisher()
   private val watermarks          = mutable.Map[Int, WatermarkTime]()
   override val cancelableConsumer = Some(startQueryManagerConsumer(Schema.BYTES))
+  val monixScheduler = new MonixScheduler
+
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
-    scheduler.execute(AsyncConsumer(this))
+    monixScheduler.scheduler.execute(AsyncConsumer(this))
   }
 
   override def stop(): Unit = {
