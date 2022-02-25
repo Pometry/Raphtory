@@ -2,6 +2,7 @@ package com.raphtory.generic
 
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
@@ -16,7 +17,7 @@ import scala.language.postfixOps
 import scala.sys.process._
 
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
-  val outputFormat: PulsarOutputFormat = PulsarOutputFormat("ConnectedComponents" + deploymentID)
+  val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)
 
   override def setSpout(): Spout[String]               = FileSpout(s"/tmp/lotr.csv")
   override def setGraphBuilder(): GraphBuilder[String] = new LOTRGraphBuilder()
@@ -29,7 +30,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
 
   val consumer =
     pulsarController
-      .createConsumer("pulsarOutputTest", Schema.BYTES, "ConnectedComponents" + deploymentID)
+      .createConsumer("pulsarOutputTest", Schema.BYTES, "EdgeList" + deploymentID)
 
   logger.info("Consumer created.")
 
@@ -43,7 +44,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
   test("Outputting to Pulsar") {
     val queryProgressTracker =
       graph.rangeQuery(
-              graphAlgorithm = ConnectedComponents(),
+              graphAlgorithm = EdgeList(),
               outputFormat = outputFormat,
               start = 1,
               end = 32674,
@@ -55,7 +56,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
 
     val firstResult = new String(receiveMessage(consumer).getValue)
 
-    logger.debug(s"Output to Pulsar complete. First result is: '$firstResult'.")
+    logger.info(s"Output to Pulsar complete. First result is: '$firstResult'.")
 
     assert(firstResult.nonEmpty)
   }
