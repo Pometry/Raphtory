@@ -15,10 +15,12 @@ import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
 import org.slf4j.LoggerFactory
 
+import scala.reflect.ClassTag
+
 private[core] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def builder[T: Manifest](
+  def builder[T: ClassTag](
       graphbuilder: GraphBuilder[T],
       scheduler: Scheduler,
       schema: Schema[T]
