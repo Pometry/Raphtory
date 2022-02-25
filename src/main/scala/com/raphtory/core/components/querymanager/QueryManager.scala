@@ -8,6 +8,7 @@ import com.raphtory.core.components.querymanager.handler.RangeQueryHandler
 import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
@@ -20,6 +21,16 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   private val watermarkGlobal                           = globalwatermarkPublisher()
   private val watermarks                                = mutable.Map[Int, WatermarkTime]()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+
+  def setupNamespace(): Unit =
+    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_query_manager")
+    catch {
+      case error: PulsarAdminException =>
+        logger.warn("Namespace already found")
+    }
+    finally pulsarController.setRetentionNamespace("public/raphtory_query_manager")
+
+  setupNamespace()
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")

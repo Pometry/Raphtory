@@ -8,6 +8,7 @@ import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.GraphPartition
 import com.typesafe.config.Config
 import monix.execution.Scheduler
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
@@ -34,6 +35,16 @@ class Reader(
       createWatermark()
     }
   }
+
+  def setupNamespace(): Unit =
+    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_reader")
+    catch {
+      case error: PulsarAdminException =>
+        logger.warn("Namespace already found")
+    }
+    finally pulsarController.setRetentionNamespace("public/raphtory_reader")
+
+  setupNamespace()
 
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")

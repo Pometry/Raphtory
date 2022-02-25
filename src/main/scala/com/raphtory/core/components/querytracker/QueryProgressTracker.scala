@@ -8,6 +8,7 @@ import com.raphtory.core.graph.Perspective
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
 import monix.execution.Scheduler
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
@@ -37,6 +38,16 @@ class QueryProgressTracker(
 
   val startTime: Long       = System.currentTimeMillis //fetch starting time
   var perspectiveTime: Long = startTime
+  setupNamespace()
+
+  def setupNamespace(): Unit =
+    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_progress_tracker")
+    catch {
+      case error: PulsarAdminException =>
+        logger.warn("Namespace already found")
+    }
+    finally pulsarController.setRetentionNamespace("public/raphtory_progress_tracker")
+
 
   def getJobId(): String =
     jobID

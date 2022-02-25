@@ -24,6 +24,7 @@ import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
 import com.raphtory.output.PulsarOutputFormat
 import com.typesafe.config.Config
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api._
 
 class QueryExecutor(
@@ -42,6 +43,7 @@ class QueryExecutor(
   private val taskManager: Producer[Array[Byte]]          = toQueryHandlerProducer(jobID)
   private val neighbours: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
   var cancelableConsumer: Option[Consumer[Array[Byte]]]   = None
+  setupNamespace()
 
   override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
@@ -59,6 +61,14 @@ class QueryExecutor(
     taskManager.close()
     neighbours.foreach(_._2.close())
   }
+
+  def setupNamespace(): Unit =
+    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_query_exec")
+    catch {
+      case error: PulsarAdminException =>
+        logger.warn("Namespace already found")
+    }
+    finally pulsarController.setRetentionNamespace("public/raphtory_query_exec")
 
   override def handleMessage(msg: Message[Array[Byte]]): Unit = {
     deserialise[QueryManagement](msg.getValue) match {

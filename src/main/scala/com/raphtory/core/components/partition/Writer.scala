@@ -18,6 +18,7 @@ import com.raphtory.core.components.graphbuilder.VertexRemoveSyncAck
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph._
 import com.typesafe.config.Config
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
@@ -36,6 +37,16 @@ class Writer(
   private val neighbours                                    = writerSyncProducers()
   private var mgsCount                                      = 0
   var cancelableConsumer: Option[Consumer[GraphAlteration]] = None
+
+  def setupNamespace(): Unit =
+    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_writer")
+    catch {
+      case error: PulsarAdminException =>
+        logger.warn("Namespace already found")
+    }
+    finally pulsarController.setRetentionNamespace("public/raphtory_writer")
+
+  setupNamespace()
 
   override def run(): Unit =
     cancelableConsumer = Some(startPartitionConsumer(GraphAlteration.schema, partitionID))

@@ -11,6 +11,8 @@ import scala.collection.JavaConverters._
 class PulsarController(conf: Config) {
   private val pulsarAddress: String = conf.getString("raphtory.pulsar.broker.address")
   val pulsarAdminAddress: String    = conf.getString("raphtory.pulsar.admin.address")
+  val retentionTimeout: Int         = conf.getString("raphtory.pulsar.retention.time").toInt
+  val retentionSize: Int         = conf.getString("raphtory.pulsar.retention.size").toInt
 
   private val client: PulsarClient  =
     PulsarClient
@@ -30,14 +32,15 @@ class PulsarController(conf: Config) {
 
   def setRetentionNamespace(
       namespace: String,
-      retentionTime: Int = -1,
-      retentionSize: Int = -1
+      retentionTime: Int = retentionTimeout,
+      retentionSize: Int = retentionSize
   ): Unit = {
     val policies = new RetentionPolicies(retentionTime, retentionSize)
     pulsarAdmin.namespaces.setRetention(namespace, policies)
   }
 
-  def setRetentionTopic(topic: String, retentionTime: Int = -1, retentionSize: Int = -1): Unit = {
+  def setRetentionTopic(topic: String, retentionTime: Int = retentionTimeout, retentionSize: Int = retentionSize
+  ): Unit = {
     val policies = new RetentionPolicies(retentionTime, retentionSize)
     pulsarAdmin.topics.setRetention(topic, policies)
   }

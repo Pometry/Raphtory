@@ -12,6 +12,7 @@ import com.raphtory.core.graph.Perspective
 import com.raphtory.core.graph.PerspectiveController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Producer
@@ -53,6 +54,15 @@ abstract class QueryHandler(
 
   private var currentState: Stage = SpawnExecutors
 
+
+  def setupNamespace(): Unit =
+    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_query_handler")
+    catch {
+      case error: PulsarAdminException =>
+        logger.warn("Namespace already found")
+    }
+    finally pulsarController.setRetentionNamespace("public/raphtory_query_handler")
+
   class RecheckTimer extends Runnable {
 
     def run() {
@@ -61,6 +71,7 @@ abstract class QueryHandler(
   }
   private val recheckTimer                              = new RecheckTimer()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  setupNamespace()
 
   override def run(): Unit = {
     readers sendAsync serialise(EstablishExecutor(jobID))

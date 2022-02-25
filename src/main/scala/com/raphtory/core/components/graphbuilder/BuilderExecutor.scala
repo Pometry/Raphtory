@@ -4,6 +4,7 @@ import com.raphtory.core.components.Component
 import com.raphtory.core.config.PulsarController
 import com.rits.cloning.Cloner
 import com.typesafe.config.Config
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
@@ -21,6 +22,7 @@ class BuilderExecutor[T](
   private val producers        = toWriterProducers
 
   var cancelableConsumer: Option[Consumer[T]] = None
+  setupNamespace()
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")
@@ -39,6 +41,14 @@ class BuilderExecutor[T](
     }
     producers.foreach(_._2.close())
   }
+
+  def setupNamespace(): Unit =
+    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_builder_exec")
+    catch {
+      case error: PulsarAdminException =>
+        logger.warn("Namespace already found")
+    }
+    finally pulsarController.setRetentionNamespace("public/raphtory_builder_exec")
 
   override def handleMessage(msg: Message[T]): Unit = {
     val data = msg.getValue
