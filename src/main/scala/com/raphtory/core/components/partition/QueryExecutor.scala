@@ -1,6 +1,5 @@
 package com.raphtory.core.components.partition
 
-import com.raphtory.core.algorithm
 import com.raphtory.core.components.querymanager._
 import com.raphtory.core.algorithm._
 import com.raphtory.core.components.Component
