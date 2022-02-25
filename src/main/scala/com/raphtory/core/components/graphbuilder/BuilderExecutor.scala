@@ -21,9 +21,9 @@ class BuilderExecutor[T](
     pulsarController: PulsarController,
     scheduler: Scheduler
 ) extends Component[T](conf, pulsarController, scheduler) {
-  private val safegraphBuilder = new Cloner().deepClone(graphBuilder)
-  private val producers        = toWriterProducers
-
+  private val safegraphBuilder    = new Cloner().deepClone(graphBuilder)
+  private val producers           = toWriterProducers
+  private var totalMessagesSent   = 0
   override val cancelableConsumer = Some(startGraphBuilderConsumer(schema))
 
   override def run(): Unit = {
@@ -49,7 +49,9 @@ class BuilderExecutor[T](
 
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
     logger.trace(s"Sending graph update: $graphUpdate")
-
+    totalMessagesSent += 1
+    if (totalMessagesSent % 1000 == 0)
+      logger.debug(s"Graph Builder has sent $totalMessagesSent")
     // TODO Make into task
     producers(getWriter(graphUpdate.srcId)).sendAsync(serialise(graphUpdate))
 

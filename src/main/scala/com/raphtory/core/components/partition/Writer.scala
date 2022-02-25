@@ -275,7 +275,7 @@ class Writer(
 
     // TODO Should this be externalised?
     //  Do we need it now that we have progress tracker?
-    if (mgsCount % 10000 == 0)
+    if (mgsCount % 1000 == 0)
       logger.debug(
               s"Partition '$partitionID': Processed '$mgsCount' messages."
       )

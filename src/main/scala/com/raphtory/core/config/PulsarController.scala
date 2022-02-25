@@ -59,7 +59,11 @@ class PulsarController(conf: Config) {
       .subscriptionType(SubscriptionType.Shared)
       .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
       .batchReceivePolicy(
-              BatchReceivePolicy.DEFAULT_POLICY
+              BatchReceivePolicy
+                .builder()
+                .maxNumMessages(1000)
+                .timeout(100, TimeUnit.MICROSECONDS)
+                .build()
       )
       .poolMessages(true)
       .messageListener(messageListener)
@@ -80,8 +84,8 @@ class PulsarController(conf: Config) {
       .batchReceivePolicy(
               BatchReceivePolicy
                 .builder()
-                .maxNumMessages(consumerMaxMessages.toInt)
-                .timeout(consumerBatchTimeout.toInt, TimeUnit.NANOSECONDS)
+                .maxNumMessages(100000)
+                .timeout(1, TimeUnit.MILLISECONDS)
                 .build()
       )
       .poolMessages(consumerPooling)
