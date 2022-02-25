@@ -10,10 +10,11 @@ import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
 import shapeless.Coproduct
 
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-class BuilderExecutor[T: Manifest](
+class BuilderExecutor[T: ClassTag](
     schema: Schema[T],
     graphBuilder: GraphBuilder[T],
     conf: Config,
