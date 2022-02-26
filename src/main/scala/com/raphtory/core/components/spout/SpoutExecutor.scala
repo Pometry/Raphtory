@@ -6,11 +6,11 @@ import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Message
 
-abstract class SpoutExecutor[T](
+abstract class SpoutExecutor[S](
     conf: Config,
     private val pulsarController: PulsarController,
     scheduler: Scheduler
-) extends Component[T](conf: Config, pulsarController: PulsarController, scheduler) {
-  override def handleMessage(msg: Message[T]): Boolean = false
+) extends Component[S, Nothing](conf: Config, pulsarController: PulsarController, scheduler) {
+  override def handleMessage(msg: Nothing): Boolean = false
 
 }

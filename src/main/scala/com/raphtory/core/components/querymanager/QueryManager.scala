@@ -16,7 +16,7 @@ import org.apache.pulsar.client.api.Schema
 import scala.collection.mutable
 
 class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarController)
-        extends Component[Array[Byte]](
+        extends Component[Long, QueryManagement](
                 conf: Config,
                 pulsarController: PulsarController,
                 scheduler
@@ -24,7 +24,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   private val currentQueries      = mutable.Map[String, QueryHandler]()
   private val watermarkGlobal     = globalwatermarkPublisher()
   private val watermarks          = mutable.Map[Int, WatermarkTime]()
-  override val cancelableConsumer = Some(startQueryManagerConsumer(Schema.BYTES))
+  override val cancelableConsumer = Some(startQueryManagerConsumer)
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
@@ -40,9 +40,9 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
     watermarkGlobal.close()
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
+  override def handleMessage(msg: QueryManagement): Boolean = {
     var reschedule = true
-    deserialise[QueryManagement](msg.getValue) match {
+    msg match {
       case query: PointQuery        =>
         val jobID        = query.name
         logger.debug(
@@ -155,7 +155,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
       if (safe) maxTime else minTime
     }
     else 0 // not received a message from each partition yet
-    watermarkGlobal.sendAsync(serialise(watermark))
+    sendMessage(watermarkGlobal, watermark)
     watermark
   }
 }

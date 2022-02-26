@@ -39,7 +39,6 @@ object Raphtory {
     new RaphtoryGraph[T](
             spoutExecutor,
             graphBuilder,
-            schema,
             conf,
             componentFactory,
             scheduler,
@@ -76,7 +75,7 @@ object Raphtory {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    componentFactory.builder(builder, scheduler, schema)
+    componentFactory.builder(builder, scheduler)
   }
 
   def createPartitionManager(): Unit = {
@@ -111,7 +110,6 @@ object Raphtory {
       case spout: FileSpout[T]            =>
         new FileSpoutExecutor[T](
                 spout.source,
-                spout.schema,
                 spout.lineConverter,
                 conf,
                 pulsarController,

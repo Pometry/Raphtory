@@ -27,7 +27,6 @@ import scala.util.matching.Regex
 // schema: Schema[EthereumTransaction]
 class FileSpoutExecutor[T](
     var source: String = "",
-    schema: Schema[T],
     lineConverter: (String => T),
     conf: Config,
     pulsarController: PulsarController,
@@ -35,7 +34,7 @@ class FileSpoutExecutor[T](
 ) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler) {
 
   private val topic    = conf.getString("raphtory.spout.topic")
-  private val producer = pulsarController.createProducer(schema, topic)
+  private val producer = pulsarController.createProducer(Schema.BYTES, topic)
   // set persistency of completes files topic
   setupNamespace()
 
@@ -46,7 +45,7 @@ class FileSpoutExecutor[T](
     pulsarController.createProducer(Schema.BYTES, fileReadProducerTopic)
 
   private val fileTrackerConsumer = pulsarController.accessClient
-    .newConsumer(schema)
+    .newConsumer(Schema.BYTES)
     .topics(Array("fileReadProducerTopic" + deploymentID).toList.asJava)
     .subscriptionName("fileReaderTracker")
     .subscriptionType(SubscriptionType.Exclusive)
@@ -195,7 +194,7 @@ class FileSpoutExecutor[T](
         readLength += line.length
         progressPercent = Math.ceil(percentage * readLength).toInt
         val test = lineConverter(line)
-        producer.newMessage().value(test).sendAsync()
+        //producer.newMessage().value(test).sendAsync()
         //        if (progressPercent % divisByTens == 0) {
         //          divisByTens += 10
         //          logger.info(f"Read: $progressPercent%d%% of file.")

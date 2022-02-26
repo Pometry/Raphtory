@@ -22,7 +22,11 @@ class QueryProgressTracker(
     scheduler: Scheduler,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController, scheduler) {
+) extends Component[Nothing, QueryManagement](
+                conf: Config,
+                pulsarController: PulsarController,
+                scheduler
+        ) {
 
   private val kryo                                      = PulsarKryoSerialiser()
   implicit private val schema: Schema[Array[Byte]]      = Schema.BYTES
@@ -34,7 +38,7 @@ class QueryProgressTracker(
   private var latestPerspective: Perspective            = null
 
   override val cancelableConsumer = Some(
-          startQueryTrackerConsumer(schema, deploymentID + "_" + jobID)
+          startQueryTrackerConsumer(deploymentID + "_" + jobID)
   )
 
   logger.info("Starting query progress tracker.")
@@ -65,7 +69,7 @@ class QueryProgressTracker(
       Thread.sleep(1000)
 
   override def run(): Unit =
-    scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer[Nothing, QueryManagement](this))
 
   def stop(): Unit =
     cancelableConsumer match {
@@ -73,9 +77,9 @@ class QueryProgressTracker(
         value.close()
     }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
+  override def handleMessage(msg: QueryManagement): Boolean = {
     var repeatScheduler = true
-    deserialise[QueryManagement](msg.getValue) match {
+    msg match {
 
       case p: Perspective =>
         val perspectiveDuration = System.currentTimeMillis() - perspectiveTime

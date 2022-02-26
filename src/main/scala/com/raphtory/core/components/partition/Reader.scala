@@ -1,9 +1,10 @@
 package com.raphtory.core.components.partition
 
-import com.raphtory.core.components.querymanager.EstablishExecutor
 import com.raphtory.core.components.Component
 import com.raphtory.core.components.querymanager.EstablishExecutor
+import com.raphtory.core.components.querymanager.QueryManagement
 import com.raphtory.core.components.querymanager.WatermarkTime
+import com.raphtory.core.components.querymanager.EstablishExecutor
 import com.raphtory.core.config.AsyncConsumer
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.GraphPartition
@@ -23,11 +24,15 @@ class Reader(
     scheduler: Scheduler,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController, scheduler) {
+) extends Component[QueryManagement, EstablishExecutor](
+                conf: Config,
+                pulsarController: PulsarController,
+                scheduler
+        ) {
 
   private val executorMap         = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish    = watermarkPublisher()
-  override val cancelableConsumer = Some(startReaderConsumer(Schema.BYTES, partitionID))
+  override val cancelableConsumer = Some(startReaderConsumer(partitionID))
 
   class Watermarker extends Runnable {
 
@@ -53,8 +58,8 @@ class Reader(
     executorMap.foreach(_._2.stop())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
-    val jobID         = deserialise[EstablishExecutor](msg.getValue).jobID
+  override def handleMessage(msg: EstablishExecutor): Boolean = {
+    val jobID         = msg.jobID
     val queryExecutor =
       new QueryExecutor(partitionID, storage, jobID, conf, pulsarController, scheduler)
 
@@ -100,8 +105,8 @@ class Reader(
     logger.trace(s"Partition $partitionID: Creating watermark at '$finalTime'.")
 
     if (!blockingEdgeAdditions && !blockingEdgeDeletions && !blockingVertexDeletions)
-      watermarkPublish.sendAsync(serialise(WatermarkTime(partitionID, finalTime, true)))
+      sendMessage(watermarkPublish, WatermarkTime(partitionID, finalTime, true))
     else
-      watermarkPublish.sendAsync(serialise(WatermarkTime(partitionID, finalTime, false)))
+      sendMessage(watermarkPublish, WatermarkTime(partitionID, finalTime, false))
   }
 }

@@ -28,7 +28,11 @@ abstract class QueryHandler(
     outputFormat: OutputFormat,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController, scheduler) {
+) extends Component[QueryManagement, QueryManagement](
+                conf: Config,
+                pulsarController: PulsarController,
+                scheduler
+        ) {
 
   private val self: Producer[Array[Byte]]                 = toQueryHandlerProducer(jobID)
   private val readers: Producer[Array[Byte]]              = toReaderProducer
@@ -57,14 +61,14 @@ abstract class QueryHandler(
   class RecheckTimer extends Runnable {
 
     def run() {
-      self sendAsync serialise(RecheckTime)
+      sendMessage(self, RecheckTime)
     }
   }
   private val recheckTimer        = new RecheckTimer()
-  override val cancelableConsumer = Some(startQueryHandlerConsumer(Schema.BYTES, jobID))
+  override val cancelableConsumer = Some(startQueryHandlerConsumer(jobID))
 
   override def run(): Unit = {
-    readers sendAsync serialise(EstablishExecutor(jobID))
+    sendMessage(self, EstablishExecutor(jobID))
     scheduler.execute(AsyncConsumer(this))
 
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
@@ -81,7 +85,7 @@ abstract class QueryHandler(
     workerList.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
+  override def handleMessage(msg: QueryManagement): Boolean = {
     var scheduleAgain = true
     currentState match {
       case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
@@ -95,8 +99,8 @@ abstract class QueryHandler(
 
   ////OPERATION STATES
   //Communicate with all readers and get them to spawn a QueryExecutor for their partition
-  private def spawnExecutors(msg: Message[Array[Byte]]): Stage = {
-    val workerID = deserialise[ExecutorEstablished](msg.getValue).worker
+  private def spawnExecutors(msg: QueryManagement): Stage = {
+    val workerID = msg.asInstanceOf[ExecutorEstablished].worker
     logger.debug(s"Job '$jobID': Deserialized worker '$workerID'.")
 
     if (readyCount + 1 == totalPartitions) {
@@ -116,8 +120,8 @@ abstract class QueryHandler(
   }
 
   //build the perspective within the QueryExecutor for each partition -- the view to be analysed
-  private def establishPerspective(msg: Message[Array[Byte]]): Stage =
-    deserialise[QueryManagement](msg.getValue) match {
+  private def establishPerspective(msg: QueryManagement): Stage =
+    msg match {
       case RecheckTime               =>
         logger.debug(s"Job '$jobID': Rechecking time of $currentPerspective.")
         recheckTime(currentPerspective)
@@ -138,7 +142,7 @@ abstract class QueryHandler(
 
       case MetaDataSet               =>
         if (readyCount + 1 == totalPartitions) {
-          self sendAsync serialise(StartGraph)
+          sendMessage(self, StartGraph)
           readyCount = 0
           receivedMessageCount = 0
           sentMessageCount = 0
@@ -159,8 +163,8 @@ abstract class QueryHandler(
     }
 
   //execute the steps of the graph algorithm until a select is run
-  private def executeGraph(msg: Message[Array[Byte]]): Stage =
-    deserialise[QueryManagement](msg.getValue) match {
+  private def executeGraph(msg: QueryManagement): Stage =
+    msg match {
       case StartGraph                                                         =>
         graphPerspective = new GenericGraphPerspective(vertexCount)
 
@@ -240,8 +244,8 @@ abstract class QueryHandler(
     }
 
   //once the select has been run, execute all of the table functions until we hit a writeTo
-  private def executeTable(msg: Message[Array[Byte]]): Stage =
-    deserialise[QueryManagement](msg.getValue) match {
+  private def executeTable(msg: QueryManagement): Stage =
+    msg match {
       case TableBuilt            =>
         readyCount += 1
         if (readyCount == totalPartitions) {
@@ -275,7 +279,7 @@ abstract class QueryHandler(
   private def executeNextPerspective(): Stage = {
     val latestTime = whatsTheTime()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
-      tracker.sendAsync(serialise(currentPerspective))
+      sendMessage(tracker, currentPerspective)
     perspectiveController.nextPerspective() match {
       case Some(perspective) if perspective.timestamp <= latestTime =>
         logger.debug(s"Job '$jobID': Perspective '$perspective' is starting.")
@@ -386,7 +390,7 @@ abstract class QueryHandler(
     }
 
   private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
-    workerList.values.foreach(worker => worker sendAsync serialise(msg))
+    workerList.values.foreach(worker => sendMessage(worker, msg))
 
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
@@ -394,7 +398,8 @@ abstract class QueryHandler(
 
     tracker
       .flushAsync()
-      .thenApply(_ => tracker.sendAsync(serialise(JobDone)).thenApply(_ => tracker.closeAsync()))
+      .thenApply(_ => sendSyncMessage(tracker, JobDone))
+      .thenApply(_ => tracker.closeAsync())
 
     //log.info(s"Job '$jobID': Has no more perspectives. Ending Query Handler execution.")
     //if(monitor!=null)monitor ! TaskFinished(true)

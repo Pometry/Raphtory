@@ -31,13 +31,17 @@ class Writer(
     conf: Config,
     pulsarController: PulsarController,
     scheduler: Scheduler
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController, scheduler) {
+) extends Component[GraphAlteration, GraphAlteration](
+                conf: Config,
+                pulsarController: PulsarController,
+                scheduler
+        ) {
 
   private val neighbours = writerSyncProducers()
   private var mgsCount   = 0
 
   override val cancelableConsumer = Some(
-          startPartitionConsumer(Schema.BYTES, partitionID)
+          startPartitionConsumer(partitionID)
   )
 
   override def run(): Unit =
@@ -51,9 +55,9 @@ class Writer(
     neighbours.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Boolean = {
+  override def handleMessage(msg: GraphAlteration): Boolean = {
     var reschedule = true
-    deserialise[GraphAlteration](msg.getValue) match {
+    msg match {
       //Updates from the Graph Builder
       case update: VertexAdd                    => processVertexAdd(update)
       case update: EdgeAdd                      => processEdgeAdd(update)
@@ -131,8 +135,7 @@ class Writer(
             update.eType
     ) match {
       case Some(value) =>
-        neighbours(getWriter(value.updateId)).sendAsync(serialise(value))
-
+        sendMessage(neighbours(getWriter(value.updateId)), value)
         storage.trackEdgeAddition(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
@@ -144,7 +147,7 @@ class Writer(
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId) match {
       case Some(value) =>
-        neighbours(getWriter(value.updateId)).sendAsync(serialise(value))
+        sendMessage(neighbours(getWriter(value.updateId)), value)
         storage.trackEdgeDeletion(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
@@ -155,9 +158,7 @@ class Writer(
 
     val edgeRemovals = storage.removeVertex(update.updateTime, update.srcId)
     if (edgeRemovals.nonEmpty) {
-      edgeRemovals.foreach(effect =>
-        neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
-      )
+      edgeRemovals.foreach(effect => sendMessage(neighbours(getWriter(effect.updateId)), effect))
       storage.trackVertexDeletion(update.updateTime, update.srcId, edgeRemovals.size)
     }
   }
@@ -171,7 +172,7 @@ class Writer(
     storage.timings(req.msgTime)
     val effect = storage
       .syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    sendMessage(neighbours(getWriter(effect.updateId)), effect)
   }
 
   def processSyncExistingEdgeAdd(req: SyncExistingEdgeAdd): Unit = {
@@ -181,7 +182,7 @@ class Writer(
 
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    sendMessage(neighbours(getWriter(effect.updateId)), effect)
   }
 
   /**
@@ -194,7 +195,7 @@ class Writer(
 
     storage.timings(req.msgTime)
     val effect = storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    sendMessage(neighbours(getWriter(effect.updateId)), effect)
   }
 
   def processSyncExistingEdgeRemoval(req: SyncExistingEdgeRemoval): Unit = {
@@ -204,7 +205,7 @@ class Writer(
 
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeRemoval(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    sendMessage(neighbours(getWriter(effect.updateId)), effect)
   }
 
   /**
@@ -217,7 +218,7 @@ class Writer(
 
     storage.timings(req.msgTime)
     val effect = storage.outboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    sendMessage(neighbours(getWriter(effect.updateId)), effect)
   }
 
   def processInboundEdgeRemovalViaVertex(req: InboundEdgeRemovalViaVertex): Unit = { //remote worker same as above
@@ -226,7 +227,7 @@ class Writer(
     )
 
     val effect = storage.inboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    sendMessage(neighbours(getWriter(effect.updateId)), effect)
   }
 
   /**

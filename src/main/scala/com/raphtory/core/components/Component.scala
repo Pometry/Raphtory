@@ -6,6 +6,7 @@ import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.raphtory.serialisers.avro
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
+import monix.eval.Task
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
@@ -14,9 +15,10 @@ import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
 import org.slf4j.LoggerFactory
 
+import scala.collection.parallel.mutable.ParArray
 import scala.reflect.runtime.universe._
 
-abstract class Component[T](
+abstract class Component[SENDING, RECEIVING](
     conf: Config,
     private val pulsarController: PulsarController,
     scheduler: Scheduler
@@ -24,110 +26,120 @@ abstract class Component[T](
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  val pulsarAddress: String                   = conf.getString("raphtory.pulsar.broker.address")
-  val pulsarAdminAddress: String              = conf.getString("raphtory.pulsar.admin.address")
-  val spoutTopic: String                      = conf.getString("raphtory.spout.topic")
-  val deploymentID: String                    = conf.getString("raphtory.deploy.id")
-  val partitionServers: Int                   = conf.getInt("raphtory.partitions.serverCount")
-  val partitionsPerServer: Int                = conf.getInt("raphtory.partitions.countPerServer")
-  val hasDeletions: Boolean                   = conf.getBoolean("raphtory.data.containsDeletions")
-  val totalPartitions: Int                    = partitionServers * partitionsPerServer
-  private val kryo: PulsarKryoSerialiser      = PulsarKryoSerialiser()
-  val cancelableConsumer: Option[Consumer[T]] = None
+  val pulsarAddress: String                             = conf.getString("raphtory.pulsar.broker.address")
+  val pulsarAdminAddress: String                        = conf.getString("raphtory.pulsar.admin.address")
+  val spoutTopic: String                                = conf.getString("raphtory.spout.topic")
+  val deploymentID: String                              = conf.getString("raphtory.deploy.id")
+  val partitionServers: Int                             = conf.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int                          = conf.getInt("raphtory.partitions.countPerServer")
+  val hasDeletions: Boolean                             = conf.getBoolean("raphtory.data.containsDeletions")
+  val totalPartitions: Int                              = partitionServers * partitionsPerServer
+  private val kryo: PulsarKryoSerialiser                = PulsarKryoSerialiser()
+  val cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
-  def handleMessage(msg: Message[T]): Boolean
+  def handleMessage(msg: RECEIVING): Boolean
   def run()
   def stop()
 
   def getScheduler(): Scheduler = scheduler
 
-  private def messageListener(): MessageListener[T] =
-    (consumer, msg) => {
-      try {
-        handleMessage(msg)
-        consumer.acknowledge(msg)
-      }
-      catch {
-        case e: Exception =>
-          logger.error(s"Deployment $deploymentID: Failed to handle message.")
-          e.printStackTrace()
+//  def serialise(value: Any): Array[Byte] = kryo.serialise(value)
+//
+//  def deserialise[T: TypeTag](bytes: Array[Byte]): T = kryo.deserialise[T](bytes)
 
-          consumer.negativeAcknowledge(msg)
-      }
-    }
+  def sendSyncMessage(producer: Producer[Array[Byte]], msg: SENDING) =
+    producer.send(kryo.serialise(msg))
 
-  def serialise(value: Any): Array[Byte] = kryo.serialise(value)
+  def sendMessage(producer: Producer[Array[Byte]], msg: SENDING) =
+    Task(sendAsync(producer, msg)).runAsync {
+      case Right(value) =>
+      case Left(ex)     =>
+        println(s"ERROR: ${ex.getMessage}")
+    }(scheduler)
 
-  def deserialise[T: TypeTag](bytes: Array[Byte]): T = kryo.deserialise[T](bytes)
+  private def sendAsync(producer: Producer[Array[Byte]], msg: SENDING) =
+    producer.sendAsync(kryo.serialise(msg))
+
+  def sendBatch(producer: Producer[Array[Byte]], msgs: Array[SENDING]) =
+    Task(sendBatchAsync(producer, msgs)).runAsync {
+      case Right(value) =>
+      case Left(ex)     =>
+        println(s"ERROR: ${ex.getMessage}")
+    }(scheduler)
+
+  private def sendBatchAsync(producer: Producer[Array[Byte]], msgs: Array[SENDING]) = {
+    val innerSerialised = (ParArray[SENDING]() ++ msgs).map(msg => kryo.serialise(msg))
+    producer.sendAsync(kryo.serialise(innerSerialised))
+  }
 
   def getWriter(srcId: Long): Int = (srcId.abs % totalPartitions).toInt
 
   // CREATION OF CONSUMERS
-  def startGraphBuilderConsumer(schema: Schema[T]): Consumer[T] =
-    pulsarController.createListeningConsumer("GraphBuilder", schema, spoutTopic)
+  def startGraphBuilderConsumer(): Consumer[Array[Byte]] =
+    pulsarController.createListeningConsumer("GraphBuilder", Schema.BYTES, spoutTopic)
 
-  def startPartitionConsumer(schema: Schema[T], partitionID: Int): Consumer[T] =
+  def startPartitionConsumer(partitionID: Int): Consumer[Array[Byte]] =
     pulsarController.createListeningConsumer(
             s"Writer_$partitionID",
-            schema,
+            Schema.BYTES,
             s"${deploymentID}_$partitionID",
             s"${deploymentID}_sync_$partitionID"
     )
 
-  def startReaderConsumer(schema: Schema[T], partitionID: Int): Consumer[T] =
+  def startReaderConsumer(partitionID: Int): Consumer[Array[Byte]] =
     pulsarController.createListeningConsumer(
             s"Reader_$partitionID",
-            schema,
+            Schema.BYTES,
             s"${deploymentID}_jobs"
     )
 
-  def startQueryExecutorConsumer(schema: Schema[T], partitionID: Int, jobID: String): Consumer[T] =
+  def startQueryExecutorConsumer(partitionID: Int, jobID: String): Consumer[Array[Byte]] =
     pulsarController.createListeningConsumer(
             s"Executor_$partitionID",
-            schema,
+            Schema.BYTES,
             s"${deploymentID}_${jobID}_$partitionID"
     )
 
-  def startQueryManagerConsumer(schema: Schema[T]): Consumer[T] =
+  def startQueryManagerConsumer: Consumer[Array[Byte]] =
     pulsarController.createListeningConsumer(
             "QueryManager",
-            schema,
+            Schema.BYTES,
             s"${deploymentID}_watermark",
             s"${deploymentID}_submission"
     )
 
-  def startQueryHandlerConsumer(schema: Schema[T], jobID: String): Consumer[T] =
+  def startQueryHandlerConsumer(jobID: String): Consumer[Array[Byte]] =
     pulsarController.createListeningConsumer(
             s"QueryHandler_$jobID",
-            schema,
+            Schema.BYTES,
             s"${deploymentID}_${jobID}_queryHandler"
     )
 
-  def startQueryTrackerConsumer(schema: Schema[T], deployId_jobId: String): Consumer[T] =
+  def startQueryTrackerConsumer(deployId_jobId: String): Consumer[Array[Byte]] =
     pulsarController.createListeningConsumer(
             "queryProgressConsumer",
-            schema,
+            Schema.BYTES,
             s"${deployId_jobId}_querytracking"
     )
 
   // CREATION OF PRODUCERS
-  private def producerMapGenerator[T](topic: String, schema: Schema[T]): Map[Int, Producer[T]] = {
+  private def producerMapGenerator[T](topic: String): Map[Int, Producer[Array[Byte]]] = {
     //createTopic[T](s"${deploymentID}_$i", schema)
     val producers =
       for (i <- 0.until(totalPartitions))
-        yield (i, pulsarController.createProducer(schema, topic + s"_$i"))
+        yield (i, pulsarController.createProducer(Schema.BYTES, topic + s"_$i"))
 
     producers.toMap
   }
 
   def toWriterProducers: Map[Int, Producer[Array[Byte]]] =
     //println(schema.getSchemaInfo.getSchemaDefinition)
-    producerMapGenerator[Array[Byte]](deploymentID, Schema.BYTES)
+    producerMapGenerator[Array[Byte]](deploymentID)
 
   def writerSyncProducers(): Map[Int, Producer[Array[Byte]]] = {
     logger.debug(s"Deployment $deploymentID: Creating writer sync producer mapping.")
 
-    producerMapGenerator(s"${deploymentID}_sync", Schema.BYTES)
+    producerMapGenerator(s"${deploymentID}_sync")
   }
 
   def toReaderProducer: Producer[Array[Byte]] = {
@@ -139,7 +151,7 @@ abstract class Component[T](
   def toQueryExecutorProducers(jobID: String): Map[Int, Producer[Array[Byte]]] = {
     logger.debug(s"Deployment $deploymentID: Creating Query Executor producer mapping.")
 
-    producerMapGenerator(s"${deploymentID}_$jobID", Schema.BYTES)
+    producerMapGenerator(s"${deploymentID}_$jobID")
   }
 
   def toQueryManagerProducer: Producer[Array[Byte]] = {

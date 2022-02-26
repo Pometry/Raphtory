@@ -3,8 +3,10 @@ package com.raphtory.core.config
 import com.raphtory.core.components.Component
 import com.raphtory.core.components.graphbuilder.BuilderExecutor
 import com.raphtory.core.components.graphbuilder.GraphBuilder
+import com.raphtory.core.components.graphbuilder.GraphUpdate
 import com.raphtory.core.components.partition.Reader
 import com.raphtory.core.components.partition.Writer
+import com.raphtory.core.components.querymanager.QueryManagement
 import com.raphtory.core.components.querymanager.QueryManager
 import com.raphtory.core.components.querytracker.QueryProgressTracker
 import com.raphtory.core.components.spout.SpoutExecutor
@@ -18,17 +20,16 @@ import org.slf4j.LoggerFactory
 private[core] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def builder[T](
-      graphbuilder: GraphBuilder[T],
-      scheduler: Scheduler,
-      schema: Schema[T]
-  ): List[ThreadedWorker[T]] = {
+  def builder[R](
+      graphbuilder: GraphBuilder[R],
+      scheduler: Scheduler
+  ): List[ThreadedWorker[GraphUpdate, R]] = {
     val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
     logger.info(s"Creating '$totalBuilders' Graph Builders.")
 
     val builders = for (i <- (0 until totalBuilders)) yield {
       val builderExecutor =
-        new BuilderExecutor[T](schema, graphbuilder, conf, pulsarController, scheduler)
+        new BuilderExecutor[R](graphbuilder, conf, pulsarController, scheduler)
       scheduler.execute(builderExecutor)
       ThreadedWorker(builderExecutor)
     }
@@ -69,19 +70,19 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
     partitions.toList
   }
 
-  def spout[T](spout: SpoutExecutor[T], scheduler: Scheduler): ThreadedWorker[T] = {
+  def spout[S](spout: SpoutExecutor[S], scheduler: Scheduler): ThreadedWorker[S, Nothing] = {
     logger.info(s"Creating new Spout '${spout.spoutTopic}'.")
 
     scheduler.execute(spout)
-    ThreadedWorker(spout)
+    ThreadedWorker[S, Nothing](spout)
   }
 
-  def query(scheduler: Scheduler): ThreadedWorker[Array[Byte]] = {
+  def query(scheduler: Scheduler): ThreadedWorker[Long, QueryManagement] = {
     logger.info(s"Creating new Query Manager.")
     val queryManager = new QueryManager(scheduler, conf, pulsarController)
 
     scheduler.execute(queryManager)
-    ThreadedWorker(queryManager)
+    ThreadedWorker[Long, QueryManagement](queryManager)
   }
 
   def queryProgressTracker(
@@ -99,7 +100,7 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
       new QueryProgressTracker(topicId, deploymentID, jobID, scheduler, conf, pulsarController)
 
     scheduler.execute(queryTracker)
-    ThreadedWorker(queryTracker)
+    ThreadedWorker[Nothing, QueryManagement](queryTracker)
 
     queryTracker
   }
@@ -107,4 +108,4 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
 }
 
 case class Partition(writer: Writer, reader: Reader)
-case class ThreadedWorker[T](worker: Component[T])
+case class ThreadedWorker[S, R](worker: Component[S, R])

@@ -14,21 +14,20 @@ import org.apache.pulsar.client.api.Schema
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-class BuilderExecutor[T](
-    schema: Schema[T],
-    graphBuilder: GraphBuilder[T],
+class BuilderExecutor[R](
+    graphBuilder: GraphBuilder[R],
     conf: Config,
     pulsarController: PulsarController,
     scheduler: Scheduler
-) extends Component[T](conf, pulsarController, scheduler) {
+) extends Component[GraphUpdate, R](conf, pulsarController, scheduler) {
   private val safegraphBuilder    = new Cloner().deepClone(graphBuilder)
   private val producers           = toWriterProducers
   private var totalMessagesSent   = 0
-  override val cancelableConsumer = Some(startGraphBuilderConsumer(schema))
+  override val cancelableConsumer = Some(startGraphBuilderConsumer())
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")
-    scheduler.execute(AsyncConsumer(this))
+    scheduler.execute(AsyncConsumer[GraphUpdate, R](this))
   }
 
   override def stop(): Unit = {
@@ -41,8 +40,8 @@ class BuilderExecutor[T](
     producers.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[T]): Boolean = {
-    val data = msg.getValue
+  override def handleMessage(msg: R): Boolean = {
+    val data = msg
     safegraphBuilder.getUpdates(data).foreach(message => sendUpdate(message))
     true
   }
@@ -53,7 +52,6 @@ class BuilderExecutor[T](
     if (totalMessagesSent % 1000 == 0)
       logger.debug(s"Graph Builder has sent $totalMessagesSent")
     // TODO Make into task
-    producers(getWriter(graphUpdate.srcId)).sendAsync(serialise(graphUpdate))
-
+    sendMessage(producers(getWriter(graphUpdate.srcId)), graphUpdate)
   }
 }
