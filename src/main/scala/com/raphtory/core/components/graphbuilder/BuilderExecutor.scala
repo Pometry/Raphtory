@@ -14,16 +14,16 @@ import org.apache.pulsar.client.api.Schema
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-class BuilderExecutor[R](
+class BuilderExecutor[R: TypeTag](
     graphBuilder: GraphBuilder[R],
     conf: Config,
     pulsarController: PulsarController,
     scheduler: Scheduler
 ) extends Component[GraphUpdate, R](conf, pulsarController, scheduler) {
-  private val safegraphBuilder    = new Cloner().deepClone(graphBuilder)
-  private val producers           = toWriterProducers
-  private var totalMessagesSent   = 0
-  override val cancelableConsumer = Some(startGraphBuilderConsumer())
+  private val safegraphBuilder  = new Cloner().deepClone(graphBuilder)
+  private val producers         = toWriterProducers
+  private var totalMessagesSent = 0
+  override val consumer         = Some(startGraphBuilderConsumer())
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")
@@ -33,7 +33,7 @@ class BuilderExecutor[R](
   override def stop(): Unit = {
     logger.debug("Stopping Graph Builder executor.")
 
-    cancelableConsumer match {
+    consumer match {
       case Some(value) =>
         value.close()
     }
@@ -49,7 +49,7 @@ class BuilderExecutor[R](
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
     logger.trace(s"Sending graph update: $graphUpdate")
     totalMessagesSent += 1
-    if (totalMessagesSent % 1000 == 0)
+    if (totalMessagesSent % 10000 == 0)
       logger.debug(s"Graph Builder has sent $totalMessagesSent")
     // TODO Make into task
     sendMessage(producers(getWriter(graphUpdate.srcId)), graphUpdate)

@@ -26,16 +26,16 @@ abstract class Component[SENDING, RECEIVING](
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  val pulsarAddress: String                             = conf.getString("raphtory.pulsar.broker.address")
-  val pulsarAdminAddress: String                        = conf.getString("raphtory.pulsar.admin.address")
-  val spoutTopic: String                                = conf.getString("raphtory.spout.topic")
-  val deploymentID: String                              = conf.getString("raphtory.deploy.id")
-  val partitionServers: Int                             = conf.getInt("raphtory.partitions.serverCount")
-  val partitionsPerServer: Int                          = conf.getInt("raphtory.partitions.countPerServer")
-  val hasDeletions: Boolean                             = conf.getBoolean("raphtory.data.containsDeletions")
-  val totalPartitions: Int                              = partitionServers * partitionsPerServer
-  private val kryo: PulsarKryoSerialiser                = PulsarKryoSerialiser()
-  val cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  val pulsarAddress: String                   = conf.getString("raphtory.pulsar.broker.address")
+  val pulsarAdminAddress: String              = conf.getString("raphtory.pulsar.admin.address")
+  val spoutTopic: String                      = conf.getString("raphtory.spout.topic")
+  val deploymentID: String                    = conf.getString("raphtory.deploy.id")
+  val partitionServers: Int                   = conf.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int                = conf.getInt("raphtory.partitions.countPerServer")
+  val hasDeletions: Boolean                   = conf.getBoolean("raphtory.data.containsDeletions")
+  val totalPartitions: Int                    = partitionServers * partitionsPerServer
+  private val kryo: PulsarKryoSerialiser      = PulsarKryoSerialiser()
+  val consumer: Option[Consumer[Array[Byte]]] = None
 
   def handleMessage(msg: RECEIVING): Boolean
   def run()
@@ -60,17 +60,16 @@ abstract class Component[SENDING, RECEIVING](
   private def sendAsync(producer: Producer[Array[Byte]], msg: SENDING) =
     producer.sendAsync(kryo.serialise(msg))
 
-  def sendBatch(producer: Producer[Array[Byte]], msgs: Array[SENDING]) =
+  def sendBatch(producer: Producer[Array[Byte]], msgs: ParArray[SENDING]) =
     Task(sendBatchAsync(producer, msgs)).runAsync {
       case Right(value) =>
       case Left(ex)     =>
         println(s"ERROR: ${ex.getMessage}")
     }(scheduler)
 
-  private def sendBatchAsync(producer: Producer[Array[Byte]], msgs: Array[SENDING]) = {
-    val innerSerialised = (ParArray[SENDING]() ++ msgs).map(msg => kryo.serialise(msg))
-    producer.sendAsync(kryo.serialise(innerSerialised))
-  }
+  private def sendBatchAsync(producer: Producer[Array[Byte]], msgs: ParArray[SENDING]) =
+    // val innerSerialised = msgs.map(msg => kryo.serialise(msg)) //TODO work out if we can do this
+    producer.sendAsync(kryo.serialise(msgs))
 
   def getWriter(srcId: Long): Int = (srcId.abs % totalPartitions).toInt
 

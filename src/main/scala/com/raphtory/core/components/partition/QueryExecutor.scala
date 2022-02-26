@@ -45,7 +45,7 @@ class QueryExecutor(
   private val taskManager: Producer[Array[Byte]]          = toQueryHandlerProducer(jobID)
   private val neighbours: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
 
-  override val cancelableConsumer = Some(
+  override val consumer = Some(
           startQueryExecutorConsumer(partitionID, jobID)
   )
 
@@ -56,7 +56,7 @@ class QueryExecutor(
   }
 
   override def stop(): Unit = {
-    cancelableConsumer match {
+    consumer match {
       case Some(value) =>
         value.close()
     }

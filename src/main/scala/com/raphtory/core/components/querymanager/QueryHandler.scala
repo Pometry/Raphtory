@@ -64,8 +64,8 @@ abstract class QueryHandler(
       sendMessage(self, RecheckTime)
     }
   }
-  private val recheckTimer        = new RecheckTimer()
-  override val cancelableConsumer = Some(startQueryHandlerConsumer(jobID))
+  private val recheckTimer = new RecheckTimer()
+  override val consumer    = Some(startQueryHandlerConsumer(jobID))
 
   override def run(): Unit = {
     sendMessage(self, EstablishExecutor(jobID))
@@ -75,7 +75,7 @@ abstract class QueryHandler(
   }
 
   override def stop(): Unit = {
-    cancelableConsumer match {
+    consumer match {
       case Some(value) =>
         value.close()
     }

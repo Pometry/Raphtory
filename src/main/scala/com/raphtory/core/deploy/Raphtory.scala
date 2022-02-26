@@ -71,7 +71,7 @@ object Raphtory {
     componentFactory.spout(spoutExecutor, scheduler)
   }
 
-  def createGraphBuilder[T](builder: GraphBuilder[T], schema: Schema[T]): Unit = {
+  def createGraphBuilder[T: TypeTag](builder: GraphBuilder[T], schema: Schema[T]): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)

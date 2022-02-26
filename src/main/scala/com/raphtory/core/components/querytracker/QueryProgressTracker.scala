@@ -37,7 +37,7 @@ class QueryProgressTracker(
   private var perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
   private var latestPerspective: Perspective            = null
 
-  override val cancelableConsumer = Some(
+  override val consumer = Some(
           startQueryTrackerConsumer(deploymentID + "_" + jobID)
   )
 
@@ -72,7 +72,7 @@ class QueryProgressTracker(
     scheduler.execute(AsyncConsumer[Nothing, QueryManagement](this))
 
   def stop(): Unit =
-    cancelableConsumer match {
+    consumer match {
       case Some(value) =>
         value.close()
     }

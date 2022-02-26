@@ -21,10 +21,10 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
                 pulsarController: PulsarController,
                 scheduler
         ) {
-  private val currentQueries      = mutable.Map[String, QueryHandler]()
-  private val watermarkGlobal     = globalwatermarkPublisher()
-  private val watermarks          = mutable.Map[Int, WatermarkTime]()
-  override val cancelableConsumer = Some(startQueryManagerConsumer)
+  private val currentQueries  = mutable.Map[String, QueryHandler]()
+  private val watermarkGlobal = globalwatermarkPublisher()
+  private val watermarks      = mutable.Map[Int, WatermarkTime]()
+  override val consumer       = Some(startQueryManagerConsumer)
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
@@ -32,7 +32,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   }
 
   override def stop(): Unit = {
-    cancelableConsumer match {
+    consumer match {
       case Some(value) =>
         value.close()
     }

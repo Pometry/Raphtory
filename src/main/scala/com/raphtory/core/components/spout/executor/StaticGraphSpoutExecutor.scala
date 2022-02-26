@@ -7,6 +7,7 @@ import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.parallel.mutable.ParArray
 import scala.io.Source
 
 class StaticGraphSpoutExecutor(
@@ -38,12 +39,12 @@ class StaticGraphSpoutExecutor(
         array += s"$line $lineNo"
         lineNo += 1
         if (lineNo % 100000 == 0) {
-          sendBatch(producer, array.toArray)
+          sendBatch(producer, ParArray() ++ array)
           array = ArrayBuffer[String]()
           logger.info(s"Static Graph Spout sent $lineNo messages")
         }
       }
-      sendBatch(producer, array.toArray)
+      sendBatch(producer, ParArray() ++ array)
 
       logger.debug(s"Spout for '$fileDataPath' finished, edge count: ${lineNo - 1}")
 

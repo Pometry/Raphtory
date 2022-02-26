@@ -40,7 +40,7 @@ class Writer(
   private val neighbours = writerSyncProducers()
   private var mgsCount   = 0
 
-  override val cancelableConsumer = Some(
+  override val consumer = Some(
           startPartitionConsumer(partitionID)
   )
 
@@ -48,7 +48,7 @@ class Writer(
     scheduler.execute(AsyncConsumer(this))
 
   override def stop(): Unit = {
-    cancelableConsumer match {
+    consumer match {
       case Some(value) =>
         value.close()
     }

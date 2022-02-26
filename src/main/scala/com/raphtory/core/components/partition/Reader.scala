@@ -30,9 +30,9 @@ class Reader(
                 scheduler
         ) {
 
-  private val executorMap         = mutable.Map[String, QueryExecutor]()
-  private val watermarkPublish    = watermarkPublisher()
-  override val cancelableConsumer = Some(startReaderConsumer(partitionID))
+  private val executorMap      = mutable.Map[String, QueryExecutor]()
+  private val watermarkPublish = watermarkPublisher()
+  override val consumer        = Some(startReaderConsumer(partitionID))
 
   class Watermarker extends Runnable {
 
@@ -50,7 +50,7 @@ class Reader(
   }
 
   override def stop(): Unit = {
-    cancelableConsumer match {
+    consumer match {
       case Some(value) =>
         value.close()
     }
