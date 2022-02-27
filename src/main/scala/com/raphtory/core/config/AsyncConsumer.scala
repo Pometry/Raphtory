@@ -18,13 +18,19 @@ class AsyncConsumer[S, R: TypeTag](worker: Component[S, R]) extends Runnable {
         val message = consumer.receive()
 
         deserialise[Any](message.getValue) match {
-          case batch: ParArray[R] =>
+          case batch: ParArray[Array[Byte]] =>
+            batch
+              .map(msg => deserialise[R](msg))
+              .seq
+              .foreach(msg => worker.handleMessage(msg))
+          case batch: ParArray[R]           =>
             batch.seq
               .foreach(msg => worker.handleMessage(msg))
-          case message: R         => worker.handleMessage(message)
+          case message: R                   => worker.handleMessage(message)
         }
 
         worker.getScheduler().execute(this)
+        consumer.acknowledge(message)
 
       case None           => throw new Error("Message handling consumer not initialised")
     }

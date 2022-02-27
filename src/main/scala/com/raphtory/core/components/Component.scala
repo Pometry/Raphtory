@@ -54,7 +54,7 @@ abstract class Component[SENDING, RECEIVING](
     Task(sendAsync(producer, msg)).runAsync {
       case Right(value) =>
       case Left(ex)     =>
-        println(s"ERROR: ${ex.getMessage}")
+        logger.error(s"ERROR: ${ex.getMessage}")
     }(scheduler)
 
   private def sendAsync(producer: Producer[Array[Byte]], msg: SENDING) =
@@ -64,12 +64,12 @@ abstract class Component[SENDING, RECEIVING](
     Task(sendBatchAsync(producer, msgs)).runAsync {
       case Right(value) =>
       case Left(ex)     =>
-        println(s"ERROR: ${ex.getMessage}")
+        logger.error(s"ERROR: ${ex.getMessage}")
     }(scheduler)
 
   private def sendBatchAsync(producer: Producer[Array[Byte]], msgs: ParArray[SENDING]) =
     // val innerSerialised = msgs.map(msg => kryo.serialise(msg)) //TODO work out if we can do this
-    producer.sendAsync(kryo.serialise(msgs))
+    producer.send(kryo.serialise(msgs))
 
   def getWriter(srcId: Long): Int = (srcId.abs % totalPartitions).toInt
 

@@ -11,6 +11,9 @@ import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.parallel.mutable.ParArray
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
@@ -22,6 +25,7 @@ class BuilderExecutor[R: TypeTag](
 ) extends Component[GraphUpdate, R](conf, pulsarController, scheduler) {
   private val safegraphBuilder  = new Cloner().deepClone(graphBuilder)
   private val producers         = toWriterProducers
+  private val batches           = mutable.Map[Int, ArrayBuffer[GraphUpdate]]()
   private var totalMessagesSent = 0
   override val consumer         = Some(startGraphBuilderConsumer())
 
@@ -49,8 +53,21 @@ class BuilderExecutor[R: TypeTag](
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
     logger.trace(s"Sending graph update: $graphUpdate")
     totalMessagesSent += 1
-    if (totalMessagesSent % 10000 == 0)
+    if (totalMessagesSent % 100000 != 0)
+      batches.get(getWriter(graphUpdate.srcId)) match {
+        case Some(array) => array += graphUpdate
+        case None        =>
+          batches put (getWriter(graphUpdate.srcId), ArrayBuffer[GraphUpdate](graphUpdate))
+      }
+    else {
       logger.debug(s"Graph Builder has sent $totalMessagesSent")
+      batches.foreach {
+        case (partition, array) =>
+          sendBatch(producers(getWriter(partition)), ParArray() ++ array)
+          batches put (partition, ArrayBuffer[GraphUpdate]())
+      }
+    }
+
     // TODO Make into task
     sendMessage(producers(getWriter(graphUpdate.srcId)), graphUpdate)
   }

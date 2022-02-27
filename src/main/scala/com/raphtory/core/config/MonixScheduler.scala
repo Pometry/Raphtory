@@ -8,7 +8,7 @@ import java.util.concurrent.Executors
 
 private[core] class MonixScheduler {
 
-  val threads: Int = 12
+  val threads: Int = 8
 
   // Will schedule things with delays
   val scheduledExecutor = Executors.newSingleThreadScheduledExecutor()

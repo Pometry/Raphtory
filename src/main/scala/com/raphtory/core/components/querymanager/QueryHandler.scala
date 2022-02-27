@@ -68,7 +68,7 @@ abstract class QueryHandler(
   override val consumer    = Some(startQueryHandlerConsumer(jobID))
 
   override def run(): Unit = {
-    sendMessage(self, EstablishExecutor(jobID))
+    sendMessage(readers, EstablishExecutor(jobID))
     scheduler.execute(AsyncConsumer(this))
 
     logger.debug(s"Job '$jobID': Starting query handler consumer.")

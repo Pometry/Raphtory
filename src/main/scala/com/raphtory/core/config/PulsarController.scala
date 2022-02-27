@@ -104,5 +104,5 @@ class PulsarController(conf: Config) {
       .subscribe()
 
   def createProducer[T](schema: Schema[T], topic: String): Producer[T] =
-    client.newProducer(schema).topic(topic).blockIfQueueFull(true).create() //.enableBatching(true)
+    client.newProducer(schema).topic(topic).blockIfQueueFull(true).create()
 }

@@ -38,9 +38,11 @@ private[core] class RaphtoryGraph[T: TypeTag](
   private val idManager                = new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
   idManager.resetID()
 
-  private val partitions         = componentFactory.partition(scheduler)
-  private val queryManager       = componentFactory.query(scheduler)
-  private val spoutworker        = componentFactory.spout(spout, scheduler)
+  private val spoutworker = componentFactory.spout(spout, scheduler)
+  Thread.sleep(30000)
+
+  private val partitions   = componentFactory.partition(scheduler)
+  private val queryManager = componentFactory.query(scheduler)
 
   private val graphBuilderworker =
     componentFactory.builder[T](graphBuilder, scheduler)
