@@ -63,6 +63,7 @@ abstract class QueryHandler(
     }
     finally pulsarController.setRetentionNamespace("public/raphtory_query_handler")
 
+
   class RecheckTimer extends Runnable {
 
     def run() {
@@ -71,7 +72,7 @@ abstract class QueryHandler(
   }
   private val recheckTimer                              = new RecheckTimer()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
-  setupNamespace()
+  // setupNamespace()
 
   override def run(): Unit = {
     readers sendAsync serialise(EstablishExecutor(jobID))

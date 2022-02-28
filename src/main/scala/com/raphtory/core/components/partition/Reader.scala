@@ -44,7 +44,7 @@ class Reader(
     }
     finally pulsarController.setRetentionNamespace("public/raphtory_reader")
 
-  setupNamespace()
+  //setupNamespace()
 
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")

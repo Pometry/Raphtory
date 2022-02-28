@@ -38,7 +38,7 @@ class QueryProgressTracker(
 
   val startTime: Long       = System.currentTimeMillis //fetch starting time
   var perspectiveTime: Long = startTime
-  setupNamespace()
+  //setupNamespace()
 
   def setupNamespace(): Unit =
     try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_progress_tracker")

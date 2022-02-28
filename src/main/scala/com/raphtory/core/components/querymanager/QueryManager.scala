@@ -30,7 +30,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
     }
     finally pulsarController.setRetentionNamespace("public/raphtory_query_manager")
 
-  setupNamespace()
+  //setupNamespace()
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")

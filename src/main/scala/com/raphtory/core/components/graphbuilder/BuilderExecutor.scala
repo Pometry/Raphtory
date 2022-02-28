@@ -22,7 +22,8 @@ class BuilderExecutor[T](
   private val producers        = toWriterProducers
 
   var cancelableConsumer: Option[Consumer[T]] = None
-  setupNamespace()
+  //setupNamespace()
+  setRetention()
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")

@@ -6,6 +6,7 @@ import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.raphtory.serialisers.avro
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.MessageListener
@@ -34,6 +35,11 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def run()
   def stop()
 
+  def setRetention(): Unit = {
+    pulsarController.setRetentionNamespace("public/default")
+    println("SETTING RETENTION NAMESPACE FOR ONCE! ....")
+  }
+
   private def messageListener(): MessageListener[T] =
     (consumer, msg) => {
       try {
@@ -59,7 +65,9 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def startGraphBuilderConsumer(schema: Schema[T]): Consumer[T] =
     pulsarController.createListeningConsumer("GraphBuilder", messageListener, schema, spoutTopic)
 
-  def startPartitionConsumer(schema: Schema[T], partitionID: Int): Consumer[T] =
+  def startPartitionConsumer(schema: Schema[T], partitionID: Int): Consumer[T] = {
+    //pulsarController.setRetentionTopic(s"${deploymentID}_$partitionID")
+    //pulsarController.setRetentionTopic(s"${deploymentID}_sync_$partitionID")
     pulsarController.createListeningConsumer(
             s"Writer_$partitionID",
             messageListener,
@@ -67,24 +75,32 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
             s"${deploymentID}_$partitionID",
             s"${deploymentID}_sync_$partitionID"
     )
+  }
 
-  def startReaderConsumer(schema: Schema[T], partitionID: Int): Consumer[T] =
+  def startReaderConsumer(schema: Schema[T], partitionID: Int): Consumer[T] = {
+    //pulsarController.setRetentionTopic(s"${deploymentID}_jobs")
     pulsarController.createListeningConsumer(
-            s"Reader_$partitionID",
-            messageListener,
-            schema,
-            s"${deploymentID}_jobs"
+      s"Reader_$partitionID",
+      messageListener,
+      schema,
+      s"${deploymentID}_jobs"
     )
+  }
 
-  def startQueryExecutorConsumer(schema: Schema[T], partitionID: Int, jobID: String): Consumer[T] =
+
+  def startQueryExecutorConsumer(schema: Schema[T], partitionID: Int, jobID: String): Consumer[T] = {
+    //pulsarController.setRetentionTopic(s"${deploymentID}_${jobID}_$partitionID")
     pulsarController.createListeningConsumer(
             s"Executor_$partitionID",
             messageListener,
             schema,
             s"${deploymentID}_${jobID}_$partitionID"
     )
+  }
 
-  def startQueryManagerConsumer(schema: Schema[T]): Consumer[T] =
+  def startQueryManagerConsumer(schema: Schema[T]): Consumer[T] = {
+    //pulsarController.setRetentionTopic(s"${deploymentID}_watermark")
+    //pulsarController.setRetentionTopic(s"${deploymentID}_submission")
     pulsarController.createListeningConsumer(
             "QueryManager",
             messageListener,
@@ -92,22 +108,27 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
             s"${deploymentID}_watermark",
             s"${deploymentID}_submission"
     )
+  }
 
-  def startQueryHandlerConsumer(schema: Schema[T], jobID: String): Consumer[T] =
+  def startQueryHandlerConsumer(schema: Schema[T], jobID: String): Consumer[T] = {
+    //pulsarController.setRetentionTopic(s"${deploymentID}_${jobID}_queryHandler")
     pulsarController.createListeningConsumer(
             s"QueryHandler_$jobID",
             messageListener,
             schema,
             s"${deploymentID}_${jobID}_queryHandler"
     )
+  }
 
-  def startQueryTrackerConsumer(schema: Schema[T], deployId_jobId: String): Consumer[T] =
+  def startQueryTrackerConsumer(schema: Schema[T], deployId_jobId: String): Consumer[T] = {
+    //pulsarController.setRetentionTopic(s"${deployId_jobId}_querytracking")
     pulsarController.createListeningConsumer(
             "queryProgressConsumer",
             messageListener,
             schema,
             s"${deployId_jobId}_querytracking"
     )
+  }
 
   // CREATION OF PRODUCERS
   private def producerMapGenerator[T](topic: String, schema: Schema[T]): Map[Int, Producer[T]] = {

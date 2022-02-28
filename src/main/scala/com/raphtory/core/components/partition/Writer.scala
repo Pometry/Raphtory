@@ -46,7 +46,7 @@ class Writer(
     }
     finally pulsarController.setRetentionNamespace("public/raphtory_writer")
 
-  setupNamespace()
+  //setupNamespace()
 
   override def run(): Unit =
     cancelableConsumer = Some(startPartitionConsumer(GraphAlteration.schema, partitionID))

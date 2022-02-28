@@ -43,7 +43,7 @@ class QueryExecutor(
   private val taskManager: Producer[Array[Byte]]          = toQueryHandlerProducer(jobID)
   private val neighbours: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
   var cancelableConsumer: Option[Consumer[Array[Byte]]]   = None
-  setupNamespace()
+  //setupNamespace()
 
   override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
