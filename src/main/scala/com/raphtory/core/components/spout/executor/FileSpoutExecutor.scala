@@ -19,13 +19,15 @@ import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.Set
 import scala.io.Source
+import scala.reflect.ClassTag
 import scala.util.matching.Regex
 // import circe here from game of thrones
 
 // schema: Schema[EthereumTransaction]
-class FileSpoutExecutor[T](
+class FileSpoutExecutor[T: ClassTag](
     var source: String = "",
     lineConverter: (String => T),
     conf: Config,
@@ -183,32 +185,31 @@ class FileSpoutExecutor[T](
 
     tempOutputDirectory.listFiles.sorted.foreach { f =>
       logger.info(f"Reading $f%s")
-      var source             = Source.fromFile(f)
+      var source = Source.fromFile(f)
       if (f.getPath.toLowerCase.endsWith(".gz"))
         source = Source.fromInputStream(new GZIPInputStream(new FileInputStream(f.getPath)))
       else if (f.getPath.toLowerCase.endsWith(".zip"))
         source = Source.fromInputStream(new ZipInputStream(new FileInputStream(f.getPath)))
-      val fileSize: Long     = f.length
-      val percentage: Double = 100.0 / fileSize
-      var readLength         = 0
-      var progressPercent    = 1
-      var divisByTens        = 10
+
+      var lineNo = 1
+      var array  = ArrayBuffer[T]()
       for (line <- source.getLines()) {
-        readLength += line.length
-        progressPercent = Math.ceil(percentage * readLength).toInt
-        val test = lineConverter(line)
-        //producer.newMessage().value(test).sendAsync()
-        //        if (progressPercent % divisByTens == 0) {
-        //          divisByTens += 10
-        //          logger.info(f"Read: $progressPercent%d%% of file.")
-        //        }
+        array += lineConverter(line)
+        lineNo += 1
+        if (lineNo % 100000 == 0) {
+          sendBatch(producer, array.toArray)
+          array = ArrayBuffer[T]()
+          logger.info(s"File Spout sent $lineNo messages")
+        }
       }
+      sendBatch(producer, array.toArray)
+
       source.close()
       logger.debug("Finished reading file.")
       // then remove the hard link
       try Files.delete(f.toPath)
       catch {
-        case _: NoSuchFileException =>
+        case _: NoSuchFileException        =>
           logger.warn("ERROR(NoSuchFileException): File does not exist");
         case _: DirectoryNotEmptyException =>
           logger.warn("ERROR(DirectoryNotEmptyException) Cannot delete directory, not empty");

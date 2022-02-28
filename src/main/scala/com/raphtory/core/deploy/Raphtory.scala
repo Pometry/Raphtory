@@ -64,7 +64,7 @@ object Raphtory {
     new RaphtoryClient(deploymentID, conf, componentFactory, scheduler, pulsarController)
   }
 
-  def createSpout[T](spout: Spout[T]): Unit = {
+  def createSpout[T: ClassTag](spout: Spout[T]): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
@@ -105,7 +105,7 @@ object Raphtory {
     confHandler.get()
   }
 
-  private def createSpoutExecutor[T](
+  private def createSpoutExecutor[T: ClassTag](
       spout: Spout[T],
       conf: Config,
       pulsarController: PulsarController
