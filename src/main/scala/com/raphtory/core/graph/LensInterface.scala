@@ -11,6 +11,7 @@ trait LensInterface {
   def setFullGraphSize(size: Int): Unit
 
   def executeSelect(f: Vertex => Row): Unit
+  def explodeSelect(f: Vertex => List[Row]): Unit
   def filteredTable(f: Row => Boolean): Unit
   def explodeTable(f: Row => List[Row]): Unit
   def getDataTable(): List[Row]
