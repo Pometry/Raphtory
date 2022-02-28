@@ -115,7 +115,7 @@ abstract class GraphState {
       bounded: Bounded[T]
   ): Unit
 
-  def apply[T: TypeTag](name: String): Accumulator[T]
-  def get[T: TypeTag](name: String): Option[Accumulator[T]]
+  def apply[T](name: String): Accumulator[T]
+  def get[T](name: String): Option[Accumulator[T]]
   def contains(name: String): Boolean
 }

@@ -154,13 +154,13 @@ class GraphStateImplementation extends GraphState {
         state(name) += value.currentValue
     }
 
-  def rotate(): Unit                                  =
+  def rotate(): Unit                         =
     state.foreach { case (_, accumulator) => accumulator.reset() }
 
-  def apply[T: TypeTag](name: String): Accumulator[T] =
+  def apply[T](name: String): Accumulator[T] =
     state(name).asInstanceOf[Accumulator[T]]
 
-  override def get[T: universe.TypeTag](name: String): Option[Accumulator[T]] =
+  override def get[T](name: String): Option[Accumulator[T]] =
     state.get(name).asInstanceOf[Option[Accumulator[T]]]
 
   override def contains(name: String): Boolean =
