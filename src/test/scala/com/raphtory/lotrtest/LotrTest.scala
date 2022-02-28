@@ -6,7 +6,7 @@ import com.raphtory.{BaseRaphtoryAlgoTest, GraphState}
 import com.raphtory.algorithms.generic.{BinaryDiffusion, ConnectedComponents}
 import com.raphtory.algorithms.generic.centrality.{AverageNeighbourDegree, Degree, Distinctiveness, PageRank, WeightedDegree, WeightedPageRank}
 import com.raphtory.algorithms.generic.community.{LPA, SLPA}
-import com.raphtory.algorithms.generic.dynamic.{DiscreteSI, RandomWalk, WattsCascade}
+import com.raphtory.algorithms.generic.dynamic.{DiscreteSI, RandomWalk, WattsCascade, WeightedRandomWalk}
 import com.raphtory.algorithms.generic.motif.{SquareCount, TriangleCount}
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.core.components.spout.SpoutExecutor
@@ -134,6 +134,11 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
       algorithmTest(GenericTaint(1, infectedNodes = Set("Bilbo"), stopNodes = Set("Aragorn")),outputFormat,1, 32674, 10000, List(500, 1000, 10000))
         equals "85c24ece1ac693814abbac304d18858572a0d7644457f9272cf642caf8517660"
     )
+  }
+
+  test("Weighted Random Walk") {
+    algorithmPointTest(WeightedRandomWalk[Int](), outputFormat, 32674)
+    assert(true)
   }
 
   // TODO Re-enable with Seed to produce same result
