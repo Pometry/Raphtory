@@ -17,6 +17,7 @@ import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import scala.annotation.implicitNotFound
 
+/** @DoNotDocument */
 package object avro {
 
   class AvroPulsarSchema[T: Manifest: SchemaFor: Encoder: Decoder](

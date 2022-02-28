@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory
 
 import scala.reflect.runtime.universe._
 
+/** @DoNotDocument */
 abstract class Component[T](conf: Config, private val pulsarController: PulsarController)
         extends Runnable {
 
