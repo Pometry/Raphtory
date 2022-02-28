@@ -20,7 +20,7 @@ class PojoExVertex(
 ) extends PojoExEntity(v, lens)
         with Vertex {
 
-  override def ID() = v.vertexId
+  override def ID(): Long = v.vertexId
 
   private var multiQueue: VertexMultiQueue =
     new VertexMultiQueue() //Map of queues for all ongoing processing
@@ -37,7 +37,7 @@ class PojoExVertex(
     queue
   }
 
-  def clearMessageQueue() =
+  def clearMessageQueue(): Unit =
     multiQueue = new VertexMultiQueue()
 
   def voteToHalt(): Unit = lens.vertexVoted()
@@ -89,10 +89,10 @@ class PojoExVertex(
 
   private def allEdge(edges: mutable.Map[Long, Edge], after: Long, before: Long) =
     if (after == 0 && before == Long.MaxValue)
-      edges.map(x => x._2).toList
+      edges.values.toList
     else
       edges.collect {
-        case (id, edge) if edge.active(after, before) => edge
+        case (_, edge) if edge.active(after, before) => edge
       }.toList
 
   private def individualEdge(edges: mutable.Map[Long, Edge], after: Long, before: Long, id: Long) =
@@ -108,7 +108,7 @@ class PojoExVertex(
   def setState(key: String, value: Any): Unit =
     computationValues += ((key, value))
 
-  def getState[T: ClassTag](key: String, includeProperties: Boolean = false): T =
+  def getState[T](key: String, includeProperties: Boolean = false): T =
     if (computationValues.contains(key))
       computationValues(key).asInstanceOf[T]
     else if (includeProperties && v.properties.contains(key))
@@ -120,7 +120,7 @@ class PojoExVertex(
     else
       throw new Exception(s"$key not found within analytical state for vertex ${v.vertexId}")
 
-  def getStateOrElse[T: ClassTag](key: String, value: T, includeProperties: Boolean = false) =
+  def getStateOrElse[T](key: String, value: T, includeProperties: Boolean = false): T =
     if (computationValues contains key)
       computationValues(key).asInstanceOf[T]
     else if (includeProperties && v.properties.contains(key))
@@ -131,7 +131,7 @@ class PojoExVertex(
   def containsState(key: String, includeProperties: Boolean = false): Boolean =
     computationValues.contains(key) || (includeProperties && v.properties.contains(key))
 
-  def getOrSetState[T: ClassTag](key: String, value: T, includeProperties: Boolean = false): T = {
+  def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T = {
     var output_value = value
     if (containsState(key))
       output_value = getState[T](key)
@@ -143,13 +143,12 @@ class PojoExVertex(
     output_value
   }
 
-  def appendToState[T: ClassTag](key: String, value: Any) = //write function later
+  def appendToState[T](key: String, value: Any): Unit = //write function later
     computationValues.get(key) match {
       case Some(arr) =>
         setState(key, arr.asInstanceOf[Array[Any]] :+ value)
       case None      =>
         setState(key, Array(value))
-        value
     }
 
   //Send message
