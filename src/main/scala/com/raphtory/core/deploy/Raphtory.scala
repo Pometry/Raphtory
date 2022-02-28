@@ -20,13 +20,14 @@ import com.raphtory.core.client.RaphtoryGraph
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Schema
 
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
 object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
 
-  def createTypedGraph[T: TypeTag](
+  def createTypedGraph[T: TypeTag: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       schema: Schema[T],
@@ -72,7 +73,7 @@ object Raphtory {
     componentFactory.spout(spoutExecutor, scheduler)
   }
 
-  def createGraphBuilder[T](builder: GraphBuilder[T], schema: Schema[T]): Unit = {
+  def createGraphBuilder[T: ClassTag](builder: GraphBuilder[T], schema: Schema[T]): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
