@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
+/** @DoNotDocument */
 class VertexMessageHandler(config: Config, producers: Map[Int, Producer[Array[Byte]]]) {
   private val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
 

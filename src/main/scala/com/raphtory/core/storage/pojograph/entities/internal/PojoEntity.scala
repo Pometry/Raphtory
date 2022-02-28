@@ -2,7 +2,7 @@ package com.raphtory.core.storage.pojograph.entities.internal
 
 import scala.collection.mutable
 
-/** *
+/** @DoNotDocument
   * Represents Graph Entities (Edges and Vertices)
   * Contains a Map of properties (currently String to string)
   * longs representing unique vertex ID's stored in subclassses

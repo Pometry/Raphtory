@@ -19,6 +19,7 @@ import org.apache.pulsar.client.api.Schema
 
 import java.util.concurrent.TimeUnit
 
+/** @DoNotDocument */
 abstract class QueryHandler(
     queryManager: QueryManager,
     scheduler: Scheduler,

@@ -3,6 +3,7 @@ package com.raphtory.core.components.graphbuilder
 import com.raphtory.serialisers.avro
 import org.apache.pulsar.client.api.Schema
 
+/** @DoNotDocument */
 sealed trait Property {
   def key: String
   def value: Any

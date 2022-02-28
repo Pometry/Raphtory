@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory
 
 import scala.reflect.ClassTag
 
+/** @DoNotDocument */
 private[core] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
