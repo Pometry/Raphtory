@@ -39,12 +39,12 @@ class StaticGraphSpoutExecutor(
         array += s"$line $lineNo"
         lineNo += 1
         if (lineNo % 100000 == 0) {
-          sendBatch(producer, ParArray() ++ array)
+          sendBatch(producer, array.toArray)
           array = ArrayBuffer[String]()
           logger.info(s"Static Graph Spout sent $lineNo messages")
         }
       }
-      sendBatch(producer, ParArray() ++ array)
+      sendBatch(producer, array.toArray)
 
       logger.debug(s"Spout for '$fileDataPath' finished, edge count: ${lineNo - 1}")
 

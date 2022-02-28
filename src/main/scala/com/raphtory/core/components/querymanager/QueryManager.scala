@@ -158,4 +158,6 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
     sendMessage(watermarkGlobal, watermark)
     watermark
   }
+
+  override def name(): String = "Query Manager"
 }

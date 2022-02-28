@@ -16,12 +16,14 @@ import com.typesafe.scalalogging.Logger
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
 import org.slf4j.LoggerFactory
+
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
 private[core] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def builder[R: TypeTag](
+  def builder[R: TypeTag: ClassTag](
       graphbuilder: GraphBuilder[R],
       scheduler: Scheduler
   ): List[ThreadedWorker[GraphUpdate, R]] = {

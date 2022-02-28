@@ -116,4 +116,6 @@ class QueryProgressTracker(
     }
     repeatScheduler
   }
+
+  override def name(): String = s"Query Progress Tracker $jobID"
 }

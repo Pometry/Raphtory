@@ -14,10 +14,11 @@ import org.apache.pulsar.client.api.Schema
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.mutable.ParArray
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-class BuilderExecutor[R: TypeTag](
+class BuilderExecutor[R: TypeTag: ClassTag](
     graphBuilder: GraphBuilder[R],
     conf: Config,
     pulsarController: PulsarController,
@@ -63,7 +64,7 @@ class BuilderExecutor[R: TypeTag](
       logger.debug(s"Graph Builder has sent $totalMessagesSent")
       batches.foreach {
         case (partition, array) =>
-          sendBatch(producers(getWriter(partition)), ParArray() ++ array)
+          sendBatch(producers(getWriter(partition)), array.toArray)
           batches put (partition, ArrayBuffer[GraphUpdate]())
       }
     }
@@ -71,4 +72,6 @@ class BuilderExecutor[R: TypeTag](
     // TODO Make into task
     sendMessage(producers(getWriter(graphUpdate.srcId)), graphUpdate)
   }
+
+  override def name(): String = "Graph Builder"
 }

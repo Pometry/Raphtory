@@ -237,4 +237,5 @@ class QueryExecutor(
     scheduleAgain
   }
 
+  override def name(): String = s"Query Executor $partitionID $jobID"
 }

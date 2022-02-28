@@ -282,4 +282,5 @@ class Writer(
       )
   }
 
+  override def name(): String = s"Writer $partitionID"
 }

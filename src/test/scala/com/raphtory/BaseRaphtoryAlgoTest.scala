@@ -29,7 +29,7 @@ import scala.reflect.ClassTag
 import scala.util.Random
 import scala.reflect.runtime.universe._
 
-abstract class BaseRaphtoryAlgoTest[T: TypeTag] extends AnyFunSuite {
+abstract class BaseRaphtoryAlgoTest[T: TypeTag: ClassTag] extends AnyFunSuite {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   setup()
@@ -54,9 +54,8 @@ abstract class BaseRaphtoryAlgoTest[T: TypeTag] extends AnyFunSuite {
   def setSchema(): Schema[T]
   def setup(): Unit = {}
 
-  def receiveMessage(consumer: Consumer[Array[Byte]]): CompletableFuture[Message[Array[Byte]]] = {
+  def receiveMessage(consumer: Consumer[Array[Byte]]): CompletableFuture[Message[Array[Byte]]] =
     consumer.receiveAsync()
-  }
 
   def algorithmTest(
       algorithm: GraphAlgorithm,

@@ -406,7 +406,7 @@ abstract class QueryHandler(
   }
 
   def whatsTheTime(): Long = queryManager.whatsTheTime()
-
+  def name(): String       = s"Query Handler $jobID"
 }
 
 object Stages extends Enumeration {

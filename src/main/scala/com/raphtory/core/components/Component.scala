@@ -40,6 +40,7 @@ abstract class Component[SENDING, RECEIVING](
   def handleMessage(msg: RECEIVING): Boolean
   def run()
   def stop()
+  def name(): String
 
   def getScheduler(): Scheduler = scheduler
 
@@ -60,14 +61,14 @@ abstract class Component[SENDING, RECEIVING](
   private def sendAsync(producer: Producer[Array[Byte]], msg: SENDING) =
     producer.sendAsync(kryo.serialise(msg))
 
-  def sendBatch(producer: Producer[Array[Byte]], msgs: ParArray[SENDING]) =
+  def sendBatch(producer: Producer[Array[Byte]], msgs: Array[SENDING]) =
     Task(sendBatchAsync(producer, msgs)).runAsync {
       case Right(value) =>
       case Left(ex)     =>
         logger.error(s"ERROR: ${ex.getMessage}")
     }(scheduler)
 
-  private def sendBatchAsync(producer: Producer[Array[Byte]], msgs: ParArray[SENDING]) =
+  private def sendBatchAsync(producer: Producer[Array[Byte]], msgs: Array[SENDING]) =
     // val innerSerialised = msgs.map(msg => kryo.serialise(msg)) //TODO work out if we can do this
     producer.send(kryo.serialise(msgs))
 

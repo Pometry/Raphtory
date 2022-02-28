@@ -12,5 +12,6 @@ abstract class SpoutExecutor[S](
     scheduler: Scheduler
 ) extends Component[S, Nothing](conf: Config, pulsarController: PulsarController, scheduler) {
   override def handleMessage(msg: Nothing): Boolean = false
+  def name(): String                                = "Spout"
 
 }

@@ -12,9 +12,10 @@ import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
 
 import scala.language.postfixOps
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
-private[core] class RaphtoryGraph[T: TypeTag](
+private[core] class RaphtoryGraph[T: TypeTag: ClassTag](
     spout: SpoutExecutor[T],
     graphBuilder: GraphBuilder[T],
     private val conf: Config,
@@ -39,7 +40,6 @@ private[core] class RaphtoryGraph[T: TypeTag](
   idManager.resetID()
 
   private val spoutworker = componentFactory.spout(spout, scheduler)
-  Thread.sleep(30000)
 
   private val partitions   = componentFactory.partition(scheduler)
   private val queryManager = componentFactory.query(scheduler)

@@ -109,4 +109,6 @@ class Reader(
     else
       sendMessage(watermarkPublish, WatermarkTime(partitionID, finalTime, false))
   }
+
+  override def name(): String = s"Reader $partitionID"
 }
