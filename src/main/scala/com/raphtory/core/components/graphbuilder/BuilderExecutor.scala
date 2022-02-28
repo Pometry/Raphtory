@@ -69,7 +69,6 @@ class BuilderExecutor[R: TypeTag: ClassTag](
       }
     }
 
-    // TODO Make into task
   }
 
   override def name(): String = "Graph Builder"

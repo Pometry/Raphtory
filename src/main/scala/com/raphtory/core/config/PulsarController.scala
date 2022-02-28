@@ -107,7 +107,8 @@ class PulsarController(conf: Config) {
     client
       .newProducer(schema)
       .topic(topic)
-      .batchingMaxBytes(Int.MaxValue)
+      .enableBatching(false)
+      .enableChunking(true)
       .blockIfQueueFull(true)
       .create()
 }
