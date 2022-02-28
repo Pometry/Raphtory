@@ -8,6 +8,7 @@ import org.apache.pulsar.client.api.Schema
 
 import scala.io.Source
 
+/** @DoNotDocument */
 class ResourceSpoutExecutor(
     resource: String,
     conf: Config,

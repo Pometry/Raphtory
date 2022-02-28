@@ -7,6 +7,7 @@ import com.raphtory.core.storage.pojograph.entities.internal.PojoEntity
 
 import scala.reflect.ClassTag
 
+/** @DoNotDocument */
 abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends EntityVisitor {
   def Type() = entity.getType
 

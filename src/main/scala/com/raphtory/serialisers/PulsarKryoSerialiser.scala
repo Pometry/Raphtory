@@ -5,6 +5,7 @@ import com.twitter.chill.ScalaKryoInstantiator
 
 import scala.reflect.runtime.universe._
 
+/** @DoNotDocument */
 class PulsarKryoSerialiser {
   private val kryo: KryoPool = ScalaKryoInstantiator.defaultPool
 
