@@ -15,7 +15,7 @@ trait Vertex extends EntityVisitor {
   def messageSelf(data: Any): Unit
   def messageVertex(vertexId: Long, data: Any): Unit
   def messageOutNeighbours(message: Any): Unit
-  def messageAllNeighbours(message: Any)
+  def messageAllNeighbours(message: Any): Unit
   def messageInNeighbours(message: Any): Unit
 
   //Get Neighbours
@@ -73,12 +73,12 @@ trait Vertex extends EntityVisitor {
   // analytical state
   def setState(key: String, value: Any): Unit
   // if includeProperties = true, key is looked up first in analytical state with a fall-through to properties if not found
-  def getState[T: ClassTag](key: String, includeProperties: Boolean = false): T
-  def getStateOrElse[T: ClassTag](key: String, value: T, includeProperties: Boolean = false): T
+  def getState[T](key: String, includeProperties: Boolean = false): T
+  def getStateOrElse[T](key: String, value: T, includeProperties: Boolean = false): T
   def containsState(key: String, includeProperties: Boolean = false): Boolean
   // if includeProperties = true and value is pulled in from properties, the new value is set as state
-  def getOrSetState[T: ClassTag](key: String, value: T, includeProperties: Boolean = false): T
-  def appendToState[T: ClassTag](key: String, value: Any): Unit
+  def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T
+  def appendToState[T](key: String, value: Any): Unit
 
   // Also need a function for receiving messages, but the user should not have access to this
   //private def receiveMessage(msg: VertexMessage): Unit
