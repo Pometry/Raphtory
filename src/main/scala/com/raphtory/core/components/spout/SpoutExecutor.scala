@@ -6,6 +6,7 @@ import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Message
 
+/** @DoNotDocument */
 abstract class SpoutExecutor[T](
     conf: Config,
     private val pulsarController: PulsarController,

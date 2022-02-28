@@ -3,6 +3,7 @@ package com.raphtory.core.components.querymanager
 import com.raphtory.core.algorithm.GraphAlgorithm
 import com.raphtory.core.algorithm.OutputFormat
 
+/** @DoNotDocument */
 trait QueryManagement extends Serializable
 
 case class WatermarkTime(partitionID: Int, time: Long, safe: Boolean) extends QueryManagement

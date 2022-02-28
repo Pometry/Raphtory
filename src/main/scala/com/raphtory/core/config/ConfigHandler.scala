@@ -8,6 +8,7 @@ import com.typesafe.config.ConfigValueFactory
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
+/** @DoNotDocument */
 private[core] class ConfigHandler {
   private var salt                     = Random.nextInt().abs
   private lazy val defaults            = createConf()

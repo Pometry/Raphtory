@@ -26,6 +26,7 @@ import java.util.Calendar
 import scala.collection.mutable
 import scala.language.postfixOps
 
+/** @DoNotDocument */
 class Writer(
     partitionID: Int,
     storage: GraphPartition,

@@ -22,6 +22,8 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.Set
 import scala.io.Source
 import scala.util.matching.Regex
+
+/** @DoNotDocument */
 // import circe here from game of thrones
 
 // schema: Schema[EthereumTransaction]

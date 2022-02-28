@@ -11,6 +11,7 @@ import com.raphtory.core.storage.pojograph.messaging.VertexMultiQueue
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
+/** @DoNotDocument */
 class PojoExVertex(
     private val v: PojoVertex,
     private val internalIncomingEdges: mutable.Map[Long, Edge],
