@@ -28,7 +28,7 @@ import scala.reflect.ClassTag
 import scala.util.Random
 import scala.reflect.runtime.universe._
 
-abstract class BaseRaphtoryAlgoTest[T: TypeTag] extends AnyFunSuite {
+abstract class BaseRaphtoryAlgoTest[T: TypeTag: ClassTag] extends AnyFunSuite {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   setup()

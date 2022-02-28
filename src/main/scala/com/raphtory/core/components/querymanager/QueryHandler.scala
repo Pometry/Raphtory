@@ -368,6 +368,10 @@ abstract class QueryHandler(
         messagetoAllJobWorkers(GlobalSelect(f, Some(graphState)))
         Stages.ExecuteTable
 
+      case f: ExplodeSelect                                             =>
+        messagetoAllJobWorkers(f)
+        Stages.ExecuteTable
+
       case Setup(fun)                                                   =>
         fun(graphState)
         nextGraphOperation(vertexCount)

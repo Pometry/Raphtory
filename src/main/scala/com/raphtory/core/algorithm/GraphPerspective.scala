@@ -36,6 +36,7 @@ final case class SelectWithGraph(
 
 final case class GlobalSelect(f: GraphState => Row, graphState: Option[GraphStateImplementation])
         extends GraphFunction
+final case class ExplodeSelect(f: Vertex => List[Row]) extends GraphFunction
 final case class ClearChain()      extends GraphFunction
 final case class PerspectiveDone() extends GraphFunction
 
@@ -143,7 +144,7 @@ abstract class GraphPerspective {
   def select(f: Vertex => Row): Table
   def select(f: (Vertex, GraphState) => Row): Table
   def globalSelect(f: GraphState => Row): Table
-
+  def explodeSelect(f: Vertex => List[Row]): Table
   //MetaData
   def nodeCount(): Int
 }

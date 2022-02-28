@@ -19,6 +19,7 @@ trait LensInterface {
       graphState: GraphState
   ): Unit
   def executeSelect(f: GraphState => Row, graphState: GraphState): Unit
+  def explodeSelect(f: Vertex => List[Row]): Unit
   def filteredTable(f: Row => Boolean): Unit
   def explodeTable(f: Row => List[Row]): Unit
   def getDataTable(): List[Row]

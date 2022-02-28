@@ -243,6 +243,12 @@ class QueryExecutor(
           }
         taskManager sendAsync serialise(TableBuilt)
 
+      case ExplodeSelect(f)                            =>
+        logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'ExplodeSelect' query on graph")
+        graphLens.nextStep()
+        graphLens.explodeSelect(f)
+        taskManager sendAsync serialise(TableBuilt)
+
       case TableFilter(f)                                                   =>
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Executing 'TableFilter' query on graph."

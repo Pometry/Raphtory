@@ -68,6 +68,11 @@ class GenericGraphPerspective(vertices: Int) extends GraphPerspective {
     table
   }
 
+  override def explodeSelect(f: Vertex => List[Row]): Table = {
+    graphOpps.enqueue(ExplodeSelect(f))
+    table
+  }
+
   def clearMessages(): GraphPerspective = {
     graphOpps.enqueue(ClearChain())
     this
