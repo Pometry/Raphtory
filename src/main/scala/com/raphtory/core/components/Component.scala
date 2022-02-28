@@ -55,7 +55,7 @@ abstract class Component[SENDING, RECEIVING](
     Task(sendAsync(producer, msg)).runAsync {
       case Right(value) =>
       case Left(ex)     =>
-        logger.error(s"ERROR: ${ex.getMessage}")
+        ex.printStackTrace()
     }(scheduler)
 
   private def sendAsync(producer: Producer[Array[Byte]], msg: SENDING) =
