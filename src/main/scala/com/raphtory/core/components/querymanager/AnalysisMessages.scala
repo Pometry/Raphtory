@@ -23,8 +23,14 @@ case object StartGraph extends QueryManagement
 case class GraphFunctionComplete(
     receivedMessages: Int,
     sentMessages: Int,
+    votedToHalt: Boolean = false
+) extends QueryManagement
+
+case class GraphFunctionCompleteWithState(
+    receivedMessages: Int,
+    sentMessages: Int,
     votedToHalt: Boolean = false,
-    graphState: Option[GraphStateImplementation] = None
+    graphState: GraphStateImplementation
 ) extends QueryManagement
 
 case object TableBuilt            extends QueryManagement

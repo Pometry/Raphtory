@@ -123,14 +123,16 @@ class QueryExecutor(
                 s"Job $jobID at Partition '$partitionID': Executing 'Step' function on graph with accumulators."
         )
         graphLens.nextStep()
-        graphState match {
-          case Some(graphState) => graphLens.runGraphFunction(f, graphState)
-          case None             => throw new Error("Graph state missing")
-        }
+        graphLens.runGraphFunction(f, graphState)
+
         val sentMessages = graphLens.getMessageHandler().getCount()
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(
-                GraphFunctionComplete(sentMessages, receivedMessageCount, graphState = graphState)
+                GraphFunctionCompleteWithState(
+                        sentMessages,
+                        receivedMessageCount,
+                        graphState = graphState
+                )
         )
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Step function produced and sent '$sentMessages' messages."
@@ -169,27 +171,23 @@ class QueryExecutor(
 
       case IterateWithGraph(f, iterations, executeMessagedOnly, graphState) =>
         graphLens.nextStep()
-        graphState match {
-          case Some(graphState) =>
-            if (executeMessagedOnly) {
-              logger.debug(
-                      s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on messaged vertices only."
-              )
-              graphLens.runMessagedGraphFunction(f, graphState)
-            }
-            else {
-              logger.debug(
-                      s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on all vertices."
-              )
+        if (executeMessagedOnly) {
+          logger.debug(
+                  s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on messaged vertices only."
+          )
+          graphLens.runMessagedGraphFunction(f, graphState)
+        }
+        else {
+          logger.debug(
+                  s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on all vertices."
+          )
 
-              graphLens.runGraphFunction(f, graphState)
-            }
-          case None             => throw new Error("Graph state missing")
+          graphLens.runGraphFunction(f, graphState)
         }
         val sentMessages = graphLens.getMessageHandler().getCount()
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(
-                GraphFunctionComplete(
+                GraphFunctionCompleteWithState(
                         receivedMessageCount,
                         sentMessages,
                         graphLens.checkVotes(),
@@ -223,28 +221,23 @@ class QueryExecutor(
       case SelectWithGraph(f, graphState)                                   =>
         logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'Select' query on graph")
         graphLens.nextStep()
-        graphState match {
-          case Some(graphState) =>
-            graphLens.executeSelect(f, graphState)
-          case None             =>
-            throw new Error("Graph state missing")
-        }
+
+        graphLens.executeSelect(f, graphState)
+
         taskManager sendAsync serialise(TableBuilt)
 
       case GlobalSelect(f, graphState)                                      =>
         logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'Select' query on graph")
         graphLens.nextStep()
         if (partitionID == 0)
-          graphState match {
-            case Some(graphState) =>
-              graphLens.executeSelect(f, graphState)
-            case None             =>
-              throw new Error("Graph state missing")
-          }
+          graphLens.executeSelect(f, graphState)
+
         taskManager sendAsync serialise(TableBuilt)
 
-      case ExplodeSelect(f)                            =>
-        logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'ExplodeSelect' query on graph")
+      case ExplodeSelect(f)                                                 =>
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Executing 'ExplodeSelect' query on graph"
+        )
         graphLens.nextStep()
         graphLens.explodeSelect(f)
         taskManager sendAsync serialise(TableBuilt)

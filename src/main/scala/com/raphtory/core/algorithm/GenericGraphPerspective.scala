@@ -19,7 +19,7 @@ class GenericGraphPerspective(vertices: Int) extends GraphPerspective {
   }
 
   override def filter(f: (Vertex, GraphState) => Boolean): GraphPerspective = {
-    graphOpps.enqueue(VertexFilterWithGraph(f, None))
+    graphOpps.enqueue(VertexFilterWithGraph(f))
     this
   }
 
@@ -29,7 +29,7 @@ class GenericGraphPerspective(vertices: Int) extends GraphPerspective {
   }
 
   override def step(f: (Vertex, GraphState) => Unit): GraphPerspective = {
-    graphOpps.enqueue(StepWithGraph(f, None))
+    graphOpps.enqueue(StepWithGraph(f))
     this
   }
 
@@ -48,7 +48,7 @@ class GenericGraphPerspective(vertices: Int) extends GraphPerspective {
       executeMessagedOnly: Boolean
   ): GraphPerspective = {
     graphOpps.enqueue(
-            IterateWithGraph(f, iterations, executeMessagedOnly, None)
+            IterateWithGraph(f, iterations, executeMessagedOnly)
     )
     this
   }
@@ -59,12 +59,12 @@ class GenericGraphPerspective(vertices: Int) extends GraphPerspective {
   }
 
   override def select(f: (Vertex, GraphState) => Row): Table = {
-    graphOpps.enqueue(SelectWithGraph(f, None))
+    graphOpps.enqueue(SelectWithGraph(f))
     table
   }
 
   override def globalSelect(f: GraphState => Row): Table = {
-    graphOpps.enqueue(GlobalSelect(f, None))
+    graphOpps.enqueue(GlobalSelect(f))
     table
   }
 

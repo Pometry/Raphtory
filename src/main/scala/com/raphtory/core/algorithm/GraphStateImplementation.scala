@@ -169,4 +169,5 @@ class GraphStateImplementation extends GraphState {
 
 object GraphStateImplementation {
   def apply() = new GraphStateImplementation
+  val empty   = new GraphStateImplementation
 }

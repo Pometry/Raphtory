@@ -155,7 +155,7 @@ abstract class QueryHandler(
   //execute the steps of the graph algorithm until a select is run
   private def executeGraph(msg: Message[Array[Byte]]): Stage =
     deserialise[QueryManagement](msg.getValue) match {
-      case StartGraph                                                                =>
+      case StartGraph                                                                         =>
         graphPerspective = new GenericGraphPerspective(vertexCount)
         graphState = GraphStateImplementation()
 
@@ -168,18 +168,13 @@ abstract class QueryHandler(
 
         nextGraphOperation(vertexCount)
 
-      case GraphFunctionComplete(receivedMessages, sentMessages, votedToHalt, state) =>
+      case GraphFunctionCompleteWithState(receivedMessages, sentMessages, votedToHalt, state) =>
         val totalSentMessages     = sentMessageCount + sentMessages
         val totalReceivedMessages = receivedMessageCount + receivedMessages
-        state match {
-          case Some(state) => graphState.update(state)
-          case None        =>
-        }
+        graphState.update(state)
+
         if ((readyCount + 1) == totalPartitions) {
-          state match {
-            case Some(_) => graphState.rotate()
-            case None    =>
-          }
+          graphState.rotate()
 
           if (totalReceivedMessages == totalSentMessages)
             nextGraphOperation(vertexCount)
@@ -194,6 +189,31 @@ abstract class QueryHandler(
             Stages.ExecuteGraph
           }
         }
+        else {
+          sentMessageCount += totalSentMessages
+          receivedMessageCount += totalReceivedMessages
+          readyCount += 1
+          allVoteToHalt = votedToHalt & allVoteToHalt
+          Stages.ExecuteGraph
+        }
+
+      case GraphFunctionComplete(receivedMessages, sentMessages, votedToHalt)                 =>
+        val totalSentMessages     = sentMessageCount + sentMessages
+        val totalReceivedMessages = receivedMessageCount + receivedMessages
+
+        if ((readyCount + 1) == totalPartitions)
+          if (totalReceivedMessages == totalSentMessages)
+            nextGraphOperation(vertexCount)
+          else {
+            messagetoAllJobWorkers(CheckMessages(jobID))
+            logger.debug(
+                    s"Job '$jobID': Received messages:$receivedMessages , Sent messages: $sentMessages."
+            )
+            readyCount = 0
+            receivedMessageCount = 0
+            sentMessageCount = 0
+            Stages.ExecuteGraph
+          }
         else {
           sentMessageCount += totalSentMessages
           receivedMessageCount += totalReceivedMessages
@@ -310,11 +330,11 @@ abstract class QueryHandler(
     allVoteToHalt = true
 
     currentOperation match {
-      case Iterate(f, iterations, executeMessagedOnly) if iterations > 1                 =>
+      case Iterate(f, iterations, executeMessagedOnly) if iterations > 1             =>
         currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
-      case IterateWithGraph(f, iterations, executeMessagedOnly, state) if iterations > 1 =>
-        currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly, None)
-      case _                                                                             =>
+      case IterateWithGraph(f, iterations, executeMessagedOnly, _) if iterations > 1 =>
+        currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly)
+      case _                                                                         =>
         currentOperation = graphPerspective.getNextOperation()
     }
 
@@ -322,62 +342,62 @@ abstract class QueryHandler(
             s"Job '$jobID': Executing graph function '${currentOperation.getClass.getSimpleName}'."
     )
     currentOperation match {
-      case f: Iterate                                                   =>
+      case f: Iterate                                                =>
         messagetoAllJobWorkers(f)
         Stages.ExecuteGraph
 
-      case IterateWithGraph(fun, iterations, executeMessagedOnly, None) =>
+      case IterateWithGraph(fun, iterations, executeMessagedOnly, _) =>
         messagetoAllJobWorkers(
                 IterateWithGraph(
                         fun,
                         iterations,
                         executeMessagedOnly,
-                        Some(graphState)
+                        graphState
                 )
         )
         Stages.ExecuteGraph
 
-      case f: Step                                                      =>
+      case f: Step                                                   =>
         messagetoAllJobWorkers(f)
         Stages.ExecuteGraph
 
-      case StepWithGraph(fun, None)                                     =>
-        messagetoAllJobWorkers(StepWithGraph(fun, Some(graphState)))
+      case StepWithGraph(fun, _)                                     =>
+        messagetoAllJobWorkers(StepWithGraph(fun, graphState))
         Stages.ExecuteGraph
 
-      case f: ClearChain                                                =>
+      case f: ClearChain                                             =>
         messagetoAllJobWorkers(f)
         Stages.ExecuteGraph
 
-      case PerspectiveDone()                                            =>
+      case PerspectiveDone()                                         =>
         logger.debug(
                 s"Job '$jobID': Executing next perspective with windows '${currentPerspective.window}'" +
                   s" and timestamp '${currentPerspective.timestamp}'."
         )
         executeNextPerspective()
 
-      case f: Select                                                    =>
+      case f: Select                                                 =>
         messagetoAllJobWorkers(f)
         Stages.ExecuteTable
 
-      case SelectWithGraph(fun, None)                                   =>
-        messagetoAllJobWorkers(SelectWithGraph(fun, Some(graphState)))
+      case SelectWithGraph(fun, _)                                   =>
+        messagetoAllJobWorkers(SelectWithGraph(fun, graphState))
         Stages.ExecuteTable
 
-      case GlobalSelect(f, None)                                        =>
-        messagetoAllJobWorkers(GlobalSelect(f, Some(graphState)))
+      case GlobalSelect(f, _)                                        =>
+        messagetoAllJobWorkers(GlobalSelect(f, graphState))
         Stages.ExecuteTable
 
-      case f: ExplodeSelect                                             =>
+      case f: ExplodeSelect                                          =>
         messagetoAllJobWorkers(f)
         Stages.ExecuteTable
 
-      case Setup(fun)                                                   =>
+      case Setup(fun)                                                =>
         fun(graphState)
         nextGraphOperation(vertexCount)
 
-      case VertexFilterWithGraph(fun, None)                             =>
-        messagetoAllJobWorkers(VertexFilterWithGraph(fun, Some(graphState)))
+      case VertexFilterWithGraph(fun, _)                             =>
+        messagetoAllJobWorkers(VertexFilterWithGraph(fun, graphState))
         Stages.ExecuteGraph
     }
   }
