@@ -1,13 +1,5 @@
 package com.raphtory.core.algorithm
 
-import scala.reflect.runtime.universe._
-
-abstract class Accumulator[T] {
-  def value: T
-
-  def +=(newValue: T): Unit
-}
-
 /**
   *  {s}`GraphState`
   *    : Public {s}`GraphState` interface for global accumulators
@@ -55,18 +47,9 @@ abstract class Accumulator[T] {
   *    {s}`contains(name: String): Boolean`
   *      : Check if graph state with `name` exists
   *
-  *  # Accumulator
-  *
-  *  {s}`Accumulator[T]`
-  *    : Public accumulator interface
-  *
-  *  ## Methods
-  *
-  *    {s}`+= (newValue: T): Unit`
-  *      : add new value to accumulator
-  *
-  *    {s}`value: T`
-  *      : get last accumulated value
+  * ```{seealso}
+  * [](com.raphtory.core.algorithm.GraphPerspective), [](com.raphtory.core.algorithm.Accumulator)
+  * ```
   */
 abstract class GraphState {
 
