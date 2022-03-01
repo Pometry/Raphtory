@@ -10,6 +10,7 @@ import com.raphtory.core.graph.PerspectiveController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
 
+/** @DoNotDocument */
 case class PointQueryHandler(
     queryManager: QueryManager,
     scheduler: Scheduler,

@@ -11,6 +11,7 @@ import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
 
+/** @DoNotDocument */
 case class LiveQueryHandler(
     queryManager: QueryManager,
     scheduler: Scheduler,

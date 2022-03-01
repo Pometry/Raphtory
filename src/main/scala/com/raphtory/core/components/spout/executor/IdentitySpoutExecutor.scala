@@ -5,6 +5,7 @@ import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
 
+/** @DoNotDocument */
 class IdentitySpoutExecutor[T](
     conf: Config,
     pulsarController: PulsarController,

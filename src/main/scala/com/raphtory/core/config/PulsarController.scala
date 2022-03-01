@@ -8,11 +8,12 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 
+/** @DoNotDocument */
 class PulsarController(conf: Config) {
   private val pulsarAddress: String = conf.getString("raphtory.pulsar.broker.address")
   val pulsarAdminAddress: String    = conf.getString("raphtory.pulsar.admin.address")
 
-  private val client: PulsarClient  =
+  private val client: PulsarClient =
     PulsarClient
       .builder()
       .ioThreads(10)
