@@ -37,8 +37,8 @@ final case class SelectWithGraph(
 final case class GlobalSelect(f: GraphState => Row, graphState: Option[GraphStateImplementation])
         extends GraphFunction
 final case class ExplodeSelect(f: Vertex => List[Row]) extends GraphFunction
-final case class ClearChain()      extends GraphFunction
-final case class PerspectiveDone() extends GraphFunction
+final case class ClearChain()                          extends GraphFunction
+final case class PerspectiveDone()                     extends GraphFunction
 
 /**
   * {s}`GraphPerspective`
@@ -72,58 +72,58 @@ final case class PerspectiveDone() extends GraphFunction
   *    : Execute algorithm step
   *
   *      {s}`f: (Vertex) => Unit`
-  *      : algorithm step (run once for each vertex)
+  *        : algorithm step (run once for each vertex)
   *
   *  {s}`step(f: (Vertex, GraphState) => Unit): GraphPerspective`
   *    : Execute algorithm step with global graph state (has access to accumulated state from
   *      previous steps and allows for accumulation of new values)
   *
   *      {s}`f: (Vertex, GraphState) => Unit`
-  *       : algorithm step (run once for each vertex)
+  *        : algorithm step (run once for each vertex)
   *
   *  {s}`iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): GraphPerspective`
   *     : Execute algorithm step repeatedly for given number of iterations or until all vertices have
   *       voted to halt.
   *
   *       {s}`f: (Vertex) => Unit`
-  *        : algorithm step (run once for each vertex per iteration)
+  *         : algorithm step (run once for each vertex per iteration)
   *
   *       {s}`iterations: Int`
-  *        : maximum number of iterations
+  *         : maximum number of iterations
   *
   *       {s}`executeMessagedOnly: Boolean`
-  *        : If {s}`true`, only run step for vertices which received new messages
+  *         : If {s}`true`, only run step for vertices which received new messages
   *
   *   {s}`iterate(f: (Vertex, GraphState) => Unit, iterations: Int, executeMessagedOnly: Boolean): GraphPerspective`
   *     : Execute algorithm step with global graph state repeatedly for given number of iterations or
   *       until all vertices have voted to halt.
   *
   *       {s}`f: (Vertex, GraphState) => Unit`
-  *        : algorithm step (run once for each vertex per iteration)
+  *         : algorithm step (run once for each vertex per iteration)
   *
   *       {s}`iterations: Int`
-  *        : maximum number of iterations
+  *         : maximum number of iterations
   *
   *       {s}`executeMessagedOnly: Boolean`
-  *        : If {s}`true`, only run step for vertices which received new messages
+  *         : If {s}`true`, only run step for vertices which received new messages
   *
   *  {s}`select(f: Vertex => Row): Table`
   *     : Write output to table
   *
-  *      {s}`f: Vertex => Row`
-  *        : function to extract data from vertex (run once for each vertex)
+  *       {s}`f: Vertex => Row`
+  *         : function to extract data from vertex (run once for each vertex)
   *
   *  {s}`select(f: (Vertex, GraphState) => Row): Table`
-  *    : Write output to table with access to global graph state
+  *     : Write output to table with access to global graph state
   *
-  *      {s}`f: (Vertex, GraphState) => Row`
-  *        : function to extract data from vertex and graph state (run once for each vertex)
+  *       {s}`f: (Vertex, GraphState) => Row`
+  *         : function to extract data from vertex and graph state (run once for each vertex)
   *
   *  {s}`globalSelect(f: GraphState => Row): Table`
-  *    : Write global graph state to table (this creates a table with a single row)
+  *     : Write global graph state to table (this creates a table with a single row)
   *
-  *      {s}`f: GraphState => Row`
-  *        : function to extract data from graph state (run only once)
+  *       {s}`f: GraphState => Row`
+  *         : function to extract data from graph state (run only once)
   *
   *  {s}`nodeCount(): Int`
   *     : return number of nodes in the graph

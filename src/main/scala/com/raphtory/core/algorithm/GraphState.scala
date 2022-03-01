@@ -40,6 +40,12 @@ abstract class Accumulator[T] {
   *    {s}`newMultiplier[T: Numeric](name: String, initialValue: T = 1, retainState: Boolean = false)`
   *      : Create a new accumulator that multiplies values.
   *
+  *     {s}`newMax[T: Numeric](name: String, initialValue: T = Double.NegativeInfinity, retainState: Boolean = false)`
+  *        : Create a new accumulator that tracks the maximum value.
+  *
+  *     {s}`newMin[T: Numeric](name: String, initialValue: T = Double.PositiveInfinity, retainState: Boolean = false)`
+  *        : Create a new accumulator that tracks the minimum value.
+  *
   *    {s}`apply[T](name: String): Accumulator[T]`
   *      : Return the accumulator stored under name `name`.
   *
