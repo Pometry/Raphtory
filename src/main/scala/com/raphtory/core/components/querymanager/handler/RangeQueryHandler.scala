@@ -20,7 +20,7 @@ case class RangeQueryHandler(
     algorithm: GraphAlgorithm,
     begin: Long,
     end: Long,
-    increment: Long,
+    increment: Interval,
     windows: List[Interval],
     outputFormat: OutputFormat,
     conf: Config,

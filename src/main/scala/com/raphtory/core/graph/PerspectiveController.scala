@@ -3,6 +3,7 @@ package com.raphtory.core.graph
 import com.raphtory.core.components.querymanager.QueryManagement
 import com.raphtory.core.time.AgnosticInterval
 import com.raphtory.core.time.Interval
+import com.raphtory.core.time.TimeUtils._
 
 import scala.collection.immutable.NumericRange
 
@@ -45,22 +46,16 @@ object PerspectiveController {
   def rangeQueryController(
       start: Long,
       end: Long,
-      increment: Long,
+      increment: Interval,
       windows: List[Interval] = List()
   ): PerspectiveController = {
-    val timestamps: Stream[Long] = {
-      val raw = NumericRange.inclusive(start, end, increment).toStream
-      raw.lastOption match {
-        case Some(last) if last != end => raw :+ end
-        case _                         => raw
-      }
-    }
+    val timestamps = Stream.iterate(start)(_ + increment).takeWhile(_ < end) :+ end
     new PerspectiveController(timestamps, windows)
   }
 
   def liveQueryController(
       firstAvailableTimestamp: Long,
-      repeatIncrement: Long,
+      repeatIncrement: Interval,
       windows: List[Interval] = List()
   ): PerspectiveController = {
     val timestamps = Stream.iterate(firstAvailableTimestamp)(_ + repeatIncrement)

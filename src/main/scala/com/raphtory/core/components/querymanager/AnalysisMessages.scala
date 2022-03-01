@@ -51,7 +51,7 @@ case class RangeQuery(
     algorithm: GraphAlgorithm,
     start: Long,
     end: Long,
-    increment: Long,
+    increment: Interval,
     windows: List[Interval] = List(),
     outputFormat: OutputFormat
 ) extends Query
@@ -59,7 +59,7 @@ case class RangeQuery(
 case class LiveQuery(
     name: String,
     algorithm: GraphAlgorithm,
-    increment: Long,
+    increment: Interval,
     windows: List[Interval] = List(),
     outputFormat: OutputFormat
 )                                         extends Query

@@ -61,7 +61,15 @@ private[core] class RaphtoryClient(
     val jobID           = getID(graphAlgorithm)
     val agnosticWindows = windows map AgnosticInterval
     pulsarController.toQueryManagerProducer sendAsync kryo.serialise(
-            RangeQuery(jobID, graphAlgorithm, start, end, increment, agnosticWindows, outputFormat)
+            RangeQuery(
+                    jobID,
+                    graphAlgorithm,
+                    start,
+                    end,
+                    AgnosticInterval(increment),
+                    agnosticWindows,
+                    outputFormat
+            )
     )
     componentFactory.queryProgressTracker(jobID, scheduler)
   }
@@ -75,7 +83,13 @@ private[core] class RaphtoryClient(
     val jobID           = getID(graphAlgorithm)
     val agnosticWindows = windows map AgnosticInterval
     pulsarController.toQueryManagerProducer sendAsync kryo.serialise(
-            LiveQuery(jobID, graphAlgorithm, increment, agnosticWindows, outputFormat)
+            LiveQuery(
+                    jobID,
+                    graphAlgorithm,
+                    AgnosticInterval(increment),
+                    agnosticWindows,
+                    outputFormat
+            )
     )
     componentFactory.queryProgressTracker(jobID, scheduler)
   }

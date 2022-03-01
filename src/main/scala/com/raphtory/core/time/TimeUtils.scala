@@ -9,10 +9,16 @@ object TimeUtils {
 
   implicit class TimeHolder(val time: Long) {
 
-    def -(window: Interval): Long =
-      window match {
+    def -(interval: Interval): Long =
+      interval match {
         case AgnosticInterval(size) => time - size
         case TimeInterval(size)     => Instant.ofEpochMilli(time).minus(size).toEpochMilli
+      }
+
+    def +(interval: Interval): Long =
+      interval match {
+        case AgnosticInterval(size) => time + size
+        case TimeInterval(size)     => Instant.ofEpochMilli(time).plus(size).toEpochMilli
       }
   }
 

@@ -18,7 +18,7 @@ case class LiveQueryHandler(
     scheduler: Scheduler,
     jobID: String,
     algorithm: GraphAlgorithm,
-    increment: Long,
+    increment: Interval,
     windows: List[Interval],
     outputFormat: OutputFormat,
     conf: Config,
