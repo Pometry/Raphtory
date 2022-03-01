@@ -1,7 +1,7 @@
 package com.raphtory.core.config
 
 import com.typesafe.config.Config
-import org.apache.pulsar.client.admin.PulsarAdmin
+import org.apache.pulsar.client.admin.{Namespaces, PulsarAdmin, Topics}
 import org.apache.pulsar.client.api._
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 
@@ -80,6 +80,11 @@ class PulsarController(conf: Config) {
       .poolMessages(true)
       .subscribe()
 
+
   def createProducer[T](schema: Schema[T], topic: String): Producer[T] =
     client.newProducer(schema).topic(topic).blockIfQueueFull(true).create() //.enableBatching(true)
+
+  def deleteTopic(topic: String) = {
+    pulsarAdmin.topics().delete(topic)
+  }
 }

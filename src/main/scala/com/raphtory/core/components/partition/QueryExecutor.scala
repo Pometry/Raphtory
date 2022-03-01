@@ -44,6 +44,7 @@ class QueryExecutor(
   private val neighbours: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
   var cancelableConsumer: Option[Consumer[Array[Byte]]]   = None
   //setupNamespace()
+  //setRetention()
 
   override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
@@ -53,6 +54,7 @@ class QueryExecutor(
   }
 
   override def stop(): Unit = {
+    deleteQueryExecutorTopic(partitionID, jobID)
     cancelableConsumer match {
       case Some(value) =>
         value.close()
@@ -62,13 +64,13 @@ class QueryExecutor(
     neighbours.foreach(_._2.close())
   }
 
-  def setupNamespace(): Unit =
-    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_query_exec")
-    catch {
-      case error: PulsarAdminException =>
-        logger.warn("Namespace already found")
-    }
-    finally pulsarController.setRetentionNamespace("public/raphtory_query_exec")
+//  def setupNamespace(): Unit =
+//    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_query_exec")
+//    catch {
+//      case error: PulsarAdminException =>
+//        logger.warn("Namespace already found")
+//    }
+//    finally pulsarController.setRetentionNamespace("public/raphtory_query_exec")
 
   override def handleMessage(msg: Message[Array[Byte]]): Unit = {
     deserialise[QueryManagement](msg.getValue) match {

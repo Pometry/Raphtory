@@ -36,15 +36,16 @@ class Reader(
     }
   }
 
-  def setupNamespace(): Unit =
-    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_reader")
-    catch {
-      case error: PulsarAdminException =>
-        logger.warn("Namespace already found")
-    }
-    finally pulsarController.setRetentionNamespace("public/raphtory_reader")
+//  def setupNamespace(): Unit =
+//    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_reader")
+//    catch {
+//      case error: PulsarAdminException =>
+//        logger.warn("Namespace already found")
+//    }
+//    finally pulsarController.setRetentionNamespace("public/raphtory_reader")
 
   //setupNamespace()
+  //setRetention()
 
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
@@ -54,6 +55,7 @@ class Reader(
   }
 
   override def stop(): Unit = {
+    deleteReaderTopic()
     cancelableConsumer match {
       case Some(value) =>
         value.close()

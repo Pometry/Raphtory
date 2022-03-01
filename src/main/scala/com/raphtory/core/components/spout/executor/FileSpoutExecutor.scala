@@ -68,16 +68,19 @@ class FileSpoutExecutor[T](
   // TODO HARDLINK wont work on a network share
   private val outputDirectory = conf.getString("raphtory.spout.file.local.outputDirectory")
 
+  //private val deploymentID = conf.getString("raphtory.deploy.id")
+
   if (source == "")
     source = conf.getString("raphtory.spout.file.local.sourceDirectory")
 
+// originally has set namespace
   def setupNamespace(): Unit =
     try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_spout")
     catch {
       case error: PulsarAdminException =>
         logger.warn("Namespace already found")
     }
-    finally pulsarController.setRetentionNamespace("public/raphtory_spout")
+    finally pulsarController.setRetentionNamespace("public/raphtory_spout") //s"public/raphtory/$deploymentID"
 
   def updateFilesRead(): Unit = {
     // get names/path of all files that have been previously read, only prepopulate once

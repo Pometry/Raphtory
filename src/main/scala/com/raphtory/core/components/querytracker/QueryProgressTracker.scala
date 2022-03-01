@@ -39,14 +39,15 @@ class QueryProgressTracker(
   val startTime: Long       = System.currentTimeMillis //fetch starting time
   var perspectiveTime: Long = startTime
   //setupNamespace()
+  //setRetention()
 
-  def setupNamespace(): Unit =
-    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_progress_tracker")
-    catch {
-      case error: PulsarAdminException =>
-        logger.warn("Namespace already found")
-    }
-    finally pulsarController.setRetentionNamespace("public/raphtory_progress_tracker")
+//  def setupNamespace(): Unit =
+//    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_progress_tracker")
+//    catch {
+//      case error: PulsarAdminException =>
+//        logger.warn("Namespace already found")
+//    }
+//    finally pulsarController.setRetentionNamespace("public/raphtory_progress_tracker")
 
 
   def getJobId(): String =
@@ -74,12 +75,14 @@ class QueryProgressTracker(
   override def run(): Unit =
     cancelableConsumer = Some(startQueryTrackerConsumer(Schema.BYTES, topicId))
 
-  def stop(): Unit =
+  def stop(): Unit = {
+    deleteQueryTrackerTopic(topicId)
     cancelableConsumer match {
       case Some(value) =>
         value.close()
       case None        =>
     }
+  }
 
   override def handleMessage(msg: Message[Array[Byte]]): Unit =
     deserialise[QueryManagement](msg.getValue) match {

@@ -23,7 +23,7 @@ class BuilderExecutor[T](
 
   var cancelableConsumer: Option[Consumer[T]] = None
   //setupNamespace()
-  setRetention()
+  //setRetention()
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")
@@ -34,7 +34,7 @@ class BuilderExecutor[T](
 
   override def stop(): Unit = {
     logger.debug("Stopping Graph Builder executor.")
-
+    deleteGraphBuilderTopic()
     cancelableConsumer match {
       case Some(value) =>
         value.close()
@@ -43,13 +43,13 @@ class BuilderExecutor[T](
     producers.foreach(_._2.close())
   }
 
-  def setupNamespace(): Unit =
-    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_builder_exec")
-    catch {
-      case error: PulsarAdminException =>
-        logger.warn("Namespace already found")
-    }
-    finally pulsarController.setRetentionNamespace("public/raphtory_builder_exec")
+//  def setupNamespace(): Unit =
+//    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_builder_exec")
+//    catch {
+//      case error: PulsarAdminException =>
+//        logger.warn("Namespace already found")
+//    }
+//    finally pulsarController.setRetentionNamespace("public/raphtory_builder_exec")
 
   override def handleMessage(msg: Message[T]): Unit = {
     val data = msg.getValue

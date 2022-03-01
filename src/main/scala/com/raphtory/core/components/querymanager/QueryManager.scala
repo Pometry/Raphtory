@@ -22,15 +22,16 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   private val watermarks                                = mutable.Map[Int, WatermarkTime]()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
-  def setupNamespace(): Unit =
-    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_query_manager")
-    catch {
-      case error: PulsarAdminException =>
-        logger.warn("Namespace already found")
-    }
-    finally pulsarController.setRetentionNamespace("public/raphtory_query_manager")
+//  def setupNamespace(): Unit =
+//    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_query_manager")
+//    catch {
+//      case error: PulsarAdminException =>
+//        logger.warn("Namespace already found")
+//    }
+//    finally pulsarController.setRetentionNamespace("public/raphtory_query_manager")
 
   //setupNamespace()
+  //setRetention()
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
@@ -39,6 +40,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   }
 
   override def stop(): Unit = {
+    deleteQueryManagerTopics()
     cancelableConsumer match {
       case Some(value) =>
         value.close()

@@ -12,6 +12,7 @@ import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.MessageListener
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
+import org.apache.pulsar.common.policies.data.RetentionPolicies
 import org.slf4j.LoggerFactory
 
 import scala.reflect.runtime.universe._
@@ -36,9 +37,23 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def stop()
 
   def setRetention(): Unit = {
-    pulsarController.setRetentionNamespace("public/default")
-    println("SETTING RETENTION NAMESPACE FOR ONCE! ....")
+    pulsarController.setRetentionNamespace(s"public/raphtory_$deploymentID") //"public/default", public/raphtory/$deploymentID
   }
+
+//  def setupNamespaceRetention(): Unit =
+//    try {
+//      println("SETTING UP NAMESPACE $$$$ : " + s"public/raphtory/$deploymentID")
+//      pulsarController.pulsarAdmin.namespaces().createNamespace(s"public/raphtory/$deploymentID")
+//    }
+//    catch {
+//      case error: PulsarAdminException =>
+//        logger.warn("Namespace already found")
+//    }
+//    finally pulsarController.setRetentionNamespace(s"public/raphtory/$deploymentID")
+//
+//
+//  setupNamespaceRetention()
+//  Retention prefix: "persistent://public/raphtory_$deploymentID/"
 
   private def messageListener(): MessageListener[T] =
     (consumer, msg) => {
@@ -66,13 +81,11 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
     pulsarController.createListeningConsumer("GraphBuilder", messageListener, schema, spoutTopic)
 
   def startPartitionConsumer(schema: Schema[T], partitionID: Int): Consumer[T] = {
-    //pulsarController.setRetentionTopic(s"${deploymentID}_$partitionID")
-    //pulsarController.setRetentionTopic(s"${deploymentID}_sync_$partitionID")
     pulsarController.createListeningConsumer(
             s"Writer_$partitionID",
             messageListener,
             schema,
-            s"${deploymentID}_$partitionID",
+            s"${deploymentID}_$partitionID", //# this change
             s"${deploymentID}_sync_$partitionID"
     )
   }
@@ -99,8 +112,6 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   }
 
   def startQueryManagerConsumer(schema: Schema[T]): Consumer[T] = {
-    //pulsarController.setRetentionTopic(s"${deploymentID}_watermark")
-    //pulsarController.setRetentionTopic(s"${deploymentID}_submission")
     pulsarController.createListeningConsumer(
             "QueryManager",
             messageListener,
@@ -151,6 +162,7 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
     implicit val schema: Schema[GraphAlteration] = GraphAlteration.schema
 
     producerMapGenerator(s"${deploymentID}_sync", schema)
+
   }
 
   def toReaderProducer: Producer[Array[Byte]] = {
@@ -187,12 +199,44 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
     logger.debug(s"Deployment $deploymentID: Creating Watermark Publisher producer.")
 
     pulsarController.createProducer(Schema.BYTES, s"${deploymentID}_watermark")
+
   }
 
   def globalwatermarkPublisher(): Producer[Array[Byte]] = {
     logger.debug(s"Deployment $deploymentID: Creating global watermark publisher producer.")
 
     pulsarController.createProducer(Schema.BYTES, s"${deploymentID}_watermark_global")
+
+  }
+
+  // DELETION OF TOPICS:
+  def deleteGraphBuilderTopic(): Unit =
+    pulsarController.deleteTopic(spoutTopic)
+
+  def deletePartitionTopics(partitionID: Int): Unit = {
+    pulsarController.deleteTopic(s"${deploymentID}_$partitionID") //# this change
+    pulsarController.deleteTopic(s"${deploymentID}_sync_$partitionID")
+  }
+
+  def deleteReaderTopic(): Unit = {
+    pulsarController.deleteTopic(s"${deploymentID}_jobs")
+  }
+
+  def deleteQueryExecutorTopic(partitionID: Int, jobID: String): Unit = {
+    pulsarController.deleteTopic(s"${deploymentID}_${jobID}_$partitionID")
+  }
+
+  def deleteQueryManagerTopics(): Unit = {
+    pulsarController.deleteTopic(s"${deploymentID}_watermark")
+    pulsarController.deleteTopic(s"${deploymentID}_submission")
+  }
+
+  def deleteQueryHandlerTopic(jobID: String): Unit = {
+    pulsarController.deleteTopic(s"${deploymentID}_${jobID}_queryHandler")
+  }
+
+  def deleteQueryTrackerTopic(deployId_jobId: String): Unit = {
+    pulsarController.deleteTopic(s"${deployId_jobId}_querytracking")
   }
 
 }

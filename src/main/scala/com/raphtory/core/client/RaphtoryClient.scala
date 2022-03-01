@@ -97,9 +97,10 @@ private[core] class RaphtoryClient(
       case e: NullPointerException => "Anon_Func_" + System.currentTimeMillis()
     }
 
+  // set here ##
   def setRetentionPerm() = {
-    val retentionTime = -1
-    val retentionSize = -1
+    val retentionTime = 1
+    val retentionSize = 10
     val admin         = PulsarAdmin.builder
       .serviceHttpUrl(conf.getString("raphtory.pulsar.admin.address"))
       .tlsTrustCertsFilePath(null)
@@ -108,6 +109,7 @@ private[core] class RaphtoryClient(
 
     val policies = new RetentionPolicies(retentionTime, retentionSize)
     admin.namespaces.setRetention("public/default", policies)
+    admin.namespaces.setRetention(s"public/raphtory_$deploymentID", policies)
   }
 
 }
