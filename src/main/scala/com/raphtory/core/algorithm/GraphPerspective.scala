@@ -127,6 +127,10 @@ final case class PerspectiveDone()                     extends GraphFunction
   *
   *  {s}`nodeCount(): Int`
   *     : return number of nodes in the graph
+  *
+  * ```{seealso}
+  * [](com.raphtory.core.algorithm.GraphState), [](com.raphtory.core.graph.visitor.Vertex)
+  * ```
   */
 abstract class GraphPerspective {
   def setGlobalState(f: (GraphState) => Unit): GraphPerspective
