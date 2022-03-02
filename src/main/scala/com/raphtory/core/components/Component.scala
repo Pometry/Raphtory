@@ -49,6 +49,7 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
 
           consumer.negativeAcknowledge(msg)
       }
+      finally msg.release()
     }
 
   def serialise(value: Any): Array[Byte] = kryo.serialise(value)
