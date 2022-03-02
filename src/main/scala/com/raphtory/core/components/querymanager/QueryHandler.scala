@@ -83,7 +83,6 @@ abstract class QueryHandler(
   }
 
   override def stop(): Unit = {
-    deleteQueryHandlerTopic(jobID)
     cancelableConsumer match {
       case Some(value) =>
         value.close()

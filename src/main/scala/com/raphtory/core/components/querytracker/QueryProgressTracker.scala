@@ -76,7 +76,6 @@ class QueryProgressTracker(
     cancelableConsumer = Some(startQueryTrackerConsumer(Schema.BYTES, topicId))
 
   def stop(): Unit = {
-    deleteQueryTrackerTopic(topicId)
     cancelableConsumer match {
       case Some(value) =>
         value.close()

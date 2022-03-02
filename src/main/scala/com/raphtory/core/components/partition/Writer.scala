@@ -54,7 +54,6 @@ class Writer(
 
   override def stop(): Unit = {
 
-    deletePartitionTopics(partitionID)
     cancelableConsumer match {
       case Some(value) =>
         value.close()

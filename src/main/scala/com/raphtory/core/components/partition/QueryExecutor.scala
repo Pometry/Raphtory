@@ -54,9 +54,9 @@ class QueryExecutor(
   }
 
   override def stop(): Unit = {
-    deleteQueryExecutorTopic(partitionID, jobID)
     cancelableConsumer match {
       case Some(value) =>
+        // delete topic here value.getTopic
         value.close()
       case None        =>
     }
@@ -196,7 +196,7 @@ class QueryExecutor(
             Some(
                     pulsarController.accessClient
                       .newProducer(Schema.STRING)
-                      .topic(outputFormat.asInstanceOf[PulsarOutputFormat].pulsarTopic)
+                      .topic(outputFormat.asInstanceOf[PulsarOutputFormat].pulsarTopic) // change here : Topic name with deployment
                       .create()
             )
           else

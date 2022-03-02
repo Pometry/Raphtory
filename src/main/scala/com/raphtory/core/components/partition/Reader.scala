@@ -55,7 +55,6 @@ class Reader(
   }
 
   override def stop(): Unit = {
-    deleteReaderTopic()
     cancelableConsumer match {
       case Some(value) =>
         value.close()

@@ -34,7 +34,6 @@ class BuilderExecutor[T](
 
   override def stop(): Unit = {
     logger.debug("Stopping Graph Builder executor.")
-    deleteGraphBuilderTopic()
     cancelableConsumer match {
       case Some(value) =>
         value.close()
