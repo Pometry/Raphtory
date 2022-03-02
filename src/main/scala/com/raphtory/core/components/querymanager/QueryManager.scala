@@ -33,7 +33,6 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
-        pulsarController.deleteTopic(value.getTopic)
         value.close()
       case None        =>
     }

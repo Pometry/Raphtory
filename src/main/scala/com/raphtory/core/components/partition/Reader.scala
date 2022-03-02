@@ -48,7 +48,6 @@ class Reader(
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
-        pulsarController.deleteTopic(value.getTopic)
         value.close()
       case None        =>
     }
