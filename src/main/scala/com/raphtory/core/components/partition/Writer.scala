@@ -280,7 +280,7 @@ class Writer(
 
     // TODO Should this be externalised?
     //  Do we need it now that we have progress tracker?
-    if (mgsCount % 10000 == 0) {
+    if (mgsCount % 1000 == 0) {
       val currentHour   = Calendar.getInstance().get(Calendar.HOUR)
       val currentMinute = Calendar.getInstance().get(Calendar.MINUTE)
       val currentSecond = Calendar.getInstance().get(Calendar.SECOND)

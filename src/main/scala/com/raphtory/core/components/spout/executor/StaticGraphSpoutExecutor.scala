@@ -23,10 +23,9 @@ class StaticGraphSpoutExecutor(
     try {
       // We assume that Pulsar standalone is running on the users machine before continuing
       // setup and create a producer
-      val deploymentID = conf.getString("raphtory.deploy.id")
       val producer_topic = conf.getString("raphtory.spout.topic")
       val source         = Source.fromFile(fileDataPath)
-      val producer       = pulsarController.createProducer(Schema.STRING,  s"persistent://public/${deploymentID}/" + producer_topic)
+      val producer       = toBuildersProducer(Schema.STRING)
 
       logger.debug(
               s"Producer for '$fileDataPath' created '$producer' with topic '$producer_topic'."

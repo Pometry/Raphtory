@@ -1,8 +1,12 @@
 package com.raphtory.core.config
 
 import com.typesafe.config.Config
-import org.apache.pulsar.client.admin.{Namespaces, PulsarAdmin, PulsarAdminException, Topics}
+import org.apache.pulsar.client.admin.Namespaces
+import org.apache.pulsar.client.admin.PulsarAdmin
+import org.apache.pulsar.client.admin.PulsarAdminException
+import org.apache.pulsar.client.admin.Topics
 import org.apache.pulsar.client.api._
+import org.apache.pulsar.common.policies.data.PersistencePolicies
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 
 import java.util.concurrent.TimeUnit
@@ -12,10 +16,9 @@ class PulsarController(conf: Config) {
   private val pulsarAddress: String = conf.getString("raphtory.pulsar.broker.address")
   val pulsarAdminAddress: String    = conf.getString("raphtory.pulsar.admin.address")
   val retentionTimeout: Int         = conf.getString("raphtory.pulsar.retention.time").toInt
-  val retentionSize: Int         = conf.getString("raphtory.pulsar.retention.size").toInt
-  val prefixTopic: String        = "persistent://public/"
+  val retentionSize: Int            = conf.getString("raphtory.pulsar.retention.size").toInt
 
-  private val client: PulsarClient  =
+  private val client: PulsarClient =
     PulsarClient
       .builder()
       .ioThreads(10)
@@ -36,15 +39,8 @@ class PulsarController(conf: Config) {
       retentionTime: Int = retentionTimeout,
       retentionSize: Int = retentionSize
   ): Unit = {
-    println(s"Setting retention namespace for : ${namespace}, for time: ${retentionTime}, for size: ${retentionSize}")
     val policies = new RetentionPolicies(retentionTime, retentionSize)
     pulsarAdmin.namespaces.setRetention(namespace, policies)
-  }
-
-  def setRetentionTopic(topic: String, retentionTime: Int = retentionTimeout, retentionSize: Int = retentionSize
-  ): Unit = {
-    val policies = new RetentionPolicies(retentionTime, retentionSize)
-    pulsarAdmin.topics.setRetention(topic, policies)
   }
 
   def createListeningConsumer[T](
@@ -82,36 +78,25 @@ class PulsarController(conf: Config) {
       .poolMessages(true)
       .subscribe()
 
-
   def createProducer[T](schema: Schema[T], topic: String): Producer[T] =
     client.newProducer(schema).topic(topic).blockIfQueueFull(true).create() //.enableBatching(true)
 
-  def createTopic(topicName: String, deploymentID: String) : String = {
-    val setRetention = createNamespace(deploymentID)
-    if(setRetention) setRetentionNamespace(s"public/${deploymentID}")
-    val topic = s"${prefixTopic}${deploymentID}/${topicName}"
-    //pulsarAdmin.topics.createNonPartitionedTopic(topic)
-    topic
-  }
-
-  def deleteTopic(topic: String) = {
+  def deleteTopic(topic: String) =
     pulsarAdmin.topics().delete(topic)
-  }
 
-  def createNamespace(namespace: String) : Boolean = {
-    var setRetention = true
-    try pulsarAdmin.namespaces().createNamespace(s"public/${namespace}")
+  def createNamespace(namespace: String): Boolean =
+    try {
+      pulsarAdmin.namespaces().createNamespace(namespace)
+      true
+    }
     catch {
       case error: PulsarAdminException =>
-        println("Namespace already found")
-        setRetention = false
+        false
     }
-    setRetention
-  }
 
-  def setupComponent(deploymentID: String) : Unit = {
-    val setRetention = createNamespace(deploymentID)
-    if(setRetention) setRetentionNamespace(s"public/${deploymentID}")
+  def setupComponentNamespace(namespace: String): Unit = {
+    val setRetention = createNamespace(namespace)
+    if (setRetention) setRetentionNamespace(namespace)
   }
 
 }

@@ -34,20 +34,18 @@ class FileSpoutExecutor[T](
     scheduler: Scheduler
 ) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler) {
 
-  private val topic    = conf.getString("raphtory.spout.topic")
-  private val producer = pulsarController.createProducer(schema, topic)
+  private val producer = toBuildersProducer[T](schema)
   // set persistency of completes files topic
   setupNamespace()
 
-  private val fileReadProducerTopic =
-    "persistent://public/raphtory_spout/completedFiles_" + deploymentID
+  private val fileReadProducerTopic = createTopic("spout", s"completedFiles_$deploymentID")
 
   private val fileTrackerProducer =
     pulsarController.createProducer(Schema.BYTES, fileReadProducerTopic)
 
   private val fileTrackerConsumer = pulsarController.accessClient
     .newConsumer(schema)
-    .topics(Array("fileReadProducerTopic" + deploymentID).toList.asJava)
+    .topics(Array(s"completedFiles_$deploymentID").toList.asJava)
     .subscriptionName("fileReaderTracker")
     .subscriptionType(SubscriptionType.Exclusive)
     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -80,7 +78,9 @@ class FileSpoutExecutor[T](
       case error: PulsarAdminException =>
         logger.warn("Namespace already found")
     }
-    finally pulsarController.setRetentionNamespace("public/raphtory_spout") //s"public/raphtory/$deploymentID"
+    finally pulsarController.setRetentionNamespace(
+            "public/raphtory_spout"
+    ) //s"public/raphtory/$deploymentID"
 
   def updateFilesRead(): Unit = {
     // get names/path of all files that have been previously read, only prepopulate once

@@ -36,27 +36,6 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def run()
   def stop()
 
-  def setRetention(): Unit = {
-    pulsarController.setRetentionNamespace(s"public/$deploymentID/") //"public/default", public/raphtory/$deploymentID
-  }
-
-  pulsarController.setupComponent(deploymentID)
-
-//  def setupNamespaceRetention(): Unit =
-//    try {
-//      println("SETTING UP NAMESPACE $$$$ : " + s"public/raphtory/$deploymentID")
-//      pulsarController.pulsarAdmin.namespaces().createNamespace(s"public/raphtory/$deploymentID")
-//    }
-//    catch {
-//      case error: PulsarAdminException =>
-//        logger.warn("Namespace already found")
-//    }
-//    finally pulsarController.setRetentionNamespace(s"public/raphtory/$deploymentID")
-//
-//
-//  setupNamespaceRetention()
-//  Retention prefix: "persistent://public/raphtory_$deploymentID/"
-
   private def messageListener(): MessageListener[T] =
     (consumer, msg) => {
       try {
@@ -78,82 +57,56 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
 
   def getWriter(srcId: Long): Int = (srcId.abs % totalPartitions).toInt
 
-
-
-  // CREATION OF TOPICS:
-  def createGraphBuilderTopic(): Unit =
-    pulsarController.createTopic(spoutTopic, deploymentID)
-
-  def createPartitionTopics(partitionID: Int): Unit = {
-    pulsarController.createTopic(s"${deploymentID}_$partitionID", deploymentID) //# this change
-    pulsarController.createTopic(s"${deploymentID}_sync_$partitionID", deploymentID)
-  }
-
-  def createReaderTopic(): Unit = {
-    pulsarController.createTopic(s"${deploymentID}_jobs", deploymentID)
-  }
-
-  def createQueryExecutorTopic(partitionID: Int, jobID: String): Unit = {
-    pulsarController.createTopic(s"${deploymentID}_${jobID}_$partitionID", deploymentID)
-  }
-
-  def createQueryManagerTopics(): Unit = {
-    pulsarController.createTopic(s"${deploymentID}_watermark", deploymentID)
-    pulsarController.createTopic(s"${deploymentID}_submission", deploymentID)
-  }
-
-  def createQueryHandlerTopic(jobID: String): Unit = {
-    pulsarController.createTopic(s"${deploymentID}_${jobID}_queryHandler", deploymentID)
-  }
-
-  def createQueryTrackerTopic(deployId_jobId: String): Unit = {
-    pulsarController.createTopic(s"${deployId_jobId}_querytracking", deploymentID)
-  }
-
-  def createTopicString(component: String, topicSuffix: String) : String = {
-    val persistence = conf.getBoolean(s"raphtory.${component}.persistence")
-    val tenant = conf.getString(s"raphtory.${component}.tenant")
-    val namespace = conf.getString(s"raphtory.${component}.namespace")
-    if(!persistence) {
-      s"non-persistent://${tenant}/${namespace}/${topicSuffix}"
+  def createTopic(component: String, topicSuffix: String): String = {
+    val persistence = conf.getBoolean(s"raphtory.$component.persistence")
+    val tenant      = conf.getString(s"raphtory.$component.tenant")
+    val namespace   = conf.getString(s"raphtory.$component.namespace")
+    if (!persistence) {
+      pulsarController.setupComponentNamespace(s"$tenant/$namespace")
+      s"non-persistent://$tenant/$namespace/$topicSuffix"
     }
     else {
-      s"persistent://${tenant}/${namespace}/${topicSuffix}"
+      pulsarController.setupComponentNamespace(s"$tenant/$namespace")
+      s"persistent://$tenant/$namespace/$topicSuffix"
     }
   }
 
   // CREATION OF CONSUMERS
   def startGraphBuilderConsumer(schema: Schema[T]): Consumer[T] = {
-    val topic = createTopicString("spout", spoutTopic)
+    val topic = createTopic("spout", spoutTopic)
     pulsarController.createListeningConsumer("GraphBuilder", messageListener, schema, topic)
   }
 
   def startPartitionConsumer(schema: Schema[T], partitionID: Int): Consumer[T] = {
-    val topic1 = createTopicString("builders", s"${deploymentID}_$partitionID")
-    val topic2 = createTopicString("builders", s"${deploymentID}_sync_$partitionID")
+    val topic1 = createTopic("builders", s"${deploymentID}_$partitionID")
+    val topic2 = createTopic("builders", s"${deploymentID}_sync_$partitionID")
     pulsarController.createListeningConsumer(
             s"Writer_$partitionID",
             messageListener,
             schema,
-            topic1, topic2
+            topic1,
+            topic2
     )
   }
 
   def startReaderConsumer(schema: Schema[T], partitionID: Int): Consumer[T] = {
-    val topic =  createTopicString("query", s"${deploymentID}_jobs")
+    val topic = createTopic("query", s"${deploymentID}_jobs")
 
     pulsarController.createListeningConsumer(
-      s"Reader_$partitionID",
-      messageListener,
-      schema,
-      topic.toString
+            s"Reader_$partitionID",
+            messageListener,
+            schema,
+            topic.toString
     )
   }
 
+  def startQueryExecutorConsumer(
+      schema: Schema[T],
+      partitionID: Int,
+      jobID: String
+  ): Consumer[T] = {
 
-  def startQueryExecutorConsumer(schema: Schema[T], partitionID: Int, jobID: String): Consumer[T] = {
-
-    val topic = createTopicString("query", s"${deploymentID}_${jobID}_$partitionID")
+    val topic = createTopic("query", s"${deploymentID}_${jobID}_$partitionID")
     pulsarController.createListeningConsumer(
             s"Executor_$partitionID",
             messageListener,
@@ -164,18 +117,19 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
 
   def startQueryManagerConsumer(schema: Schema[T]): Consumer[T] = {
 
-    val topic1 = createTopicString("query", s"${deploymentID}_watermark")
-    val topic2 = createTopicString("query", s"${deploymentID}_submission")
+    val topic1 = createTopic("query", s"${deploymentID}_watermark")
+    val topic2 = createTopic("query", s"${deploymentID}_submission")
     pulsarController.createListeningConsumer(
             "QueryManager",
             messageListener,
             schema,
-            topic1.toString, topic2.toString
+            topic1.toString,
+            topic2.toString
     )
   }
 
   def startQueryHandlerConsumer(schema: Schema[T], jobID: String): Consumer[T] = {
-    val topic = createTopicString("query", s"${deploymentID}_${jobID}_queryHandler")
+    val topic = createTopic("query", s"${deploymentID}_${jobID}_queryHandler")
     pulsarController.createListeningConsumer(
             s"QueryHandler_$jobID",
             messageListener,
@@ -186,7 +140,7 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
 
   def startQueryTrackerConsumer(schema: Schema[T], deployId_jobId: String): Consumer[T] = {
 
-    val topic = createTopicString("query", s"${deployId_jobId}_querytracking")
+    val topic = createTopic("query", s"${deployId_jobId}_querytracking")
     pulsarController.createListeningConsumer(
             "queryProgressConsumer",
             messageListener,
@@ -196,10 +150,18 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   }
 
   // CREATION OF PRODUCERS
+
+  def toBuildersProducer[T](schema: Schema[T]): Producer[T] = {
+    logger.debug(s"Deployment $deploymentID: Creating Builder producer.")
+
+    val producerTopic = createTopic("spout", spoutTopic)
+    pulsarController.createProducer(schema, producerTopic)
+  }
+
   private def producerMapGenerator[T](topic: String, schema: Schema[T]): Map[Int, Producer[T]] = {
     //createTopic[T](s"${deploymentID}_$i", schema)
-    val producerTopic = s"${topic}"
-    val producers =
+    val producerTopic = s"$topic"
+    val producers     =
       for (i <- 0.until(totalPartitions))
         yield (i, pulsarController.createProducer(schema, producerTopic.toString + s"_$i"))
 
@@ -209,7 +171,7 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def toWriterProducers: Map[Int, Producer[GraphAlteration]] = {
     implicit val schema: Schema[GraphAlteration] = GraphAlteration.schema
 
-    val producerTopic = createTopicString("builders", s"${deploymentID}")
+    val producerTopic = createTopic("builders", s"$deploymentID")
     producerMapGenerator[GraphAlteration](producerTopic, schema)
   }
 
@@ -217,7 +179,7 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
     logger.debug(s"Deployment $deploymentID: Creating writer sync producer mapping.")
     implicit val schema: Schema[GraphAlteration] = GraphAlteration.schema
 
-    val producerTopic = createTopicString("builders", s"${deploymentID}_sync")
+    val producerTopic = createTopic("builders", s"${deploymentID}_sync")
     producerMapGenerator(producerTopic, schema)
 
   }
@@ -225,41 +187,41 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def toReaderProducer: Producer[Array[Byte]] = {
     logger.debug(s"Deployment $deploymentID: Creating Reader producer.")
 
-    val producerTopic = createTopicString("query", s"${deploymentID}_jobs")
+    val producerTopic = createTopic("query", s"${deploymentID}_jobs")
     pulsarController.createProducer(Schema.BYTES, producerTopic)
   }
 
   def toQueryExecutorProducers(jobID: String): Map[Int, Producer[Array[Byte]]] = {
     logger.debug(s"Deployment $deploymentID: Creating Query Executor producer mapping.")
-    val producerTopic = createTopicString("query", s"${deploymentID}_$jobID")
+    val producerTopic = createTopic("query", s"${deploymentID}_$jobID")
     producerMapGenerator(producerTopic, Schema.BYTES)
   }
 
   def toQueryManagerProducer: Producer[Array[Byte]] = {
     logger.debug(s"Deployment $deploymentID: Creating Query Manager producer.")
 
-    val producerTopic = createTopicString("query", s"${deploymentID}_submission")
+    val producerTopic = createTopic("query", s"${deploymentID}_submission")
     pulsarController.createProducer(Schema.BYTES, producerTopic)
   }
 
   def toQueryHandlerProducer(jobID: String): Producer[Array[Byte]] = {
     logger.debug(s"Deployment $deploymentID: Creating Query Handler producer for job '$jobID'.")
 
-    val producerTopic = createTopicString("query", s"${deploymentID}_${jobID}_queryHandler")
+    val producerTopic = createTopic("query", s"${deploymentID}_${jobID}_queryHandler")
     pulsarController.createProducer(Schema.BYTES, producerTopic)
   }
 
   def toQueryTrackerProducer(jobID: String): Producer[Array[Byte]] = {
     logger.debug(s"Deployment $deploymentID: Creating Query Tracker producer for job '$jobID'.")
 
-    val producerTopic = createTopicString("query", s"${deploymentID}_${jobID}_querytracking")
+    val producerTopic = createTopic("query", s"${deploymentID}_${jobID}_querytracking")
     pulsarController.createProducer(Schema.BYTES, producerTopic)
   }
 
   def watermarkPublisher(): Producer[Array[Byte]] = {
     logger.debug(s"Deployment $deploymentID: Creating Watermark Publisher producer.")
 
-    val producerTopic = createTopicString("query", s"${deploymentID}_watermark")
+    val producerTopic = createTopic("query", s"${deploymentID}_watermark")
     pulsarController.createProducer(Schema.BYTES, producerTopic)
 
   }
@@ -267,13 +229,11 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def globalwatermarkPublisher(): Producer[Array[Byte]] = {
     logger.debug(s"Deployment $deploymentID: Creating global watermark publisher producer.")
 
-    val producerTopic = createTopicString("query", s"${deploymentID}_watermark_global")
+    val producerTopic = createTopic("query", s"${deploymentID}_watermark_global")
     pulsarController.createProducer(Schema.BYTES, producerTopic)
 
   }
 
-  def createNamespace(namespace: String): Unit = {
+  def createNamespace(namespace: String): Unit =
     pulsarController.createNamespace(namespace)
-  }
 }
-
