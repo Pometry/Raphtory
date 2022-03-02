@@ -1,10 +1,6 @@
 package com.raphtory.core.components.querymanager
 
-import com.raphtory.core.components.querymanager.handler.RangeQueryHandler
 import com.raphtory.core.components.Component
-import com.raphtory.core.components.querymanager.handler.LiveQueryHandler
-import com.raphtory.core.components.querymanager.handler.PointQueryHandler
-import com.raphtory.core.components.querymanager.handler.RangeQueryHandler
 import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
@@ -41,28 +37,12 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
 
   override def handleMessage(msg: Array[Byte]): Unit =
     deserialise[QueryManagement](msg) match {
-      case query: PointQuery        =>
+      case query: Query             =>
         val jobID        = query.name
         logger.debug(
-                s"Handling query name: ${query.name}, windows: ${query.windows}, timestamp: ${query.timestamp}, algorithm: ${query.algorithm}"
+                s"Handling query name: ${query.name}, start: ${query.startTime}, end: ${query.endTime}, increment: ${query.increment}, windows: ${query.windows}"
         )
-        val queryHandler = spawnPointQuery(jobID, query)
-        trackNewQuery(jobID, queryHandler)
-
-      case query: RangeQuery        =>
-        val jobID        = query.name
-        logger.debug(
-                s"Handling query name: ${query.name}, windows: ${query.windows}, algorithm: ${query.algorithm}"
-        )
-        val queryHandler = spawnRangeQuery(jobID, query)
-        trackNewQuery(jobID, queryHandler)
-
-      case query: LiveQuery         =>
-        val jobID        = query.name
-        logger.debug(
-                s"Handling query name: ${query.name}, windows: ${query.windows}, algorithm: ${query.algorithm}"
-        )
-        val queryHandler = spawnLiveQuery(jobID, query)
+        val queryHandler = spawnQuery(jobID, query)
         trackNewQuery(jobID, queryHandler)
 
       case req: EndQuery            =>
@@ -76,55 +56,14 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
         watermarks.put(watermark.partitionID, watermark)
     }
 
-  private def spawnPointQuery(id: String, query: PointQuery): QueryHandler = {
-    logger.info(s"Point Query '${query.name}' received, your job ID is '$id'.")
+  private def spawnQuery(id: String, query: Query): QueryHandler = {
+    logger.info(s"Query '${query.name}' received, your job ID is '$id'.")
 
-    val queryHandler = new PointQueryHandler(
+    val queryHandler = new QueryHandler(
             this,
             scheduler,
             id,
-            query.algorithm,
-            query.timestamp,
-            query.windows,
-            query.outputFormat,
-            conf,
-            pulsarController
-    )
-    scheduler.execute(queryHandler)
-    queryHandler
-  }
-
-  private def spawnRangeQuery(id: String, query: RangeQuery): QueryHandler = {
-    logger.info(s"Range Query '${query.name}' received, your job ID is '$id'.")
-
-    val queryHandler = new RangeQueryHandler(
-            this,
-            scheduler,
-            id,
-            query.algorithm,
-            query.start,
-            query.end,
-            query.increment,
-            query.windows,
-            query.outputFormat,
-            conf: Config,
-            pulsarController: PulsarController
-    )
-    scheduler.execute(queryHandler)
-    queryHandler
-  }
-
-  private def spawnLiveQuery(id: String, query: LiveQuery): QueryHandler = {
-    logger.info(s"Live Query '${query.name}' received, your job ID is '$id'.")
-
-    val queryHandler = new LiveQueryHandler(
-            this,
-            scheduler,
-            id,
-            query.algorithm,
-            query.increment,
-            query.windows,
-            query.outputFormat,
+            query,
             conf,
             pulsarController
     )

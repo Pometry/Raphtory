@@ -13,7 +13,7 @@ abstract class GraphAlgorithm extends Serializable {
   def tabularise(graph: GraphPerspective): Table =
     graph.select(vertex => Row())
 
-  def run(graph: GraphPerspective): Unit = tabularise(apply(graph))
+  def run(graph: GraphPerspective): Table = tabularise(apply(graph))
 
   def ->(graphAlgorithm: GraphAlgorithm): Chain =
     Chain(this, graphAlgorithm)

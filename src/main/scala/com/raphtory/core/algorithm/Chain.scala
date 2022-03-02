@@ -8,7 +8,7 @@ class Chain(algorithms: Seq[GraphAlgorithm]) extends GraphAlgorithm {
     var gp = graphPerspective
     if (algorithms.nonEmpty)
       for (algorithm <- algorithms)
-        gp = algorithm.apply(gp).asInstanceOf[GenericGraphPerspective].clearMessages()
+        gp = algorithm.apply(gp).clearMessages()
     gp
   }
 

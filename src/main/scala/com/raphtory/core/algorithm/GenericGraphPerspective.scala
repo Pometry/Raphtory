@@ -1,55 +1,31 @@
 package com.raphtory.core.algorithm
 
+import com.raphtory.core.client.QueryBuilder
 import com.raphtory.core.graph.visitor.Vertex
-
-import scala.collection.mutable
 
 /**
   * @DoNotDocument
   */
-class GenericGraphPerspective(vertices: Int) extends GraphPerspective {
-  val graphOpps = mutable.Queue[GraphFunction]()
-  val table     = new GenericTable()
+class GenericGraphPerspective(private val queryBuilder: QueryBuilder) extends GraphPerspective {
+  override def filter(f: (Vertex) => Boolean): GraphPerspective = addFunction(VertexFilter(f))
 
-  override def filter(f: Vertex => Boolean): GraphPerspective = {
-    graphOpps.enqueue(VertexFilter(f))
-    this
-  }
-
-  override def step(f: Vertex => Unit): GraphPerspective = {
-    graphOpps.enqueue(Step(f))
-    this
-  }
+  override def step(f: (Vertex) => Unit): GraphPerspective = addFunction(Step(f))
 
   override def iterate(
-      f: Vertex => Unit,
+      f: (Vertex) => Unit,
       iterations: Int,
       executeMessagedOnly: Boolean
-  ): GraphPerspective = {
-    graphOpps.enqueue(Iterate(f, iterations, executeMessagedOnly))
-    this
-  }
+  ): GraphPerspective = addFunction(Iterate(f, iterations, executeMessagedOnly))
 
-  override def select(f: Vertex => Row): Table = {
-    graphOpps.enqueue(Select(f))
-    table
-  }
+  override def select(f: Vertex => Row): Table =
+    new GenericTable(queryBuilder.addGraphFunction(Select(f)))
 
-  override def explodeSelect(f: Vertex => List[Row]): Table = {
-    graphOpps.enqueue(ExplodeSelect(f))
-    table
-  }
+  override def explodeSelect(f: Vertex => List[Row]): Table =
+    new GenericTable(queryBuilder.addGraphFunction(ExplodeSelect(f)))
 
-  def clearMessages(): GraphPerspective = {
-    graphOpps.enqueue(ClearChain())
-    this
-  }
+  override def clearMessages(): GraphPerspective =
+    addFunction(ClearChain())
 
-  def getNextOperation(): Option[GraphFunction] =
-    if (graphOpps.nonEmpty) Some(graphOpps.dequeue()) else None
-
-  def getTable() = table
-
-  override def nodeCount(): Int = vertices
-
+  private def addFunction(function: GraphFunction) =
+    new GenericGraphPerspective(queryBuilder.addGraphFunction(function))
 }

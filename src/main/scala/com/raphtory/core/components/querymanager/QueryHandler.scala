@@ -4,7 +4,6 @@ import com.raphtory.core.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
 import com.raphtory.core.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
 import Stages.SpawnExecutors
 import Stages.Stage
-import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.algorithm._
 import com.raphtory.core.components.Component
 import com.raphtory.core.config.PulsarController
@@ -19,14 +18,15 @@ import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
 
 import java.util.concurrent.TimeUnit
+import scala.collection.mutable
+import scala.util.Try
 
 /** @DoNotDocument */
-abstract class QueryHandler(
+class QueryHandler(
     queryManager: QueryManager,
     scheduler: Scheduler,
     jobID: String,
-    algorithm: GraphAlgorithm,
-    outputFormat: OutputFormat,
+    query: Query,
     conf: Config,
     pulsarController: PulsarController
 ) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
@@ -39,8 +39,8 @@ abstract class QueryHandler(
     pulsarController.toQueryExecutorProducers(jobID)
 
   private var perspectiveController: PerspectiveController = _
-  private var graphPerspective: GenericGraphPerspective    = _
-  private var table: GenericTable                          = _
+  private var graphFunctions: mutable.Queue[GraphFunction] = _
+  private var tableFunctions: mutable.Queue[TableFunction] = _
   private var currentOperation: GraphFunction              = _
 
   private var currentPerspective: Perspective =
@@ -52,8 +52,6 @@ abstract class QueryHandler(
   private var receivedMessageCount: Int = 0
   private var sentMessageCount: Int     = 0
   private var allVoteToHalt: Boolean    = true
-
-  protected def buildPerspectiveController(latestTimestamp: Long): PerspectiveController
 
   private var currentState: Stage = SpawnExecutors
 
@@ -104,7 +102,7 @@ abstract class QueryHandler(
 
     if (readyCount + 1 == totalPartitions) {
       val latestTime = whatsTheTime()
-      perspectiveController = buildPerspectiveController(latestTime)
+      perspectiveController = PerspectiveController(latestTime, query)
       logger.debug(s"Job '$jobID': Built perspective controller $perspectiveController.")
 
       readyCount = 0
@@ -165,16 +163,9 @@ abstract class QueryHandler(
   private def executeGraph(msg: Array[Byte]): Stage =
     deserialise[QueryManagement](msg) match {
       case StartGraph                                                         =>
-        graphPerspective = new GenericGraphPerspective(vertexCount)
-
-        logger.debug(s"Job '$jobID': Running '${algorithm.getClass.getSimpleName}'.")
-        algorithm.run(graphPerspective)
-
-        logger.debug(s"Job '$jobID': Writing results to '${outputFormat.getClass.getSimpleName}'.")
-        table = graphPerspective.getTable()
-        table.writeTo(outputFormat) //sets output formatter
-
-        graphPerspective.getNextOperation() match {
+        graphFunctions = mutable.Queue.from(query.graphFunctions)
+        tableFunctions = mutable.Queue.from(query.tableFunctions)
+        getNextGraphOperation(graphFunctions) match {
           case Some(f: Select)        =>
             messagetoAllJobWorkers(f)
             readyCount = 0
@@ -190,7 +181,9 @@ abstract class QueryHandler(
           case Some(f: GraphFunction) =>
             messagetoAllJobWorkers(f)
             currentOperation = f
-            logger.debug(s"Job '$jobID': Executing '${algorithm.getClass.getSimpleName}' function.")
+            logger.debug(
+                    s"Job '$jobID': Executing '${f.getClass.getSimpleName}' function."
+            )
             readyCount = 0
             receivedMessageCount = 0
             sentMessageCount = 0
@@ -208,12 +201,8 @@ abstract class QueryHandler(
           if (totalReceivedMessages == totalSentMessages)
             currentOperation match {
               case Iterate(f, iterations, executeMessagedOnly) =>
-                if (iterations == 1 || (allVoteToHalt && votedToHalt)) {
-                  logger.debug(
-                          s"Job '$jobID': Starting next operation '${algorithm.getClass.getSimpleName}'."
-                  )
+                if (iterations == 1 || (allVoteToHalt && votedToHalt))
                   nextGraphOperation(vertexCount)
-                }
                 else {
                   messagetoAllJobWorkers(Iterate(f, iterations - 1, executeMessagedOnly))
                   currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
@@ -221,9 +210,7 @@ abstract class QueryHandler(
                   receivedMessageCount = 0
                   sentMessageCount = 0
                   allVoteToHalt = true
-                  logger.debug(
-                          s"Job '$jobID': Executing '${algorithm.getClass.getSimpleName}' function."
-                  )
+                  logger.debug(s"Job '$jobID': Executing Iterate function.")
                   Stages.ExecuteGraph
                 }
               case _                                           =>
@@ -291,8 +278,8 @@ abstract class QueryHandler(
         logTimeTaken(perspective)
         messagetoAllJobWorkers(CreatePerspective(perspective.timestamp, perspective.window))
         currentPerspective = perspective
-        graphPerspective = null
-        table = null
+        graphFunctions = null
+        tableFunctions = null
         Stages.EstablishPerspective
       case Some(perspective)                                        =>
         logger.debug(
@@ -300,8 +287,8 @@ abstract class QueryHandler(
         )
         logTimeTaken(perspective)
         currentPerspective = perspective
-        graphPerspective = null
-        table = null
+        graphFunctions = null
+        tableFunctions = null
         scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckTimer)
 
         Stages.EstablishPerspective
@@ -347,7 +334,7 @@ abstract class QueryHandler(
   }
 
   private def nextGraphOperation(vertexCount: Int): Stage =
-    graphPerspective.getNextOperation() match {
+    getNextGraphOperation(graphFunctions) match {
       case Some(f: Select)        =>
         logger.debug(s"Job '$jobID': Executing Select function.")
         messagetoAllJobWorkers(f)
@@ -382,7 +369,7 @@ abstract class QueryHandler(
     }
 
   private def nextTableOperation(): Stage =
-    table.getNextOperation() match {
+    getNextTableOperation(tableFunctions) match {
 
       case Some(f: TableFunction) =>
         messagetoAllJobWorkers(f)
@@ -412,6 +399,12 @@ abstract class QueryHandler(
       .thenApply(_ => tracker.sendAsync(serialise(JobDone)).thenApply(_ => tracker.closeAsync()))
 
   }
+
+  private def getNextGraphOperation(queue: mutable.Queue[GraphFunction]) =
+    Try(queue.dequeue).toOption
+
+  private def getNextTableOperation(queue: mutable.Queue[TableFunction]) =
+    Try(queue.dequeue).toOption
 
   def whatsTheTime(): Long = queryManager.whatsTheTime()
 

@@ -1,8 +1,10 @@
 package com.raphtory.core.components.querymanager
 
-import com.raphtory.core.algorithm.GraphAlgorithm
-import com.raphtory.core.algorithm.OutputFormat
+import com.raphtory.core.algorithm.GraphFunction
+import com.raphtory.core.algorithm.TableFunction
 import com.raphtory.core.time.Interval
+
+import scala.collection.immutable.Queue
 
 /** @DoNotDocument */
 trait QueryManagement extends Serializable
@@ -36,33 +38,16 @@ case class CheckMessages(jobId: String) extends QueryManagement
 case class VertexMessage[+T](superstep: Int, vertexId: Long, data: T) extends QueryManagement
 case class VertexMessageBatch[T](data: Array[VertexMessage[T]])       extends QueryManagement
 
-sealed trait Query extends QueryManagement
+case class Query(
+    name: String = "",
+    graphFunctions: Queue[GraphFunction] = Queue(),
+    tableFunctions: Queue[TableFunction] = Queue(),
+    startTime: Option[Long] = None,
+    endTime: Option[Long] = None,
+    increment: Option[Interval] = None,
+    windows: List[Interval] = List()
+) extends QueryManagement
 
-case class PointQuery(
-    name: String,
-    algorithm: GraphAlgorithm,
-    timestamp: Long,
-    windows: List[Interval] = List(),
-    outputFormat: OutputFormat
-) extends Query
-
-case class RangeQuery(
-    name: String,
-    algorithm: GraphAlgorithm,
-    start: Long,
-    end: Long,
-    increment: Interval,
-    windows: List[Interval] = List(),
-    outputFormat: OutputFormat
-) extends Query
-
-case class LiveQuery(
-    name: String,
-    algorithm: GraphAlgorithm,
-    increment: Interval,
-    windows: List[Interval] = List(),
-    outputFormat: OutputFormat
-)                                         extends Query
 case class EndQuery(jobID: String)        extends QueryManagement
 case class QueryNotPresent(jobID: String) extends QueryManagement
 

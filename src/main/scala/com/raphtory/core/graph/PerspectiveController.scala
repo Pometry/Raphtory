@@ -1,11 +1,10 @@
 package com.raphtory.core.graph
 
+import com.raphtory.core.components.querymanager.Query
 import com.raphtory.core.components.querymanager.QueryManagement
 import com.raphtory.core.time.AgnosticInterval
 import com.raphtory.core.time.Interval
 import com.raphtory.core.time.TimeUtils._
-
-import scala.collection.immutable.NumericRange
 
 /** @DoNotDocument */
 case class Perspective(timestamp: Long, window: Option[Interval]) extends QueryManagement
@@ -37,29 +36,26 @@ object PerspectiveController {
   val DEFAULT_PERSPECTIVE_TIME: Long             = -1L
   val DEFAULT_PERSPECTIVE_WINDOW: Some[Interval] = Some(AgnosticInterval(-1L))
 
-  def pointQueryController(
-      timestamp: Long,
-      windows: List[Interval] = List()
-  ): PerspectiveController =
-    new PerspectiveController(Stream(timestamp), windows)
-
-  def rangeQueryController(
-      start: Long,
-      end: Long,
-      increment: Interval,
-      windows: List[Interval] = List()
-  ): PerspectiveController = {
-    val timestamps = Stream.iterate(start)(_ + increment).takeWhile(_ < end) :+ end
-    new PerspectiveController(timestamps, windows)
-  }
-
-  def liveQueryController(
+  def apply(
       firstAvailableTimestamp: Long,
-      repeatIncrement: Interval,
-      windows: List[Interval] = List()
+      query: Query
   ): PerspectiveController = {
-    val timestamps = Stream.iterate(firstAvailableTimestamp)(_ + repeatIncrement)
-    new PerspectiveController(timestamps, windows)
+    query.increment match {
+      case None            =>
+        val end     = query.endTime.getOrElse(Long.MaxValue)
+        val windows = query.startTime match {
+          case Some(start) if(query.windows.isEmpty) => List(AgnosticInterval(end - start))
+          case _ => query.windows
+        }
+        new PerspectiveController(Stream(end), windows)
+      case Some(increment) =>
+        val start           = query.startTime.getOrElse(firstAvailableTimestamp)
+        val timestampStream = Stream.iterate(start)(_ + increment)
+        val timestamps      = query.endTime match {
+          case Some(end) => timestampStream.takeWhile(_ < end) :+ end
+          case None      => timestampStream
+        }
+        new PerspectiveController(timestamps, query.windows)
+    }
   }
-
 }
