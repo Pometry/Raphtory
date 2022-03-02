@@ -1,7 +1,7 @@
 package com.raphtory.core.config
 
 import com.typesafe.config.Config
-import org.apache.pulsar.client.admin.{Namespaces, PulsarAdmin, Topics}
+import org.apache.pulsar.client.admin.{Namespaces, PulsarAdmin, PulsarAdminException, Topics}
 import org.apache.pulsar.client.api._
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 
@@ -13,6 +13,7 @@ class PulsarController(conf: Config) {
   val pulsarAdminAddress: String    = conf.getString("raphtory.pulsar.admin.address")
   val retentionTimeout: Int         = conf.getString("raphtory.pulsar.retention.time").toInt
   val retentionSize: Int         = conf.getString("raphtory.pulsar.retention.size").toInt
+  val prefixTopic: String        = "persistent://public/"
 
   private val client: PulsarClient  =
     PulsarClient
@@ -35,6 +36,7 @@ class PulsarController(conf: Config) {
       retentionTime: Int = retentionTimeout,
       retentionSize: Int = retentionSize
   ): Unit = {
+    println(s"Setting retention namespace for : ${namespace}, for time: ${retentionTime}, for size: ${retentionSize}")
     val policies = new RetentionPolicies(retentionTime, retentionSize)
     pulsarAdmin.namespaces.setRetention(namespace, policies)
   }
@@ -84,7 +86,32 @@ class PulsarController(conf: Config) {
   def createProducer[T](schema: Schema[T], topic: String): Producer[T] =
     client.newProducer(schema).topic(topic).blockIfQueueFull(true).create() //.enableBatching(true)
 
+  def createTopic(topicName: String, deploymentID: String) : String = {
+    val setRetention = createNamespace(deploymentID)
+    if(setRetention) setRetentionNamespace(s"public/${deploymentID}")
+    val topic = s"${prefixTopic}${deploymentID}/${topicName}"
+    //pulsarAdmin.topics.createNonPartitionedTopic(topic)
+    topic
+  }
+
   def deleteTopic(topic: String) = {
     pulsarAdmin.topics().delete(topic)
   }
+
+  def createNamespace(namespace: String) : Boolean = {
+    var setRetention = true
+    try pulsarAdmin.namespaces().createNamespace(s"public/${namespace}")
+    catch {
+      case error: PulsarAdminException =>
+        println("Namespace already found")
+        setRetention = false
+    }
+    setRetention
+  }
+
+  def setupComponent(deploymentID: String) : Unit = {
+    val setRetention = createNamespace(deploymentID)
+    if(setRetention) setRetentionNamespace(s"public/${deploymentID}")
+  }
+
 }

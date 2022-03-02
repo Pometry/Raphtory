@@ -34,14 +34,14 @@ private[core] class RaphtoryClient(
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private def createProducer(topic: String): Producer[Array[Byte]] =
-    pulsarController.createProducer(Schema.BYTES, topic)
+    pulsarController.createProducer(Schema.BYTES, s"persistent://public/${deploymentID}/${topic}")
 
   private def toQueryManagerProducer(): Producer[Array[Byte]] =
     if (deploymentID.nonEmpty)
       createProducer(s"${deploymentID}_submission")
     else {
       internalID = conf.getString("raphtory.deploy.id")
-      createProducer(s"${conf.getString("raphtory.deploy.id")}_submission")
+      createProducer(s"${internalID}_submission")
     }
 
   // Raphtory Client extends scheduler, queries return QueryProgressTracker, not threaded worker
@@ -109,7 +109,7 @@ private[core] class RaphtoryClient(
 
     val policies = new RetentionPolicies(retentionTime, retentionSize)
     admin.namespaces.setRetention("public/default", policies)
-    admin.namespaces.setRetention(s"public/raphtory_$deploymentID", policies)
+    admin.namespaces.setRetention(s"public/$deploymentID", policies)
   }
 
 }
