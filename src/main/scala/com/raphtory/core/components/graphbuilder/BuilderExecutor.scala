@@ -34,6 +34,7 @@ class BuilderExecutor[T](
     logger.debug("Stopping Graph Builder executor.")
     cancelableConsumer match {
       case Some(value) =>
+        pulsarController.deleteTopic(value.getTopic)
         value.close()
       case None        =>
     }

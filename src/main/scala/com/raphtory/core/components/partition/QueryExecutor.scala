@@ -54,7 +54,7 @@ class QueryExecutor(
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
-        // delete topic here value.getTopic
+        pulsarController.deleteTopic(value.getTopic)
         value.close()
       case None        =>
     }
