@@ -34,12 +34,15 @@ class Writer(
     pulsarController: PulsarController
 ) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
 
-  private val neighbours                                    = writerSyncProducers()
+  private val neighbours                                    = pulsarController.writerSyncProducers()
   private var mgsCount                                      = 0
   var cancelableConsumer: Option[Consumer[GraphAlteration]] = None
 
   override def run(): Unit =
-    cancelableConsumer = Some(startPartitionConsumer(GraphAlteration.schema, partitionID))
+    cancelableConsumer = Some(
+            pulsarController
+              .startPartitionConsumer(GraphAlteration.schema, partitionID, messageListener())
+    )
 
   override def stop(): Unit = {
 

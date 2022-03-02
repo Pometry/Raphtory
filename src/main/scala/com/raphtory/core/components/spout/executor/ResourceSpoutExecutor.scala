@@ -23,7 +23,7 @@ class ResourceSpoutExecutor(
     // We assume that Pulsar standalone is running on the users machine before continuing
     // setup and create a producer
     val source   = Source.fromResource(fileDataPath)
-    val producer = toBuildersProducer(Schema.STRING)
+    val producer = pulsarController.toBuildersProducer(Schema.STRING)
     for (line <- source.getLines())
       producer.sendAsync(line)
     source.close()

@@ -19,14 +19,14 @@ class BuilderExecutor[T](
     pulsarController: PulsarController
 ) extends Component[T](conf, pulsarController) {
   private val safegraphBuilder = new Cloner().deepClone(graphBuilder)
-  private val producers        = toWriterProducers
+  private val producers        = pulsarController.toWriterProducers
 
   var cancelableConsumer: Option[Consumer[T]] = None
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")
 
-    cancelableConsumer = Some(startGraphBuilderConsumer(schema))
+    cancelableConsumer = Some(pulsarController.startGraphBuilderConsumer(schema, messageListener))
 
   }
 

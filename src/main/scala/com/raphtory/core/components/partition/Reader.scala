@@ -26,7 +26,7 @@ class Reader(
 ) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
 
   private val executorMap                               = mutable.Map[String, QueryExecutor]()
-  private val watermarkPublish                          = watermarkPublisher()
+  private val watermarkPublish                          = pulsarController.watermarkPublisher()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
   class Watermarker extends Runnable {
@@ -39,7 +39,9 @@ class Reader(
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
 
-    cancelableConsumer = Some(startReaderConsumer(Schema.BYTES, partitionID))
+    cancelableConsumer = Some(
+            pulsarController.startReaderConsumer(Schema.BYTES, partitionID, messageListener())
+    )
     scheduler.scheduleAtFixedRate(1, 1, TimeUnit.SECONDS, new Watermarker())
   }
 

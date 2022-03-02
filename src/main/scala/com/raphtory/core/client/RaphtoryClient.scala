@@ -21,24 +21,18 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies
 import org.slf4j.LoggerFactory
 
 private[core] class RaphtoryClient(
-    deploymentID: String,
+    private val deploymentID: String,
     private val conf: Config,
     private val componentFactory: ComponentFactory,
     private val scheduler: Scheduler,
     private val pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+) {
 
   private var internalID = deploymentID
 
   private val kryo                                 = PulsarKryoSerialiser()
   implicit private val schema: Schema[Array[Byte]] = Schema.BYTES
-
-  override def run(): Unit = {}
-
-  override def handleMessage(msg: Message[Array[Byte]]): Unit = {}
-
-  override def stop(): Unit = {}
-
+  val logger: Logger                               = Logger(LoggerFactory.getLogger(this.getClass))
 
   // Raphtory Client extends scheduler, queries return QueryProgressTracker, not threaded worker
   def pointQuery(
@@ -48,7 +42,7 @@ private[core] class RaphtoryClient(
       windows: List[Long] = List()
   ): QueryProgressTracker = {
     val jobID = getID(graphAlgorithm)
-    toQueryManagerProducer sendAsync kryo.serialise(
+    pulsarController.toQueryManagerProducer sendAsync kryo.serialise(
             PointQuery(jobID, graphAlgorithm, timestamp, windows, outputFormat)
     )
     componentFactory.queryProgressTracker(jobID, scheduler)
@@ -63,7 +57,7 @@ private[core] class RaphtoryClient(
       windows: List[Long] = List()
   ): QueryProgressTracker = {
     val jobID = getID(graphAlgorithm)
-    toQueryManagerProducer sendAsync kryo.serialise(
+    pulsarController.toQueryManagerProducer sendAsync kryo.serialise(
             RangeQuery(jobID, graphAlgorithm, start, end, increment, windows, outputFormat)
     )
     componentFactory.queryProgressTracker(jobID, scheduler)
@@ -76,7 +70,7 @@ private[core] class RaphtoryClient(
       windows: List[Long] = List()
   ): QueryProgressTracker = {
     val jobID = getID(graphAlgorithm)
-    toQueryManagerProducer sendAsync kryo.serialise(
+    pulsarController.toQueryManagerProducer sendAsync kryo.serialise(
             LiveQuery(jobID, graphAlgorithm, increment, windows, outputFormat)
     )
     componentFactory.queryProgressTracker(jobID, scheduler)

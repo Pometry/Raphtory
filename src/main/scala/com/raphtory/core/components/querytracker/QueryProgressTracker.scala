@@ -58,7 +58,9 @@ class QueryProgressTracker(
       Thread.sleep(1000)
 
   override def run(): Unit =
-    cancelableConsumer = Some(startQueryTrackerConsumer(Schema.BYTES, jobID))
+    cancelableConsumer = Some(
+            pulsarController.startQueryTrackerConsumer(Schema.BYTES, jobID, messageListener())
+    )
 
   def stop(): Unit =
     cancelableConsumer match {

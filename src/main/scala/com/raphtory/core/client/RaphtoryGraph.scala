@@ -32,8 +32,8 @@ private[core] class RaphtoryGraph[T: TypeTag](
 
   allowIllegalReflection()
 
-//  private val deploymentID: String = conf.getString("raphtory.deploy.id")
-//  private val spoutTopic: String = conf.getString("raphtory.spout.topic")
+  private val deploymentID: String = conf.getString("raphtory.deploy.id")
+  private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
 
   private val zookeeperAddress: String = conf.getString("raphtory.zookeeper.address")
   private val idManager                = new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
@@ -49,7 +49,7 @@ private[core] class RaphtoryGraph[T: TypeTag](
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
-  override def stop() = {
+  def stop(): Unit = {
     partitions.foreach { partition =>
       partition.writer.stop()
       partition.reader.stop()

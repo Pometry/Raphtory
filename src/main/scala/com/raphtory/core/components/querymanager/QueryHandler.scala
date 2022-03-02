@@ -30,10 +30,12 @@ abstract class QueryHandler(
     pulsarController: PulsarController
 ) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
 
-  private val self: Producer[Array[Byte]]                 = toQueryHandlerProducer(jobID)
-  private val readers: Producer[Array[Byte]]              = toReaderProducer
-  private val tracker: Producer[Array[Byte]]              = toQueryTrackerProducer(jobID)
-  private val workerList: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
+  private val self: Producer[Array[Byte]]                 = pulsarController.toQueryHandlerProducer(jobID)
+  private val readers: Producer[Array[Byte]]              = pulsarController.toReaderProducer
+  private val tracker: Producer[Array[Byte]]              = pulsarController.toQueryTrackerProducer(jobID)
+
+  private val workerList: Map[Int, Producer[Array[Byte]]] =
+    pulsarController.toQueryExecutorProducers(jobID)
 
   private var perspectiveController: PerspectiveController = _
   private var graphPerspective: GenericGraphPerspective    = _
@@ -65,7 +67,9 @@ abstract class QueryHandler(
 
   override def run(): Unit = {
     readers sendAsync serialise(EstablishExecutor(jobID))
-    cancelableConsumer = Some(startQueryHandlerConsumer(Schema.BYTES, jobID))
+    cancelableConsumer = Some(
+            pulsarController.startQueryHandlerConsumer(Schema.BYTES, jobID, messageListener())
+    )
 
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
   }

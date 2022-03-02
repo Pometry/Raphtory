@@ -18,14 +18,16 @@ import scala.collection.mutable
 class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarController)
         extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
   private val currentQueries                            = mutable.Map[String, QueryHandler]()
-  private val watermarkGlobal                           = globalwatermarkPublisher()
+  private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher()
   private val watermarks                                = mutable.Map[Int, WatermarkTime]()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
 
-    cancelableConsumer = Some(startQueryManagerConsumer(Schema.BYTES))
+    cancelableConsumer = Some(
+            pulsarController.startQueryManagerConsumer(Schema.BYTES, messageListener())
+    )
   }
 
   override def stop(): Unit = {

@@ -34,11 +34,12 @@ class FileSpoutExecutor[T](
     scheduler: Scheduler
 ) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler) {
 
-  private val producer = toBuildersProducer[T](schema)
+  private val producer = pulsarController.toBuildersProducer[T](schema)
   // set persistency of completes files topic
   setupNamespace()
 
-  private val fileReadProducerTopic = createTopic("spout", s"completedFiles_$deploymentID")
+  private val fileReadProducerTopic =
+    pulsarController.createTopic("spout", s"completedFiles_$deploymentID")
 
   private val fileTrackerProducer =
     pulsarController.createProducer(Schema.BYTES, fileReadProducerTopic)

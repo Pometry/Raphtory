@@ -25,7 +25,7 @@ class StaticGraphSpoutExecutor(
       // setup and create a producer
       val producer_topic = conf.getString("raphtory.spout.topic")
       val source         = Source.fromFile(fileDataPath)
-      val producer       = toBuildersProducer(Schema.STRING)
+      val producer       = pulsarController.toBuildersProducer(Schema.STRING)
 
       logger.debug(
               s"Producer for '$fileDataPath' created '$producer' with topic '$producer_topic'."
