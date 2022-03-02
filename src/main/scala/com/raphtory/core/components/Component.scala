@@ -189,7 +189,7 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   // CREATION OF PRODUCERS
   private def producerMapGenerator[T](topic: String, schema: Schema[T]): Map[Int, Producer[T]] = {
     //createTopic[T](s"${deploymentID}_$i", schema)
-    val producerTopic = s"${prefixTopic}${deploymentID}/${topic}"
+    val producerTopic = s"${topic}"
     val producers =
       for (i <- 0.until(totalPartitions))
         yield (i, pulsarController.createProducer(schema, producerTopic.toString + s"_$i"))
