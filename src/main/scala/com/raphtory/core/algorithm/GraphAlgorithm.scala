@@ -4,6 +4,36 @@ import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
 import org.slf4j.LoggerFactory
 
+/**
+  * {s}`GraphAlgorithm`
+  *  : Base class for writing graph algorithms
+  *
+  * ## Attributes
+  *
+  *  {s}`logger: Logger`
+  *    : Logger instance for writing out log messages
+  *
+  * ## Methods
+  *
+  *  {s}`apply(graph: GraphPerspective): GraphPerspective`
+  *    : Default implementation returns the graph unchanged
+  *
+  *   {s}`tabularise(graph: GraphPerspective): Table`
+  *    : Return tabularised results (default implementation returns empty table)
+  *
+  *   {s}`run(graph: GraphPerspective): Unit`
+  *      : Run graph algorithm and output results (called internally by the query API to execute the algorithm).
+  *        Normally, this method should not be overriden. Overriding this method can mean that the algorithm will
+  *        behave differently, depending on whether it is called as part of a [](com.raphtory.core.algorithm.Chain)
+  *        or on its own.
+  *
+  *   {s}`->(graphAlgorithm: GraphAlgorithm): Chain`
+  *      : Create a new algorithm [](com.raphtory.core.algorithm.Chain) which runs this algorithm first before
+  *        running the other algorithm.
+  *
+  *        {s}`graphAlgorithm: GraphAlgorithm)`
+  *          : next algorithm to run in the chain
+  */
 abstract class GraphAlgorithm extends Serializable {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -17,6 +47,4 @@ abstract class GraphAlgorithm extends Serializable {
 
   def ->(graphAlgorithm: GraphAlgorithm): Chain =
     Chain(this, graphAlgorithm)
-
-  final def checkID(uniqueChars: String): Long = LongHashFunction.xx3().hashChars(uniqueChars)
 }
