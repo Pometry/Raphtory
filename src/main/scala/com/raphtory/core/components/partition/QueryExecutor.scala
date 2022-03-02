@@ -48,7 +48,7 @@ class QueryExecutor(
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
 
     taskManager sendAsync serialise(ExecutorEstablished(partitionID))
-    cancelableConsumer = Some(startQueryExecutorConsumer(Schema.BYTES, partitionID, jobID))
+    cancelableConsumer = Some(startQueryExecutorConsumer(partitionID, jobID))
   }
 
   override def stop(): Unit = {
@@ -61,8 +61,8 @@ class QueryExecutor(
     neighbours.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit = {
-    deserialise[QueryManagement](msg.getValue) match {
+  override def handleMessage(msg: Array[Byte]): Unit = {
+    deserialise[QueryManagement](msg) match {
 
       case VertexMessageBatch(msgBatch)                =>
         logger.trace(

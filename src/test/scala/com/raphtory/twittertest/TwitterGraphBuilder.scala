@@ -33,7 +33,7 @@ class TwitterGraphBuilder() extends GraphBuilder[String] {
     val srcID      = sourceNode.toLong
     val targetNode = fileLine(1)
     val tarID      = targetNode.toLong
-    val timeStamp  = fileLine(2).toLong
+    val timeStamp  = 1L
 
     addVertex(
             timeStamp,

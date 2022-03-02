@@ -25,9 +25,10 @@ import scala.util.matching.Regex
 
 /** @DoNotDocument */
 // import circe here from game of thrones
+import scala.reflect.runtime.universe.TypeTag
 
 // schema: Schema[EthereumTransaction]
-class FileSpoutExecutor[T](
+class FileSpoutExecutor[T: TypeTag](
     var source: String = "",
     schema: Schema[T],
     lineConverter: (String => T),
@@ -184,6 +185,7 @@ class FileSpoutExecutor[T](
         logger.warn("ERROR(SecurityException): Invalid permissions to create hardlink"); return;
     }
 
+    var count: Long = 0
     tempOutputDirectory.listFiles.sorted.foreach { f =>
       logger.info(f"Reading $f%s")
       var source             = Source.fromFile(f)
@@ -201,6 +203,11 @@ class FileSpoutExecutor[T](
         progressPercent = Math.ceil(percentage * readLength).toInt
         val test = lineConverter(line)
         producer.newMessage().value(test).sendAsync()
+
+        count += 1
+
+        if (count % 100_000 == 0)
+          logger.debug(s"Spout has sent $count messages.")
         //        if (progressPercent % divisByTens == 0) {
         //          divisByTens += 10
         //          logger.info(f"Read: $progressPercent%d%% of file.")

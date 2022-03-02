@@ -15,8 +15,8 @@ import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 /** @DoNotDocument */
-class BuilderExecutor[T: ClassTag](
-    schema: Schema[T],
+class BuilderExecutor[T: ClassTag: TypeTag](
+    name: String,
     graphBuilder: GraphBuilder[T],
     conf: Config,
     pulsarController: PulsarController
@@ -25,12 +25,14 @@ class BuilderExecutor[T: ClassTag](
   private val safegraphBuilder = Marshal.deepCopy(graphBuilder)
   private val producers        = toWriterProducers
 
-  var cancelableConsumer: Option[Consumer[T]] = None
+  private var messagesProcessed = 0
+
+  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
   override def run(): Unit = {
     logger.debug("Starting Graph Builder executor.")
 
-    cancelableConsumer = Some(startGraphBuilderConsumer(schema))
+    cancelableConsumer = Some(startGraphBuilderConsumer())
 
   }
 
@@ -45,14 +47,19 @@ class BuilderExecutor[T: ClassTag](
     producers.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[T]): Unit = {
-    val data = msg.getValue
-    safegraphBuilder.getUpdates(data).foreach(message => sendUpdate(message))
-  }
+  override def handleMessage(msg: T): Unit =
+    safegraphBuilder.getUpdates(msg).foreach(message => sendUpdate(message))
 
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
     logger.trace(s"Sending graph update: $graphUpdate")
-    producers(getWriter(graphUpdate.srcId)).sendAsync(graphUpdate)
 
+    producers(getWriter(graphUpdate.srcId))
+      .sendAsync(serialise(graphUpdate))
+      .thenApply(msgId => msgId -> null)
+
+    messagesProcessed = messagesProcessed + 1
+
+    if (messagesProcessed % 100_000 == 0)
+      logger.debug(s"Graph builder $name: sent $messagesProcessed messages.")
   }
 }

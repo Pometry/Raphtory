@@ -4,6 +4,7 @@ import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
+import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
 
 import scala.io.Source
@@ -34,7 +35,7 @@ class StaticGraphSpoutExecutor(
 
       var lineNo = 1
       for (line <- source.getLines()) {
-        producer.sendAsync(s"$line $lineNo")
+        sendmessage(producer, s"$line $lineNo")
         lineNo += 1
       }
 
@@ -49,6 +50,16 @@ class StaticGraphSpoutExecutor(
         // TODO Better error handling / recovery...
         assert(false)
     }
+
+  var count = 0
+
+  def sendmessage(producer: Producer[String], message: String) = {
+    producer.sendAsync(message)
+    count += 1
+
+    if (count % 100_000 == 0)
+      logger.debug(s"File spout sent $count messages.")
+  }
 
   override def run(): Unit = {
     logger.info(s"Reading data from '$fileDataPath'.")

@@ -24,8 +24,10 @@ trait GraphBuilder[T] extends Serializable {
     catch {
       case e: Exception     =>
         logger.warn(s"Failed to parse tuple.", e.getMessage)
+        e.printStackTrace()
       case other: Throwable =>
         logger.error("Failed to get updates.", other.getMessage)
+        other.printStackTrace()
     }
 
     val toReturn = updates

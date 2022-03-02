@@ -11,7 +11,9 @@ import com.raphtory.output.PulsarOutputFormat
 object RaphtoryEthTest {
 
   def main(args: Array[String]): Unit = {
-    val spout: Spout[String] = FileSpout("/tmp/transactions_03300000_03399999.csv.gz")
+    val spout: Spout[String] = FileSpout(
+            "/Users/alnaimi/Downloads/transactions_03300000_03399999.csv.gz"
+    )
     val gb                   = new EthereumGraphBuilder()
     val graph                = Raphtory.createGraph(spout, gb)
   }

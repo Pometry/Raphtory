@@ -20,6 +20,8 @@ import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
+import org.scalactic.source
+import org.scalatest.BeforeAndAfter
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.LoggerFactory
 
@@ -28,10 +30,12 @@ import scala.reflect.ClassTag
 import scala.util.Random
 import scala.reflect.runtime.universe._
 
-abstract class BaseRaphtoryAlgoTest[T: TypeTag: ClassTag] extends AnyFunSuite {
+abstract class BaseRaphtoryAlgoTest[T: TypeTag: ClassTag] extends AnyFunSuite with BeforeAndAfter {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   setup()
+
+  Thread.sleep(5000)
 
   val spout            = setSpout()
   val graphBuilder     = setGraphBuilder()
@@ -75,6 +79,7 @@ abstract class BaseRaphtoryAlgoTest[T: TypeTag: ClassTag] extends AnyFunSuite {
     val results =
       (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
     val hash    = Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
+    println(hash)
     logger.debug(s"Generated hash code: '$hash'.")
     hash
   }

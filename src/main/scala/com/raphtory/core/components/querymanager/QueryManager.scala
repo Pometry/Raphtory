@@ -25,7 +25,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
 
-    cancelableConsumer = Some(startQueryManagerConsumer(Schema.BYTES))
+    cancelableConsumer = Some(startQueryManagerConsumer())
   }
 
   override def stop(): Unit = {
@@ -38,8 +38,8 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
     watermarkGlobal.close()
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit =
-    deserialise[QueryManagement](msg.getValue) match {
+  override def handleMessage(msg: Array[Byte]): Unit =
+    deserialise[QueryManagement](msg) match {
       case query: PointQuery        =>
         val jobID        = query.name
         logger.debug(
@@ -71,7 +71,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
           case None               => //sender ! QueryNotPresent(req.jobID)
         }
       case watermark: WatermarkTime =>
-        logger.trace(s"Setting watermark to '$watermark' for partition '${watermark.partitionID}'.")
+        logger.debug(s"Setting watermark to '$watermark' for partition '${watermark.partitionID}'.")
         watermarks.put(watermark.partitionID, watermark)
     }
 

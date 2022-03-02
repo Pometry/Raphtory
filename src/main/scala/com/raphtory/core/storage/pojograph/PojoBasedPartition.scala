@@ -62,6 +62,7 @@ class PojoBasedPartition(partition: Int, conf: Config)
     addVertexInternal(msgTime, srcId, properties, vertexType)
   logger.trace("Added Vertex")
 
+  // TODO Unfolding of type is un-necessary
   def addVertexInternal(
       msgTime: Long,
       srcId: Long,
@@ -75,7 +76,7 @@ class PojoBasedPartition(partition: Int, conf: Config)
         v
       case None    => //if it does not exist
         val v = new PojoVertex(msgTime, srcId, initialValue = true) //create a new vertex
-        vertices.+=((srcId, v)) //put it in the map)
+        vertices += ((srcId, v)) //put it in the map)
         v.setType(vertexType.map(_.name))
         logger.trace(s"New vertex created $srcId")
         v
