@@ -62,11 +62,8 @@ class FileSpoutExecutor[T](
   private val file_regex = new Regex(conf.getString("raphtory.spout.file.local.fileFilter"))
   private val recurse    = conf.getBoolean("raphtory.spout.file.local.recurse")
 
-  //  private val hardLinkFile = conf.getBoolean("raphtory.spout.hardLinkCopy")
   // TODO HARDLINK wont work on a network share
   private val outputDirectory = conf.getString("raphtory.spout.file.local.outputDirectory")
-
-  //private val deploymentID = conf.getString("raphtory.deploy.id")
 
   if (source == "")
     source = conf.getString("raphtory.spout.file.local.sourceDirectory")

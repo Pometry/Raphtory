@@ -234,6 +234,4 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
 
   }
 
-  def createNamespace(namespace: String): Unit =
-    pulsarController.createNamespace(namespace)
 }

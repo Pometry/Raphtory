@@ -54,16 +54,6 @@ abstract class QueryHandler(
 
   private var currentState: Stage = SpawnExecutors
 
-
-//  def setupNamespace(): Unit =
-//    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_query_handler")
-//    catch {
-//      case error: PulsarAdminException =>
-//        logger.warn("Namespace already found")
-//    }
-//    finally pulsarController.setRetentionNamespace("public/raphtory_query_handler")
-
-
   class RecheckTimer extends Runnable {
 
     def run() {
@@ -72,8 +62,6 @@ abstract class QueryHandler(
   }
   private val recheckTimer                              = new RecheckTimer()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
-  // setupNamespace()
-  // setRetention()
 
   override def run(): Unit = {
     readers sendAsync serialise(EstablishExecutor(jobID))
@@ -406,8 +394,6 @@ abstract class QueryHandler(
       .flushAsync()
       .thenApply(_ => tracker.sendAsync(serialise(JobDone)).thenApply(_ => tracker.closeAsync()))
 
-    //log.info(s"Job '$jobID': Has no more perspectives. Ending Query Handler execution.")
-    //if(monitor!=null)monitor ! TaskFinished(true)
   }
 
   def whatsTheTime(): Long = queryManager.whatsTheTime()

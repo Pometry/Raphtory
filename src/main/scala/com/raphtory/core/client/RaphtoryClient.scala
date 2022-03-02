@@ -34,7 +34,7 @@ private[core] class RaphtoryClient(
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private def createProducer(topic: String): Producer[Array[Byte]] =
-    pulsarController.createProducer(Schema.BYTES, s"persistent://public/${deploymentID}/${topic}")
+    pulsarController.createProducer(Schema.BYTES, s"persistent://public/$deploymentID/$topic")
 
   private def toQueryManagerProducer(): Producer[Array[Byte]] =
     if (deploymentID.nonEmpty)
@@ -96,20 +96,5 @@ private[core] class RaphtoryClient(
     catch {
       case e: NullPointerException => "Anon_Func_" + System.currentTimeMillis()
     }
-
-  // set here ##
-  def setRetentionPerm() = {
-    val retentionTime = 1
-    val retentionSize = 10
-    val admin         = PulsarAdmin.builder
-      .serviceHttpUrl(conf.getString("raphtory.pulsar.admin.address"))
-      .tlsTrustCertsFilePath(null)
-      .allowTlsInsecureConnection(false)
-      .build
-
-    val policies = new RetentionPolicies(retentionTime, retentionSize)
-    admin.namespaces.setRetention("public/default", policies)
-    admin.namespaces.setRetention(s"public/$deploymentID", policies)
-  }
 
 }

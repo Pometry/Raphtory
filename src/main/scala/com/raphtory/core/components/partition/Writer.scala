@@ -38,17 +38,6 @@ class Writer(
   private var mgsCount                                      = 0
   var cancelableConsumer: Option[Consumer[GraphAlteration]] = None
 
-//  def setupNamespace(): Unit =
-//    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_writer")
-//    catch {
-//      case error: PulsarAdminException =>
-//        logger.warn("Namespace already found")
-//    }
-//    finally pulsarController.setRetentionNamespace("public/raphtory_writer")
-
-  //setupNamespace()
-  //setRetention()
-
   override def run(): Unit =
     cancelableConsumer = Some(startPartitionConsumer(GraphAlteration.schema, partitionID))
 
