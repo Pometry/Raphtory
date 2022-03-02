@@ -138,9 +138,9 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
     )
   }
 
-  def startQueryTrackerConsumer(schema: Schema[T], deployId_jobId: String): Consumer[T] = {
+  def startQueryTrackerConsumer(schema: Schema[T], jobId: String): Consumer[T] = {
 
-    val topic = createTopic("query", s"${deployId_jobId}_querytracking")
+    val topic = createTopic("query", s"${deploymentID}_${jobId}_querytracking")
     pulsarController.createListeningConsumer(
             "queryProgressConsumer",
             messageListener,
@@ -235,3 +235,4 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   }
 
 }
+

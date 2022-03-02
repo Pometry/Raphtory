@@ -16,10 +16,7 @@ import org.apache.pulsar.client.api.Schema
 import scala.collection.mutable.ListBuffer
 
 class QueryProgressTracker(
-    deploymentID_jobID: String,
-    deploymentID: String,
     jobID: String,
-    scheduler: Scheduler,
     conf: Config,
     pulsarController: PulsarController
 ) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
@@ -28,7 +25,6 @@ class QueryProgressTracker(
   implicit private val schema: Schema[Array[Byte]]              = Schema.BYTES
   private var perspectivesProcessed: Long                       = 0
   private var jobDone: Boolean                                  = false
-  private val topicId: String                                   = deploymentID_jobID
   private var perspectivesList: ListBuffer[Perspective]         = new ListBuffer[Perspective]()
   private var perspectivesDurations: ListBuffer[Long]           = new ListBuffer[Long]()
   private var latestPerspective: Perspective                    = null
@@ -62,7 +58,7 @@ class QueryProgressTracker(
       Thread.sleep(1000)
 
   override def run(): Unit =
-    cancelableConsumer = Some(startQueryTrackerConsumer(Schema.BYTES, topicId))
+    cancelableConsumer = Some(startQueryTrackerConsumer(Schema.BYTES, jobID))
 
   def stop(): Unit =
     cancelableConsumer match {

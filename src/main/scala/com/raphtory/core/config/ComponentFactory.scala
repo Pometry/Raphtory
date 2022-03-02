@@ -84,18 +84,15 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
   }
 
   def queryProgressTracker(
-      topicId: String,
-      deploymentID: String,
       jobID: String,
       scheduler: Scheduler
   ): QueryProgressTracker = {
     logger.info(
-            s"Creating new Query Progress Tracker for deployment " +
-              s"'$deploymentID' and job '$jobID' at topic '$topicId'."
+            s"Creating new Query Progress Tracker for  '$jobID'."
     )
 
     val queryTracker =
-      new QueryProgressTracker(topicId, deploymentID, jobID, scheduler, conf, pulsarController)
+      new QueryProgressTracker(jobID, conf, pulsarController)
 
     scheduler.execute(queryTracker)
     ThreadedWorker(queryTracker)
