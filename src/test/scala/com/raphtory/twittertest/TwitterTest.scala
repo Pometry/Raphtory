@@ -19,18 +19,16 @@ class TwitterTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setup() =
     if (!new File("/tmp/twitter.csv").exists())
-      "curl -o /tmp/twitter.csv https://raw.githubusercontent.com/Raphtory/Data/main/snap-twitter.csv " !
+      if ({
+        "curl -o /tmp/twitter.csv https://raw.githubusercontent.com/Raphtory/Data/main/snap-twitter.csv " !
+      } != 0) {
+
+        logger.error("Failed to download twitter data!")
+
+        "rm /tmp/twitter.csv" !
+      }
 
   override def setSpout() = StaticGraphSpout("/tmp/twitter.csv")
-
-  if ({
-    "curl -o /tmp/twitter.csv https://raw.githubusercontent.com/Raphtory/Data/main/snap-twitter.csv " !
-  } != 0) {
-
-    logger.error("Failed to download twitter data!")
-
-    "rm /tmp/twitter.csv" !
-  }
 
   override def setGraphBuilder() = new TwitterGraphBuilder()
 
