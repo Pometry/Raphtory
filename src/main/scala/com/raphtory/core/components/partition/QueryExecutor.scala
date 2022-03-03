@@ -34,7 +34,7 @@ class QueryExecutor(
     jobID: String,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController) {
+) extends Component[QueryManagement](conf: Config, pulsarController) {
 
   var graphLens: LensInterface  = _
   var sentMessageCount: Int     = 0
@@ -67,8 +67,8 @@ class QueryExecutor(
     neighbours.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Array[Byte]): Unit = {
-    deserialise[QueryManagement](msg) match {
+  override def handleMessage(msg: QueryManagement): Unit = {
+    msg match {
 
       case VertexMessageBatch(msgBatch)                                     =>
         logger.trace(

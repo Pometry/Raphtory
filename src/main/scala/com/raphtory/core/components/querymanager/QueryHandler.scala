@@ -30,7 +30,7 @@ abstract class QueryHandler(
     outputFormat: OutputFormat,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
 
   private val self: Producer[Array[Byte]]    = pulsarController.toQueryHandlerProducer(jobID)
   private val readers: Producer[Array[Byte]] = pulsarController.toReaderProducer
@@ -88,9 +88,10 @@ abstract class QueryHandler(
     workerList.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Array[Byte]): Unit =
+  override def handleMessage(msg: QueryManagement): Unit =
     currentState match {
-      case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
+      case Stages.SpawnExecutors       =>
+        currentState = spawnExecutors(msg.asInstanceOf[ExecutorEstablished])
       case Stages.EstablishPerspective => currentState = establishPerspective(msg)
       case Stages.ExecuteGraph         => currentState = executeGraph(msg)
       case Stages.ExecuteTable         => currentState = executeTable(msg)
@@ -99,8 +100,8 @@ abstract class QueryHandler(
 
   ////OPERATION STATES
   //Communicate with all readers and get them to spawn a QueryExecutor for their partition
-  private def spawnExecutors(msg: Array[Byte]): Stage = {
-    val workerID = deserialise[ExecutorEstablished](msg).worker
+  private def spawnExecutors(msg: ExecutorEstablished): Stage = {
+    val workerID = msg.worker
     logger.debug(s"Job '$jobID': Deserialized worker '$workerID'.")
 
     if (readyCount + 1 == totalPartitions) {
@@ -120,8 +121,8 @@ abstract class QueryHandler(
   }
 
   //build the perspective within the QueryExecutor for each partition -- the view to be analysed
-  private def establishPerspective(msg: Array[Byte]): Stage =
-    deserialise[QueryManagement](msg) match {
+  private def establishPerspective(msg: QueryManagement): Stage =
+    msg match {
       case RecheckTime               =>
         logger.debug(s"Job '$jobID': Rechecking time of $currentPerspective.")
         recheckTime(currentPerspective)
@@ -159,9 +160,9 @@ abstract class QueryHandler(
     }
 
   //execute the steps of the graph algorithm until a select is run
-  private def executeGraph(msg: Array[Byte]): Stage =
-    deserialise[QueryManagement](msg) match {
-      case StartGraph                                                         =>
+  private def executeGraph(msg: QueryManagement): Stage =
+    msg match {
+      case StartGraph                                                                         =>
         graphPerspective = new GenericGraphPerspective(vertexCount)
         graphState = GraphStateImplementation()
 
@@ -230,8 +231,8 @@ abstract class QueryHandler(
     }
 
   //once the select has been run, execute all of the table functions until we hit a writeTo
-  private def executeTable(msg: Array[Byte]): Stage =
-    deserialise[QueryManagement](msg) match {
+  private def executeTable(msg: QueryManagement): Stage =
+    msg match {
       case TableBuilt            =>
         readyCount += 1
         if (readyCount == totalPartitions) {
