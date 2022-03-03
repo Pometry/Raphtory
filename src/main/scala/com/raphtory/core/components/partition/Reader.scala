@@ -7,7 +7,9 @@ import com.raphtory.core.components.querymanager.WatermarkTime
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.GraphPartition
 import com.typesafe.config.Config
+import monix.eval.Task
 import monix.execution.Scheduler
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
@@ -26,21 +28,17 @@ class Reader(
 ) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
 
   private val executorMap                               = mutable.Map[String, QueryExecutor]()
-  private val watermarkPublish                          = watermarkPublisher()
+  private val watermarkPublish                          = pulsarController.watermarkPublisher()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
-
-  class Watermarker extends Runnable {
-
-    def run() {
-      createWatermark()
-    }
-  }
 
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
 
-    cancelableConsumer = Some(startReaderConsumer(Schema.BYTES, partitionID))
-    scheduler.scheduleAtFixedRate(1, 1, TimeUnit.SECONDS, new Watermarker())
+    scheduleWaterMarker()
+
+    cancelableConsumer = Some(
+            pulsarController.startReaderConsumer(partitionID, messageListener())
+    )
   }
 
   override def stop(): Unit = {
@@ -53,8 +51,8 @@ class Reader(
     executorMap.foreach(_._2.stop())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit = {
-    val jobID         = deserialise[EstablishExecutor](msg.getValue).jobID
+  override def handleMessage(msg: Array[Byte]): Unit = {
+    val jobID         = deserialise[EstablishExecutor](msg).jobID
     val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
 
     scheduler.execute(queryExecutor)
@@ -102,4 +100,19 @@ class Reader(
     else
       watermarkPublish.sendAsync(serialise(WatermarkTime(partitionID, finalTime, false)))
   }
+
+  private def scheduleWaterMarker(): Unit = {
+    val watermarking = new Runnable {
+      override def run(): Unit = createWatermark()
+    }
+
+    scheduler
+      .scheduleAtFixedRate(
+              initialDelay = 0,
+              period = 1,
+              unit = TimeUnit.SECONDS,
+              r = watermarking
+      )
+  }
+
 }

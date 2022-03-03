@@ -23,11 +23,10 @@ class ResourceSpoutExecutor(
   private def readFile(fileDataPath: String): Unit = {
     // We assume that Pulsar standalone is running on the users machine before continuing
     // setup and create a producer
-    val producer_topic = conf.getString("raphtory.spout.topic")
-    val source         = Source.fromResource(fileDataPath)
-    val producer       = pulsarController.createProducer(Schema.STRING, producer_topic)
+    val source   = Source.fromResource(fileDataPath)
+    val producer = pulsarController.toBuildersProducer()
     for (line <- source.getLines())
-      producer.sendAsync(line)
+      producer.sendAsync(kryo.serialise(line))
     source.close()
   }
 
