@@ -25,7 +25,9 @@
         </Logger>
         <Logger name="com.raphtory.develop" level="INFO">
         </Logger>
-        <Logger name="com.raphtory.core" level="INFO">
+        <Logger name="com.raphtory.core" level="DEBUG">
+        </Logger>
+        <Logger name="com.raphtory.core.components.querymanager.QueryHandler" level="DEBUG">
         </Logger>
         <Root level="info">
             <AppenderRef ref="Console"/>
