@@ -6,7 +6,7 @@ import com.raphtory.{BaseRaphtoryAlgoTest, GraphState}
 import com.raphtory.algorithms.generic.{BinaryDiffusion, ConnectedComponents}
 import com.raphtory.algorithms.generic.centrality.{AverageNeighbourDegree, Degree, Distinctiveness, PageRank, WeightedDegree, WeightedPageRank}
 import com.raphtory.algorithms.generic.community.{LPA, SLPA}
-import com.raphtory.algorithms.generic.dynamic.{DiscreteSI, RandomWalk, WattsCascade}
+import com.raphtory.algorithms.generic.dynamic.{DiscreteSI, RandomWalk, WattsCascade, WeightedRandomWalk}
 import com.raphtory.algorithms.generic.motif.{SquareCount, TriangleCount}
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.core.components.spout.SpoutExecutor
@@ -74,14 +74,14 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("LPA Test") {
     assert(
       algorithmTest(LPA(seed=1234), outputFormat, 32674, 32674, 10000, List(10000))
-      equals "efbc1e2c7b7e7d95715dc823cad8901c4c9fcd4659427afa73967f5dcee645ef"
+      equals "cf7bf559d634a0cf02739d9116b4d2f47c25679be724a896223c0917d55d2143"
     )
   }
 
   test("SLPA Test") {
     assert(
       algorithmTest(SLPA(speakerRule = SLPA.ChooseRandom(seed=1234)), outputFormat, 32674, 32674, 10000, List(10000))
-      equals "0aabc57ec48f115587c0e4efb17d2461dc124b7d78b97043b7177d8f3e468f66"
+      equals "a7c72dac767dc94d64d76e2c046c1dbe95154a8da7994d2133cf9e1b09b65570"
     )
   }
 
@@ -108,7 +108,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("DiscreteSI test") {
     assert(
       algorithmTest(DiscreteSI(Set("Gandalf"), seed=1234), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
-      equals "8dcf6437a1ed3ec16984d1edb191d7fed1ddbcf56042bb3fc499587cb03edab9"
+      equals "57191e340ef3e8268d255751b14fff76292087af2365048d961d59a5c0fbbc3f"
     )
   }
 
@@ -134,6 +134,11 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
       algorithmTest(GenericTaint(1, infectedNodes = Set("Bilbo"), stopNodes = Set("Aragorn")),outputFormat,1, 32674, 10000, List(500, 1000, 10000))
         equals "85c24ece1ac693814abbac304d18858572a0d7644457f9272cf642caf8517660"
     )
+  }
+
+  test("Weighted Random Walk") {
+    algorithmPointTest(WeightedRandomWalk[Int](), outputFormat, 32674)
+    assert(true)
   }
 
   // TODO Re-enable with Seed to produce same result

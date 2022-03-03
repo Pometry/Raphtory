@@ -12,6 +12,7 @@ import com.raphtory.core.graph.Perspective
 import com.raphtory.core.graph.PerspectiveController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Producer
@@ -20,6 +21,7 @@ import org.apache.pulsar.client.api.Schema
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
 
+/** @DoNotDocument */
 abstract class QueryHandler(
     queryManager: QueryManager,
     scheduler: Scheduler,
@@ -30,10 +32,12 @@ abstract class QueryHandler(
     pulsarController: PulsarController
 ) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
 
-  private val self: Producer[Array[Byte]]                 = toQueryHandlerProducer(jobID)
-  private val readers: Producer[Array[Byte]]              = toReaderProducer
-  private val tracker: Producer[Array[Byte]]              = toQueryTrackerProducer(jobID)
-  private val workerList: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
+  private val self: Producer[Array[Byte]]    = pulsarController.toQueryHandlerProducer(jobID)
+  private val readers: Producer[Array[Byte]] = pulsarController.toReaderProducer
+  private val tracker: Producer[Array[Byte]] = pulsarController.toQueryTrackerProducer(jobID)
+
+  private val workerList: Map[Int, Producer[Array[Byte]]] =
+    pulsarController.toQueryExecutorProducers(jobID)
 
   private var perspectiveController: PerspectiveController = _
   private var graphPerspective: GenericGraphPerspective    = _
@@ -65,7 +69,9 @@ abstract class QueryHandler(
 
   override def run(): Unit = {
     readers sendAsync serialise(EstablishExecutor(jobID))
-    cancelableConsumer = Some(startQueryHandlerConsumer(Schema.BYTES, jobID))
+    cancelableConsumer = Some(
+            pulsarController.startQueryHandlerConsumer(jobID, messageListener())
+    )
 
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
   }
@@ -82,7 +88,7 @@ abstract class QueryHandler(
     workerList.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit =
+  override def handleMessage(msg: Array[Byte]): Unit =
     currentState match {
       case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
       case Stages.EstablishPerspective => currentState = establishPerspective(msg)
@@ -93,8 +99,8 @@ abstract class QueryHandler(
 
   ////OPERATION STATES
   //Communicate with all readers and get them to spawn a QueryExecutor for their partition
-  private def spawnExecutors(msg: Message[Array[Byte]]): Stage = {
-    val workerID = deserialise[ExecutorEstablished](msg.getValue).worker
+  private def spawnExecutors(msg: Array[Byte]): Stage = {
+    val workerID = deserialise[ExecutorEstablished](msg).worker
     logger.debug(s"Job '$jobID': Deserialized worker '$workerID'.")
 
     if (readyCount + 1 == totalPartitions) {
@@ -114,8 +120,8 @@ abstract class QueryHandler(
   }
 
   //build the perspective within the QueryExecutor for each partition -- the view to be analysed
-  private def establishPerspective(msg: Message[Array[Byte]]): Stage =
-    deserialise[QueryManagement](msg.getValue) match {
+  private def establishPerspective(msg: Array[Byte]): Stage =
+    deserialise[QueryManagement](msg) match {
       case RecheckTime               =>
         logger.debug(s"Job '$jobID': Rechecking time of $currentPerspective.")
         recheckTime(currentPerspective)
@@ -153,9 +159,9 @@ abstract class QueryHandler(
     }
 
   //execute the steps of the graph algorithm until a select is run
-  private def executeGraph(msg: Message[Array[Byte]]): Stage =
-    deserialise[QueryManagement](msg.getValue) match {
-      case StartGraph                                                                         =>
+  private def executeGraph(msg: Array[Byte]): Stage =
+    deserialise[QueryManagement](msg) match {
+      case StartGraph                                                         =>
         graphPerspective = new GenericGraphPerspective(vertexCount)
         graphState = GraphStateImplementation()
 
@@ -224,8 +230,8 @@ abstract class QueryHandler(
     }
 
   //once the select has been run, execute all of the table functions until we hit a writeTo
-  private def executeTable(msg: Message[Array[Byte]]): Stage =
-    deserialise[QueryManagement](msg.getValue) match {
+  private def executeTable(msg: Array[Byte]): Stage =
+    deserialise[QueryManagement](msg) match {
       case TableBuilt            =>
         readyCount += 1
         if (readyCount == totalPartitions) {
@@ -432,8 +438,6 @@ abstract class QueryHandler(
       .flushAsync()
       .thenApply(_ => tracker.sendAsync(serialise(JobDone)).thenApply(_ => tracker.closeAsync()))
 
-    //log.info(s"Job '$jobID': Has no more perspectives. Ending Query Handler execution.")
-    //if(monitor!=null)monitor ! TaskFinished(true)
   }
 
   def whatsTheTime(): Long = queryManager.whatsTheTime()

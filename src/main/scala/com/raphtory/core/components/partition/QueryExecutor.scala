@@ -24,8 +24,10 @@ import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
 import com.raphtory.output.PulsarOutputFormat
 import com.typesafe.config.Config
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api._
 
+/** @DoNotDocument */
 class QueryExecutor(
     partitionID: Int,
     storage: GraphPartition,
@@ -39,15 +41,20 @@ class QueryExecutor(
   var receivedMessageCount: Int = 0
   var votedToHalt: Boolean      = false
 
-  private val taskManager: Producer[Array[Byte]]          = toQueryHandlerProducer(jobID)
-  private val neighbours: Map[Int, Producer[Array[Byte]]] = toQueryExecutorProducers(jobID)
+  private val taskManager: Producer[Array[Byte]] = pulsarController.toQueryHandlerProducer(jobID)
+
+  private val neighbours: Map[Int, Producer[Array[Byte]]] =
+    pulsarController.toQueryExecutorProducers(jobID)
   var cancelableConsumer: Option[Consumer[Array[Byte]]]   = None
 
   override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
 
     taskManager sendAsync serialise(ExecutorEstablished(partitionID))
-    cancelableConsumer = Some(startQueryExecutorConsumer(Schema.BYTES, partitionID, jobID))
+    cancelableConsumer = Some(
+            pulsarController
+              .startQueryExecutorConsumer(partitionID, jobID, messageListener())
+    )
   }
 
   override def stop(): Unit = {
@@ -60,8 +67,8 @@ class QueryExecutor(
     neighbours.foreach(_._2.close())
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit = {
-    deserialise[QueryManagement](msg.getValue) match {
+  override def handleMessage(msg: Array[Byte]): Unit = {
+    deserialise[QueryManagement](msg) match {
 
       case VertexMessageBatch(msgBatch)                                     =>
         logger.trace(
@@ -265,7 +272,9 @@ class QueryExecutor(
             Some(
                     pulsarController.accessClient
                       .newProducer(Schema.STRING)
-                      .topic(outputFormat.asInstanceOf[PulsarOutputFormat].pulsarTopic)
+                      .topic(
+                              outputFormat.asInstanceOf[PulsarOutputFormat].pulsarTopic
+                      ) // TODO change here : Topic name with deployment
                       .create()
             )
           else

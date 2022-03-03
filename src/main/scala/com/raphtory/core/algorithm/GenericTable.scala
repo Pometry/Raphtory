@@ -2,6 +2,7 @@ package com.raphtory.core.algorithm
 
 import scala.collection.mutable
 
+/** @DoNotDocument */
 class GenericTable extends Table {
   val tableOpps = mutable.Queue[TableFunction]()
 

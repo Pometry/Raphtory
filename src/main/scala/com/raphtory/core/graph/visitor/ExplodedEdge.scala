@@ -6,7 +6,7 @@ trait ExplodedEdge {
   def src(): Long
   def dst(): Long
   def getPropertySet(): List[String]
-  def getPropertyValue(key: String): Option[Any]
+  def getPropertyValue[T](key: String): Option[T]
   def send(data: Any): Unit
   def getTimestamp(): Long
 }

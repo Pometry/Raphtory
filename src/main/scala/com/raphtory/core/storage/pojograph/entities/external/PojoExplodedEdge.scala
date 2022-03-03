@@ -2,6 +2,7 @@ package com.raphtory.core.storage.pojograph.entities.external
 
 import com.raphtory.core.graph.visitor.ExplodedEdge
 
+/** @DoNotDocument */
 class PojoExplodedEdge(objectEdge: PojoExEdge, timestamp: Long) extends ExplodedEdge {
 
   override def Type(): Unit =
@@ -19,8 +20,8 @@ class PojoExplodedEdge(objectEdge: PojoExEdge, timestamp: Long) extends Exploded
   override def getPropertySet(): List[String] =
     objectEdge.getPropertySet()
 
-  override def getPropertyValue(key: String): Option[Any] =
-    objectEdge.getPropertyAt(key, timestamp)
+  override def getPropertyValue[T](key: String): Option[T] =
+    objectEdge.getPropertyAt[T](key, timestamp)
 
   override def send(data: Any): Unit =
     objectEdge.send(data)

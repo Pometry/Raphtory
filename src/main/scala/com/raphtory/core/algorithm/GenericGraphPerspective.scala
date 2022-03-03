@@ -4,6 +4,9 @@ import com.raphtory.core.graph.visitor.Vertex
 
 import scala.collection.mutable
 
+/**
+  * @DoNotDocument
+  */
 class GenericGraphPerspective(vertices: Int) extends GraphPerspective {
   val graphOpps = mutable.Queue[GraphFunction]()
   val table     = new GenericTable()

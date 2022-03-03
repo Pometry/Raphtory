@@ -27,8 +27,6 @@
         </Logger>
         <Logger name="com.raphtory.core" level="INFO">
         </Logger>
-<!--        <Logger name="org.apache.pulsar.client.admin" level="DEBUG">-->
-<!--        </Logger>-->
         <Root level="info">
             <AppenderRef ref="Console"/>
         </Root>

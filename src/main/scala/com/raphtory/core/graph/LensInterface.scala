@@ -7,6 +7,7 @@ import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.graph.visitor.Vertex
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
 
+/** @DoNotDocument */
 trait LensInterface {
 
   def getFullGraphSize: Int

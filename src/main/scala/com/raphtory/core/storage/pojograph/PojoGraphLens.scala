@@ -13,6 +13,7 @@ import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
+/** @DoNotDocument */
 final case class PojoGraphLens(
     jobId: String,
     timestamp: Long,
@@ -73,9 +74,12 @@ final case class PojoGraphLens(
     dataTable = List(f(graphState))
 
   def explodeSelect(f: Vertex => List[Row]): Unit =
-    dataTable = vertices.collect {
-      case (_ , vertex) => f(vertex)
-    }.flatten.toList
+    dataTable = vertices
+      .collect {
+        case (_, vertex) => f(vertex)
+      }
+      .flatten
+      .toList
 
   def filteredTable(f: Row => Boolean): Unit =
     dataTable = dataTable.filter(f)

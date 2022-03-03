@@ -8,27 +8,45 @@ import com.typesafe.config.ConfigValueFactory
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
+/** @DoNotDocument */
 private[core] class ConfigHandler {
-  private var salt                     = Random.nextInt().abs
   private lazy val defaults            = createConf()
   private lazy val deployedDistributed = defaults.getBoolean("raphtory.deploy.distributed")
   private val customConfigValues       = ArrayBuffer[(String, ConfigValue)]()
 
+  private var salt = Random.nextInt().abs
+
   def addCustomConfig(path: String, value: Any) =
     customConfigValues += ((path, ConfigValueFactory.fromAnyRef(value)))
 
-  def get(): Config =
+  def getConfig: Config =
     if (deployedDistributed)
       distributed()
     else
       local()
 
+  def updateSalt(): Unit =
+    this.salt = Random.nextInt().abs
+
+  def setSalt(salt: Int): Unit =
+    this.salt = salt
+
   private def createConf(): Config = {
-    var tempConf = ConfigFactory.defaultOverrides().withFallback(ConfigFactory.defaultApplication())
+    var tempConf = ConfigFactory
+      .defaultOverrides()
+      .withFallback(
+              ConfigFactory.defaultApplication()
+      )
+
     customConfigValues.foreach {
       case (path, value) =>
-        tempConf = tempConf.withValue(path, ConfigValueFactory.fromAnyRef(value))
+        tempConf = tempConf
+          .withValue(
+                  path,
+                  ConfigValueFactory.fromAnyRef(value)
+          )
     }
+
     tempConf.resolve()
   }
 
@@ -46,6 +64,4 @@ private[core] class ConfigHandler {
   private def distributed(): Config =
     ConfigFactory.defaultOverrides().withFallback(ConfigFactory.defaultApplication()).resolve()
 
-  def updateSalt(): Unit =
-    salt = Random.nextInt().abs
 }

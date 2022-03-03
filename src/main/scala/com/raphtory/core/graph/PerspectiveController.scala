@@ -4,6 +4,7 @@ import com.raphtory.core.components.querymanager.QueryManagement
 
 import scala.collection.immutable.NumericRange
 
+/** @DoNotDocument */
 case class Perspective(timestamp: Long, window: Option[Long]) extends QueryManagement
 
 class PerspectiveController(timestamps: Stream[Long], windows: List[Long]) {

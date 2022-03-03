@@ -27,6 +27,7 @@ import com.typesafe.config.Config
 
 import scala.collection.mutable
 
+/** @DoNotDocument */
 class PojoBasedPartition(partition: Int, conf: Config)
         extends GraphPartition(partition: Int, conf: Config) {
 
@@ -50,17 +51,19 @@ class PojoBasedPartition(partition: Int, conf: Config)
       case FloatProperty(key, value)     => entity + (msgTime, false, key, value)
       case ImmutableProperty(key, value) => entity + (msgTime, true, key, value)
     }
-  // if the add come with some properties add all passed properties into the entity
 
+  // if the add come with some properties add all passed properties into the entity
   override def addVertex(
       msgTime: Long,
       srcId: Long,
       properties: Properties,
       vertexType: Option[Type]
-  ): Unit =
+  ): Unit = {
     addVertexInternal(msgTime, srcId, properties, vertexType)
-  logger.trace("Added Vertex")
+    logger.trace(s"Added vertex $srcId")
+  }
 
+  // TODO Unfolding of type is un-necessary
   def addVertexInternal(
       msgTime: Long,
       srcId: Long,
@@ -74,7 +77,7 @@ class PojoBasedPartition(partition: Int, conf: Config)
         v
       case None    => //if it does not exist
         val v = new PojoVertex(msgTime, srcId, initialValue = true) //create a new vertex
-        vertices.+=((srcId, v)) //put it in the map)
+        vertices += ((srcId, v)) //put it in the map)
         v.setType(vertexType.map(_.name))
         logger.trace(s"New vertex created $srcId")
         v
@@ -290,7 +293,13 @@ class PojoBasedPartition(partition: Int, conf: Config)
         logger.trace(s"Revived edge ${edge.getSrcId} - ${edge.getDstId}")
         addProperties(msgTime, edge, properties)
         logger.trace(s"Added properties: $properties to edge")
-      case None       => logger.error(s"Error: Edge $srcId $dstId missing from partition $partition.")
+      case None       =>
+        logger.error(s"Error: Edge $srcId $dstId missing from partition $partition.")
+
+        if (failOnError)
+          throw new IllegalStateException(
+                  s"Edge $srcId $dstId is missing from partition $partition."
+          )
     }
     EdgeSyncAck(msgTime, srcId, dstId, fromAddition = true)
   }

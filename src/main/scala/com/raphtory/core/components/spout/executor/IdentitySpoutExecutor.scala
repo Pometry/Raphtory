@@ -4,8 +4,10 @@ import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
+import scala.reflect.runtime.universe.TypeTag
 
-class IdentitySpoutExecutor[T](
+/** @DoNotDocument */
+class IdentitySpoutExecutor[T: TypeTag](
     conf: Config,
     pulsarController: PulsarController,
     scheduler: Scheduler

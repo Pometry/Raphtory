@@ -11,11 +11,13 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
-/**
+/** @DoNotDocument
   * Singleton representing the Storage for the entities
   */
 abstract class GraphPartition(partitionID: Int, conf: Config) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
+  protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
 
   /**
     * Ingesting Vertices

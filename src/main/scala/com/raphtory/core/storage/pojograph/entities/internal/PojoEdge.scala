@@ -1,5 +1,6 @@
 package com.raphtory.core.storage.pojograph.entities.internal
 
+/** @DoNotDocument */
 class PojoEdge(msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean)
         extends PojoEntity(msgTime, initialValue) {
 

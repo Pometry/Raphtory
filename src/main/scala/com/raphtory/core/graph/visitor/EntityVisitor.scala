@@ -11,17 +11,17 @@ abstract class EntityVisitor {
   def earliestActivity(): HistoricEvent
 
   def getPropertySet(): List[String]
-  def getProperty[T: ClassTag](key: String): Option[T]
-  def getPropertyOrElse[T: ClassTag](key: String, otherwise: T): T
-  def getPropertyAt[T: ClassTag](key: String, time: Long): Option[T]
+  def getProperty[T](key: String): Option[T]
+  def getPropertyOrElse[T](key: String, otherwise: T): T
+  def getPropertyAt[T](key: String, time: Long): Option[T]
 
-  def getPropertyValues[T: ClassTag](
+  def getPropertyValues[T](
       key: String,
       after: Long = Long.MaxValue,
       before: Long = Long.MaxValue
   ): Option[List[T]]
 
-  def getPropertyHistory[T: ClassTag](key: String): Option[List[(Long, T)]]
+  def getPropertyHistory[T](key: String): Option[List[(Long, T)]]
 
   //functionality to access the history of the edge + helpers
   def history(): List[HistoricEvent]

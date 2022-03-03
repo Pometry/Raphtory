@@ -16,11 +16,13 @@ import org.apache.pulsar.client.api.Schema
 import org.slf4j.LoggerFactory
 
 import scala.reflect.ClassTag
+import scala.reflect.runtime.universe.TypeTag
 
+/** @DoNotDocument */
 private[core] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def builder[T: ClassTag](
+  def builder[T: ClassTag: TypeTag](
       graphbuilder: GraphBuilder[T],
       scheduler: Scheduler,
       schema: Schema[T]
@@ -28,11 +30,31 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
     val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
     logger.info(s"Creating '$totalBuilders' Graph Builders.")
 
-    val builders = for (i <- (0 until totalBuilders)) yield {
-      val builderExecutor = new BuilderExecutor[T](schema, graphbuilder, conf, pulsarController)
+    val deploymentID = conf.getString("raphtory.deploy.id")
+    logger.debug(s"Deployment ID set to '$deploymentID'.")
+
+    val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
+    logger.debug(s"Zookeeper Address set to '$deploymentID'.")
+
+    val idManager = new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
+
+    val builders = for (name <- (0 until totalBuilders)) yield {
+      val builderId = idManager
+        .getNextAvailableID()
+        .getOrElse(
+                throw new Exception(
+                        s"Failed to retrieve Builder ID. " +
+                          s"ID Manager at Zookeeper '$idManager' was unreachable."
+                )
+        )
+
+      val builderExecutor =
+        new BuilderExecutor[T](builderId.toString, graphbuilder, conf, pulsarController)
+
       scheduler.execute(builderExecutor)
       ThreadedWorker(builderExecutor)
     }
+
     builders.toList
   }
 
@@ -86,18 +108,15 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
   }
 
   def queryProgressTracker(
-      topicId: String,
-      deploymentID: String,
       jobID: String,
       scheduler: Scheduler
   ): QueryProgressTracker = {
     logger.info(
-            s"Creating new Query Progress Tracker for deployment " +
-              s"'$deploymentID' and job '$jobID' at topic '$topicId'."
+            s"Creating new Query Progress Tracker for  '$jobID'."
     )
 
     val queryTracker =
-      new QueryProgressTracker(topicId, deploymentID, jobID, scheduler, conf, pulsarController)
+      new QueryProgressTracker(jobID, conf, pulsarController)
 
     scheduler.execute(queryTracker)
     ThreadedWorker(queryTracker)

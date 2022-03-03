@@ -6,6 +6,7 @@ import monix.execution.UncaughtExceptionReporter
 
 import java.util.concurrent.Executors
 
+/** @DoNotDocument */
 private[core] class MonixScheduler {
 
   val threads: Int = 8

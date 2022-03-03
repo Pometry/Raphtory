@@ -8,6 +8,7 @@ import org.apache.curator.retry.ExponentialBackoffRetry
 import org.apache.curator.retry.RetryNTimes
 import org.slf4j.LoggerFactory;
 
+/** @DoNotDocument */
 private[core] class ZookeeperIDManager(zookeeperAddress: String, atomicPath: String) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 

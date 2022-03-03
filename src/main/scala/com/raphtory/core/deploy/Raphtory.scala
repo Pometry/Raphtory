@@ -65,7 +65,7 @@ object Raphtory {
     new RaphtoryClient(deploymentID, conf, componentFactory, scheduler, pulsarController)
   }
 
-  def createSpout[T](spout: Spout[T]): Unit = {
+  def createSpout[T: TypeTag](spout: Spout[T]): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
@@ -73,7 +73,10 @@ object Raphtory {
     componentFactory.spout(spoutExecutor, scheduler)
   }
 
-  def createGraphBuilder[T: ClassTag](builder: GraphBuilder[T], schema: Schema[T]): Unit = {
+  def createGraphBuilder[T: ClassTag: TypeTag](
+      builder: GraphBuilder[T],
+      schema: Schema[T]
+  ): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
@@ -100,10 +103,10 @@ object Raphtory {
   private def confBuilder(customConfig: Map[String, Any] = Map()): Config = {
     val confHandler = new ConfigHandler()
     customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
-    confHandler.get()
+    confHandler.getConfig
   }
 
-  private def createSpoutExecutor[T](
+  private def createSpoutExecutor[T: TypeTag](
       spout: Spout[T],
       conf: Config,
       pulsarController: PulsarController
