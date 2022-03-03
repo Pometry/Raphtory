@@ -19,7 +19,7 @@ class QueryProgressTracker(
     jobID: String,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
   implicit private val schema: Schema[Array[Byte]]              = Schema.BYTES
   private var perspectivesProcessed: Long                       = 0
   private var jobDone: Boolean                                  = false
@@ -67,8 +67,8 @@ class QueryProgressTracker(
       case None        =>
     }
 
-  override def handleMessage(msg: Array[Byte]): Unit =
-    deserialise[QueryManagement](msg) match {
+  override def handleMessage(msg: QueryManagement): Unit =
+    msg match {
 
       case p: Perspective =>
         val perspectiveDuration = System.currentTimeMillis() - perspectiveTime

@@ -25,7 +25,7 @@ class Reader(
     scheduler: Scheduler,
     conf: Config,
     pulsarController: PulsarController
-) extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+) extends Component[EstablishExecutor](conf: Config, pulsarController: PulsarController) {
 
   private val executorMap                               = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish                          = pulsarController.watermarkPublisher()
@@ -51,8 +51,8 @@ class Reader(
     executorMap.foreach(_._2.stop())
   }
 
-  override def handleMessage(msg: Array[Byte]): Unit = {
-    val jobID         = deserialise[EstablishExecutor](msg).jobID
+  override def handleMessage(msg: EstablishExecutor): Unit = {
+    val jobID         = msg.jobID
     val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
 
     scheduler.execute(queryExecutor)

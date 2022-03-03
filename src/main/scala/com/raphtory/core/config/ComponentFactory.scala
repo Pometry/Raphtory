@@ -5,6 +5,7 @@ import com.raphtory.core.components.graphbuilder.BuilderExecutor
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.partition.Reader
 import com.raphtory.core.components.partition.Writer
+import com.raphtory.core.components.querymanager.QueryManagement
 import com.raphtory.core.components.querymanager.QueryManager
 import com.raphtory.core.components.querytracker.QueryProgressTracker
 import com.raphtory.core.components.spout.SpoutExecutor
@@ -99,7 +100,7 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
     ThreadedWorker(spout)
   }
 
-  def query(scheduler: Scheduler): ThreadedWorker[Array[Byte]] = {
+  def query(scheduler: Scheduler): ThreadedWorker[QueryManagement] = {
     logger.info(s"Creating new Query Manager.")
     val queryManager = new QueryManager(scheduler, conf, pulsarController)
 

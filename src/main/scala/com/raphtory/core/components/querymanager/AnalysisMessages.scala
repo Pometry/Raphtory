@@ -1,6 +1,7 @@
 package com.raphtory.core.components.querymanager
 
 import com.raphtory.core.algorithm.GraphAlgorithm
+import com.raphtory.core.algorithm.GraphStateImplementation
 import com.raphtory.core.algorithm.OutputFormat
 
 /** @DoNotDocument */
@@ -24,6 +25,13 @@ case class GraphFunctionComplete(
     receivedMessages: Int,
     sentMessages: Int,
     votedToHalt: Boolean = false
+) extends QueryManagement
+
+case class GraphFunctionCompleteWithState(
+    receivedMessages: Int,
+    sentMessages: Int,
+    votedToHalt: Boolean = false,
+    graphState: GraphStateImplementation
 ) extends QueryManagement
 
 case object TableBuilt            extends QueryManagement
