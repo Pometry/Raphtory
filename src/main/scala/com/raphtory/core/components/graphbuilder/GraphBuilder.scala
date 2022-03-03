@@ -4,6 +4,7 @@ import com.raphtory.core.graph._
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
 import org.slf4j.LoggerFactory
+import com.typesafe.config.Config
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -16,16 +17,19 @@ trait GraphBuilder[T] extends Serializable {
 
   def assignID(uniqueChars: String): Long = LongHashFunction.xx3().hashChars(uniqueChars)
 
-  private[graphbuilder] def getUpdates(tuple: T): List[GraphUpdate] = {
+  private[graphbuilder] def getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate] = {
     try {
       logger.trace(s"Parsing tuple: $tuple")
       parseTuple(tuple)
     }
     catch {
-      case e: Exception     =>
-        logger.warn(s"Failed to parse tuple.", e.getMessage)
-      case other: Throwable =>
-        logger.error("Failed to get updates.", other.getMessage)
+      case e: Exception =>
+        if (failOnError)
+          throw e
+        else {
+          logger.warn(s"Failed to parse tuple.", e.getMessage)
+          e.printStackTrace()
+        }
     }
 
     val toReturn = updates

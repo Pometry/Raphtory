@@ -47,7 +47,7 @@ import scala.util.Random
 class DiscreteSI(
     infectedNodes: Set[String],
     infectionProbability: Double = 0.5,
-    maxGenerations: Int = 100,
+    maxGenerations: Int = 50,
     seed: Long = -1
 ) extends NodeList(Seq("infected")) {
 
