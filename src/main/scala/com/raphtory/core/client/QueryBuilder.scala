@@ -12,8 +12,6 @@ import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
 
-import java.time.LocalDateTime
-
 class QueryBuilder(
     private val deploymentID: String,
     private val conf: Config,
@@ -57,7 +55,8 @@ class QueryBuilder(
     componentFactory.queryProgressTracker(jobID, scheduler)
   }
 
-  private def getID(query: Query): String = query.hashCode() + "-" + LocalDateTime.now().toString
+  private def getID(query: Query): String =
+    query.hashCode().abs + "_" + System.currentTimeMillis()
 
   private def copyWithQuery(newQuery: Query) =
     new QueryBuilder(deploymentID, conf, componentFactory, scheduler, pulsarController, newQuery)
