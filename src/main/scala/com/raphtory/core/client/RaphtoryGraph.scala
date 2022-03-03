@@ -37,8 +37,14 @@ private[core] class RaphtoryGraph[T: TypeTag: ClassTag](
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
 
   private val zookeeperAddress: String = conf.getString("raphtory.zookeeper.address")
-  private val idManager                = new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
-  idManager.resetID()
+
+  private val partitionIdManager =
+    new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
+  partitionIdManager.resetID()
+
+  private val builderIdManager =
+    new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
+  builderIdManager.resetID()
 
   private val partitions                     = componentFactory.partition(scheduler)
   private val queryManager                   = componentFactory.query(scheduler)
@@ -50,7 +56,7 @@ private[core] class RaphtoryGraph[T: TypeTag: ClassTag](
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
-  def stop() = {
+  def stop(): Unit = {
     partitions.foreach { partition =>
       partition.writer.stop()
       partition.reader.stop()

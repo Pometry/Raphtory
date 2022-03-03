@@ -7,8 +7,9 @@ import org.apache.pulsar.client.api.Schema
 import org.slf4j.LoggerFactory
 
 import scala.reflect.ClassTag
+import scala.reflect.runtime.universe.TypeTag
 
-abstract class RaphtoryService[T: ClassTag] {
+abstract class RaphtoryService[T: ClassTag: TypeTag] {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def defineSpout(): Spout[T]

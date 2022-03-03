@@ -25,9 +25,10 @@ import scala.util.matching.Regex
 
 /** @DoNotDocument */
 // import circe here from game of thrones
+import scala.reflect.runtime.universe.TypeTag
 
-// schema: Schema[EthereumTransaction]
-class FileSpoutExecutor[T](
+// TODO Add failOnError post cleanup
+class FileSpoutExecutor[T: TypeTag](
     var source: String = "",
     schema: Schema[T],
     lineConverter: (String => T),
@@ -36,20 +37,20 @@ class FileSpoutExecutor[T](
     scheduler: Scheduler
 ) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler) {
 
-  private val topic    = conf.getString("raphtory.spout.topic")
-  private val producer = pulsarController.createProducer(schema, topic)
+  private val producer = pulsarController.toBuildersProducer()
+
   // set persistency of completes files topic
   setupNamespace()
 
   private val fileReadProducerTopic =
-    "persistent://public/raphtory_spout/completedFiles_" + deploymentID
+    pulsarController.createTopic("spout", s"completedFiles_$deploymentID")
 
   private val fileTrackerProducer =
     pulsarController.createProducer(Schema.BYTES, fileReadProducerTopic)
 
   private val fileTrackerConsumer = pulsarController.accessClient
     .newConsumer(schema)
-    .topics(Array("fileReadProducerTopic" + deploymentID).toList.asJava)
+    .topics(Array(s"completedFiles_$deploymentID").toList.asJava)
     .subscriptionName("fileReaderTracker")
     .subscriptionType(SubscriptionType.Exclusive)
     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -66,20 +67,24 @@ class FileSpoutExecutor[T](
   private val file_regex = new Regex(conf.getString("raphtory.spout.file.local.fileFilter"))
   private val recurse    = conf.getBoolean("raphtory.spout.file.local.recurse")
 
-  //  private val hardLinkFile = conf.getBoolean("raphtory.spout.hardLinkCopy")
   // TODO HARDLINK wont work on a network share
   private val outputDirectory = conf.getString("raphtory.spout.file.local.outputDirectory")
 
   if (source == "")
     source = conf.getString("raphtory.spout.file.local.sourceDirectory")
 
+// originally has set namespace
   def setupNamespace(): Unit =
     try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_spout")
     catch {
       case error: PulsarAdminException =>
         logger.warn("Namespace already found")
     }
-    finally pulsarController.setRetentionNamespace("public/raphtory_spout")
+    finally pulsarController.setRetentionNamespace(
+            "public/raphtory_spout",
+            -1,
+            -1
+    ) //s"public/raphtory/$deploymentID"
 
   def updateFilesRead(): Unit = {
     // get names/path of all files that have been previously read, only prepopulate once
@@ -184,6 +189,7 @@ class FileSpoutExecutor[T](
         logger.warn("ERROR(SecurityException): Invalid permissions to create hardlink"); return;
     }
 
+    var count: Long = 0
     tempOutputDirectory.listFiles.sorted.foreach { f =>
       logger.info(f"Reading $f%s")
       var source             = Source.fromFile(f)
@@ -200,7 +206,12 @@ class FileSpoutExecutor[T](
         readLength += line.length
         progressPercent = Math.ceil(percentage * readLength).toInt
         val test = lineConverter(line)
-        producer.newMessage().value(test).sendAsync()
+        producer.newMessage().value(kryo.serialise(test)).sendAsync()
+
+        count += 1
+
+        if (count % 100_000 == 0)
+          logger.debug(s"Spout has sent $count messages.")
         //        if (progressPercent % divisByTens == 0) {
         //          divisByTens += 10
         //          logger.info(f"Read: $progressPercent%d%% of file.")

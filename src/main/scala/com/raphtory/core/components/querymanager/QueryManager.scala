@@ -8,6 +8,7 @@ import com.raphtory.core.components.querymanager.handler.RangeQueryHandler
 import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
@@ -18,14 +19,14 @@ import scala.collection.mutable
 class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarController)
         extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
   private val currentQueries                            = mutable.Map[String, QueryHandler]()
-  private val watermarkGlobal                           = globalwatermarkPublisher()
+  private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher()
   private val watermarks                                = mutable.Map[Int, WatermarkTime]()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
 
-    cancelableConsumer = Some(startQueryManagerConsumer(Schema.BYTES))
+    cancelableConsumer = Some(pulsarController.startQueryManagerConsumer(messageListener()))
   }
 
   override def stop(): Unit = {
@@ -38,8 +39,8 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
     watermarkGlobal.close()
   }
 
-  override def handleMessage(msg: Message[Array[Byte]]): Unit =
-    deserialise[QueryManagement](msg.getValue) match {
+  override def handleMessage(msg: Array[Byte]): Unit =
+    deserialise[QueryManagement](msg) match {
       case query: PointQuery        =>
         val jobID        = query.name
         logger.debug(
@@ -71,7 +72,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
           case None               => //sender ! QueryNotPresent(req.jobID)
         }
       case watermark: WatermarkTime =>
-        logger.trace(s"Setting watermark to '$watermark' for partition '${watermark.partitionID}'.")
+        logger.debug(s"Setting watermark to '$watermark' for partition '${watermark.partitionID}'.")
         watermarks.put(watermark.partitionID, watermark)
     }
 

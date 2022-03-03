@@ -17,6 +17,8 @@ import scala.collection.mutable
 abstract class GraphPartition(partitionID: Int, conf: Config) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
+  protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
+
   /**
     * Ingesting Vertices
     */
