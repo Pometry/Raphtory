@@ -54,12 +54,18 @@ class PulsarController(conf: Config) {
     pulsarAdmin.namespaces.setRetention(namespace, policies)
   }
 
+  def readCompact(topicList: List[String]) : Boolean = {
+    val non_persistent = "non-persistent"
+    topicList.exists(non_persistent.contains(_))
+  }
+
   def createListeningConsumer[T](
       subscriptionName: String,
       messageListener: MessageListener[T],
       schema: Schema[T],
       topics: String*
-  ): Consumer[T] =
+  ): Consumer[T] = {
+    val isCompact = readCompact(topics.toList)
     client
       .newConsumer(schema)
       .topics(topics.toList.asJava)
@@ -75,10 +81,14 @@ class PulsarController(conf: Config) {
       )
       .poolMessages(true)
       .messageListener(messageListener)
+      .readCompacted(isCompact)
       .subscribe()
+  }
 
-  def createConsumer[T](subscriptionName: String, schema: Schema[T], topics: String*): Consumer[T] =
+  def createConsumer[T](subscriptionName: String, schema: Schema[T], topics: String*): Consumer[T] = {
     //topics.foreach(topic => pulsarAdmin.schemas().createSchema(topic, schema.getSchemaInfo))
+
+    val isCompact = readCompact(topics.toList)
     client
       .newConsumer(schema)
       .topics(topics.toList.asJava)
@@ -87,7 +97,9 @@ class PulsarController(conf: Config) {
       .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
       .batchReceivePolicy(BatchReceivePolicy.builder().maxNumMessages(10000).build())
       .poolMessages(true)
+      .readCompacted(isCompact)
       .subscribe()
+  }
 
   def createProducer[T](schema: Schema[T], topic: String): Producer[T] =
     client.newProducer(schema).topic(topic).blockIfQueueFull(true).create() //.enableBatching(true)
