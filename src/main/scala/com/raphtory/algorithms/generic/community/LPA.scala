@@ -85,8 +85,7 @@ object LPA {
   def lpa(vertex: Vertex, weight: String, SP: Double, rnd: Random): Unit = {
     val vlabel     = vertex.getState[Long]("community")
     val vneigh     = vertex.getEdges()
-    val neigh_freq = vneigh
-      .map(e => (e.ID(), e.getProperty(weight).getOrElse(1.0f)))
+    val neigh_freq = vneigh.map { e => (e.ID(), e.totalWeight(weightProperty=weight)) }
       .groupBy(_._1)
       .view
       .mapValues(x => x.map(_._2).sum)
