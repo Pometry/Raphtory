@@ -1,5 +1,6 @@
 package com.raphtory.core.storage.pojograph
 
+import com.raphtory.core.algorithm.GraphState
 import com.raphtory.core.algorithm.Row
 import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.graph.visitor.Vertex
@@ -27,12 +28,12 @@ final case class PojoGraphLens(
   var t1                    = System.currentTimeMillis()
   private var fullGraphSize = 0
 
-  def getFullGraphSize = {
+  def getFullGraphSize: Int = {
     logger.trace(s"Current Graph size at '$fullGraphSize'.")
     fullGraphSize
   }
 
-  def setFullGraphSize(size: Int) = {
+  def setFullGraphSize(size: Int): Unit = {
     fullGraphSize = size
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
@@ -49,7 +50,7 @@ final case class PojoGraphLens(
 
   private lazy val vertices: Array[(Long, Vertex)] = vertexMap.toArray
 
-  def getSize() = vertices.size
+  def getSize(): Int = vertices.size
 
   private var dataTable: List[Row] = List()
 
@@ -57,6 +58,20 @@ final case class PojoGraphLens(
     dataTable = vertices.collect {
       case (id, vertex) => f(vertex)
     }.toList
+
+  def executeSelect(
+      f: (Vertex, GraphState) => Row,
+      graphState: GraphState
+  ): Unit =
+    dataTable = vertices.collect {
+      case (id, vertex) => f(vertex, graphState)
+    }.toList
+
+  def executeSelect(
+      f: GraphState => Row,
+      graphState: GraphState
+  ): Unit =
+    dataTable = List(f(graphState))
 
   def explodeSelect(f: Vertex => List[Row]): Unit =
     dataTable = vertices
@@ -80,8 +95,26 @@ final case class PojoGraphLens(
     vertexCount.set(vertices.size)
   }
 
-  def runMessagedGraphFunction(f: Vertex => Unit): Unit = {
+  override def runGraphFunction(
+      f: (Vertex, GraphState) => Unit,
+      graphState: GraphState
+  ): Unit = {
+    vertices.foreach { case (id, vertex) => f(vertex, graphState) }
+    vertexCount.set(vertices.size)
+  }
+
+  override def runMessagedGraphFunction(f: Vertex => Unit): Unit = {
     val size = vertices.collect { case (id, vertex) if vertex.hasMessage() => f(vertex) }.size
+    vertexCount.set(size)
+  }
+
+  override def runMessagedGraphFunction(
+      f: (Vertex, GraphState) => Unit,
+      graphState: GraphState
+  ): Unit = {
+    val size = vertices.collect {
+      case (id, vertex) if vertex.hasMessage() => f(vertex, graphState)
+    }.size
     vertexCount.set(size)
   }
 

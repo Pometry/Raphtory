@@ -17,7 +17,7 @@ import scala.collection.mutable
 
 /** @DoNotDocument */
 class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarController)
-        extends Component[Array[Byte]](conf: Config, pulsarController: PulsarController) {
+        extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
   private val currentQueries                            = mutable.Map[String, QueryHandler]()
   private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher()
   private val watermarks                                = mutable.Map[Int, WatermarkTime]()
@@ -39,8 +39,8 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
     watermarkGlobal.close()
   }
 
-  override def handleMessage(msg: Array[Byte]): Unit =
-    deserialise[QueryManagement](msg) match {
+  override def handleMessage(msg: QueryManagement): Unit =
+    msg match {
       case query: PointQuery        =>
         val jobID        = query.name
         logger.debug(
