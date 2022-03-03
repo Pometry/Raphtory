@@ -6,6 +6,26 @@ import com.raphtory.core.config.PulsarController
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
 
+/**
+  * # PulsarOutputFormat
+  * `PulsarOutputFormat` writes output to a Raphtory Pulsar topic
+  *
+  * Usage while querying or running algorithmic tests:
+  *
+  * ```{code-block} scala
+  * import com.raphtory.output.PulsarOutputFormat
+  * val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)
+  *     val queryProgressTracker =
+  *     graph.rangeQuery(
+  *           graphAlgorithm = EdgeList(),
+  *           outputFormat = outputFormat,
+  *           start = 1,
+  *           end = 32674,
+  *           increment = 10000,
+  *           windows = List(500, 1000, 10000)
+  *     )
+  * ```
+  */
 class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
 
   override def write(

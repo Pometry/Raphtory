@@ -8,7 +8,8 @@ import org.slf4j.LoggerFactory
 import java.io.File
 
 /**
-  * Write output for Raphtory Job and Partition for a pre-defined window and timestamp.
+  * # FileOutputFormat
+  * `FileOutputFormat` writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File
   *
   * Usage while querying or running algorithmic tests:
   *
