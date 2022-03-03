@@ -53,7 +53,7 @@ import scala.util.Random
   * [](com.raphtory.algorithms.generic.community.SLPA), [](com.raphtory.algorithms.temporal.community.MultilayerLPA)
   * ```
   */
-class LPA(weight: String = "", maxIter: Int = 500, seed: Long = -1)
+class LPA(weight: String = "", maxIter: Int = 50, seed: Long = -1)
         extends NodeList(Seq("community")) {
 
   val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
