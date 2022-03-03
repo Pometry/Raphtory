@@ -1,18 +1,10 @@
 package com.raphtory.core.components
 
-import com.raphtory.core.components.graphbuilder.GraphAlteration
 import com.raphtory.core.config.PulsarController
 import com.raphtory.serialisers.PulsarKryoSerialiser
-import com.raphtory.serialisers.avro
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import org.apache.pulsar.client.admin.PulsarAdminException
-import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.MessageListener
-import org.apache.pulsar.client.api.Producer
-import org.apache.pulsar.client.api.Schema
-import org.apache.pulsar.common.policies.data.RetentionPolicies
 import org.slf4j.LoggerFactory
 
 import scala.reflect.runtime.universe._
