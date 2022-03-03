@@ -32,3 +32,8 @@ abstract class EntityVisitor {
   lazy val numDeletions: Long = history().count(f => !f.event)
 }
 case class HistoricEvent(time: Long, event: Boolean)
+
+object EdgeDirection extends Enumeration {
+  type Direction = Value
+  val Incoming, Outgoing, Both = Value
+}

@@ -1,5 +1,9 @@
 package com.raphtory.core.graph.visitor
 
+import com.raphtory.core.algorithm.MergeStrategy
+import com.raphtory.core.algorithm.MergeStrategy.Merge
+import com.raphtory.core.graph.visitor.EdgeDirection.Direction
+
 import scala.reflect.ClassTag
 
 trait Vertex extends EntityVisitor {
@@ -79,6 +83,56 @@ trait Vertex extends EntityVisitor {
   // if includeProperties = true and value is pulled in from properties, the new value is set as state
   def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T
   def appendToState[T](key: String, value: Any): Unit
+
+  // weight
+  private def directedEdgeWeight(dir : Direction = EdgeDirection.Incoming, weightProperty : String="weight",
+                                 edgeMergeStrategy : Merge = MergeStrategy.Sum, vertexMergeStrategy: Merge=MergeStrategy.Sum,
+                                 defaultWeight:Float=1.0f) : Float = {
+    val eWeights = ( dir match {
+      case EdgeDirection.Incoming =>
+        getInEdges()
+      case EdgeDirection.Outgoing =>
+        getOutEdges()
+      case EdgeDirection.Both =>
+        getEdges()
+    })
+      .map(e=>(e, e.totalWeight(edgeMergeStrategy, weightProperty, defaultWeight)))
+    vertexMergeStrategy match {
+      case MergeStrategy.Sum =>
+        eWeights.map{case (edge, weight) => weight}.sum
+      case MergeStrategy.Min =>
+        eWeights.map{case (edge, weight) => weight}.min
+      case MergeStrategy.Max =>
+        eWeights.map{case (edge, weight) => weight}.max
+      case MergeStrategy.Product =>
+        eWeights.map{case (edge, weight) => weight}.product
+      case MergeStrategy.Average =>
+        val wgts = eWeights.map{case (edge, weight) => weight}
+        if (wgts.nonEmpty) wgts.sum/wgts.size else 0.0f
+      case MergeStrategy.Earliest =>
+        val (earliestEdge, earliestWeight) = eWeights.minBy{case (edge, weight) => edge.latestActivity().time}
+        earliestWeight
+      case MergeStrategy.Latest =>
+        val (latestEdge, latestWeight) = eWeights.maxBy{case (edge, weight) => edge.latestActivity().time}
+        latestWeight
+    }
+  }
+
+  def inWeight(weightProperty : String="weight", edgeMergeStrategy : Merge = MergeStrategy.Sum,
+               vertexMergeStrategy : Merge = MergeStrategy.Sum, defaultWeight:Float=1.0f) : Float = {
+    directedEdgeWeight(EdgeDirection.Incoming,weightProperty,edgeMergeStrategy, vertexMergeStrategy, defaultWeight)
+  }
+  def outWeight(weightProperty : String="weight", edgeMergeStrategy : Merge = MergeStrategy.Sum,
+                vertexMergeStrategy : Merge = MergeStrategy.Sum, defaultWeight:Float=1.0f) : Float = {
+    directedEdgeWeight(EdgeDirection.Outgoing,weightProperty,edgeMergeStrategy, vertexMergeStrategy, defaultWeight)
+  }
+  def totalWeight(weightProperty : String="weight", edgeMergeStrategy : Merge = MergeStrategy.Sum,
+                  vertexMergeStrategy : Merge = MergeStrategy.Sum, defaultWeight:Float=1.0f)  : Float = {
+    directedEdgeWeight(EdgeDirection.Both,weightProperty,edgeMergeStrategy, vertexMergeStrategy, defaultWeight)
+  }
+  def weightBalance(weightProperty:String="weight", defaultWeight:Float=1.0f) : Float = {
+    inWeight(weightProperty, defaultWeight = defaultWeight) - outWeight(weightProperty, defaultWeight = defaultWeight)
+  }
 
   // Also need a function for receiving messages, but the user should not have access to this
   //private def receiveMessage(msg: VertexMessage): Unit
