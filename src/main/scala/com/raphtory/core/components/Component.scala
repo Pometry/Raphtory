@@ -49,9 +49,8 @@ abstract class Component[T: TypeTag](conf: Config, private val pulsarController:
       catch {
         case e: Exception =>
           logger.error(s"Deployment $deploymentID: Failed to handle message.")
-          e.printStackTrace()
-
           consumer.negativeAcknowledge(msg)
+          throw e
       }
       finally msg.release()
     }

@@ -54,6 +54,7 @@ abstract class QueryHandler(
   private var receivedMessageCount: Int = 0
   private var sentMessageCount: Int     = 0
   private var allVoteToHalt: Boolean    = true
+  private var timeTaken                 = System.currentTimeMillis()
 
   protected def buildPerspectiveController(latestTimestamp: Long): PerspectiveController
 
@@ -69,6 +70,8 @@ abstract class QueryHandler(
 
   override def run(): Unit = {
     readers sendAsync serialise(EstablishExecutor(jobID))
+    timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
+
     cancelableConsumer = Some(
             pulsarController.startQueryHandlerConsumer(jobID, messageListener())
     )
@@ -105,10 +108,11 @@ abstract class QueryHandler(
     logger.debug(s"Job '$jobID': Deserialized worker '$workerID'.")
 
     if (readyCount + 1 == totalPartitions) {
-      val latestTime = whatsTheTime()
+      val latestTime          = whatsTheTime()
       perspectiveController = buildPerspectiveController(latestTime)
-      logger.debug(s"Job '$jobID': Built perspective controller $perspectiveController.")
-
+      val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
+      logger.debug(s"Job '$jobID': Spawned all executors in ${schedulingTimeTaken}ms.")
+      timeTaken = System.currentTimeMillis()
       readyCount = 0
       executeNextPerspective()
     }
@@ -269,13 +273,17 @@ abstract class QueryHandler(
       tracker.sendAsync(serialise(currentPerspective))
     perspectiveController.nextPerspective() match {
       case Some(perspective) if perspective.timestamp <= latestTime =>
-        logger.debug(s"Job '$jobID': Perspective '$perspective' is starting.")
         logTimeTaken(perspective)
         messagetoAllJobWorkers(CreatePerspective(perspective.timestamp, perspective.window))
         currentPerspective = perspective
         graphState = GraphStateImplementation()
         graphPerspective = null
         table = null
+        val localPerspectiveSetupTime = System.currentTimeMillis() - timeTaken
+        logger.debug(
+                s"Job '$jobID': Perspective '$perspective' is starting. Took ${localPerspectiveSetupTime}ms"
+        )
+        timeTaken = System.currentTimeMillis()
         Stages.EstablishPerspective
       case Some(perspective)                                        =>
         logger.debug(
@@ -290,7 +298,6 @@ abstract class QueryHandler(
         Stages.EstablishPerspective
       case None                                                     =>
         logger.debug(s"Job '$jobID': No more perspectives to run.")
-        //log.info(s"no more perspectives to run for $jobID")
         killJob()
         Stages.EndTask
     }
@@ -300,12 +307,12 @@ abstract class QueryHandler(
     if (currentPerspective.timestamp != DEFAULT_PERSPECTIVE_TIME)
       currentPerspective.window match {
         case Some(window) =>
-          logger.trace(
+          logger.debug(
                   s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' with " +
                     s"Window $window took ${System.currentTimeMillis() - lastTime} ms to run."
           )
         case None         =>
-          logger.trace(
+          logger.debug(
                   s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' " +
                     s"took ${System.currentTimeMillis() - lastTime} ms to run. "
           )
