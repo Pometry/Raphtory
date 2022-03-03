@@ -1,5 +1,7 @@
 package com.raphtory.core.deploy
 
+import com.raphtory.core.algorithm.GenericTemporalGraph
+import com.raphtory.core.algorithm.TemporalGraph
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.executor.FileSpoutExecutor
 import com.raphtory.core.components.spout.executor.IdentitySpoutExecutor
@@ -15,6 +17,7 @@ import com.raphtory.core.config.ComponentFactory
 import com.raphtory.core.config.ConfigHandler
 import com.raphtory.core.config.MonixScheduler
 import com.raphtory.core.config.PulsarController
+import com.raphtory.core.client.QueryBuilder
 import com.raphtory.core.client.RaphtoryClient
 import com.raphtory.core.client.RaphtoryGraph
 import com.typesafe.config.Config
@@ -54,6 +57,37 @@ object Raphtory {
       customConfig: Map[String, Any] = Map()
   ): RaphtoryGraph[String] =
     createTypedGraph[String](spout, graphBuilder, Schema.STRING, customConfig)
+
+  def deployTypedGraph[T: TypeTag: ClassTag](
+      spout: Spout[T] = new IdentitySpout[T](),
+      graphBuilder: GraphBuilder[T],
+      schema: Schema[T],
+      customConfig: Map[String, Any] = Map()
+  ): TemporalGraph = {
+    val conf             = confBuilder(customConfig)
+    val pulsarController = new PulsarController(conf)
+    val componentFactory = new ComponentFactory(conf, pulsarController)
+    val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
+    new RaphtoryGraph[T](
+            spoutExecutor,
+            graphBuilder,
+            schema,
+            conf,
+            componentFactory,
+            scheduler,
+            pulsarController
+    )
+
+    val queryBuilder = new QueryBuilder("", conf, componentFactory, scheduler, pulsarController)
+    new GenericTemporalGraph(queryBuilder)
+  }
+
+  def deployGraph(
+      spout: Spout[String],
+      graphBuilder: GraphBuilder[String],
+      customConfig: Map[String, Any] = Map()
+  ): TemporalGraph =
+    deployTypedGraph[String](spout, graphBuilder, Schema.STRING, customConfig)
 
   def createClient(
       deploymentID: String = "",
