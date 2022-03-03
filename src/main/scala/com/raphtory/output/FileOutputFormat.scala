@@ -7,6 +7,18 @@ import org.slf4j.LoggerFactory
 
 import java.io.File
 
+/**
+  * Write output for Raphtory Job and Partition for a pre-defined window and timestamp.
+  *
+  * Usage while querying or running algorithmic tests:
+  *
+  * ```{code-block} scala
+  * import com.raphtory.output.FileOutputFormat
+  * algorithmTest(WeightedDegree(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+  * val testDir  =  "/tmp/raphtoryTest"
+  * val defaultOutputFormat: OutputFormat  =  FileOutputFormat(testDir)
+  * ```
+  */
 class FileOutputFormat(filePath: String) extends OutputFormat {
 
   override def write(
