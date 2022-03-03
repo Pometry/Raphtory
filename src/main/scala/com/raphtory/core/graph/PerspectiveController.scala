@@ -2,7 +2,7 @@ package com.raphtory.core.graph
 
 import com.raphtory.core.components.querymanager.Query
 import com.raphtory.core.components.querymanager.QueryManagement
-import com.raphtory.core.time.AgnosticInterval
+import com.raphtory.core.time.DiscreteInterval
 import com.raphtory.core.time.Interval
 import com.raphtory.core.time.TimeUtils._
 
@@ -34,7 +34,7 @@ class PerspectiveController(timestamps: Stream[Long], windows: List[Interval]) {
 object PerspectiveController {
 
   val DEFAULT_PERSPECTIVE_TIME: Long             = -1L
-  val DEFAULT_PERSPECTIVE_WINDOW: Some[Interval] = Some(AgnosticInterval(-1L))
+  val DEFAULT_PERSPECTIVE_WINDOW: Some[Interval] = Some(DiscreteInterval(-1L))
 
   def apply(
       firstAvailableTimestamp: Long,
@@ -44,7 +44,7 @@ object PerspectiveController {
       case None            =>
         val end     = query.endTime.getOrElse(Long.MaxValue)
         val windows = query.startTime match {
-          case Some(start) if(query.windows.isEmpty) => List(AgnosticInterval(end - start))
+          case Some(start) if(query.windows.isEmpty) => List(DiscreteInterval(end - start))
           case _ => query.windows
         }
         new PerspectiveController(Stream(end), windows)

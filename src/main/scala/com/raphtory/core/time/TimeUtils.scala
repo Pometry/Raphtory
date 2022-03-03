@@ -11,13 +11,13 @@ object TimeUtils {
 
     def -(interval: Interval): Long =
       interval match {
-        case AgnosticInterval(size) => time - size
+        case DiscreteInterval(size) => time - size
         case TimeInterval(size)     => Instant.ofEpochMilli(time).minus(size).toEpochMilli
       }
 
     def +(interval: Interval): Long =
       interval match {
-        case AgnosticInterval(size) => time + size
+        case DiscreteInterval(size) => time + size
         case TimeInterval(size)     => Instant.ofEpochMilli(time).plus(size).toEpochMilli
       }
   }

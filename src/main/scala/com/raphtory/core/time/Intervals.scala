@@ -8,10 +8,10 @@ sealed trait Interval extends Ordered[Interval] {
   def toString: String
 }
 
-case class AgnosticInterval(size: Long) extends Interval {
+case class DiscreteInterval(size: Long) extends Interval {
 
   override def compare(that: Interval): Int = {
-    val agnosticWindow = that.asInstanceOf[AgnosticInterval]
+    val agnosticWindow = that.asInstanceOf[DiscreteInterval]
     size - agnosticWindow.size toInt
   }
 

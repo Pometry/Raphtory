@@ -6,7 +6,7 @@ import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.components.querytracker.QueryProgressTracker
 import com.raphtory.core.config.ComponentFactory
 import com.raphtory.core.config.PulsarController
-import com.raphtory.core.time.AgnosticInterval
+import com.raphtory.core.time.DiscreteInterval
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import monix.execution.Scheduler
@@ -34,7 +34,7 @@ private[core] class RaphtoryClient(
   ): QueryProgressTracker = {
     val raphtorizedQueryBuilder = queryBuilder
       .setEndTime(timestamp)
-      .setWindows(windows map AgnosticInterval)
+      .setWindows(windows map DiscreteInterval)
     val graph                   = new GenericGraphPerspective(raphtorizedQueryBuilder)
     graphAlgorithm.run(graph).writeTo(outputFormat)
   }
@@ -50,8 +50,8 @@ private[core] class RaphtoryClient(
     val raphtorizedQueryBuilder = queryBuilder
       .setStartTime(start)
       .setEndTime(end)
-      .setIncrement(AgnosticInterval(increment))
-      .setWindows(windows map AgnosticInterval)
+      .setIncrement(DiscreteInterval(increment))
+      .setWindows(windows map DiscreteInterval)
     val graph                   = new GenericGraphPerspective(raphtorizedQueryBuilder)
     graphAlgorithm.run(graph).writeTo(outputFormat)
   }
@@ -63,8 +63,8 @@ private[core] class RaphtoryClient(
       windows: List[Long] = List()
   ): QueryProgressTracker = {
     val raphtorizedQueryBuilder = queryBuilder
-      .setIncrement(AgnosticInterval(increment))
-      .setWindows(windows map AgnosticInterval)
+      .setIncrement(DiscreteInterval(increment))
+      .setWindows(windows map DiscreteInterval)
     val graph                   = new GenericGraphPerspective(raphtorizedQueryBuilder)
     graphAlgorithm.run(graph).writeTo(outputFormat)
   }
