@@ -124,7 +124,7 @@ class QueryExecutor(
         val sentMessages     = sentMessageCount.get()
         val receivedMessages = receivedMessageCount.get()
         graphLens.getMessageHandler().flushMessages()
-        taskManager sendAsync serialise(GraphFunctionComplete(receivedMessages, sentMessages))
+        taskManager sendAsync serialise(GraphFunctionComplete(partitionID, receivedMessages, sentMessages))
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Step function produced and sent '$sentMessages' messages."
         )
@@ -172,7 +172,12 @@ class QueryExecutor(
         val receivedMessages = receivedMessageCount.get()
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(
-                GraphFunctionComplete(receivedMessages, sentMessages, graphLens.checkVotes())
+                GraphFunctionComplete(
+                        partitionID,
+                        receivedMessages,
+                        sentMessages,
+                        graphLens.checkVotes()
+                )
         )
         votedToHalt = graphLens.checkVotes()
 
@@ -213,15 +218,15 @@ class QueryExecutor(
         )
 
       case VertexFilter(f)                                                  =>
-        taskManager sendAsync serialise(GraphFunctionComplete(0, 0))
+        taskManager sendAsync serialise(GraphFunctionComplete(partitionID, 0, 0))
 
       case VertexFilterWithGraph(f, graphState)                             =>
-        taskManager sendAsync serialise(GraphFunctionComplete(0, 0))
+        taskManager sendAsync serialise(GraphFunctionComplete(partitionID, 0, 0))
 
       case ClearChain()                                                     =>
         logger.debug(s"Job $jobID at Partition '$partitionID': Executing 'ClearChain' on graph.")
         graphLens.clearMessages()
-        taskManager sendAsync serialise(GraphFunctionComplete(0, 0))
+        taskManager sendAsync serialise(GraphFunctionComplete(partitionID, 0, 0))
 
       case Select(f)                                                        =>
         logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'Select' query on graph")
@@ -318,6 +323,7 @@ class QueryExecutor(
         logger.debug(s"Job '$jobID' at Partition '$partitionID': Received 'CheckMessages'.")
         taskManager sendAsync serialise(
                 GraphFunctionComplete(
+                        partitionID,
                         receivedMessageCount.get(),
                         sentMessageCount.get(),
                         votedToHalt
