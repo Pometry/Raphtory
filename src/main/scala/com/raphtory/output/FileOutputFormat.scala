@@ -8,17 +8,45 @@ import org.slf4j.LoggerFactory
 import java.io.File
 
 /**
-  * # FileOutputFormat
-  * `FileOutputFormat` writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File
+  * {s}`FileOutputFormat(filePath: String)`
+  *
+  *   : writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File
+  *        {s}`filePath: String`
+  *          : Filepath for writing Raphtory output.
+  *
+  *  ## Methods
+  *    {s}`write[T](timestamp: Long, window: Option[Long], jobID: String, row: Row, partitionID: Int): Unit`
+  *      : Writes computed row for a partition for a specific window frame
+  *
+  *        {s}`timestamp: Long`
+  *          : Timestamp for the write operation.
+  *
+  *        {s}`window: Option[Long]`
+  *          : Window of start and end timestamps for which this row is computed.
+  *
+  *        {s}`jobID: String`
+  *          : Job identifier for Raphtory job.
+  *
+  *        {s}`row: Row`
+  *          : Row for computation.
+  *
+  *        {s}`partitionID: Int``
+  *          : Paritition identifier.
   *
   * Usage while querying or running algorithmic tests:
   *
   * ```{code-block} scala
   * import com.raphtory.output.FileOutputFormat
-  * algorithmTest(WeightedDegree(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+  * import com.raphtory.algorithms.generic.centrality.WeightedDegree
   * val testDir  =  "/tmp/raphtoryTest"
   * val defaultOutputFormat: OutputFormat  =  FileOutputFormat(testDir)
+  * algorithmTest(WeightedDegree(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
   * ```
+  *
+  *  ```{seealso}
+  *  [](com.raphtory.output.FileOutputFormat)
+  *  [](com.raphtory.core.components.querymanager.PointQuery), [](com.raphtory.core.components.querymanager.RangeQuery)
+  *  ```
   */
 class FileOutputFormat(filePath: String) extends OutputFormat {
 
