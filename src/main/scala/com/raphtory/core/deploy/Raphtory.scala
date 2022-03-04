@@ -89,6 +89,15 @@ object Raphtory {
   ): TemporalGraph =
     deployTypedGraph[String](spout, graphBuilder, Schema.STRING, customConfig)
 
+  def getGraph(deploymentID: String = "", customConfig: Map[String, Any] = Map()): TemporalGraph = {
+    val conf             = confBuilder(customConfig)
+    val pulsarController = new PulsarController(conf)
+    val componentFactory = new ComponentFactory(conf, pulsarController)
+    val queryBuilder     =
+      new QueryBuilder(deploymentID, conf, componentFactory, scheduler, pulsarController)
+    new GenericTemporalGraph(queryBuilder)
+  }
+
   def createClient(
       deploymentID: String = "",
       customConfig: Map[String, Any] = Map()
