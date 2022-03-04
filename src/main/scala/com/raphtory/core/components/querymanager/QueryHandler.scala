@@ -219,7 +219,8 @@ abstract class QueryHandler(
         val totalReceivedMessages = receivedMessageCount + receivedMessages
         allVoteToHalt = votedToHalt & allVoteToHalt
 
-        if ((readyCount + 1) == totalPartitions)
+        if ((readyCount + 1) == totalPartitions) {
+          println(totalReceivedMessages, totalSentMessages)
           if (totalReceivedMessages == totalSentMessages) {
             val graphFuncCompleteTime = System.currentTimeMillis() - timeTaken
             logger.debug(
@@ -229,7 +230,6 @@ abstract class QueryHandler(
             nextGraphOperation(vertexCount)
           }
           else {
-            println(totalReceivedMessages, totalSentMessages)
             messagetoAllJobWorkers(CheckMessages(jobID))
             readyCount = 0
             receivedMessageCount = 0
@@ -237,6 +237,7 @@ abstract class QueryHandler(
 
             Stages.ExecuteGraph
           }
+        }
         else {
           sentMessageCount += totalSentMessages
           receivedMessageCount += totalReceivedMessages
