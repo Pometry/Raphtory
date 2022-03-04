@@ -27,6 +27,8 @@ import com.typesafe.config.Config
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api._
 
+import java.util.concurrent.atomic.AtomicInteger
+
 /** @DoNotDocument */
 class QueryExecutor(
     partitionID: Int,
@@ -36,10 +38,10 @@ class QueryExecutor(
     pulsarController: PulsarController
 ) extends Component[QueryManagement](conf: Config, pulsarController) {
 
-  var graphLens: LensInterface  = _
-  var sentMessageCount: Int     = 0
-  var receivedMessageCount: Int = 0
-  var votedToHalt: Boolean      = false
+  var graphLens: LensInterface            = _
+  var sentMessageCount: AtomicInteger     = new AtomicInteger(0)
+  var receivedMessageCount: AtomicInteger = new AtomicInteger(0)
+  var votedToHalt: Boolean                = false
 
   private val taskManager: Producer[Array[Byte]] = pulsarController.toQueryHandlerProducer(jobID)
 
@@ -76,14 +78,14 @@ class QueryExecutor(
                   .mkString(",")}]'."
         )
         msgBatch.foreach(message => graphLens.receiveMessage(message))
-        receivedMessageCount += msgBatch.size
+        receivedMessageCount.addAndGet(msgBatch.size)
 
       case msg: VertexMessage[_]                                            =>
         logger.trace(
                 s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
         )
         graphLens.receiveMessage(msg)
-        receivedMessageCount += 1
+        receivedMessageCount.addAndGet(1)
 
       case CreatePerspective(timestamp, window)                             =>
         logger.debug(
@@ -95,11 +97,14 @@ class QueryExecutor(
                 window,
                 0,
                 storage,
-                VertexMessageHandler(conf, neighbours)
+                conf,
+                neighbours,
+                sentMessageCount,
+                receivedMessageCount
         )
         graphLens = lens
-        sentMessageCount = 0
-        receivedMessageCount = 0
+        sentMessageCount.set(0)
+        receivedMessageCount.set(0)
         taskManager sendAsync serialise(PerspectiveEstablished(lens.getSize()))
 
       case SetMetaData(vertices)                                            =>
@@ -116,14 +121,13 @@ class QueryExecutor(
 
         graphLens.nextStep()
         graphLens.runGraphFunction(f)
-
-        val sentMessages = graphLens.getMessageHandler().getCount()
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
         graphLens.getMessageHandler().flushMessages()
-        taskManager sendAsync serialise(GraphFunctionComplete(sentMessages, receivedMessageCount))
+        taskManager sendAsync serialise(GraphFunctionComplete(sentMessages, receivedMessages))
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Step function produced and sent '$sentMessages' messages."
         )
-        sentMessageCount = sentMessages
 
       case StepWithGraph(f, graphState)                                     =>
         logger.debug(
@@ -132,19 +136,19 @@ class QueryExecutor(
         graphLens.nextStep()
         graphLens.runGraphFunction(f, graphState)
 
-        val sentMessages = graphLens.getMessageHandler().getCount()
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(
                 GraphFunctionCompleteWithState(
                         sentMessages,
-                        receivedMessageCount,
+                        receivedMessages,
                         graphState = graphState
                 )
         )
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Step function produced and sent '$sentMessages' messages."
         )
-        sentMessageCount = sentMessages
 
       case Iterate(f, iterations, executeMessagedOnly)                      =>
         graphLens.nextStep()
@@ -164,13 +168,13 @@ class QueryExecutor(
           graphLens.runGraphFunction(f)
         }
 
-        val sentMessages = graphLens.getMessageHandler().getCount()
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(
-                GraphFunctionComplete(receivedMessageCount, sentMessages, graphLens.checkVotes())
+                GraphFunctionComplete(receivedMessages, sentMessages, graphLens.checkVotes())
         )
         votedToHalt = graphLens.checkVotes()
-        sentMessageCount = sentMessages
 
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Iterate function produced and sent '$sentMessages' messages."
@@ -191,18 +195,18 @@ class QueryExecutor(
 
           graphLens.runGraphFunction(f, graphState)
         }
-        val sentMessages = graphLens.getMessageHandler().getCount()
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(
                 GraphFunctionCompleteWithState(
-                        receivedMessageCount,
+                        receivedMessages,
                         sentMessages,
                         graphLens.checkVotes(),
                         graphState
                 )
         )
         votedToHalt = graphLens.checkVotes()
-        sentMessageCount = sentMessages
 
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Iterate function produced and sent '$sentMessages' messages."
@@ -313,7 +317,11 @@ class QueryExecutor(
       case _: CheckMessages                                                 =>
         logger.debug(s"Job '$jobID' at Partition '$partitionID': Received 'CheckMessages'.")
         taskManager sendAsync serialise(
-                GraphFunctionComplete(receivedMessageCount, sentMessageCount, votedToHalt)
+                GraphFunctionComplete(
+                        receivedMessageCount.get(),
+                        sentMessageCount.get(),
+                        votedToHalt
+                )
         )
     }
   }
