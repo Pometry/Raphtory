@@ -22,6 +22,7 @@ case object JobDone                                                 extends Quer
 case object StartGraph extends QueryManagement
 
 case class GraphFunctionComplete(
+    partitionID: Int,
     receivedMessages: Int,
     sentMessages: Int,
     votedToHalt: Boolean = false
