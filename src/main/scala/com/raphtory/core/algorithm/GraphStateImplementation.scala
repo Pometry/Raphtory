@@ -43,6 +43,9 @@ object Bounded {
 
   implicit val doubleBounds: Bounded[Double] =
     Bounded(Double.NegativeInfinity, Double.PositiveInfinity)
+
+  implicit val floatBounds: Bounded[Float] =
+    Bounded(Float.NegativeInfinity, Float.PositiveInfinity)
 }
 
 class GraphStateImplementation extends GraphState {
