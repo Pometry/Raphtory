@@ -95,7 +95,7 @@ class LOTRGraphBuilderTest extends AnyFunSuite with BeforeAndAfter {
     val messageEdgeExp     =
       EdgeAdd(400, srcID, tarID, Properties(), Some(Type("Character Co-occurence")))
     val graph_object_topic = test_graph_builder_topic + "_0"
-    Raphtory.createGraphBuilder(new LOTRGraphBuilder(), Schema.STRING)
+    Raphtory.createGraphBuilder(new LOTRGraphBuilder())
 
     // finally check that they created the objects
 
