@@ -95,7 +95,7 @@ class QueryExecutor(
                 jobID,
                 timestamp,
                 window,
-                0,
+                superStep = 0,
                 storage,
                 conf,
                 neighbours,
@@ -124,7 +124,7 @@ class QueryExecutor(
         val sentMessages     = sentMessageCount.get()
         val receivedMessages = receivedMessageCount.get()
         graphLens.getMessageHandler().flushMessages()
-        taskManager sendAsync serialise(GraphFunctionComplete(sentMessages, receivedMessages))
+        taskManager sendAsync serialise(GraphFunctionComplete(receivedMessages, sentMessages))
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Step function produced and sent '$sentMessages' messages."
         )
@@ -141,8 +141,8 @@ class QueryExecutor(
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(
                 GraphFunctionCompleteWithState(
-                        sentMessages,
                         receivedMessages,
+                        sentMessages,
                         graphState = graphState
                 )
         )
