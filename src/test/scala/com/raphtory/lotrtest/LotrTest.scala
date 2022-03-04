@@ -71,19 +71,19 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     )
   }
 
-  test("LPA Test") {
-    assert(
-      algorithmTest(LPA(seed=1234), outputFormat, 32674, 32674, 10000, List(10000))
-      equals "cf7bf559d634a0cf02739d9116b4d2f47c25679be724a896223c0917d55d2143"
-    )
-  }
-
-  test("SLPA Test") {
-    assert(
-      algorithmTest(SLPA(speakerRule = SLPA.ChooseRandom(seed=1234)), outputFormat, 32674, 32674, 10000, List(10000))
-      equals "a7c72dac767dc94d64d76e2c046c1dbe95154a8da7994d2133cf9e1b09b65570"
-    )
-  }
+//  test("LPA Test") {
+//    assert(
+//      algorithmTest(LPA(seed=1234), outputFormat, 32674, 32674, 10000, List(10000))
+//      equals "cf7bf559d634a0cf02739d9116b4d2f47c25679be724a896223c0917d55d2143"
+//    )
+//  }
+//
+//  test("SLPA Test") {
+//    assert(
+//      algorithmTest(SLPA(speakerRule = SLPA.ChooseRandom(seed=1234)), outputFormat, 32674, 32674, 10000, List(10000))
+//      equals "a7c72dac767dc94d64d76e2c046c1dbe95154a8da7994d2133cf9e1b09b65570"
+//    )
+//  }
 
   test("Connected Components Test") {
     assert(
@@ -105,12 +105,12 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     )
   }
 
-  test("DiscreteSI test") {
-    assert(
-      algorithmTest(DiscreteSI(Set("Gandalf"), seed=1234), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
-      equals "57191e340ef3e8268d255751b14fff76292087af2365048d961d59a5c0fbbc3f"
-    )
-  }
+//  test("DiscreteSI test") {
+//    assert(
+//      algorithmTest(DiscreteSI(Set("Gandalf"), seed=1234), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+//      equals "57191e340ef3e8268d255751b14fff76292087af2365048d961d59a5c0fbbc3f"
+//    )
+//  }
 
   test("Chain Test") {
     assert(
