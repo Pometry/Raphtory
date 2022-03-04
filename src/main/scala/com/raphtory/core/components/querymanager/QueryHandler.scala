@@ -215,14 +215,15 @@ abstract class QueryHandler(
         }
 
       case GraphFunctionComplete(partitionID, receivedMessages, sentMessages, votedToHalt)    =>
-        val totalSentMessages     = sentMessageCount + sentMessages
-        val totalReceivedMessages = receivedMessageCount + receivedMessages
+        sentMessageCount += sentMessages
+        receivedMessageCount += receivedMessages
         allVoteToHalt = votedToHalt & allVoteToHalt
-
+        readyCount += 1
         println(partitionID, receivedMessages, sentMessages)
-        if ((readyCount + 1) == totalPartitions) {
+        if (readyCount == totalPartitions) {
           println("done")
-          if (totalReceivedMessages == totalSentMessages) {
+          if (receivedMessageCount == sentMessageCount) {
+            println("next function")
             val graphFuncCompleteTime = System.currentTimeMillis() - timeTaken
             logger.debug(
                     s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages:$receivedMessages , Sent messages: $sentMessages."
@@ -231,6 +232,7 @@ abstract class QueryHandler(
             nextGraphOperation(vertexCount)
           }
           else {
+            println("checking messages")
             readyCount = 0
             receivedMessageCount = 0
             sentMessageCount = 0
@@ -238,12 +240,8 @@ abstract class QueryHandler(
             Stages.ExecuteGraph
           }
         }
-        else {
-          sentMessageCount += totalSentMessages
-          receivedMessageCount += totalReceivedMessages
-          readyCount += 1
+        else
           Stages.ExecuteGraph
-        }
     }
 
   //once the select has been run, execute all of the table functions until we hit a writeTo
