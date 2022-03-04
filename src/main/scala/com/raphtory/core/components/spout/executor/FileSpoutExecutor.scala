@@ -2,178 +2,106 @@ package com.raphtory.core.components.spout.executor
 
 import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.config.PulsarController
+import com.raphtory.util.FileUtils
 import com.typesafe.config.Config
 import monix.execution.Scheduler
-import org.apache.pulsar.client.admin.PulsarAdminException
-import org.apache.pulsar.client.api.BatchReceivePolicy
 import org.apache.pulsar.client.api.Schema
-import org.apache.pulsar.client.api.SubscriptionInitialPosition
-import org.apache.pulsar.client.api.SubscriptionType
 
 import java.io.File
 import java.io.FileInputStream
-import java.io.FileNotFoundException
-import java.io.IOException
 import java.nio.file._
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
-import scala.collection.JavaConverters._
-import scala.collection.mutable.Set
+import scala.collection.mutable
 import scala.io.Source
 import scala.util.matching.Regex
-
-/** @DoNotDocument */
-// import circe here from game of thrones
 import scala.reflect.runtime.universe.TypeTag
 
-// TODO Add failOnError post cleanup
 class FileSpoutExecutor[T: TypeTag](
-    var source: String = "",
+    path: String = "",
     schema: Schema[T],
-    lineConverter: (String => T),
+    lineConverter: String => T,
     conf: Config,
     pulsarController: PulsarController,
     scheduler: Scheduler
 ) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler) {
+  private var linesProcessed: Int                 = 0
+  private val completedFiles: mutable.Set[String] = mutable.Set.empty[String]
 
-  private val producer = pulsarController.toBuildersProducer()
-
-  // set persistency of completes files topic
-  setupNamespace()
-
-  private val fileReadProducerTopic =
-    pulsarController.createTopic("spout", s"completedFiles_$deploymentID")
-
-  private val fileTrackerProducer =
-    pulsarController.createProducer(Schema.BYTES, fileReadProducerTopic)
-
-  private val fileTrackerConsumer = pulsarController.accessClient
-    .newConsumer(schema)
-    .topics(Array(s"completedFiles_$deploymentID").toList.asJava)
-    .subscriptionName("fileReaderTracker")
-    .subscriptionType(SubscriptionType.Exclusive)
-    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-    .batchReceivePolicy(
-            BatchReceivePolicy.builder().maxNumMessages(10000).timeout(4, TimeUnit.SECONDS).build()
-    )
-    .poolMessages(true)
-    .subscribe() // createConsumer("fileReaderTracker", fileReadProducerTopic)
-
-  private val completedFiles: Set[String] = Set()
-  private val reReadFiles                 = conf.getBoolean("raphtory.spout.file.local.reread")
-
-  // regex is ignored if file is not a directory
-  private val file_regex = new Regex(conf.getString("raphtory.spout.file.local.fileFilter"))
-  private val recurse    = conf.getBoolean("raphtory.spout.file.local.recurse")
-
+  private val reReadFiles     = conf.getBoolean("raphtory.spout.file.local.reread")
+  private val recurse         = conf.getBoolean("raphtory.spout.file.local.recurse")
+  private val regexPattern    = conf.getString("raphtory.spout.file.local.fileFilter")
+  private val sourceDirectory = conf.getString("raphtory.spout.file.local.sourceDirectory")
   // TODO HARDLINK wont work on a network share
   private val outputDirectory = conf.getString("raphtory.spout.file.local.outputDirectory")
 
-  if (source == "")
-    source = conf.getString("raphtory.spout.file.local.sourceDirectory")
+  private val inputPath = Option(path).filter(_.trim.nonEmpty).getOrElse(sourceDirectory)
+  private val fileRegex = new Regex(regexPattern)
 
-// originally has set namespace
-  def setupNamespace(): Unit =
-    try pulsarController.pulsarAdmin.namespaces().createNamespace("public/raphtory_spout")
-    catch {
-      case error: PulsarAdminException =>
-        logger.warn("Namespace already found")
-    }
-    finally pulsarController.setRetentionNamespace(
-            "public/raphtory_spout",
-            -1,
-            -1
-    ) //s"public/raphtory/$deploymentID"
+  private val producer = pulsarController.toBuildersProducer()
 
-  def updateFilesRead(): Unit = {
-    // get names/path of all files that have been previously read, only prepopulate once
-    if (reReadFiles) {
-      logger.debug("Not adding previously read files to tracker.")
-      return
-    }
-    logger.debug("Adding previously read files to tracker.")
-    if (!fileTrackerConsumer.hasReachedEndOfTopic)
-      fileTrackerConsumer.batchReceive().forEach(msg => completedFiles.add(new String(msg.getData)))
-  }
-
-  override def run(): Unit = {
-    updateFilesRead()
+  override def run(): Unit =
     readFiles()
-  }
-
-  class SpoutScheduler extends Runnable {
-
-    def run() {
-      readFiles()
-    }
-  }
 
   override def stop(): Unit =
     producer.close()
 
-  def getListOfFiles(dir: File, regex: Regex, recurse: Boolean): List[File] =
-    if (dir.isDirectory) {
-      var found = dir.listFiles
-        .filter(_.isFile)
-        .toList
-        .filter(file => regex.findFirstIn(file.getName).isDefined)
-      if (recurse)
-        found =
-          found ++ dir.listFiles.filter(_.isDirectory).flatMap(getListOfFiles(_, regex, recurse))
-      found
-    }
-    else
-      List(dir)
-
   def readFiles(): Unit = {
+<<<<<<< HEAD
     // check if exists
     if (!Files.exists(Paths.get(source)))
       throw new FileNotFoundException(s"File '$source' does not exist.")
     logger.debug(s"Found file '$source'.")
+=======
+    // Validate that the path exists and is readable
+    // Throws exception or logs error in case of failure
+    FileUtils.validatePath(inputPath) // TODO Change this to cats.Validated
 
-    if (!Files.isReadable(Paths.get(source))) {
-      logger.warn(f"ERROR: $source%s is not readable")
-      return
-    }
+    val files =
+      FileUtils.getMatchingFiles(inputPath, regex = fileRegex, recurse = recurse)
 
-    logger.debug(f"$source%s is readable")
-    // if so then check recurse, filter
-    val files               = getListOfFiles(new File(source), file_regex, recurse)
-    if (files.isEmpty) {
-      scheduler.scheduleOnce(10, TimeUnit.SECONDS, new SpoutScheduler())
-      return
-    }
-    // create temp folder if it doesnt exist
-    val tempOutputDirectory = new File(outputDirectory)
-    logger.debug(s"Creating temp folder '$tempOutputDirectory'.")
-    if (!tempOutputDirectory.exists) {
-      if (!tempOutputDirectory.mkdirs()) {
-        logger.warn(f"ERROR: COULD NOT MAKE DIR  $tempOutputDirectory%s")
-        return
+    if (files.nonEmpty) {
+      val tempDirectory = FileUtils.createOrCleanDirectory(outputDirectory)
+
+      // Remove any files that has already been processed
+      val filesToProcess = files.collect {
+        case file if !completedFiles.contains(file.getPath.replace(inputPath, "")) =>
+          logger.debug(
+                  s"Spout: Found a new file ${file.getPath.replace(inputPath, "")} to process."
+          )
+          // mimic sub dir structure of files
+          val sourceSubFolder = tempDirectory.getPath + file.getParent.replace(inputPath, "")
+          FileUtils.createOrCleanDirectory(sourceSubFolder, false)
+          // Hard link the files for processing
+          logger.debug(s"Spout: Attempting to hard link file '$file'.")
+          try Files.createLink(
+                  Paths.get(sourceSubFolder + "/" + file.getName),
+                  file.toPath
+          )
+          catch {
+            case ex: Exception =>
+              logger.error(
+                      s"Spout: Failed to hard link file ${file.getPath}, error: ${ex.getMessage}."
+              )
+              throw ex
+          }
       }
-    }
-    else
-      // if the folder does exist then delete the files inside of it
-      tempOutputDirectory.listFiles().foreach(f => f.delete())
-    // then hard link each file and copy them to the new folder
-    // println("Hard linking...")
-    try files.foreach { fileToCopy =>
-      // do not hardlink files we already read
-      if (!completedFiles.contains(fileToCopy.getPath)) {
-        logger.debug(f"Hard linking $fileToCopy%s")
-        Files.createLink(
-                Paths.get(tempOutputDirectory.getPath + "/" + fileToCopy.getName),
-                fileToCopy.toPath
-        )
-      }
-    }
-    catch {
-      case error: UnsupportedOperationException =>
-        logger.error(
-                "UnsupportedOperationException: System does not support adding an existing file to a directory."
-        )
 
+      filesToProcess.sorted
+        .foreach(path => processFile(path))
+>>>>>>> 50d2f5d8 (Refactored the FileSpoutExecutor and fixed bugs (#257))
+
+      if (filesToProcess.nonEmpty)
+        logger.info("Spout: Finished reading all files.")
+      else
+        logger.debug("Spout: No new files to read.")
+    }
+
+    rescheduleFilePoll()
+  }
+
+<<<<<<< HEAD
         return
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -204,62 +132,76 @@ class FileSpoutExecutor[T: TypeTag](
       case error: SecurityException             =>
 >>>>>>> bda178d9 (Updated Scalafmt to 2.6.3)
         logger.warn("ERROR(SecurityException): Invalid permissions to create hardlink"); return;
+=======
+  def sendMessage(file: File, line: String): Unit = {
+    val data = lineConverter(line)
+    producer.sendAsync(kryo.serialise(data))
+  }
+
+  private def processFile(path: Path): Unit = {
+    logger.info(s"Spout: Processing file '${path.getFileName}' ...")
+
+    val file = new File(path.toString)
+
+    val fileSize: Long     = file.length
+    val percentage: Double = 100.0 / fileSize
+    var readLength         = 0
+    var progressPercent    = 1
+
+    val fileName = file.getPath.toLowerCase
+    val source   = fileName match {
+      case name if name.endsWith(".gz")  =>
+        Source.fromInputStream(new GZIPInputStream(new FileInputStream(file.getPath)))
+      case name if name.endsWith(".zip") =>
+        Source.fromInputStream(new ZipInputStream(new FileInputStream(file.getPath)))
+      case _                             => Source.fromFile(file)
+>>>>>>> 50d2f5d8 (Refactored the FileSpoutExecutor and fixed bugs (#257))
     }
 
-    var count: Long = 0
-    tempOutputDirectory.listFiles.sorted.foreach { f =>
-      logger.info(f"Reading $f%s")
-      var source             = Source.fromFile(f)
-      if (f.getPath.toLowerCase.endsWith(".gz"))
-        source = Source.fromInputStream(new GZIPInputStream(new FileInputStream(f.getPath)))
-      else if (f.getPath.toLowerCase.endsWith(".zip"))
-        source = Source.fromInputStream(new ZipInputStream(new FileInputStream(f.getPath)))
-      val fileSize: Long     = f.length
-      val percentage: Double = 100.0 / fileSize
-      var readLength         = 0
-      var progressPercent    = 1
-      var divisByTens        = 10
+    try {
       for (line <- source.getLines()) {
         readLength += line.length
         progressPercent = Math.ceil(percentage * readLength).toInt
-        val test = lineConverter(line)
-        producer.newMessage().value(kryo.serialise(test)).sendAsync()
 
-        count += 1
+        sendMessage(file, line)
 
-        if (count % 100_000 == 0)
-          logger.debug(s"Spout has sent $count messages.")
-        //        if (progressPercent % divisByTens == 0) {
-        //          divisByTens += 10
-        //          logger.info(f"Read: $progressPercent%d%% of file.")
-        //        }
+        linesProcessed = linesProcessed + 1
+
+        if (linesProcessed % 100_000 == 0)
+          logger.debug(s"Spout: sent $linesProcessed messages.")
       }
+
+      logger.debug(s"Spout: Finished processing ${file.getName}.")
+    }
+    catch {
+      case ex: Exception =>
+        logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
+        throw ex
+    }
+    finally {
       source.close()
-      logger.debug("Finished reading file.")
-      // then remove the hard link
-      try Files.delete(f.toPath)
-      catch {
-        case _: NoSuchFileException =>
-          logger.warn("ERROR(NoSuchFileException): File does not exist");
-        case _: DirectoryNotEmptyException =>
-          logger.warn("ERROR(DirectoryNotEmptyException) Cannot delete directory, not empty");
-        case _: IOException                => logger.warn("ERROR(IOException): an IO Error occurred");
-        case _: SecurityException          => logger.warn("ERROR(SecurityException) Security error");
+
+      // Add file to tracker so we do not read it again
+      if (!reReadFiles) {
+        val fileName = file.getPath.replace(outputDirectory, "")
+        logger.debug(s"Spout: Adding file $fileName to completed list.")
+
+        completedFiles.add(fileName)
       }
+
+      // Remove hard-link
+      FileUtils.deleteFile(file.toPath)
     }
-    // add file to tracker so we do not read it again
-    if (!reReadFiles) {
-      logger.debug("Adding file(s) to completed list.")
-      files.foreach { f =>
-        if (!completedFiles.contains(f.getPath)) {
-          completedFiles.add(f.getPath)
-          fileTrackerProducer.sendAsync(f.getPath.getBytes)
-        }
-      }
+  }
+
+  private def rescheduleFilePoll(): Unit = {
+    val runnable = new Runnable {
+      override def run(): Unit = readFiles()
     }
 
-    logger.debug("Finished reading all files.")
-    scheduler.scheduleOnce(10, TimeUnit.SECONDS, new SpoutScheduler())
+    // TODO: Parameterise the delay
+    logger.debug("Spout: Scheduling to poll files again in 10 seconds.")
+    scheduler.scheduleOnce(10, TimeUnit.SECONDS, runnable)
   }
 
 }
