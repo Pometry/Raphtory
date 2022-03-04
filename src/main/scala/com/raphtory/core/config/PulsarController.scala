@@ -65,12 +65,13 @@ class PulsarController(conf: Config) {
       schema: Schema[T],
       topics: String*
   ): Consumer[T] = {
-    val isCompact = readCompact(topics.toList)
+    val isCompact = true // readCompact(topics.toList)
+    println("set isCompact to " + isCompact)
     client
       .newConsumer(schema)
       .topics(topics.toList.asJava)
       .subscriptionName(subscriptionName)
-      .subscriptionType(SubscriptionType.Shared)
+      .subscriptionType(SubscriptionType.Failover)
       .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
       .batchReceivePolicy(
               BatchReceivePolicy
@@ -88,12 +89,13 @@ class PulsarController(conf: Config) {
   def createConsumer[T](subscriptionName: String, schema: Schema[T], topics: String*): Consumer[T] = {
     //topics.foreach(topic => pulsarAdmin.schemas().createSchema(topic, schema.getSchemaInfo))
 
-    val isCompact = readCompact(topics.toList)
+    val isCompact = true //readCompact(topics.toList)
+    println("set iscompact to " + isCompact)
     client
       .newConsumer(schema)
       .topics(topics.toList.asJava)
       .subscriptionName(subscriptionName)
-      .subscriptionType(SubscriptionType.Shared)
+      .subscriptionType(SubscriptionType.Failover)
       .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
       .batchReceivePolicy(BatchReceivePolicy.builder().maxNumMessages(10000).build())
       .poolMessages(true)
