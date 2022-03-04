@@ -32,6 +32,4 @@ class FacebookTest extends BaseRaphtoryAlgoTest[String] {
               equals "96e9415d7b657e0c306021bfa55daa9d5507271ccff2390894e16597470cb4ab"
     )
   }
-
-  override def setSchema(): Schema[String] = Schema.STRING
 }

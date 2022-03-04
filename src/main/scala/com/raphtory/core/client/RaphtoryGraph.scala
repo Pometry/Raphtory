@@ -15,10 +15,9 @@ import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
-private[core] class RaphtoryGraph[T: TypeTag: ClassTag](
+private[core] class RaphtoryGraph[T: ClassTag](
     spout: SpoutExecutor[T],
     graphBuilder: GraphBuilder[T],
-    schema: Schema[T],
     private val conf: Config,
     private val componentFactory: ComponentFactory,
     private val scheduler: Scheduler,
@@ -51,7 +50,7 @@ private[core] class RaphtoryGraph[T: TypeTag: ClassTag](
   private val spoutworker: ThreadedWorker[T] = componentFactory.spout(spout, scheduler)
 
   private val graphBuilderworker: List[ThreadedWorker[T]] =
-    componentFactory.builder[T](graphBuilder, scheduler, schema)
+    componentFactory.builder[T](graphBuilder, scheduler)
 
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
