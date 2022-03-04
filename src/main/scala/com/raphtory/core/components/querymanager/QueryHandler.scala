@@ -229,6 +229,7 @@ abstract class QueryHandler(
             nextGraphOperation(vertexCount)
           }
           else {
+            println(totalReceivedMessages, totalSentMessages)
             messagetoAllJobWorkers(CheckMessages(jobID))
             readyCount = 0
             receivedMessageCount = 0
