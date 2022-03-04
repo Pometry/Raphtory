@@ -45,13 +45,13 @@ class VertexMessageHandler(
 
   def sendMessage[T](message: VertexMessage[T]): Unit = {
     sentMessages.incrementAndGet()
-    val destinationPartition = message.vertexId % totalPartitions
+    val destinationPartition = (message.vertexId.abs % totalPartitions).toInt
     if (destinationPartition == pojoGraphLens.partitionID) { //sending to this partition
       pojoGraphLens.receiveMessage(message)
       receivedMessages.incrementAndGet()
     }
     else { //sending to a remote partition
-      val producer = producers(destinationPartition.toInt)
+      val producer = producers(destinationPartition)
       if (messageBatch) {
         val cache = messageCache(producer)
         cache += message
