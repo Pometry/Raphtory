@@ -30,7 +30,7 @@ import scala.reflect.ClassTag
 import scala.util.Random
 import scala.reflect.runtime.universe._
 
-abstract class BaseRaphtoryAlgoTest[T: TypeTag: ClassTag] extends AnyFunSuite with BeforeAndAfter {
+abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with BeforeAndAfter {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   setup()
@@ -39,7 +39,7 @@ abstract class BaseRaphtoryAlgoTest[T: TypeTag: ClassTag] extends AnyFunSuite wi
 
   val spout            = setSpout()
   val graphBuilder     = setGraphBuilder()
-  val graph            = Raphtory.createTypedGraph[T](spout, graphBuilder, setSchema())
+  val graph            = Raphtory.createGraph[T](spout, graphBuilder)
   Raphtory.createClient("deployment123", Map(("raphtory.pulsar.endpoint", "localhost:1234")))
   val conf             = graph.getConfig()
   val pulsarController = new PulsarController(conf)
@@ -54,7 +54,6 @@ abstract class BaseRaphtoryAlgoTest[T: TypeTag: ClassTag] extends AnyFunSuite wi
 
   def setSpout(): Spout[T]
   def setGraphBuilder(): GraphBuilder[T]
-  def setSchema(): Schema[T]
   def setup(): Unit = {}
 
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =

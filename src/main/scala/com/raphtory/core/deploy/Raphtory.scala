@@ -27,10 +27,9 @@ object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
 
-  def createTypedGraph[T: TypeTag: ClassTag](
+  def createGraph[T: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
-      schema: Schema[T],
       customConfig: Map[String, Any] = Map()
   ): RaphtoryGraph[T] = {
     val conf             = confBuilder(customConfig)
@@ -40,20 +39,12 @@ object Raphtory {
     new RaphtoryGraph[T](
             spoutExecutor,
             graphBuilder,
-            schema,
             conf,
             componentFactory,
             scheduler,
             pulsarController
     )
   }
-
-  def createGraph(
-      spout: Spout[String],
-      graphBuilder: GraphBuilder[String],
-      customConfig: Map[String, Any] = Map()
-  ): RaphtoryGraph[String] =
-    createTypedGraph[String](spout, graphBuilder, Schema.STRING, customConfig)
 
   def createClient(
       deploymentID: String = "",
@@ -65,7 +56,7 @@ object Raphtory {
     new RaphtoryClient(deploymentID, conf, componentFactory, scheduler, pulsarController)
   }
 
-  def createSpout[T: TypeTag](spout: Spout[T]): Unit = {
+  def createSpout[T](spout: Spout[T]): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
@@ -73,14 +64,13 @@ object Raphtory {
     componentFactory.spout(spoutExecutor, scheduler)
   }
 
-  def createGraphBuilder[T: ClassTag: TypeTag](
-      builder: GraphBuilder[T],
-      schema: Schema[T]
+  def createGraphBuilder[T: ClassTag](
+      builder: GraphBuilder[T]
   ): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    componentFactory.builder(builder, scheduler, schema)
+    componentFactory.builder(builder, scheduler)
   }
 
   def createPartitionManager(): Unit = {
@@ -106,7 +96,7 @@ object Raphtory {
     confHandler.getConfig
   }
 
-  private def createSpoutExecutor[T: TypeTag](
+  private def createSpoutExecutor[T](
       spout: Spout[T],
       conf: Config,
       pulsarController: PulsarController
