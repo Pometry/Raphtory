@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.raphtory.core.components.querymanager.VertexMessageBatch
 import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.components.querymanager.VertexMessageBatch
+import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -13,7 +14,13 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 
 /** @DoNotDocument */
-class VertexMessageHandler(config: Config, producers: Map[Int, Producer[Array[Byte]]]) {
+class VertexMessageHandler(
+    config: Config,
+    producers: Map[Int, Producer[Array[Byte]]],
+    pojoGraphLens: PojoGraphLens,
+    sentMessages: AtomicInteger,
+    receivedMessages: AtomicInteger
+) {
   private val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -32,23 +39,29 @@ class VertexMessageHandler(config: Config, producers: Map[Int, Producer[Array[By
   )
   logger.debug(s"Setting total partitions to '$totalPartitions'.")
 
-  val messageCount = new AtomicInteger(0)
-
   private val messageCache =
     mutable.Map[Producer[Array[Byte]], mutable.ArrayBuffer[VertexMessage[Any]]]()
   refreshBuffers()
 
   def sendMessage[T](message: VertexMessage[T]): Unit = {
-    messageCount.incrementAndGet()
-    val producer = getReaderJobWorker(message.vertexId)
-    if (messageBatch) {
-      val cache = messageCache(producer)
-      cache += message
-      if (cache.size > maxBatchSize)
-        sendCached(producer)
+    sentMessages.incrementAndGet()
+    val destinationPartition = message.vertexId % totalPartitions
+    if (destinationPartition == pojoGraphLens.partitionID) { //sending to this partition
+      pojoGraphLens.receiveMessage(message)
+      receivedMessages.incrementAndGet()
     }
-    else
-      producer sendAsync (kryo.serialise(message))
+    else { //sending to a remote partition
+      val producer = producers(destinationPartition.toInt)
+      if (messageBatch) {
+        val cache = messageCache(producer)
+        cache += message
+        if (cache.size > maxBatchSize)
+          sendCached(producer)
+      }
+      else
+        producer sendAsync (kryo.serialise(message))
+    }
+
   }
 
   def sendCached(readerJobWorker: Producer[Array[Byte]]): Unit = {
@@ -68,14 +81,11 @@ class VertexMessageHandler(config: Config, producers: Map[Int, Producer[Array[By
   def getCountandReset(): Int = {
     logger.debug("Returning count and resetting the message count.")
 
-    messageCount.getAndSet(0)
+    sentMessages.getAndSet(0)
   }
 
   def getCount(): Int =
-    messageCount.get()
-
-  def getReaderJobWorker(srcId: Long): Producer[Array[Byte]] =
-    producers((srcId.abs % totalPartitions).toInt)
+    sentMessages.get()
 
   private def refreshBuffers(): Unit = {
     logger.debug("Refreshing messageCache buffers for all Producers.")
@@ -89,6 +99,18 @@ class VertexMessageHandler(config: Config, producers: Map[Int, Producer[Array[By
 
 object VertexMessageHandler {
 
-  def apply(config: Config, producers: Map[Int, Producer[Array[Byte]]]) =
-    new VertexMessageHandler(config: Config, producers)
+  def apply(
+      config: Config,
+      producers: Map[Int, Producer[Array[Byte]]],
+      pojoGraphLens: PojoGraphLens,
+      sentMessages: AtomicInteger,
+      receivedMessages: AtomicInteger
+  ) =
+    new VertexMessageHandler(
+            config: Config,
+            producers,
+            pojoGraphLens,
+            sentMessages,
+            receivedMessages
+    )
 }
