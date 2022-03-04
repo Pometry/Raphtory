@@ -78,15 +78,6 @@ class VertexMessageHandler(
       messageCache.keys.foreach(producer => sendCached(producer))
   }
 
-  def getCountandReset(): Int = {
-    logger.debug("Returning count and resetting the message count.")
-
-    sentMessages.getAndSet(0)
-  }
-
-  def getCount(): Int =
-    sentMessages.get()
-
   private def refreshBuffers(): Unit = {
     logger.debug("Refreshing messageCache buffers for all Producers.")
 
