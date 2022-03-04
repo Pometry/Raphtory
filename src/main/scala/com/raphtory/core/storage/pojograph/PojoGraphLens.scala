@@ -28,10 +28,10 @@ final case class PojoGraphLens(
     private val receivedMessages: AtomicInteger
 ) extends GraphLens(jobId, timestamp, window)
         with LensInterface {
-  private val voteCount                    = new AtomicInteger(0)
-  private val vertexCount                  = new AtomicInteger(0)
-  var t1                                   = System.currentTimeMillis()
-  private var fullGraphSize                = 0
+  private val voteCount     = new AtomicInteger(0)
+  private val vertexCount   = new AtomicInteger(0)
+  var t1                    = System.currentTimeMillis()
+  private var fullGraphSize = 0
 
   val messageHandler: VertexMessageHandler =
     VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)
@@ -141,6 +141,8 @@ final case class PojoGraphLens(
     t1 = System.currentTimeMillis()
     voteCount.set(0)
     vertexCount.set(0)
+    sentMessages.set(0)
+    receivedMessages.set(0)
     superStep += 1
   }
 
