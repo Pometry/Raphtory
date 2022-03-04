@@ -78,7 +78,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
     val results =
       (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
     val hash    = Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
-    logger.debug(s"Generated hash code: '$hash'.")
+    logger.info(s"Generated hash code: '$hash'.")
     hash
   }
 
@@ -97,7 +97,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
     val results =
       (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
     val hash    = Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
-    logger.debug(s"Generated hash code: '$hash'.")
+    logger.info(s"Generated hash code: '$hash'.")
     hash
   }
 
