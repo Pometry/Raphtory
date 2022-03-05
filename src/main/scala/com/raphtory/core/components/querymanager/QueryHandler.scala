@@ -194,7 +194,7 @@ abstract class QueryHandler(
           if (receivedMessageCount == sentMessageCount) {
             val graphFuncCompleteTime = System.currentTimeMillis() - timeTaken
             logger.debug(
-                    s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages:$receivedMessages , Sent messages: $sentMessages."
+                    s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages:$receivedMessageCount , Sent messages: $sentMessageCount."
             )
             timeTaken = System.currentTimeMillis()
             nextGraphOperation(vertexCount)
@@ -252,19 +252,15 @@ abstract class QueryHandler(
           timeTaken = System.currentTimeMillis()
           nextTableOperation()
         }
-        else {
-          logger.debug(
-                  s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
-          )
+        else
           Stages.ExecuteTable
-        }
 
       case TableFunctionComplete =>
         readyCount += 1
         if (readyCount == totalPartitions) {
           val tableFuncTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(
-                  s"Job '$jobID': Table Func complete in $tableFuncTimeTaken Running next table operation."
+                  s"Job '$jobID': Table Function complete in ${tableFuncTimeTaken}ms. Running next table operation."
           )
           timeTaken = System.currentTimeMillis()
           nextTableOperation()
