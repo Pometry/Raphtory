@@ -312,7 +312,7 @@ class QueryExecutor(
         taskManager sendAsync serialise(TableFunctionComplete)
         logger.debug(
                 s"Job '$jobID' at Partition '$partitionID': Writing Results executed on table in ${System
-                  .currentTimeMillis() - time}ms. Results written to '$outputFormat'."
+                  .currentTimeMillis() - time}ms. Results written to '${outputFormat.getClass.getSimpleName}'."
         )
 
       //TODO Kill this worker once this is received
