@@ -225,6 +225,9 @@ abstract class QueryHandler(
             nextGraphOperation(vertexCount)
           }
           else {
+            logger.debug(
+                    s"Job '$jobID': Checking messages - Received messages:$receivedMessages , Sent messages: $sentMessages."
+            )
             readyCount = 0
             receivedMessageCount = 0
             sentMessageCount = 0
