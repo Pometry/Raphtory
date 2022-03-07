@@ -67,29 +67,23 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
           )
 
           KubernetesDeployment.create(
-                  client = kubernetesClient,
-                  namespace = raphtoryKubernetesNamespaceName,
-                  deploymentConfig = KubernetesDeployment.build(
-                          name = deploymentName,
-                          labels = deploymentLabels,
-                          matchLabels = deploymentLabels,
-                          containerName =
-                            s"raphtory-$raphtoryDeploymentId-$raphtoryComponent".toLowerCase(),
-                          containerImagePullPolicy = conf.getString(
-                                  s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.imagePullPolicy"
-                          ),
-                          imagePullSecretsName = raphtoryKubernetesDockerRegistrySecretName,
-                          replicas = conf.getInt(
-                                  s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.replicas"
-                          ),
-                          containerImage = conf.getString(
-                                  s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.image"
-                          ),
-                          containerPort = conf.getInt(
-                                  s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.port"
-                          ),
-                          environmentVariables = componentEnvVars
-                  )
+            client           = kubernetesClient,
+            namespace        = raphtoryKubernetesNamespaceName,
+            deploymentConfig = KubernetesDeployment.build(
+              name                     = deploymentName,
+              labels                   = deploymentLabels,
+              matchLabels              = deploymentLabels,
+              containerName            = s"raphtory-$raphtoryDeploymentId-$raphtoryComponent".toLowerCase(),
+              containerImagePullPolicy = conf.getString(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.imagePullPolicy"),
+              imagePullSecretsName     = raphtoryKubernetesDockerRegistrySecretName,
+              replicas                 = conf.getInt(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.replicas"),
+              containerImage           = conf.getString(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.image"),
+              containerPort            = conf.getInt(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.port"),
+              environmentVariables     = componentEnvVars,
+              resources                = conf.getConfig(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.resources"),
+              affinity                 = conf.getConfig(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.affinity"),
+              antiAffinity             = conf.getConfig(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.antiAffinity"),
+            )
           )
         }
         catch {
