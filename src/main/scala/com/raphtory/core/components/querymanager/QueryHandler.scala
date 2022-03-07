@@ -215,18 +215,21 @@ abstract class QueryHandler(
         receivedMessageCount += receivedMessages
         allVoteToHalt = votedToHalt & allVoteToHalt
         readyCount += 1
+        logger.debug(
+                s"Job '$jobID': Partition $partitionID Received messages:$receivedMessages , Sent messages: $sentMessages."
+        )
         if (readyCount == totalPartitions)
           if (receivedMessageCount == sentMessageCount) {
             val graphFuncCompleteTime = System.currentTimeMillis() - timeTaken
             logger.debug(
-                    s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages:$receivedMessages , Sent messages: $sentMessages."
+                    s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages Total:$receivedMessageCount , Sent messages: $sentMessageCount."
             )
             timeTaken = System.currentTimeMillis()
             nextGraphOperation(vertexCount)
           }
           else {
             logger.debug(
-                    s"Job '$jobID': Checking messages - Received messages:$receivedMessages , Sent messages: $sentMessages."
+                    s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
             )
             readyCount = 0
             receivedMessageCount = 0
