@@ -29,7 +29,6 @@ class FileSpoutExecutor[T: TypeTag](
   private var linesProcessed: Int                 = 0
   private val completedFiles: mutable.Set[String] = mutable.Set.empty[String]
 
-  private val producerTopic   = conf.getString("raphtory.spout.topic")
   private val reReadFiles     = conf.getBoolean("raphtory.spout.file.local.reread")
   private val recurse         = conf.getBoolean("raphtory.spout.file.local.recurse")
   private val regexPattern    = conf.getString("raphtory.spout.file.local.fileFilter")
@@ -37,10 +36,15 @@ class FileSpoutExecutor[T: TypeTag](
   // TODO HARDLINK wont work on a network share
   private val outputDirectory = conf.getString("raphtory.spout.file.local.outputDirectory")
 
-  private val inputPath = Option(path).filter(_.trim.nonEmpty).getOrElse(sourceDirectory)
+  private var inputPath = Option(path).filter(_.trim.nonEmpty).getOrElse(sourceDirectory)
+  // If the inputPath is not an absolute path then make an absolute path
+  if (!new File(inputPath).isAbsolute) {
+    inputPath = new File(inputPath).getAbsolutePath
+  }
+
   private val fileRegex = new Regex(regexPattern)
 
-  private val producer = pulsarController.createProducer(schema, producerTopic)
+  private val producer = pulsarController.toBuildersProducer()
 
   override def run(): Unit =
     readFiles()
@@ -54,21 +58,20 @@ class FileSpoutExecutor[T: TypeTag](
     FileUtils.validatePath(inputPath) // TODO Change this to cats.Validated
 
     val files =
-      FileUtils.getMatchingFiles(inputPath, regex = fileRegex, recurse = recurse)
+        FileUtils.getMatchingFiles(inputPath, regex = fileRegex, recurse = recurse)
 
     if (files.nonEmpty) {
       val tempDirectory = FileUtils.createOrCleanDirectory(outputDirectory)
 
       // Remove any files that has already been processed
       val filesToProcess = files.collect {
-        case file if !completedFiles.contains(file.getName) =>
-          logger.debug(s"Spout: Found a new file ${file.getName} to process.")
-
+        case file if !completedFiles.contains(file.getPath.replace(new File(inputPath).getParent, "")) =>
+          logger.debug(s"Spout: Found a new file '${file.getPath.replace(new File(inputPath).getParent, "")}' to process.")
           // mimic sub dir structure of files
-          val sourceSubFolder = tempDirectory.getPath + file.getParent.replace(inputPath, "")
+          val sourceSubFolder = tempDirectory.getPath + file.getParent.replace(new File(inputPath).getParent, "")
           FileUtils.createOrCleanDirectory(sourceSubFolder, false)
           // Hard link the files for processing
-          logger.debug(s"Spout: Attempting to hard link file '$file'.")
+          logger.debug(s"Spout: Attempting to hard link file '$file' -> '${Paths.get(sourceSubFolder + "/" + file.getName)}'.")
           try Files.createLink(
             Paths.get(sourceSubFolder + "/" + file.getName),
             file.toPath
@@ -96,7 +99,7 @@ class FileSpoutExecutor[T: TypeTag](
 
   def sendMessage(file: File, line: String): Unit = {
     val data = lineConverter(line)
-    producer.newMessage().value(data).sendAsync()
+    producer.sendAsync(kryo.serialise(data))
   }
 
   private def processFile(path: Path): Unit = {
@@ -124,9 +127,10 @@ class FileSpoutExecutor[T: TypeTag](
         progressPercent = Math.ceil(percentage * readLength).toInt
 
         sendMessage(file, line)
+
         linesProcessed = linesProcessed + 1
 
-        if (linesProcessed % 1_00000 == 0)
+        if (linesProcessed % 100_000 == 0)
           logger.debug(s"Spout: sent $linesProcessed messages.")
       }
 
@@ -142,9 +146,10 @@ class FileSpoutExecutor[T: TypeTag](
 
       // Add file to tracker so we do not read it again
       if (!reReadFiles) {
-        logger.debug(s"Spout: Adding file ${file.getName} to completed list.")
+        val fileName = file.getPath.replace(outputDirectory, "")
+        logger.debug(s"Spout: Adding file ${fileName} to completed list.")
 
-        completedFiles.add(file.getName)
+        completedFiles.add(fileName)
       }
 
       // Remove hard-link
