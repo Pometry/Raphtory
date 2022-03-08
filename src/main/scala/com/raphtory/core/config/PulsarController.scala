@@ -26,9 +26,7 @@ class PulsarController(conf: Config) {
   val hasDeletions: Boolean      = conf.getBoolean("raphtory.data.containsDeletions")
   val totalPartitions: Int       = partitionServers * partitionsPerServer
 
-  private val numIoThreads         = conf.getInt("raphtory.pulsar.broker.ioThreads")
-  private val connectionsPerBroker = conf.getInt("raphtory.pulsar.broker.connectionsPerBroker")
-
+  private val numIoThreads          = conf.getInt("raphtory.pulsar.broker.ioThreads")
   private val useAllListenerThreads = "raphtory.pulsar.broker.useAvailableThreadsInSystem"
 
   private val listenerThreads =
@@ -42,7 +40,6 @@ class PulsarController(conf: Config) {
       .builder()
       .ioThreads(numIoThreads)
       .listenerThreads(listenerThreads)
-      .connectionsPerBroker(connectionsPerBroker)
       .maxConcurrentLookupRequests(50_000)
       .maxLookupRequests(100_000)
       .serviceUrl(pulsarAddress)
@@ -121,7 +118,6 @@ class PulsarController(conf: Config) {
       .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
       .batchingMaxMessages(Integer.MAX_VALUE)
       .blockIfQueueFull(true)
-      .sendTimeout(0, TimeUnit.MILLISECONDS)
       .maxPendingMessages(0)
       .create()
 
