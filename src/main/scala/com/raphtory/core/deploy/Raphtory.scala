@@ -23,6 +23,57 @@ import org.apache.pulsar.client.api.Schema
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
+/**
+  * {s}`Raphtory`
+  *
+  * : `Raphtory` object for creating Raphtory Components
+  *
+  * ## Methods
+  *
+  *    {s}`createTypedGraph[T: TypeTag: ClassTag](spout: Spout[T] = new IdentitySpout[T](),
+  *    graphBuilder: GraphBuilder[T], schema: Schema[T], customConfig: Map[String, Any] = Map()): RaphtoryGraph[T]``
+  *      : Create Typed[Generic] Graph
+  *
+  *    {s}`createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`
+  *      : Create Client
+  *
+  *    {s}`createSpout[T: TypeTag](spout: Spout[T])`
+  *      : Create Spout
+  *
+  *    {s}`createGraphBuilder[T: ClassTag: TypeTag](builder: GraphBuilder[T], schema: Schema[T])`
+  *      : Create Graph Builder
+  *
+  *    {s}`createPartitionManager()`
+  *      : Creates Partition Manager
+  *
+  *    {s}`createQueryManager()`
+  *      : Creates Query Manager
+  *
+  *    {s}`getDefaultConfig(customConfig: Map[String, Any] = Map()): Config`
+  *      : Returns default config
+  *
+  *    {s}`confBuilder(customConfig: Map[String, Any] = Map()): Config`
+  *      : Returns Config
+  *
+  *    {s}`createSpoutExecutor[T: TypeTag](spout: Spout[T], conf: Config, pulsarController: PulsarController):
+  *       SpoutExecutor[T]]`
+  *      : Create spout executor
+  *
+  *
+  * Example Usage:
+  *
+  * ```{code-block} scala
+  *
+  * import com.raphtory.core.deploy.Raphtory
+  * import com.raphtory.core.graph._
+  * import com.raphtory.lotrtest.LOTRGraphBuilder
+  * import org.apache.pulsar.client.api.Schema
+  *
+  * Raphtory.createGraphBuilder(new LOTRGraphBuilder(), Schema.STRING)
+  *
+  * ```
+  *
+  */
 object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
