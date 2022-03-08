@@ -2,7 +2,7 @@ package com.raphtory.core.components.spout.executor
 
 import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.config.PulsarController
-import com.raphtory.util.FileUtils
+import com.raphtory.core.util.FileUtils
 import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
@@ -19,16 +19,17 @@ import scala.util.matching.Regex
 import scala.reflect.runtime.universe.TypeTag
 
 class FileSpoutExecutor[T: TypeTag](
-    path: String = "",
-    schema: Schema[T],
-    lineConverter: String => T,
-    conf: Config,
-    pulsarController: PulsarController,
-    scheduler: Scheduler
-) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler) {
+                                     path: String = "",
+                                     schema: Schema[T],
+                                     lineConverter: String => T,
+                                     conf: Config,
+                                     pulsarController: PulsarController,
+                                     scheduler: Scheduler
+                                   ) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler) {
   private var linesProcessed: Int                 = 0
   private val completedFiles: mutable.Set[String] = mutable.Set.empty[String]
 
+  private val producerTopic   = conf.getString("raphtory.spout.topic")
   private val reReadFiles     = conf.getBoolean("raphtory.spout.file.local.reread")
   private val recurse         = conf.getBoolean("raphtory.spout.file.local.recurse")
   private val regexPattern    = conf.getString("raphtory.spout.file.local.fileFilter")
@@ -39,7 +40,7 @@ class FileSpoutExecutor[T: TypeTag](
   private val inputPath = Option(path).filter(_.trim.nonEmpty).getOrElse(sourceDirectory)
   private val fileRegex = new Regex(regexPattern)
 
-  private val producer = pulsarController.toBuildersProducer()
+  private val producer = pulsarController.createProducer(schema, producerTopic)
 
   override def run(): Unit =
     readFiles()
@@ -60,23 +61,22 @@ class FileSpoutExecutor[T: TypeTag](
 
       // Remove any files that has already been processed
       val filesToProcess = files.collect {
-        case file if !completedFiles.contains(file.getPath.replace(inputPath, "")) =>
-          logger.debug(
-                  s"Spout: Found a new file ${file.getPath.replace(inputPath, "")} to process."
-          )
+        case file if !completedFiles.contains(file.getName) =>
+          logger.debug(s"Spout: Found a new file ${file.getName} to process.")
+
           // mimic sub dir structure of files
           val sourceSubFolder = tempDirectory.getPath + file.getParent.replace(inputPath, "")
           FileUtils.createOrCleanDirectory(sourceSubFolder, false)
           // Hard link the files for processing
           logger.debug(s"Spout: Attempting to hard link file '$file'.")
           try Files.createLink(
-                  Paths.get(sourceSubFolder + "/" + file.getName),
-                  file.toPath
+            Paths.get(sourceSubFolder + "/" + file.getName),
+            file.toPath
           )
           catch {
             case ex: Exception =>
               logger.error(
-                      s"Spout: Failed to hard link file ${file.getPath}, error: ${ex.getMessage}."
+                s"Spout: Failed to hard link file ${file.getPath}, error: ${ex.getMessage}."
               )
               throw ex
           }
@@ -96,7 +96,7 @@ class FileSpoutExecutor[T: TypeTag](
 
   def sendMessage(file: File, line: String): Unit = {
     val data = lineConverter(line)
-    producer.sendAsync(kryo.serialise(data))
+    producer.newMessage().value(data).sendAsync()
   }
 
   private def processFile(path: Path): Unit = {
@@ -124,10 +124,9 @@ class FileSpoutExecutor[T: TypeTag](
         progressPercent = Math.ceil(percentage * readLength).toInt
 
         sendMessage(file, line)
-
         linesProcessed = linesProcessed + 1
 
-        if (linesProcessed % 100_000 == 0)
+        if (linesProcessed % 1_00000 == 0)
           logger.debug(s"Spout: sent $linesProcessed messages.")
       }
 
@@ -143,10 +142,9 @@ class FileSpoutExecutor[T: TypeTag](
 
       // Add file to tracker so we do not read it again
       if (!reReadFiles) {
-        val fileName = file.getPath.replace(outputDirectory, "")
-        logger.debug(s"Spout: Adding file $fileName to completed list.")
+        logger.debug(s"Spout: Adding file ${file.getName} to completed list.")
 
-        completedFiles.add(fileName)
+        completedFiles.add(file.getName)
       }
 
       // Remove hard-link

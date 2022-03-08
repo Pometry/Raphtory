@@ -1,4 +1,4 @@
-package com.raphtory.util
+package com.raphtory.core.util
 
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -24,24 +24,22 @@ object FileUtils {
       logger.debug(s"Temporary directory '$tempDirectory' already exists.")
 
       // If tempDirectory already exists
-      // then clean it up from assumed previous runs
+      // then delete it and recreate it entirely
       if (clean) tempDirectory.delete()
     }
-    else
-      try {
-        val created = tempDirectory.mkdirs()
+    try {
+      val created = tempDirectory.mkdirs()
 
-        if (created)
-          logger.debug(s"Temporary directory '$tempDirectory' successfully created.")
-      }
-      catch {
-        case ex: Exception =>
-          logger.error(
-                  s"Failed to create temporary directory '$tempDirectory', error: ${ex.getMessage}."
-          )
-          throw ex
-      }
-
+      if (created)
+        logger.debug(s"Temporary directory '$tempDirectory' successfully created.")
+    }
+    catch {
+      case ex: Exception =>
+        logger.error(
+          s"Failed to create temporary directory '$tempDirectory', error: ${ex.getMessage}."
+        )
+        throw ex
+    }
     tempDirectory
   }
 
@@ -86,7 +84,7 @@ object FileUtils {
     }
     else
       throw new IllegalStateException(
-              s"Failed to retrieve files. $file is neither a directory nor a file."
+        s"Failed to retrieve files. $file is neither a directory nor a file."
       )
   }
 
