@@ -2,9 +2,7 @@ package com.raphtory.core.client
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.SpoutExecutor
-import com.raphtory.core.components.spout.executor.IdentitySpoutExecutor
 import com.raphtory.core.config.ComponentFactory
-import com.raphtory.core.config.PulsarController
 import com.raphtory.core.config.ThreadedWorker
 import com.raphtory.core.config.ZookeeperIDManager
 import com.typesafe.config.Config
@@ -19,16 +17,13 @@ private[core] class RaphtoryGraph[T: TypeTag: ClassTag](
     spout: SpoutExecutor[T],
     graphBuilder: GraphBuilder[T],
     schema: Schema[T],
+    private val queryBuilder: QueryBuilder,
     private val conf: Config,
     private val componentFactory: ComponentFactory,
-    private val scheduler: Scheduler,
-    private val pulsarController: PulsarController
+    private val scheduler: Scheduler
 ) extends RaphtoryClient(
-                conf.getString("raphtory.deploy.id"),
-                conf,
-                componentFactory,
-                scheduler,
-                pulsarController
+                queryBuilder,
+                conf
         ) {
 
   allowIllegalReflection()

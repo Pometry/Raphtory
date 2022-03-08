@@ -40,14 +40,15 @@ object Raphtory {
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
     val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
+    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
     new RaphtoryGraph[T](
             spoutExecutor,
             graphBuilder,
             schema,
+            queryBuilder,
             conf,
             componentFactory,
-            scheduler,
-            pulsarController
+            scheduler
     )
   }
 
@@ -68,17 +69,17 @@ object Raphtory {
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
     val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
+    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
     new RaphtoryGraph[T](
             spoutExecutor,
             graphBuilder,
             schema,
+            queryBuilder,
             conf,
             componentFactory,
-            scheduler,
-            pulsarController
+            scheduler
     )
 
-    val queryBuilder = new QueryBuilder("", conf, componentFactory, scheduler, pulsarController)
     new GenericTemporalGraph(queryBuilder)
   }
 
@@ -93,8 +94,7 @@ object Raphtory {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    val queryBuilder     =
-      new QueryBuilder(deploymentID, conf, componentFactory, scheduler, pulsarController)
+    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
     new GenericTemporalGraph(queryBuilder)
   }
 
@@ -105,7 +105,8 @@ object Raphtory {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    new RaphtoryClient(deploymentID, conf, componentFactory, scheduler, pulsarController)
+    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
+    new RaphtoryClient(queryBuilder, conf)
   }
 
   def createSpout[T: TypeTag](spout: Spout[T]): Unit = {

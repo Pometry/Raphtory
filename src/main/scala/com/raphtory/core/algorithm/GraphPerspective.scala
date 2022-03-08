@@ -20,6 +20,10 @@ abstract class GraphPerspective {
   def select(f: Vertex => Row): Table
   def explodeSelect(f: Vertex => List[Row]): Table
   def clearMessages(): GraphPerspective
-  def execute(f: GraphPerspective => GraphPerspective): GraphPerspective = f(this)
-  def execute(f: GraphPerspective => Table): Table                       = f(this)
+
+  def transform(f: GraphPerspective => GraphPerspective): GraphPerspective =
+    f(this)
+  def transform(algorithm: GraphAlgorithm): GraphPerspective               = algorithm.apply(this)
+  def execute(f: GraphPerspective => Table): Table                         = f(this)
+  def execute(algorithm: GraphAlgorithm): Table                            = algorithm.run(this)
 }

@@ -13,8 +13,6 @@ import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
 
 class QueryBuilder(
-    private val deploymentID: String,
-    private val conf: Config,
     private val componentFactory: ComponentFactory,
     private val scheduler: Scheduler,
     private val pulsarController: PulsarController,
@@ -59,5 +57,5 @@ class QueryBuilder(
     query.hashCode().abs + "_" + System.currentTimeMillis()
 
   private def copyWithQuery(newQuery: Query) =
-    new QueryBuilder(deploymentID, conf, componentFactory, scheduler, pulsarController, newQuery)
+    new QueryBuilder(componentFactory, scheduler, pulsarController, newQuery)
 }
