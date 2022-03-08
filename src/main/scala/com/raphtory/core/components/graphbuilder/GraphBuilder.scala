@@ -10,6 +10,61 @@ import com.typesafe.config.Config
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
+/**
+  * {s}`GraphBuilder`
+  *
+  * : `GraphBuilder` trait for adding and deleting vertices and edges to Graph
+  *
+  * ## Methods
+  *
+  *    {s}`addVertex(updateTime: Long, srcId: Long)`
+  *      : Adds vertex for an update timestamp and source ID
+  *
+  *    {s}`addVertex(updateTime: Long, srcId: Long, properties: Properties)`
+  *      : Adds vertex for an update timestamp and source ID, with Properties
+  *
+  *    {s}`addVertex(updateTime: Long, srcId: Long, vertexType: Type))`
+  *      : Adds vertex for an update timestamp and source ID for a vertexType
+  *
+  *    {s}`addVertex(updateTime: Long, srcId: Long, properties: Properties, vertexType: Type)`
+  *      : Adds vertex for an update timestamp, source ID with Properties for a vertexType
+  *
+  *    {s}`deleteVertex(updateTime: Long, srcId: Long)`
+  *      : Deletes vertex for an updateTime and source ID
+  *
+  *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long)`
+  *      : Adds edge between source and destination ID for an update timestamp
+  *
+  *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties)`
+  *      : Adds an edge between source and destination ID for an update timestamp with properties
+  *
+  *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type)`
+  *      : Adds an edge between source and destination ID for an update timestamp with Edge Type
+  *
+  *    {s}`deleteEdge(updateTime: Long, srcId: Long, dstId: Long)`
+  *      : Deletes an edge between source and destination ID for an update timestamp
+  *
+  *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Type)`
+  *      : Adds an edge between source and destination ID for an update timestamp with Edge Type and Properties
+  *
+  * Example Usage:
+  *
+  * ```{code-block} scala
+  *
+  * class TwitterGraphBuilder() extends GraphBuilder[String] {
+  *
+  *   override def parseTuple(fileLine: String): Unit = {
+  *     val sourceNode = fileLine(0)
+  *     val srcID      = sourceNode.toLong
+  *     val timeStamp  = fileLine(1).toLong
+  *
+  *   addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
+  *   }
+  * }
+  *
+  * ```
+  *
+  */
 trait GraphBuilder[T] extends Serializable {
 
   val logger: Logger                                         = Logger(LoggerFactory.getLogger(this.getClass))
