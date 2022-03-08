@@ -6,7 +6,7 @@ import com.raphtory.core.algorithm.Row
 import com.raphtory.core.algorithm.Table
 import com.raphtory.core.graph.visitor.Vertex
 
-import math.random
+import scala.util.Random
 import scala.collection.mutable
 import scala.collection.mutable.Queue
 
@@ -35,6 +35,9 @@ import scala.collection.mutable.Queue
   *   {s}`noGames`
   *    : Maximum number of games to be played.
   *
+  *   {s}`seed`
+  *    : optional seed for testing purposes.
+  *
   * ## States
   *
   *   {s}`cooperator: Int`
@@ -62,8 +65,12 @@ class PrisonersDilemma(
     proportionCoop: Float = 0.5f,
     benefit: Float,
     cost: Float = 1.0f,
-    noGames: Int = 100
+    noGames: Int = 100,
+    seed: Int = -1
 ) extends NodeList(Seq("cooperationHistory")) {
+
+  val rnd = if (seed == -1) new Random() else new Random(seed)
+
   final val COOPERATOR = 0
   final val DEFECTOR   = 1
 
@@ -72,8 +79,9 @@ class PrisonersDilemma(
 
   // Payoff Matrix [(b-c, b-c) , (-c,b), (b,-c), (0,0)]
   override def apply(graph: GraphPerspective): GraphPerspective = {
+
     graph.step { vertex =>
-      vertex.getOrSetState[Int]("cooperator", if (random < proportionCoop) 0 else 1)
+      vertex.getOrSetState[Int]("cooperator", if (rnd.nextFloat() < proportionCoop) 0 else 1)
       val cooperationStatus = vertex.getState[Int]("cooperator")
       vertex.setState("cooperationHistory", Queue(cooperationStatus))
       vertex.messageAllNeighbours(cooperationStatus)
@@ -135,11 +143,11 @@ class PrisonersDilemma(
 object PrisonersDilemma {
 
   def apply(
-      output: String = "/tmp/prisonerDilemma",
       proportionCoop: Float = 0.5f,
       benefit: Float,
       cost: Float,
-      noGames: Int = 100
+      noGames: Int = 100,
+      seed: Int = -1
   ) =
-    new PrisonersDilemma(proportionCoop, benefit, cost, noGames)
+    new PrisonersDilemma(proportionCoop, benefit, cost, noGames, seed)
 }

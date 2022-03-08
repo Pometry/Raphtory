@@ -7,6 +7,7 @@ import com.raphtory.algorithms.generic.{BinaryDiffusion, ConnectedComponents}
 import com.raphtory.algorithms.generic.centrality.{AverageNeighbourDegree, Degree, Distinctiveness, PageRank, WeightedDegree, WeightedPageRank}
 import com.raphtory.algorithms.generic.community.{LPA, SLPA}
 import com.raphtory.algorithms.generic.dynamic.{DiscreteSI, RandomWalk, WattsCascade, WeightedRandomWalk}
+import com.raphtory.algorithms.generic.gametheory.PrisonersDilemma
 import com.raphtory.algorithms.generic.motif.{SquareCount, TriangleCount}
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.core.components.spout.{Spout, SpoutExecutor}
@@ -145,6 +146,13 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("Weighted Random Walk") {
     algorithmPointTest(WeightedRandomWalk[Int](), outputFormat, 32674)
     assert(true)
+  }
+
+  test("Prisoners Dilemma Test") {
+    assert(
+      algorithmTest(PrisonersDilemma(proportionCoop = 0.9f, benefit = 1.05f, cost = 0.05f,seed = 42),outputFormat,1, 32674, 10000, List(500, 1000, 10000))
+    equals "6d9faa6c9efda6d71ac102f8b82f2b74e1dfa14fba51afbdbedb6ee00fe2660f"
+    )
   }
 
   // TODO Re-enable with Seed to produce same result
