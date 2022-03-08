@@ -13,39 +13,35 @@ import java.io.File
   *   : writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File
   *        {s}`filePath: String`
   *          : Filepath for writing Raphtory output.
-  *
-  *  ## Methods
-  *    {s}`write[T](timestamp: Long, window: Option[Long], jobID: String, row: Row, partitionID: Int): Unit`
-  *      : Writes computed row for a partition for a specific window frame
-  *
-  *        {s}`timestamp: Long`
-  *          : Timestamp for the write operation.
-  *
-  *        {s}`window: Option[Long]`
-  *          : Window of start and end timestamps for which this row is computed.
-  *
-  *        {s}`jobID: String`
-  *          : Job identifier for Raphtory job.
-  *
-  *        {s}`row: Row`
-  *          : Row for computation.
-  *
-  *        {s}`partitionID: Int``
-  *          : Paritition identifier.
+  *   Reference: [](com.raphtory.core.algorithm.OutputFormat)
   *
   * Usage while querying or running algorithmic tests:
   *
   * ```{code-block} scala
+  * import com.raphtory.algorithms.generic.EdgeList
   * import com.raphtory.output.FileOutputFormat
-  * import com.raphtory.algorithms.generic.centrality.WeightedDegree
+  * import com.raphtory.core.algorithm.OutputFormat
+  * import com.raphtory.core.components.graphbuilder.GraphBuilder
+  * import com.raphtory.core.components.spout.Spout
+  * import org.apache.pulsar.client.api.Schema
+  *
+  * def setSpout(): Spout[T]
+  * def setGraphBuilder(): GraphBuilder[T]
+  * def setSchema(): Schema[T]
+  *
+  * val schema: Schema[Array[Byte]] = Schema.BYTES
+  * val spout            = setSpout()
+  * val graphBuilder     = setGraphBuilder()
+  * val graph            = Raphtory.createTypedGraph[T](spout, graphBuilder, setSchema())
   * val testDir  =  "/tmp/raphtoryTest"
-  * val defaultOutputFormat: OutputFormat  =  FileOutputFormat(testDir)
-  * algorithmTest(WeightedDegree(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+  * val outputFormat: FileOutputFormat  =  FileOutputFormat(testDir)
+  * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
   * ```
   *
+  *
   *  ```{seealso}
-  *  [](com.raphtory.output.FileOutputFormat)
-  *  [](com.raphtory.core.components.querymanager.PointQuery), [](com.raphtory.core.components.querymanager.RangeQuery)
+  *  [](com.raphtory.core.algorithm.OutputFormat),
+  *  [](com.raphtory.core.client.RaphtoryClient)
   *  ```
   */
 class FileOutputFormat(filePath: String) extends OutputFormat {

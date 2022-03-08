@@ -9,43 +9,36 @@ import org.apache.pulsar.client.api.Schema
 /**
   * {s}`PulsarOutputFormat(pulsarTopic: String)`
   *   : writes output output to a Raphtory Pulsar topic
-  *
   *        {s}`pulsarTopic: String`
   *          : Topic name for writing to Pulsar.
+  * Reference: [](com.raphtory.core.algorithm.OutputFormat)
   *
   * Usage while querying or running algorithmic tests:
   *
-  *
-  *  ## Methods
-  *    {s}`write[T](timestamp: Long, window: Option[Long], jobID: String, row: Row, partitionID: Int): Unit`
-  *      : Writes computed row for a partition for a specific window frame
-  *
-  *        {s}`timestamp: Long`
-  *          : Timestamp for the write operation.
-  *
-  *        {s}`window: Option[Long]`
-  *          : Window of start and end timestamps for which this row is computed.
-  *
-  *        {s}`jobID: String`
-  *          : Job identifier for Raphtory job.
-  *
-  *        {s}`row: Row`
-  *          : Row for computation.
-  *
-  *        {s}`partitionID: Int``
-  *          : Paritition identifier.
-  *
   * ```{code-block} scala
-  * import com.raphtory.output.PulsarOutputFormat
   * import com.raphtory.algorithms.generic.EdgeList
+  * import com.raphtory.output.PulsarOutputFormat
+  * import com.raphtory.core.algorithm.OutputFormat
+  * import com.raphtory.core.components.graphbuilder.GraphBuilder
+  * import com.raphtory.core.components.spout.Spout
+  * import org.apache.pulsar.client.api.Schema
+  *
+  * def setSpout(): Spout[T]
+  * def setGraphBuilder(): GraphBuilder[T]
+  * def setSchema(): Schema[T]
+  *
+  * val schema: Schema[Array[Byte]] = Schema.BYTES
+  * val spout            = setSpout()
+  * val graphBuilder     = setGraphBuilder()
+  * val graph            = Raphtory.createTypedGraph[T](spout, graphBuilder, setSchema())
   * val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList")
   * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
   * ```
   *
   *
   *  ```{seealso}
-  *  [](com.raphtory.output.PulsarOutputFormat),
-  *  [](com.raphtory.core.components.querymanager.PointQuery), [](com.raphtory.core.components.querymanager.RangeQuery)
+  *  [](com.raphtory.core.algorithm.OutputFormat),
+  *  [](com.raphtory.core.client.RaphtoryClient.PointQuery)
   *  ```
   */
 class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
