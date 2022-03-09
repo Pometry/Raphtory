@@ -1,6 +1,7 @@
 package com.raphtory.core.components.partition
 
 import com.raphtory.core.components.Component
+import com.raphtory.core.components.graphbuilder.BatchAddRemoteEdge
 import com.raphtory.core.components.graphbuilder.EdgeAdd
 import com.raphtory.core.components.graphbuilder.EdgeDelete
 import com.raphtory.core.components.graphbuilder.GraphAlteration
@@ -35,9 +36,8 @@ class BatchWriter[T: ClassTag](
       //TODO Make Vertex Deletions batch ingestable
       case update: VertexAdd          => processVertexAdd(update)
       case update: EdgeAdd            => processEdgeAdd(update)
-      case update: SyncNewEdgeAdd     => processSyncNewEdgeAdd(update)
+      case update: BatchAddRemoteEdge => processRemoteEdgeAdd(update)
       case update: EdgeDelete         => processEdgeDelete(update)
-      case update: SyncNewEdgeRemoval => processSyncNewEdgeRemoval(update)
 
       case other =>
         logger.error(s"Partition '$partitionID': Received unsupported message type '$other'.")
@@ -70,12 +70,12 @@ class BatchWriter[T: ClassTag](
     )
   }
 
-  def processSyncNewEdgeAdd(req: SyncNewEdgeAdd): Unit = {
+  def processRemoteEdgeAdd(req: BatchAddRemoteEdge): Unit = {
     logger.trace("A writer has requested a new edge sync for a destination node in this worker.")
 
     storage.timings(req.msgTime)
     storage
-      .syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType)
+      .batchAddRemoteEdge(req.msgTime, req.srcId, req.dstId, req.properties, req.vType)
   }
 
   def processSyncNewEdgeRemoval(req: SyncNewEdgeRemoval): Unit = {

@@ -40,12 +40,11 @@ class LocalBatchHandler[T: ClassTag](
                       (partitionIDs contains partitionForDst) && (partitionForDst != partitionForSrc)
               ) //TODO doesn't see to currently work
                 batchWriters(partitionForDst).handleMessage(
-                        SyncNewEdgeAdd(
+                        BatchAddRemoteEdge(
                                 update.updateTime,
                                 update.srcId,
                                 update.dstId,
                                 update.properties,
-                                List(),
                                 update.eType
                         )
                 )

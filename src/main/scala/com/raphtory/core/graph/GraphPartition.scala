@@ -55,6 +55,14 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
       properties: Properties
   ): GraphUpdateEffect
 
+  def batchAddRemoteEdge(
+      msgTime: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      edgeType: Option[Type]
+  ): Unit
+
   def removeEdge(msgTime: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect]
 
   def syncNewEdgeRemoval(
