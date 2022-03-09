@@ -71,8 +71,8 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Strength Test") {
     assert(
-      algorithmTest(WeightedDegree[Int](), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
-      equals "887021d9c7254255daf801d1b733fe0d4d0ba31b9be68cd345d790c8374ce57b"
+      algorithmTest(WeightedDegree[Long](), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+      equals "ce2c985cd5db976c5fda5ffaa317d52f8e04236cc602b41468eb80d01be333ac"
     )
   }
 
