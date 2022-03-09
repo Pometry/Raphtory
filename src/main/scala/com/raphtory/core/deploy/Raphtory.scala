@@ -87,11 +87,15 @@ object Raphtory {
     componentFactory.builder(builder, false, scheduler)
   }
 
-  def createPartitionManager(): Unit = {
+  def createPartitionManager[T: ClassTag](
+      batchLoading: Boolean = false,
+      spout: Option[Spout[T]] = None,
+      graphBuilder: Option[GraphBuilder[T]] = None
+  ): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    componentFactory.partition(scheduler)
+    componentFactory.partition(scheduler, batchLoading, spout, graphBuilder)
   }
 
   def createQueryManager(): Unit = {

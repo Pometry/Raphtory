@@ -10,4 +10,6 @@ object EthereumDistributedTest extends RaphtoryService[String] {
   override def defineSpout(): Spout[String] = FileSpout()
 
   override def defineBuilder: EthereumGraphBuilder = new EthereumGraphBuilder()
+
+  override def batchIngestion(): Boolean = true
 }

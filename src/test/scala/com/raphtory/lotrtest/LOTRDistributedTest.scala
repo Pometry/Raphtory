@@ -13,4 +13,6 @@ object LOTRDistributedTest extends RaphtoryService[String] {
 
   override def defineBuilder: GraphBuilder[String] = new LOTRGraphBuilder()
 
+  override def batchIngestion(): Boolean = false
+
 }

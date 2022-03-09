@@ -14,6 +14,7 @@ abstract class RaphtoryService[T: ClassTag] {
 
   def defineSpout(): Spout[T]
   def defineBuilder: GraphBuilder[T]
+  def batchIngestion(): Boolean
 
   def main(args: Array[String]): Unit =
     args(0) match {
@@ -30,7 +31,11 @@ abstract class RaphtoryService[T: ClassTag] {
     Raphtory.createGraphBuilder(defineBuilder)
 
   def partitionDeploy(): Unit =
-    Raphtory.createPartitionManager()
+    Raphtory.createPartitionManager[T](
+            batchLoading = batchIngestion(),
+            spout = Some(defineSpout()),
+            graphBuilder = Some(defineBuilder)
+    )
 
   def queryManagerDeploy(): Unit =
     Raphtory.createQueryManager()
