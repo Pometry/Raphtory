@@ -49,9 +49,6 @@ class FileSpoutTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(new File(tempDir.toAbsolutePath.toString).listFiles().isEmpty)
     tempDirs.add(tempDir.toAbsolutePath.toString)
   }
-  test("FileUtils.getMatchingFiles will get correctly make files from a folder"){
-
-  }
 
   override def afterAll(): Unit = {
     scala.util.control.Exception.ignoring(classOf[Exception]) {
