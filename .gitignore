@@ -15,7 +15,49 @@ project/boot/
 project/plugins/project/
 project/project
 project/target
+<<<<<<< HEAD
+=======
+logs
+# Scala-IDE specific
+.scala_dependencies
+.worksheet
+.idea
+
+#raphtory env
+mainproject/.env
+
+# sbt 
+sbt-*.zip
+sbt
+
+mainproject/build.sbt
+*.class
+*.log
+.*.sw[op]
+
+sbt/
+cluster/src/main/scala/scala.iml
+core/src/main/scala/com/raphtory/testDeploy.scala
+
+.env
+singlenodetest.yml
+>>>>>>> aad73078 (Project structure refactor)
 
 # Scala-IDE specific
 .scala_dependencies
 .worksheet
+<<<<<<< HEAD
+=======
+.idea
+
+**/logs/**
+/core/src/main/scala/com/raphtory/dev/algorithms/test.scala
+
+testupdates.txt
+
+# local files
+core/src/main/scala/com/raphtory/lotr
+/core/src/main/scala/com/raphtory/dev/lotr/lotr2.csv
+/core/src/main/scala/com/raphtory/dev/networkx/networkxGraphBuilder.scala
+/core/src/main/scala/com/raphtory/dev/networkx/networkxSpout.scala
+>>>>>>> aad73078 (Project structure refactor)
