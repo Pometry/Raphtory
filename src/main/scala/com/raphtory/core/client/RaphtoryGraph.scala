@@ -15,6 +15,21 @@ import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
+/**
+  * {s}`RaphtoryGraph`
+  *    : Raphtory Graph extends Raphtory Client to initialise Query Manager, Partitions, Spout Worker
+  *    and GraphBuilder Worker for a deployment ID
+  *
+  *  ## Methods
+  *
+  *    {s}`allowIllegalReflection()`
+  *      : Turn off illegal access log messages by marking as `unsafe`
+  *
+  *  ```{seealso}
+  *  [](com.raphtory.core.client.RaphtoryClient), [](com.raphtory.core.components.querymanager.QueryManager),
+  *  [](com.raphtory.core.components.partition.QueryExecutor)
+  *  ```
+  */
 private[core] class RaphtoryGraph[T: TypeTag: ClassTag](
     spout: SpoutExecutor[T],
     graphBuilder: GraphBuilder[T],

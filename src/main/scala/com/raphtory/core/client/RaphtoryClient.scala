@@ -20,6 +20,124 @@ import org.apache.pulsar.client.api.Schema
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 import org.slf4j.LoggerFactory
 
+/**
+  * {s}`RaphtoryClient`
+  *    : Raphtory Client exposes query APIs for point, range and live queries
+  *
+  *  ## Attributes
+  *
+  *    {s}`logger`
+  *      : Logger instance for writing debug messages
+  *
+  *    {s}`kryo `
+  *      : Pulsar Kryo Serialiser for persisting query output
+  *
+  *  ## Methods
+  *
+  *    {s}`pointQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, timestamp: Long,
+            windows: List[Long] = List()): QueryProgressTracker`
+  *      : Point query for querying at a specific timestamp, returns {s}`QueryProgressTracker`
+  *
+  *        {s}`graphAlgorithm: GraphAlgorithm`
+  *           : Graph algorithm to use for query
+  *
+  *        {s}`outputFormat: OutputFormat`
+  *           : Type of output format for storing results
+  *
+  *        {s}`timestamp: Long`
+  *           : Timestamp of query
+  *
+  *        {s}`windows: List[Long] = List())`
+  *           : Window of timestamps for querying
+  *
+  *
+  *
+  *    {s}`rangeQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, start: Long, end: Long,
+  *    increment: Long, windows: List[Long] = List()): QueryProgressTracker`
+  *      : Queries a range of time duration, returns {s}`QueryProgressTracker`
+  *
+  *        {s}`graphAlgorithm: GraphAlgorithm`
+  *           : Graph algorithm to use for query
+  *
+  *        {s}`outputFormat: OutputFormat`
+  *           : Type of output format for storing results
+  *
+  *        {s}`start: Long`
+  *           : Start timestamp of duration for query
+  *
+  *        {s}`end: Long`
+  *           : End timestamp of duration for query
+  *
+  *        {s}`increment: Long`
+  *           : Step size for range query
+  *
+  *        {s}`windows: List[Long] = List())`
+  *           : Window of timestamps for querying
+  *
+  *
+  *    {s}`liveQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, increment: Long, windows:
+  *    List[Long] = List()): QueryProgressTracker` returns {s}`QueryProgressTracker`
+  *      : Write out tabular data
+  *
+  *        {s}`graphAlgorithm: GraphAlgorithm`
+  *           : Graph algorithm to use for query
+  *
+  *        {s}`outputFormat: OutputFormat`
+  *           : Type of output format for storing results
+  *
+  *        {s}`increment: Long`
+  *           : Step size for live query
+  *
+  *        {s}`windows: List[Long] = List())`
+  *           : Window of timestamps for querying
+  *
+  *
+  *    {s}`getConfig(): Config`
+  *      : Fetch raphtory config
+  *
+  *
+  *    {s}`getID(algorithm: GraphAlgorithm): String`
+  *     : Fetch ID for graph algorithm
+  *
+  *        {s}`graphAlgorithm: GraphAlgorithm`
+  *           : Graph algorithm to use for query
+  *
+  * Usage while querying:
+  *
+  * ```{code-block} scala
+  * import com.raphtory.algorithms.generic.EdgeList
+  * import com.raphtory.output.FileOutputFormat
+  * import com.raphtory.core.algorithm.OutputFormat
+  * import com.raphtory.core.components.graphbuilder.GraphBuilder
+  * import com.raphtory.core.components.spout.Spout
+  * import org.apache.pulsar.client.api.Schema
+  *
+  * def setSpout(): Spout[T]
+  * def setGraphBuilder(): GraphBuilder[T]
+  * def setSchema(): Schema[T]
+  *
+  * val schema: Schema[Array[Byte]] = Schema.BYTES
+  * val spout            = setSpout()
+  * val graphBuilder     = setGraphBuilder()
+  * val graph            = Raphtory.createTypedGraph[T](spout, graphBuilder, setSchema())
+  * val testDir  =  "/tmp/raphtoryTest"
+  * val outputFormat: FileOutputFormat  =  FileOutputFormat(testDir)
+  *
+  * // Run Point Query:
+  * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
+  *
+  * // Run Range Query:
+  * val queryProgressTracker = graph.rangeQuery(graphAlgorithm = EdgeList(), outputFormat = outputFormat,
+  *            start = 1, end = 32674, increment = 10000, windows = List(500, 1000, 10000))
+  * queryProgressTracker.waitForJob()
+  *
+  * ```
+  *
+  *  ```{seealso}
+  *  [](com.raphtory.core.algorithm.GraphAlgorithm), [](com.raphtory.core.components.querytracker.QueryProgressTracker),
+  *  [](com.raphtory.output.FileOutputFormat), [](com.raphtory.output.PulsarOutputFormat)
+  *  ```
+  */
 private[core] class RaphtoryClient(
     private val deploymentID: String,
     private val conf: Config,
