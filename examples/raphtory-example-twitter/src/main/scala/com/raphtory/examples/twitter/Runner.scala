@@ -1,0 +1,31 @@
+package com.raphtory.examples.twitter
+
+import com.raphtory.algorithms.generic.EdgeList
+import com.raphtory.core.components.spout.instance.ResourceSpout
+import com.raphtory.core.deploy.Raphtory
+import com.raphtory.examples.twitter.graphbuilders.TwitterGraphBuilder
+import com.raphtory.examples.twitter.analysis.{MemberRank, PageRank, TemporalMemberRank}
+import com.raphtory.output.PulsarOutputFormat
+import org.apache.pulsar.client.admin.PulsarAdmin
+import org.apache.pulsar.common.policies.data.RetentionPolicies
+
+object Runner extends App{
+   //Set unlimited retention to keep topic
+  val retentionTime = -1
+  val retentionSize = -1
+  val admin = PulsarAdmin.builder.serviceHttpUrl("http://localhost:8080")
+    .tlsTrustCertsFilePath(null)
+    .allowTlsInsecureConnection(false)
+    .build
+  val policies = new RetentionPolicies(retentionTime, retentionSize)
+  admin.namespaces.setRetention("public/default", policies)
+
+  // Create Graph
+  val source  = ResourceSpout("higgs-retweet-activity.csv")
+  val builder = new TwitterGraphBuilder()
+  val graph = Raphtory.createGraph(spout = source, graphBuilder = builder)
+  Thread.sleep(20000)
+  val output = PulsarOutputFormat("Retweets")
+
+  graph.rangeQuery(PageRank() -> MemberRank() -> TemporalMemberRank(), output, start=1341101181, end = 1341705593, increment=500000000, windows=List())
+}

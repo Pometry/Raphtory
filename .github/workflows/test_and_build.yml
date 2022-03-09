@@ -55,7 +55,7 @@ jobs:
       - name: Get sbt package
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
       - name: Run SBT tests
-        run: sbt/bin/sbt test
+        run: sbt/bin/sbt core/test
         timeout-minutes: 10
     if: needs.configure.outputs.type == 'regular'
 
@@ -75,7 +75,7 @@ jobs:
       - name: Get sbt package
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
       - name: Run sbt assembly
-        run: sbt/bin/sbt assembly
+        run: sbt/bin/sbt core/assembly
       # Tag when push to master branch
       - name: Bump tag version and push
         uses: anothrNick/github-tag-action@master
