@@ -47,6 +47,12 @@ import scala.collection.mutable.ArrayBuffer
   *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Type)`
   *      : Adds an edge between source and destination ID for an update timestamp with Edge Type and Properties
   *
+  *    {s}`parseTuple(tuple: T): Unit`
+  *      : Parse row tuple to extract source node, destination node, timestamp info, etc.
+  *
+  *    {s}`assignID(uniqueChars: String): Long`
+  *      : Assigns long hash for a given string
+  *
   * Example Usage:
   *
   * ```{code-block} scala
