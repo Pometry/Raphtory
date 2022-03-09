@@ -168,6 +168,4 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
       }
     }
   }
-
-  override def setSchema(): Schema[String] = Schema.STRING
 }

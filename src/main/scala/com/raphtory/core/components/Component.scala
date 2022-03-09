@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory
 import scala.reflect.runtime.universe._
 
 /** @DoNotDocument */
-abstract class Component[T: TypeTag](conf: Config, private val pulsarController: PulsarController)
+abstract class Component[T](conf: Config, private val pulsarController: PulsarController)
         extends Runnable {
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -49,7 +49,7 @@ abstract class Component[T: TypeTag](conf: Config, private val pulsarController:
 
   def serialise(value: Any): Array[Byte] = kryo.serialise(value)
 
-  def deserialise[T: TypeTag](bytes: Array[Byte]): T = kryo.deserialise[T](bytes)
+  def deserialise[T](bytes: Array[Byte]): T = kryo.deserialise[T](bytes)
 
   def getWriter(srcId: Long): Int = (srcId.abs % totalPartitions).toInt
 

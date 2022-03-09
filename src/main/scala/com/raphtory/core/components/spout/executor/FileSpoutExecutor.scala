@@ -16,16 +16,16 @@ import java.util.zip.ZipInputStream
 import scala.collection.mutable
 import scala.io.Source
 import scala.util.matching.Regex
-import scala.reflect.runtime.universe.TypeTag
 
-class FileSpoutExecutor[T: TypeTag](
-                                     path: String = "",
-                                     schema: Schema[T],
-                                     lineConverter: String => T,
-                                     conf: Config,
-                                     pulsarController: PulsarController,
-                                     scheduler: Scheduler
-                                   ) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler) {
+
+class FileSpoutExecutor[T](
+    path: String = "",
+    schema: Schema[T],
+    lineConverter: String => T,
+    conf: Config,
+    pulsarController: PulsarController,
+    scheduler: Scheduler
+) extends SpoutExecutor[T](conf: Config, pulsarController: PulsarController, scheduler) {
   private var linesProcessed: Int                 = 0
   private val completedFiles: mutable.Set[String] = mutable.Set.empty[String]
 

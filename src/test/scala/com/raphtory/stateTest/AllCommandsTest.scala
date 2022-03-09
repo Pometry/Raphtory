@@ -57,6 +57,4 @@ class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
     assert(results equals "ba662e8fe795c263566b1898c0f1fc6816c3f6ef5e6bbbce9db6cd06330f47a8")
   }
 
-  override def setSchema(): Schema[String] = Schema.STRING
-
 }
