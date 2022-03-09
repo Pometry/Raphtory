@@ -12,7 +12,7 @@ import com.raphtory.core.algorithm.Table
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-import com.raphtory.algorithms.utils.Sampling._
+import com.raphtory.util.Sampling._
 
 /**
   * {s}`Node2VecWalk(walkLength:Int = 10, p: Double = 1.0, q: Double = 1.0)`

@@ -1,6 +1,6 @@
 package com.raphtory.core.graph.visitor
 
-import scala.reflect.ClassTag
+import com.raphtory.core.graph.visitor.PropertyMergeStrategy.PropertyMerge
 
 abstract class EntityVisitor {
   def Type()
@@ -11,15 +11,38 @@ abstract class EntityVisitor {
   def earliestActivity(): HistoricEvent
 
   def getPropertySet(): List[String]
-  def getProperty[T](key: String): Option[T]
-  def getPropertyOrElse[T](key: String, otherwise: T): T
+
+  def getProperty[A, B](key: String, mergeStrategy: PropertyMerge[A, B]): Option[B] =
+    getPropertyHistory[A](key) match {
+      case Some(history) => Some(mergeStrategy(history))
+      case None          => None
+    }
+
+  def getProperty[A](key: String): Option[A] = getProperty(key, PropertyMergeStrategy.latest)
+
+  def getPropertyOrElse[A, B](key: String, otherwise: B, mergeStrategy: PropertyMerge[A, B]): B =
+    getProperty[A, B](key, mergeStrategy) match {
+      case Some(value) => value
+      case None        => otherwise
+    }
+
+  def getPropertyOrElse[A](key: String, otherwise: A): A =
+    getPropertyOrElse(key, otherwise, PropertyMergeStrategy.latest)
+
   def getPropertyAt[T](key: String, time: Long): Option[T]
 
   def getPropertyValues[T](
       key: String,
-      after: Long = Long.MaxValue,
+      after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[List[T]]
+  ): Option[List[T]] =
+    getPropertyHistory[T](key) match {
+      case Some(history) =>
+        Some(history.collect({
+          case (timestamp, value) if (after <= timestamp) && (timestamp <= before) => value
+        }))
+      case None          => None
+    }
 
   def getPropertyHistory[T](key: String): Option[List[(Long, T)]]
 
