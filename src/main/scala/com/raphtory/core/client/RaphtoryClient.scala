@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory
   *           : Timestamp of query
   *
   *        {s}`windows: List[Long] = List()`
-  *           : Only consider data no older than (timestamp `T` - Window) to timestamp `T` for querying
+  *           : If specified, run query for each `window` in `windows`, restricted to data between `timestamp - window` and `timestamp`
   *
   *    {s}`rangeQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, start: Long, end: Long, increment: Long, windows: List[Long] = List()): QueryProgressTracker`
   *      : Queries for a range of timestamps, returns [{s}`QueryProgressTracker`](com.raphtory.core.components.querytracker.QueryProgressTracker)
@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory
   *           : Step size of duration for re-running range query
   *
   *        {s}`windows: List[Long] = List()`
-  *           : Only consider data no older than (timestamp `T` - Window) to timestamp `T` for querying
+  *           : If specified, run query for each `window` in `windows`, restricted to data between `timestamp - window` and `timestamp`
   *
   *    {s}`liveQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, increment: Long, windows: List[Long] = List()): QueryProgressTracker`
   *      : Runs query for latest available timestamp, returns [{s}`QueryProgressTracker`](com.raphtory.core.components.querytracker.QueryProgressTracker)
@@ -75,7 +75,7 @@ import org.slf4j.LoggerFactory
   *           : Step size of duration for re-running range query
   *
   *        {s}`windows: List[Long] = List()`
-  *           : Only consider data no older than (timestamp `T` - Window) to timestamp `T` for querying
+  *           : If specified, run query for each `window` in `windows`, restricted to data between `timestamp - window` and `timestamp`
   *
   *    {s}`getConfig(): Config`
   *      : Fetch raphtory config
