@@ -5,9 +5,17 @@ import com.raphtory.core.graph.visitor.Vertex
 
 class GenericGraphPerspectiveSet(private val queryBuilder: QueryBuilder)
         extends GraphPerspectiveSet {
+  override def setGlobalState(f: GraphState => Unit): GraphPerspectiveSet = addFunction(Setup(f))
+
   override def filter(f: (Vertex) => Boolean): GraphPerspectiveSet = addFunction(VertexFilter(f))
 
+  override def filter(f: (Vertex, GraphState) => Boolean): GraphPerspectiveSet =
+    addFunction(VertexFilterWithGraph(f))
+
   override def step(f: (Vertex) => Unit): GraphPerspectiveSet = addFunction(Step(f))
+
+  override def step(f: (Vertex, GraphState) => Unit): GraphPerspectiveSet =
+    addFunction(StepWithGraph(f))
 
   override def iterate(
       f: (Vertex) => Unit,
@@ -15,8 +23,20 @@ class GenericGraphPerspectiveSet(private val queryBuilder: QueryBuilder)
       executeMessagedOnly: Boolean
   ): GraphPerspectiveSet = addFunction(Iterate(f, iterations, executeMessagedOnly))
 
+  override def iterate(
+      f: (Vertex, GraphState) => Unit,
+      iterations: Int,
+      executeMessagedOnly: Boolean
+  ): GraphPerspectiveSet = addFunction(IterateWithGraph(f, iterations, executeMessagedOnly))
+
   override def select(f: Vertex => Row): Table =
     new GenericTable(queryBuilder.addGraphFunction(Select(f)))
+
+  override def select(f: (Vertex, GraphState) => Row): Table =
+    new GenericTable(queryBuilder.addGraphFunction(SelectWithGraph(f)))
+
+  override def globalSelect(f: GraphState => Row): Table =
+    new GenericTable(queryBuilder.addGraphFunction(GlobalSelect(f)))
 
   override def explodeSelect(f: Vertex => List[Row]): Table =
     new GenericTable(queryBuilder.addGraphFunction(ExplodeSelect(f)))

@@ -5,6 +5,7 @@ import com.raphtory.core.components.graphbuilder.BuilderExecutor
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.partition.Reader
 import com.raphtory.core.components.partition.Writer
+import com.raphtory.core.components.querymanager.QueryManagement
 import com.raphtory.core.components.querymanager.QueryManager
 import com.raphtory.core.components.querytracker.QueryProgressTracker
 import com.raphtory.core.components.spout.SpoutExecutor
@@ -22,10 +23,9 @@ import scala.reflect.runtime.universe.TypeTag
 private[core] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def builder[T: ClassTag: TypeTag](
+  def builder[T: ClassTag](
       graphbuilder: GraphBuilder[T],
-      scheduler: Scheduler,
-      schema: Schema[T]
+      scheduler: Scheduler
   ): List[ThreadedWorker[T]] = {
     val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
     logger.info(s"Creating '$totalBuilders' Graph Builders.")
@@ -99,7 +99,7 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
     ThreadedWorker(spout)
   }
 
-  def query(scheduler: Scheduler): ThreadedWorker[Array[Byte]] = {
+  def query(scheduler: Scheduler): ThreadedWorker[QueryManagement] = {
     logger.info(s"Creating new Query Manager.")
     val queryManager = new QueryManager(scheduler, conf, pulsarController)
 

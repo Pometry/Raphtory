@@ -56,9 +56,8 @@ import scala.util.Random
 class LPA(weight: String = "", maxIter: Int = 50, seed: Long = -1)
         extends NodeList(Seq("community")) {
 
-  val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
-  val SP          = 0.2f // Stickiness probability
-
+  val rnd: Random                                               = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
+  val SP                                                        = 0.2f // Stickiness probability
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph
       .step { vertex =>

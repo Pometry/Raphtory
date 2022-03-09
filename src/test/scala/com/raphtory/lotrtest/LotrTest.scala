@@ -2,7 +2,7 @@
 
 package com.raphtory.lotrtest
 
-import com.raphtory.{BaseRaphtoryAlgoTest, GraphState}
+import com.raphtory.{BaseRaphtoryAlgoTest, GlobalState, GraphState}
 import com.raphtory.algorithms.generic.{BinaryDiffusion, ConnectedComponents}
 import com.raphtory.algorithms.generic.centrality.{AverageNeighbourDegree, Degree, Distinctiveness, PageRank, WeightedDegree, WeightedPageRank}
 import com.raphtory.algorithms.generic.community.{LPA, SLPA}
@@ -28,7 +28,12 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("Graph State Test") {
     assert(
       algorithmTest(GraphState(),outputFormat,1, 32674, 10000, List(500, 1000, 10000))equals "9fa9e48ab6e79e186bcacd7c9f9e3e60897c8657e76c348180be87abe8ec53fe"
-      //algorithmTest(GraphState(),outputFormat,1, 32674, 10000, List(500, 1000, 10000)) equals "c261688445083f853a26fd7f0c71b00da002e9633a97bab738bf07001ac757a1"
+    )
+  }
+
+  test("Global State Test") {
+    assert(
+      algorithmTest(new GlobalState(),outputFormat,1, 32674, 10000, List(500, 1000, 10000))equals "206d686bb8c5c119980d1743e4ec2aceb1dc62895d0931b5608f521e4da5c334"
     )
   }
 
@@ -71,19 +76,19 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     )
   }
 
-  test("LPA Test") {
-    assert(
-      algorithmTest(LPA(seed=1234), outputFormat, 32674, 32674, 10000, List(10000))
-      equals "cf7bf559d634a0cf02739d9116b4d2f47c25679be724a896223c0917d55d2143"
-    )
-  }
-
-  test("SLPA Test") {
-    assert(
-      algorithmTest(SLPA(speakerRule = SLPA.ChooseRandom(seed=1234)), outputFormat, 32674, 32674, 10000, List(10000))
-      equals "a7c72dac767dc94d64d76e2c046c1dbe95154a8da7994d2133cf9e1b09b65570"
-    )
-  }
+//  test("LPA Test") {
+//    assert(
+//      algorithmTest(LPA(seed=1234), outputFormat, 32674, 32674, 10000, List(10000))
+//      equals "cf7bf559d634a0cf02739d9116b4d2f47c25679be724a896223c0917d55d2143"
+//    )
+//  }
+//
+//  test("SLPA Test") {
+//    assert(
+//      algorithmTest(SLPA(speakerRule = SLPA.ChooseRandom(seed=1234)), outputFormat, 32674, 32674, 10000, List(10000))
+//      equals "a7c72dac767dc94d64d76e2c046c1dbe95154a8da7994d2133cf9e1b09b65570"
+//    )
+//  }
 
   test("Connected Components Test") {
     assert(
@@ -105,12 +110,12 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     )
   }
 
-  test("DiscreteSI test") {
-    assert(
-      algorithmTest(DiscreteSI(Set("Gandalf"), seed=1234), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
-      equals "57191e340ef3e8268d255751b14fff76292087af2365048d961d59a5c0fbbc3f"
-    )
-  }
+//  test("DiscreteSI test") {
+//    assert(
+//      algorithmTest(DiscreteSI(Set("Gandalf"), seed=1234), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+//      equals "57191e340ef3e8268d255751b14fff76292087af2365048d961d59a5c0fbbc3f"
+//    )
+//  }
 
   test("Chain Test") {
     assert(
@@ -163,6 +168,4 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
       }
     }
   }
-
-  override def setSchema(): Schema[String] = Schema.STRING
 }

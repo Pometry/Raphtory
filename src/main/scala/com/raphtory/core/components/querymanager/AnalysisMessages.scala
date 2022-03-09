@@ -1,6 +1,7 @@
 package com.raphtory.core.components.querymanager
 
 import com.raphtory.core.algorithm.GraphFunction
+import com.raphtory.core.algorithm.GraphStateImplementation
 import com.raphtory.core.algorithm.TableFunction
 import com.raphtory.core.time.Interval
 
@@ -24,9 +25,17 @@ case object JobDone                                                     extends 
 case object StartGraph extends QueryManagement
 
 case class GraphFunctionComplete(
+    partitionID: Int,
     receivedMessages: Int,
     sentMessages: Int,
     votedToHalt: Boolean = false
+) extends QueryManagement
+
+case class GraphFunctionCompleteWithState(
+    receivedMessages: Int,
+    sentMessages: Int,
+    votedToHalt: Boolean = false,
+    graphState: GraphStateImplementation
 ) extends QueryManagement
 
 case object TableBuilt            extends QueryManagement

@@ -34,13 +34,6 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
 
   logger.info("Consumer created.")
 
-  test("Warmup and Ingestion Test") { //TODO once watermarking is implemented, rebuild this function to actually check the timestamp
-    Thread.sleep(20000)
-    assert(
-            32674 == 32674
-    )                                 //all data is ingested and the minimum watermark is set to the last line in the data
-  }
-
   test("Outputting to Pulsar") {
     val queryProgressTracker =
       graph.rangeQuery(
@@ -60,7 +53,4 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
 
     assert(firstResult.nonEmpty)
   }
-
-  override def setSchema(): Schema[String] =
-    Schema.STRING
 }

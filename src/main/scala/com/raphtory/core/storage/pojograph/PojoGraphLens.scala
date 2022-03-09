@@ -1,5 +1,6 @@
 package com.raphtory.core.storage.pojograph
 
+import com.raphtory.core.algorithm.GraphState
 import com.raphtory.core.algorithm.Row
 import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.graph.visitor.Vertex
@@ -9,6 +10,8 @@ import com.raphtory.core.graph.LensInterface
 import com.raphtory.core.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
 import com.raphtory.core.time.Interval
+import com.typesafe.config.Config
+import org.apache.pulsar.client.api.Producer
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
@@ -20,7 +23,10 @@ final case class PojoGraphLens(
     window: Option[Interval],
     var superStep: Int,
     private val storage: GraphPartition,
-    messageHandler: VertexMessageHandler
+    private val conf: Config,
+    private val neighbours: Map[Int, Producer[Array[Byte]]],
+    private val sentMessages: AtomicInteger,
+    private val receivedMessages: AtomicInteger
 ) extends GraphLens(jobId, timestamp, window)
         with LensInterface {
   private val voteCount     = new AtomicInteger(0)
@@ -28,12 +34,17 @@ final case class PojoGraphLens(
   var t1                    = System.currentTimeMillis()
   private var fullGraphSize = 0
 
-  def getFullGraphSize = {
+  val messageHandler: VertexMessageHandler =
+    VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)
+
+  val partitionID = storage.getPartitionID
+
+  def getFullGraphSize: Int = {
     logger.trace(s"Current Graph size at '$fullGraphSize'.")
     fullGraphSize
   }
 
-  def setFullGraphSize(size: Int) = {
+  def setFullGraphSize(size: Int): Unit = {
     fullGraphSize = size
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
@@ -43,7 +54,7 @@ final case class PojoGraphLens(
 
   private lazy val vertices: Array[(Long, Vertex)] = vertexMap.toArray
 
-  def getSize() = vertices.size
+  def getSize(): Int = vertices.size
 
   private var dataTable: List[Row] = List()
 
@@ -51,6 +62,20 @@ final case class PojoGraphLens(
     dataTable = vertices.collect {
       case (id, vertex) => f(vertex)
     }.toList
+
+  def executeSelect(
+      f: (Vertex, GraphState) => Row,
+      graphState: GraphState
+  ): Unit =
+    dataTable = vertices.collect {
+      case (id, vertex) => f(vertex, graphState)
+    }.toList
+
+  def executeSelect(
+      f: GraphState => Row,
+      graphState: GraphState
+  ): Unit =
+    dataTable = List(f(graphState))
 
   def explodeSelect(f: Vertex => List[Row]): Unit =
     dataTable = vertices
@@ -74,8 +99,26 @@ final case class PojoGraphLens(
     vertexCount.set(vertices.size)
   }
 
-  def runMessagedGraphFunction(f: Vertex => Unit): Unit = {
+  override def runGraphFunction(
+      f: (Vertex, GraphState) => Unit,
+      graphState: GraphState
+  ): Unit = {
+    vertices.foreach { case (id, vertex) => f(vertex, graphState) }
+    vertexCount.set(vertices.size)
+  }
+
+  override def runMessagedGraphFunction(f: Vertex => Unit): Unit = {
     val size = vertices.collect { case (id, vertex) if vertex.hasMessage() => f(vertex) }.size
+    vertexCount.set(size)
+  }
+
+  override def runMessagedGraphFunction(
+      f: (Vertex, GraphState) => Unit,
+      graphState: GraphState
+  ): Unit = {
+    val size = vertices.collect {
+      case (id, vertex) if vertex.hasMessage() => f(vertex, graphState)
+    }.size
     vertexCount.set(size)
   }
 
@@ -92,6 +135,8 @@ final case class PojoGraphLens(
     t1 = System.currentTimeMillis()
     voteCount.set(0)
     vertexCount.set(0)
+    sentMessages.set(0)
+    receivedMessages.set(0)
     superStep += 1
   }
 

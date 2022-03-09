@@ -24,17 +24,6 @@ class FacebookTest extends BaseRaphtoryAlgoTest[String] {
   override def setGraphBuilder() = new FacebookGraphBuilder()
   val outputFormat               = FileOutputFormat(testDir)
 
-  // Invoke Query Tracker to Track progress of query
-  val rangeQueryJobTracker = graph.rangeQuery(
-          ConnectedComponents(),
-          PulsarOutputFormat("ConnectedComponents"),
-          20000,
-          70000,
-          10000,
-          List(500, 1000, 10000)
-  )
-  Thread.sleep(10000)
-
 ////sbt clean tests
   test("Connected Components Test") {
     assert(
@@ -43,6 +32,4 @@ class FacebookTest extends BaseRaphtoryAlgoTest[String] {
               equals "96e9415d7b657e0c306021bfa55daa9d5507271ccff2390894e16597470cb4ab"
     )
   }
-
-  override def setSchema(): Schema[String] = Schema.STRING
 }

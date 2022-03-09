@@ -8,7 +8,7 @@ import org.apache.pulsar.client.api.Message
 import scala.reflect.runtime.universe.TypeTag
 
 /** @DoNotDocument */
-abstract class SpoutExecutor[T: TypeTag](
+abstract class SpoutExecutor[T](
     conf: Config,
     private val pulsarController: PulsarController,
     scheduler: Scheduler

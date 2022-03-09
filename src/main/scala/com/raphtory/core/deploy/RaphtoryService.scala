@@ -9,12 +9,11 @@ import org.slf4j.LoggerFactory
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-abstract class RaphtoryService[T: ClassTag: TypeTag] {
+abstract class RaphtoryService[T: ClassTag] {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def defineSpout(): Spout[T]
   def defineBuilder: GraphBuilder[T]
-  def defineSchema(): Schema[T]
 
   def main(args: Array[String]): Unit =
     args(0) match {
@@ -28,7 +27,7 @@ abstract class RaphtoryService[T: ClassTag: TypeTag] {
     Raphtory.createSpout[T](defineSpout())
 
   def builderDeploy(): Unit =
-    Raphtory.createGraphBuilder(defineBuilder, defineSchema())
+    Raphtory.createGraphBuilder(defineBuilder)
 
   def partitionDeploy(): Unit =
     Raphtory.createPartitionManager()

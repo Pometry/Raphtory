@@ -16,7 +16,7 @@ import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 /** @DoNotDocument */
-class BuilderExecutor[T: ClassTag: TypeTag](
+class BuilderExecutor[T: ClassTag](
     name: String,
     graphBuilder: GraphBuilder[T],
     conf: Config,
