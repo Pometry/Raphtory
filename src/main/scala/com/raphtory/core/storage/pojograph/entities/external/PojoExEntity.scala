@@ -53,15 +53,13 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
     (entity.properties.get(key), view.window) match {
       case (Some(p), Some(w)) =>
         Some(
-                p.values()
-                  .filter(k => k._1 <= view.timestamp && k._1 >= view.timestamp - w)
+                p.valueHistory(view.timestamp - w, view.timestamp)
                   .toList
                   .map(x => (x._1, x._2.asInstanceOf[T]))
         )
       case (Some(p), None)    =>
         Some(
-                p.values()
-                  .filter(k => k._1 <= view.timestamp)
+                p.valueHistory(before = view.timestamp)
                   .toList
                   .map(x => (x._1, x._2.asInstanceOf[T]))
         )
