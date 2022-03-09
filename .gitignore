@@ -44,7 +44,7 @@ mainproject/build.sbt
 
 sbt/
 cluster/src/main/scala/scala.iml
-src/main/scala/com/raphtory/testDeploy.scala
+core/src/main/scala/com/raphtory/testDeploy.scala
 
 .env
 singlenodetest.yml
@@ -76,12 +76,12 @@ logs
 .idea
 
 **/logs/**
-/src/main/scala/com/raphtory/dev/algorithms/test.scala
+/core/src/main/scala/com/raphtory/dev/algorithms/test.scala
 
 testupdates.txt
 
 # local files
-src/main/scala/com/raphtory/lotr
-/src/main/scala/com/raphtory/dev/lotr/lotr2.csv
-/src/main/scala/com/raphtory/dev/networkx/networkxGraphBuilder.scala
-/src/main/scala/com/raphtory/dev/networkx/networkxSpout.scala
+core/src/main/scala/com/raphtory/lotr
+/core/src/main/scala/com/raphtory/dev/lotr/lotr2.csv
+/core/src/main/scala/com/raphtory/dev/networkx/networkxGraphBuilder.scala
+/core/src/main/scala/com/raphtory/dev/networkx/networkxSpout.scala
