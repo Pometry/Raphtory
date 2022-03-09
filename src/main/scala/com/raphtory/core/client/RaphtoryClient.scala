@@ -24,6 +24,9 @@ import org.slf4j.LoggerFactory
   * {s}`RaphtoryClient`
   *    : Raphtory Client exposes query APIs for point, range and live queries
   *
+  *  {s}`RaphtoryClient` should not be created directly. To create a {s}`RaphtoryClient` use
+  *  {s}`Raphtory.createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`.
+  *
   *  ## Methods
   *
   *    {s}`pointQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, timestamp: Long, windows: List[Long] = List()): QueryProgressTracker`
@@ -95,15 +98,14 @@ import org.slf4j.LoggerFactory
   * import com.raphtory.core.components.graphbuilder.GraphBuilder
   * import com.raphtory.core.components.spout.Spout
   *
-  * val graph = Raphtory.createGraph[T](Spout[T], GraphBuilder[T])
+  * val graph = Raphtory.createGraph[T](spout: Spout[T], graphBuilder: GraphBuilder[T])
   * val testDir  =  "/tmp/raphtoryTest"
   * val outputFormat: FileOutputFormat  =  FileOutputFormat(testDir)
-  * long timestamp = 1595303181
   *
   * // Run Point Query:
-  * graph.pointQuery(EdgeList(), timestamp, 1595303181, List())
+  * graph.pointQuery(EdgeList(), outputFormat, timestamp: Long)
   *
-  * // Run Range Query:
+  * // Run Range Query and wait until done:
   * val queryProgressTracker = graph.rangeQuery(graphAlgorithm = EdgeList(), outputFormat = outputFormat, start = 1, end = 32674, increment = 10000, windows = List(500, 1000, 10000))
   * queryProgressTracker.waitForJob()
   *
