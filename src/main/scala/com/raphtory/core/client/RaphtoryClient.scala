@@ -24,18 +24,10 @@ import org.slf4j.LoggerFactory
   * {s}`RaphtoryClient`
   *    : Raphtory Client exposes query APIs for point, range and live queries
   *
-  *  ## Attributes
-  *
-  *    {s}`logger`
-  *      : Logger instance for writing debug messages
-  *
-  *    {s}`kryo `
-  *      : Pulsar Kryo Serialiser for persisting query output
   *
   *  ## Methods
   *
-  *    {s}`pointQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, timestamp: Long,
-            windows: List[Long] = List()): QueryProgressTracker`
+  *    {s}`pointQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, timestamp: Long, windows: List[Long] = List()): QueryProgressTracker`
   *      : Point query for querying at a specific timestamp, returns {s}`QueryProgressTracker`
   *
   *        {s}`graphAlgorithm: GraphAlgorithm`
@@ -52,8 +44,7 @@ import org.slf4j.LoggerFactory
   *
   *
   *
-  *    {s}`rangeQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, start: Long, end: Long,
-  *    increment: Long, windows: List[Long] = List()): QueryProgressTracker`
+  *    {s}`rangeQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, start: Long, end: Long, increment: Long, windows: List[Long] = List()): QueryProgressTracker`
   *      : Queries a range of time duration, returns {s}`QueryProgressTracker`
   *
   *        {s}`graphAlgorithm: GraphAlgorithm`
@@ -75,8 +66,7 @@ import org.slf4j.LoggerFactory
   *           : Window of timestamps for querying
   *
   *
-  *    {s}`liveQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, increment: Long, windows:
-  *    List[Long] = List()): QueryProgressTracker` returns {s}`QueryProgressTracker`
+  *    {s}`liveQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, increment: Long, windows: List[Long] = List()): QueryProgressTracker` returns {s}`QueryProgressTracker`
   *      : Write out tabular data
   *
   *        {s}`graphAlgorithm: GraphAlgorithm`
@@ -127,8 +117,7 @@ import org.slf4j.LoggerFactory
   * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
   *
   * // Run Range Query:
-  * val queryProgressTracker = graph.rangeQuery(graphAlgorithm = EdgeList(), outputFormat = outputFormat,
-  *            start = 1, end = 32674, increment = 10000, windows = List(500, 1000, 10000))
+  * val queryProgressTracker = graph.rangeQuery(graphAlgorithm = EdgeList(), outputFormat = outputFormat, start = 1, end = 32674, increment = 10000, windows = List(500, 1000, 10000))
   * queryProgressTracker.waitForJob()
   *
   * ```
