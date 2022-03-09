@@ -71,24 +71,24 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Strength Test") {
     assert(
-      algorithmTest(WeightedDegree(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+      algorithmTest(WeightedDegree[Int](), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
       equals "887021d9c7254255daf801d1b733fe0d4d0ba31b9be68cd345d790c8374ce57b"
     )
   }
 
-//  test("LPA Test") {
-//    assert(
-//      algorithmTest(LPA(seed=1234), outputFormat, 32674, 32674, 10000, List(10000))
-//      equals "cf7bf559d634a0cf02739d9116b4d2f47c25679be724a896223c0917d55d2143"
-//    )
-//  }
-//
-//  test("SLPA Test") {
-//    assert(
-//      algorithmTest(SLPA(speakerRule = SLPA.ChooseRandom(seed=1234)), outputFormat, 32674, 32674, 10000, List(10000))
-//      equals "a7c72dac767dc94d64d76e2c046c1dbe95154a8da7994d2133cf9e1b09b65570"
-//    )
-//  }
+  test("LPA Test") {
+    assert(
+      algorithmTest(LPA[Int](seed=1234), outputFormat, 32674, 32674, 10000, List(10000))
+      equals "cf7bf559d634a0cf02739d9116b4d2f47c25679be724a896223c0917d55d2143"
+    )
+  }
+
+  test("SLPA Test") {
+    assert(
+      algorithmTest(SLPA(speakerRule = SLPA.ChooseRandom(seed=1234)), outputFormat, 32674, 32674, 10000, List(10000))
+      equals "a7c72dac767dc94d64d76e2c046c1dbe95154a8da7994d2133cf9e1b09b65570"
+    )
+  }
 
   test("Connected Components Test") {
     assert(
