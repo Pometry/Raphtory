@@ -5,6 +5,7 @@ import com.raphtory.core.algorithm.GraphAlgorithm
 import com.raphtory.core.algorithm.GraphPerspective
 import com.raphtory.core.algorithm.Row
 import com.raphtory.core.algorithm.Table
+import math.Numeric.Implicits._
 
 /**
   * {s}`WeightedDegree(weightProperty: String = "weight")`
@@ -43,20 +44,20 @@ import com.raphtory.core.algorithm.Table
   * [](com.raphtory.algorithms.generic.centrality.Degree)
   * ```
   */
-class WeightedDegree(weightProperty: String = "weight")
+class WeightedDegree[T: Numeric](weightProperty: String = "weight")
         extends NodeList(Seq("inStrength", "outStrength", "totStrength")) {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph.step { vertex =>
-      val inWeight  = vertex.inWeight(weightProperty = weightProperty)
+      val inWeight: T  = vertex.weightedInDegree(weightProperty = weightProperty)
       vertex.setState("inStrength", inWeight)
-      val outWeight = vertex.outWeight(weightProperty = weightProperty)
+      val outWeight: T = vertex.weightedOutDegree(weightProperty = weightProperty)
       vertex.setState("outStrength", outWeight)
-      val totWeight = inWeight + outWeight
-      vertex.setState("totStrength", totWeight)
+      val totWeight: T = inWeight + outWeight
+      vertex.setState("totStrength", vertex.weightedTotalDegree(weightProperty))
     }
 }
 
 object WeightedDegree {
-  def apply(weightProperty: String = "weight") = new WeightedDegree(weightProperty)
+  def apply[T: Numeric](weightProperty: String = "weight") = new WeightedDegree(weightProperty)
 }
