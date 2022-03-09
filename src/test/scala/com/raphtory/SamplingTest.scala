@@ -13,7 +13,7 @@ class SamplingTest extends AnyFunSuite {
       numSamples: Int = 1000000,
       tol: Double = 0.001
   ): Boolean = {
-    val rng    = new Random()
+    val rng    = new Random(1234)
     val result = ArrayBuffer.fill[Double](weights.length)(0.0)
     (0 until numSamples).foreach(_ => result(rng.sample(weights)) += 1.0 / numSamples)
     val probs  = weights.map(v => v / weights.sum)

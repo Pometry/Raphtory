@@ -1,4 +1,4 @@
-package com.raphtory.util
+package com.raphtory.core.util
 
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -24,28 +24,26 @@ object FileUtils {
       logger.debug(s"Temporary directory '$tempDirectory' already exists.")
 
       // If tempDirectory already exists
-      // then clean it up from assumed previous runs
+      // then delete it and recreate it entirely
       if (clean) tempDirectory.delete()
     }
-    else
-      try {
-        val created = tempDirectory.mkdirs()
+    try {
+      val created = tempDirectory.mkdirs()
 
-        if (created)
-          logger.debug(s"Temporary directory '$tempDirectory' successfully created.")
-      }
-      catch {
-        case ex: Exception =>
-          logger.error(
-                  s"Failed to create temporary directory '$tempDirectory', error: ${ex.getMessage}."
-          )
-          throw ex
-      }
-
+      if (created)
+        logger.debug(s"Temporary directory '$tempDirectory' successfully created.")
+    }
+    catch {
+      case ex: Exception =>
+        logger.error(
+          s"Failed to create temporary directory '$tempDirectory', error: ${ex.getMessage}."
+        )
+        throw ex
+    }
     tempDirectory
   }
 
-  def validatePath(path: String): Unit = {
+  def validatePath(path: String): Boolean = {
     // check if exists
     try {
       if (!Files.exists(Paths.get(path)))
@@ -60,6 +58,7 @@ object FileUtils {
     }
 
     logger.trace(s"File '$path' passed all validation checks.")
+    true
   }
 
   def getMatchingFiles(path: String, regex: Regex, recurse: Boolean): List[File] = {
@@ -86,15 +85,17 @@ object FileUtils {
     }
     else
       throw new IllegalStateException(
-              s"Failed to retrieve files. $file is neither a directory nor a file."
+        s"Failed to retrieve files. $file is neither a directory nor a file."
       )
   }
 
-  def deleteFile(path: Path): Unit =
+  def deleteFile(path: Path): Boolean = {
     try Files.delete(path)
     catch {
       case ex: Exception =>
         logger.error(s"Failed to unlink the file, error: ${ex.getMessage}")
         throw ex
     }
+    true
+  }
 }

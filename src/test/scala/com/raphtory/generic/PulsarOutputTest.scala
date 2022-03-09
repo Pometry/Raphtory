@@ -53,7 +53,4 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
 
     assert(firstResult.nonEmpty)
   }
-
-  override def setSchema(): Schema[String] =
-    Schema.STRING
 }

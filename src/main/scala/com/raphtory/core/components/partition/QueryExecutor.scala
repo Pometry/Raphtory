@@ -16,7 +16,6 @@ import com.raphtory.core.components.querymanager.TableBuilt
 import com.raphtory.core.components.querymanager.TableFunctionComplete
 import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.components.querymanager.VertexMessageBatch
-import com.raphtory.core.config.MonixScheduler
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.GraphPartition
 import com.raphtory.core.graph.LensInterface
@@ -27,6 +26,8 @@ import com.typesafe.config.Config
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api._
 
+import java.util.concurrent.atomic.AtomicInteger
+
 /** @DoNotDocument */
 class QueryExecutor(
     partitionID: Int,
@@ -36,10 +37,10 @@ class QueryExecutor(
     pulsarController: PulsarController
 ) extends Component[QueryManagement](conf: Config, pulsarController) {
 
-  var graphLens: LensInterface  = _
-  var sentMessageCount: Int     = 0
-  var receivedMessageCount: Int = 0
-  var votedToHalt: Boolean      = false
+  var graphLens: LensInterface            = _
+  var sentMessageCount: AtomicInteger     = new AtomicInteger(0)
+  var receivedMessageCount: AtomicInteger = new AtomicInteger(0)
+  var votedToHalt: Boolean                = false
 
   private val taskManager: Producer[Array[Byte]] = pulsarController.toQueryHandlerProducer(jobID)
 
@@ -76,197 +77,206 @@ class QueryExecutor(
                   .mkString(",")}]'."
         )
         msgBatch.foreach(message => graphLens.receiveMessage(message))
-        receivedMessageCount += msgBatch.size
+        receivedMessageCount.addAndGet(msgBatch.size)
 
       case msg: VertexMessage[_]                                            =>
         logger.trace(
                 s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
         )
         graphLens.receiveMessage(msg)
-        receivedMessageCount += 1
+        receivedMessageCount.addAndGet(1)
 
       case CreatePerspective(timestamp, window)                             =>
-        logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Creating perspective at time '$timestamp' with window '$window'."
-        )
+        val time = System.currentTimeMillis()
         val lens = PojoGraphLens(
                 jobID,
                 timestamp,
                 window,
-                0,
+                superStep = 0,
                 storage,
-                VertexMessageHandler(conf, neighbours)
+                conf,
+                neighbours,
+                sentMessageCount,
+                receivedMessageCount
         )
         graphLens = lens
-        sentMessageCount = 0
-        receivedMessageCount = 0
+        sentMessageCount.set(0)
+        receivedMessageCount.set(0)
         taskManager sendAsync serialise(PerspectiveEstablished(lens.getSize()))
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Created perspective at time '$timestamp' with window '$window'. in ${System
+                  .currentTimeMillis() - time}ms"
+        )
 
       case SetMetaData(vertices)                                            =>
-        logger.debug(
-                s"Job $jobID at Partition '$partitionID': Executing 'SetMetaData' function on graph."
-        )
-
+        val time = System.currentTimeMillis()
         graphLens.setFullGraphSize(vertices)
-        //TODO currently no handlers, to be added back?
         taskManager sendAsync serialise(MetaDataSet)
+        logger.debug(
+                s"Job $jobID at Partition '$partitionID': Meta Data set in ${System.currentTimeMillis() - time}ms"
+        )
 
       case Step(f)                                                          =>
-        logger.debug(s"Job $jobID at Partition '$partitionID': Executing 'Step' function on graph.")
-
+        val time             = System.currentTimeMillis()
         graphLens.nextStep()
         graphLens.runGraphFunction(f)
-
-        val sentMessages = graphLens.getMessageHandler().getCount()
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
         graphLens.getMessageHandler().flushMessages()
-        taskManager sendAsync serialise(GraphFunctionComplete(sentMessages, receivedMessageCount))
-        logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Step function produced and sent '$sentMessages' messages."
+        taskManager sendAsync serialise(
+                GraphFunctionComplete(partitionID, receivedMessages, sentMessages)
         )
-        sentMessageCount = sentMessages
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Step function finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages."
+        )
 
       case StepWithGraph(f, graphState)                                     =>
-        logger.debug(
-                s"Job $jobID at Partition '$partitionID': Executing 'Step' function on graph with accumulators."
-        )
+        val time = System.currentTimeMillis()
         graphLens.nextStep()
         graphLens.runGraphFunction(f, graphState)
 
-        val sentMessages = graphLens.getMessageHandler().getCount()
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(
                 GraphFunctionCompleteWithState(
+                        receivedMessages,
                         sentMessages,
-                        receivedMessageCount,
                         graphState = graphState
                 )
         )
         logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Step function produced and sent '$sentMessages' messages."
+                s"Job '$jobID' at Partition '$partitionID': Step function on graph with accumulators finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages."
         )
-        sentMessageCount = sentMessages
 
       case Iterate(f, iterations, executeMessagedOnly)                      =>
+        val time             = System.currentTimeMillis()
         graphLens.nextStep()
-
-        if (executeMessagedOnly) {
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on messaged vertices only."
-          )
-
+        if (executeMessagedOnly)
           graphLens.runMessagedGraphFunction(f)
-        }
-        else {
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on all vertices."
-          )
-
+        else
           graphLens.runGraphFunction(f)
-        }
-
-        val sentMessages = graphLens.getMessageHandler().getCount()
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(
-                GraphFunctionComplete(receivedMessageCount, sentMessages, graphLens.checkVotes())
+                GraphFunctionComplete(
+                        partitionID,
+                        receivedMessages,
+                        sentMessages,
+                        graphLens.checkVotes()
+                )
         )
         votedToHalt = graphLens.checkVotes()
-        sentMessageCount = sentMessages
-
         logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Iterate function produced and sent '$sentMessages' messages."
+                s"Job '$jobID' at Partition '$partitionID': Iterate function completed in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
         )
 
       case IterateWithGraph(f, iterations, executeMessagedOnly, graphState) =>
+        val time             = System.currentTimeMillis()
         graphLens.nextStep()
-        if (executeMessagedOnly) {
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on messaged vertices only."
-          )
+        if (executeMessagedOnly)
           graphLens.runMessagedGraphFunction(f, graphState)
-        }
-        else {
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Executing 'Iterate' function on all vertices."
-          )
-
+        else
           graphLens.runGraphFunction(f, graphState)
-        }
-        val sentMessages = graphLens.getMessageHandler().getCount()
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
         graphLens.getMessageHandler().flushMessages()
         taskManager sendAsync serialise(
                 GraphFunctionCompleteWithState(
-                        receivedMessageCount,
+                        receivedMessages,
                         sentMessages,
                         graphLens.checkVotes(),
                         graphState
                 )
         )
         votedToHalt = graphLens.checkVotes()
-        sentMessageCount = sentMessages
 
         logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Iterate function produced and sent '$sentMessages' messages."
+                s"Job '$jobID' at Partition '$partitionID': Iterate function on graph with accumulators completed  in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
         )
 
+      //TODO implement
       case VertexFilter(f)                                                  =>
-        taskManager sendAsync serialise(GraphFunctionComplete(0, 0))
+        taskManager sendAsync serialise(GraphFunctionComplete(partitionID, 0, 0))
 
+      //TODO implement
       case VertexFilterWithGraph(f, graphState)                             =>
-        taskManager sendAsync serialise(GraphFunctionComplete(0, 0))
+        taskManager sendAsync serialise(GraphFunctionComplete(partitionID, 0, 0))
 
       case ClearChain()                                                     =>
-        logger.debug(s"Job $jobID at Partition '$partitionID': Executing 'ClearChain' on graph.")
+        val time = System.currentTimeMillis()
         graphLens.clearMessages()
-        taskManager sendAsync serialise(GraphFunctionComplete(0, 0))
+        taskManager sendAsync serialise(GraphFunctionComplete(partitionID, 0, 0))
+        logger.debug(s"Job $jobID at Partition '$partitionID': Messages cleared on graph in ${System
+          .currentTimeMillis() - time}ms.")
 
       case Select(f)                                                        =>
-        logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'Select' query on graph")
+        val time = System.currentTimeMillis()
         graphLens.nextStep()
         graphLens.executeSelect(f)
         taskManager sendAsync serialise(TableBuilt)
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Select executed on graph in ${System
+                  .currentTimeMillis() - time}ms."
+        )
 
       case SelectWithGraph(f, graphState)                                   =>
-        logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'Select' query on graph")
+        val time = System.currentTimeMillis()
         graphLens.nextStep()
-
         graphLens.executeSelect(f, graphState)
-
         taskManager sendAsync serialise(TableBuilt)
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Select executed on graph with accumulators in ${System
+                  .currentTimeMillis() - time}ms."
+        )
 
       case GlobalSelect(f, graphState)                                      =>
-        logger.debug(s"Job '$jobID' at Partition '$partitionID': Executing 'Select' query on graph")
+        val time = System.currentTimeMillis()
         graphLens.nextStep()
         if (partitionID == 0)
           graphLens.executeSelect(f, graphState)
-
         taskManager sendAsync serialise(TableBuilt)
-
-      case ExplodeSelect(f)                                                 =>
         logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Executing 'ExplodeSelect' query on graph"
+                s"Job '$jobID' at Partition '$partitionID': Global Select executed on graph with accumulators in ${System
+                  .currentTimeMillis() - time}ms."
         )
+
+      //TODO create explode select with accumulators
+      case ExplodeSelect(f)                                                 =>
+        val time = System.currentTimeMillis()
         graphLens.nextStep()
         graphLens.explodeSelect(f)
         taskManager sendAsync serialise(TableBuilt)
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Exploded Select executed on graph in ${System
+                  .currentTimeMillis() - time}ms."
+        )
 
       case TableFilter(f)                                                   =>
-        logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Executing 'TableFilter' query on graph."
-        )
+        val time = System.currentTimeMillis()
         graphLens.filteredTable(f)
         taskManager sendAsync serialise(TableFunctionComplete)
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Table Filter executed on table in ${System
+                  .currentTimeMillis() - time}ms."
+        )
 
       case Explode(f)                                                       =>
-        logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Executing 'Explode' query on graph."
-        )
+        val time = System.currentTimeMillis()
         graphLens.explodeTable(f)
         taskManager sendAsync serialise(TableFunctionComplete)
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Table Explode executed on table in ${System
+                  .currentTimeMillis() - time}ms."
+        )
 
       case WriteTo(outputFormat)                                            =>
-        logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Writing results to '$outputFormat'."
-        )
+        val time     = System.currentTimeMillis()
         val producer =
           if (outputFormat.isInstanceOf[PulsarOutputFormat])
             Some(
@@ -299,21 +309,32 @@ class QueryExecutor(
 
             }
           )
-
         taskManager sendAsync serialise(TableFunctionComplete)
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Writing Results executed on table in ${System
+                  .currentTimeMillis() - time}ms. Results written to '${outputFormat.getClass.getSimpleName}'."
+        )
 
+      //TODO Kill this worker once this is received
       case EndQuery(jobID)                                                  =>
         // It's a Warning, but not a severe one
-        if (logger.underlying.isDebugEnabled)
-          logger.warn(
-                  s"Job '$jobID' at Partition '$partitionID': Received 'EndQuery' message. " +
-                    s"This function is not supported yet."
-          )
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Received 'EndQuery' message. "
+        )
 
       case _: CheckMessages                                                 =>
-        logger.debug(s"Job '$jobID' at Partition '$partitionID': Received 'CheckMessages'.")
+        val time = System.currentTimeMillis()
         taskManager sendAsync serialise(
-                GraphFunctionComplete(receivedMessageCount, sentMessageCount, votedToHalt)
+                GraphFunctionComplete(
+                        partitionID,
+                        receivedMessageCount.get(),
+                        sentMessageCount.get(),
+                        votedToHalt
+                )
+        )
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Messages checked in ${System
+                  .currentTimeMillis() - time}ms."
         )
     }
   }
