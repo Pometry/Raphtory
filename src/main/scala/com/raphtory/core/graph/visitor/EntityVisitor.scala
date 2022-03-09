@@ -18,7 +18,8 @@ abstract class EntityVisitor {
       case None          => None
     }
 
-  def getProperty[A](key: String): Option[A] = getProperty(key, PropertyMergeStrategy.latest)
+  def getProperty[A](key: String): Option[A] =
+    getProperty(key, PropertyMergeStrategy.latest[A])
 
   def getPropertyOrElse[A, B](key: String, otherwise: B, mergeStrategy: PropertyMerge[A, B]): B =
     getProperty[A, B](key, mergeStrategy) match {
@@ -27,7 +28,7 @@ abstract class EntityVisitor {
     }
 
   def getPropertyOrElse[A](key: String, otherwise: A): A =
-    getPropertyOrElse(key, otherwise, PropertyMergeStrategy.latest)
+    getPropertyOrElse(key, otherwise, PropertyMergeStrategy.latest[A])
 
   def getPropertyAt[T](key: String, time: Long): Option[T]
 
