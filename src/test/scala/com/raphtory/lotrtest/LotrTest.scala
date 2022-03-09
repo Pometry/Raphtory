@@ -76,19 +76,19 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     )
   }
 
-  test("LPA Test") {
-    assert(
-      algorithmTest(LPA[Int](seed=1234), outputFormat, 32674, 32674, 10000, List(10000))
-      equals "cf7bf559d634a0cf02739d9116b4d2f47c25679be724a896223c0917d55d2143"
-    )
-  }
-
-  test("SLPA Test") {
-    assert(
-      algorithmTest(SLPA(speakerRule = SLPA.ChooseRandom(seed=1234)), outputFormat, 32674, 32674, 10000, List(10000))
-      equals "a7c72dac767dc94d64d76e2c046c1dbe95154a8da7994d2133cf9e1b09b65570"
-    )
-  }
+//  test("LPA Test") {
+//    assert(
+//      algorithmTest(LPA[Int](seed=1234), outputFormat, 32674, 32674, 10000, List(10000))
+//      equals "cf7bf559d634a0cf02739d9116b4d2f47c25679be724a896223c0917d55d2143"
+//    )
+//  }
+//
+//  test("SLPA Test") {
+//    assert(
+//      algorithmTest(SLPA(speakerRule = SLPA.ChooseRandom(seed=1234)), outputFormat, 32674, 32674, 10000, List(10000))
+//      equals "a7c72dac767dc94d64d76e2c046c1dbe95154a8da7994d2133cf9e1b09b65570"
+//    )
+//  }
 
   test("Connected Components Test") {
     assert(
