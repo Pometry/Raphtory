@@ -83,12 +83,6 @@ import org.slf4j.LoggerFactory
   *    {s}`getConfig(): Config`
   *      : Fetch raphtory config
   *
-  *    {s}`getID(algorithm: GraphAlgorithm): String`
-  *     : Fetch ID for graph algorithm
-  *
-  *        {s}`graphAlgorithm: GraphAlgorithm`
-  *           : Graph algorithm to use for query
-  *
   * Usage while querying:
   *
   * ```{code-block} scala
