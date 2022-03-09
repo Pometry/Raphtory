@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory
   *  ## Methods
   *
   *    {s}`pointQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, timestamp: Long, windows: List[Long] = List()): QueryProgressTracker`
-  *      : Point query for querying at a specific timestamp, returns {s}`QueryProgressTracker`
+  *      : Point query for querying at a specific timestamp, returns [{s}`QueryProgressTracker`](com.raphtory.core.components.querytracker.QueryProgressTracker)
   *
   *        {s}`graphAlgorithm: GraphAlgorithm`
   *           : Graph algorithm to use for query
@@ -38,8 +38,8 @@ import org.slf4j.LoggerFactory
   *        {s}`timestamp: Long`
   *           : Timestamp of query
   *
-  *        {s}`windows: List[Long] = List())`
-  *           : Query for duration between (timestamp `T` - Window) to timestamp `T` for querying
+  *        {s}`windows: List[Long] = List()`
+  *           : Only consider data no older than (timestamp `T` - Window) to timestamp `T` for querying
   *
   *    {s}`rangeQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, start: Long, end: Long, increment: Long, windows: List[Long] = List()): QueryProgressTracker`
   *      : Queries for a range of timestamps, returns [{s}`QueryProgressTracker`](com.raphtory.core.components.querytracker.QueryProgressTracker)
@@ -57,13 +57,13 @@ import org.slf4j.LoggerFactory
   *           : End timestamp of duration for query
   *
   *        {s}`increment: Long`
-  *           : Step size for range query
+  *           : Step size of duration for re-running range query
   *
-  *        {s}`windows: List[Long] = List())`
-  *           : Query for duration between (timestamp `T` - Window) to timestamp `T` for querying
+  *        {s}`windows: List[Long] = List()`
+  *           : Only consider data no older than (timestamp `T` - Window) to timestamp `T` for querying
   *
   *    {s}`liveQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, increment: Long, windows: List[Long] = List()): QueryProgressTracker`
-  *      : Runs query for latest available timestamp, returns {s}`QueryProgressTracker`
+  *      : Runs query for latest available timestamp, returns [{s}`QueryProgressTracker`](com.raphtory.core.components.querytracker.QueryProgressTracker)
   *
   *        {s}`graphAlgorithm: GraphAlgorithm`
   *           : Graph algorithm to use for query
@@ -72,10 +72,10 @@ import org.slf4j.LoggerFactory
   *           : Type of output format for storing results
   *
   *        {s}`increment: Long`
-  *           : Step size for live query
+  *           : Step size of duration for re-running range query
   *
-  *        {s}`windows: List[Long] = List())`
-  *           : Query for duration between (timestamp `T` - Window) to timestamp `T` for querying
+  *        {s}`windows: List[Long] = List()`
+  *           : Only consider data no older than (timestamp `T` - Window) to timestamp `T` for querying
   *
   *    {s}`getConfig(): Config`
   *      : Fetch raphtory config
