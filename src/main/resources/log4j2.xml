@@ -6,26 +6,26 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="org.hibernate.SQL" level="INFO">
+        <Logger name="org.hibernate.SQL" level="${bundle:com.raphtory.logger:default}">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="org.hibernate.type.descriptor.sql" level="INFO">
+        <Logger name="org.hibernate.type.descriptor.sql" level="${bundle:com.raphtory.logger:default}">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="org.hibernate.type.descriptor.sql" level="INFO">
+        <Logger name="org.hibernate.type.descriptor.sql" level="${bundle:com.raphtory.logger:default}">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="com.scurrilous.circe.checksum.Crc32cIntChecksum" level="off">
+        <Logger name="com.scurrilous.circe.checksum.Crc32cIntChecksum" level="${bundle:com.raphtory.logger:mode}">
         </Logger>
-        <Logger name="io.netty" level="off">
+        <Logger name="io.netty" level="${bundle:com.raphtory.logger:mode}">
         </Logger>
-        <Logger name="org.apache" level="off">
+        <Logger name="org.apache" level="${bundle:com.raphtory.logger:mode}">
         </Logger>
-        <Logger name="com.raphtory.deploy" level="INFO">
+        <Logger name="com.raphtory.deploy" level="${bundle:com.raphtory.deploy:logLevel}">
         </Logger>
-        <Logger name="com.raphtory.develop" level="INFO">
+        <Logger name="com.raphtory.develop" level="${bundle:com.raphtory.logger:default}">
         </Logger>
-        <Logger name="com.raphtory.core" level="INFO">
+        <Logger name="com.raphtory.core" level="${bundle:com.raphtory.logger:default}">
         </Logger>
         <Root level="info">
             <AppenderRef ref="Console"/>

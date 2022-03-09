@@ -53,15 +53,8 @@ private[core] class RaphtoryGraph[T: TypeTag: ClassTag](
   private val graphBuilderworker: List[ThreadedWorker[T]] =
     componentFactory.builder[T](graphBuilder, scheduler, schema)
 
-  private val debug = conf.getBoolean("raphtory.logger.debug")
-  if (debug) {
-    logger.debug(s"Created Graph object with deployment ID '$deploymentID'.")
-    logger.debug(s"Created Graph Spout topic with name '$spoutTopic'.")
-  }
-  else {
-    logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
-    logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
-  }
+  logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
+  logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
   def stop(): Unit = {
     partitions.foreach { partition =>
