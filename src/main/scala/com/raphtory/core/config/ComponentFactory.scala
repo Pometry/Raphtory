@@ -4,8 +4,8 @@ import com.raphtory.core.components.Component
 import com.raphtory.core.components.graphbuilder.BuilderExecutor
 import com.raphtory.core.components.graphbuilder.GraphAlteration
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.LocalBatchHandler
 import com.raphtory.core.components.partition.BatchWriter
+import com.raphtory.core.components.partition.LocalBatchHandler
 import com.raphtory.core.components.partition.Reader
 import com.raphtory.core.components.partition.StreamWriter
 import com.raphtory.core.components.querymanager.QueryManagement

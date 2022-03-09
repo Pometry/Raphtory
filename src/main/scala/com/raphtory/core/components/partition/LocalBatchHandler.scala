@@ -1,7 +1,7 @@
-package com.raphtory.core.components.graphbuilder
+package com.raphtory.core.components.partition
 
 import com.raphtory.core.components.Component
-import com.raphtory.core.components.partition.BatchWriter
+import com.raphtory.core.components.graphbuilder._
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
