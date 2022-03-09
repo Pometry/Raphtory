@@ -37,42 +37,9 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
   // Throws exception or logs error in case of failure
   FileUtils.validatePath(inputPath) // TODO Change this to cats.Validated
 
-  var files =
-    FileUtils.getMatchingFiles(inputPath, regex = fileRegex, recurse = recurse)
-
+  var files           = getMatchingFiles()
+  var filesToProcess  = extractFilesToIngest()
   var filesLeftToRead = true
-
-  var filesToProcess = if (files.nonEmpty) {
-    val tempDirectory = FileUtils.createOrCleanDirectory(outputDirectory)
-
-    // Remove any files that has already been processed
-    files.collect {
-      case file if !completedFiles.contains(file.getPath.replace(inputPath, "")) =>
-        logger.debug(
-                s"Spout: Found a new file ${file.getPath.replace(inputPath, "")} to process."
-        )
-        // mimic sub dir structure of files
-        val sourceSubFolder = tempDirectory.getPath + file.getParent.replace(inputPath, "")
-        FileUtils.createOrCleanDirectory(sourceSubFolder, false)
-        // Hard link the files for processing
-        logger.debug(s"Spout: Attempting to hard link file '$file'.")
-        try Files.createLink(
-                Paths.get(sourceSubFolder + "/" + file.getName),
-                file.toPath
-        )
-        catch {
-          case ex: Exception =>
-            logger.error(
-                    s"Spout: Failed to hard link file ${file.getPath}, error: ${ex.getMessage}."
-            )
-            throw ex
-        }
-    }.sorted
-  }
-  else {
-    filesLeftToRead = false
-    List[File]()
-  }
 
   var lines = files.headOption match {
     case Some(file) =>
@@ -143,7 +110,56 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
 
   }
 
-  override def reschedule(): Boolean = true
+  private def getMatchingFiles() =
+    FileUtils.getMatchingFiles(inputPath, regex = fileRegex, recurse = recurse)
+
+  private def extractFilesToIngest() =
+    if (files.nonEmpty) {
+      val tempDirectory = FileUtils.createOrCleanDirectory(outputDirectory)
+
+      // Remove any files that has already been processed
+      files.collect {
+        case file if !completedFiles.contains(file.getPath.replace(inputPath, "")) =>
+          logger.debug(
+                  s"Spout: Found a new file ${file.getPath.replace(inputPath, "")} to process."
+          )
+          // mimic sub dir structure of files
+          val sourceSubFolder = tempDirectory.getPath + file.getParent.replace(inputPath, "")
+          FileUtils.createOrCleanDirectory(sourceSubFolder, false)
+          // Hard link the files for processing
+          logger.debug(s"Spout: Attempting to hard link file '$file'.")
+          try Files.createLink(
+                  Paths.get(sourceSubFolder + "/" + file.getName),
+                  file.toPath
+          )
+          catch {
+            case ex: Exception =>
+              logger.error(
+                      s"Spout: Failed to hard link file ${file.getPath}, error: ${ex.getMessage}."
+              )
+              throw ex
+          }
+      }.sorted
+    }
+    else {
+      filesLeftToRead = false
+      List[File]()
+    }
+
+  override def spoutReschedules(): Boolean = true
+
+  override def executeReschedule(): Unit = {
+    files = getMatchingFiles()
+    filesToProcess = extractFilesToIngest()
+    filesLeftToRead = true
+
+    lines = files.headOption match {
+      case Some(file) =>
+        files = files.tail
+        processFile(file)
+      case None       => Iterator[String]()
+    }
+  }
 }
 
 object FileSpout {

@@ -37,7 +37,7 @@ class LocalBatchHandler[T: ClassTag](
           graphBuilder.parseTuple(tuple)
         case None        =>
       }
-    if (spout.reschedule())
+    if (spout.spoutReschedules())
       reschedule()
   }
 

@@ -15,5 +15,5 @@ case class ResourceSpout(resource: String) extends Spout[String] {
 
   override def close(): Unit = source.close()
 
-  override def reschedule(): Boolean = false
+  override def spoutReschedules(): Boolean = false
 }

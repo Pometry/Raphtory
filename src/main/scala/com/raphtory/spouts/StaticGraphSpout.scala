@@ -32,5 +32,5 @@ case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
     source.close()
   }
 
-  override def reschedule(): Boolean = false
+  override def spoutReschedules(): Boolean = false
 }

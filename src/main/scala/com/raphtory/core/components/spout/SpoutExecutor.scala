@@ -37,7 +37,7 @@ class SpoutExecutor[T](
         case None       =>
       }
     }
-    if (spout.reschedule())
+    if (spout.spoutReschedules())
       reschedule()
   }
 

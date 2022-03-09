@@ -7,6 +7,7 @@ trait Spout[T] {
   def next(): Option[T]
 
   def close(): Unit = {}
-  def reschedule(): Boolean
+  def spoutReschedules(): Boolean
+  def executeReschedule(): Unit = {}
 
 }

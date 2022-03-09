@@ -7,5 +7,5 @@ case class IdentitySpout[T]() extends Spout[T] {
 
   override def next(): Option[T] = None
 
-  override def reschedule(): Boolean = false
+  override def spoutReschedules(): Boolean = false
 }
