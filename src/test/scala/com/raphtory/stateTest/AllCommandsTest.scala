@@ -6,8 +6,9 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
-import com.raphtory.core.components.spout.instance.FileSpout
+import com.raphtory.core.deploy.Raphtory
 import com.raphtory.output.FileOutputFormat
+import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema
 import org.scalatest.DoNotDiscover
 import org.scalatest.ScalaTestVersion

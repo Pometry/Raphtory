@@ -2,12 +2,15 @@ package com.raphtory.core.config
 
 import com.raphtory.core.components.Component
 import com.raphtory.core.components.graphbuilder.BuilderExecutor
+import com.raphtory.core.components.graphbuilder.GraphAlteration
 import com.raphtory.core.components.graphbuilder.GraphBuilder
+import com.raphtory.core.components.partition.BatchWriter
 import com.raphtory.core.components.partition.Reader
-import com.raphtory.core.components.partition.Writer
+import com.raphtory.core.components.partition.StreamWriter
 import com.raphtory.core.components.querymanager.QueryManagement
 import com.raphtory.core.components.querymanager.QueryManager
 import com.raphtory.core.components.querytracker.QueryProgressTracker
+import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config
@@ -58,7 +61,12 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
     builders.toList
   }
 
-  def partition(scheduler: Scheduler): List[Partition] = {
+  def partition[T: ClassTag](
+      scheduler: Scheduler,
+      batchLoading: Boolean = false,
+      spoutExecutor: Option[Spout[T]] = None,
+      graphBuilder: Option[GraphBuilder[T]] = None
+  ): List[Partition] = {
     val totalPartitions = conf.getInt("raphtory.partitions.countPerServer")
     logger.info(s"Creating '$totalPartitions' Partition Managers.")
 
@@ -81,8 +89,20 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
       }
 
       val storage = new PojoBasedPartition(partitionID, conf)
-      val writer  = new Writer(partitionID, storage, conf, pulsarController)
-      val reader  = new Reader(partitionID, storage, scheduler, conf, pulsarController)
+      val writer  =
+        if (batchLoading)
+          new BatchWriter[T](
+                  partitionID,
+                  storage,
+                  spoutExecutor.get,
+                  graphBuilder.get,
+                  conf,
+                  pulsarController
+          )
+        else
+          new StreamWriter(partitionID, storage, conf, pulsarController)
+
+      val reader = new Reader(partitionID, storage, scheduler, conf, pulsarController)
 
       scheduler.execute(writer)
       scheduler.execute(reader)
@@ -92,11 +112,12 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
     partitions.toList
   }
 
-  def spout[T](spout: SpoutExecutor[T], scheduler: Scheduler): ThreadedWorker[T] = {
-    logger.info(s"Creating new Spout '${spout.spoutTopic}'.")
+  def spout[T](spout: Spout[T], scheduler: Scheduler): ThreadedWorker[T] = {
+    val spoutExecutor = new SpoutExecutor[T](spout, conf, pulsarController, scheduler)
+    logger.info(s"Creating new Spout '${spoutExecutor.spoutTopic}'.")
 
-    scheduler.execute(spout)
-    ThreadedWorker(spout)
+    scheduler.execute(spoutExecutor)
+    ThreadedWorker(spoutExecutor)
   }
 
   def query(scheduler: Scheduler): ThreadedWorker[QueryManagement] = {
@@ -126,5 +147,5 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
 
 }
 
-case class Partition(writer: Writer, reader: Reader)
+case class Partition(writer: Component[GraphAlteration], reader: Reader)
 case class ThreadedWorker[T](worker: Component[T])

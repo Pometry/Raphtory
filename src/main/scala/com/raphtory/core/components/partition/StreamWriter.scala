@@ -29,7 +29,7 @@ import scala.collection.mutable
 import scala.language.postfixOps
 
 /** @DoNotDocument */
-class Writer(
+class StreamWriter(
     partitionID: Int,
     storage: GraphPartition,
     conf: Config,
@@ -277,7 +277,7 @@ class Writer(
 
     // TODO Should this be externalised?
     //  Do we need it now that we have progress tracker?
-    if (processedMessages % 100_000 == 0)
+    if (processedMessages % 1000 == 0)
       logger.debug(
               s"Partition '$partitionID': Processed '$processedMessages' messages."
       )

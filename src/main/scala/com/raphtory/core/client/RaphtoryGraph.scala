@@ -1,8 +1,8 @@
 package com.raphtory.core.client
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
+import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
-import com.raphtory.core.components.spout.executor.IdentitySpoutExecutor
 import com.raphtory.core.config.ComponentFactory
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.config.ThreadedWorker
@@ -16,7 +16,8 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
 private[core] class RaphtoryGraph[T: ClassTag](
-    spout: SpoutExecutor[T],
+    batchLoading: Boolean,
+    spout: Spout[T],
     graphBuilder: GraphBuilder[T],
     private val conf: Config,
     private val componentFactory: ComponentFactory,
@@ -45,7 +46,8 @@ private[core] class RaphtoryGraph[T: ClassTag](
     new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
   builderIdManager.resetID()
 
-  private val partitions                     = componentFactory.partition(scheduler)
+  private val partitions                     =
+    componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
   private val queryManager                   = componentFactory.query(scheduler)
   private val spoutworker: ThreadedWorker[T] = componentFactory.spout(spout, scheduler)
 

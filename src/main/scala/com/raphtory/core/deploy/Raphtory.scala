@@ -1,14 +1,6 @@
 package com.raphtory.core.deploy
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.spout.executor.FileSpoutExecutor
-import com.raphtory.core.components.spout.executor.IdentitySpoutExecutor
-import com.raphtory.core.components.spout.executor.ResourceSpoutExecutor
-import com.raphtory.core.components.spout.executor.StaticGraphSpoutExecutor
-import com.raphtory.core.components.spout.instance.FileSpout
-import com.raphtory.core.components.spout.instance.IdentitySpout
-import com.raphtory.core.components.spout.instance.ResourceSpout
-import com.raphtory.core.components.spout.instance.StaticGraphSpout
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.config.ComponentFactory
@@ -17,6 +9,10 @@ import com.raphtory.core.config.MonixScheduler
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.client.RaphtoryClient
 import com.raphtory.core.client.RaphtoryGraph
+import com.raphtory.spouts.FileSpout
+import com.raphtory.spouts.IdentitySpout
+import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.StaticGraphSpout
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Schema
 
@@ -27,7 +23,7 @@ object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
 
-  def createGraph[T: ClassTag](
+  def streamGraph[T: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
@@ -35,9 +31,28 @@ object Raphtory {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
     new RaphtoryGraph[T](
-            spoutExecutor,
+            false,
+            spout,
+            graphBuilder,
+            conf,
+            componentFactory,
+            scheduler,
+            pulsarController
+    )
+  }
+
+  def batchLoadGraph[T: ClassTag](
+      spout: Spout[T] = new IdentitySpout[T](),
+      graphBuilder: GraphBuilder[T],
+      customConfig: Map[String, Any] = Map()
+  ): RaphtoryGraph[T] = {
+    val conf             = confBuilder(customConfig)
+    val pulsarController = new PulsarController(conf)
+    val componentFactory = new ComponentFactory(conf, pulsarController)
+    new RaphtoryGraph[T](
+            true,
+            spout,
             graphBuilder,
             conf,
             componentFactory,
@@ -60,8 +75,7 @@ object Raphtory {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
-    componentFactory.spout(spoutExecutor, scheduler)
+    componentFactory.spout(spout, scheduler)
   }
 
   def createGraphBuilder[T: ClassTag](
@@ -95,30 +109,5 @@ object Raphtory {
     customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
     confHandler.getConfig
   }
-
-  private def createSpoutExecutor[T](
-      spout: Spout[T],
-      conf: Config,
-      pulsarController: PulsarController
-  ): SpoutExecutor[T] =
-    spout match {
-      case spout: FileSpout[T]            =>
-        new FileSpoutExecutor[T](
-                spout.source,
-                spout.schema,
-                spout.lineConverter,
-                conf,
-                pulsarController,
-                scheduler
-        )
-      case IdentitySpout()                => new IdentitySpoutExecutor[T](conf, pulsarController, scheduler)
-      case ResourceSpout(resource)        =>
-        new ResourceSpoutExecutor(resource, conf, pulsarController, scheduler)
-          .asInstanceOf[SpoutExecutor[T]]
-      case StaticGraphSpout(fileDataPath) =>
-        new StaticGraphSpoutExecutor(fileDataPath, conf, pulsarController, scheduler)
-          .asInstanceOf[SpoutExecutor[T]]
-
-    }
 
 }

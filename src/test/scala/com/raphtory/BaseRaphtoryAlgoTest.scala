@@ -39,9 +39,9 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
 
   val spout            = setSpout()
   val graphBuilder     = setGraphBuilder()
-  val graph            = Raphtory.createGraph[T](spout, graphBuilder)
+  val streamedGraph    = Raphtory.streamGraph[T](spout, graphBuilder)
   Raphtory.createClient("deployment123", Map(("raphtory.pulsar.endpoint", "localhost:1234")))
-  val conf             = graph.getConfig()
+  val conf             = streamedGraph.getConfig()
   val pulsarController = new PulsarController(conf)
 
   val pulsarAddress: String =
@@ -69,7 +69,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
   ): String = {
     val startingTime         = System.currentTimeMillis()
     val queryProgressTracker =
-      graph.rangeQuery(algorithm, outputFormat, start, end, increment, windows)
+      streamedGraph.rangeQuery(algorithm, outputFormat, start, end, increment, windows)
     val jobId                = queryProgressTracker.getJobId()
     queryProgressTracker.waitForJob()
 
@@ -89,7 +89,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
       windows: List[Long] = List[Long]()
   ): String = {
     val startingTime         = System.currentTimeMillis()
-    val queryProgressTracker = graph.pointQuery(algorithm, outputFormat, timestamp, windows)
+    val queryProgressTracker = streamedGraph.pointQuery(algorithm, outputFormat, timestamp, windows)
     val jobId                = queryProgressTracker.getJobId()
     queryProgressTracker.waitForJob()
 

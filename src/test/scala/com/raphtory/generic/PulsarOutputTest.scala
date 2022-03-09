@@ -6,10 +6,11 @@ import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
-import com.raphtory.core.components.spout.instance.FileSpout
 import com.raphtory.core.config.PulsarController
+import com.raphtory.core.deploy.Raphtory
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.output.PulsarOutputFormat
+import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema
 
 import java.io.File
@@ -36,7 +37,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Outputting to Pulsar") {
     val queryProgressTracker =
-      graph.rangeQuery(
+      streamedGraph.rangeQuery(
               graphAlgorithm = EdgeList(),
               outputFormat = outputFormat,
               start = 1,
