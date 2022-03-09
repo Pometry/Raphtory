@@ -4,6 +4,7 @@ import com.raphtory.core.components.Component
 import com.raphtory.core.components.graphbuilder.BuilderExecutor
 import com.raphtory.core.components.graphbuilder.GraphAlteration
 import com.raphtory.core.components.graphbuilder.GraphBuilder
+import com.raphtory.core.components.graphbuilder.LocalBatchHandler
 import com.raphtory.core.components.partition.BatchWriter
 import com.raphtory.core.components.partition.Reader
 import com.raphtory.core.components.partition.StreamWriter
@@ -13,12 +14,14 @@ import com.raphtory.core.components.querytracker.QueryProgressTracker
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.storage.pojograph.PojoBasedPartition
+import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
@@ -67,9 +70,9 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
   def partition[T: ClassTag](
       scheduler: Scheduler,
       batchLoading: Boolean = false,
-      spoutExecutor: Option[Spout[T]] = None,
+      spout: Option[Spout[T]] = None,
       graphBuilder: Option[GraphBuilder[T]] = None
-  ): List[Partition] = {
+  ): Unit = {
     val totalPartitions = conf.getInt("raphtory.partitions.countPerServer")
     logger.info(s"Creating '$totalPartitions' Partition Managers.")
 
@@ -80,6 +83,9 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
     logger.debug(s"Zookeeper Address set to '$deploymentID'.")
 
     val idManager = new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
+
+    val batchWriters = mutable.Map[Int, BatchWriter[T]]()
+    val partitionIDs = mutable.Set[Int]()
 
     val partitions = for (i <- 0 until totalPartitions) yield {
       val partitionID = idManager.getNextAvailableID() match {
@@ -92,27 +98,39 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
       }
 
       val storage = new PojoBasedPartition(partitionID, conf)
-      val writer  =
-        if (batchLoading)
-          new BatchWriter[T](
-                  partitionID,
-                  storage,
-                  spoutExecutor.get,
-                  graphBuilder.get,
-                  conf,
-                  pulsarController
-          )
-        else
-          new StreamWriter(partitionID, storage, conf, pulsarController)
+
+      if (batchLoading) {
+        batchWriters += (
+                (
+                        i,
+                        new BatchWriter[T](
+                                partitionID,
+                                storage
+                        )
+                )
+        )
+        partitionIDs += i
+      }
+      else {
+        val writer = new StreamWriter(partitionID, storage, conf, pulsarController)
+        scheduler.execute(writer)
+      }
 
       val reader = new Reader(partitionID, storage, scheduler, conf, pulsarController)
-
-      scheduler.execute(writer)
       scheduler.execute(reader)
-      Partition(writer, reader)
+    }
+    if (batchLoading) {
+      val batchHandler = new LocalBatchHandler[T](
+              partitionIDs,
+              batchWriters,
+              spout.get,
+              graphBuilder.get,
+              conf,
+              pulsarController
+      )
+      scheduler.execute(batchHandler)
     }
 
-    partitions.toList
   }
 
   def spout[T](
@@ -156,5 +174,4 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
 
 }
 
-case class Partition(writer: Component[GraphAlteration], reader: Reader)
 case class ThreadedWorker[T](worker: Component[T])

@@ -3,63 +3,41 @@ package com.raphtory.core.components.partition
 import com.raphtory.core.components.Component
 import com.raphtory.core.components.graphbuilder.EdgeAdd
 import com.raphtory.core.components.graphbuilder.EdgeDelete
-import com.raphtory.core.components.graphbuilder.EdgeSyncAck
 import com.raphtory.core.components.graphbuilder.GraphAlteration
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.GraphUpdate
-import com.raphtory.core.components.graphbuilder.InboundEdgeRemovalViaVertex
-import com.raphtory.core.components.graphbuilder.OutboundEdgeRemovalViaVertex
 import com.raphtory.core.components.graphbuilder.SyncExistingEdgeAdd
 import com.raphtory.core.components.graphbuilder.SyncExistingEdgeRemoval
-import com.raphtory.core.components.graphbuilder.SyncExistingRemovals
 import com.raphtory.core.components.graphbuilder.SyncNewEdgeAdd
 import com.raphtory.core.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.core.components.graphbuilder.VertexAdd
-import com.raphtory.core.components.graphbuilder.VertexDelete
-import com.raphtory.core.components.graphbuilder.VertexRemoveSyncAck
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph._
 import com.typesafe.config.Config
-import org.apache.pulsar.client.admin.PulsarAdminException
-import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
-import org.apache.pulsar.client.api.Schema
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
-import java.util.Calendar
-import scala.collection.mutable
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 
 /** @DoNotDocument */
 class BatchWriter[T: ClassTag](
     partitionID: Int,
-    storage: GraphPartition,
-    spout: Spout[T],
-    graphBuilder: GraphBuilder[T],
-    conf: Config,
-    pulsarController: PulsarController
-) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
+    storage: GraphPartition
+) {
 
   private var processedMessages = 0
+  val logger: Logger            = Logger(LoggerFactory.getLogger(this.getClass))
 
-  override def run(): Unit =
-    while (spout.hasNext())
-      spout.next() match {
-        case Some(tuple) =>
-          graphBuilder.getUpdates(tuple)(failOnError = false).foreach(handleMessage)
-        case None        =>
-      }
-
-  override def stop(): Unit = {}
-
-  override def handleMessage(msg: GraphAlteration): Unit = {
+  def handleMessage(msg: GraphAlteration): Unit = {
     msg match {
       //Updates from the Graph Builder
       //TODO Make Vertex Deletions batch ingestable
-      case update: VertexAdd  => processVertexAdd(update)
-      case update: EdgeAdd    => processEdgeAdd(update)
-      case update: EdgeDelete => processEdgeDelete(update)
+      case update: VertexAdd          => processVertexAdd(update)
+      case update: EdgeAdd            => processEdgeAdd(update)
+      case update: SyncNewEdgeAdd     => processSyncNewEdgeAdd(update)
+      case update: EdgeDelete         => processEdgeDelete(update)
+      case update: SyncNewEdgeRemoval => processSyncNewEdgeRemoval(update)
 
       case other =>
         logger.error(s"Partition '$partitionID': Received unsupported message type '$other'.")
@@ -90,6 +68,22 @@ class BatchWriter[T: ClassTag](
             update.properties,
             update.eType
     )
+  }
+
+  def processSyncNewEdgeAdd(req: SyncNewEdgeAdd): Unit = {
+    logger.trace("A writer has requested a new edge sync for a destination node in this worker.")
+
+    storage.timings(req.msgTime)
+    storage
+      .syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType)
+  }
+
+  def processSyncNewEdgeRemoval(req: SyncNewEdgeRemoval): Unit = {
+    logger.trace(
+            s"Partition '$partitionID': A remote worker is asking for a new edge to be removed for a destination node in this worker."
+    )
+    storage.timings(req.msgTime)
+    storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals)
   }
 
   def processEdgeDelete(update: EdgeDelete): Unit = {

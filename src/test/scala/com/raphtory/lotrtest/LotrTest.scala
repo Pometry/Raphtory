@@ -24,7 +24,7 @@ import sys.process._
 
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
   val outputFormat: FileOutputFormat = FileOutputFormat(testDir)
-  override def batchLoading(): Boolean = false
+  override def batchLoading(): Boolean = true
 
   test("Graph State Test") {
     assert(

@@ -46,9 +46,9 @@ private[core] class RaphtoryGraph[T: ClassTag](
     new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
   builderIdManager.resetID()
 
-  private val partitions                             =
+  private val partitions   =
     componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
-  private val queryManager                           = componentFactory.query(scheduler)
+  private val queryManager = componentFactory.query(scheduler)
 
   private val spoutworker: Option[ThreadedWorker[T]] =
     componentFactory.spout(spout, batchLoading, scheduler)
@@ -60,10 +60,11 @@ private[core] class RaphtoryGraph[T: ClassTag](
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
   def stop(): Unit = {
-    partitions.foreach { partition =>
-      partition.writer.stop()
-      partition.reader.stop()
-    }
+    //TODO reenable partition stop
+//    partitions.foreach { partition =>
+//      partition.writer.stop()
+//      partition.reader.stop()
+//    }
     queryManager.worker.stop()
     spoutworker match {
       case Some(w) => w.worker.stop()
