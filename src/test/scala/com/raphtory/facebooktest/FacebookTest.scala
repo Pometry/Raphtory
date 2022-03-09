@@ -17,6 +17,8 @@ import org.scalatest._
 @DoNotDiscover
 class FacebookTest extends BaseRaphtoryAlgoTest[String] {
 
+  override def batchLoading(): Boolean = false
+
   override def setup()           =
     if (!new File("/tmp/facebook.csv").exists())
       "curl -o /tmp/facebook.csv https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv " !

@@ -17,7 +17,7 @@ trait GraphBuilder[T] extends Serializable {
 
   def assignID(uniqueChars: String): Long = LongHashFunction.xx3().hashChars(uniqueChars)
 
-  private[graphbuilder] def getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate] = {
+  private[core] def getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate] = {
     try {
       logger.trace(s"Parsing tuple: $tuple")
       parseTuple(tuple)

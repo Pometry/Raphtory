@@ -19,6 +19,8 @@ import java.io.File
 @DoNotDiscover
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
+  override def batchLoading(): Boolean = false
+
   override def setSpout(): Spout[String]               =
     FileSpout("/tmp/email_test.csv")
   override def setGraphBuilder(): GraphBuilder[String] = new ENRONGraphBuilder()
@@ -30,7 +32,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
   val outputFormat: FileOutputFormat = FileOutputFormat(testDir)
 
   test("Graph State Test") {
-    streamedGraph.liveQuery(GraphState(), outputFormat, increment = 10000).waitForJob()
+    graph.liveQuery(GraphState(), outputFormat, increment = 10000).waitForJob()
 //    algorithmTest(GraphState(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
     assert(true)
   }

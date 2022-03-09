@@ -28,38 +28,41 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
 
   def builder[T: ClassTag](
       graphbuilder: GraphBuilder[T],
+      batchLoading: Boolean = false,
       scheduler: Scheduler
-  ): List[ThreadedWorker[T]] = {
-    val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
-    logger.info(s"Creating '$totalBuilders' Graph Builders.")
+  ): Option[List[ThreadedWorker[T]]] =
+    if (!batchLoading) {
+      val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
+      logger.info(s"Creating '$totalBuilders' Graph Builders.")
 
-    val deploymentID = conf.getString("raphtory.deploy.id")
-    logger.debug(s"Deployment ID set to '$deploymentID'.")
+      val deploymentID = conf.getString("raphtory.deploy.id")
+      logger.debug(s"Deployment ID set to '$deploymentID'.")
 
-    val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
-    logger.debug(s"Zookeeper Address set to '$deploymentID'.")
+      val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
+      logger.debug(s"Zookeeper Address set to '$deploymentID'.")
 
-    val idManager = new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
+      val idManager = new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
 
-    val builders = for (name <- (0 until totalBuilders)) yield {
-      val builderId = idManager
-        .getNextAvailableID()
-        .getOrElse(
-                throw new Exception(
-                        s"Failed to retrieve Builder ID. " +
-                          s"ID Manager at Zookeeper '$idManager' was unreachable."
-                )
-        )
+      val builders = for (name <- (0 until totalBuilders)) yield {
+        val builderId = idManager
+          .getNextAvailableID()
+          .getOrElse(
+                  throw new Exception(
+                          s"Failed to retrieve Builder ID. " +
+                            s"ID Manager at Zookeeper '$idManager' was unreachable."
+                  )
+          )
 
-      val builderExecutor =
-        new BuilderExecutor[T](builderId.toString, graphbuilder, conf, pulsarController)
+        val builderExecutor =
+          new BuilderExecutor[T](builderId.toString, graphbuilder, conf, pulsarController)
 
-      scheduler.execute(builderExecutor)
-      ThreadedWorker(builderExecutor)
+        scheduler.execute(builderExecutor)
+        ThreadedWorker(builderExecutor)
+      }
+
+      Some(builders.toList)
     }
-
-    builders.toList
-  }
+    else None
 
   def partition[T: ClassTag](
       scheduler: Scheduler,
@@ -112,13 +115,19 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
     partitions.toList
   }
 
-  def spout[T](spout: Spout[T], scheduler: Scheduler): ThreadedWorker[T] = {
-    val spoutExecutor = new SpoutExecutor[T](spout, conf, pulsarController, scheduler)
-    logger.info(s"Creating new Spout '${spoutExecutor.spoutTopic}'.")
+  def spout[T](
+      spout: Spout[T],
+      batchLoading: Boolean = false,
+      scheduler: Scheduler
+  ): Option[ThreadedWorker[T]] =
+    if (!batchLoading) {
+      val spoutExecutor = new SpoutExecutor[T](spout, conf, pulsarController, scheduler)
+      logger.info(s"Creating new Spout '${spoutExecutor.spoutTopic}'.")
 
-    scheduler.execute(spoutExecutor)
-    ThreadedWorker(spoutExecutor)
-  }
+      scheduler.execute(spoutExecutor)
+      Some(ThreadedWorker(spoutExecutor))
+    }
+    else None
 
   def query(scheduler: Scheduler): ThreadedWorker[QueryManagement] = {
     logger.info(s"Creating new Query Manager.")

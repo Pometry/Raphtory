@@ -15,7 +15,8 @@ import scala.sys.process._
 
 @DoNotDiscover
 class TwitterTest extends BaseRaphtoryAlgoTest[String] {
-  override val testDir: String = "/tmp/raphtoryTwitterTest"
+  override val testDir: String         = "/tmp/raphtoryTwitterTest"
+  override def batchLoading(): Boolean = true
 
   override def setup(): Unit = {
     val path = "/tmp/twitter.csv"

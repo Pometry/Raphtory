@@ -43,7 +43,13 @@ class BatchWriter[T: ClassTag](
 
   private var processedMessages = 0
 
-  override def run(): Unit = {}
+  override def run(): Unit =
+    while (spout.hasNext())
+      spout.next() match {
+        case Some(tuple) =>
+          graphBuilder.getUpdates(tuple)(failOnError = false).foreach(handleMessage)
+        case None        =>
+      }
 
   override def stop(): Unit = {}
 

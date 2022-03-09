@@ -19,6 +19,7 @@ import scala.language.postfixOps
 // Broken until we have a proper JSON spout
 @DoNotDiscover
 class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
+  override def batchLoading(): Boolean = false
 
   import sys.process._
   if (!new File(s"/tmp/testupdates.csv").exists())

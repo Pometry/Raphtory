@@ -75,7 +75,7 @@ object Raphtory {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    componentFactory.spout(spout, scheduler)
+    componentFactory.spout(spout, false, scheduler)
   }
 
   def createGraphBuilder[T: ClassTag](
@@ -84,7 +84,7 @@ object Raphtory {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    componentFactory.builder(builder, scheduler)
+    componentFactory.builder(builder, false, scheduler)
   }
 
   def createPartitionManager(): Unit = {

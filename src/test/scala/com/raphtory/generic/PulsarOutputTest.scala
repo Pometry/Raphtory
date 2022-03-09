@@ -19,6 +19,7 @@ import scala.sys.process._
 
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
   val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)
+  override def batchLoading(): Boolean = false
 
   override def setSpout(): Spout[String]               = FileSpout(s"/tmp/lotr.csv")
   override def setGraphBuilder(): GraphBuilder[String] = new LOTRGraphBuilder()
@@ -37,7 +38,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Outputting to Pulsar") {
     val queryProgressTracker =
-      streamedGraph.rangeQuery(
+      graph.rangeQuery(
               graphAlgorithm = EdgeList(),
               outputFormat = outputFormat,
               start = 1,
