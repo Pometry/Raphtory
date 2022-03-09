@@ -32,11 +32,7 @@ class LocalBatchHandler[T: ClassTag](
 
   private def runIngestion() = {
     while (spout.hasNext())
-      spout.next() match {
-        case Some(tuple) =>
-          graphBuilder.parseTuple(tuple)
-        case None        =>
-      }
+      graphBuilder.parseTuple(spout.next())
     if (spout.spoutReschedules())
       reschedule()
   }
@@ -46,7 +42,10 @@ class LocalBatchHandler[T: ClassTag](
 
   private def reschedule(): Unit = {
     val runnable = new Runnable {
-      override def run(): Unit = runIngestion()
+      override def run(): Unit = {
+        spout.executeReschedule()
+        runIngestion()
+      }
     }
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")

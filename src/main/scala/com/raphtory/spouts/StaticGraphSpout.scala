@@ -16,9 +16,9 @@ case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
 
   override def hasNext(): Boolean = lines.hasNext
 
-  override def next(): Option[String] = {
+  override def next(): String = {
     val line = lines.next()
-    val data = Some(s"$line $lineNo")
+    val data = s"$line $lineNo"
     lineNo += 1
     count += 1
     if (count % 100_000 == 0)

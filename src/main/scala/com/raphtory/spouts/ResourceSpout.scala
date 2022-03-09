@@ -11,7 +11,7 @@ case class ResourceSpout(resource: String) extends Spout[String] {
 
   override def hasNext(): Boolean = lines.hasNext
 
-  override def next(): Option[String] = lines.nextOption()
+  override def next(): String = lines.next()
 
   override def close(): Unit = source.close()
 

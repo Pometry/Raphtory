@@ -30,16 +30,20 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
   // TODO HARDLINK wont work on a network share
   private val outputDirectory = conf.getString("raphtory.spout.file.local.outputDirectory")
 
-  private val inputPath = Option(path).filter(_.trim.nonEmpty).getOrElse(sourceDirectory)
+  private var inputPath = Option(path).filter(_.trim.nonEmpty).getOrElse(sourceDirectory)
+  // If the inputPath is not an absolute path then make an absolute path
+  if (!new File(inputPath).isAbsolute)
+    inputPath = new File(inputPath).getAbsolutePath
+
   private val fileRegex = new Regex(regexPattern)
 
   // Validate that the path exists and is readable
   // Throws exception or logs error in case of failure
   FileUtils.validatePath(inputPath) // TODO Change this to cats.Validated
 
-  var files           = getMatchingFiles()
-  var filesToProcess  = extractFilesToIngest()
-  var filesLeftToRead = true
+  var files             = getMatchingFiles()
+  var filesToProcess    = extractFilesToIngest()
+  var currentfile: File = _
 
   var lines = files.headOption match {
     case Some(file) =>
@@ -48,16 +52,17 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
     case None       => Iterator[String]()
   }
 
-  override def hasNext(): Boolean = filesLeftToRead
-
-  override def next(): Option[T] =
-    try if (lines.hasNext) {
-      val data = Some(lineConverter(lines.next()))
-      if (!lines.hasNext)
-        filesLeftToRead = false
-      data
-    }
+  override def hasNext(): Boolean =
+    if (lines.hasNext)
+      true
     else {
+      // Add file to tracker so we do not read it again
+      if (!reReadFiles)
+        if (currentfile != null) {
+          val fileName = currentfile.getPath.replace(outputDirectory, "")
+          logger.debug(s"Spout: Adding file $fileName to completed list.")
+          completedFiles.add(fileName)
+        }
       lines = files.headOption match {
         case Some(file) =>
           files = files.tail
@@ -65,12 +70,13 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
         case None       => Iterator[String]()
       }
       if (lines.hasNext)
-        Some(lineConverter(lines.next()))
-      else {
-        filesLeftToRead = false
-        None
-      }
+        true
+      else
+        false
     }
+
+  override def next(): T =
+    try lineConverter(lines.next())
     catch {
       case ex: Exception =>
         logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
@@ -81,6 +87,7 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
     logger.info(s"Spout: Processing file '${file.toPath.getFileName}' ...")
 
     val fileName = file.getPath.toLowerCase
+    currentfile = file
     val source   = fileName match {
       case name if name.endsWith(".gz")  =>
         Source.fromInputStream(new GZIPInputStream(new FileInputStream(file.getPath)))
@@ -95,14 +102,6 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
         logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
         source.close()
 
-        // Add file to tracker so we do not read it again
-        if (!reReadFiles) {
-          val fileName = file.getPath.replace(outputDirectory, "")
-          logger.debug(s"Spout: Adding file $fileName to completed list.")
-
-          completedFiles.add(fileName)
-        }
-
         // Remove hard-link
         FileUtils.deleteFile(file.toPath)
         throw ex
@@ -113,21 +112,30 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
   private def getMatchingFiles() =
     FileUtils.getMatchingFiles(inputPath, regex = fileRegex, recurse = recurse)
 
+  private def checkFileName(file: File): String = //TODO: haaroon to fix
+    if (new File(inputPath).getParent == "/")
+      file.getPath
+    else
+      file.getPath.replace(new File(inputPath).getParent, "")
+
   private def extractFilesToIngest() =
     if (files.nonEmpty) {
       val tempDirectory = FileUtils.createOrCleanDirectory(outputDirectory)
 
       // Remove any files that has already been processed
       files.collect {
-        case file if !completedFiles.contains(file.getPath.replace(inputPath, "")) =>
+        case file if !completedFiles.contains(checkFileName(file)) =>
+          val x               = file.getPath.replace(new File(inputPath).getParent, "")
           logger.debug(
-                  s"Spout: Found a new file ${file.getPath.replace(inputPath, "")} to process."
+                  s"Spout: Found a new file '${file.getPath.replace(new File(inputPath).getParent, "")}' to process."
           )
           // mimic sub dir structure of files
-          val sourceSubFolder = tempDirectory.getPath + file.getParent.replace(inputPath, "")
+          val sourceSubFolder =
+            tempDirectory.getPath + file.getParent.replace(new File(inputPath).getParent, "")
           FileUtils.createOrCleanDirectory(sourceSubFolder, false)
           // Hard link the files for processing
-          logger.debug(s"Spout: Attempting to hard link file '$file'.")
+          logger.debug(s"Spout: Attempting to hard link file '$file' -> '${Paths
+            .get(sourceSubFolder + "/" + file.getName)}'.")
           try Files.createLink(
                   Paths.get(sourceSubFolder + "/" + file.getName),
                   file.toPath
@@ -141,18 +149,14 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
           }
       }.sorted
     }
-    else {
-      filesLeftToRead = false
+    else
       List[File]()
-    }
 
   override def spoutReschedules(): Boolean = true
 
   override def executeReschedule(): Unit = {
     files = getMatchingFiles()
     filesToProcess = extractFilesToIngest()
-    filesLeftToRead = true
-
     lines = files.headOption match {
       case Some(file) =>
         files = files.tail

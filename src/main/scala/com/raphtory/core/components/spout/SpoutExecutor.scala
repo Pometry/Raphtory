@@ -30,12 +30,9 @@ class SpoutExecutor[T](
   private def executeSpout() = {
     while (spout.hasNext()) {
       linesProcessed = linesProcessed + 1
-      if (linesProcessed % 1000 == 0)
+      if (linesProcessed % 100_000 == 0)
         logger.debug(s"Spout: sent $linesProcessed messages.")
-      spout.next() match {
-        case Some(data) => producer.sendAsync(serialise(data))
-        case None       =>
-      }
+      producer.sendAsync(serialise(spout.next()))
     }
     if (spout.spoutReschedules())
       reschedule()
@@ -43,7 +40,10 @@ class SpoutExecutor[T](
 
   private def reschedule(): Unit = {
     val runnable = new Runnable {
-      override def run(): Unit = executeSpout()
+      override def run(): Unit = {
+        spout.executeReschedule()
+        executeSpout()
+      }
     }
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")

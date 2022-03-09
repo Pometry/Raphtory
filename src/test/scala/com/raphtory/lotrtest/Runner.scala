@@ -10,10 +10,8 @@ import com.raphtory.spouts.FileSpout
 
 object Runner extends App {
 
-  val spout        = FileSpout("/tmp/lotr.csv")
+  val spout        = FileSpout("/tmp")
   val graphBuilder = new LOTRGraphBuilder()
-  val graph        = Raphtory.streamGraph(spout, graphBuilder)
-  graph.pointQuery(new GlobalState(), FileOutputFormat("/tmp"), 30000).waitForJob()
-  graph.stop()
+  val graph        = Raphtory.batchLoadGraph(spout, graphBuilder)
 
 }
