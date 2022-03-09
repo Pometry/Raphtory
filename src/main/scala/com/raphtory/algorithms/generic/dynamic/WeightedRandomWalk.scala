@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.generic.dynamic
 
 import com.raphtory.core.graph.visitor.Vertex
-import com.raphtory.algorithms.utils.Sampling._
+import com.raphtory.util.Sampling._
 
 class WeightedRandomWalk[T](
     walkLength: Int,
