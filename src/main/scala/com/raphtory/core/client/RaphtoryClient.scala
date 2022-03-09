@@ -40,12 +40,12 @@ import org.slf4j.LoggerFactory
   *           : Timestamp of query
   *
   *        {s}`windows: List[Long] = List())`
-  *           : Window of timestamps for querying
+  *           : Query for duration between (timestamp `T` - Window) to timestamp `T` for querying
   *
   *
   *
   *    {s}`rangeQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, start: Long, end: Long, increment: Long, windows: List[Long] = List()): QueryProgressTracker`
-  *      : Queries a range of time duration, returns {s}`QueryProgressTracker`
+  *      : Queries for a range of timestamps, returns [{s}`QueryProgressTracker`](com.raphtory.core.components.querytracker.QueryProgressTracker)
   *
   *        {s}`graphAlgorithm: GraphAlgorithm`
   *           : Graph algorithm to use for query
@@ -63,11 +63,11 @@ import org.slf4j.LoggerFactory
   *           : Step size for range query
   *
   *        {s}`windows: List[Long] = List())`
-  *           : Window of timestamps for querying
+  *           : Query for duration between (timestamp `T` - Window) to timestamp `T` for querying
   *
   *
   *    {s}`liveQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, increment: Long, windows: List[Long] = List()): QueryProgressTracker` returns {s}`QueryProgressTracker`
-  *      : Write out tabular data
+  *      : Runs query for latest available timestamp
   *
   *        {s}`graphAlgorithm: GraphAlgorithm`
   *           : Graph algorithm to use for query
@@ -79,7 +79,7 @@ import org.slf4j.LoggerFactory
   *           : Step size for live query
   *
   *        {s}`windows: List[Long] = List())`
-  *           : Window of timestamps for querying
+  *           : Query for duration between (timestamp `T` - Window) to timestamp `T` for querying
   *
   *
   *    {s}`getConfig(): Config`
@@ -100,21 +100,14 @@ import org.slf4j.LoggerFactory
   * import com.raphtory.core.algorithm.OutputFormat
   * import com.raphtory.core.components.graphbuilder.GraphBuilder
   * import com.raphtory.core.components.spout.Spout
-  * import org.apache.pulsar.client.api.Schema
   *
-  * def setSpout(): Spout[T]
-  * def setGraphBuilder(): GraphBuilder[T]
-  * def setSchema(): Schema[T]
-  *
-  * val schema: Schema[Array[Byte]] = Schema.BYTES
-  * val spout            = setSpout()
-  * val graphBuilder     = setGraphBuilder()
-  * val graph            = Raphtory.createTypedGraph[T](spout, graphBuilder, setSchema())
+  * val graph = Raphtory.createGraph[T](Spout[T], GraphBuilder[T])
   * val testDir  =  "/tmp/raphtoryTest"
   * val outputFormat: FileOutputFormat  =  FileOutputFormat(testDir)
+  * long timestamp = 1595303181
   *
   * // Run Point Query:
-  * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
+  * graph.pointQuery(EdgeList(), timestamp, 1595303181, List())
   *
   * // Run Range Query:
   * val queryProgressTracker = graph.rangeQuery(graphAlgorithm = EdgeList(), outputFormat = outputFormat, start = 1, end = 32674, increment = 10000, windows = List(500, 1000, 10000))
@@ -124,7 +117,8 @@ import org.slf4j.LoggerFactory
   *
   *  ```{seealso}
   *  [](com.raphtory.core.algorithm.GraphAlgorithm), [](com.raphtory.core.components.querytracker.QueryProgressTracker),
-  *  [](com.raphtory.output.FileOutputFormat), [](com.raphtory.output.PulsarOutputFormat)
+  *  [](com.raphtory.output.FileOutputFormat), [](com.raphtory.output.PulsarOutputFormat),
+  *  [](com.raphtory.core.deploy.Raphtory)
   *  ```
   */
 private[core] class RaphtoryClient(

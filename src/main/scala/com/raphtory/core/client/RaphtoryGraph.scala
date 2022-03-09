@@ -22,8 +22,8 @@ import scala.reflect.runtime.universe._
   *
   *  ## Methods
   *
-  *    {s}`allowIllegalReflection()`
-  *      : Turn off illegal access log messages by marking as `unsafe`
+  *    {s}`stop()`
+  *      : Stops components - partitions, query manager, graph builders, spout worker
   *
   *  ```{seealso}
   *  [](com.raphtory.core.client.RaphtoryClient), [](com.raphtory.core.components.querymanager.QueryManager),
