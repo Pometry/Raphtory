@@ -126,7 +126,8 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
               spout.get,
               graphBuilder.get,
               conf,
-              pulsarController
+              pulsarController,
+              scheduler
       )
       scheduler.execute(batchHandler)
     }

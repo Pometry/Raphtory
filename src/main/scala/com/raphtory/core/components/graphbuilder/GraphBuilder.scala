@@ -1,5 +1,6 @@
 package com.raphtory.core.components.graphbuilder
 
+import com.raphtory.core.components.partition.BatchWriter
 import com.raphtory.core.graph._
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
@@ -10,8 +11,12 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 trait GraphBuilder[T] extends Serializable {
-  val logger: Logger                            = Logger(LoggerFactory.getLogger(this.getClass))
-  private var updates: ArrayBuffer[GraphUpdate] = ArrayBuffer()
+
+  val logger: Logger                                         = Logger(LoggerFactory.getLogger(this.getClass))
+  private var updates: ArrayBuffer[GraphUpdate]              = ArrayBuffer()
+  private var partitionIDs: mutable.Set[Int]                 = _
+  private var batchWriters: mutable.Map[Int, BatchWriter[T]] = _
+  private var batching: Boolean                              = false
 
   def parseTuple(tuple: T): Unit
 
@@ -38,8 +43,14 @@ trait GraphBuilder[T] extends Serializable {
     toReturn.toList
   }
 
-  protected def addVertex(updateTime: Long, srcId: Long): Unit =
-    updates += VertexAdd(updateTime, srcId, Properties(), None)
+  protected def addVertex(updateTime: Long, srcId: Long): Unit = {
+    val update = VertexAdd(updateTime, srcId, Properties(), None)
+
+    if (batching)
+      update
+    else
+      updates += update
+  }
 
   protected def addVertex(updateTime: Long, srcId: Long, properties: Properties): Unit =
     updates += VertexAdd(updateTime, srcId, properties, None)
