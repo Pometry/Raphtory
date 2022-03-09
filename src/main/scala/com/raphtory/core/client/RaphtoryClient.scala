@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory
   * {s}`RaphtoryClient`
   *    : Raphtory Client exposes query APIs for point, range and live queries
   *
-  *
   *  ## Methods
   *
   *    {s}`pointQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, timestamp: Long, windows: List[Long] = List()): QueryProgressTracker`
@@ -41,8 +40,6 @@ import org.slf4j.LoggerFactory
   *
   *        {s}`windows: List[Long] = List())`
   *           : Query for duration between (timestamp `T` - Window) to timestamp `T` for querying
-  *
-  *
   *
   *    {s}`rangeQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, start: Long, end: Long, increment: Long, windows: List[Long] = List()): QueryProgressTracker`
   *      : Queries for a range of timestamps, returns [{s}`QueryProgressTracker`](com.raphtory.core.components.querytracker.QueryProgressTracker)
@@ -65,9 +62,8 @@ import org.slf4j.LoggerFactory
   *        {s}`windows: List[Long] = List())`
   *           : Query for duration between (timestamp `T` - Window) to timestamp `T` for querying
   *
-  *
-  *    {s}`liveQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, increment: Long, windows: List[Long] = List()): QueryProgressTracker` returns {s}`QueryProgressTracker`
-  *      : Runs query for latest available timestamp
+  *    {s}`liveQuery(graphAlgorithm: GraphAlgorithm, outputFormat: OutputFormat, increment: Long, windows: List[Long] = List()): QueryProgressTracker`
+  *      : Runs query for latest available timestamp, returns {s}`QueryProgressTracker`
   *
   *        {s}`graphAlgorithm: GraphAlgorithm`
   *           : Graph algorithm to use for query
@@ -81,10 +77,8 @@ import org.slf4j.LoggerFactory
   *        {s}`windows: List[Long] = List())`
   *           : Query for duration between (timestamp `T` - Window) to timestamp `T` for querying
   *
-  *
   *    {s}`getConfig(): Config`
   *      : Fetch raphtory config
-  *
   *
   *    {s}`getID(algorithm: GraphAlgorithm): String`
   *     : Fetch ID for graph algorithm
