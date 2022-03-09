@@ -32,7 +32,7 @@ import com.raphtory.core.algorithm.Table
   *    : the property (if any) containing a numerical weight value for each edge, defaults to "weight".
   *
   *  ```{note}
-  *  If the weight property is not found, weight is treated as the number of edge occurances.
+  *  If the weight property is not found, weight is treated as the number of edge occurrences.
   *  ```
   *
   * ## States
@@ -50,20 +50,24 @@ import com.raphtory.core.algorithm.Table
   * [](com.raphtory.algorithms.generic.centrality.PageRank)
   * ```
   */
-class WeightedPageRank(
+class WeightedPageRank[T](
     dampingFactor: Float = 0.85f,
     iterateSteps: Int = 100,
     weightProperty: String = "weight"
-) extends NodeList(Seq("prlabel")) {
+)(implicit numeric: Numeric[T])
+        extends NodeList(Seq("prlabel")) {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph
       .step { vertex =>
-        val initLabel = 1.0f
+        val initLabel         = 1.0f
         vertex.setState("prlabel", initLabel)
-        val outWeight = vertex.outWeight()
+        val outWeight: Double = numeric.toDouble(vertex.weightedOutDegree())
         vertex.getOutEdges().foreach { e =>
-          vertex.messageVertex(e.ID, e.totalWeight(weightProperty = weightProperty) / outWeight)
+          vertex.messageVertex(
+                  e.ID,
+                  numeric.toDouble(e.weight[T](weightProperty = weightProperty)) / outWeight
+          )
         }
       }
       .iterate(
@@ -75,11 +79,13 @@ class WeightedPageRank(
                 val newLabel = (1 - dampingFactor) + dampingFactor * queue.sum
                 vertex.setState("prlabel", newLabel)
 
-                val outWeight = vertex.outWeight(weightProperty = weightProperty)
+                val outWeight =
+                  numeric.toDouble(vertex.weightedOutDegree(weightProperty = weightProperty))
                 vertex.getOutEdges().foreach { e =>
                   vertex.messageVertex(
                           e.ID,
-                          newLabel * e.totalWeight(weightProperty = weightProperty) / outWeight
+                          newLabel * numeric
+                            .toDouble(e.weight(weightProperty = weightProperty)) / outWeight
                   )
                 }
 
@@ -93,7 +99,7 @@ class WeightedPageRank(
 
 object WeightedPageRank {
 
-  def apply(
+  def apply[T: Numeric](
       dampingFactor: Float = 0.85f,
       iterateSteps: Int = 100,
       weightProperty: String = "weight"
