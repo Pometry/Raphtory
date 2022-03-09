@@ -14,7 +14,11 @@ abstract class EntityVisitor {
 
   def getProperty[A, B](key: String, mergeStrategy: PropertyMerge[A, B]): Option[B] =
     getPropertyHistory[A](key) match {
-      case Some(history) => Some(mergeStrategy(history))
+      case Some(history) =>
+        if (history.isEmpty)
+          None
+        else
+          Some(mergeStrategy(history))
       case None          => None
     }
 
