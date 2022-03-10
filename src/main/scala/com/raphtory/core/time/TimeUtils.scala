@@ -30,13 +30,11 @@ object TimeUtils {
   def temporalAmountToMilli(amount: TemporalAmount): Long =
     EPOCH_MILLI.plus(amount).toEpochMilli
 
-  def parseInterval(interval: String): Interval = {
+  def parseInterval(interval: String): TimeInterval = {
     val isoInterval = tryTransformationToIso8601(interval)
-
-    val intervalTry: Try[Interval] = Try(Period.parse(isoInterval))
+    val intervalTry = Try(Period.parse(isoInterval))
       .orElse(Try(Duration.parse(isoInterval)))
       .map(TimeInterval(_))
-
     intervalTry match {
       case Success(interval) => interval
       case Failure(_)        => throw new Exception(s"Failed to parse interval '$interval'")
