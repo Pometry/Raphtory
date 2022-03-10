@@ -5,11 +5,10 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 class DateTimeParser(format: String) {
+  val formatter = DateTimeFormatter.ofPattern(format)
 
-  def parse(datetime: String): Long = {
-    val formatter = DateTimeFormatter.ofPattern(format)
+  def parse(datetime: String): Long =
     LocalDateTime.parse(datetime, formatter).toInstant(ZoneOffset.UTC).toEpochMilli
-  }
 }
 
 object DateTimeParser {
