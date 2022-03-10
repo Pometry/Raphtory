@@ -7,7 +7,7 @@ import monix.execution.Scheduler
 import scala.reflect.runtime.universe.TypeTag
 
 /** @DoNotDocument */
-class IdentitySpoutExecutor[T: TypeTag](
+class IdentitySpoutExecutor[T](
     conf: Config,
     pulsarController: PulsarController,
     scheduler: Scheduler

@@ -9,6 +9,8 @@ import com.raphtory.core.graph.GraphPartition
 import com.raphtory.core.graph.LensInterface
 import com.raphtory.core.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
+import com.typesafe.config.Config
+import org.apache.pulsar.client.api.Producer
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
@@ -20,13 +22,21 @@ final case class PojoGraphLens(
     window: Option[Long],
     var superStep: Int,
     private val storage: GraphPartition,
-    messageHandler: VertexMessageHandler
+    private val conf: Config,
+    private val neighbours: Map[Int, Producer[Array[Byte]]],
+    private val sentMessages: AtomicInteger,
+    private val receivedMessages: AtomicInteger
 ) extends GraphLens(jobId, timestamp, window)
         with LensInterface {
   private val voteCount     = new AtomicInteger(0)
   private val vertexCount   = new AtomicInteger(0)
   var t1                    = System.currentTimeMillis()
   private var fullGraphSize = 0
+
+  val messageHandler: VertexMessageHandler =
+    VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)
+
+  val partitionID = storage.getPartitionID
 
   def getFullGraphSize: Int = {
     logger.trace(s"Current Graph size at '$fullGraphSize'.")
@@ -131,6 +141,8 @@ final case class PojoGraphLens(
     t1 = System.currentTimeMillis()
     voteCount.set(0)
     vertexCount.set(0)
+    sentMessages.set(0)
+    receivedMessages.set(0)
     superStep += 1
   }
 

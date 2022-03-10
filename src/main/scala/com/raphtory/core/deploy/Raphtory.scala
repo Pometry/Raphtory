@@ -79,21 +79,21 @@ object Raphtory {
   private val scheduler = new MonixScheduler().scheduler
 
   def createGraph[T: ClassTag](
-                                spout: Spout[T] = new IdentitySpout[T](),
-                                graphBuilder: GraphBuilder[T],
-                                customConfig: Map[String, Any] = Map()
-                              ): RaphtoryGraph[T] = {
+      spout: Spout[T] = new IdentitySpout[T](),
+      graphBuilder: GraphBuilder[T],
+      customConfig: Map[String, Any] = Map()
+  ): RaphtoryGraph[T] = {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
     val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
     new RaphtoryGraph[T](
-      spoutExecutor,
-      graphBuilder,
-      conf,
-      componentFactory,
-      scheduler,
-      pulsarController
+            spoutExecutor,
+            graphBuilder,
+            conf,
+            componentFactory,
+            scheduler,
+            pulsarController
     )
   }
 
@@ -116,8 +116,8 @@ object Raphtory {
   }
 
   def createGraphBuilder[T: ClassTag](
-                                       builder: GraphBuilder[T]
-                                     ): Unit = {
+      builder: GraphBuilder[T]
+  ): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
@@ -148,10 +148,10 @@ object Raphtory {
   }
 
   private def createSpoutExecutor[T](
-                                      spout: Spout[T],
-                                      conf: Config,
-                                      pulsarController: PulsarController
-                                    ): SpoutExecutor[T] =
+      spout: Spout[T],
+      conf: Config,
+      pulsarController: PulsarController
+  ): SpoutExecutor[T] =
     spout match {
       case spout: FileSpout[T]            =>
         new FileSpoutExecutor[T](

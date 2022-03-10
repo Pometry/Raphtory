@@ -2,7 +2,7 @@ package com.raphtory.core.components.spout.executor
 
 import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.config.PulsarController
-import com.raphtory.util.FileUtils
+import com.raphtory.core.util.FileUtils
 import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
@@ -16,9 +16,9 @@ import java.util.zip.ZipInputStream
 import scala.collection.mutable
 import scala.io.Source
 import scala.util.matching.Regex
-import scala.reflect.runtime.universe.TypeTag
 
-class FileSpoutExecutor[T: TypeTag](
+
+class FileSpoutExecutor[T](
     path: String = "",
     schema: Schema[T],
     lineConverter: String => T,
@@ -36,7 +36,12 @@ class FileSpoutExecutor[T: TypeTag](
   // TODO HARDLINK wont work on a network share
   private val outputDirectory = conf.getString("raphtory.spout.file.local.outputDirectory")
 
-  private val inputPath = Option(path).filter(_.trim.nonEmpty).getOrElse(sourceDirectory)
+  private var inputPath = Option(path).filter(_.trim.nonEmpty).getOrElse(sourceDirectory)
+  // If the inputPath is not an absolute path then make an absolute path
+  if (!new File(inputPath).isAbsolute) {
+    inputPath = new File(inputPath).getAbsolutePath
+  }
+
   private val fileRegex = new Regex(regexPattern)
 
   private val producer = pulsarController.toBuildersProducer()
@@ -53,30 +58,28 @@ class FileSpoutExecutor[T: TypeTag](
     FileUtils.validatePath(inputPath) // TODO Change this to cats.Validated
 
     val files =
-      FileUtils.getMatchingFiles(inputPath, regex = fileRegex, recurse = recurse)
+        FileUtils.getMatchingFiles(inputPath, regex = fileRegex, recurse = recurse)
 
     if (files.nonEmpty) {
       val tempDirectory = FileUtils.createOrCleanDirectory(outputDirectory)
 
       // Remove any files that has already been processed
       val filesToProcess = files.collect {
-        case file if !completedFiles.contains(file.getPath.replace(inputPath, "")) =>
-          logger.debug(
-                  s"Spout: Found a new file ${file.getPath.replace(inputPath, "")} to process."
-          )
+        case file if !completedFiles.contains(file.getPath.replace(new File(inputPath).getParent, "")) =>
+          logger.debug(s"Spout: Found a new file '${file.getPath.replace(new File(inputPath).getParent, "")}' to process.")
           // mimic sub dir structure of files
-          val sourceSubFolder = tempDirectory.getPath + file.getParent.replace(inputPath, "")
+          val sourceSubFolder = tempDirectory.getPath + file.getParent.replace(new File(inputPath).getParent, "")
           FileUtils.createOrCleanDirectory(sourceSubFolder, false)
           // Hard link the files for processing
-          logger.debug(s"Spout: Attempting to hard link file '$file'.")
+          logger.debug(s"Spout: Attempting to hard link file '$file' -> '${Paths.get(sourceSubFolder + "/" + file.getName)}'.")
           try Files.createLink(
-                  Paths.get(sourceSubFolder + "/" + file.getName),
-                  file.toPath
+            Paths.get(sourceSubFolder + "/" + file.getName),
+            file.toPath
           )
           catch {
             case ex: Exception =>
               logger.error(
-                      s"Spout: Failed to hard link file ${file.getPath}, error: ${ex.getMessage}."
+                s"Spout: Failed to hard link file ${file.getPath}, error: ${ex.getMessage}."
               )
               throw ex
           }
@@ -144,7 +147,7 @@ class FileSpoutExecutor[T: TypeTag](
       // Add file to tracker so we do not read it again
       if (!reReadFiles) {
         val fileName = file.getPath.replace(outputDirectory, "")
-        logger.debug(s"Spout: Adding file $fileName to completed list.")
+        logger.debug(s"Spout: Adding file ${fileName} to completed list.")
 
         completedFiles.add(fileName)
       }

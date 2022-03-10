@@ -1,11 +1,17 @@
 package com.raphtory.core.graph.visitor
 
+import PropertyMergeStrategy.PropertyMerge
+import VertexMergeStrategy.VertexMerge
+import com.raphtory.core.graph.visitor.EdgeDirection.Direction
+
 import scala.reflect.ClassTag
 
 trait Vertex extends EntityVisitor {
 
   def ID(): Long
-  def name(nameProperty: String = "name"): String = getPropertyOrElse(nameProperty, ID.toString)
+
+  def name(nameProperty: String = "name"): String =
+    getPropertyOrElse[String](nameProperty, ID.toString)
 
   //functionality for checking messages
   def hasMessage(): Boolean
@@ -80,6 +86,179 @@ trait Vertex extends EntityVisitor {
   def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T
   def appendToState[T](key: String, value: Any): Unit
 
+  // weight
+  private def directedEdgeWeight[A, B: Numeric](
+      dir: Direction = EdgeDirection.Incoming,
+      weightProperty: String = "weight",
+      edgeMergeStrategy: PropertyMerge[A, B],
+      defaultWeight: A
+  ): B =
+    (dir match {
+      case EdgeDirection.Incoming =>
+        getInEdges()
+      case EdgeDirection.Outgoing =>
+        getOutEdges()
+      case EdgeDirection.Both     =>
+        getEdges()
+    })
+      .map(_.weight(weightProperty, edgeMergeStrategy, defaultWeight))
+      .sum
+
+  def weightedInDegree[A, B: Numeric](
+      weightProperty: String = "weight",
+      edgeMergeStrategy: PropertyMerge[A, B],
+      defaultWeight: A
+  ): B =
+    directedEdgeWeight(
+            EdgeDirection.Incoming,
+            weightProperty,
+            edgeMergeStrategy,
+            defaultWeight
+    )
+
+  def weightedInDegree[A: Numeric, B: Numeric](
+      weightProperty: String,
+      edgeMergeStrategy: PropertyMerge[A, B]
+  ): B =
+    weightedInDegree(weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
+
+  def weightedInDegree[A: Numeric, B: Numeric](
+      edgeMergeStrategy: PropertyMerge[A, B]
+  ): B =
+    weightedInDegree(DefaultValues.weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
+
+  def weightedInDegree[A: Numeric](
+      weightProperty: String,
+      defaultWeight: A
+  ): A =
+    weightedInDegree(weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
+
+  def weightedInDegree[A: Numeric](
+      defaultWeight: A
+  ): A =
+    weightedInDegree(DefaultValues.weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
+
+  def weightedInDegree[A: Numeric](
+      weightProperty: String
+  ): A =
+    weightedInDegree(weightProperty, DefaultValues.mergeStrategy[A], DefaultValues.defaultVal[A])
+
+  def weightedInDegree[A: Numeric](
+  ): A =
+    weightedInDegree(
+            DefaultValues.weightProperty,
+            DefaultValues.mergeStrategy[A],
+            DefaultValues.defaultVal[A]
+    )
+
+  def weightedOutDegree[A, B: Numeric](
+      weightProperty: String = "weight",
+      edgeMergeStrategy: PropertyMerge[A, B],
+      defaultWeight: A
+  ): B =
+    directedEdgeWeight(
+            EdgeDirection.Outgoing,
+            weightProperty,
+            edgeMergeStrategy,
+            defaultWeight
+    )
+
+  def weightedOutDegree[A: Numeric, B: Numeric](
+      weightProperty: String,
+      edgeMergeStrategy: PropertyMerge[A, B]
+  ): B =
+    weightedOutDegree(weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
+
+  def weightedOutDegree[A: Numeric, B: Numeric](
+      edgeMergeStrategy: PropertyMerge[A, B]
+  ): B =
+    weightedOutDegree(DefaultValues.weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
+
+  def weightedOutDegree[A: Numeric](
+      weightProperty: String,
+      defaultWeight: A
+  ): A =
+    weightedOutDegree(weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
+
+  def weightedOutDegree[A: Numeric](
+      defaultWeight: A
+  ): A =
+    weightedOutDegree(
+            DefaultValues.weightProperty,
+            DefaultValues.mergeStrategy[A],
+            defaultWeight
+    )
+
+  def weightedOutDegree[A: Numeric](
+      weightProperty: String
+  ): A =
+    weightedOutDegree(weightProperty, DefaultValues.mergeStrategy[A], DefaultValues.defaultVal[A])
+
+  def weightedOutDegree[A: Numeric](
+  ): A =
+    weightedOutDegree(
+            DefaultValues.weightProperty,
+            DefaultValues.mergeStrategy[A],
+            DefaultValues.defaultVal[A]
+    )
+
+  def weightedTotalDegree[A, B: Numeric](
+      weightProperty: String = "weight",
+      edgeMergeStrategy: PropertyMerge[A, B],
+      defaultWeight: A
+  ): B =
+    directedEdgeWeight(
+            EdgeDirection.Both,
+            weightProperty,
+            edgeMergeStrategy,
+            defaultWeight
+    )
+
+  def weightedTotalDegree[A: Numeric, B: Numeric](
+      weightProperty: String,
+      edgeMergeStrategy: PropertyMerge[A, B]
+  ): B =
+    weightedTotalDegree(weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
+
+  def weightedTotalDegree[A: Numeric, B: Numeric](
+      edgeMergeStrategy: PropertyMerge[A, B]
+  ): B =
+    weightedTotalDegree[A, B](
+            DefaultValues.weightProperty,
+            edgeMergeStrategy,
+            DefaultValues.defaultVal[A]
+    )
+
+  def weightedTotalDegree[A: Numeric](
+      weightProperty: String,
+      defaultWeight: A
+  ): A =
+    weightedTotalDegree(weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
+
+  def weightedTotalDegree[A: Numeric](
+      defaultWeight: A
+  ): A =
+    weightedTotalDegree(DefaultValues.weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
+
+  def weightedTotalDegree[A: Numeric](
+      weightProperty: String
+  ): A =
+    weightedTotalDegree(weightProperty, DefaultValues.mergeStrategy[A], DefaultValues.defaultVal[A])
+
+  def weightedTotalDegree[A: Numeric](
+  ): A =
+    weightedTotalDegree(
+            DefaultValues.weightProperty,
+            DefaultValues.mergeStrategy[A],
+            DefaultValues.defaultVal[A]
+    )
+
   // Also need a function for receiving messages, but the user should not have access to this
   //private def receiveMessage(msg: VertexMessage): Unit
+}
+
+private object DefaultValues {
+  val weightProperty                                 = "weight"
+  def mergeStrategy[T: Numeric]: PropertyMerge[T, T] = PropertyMergeStrategy.sum[T]
+  def defaultVal[T](implicit numeric: Numeric[T]): T = numeric.one
 }

@@ -15,10 +15,28 @@ import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
-private[core] class RaphtoryGraph[T: TypeTag: ClassTag](
+/**
+  * {s}`RaphtoryGraph`
+  *    : Raphtory Graph extends Raphtory Client to initialise Query Manager, Partitions, Spout Worker
+  *    and GraphBuilder Worker for a deployment ID
+  *
+  *  {s}`RaphtoryGraph` should not be created directly. To create a {s}`RaphtoryGraph` use
+  *  {s}`Raphtory.createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`.
+  *
+  *  The query methods for `RaphtoryGraph` are similar to `RaphtoryClient`
+  *
+  *  ## Methods
+  *
+  *    {s}`stop()`
+  *      : Stops components - partitions, query manager, graph builders, spout worker
+  *
+  *  ```{seealso}
+  *  [](com.raphtory.core.client.RaphtoryClient), [](com.raphtory.core.deploy.Raphtory)
+  *  ```
+  */
+private[core] class RaphtoryGraph[T: ClassTag](
     spout: SpoutExecutor[T],
     graphBuilder: GraphBuilder[T],
-    schema: Schema[T],
     private val conf: Config,
     private val componentFactory: ComponentFactory,
     private val scheduler: Scheduler,
@@ -51,7 +69,7 @@ private[core] class RaphtoryGraph[T: TypeTag: ClassTag](
   private val spoutworker: ThreadedWorker[T] = componentFactory.spout(spout, scheduler)
 
   private val graphBuilderworker: List[ThreadedWorker[T]] =
-    componentFactory.builder[T](graphBuilder, scheduler, schema)
+    componentFactory.builder[T](graphBuilder, scheduler)
 
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")

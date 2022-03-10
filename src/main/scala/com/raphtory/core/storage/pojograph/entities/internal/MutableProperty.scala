@@ -41,8 +41,11 @@ class MutableProperty(creationTime: Long, value: Any) extends Property {
       Some(value)
     }
 
-  override def valuesAfter(time: Long): Array[Any] =
-    previousState.filter(x => x._1 >= time).map(x => x._2).toArray
+  override def valueHistory(
+      after: Long = Long.MinValue,
+      before: Long = Long.MaxValue
+  ): Array[(Long, Any)] =
+    previousState.filter(x => (x._1 >= after) && (x._1 <= before)).toArray
 
   def currentValue(): Any = previousState.head._2
   def currentTime(): Long = previousState.head._1

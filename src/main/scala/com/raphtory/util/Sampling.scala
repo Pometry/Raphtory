@@ -1,4 +1,4 @@
-package com.raphtory.algorithms.utils
+package com.raphtory.util
 
 import scala.util.Random
 
