@@ -9,11 +9,10 @@ import java.io.File
 
 /**
   * {s}`FileOutputFormat(filePath: String)`
-  *
   *   : writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File
-  *        {s}`filePath: String`
-  *          : Filepath for writing Raphtory output.
-  *   Reference: [](com.raphtory.core.algorithm.OutputFormat)
+  *
+  *     {s}`filePath: String`
+  *       : Filepath for writing Raphtory output.
   *
   * Usage while querying or running algorithmic tests:
   *
@@ -23,25 +22,19 @@ import java.io.File
   * import com.raphtory.core.algorithm.OutputFormat
   * import com.raphtory.core.components.graphbuilder.GraphBuilder
   * import com.raphtory.core.components.spout.Spout
-  * import org.apache.pulsar.client.api.Schema
   *
-  * def setSpout(): Spout[T]
-  * def setGraphBuilder(): GraphBuilder[T]
-  * def setSchema(): Schema[T]
+  * val graph = Raphtory.createTypedGraph[T](Spout[T], GraphBuilder[T])
+  * val testDir = "/tmp/raphtoryTest"
+  * val outputFormat: OutputFormat = FileOutputFormat(testDir)
   *
-  * val schema: Schema[Array[Byte]] = Schema.BYTES
-  * val spout            = setSpout()
-  * val graphBuilder     = setGraphBuilder()
-  * val graph            = Raphtory.createTypedGraph[T](spout, graphBuilder, setSchema())
-  * val testDir  =  "/tmp/raphtoryTest"
-  * val outputFormat: FileOutputFormat  =  FileOutputFormat(testDir)
   * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
   * ```
   *
-  *
   *  ```{seealso}
   *  [](com.raphtory.core.algorithm.OutputFormat),
-  *  [](com.raphtory.core.client.RaphtoryClient)
+  *  [](com.raphtory.core.client.RaphtoryClient),
+  *  [](com.raphtory.core.client.RaphtoryGraph),
+  *  [](com.raphtory.core.deploy.Raphtory)
   *  ```
   */
 class FileOutputFormat(filePath: String) extends OutputFormat {

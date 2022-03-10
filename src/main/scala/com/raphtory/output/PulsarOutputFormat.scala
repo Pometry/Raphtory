@@ -9,9 +9,9 @@ import org.apache.pulsar.client.api.Schema
 /**
   * {s}`PulsarOutputFormat(pulsarTopic: String)`
   *   : writes output output to a Raphtory Pulsar topic
-  *        {s}`pulsarTopic: String`
-  *          : Topic name for writing to Pulsar.
-  * Reference: [](com.raphtory.core.algorithm.OutputFormat)
+  *
+  *     {s}`pulsarTopic: String`
+  *       : Topic name for writing to Pulsar.
   *
   * Usage while querying or running algorithmic tests:
   *
@@ -21,24 +21,18 @@ import org.apache.pulsar.client.api.Schema
   * import com.raphtory.core.algorithm.OutputFormat
   * import com.raphtory.core.components.graphbuilder.GraphBuilder
   * import com.raphtory.core.components.spout.Spout
-  * import org.apache.pulsar.client.api.Schema
   *
-  * def setSpout(): Spout[T]
-  * def setGraphBuilder(): GraphBuilder[T]
-  * def setSchema(): Schema[T]
+  * val graph = Raphtory.createGraph[T](Spout[T], GraphBuilder[T])
+  * val outputFormat: OutputFormat = PulsarOutputFormat("EdgeList")
   *
-  * val schema: Schema[Array[Byte]] = Schema.BYTES
-  * val spout            = setSpout()
-  * val graphBuilder     = setGraphBuilder()
-  * val graph            = Raphtory.createTypedGraph[T](spout, graphBuilder, setSchema())
-  * val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList")
   * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
   * ```
   *
-  *
   *  ```{seealso}
   *  [](com.raphtory.core.algorithm.OutputFormat),
-  *  [](com.raphtory.core.client.RaphtoryClient.PointQuery)
+  *  [](com.raphtory.core.client.RaphtoryClient),
+  *  [](com.raphtory.core.client.RaphtoryGraph),
+  *  [](com.raphtory.core.deploy.Raphtory)
   *  ```
   */
 class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
