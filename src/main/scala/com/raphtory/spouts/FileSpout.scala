@@ -123,23 +123,29 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
       val tempDirectory = FileUtils.createOrCleanDirectory(outputDirectory)
 
       // Remove any files that has already been processed
-      files.collect {
+      files = files.collect {
         case file if !completedFiles.contains(checkFileName(file)) =>
-          val x               = file.getPath.replace(new File(inputPath).getParent, "")
           logger.debug(
                   s"Spout: Found a new file '${file.getPath.replace(new File(inputPath).getParent, "")}' to process."
           )
           // mimic sub dir structure of files
-          val sourceSubFolder =
-            tempDirectory.getPath + file.getParent.replace(new File(inputPath).getParent, "")
+          val sourceSubFolder = {
+            val parentPath = new File(inputPath).getParent
+            if (parentPath == "/")
+              tempDirectory.getPath + file.getParent
+            else
+              tempDirectory.getPath + file.getParent.replace(new File(inputPath).getParent, "")
+          }
           FileUtils.createOrCleanDirectory(sourceSubFolder, false)
           // Hard link the files for processing
           logger.debug(s"Spout: Attempting to hard link file '$file' -> '${Paths
             .get(sourceSubFolder + "/" + file.getName)}'.")
-          try Files.createLink(
-                  Paths.get(sourceSubFolder + "/" + file.getName),
-                  file.toPath
-          )
+          try Files
+            .createLink(
+                    Paths.get(sourceSubFolder + "/" + file.getName),
+                    file.toPath
+            )
+            .toFile
           catch {
             case ex: Exception =>
               logger.error(
