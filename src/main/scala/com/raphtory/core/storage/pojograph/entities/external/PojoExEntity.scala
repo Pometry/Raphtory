@@ -25,13 +25,13 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
   def getPropertySet(): List[String] =
     entity.properties.filter(p => p._2.creation() <= view.timestamp).keys.toList
 
-  def getProperty[T](key: String): Option[T] = getPropertyAt[T](key, view.timestamp)
-
-  def getPropertyOrElse[T](key: String, otherwise: T): T =
-    getPropertyAt[T](key, view.timestamp) match {
-      case Some(v) => v
-      case None    => otherwise
-    }
+//  def getProperty[T](key: String): Option[T] = getPropertyAt[T](key, view.timestamp)
+//
+//  def getPropertyOrElse[T](key: String, otherwise: T): T =
+//    getPropertyAt[T](key, view.timestamp) match {
+//      case Some(v) => v
+//      case None    => otherwise
+//    }
 
   def getPropertyAt[T](key: String, time: Long): Option[T] =
     entity.properties.get(key) match {
@@ -40,30 +40,31 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
           case Some(v) => Some(v.asInstanceOf[T])
           case None    => None
         }
-      case None => None
-    }
-
-  //TODo ADD Before
-  def getPropertyValues[T](key: String, after: Long, before: Long): Option[List[T]] =
-    entity.properties.get(key) match {
-      case Some(p) => Some(p.valuesAfter(after).toList.map(_.asInstanceOf[T]))
       case None    => None
     }
+
+//  //TODo ADD Before
+//  def getPropertyValues[T](key: String, after: Long, before: Long): Option[List[T]] =
+//    entity.properties.get(key) match {
+//      case Some(p) => Some(p.valuesAfter(after).toList.map(_.asInstanceOf[T]))
+//      case None    => None
+//    }
 
   def getPropertyHistory[T](key: String): Option[List[(Long, T)]] =
     (entity.properties.get(key), view.window) match {
       case (Some(p), Some(w)) =>
         Some(
-                p.values()
-                  .filter(k => k._1 <= view.timestamp && k._1 >= view.timestamp - w)
+                p.valueHistory(view.timestamp - w, view.timestamp)
                   .toList
                   .map(x => (x._1, x._2.asInstanceOf[T]))
         )
-      case (Some(p), None) =>
+      case (Some(p), None)    =>
         Some(
-                p.values().filter(k => k._1 <= view.timestamp).toList.map(x => (x._1, x._2.asInstanceOf[T]))
+                p.valueHistory(before = view.timestamp)
+                  .toList
+                  .map(x => (x._1, x._2.asInstanceOf[T]))
         )
-      case (None, _) => None
+      case (None, _)          => None
     }
 
   def history(): List[HistoricEvent] =
@@ -73,7 +74,7 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
           case (time, state) if time <= view.timestamp && time >= view.timestamp - w =>
             HistoricEvent(time, state)
         }.toList
-      case None =>
+      case None    =>
         entity.history.collect {
           case (time, state) if time <= view.timestamp => HistoricEvent(time, state)
         }.toList

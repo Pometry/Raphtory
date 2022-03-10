@@ -53,7 +53,7 @@ import scala.util.Random
   * [](com.raphtory.algorithms.generic.community.SLPA), [](com.raphtory.algorithms.temporal.community.MultilayerLPA)
   * ```
   */
-class LPA(weight: String = "", maxIter: Int = 50, seed: Long = -1)
+class LPA[T: Numeric](weight: String = "", maxIter: Int = 50, seed: Long = -1)
         extends NodeList(Seq("community")) {
 
   val rnd: Random                                               = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
@@ -79,17 +79,19 @@ class LPA(weight: String = "", maxIter: Int = 50, seed: Long = -1)
 
 object LPA {
 
-  def apply(weight: String = "", maxIter: Int = 500, seed: Long = -1) =
+  def apply[T: Numeric](weight: String = "weight", maxIter: Int = 500, seed: Long = -1) =
     new LPA(weight, maxIter, seed)
 
-  def lpa(vertex: Vertex, weight: String, SP: Double, rnd: Random): Unit = {
+  def lpa[T](vertex: Vertex, weight: String, SP: Double, rnd: Random)(implicit
+      numeric: Numeric[T]
+  ): Unit = {
     val vlabel     = vertex.getState[Long]("community")
     val vneigh     = vertex.getEdges()
     val neigh_freq = vneigh
-      .map(e => (e.ID(), e.getProperty(weight).getOrElse(1.0f)))
+      .map(e => (e.ID(), e.weight(weightProperty = weight)))
       .groupBy(_._1)
       .view
-      .mapValues(x => x.map(_._2).sum)
+      .mapValues(x => numeric.toFloat(x.map(_._2).sum))
     // Process neighbour labels into (label, frequency)
     val gp         = vertex.messageQueue[(Long, Long)].map(v => (v._2, neigh_freq.getOrElse(v._1, 1.0f)))
     // Get label most prominent in neighborhood of vertex

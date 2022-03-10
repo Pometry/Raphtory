@@ -85,7 +85,7 @@ class MultilayerLPA(
       (v.getInEdges(after = ts - layerSize, before = ts) ++ v.getOutEdges(
               after = ts - layerSize,
               before = ts
-      )).map(e => (e.ID(), e.getProperty(weight).getOrElse(1.0f)))
+      )).map(e => (e.ID(), e.weight(default = 1.0f)))
         .groupBy(_._1)
         .view
         .mapValues(x => x.map(_._2).sum / x.size)
