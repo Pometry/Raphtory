@@ -12,22 +12,27 @@ import scala.reflect.runtime.universe.TypeTag
 /**
   * {s}`RaphtoryService[T: ClassTag: TypeTag]`
   *
-  * : `RaphtoryService` for initialising spout, graphbuilder and schema
-  *
+  * : `RaphtoryService` for initialising spout, graphbuilder, deploying spout, partition and query manager
   *
   * ## Methods
   *
   *    {s}`defineSpout(): Spout[T]`
   *      : Initialise Spout
   *
-  *
   *    {s}`defineBuilder(): GraphBuilder[T]`
   *      : Initialise GraphBuilder
   *
+  *    {s}`spoutDeploy(): Unit`
+  *      : Deploy spout
   *
-  *    {s}`defineSchema(): Schema[T]`
-  *      : Initialise Schema
-
+  *    {s}`builderDeploy(): Unit`
+  *      : Deploy builder
+  *
+  *   {s}`partitionDeploy(): Unit`
+  *      : Deploy partition
+  *
+  *   {s}`queryManagerDeploy(): Unit`
+  *      : Deploy query manager
   *
   * Example Usage:
   *
@@ -42,17 +47,15 @@ import scala.reflect.runtime.universe.TypeTag
   * object LOTRDistributedTest extends RaphtoryService[String] {
   *   override def defineSpout(): Spout[String] = FileSpout()
   *   override def defineBuilder: GraphBuilder[String] = new LOTRGraphBuilder()
-  *   override def defineSchema(): Schema[String] = Schema.STRING
   * }
   * ```
   *
   */
-abstract class RaphtoryService[T: ClassTag: TypeTag] {
+abstract class RaphtoryService[T: ClassTag] {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def defineSpout(): Spout[T]
   def defineBuilder: GraphBuilder[T]
-  def defineSchema(): Schema[T]
 
   def main(args: Array[String]): Unit =
     args(0) match {
@@ -66,7 +69,7 @@ abstract class RaphtoryService[T: ClassTag: TypeTag] {
     Raphtory.createSpout[T](defineSpout())
 
   def builderDeploy(): Unit =
-    Raphtory.createGraphBuilder(defineBuilder, defineSchema())
+    Raphtory.createGraphBuilder(defineBuilder)
 
   def partitionDeploy(): Unit =
     Raphtory.createPartitionManager()

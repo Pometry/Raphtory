@@ -30,9 +30,9 @@ import scala.reflect.runtime.universe._
   *
   * ## Methods
   *
-  *    {s}`createTypedGraph[T: TypeTag: ClassTag](spout: Spout[T] = new IdentitySpout[T](),
-  *    graphBuilder: GraphBuilder[T], schema: Schema[T], customConfig: Map[String, Any] = Map()): RaphtoryGraph[T]``
-  *      : Create Typed[Generic] Graph
+  *    {s}`createGraph[T: TypeTag: ClassTag](spout: Spout[T] = new IdentitySpout[T](),
+  *    graphBuilder: GraphBuilder[T], customConfig: Map[String, Any] = Map()): RaphtoryGraph[T]`
+  *      : Create Graph
   *
   *    {s}`createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`
   *      : Create Client
@@ -40,7 +40,7 @@ import scala.reflect.runtime.universe._
   *    {s}`createSpout[T: TypeTag](spout: Spout[T])`
   *      : Create Spout
   *
-  *    {s}`createGraphBuilder[T: ClassTag: TypeTag](builder: GraphBuilder[T], schema: Schema[T])`
+  *    {s}`createGraphBuilder[T: ClassTag: TypeTag](builder: GraphBuilder[T])`
   *      : Create Graph Builder
   *
   *    {s}`createPartitionManager()`
@@ -69,7 +69,7 @@ import scala.reflect.runtime.universe._
   * import com.raphtory.lotrtest.LOTRGraphBuilder
   * import org.apache.pulsar.client.api.Schema
   *
-  * Raphtory.createGraphBuilder(new LOTRGraphBuilder(), Schema.STRING)
+  * Raphtory.createGraphBuilder(new LOTRGraphBuilder())
   *
   * ```
   *
@@ -78,45 +78,36 @@ object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
 
-  def createTypedGraph[T: TypeTag: ClassTag](
-      spout: Spout[T] = new IdentitySpout[T](),
-      graphBuilder: GraphBuilder[T],
-      schema: Schema[T],
-      customConfig: Map[String, Any] = Map()
-  ): RaphtoryGraph[T] = {
+  def createGraph[T: ClassTag](
+                                spout: Spout[T] = new IdentitySpout[T](),
+                                graphBuilder: GraphBuilder[T],
+                                customConfig: Map[String, Any] = Map()
+                              ): RaphtoryGraph[T] = {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
     val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
     new RaphtoryGraph[T](
-            spoutExecutor,
-            graphBuilder,
-            schema,
-            conf,
-            componentFactory,
-            scheduler,
-            pulsarController
+      spoutExecutor,
+      graphBuilder,
+      conf,
+      componentFactory,
+      scheduler,
+      pulsarController
     )
   }
 
-  def createGraph(
-      spout: Spout[String],
-      graphBuilder: GraphBuilder[String],
-      customConfig: Map[String, Any] = Map()
-  ): RaphtoryGraph[String] =
-    createTypedGraph[String](spout, graphBuilder, Schema.STRING, customConfig)
-
   def createClient(
-      deploymentID: String = "",
-      customConfig: Map[String, Any] = Map()
-  ): RaphtoryClient = {
+                    deploymentID: String = "",
+                    customConfig: Map[String, Any] = Map()
+                  ): RaphtoryClient = {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
     new RaphtoryClient(deploymentID, conf, componentFactory, scheduler, pulsarController)
   }
 
-  def createSpout[T: TypeTag](spout: Spout[T]): Unit = {
+  def createSpout[T](spout: Spout[T]): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
@@ -124,14 +115,13 @@ object Raphtory {
     componentFactory.spout(spoutExecutor, scheduler)
   }
 
-  def createGraphBuilder[T: ClassTag: TypeTag](
-      builder: GraphBuilder[T],
-      schema: Schema[T]
-  ): Unit = {
+  def createGraphBuilder[T: ClassTag](
+                                       builder: GraphBuilder[T]
+                                     ): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    componentFactory.builder(builder, scheduler, schema)
+    componentFactory.builder(builder, scheduler)
   }
 
   def createPartitionManager(): Unit = {
@@ -157,20 +147,20 @@ object Raphtory {
     confHandler.getConfig
   }
 
-  private def createSpoutExecutor[T: TypeTag](
-      spout: Spout[T],
-      conf: Config,
-      pulsarController: PulsarController
-  ): SpoutExecutor[T] =
+  private def createSpoutExecutor[T](
+                                      spout: Spout[T],
+                                      conf: Config,
+                                      pulsarController: PulsarController
+                                    ): SpoutExecutor[T] =
     spout match {
       case spout: FileSpout[T]            =>
         new FileSpoutExecutor[T](
-                spout.source,
-                spout.schema,
-                spout.lineConverter,
-                conf,
-                pulsarController,
-                scheduler
+          spout.source,
+          spout.schema,
+          spout.lineConverter,
+          conf,
+          pulsarController,
+          scheduler
         )
       case IdentitySpout()                => new IdentitySpoutExecutor[T](conf, pulsarController, scheduler)
       case ResourceSpout(resource)        =>
@@ -183,3 +173,4 @@ object Raphtory {
     }
 
 }
+
