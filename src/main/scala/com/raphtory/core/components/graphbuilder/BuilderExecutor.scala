@@ -31,7 +31,9 @@ class BuilderExecutor[T: ClassTag](
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
   override def run(): Unit = {
-    logger.debug("Starting Graph Builder executor.")
+    logger.debug(
+            s"Starting Graph Builder executor with deploymentID ${conf.getString("raphtory.deploy.id")}"
+    )
 
     cancelableConsumer = Some(
             pulsarController.startGraphBuilderConsumer(messageListener())
@@ -65,7 +67,7 @@ class BuilderExecutor[T: ClassTag](
 
     messagesProcessed = messagesProcessed + 1
 
-    if (messagesProcessed % 100_000 == 0)
+    if (messagesProcessed % 1000 == 0)
       logger.debug(s"Graph builder $name: sent $messagesProcessed messages.")
   }
 }

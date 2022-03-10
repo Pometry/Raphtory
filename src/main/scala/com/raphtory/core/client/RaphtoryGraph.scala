@@ -34,8 +34,10 @@ import scala.reflect.runtime.universe._
   *  [](com.raphtory.core.client.RaphtoryClient), [](com.raphtory.core.deploy.Raphtory)
   *  ```
   */
-private[core] class RaphtoryGraph[T: ClassTag](
-    spout: SpoutExecutor[T],
+
+private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
+    batchLoading: Boolean,
+    spout: Spout[T],
     graphBuilder: GraphBuilder[T],
     private val conf: Config,
     private val componentFactory: ComponentFactory,
@@ -64,24 +66,34 @@ private[core] class RaphtoryGraph[T: ClassTag](
     new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
   builderIdManager.resetID()
 
-  private val partitions                     = componentFactory.partition(scheduler)
-  private val queryManager                   = componentFactory.query(scheduler)
-  private val spoutworker: ThreadedWorker[T] = componentFactory.spout(spout, scheduler)
+  private val partitions   =
+    componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
+  private val queryManager = componentFactory.query(scheduler)
 
-  private val graphBuilderworker: List[ThreadedWorker[T]] =
-    componentFactory.builder[T](graphBuilder, scheduler)
+  private val spoutworker: Option[ThreadedWorker[T]] =
+    componentFactory.spout(spout, batchLoading, scheduler)
+
+  private val graphBuilderworker: Option[List[ThreadedWorker[T]]] =
+    componentFactory.builder[T](graphBuilder, batchLoading, scheduler)
 
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
   def stop(): Unit = {
-    partitions.foreach { partition =>
-      partition.writer.stop()
-      partition.reader.stop()
-    }
+    //TODO reenable partition stop
+//    partitions.foreach { partition =>
+//      partition.writer.stop()
+//      partition.reader.stop()
+//    }
     queryManager.worker.stop()
-    spoutworker.worker.stop()
-    graphBuilderworker.foreach(builder => builder.worker.stop())
+    spoutworker match {
+      case Some(w) => w.worker.stop()
+      case None    => ???
+    }
+    graphBuilderworker match {
+      case Some(worker) => worker.foreach(builder => builder.worker.stop())
+      case None         => ???
+    }
   }
 
   private def allowIllegalReflection() = {

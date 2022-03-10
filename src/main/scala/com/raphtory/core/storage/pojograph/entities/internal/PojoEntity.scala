@@ -20,6 +20,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   //var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
   var history: mutable.ArrayBuffer[(Long, Boolean)] = mutable.ArrayBuffer()
+  var deletions: mutable.ListBuffer[Long]           = mutable.ListBuffer()
   history += ((creationTime, isInitialValue))
   var toClean                                       = false
 
@@ -32,7 +33,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   var oldestPoint: Long = creationTime
 
   // History of that entity
-  def removeList: List[Long] = history.filter(f => !f._2).map(_._1).toList
+  def removeList: List[Long] = deletions.toList
   //.filter(f => if(!f._2) f._1).toList
 
   def setType(newType: Option[String]): Unit =
@@ -48,6 +49,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   def kill(msgTime: Long): Unit = {
     checkOldestTime(msgTime)
     history += ((msgTime, false))
+    deletions += msgTime
     toClean = true
   }
 

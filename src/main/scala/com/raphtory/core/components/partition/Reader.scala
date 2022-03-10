@@ -61,44 +61,48 @@ class Reader(
   }
 
   def createWatermark(): Unit = {
-    val newestTime              = storage.newestTime
-    val blockingEdgeAdditions   = storage.blockingEdgeAdditions.nonEmpty
-    val blockingEdgeDeletions   = storage.blockingEdgeDeletions.nonEmpty
-    val blockingVertexDeletions = storage.blockingVertexDeletions.nonEmpty
+    if (!storage.currentyBatchIngesting()) {
+      val newestTime              = storage.newestTime
+      val blockingEdgeAdditions   = storage.blockingEdgeAdditions.nonEmpty
+      val blockingEdgeDeletions   = storage.blockingEdgeDeletions.nonEmpty
+      val blockingVertexDeletions = storage.blockingVertexDeletions.nonEmpty
 
-    //this is quite ugly but will be fully written with the new semaphore implementation
-    val BEAtime = storage.blockingEdgeAdditions.reduceOption[(Long, (Long, Long))]({
-      case (update1, update2) =>
-        if (update1._1 < update2._1) update1 else update2
-    }) match {
-      case Some(value) => value._1 //get out the timestamp
-      case None        => newestTime
+      //this is quite ugly but will be fully written with the new semaphore implementation
+      val BEAtime = storage.blockingEdgeAdditions.reduceOption[(Long, (Long, Long))]({
+        case (update1, update2) =>
+          if (update1._1 < update2._1) update1 else update2
+      }) match {
+        case Some(value) => value._1 //get out the timestamp
+        case None        => newestTime
+      }
+
+      val BEDtime = storage.blockingEdgeDeletions.reduceOption[(Long, (Long, Long))]({
+        case (update1, update2) =>
+          if (update1._1 < update2._1) update1 else update2
+      }) match {
+        case Some(value) => value._1 //get out the timestamp
+        case None        => newestTime
+      }
+
+      val BVDtime = storage.blockingVertexDeletions.reduceOption[((Long, Long), AtomicInteger)]({
+        case (update1, update2) =>
+          if (update1._1._1 < update2._1._1) update1 else update2
+      }) match {
+        case Some(value) => value._1._1 //get out the timestamp
+        case None        => newestTime
+      }
+
+      val finalTime = Array(newestTime, BEAtime, BEDtime, BVDtime).min
+
+      logger.trace(s"Partition $partitionID: Creating watermark at '$finalTime'.")
+
+      if (!blockingEdgeAdditions && !blockingEdgeDeletions && !blockingVertexDeletions)
+        watermarkPublish.sendAsync(serialise(WatermarkTime(partitionID, finalTime, true)))
+      else
+        watermarkPublish.sendAsync(serialise(WatermarkTime(partitionID, finalTime, false)))
+
     }
-
-    val BEDtime = storage.blockingEdgeDeletions.reduceOption[(Long, (Long, Long))]({
-      case (update1, update2) =>
-        if (update1._1 < update2._1) update1 else update2
-    }) match {
-      case Some(value) => value._1 //get out the timestamp
-      case None        => newestTime
-    }
-
-    val BVDtime = storage.blockingVertexDeletions.reduceOption[((Long, Long), AtomicInteger)]({
-      case (update1, update2) =>
-        if (update1._1._1 < update2._1._1) update1 else update2
-    }) match {
-      case Some(value) => value._1._1 //get out the timestamp
-      case None        => newestTime
-    }
-
-    val finalTime = Array(newestTime, BEAtime, BEDtime, BVDtime).min
-
-    logger.trace(s"Partition $partitionID: Creating watermark at '$finalTime'.")
-
-    if (!blockingEdgeAdditions && !blockingEdgeDeletions && !blockingVertexDeletions)
-      watermarkPublish.sendAsync(serialise(WatermarkTime(partitionID, finalTime, true)))
-    else
-      watermarkPublish.sendAsync(serialise(WatermarkTime(partitionID, finalTime, false)))
+    scheduleWaterMarker()
   }
 
   private def scheduleWaterMarker(): Unit = {
@@ -107,12 +111,8 @@ class Reader(
     }
 
     scheduler
-      .scheduleAtFixedRate(
-              initialDelay = 0,
-              period = 1,
-              unit = TimeUnit.SECONDS,
-              r = watermarking
-      )
+      .scheduleOnce(1, TimeUnit.SECONDS, watermarking)
+
   }
 
 }
