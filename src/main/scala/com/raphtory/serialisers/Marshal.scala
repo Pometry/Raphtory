@@ -12,11 +12,11 @@ package com.raphtory.serialisers
   *    {s}`dump[A](o: A)(implicit t: ClassTag[A]): Array[Byte]`
   *      : Serialise to ByteArray
   *
-  *        {s}`t: ClassTag[A]`
-  *           : serialise object to Array[Byte]
+  *        {s}`o: A`
+  *           : serialise object `A` to `Array[Byte]`
   *
   *    {s}`load[A](buffer: Array[Byte])(implicit expected: ClassTag[A])`
-  *      : Deserialise from Array[Byte]
+  *      : Deserialise object from Array[Byte]
   *
   *        {s}`buffer: Array[Byte]`
   *           : deserialise from byte buffer to object
@@ -24,7 +24,7 @@ package com.raphtory.serialisers
   *    {s}`deepCopy[A](a: A)(implicit m: reflect.ClassTag[A])`
   *      : Deep copy
   *
-  *        {s}`a: ClassTag[A]`
+  *        {s}`a: A`
   *           : deserialise and persist as deep copy by serialising
   *
   * Example Usage:

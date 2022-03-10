@@ -17,56 +17,6 @@ import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import scala.annotation.implicitNotFound
 
-/**
-  * {s}`AvroPulsarSchema()`
-  *
-  * : support serialisation (`dump`) and deserialisation (`load`) for `ByteArray` input and output streams
-  *
-  *
-  * ## Methods
-  *
-  *    {s}`avroSchemaByVersion(schemaVersion: Option[Array[Byte]]): org.apache.avro.Schema`
-  *      : Fetch AvroSchema from Schema definition
-  *
-  *        {s}`schemaVersion: Option[Array[Byte]]`
-  *           : schema version
-  *
-  *
-  *    {s}`setSchemaInfoProvider(schemaInfoProvider: SchemaInfoProvider)`
-  *      : Serialise to ByteArray
-  *
-  *        {s}`schemaInfoProvider: SchemaInfoProvider`
-  *           : SchemaInfoProvider
-  *
-  *    {s}`encode(t: T): Array[Byte]`
-  *      : Encode (serialise) to byte array using AvroOutputStream.
-  *
-  *        {s}`t: T`
-  *           :  generic object to encode
-  *
-  *    {s}`decode(bytes: Array[Byte], schemaVersionNullable: Array[Byte])`
-  *      : Decode (deserialise) from byte array using AvroInputStream.
-  *
-  *        {s}`bytes: Array[Byte]`
-  *           :  byte array to decode
-  *       {s}`schemaVersionNullable: Array[Byte]`
-  *           :  schema version
-  *
-  *
-  * Example Usage:
-  *
-  * ```{code-block} scala
-  * import com.raphtory.serialisers.avro.AvroPulsarSchema
-  *
-  * val avroPulsarSchema = AvroPulsarSchema()
-  * avroPulsarSchema.encode("Gandalf")
-  * ```
-  *
-  *
-  * ```{seealso}
-  * [](com.raphtory.serialisers.PulsarKryoSerialiser)
-  * ```
-  */
 package object avro {
 
   class AvroPulsarSchema[T: Manifest: SchemaFor: Encoder: Decoder](
