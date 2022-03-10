@@ -98,9 +98,9 @@ object Raphtory {
   }
 
   def createClient(
-                    deploymentID: String = "",
-                    customConfig: Map[String, Any] = Map()
-                  ): RaphtoryClient = {
+      deploymentID: String = "",
+      customConfig: Map[String, Any] = Map()
+  ): RaphtoryClient = {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
@@ -155,12 +155,12 @@ object Raphtory {
     spout match {
       case spout: FileSpout[T]            =>
         new FileSpoutExecutor[T](
-          spout.source,
-          spout.schema,
-          spout.lineConverter,
-          conf,
-          pulsarController,
-          scheduler
+                spout.source,
+                spout.schema,
+                spout.lineConverter,
+                conf,
+                pulsarController,
+                scheduler
         )
       case IdentitySpout()                => new IdentitySpoutExecutor[T](conf, pulsarController, scheduler)
       case ResourceSpout(resource)        =>
@@ -173,4 +173,3 @@ object Raphtory {
     }
 
 }
-
