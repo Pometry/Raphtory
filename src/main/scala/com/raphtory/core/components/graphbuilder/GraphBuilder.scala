@@ -129,24 +129,27 @@ trait GraphBuilder[T] extends Serializable {
     else
       updates += update
 
-  private def handleEdgeAdd(update: EdgeAdd) = {
-    val partitionForSrc = checkPartition(update.srcId)
-    val partitionForDst = checkPartition(update.dstId)
-    if (partitionIDs contains partitionForSrc)
-      batchWriters(partitionForSrc).handleMessage(update)
-    if (
-            (partitionIDs contains partitionForDst) && (partitionForDst != partitionForSrc)
-    ) //TODO doesn't see to currently work
-      batchWriters(partitionForDst).handleMessage(
-              BatchAddRemoteEdge(
-                      update.updateTime,
-                      update.srcId,
-                      update.dstId,
-                      update.properties,
-                      update.eType
-              )
-      )
-  }
+  private def handleEdgeAdd(update: EdgeAdd) =
+    if (batching) {
+      val partitionForSrc = checkPartition(update.srcId)
+      val partitionForDst = checkPartition(update.dstId)
+      if (partitionIDs contains partitionForSrc)
+        batchWriters(partitionForSrc).handleMessage(update)
+      if (
+              (partitionIDs contains partitionForDst) && (partitionForDst != partitionForSrc)
+      ) //TODO doesn't see to currently work
+        batchWriters(partitionForDst).handleMessage(
+                BatchAddRemoteEdge(
+                        update.updateTime,
+                        update.srcId,
+                        update.dstId,
+                        update.properties,
+                        update.eType
+                )
+        )
+    }
+    else
+      updates += update
 
   private def checkPartition(id: Long): Int =
     (id.abs % totalPartitions).toInt
