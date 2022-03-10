@@ -52,7 +52,6 @@ object Util {
   val getTweetLanguage: String =
     raphtoryConfig.getString("raphtory.spout.twitter.local.setLanguage")
 
-  // Clear these keys and tokens every time you push to Github!!!x
   val twitterClient = new TwitterClient(
           TwitterCredentials
             .builder()
