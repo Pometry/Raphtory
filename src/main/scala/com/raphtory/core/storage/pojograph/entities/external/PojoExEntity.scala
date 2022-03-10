@@ -9,7 +9,7 @@ import scala.reflect.ClassTag
 
 /** @DoNotDocument */
 abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends EntityVisitor {
-  def Type() = entity.getType
+  def Type(): String = entity.getType
 
   def firstActivityAfter(time: Long): HistoricEvent =
     history().filter(k => k.time >= time).minBy(x => x.time)
