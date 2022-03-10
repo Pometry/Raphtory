@@ -127,8 +127,8 @@ final case class PerspectiveDone()                     extends GraphFunction
   *       {s}`f: GraphState => Row`
   *         : function to extract data from graph state (run only once)
   *
-  *  {s}`nodeCount(): Int`
-  *     : return number of nodes in the graph
+  *  {s}`clearMessages(): GraphPerspective`
+  *     : Clear messages from previous operations
   *
   * ```{seealso}
   * [](com.raphtory.core.algorithm.GraphState), [](com.raphtory.core.graph.visitor.Vertex)
@@ -152,9 +152,4 @@ trait GraphPerspective {
   def globalSelect(f: GraphState => Row): Table
   def explodeSelect(f: Vertex => List[Row]): Table
   def clearMessages(): GraphPerspective
-
-  def transform(f: GraphPerspective => GraphPerspective): GraphPerspective = f(this)
-  def transform(algorithm: GraphAlgorithm): GraphPerspective               = algorithm.apply(this)
-  def execute(f: GraphPerspective => Table): Table                         = f(this)
-  def execute(algorithm: GraphAlgorithm): Table                            = algorithm.run(this)
 }
