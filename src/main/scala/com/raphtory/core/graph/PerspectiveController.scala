@@ -37,19 +37,22 @@ object PerspectiveController {
   val DEFAULT_PERSPECTIVE_WINDOW: Some[Interval] = Some(DiscreteInterval(-1L))
 
   def apply(
-      firstAvailableTimestamp: Long,
+      lastAvailableTimestamp: Long,
       query: Query
   ): PerspectiveController = {
     query.increment match {
+      // Similar to PointQuery
       case None            =>
-        val end     = query.endTime.getOrElse(Long.MaxValue)
+        val end     = query.endTime.getOrElse(lastAvailableTimestamp)
         val windows = query.startTime match {
           case Some(start) if(query.windows.isEmpty) => List(DiscreteInterval(end - start))
           case _ => query.windows
         }
         new PerspectiveController(Stream(end), windows)
+
+      // Similar to RangeQuery and LiveQuery (depending on 'query.endTime' having a value)
       case Some(increment) =>
-        val start           = query.startTime.getOrElse(firstAvailableTimestamp)
+        val start           = query.startTime.getOrElse(lastAvailableTimestamp)
         val timestampStream = Stream.iterate(start)(_ + increment)
         val timestamps      = query.endTime match {
           case Some(end) => timestampStream.takeWhile(_ < end) :+ end
