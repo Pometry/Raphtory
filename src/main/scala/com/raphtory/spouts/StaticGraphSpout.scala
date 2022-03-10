@@ -33,4 +33,16 @@ case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
   }
 
   override def spoutReschedules(): Boolean = false
+
+  override def hasNextIterator(): Boolean = lines.hasNext
+
+  override def nextIterator(): Iterator[String] =
+    lines.map { line =>
+      val data = s"$line $lineNo"
+      lineNo += 1
+      count += 1
+      if (count % 100_000 == 0)
+        logger.debug(s"File spout sent $count messages.")
+      data
+    }
 }

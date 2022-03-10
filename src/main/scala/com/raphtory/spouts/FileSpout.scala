@@ -170,6 +170,11 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
       case None       => Iterator[String]()
     }
   }
+
+  override def hasNextIterator(): Boolean = hasNext()
+
+  override def nextIterator(): Iterator[T] =
+    lines.asInstanceOf[Iterator[T]] //TODO this is a huge hack for just strings
 }
 
 object FileSpout {

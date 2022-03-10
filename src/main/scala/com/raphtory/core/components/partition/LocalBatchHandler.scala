@@ -31,8 +31,9 @@ class LocalBatchHandler[T: ClassTag](
     runIngestion
 
   private def runIngestion() = {
-    while (spout.hasNext())
-      graphBuilder.parseTuple(spout.next())
+    while (spout.hasNextIterator())
+      for (line <- spout.nextIterator())
+        graphBuilder.parseTuple(line)
     if (spout.spoutReschedules())
       reschedule()
   }
