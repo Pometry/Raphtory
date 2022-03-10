@@ -31,13 +31,11 @@ object TimeUtils {
     EPOCH_MILLI.plus(amount).toEpochMilli
 
   def parseInterval(interval: String): Interval = {
-    val isoInterval                = tryTransformationToIso(interval)
-    println(isoInterval)
+    val isoInterval = tryTransformationToIso8601(interval)
+
     val intervalTry: Try[Interval] = Try(Period.parse(isoInterval))
       .orElse(Try(Duration.parse(isoInterval)))
       .map(TimeInterval(_))
-
-    println(intervalTry)
 
     intervalTry match {
       case Success(interval) => interval
@@ -45,7 +43,7 @@ object TimeUtils {
     }
   }
 
-  private def tryTransformationToIso(interval: String) = {
+  private def tryTransformationToIso8601(interval: String) = {
     val singleCharacters = interval
       .replaceAll("\\s", "")
       .toUpperCase()

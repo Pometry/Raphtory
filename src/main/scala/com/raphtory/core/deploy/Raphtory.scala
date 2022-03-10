@@ -1,6 +1,6 @@
 package com.raphtory.core.deploy
 
-import com.raphtory.core.algorithm.GenericTemporalGraph
+import com.raphtory.core.algorithm.TemporalGraphBuilder
 import com.raphtory.core.algorithm.TemporalGraph
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.executor.FileSpoutExecutor
@@ -19,7 +19,7 @@ import com.raphtory.core.config.MonixScheduler
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.client.QueryBuilder
 import com.raphtory.core.client.RaphtoryClient
-import com.raphtory.core.client.RaphtoryGraph
+import com.raphtory.core.client.GraphDeployment
 import com.typesafe.config.Config
 
 import scala.reflect.ClassTag
@@ -32,13 +32,13 @@ object Raphtory {
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
-  ): RaphtoryGraph[T] = {
+  ): GraphDeployment[T] = {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
     val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
     val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
-    new RaphtoryGraph[T](
+    new GraphDeployment[T](
             spoutExecutor,
             graphBuilder,
             queryBuilder,
@@ -58,7 +58,7 @@ object Raphtory {
     val componentFactory = new ComponentFactory(conf, pulsarController)
     val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
     val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
-    new RaphtoryGraph[T](
+    new GraphDeployment[T](
             spoutExecutor,
             graphBuilder,
             queryBuilder,
@@ -67,7 +67,7 @@ object Raphtory {
             scheduler
     )
 
-    new GenericTemporalGraph(queryBuilder)
+    new TemporalGraphBuilder(queryBuilder, conf)
   }
 
   def getGraph(customConfig: Map[String, Any] = Map()): TemporalGraph = {
@@ -75,7 +75,7 @@ object Raphtory {
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
     val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
-    new GenericTemporalGraph(queryBuilder)
+    new TemporalGraphBuilder(queryBuilder, conf)
   }
 
   def createClient(

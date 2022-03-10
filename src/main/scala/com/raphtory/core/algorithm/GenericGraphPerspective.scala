@@ -5,7 +5,7 @@ import com.raphtory.core.graph.visitor.Vertex
 /**
   * @DoNotDocument
   */
-class GenericGraphPerspective(val graphSet: GraphPerspectiveSet) extends GraphPerspective {
+class GenericGraphPerspective(val graphSet: RaphtoryGraph) extends GraphPerspective {
 
   override def setGlobalState(f: GraphState => Unit): GraphPerspective =
     newGraph(graphSet.setGlobalState(f))
@@ -36,5 +36,5 @@ class GenericGraphPerspective(val graphSet: GraphPerspectiveSet) extends GraphPe
   override def explodeSelect(f: Vertex => List[Row]): Table  = graphSet.explodeSelect(f)
   override def clearMessages(): GraphPerspective             = newGraph(graphSet.clearMessages())
 
-  private def newGraph(graphSet: GraphPerspectiveSet) = new GenericGraphPerspective(graphSet)
+  private def newGraph(graphSet: RaphtoryGraph) = new GenericGraphPerspective(graphSet)
 }

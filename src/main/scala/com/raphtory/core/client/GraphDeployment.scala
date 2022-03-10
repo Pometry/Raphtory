@@ -11,7 +11,7 @@ import monix.execution.Scheduler
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 
-private[core] class RaphtoryGraph[T: ClassTag](
+private[core] class GraphDeployment[T: ClassTag](
     spout: SpoutExecutor[T],
     graphBuilder: GraphBuilder[T],
     private val queryBuilder: QueryBuilder,

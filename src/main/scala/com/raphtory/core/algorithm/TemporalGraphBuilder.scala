@@ -7,19 +7,21 @@ import com.raphtory.core.time.Interval
 import com.raphtory.core.time.TimeUtils.parseInterval
 import com.typesafe.config.Config
 
-class GenericTemporalGraph(private val queryBuilder: QueryBuilder, private val conf: Config)
-        extends GenericGraphPerspectiveSet(queryBuilder)
+class TemporalGraphBuilder(private val queryBuilder: QueryBuilder, private val conf: Config)
+        extends RaphtoryGraphBuilder(queryBuilder)
         with TemporalGraph {
 
   override def from(startTime: Long): TemporalGraph =
-    new GenericTemporalGraph(queryBuilder.setStartTime(startTime), conf)
+    new TemporalGraphBuilder(queryBuilder.setStartTime(startTime), conf)
 
-  override def from(startTime: String): TemporalGraph = from(DateTimeParser(conf).parse(startTime))
+  override def from(startTime: String): TemporalGraph =
+    from(DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(startTime))
 
   override def until(endTime: Long): TemporalGraph =
-    new GenericTemporalGraph(queryBuilder.setEndTime(endTime), conf)
+    new TemporalGraphBuilder(queryBuilder.setEndTime(endTime), conf)
 
-  override def until(endTime: String): TemporalGraph = until(DateTimeParser(conf).parse(endTime))
+  override def until(endTime: String): TemporalGraph =
+    until(DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(endTime))
 
   override def slice(startTime: Long, endTime: Long): TemporalGraph =
     this from startTime until endTime
@@ -27,21 +29,21 @@ class GenericTemporalGraph(private val queryBuilder: QueryBuilder, private val c
   override def slice(startTime: String, endTime: String): TemporalGraph =
     this from startTime until endTime
 
-  override def raphtorize(increment: Long): GraphPerspectiveSet = raphtorize(increment, List())
+  override def raphtorize(increment: Long): RaphtoryGraph = raphtorize(increment, List())
 
-  override def raphtorize(increment: String): GraphPerspectiveSet =
+  override def raphtorize(increment: String): RaphtoryGraph =
     raphtorize(increment, List())
 
-  override def raphtorize(increment: Long, window: Long): GraphPerspectiveSet =
+  override def raphtorize(increment: Long, window: Long): RaphtoryGraph =
     raphtorize(increment, List(window))
 
-  override def raphtorize(increment: String, window: String): GraphPerspectiveSet =
+  override def raphtorize(increment: String, window: String): RaphtoryGraph =
     raphtorize(increment, List(window))
 
-  override def raphtorize(increment: Long, windows: List[Long]): GraphPerspectiveSet =
+  override def raphtorize(increment: Long, windows: List[Long]): RaphtoryGraph =
     raphtorize(Some(DiscreteInterval(increment)), windows map DiscreteInterval)
 
-  override def raphtorize(increment: String, windows: List[String]): GraphPerspectiveSet =
+  override def raphtorize(increment: String, windows: List[String]): RaphtoryGraph =
     raphtorize(Some(parseInterval(increment)), windows map parseInterval)
 
   private def raphtorize(increment: Option[Interval], windows: List[Interval]) = {
@@ -49,6 +51,6 @@ class GenericTemporalGraph(private val queryBuilder: QueryBuilder, private val c
       case Some(increment) => queryBuilder.setIncrement(increment)
       case None            => queryBuilder
     }
-    new GenericGraphPerspectiveSet(queryBuilderWithIncrement.setWindows(windows))
+    new RaphtoryGraphBuilder(queryBuilderWithIncrement.setWindows(windows))
   }
 }
