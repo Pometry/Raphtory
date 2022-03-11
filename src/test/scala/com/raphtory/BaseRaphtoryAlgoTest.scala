@@ -39,6 +39,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
   val spout            = setSpout()
   val graphBuilder     = setGraphBuilder()
   val graph            = Raphtory.createGraph[T](spout, graphBuilder)
+  val temporalGraph    = Raphtory.getGraph()
   Raphtory.createClient("deployment123", Map(("raphtory.pulsar.endpoint", "localhost:1234")))
   val conf             = graph.getConfig()
   val pulsarController = new PulsarController(conf)
@@ -66,19 +67,46 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
       increment: Long,
       windows: List[Long]
   ): String = {
-    val startingTime         = System.currentTimeMillis()
-    val queryProgressTracker =
+    val startingTime          = System.currentTimeMillis()
+    val queryProgressTracker1 =
       graph.rangeQuery(algorithm, outputFormat, start, end, increment, windows)
+    val jobId1                = queryProgressTracker1.getJobId()
+    queryProgressTracker1.waitForJob()
+    val hash1                 = getHash(testDir + s"/$jobId1")
+
+    val queryProgressTracker2 = temporalGraph
+      .slice(start, end)
+      .raphtorize(increment, windows)
+      .execute(algorithm)
+      .writeTo(outputFormat)
+    val jobId2                = queryProgressTracker2.getJobId()
+    queryProgressTracker2.waitForJob()
+    val hash2                 = getHash(testDir + s"/$jobId2")
+
+    if (hash1 != hash2)
+      throw new Exception(s"Hash value differs for different API submissions: '$hash1' != '$hash2'")
+    else
+      hash1
+  }
+
+  def algorithmTestWithTimes(
+      algorithm: GraphAlgorithm,
+      outputFormat: OutputFormat,
+      start: String,
+      end: String,
+      increment: String,
+      windows: List[String]
+  ): String = {
+    val startingTime         = System.currentTimeMillis()
+    val queryProgressTracker = temporalGraph
+      .slice(start, end)
+      .raphtorize(increment, windows)
+      .execute(algorithm)
+      .writeTo(outputFormat)
     val jobId                = queryProgressTracker.getJobId()
     queryProgressTracker.waitForJob()
 
-    val dir     = new File(testDir + s"/$jobId").listFiles
-      .filter(_.isFile)
-    val results =
-      (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
-    val hash    = Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
-    logger.info(s"Generated hash code: '$hash'.")
-    hash
+    getHash(testDir + s"/$jobId")
   }
 
   def algorithmPointTest(
@@ -92,7 +120,11 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
     val jobId                = queryProgressTracker.getJobId()
     queryProgressTracker.waitForJob()
 
-    val dir     = new File(testDir + s"/$jobId").listFiles.filter(_.isFile)
+    getHash(testDir + s"/$jobId")
+  }
+
+  private def getHash(path: String) = {
+    val dir     = new File(path).listFiles.filter(_.isFile)
     val results =
       (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
     val hash    = Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
