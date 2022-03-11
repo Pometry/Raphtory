@@ -57,6 +57,10 @@ import scala.math.Ordering.Implicits.infixOrderingOps
   *  | ------------ |
   *  | {s}`flow: T` |
   *
+  *  ```{note}
+  *  The algorithm returns a single line with the value of the maximum flow between the source and target.
+  *  ```
+  *
   * [^ref]: [A new approach to the Maximum-Flow Problem](http://akira.ruc.dk/~keld/teaching/algoritmedesign_f03/Artikler/08/Goldberg88.pdf)
   */
 
@@ -110,7 +114,7 @@ class MaxFlow[T](
                   val outedges   = vertex.getOutEdges()
                   for (edge <- vertex.getOutEdges()) {
                     val dst = edge.dst()
-                    if (label == labels.getOrElse(dst, 0)) {
+                    if (label == labels.getOrElse(dst, 0) + 1) {
                       val c: T     = edge.weight(capacityLabel)
                       val res      = c - flow.getOrElse(dst, 0)
                       val delta: T = numeric.min(excess, res)
@@ -140,14 +144,14 @@ class MaxFlow[T](
                       val c: T = edge.weight(capacityLabel)
                       val dst  = edge.dst()
                       if (c - flow.getOrElse(dst, 0) > 0)
-                        if ((labels(dst) + 1) < newLabel)
-                          newLabel = labels(dst) + 1
+                        if ((labels.getOrElse(dst, 0) + 1) < newLabel)
+                          newLabel = labels.getOrElse(dst, 0) + 1
                     }
                     flow.foreach {
                       case (dst, value) =>
                         if (value < 0)
-                          if ((labels(dst) + 1) < newLabel)
-                            newLabel = labels(dst) + 1
+                          if ((labels.getOrElse(dst, 0) + 1) < newLabel)
+                            newLabel = labels.getOrElse(dst, 0) + 1
                     }
                     if (newLabel > label) {
                       vertex.setState("distanceLabel", newLabel)
