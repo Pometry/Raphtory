@@ -1,4 +1,4 @@
-package com.raphtory.util
+package com.raphtory.core.util
 
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
