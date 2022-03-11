@@ -30,15 +30,15 @@ import scala.reflect.ClassTag
 import scala.util.Random
 import scala.reflect.runtime.universe._
 
-abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with BeforeAndAfter {
+abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag] extends AnyFunSuite with BeforeAndAfter {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   setup()
 
   Thread.sleep(5000)
 
-  val spout            = setSpout()
-  val graphBuilder     = setGraphBuilder()
+  val spout        = setSpout()
+  val graphBuilder = setGraphBuilder()
 
   val graph            =
     if (batchLoading) Raphtory.batchLoadGraph[T](spout, graphBuilder)
@@ -81,7 +81,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
     val results =
       (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
     val hash    = Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
-    logger.debug(s"Generated hash code: '$hash'.")
+    logger.info(s"Generated hash code: '$hash'.")
     hash
   }
 
@@ -100,7 +100,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
     val results =
       (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
     val hash    = Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
-    logger.debug(s"Generated hash code: '$hash'.")
+    logger.info(s"Generated hash code: '$hash'.")
     hash
   }
 

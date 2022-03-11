@@ -27,6 +27,8 @@ class BatchWriter[T: ClassTag](
     storage: GraphPartition
 ) {
 
+  def getStorage() = storage
+
   private var processedMessages = 0
   val logger: Logger            = Logger(LoggerFactory.getLogger(this.getClass))
 

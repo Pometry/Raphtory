@@ -23,7 +23,7 @@ object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
 
-  def streamGraph[T: ClassTag](
+  def streamGraph[T: TypeTag: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
@@ -42,7 +42,7 @@ object Raphtory {
     )
   }
 
-  def batchLoadGraph[T: ClassTag](
+  def batchLoadGraph[T: ClassTag: TypeTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()

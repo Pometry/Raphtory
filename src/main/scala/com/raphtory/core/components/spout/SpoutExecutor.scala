@@ -18,6 +18,13 @@ class SpoutExecutor[T](
   protected val failOnError: Boolean = conf.getBoolean("raphtory.spout.failOnError")
   private var linesProcessed: Int    = 0
 
+  val rescheduler = new Runnable {
+
+    override def run(): Unit = {
+      spout.executeReschedule()
+      executeSpout()
+    }
+  }
   private val producer = pulsarController.toBuildersProducer()
 
   override def stop(): Unit = producer.close()
@@ -39,15 +46,9 @@ class SpoutExecutor[T](
   }
 
   private def reschedule(): Unit = {
-    val runnable = new Runnable {
-      override def run(): Unit = {
-        spout.executeReschedule()
-        executeSpout()
-      }
-    }
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
-    scheduler.scheduleOnce(10, TimeUnit.SECONDS, runnable)
+    scheduler.scheduleOnce(10, TimeUnit.SECONDS, rescheduler)
   }
 
 }

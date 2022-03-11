@@ -1,35 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="INFO">
+<Configuration status="INFO" monitorInterval="20">
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="org.hibernate.SQL" level="INFO">
+        <Logger name="org.hibernate.SQL" level="${env:SQL_LOG:-INFO}">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="org.hibernate.type.descriptor.sql" level="INFO">
+        <Logger name="org.hibernate.type.descriptor.sql" level="${env:SQL_LOG:-INFO}">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="org.hibernate.type.descriptor.sql" level="INFO">
+        <Logger name="org.hibernate.type.descriptor.sql" level="${env:SQL_LOG:-INFO}">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="com.scurrilous.circe.checksum.Crc32cIntChecksum" level="off">
+        <Logger name="com.scurrilous.circe.checksum.Crc32cIntChecksum" level="${env:CHECKSUM_LOG:-off}">
         </Logger>
-        <Logger name="io.netty" level="off">
+        <Logger name="io.netty" level="${env:NETTY_LOG:-off}">
         </Logger>
-        <Logger name="org.apache" level="off">
+        <Logger name="org.apache" level="${env:APACHE_LOG:-off}">
         </Logger>
-        <Logger name="com.raphtory.deploy" level="INFO">
+        <Logger name="com.raphtory.deploy" level="${env:DEPLOY_LOG:-INFO}">
         </Logger>
-        <Logger name="com.raphtory.develop" level="INFO">
+        <Logger name="com.raphtory.develop" level="${env:DEVELOP_LOG:-INFO}">
         </Logger>
-        <Logger name="com.raphtory.core" level="INFO">
+        <Logger name="com.raphtory.core" level="${env:CORE_LOG:-INFO}">
         </Logger>
-        <Logger name="com.raphtory.core.components.querymanager" level="DEBUG">
+        <Logger name="com.raphtory.core.components.querymanager" level="INFO">
         </Logger>
-        <Logger name="com.raphtory.core.components.partition.QueryExecutor" level="DEBUG">
+        <Logger name="com.raphtory.core.components.partition.QueryExecutor" level="INFO">
         </Logger>
         <Logger name="com.raphtory.core.components.querymanager.QueryManager" level="INFO">
         </Logger>

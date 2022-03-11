@@ -20,4 +20,8 @@ case class ResourceSpout(resource: String) extends Spout[String] {
   override def hasNextIterator(): Boolean = lines.hasNext
 
   override def nextIterator(): Iterator[String] = lines
+
+  override def executeNextIterator(): Unit =
+    for (line <- lines)
+      try graphBuilder.parseTuple(line)
 }

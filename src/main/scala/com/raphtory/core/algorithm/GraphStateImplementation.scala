@@ -4,6 +4,9 @@ import scala.collection.mutable
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
+/**
+  * @DoNotDocument
+  */
 private class AccumulatorImplementation[T](
     initialValue: T,
     retainState: Boolean = false,
@@ -24,6 +27,9 @@ private class AccumulatorImplementation[T](
   }
 }
 
+/**
+  * @DoNotDocument
+  */
 private object AccumulatorImplementation {
 
   def apply[T](initialValue: T, retainState: Boolean = false, op: (T, T) => T) =
@@ -35,6 +41,9 @@ class Bounded[T](min: T, max: T) {
   def MAX: T = max
 }
 
+/**
+  * @DoNotDocument
+  */
 object Bounded {
   def apply[T](min: T, max: T) = new Bounded[T](min, max)
 
@@ -48,6 +57,9 @@ object Bounded {
     Bounded(Float.NegativeInfinity, Float.PositiveInfinity)
 }
 
+/**
+  * @DoNotDocument
+  */
 class GraphStateImplementation extends GraphState {
   private val state = mutable.Map.empty[String, AccumulatorImplementation[Any]]
 

@@ -2,10 +2,10 @@ package com.raphtory.spouts
 
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.deploy.Raphtory
-import com.raphtory.util.FileUtils
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+import com.raphtory.util.FileUtils
 
 import java.io.File
 import java.io.FileInputStream
@@ -17,8 +17,9 @@ import java.util.zip.ZipInputStream
 import scala.collection.mutable
 import scala.io.Source
 import scala.util.matching.Regex
+import scala.reflect.runtime.universe._
 
-class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf: Config)
+class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String => T), conf: Config)
         extends Spout[T] {
   private val completedFiles: mutable.Set[String] = mutable.Set.empty[String]
   val logger: Logger                              = Logger(LoggerFactory.getLogger(this.getClass))
@@ -174,24 +175,25 @@ class FileSpout[T](val path: String = "", val lineConverter: (String => T), conf
   override def hasNextIterator(): Boolean = hasNext()
 
   override def nextIterator(): Iterator[T] =
-    lines.asInstanceOf[Iterator[T]] //TODO this is a huge hack for just strings
+    if (typeOf[T] =:= typeOf[String]) lines.asInstanceOf[Iterator[T]]
+    else lines.map(lineConverter)
+
+  override def executeNextIterator(): Unit =
+    for (line <- lines)
+      try graphBuilder.parseTuple(lineConverter(line))
+      catch {
+        case ex: Exception =>
+          logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
+          throw ex
+      }
+
 }
 
 object FileSpout {
 
-  def apply[T](source: String, lineConverter: (String => T), config: Config) =
+  def apply[T: TypeTag](source: String, lineConverter: (String => T), config: Config) =
     new FileSpout[T](source, lineConverter, config)
 
   def apply(source: String = "") =
     new FileSpout[String](source, lineConverter = s => s, Raphtory.getDefaultConfig())
 }
-
-//  private def rescheduleFilePoll(): Unit = {
-//    val runnable = new Runnable {
-//      override def run(): Unit = readFiles()
-//    }
-//
-//    // TODO: Parameterise the delay
-//    logger.debug("Spout: Scheduling to poll files again in 10 seconds.")
-//    scheduler.scheduleOnce(10, TimeUnit.SECONDS, runnable)
-//  }
