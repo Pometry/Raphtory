@@ -37,10 +37,15 @@ class LiveTwitterSpoutExecutor(
     else
       twitterClient.startSampledStream(twitterEventListener(conf))
 
-  override def run(): Unit =
+  override def run(): Unit = {
+    logger.info("Starting Twitter Stream")
     streamTweets()
+  }
 
-  override def stop(): Unit = ???
+  override def stop(): Unit = {
+    logger.info("Stopping Twitter Stream")
+    twitterClient.stopFilteredStream(streamTweets()) \
+  }
 }
 
 object Util {
