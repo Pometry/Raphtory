@@ -13,45 +13,47 @@ import scala.collection.mutable.ArrayBuffer
 /**
   * {s}`GraphBuilder`
   *
-  * : `GraphBuilder` trait for adding and deleting vertices and edges to Graph
+  * : `GraphBuilder` trait for creating a Graph by adding and deleting vertices and edges.
+  *    While using `GraphBuilder`, override {s}`parseTuple(tuple: T)` to define parsing of rows and use methods {s}`addVertex`, {s}`addEdge`
+  *    for adding vertices and edge to the graph. Deletion can be performed with {s}`deleteEdge` and {s}`deleteVertex` methods.
   *
   * ## Methods
   *
   *    {s}`addVertex(updateTime: Long, srcId: Long)`
-  *      : Adds vertex for an update timestamp and source ID
+  *      : Adds vertex for a timestamp {s}`updateTime` and ID {s}`srcId`
   *
   *    {s}`addVertex(updateTime: Long, srcId: Long, properties: Properties)`
-  *      : Adds vertex for an update timestamp and source ID, with Properties
+  *      : Adds vertex for a timestamp {s}`updateTime` and ID {s}`srcId`, with Properties {s}`properties`
   *
   *    {s}`addVertex(updateTime: Long, srcId: Long, vertexType: Type))`
-  *      : Adds vertex for an update timestamp and source ID for a vertexType
+  *      : Adds vertex for a timestamp {s}`updateTime` and ID {s}`srcId` for vertex type {s}`vertexType`
   *
   *    {s}`addVertex(updateTime: Long, srcId: Long, properties: Properties, vertexType: Type)`
-  *      : Adds vertex for an update timestamp, source ID with Properties for a vertexType
+  *      : Adds vertex for timestamp {s}`updateTime`, ID {s}`srcId`, Properties {s}`properties`, vertex type {s}`vertexType`
   *
   *    {s}`deleteVertex(updateTime: Long, srcId: Long)`
-  *      : Deletes vertex for an updateTime and source ID
+  *      : Deletes vertex for timestamp {s}`updateTime`, ID {s}`srcId`
   *
   *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long)`
-  *      : Adds edge between source and destination ID for an update timestamp
+  *      : Adds edge between ID {s}`srcId` and {s}`dstId` for timestamp {s}`updateTime`
   *
   *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties)`
-  *      : Adds an edge between source and destination ID for an update timestamp with properties
+  *      : Adds an edge between ID {s}`srcId` and {s}`dstId` for timestamp {s}`updateTime`, Properties {s}`properties`
   *
   *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type)`
-  *      : Adds an edge between source and destination ID for an update timestamp with Edge Type
+  *      : Adds an edge between ID {s}`srcId` and {s}`dstId` for timestamp {s}`updateTime` with Edge Type {s}`edgeType`
   *
   *    {s}`deleteEdge(updateTime: Long, srcId: Long, dstId: Long)`
-  *      : Deletes an edge between source and destination ID for an update timestamp
+  *      : Deletes an edge between ID {s}`srcId` and {s}`dstId` for timestamp {s}`updateTime`
   *
   *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Type)`
-  *      : Adds an edge between source and destination ID for an update timestamp with Edge Type and Properties
+  *      : Adds an edge between ID {s}`srcId` and {s}`dstId` for timestamp {s}`updateTime` with Edge Type {s}`edgeType`, Properties {s}`properties`
   *
   *    {s}`parseTuple(tuple: T): Unit`
-  *      : Parse row tuple to extract source node, destination node, timestamp info, etc.
+  *      : Parse row {s}`tuple` to extract source node, destination node, timestamp info, etc.
   *
   *    {s}`assignID(uniqueChars: String): Long`
-  *      : Assigns long hash for a given string
+  *      : Assigns long hash for string {s}`uniqueChars`
   *
   * Example Usage:
   *
