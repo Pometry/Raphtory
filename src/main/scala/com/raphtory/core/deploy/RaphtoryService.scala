@@ -10,7 +10,7 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
 /**
-  * {s}`RaphtoryService[T: ClassTag: TypeTag]`
+  * {s}`RaphtoryService[T]`
   *
   *  : `RaphtoryService` for initialising spout, graphbuilder, deploying spout, partition and query manager
   *
@@ -41,8 +41,6 @@ import scala.reflect.runtime.universe.TypeTag
   * import com.raphtory.core.components.spout.Spout
   * import com.raphtory.core.components.spout.instance.FileSpout
   * import com.raphtory.core.deploy.RaphtoryService
-  * import com.typesafe.config.Config
-  * import org.apache.pulsar.client.api.Schema
   *
   * object LOTRDistributedTest extends RaphtoryService[String] {
   *   override def defineSpout(): Spout[String] = FileSpout()

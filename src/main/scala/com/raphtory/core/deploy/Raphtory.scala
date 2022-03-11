@@ -29,16 +29,16 @@ import scala.reflect.runtime.universe._
   *
   * ## Methods
   *
-  *   {s}`createGraph[T: TypeTag: ClassTag](spout: Spout[T] = new IdentitySpout[T](), graphBuilder: GraphBuilder[T], customConfig: Map[String, Any] = Map()): RaphtoryGraph[T]`
+  *   {s}`createGraph(spout: Spout[T] = new IdentitySpout[T](), graphBuilder: GraphBuilder[T], customConfig: Map[String, Any] = Map()): RaphtoryGraph[T]`
   *    : Create Graph using spout, graph-builder and custom config
   *
   *   {s}`createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`
   *    : Create Client
   *
-  *   {s}`createSpout[T: TypeTag](spout: Spout[T])`
+  *   {s}`createSpout(spout: Spout[T])`
   *    : Create Spout
   *
-  *   {s}`createGraphBuilder[T: ClassTag: TypeTag](builder: GraphBuilder[T])`
+  *   {s}`createGraphBuilder(builder: GraphBuilder[T])`
   *    : Create Graph Builder
   *
   *   {s}`createPartitionManager()`
@@ -53,7 +53,7 @@ import scala.reflect.runtime.universe._
   *   {s}`confBuilder(customConfig: Map[String, Any] = Map()): Config`
   *    : Returns Config
   *
-  *   {s}`createSpoutExecutor[T: TypeTag](spout: Spout[T], conf: Config, pulsarController: PulsarController): SpoutExecutor[T]]`
+  *   {s}`createSpoutExecutor(spout: Spout[T], conf: Config, pulsarController: PulsarController): SpoutExecutor[T]]`
   *    : Create spout executor
   *
   *
@@ -62,11 +62,10 @@ import scala.reflect.runtime.universe._
   * ```{code-block} scala
   *
   * import com.raphtory.core.deploy.Raphtory
-  * import com.raphtory.core.graph._
   * import com.raphtory.lotrtest.LOTRGraphBuilder
-  * import org.apache.pulsar.client.api.Schema
+  * import com.raphtory.core.components.spout.instance.ResourceSpout
   *
-  * Raphtory.createGraphBuilder(new LOTRGraphBuilder())
+  * val graph = Raphtory.createGraph(ResourceSpout("resource"), LOTRGraphBuilder())
   *
   * ```
   *
