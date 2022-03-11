@@ -9,19 +9,19 @@ package com.raphtory.serialisers
   *
   * ## Methods
   *
-  *    {s}`dump[A](o: A)(implicit t: ClassTag[A]): Array[Byte]`
-  *      : Serialise to ByteArray
+  *    {s}`dump[A: ClassTag](o: A): Array[Byte]`
+  *      : Serialise to byte array
   *
   *        {s}`o: A`
-  *           : serialise object `A` to `Array[Byte]`
+  *           : object to serialise
   *
-  *    {s}`load[A](buffer: Array[Byte])(implicit expected: ClassTag[A])`
+  *    {s}`load[A: ClassTag](buffer: Array[Byte])`
   *      : Deserialise object from Array[Byte]
   *
   *        {s}`buffer: Array[Byte]`
-  *           : deserialise from byte buffer to object
+  *           : input buffer
   *
-  *    {s}`deepCopy[A](a: A)(implicit m: reflect.ClassTag[A])`
+  *    {s}`deepCopy[A: ClassTag](a: A)`
   *      : Deep copy
   *
   *        {s}`a: A`
@@ -30,8 +30,6 @@ package com.raphtory.serialisers
   * Example Usage:
   *
   * ```{code-block} scala
-  * import com.raphtory.serialisers.PulsarKryoSerialiser
-  * import com.raphtory.core.config.PulsarController
   * import com.raphtory.serialisers.Marshal
   * import com.raphtory.core.components.graphbuilder.GraphBuilder
   *

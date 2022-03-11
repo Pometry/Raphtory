@@ -23,10 +23,7 @@ import scala.reflect.runtime.universe._
   * ```{code-block} scala
   * import com.raphtory.serialisers.PulsarKryoSerialiser
   * import com.raphtory.core.config.PulsarController
-  *
-  * def setSpout(): Spout[T]
-  * def setGraphBuilder(): GraphBuilder[T]
-  * def setSchema(): Schema[T]
+  * import org.apache.pulsar.client.api.Schema
   *
   * val schema: Schema[Array[Byte]] = Schema.BYTES
   * val kryo = PulsarKryoSerialiser()
