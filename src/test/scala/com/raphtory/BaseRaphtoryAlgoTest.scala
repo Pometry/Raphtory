@@ -36,13 +36,13 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
 
   Thread.sleep(5000)
 
-  val spout            = setSpout()
-  val graphBuilder     = setGraphBuilder()
-  val graph            = Raphtory.createGraph[T](spout, graphBuilder)
-  val temporalGraph    = Raphtory.getGraph()
+  val spout              = setSpout()
+  val graphBuilder       = setGraphBuilder()
+  val graph              = Raphtory.createGraph[T](spout, graphBuilder)
+  lazy val temporalGraph = Raphtory.deployGraph(spout, graphBuilder)
   Raphtory.createClient("deployment123", Map(("raphtory.pulsar.endpoint", "localhost:1234")))
-  val conf             = graph.getConfig()
-  val pulsarController = new PulsarController(conf)
+  val conf               = graph.getConfig()
+  val pulsarController   = new PulsarController(conf)
 
   val pulsarAddress: String =
     conf.getString("raphtory.pulsar.broker.address") //conf.getString("Raphtory.pulsarAddress")
