@@ -12,7 +12,7 @@ import scala.reflect.runtime.universe.TypeTag
 /**
   * {s}`RaphtoryService[T: ClassTag: TypeTag]`
   *
-  * : `RaphtoryService` for initialising spout, graphbuilder, deploying spout, partition and query manager
+  *  : `RaphtoryService` for initialising spout, graphbuilder, deploying spout, partition and query manager
   *
   * ## Methods
   *

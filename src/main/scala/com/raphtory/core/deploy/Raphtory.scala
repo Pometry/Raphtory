@@ -25,68 +25,36 @@ import scala.reflect.runtime.universe._
 
 /**
   * {s}`Raphtory`
-  *
-  * : `Raphtory` object for creating Raphtory Components
+  *  : `Raphtory` object for creating Raphtory Components
   *
   * ## Methods
   *
-  *    {s}`createGraph[T: TypeTag: ClassTag](spout: Spout[T] = new IdentitySpout[T](),
-  *    graphBuilder: GraphBuilder[T], customConfig: Map[String, Any] = Map()): RaphtoryGraph[T]`
-  *      : Create Graph using spout, graph-builder and custom config
-  *        {s}`spout: Spout[T]`
-  *          : Spout
+  *   {s}`createGraph[T: TypeTag: ClassTag](spout: Spout[T] = new IdentitySpout[T](), graphBuilder: GraphBuilder[T], customConfig: Map[String, Any] = Map()): RaphtoryGraph[T]`
+  *    : Create Graph using spout, graph-builder and custom config
   *
-  *        {s}`graphBuilder: GraphBuilder[T]`
-  *          : Graph builder object
+  *   {s}`createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`
+  *    : Create Client
   *
-  *        {s}`customConfig: Map[String, Any]`
-  *          : Config
+  *   {s}`createSpout[T: TypeTag](spout: Spout[T])`
+  *    : Create Spout
   *
-  *    {s}`createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`
-  *      : Create Client
-  *        {s}`deploymentID: String`
-  *          : Deployment ID
-  *        {s}`customConfig: Map[String, Any]`
-  *          : Config
+  *   {s}`createGraphBuilder[T: ClassTag: TypeTag](builder: GraphBuilder[T])`
+  *    : Create Graph Builder
   *
-  *    {s}`createSpout[T: TypeTag](spout: Spout[T])`
-  *      : Create Spout
-  *        {s}`spout: Spout[T]`
-  *          : Spout
+  *   {s}`createPartitionManager()`
+  *    : Creates Partition Manager
   *
+  *   {s}`createQueryManager()`
+  *    : Creates Query Manager
   *
-  *    {s}`createGraphBuilder[T: ClassTag: TypeTag](builder: GraphBuilder[T])`
-  *      : Create Graph Builder
-  *        {s}`graphBuilder: GraphBuilder[T]`
-  *          : Graph builder object
+  *   {s}`getDefaultConfig(customConfig: Map[String, Any] = Map()): Config`
+  *    : Returns default config
   *
-  *    {s}`createPartitionManager()`
-  *      : Creates Partition Manager
+  *   {s}`confBuilder(customConfig: Map[String, Any] = Map()): Config`
+  *    : Returns Config
   *
-  *    {s}`createQueryManager()`
-  *      : Creates Query Manager
-  *
-  *    {s}`getDefaultConfig(customConfig: Map[String, Any] = Map()): Config`
-  *      : Returns default config
-  *        {s}`customConfig: Map[String, Any]`
-  *          : Config
-  *
-  *    {s}`confBuilder(customConfig: Map[String, Any] = Map()): Config`
-  *      : Returns Config
-  *        {s}`customConfig: Map[String, Any]`
-  *          : Config
-  *
-  *    {s}`createSpoutExecutor[T: TypeTag](spout: Spout[T], conf: Config, pulsarController: PulsarController):
-  *       SpoutExecutor[T]]`
-  *      : Create spout executor
-  *        {s}`spout: Spout[T]`
-  *          : Spout
-  *
-  *        {s}`conf: Config`
-  *          : Config
-  *
-  *        {s}`pulsarController: PulsarController`
-  *          : Pulsar controller
+  *   {s}`createSpoutExecutor[T: TypeTag](spout: Spout[T], conf: Config, pulsarController: PulsarController): SpoutExecutor[T]]`
+  *    : Create spout executor
   *
   *
   * Example Usage:
