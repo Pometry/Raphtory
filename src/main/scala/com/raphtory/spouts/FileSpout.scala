@@ -188,13 +188,3 @@ object FileSpout {
   def apply(source: String = "") =
     new FileSpout[String](source, lineConverter = s => s, Raphtory.getDefaultConfig())
 }
-
-//  private def rescheduleFilePoll(): Unit = {
-//    val runnable = new Runnable {
-//      override def run(): Unit = readFiles()
-//    }
-//
-//    // TODO: Parameterise the delay
-//    logger.debug("Spout: Scheduling to poll files again in 10 seconds.")
-//    scheduler.scheduleOnce(10, TimeUnit.SECONDS, runnable)
-//  }

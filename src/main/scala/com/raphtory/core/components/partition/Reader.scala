@@ -31,6 +31,10 @@ class Reader(
   private val watermarkPublish                          = pulsarController.watermarkPublisher()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
+  val watermarking                                      = new Runnable {
+    override def run(): Unit = createWatermark()
+  }
+
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
 
@@ -105,14 +109,8 @@ class Reader(
     scheduleWaterMarker()
   }
 
-  private def scheduleWaterMarker(): Unit = {
-    val watermarking = new Runnable {
-      override def run(): Unit = createWatermark()
-    }
-
+  private def scheduleWaterMarker(): Unit =
     scheduler
       .scheduleOnce(1, TimeUnit.SECONDS, watermarking)
-
-  }
 
 }

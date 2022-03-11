@@ -23,6 +23,14 @@ class LocalBatchHandler[T: ClassTag](
 
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)
 
+  private val rescheduler: Runnable = new Runnable {
+
+    override def run(): Unit = {
+      spout.executeReschedule()
+      runIngestion()
+    }
+  }
+
   override def handleMessage(
       msg: GraphAlteration
   ): Unit = {} //No messages received by this component
@@ -45,15 +53,9 @@ class LocalBatchHandler[T: ClassTag](
     (id.abs % totalPartitions).toInt
 
   private def reschedule(): Unit = {
-    val runnable = new Runnable {
-      override def run(): Unit = {
-        spout.executeReschedule()
-        runIngestion()
-      }
-    }
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
-    scheduler.scheduleOnce(10, TimeUnit.SECONDS, runnable)
+    scheduler.scheduleOnce(10, TimeUnit.SECONDS, rescheduler)
   }
 
   private def startIngesting(): Unit =
