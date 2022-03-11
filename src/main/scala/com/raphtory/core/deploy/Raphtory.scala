@@ -21,7 +21,7 @@ import scala.reflect.runtime.universe._
 
 object Raphtory {
 
-  val scheduler = new MonixScheduler().scheduler
+  private val scheduler = new MonixScheduler().scheduler
 
   def streamGraph[T: TypeTag: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
