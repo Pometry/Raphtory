@@ -45,4 +45,8 @@ case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
         logger.debug(s"File spout sent $count messages.")
       data
     }
+
+  override def executeNextIterator(): Unit =
+    for (line <- lines)
+      try graphBuilder.parseTuple(line)
 }

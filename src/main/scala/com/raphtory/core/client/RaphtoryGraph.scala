@@ -1,8 +1,7 @@
 package com.raphtory.core.client
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.spout.SpoutExecutor
-import com.raphtory.core.components.spout.executor.IdentitySpoutExecutor
+import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.config.ComponentFactory
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.config.ThreadedWorker
@@ -85,7 +84,7 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
 //      partition.writer.stop()
 //      partition.reader.stop()
 //    }
-    queryManager.worker.stop()
+    //  queryManager.worker.stop()
     spoutworker match {
       case Some(w) => w.worker.stop()
       case None    => ???

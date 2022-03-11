@@ -31,7 +31,7 @@ class Reader(
   private val watermarkPublish                          = pulsarController.watermarkPublisher()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
-  val watermarking                                      = new Runnable {
+  val watermarking = new Runnable {
     override def run(): Unit = createWatermark()
   }
 

@@ -2,7 +2,7 @@ package com.raphtory.spouts
 
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.deploy.Raphtory
-import com.raphtory.util.FileUtils
+import com.raphtory.core.util.FileUtils
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -177,6 +177,15 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
   override def nextIterator(): Iterator[T] =
     if (typeOf[T] =:= typeOf[String]) lines.asInstanceOf[Iterator[T]]
     else lines.map(lineConverter)
+
+  override def executeNextIterator(): Unit =
+    for (line <- lines)
+      try graphBuilder.parseTuple(lineConverter(line))
+      catch {
+        case ex: Exception =>
+          logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
+          throw ex
+      }
 
 }
 

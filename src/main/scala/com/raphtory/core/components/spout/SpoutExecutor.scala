@@ -18,7 +18,7 @@ class SpoutExecutor[T](
   protected val failOnError: Boolean = conf.getBoolean("raphtory.spout.failOnError")
   private var linesProcessed: Int    = 0
 
-  val rescheduler = new Runnable {
+  val rescheduler      = new Runnable {
 
     override def run(): Unit = {
       spout.executeReschedule()

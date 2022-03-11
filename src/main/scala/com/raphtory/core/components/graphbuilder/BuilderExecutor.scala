@@ -67,7 +67,7 @@ class BuilderExecutor[T: ClassTag](
 
     messagesProcessed = messagesProcessed + 1
 
-    if (messagesProcessed % 1000 == 0)
+    if (messagesProcessed % 100_000 == 0)
       logger.debug(s"Graph builder $name: sent $messagesProcessed messages.")
   }
 }
