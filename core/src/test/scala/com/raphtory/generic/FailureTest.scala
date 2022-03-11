@@ -20,8 +20,12 @@ class FailureTest extends AnyFunSuite {
     val graph =
       Raphtory.streamGraph(spout = SequenceSpout("1,1,1"), graphBuilder = BasicGraphBuilder())
     val query = graph.pointQuery(new FailingAlgo, FileOutputFormat("/tmp/raphtoryTest"), 1)
-    for (i <- 1 to 20 if !query.isJobDone())
+
+    for (i <- 1 to 20 if !query.isJobDone)
       Thread.sleep(1000)
+
+    // TODO: improvements are needed so exceptions inside query executors doesn't cause the job to get stuck
+    // if query failed to terminate after 10 seconds, assuming infinite loop
     assert(
             query.isJobDone()
     ) // if query failed to terminate after 20 seconds, assuming infinite loop

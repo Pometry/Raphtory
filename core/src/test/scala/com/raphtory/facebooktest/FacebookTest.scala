@@ -21,10 +21,10 @@ class FacebookTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setup()           =
     if (!new File("/tmp/facebook.csv").exists())
-      "curl -o /tmp/facebook.csv https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv " !
+      "curl -o /tmp/facebook.csv https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv " !!
   override def setSpout()        = StaticGraphSpout("/tmp/facebook.csv")
   override def setGraphBuilder() = new FacebookGraphBuilder()
-  val outputFormat               = FileOutputFormat(testDir)
+  val outputFormat               = FileOutputFormat(outputDirectory)
 
 ////sbt clean tests
   test("Connected Components Test") {

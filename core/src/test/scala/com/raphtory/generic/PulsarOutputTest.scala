@@ -27,7 +27,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
   override def setup() =
     if (!new File("/tmp", "lotr.csv").exists()) {
       logger.info("Copied data from github to data directory.")
-      s"curl -o /tmp/lotr.csv https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv " !
+      s"curl -o /tmp/lotr.csv https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv " !!
     }
 
   val consumer =

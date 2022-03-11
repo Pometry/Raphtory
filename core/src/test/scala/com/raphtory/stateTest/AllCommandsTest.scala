@@ -23,11 +23,11 @@ class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
 
   import sys.process._
   if (!new File(s"/tmp/testupdates.csv").exists())
-    s"curl -o /tmp/testupdates.csv https://raw.githubusercontent.com/Raphtory/Data/main/testupdates.txt" !
+    s"curl -o /tmp/testupdates.csv https://raw.githubusercontent.com/Raphtory/Data/main/testupdates.txt" !!
 
   override def setSpout(): Spout[String]               = FileSpout()
   override def setGraphBuilder(): GraphBuilder[String] = new AllCommandsBuilder()
-  val outputFormat                                     = FileOutputFormat(testDir)
+  val outputFormat                                     = FileOutputFormat(outputDirectory)
 
   test("Graph State Test") {
     val results = algorithmTest(

@@ -14,7 +14,7 @@ import scala.language.postfixOps
 import scala.sys.process._
 
 class TwitterTest extends BaseRaphtoryAlgoTest[String] {
-  override val testDir: String         = "/tmp/raphtoryTwitterTest"
+  override val outputDirectory: String = "/tmp/raphtoryTwitterTest"
   override def batchLoading(): Boolean = true
 
   override def setup(): Unit = {
@@ -23,14 +23,14 @@ class TwitterTest extends BaseRaphtoryAlgoTest[String] {
 
     val file = new File(path)
     if (!file.exists())
-      s"curl -o $path $url " !
+      s"curl -o $path $url " !!
   }
 
   override def setSpout() = StaticGraphSpout("/tmp/twitter.csv")
 
   override def setGraphBuilder() = new TwitterGraphBuilder()
 
-  val outputFormat = FileOutputFormat(testDir)
+  val outputFormat = FileOutputFormat(outputDirectory)
 
   test("Connected Components Test") {
     // Finishes in ~88000ms on Avg.

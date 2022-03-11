@@ -52,7 +52,7 @@ abstract class BaseCorrectnessTest extends AnyFunSuite {
     val conf                 = graph.getConfig()
     val startingTime         = System.currentTimeMillis()
     val queryProgressTracker = graph.pointQuery(algorithm, outputFormat, lastTimestamp)
-    val jobId                = queryProgressTracker.getJobId()
+    val jobId                = queryProgressTracker.getJobId
     queryProgressTracker.waitForJob()
     graph.stop()
 

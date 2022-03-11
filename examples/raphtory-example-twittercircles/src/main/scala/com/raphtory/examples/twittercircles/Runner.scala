@@ -26,7 +26,7 @@ object Runner extends App{
 
   // Create Graph
   if (!new File("/tmp", "snap-twitter.csv").exists()) {
-    val status = {s"curl -o /tmp/snap-twitter.csv https://raw.githubusercontent.com/Raphtory/Data/main/snap-twitter.csv " !}
+    val status = {s"curl -o /tmp/snap-twitter.csv https://raw.githubusercontent.com/Raphtory/Data/main/snap-twitter.csv " !!}
     if (status != 0) {
       println(s"download of twitter failed with code $status")
       "rm /tmp/snap-twitter.csv" !

@@ -27,9 +27,9 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setup(): Unit =
     if (!new File("/tmp/email_test.csv").exists())
-      "curl -o /tmp/email_test.csv https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv " !
+      "curl -o /tmp/email_test.csv https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv " !!
 
-  val outputFormat: FileOutputFormat = FileOutputFormat(testDir)
+  val outputFormat: FileOutputFormat = FileOutputFormat(outputDirectory)
 
   test("Graph State Test") {
     graph.liveQuery(GraphState(), outputFormat, increment = 10000).waitForJob()
