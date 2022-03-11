@@ -14,30 +14,37 @@ import scala.language.postfixOps
 import scala.sys.process._
 
 class TwitterTest extends BaseRaphtoryAlgoTest[String] {
-  override val testDir: String         = "/tmp/raphtoryTwitterTest"
-  override def batchLoading(): Boolean = true
-
-  override def setup(): Unit = {
-    val path = "/tmp/twitter.csv"
-    val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/snap-twitter.csv"
-
-    val file = new File(path)
-    if (!file.exists())
-      s"curl -o $path $url " !
-  }
-
-  override def setSpout() = StaticGraphSpout("/tmp/twitter.csv")
-
-  override def setGraphBuilder() = new TwitterGraphBuilder()
-
-  val outputFormat = FileOutputFormat(testDir)
+  override val outputDirectory: String = "/tmp/raphtoryTwitterTest"
 
   test("Connected Components Test") {
+    val outputFormat = FileOutputFormat(outputDirectory)
+
     // Finishes in ~88000ms on Avg.
     // TODO: this suicides pulsar on CI
     assert(
             algorithmPointTest(ConnectedComponents(), outputFormat, 1400000)
               equals "59ca85238e0c43ed8cdb4afe3a8a9248ea2c5497c945de6f4007ac4ed31946eb"
     )
+  }
+
+  override def batchLoading(): Boolean = true
+
+  override def setSpout(): StaticGraphSpout = StaticGraphSpout("/tmp/twitter.csv")
+
+  override def setGraphBuilder() = new TwitterGraphBuilder()
+
+  override def setup(): Unit = {
+    val path = "/tmp/twitter.csv"
+    val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/snap-twitter.csv"
+
+    if (!new File(path).exists())
+      try s"curl -o $path $url" !!
+      catch {
+        case ex: Exception =>
+          logger.error(s"Failed to download 'twitter.csv' due to ${ex.getMessage}.")
+          ex.printStackTrace()
+
+          s"rm $path" !
+      }
   }
 }

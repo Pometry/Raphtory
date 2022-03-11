@@ -29,7 +29,7 @@ object Runner extends App{
   // Create Graph
 
   if (!new File("/tmp", "facebook.csv").exists()) {
-    val status = {s"curl -o /tmp/facebook.csv https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv " !}
+    val status = {s"curl -o /tmp/facebook.csv https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv " !!}
     if (status != 0) {
       println(s"download of facebook failed with code $status")
       "rm /tmp/facebook.csv" !

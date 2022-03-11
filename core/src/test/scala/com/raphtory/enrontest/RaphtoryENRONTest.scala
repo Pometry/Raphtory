@@ -19,26 +19,52 @@ import java.io.File
 @DoNotDiscover
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
-  override def batchLoading(): Boolean = false
-
-  override def setSpout(): Spout[String]               =
-    FileSpout("/tmp/email_test.csv")
-  override def setGraphBuilder(): GraphBuilder[String] = new ENRONGraphBuilder()
-
-  override def setup(): Unit =
-    if (!new File("/tmp/email_test.csv").exists())
-      "curl -o /tmp/email_test.csv https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv " !
-
-  val outputFormat: FileOutputFormat = FileOutputFormat(testDir)
-
   test("Graph State Test") {
-    graph.liveQuery(GraphState(), outputFormat, increment = 10000).waitForJob()
+    val outputFormat: FileOutputFormat = FileOutputFormat(outputDirectory)
+
+    graph
+      .liveQuery(graphAlgorithm = GraphState(), outputFormat = outputFormat, increment = 10000)
+      .waitForJob()
+
 //    algorithmTest(GraphState(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+
     assert(true)
   }
 
   test("Connected Components Test") {
-    algorithmTest(ConnectedComponents(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+    val outputFormat: FileOutputFormat = FileOutputFormat(outputDirectory)
+
+    val result = algorithmTest(
+            algorithm = ConnectedComponents(),
+            outputFormat = outputFormat,
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
+    )
+
     assert(true)
   }
+
+  override def batchLoading(): Boolean = false
+
+  override def setSpout(): Spout[String] = FileSpout("/tmp/email_test.csv")
+
+  override def setGraphBuilder(): GraphBuilder[String] = new ENRONGraphBuilder()
+
+  override def setup(): Unit = {
+    val path = "/tmp/email_test.csv"
+    val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv"
+
+    if (!new File(path).exists())
+      try s"curl -o $path $url" !!
+      catch {
+        case ex: Exception =>
+          logger.error(s"Failed to download 'email_test.csv' due to ${ex.getMessage}.")
+          ex.printStackTrace()
+
+          s"rm $path" !
+      }
+  }
+
 }
