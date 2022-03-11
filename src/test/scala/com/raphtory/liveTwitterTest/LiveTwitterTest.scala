@@ -2,6 +2,7 @@ package com.raphtory.liveTwitterTest
 
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.core.components.spout.Spout
+import com.raphtory.core.components.spout.executor.Util.raphtoryConfig
 import com.raphtory.core.components.spout.instance.LiveTwitterSpout
 import com.raphtory.core.deploy.Raphtory
 import com.raphtory.output.PulsarOutputFormat

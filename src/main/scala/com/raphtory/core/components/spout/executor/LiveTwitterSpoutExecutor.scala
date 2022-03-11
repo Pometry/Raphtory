@@ -37,7 +37,9 @@ class LiveTwitterSpoutExecutor(
     else
       twitterClient.startSampledStream(twitterEventListener(conf))
 
-  override def run(): Unit  = streamTweets()
+  override def run(): Unit =
+    streamTweets()
+
   override def stop(): Unit = ???
 }
 
@@ -52,17 +54,28 @@ object Util {
   val getTweetLanguage: String =
     raphtoryConfig.getString("raphtory.spout.twitter.local.setLanguage")
 
-  val twitterClient = new TwitterClient(
-          TwitterCredentials
-            .builder()
-            .accessToken(raphtoryConfig.getString("raphtory.spout.twitter.local.accessToken"))
-            .accessTokenSecret(
-                    raphtoryConfig.getString("raphtory.spout.twitter.local.accessTokenSecret")
-            )
-            .apiKey(raphtoryConfig.getString("raphtory.spout.twitter.local.apiKey"))
-            .apiSecretKey(raphtoryConfig.getString("raphtory.spout.twitter.local.apiSecretKey"))
-            .build()
-  )
+  val twitterClient =
+    try new TwitterClient(
+            TwitterCredentials
+              .builder()
+              .accessToken(raphtoryConfig.getString("raphtory.spout.twitter.local.accessToken"))
+              .accessTokenSecret(
+                      raphtoryConfig.getString("raphtory.spout.twitter.local.accessTokenSecret")
+              )
+              .apiKey(raphtoryConfig.getString("raphtory.spout.twitter.local.apiKey"))
+              .apiSecretKey(raphtoryConfig.getString("raphtory.spout.twitter.local.apiSecretKey"))
+              .build()
+    )
+    catch {
+      case e: Exception =>
+        logger.error(
+                s"Cannot connect to Twitter API, check your credentials, stopping application: $e"
+        )
+        System.exit(1)
+        throw new RuntimeException(
+                s"Cannot connect to Twitter API, check your credentials: $e"
+        )
+    }
 
   def filterRules() = {
     //retrieve filtered stream rules
