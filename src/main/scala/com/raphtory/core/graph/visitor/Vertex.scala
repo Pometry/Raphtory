@@ -15,7 +15,7 @@ trait Vertex extends EntityVisitor {
 
   //functionality for checking messages
   def hasMessage(): Boolean
-  def messageQueue[T: ClassTag]: List[T]
+  def messageQueue[T]: List[T]
   def voteToHalt(): Unit
   //Send message
   def messageSelf(data: Any): Unit
