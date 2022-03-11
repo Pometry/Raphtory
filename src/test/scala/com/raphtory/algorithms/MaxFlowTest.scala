@@ -17,5 +17,14 @@ class MaxFlowTest extends BaseCorrectnessTest {
             )
     )
   }
-
+  test("test on two connected cliques") {
+    assert(
+            correctnessTest(
+                    MaxFlow[Long]("2", "101", maxIterations = 10000),
+                    "MaxFlow/bottleneck.csv",
+                    "MaxFlow/bottleneckResult.csv",
+                    9899
+            )
+    )
+  }
 }
