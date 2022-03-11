@@ -44,7 +44,7 @@ class LiveTwitterSpoutExecutor(
 
   override def stop(): Unit = {
     logger.info("Stopping Twitter Stream")
-    twitterClient.stopFilteredStream(streamTweets()) \
+    twitterClient.stopFilteredStream(streamTweets())
   }
 }
 
