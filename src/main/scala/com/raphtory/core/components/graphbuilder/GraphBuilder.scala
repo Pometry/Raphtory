@@ -17,43 +17,36 @@ import scala.collection.mutable.ArrayBuffer
   *    While using `GraphBuilder`, override {s}`parseTuple(tuple: T)` to define parsing of rows and use methods {s}`addVertex`, {s}`addEdge`
   *    for adding vertices and edge to the graph. Deletion can be performed with {s}`deleteEdge` and {s}`deleteVertex` methods.
   *
+  *    `GraphBuilder` creates a list of updates {s}`GraphUpdate` representing objects signifying vertex/edge add/delete
+  *     along with graph alteration information like update timestamp
+  *     These updates are retrieved and processed by the `Writer` and stored into `GraphPartition` as `avroSchema`
+  *     at the time of ingesting vertices, edges and processing updates.
+  *
   * ## Methods
   *
-  *    {s}`addVertex(updateTime: Long, srcId: Long)`
-  *      : Adds vertex for a timestamp {s}`updateTime` and ID {s}`srcId`
-  *
-  *    {s}`addVertex(updateTime: Long, srcId: Long, properties: Properties)`
-  *      : Adds vertex for a timestamp {s}`updateTime` and ID {s}`srcId`, with Properties {s}`properties`
-  *
-  *    {s}`addVertex(updateTime: Long, srcId: Long, vertexType: Type))`
-  *      : Adds vertex for a timestamp {s}`updateTime` and ID {s}`srcId` for vertex type {s}`vertexType`
+  *    {s}`getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate]`
+  *      : Parses `tuple` and fetches list of updates for the graph {s}`GraphUpdate`
   *
   *    {s}`addVertex(updateTime: Long, srcId: Long, properties: Properties, vertexType: Type)`
-  *      : Adds vertex for timestamp {s}`updateTime`, ID {s}`srcId`, Properties {s}`properties`, vertex type {s}`vertexType`
+  *      : Adds object {s}`addVertex` to the list of graph updates, signifies vertex addition for timestamp {s}`updateTime`, ID {s}`srcId`, Properties {s}`properties`, vertex type {s}`vertexType`
   *
   *    {s}`deleteVertex(updateTime: Long, srcId: Long)`
-  *      : Deletes vertex for timestamp {s}`updateTime`, ID {s}`srcId`
-  *
-  *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long)`
-  *      : Adds edge between ID {s}`srcId` and {s}`dstId` for timestamp {s}`updateTime`
-  *
-  *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties)`
-  *      : Adds an edge between ID {s}`srcId` and {s}`dstId` for timestamp {s}`updateTime`, Properties {s}`properties`
-  *
-  *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type)`
-  *      : Adds an edge between ID {s}`srcId` and {s}`dstId` for timestamp {s}`updateTime` with Edge Type {s}`edgeType`
+  *      : Creates a {s}`deleteVertex` object that at a specific time {s}`updateTime`, removes the vertex ID {s}`srcId` from the graph scope. The vertex is still available in previous scopes.
+  *        This object is sent as an update
   *
   *    {s}`deleteEdge(updateTime: Long, srcId: Long, dstId: Long)`
-  *      : Deletes an edge between ID {s}`srcId` and {s}`dstId` for timestamp {s}`updateTime`
+  *      : Creates a {s}`deleteEdge` object that at a specific time {s}`updateTime`, removes the edge between {s}`srcId` and {s}`dstId` from the graph scope. The edge is still available in previous scopes.
   *
   *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Type)`
-  *      : Adds an edge between ID {s}`srcId` and {s}`dstId` for timestamp {s}`updateTime` with Edge Type {s}`edgeType`, Properties {s}`properties`
-  *
-  *    {s}`parseTuple(tuple: T): Unit`
-  *      : Parse row {s}`tuple` to extract source node, destination node, timestamp info, etc.
+  *      : Adds object {s}`addEdge` to the list of graph updates, signifies edge addition for an edge between ID {s}`srcId` and {s}`dstId` for timestamp, {s}`updateTime` with Edge Type {s}`edgeType`, Properties {s}`properties`
   *
   *    {s}`assignID(uniqueChars: String): Long`
   *      : Assigns long hash for string {s}`uniqueChars`
+  *
+  *    {s}`parseTuple(tuple: T): Unit`
+  *      : Processes messages {s}`tuple` representing a singular row from the spout to extract source node, destination node, timestamp info, etc.
+  *        Creates vertices and edges with the parsed information, find example usage below.
+  *
   *
   * Example Usage:
   *
@@ -64,9 +57,13 @@ import scala.collection.mutable.ArrayBuffer
   *   override def parseTuple(fileLine: String): Unit = {
   *     val sourceNode = fileLine(0)
   *     val srcID      = sourceNode.toLong
-  *     val timeStamp  = fileLine(1).toLong
+  *     val targetNode = fileLine(1)
+  *     val tarID      = targetNode.toLong
+  *     val timeStamp  = fileLine(2).toLong
   *
-  *   addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
+  *     addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
+  *     addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
+  *     addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
   *   }
   * }
   *
