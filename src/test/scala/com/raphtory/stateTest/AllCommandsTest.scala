@@ -6,8 +6,9 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
-import com.raphtory.core.components.spout.instance.FileSpout
+import com.raphtory.core.deploy.Raphtory
 import com.raphtory.output.FileOutputFormat
+import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema
 import org.scalatest.DoNotDiscover
 import org.scalatest.ScalaTestVersion
@@ -18,6 +19,7 @@ import scala.language.postfixOps
 // Broken until we have a proper JSON spout
 @DoNotDiscover
 class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
+  override def batchLoading(): Boolean = false
 
   import sys.process._
   if (!new File(s"/tmp/testupdates.csv").exists())
