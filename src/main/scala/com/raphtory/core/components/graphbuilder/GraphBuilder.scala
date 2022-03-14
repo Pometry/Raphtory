@@ -14,38 +14,38 @@ import scala.collection.mutable.ArrayBuffer
   * {s}`GraphBuilder`
   *
   * : `GraphBuilder` trait for creating a Graph by adding and deleting vertices and edges.
-  *    While using `GraphBuilder`, override {s}`parseTuple(tuple: T)` to define parsing of rows and use methods {s}`addVertex`, {s}`addEdge`
-  *    for adding vertices and edge to the graph. Deletion can be performed with {s}`deleteEdge` and {s}`deleteVertex` methods.
+  *   While using `GraphBuilder`, override {s}`parseTuple(tuple: T)` to define parsing of rows. Tuples are graph rows generated using [Spout](com.raphtory.core.components.spout.Spout).
+  *   Use methods {s}`addVertex`, {s}`addEdge` for adding vertices and edge to the graph. Deletion can be performed with {s}`deleteEdge` and {s}`deleteVertex` methods.
   *
-  *    `GraphBuilder` creates a list of updates {s}`GraphUpdate` representing objects signifying vertex/edge add/delete
-  *     along with graph alteration information like update timestamp
-  *     These updates are retrieved and processed by the `Writer` and stored into `GraphPartition` as `avroSchema`
-  *     at the time of ingesting vertices, edges and processing updates.
+  *   `GraphBuilder` creates a list of updates {s}`GraphUpdate` representing objects signifying vertex/edge add/delete
+  *   along with graph alteration information like update timestamp.
+  *   These updates are retrieved and processed by the `Writer` and stored into `GraphPartition` at the time of ingesting vertices, edges and processing updates.
   *
   * ## Methods
-  *
-  *    {s}`getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate]`
-  *      : Parses `tuple` and fetches list of updates for the graph {s}`GraphUpdate`
-  *
-  *    {s}`addVertex(updateTime: Long, srcId: Long, properties: Properties, vertexType: Type)`
-  *      : Adds object {s}`addVertex` to the list of graph updates, signifies vertex addition for timestamp {s}`updateTime`, ID {s}`srcId`, Properties {s}`properties`, vertex type {s}`vertexType`
-  *
-  *    {s}`deleteVertex(updateTime: Long, srcId: Long)`
-  *      : Creates a {s}`deleteVertex` object that at a specific time {s}`updateTime`, removes the vertex ID {s}`srcId` from the graph scope. The vertex is still available in previous scopes.
-  *        This object is sent as an update
-  *
-  *    {s}`deleteEdge(updateTime: Long, srcId: Long, dstId: Long)`
-  *      : Creates a {s}`deleteEdge` object that at a specific time {s}`updateTime`, removes the edge between {s}`srcId` and {s}`dstId` from the graph scope. The edge is still available in previous scopes.
-  *
-  *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Type)`
-  *      : Adds object {s}`addEdge` to the list of graph updates, signifies edge addition for an edge between ID {s}`srcId` and {s}`dstId` for timestamp, {s}`updateTime` with Edge Type {s}`edgeType`, Properties {s}`properties`
-  *
-  *    {s}`assignID(uniqueChars: String): Long`
-  *      : Assigns long hash for string {s}`uniqueChars`
   *
   *    {s}`parseTuple(tuple: T): Unit`
   *      : Processes messages {s}`tuple` representing a singular row from the spout to extract source node, destination node, timestamp info, etc.
   *        Creates vertices and edges with the parsed information, find example usage below.
+  *
+  *    {s}`getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate]`
+  *      : Parses `tuple` and fetches list of updates for the graph {s}`GraphUpdate`. This is used internally to retrieve updates which users are not expected to override.
+  *
+  *    {s}`addVertex(updateTime: Long, srcId: Long, properties: Properties, vertexType: Type)`
+  *      : Adds {s}`VertexAdd` to the list of graph updates, signifies vertex addition for timestamp {s}`updateTime`, ID {s}`srcId`, [Properties](com.raphtory.core.components.graphbuilder.Properties) {s}`properties`, vertex type {s}`vertexType`
+  *        Usage of {s}`Properties` and {s}`vertexType` is described in the example usage below.
+  *
+  *    {s}`deleteVertex(updateTime: Long, srcId: Long)`
+  *      : Creates {s}`deleteVertex` that at a specific time {s}`updateTime`, removes the vertex ID {s}`srcId` from the graph scope. The vertex is still available in previous scopes.
+  *        This object is sent as an update
+  *
+  *    {s}`deleteEdge(updateTime: Long, srcId: Long, dstId: Long)`
+  *      : Creates {s}`deleteEdge` that at a specific time {s}`updateTime`, removes the edge between {s}`srcId` and {s}`dstId` from the graph scope. The edge is still available in previous scopes.
+  *
+  *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Type)`
+  *      : Adds {s}`addEdge` to the list of graph updates, signifies edge addition for an edge between ID {s}`srcId` and {s}`dstId` for timestamp, {s}`updateTime` with Edge Type {s}`edgeType`, Properties {s}`properties`
+  *
+  *    {s}`assignID(uniqueChars: String): Long`
+  *      : Assigns long hash for string {s}`uniqueChars`. This is an optional method provided for convenience.
   *
   *
   * Example Usage:
@@ -68,6 +68,12 @@ import scala.collection.mutable.ArrayBuffer
   * }
   *
   * ```
+  *
+  * ```{seealso}
+  *  [](com.raphtory.core.components.graphbuilder.Properties),
+  *  [](com.raphtory.core.components.GraphBuilder),
+  *  [](com.raphtory.core.components.spout.Spout),
+  *  ```
   *
   */
 trait GraphBuilder[T] extends Serializable {
