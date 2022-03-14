@@ -1,10 +1,7 @@
 package com.raphtory.core.graph.visitor
 
 import PropertyMergeStrategy.PropertyMerge
-import VertexMergeStrategy.VertexMerge
 import com.raphtory.core.graph.visitor.EdgeDirection.Direction
-
-import scala.reflect.ClassTag
 
 trait Vertex extends EntityVisitor {
 
@@ -261,4 +258,9 @@ private object DefaultValues {
   val weightProperty                                 = "weight"
   def mergeStrategy[T: Numeric]: PropertyMerge[T, T] = PropertyMergeStrategy.sum[T]
   def defaultVal[T](implicit numeric: Numeric[T]): T = numeric.one
+}
+
+private object EdgeDirection extends Enumeration {
+  type Direction = Value
+  val Incoming, Outgoing, Both = Value
 }

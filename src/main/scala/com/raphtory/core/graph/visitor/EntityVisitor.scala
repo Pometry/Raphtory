@@ -96,8 +96,3 @@ abstract class EntityVisitor {
   *    : {s}`true` if event is an addition or {s}`false` if event is a deletion
   */
 case class HistoricEvent(time: Long, event: Boolean)
-
-object EdgeDirection extends Enumeration {
-  type Direction = Value
-  val Incoming, Outgoing, Both = Value
-}
