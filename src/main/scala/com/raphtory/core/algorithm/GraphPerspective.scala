@@ -134,22 +134,4 @@ final case class PerspectiveDone()                     extends GraphFunction
   * [](com.raphtory.core.algorithm.GraphState), [](com.raphtory.core.graph.visitor.Vertex)
   * ```
   */
-trait GraphPerspective {
-  def setGlobalState(f: (GraphState) => Unit): GraphPerspective
-  def filter(f: (Vertex) => Boolean): GraphPerspective
-  def filter(f: (Vertex, GraphState) => Boolean): GraphPerspective
-  def step(f: (Vertex) => Unit): GraphPerspective
-  def step(f: (Vertex, GraphState) => Unit): GraphPerspective
-  def iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): GraphPerspective
-
-  def iterate(
-      f: (Vertex, GraphState) => Unit,
-      iterations: Int,
-      executeMessagedOnly: Boolean
-  ): GraphPerspective
-  def select(f: Vertex => Row): Table
-  def select(f: (Vertex, GraphState) => Row): Table
-  def globalSelect(f: GraphState => Row): Table
-  def explodeSelect(f: Vertex => List[Row]): Table
-  def clearMessages(): GraphPerspective
-}
+trait GraphPerspective extends GraphOperations[GraphPerspective]

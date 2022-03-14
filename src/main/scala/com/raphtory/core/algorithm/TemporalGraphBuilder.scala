@@ -7,7 +7,7 @@ import com.raphtory.core.time.Interval
 import com.raphtory.core.time.TimeUtils.parseInterval
 import com.typesafe.config.Config
 
-class TemporalGraphBuilder(private val queryBuilder: QueryBuilder, private val conf: Config)
+class TemporalGraphBuilder(queryBuilder: QueryBuilder, private val conf: Config)
         extends RaphtoryGraphBuilder(queryBuilder)
         with TemporalGraph {
 
