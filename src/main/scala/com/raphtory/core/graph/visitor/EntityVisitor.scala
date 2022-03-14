@@ -58,19 +58,23 @@ abstract class EntityVisitor {
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[List[T]] =
-    getPropertyHistory[T](key) match {
+    getPropertyHistory[T](key, after, before) match {
       case Some(history) =>
-        Some(history.collect({
-          case (timestamp, value) if (after <= timestamp) && (timestamp <= before) => value
+        Some(history.map({
+          case (timestamp, value) => value
         }))
       case None          => None
     }
 
-  def getPropertyHistory[T](key: String): Option[List[(Long, T)]]
+  def getPropertyHistory[T](
+      key: String,
+      after: Long = Long.MinValue,
+      before: Long = Long.MaxValue
+  ): Option[List[(Long, T)]]
 
   //functionality to access the history of the edge or vertex + helpers
   def history(): List[HistoricEvent]
-  def active(after: Long = Long.MaxValue, before: Long = Long.MaxValue): Boolean
+  def active(after: Long = Long.MinValue, before: Long = Long.MaxValue): Boolean
   def aliveAt(time: Long, window: Long = Long.MaxValue): Boolean
 
   lazy val numCreations: Long = history().count(f => f.event)
