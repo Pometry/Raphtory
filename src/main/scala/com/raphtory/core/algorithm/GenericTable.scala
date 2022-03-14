@@ -4,7 +4,7 @@ import com.raphtory.core.client.QueryBuilder
 import com.raphtory.core.components.querytracker.QueryProgressTracker
 
 /** @DoNotDocument */
-class GenericTable(private val queryBuilder: QueryBuilder) extends Table {
+class GenericTable(val queryBuilder: QueryBuilder) extends Table {
 
   override def filter(f: Row => Boolean): Table = {
     def closurefunc(v: Row): Boolean = f(v)

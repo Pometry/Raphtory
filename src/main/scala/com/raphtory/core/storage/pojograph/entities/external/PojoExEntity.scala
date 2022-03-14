@@ -4,7 +4,7 @@ import com.raphtory.core.graph.visitor.EntityVisitor
 import com.raphtory.core.graph.visitor.HistoricEvent
 import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.core.storage.pojograph.entities.internal.PojoEntity
-import com.raphtory.core.time.TimeUtils._
+import com.raphtory.core.time.TimeConverters._
 
 import scala.reflect.ClassTag
 

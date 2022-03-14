@@ -4,7 +4,7 @@ import com.raphtory.core.components.querymanager.Query
 import com.raphtory.core.components.querymanager.QueryManagement
 import com.raphtory.core.time.DiscreteInterval
 import com.raphtory.core.time.Interval
-import com.raphtory.core.time.TimeUtils._
+import com.raphtory.core.time.TimeConverters._
 
 /** @DoNotDocument */
 case class Perspective(timestamp: Long, window: Option[Interval]) extends QueryManagement

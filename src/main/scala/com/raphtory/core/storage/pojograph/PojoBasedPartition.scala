@@ -23,7 +23,7 @@ import com.raphtory.core.storage.pojograph.entities.internal.PojoEdge
 import com.raphtory.core.storage.pojograph.entities.internal.PojoEntity
 import com.raphtory.core.storage.pojograph.entities.internal.PojoVertex
 import com.raphtory.core.storage.pojograph.entities.internal.SplitEdge
-import com.raphtory.core.time.TimeUtils._
+import com.raphtory.core.time.TimeConverters._
 import com.raphtory.core.time.Interval
 import com.typesafe.config.Config
 

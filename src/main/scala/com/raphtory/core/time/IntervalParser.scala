@@ -1,36 +1,14 @@
 package com.raphtory.core.time
 
 import java.time.Duration
-import java.time.Instant
 import java.time.Period
-import java.time.temporal.TemporalAmount
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-object TimeUtils {
+object IntervalParser {
 
-  val EPOCH_MILLI: Instant = Instant.ofEpochMilli(0)
-
-  implicit class TimeHolder(val time: Long) {
-
-    def -(interval: Interval): Long =
-      interval match {
-        case DiscreteInterval(size) => time - size
-        case TimeInterval(size)     => Instant.ofEpochMilli(time).minus(size).toEpochMilli
-      }
-
-    def +(interval: Interval): Long =
-      interval match {
-        case DiscreteInterval(size) => time + size
-        case TimeInterval(size)     => Instant.ofEpochMilli(time).plus(size).toEpochMilli
-      }
-  }
-
-  def temporalAmountToMilli(amount: TemporalAmount): Long =
-    EPOCH_MILLI.plus(amount).toEpochMilli
-
-  def parseInterval(interval: String): TimeInterval = {
+  def parse(interval: String): TimeInterval = {
     val isoInterval = tryTransformationToIso8601(interval)
     val intervalTry = Try(Period.parse(isoInterval))
       .orElse(Try(Duration.parse(isoInterval)))

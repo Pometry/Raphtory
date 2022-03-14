@@ -4,7 +4,7 @@ import com.raphtory.core.client.QueryBuilder
 import com.raphtory.core.time.DateTimeParser
 import com.raphtory.core.time.DiscreteInterval
 import com.raphtory.core.time.Interval
-import com.raphtory.core.time.TimeUtils.parseInterval
+import com.raphtory.core.time.IntervalParser.{parse => parseInterval}
 import com.typesafe.config.Config
 
 class TemporalGraphBuilder(queryBuilder: QueryBuilder, private val conf: Config)

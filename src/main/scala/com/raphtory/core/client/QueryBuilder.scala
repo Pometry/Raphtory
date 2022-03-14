@@ -16,7 +16,7 @@ class QueryBuilder(
     private val componentFactory: ComponentFactory,
     private val scheduler: Scheduler,
     private val pulsarController: PulsarController,
-    private val query: Query = Query()
+    val query: Query = Query()
 ) {
 
   val kryo                                         = PulsarKryoSerialiser()
