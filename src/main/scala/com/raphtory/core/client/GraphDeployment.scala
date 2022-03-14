@@ -12,14 +12,14 @@ import scala.language.postfixOps
 import scala.reflect.ClassTag
 
 /**
-  * {s}`RaphtoryGraph`
-  *    : Raphtory Graph extends Raphtory Client to initialise Query Manager, Partitions, Spout Worker
+  * {s}`GraphDeployment`
+  *    : Graph Deployment extends Raphtory Client to initialise Query Manager, Partitions, Spout Worker
   *    and GraphBuilder Worker for a deployment ID
   *
-  *  {s}`RaphtoryGraph` should not be created directly. To create a {s}`RaphtoryGraph` use
+  *  {s}`GraphDeployment` should not be created directly. To create a {s}`GraphDeployment` use
   *  {s}`Raphtory.createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`.
   *
-  *  The query methods for `RaphtoryGraph` are similar to `RaphtoryClient`
+  *  The query methods for `GraphDeployment` are similar to `RaphtoryClient`
   *
   *  ## Methods
   *
