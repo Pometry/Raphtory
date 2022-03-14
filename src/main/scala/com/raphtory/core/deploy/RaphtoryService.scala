@@ -17,23 +17,22 @@ import scala.reflect.runtime.universe.TypeTag
   * ## Methods
   *
   *    {s}`defineSpout(): Spout[T]`
-  *      : Initialise Spout
+  *      : Defines type of Spout to be created including {s}`FileSpout`, {s}`ResourceSpout` and {s}`StaticGraphSpout` for ingesting data
   *
   *    {s}`defineBuilder(): GraphBuilder[T]`
-  *      : Initialise GraphBuilder
+  *      : Initialise {s}`GraphBuilder` for building graphs
   *
   *    {s}`spoutDeploy(): Unit`
-  *      : Deploy spout
+  *      : Deploy spouts by using {s}`SpoutExecutor` to ingest data from files and resources, sending messages per row to builder producers
   *
   *    {s}`builderDeploy(): Unit`
-  *      : Deploy builder
+  *      : Deploys {s}`GraphBuilder` to build graphs by adding vertices and edges using data processed and ingested by the spout as tuples of rows
   *
   *   {s}`partitionDeploy(): Unit`
-  *      : Deploy partition
+  *      : Deploy partitions using Partition Manager for creating partitions as distributed storage units with readers and writers. Uses Zookeeper to create partition IDs
   *
   *   {s}`queryManagerDeploy(): Unit`
-  *      : Deploy query manager
-  *
+  *      : Deploy query manager creating {s}`QueryManager` to spawn, handle and track queries in Raphtory
   * Example Usage:
   *
   * ```{code-block} scala
@@ -48,6 +47,12 @@ import scala.reflect.runtime.universe.TypeTag
   * }
   * ```
   *
+  *  ```{seealso}
+  *  [](com.raphtory.core.components.QueryManager),
+  *  [](com.raphtory.core.components.GraphBuilder),
+  *  [](com.raphtory.core.components.spout.Spout),
+  *  [](com.raphtory.core.components.spout.executor.FileSpoutExecutor)
+  *  ```
   */
 abstract class RaphtoryService[T: ClassTag] {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

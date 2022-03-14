@@ -37,16 +37,16 @@ import scala.reflect.runtime.universe._
   *      Client is for a {s}`deploymentID` and config {s}`customConfig` of parameters eg. Pulsar endpoint as illustrated in the example usage
   *
   *   {s}`createSpout(spout: Spout[T])`
-  *    : Creates Spout to read or ingest data from resources or files, sending messages to builder producers for each row. Supported spout types are {s}`FileSpout`, {s}`ResourceSpout`, {s}`StaticGraphSpout`.
+  *    : Creates {s}`Spout` to read or ingest data from resources or files, sending messages to builder producers for each row. Supported spout types are {s}FileSpout`, {s}`ResourceSpout`, {s}`StaticGraphSpout`.
   *
   *   {s}`createGraphBuilder(builder: GraphBuilder[T])`
   *    : Creates {s}`GraphBuilder` for creating a Graph by adding and deleting vertices and edges. {s}`GraphBuilder` processes the data ingested by the spout as tuples of rows to build the graph
   *
   *   {s}`createPartitionManager()`
-  *    : Creates Partition Manager for creating partitions as distributed storage units with readers and writers
+  *    : Creates {s}`PartitionManager` for creating partitions as distributed storage units with readers and writers. Uses Zookeeper to create partition IDs
   *
   *   {s}`createQueryManager()`
-  *    : Creates Query Manager for spawning, handling and tracking queries. Query types supported include {s}`PointQuery`, {s}`RangeQuery` and {s}`LiveQuery`
+  *    : Creates {s}`QueryManager` for spawning, handling and tracking queries. Query types supported include {s}`PointQuery`, {s}`RangeQuery` and {s}`LiveQuery`
   *
   *   {s}`getDefaultConfig(customConfig: Map[String, Any] = Map()): Config`
   *    : Returns default config
