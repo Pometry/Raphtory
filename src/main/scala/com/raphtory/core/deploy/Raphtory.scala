@@ -33,19 +33,20 @@ import scala.reflect.runtime.universe._
   *    : Create Graph using spout, graph-builder and custom config
   *
   *   {s}`createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`
-  *    : Create Client
+  *    : Create Client to expose APIs for running point, range and live queries for graph algorithms in Raphtory.
+  *      Client is for a {s}`deploymentID` and config {s}`customConfig` of parameters eg. Pulsar endpoint as illustrated in the example usage
   *
   *   {s}`createSpout(spout: Spout[T])`
-  *    : Create Spout
+  *    : Creates Spout to read or ingest data from resources or files, sending messages to builder producers for each row. Supported spout types are {s}`FileSpout`, {s}`ResourceSpout`, {s}`StaticGraphSpout`.
   *
   *   {s}`createGraphBuilder(builder: GraphBuilder[T])`
-  *    : Create Graph Builder
+  *    : Creates {s}`GraphBuilder` for creating a Graph by adding and deleting vertices and edges. {s}`GraphBuilder` processes the data ingested by the spout as tuples of rows to build the graph
   *
   *   {s}`createPartitionManager()`
-  *    : Creates Partition Manager
+  *    : Creates Partition Manager for creating partitions as distributed storage units with readers and writers
   *
   *   {s}`createQueryManager()`
-  *    : Creates Query Manager
+  *    : Creates Query Manager for spawning, handling and tracking queries. Query types supported include {s}`PointQuery`, {s}`RangeQuery` and {s}`LiveQuery`
   *
   *   {s}`getDefaultConfig(customConfig: Map[String, Any] = Map()): Config`
   *    : Returns default config
@@ -54,7 +55,7 @@ import scala.reflect.runtime.universe._
   *    : Returns Config
   *
   *   {s}`createSpoutExecutor(spout: Spout[T], conf: Config, pulsarController: PulsarController): SpoutExecutor[T]]`
-  *    : Create spout executor
+  *    : Create spout executor for ingesting data from resources and files. Supported executors include `FileSpoutExecutor`, `StaticGraphSpoutExecutor`
   *
   *
   * Example Usage:
@@ -65,10 +66,17 @@ import scala.reflect.runtime.universe._
   * import com.raphtory.lotrtest.LOTRGraphBuilder
   * import com.raphtory.core.components.spout.instance.ResourceSpout
   *
+  * Raphtory.createClient("deployment123", Map(("raphtory.pulsar.endpoint", "localhost:1234")))
   * val graph = Raphtory.createGraph(ResourceSpout("resource"), LOTRGraphBuilder())
   *
   * ```
   *
+  *  ```{seealso}
+  *  [](com.raphtory.core.components.QueryManager),
+  *  [](com.raphtory.core.components.GraphBuilder),
+  *  [](com.raphtory.core.components.spout.Spout),
+  *  [](com.raphtory.core.components.spout.executor.FileSpoutExecutor)
+  *  ```
   */
 object Raphtory {
 
