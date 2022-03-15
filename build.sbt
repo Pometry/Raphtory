@@ -4,7 +4,7 @@ lazy val root = (project in file("."))
           organization := "com.raphtory",
           scalaVersion := "2.13.7"
       )),
-      name            := "raphtory-pulsar",
+      name            := "raphtory",
       version         := "0.1",
       assembly / test := {}
   )
