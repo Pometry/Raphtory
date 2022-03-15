@@ -111,7 +111,6 @@ class MaxFlow[T](
                 else {
                   val label: Int = vertex.getState("distanceLabel")
                   // push operation
-                  val outedges   = vertex.getOutEdges()
                   for (edge <- vertex.getOutEdges()) {
                     val dst = edge.dst()
                     if (label == labels.getOrElse(dst, 0) + 1) {
@@ -127,7 +126,7 @@ class MaxFlow[T](
                   }
                   // handle reverse flow
                   flow.foreach {
-                    case (dst: Long, value: T) =>
+                    case (dst, value) =>
                       if ((value < 0) && (label == (labels.getOrElse(dst, 0) + 1))) {
                         val delta: T = numeric.min(excess, -value)
                         if (delta > 0) {
