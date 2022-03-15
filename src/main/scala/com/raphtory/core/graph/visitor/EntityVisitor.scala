@@ -76,12 +76,12 @@ import com.raphtory.core.graph.visitor.PropertyMergeStrategy.PropertyMerge
   *    The exact behaviour depends on the type of the property:
   *
   *    In case of a
-  *    [{s}`MutableProperty`](com.raphtory.storage.pojograph.entities.internal.MutableProperty), the history contains
+  *    [{s}`MutableProperty`](com.raphtory.core.storage.pojograph.entities.internal.MutableProperty), the history contains
   *    the timestamps and values for all addition events within the current view and is empty if the property exists
   *    but no addition events occurred in the current view.
   *
   *    In case of a
-  *    [{s}`ImmutableProperty`](com.raphtory.storage.pojograph.entities.internal.ImmutableProperty), the history
+  *    [{s}`ImmutableProperty`](com.raphtory.core.storage.pojograph.entities.internal.ImmutableProperty), the history
   *    depends only on the creation time of the property. If the property was created within the current view, the
   *    history contains a single tuple with the value of the property and the timestamp given by the creation time
   *    of the property. If the property creation time is before the start of the current view, the history contains
@@ -188,6 +188,13 @@ import com.raphtory.core.graph.visitor.PropertyMergeStrategy.PropertyMerge
   *
   *    {s}`time: Long`
   *      : time stamp for property lookup
+  *
+  * ```{seealso}
+  * [](com.raphtory.core.graph.visitor.Edge),
+  * [](com.raphtory.core.graph.visitor.Vertex),
+  * [](com.raphtory.core.graph.visitor.PropertyMergeStrategy),
+  * [](com.raphtory.core.graph.visitor.HistoricEvent)
+  * ```
   */
 abstract class EntityVisitor {
   def Type(): String
