@@ -19,7 +19,7 @@
         </Logger>
         <Logger name="io.netty" level="${env:NETTY_LOG:-off}">
         </Logger>
-        <Logger name="org.apache" level="${env:APACHE_LOG:-off}">
+        <Logger name="org.apache" level="${env:APACHE_LOG:-DEBUG">
         </Logger>
         <Logger name="com.raphtory.deploy" level="${env:DEPLOY_LOG:-INFO}">
         </Logger>
