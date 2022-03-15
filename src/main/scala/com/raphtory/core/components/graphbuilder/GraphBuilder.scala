@@ -61,9 +61,9 @@ import scala.collection.mutable.ArrayBuffer
   *     val tarID      = targetNode.toLong
   *     val timeStamp  = fileLine(2).toLong
   *
-  *     addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
-  *     addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
-  *     addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
+  *     addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("User"))
+  *     addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("User"))
+  *     addEdge(timeStamp, srcID, tarID, Type("Follows"))
   *   }
   * }
   *
