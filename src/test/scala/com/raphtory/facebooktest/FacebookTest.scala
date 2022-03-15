@@ -4,10 +4,10 @@ import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.SpoutExecutor
-import com.raphtory.core.components.spout.instance.StaticGraphSpout
 import org.apache.pulsar.client.api.Schema
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.output.PulsarOutputFormat
+import com.raphtory.spouts.StaticGraphSpout
 
 import java.io.File
 import scala.language.postfixOps
@@ -16,6 +16,8 @@ import org.scalatest._
 
 @DoNotDiscover
 class FacebookTest extends BaseRaphtoryAlgoTest[String] {
+
+  override def batchLoading(): Boolean = false
 
   override def setup()           =
     if (!new File("/tmp/facebook.csv").exists())

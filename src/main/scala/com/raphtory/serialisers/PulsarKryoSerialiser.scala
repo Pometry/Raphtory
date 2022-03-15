@@ -17,7 +17,6 @@ import scala.reflect.runtime.universe._
   *    {s}`deserialise[T](bytes: Array[Byte]): T`
   *      : deserialise byte array to object
   *
-  *
   *  Example Usage:
   *
   * ```{code-block} scala
@@ -34,7 +33,6 @@ import scala.reflect.runtime.universe._
   * val producer       = client.newProducer(Schema.BYTES).topic(producer_topic).create()
   * producer.sendAsync(kryo.serialise("Gandalf,Benjamin,400"))
   * ```
-  *
   *
   * ```{seealso}
   * [](com.raphtory.core.client.RaphtoryClient)

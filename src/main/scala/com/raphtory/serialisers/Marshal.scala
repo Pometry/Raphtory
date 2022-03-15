@@ -1,11 +1,9 @@
 package com.raphtory.serialisers
 
-
 /**
   * {s}`Marshal()`
   *
   * : support serialisation (`dump`) and deserialisation (`load`) for `ByteArray` input and output streams
-  *
   *
   * ## Methods
   *
@@ -37,7 +35,6 @@ package com.raphtory.serialisers
   * val graphBuilder = setGraphBuilder()
   * val safegraphBuilder = Marshal.deepCopy(graphBuilder)
   * ```
-  *
   *
   * ```{seealso}
   * [](com.raphtory.serialisers.PulsarKryoSerialiser)

@@ -9,11 +9,11 @@ import com.raphtory.algorithms.generic.community.{LPA, SLPA}
 import com.raphtory.algorithms.generic.dynamic.{DiscreteSI, RandomWalk, WattsCascade, WeightedRandomWalk}
 import com.raphtory.algorithms.generic.motif.{SquareCount, TriangleCount}
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
-import com.raphtory.core.components.spout.SpoutExecutor
+import com.raphtory.core.components.spout.{Spout, SpoutExecutor}
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.components.spout.instance.FileSpout
+import com.raphtory.core.deploy.Raphtory
 import com.raphtory.output.FileOutputFormat
+import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema
 
 import java.io.File
@@ -24,6 +24,7 @@ import sys.process._
 
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
   val outputFormat: FileOutputFormat = FileOutputFormat(testDir)
+  override def batchLoading(): Boolean = false
 
   test("Graph State Test") {
     assert(
