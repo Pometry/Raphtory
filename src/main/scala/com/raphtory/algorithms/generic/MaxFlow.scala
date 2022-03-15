@@ -4,14 +4,11 @@ import com.raphtory.core.algorithm.GraphAlgorithm
 import com.raphtory.core.algorithm.GraphPerspective
 import com.raphtory.core.algorithm.Row
 import com.raphtory.core.algorithm.Table
+import com.raphtory.util.ExtendedNumeric.numericFromInt
 
 import collection.mutable
 import math.Numeric.Implicits._
 import scala.language.existentials
-import scala.language.implicitConversions
-import MaxFlow._
-import com.raphtory.core.graph.visitor.Vertex
-
 import scala.math.Ordering.Implicits.infixOrderingOps
 
 /** {s}`MaxFlow[T](source: String, target: String, capacityLabel: String = "weight", maxIterations: Int = Int.MaxValue)`
@@ -191,7 +188,4 @@ object MaxFlow {
       maxIterations: Int = Int.MaxValue
   )(implicit numeric: Numeric[T]): MaxFlow[T] =
     new MaxFlow(source, target, capacityLabel, maxIterations)(numeric)
-
-  implicit def numericInt[T: Numeric](x: Int): T =
-    implicitly[Numeric[T]].fromInt(x) // automatic conversion from Int for nicer syntax
 }
