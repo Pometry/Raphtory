@@ -12,25 +12,22 @@ import com.raphtory.core.graph.Perspective
 import com.raphtory.core.graph.PerspectiveController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
-import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Producer
-import org.apache.pulsar.client.api.Schema
 
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
 
 /** @DoNotDocument */
 abstract class QueryHandler(
-    queryManager: QueryManager,
-    scheduler: Scheduler,
-    jobID: String,
-    algorithm: GraphAlgorithm,
-    outputFormat: OutputFormat,
-    conf: Config,
-    pulsarController: PulsarController
-) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
+                             queryManager: QueryManager,
+                             scheduler: Scheduler,
+                             jobID: String,
+                             algorithm: GraphAlgorithm,
+                             outputFormat: OutputFormat,
+                             conf: Config,
+                             pulsarController: PulsarController
+                           ) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
 
   private val self: Producer[Array[Byte]]    = pulsarController.toQueryHandlerProducer(jobID)
   private val readers: Producer[Array[Byte]] = pulsarController.toReaderProducer
@@ -73,7 +70,7 @@ abstract class QueryHandler(
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
 
     cancelableConsumer = Some(
-            pulsarController.startQueryHandlerConsumer(jobID, messageListener())
+      pulsarController.startQueryHandlerConsumer(jobID, messageListener())
     )
 
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
@@ -137,7 +134,7 @@ abstract class QueryHandler(
           messagetoAllJobWorkers(SetMetaData(vertexCount))
           val establishingPerspectiveTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(
-                  s"Job '$jobID': Perspective Established in ${establishingPerspectiveTimeTaken}ms. Messaging all workers: vertex count: $vertexCount."
+            s"Job '$jobID': Perspective Established in ${establishingPerspectiveTimeTaken}ms. Messaging all workers: vertex count: $vertexCount."
           )
           timeTaken = System.currentTimeMillis()
         }
@@ -153,8 +150,8 @@ abstract class QueryHandler(
           allVoteToHalt = true
           val settingMetaDataTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(
-                  s"Job '$jobID': Setting MetaData took ${settingMetaDataTimeTaken}ms. Executing graph with windows '${currentPerspective.window}' " +
-                    s"at timestamp '${currentPerspective.timestamp}'."
+            s"Job '$jobID': Setting MetaData took ${settingMetaDataTimeTaken}ms. Executing graph with windows '${currentPerspective.window}' " +
+              s"at timestamp '${currentPerspective.timestamp}'."
           )
           timeTaken = System.currentTimeMillis()
           Stages.ExecuteGraph
@@ -173,7 +170,7 @@ abstract class QueryHandler(
         graphState = GraphStateImplementation()
         val startingGraphTime = System.currentTimeMillis() - timeTaken
         logger.debug(
-                s"Job '$jobID': Sending self GraphStart took ${startingGraphTime}ms. Running '${algorithm.getClass.getSimpleName}'."
+          s"Job '$jobID': Sending self GraphStart took ${startingGraphTime}ms. Running '${algorithm.getClass.getSimpleName}'."
         )
         algorithm.run(graphPerspective)
         timeTaken = System.currentTimeMillis()
@@ -194,7 +191,7 @@ abstract class QueryHandler(
           if (receivedMessageCount == sentMessageCount) {
             val graphFuncCompleteTime = System.currentTimeMillis() - timeTaken
             logger.debug(
-                    s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages:$receivedMessageCount , Sent messages: $sentMessageCount."
+              s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages:$receivedMessageCount , Sent messages: $sentMessageCount."
             )
             timeTaken = System.currentTimeMillis()
             nextGraphOperation(vertexCount)
@@ -216,20 +213,20 @@ abstract class QueryHandler(
         allVoteToHalt = votedToHalt & allVoteToHalt
         readyCount += 1
         logger.debug(
-                s"Job '$jobID': Partition $partitionID Received messages:$receivedMessages , Sent messages: $sentMessages."
+          s"Job '$jobID': Partition $partitionID Received messages:$receivedMessages , Sent messages: $sentMessages."
         )
         if (readyCount == totalPartitions)
           if (receivedMessageCount == sentMessageCount) {
             val graphFuncCompleteTime = System.currentTimeMillis() - timeTaken
             logger.debug(
-                    s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages Total:$receivedMessageCount , Sent messages: $sentMessageCount."
+              s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages Total:$receivedMessageCount , Sent messages: $sentMessageCount."
             )
             timeTaken = System.currentTimeMillis()
             nextGraphOperation(vertexCount)
           }
           else {
             logger.debug(
-                    s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
+              s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
             )
             readyCount = 0
             receivedMessageCount = 0
@@ -250,7 +247,7 @@ abstract class QueryHandler(
           readyCount = 0
           val tableBuiltTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(
-                  s"Job '$jobID': Table Built in ${tableBuiltTimeTaken}ms Executing next table operation."
+            s"Job '$jobID': Table Built in ${tableBuiltTimeTaken}ms Executing next table operation."
           )
           timeTaken = System.currentTimeMillis()
           nextTableOperation()
@@ -263,14 +260,14 @@ abstract class QueryHandler(
         if (readyCount == totalPartitions) {
           val tableFuncTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(
-                  s"Job '$jobID': Table Function complete in ${tableFuncTimeTaken}ms. Running next table operation."
+            s"Job '$jobID': Table Function complete in ${tableFuncTimeTaken}ms. Running next table operation."
           )
           timeTaken = System.currentTimeMillis()
           nextTableOperation()
         }
         else {
           logger.trace(
-                  s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
+            s"Job '$jobID': Executing '${currentOperation.getClass.getSimpleName}' operation."
           )
           Stages.ExecuteTable
         }
@@ -292,13 +289,13 @@ abstract class QueryHandler(
         table = null
         val localPerspectiveSetupTime = System.currentTimeMillis() - timeTaken
         logger.debug(
-                s"Job '$jobID': Perspective '$perspective' is starting. Took ${localPerspectiveSetupTime}ms"
+          s"Job '$jobID': Perspective '$perspective' is starting. Took ${localPerspectiveSetupTime}ms"
         )
         timeTaken = System.currentTimeMillis()
         Stages.EstablishPerspective
       case Some(perspective)                                        =>
         logger.trace(
-                s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'."
+          s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'."
         )
         logTotalTimeTaken(perspective)
         currentPerspective = perspective
@@ -319,13 +316,13 @@ abstract class QueryHandler(
       currentPerspective.window match {
         case Some(window) =>
           logger.debug(
-                  s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' with " +
-                    s"Window $window took ${System.currentTimeMillis() - lastTime} ms to run."
+            s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' with " +
+              s"Window $window took ${System.currentTimeMillis() - lastTime} ms to run."
           )
         case None         =>
           logger.debug(
-                  s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' " +
-                    s"took ${System.currentTimeMillis() - lastTime} ms to run. "
+            s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' " +
+              s"took ${System.currentTimeMillis() - lastTime} ms to run. "
           )
       }
     lastTime = System.currentTimeMillis()
@@ -357,7 +354,7 @@ abstract class QueryHandler(
       case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
         currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
       case IterateWithGraph(f, iterations, executeMessagedOnly, _)
-          if iterations > 1 && !allVoteToHalt =>
+        if iterations > 1 && !allVoteToHalt =>
         currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly)
       case _                                                                               =>
         currentOperation = graphPerspective.getNextOperation()
@@ -365,7 +362,7 @@ abstract class QueryHandler(
     allVoteToHalt = true
 
     logger.debug(
-            s"Job '$jobID': Executing graph function '${currentOperation.getClass.getSimpleName}'."
+      s"Job '$jobID': Executing graph function '${currentOperation.getClass.getSimpleName}'."
     )
     currentOperation match {
       case f: Iterate                                                =>
@@ -374,12 +371,12 @@ abstract class QueryHandler(
 
       case IterateWithGraph(fun, iterations, executeMessagedOnly, _) =>
         messagetoAllJobWorkers(
-                IterateWithGraph(
-                        fun,
-                        iterations,
-                        executeMessagedOnly,
-                        graphState
-                )
+          IterateWithGraph(
+            fun,
+            iterations,
+            executeMessagedOnly,
+            graphState
+          )
         )
         Stages.ExecuteGraph
 
@@ -397,8 +394,8 @@ abstract class QueryHandler(
 
       case PerspectiveDone()                                         =>
         logger.debug(
-                s"Job '$jobID': Executing next perspective with windows '${currentPerspective.window}'" +
-                  s" and timestamp '${currentPerspective.timestamp}'."
+          s"Job '$jobID': Executing next perspective with windows '${currentPerspective.window}'" +
+            s" and timestamp '${currentPerspective.timestamp}'."
         )
         executeNextPerspective()
 
@@ -450,8 +447,12 @@ abstract class QueryHandler(
   private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
     workerList.values.foreach(worker => worker sendAsync serialise(msg))
 
+  private def messageReader(msg: QueryManagement): Unit =
+    readers sendAsync serialise(msg)
+
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
+    messageReader(EndQuery(jobID))
     logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
 
     tracker
