@@ -34,6 +34,7 @@ class PojoBasedPartition(partition: Int, conf: Config)
   /**
     * Map of vertices contained in the partition
     */
+
   val hasDeletionsPath      = "raphtory.data.containsDeletions"
   val hasDeletions: Boolean = conf.getBoolean(hasDeletionsPath)
   logger.debug(
@@ -302,6 +303,28 @@ class PojoBasedPartition(partition: Int, conf: Config)
           )
     }
     EdgeSyncAck(msgTime, srcId, dstId, fromAddition = true)
+  }
+
+  def batchAddRemoteEdge(
+      msgTime: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      edgeType: Option[Type]
+  ): Unit = {
+    val dstVertex =
+      addVertexInternal(msgTime, dstId, Properties(), None) // revive the destination node
+    logger.trace(s"Revived destination node: ${dstVertex.vertexId}")
+    dstVertex.getIncomingEdge(srcId) match {
+      case Some(edge) =>
+        edge revive msgTime //revive the edge
+        logger.trace(s"Revived edge ${edge.getSrcId} - ${edge.getDstId}")
+        addProperties(msgTime, edge, properties)
+        logger.trace(s"Added properties: $properties to edge")
+      case None       =>
+        val edge = new SplitEdge(msgTime, srcId, dstId, initialValue = true)
+        dstVertex addIncomingEdge edge //add the edge to the associated edges of the destination node
+    }
   }
 
   def removeEdge(msgTime: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect] = {

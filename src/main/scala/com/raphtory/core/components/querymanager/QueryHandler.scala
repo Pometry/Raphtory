@@ -341,7 +341,7 @@ abstract class QueryHandler(
       Stages.EstablishPerspective
     }
     else {
-      logger.trace(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
+      logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
       scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckTimer)
       Stages.EstablishPerspective
     }

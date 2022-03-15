@@ -10,11 +10,11 @@ import com.raphtory.core.components.querymanager.JobDone
 import com.raphtory.core.components.querymanager.QueryManagement
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
-import com.raphtory.core.components.spout.instance.FileSpout
-import com.raphtory.core.components.spout.instance.ResourceSpout
 import com.raphtory.core.deploy.Raphtory
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.serialisers.PulsarKryoSerialiser
+import com.raphtory.spouts.FileSpout
+import com.raphtory.spouts.ResourceSpout
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
@@ -47,7 +47,7 @@ class BaseCorrectnessTest extends AnyFunSuite {
       lastTimestamp: Long,
       outputFormat: OutputFormat = defaultOutputFormat
   ): String = {
-    val graph = Raphtory.createGraph(setSpout(graphResource), setGraphBuilder())
+    val graph = Raphtory.streamGraph(setSpout(graphResource), setGraphBuilder())
 
     val conf                 = graph.getConfig()
     val startingTime         = System.currentTimeMillis()

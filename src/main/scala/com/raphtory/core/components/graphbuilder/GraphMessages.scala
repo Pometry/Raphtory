@@ -56,6 +56,14 @@ case class SyncNewEdgeAdd(
     vType: Option[Type]
 ) extends GraphUpdateEffect(dstId)
 
+case class BatchAddRemoteEdge(
+    msgTime: Long,
+    srcId: Long,
+    dstId: Long,
+    properties: Properties,
+    vType: Option[Type]
+) extends GraphUpdateEffect(dstId)
+
 case class SyncExistingEdgeAdd(msgTime: Long, srcId: Long, dstId: Long, properties: Properties)
         extends GraphUpdateEffect(dstId)
 
