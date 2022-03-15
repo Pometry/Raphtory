@@ -72,7 +72,7 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
       batchLoading: Boolean = false,
       spout: Option[Spout[T]] = None,
       graphBuilder: Option[GraphBuilder[T]] = None
-  ): Unit = {
+  ): Seq[Partition] = {
     val totalPartitions = conf.getInt("raphtory.partitions.countPerServer")
     logger.info(s"Creating '$totalPartitions' Partition Managers.")
 
@@ -97,7 +97,8 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
           )
       }
 
-      val storage = new PojoBasedPartition(partitionID, conf)
+      val storage                      = new PojoBasedPartition(partitionID, conf)
+      var writer: Option[StreamWriter] = None
 
       if (batchLoading) {
         batchWriters += (
@@ -112,12 +113,15 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
         partitionIDs += i
       }
       else {
-        val writer = new StreamWriter(partitionID, storage, conf, pulsarController)
-        scheduler.execute(writer)
+        val streamWriter = new StreamWriter(partitionID, storage, conf, pulsarController)
+        scheduler.execute(streamWriter)
+        writer = Some(streamWriter)
       }
 
       val reader = new Reader(partitionID, storage, scheduler, conf, pulsarController)
       scheduler.execute(reader)
+
+      Partition(reader, writer)
     }
     if (batchLoading) {
       val batchHandler = new LocalBatchHandler[T](
@@ -131,7 +135,7 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
       )
       scheduler.execute(batchHandler)
     }
-
+    partitions
   }
 
   def spout[T](
@@ -176,3 +180,4 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
 }
 
 case class ThreadedWorker[T](worker: Component[T])
+case class Partition(reader: Reader, writer: Option[StreamWriter])

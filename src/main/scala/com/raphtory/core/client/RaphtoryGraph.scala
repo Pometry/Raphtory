@@ -79,19 +79,21 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
   def stop(): Unit = {
-    //TODO reenable partition stop
-//    partitions.foreach { partition =>
-//      partition.writer.stop()
-//      partition.reader.stop()
-//    }
-    //  queryManager.worker.stop()
+    partitions.foreach { partition =>
+      partition.writer match {
+        case Some(writer) => writer.stop()
+        case None         =>
+      }
+      partition.reader.stop()
+    }
+    queryManager.worker.stop()
     spoutworker match {
       case Some(w) => w.worker.stop()
-      case None    => ???
+      case None    =>
     }
     graphBuilderworker match {
       case Some(worker) => worker.foreach(builder => builder.worker.stop())
-      case None         => ???
+      case None         =>
     }
   }
 
