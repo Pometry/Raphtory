@@ -11,7 +11,9 @@ import scala.util.Random
 /** @DoNotDocument */
 private[core] class ConfigHandler {
   private lazy val defaults            = createConf()
-  private lazy val deployedDistributed = defaults.getBoolean("raphtory.deploy.distributed")
+
+  private lazy val deployedDistributed =
+    defaults.resolve().getBoolean("raphtory.deploy.distributed")
   private val customConfigValues       = ArrayBuffer[(String, ConfigValue)]()
 
   private var salt = Random.nextInt().abs
@@ -47,17 +49,17 @@ private[core] class ConfigHandler {
           )
     }
 
-    tempConf.resolve()
+    tempConf
   }
 
   private def local(): Config = {
-    val deploymentID = defaults.getString("raphtory.deploy.id") + "_" + salt
-    val spoutTopic   = defaults.getString("raphtory.spout.topic") + "_" + salt
+    val deploymentID = defaults.resolve().getString("raphtory.deploy.id") + "_" + salt
+    val spoutTopic   = defaults.resolve().getString("raphtory.spout.topic") + "_" + salt
     defaults
       .withValue("raphtory.spout.topic", ConfigValueFactory.fromAnyRef(spoutTopic))
       .withValue("raphtory.deploy.id", ConfigValueFactory.fromAnyRef(deploymentID))
       .resolve()
   }
 
-  private def distributed(): Config = defaults
+  private def distributed(): Config = defaults.resolve()
 }
