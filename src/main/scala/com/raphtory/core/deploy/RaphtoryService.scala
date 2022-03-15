@@ -12,7 +12,7 @@ import scala.reflect.runtime.universe.TypeTag
 /**
   * {s}`RaphtoryService[T]`
   *
-  *  : `RaphtoryService` for initialising spout, graphbuilder, deploying spout, partition and query manager
+  *  : `RaphtoryService` is used for distributed deployment of Raphtory as a service. This is done by deploying each of it's core components - spout, graphbuilder, partitions and query manager
   *
   * ## Methods
   *
