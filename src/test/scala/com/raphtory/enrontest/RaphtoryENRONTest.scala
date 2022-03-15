@@ -3,11 +3,12 @@ package com.raphtory.enrontest
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.GraphState
 import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.components.spout.instance.FileSpout
+import com.raphtory.core.deploy.Raphtory
 import com.raphtory.output.FileOutputFormat
+import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema
 import org.scalatest.DoNotDiscover
 
@@ -18,7 +19,10 @@ import java.io.File
 @DoNotDiscover
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
-  override def setSpout(): Spout[String]               = FileSpout("/tmp/email_test.csv")
+  override def batchLoading(): Boolean = false
+
+  override def setSpout(): Spout[String]               =
+    FileSpout("/tmp/email_test.csv")
   override def setGraphBuilder(): GraphBuilder[String] = new ENRONGraphBuilder()
 
   override def setup(): Unit =

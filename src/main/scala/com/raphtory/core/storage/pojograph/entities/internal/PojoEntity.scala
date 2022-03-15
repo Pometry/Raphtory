@@ -13,13 +13,14 @@ import scala.collection.mutable
 abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   // Properties from that entity
-  private var entityType: Option[String]        = None
+  private var entityType: String                = ""
   var properties: mutable.Map[String, Property] = mutable.Map[String, Property]()
 
   // History of that entity
 
   //var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
   var history: mutable.ArrayBuffer[(Long, Boolean)] = mutable.ArrayBuffer()
+  var deletions: mutable.ListBuffer[Long]           = mutable.ListBuffer.empty
   history += ((creationTime, isInitialValue))
   var toClean                                       = false
 
@@ -32,12 +33,16 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   var oldestPoint: Long = creationTime
 
   // History of that entity
-  def removeList: List[Long] = history.filter(f => !f._2).map(_._1).toList
+  def removeList: List[Long] = deletions.toList
   //.filter(f => if(!f._2) f._1).toList
 
   def setType(newType: Option[String]): Unit =
-    newType.foreach(nt => entityType = entityType.orElse(Some(nt)))
-  def getType: String                        = entityType.getOrElse("")
+    newType match {
+      case Some(t) => entityType = t
+      case None    =>
+    }
+
+  def getType: String = entityType
 
   def revive(msgTime: Long): Unit = {
     checkOldestTime(msgTime)
@@ -48,6 +53,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   def kill(msgTime: Long): Unit = {
     checkOldestTime(msgTime)
     history += ((msgTime, false))
+    deletions += msgTime
     toClean = true
   }
 

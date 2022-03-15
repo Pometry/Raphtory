@@ -29,7 +29,7 @@ import scala.collection.mutable
 import scala.language.postfixOps
 
 /** @DoNotDocument */
-class Writer(
+class StreamWriter(
     partitionID: Int,
     storage: GraphPartition,
     conf: Config,
