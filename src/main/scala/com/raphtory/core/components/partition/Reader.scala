@@ -1,18 +1,12 @@
 package com.raphtory.core.components.partition
 
-import com.raphtory.core.components.querymanager.EstablishExecutor
 import com.raphtory.core.components.Component
-import com.raphtory.core.components.querymanager.EstablishExecutor
-import com.raphtory.core.components.querymanager.WatermarkTime
+import com.raphtory.core.components.querymanager.{EndQuery, EstablishExecutor, QueryManagement, WatermarkTime}
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.GraphPartition
 import com.typesafe.config.Config
-import monix.eval.Task
 import monix.execution.Scheduler
-import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
-import org.apache.pulsar.client.api.Schema
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -20,12 +14,12 @@ import scala.collection.mutable
 
 /** @DoNotDocument */
 class Reader(
-    partitionID: Int,
-    storage: GraphPartition,
-    scheduler: Scheduler,
-    conf: Config,
-    pulsarController: PulsarController
-) extends Component[EstablishExecutor](conf: Config, pulsarController: PulsarController) {
+              partitionID: Int,
+              storage: GraphPartition,
+              scheduler: Scheduler,
+              conf: Config,
+              pulsarController: PulsarController
+            ) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
 
   private val executorMap                               = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish                          = pulsarController.watermarkPublisher()
@@ -41,7 +35,7 @@ class Reader(
     scheduleWaterMarker()
 
     cancelableConsumer = Some(
-            pulsarController.startReaderConsumer(partitionID, messageListener())
+      pulsarController.startReaderConsumer(partitionID, messageListener())
     )
   }
 
@@ -55,13 +49,18 @@ class Reader(
     executorMap.foreach(_._2.stop())
   }
 
-  override def handleMessage(msg: EstablishExecutor): Unit = {
-    val jobID         = msg.jobID
-    val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
+  override def handleMessage(msg: QueryManagement): Unit = {
+    msg match {
+      case req: EstablishExecutor =>
+        val jobID = req.jobID
+        val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
+        scheduler.execute(queryExecutor)
+        executorMap += ((jobID, queryExecutor))
 
-    scheduler.execute(queryExecutor)
-
-    executorMap += ((jobID, queryExecutor))
+      case req: EndQuery =>
+        executorMap(req.jobID).stop()
+        executorMap.remove(req.jobID)
+    }
   }
 
   def createWatermark(): Unit = {
