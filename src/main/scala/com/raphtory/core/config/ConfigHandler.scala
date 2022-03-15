@@ -53,15 +53,11 @@ private[core] class ConfigHandler {
   private def local(): Config = {
     val deploymentID = defaults.getString("raphtory.deploy.id") + "_" + salt
     val spoutTopic   = defaults.getString("raphtory.spout.topic") + "_" + salt
-    ConfigFactory
-      .defaultOverrides()
-      .withFallback(ConfigFactory.defaultApplication())
+    defaults
       .withValue("raphtory.spout.topic", ConfigValueFactory.fromAnyRef(spoutTopic))
       .withValue("raphtory.deploy.id", ConfigValueFactory.fromAnyRef(deploymentID))
       .resolve()
   }
 
-  private def distributed(): Config =
-    ConfigFactory.defaultOverrides().withFallback(ConfigFactory.defaultApplication()).resolve()
-
+  private def distributed(): Config = defaults
 }
