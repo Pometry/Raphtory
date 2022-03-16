@@ -3,6 +3,7 @@ package com.raphtory.core.components.spout
 import com.raphtory.core.components.Component
 import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
+import monix.execution.Cancelable
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Message
 
@@ -15,8 +16,9 @@ class SpoutExecutor[T](
     private val pulsarController: PulsarController,
     scheduler: Scheduler
 ) extends Component[T](conf: Config, pulsarController: PulsarController) {
-  protected val failOnError: Boolean = conf.getBoolean("raphtory.spout.failOnError")
-  private var linesProcessed: Int    = 0
+  protected val failOnError: Boolean           = conf.getBoolean("raphtory.spout.failOnError")
+  private var linesProcessed: Int              = 0
+  private var scheduledRun: Option[Cancelable] = None
 
   val rescheduler = new Runnable {
 
@@ -27,7 +29,10 @@ class SpoutExecutor[T](
   }
   private val producer = pulsarController.toBuildersProducer()
 
-  override def stop(): Unit = producer.close()
+  override def stop(): Unit = {
+    scheduledRun.foreach(_.cancel())
+    producer.close()
+  }
 
   override def handleMessage(msg: T): Unit = {} //Currently nothing to listen to here
 
@@ -48,7 +53,7 @@ class SpoutExecutor[T](
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
-    scheduler.scheduleOnce(10, TimeUnit.SECONDS, rescheduler)
+    scheduledRun = Some(scheduler.scheduleOnce(10, TimeUnit.SECONDS, rescheduler))
   }
 
 }
