@@ -7,7 +7,7 @@ import Properties._
 /**
   * # Properties
   *
-  * Properties are characteristic attributes like name, etc. assigned to Vertices and Edges. They are also useful in defining relationships between vertices forming edges.
+  * Properties are characteristic attributes like name, etc. assigned to Vertices and Edges by the [Graph Builder](com.raphtory.core.components.graphbuilder.GraphBuilder).
   *
   * ## Members
   *
