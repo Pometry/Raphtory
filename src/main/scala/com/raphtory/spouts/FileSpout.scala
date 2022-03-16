@@ -6,6 +6,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.util.FileUtils
+import com.raphtory.core.config.Telemetry
 
 import java.io.File
 import java.io.FileInputStream
@@ -86,6 +87,7 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
 
   private def processFile(file: File) = {
     logger.info(s"Spout: Processing file '${file.toPath.getFileName}' ...")
+    Telemetry.totalFilesProcessed.inc()
 
     val fileName = file.getPath.toLowerCase
     currentfile = file
@@ -107,7 +109,6 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
         FileUtils.deleteFile(file.toPath)
         throw ex
     }
-
   }
 
   private def getMatchingFiles() =
