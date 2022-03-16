@@ -27,9 +27,6 @@ import scala.collection.mutable.ArrayBuffer
   *      : Processes messages {s}`tuple` representing a singular row from the spout to extract source node, destination node, timestamp info, etc.
   *        Creates vertices and edges with the parsed information, find example usage below.
   *
-  *    {s}`getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate]`
-  *      : Parses `tuple` and fetches list of updates for the graph {s}`GraphUpdate`. This is used internally to retrieve updates which users are not expected to override.
-  *
   *    {s}`addVertex(updateTime: Long, srcId: Long, properties: Properties, vertexType: Type)`
   *      : Adds {s}`VertexAdd` to the list of graph updates, signifies vertex addition for timestamp {s}`updateTime`, ID {s}`srcId`, [Properties](com.raphtory.core.components.graphbuilder.Properties) {s}`properties`, vertex type {s}`vertexType`
   *        Usage of {s}`Properties` and {s}`vertexType` is described in the example usage below.
@@ -46,7 +43,6 @@ import scala.collection.mutable.ArrayBuffer
   *
   *    {s}`assignID(uniqueChars: String): Long`
   *      : Assigns long hash for string {s}`uniqueChars`. This is an optional method provided for convenience.
-  *
   *
   * Example Usage:
   *
@@ -89,6 +85,8 @@ trait GraphBuilder[T] extends Serializable {
 
   def assignID(uniqueChars: String): Long = LongHashFunction.xx3().hashChars(uniqueChars)
 
+  // Parses `tuple` and fetches list of updates for the graph.
+  // This is used internally to retrieve updates.
   private[core] def getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate] = {
     try {
       logger.trace(s"Parsing tuple: $tuple")
