@@ -1,13 +1,15 @@
 package com.raphtory.core.storage.pojograph.entities.internal
 
-import com.raphtory.core.graph.visitor.Vertex
+import com.raphtory.core.graph.visitor.{Edge, Vertex}
 import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.core.storage.pojograph.entities.external.PojoExEdge
 import com.raphtory.core.storage.pojograph.entities.external.PojoExVertex
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
+import it.unimi.dsi.fastutil.longs.{Long2ObjectOpenHashMap}
 
+import java.util.stream.Collectors
+import scala.Predef.->
 import scala.collection.mutable
-
+import scala.collection.mutable
 /** @DoNotDocument */
 class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
         extends PojoEntity(msgTime, initialValue) {
@@ -32,36 +34,35 @@ class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   // def getIncomingEdge(id: Long): Option[PojoEdge] = incomingEdges.get(id)
   def getIncomingEdge(id: Long): Option[PojoEdge] = if (incomingEdges.containsKey(id)) Some(incomingEdges.get(id)) else None
 
-  def viewAtWithWindow(time: Long, windowSize: Long, lens: PojoGraphLens): Vertex =
+  def viewAtWithWindow(time: Long, windowSize: Long, lens: PojoGraphLens): Vertex = {
+
+    val internalIncomingEdges = new Long2ObjectOpenHashMap[Edge]()
+    val internalOutgoingEdges = new Long2ObjectOpenHashMap[Edge]()
+
+    incomingEdges.long2ObjectEntrySet()
+      .forEach( entity => {
+        if (entity.getValue.aliveAtWithWindow(time, windowSize))
+          internalIncomingEdges.put(entity.getLongKey, new PojoExEdge(entity.getValue, entity.getLongKey, lens))
+      })
+
+    outgoingEdges.long2ObjectEntrySet()
+      .forEach( entity => {
+        if (entity.getValue.aliveAtWithWindow(time, windowSize))
+          internalOutgoingEdges.put(entity.getLongKey, new PojoExEdge(entity.getValue, entity.getLongKey, lens))
+      })
+
     new PojoExVertex(
       this,
-      incomingEdges.keySet().forEach(),
-//        case (k, edge) if edge.aliveAtWithWindow(time, windowSize) =>
-//          k -> new PojoExEdge(edge, k, lens)
-//      },
-      outgoingEdges.collect {
-        case (k, edge) if edge.aliveAtWithWindow(time, windowSize) =>
-          k -> new PojoExEdge(edge, k, lens)
-      },
+      internalIncomingEdges,
+      internalOutgoingEdges,
       lens
     )
-//    new PojoExVertex(
-//            this,
-//            incomingEdges.collect {
-//              case (k, edge) if edge.aliveAtWithWindow(time, windowSize) =>
-//                k -> new PojoExEdge(edge, k, lens)
-//            },
-//            outgoingEdges.collect {
-//              case (k, edge) if edge.aliveAtWithWindow(time, windowSize) =>
-//                k -> new PojoExEdge(edge, k, lens)
-//            },
-//            lens
-//    )
+  }
 
   override def dedupe() = {
     super.dedupe()
-    incomingEdges.foreach(_._2.dedupe())
-    outgoingEdges.foreach(_._2.dedupe())
+    incomingEdges.values().forEach(e => e.dedupe())
+    outgoingEdges.values().forEach(e => e.dedupe())
   }
 
   //def serialise(): ParquetVertex = ParquetVertex(vertexId,history.toList,properties.map(x=> x._2.serialise(x._1)).toList,incomingEdges.map(x=>x._2.serialise()).toList,outgoingEdges.map(x=>x._2.serialise()).toList)

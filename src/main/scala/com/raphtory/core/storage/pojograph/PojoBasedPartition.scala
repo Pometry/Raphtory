@@ -113,8 +113,10 @@ class PojoBasedPartition(partition: Int, conf: Config)
     }
 
     val messagesForIncoming = vertex.incomingEdges
+      .values()
+      .stream()
       .map { edge =>
-        edge._2 match {
+        edge match {
           case remoteEdge: SplitEdge =>
             remoteEdge kill msgTime
             logger.trace(s"$msgTime killed in $remoteEdge")
@@ -127,11 +129,13 @@ class PojoBasedPartition(partition: Int, conf: Config)
             None
         }
       }
-      .toList
-      .flatten
+      .toArray
+      .toList.asInstanceOf[List[GraphUpdateEffect]]
     val messagesForOutgoing = vertex.outgoingEdges
+      .values()
+      .stream()
       .map { edge =>
-        edge._2 match {
+        edge match {
           case remoteEdge: SplitEdge =>
             remoteEdge kill msgTime //outgoing edge always operated by the same worker, therefore we can perform an action
             logger.trace(s"$msgTime killed in $remoteEdge")
@@ -143,10 +147,8 @@ class PojoBasedPartition(partition: Int, conf: Config)
             logger.trace(s"$msgTime killed in $edge")
             None
         }
-      }
-      .toList
-      .flatten
-    val messages            = messagesForIncoming ++ messagesForOutgoing
+      }.toArray.toList.asInstanceOf[List[GraphUpdateEffect]]
+    val messages           = messagesForIncoming ++ messagesForOutgoing
     //if (messages.size != vertex.getEdgesRequiringSync())
     //  logger.error(s"The number of Messages to sync [${messages.size}] does not match to system value [${vertex.getEdgesRequringSync()}]")
     messages

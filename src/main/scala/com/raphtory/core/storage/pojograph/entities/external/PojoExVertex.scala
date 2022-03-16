@@ -7,15 +7,18 @@ import com.raphtory.core.graph.visitor.Vertex
 import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.core.storage.pojograph.entities.internal.PojoVertex
 import com.raphtory.core.storage.pojograph.messaging.VertexMultiQueue
+import io.prometheus.client.Collector
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 
+import java.util.stream.Collectors
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
 /** @DoNotDocument */
 class PojoExVertex(
     private val v: PojoVertex,
-    private val internalIncomingEdges: mutable.Map[Long, Edge],
-    private val internalOutgoingEdges: mutable.Map[Long, Edge],
+    private val internalIncomingEdges: Long2ObjectOpenHashMap[Edge],
+    private val internalOutgoingEdges: Long2ObjectOpenHashMap[Edge],
     private val lens: PojoGraphLens
 ) extends PojoExEntity(v, lens)
         with Vertex {
@@ -63,8 +66,11 @@ class PojoExVertex(
     individualEdge(internalIncomingEdges, after, before, id)
 
   // edge individual
-  def getEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[Edge] =
-    individualEdge(internalIncomingEdges ++ internalOutgoingEdges, after, before, id)
+  def getEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[Edge] = {
+    val edges = internalIncomingEdges.clone
+    edges.putAll(internalOutgoingEdges)
+    individualEdge(edges, after, before, id)
+  }
 
   override def explodeEdges(after: Long, before: Long): List[ExplodedEdge] =
     getEdges(after, before).flatMap(_.explode())
@@ -87,21 +93,19 @@ class PojoExVertex(
       case None    => None
     }
 
-  private def allEdge(edges: mutable.Map[Long, Edge], after: Long, before: Long) =
+  private def allEdge(edges: Long2ObjectOpenHashMap[Edge], after: Long, before: Long) =
     if (after == 0 && before == Long.MaxValue)
-      edges.values.toList
+      edges.values.stream.toArray.toList.asInstanceOf[List[Edge]]
     else
-      edges.collect {
-        case (_, edge) if edge.active(after, before) => edge
-      }.toList
+      edges.values.stream.filter(e => e.active(after, before)).toArray.toList.asInstanceOf[List[Edge]]//{case p: Edge => p})
 
-  private def individualEdge(edges: mutable.Map[Long, Edge], after: Long, before: Long, id: Long) =
+  private def individualEdge(edges: Long2ObjectOpenHashMap[Edge], after: Long, before: Long, id: Long) =
     if (after == 0 && before == Long.MaxValue)
-      edges.get(id)
+      Some(edges.get(id))
     else
-      edges.get(id) match {
-        case Some(edge) => if (edge.active(after, before)) Some(edge) else None
-        case None       => None
+      edges.containsKey(id) match {
+        case true => if (edges.get(id).active(after, before)) Some(edges.get(id)) else None
+        case false       => None
       }
 
   // state related
@@ -161,15 +165,21 @@ class PojoExVertex(
   }
 
   def messageOutNeighbours(message: Any): Unit =
-    internalOutgoingEdges.keys.foreach(vId => messageVertex(vId, message))
+    internalOutgoingEdges.keySet().forEach(vId => messageVertex(vId, message))
 
   def messageAllNeighbours(message: Any): Unit =
-    internalOutgoingEdges.keySet
-      .union(internalIncomingEdges.keySet)
-      .foreach(vId => messageVertex(vId, message))
+    internalOutgoingEdges.long2ObjectEntrySet().
+      forEach(vId =>
+        if (internalIncomingEdges.containsKey(vId.getLongKey))
+          messageVertex(vId.getLongKey, message)
+      )
 
   def messageInNeighbours(message: Any): Unit =
-    internalIncomingEdges.keys.foreach(vId => messageVertex(vId, message))
+    internalIncomingEdges.long2ObjectEntrySet().
+      forEach(vId =>
+        if (internalIncomingEdges.containsKey(vId.getLongKey))
+          messageVertex(vId.getLongKey, message)
+      )
 
   // todo hide
   def receiveMessage[T](msg: VertexMessage[T]): Unit =
