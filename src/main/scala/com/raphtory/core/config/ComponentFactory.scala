@@ -13,12 +13,11 @@ import com.raphtory.core.components.querymanager.QueryManager
 import com.raphtory.core.components.querytracker.QueryProgressTracker
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.components.spout.SpoutExecutor
+import com.raphtory.core.graph.GraphPartition
 import com.raphtory.core.storage.pojograph.PojoBasedPartition
-import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import monix.execution.Scheduler
-import org.apache.pulsar.client.api.Schema
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
@@ -72,7 +71,7 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
       batchLoading: Boolean = false,
       spout: Option[Spout[T]] = None,
       graphBuilder: Option[GraphBuilder[T]] = None
-  ): Unit = {
+  ): Partitions = {
     val totalPartitions = conf.getInt("raphtory.partitions.countPerServer")
     logger.info(s"Creating '$totalPartitions' Partition Managers.")
 
@@ -87,19 +86,19 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
     val batchWriters = mutable.Map[Int, BatchWriter[T]]()
     val partitionIDs = mutable.Set[Int]()
 
-    val partitions = for (i <- 0 until totalPartitions) yield {
-      val partitionID = idManager.getNextAvailableID() match {
-        case Some(id) => id
-        case None     =>
-          throw new Exception(
-                  s"Failed to retrieve Partition ID. " +
-                    s"ID Manager at Zookeeper '$idManager' was unreachable."
-          )
-      }
+    val partitions = if (batchLoading) {
+      val x: Seq[(GraphPartition, Reader)] = for (i <- 0 until totalPartitions) yield {
+        val partitionID = idManager.getNextAvailableID() match {
+          case Some(id) => id
+          case None     =>
+            throw new Exception(
+                    s"Failed to retrieve Partition ID. " +
+                      s"ID Manager at Zookeeper '$idManager' was unreachable."
+            )
+        }
 
-      val storage = new PojoBasedPartition(partitionID, conf)
+        val storage: GraphPartition = new PojoBasedPartition(partitionID, conf)
 
-      if (batchLoading) {
         batchWriters += (
                 (
                         i,
@@ -110,16 +109,13 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
                 )
         )
         partitionIDs += i
-      }
-      else {
-        val writer = new StreamWriter(partitionID, storage, conf, pulsarController)
-        scheduler.execute(writer)
+
+        val reader: Reader = new Reader(partitionID, storage, scheduler, conf, pulsarController)
+        scheduler.execute(reader)
+
+        (storage, reader)
       }
 
-      val reader = new Reader(partitionID, storage, scheduler, conf, pulsarController)
-      scheduler.execute(reader)
-    }
-    if (batchLoading) {
       val batchHandler = new LocalBatchHandler[T](
               partitionIDs,
               batchWriters,
@@ -130,8 +126,36 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
               scheduler
       )
       scheduler.execute(batchHandler)
+
+      Partitions(x.map(_._1).toList, x.map(_._2).toList, List(batchHandler))
+    }
+    else {
+      val x: Seq[(GraphPartition, Reader, Component[GraphAlteration])] =
+        for (i <- 0 until totalPartitions) yield {
+          val partitionID = idManager.getNextAvailableID() match {
+            case Some(id) => id
+            case None     =>
+              throw new Exception(
+                      s"Failed to retrieve Partition ID. " +
+                        s"ID Manager at Zookeeper '$idManager' was unreachable."
+              )
+          }
+
+          val storage = new PojoBasedPartition(partitionID, conf)
+
+          val writer = new StreamWriter(partitionID, storage, conf, pulsarController)
+          scheduler.execute(writer)
+
+          val reader = new Reader(partitionID, storage, scheduler, conf, pulsarController)
+          scheduler.execute(reader)
+
+          (storage, reader, writer)
+        }
+
+      Partitions(x.map(_._1).toList, x.map(_._2).toList, x.map(_._3).toList)
     }
 
+    partitions
   }
 
   def spout[T](
@@ -176,3 +200,9 @@ private[core] class ComponentFactory(conf: Config, pulsarController: PulsarContr
 }
 
 case class ThreadedWorker[T](worker: Component[T])
+
+case class Partitions(
+    storages: List[GraphPartition],
+    readers: List[Reader],
+    writers: List[Component[GraphAlteration]]
+)
