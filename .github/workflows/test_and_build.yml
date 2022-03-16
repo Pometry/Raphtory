@@ -56,6 +56,7 @@ jobs:
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
       - name: Run SBT tests
         run: sbt/bin/sbt test
+        timeout-minutes: 10
     if: needs.configure.outputs.type == 'regular'
 
   build:
