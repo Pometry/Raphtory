@@ -147,7 +147,8 @@ class PojoBasedPartition(partition: Int, conf: Config)
             logger.trace(s"$msgTime killed in $edge")
             None
         }
-      }.toArray.toList.asInstanceOf[List[GraphUpdateEffect]]
+      }.toArray
+      .toList.asInstanceOf[List[GraphUpdateEffect]]
     val messages           = messagesForIncoming ++ messagesForOutgoing
     //if (messages.size != vertex.getEdgesRequiringSync())
     //  logger.error(s"The number of Messages to sync [${messages.size}] does not match to system value [${vertex.getEdgesRequringSync()}]")

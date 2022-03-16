@@ -7,7 +7,6 @@ import com.raphtory.core.graph.visitor.Vertex
 import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.core.storage.pojograph.entities.internal.PojoVertex
 import com.raphtory.core.storage.pojograph.messaging.VertexMultiQueue
-import io.prometheus.client.Collector
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 
 import java.util.stream.Collectors
@@ -167,12 +166,13 @@ class PojoExVertex(
   def messageOutNeighbours(message: Any): Unit =
     internalOutgoingEdges.keySet().forEach(vId => messageVertex(vId, message))
 
-  def messageAllNeighbours(message: Any): Unit =
-    internalOutgoingEdges.long2ObjectEntrySet().
-      forEach(vId =>
-        if (internalIncomingEdges.containsKey(vId.getLongKey))
-          messageVertex(vId.getLongKey, message)
+  def messageAllNeighbours(message: Any): Unit = {
+    val allEdges = internalIncomingEdges.clone()
+    allEdges.putAll(internalOutgoingEdges)
+    allEdges.long2ObjectEntrySet().
+      forEach(vId =>messageVertex(vId.getLongKey, message)
       )
+  }
 
   def messageInNeighbours(message: Any): Unit =
     internalIncomingEdges.long2ObjectEntrySet().
