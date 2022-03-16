@@ -22,6 +22,7 @@ import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
 import org.scalactic.source
 import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.LoggerFactory
 
@@ -30,7 +31,9 @@ import scala.reflect.ClassTag
 import scala.util.Random
 import scala.reflect.runtime.universe._
 
-abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag] extends AnyFunSuite with BeforeAndAfter {
+abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
+        extends AnyFunSuite
+        with BeforeAndAfterAll {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   setup()
@@ -104,13 +107,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag] extends AnyFunSuite wi
     hash
   }
 
-  private def getID(algorithm: GraphAlgorithm): String =
-    try {
-      val path = algorithm.getClass.getCanonicalName.split("\\.")
-      path(path.size - 1) + "_" + System.currentTimeMillis()
-    }
-    catch {
-      case e: NullPointerException => "Anon_Func_" + System.currentTimeMillis()
-    }
-
+  override def afterAll(): Unit =
+    graph.stop()
 }
