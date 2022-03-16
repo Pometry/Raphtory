@@ -1,9 +1,7 @@
 package com.raphtory.lotrtest
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.ImmutableProperty
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.Type
+import com.raphtory.core.components.graphbuilder.Properties._
 
 class LOTRGraphBuilder() extends GraphBuilder[String] {
 

@@ -1,11 +1,11 @@
 package com.raphtory.core.components.graphbuilder
 
 import com.raphtory.core.components.partition.BatchWriter
-import com.raphtory.core.graph._
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
 import org.slf4j.LoggerFactory
-import com.typesafe.config.Config
+
+import Properties._
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

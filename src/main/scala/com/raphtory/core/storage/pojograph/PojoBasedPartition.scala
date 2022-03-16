@@ -1,21 +1,16 @@
 package com.raphtory.core.storage.pojograph
 
-import com.raphtory.core.components.graphbuilder.DoubleProperty
 import com.raphtory.core.components.graphbuilder.EdgeSyncAck
-import com.raphtory.core.components.graphbuilder.FloatProperty
 import com.raphtory.core.components.graphbuilder.GraphUpdateEffect
-import com.raphtory.core.components.graphbuilder.ImmutableProperty
 import com.raphtory.core.components.graphbuilder.InboundEdgeRemovalViaVertex
-import com.raphtory.core.components.graphbuilder.LongProperty
 import com.raphtory.core.components.graphbuilder.OutboundEdgeRemovalViaVertex
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.StringProperty
+import com.raphtory.core.components.graphbuilder.Properties._
 import com.raphtory.core.components.graphbuilder.SyncExistingEdgeAdd
 import com.raphtory.core.components.graphbuilder.SyncExistingEdgeRemoval
 import com.raphtory.core.components.graphbuilder.SyncExistingRemovals
 import com.raphtory.core.components.graphbuilder.SyncNewEdgeAdd
 import com.raphtory.core.components.graphbuilder.SyncNewEdgeRemoval
-import com.raphtory.core.components.graphbuilder.Type
+
 import com.raphtory.core.components.graphbuilder.VertexRemoveSyncAck
 import com.raphtory.core.graph.visitor.Vertex
 import com.raphtory.core.graph._

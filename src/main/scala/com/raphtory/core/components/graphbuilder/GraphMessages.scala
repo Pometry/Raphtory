@@ -2,20 +2,29 @@ package com.raphtory.core.components.graphbuilder
 
 import com.raphtory.serialisers.avro
 import org.apache.pulsar.client.api.Schema
+import Properties._
 
 /** @DoNotDocument */
-sealed trait Property {
-  def key: String
-  def value: Any
-}
+object Properties {
 
-case class Type(name: String)
-case class ImmutableProperty(key: String, value: String) extends Property
-case class StringProperty(key: String, value: String)    extends Property
-case class LongProperty(key: String, value: Long)        extends Property
-case class DoubleProperty(key: String, value: Double)    extends Property
-case class FloatProperty(key: String, value: Float)      extends Property
-case class Properties(property: Property*)
+  sealed trait Property {
+    def key: String
+    def value: Any
+  }
+  case class Type(name: String)
+
+  case class ImmutableProperty(key: String, value: String) extends Property
+
+  case class StringProperty(key: String, value: String) extends Property
+
+  case class LongProperty(key: String, value: Long) extends Property
+
+  case class DoubleProperty(key: String, value: Double) extends Property
+
+  case class FloatProperty(key: String, value: Float) extends Property
+
+  case class Properties(property: Property*)
+}
 
 sealed trait GraphAlteration
 

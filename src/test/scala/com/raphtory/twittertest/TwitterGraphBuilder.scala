@@ -1,9 +1,7 @@
 package com.raphtory.twittertest
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.ImmutableProperty
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.Type
+import com.raphtory.core.components.graphbuilder.Properties._
 
 /*
  * The Twitter dataset consists of 'circles' (or 'lists') from Twitter crawled from public sources.

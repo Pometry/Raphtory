@@ -4,9 +4,7 @@ import com.raphtory.core.components.graphbuilder.GraphBuilder.assignID
 import com.raphtory.core.components.graphbuilder.BuilderExecutor
 import com.raphtory.core.components.graphbuilder.EdgeAdd
 import com.raphtory.core.components.graphbuilder.GraphUpdate
-import com.raphtory.core.components.graphbuilder.ImmutableProperty
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.Type
+import com.raphtory.core.components.graphbuilder.Properties._
 import com.raphtory.core.components.graphbuilder.VertexAdd
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.deploy.Raphtory
