@@ -1,5 +1,7 @@
 package com.raphtory.core.storage.pojograph.entities.internal
 
+import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap
+
 import scala.collection.mutable
 
 /** @DoNotDocument
@@ -19,16 +21,22 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   // History of that entity
 
   //var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
-  var history: mutable.ArrayBuffer[(Long, Boolean)] = mutable.ArrayBuffer()
+  // var history: mutable.ArrayBuffer[(Long, Boolean)] = mutable.ArrayBuffer()
+  //
+  var history: Long2BooleanOpenHashMap = new Long2BooleanOpenHashMap()
+
   var deletions: mutable.ListBuffer[Long]           = mutable.ListBuffer.empty
-  history += ((creationTime, isInitialValue))
+  history.put(creationTime, isInitialValue)
   var toClean                                       = false
 
-  def dedupe() =
+  def dedupe() = {
     if (toClean) {
-      history = history.distinct
+      // history = history.distinct
+      history.trim()
       toClean = false
     }
+  }
+
 
   var oldestPoint: Long = creationTime
 
@@ -46,13 +54,13 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   def revive(msgTime: Long): Unit = {
     checkOldestTime(msgTime)
-    history += ((msgTime, true))
+    history.put(msgTime, true)
     toClean = true
   }
 
   def kill(msgTime: Long): Unit = {
     checkOldestTime(msgTime)
-    history += ((msgTime, false))
+    history.put(msgTime, false)
     deletions += msgTime
     toClean = true
   }
@@ -79,17 +87,18 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
           properties.put(key, new MutableProperty(msgTime, value))
     }
 
-  def wipe() = history = mutable.ArrayBuffer()
+  def wipe() = history = new Long2BooleanOpenHashMap()
 
   protected def closestTime(time: Long): (Long, Boolean) = {
     var closestTime: Long = -1
     var value             = false
-    for ((k, v) <- history)
+    history.forEach((k,v) => {
       if (k <= time)
         if ((time - k) < (time - closestTime)) {
           closestTime = k
           value = v
         }
+    })
     (closestTime, value)
   }
 
@@ -105,8 +114,8 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
       else false
     }
 
-  def activityAfter(time: Long)             = history.exists(k => k._1 >= time)
-  def activityBefore(time: Long)            = history.exists(k => k._1 <= time)
-  def activityBetween(min: Long, max: Long) = history.exists(k => k._1 > min && k._1 <= max)
+  def activityAfter(time: Long)             = history.keySet().longStream().filter(k => k >= time)
+  def activityBefore(time: Long)            = history.keySet().longStream().filter(k => k <= time)
+  def activityBetween(min: Long, max: Long) = history.keySet().longStream().filter(k => k > min && k <= max)
 
 }

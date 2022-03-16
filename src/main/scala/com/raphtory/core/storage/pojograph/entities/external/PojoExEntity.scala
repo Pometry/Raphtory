@@ -69,14 +69,14 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
   def history(): List[HistoricEvent] =
     view.window match {
       case Some(w) =>
-        entity.history.collect {
-          case (time, state) if time <= view.timestamp && time >= view.timestamp - w =>
-            HistoricEvent(time, state)
-        }.toList
+        entity.history.long2BooleanEntrySet().stream().map( entity => {
+          if (entity.getLongKey <= view.timestamp && entity.getLongKey >= view.timestamp - w)
+            HistoricEvent(entity.getLongKey, entity.getBooleanValue)
+        }).toArray().toList.asInstanceOf[List[HistoricEvent]]
       case None    =>
-        entity.history.collect {
-          case (time, state) if time <= view.timestamp => HistoricEvent(time, state)
-        }.toList
+        entity.history.long2BooleanEntrySet().stream().map( entity => {
+          if (entity.getLongKey <= view.timestamp) HistoricEvent(entity.getLongKey, entity.getBooleanValue)
+        }).toArray().toList.asInstanceOf[List[HistoricEvent]]
     }
 
   def aliveAt(time: Long): Boolean = entity.aliveAt(time)
@@ -84,6 +84,6 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
   def aliveAt(time: Long, window: Long): Boolean = entity.aliveAtWithWindow(time, window)
 
   def active(after: Long = 0, before: Long = Long.MaxValue): Boolean =
-    entity.history.exists(k => k._1 > after && k._1 <= before)
+    entity.history.keySet.longStream().allMatch(k => k > after && k <= before)
 
 }
