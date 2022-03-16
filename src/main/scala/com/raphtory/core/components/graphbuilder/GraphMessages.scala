@@ -7,7 +7,7 @@ import Properties._
 /**
   * # Properties
   *
-  * Vertex/Edge properties
+  * Properties are characteristic attributes like name, etc. assigned to Vertices and Edges. They are also useful in defining relationships between vertices forming edges.
   *
   * ## Members
   *
