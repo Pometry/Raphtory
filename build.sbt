@@ -49,7 +49,8 @@ libraryDependencies += "io.github.kostaskougios"      % "cloning"               
 libraryDependencies += "io.fabric8"                   % "kubernetes-client"                       % "5.11.1"
 libraryDependencies += "com.typesafe.scala-logging"   %% "scala-logging"                          % "3.9.4"
 libraryDependencies += "io.monix"                     %% "monix"                                  % "3.4.0"
-libraryDependencies += "com.typesafe"                 % "config"                                   % "1.4.1"
+libraryDependencies += "com.typesafe"                 % "config"                                  % "1.4.1"
+libraryDependencies += "it.unimi.dsi"                 % "fastutil"                                % "8.5.8"
 
 
 libraryDependencies ~= { _.map(_.exclude("org.slf4j","slf4j-log4j12")) }
