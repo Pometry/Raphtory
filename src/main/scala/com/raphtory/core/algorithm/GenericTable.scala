@@ -16,8 +16,8 @@ class GenericTable(val queryBuilder: QueryBuilder) extends Table {
     addFunction(Explode(closurefunc))
   }
 
-  override def writeTo(outputFormat: OutputFormat): QueryProgressTracker =
-    queryBuilder.addTableFunction(WriteTo(outputFormat)).submit()
+  override def writeTo(outputFormat: OutputFormat, jobName: String = ""): QueryProgressTracker =
+    queryBuilder.addTableFunction(WriteTo(outputFormat)).submit(jobName)
 
   private def addFunction(function: TableFunction) =
     new GenericTable(queryBuilder.addTableFunction(function))

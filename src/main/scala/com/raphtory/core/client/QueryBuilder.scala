@@ -46,15 +46,15 @@ class QueryBuilder(
   def setWindows(windows: List[Interval]): QueryBuilder =
     this copyWithQuery query.copy(windows = windows)
 
-  def submit(): QueryProgressTracker = {
-    val jobID       = getID(query)
+  def submit(customJobName: String = ""): QueryProgressTracker = {
+    val jobName     = if (customJobName.nonEmpty) customJobName else getDefaultName(query)
+    val jobID       = jobName + "_" + System.currentTimeMillis()
     val outputQuery = query.copy(name = jobID)
     pulsarController.toQueryManagerProducer sendAsync kryo.serialise(outputQuery)
     componentFactory.queryProgressTracker(jobID, scheduler)
   }
 
-  private def getID(query: Query): String =
-    query.hashCode().abs + "_" + System.currentTimeMillis()
+  private def getDefaultName(query: Query): String = query.hashCode().abs.toString
 
   private def copyWithQuery(newQuery: Query) =
     new QueryBuilder(componentFactory, scheduler, pulsarController, newQuery)
