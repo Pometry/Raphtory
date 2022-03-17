@@ -1,7 +1,7 @@
 package com.raphtory.core.graph.visitor
 
 trait ExplodedEdge {
-  def Type()
+  def Type(): String
   def ID(): Long
   def src(): Long
   def dst(): Long
