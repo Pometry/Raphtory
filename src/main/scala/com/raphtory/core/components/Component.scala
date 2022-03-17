@@ -30,7 +30,7 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   def stop()
 
   def messageListener(): MessageListener[Array[Byte]] =
-    (consumer, msg) => {
+    synchronized { (consumer, msg) =>
       try {
         val data = deserialise[T](msg.getValue)
 
