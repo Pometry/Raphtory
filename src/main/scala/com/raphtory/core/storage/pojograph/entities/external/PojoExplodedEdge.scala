@@ -26,5 +26,5 @@ class PojoExplodedEdge(objectEdge: PojoExEdge, timestamp: Long) extends Exploded
   override def send(data: Any): Unit =
     objectEdge.send(data)
 
-  override def getTimestamp(): Long = timestamp
+  override def timestamp(): Long = timestamp
 }
