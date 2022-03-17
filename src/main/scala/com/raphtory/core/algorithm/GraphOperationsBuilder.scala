@@ -3,6 +3,9 @@ package com.raphtory.core.algorithm
 import com.raphtory.core.client.QueryBuilder
 import com.raphtory.core.graph.visitor.Vertex
 
+/**
+  * @DoNotDocument
+  */
 abstract class GraphOperationsBuilder[G <: GraphOperations[G]](
     val queryBuilder: QueryBuilder
 ) extends GraphOperations[G] {

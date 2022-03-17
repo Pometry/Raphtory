@@ -7,6 +7,9 @@ import com.raphtory.core.time.Interval
 import com.raphtory.core.time.IntervalParser.{parse => parseInterval}
 import com.typesafe.config.Config
 
+/**
+  * @DoNotDocument
+  */
 class TemporalGraphBuilder(queryBuilder: QueryBuilder, private val conf: Config)
         extends RaphtoryGraphBuilder(queryBuilder)
         with TemporalGraph {
@@ -14,8 +17,10 @@ class TemporalGraphBuilder(queryBuilder: QueryBuilder, private val conf: Config)
   override def from(startTime: Long): TemporalGraph =
     new TemporalGraphBuilder(queryBuilder.setStartTime(startTime), conf)
 
-  override def from(startTime: String): TemporalGraph =
+  override def from(startTime: String): TemporalGraph = {
+    println(conf.getString("raphtory.query.timeFormat"))
     from(DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(startTime))
+  }
 
   override def until(endTime: Long): TemporalGraph =
     new TemporalGraphBuilder(queryBuilder.setEndTime(endTime), conf)

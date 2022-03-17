@@ -2,6 +2,9 @@ package com.raphtory.core.algorithm
 
 import com.raphtory.core.client.QueryBuilder
 
+/**
+  * @DoNotDocument
+  */
 class RaphtoryGraphBuilder(queryBuilder: QueryBuilder)
         extends GraphOperationsBuilder[RaphtoryGraph](queryBuilder)
         with RaphtoryGraph {
