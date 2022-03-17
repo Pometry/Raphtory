@@ -42,15 +42,10 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
   val spout        = setSpout()
   val graphBuilder = setGraphBuilder()
 
-  val graph =
+  val graph         =
     if (batchLoading) Raphtory.batchLoadGraph[T](spout, graphBuilder)
     else Raphtory.streamGraph[T](spout, graphBuilder)
-
-  lazy val deployment =
-    if (batchLoading) Raphtory.batchLoadGraph[T](spout, graphBuilder)
-    else Raphtory.streamGraph[T](spout, graphBuilder)
-
-  lazy val temporalGraph = Raphtory.getLocalGraph(deployment)
+  val temporalGraph = Raphtory.getLocalGraph(graph)
 
   val conf             = graph.getConfig()
   val pulsarController = new PulsarController(conf)
@@ -85,7 +80,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
     val jobId1                = queryProgressTracker1.getJobId()
     queryProgressTracker1.waitForJob()
     val hash1                 = getHash(testDir + s"/$jobId1")
-    graph.stop()
 
     val queryProgressTracker2 = temporalGraph
       .slice(start, end)
@@ -110,7 +104,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
       increment: String,
       windows: List[String]
   ): String = {
-    val startingTime         = System.currentTimeMillis()
     val queryProgressTracker = temporalGraph
       .slice(start, end)
       .raphtorize(increment, windows)
@@ -118,7 +111,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
       .writeTo(outputFormat)
     val jobId                = queryProgressTracker.getJobId()
     queryProgressTracker.waitForJob()
-
     getHash(testDir + s"/$jobId")
   }
 
@@ -145,8 +137,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
     hash
   }
 
-  override def afterAll(): Unit = {
+  override def afterAll(): Unit =
     graph.stop()
-    deployment.stop()
-  }
 }
