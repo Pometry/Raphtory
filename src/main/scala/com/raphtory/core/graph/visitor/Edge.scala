@@ -39,8 +39,8 @@ import com.raphtory.algorithms.generic.centrality.WeightedPageRank
   *    {s}`A`
   *      : value type for the edge weight property (if {s}`mergeStrategy` is not given, this needs to be a numeric type)
   *
-  *    {s}`B=A`
-  *      : return type of the merge strategy
+  *    {s}`B`
+  *      : return type of the merge strategy (only specify if using a custom merge strategy)
   *
   *    {s}`weightProperty: String = "weight"`
   *      : edge property to use for computing edge weight
@@ -57,6 +57,13 @@ import com.raphtory.algorithms.generic.centrality.WeightedPageRank
   *        merge strategy. In the case where, e.g., {s}`mergeStrategy =  PropertyMergeStrategy.sum[A]`, the
   *        computed weight is the number of times the edge was active in the current view if the weight property is not
   *        found.
+  *
+  * ```{seealso}
+  * [](com.raphtory.core.graph.visitor.ExplodedEddge),
+  * [](com.raphtory.core.graph.visitor.PropertyMergeStrategy),
+  * [](com.raphtory.core.graph.visitor.EntityVisitor)
+  * [](com.raphtory.core.graph.visitor.Vertex)
+  * ```
   */
 trait Edge extends EntityVisitor {
 
