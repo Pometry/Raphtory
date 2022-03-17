@@ -32,7 +32,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   def dedupe() = {
     if (toClean) {
       // history = history.distinct
-      history.trim()
+      //      history.trim()
       toClean = false
     }
   }
@@ -114,8 +114,8 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
       else false
     }
 
-  def activityAfter(time: Long)             = history.keySet().longStream().filter(k => k >= time)
-  def activityBefore(time: Long)            = history.keySet().longStream().filter(k => k <= time)
-  def activityBetween(min: Long, max: Long) = history.keySet().longStream().filter(k => k > min && k <= max)
+  //  def activityAfter(time: Long)             = history.keySet().longStream().filter(k => k >= time)
+  //  def activityBefore(time: Long)            = history.keySet().longStream().filter(k => k <= time)
+  //  def activityBetween(min: Long, max: Long) = history.keySet().longStream().filter(k => k > min && k <= max)
 
 }

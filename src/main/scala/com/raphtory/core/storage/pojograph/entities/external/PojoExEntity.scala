@@ -69,14 +69,15 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
   def history(): List[HistoricEvent] =
     view.window match {
       case Some(w) =>
-        entity.history.long2BooleanEntrySet().stream().map( entity => {
-          if (entity.getLongKey <= view.timestamp && entity.getLongKey >= view.timestamp - w)
-            HistoricEvent(entity.getLongKey, entity.getBooleanValue)
-        }).toArray().toList.asInstanceOf[List[HistoricEvent]]
+        entity.history.long2BooleanEntrySet().stream()
+          .filter(e => e.getLongKey <= view.timestamp && e.getLongKey >= view.timestamp - w)
+          .map(e => HistoricEvent(e.getLongKey, e.getBooleanValue))
+          .toArray.toList.asInstanceOf[List[HistoricEvent]]
       case None    =>
-        entity.history.long2BooleanEntrySet().stream().map( entity => {
-          if (entity.getLongKey <= view.timestamp) HistoricEvent(entity.getLongKey, entity.getBooleanValue)
-        }).toArray().toList.asInstanceOf[List[HistoricEvent]]
+        entity.history.long2BooleanEntrySet().stream()
+          .filter( e => e.getLongKey <= view.timestamp)
+        .map(e => HistoricEvent(e.getLongKey, e.getBooleanValue))
+        .toArray().toList.asInstanceOf[List[HistoricEvent]]
     }
 
   def aliveAt(time: Long): Boolean = entity.aliveAt(time)
