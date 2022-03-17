@@ -45,7 +45,7 @@ class MotifAlpha(fileOutput: String = "/tmp/motif_alpha") extends NodeList(Seq("
                     vertex
                       .explodeOutEdges()
                       .filter(e =>
-                        e.getTimestamp() > inEdge.getTimestamp() & e.dst() != inEdge.src() & e
+                        e.timestamp() > inEdge.timestamp() & e.dst() != inEdge.src() & e
                           .dst() != inEdge.dst()
                       )
                       .size
