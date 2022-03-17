@@ -122,10 +122,10 @@ class PojoExVertex(
     output_value
   }
 
-  def appendToState[T](key: String, value: Any): Unit = //write function later
+  def appendToState[T: ClassTag](key: String, value: T): Unit = //write function later
     computationValues.get(key) match {
       case Some(arr) =>
-        setState(key, arr.asInstanceOf[Array[Any]] :+ value)
+        setState(key, arr.asInstanceOf[Array[T]] :+ value)
       case None      =>
         setState(key, Array(value))
     }

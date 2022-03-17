@@ -3,6 +3,8 @@ package com.raphtory.core.graph.visitor
 import PropertyMergeStrategy.PropertyMerge
 import com.raphtory.core.graph.visitor.EdgeDirection.Direction
 
+import scala.reflect.ClassTag
+
 /**
   * {s}`Vertex`
   *   : Extends [{s}`EntityVisitor`](com.raphtory.core.graph.visitor.EntityVisitor) with vertex-specific functionality
@@ -436,7 +438,7 @@ trait Vertex extends EntityVisitor {
   def containsState(key: String, includeProperties: Boolean = false): Boolean
   // if includeProperties = true and value is pulled in from properties, the new value is set as state
   def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T
-  def appendToState[T](key: String, value: Any): Unit
+  def appendToState[T: ClassTag](key: String, value: T): Unit
 
   // weight
   private def directedEdgeWeight[A, B: Numeric](
