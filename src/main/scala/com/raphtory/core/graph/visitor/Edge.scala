@@ -30,7 +30,7 @@ import com.raphtory.algorithms.generic.centrality.WeightedPageRank
   *      : Message data to send
   *
   * {s}`explode(): List[ExplodedEdge]`
-  *  : Return an [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge) instance for each time the edge is
+  *  : Return an [{s}`ExplodedEdge`](com.raphtory.core.graph.visitor.ExplodedEdge) instance for each time the edge is
   *    active in the current view.
   *
   * {s}`weight[A, B](weightProperty: String = "weight", mergeStrategy: Seq[(Long, A)] => B = PropertyMergeStrategy.sum[A], default: A = 1)`
@@ -59,7 +59,7 @@ import com.raphtory.algorithms.generic.centrality.WeightedPageRank
   *        found.
   *
   * ```{seealso}
-  * [](com.raphtory.core.graph.visitor.ExplodedEddge),
+  * [](com.raphtory.core.graph.visitor.ExplodedEdge),
   * [](com.raphtory.core.graph.visitor.PropertyMergeStrategy),
   * [](com.raphtory.core.graph.visitor.EntityVisitor)
   * [](com.raphtory.core.graph.visitor.Vertex)
