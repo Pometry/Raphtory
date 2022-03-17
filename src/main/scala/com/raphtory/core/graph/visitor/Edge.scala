@@ -10,7 +10,7 @@ import com.raphtory.algorithms.generic.centrality.WeightedPageRank
   * For documentation of the property access and update history methods see the
   * [{s}`EntityVisitor` documentation](com.raphtory.core.graph.visitor.EntityVisitor).
   *
-  * ## Properties
+  * ## Attributes
   *
   * {s}`ID: Long`
   *  : Edge ID

@@ -10,7 +10,7 @@ import com.raphtory.core.graph.visitor.PropertyMergeStrategy.PropertyMerge
   * The {s}`EntityVisitor` class defines the interface for accessing properties (set when the graph is constructed)
   * and historic activity for vertices and edges.
   *
-  * ## Properties
+  * ## Attributes
   *
   * {s}`numCreations: Long`
   *  : number of addition events for the entity in the current view
