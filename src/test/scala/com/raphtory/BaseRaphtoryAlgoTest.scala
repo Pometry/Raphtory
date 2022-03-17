@@ -46,9 +46,11 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
     if (batchLoading) Raphtory.batchLoadGraph[T](spout, graphBuilder)
     else Raphtory.streamGraph[T](spout, graphBuilder)
 
-  lazy val temporalGraph =
-    if (batchLoading) Raphtory.deployBatchGraph[T](spout, graphBuilder)
-    else Raphtory.deployStreamGraph[T](spout, graphBuilder)
+  lazy val deployment =
+    if (batchLoading) Raphtory.batchLoadGraph[T](spout, graphBuilder)
+    else Raphtory.streamGraph[T](spout, graphBuilder)
+
+  lazy val temporalGraph = Raphtory.getLocalGraph(deployment)
 
   val conf             = graph.getConfig()
   val pulsarController = new PulsarController(conf)
@@ -142,6 +144,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
     hash
   }
 
-  override def afterAll(): Unit =
+  override def afterAll(): Unit = {
     graph.stop()
+    deployment.stop()
+  }
 }

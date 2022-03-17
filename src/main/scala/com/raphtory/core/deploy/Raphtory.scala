@@ -119,55 +119,17 @@ object Raphtory {
     )
   }
 
-  def deployStreamGraph[T: TypeTag: ClassTag](
-      spout: Spout[T] = new IdentitySpout[T](),
-      graphBuilder: GraphBuilder[T],
-      customConfig: Map[String, Any] = Map()
-  ): TemporalGraph = {
+  def getGraph(customConfig: Map[String, Any] = Map()): TemporalGraph = {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
     val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
-    new GraphDeployment[T](
-            false,
-            spout,
-            graphBuilder,
-            queryBuilder,
-            conf,
-            componentFactory,
-            scheduler
-    )
     new TemporalGraphBuilder(queryBuilder, conf)
   }
 
-  def deployBatchGraph[T: ClassTag: TypeTag](
-      spout: Spout[T] = new IdentitySpout[T](),
-      graphBuilder: GraphBuilder[T],
-      customConfig: Map[String, Any] = Map()
-  ): TemporalGraph = {
-    val conf             = confBuilder(customConfig)
-    val pulsarController = new PulsarController(conf)
-    val componentFactory = new ComponentFactory(conf, pulsarController)
-    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
-    new GraphDeployment[T](
-            true,
-            spout,
-            graphBuilder,
-            queryBuilder,
-            conf,
-            componentFactory,
-            scheduler
-    )
-    new TemporalGraphBuilder(queryBuilder, conf)
-  }
-
-  def getGraph(
-      customConfig: Map[String, Any] = Map()
-  ): TemporalGraph = {
-    val conf             = confBuilder(customConfig)
-    val pulsarController = new PulsarController(conf)
-    val componentFactory = new ComponentFactory(conf, pulsarController)
-    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
+  def getLocalGraph[T: ClassTag: TypeTag](deployment: GraphDeployment[T]): TemporalGraph = {
+    val conf         = deployment.getConfig()
+    val queryBuilder = deployment.getQueryBuilder()
     new TemporalGraphBuilder(queryBuilder, conf)
   }
 

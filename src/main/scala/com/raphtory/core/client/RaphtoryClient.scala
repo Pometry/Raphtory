@@ -155,4 +155,6 @@ private[core] class RaphtoryClient(
   }
 
   def getConfig(): Config = conf
+
+  def getQueryBuilder(): QueryBuilder = queryBuilder
 }
