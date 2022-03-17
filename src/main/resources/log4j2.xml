@@ -29,7 +29,7 @@
         </Logger>
         <Logger name="com.raphtory.core.components.querymanager" level="DEBUG">
         </Logger>
-        <Logger name="com.raphtory.core.components.partition.QueryExecutor" level="INFO">
+        <Logger name="com.raphtory.core.components.partition.QueryExecutor" level="TRACE">
         </Logger>
         <Logger name="com.raphtory.core.components.querymanager.QueryManager" level="INFO">
         </Logger>
