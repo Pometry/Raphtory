@@ -57,10 +57,21 @@ class RaphtoryGraphTest extends AnyFunSuite {
     assert(query.startTime.isDefined)
   }
 
+  test("Test timestamp format with date") {
+    val query = Raphtory
+      .getGraph()
+      .from("2020-02-25")
+      .asInstanceOf[TemporalGraphBuilder]
+      .queryBuilder
+      .query
+
+    assert(query.startTime.isDefined)
+  }
+
   test("Test timestamp format with custom configuration for 2 digit milliseconds") {
     val conf  = Map("raphtory.query.timeFormat" -> "yyyy-MM-dd HH:mm:ss[.SS]")
     val query = Raphtory
-      .getGraph() //conf)
+      .getGraph(conf)
       .from("2020-02-25 23:12:08.56")
       .asInstanceOf[TemporalGraphBuilder]
       .queryBuilder
@@ -69,11 +80,11 @@ class RaphtoryGraphTest extends AnyFunSuite {
     assert(query.startTime.isDefined)
   }
 
-  test("Test timestamp format with custom configuration for date representation") {
-    val conf  = Map("raphtory.query.timeFormat" -> "yyyy-MM-dd")
+  test("Test timestamp format with custom configuration for hours and minutes") {
+    val conf  = Map("raphtory.query.timeFormat" -> "yyyy-MM-dd HH:mm")
     val query = Raphtory
       .getGraph(conf)
-      .from("2020-02-25")
+      .from("2020-02-25 12:23")
       .asInstanceOf[TemporalGraphBuilder]
       .queryBuilder
       .query

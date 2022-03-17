@@ -20,7 +20,7 @@ package com.raphtory.core.algorithm
   *
   *  {s}`from(startTime: String): TemporalGraph`
   *    : Set the start of the timeline to {s}`startTime`. The format of the timestamp can be set in the configuration
-  *    path: {s}`"raphtory.query.timeFormat"`. By default is {s}`"yyyy-MM-dd HH:mm:ss[.SSS]"`.
+  *    path: {s}`"raphtory.query.timeFormat"`. By default is {s}`"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`.
   *
   *      {s}`startTime: String`
   *      : timestamp
@@ -33,7 +33,7 @@ package com.raphtory.core.algorithm
   *
   *  {s}`until(endTime: String): TemporalGraph`
   *    : Set the end of the timeline to {s}`endTime`. The format of the timestamp can be set in the configuration
-  *    path: {s}`"raphtory.query.timeFormat"`. By default is {s}`"yyyy-MM-dd HH:mm:ss[.SSS]"`.
+  *    path: {s}`"raphtory.query.timeFormat"`. By default is {s}`"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`.
   *
   *      {s}`endTime: String`
   *        : timestamp
@@ -46,7 +46,7 @@ package com.raphtory.core.algorithm
   *     : Set the start and the end of the timeline to {s}`startTime` and {s}`endTime` respectively.
   *    {s}`graph.slice(startTime, endTime)` is equivalent to {s}`graph.from(startTime).until(endTime)`.
   *    The format of the timestamps can be set in the configuration
-  *    path: {s}`"raphtory.query.timeFormat"`. By default is {s}`"yyyy-MM-dd HH:mm:ss[.SSS]"`.
+  *    path: {s}`"raphtory.query.timeFormat"`. By default is {s}`"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`.
   *
   *   {s}`raphtorize(increment: Long): RaphtoryGraph`
   *     : Create a collection of incrementally growing views over the graph beginning from the start of the

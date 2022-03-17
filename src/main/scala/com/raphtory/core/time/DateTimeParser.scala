@@ -1,14 +1,20 @@
 package com.raphtory.core.time
 
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import scala.util.Try
 
 class DateTimeParser(format: String) {
   val formatter = DateTimeFormatter.ofPattern(format)
 
   def parse(datetime: String): Long =
-    LocalDateTime.parse(datetime, formatter).toInstant(ZoneOffset.UTC).toEpochMilli
+    Try(LocalDateTime.parse(datetime, formatter))
+      .orElse(Try(LocalDate.parse(datetime, formatter).atTime(LocalTime.of(0, 0))))
+      .map(_.toInstant(ZoneOffset.UTC).toEpochMilli)
+      .get
 }
 
 object DateTimeParser {
