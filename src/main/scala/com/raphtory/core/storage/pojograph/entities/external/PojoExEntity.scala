@@ -9,7 +9,7 @@ import scala.reflect.ClassTag
 
 /** @DoNotDocument */
 abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends EntityVisitor {
-  def Type() = entity.getType
+  def Type(): String = entity.getType
 
   def firstActivityAfter(time: Long): HistoricEvent =
     history().filter(k => k.time >= time).minBy(x => x.time)
@@ -49,17 +49,23 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
 //      case None    => None
 //    }
 
-  def getPropertyHistory[T](key: String): Option[List[(Long, T)]] =
+  def getPropertyHistory[T](
+      key: String,
+      after: Long = Long.MinValue,
+      before: Long = Long.MaxValue
+  ): Option[List[(Long, T)]] =
     (entity.properties.get(key), view.window) match {
       case (Some(p), Some(w)) =>
         Some(
-                p.valueHistory(view.timestamp - w, view.timestamp)
-                  .toList
+                p.valueHistory(
+                        math.max(view.timestamp - w, after),
+                        math.min(view.timestamp, before)
+                ).toList
                   .map(x => (x._1, x._2.asInstanceOf[T]))
         )
       case (Some(p), None)    =>
         Some(
-                p.valueHistory(before = view.timestamp)
+                p.valueHistory(after, before = math.min(view.timestamp, before))
                   .toList
                   .map(x => (x._1, x._2.asInstanceOf[T]))
         )
