@@ -85,6 +85,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
     val jobId1                = queryProgressTracker1.getJobId()
     queryProgressTracker1.waitForJob()
     val hash1                 = getHash(testDir + s"/$jobId1")
+    graph.stop()
 
     val queryProgressTracker2 = temporalGraph
       .slice(start, end)
