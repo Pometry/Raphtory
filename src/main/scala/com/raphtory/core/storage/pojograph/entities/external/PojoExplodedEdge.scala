@@ -5,7 +5,7 @@ import com.raphtory.core.graph.visitor.ExplodedEdge
 /** @DoNotDocument */
 class PojoExplodedEdge(objectEdge: PojoExEdge, timestamp: Long) extends ExplodedEdge {
 
-  override def Type(): Unit =
+  override def Type(): String =
     objectEdge.Type()
 
   override def ID(): Long =
@@ -26,5 +26,5 @@ class PojoExplodedEdge(objectEdge: PojoExEdge, timestamp: Long) extends Exploded
   override def send(data: Any): Unit =
     objectEdge.send(data)
 
-  override def getTimestamp(): Long = timestamp
+  override def timestamp(): Long = timestamp
 }

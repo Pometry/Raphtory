@@ -7,7 +7,11 @@ import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.graph.visitor.Vertex
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
 
-/** @DoNotDocument */
+/** @DoNotDocument
+  * Abstract interface for the GraphLens
+  *
+  * The GraphLens is responsible for executing algorithms
+  */
 trait LensInterface {
 
   def getFullGraphSize: Int

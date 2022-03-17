@@ -3,10 +3,12 @@ package com.raphtory.core.graph.visitor
 import com.raphtory.util.Reduction._
 
 /**
-  * {s}`MergeStrategy`
+  * {s}`PropertyMergeStrategy`
   *  : Collection of pre-defined merge strategies.
   *
   * A merge strategy is a function that takes a collection of timestamped property values and returns a single value.
+  * Merge strategies are used to control the aggregation semantics for property access in
+  * [{s}`EntityVisitor`](com.raphtory.core.graph.visitor.EntityVisitor).
   * The general signature for a merge strategy is {s}`Seq[(Long, A)] => B`.
   *
   * ## Methods
@@ -31,6 +33,12 @@ import com.raphtory.util.Reduction._
   *
   * {s}`earliest[T](history: (history: Seq[(Long, T)]): T`
   *  : Return the earliest property value (i.e., the value corresponding to the smallest timestamp)
+  *
+  * ```{seealso}
+  * [](com.raphtory.core.graph.visitor.EntityVisitor),
+  * [](com.raphtory.core.graph.visitor.Edge),
+  * [](com.raphtory.core.graph.visitor.Vertex)
+  * ```
   */
 object PropertyMergeStrategy {
   type PropertyMerge[A, B] = Seq[(Long, A)] => B
