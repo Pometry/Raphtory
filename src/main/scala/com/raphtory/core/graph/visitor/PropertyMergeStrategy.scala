@@ -3,10 +3,12 @@ package com.raphtory.core.graph.visitor
 import com.raphtory.util.Reduction._
 
 /**
-  * {s}`MergeStrategy`
+  * {s}`PropertyMergeStrategy`
   *  : Collection of pre-defined merge strategies.
   *
   * A merge strategy is a function that takes a collection of timestamped property values and returns a single value.
+  * Merge strategies are used to control the aggregation semantics for property access in
+  * [{s}`EntityVisitor`](com.raphtory.core.graph.visitor.EntityVisitor).
   * The general signature for a merge strategy is {s}`Seq[(Long, A)] => B`.
   *
   * ## Methods
