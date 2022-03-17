@@ -19,6 +19,10 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
+  private var batchIngesting         = false
+  def startBatchIngesting()          = batchIngesting = true
+  def stopBatchIngesting()           = batchIngesting = false
+  def currentyBatchIngesting()       = batchIngesting
 
   /**
     * Ingesting Vertices
@@ -55,6 +59,14 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
       dstId: Long,
       properties: Properties
   ): GraphUpdateEffect
+
+  def batchAddRemoteEdge(
+      msgTime: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      edgeType: Option[Type]
+  ): Unit
 
   def removeEdge(msgTime: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect]
 

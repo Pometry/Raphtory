@@ -21,6 +21,7 @@ import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
 import org.scalactic.source
 import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.LoggerFactory
 
@@ -29,20 +30,28 @@ import scala.reflect.ClassTag
 import scala.util.Random
 import scala.reflect.runtime.universe._
 
-abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with BeforeAndAfter {
+abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
+        extends AnyFunSuite
+        with BeforeAndAfterAll {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   setup()
 
   Thread.sleep(5000)
 
-  val spout              = setSpout()
-  val graphBuilder       = setGraphBuilder()
-  val graph              = Raphtory.createGraph[T](spout, graphBuilder)
-  lazy val temporalGraph = Raphtory.deployGraph(spout, graphBuilder)
-  Raphtory.createClient("deployment123", Map(("raphtory.pulsar.endpoint", "localhost:1234")))
-  val conf               = graph.getConfig()
-  val pulsarController   = new PulsarController(conf)
+  val spout        = setSpout()
+  val graphBuilder = setGraphBuilder()
+
+  val graph =
+    if (batchLoading) Raphtory.batchLoadGraph[T](spout, graphBuilder)
+    else Raphtory.streamGraph[T](spout, graphBuilder)
+
+  lazy val temporalGraph =
+    if (batchLoading) Raphtory.deployBatchGraph[T](spout, graphBuilder)
+    else Raphtory.deployStreamGraph[T](spout, graphBuilder)
+
+  val conf             = graph.getConfig()
+  val pulsarController = new PulsarController(conf)
 
   val pulsarAddress: String =
     conf.getString("raphtory.pulsar.broker.address") //conf.getString("Raphtory.pulsarAddress")
@@ -54,6 +63,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
 
   def setSpout(): Spout[T]
   def setGraphBuilder(): GraphBuilder[T]
+  def batchLoading(): Boolean
   def setup(): Unit = {}
 
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
@@ -132,13 +142,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag] extends AnyFunSuite with Before
     hash
   }
 
-  private def getID(algorithm: GraphAlgorithm): String =
-    try {
-      val path = algorithm.getClass.getCanonicalName.split("\\.")
-      path(path.size - 1) + "_" + System.currentTimeMillis()
-    }
-    catch {
-      case e: NullPointerException => "Anon_Func_" + System.currentTimeMillis()
-    }
-
+  override def afterAll(): Unit =
+    graph.stop()
 }

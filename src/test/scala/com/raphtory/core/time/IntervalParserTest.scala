@@ -34,7 +34,7 @@ class IntervalParserTest extends AnyFunSuite {
   }
 
   test("Unknown units cause an exception") {
-    assertThrows[InvalidIntervalFormatException] {
+    assertThrows[InvalidIntervalException] {
       IntervalParser.parse("3 weeeks")
     }
   }

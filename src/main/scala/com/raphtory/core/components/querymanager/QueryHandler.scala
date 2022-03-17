@@ -11,11 +11,8 @@ import com.raphtory.core.graph.Perspective
 import com.raphtory.core.graph.PerspectiveController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
-import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Producer
-import org.apache.pulsar.client.api.Schema
 
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
@@ -337,7 +334,7 @@ class QueryHandler(
       Stages.EstablishPerspective
     }
     else {
-      logger.trace(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
+      logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
       scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckTimer)
       Stages.EstablishPerspective
     }
@@ -446,8 +443,12 @@ class QueryHandler(
   private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
     workerList.values.foreach(worker => worker sendAsync serialise(msg))
 
+  private def messageReader(msg: QueryManagement): Unit =
+    readers sendAsync serialise(msg)
+
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
+    messageReader(EndQuery(jobID))
     logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
 
     tracker

@@ -1,8 +1,9 @@
 package com.raphtory.core.client
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.spout.SpoutExecutor
+import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.config.ComponentFactory
+import com.raphtory.core.config.Partitions
 import com.raphtory.core.config.ThreadedWorker
 import com.raphtory.core.config.ZookeeperIDManager
 import com.typesafe.config.Config
@@ -10,6 +11,7 @@ import monix.execution.Scheduler
 
 import scala.language.postfixOps
 import scala.reflect.ClassTag
+import scala.reflect.runtime.universe._
 
 /**
   * {s}`GraphDeployment`
@@ -30,8 +32,9 @@ import scala.reflect.ClassTag
   *  [](com.raphtory.core.client.RaphtoryClient), [](com.raphtory.core.deploy.Raphtory)
   *  ```
   */
-private[core] class GraphDeployment[T: ClassTag](
-    spout: SpoutExecutor[T],
+private[core] class GraphDeployment[T: ClassTag: TypeTag](
+    batchLoading: Boolean,
+    spout: Spout[T],
     graphBuilder: GraphBuilder[T],
     private val queryBuilder: QueryBuilder,
     private val conf: Config,
@@ -57,24 +60,38 @@ private[core] class GraphDeployment[T: ClassTag](
     new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
   builderIdManager.resetID()
 
-  private val partitions                     = componentFactory.partition(scheduler)
-  private val queryManager                   = componentFactory.query(scheduler)
-  private val spoutworker: ThreadedWorker[T] = componentFactory.spout(spout, scheduler)
+  private val partitions: Partitions =
+    componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
 
-  private val graphBuilderworker: List[ThreadedWorker[T]] =
-    componentFactory.builder[T](graphBuilder, scheduler)
+  private val queryManager = componentFactory.query(scheduler)
+
+  private val spoutworker: Option[ThreadedWorker[T]] =
+    componentFactory.spout(spout, batchLoading, scheduler)
+
+  private val graphBuilderworker: Option[List[ThreadedWorker[T]]] =
+    componentFactory.builder[T](graphBuilder, batchLoading, scheduler)
 
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
   def stop(): Unit = {
-    partitions.foreach { partition =>
-      partition.writer.stop()
-      partition.reader.stop()
-    }
+    partitions.writers.foreach(_.stop())
+    partitions.readers.foreach(_.stop())
+    //TODO reenable partition stop
+//    partitions.foreach { partition =>
+//      partition.writer.stop()
+//      partition.reader.stop()
+//    }
     queryManager.worker.stop()
-    spoutworker.worker.stop()
-    graphBuilderworker.foreach(builder => builder.worker.stop())
+
+    spoutworker match {
+      case Some(w) => w.worker.stop()
+      case None    => ???
+    }
+    graphBuilderworker match {
+      case Some(worker) => worker.foreach(builder => builder.worker.stop())
+      case None         => ???
+    }
   }
 
   private def allowIllegalReflection() = {

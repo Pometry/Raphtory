@@ -3,16 +3,7 @@ package com.raphtory.core.deploy
 import com.raphtory.core.algorithm.TemporalGraphBuilder
 import com.raphtory.core.algorithm.TemporalGraph
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.spout.executor.FileSpoutExecutor
-import com.raphtory.core.components.spout.executor.IdentitySpoutExecutor
-import com.raphtory.core.components.spout.executor.ResourceSpoutExecutor
-import com.raphtory.core.components.spout.executor.StaticGraphSpoutExecutor
-import com.raphtory.core.components.spout.instance.FileSpout
-import com.raphtory.core.components.spout.instance.IdentitySpout
-import com.raphtory.core.components.spout.instance.ResourceSpout
-import com.raphtory.core.components.spout.instance.StaticGraphSpout
 import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.config.ComponentFactory
 import com.raphtory.core.config.ConfigHandler
 import com.raphtory.core.config.MonixScheduler
@@ -20,15 +11,75 @@ import com.raphtory.core.config.PulsarController
 import com.raphtory.core.client.QueryBuilder
 import com.raphtory.core.client.RaphtoryClient
 import com.raphtory.core.client.GraphDeployment
+import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
 
 import scala.reflect.ClassTag
+import scala.reflect.runtime.universe._
 
+/**
+  * {s}`Raphtory`
+  *  : `Raphtory` object for creating Raphtory Components
+  *
+  * ## Methods
+  *
+  *   {s}`createGraph(spout: Spout[T] = new IdentitySpout[T](), graphBuilder: GraphBuilder[T], customConfig: Map[String, Any] = Map()): RaphtoryGraph[T]`
+  *    : Creates Graph using spout, graph-builder and custom config. Returns {s}`RaphtoryGraph` object for the user to run queries. {s}`customConfig` is a key-value mapping of Raphtory parameters for Pulsar and components like partitions, etc. Refer to the example usage below.
+  *
+  *   {s}`createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`
+  *    : Create Client to expose APIs for running point, range and live queries for graph algorithms in Raphtory.
+  *      Client is for a {s}`deploymentID` and config {s}`customConfig` of parameters eg. Pulsar endpoint as illustrated in the example usage
+  *
+  *   {s}`createSpout(spout: Spout[T])`
+  *    : Creates {s}`Spout` to read or ingest data from resources or files, sending messages to builder producers for each row. Supported spout types are {s}FileSpout`, {s}`ResourceSpout`, {s}`StaticGraphSpout`.
+  *
+  *   {s}`createGraphBuilder(builder: GraphBuilder[T])`
+  *    : Creates {s}`GraphBuilder` for creating a Graph by adding and deleting vertices and edges. {s}`GraphBuilder` processes the data ingested by the spout as tuples of rows to build the graph
+  *
+  *   {s}`createPartitionManager()`
+  *    : Creates {s}`PartitionManager` for creating partitions as distributed storage units with readers and writers. Uses Zookeeper to create partition IDs
+  *
+  *   {s}`createQueryManager()`
+  *    : Creates {s}`QueryManager` for spawning, handling and tracking queries. Query types supported include {s}`PointQuery`, {s}`RangeQuery` and {s}`LiveQuery`
+  *
+  *   {s}`getDefaultConfig(customConfig: Map[String, Any] = Map()): Config`
+  *    : Returns default config using {s}`ConfigFactory` for initialising parameters for running Raphtory components. This uses the default application parameters
+  *
+  *   {s}`confBuilder(customConfig: Map[String, Any] = Map()): Config`
+  *    : Creates {s}`Config` by using the input map {s}`customConfig`
+  *
+  *   {s}`createSpoutExecutor(spout: Spout[T], conf: Config, pulsarController: PulsarController): SpoutExecutor[T]]`
+  *    : Create spout executor for ingesting data from resources and files. Supported executors include `FileSpoutExecutor`, `StaticGraphSpoutExecutor`
+  *
+  * Example Usage:
+  *
+  * ```{code-block} scala
+  *
+  * import com.raphtory.core.deploy.Raphtory
+  * import com.raphtory.lotrtest.LOTRGraphBuilder
+  * import com.raphtory.core.components.spout.instance.ResourceSpout
+  * import com.raphtory.GraphState
+  * import com.raphtory.output.FileOutputFormat
+  *
+  * val customConfig = Map(("raphtory.pulsar.endpoint", "localhost:1234"))
+  * Raphtory.createClient("deployment123", customConfig)
+  * val graph = Raphtory.createGraph(ResourceSpout("resource"), LOTRGraphBuilder())
+  * graph.rangeQuery(GraphState(),FileOutputFormat("/test_dir"),1, 32674, 10000, List(500, 1000, 10000))
+  *
+  * ```
+  *
+  *  ```{seealso}
+  *  [](com.raphtory.core.components.QueryManager),
+  *  [](com.raphtory.core.components.GraphBuilder),
+  *  [](com.raphtory.core.components.spout.Spout),
+  *  [](com.raphtory.core.components.spout.executor.FileSpoutExecutor)
+  *  ```
+  */
 object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
 
-  def createGraph[T: ClassTag](
+  def streamGraph[T: TypeTag: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
@@ -36,10 +87,10 @@ object Raphtory {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
     val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
     new GraphDeployment[T](
-            spoutExecutor,
+            false,
+            spout,
             graphBuilder,
             queryBuilder,
             conf,
@@ -48,7 +99,27 @@ object Raphtory {
     )
   }
 
-  def deployGraph[T: ClassTag](
+  def batchLoadGraph[T: ClassTag: TypeTag](
+      spout: Spout[T] = new IdentitySpout[T](),
+      graphBuilder: GraphBuilder[T],
+      customConfig: Map[String, Any] = Map()
+  ): GraphDeployment[T] = {
+    val conf             = confBuilder(customConfig)
+    val pulsarController = new PulsarController(conf)
+    val componentFactory = new ComponentFactory(conf, pulsarController)
+    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
+    new GraphDeployment[T](
+            true,
+            spout,
+            graphBuilder,
+            queryBuilder,
+            conf,
+            componentFactory,
+            scheduler
+    )
+  }
+
+  def deployStreamGraph[T: TypeTag: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
@@ -56,21 +127,43 @@ object Raphtory {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
     val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
     new GraphDeployment[T](
-            spoutExecutor,
+            false,
+            spout,
             graphBuilder,
             queryBuilder,
             conf,
             componentFactory,
             scheduler
     )
-
     new TemporalGraphBuilder(queryBuilder, conf)
   }
 
-  def getGraph(customConfig: Map[String, Any] = Map()): TemporalGraph = {
+  def deployBatchGraph[T: ClassTag: TypeTag](
+      spout: Spout[T] = new IdentitySpout[T](),
+      graphBuilder: GraphBuilder[T],
+      customConfig: Map[String, Any] = Map()
+  ): TemporalGraph = {
+    val conf             = confBuilder(customConfig)
+    val pulsarController = new PulsarController(conf)
+    val componentFactory = new ComponentFactory(conf, pulsarController)
+    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
+    new GraphDeployment[T](
+            true,
+            spout,
+            graphBuilder,
+            queryBuilder,
+            conf,
+            componentFactory,
+            scheduler
+    )
+    new TemporalGraphBuilder(queryBuilder, conf)
+  }
+
+  def getGraph(
+      customConfig: Map[String, Any] = Map()
+  ): TemporalGraph = {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
@@ -93,8 +186,7 @@ object Raphtory {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    val spoutExecutor    = createSpoutExecutor[T](spout, conf, pulsarController)
-    componentFactory.spout(spoutExecutor, scheduler)
+    componentFactory.spout(spout, false, scheduler)
   }
 
   def createGraphBuilder[T: ClassTag](
@@ -103,14 +195,18 @@ object Raphtory {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    componentFactory.builder(builder, scheduler)
+    componentFactory.builder(builder, false, scheduler)
   }
 
-  def createPartitionManager(): Unit = {
+  def createPartitionManager[T: ClassTag](
+      batchLoading: Boolean = false,
+      spout: Option[Spout[T]] = None,
+      graphBuilder: Option[GraphBuilder[T]] = None
+  ): Unit = {
     val conf             = confBuilder()
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    componentFactory.partition(scheduler)
+    componentFactory.partition(scheduler, batchLoading, spout, graphBuilder)
   }
 
   def createQueryManager(): Unit = {
@@ -128,30 +224,5 @@ object Raphtory {
     customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
     confHandler.getConfig
   }
-
-  private def createSpoutExecutor[T](
-      spout: Spout[T],
-      conf: Config,
-      pulsarController: PulsarController
-  ): SpoutExecutor[T] =
-    spout match {
-      case spout: FileSpout[T]            =>
-        new FileSpoutExecutor[T](
-                spout.source,
-                spout.schema,
-                spout.lineConverter,
-                conf,
-                pulsarController,
-                scheduler
-        )
-      case IdentitySpout()                => new IdentitySpoutExecutor[T](conf, pulsarController, scheduler)
-      case ResourceSpout(resource)        =>
-        new ResourceSpoutExecutor(resource, conf, pulsarController, scheduler)
-          .asInstanceOf[SpoutExecutor[T]]
-      case StaticGraphSpout(fileDataPath) =>
-        new StaticGraphSpoutExecutor(fileDataPath, conf, pulsarController, scheduler)
-          .asInstanceOf[SpoutExecutor[T]]
-
-    }
 
 }

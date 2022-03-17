@@ -1,4 +1,4 @@
-package com.raphtory.core.util
+package com.raphtory.util
 
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -36,7 +36,7 @@ object FileUtils {
     catch {
       case ex: Exception =>
         logger.error(
-          s"Failed to create temporary directory '$tempDirectory', error: ${ex.getMessage}."
+                s"Failed to create temporary directory '$tempDirectory', error: ${ex.getMessage}."
         )
         throw ex
     }
@@ -85,7 +85,7 @@ object FileUtils {
     }
     else
       throw new IllegalStateException(
-        s"Failed to retrieve files. $file is neither a directory nor a file."
+              s"Failed to retrieve files. $file is neither a directory nor a file."
       )
   }
 
