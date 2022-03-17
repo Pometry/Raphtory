@@ -5,8 +5,8 @@ import com.raphtory.core.client.QueryBuilder
 /**
   * @DoNotDocument
   */
-class RaphtoryGraphBuilder(queryBuilder: QueryBuilder)
-        extends GraphOperationsBuilder[RaphtoryGraph](queryBuilder)
+class DefaultRaphtoryGraph(queryBuilder: QueryBuilder)
+        extends DefaultGraphOperations[RaphtoryGraph](queryBuilder)
         with RaphtoryGraph {
 
   override def transform(algorithm: GraphAlgorithm): RaphtoryGraph = {
@@ -19,5 +19,5 @@ class RaphtoryGraphBuilder(queryBuilder: QueryBuilder)
     algorithm.run(new GenericGraphPerspective(queryBuilder))
 
   override protected def newGraph(queryBuilder: QueryBuilder): RaphtoryGraph =
-    new RaphtoryGraphBuilder(queryBuilder)
+    new DefaultRaphtoryGraph(queryBuilder)
 }

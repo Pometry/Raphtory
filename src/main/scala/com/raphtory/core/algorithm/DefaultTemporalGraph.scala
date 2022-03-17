@@ -10,12 +10,12 @@ import com.typesafe.config.Config
 /**
   * @DoNotDocument
   */
-class TemporalGraphBuilder(queryBuilder: QueryBuilder, private val conf: Config)
-        extends RaphtoryGraphBuilder(queryBuilder)
+class DefaultTemporalGraph(queryBuilder: QueryBuilder, private val conf: Config)
+        extends DefaultRaphtoryGraph(queryBuilder)
         with TemporalGraph {
 
   override def from(startTime: Long): TemporalGraph =
-    new TemporalGraphBuilder(queryBuilder.setStartTime(startTime), conf)
+    new DefaultTemporalGraph(queryBuilder.setStartTime(startTime), conf)
 
   override def from(startTime: String): TemporalGraph = {
     println(conf.getString("raphtory.query.timeFormat"))
@@ -23,7 +23,7 @@ class TemporalGraphBuilder(queryBuilder: QueryBuilder, private val conf: Config)
   }
 
   override def until(endTime: Long): TemporalGraph =
-    new TemporalGraphBuilder(queryBuilder.setEndTime(endTime), conf)
+    new DefaultTemporalGraph(queryBuilder.setEndTime(endTime), conf)
 
   override def until(endTime: String): TemporalGraph =
     until(DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(endTime))
@@ -56,6 +56,6 @@ class TemporalGraphBuilder(queryBuilder: QueryBuilder, private val conf: Config)
       case Some(increment) => queryBuilder.setIncrement(increment)
       case None            => queryBuilder
     }
-    new RaphtoryGraphBuilder(queryBuilderWithIncrement.setWindows(windows))
+    new DefaultRaphtoryGraph(queryBuilderWithIncrement.setWindows(windows))
   }
 }

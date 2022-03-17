@@ -39,7 +39,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
     val query = Raphtory
       .getGraph()
       .from("2020-02-25 23:12:08")
-      .asInstanceOf[TemporalGraphBuilder]
+      .asInstanceOf[DefaultTemporalGraph]
       .queryBuilder
       .query
 
@@ -50,7 +50,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
     val query = Raphtory
       .getGraph()
       .from("2020-02-25 23:12:08.567")
-      .asInstanceOf[TemporalGraphBuilder]
+      .asInstanceOf[DefaultTemporalGraph]
       .queryBuilder
       .query
 
@@ -61,7 +61,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
     val query = Raphtory
       .getGraph()
       .from("2020-02-25")
-      .asInstanceOf[TemporalGraphBuilder]
+      .asInstanceOf[DefaultTemporalGraph]
       .queryBuilder
       .query
 
@@ -73,7 +73,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
     val query = Raphtory
       .getGraph(conf)
       .from("2020-02-25 23:12:08.56")
-      .asInstanceOf[TemporalGraphBuilder]
+      .asInstanceOf[DefaultTemporalGraph]
       .queryBuilder
       .query
 
@@ -85,7 +85,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
     val query = Raphtory
       .getGraph(conf)
       .from("2020-02-25 12:23")
-      .asInstanceOf[TemporalGraphBuilder]
+      .asInstanceOf[DefaultTemporalGraph]
       .queryBuilder
       .query
 

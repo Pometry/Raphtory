@@ -1,6 +1,6 @@
 package com.raphtory.core.client
 
-import com.raphtory.core.algorithm.RaphtoryGraphBuilder
+import com.raphtory.core.algorithm.DefaultRaphtoryGraph
 import com.raphtory.core.algorithm.GraphAlgorithm
 import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.components.querytracker.QueryProgressTracker
@@ -118,7 +118,7 @@ private[core] class RaphtoryClient(
     val raphtorizedQueryBuilder = queryBuilder
       .setEndTime(timestamp)
       .setWindows(windows map DiscreteInterval)
-    val graph                   = new RaphtoryGraphBuilder(raphtorizedQueryBuilder)
+    val graph                   = new DefaultRaphtoryGraph(raphtorizedQueryBuilder)
     graph.execute(graphAlgorithm).writeTo(outputFormat, jobName)
   }
 
@@ -136,7 +136,7 @@ private[core] class RaphtoryClient(
       .setEndTime(end)
       .setIncrement(DiscreteInterval(increment))
       .setWindows(windows map DiscreteInterval)
-    val graph                   = new RaphtoryGraphBuilder(raphtorizedQueryBuilder)
+    val graph                   = new DefaultRaphtoryGraph(raphtorizedQueryBuilder)
     graph.execute(graphAlgorithm).writeTo(outputFormat, jobName)
   }
 
@@ -150,7 +150,7 @@ private[core] class RaphtoryClient(
     val raphtorizedQueryBuilder = queryBuilder
       .setIncrement(DiscreteInterval(increment))
       .setWindows(windows map DiscreteInterval)
-    val graph                   = new RaphtoryGraphBuilder(raphtorizedQueryBuilder)
+    val graph                   = new DefaultRaphtoryGraph(raphtorizedQueryBuilder)
     graph.execute(graphAlgorithm).writeTo(outputFormat, jobName)
   }
 

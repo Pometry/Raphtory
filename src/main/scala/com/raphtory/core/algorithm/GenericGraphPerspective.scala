@@ -6,7 +6,7 @@ import com.raphtory.core.client.QueryBuilder
   * @DoNotDocument
   */
 class GenericGraphPerspective(queryBuilder: QueryBuilder)
-        extends GraphOperationsBuilder[GraphPerspective](queryBuilder)
+        extends DefaultGraphOperations[GraphPerspective](queryBuilder)
         with GraphPerspective {
 
   override protected def newGraph(queryBuilder: QueryBuilder) =
