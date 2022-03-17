@@ -66,27 +66,6 @@ class PojoExVertex(
   def getEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[Edge] =
     individualEdge(internalIncomingEdges ++ internalOutgoingEdges, after, before, id)
 
-  override def explodeEdges(after: Long, before: Long): List[ExplodedEdge] =
-    getEdges(after, before).flatMap(_.explode())
-
-  override def explodeOutEdges(after: Long, before: Long): List[ExplodedEdge] =
-    getOutEdges(after, before).flatMap(_.explode())
-
-  override def explodeInEdges(after: Long, before: Long): List[ExplodedEdge] =
-    getInEdges(after, before).flatMap(_.explode())
-
-  override def explodeOutEdge(id: Long, after: Long, before: Long): Option[List[ExplodedEdge]] =
-    getOutEdge(id, after, before) match {
-      case Some(e) => Some(e.explode())
-      case None    => None
-    }
-
-  override def explodeInEdge(id: Long, after: Long, before: Long): Option[List[ExplodedEdge]] =
-    getInEdge(id, after, before) match {
-      case Some(e) => Some(e.explode())
-      case None    => None
-    }
-
   private def allEdge(edges: mutable.Map[Long, Edge], after: Long, before: Long) =
     if (after == 0 && before == Long.MaxValue)
       edges.values.toList

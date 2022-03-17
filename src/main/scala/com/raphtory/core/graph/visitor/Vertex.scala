@@ -53,25 +53,40 @@ trait Vertex extends EntityVisitor {
   def getEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[Edge]
 
   //all edges
-  def explodeEdges(after: Long = 0L, before: Long = Long.MaxValue): List[ExplodedEdge]
+  def explodeEdges(after: Long = 0L, before: Long = Long.MaxValue): List[ExplodedEdge] =
+    getEdges(after, before).flatMap(_.explode())
+
   //all out edges
-  def explodeOutEdges(after: Long = 0L, before: Long = Long.MaxValue): List[ExplodedEdge]
+  def explodeOutEdges(after: Long = 0L, before: Long = Long.MaxValue): List[ExplodedEdge] =
+    getOutEdges(after, before).flatMap(_.explode())
+
   //all in edges
-  def explodeInEdges(after: Long = 0L, before: Long = Long.MaxValue): List[ExplodedEdge]
+  def explodeInEdges(after: Long = 0L, before: Long = Long.MaxValue): List[ExplodedEdge] =
+    getInEdges(after, before).flatMap(_.explode())
 
   //individual out edge
   def explodeOutEdge(
       id: Long,
       after: Long = 0L,
       before: Long = Long.MaxValue
-  ): Option[List[ExplodedEdge]]
+  ): Option[List[ExplodedEdge]] =
+    getOutEdge(id, after, before).map(_.explode())
 
   //individual in edge
   def explodeInEdge(
       id: Long,
       after: Long = 0L,
       before: Long = Long.MaxValue
-  ): Option[List[ExplodedEdge]]
+  ): Option[List[ExplodedEdge]] =
+    getInEdge(id, after, before).map(_.explode())
+
+  //individual edge
+  def explodedEdge(
+      id: Long,
+      after: Long = 0L,
+      before: Long = Long.MaxValue
+  ): Option[List[ExplodedEdge]] =
+    getEdge(id, after, before).map(_.explode())
 
   // analytical state
   def setState(key: String, value: Any): Unit
