@@ -6,7 +6,7 @@ import com.raphtory.core.time.DiscreteInterval
 import org.scalatest.funsuite.AnyFunSuite
 
 class RaphtoryGraphTest extends AnyFunSuite {
-  test("Test pipeline syntax for RaphtoryGraph class and related hierarchy") {
+  test("Test overall pipeline syntax for RaphtoryGraph class and related hierarchy") {
     val graph = Raphtory.getGraph()
     val table = graph
       .from(100)
@@ -33,5 +33,51 @@ class RaphtoryGraphTest extends AnyFunSuite {
 
     assert(query.tableFunctions.length === 1)
     assert(query.tableFunctions.head.isInstanceOf[TableFilter])
+  }
+
+  test("Test timestamp format without milliseconds") {
+    val query = Raphtory
+      .getGraph()
+      .from("2020-02-25 23:12:08")
+      .asInstanceOf[TemporalGraphBuilder]
+      .queryBuilder
+      .query
+
+    assert(query.startTime.isDefined)
+  }
+
+  test("Test timestamp format with milliseconds") {
+    val query = Raphtory
+      .getGraph()
+      .from("2020-02-25 23:12:08.567")
+      .asInstanceOf[TemporalGraphBuilder]
+      .queryBuilder
+      .query
+
+    assert(query.startTime.isDefined)
+  }
+
+  test("Test timestamp format with custom configuration for 2 digit milliseconds") {
+    val conf  = Map("raphtory.query.timeFormat" -> "yyyy-MM-dd HH:mm:ss[.SS]")
+    val query = Raphtory
+      .getGraph() //conf)
+      .from("2020-02-25 23:12:08.56")
+      .asInstanceOf[TemporalGraphBuilder]
+      .queryBuilder
+      .query
+
+    assert(query.startTime.isDefined)
+  }
+
+  test("Test timestamp format with custom configuration for date representation") {
+    val conf  = Map("raphtory.query.timeFormat" -> "yyyy-MM-dd")
+    val query = Raphtory
+      .getGraph(conf)
+      .from("2020-02-25")
+      .asInstanceOf[TemporalGraphBuilder]
+      .queryBuilder
+      .query
+
+    assert(query.startTime.isDefined)
   }
 }
