@@ -87,7 +87,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
           properties.put(key, new MutableProperty(msgTime, value))
     }
 
-  def wipe() = history = new Long2BooleanOpenHashMap()
+  def wipe() = history.clear()
 
   protected def closestTime(time: Long): (Long, Boolean) = {
     var closestTime: Long = -1
