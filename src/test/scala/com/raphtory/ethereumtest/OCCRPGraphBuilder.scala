@@ -1,11 +1,7 @@
 package com.raphtory.ethereumtest
 
-import com.raphtory.core.components.graphbuilder.DoubleProperty
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.ImmutableProperty
-import com.raphtory.core.components.graphbuilder.LongProperty
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.Type
+import com.raphtory.core.components.graphbuilder.Properties._
 import com.raphtory.core.graph._
 
 import java.time.format.DateTimeFormatter

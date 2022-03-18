@@ -1,10 +1,7 @@
 package com.raphtory.ethereumtest
 
-import com.raphtory.core.components.graphbuilder.DoubleProperty
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.ImmutableProperty
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.Type
+import com.raphtory.core.components.graphbuilder.Properties._
 
 class EthereumTxGraphBuilder() extends GraphBuilder[EthereumTransaction] {
 
@@ -35,7 +32,7 @@ class EthereumTxGraphBuilder() extends GraphBuilder[EthereumTransaction] {
 class EthereumGraphBuilder() extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String): Unit = {
-    val line = new String(tuple)
+    val line        = new String(tuple)
     if (line contains "block_hash")
       return
     val fileLine    = line.replace("\"", "").split(",").map(_.trim)
