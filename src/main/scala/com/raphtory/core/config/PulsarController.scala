@@ -116,9 +116,9 @@ class PulsarController(conf: Config) {
       .topic(topic)
       .enableBatching(true)
       .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
-      .batchingMaxMessages(Integer.MAX_VALUE)
+      .batchingMaxMessages(10000)
       .blockIfQueueFull(true)
-      .maxPendingMessages(0)
+      .maxPendingMessages(1000)
       .create()
 
   def deleteTopic(topic: String) =
