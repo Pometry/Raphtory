@@ -2,10 +2,7 @@ package com.raphtory.core.client
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.config.ComponentFactory
-import com.raphtory.core.config.PulsarController
-import com.raphtory.core.config.ThreadedWorker
-import com.raphtory.core.config.ZookeeperIDManager
+import com.raphtory.core.config.{ComponentFactory, Partitions, PulsarController, ThreadedWorker, ZookeeperIDManager}
 import com.typesafe.config.Config
 import io.prometheus.client.exporter.HTTPServer
 import monix.execution.Scheduler
@@ -67,8 +64,10 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
     new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
   builderIdManager.resetID()
 
-  private val partitions   =
+  private val partitions: Partitions =
     componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
+
+
   private val queryManager = componentFactory.query(scheduler)
 
   private val spoutworker: Option[ThreadedWorker[T]] =
@@ -88,12 +87,15 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
   }
 
   def stop(): Unit = {
+    partitions.writers.foreach(_.stop())
+    partitions.readers.foreach(_.stop())
     //TODO reenable partition stop
 //    partitions.foreach { partition =>
 //      partition.writer.stop()
 //      partition.reader.stop()
 //    }
-    //  queryManager.worker.stop()
+    queryManager.worker.stop()
+
     spoutworker match {
       case Some(w) => w.worker.stop()
       case None    => ???
