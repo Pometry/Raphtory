@@ -2,7 +2,11 @@ package com.raphtory.core.client
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.config.{ComponentFactory, Partitions, PulsarController, ThreadedWorker, ZookeeperIDManager}
+import com.raphtory.core.config.ComponentFactory
+import com.raphtory.core.config.Partitions
+import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.ThreadedWorker
+import com.raphtory.core.config.ZookeeperIDManager
 import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
@@ -65,7 +69,6 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
   private val partitions: Partitions =
     componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
 
-
   private val queryManager = componentFactory.query(scheduler)
 
   private val spoutworker: Option[ThreadedWorker[T]] =
@@ -89,11 +92,11 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
 
     spoutworker match {
       case Some(w) => w.worker.stop()
-      case None    => ???
+      case None    =>
     }
     graphBuilderworker match {
       case Some(worker) => worker.foreach(builder => builder.worker.stop())
-      case None         => ???
+      case None         =>
     }
   }
 
