@@ -52,12 +52,12 @@ abstract class EntityVisitor {
   def getPropertyHistory[T](key: String): Option[List[(Long, T)]]
 
   //functionality to access the history of the edge + helpers
-  def history(): List[HistoricEvent]
+  def history(): (Array[Long], Array[Boolean]) // List[HistoricEvent]
   def active(after: Long = Long.MaxValue, before: Long = Long.MaxValue): Boolean
   def aliveAt(time: Long, window: Long = Long.MaxValue): Boolean
 
-  lazy val numCreations: Long = history().count(f => f.event)
-  lazy val numDeletions: Long = history().count(f => !f.event)
+  lazy val numCreations: Long = history()._2.count(f => f)
+  lazy val numDeletions: Long = history()._2.count(f => !f)
 }
 case class HistoricEvent(time: Long, event: Boolean)
 

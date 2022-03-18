@@ -23,10 +23,21 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   //var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
   // var history: mutable.ArrayBuffer[(Long, Boolean)] = mutable.ArrayBuffer()
   //
-  var history: Long2BooleanOpenHashMap = new Long2BooleanOpenHashMap()
+
+  // var history: Long2BooleanOpenHashMap = new Long2BooleanOpenHashMap()
+
+  var history: Array[Long] = new Array[Long](0)
+  var historyValue: Array[Boolean] = new Array[Boolean](0)
+
+  def historyAdd(time: Long, value: Boolean): Unit = {
+      history = history :+ time
+      historyValue = historyValue :+ value
+  }
+
+  historyAdd(creationTime, isInitialValue)
+
 
   var deletions: mutable.ListBuffer[Long]           = mutable.ListBuffer.empty
-  history.put(creationTime, isInitialValue)
   var toClean                                       = false
 
   def dedupe() = {
@@ -54,13 +65,13 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   def revive(msgTime: Long): Unit = {
     checkOldestTime(msgTime)
-    history.put(msgTime, true)
+    historyAdd(msgTime, true)
     toClean = true
   }
 
   def kill(msgTime: Long): Unit = {
     checkOldestTime(msgTime)
-    history.put(msgTime, false)
+    historyAdd(msgTime, false)
     deletions += msgTime
     toClean = true
   }
@@ -87,18 +98,22 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
           properties.put(key, new MutableProperty(msgTime, value))
     }
 
-  def wipe() = history.clear()
+  def wipe() : Unit = {
+    history = new Array[Long](0)
+    historyValue = new Array[Boolean](0)
+  }
+
 
   protected def closestTime(time: Long): (Long, Boolean) = {
     var closestTime: Long = -1
     var value             = false
-    history.forEach((k,v) => {
+    history.zipWithIndex.foreach{case (k, count) =>
       if (k <= time)
         if ((time - k) < (time - closestTime)) {
           closestTime = k
-          value = v
+          value = historyValue(count)
         }
-    })
+    }
     (closestTime, value)
   }
 

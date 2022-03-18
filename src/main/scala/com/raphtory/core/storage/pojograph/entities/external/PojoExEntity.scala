@@ -11,15 +11,23 @@ import scala.reflect.ClassTag
 abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends EntityVisitor {
   def Type() = entity.getType
 
-  def firstActivityAfter(time: Long): HistoricEvent =
-    history().filter(k => k.time >= time).minBy(x => x.time)
+  def firstActivityAfter(time: Long): HistoricEvent = {
+    //history().filter(k => k.time >= time).minBy(x => x.time)
+    val res = history()._1.zipWithIndex.filter({case (k,c)  => k >= time}).minBy(x => x._2)
+    HistoricEvent(res._1, history()._2(res._2))
+  }
 
-  def lastActivityBefore(time: Long): HistoricEvent =
-    history().filter(k => k.time <= time).maxBy(x => x.time)
+  def lastActivityBefore(time: Long): HistoricEvent = {
+    val res = history()._1.zipWithIndex.filter({case (k,c)  => k <= time}).maxBy(x => x._2)
+    HistoricEvent(res._1, history()._2(res._2))
+  }
 
-  def latestActivity(): HistoricEvent = history().head
+  def latestActivity(): HistoricEvent = HistoricEvent(history()._1(0), history()._2(0))
 
-  def earliestActivity(): HistoricEvent = history().minBy(k => k.time)
+  def earliestActivity(): HistoricEvent = {
+    val res = history()._1.zipWithIndex.minBy(x => x._2)
+    HistoricEvent(res._1, history()._2(res._2))
+  }
 
   def getPropertySet(): List[String] =
     entity.properties.filter(p => p._2.creation() <= view.timestamp).keys.toList
@@ -66,25 +74,42 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
       case (None, _)          => None
     }
 
-  def history(): List[HistoricEvent] =
+  def history(): (Array[Long], Array[Boolean]) = {
+    val historyFilter = new Array[Long](0)
+    val historyEvent = new Array[Boolean](0)
     view.window match {
       case Some(w) =>
-        entity.history.long2BooleanEntrySet().stream()
-          .filter(e => e.getLongKey <= view.timestamp && e.getLongKey >= view.timestamp - w)
-          .map(e => HistoricEvent(e.getLongKey, e.getBooleanValue))
-          .toArray.toList.asInstanceOf[List[HistoricEvent]]
+        entity.history.zipWithIndex.foreach { case (k, count) =>
+          if (k <= view.timestamp && k >= view.timestamp - w) {
+            historyFilter :+ k
+            historyEvent :+ entity.historyValue(count)
+          }
+        }
+        (historyFilter, historyEvent)
+    //        entity.history.long2BooleanEntrySet().stream()
+    //          .filter(e => e.getLongKey <= view.timestamp && e.getLongKey >= view.timestamp - w)
+    //          .map(e => HistoricEvent(e.getLongKey, e.getBooleanValue))
+    //          .toArray.toList.asInstanceOf[List[HistoricEvent]]
       case None    =>
-        entity.history.long2BooleanEntrySet().stream()
-          .filter( e => e.getLongKey <= view.timestamp)
-        .map(e => HistoricEvent(e.getLongKey, e.getBooleanValue))
-        .toArray().toList.asInstanceOf[List[HistoricEvent]]
+        entity.history.zipWithIndex.foreach { case (k, count) =>
+          if (k <= view.timestamp) {
+            historyFilter :+ k
+            historyEvent :+ entity.historyValue(count)
+          }
+        }
+        (historyFilter, historyEvent)
+      //        entity.history.long2BooleanEntrySet().stream()
+    //          .filter( e => e.getLongKey <= view.timestamp)
+    //        .map(e => HistoricEvent(e.getLongKey, e.getBooleanValue))
+    //        .toArray().toList.asInstanceOf[List[HistoricEvent]]
     }
+  }
 
   def aliveAt(time: Long): Boolean = entity.aliveAt(time)
 
   def aliveAt(time: Long, window: Long): Boolean = entity.aliveAtWithWindow(time, window)
 
   def active(after: Long = 0, before: Long = Long.MaxValue): Boolean =
-    entity.history.keySet.longStream().allMatch(k => k > after && k <= before)
-
+    // entity.history.keySet.longStream().allMatch(k => k > after && k <= before)
+    !entity.history.filter(k => k > after && k <= before).isEmpty
 }

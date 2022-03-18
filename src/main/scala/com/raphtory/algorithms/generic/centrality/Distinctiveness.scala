@@ -54,7 +54,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
 
         // sum of edge weights each exponentiated by alpha, purely for D3 & D4
         val weight     =
-          edges.map(e => pow(e.getPropertyOrElse(weightProperty, e.history().size), alpha)).sum
+          edges.map(e => pow(e.getPropertyOrElse(weightProperty, e.history()._1.size), alpha)).sum
         // sum of edge weights, purely for D3
         val nodeWeight = numeric.toDouble(vertex.weightedTotalDegree[T]())
 

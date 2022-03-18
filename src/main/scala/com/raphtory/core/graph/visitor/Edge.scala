@@ -18,7 +18,7 @@ trait Edge extends EntityVisitor {
   ): B =
     getProperty(weightProperty, mergeStrategy) match {
       case Some(value) => value
-      case None        => mergeStrategy(history().filter(_.event).map(p => (p.time, default)))
+      case None        => mergeStrategy(history()._2.zipWithIndex.filter({case (e,c) => e}).map({case (e,c) => (history()._1(c), default)}))
     }
 
   def weight[A, B](weightProperty: String, mergeStrategy: PropertyMerge[A, B])(implicit

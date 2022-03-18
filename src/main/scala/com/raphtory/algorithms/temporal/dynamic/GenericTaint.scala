@@ -69,11 +69,13 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
                       edge =>
                         // get all the transactions that this node sent
                         edge
-                          .history()
-                          .foreach(event =>
-                            if (event.event & event.time >= startTime)
-                              // if it was a sent transaction and the time is after the start, mark as an edge
-                              edge.send(Tuple4("tainted", edge.ID(), event.time, vertex.name()))
+                          .history()._1
+                          .zipWithIndex
+                          .foreach({ case (event, c) =>
+                            if (edge.history()._2(c) & event >= startTime)
+                            // if it was a sent transaction and the time is after the start, mark as an edge
+                              edge.send(Tuple4("tainted", edge.ID(), event, vertex.name()))
+                          }
                           )
               )
           }
@@ -111,10 +113,12 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
                       .foreach(edge =>
                         edge
                           .history()
-                          .foreach(event =>
-                            if (event.event & event.time >= infectionTime)
-                              edge.send(Tuple4("tainted", edge.ID(), event.time, vertex.name()))
-                          )
+                          ._1
+                          .zipWithIndex
+                          .foreach({ case (event, c) =>
+                            if (edge.history()._2(c) & event >= infectionTime)
+                              edge.send(Tuple4("tainted", edge.ID(), event, vertex.name()))
+                          })
                       )
                   else if (!(stopNodes contains vertex.name()))
                     // otherwise if we contain stop nodes and we dont have to stop then keep going
@@ -124,10 +128,12 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
                       .foreach(edge =>
                         edge
                           .history()
-                          .foreach(event =>
-                            if (event.event & event.time >= infectionTime)
-                              edge.send(Tuple4("tainted", edge.ID(), event.time, vertex.name()))
-                          )
+                          ._1
+                          .zipWithIndex
+                          .foreach({ case (event, c) =>
+                            if (edge.history()._2(c) & event >= infectionTime)
+                              edge.send(Tuple4("tainted", edge.ID(), event, vertex.name()))
+                          })
                       )
                 }
                 else

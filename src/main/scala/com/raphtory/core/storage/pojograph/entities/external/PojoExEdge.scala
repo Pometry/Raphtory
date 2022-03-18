@@ -21,5 +21,5 @@ class PojoExEdge(edge: PojoEdge, id: Long, view: PojoGraphLens)
     view.sendMessage(VertexMessage(view.superStep + 1, id, data))
 
   override def explode(): List[ExplodedEdge] =
-    history().map(event => new PojoExplodedEdge(this, event.time))
+    history()._1.map(k => new PojoExplodedEdge(this, k)).toList
 }

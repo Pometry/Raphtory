@@ -4,7 +4,13 @@ package com.raphtory.core.storage.pojograph.entities.internal
 class PojoEdge(msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean)
         extends PojoEntity(msgTime, initialValue) {
 
-  def killList(vKills: List[Long]): Unit = history.long2BooleanEntrySet().forEach(entity => if (vKills.contains(entity.getLongKey)) entity.setValue(false))
+  def killList(vKills: List[Long]): Unit = {
+    history.zipWithIndex.foreach{ case (k, c) =>
+      if (vKills.contains(k))
+        historyValue.update(c, false)
+    }
+  }
+  // history()._1.zipWithIndex.filter({case (k,c)  => k >= time}).minBy(x => x._2)
 
   def getSrcId: Long = srcId
   def getDstId: Long = dstId

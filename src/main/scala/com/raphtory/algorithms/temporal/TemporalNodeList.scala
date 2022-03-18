@@ -45,7 +45,7 @@ class TemporalNodeList(
     graph
       .select { vertex =>
         val timestamps =
-          vertex.history().filter(event => event.event).map(event => event.time).distinct.sorted
+          vertex.history()._1.distinct.sorted
         val row        = (vertex.name()
           +: timestamps
           +: properties.map { name =>
