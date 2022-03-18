@@ -72,10 +72,8 @@ import scala.reflect.runtime.universe._
   * ```
   *
   *  ```{seealso}
-  *  [](com.raphtory.core.components.QueryManager),
-  *  [](com.raphtory.core.components.GraphBuilder),
-  *  [](com.raphtory.core.components.spout.Spout),
-  *  [](com.raphtory.core.components.spout.executor.FileSpoutExecutor)
+  *  [](com.raphtory.core.components.graphbuilder.GraphBuilder),
+  *  [](com.raphtory.core.components.spout.Spout)
   *  ```
   */
 object Raphtory {
