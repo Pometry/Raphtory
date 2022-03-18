@@ -1,9 +1,7 @@
 package com.raphtory.enrontest
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.ImmutableProperty
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.Type
+import com.raphtory.core.components.graphbuilder.Properties._
 
 import java.time.format.DateTimeFormatter
 import java.time.LocalDateTime
