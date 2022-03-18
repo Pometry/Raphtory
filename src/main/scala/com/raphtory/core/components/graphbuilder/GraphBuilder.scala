@@ -12,10 +12,11 @@ import scala.collection.mutable.ArrayBuffer
 
 /**
   * {s}`GraphBuilder[T]`
-  *   : `GraphBuilder` trait for creating a Graph by adding and deleting vertices and edges.
+  *   : trait for creating a Graph by adding and deleting vertices and edges.
   *
   *      {s}`T`
-  *        : data type returned by the spout to be processed by the {s}`GraphBuilder`
+  *        : data type returned by the [{s}`Spout`](com.raphtory.core.components.spout.Spout)
+  *           to be processed by the {s}`GraphBuilder`
   *
   * An implementation of {s}`GraphBuilder` needs to override {s}`parseTuple(tuple: T)` to define parsing of input data.
   * The input data is generated using a [{s}`Spout`](com.raphtory.core.components.spout.Spout) and passed to the
