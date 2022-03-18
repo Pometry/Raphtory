@@ -48,10 +48,8 @@ import scala.reflect.runtime.universe.TypeTag
   * ```
   *
   *  ```{seealso}
-  *  [](com.raphtory.core.components.QueryManager),
-  *  [](com.raphtory.core.components.GraphBuilder),
-  *  [](com.raphtory.core.components.spout.Spout),
-  *  [](com.raphtory.core.components.spout.executor.FileSpoutExecutor)
+  *  [](com.raphtory.core.components.graphbuilder.GraphBuilder),
+  *  [](com.raphtory.core.components.spout.Spout)
   *  ```
   */
 abstract class RaphtoryService[T: ClassTag] {
