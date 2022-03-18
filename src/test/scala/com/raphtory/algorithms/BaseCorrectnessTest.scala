@@ -23,7 +23,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
 
-class BaseCorrectnessTest extends AnyFunSuite {
+abstract class BaseCorrectnessTest extends AnyFunSuite {
 
   private val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
   implicit val schema: Schema[String]    = Schema.STRING

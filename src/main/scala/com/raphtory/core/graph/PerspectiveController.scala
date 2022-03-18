@@ -4,7 +4,9 @@ import com.raphtory.core.components.querymanager.QueryManagement
 
 import scala.collection.immutable.NumericRange
 
-/** @DoNotDocument */
+/** @DoNotDocument
+  * The PerspectiveController is responsible for constructing graph views
+  */
 case class Perspective(timestamp: Long, window: Option[Long]) extends QueryManagement
 
 class PerspectiveController(timestamps: Stream[Long], windows: List[Long]) {
