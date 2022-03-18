@@ -13,19 +13,19 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
 
   def firstActivityAfter(time: Long): HistoricEvent = {
     //history().filter(k => k.time >= time).minBy(x => x.time)
-    val res = history()._1.zipWithIndex.filter({case (k,c)  => k >= time}).minBy(x => x._2)
+    val res = history()._1.zipWithIndex.filter({case (k,c)  => k >= time}).minBy(x => x._1)
     HistoricEvent(res._1, history()._2(res._2))
   }
 
   def lastActivityBefore(time: Long): HistoricEvent = {
-    val res = history()._1.zipWithIndex.filter({case (k,c)  => k <= time}).maxBy(x => x._2)
+    val res = history()._1.zipWithIndex.filter({case (k,c)  => k <= time}).maxBy(x => x._1)
     HistoricEvent(res._1, history()._2(res._2))
   }
 
   def latestActivity(): HistoricEvent = HistoricEvent(history()._1(0), history()._2(0))
 
   def earliestActivity(): HistoricEvent = {
-    val res = history()._1.zipWithIndex.minBy(x => x._2)
+    val res = history()._1.zipWithIndex.minBy(x => x._1)
     HistoricEvent(res._1, history()._2(res._2))
   }
 
