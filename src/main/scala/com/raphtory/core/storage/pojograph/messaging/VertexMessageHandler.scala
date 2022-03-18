@@ -11,7 +11,9 @@ import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.api.Producer
 import org.slf4j.LoggerFactory
 
+import java.util.concurrent.CompletableFuture
 import scala.collection.mutable
+import scala.concurrent.Future
 
 /** @DoNotDocument */
 class VertexMessageHandler(
@@ -71,11 +73,13 @@ class VertexMessageHandler(
     messageCache.put(readerJobWorker, mutable.ArrayBuffer[VertexMessage[Any]]())
   }
 
-  def flushMessages(): Unit = {
+  def flushMessages(): CompletableFuture[Void] = {
     logger.debug("Flushing messages in vertex handler.")
 
     if (messageBatch)
       messageCache.keys.foreach(producer => sendCached(producer))
+    val futures = producers.values.map(_.flushAsync())
+    CompletableFuture.allOf(futures.toSeq: _*)
   }
 
   private def refreshBuffers(): Unit = {

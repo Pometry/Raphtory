@@ -122,14 +122,15 @@ class QueryExecutor(
         graphLens.runGraphFunction(f)
         val sentMessages     = sentMessageCount.get()
         val receivedMessages = receivedMessageCount.get()
-        graphLens.getMessageHandler().flushMessages()
-        taskManager sendAsync serialise(
-                GraphFunctionComplete(partitionID, receivedMessages, sentMessages)
-        )
-        logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Step function finished in ${System
-                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages."
-        )
+        graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+          taskManager sendAsync serialise(
+                  GraphFunctionComplete(partitionID, receivedMessages, sentMessages)
+          )
+
+          logger
+            .debug(s"Job '$jobID' at Partition '$partitionID': Step function finished in ${System
+              .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+        }
 
       case StepWithGraph(f, graphState)                                     =>
         val time = System.currentTimeMillis()
@@ -138,18 +139,19 @@ class QueryExecutor(
 
         val sentMessages     = sentMessageCount.get()
         val receivedMessages = receivedMessageCount.get()
-        graphLens.getMessageHandler().flushMessages()
-        taskManager sendAsync serialise(
-                GraphFunctionCompleteWithState(
-                        receivedMessages,
-                        sentMessages,
-                        graphState = graphState
-                )
-        )
-        logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Step function on graph with accumulators finished in ${System
-                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages."
-        )
+        graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+          taskManager sendAsync serialise(
+                  GraphFunctionCompleteWithState(
+                          receivedMessages,
+                          sentMessages,
+                          graphState = graphState
+                  )
+          )
+          logger.debug(
+                  s"Job '$jobID' at Partition '$partitionID': Step function on graph with accumulators finished in ${System
+                    .currentTimeMillis() - time}ms and sent '$sentMessages' messages."
+          )
+        }
 
       case Iterate(f, iterations, executeMessagedOnly)                      =>
         val time             = System.currentTimeMillis()
@@ -160,20 +162,21 @@ class QueryExecutor(
           graphLens.runGraphFunction(f)
         val sentMessages     = sentMessageCount.get()
         val receivedMessages = receivedMessageCount.get()
-        graphLens.getMessageHandler().flushMessages()
-        taskManager sendAsync serialise(
-                GraphFunctionComplete(
-                        partitionID,
-                        receivedMessages,
-                        sentMessages,
-                        graphLens.checkVotes()
-                )
-        )
-        votedToHalt = graphLens.checkVotes()
-        logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Iterate function completed in ${System
-                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
-        )
+        graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+          taskManager sendAsync serialise(
+                  GraphFunctionComplete(
+                          partitionID,
+                          receivedMessages,
+                          sentMessages,
+                          graphLens.checkVotes()
+                  )
+          )
+          votedToHalt = graphLens.checkVotes()
+          logger.debug(
+                  s"Job '$jobID' at Partition '$partitionID': Iterate function completed in ${System
+                    .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
+          )
+        }
 
       case IterateWithGraph(f, iterations, executeMessagedOnly, graphState) =>
         val time             = System.currentTimeMillis()
@@ -184,21 +187,22 @@ class QueryExecutor(
           graphLens.runGraphFunction(f, graphState)
         val sentMessages     = sentMessageCount.get()
         val receivedMessages = receivedMessageCount.get()
-        graphLens.getMessageHandler().flushMessages()
-        taskManager sendAsync serialise(
-                GraphFunctionCompleteWithState(
-                        receivedMessages,
-                        sentMessages,
-                        graphLens.checkVotes(),
-                        graphState
-                )
-        )
         votedToHalt = graphLens.checkVotes()
+        graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+          taskManager sendAsync serialise(
+                  GraphFunctionCompleteWithState(
+                          receivedMessages,
+                          sentMessages,
+                          votedToHalt,
+                          graphState
+                  )
+          )
 
-        logger.debug(
-                s"Job '$jobID' at Partition '$partitionID': Iterate function on graph with accumulators completed  in ${System
-                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
-        )
+          logger.debug(
+                  s"Job '$jobID' at Partition '$partitionID': Iterate function on graph with accumulators completed  in ${System
+                    .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
+          )
+        }
 
       //TODO implement
       case VertexFilter(f)                                                  =>
