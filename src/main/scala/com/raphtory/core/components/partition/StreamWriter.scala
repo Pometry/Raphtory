@@ -112,9 +112,7 @@ class StreamWriter(
     printUpdateCount()
   }
 
-  /**
-    * Graph Updates from the builders
-    */
+  // Graph Updates from the builders
   def processVertexAdd(update: VertexAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
 
@@ -164,9 +162,7 @@ class StreamWriter(
     }
   }
 
-  /**
-    * Graph Effects for syncing edge adds
-    */
+  // Graph Effects for syncing edge adds
   def processSyncNewEdgeAdd(req: SyncNewEdgeAdd): Unit = {
     logger.trace("A writer has requested a new edge sync for a destination node in this worker.")
 
@@ -186,9 +182,7 @@ class StreamWriter(
     neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
   }
 
-  /**
-    * Graph Effects for syncing edge deletions
-    */
+  // Graph Effects for syncing edge deletions
   def processSyncNewEdgeRemoval(req: SyncNewEdgeRemoval): Unit = {
     logger.trace(
             s"Partition '$partitionID': A remote worker is asking for a new edge to be removed for a destination node in this worker."
@@ -209,9 +203,7 @@ class StreamWriter(
     neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
   }
 
-  /**
-    * Graph Effects for syncing vertex deletions
-    */
+  // Graph Effects for syncing vertex deletions
   def processOutboundEdgeRemovalViaVertex(req: OutboundEdgeRemovalViaVertex): Unit = {
     logger.trace(
             s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes from a vertex."
@@ -231,9 +223,7 @@ class StreamWriter(
     neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
   }
 
-  /**
-    * Responses from the secondary server
-    */
+  // Responses from the secondary server
   def processSyncExistingRemovals(req: SyncExistingRemovals): Unit = { //when the new edge add is responded to we can say it is synced
     logger.trace(
             s"Partition '$partitionID': The remote worker has returned all removals in the destination node -- for new edges"
