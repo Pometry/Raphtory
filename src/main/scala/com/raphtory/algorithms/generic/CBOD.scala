@@ -43,9 +43,7 @@ import com.raphtory.core.algorithm._
 class CBOD(label: String = "community", cutoff: Double = 0.0, labeler: GraphAlgorithm = Identity())
         extends GraphAlgorithm {
 
-  /**
-    *   Run CBOD algorithm and sets "outlierscore" state
-    */
+  // Run CBOD algorithm and sets "outlierscore" state
   override def apply(graph: GraphPerspective): GraphPerspective =
     labeler(graph)
       .step { vertex => //Get neighbors' labels
@@ -59,9 +57,7 @@ class CBOD(label: String = "community", cutoff: Double = 0.0, labeler: GraphAlgo
         v.setState("outlierscore", outlierScore)
       }
 
-  /**
-    * extract vertex ID and outlier score for vertices with outlierscore >= threshold
-    */
+  // extract vertex ID and outlier score for vertices with outlierscore >= threshold
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .select { vertex =>
