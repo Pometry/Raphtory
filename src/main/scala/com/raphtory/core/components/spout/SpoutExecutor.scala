@@ -10,6 +10,7 @@ import org.apache.pulsar.client.api.Message
 import java.util.concurrent.TimeUnit
 import scala.reflect.runtime.universe.TypeTag
 
+/** @DoNotDocument */
 class SpoutExecutor[T](
     spout: Spout[T],
     conf: Config,

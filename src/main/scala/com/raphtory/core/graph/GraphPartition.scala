@@ -1,8 +1,7 @@
 package com.raphtory.core.graph
 
 import com.raphtory.core.components.graphbuilder.GraphUpdateEffect
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.Type
+import com.raphtory.core.components.graphbuilder.Properties._
 import com.raphtory.core.graph.visitor.Vertex
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
