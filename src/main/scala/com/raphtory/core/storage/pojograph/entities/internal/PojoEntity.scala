@@ -80,14 +80,10 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
     if (oldestPoint > msgTime) //check if the current point in history is the oldest
       oldestPoint = msgTime
 
-  /** *
-    * override the apply method so that we can do edge/vertex("key") to easily retrieve properties
-    */
+  // override the apply method so that we can do edge/vertex("key") to easily retrieve properties
   def apply(property: String): Property = properties(property)
 
-  /** *
-    * Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
-    */
+  // Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
   def +(msgTime: Long, immutable: Boolean, key: String, value: Any): Unit =
     properties.get(key) match {
       case Some(p) =>

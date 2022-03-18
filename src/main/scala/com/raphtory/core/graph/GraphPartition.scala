@@ -1,8 +1,7 @@
 package com.raphtory.core.graph
 
 import com.raphtory.core.components.graphbuilder.GraphUpdateEffect
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.Type
+import com.raphtory.core.components.graphbuilder.Properties._
 import com.raphtory.core.graph.visitor.Vertex
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -23,18 +22,14 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   def stopBatchIngesting()           = batchIngesting = false
   def currentyBatchIngesting()       = batchIngesting
 
-  /**
-    * Ingesting Vertices
-    */
+  // Ingesting Vertices
   def addVertex(msgTime: Long, srcId: Long, properties: Properties, vertexType: Option[Type]): Unit
 
   def removeVertex(msgTime: Long, srcId: Long): List[GraphUpdateEffect]
   def inboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long): GraphUpdateEffect
   def outboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long): GraphUpdateEffect
 
-  /**
-    * Ingesting Edges
-    */
+  // Ingesting Edges
   def addEdge(
       msgTime: Long,
       srcId: Long,
@@ -81,27 +76,21 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
 
   def deduplicate()
 
-  /**
-    * Analysis Functions
-    */
+  // Analysis Functions
   def getVertices(
       graphPerspective: GraphLens,
       time: Long,
       window: Long = Long.MaxValue
   ): mutable.Map[Long, Vertex]
 
-  /**
-    * Partition Neighbours
-    */
+  // Partition Neighbours
   val totalPartitions                = conf.getInt("raphtory.partitions.countPerServer") * conf.getInt(
           "raphtory.partitions.serverCount"
   )
   def getPartitionID                 = partitionID
   def checkDst(dstID: Long): Boolean = (dstID.abs % totalPartitions).toInt == partitionID
 
-  /**
-    * Watermarking
-    */
+  // Watermarking
   var oldestTime: Long = Long.MaxValue
   var newestTime: Long = 0
 

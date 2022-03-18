@@ -1,9 +1,7 @@
 package com.raphtory.algorithms
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.ImmutableProperty
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.LongProperty
+import com.raphtory.core.components.graphbuilder.Properties._
 
 class WeightedGraphBuilder extends GraphBuilder[String] {
 
