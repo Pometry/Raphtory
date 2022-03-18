@@ -99,7 +99,12 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
       case _                             => Source.fromFile(file)
     }
 
-    try source.getLines()
+    try {
+      val srcLines = source.getLines()
+      val srcSize = srcLines.size
+      Telemetry.totalLinesParsed.set(srcSize.toDouble)
+      srcLines
+    }
     catch {
       case ex: Exception =>
         logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")

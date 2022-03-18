@@ -1,6 +1,6 @@
 package com.raphtory.core.config
 
-import io.prometheus.client.Counter
+import io.prometheus.client.{Counter, Gauge}
 
 object Telemetry {
   val totalFilesProcessed: Counter =
@@ -17,6 +17,14 @@ object Telemetry {
       .namespace("spout")
       .name("total_spout_reschedules")
       .help("Total spout reschedules")
+      .register
+
+  val totalLinesParsed: Gauge =
+    Gauge
+      .build
+      .namespace("spout")
+      .name("total_lines_parsed")
+      .help("Total lines parsed")
       .register
 
 }
