@@ -26,10 +26,6 @@ import scala.collection.mutable
 class PojoBasedPartition(partition: Int, conf: Config)
         extends GraphPartition(partition: Int, conf: Config) {
 
-  /**
-    * Map of vertices contained in the partition
-    */
-
   val hasDeletionsPath      = "raphtory.data.containsDeletions"
   val hasDeletions: Boolean = conf.getBoolean(hasDeletionsPath)
   logger.debug(
@@ -37,6 +33,7 @@ class PojoBasedPartition(partition: Int, conf: Config)
             s"To change this modify '$hasDeletionsPath' in the application conf."
   )
 
+  // Map of vertices contained in the partition
   val vertices: mutable.Map[Long, PojoVertex] = mutable.Map[Long, PojoVertex]()
 
   def addProperties(msgTime: Long, entity: PojoEntity, properties: Properties): Unit =
@@ -147,9 +144,8 @@ class PojoBasedPartition(partition: Int, conf: Config)
     messages
   }
 
-  /**
-    * Edges Methods
-    */
+  // Edge methods
+
   def addEdge(
       msgTime: Long,
       srcId: Long,
@@ -441,9 +437,7 @@ class PojoBasedPartition(partition: Int, conf: Config)
         logger.trace(s"deduplicating ${vertex.vertexId}")
     }
 
-  /**
-    * Analysis Functions
-    */
+  // Analysis Functions
   override def getVertices(
       lens: GraphLens,
       time: Long,
