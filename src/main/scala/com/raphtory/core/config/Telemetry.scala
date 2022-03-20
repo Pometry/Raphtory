@@ -27,4 +27,11 @@ object Telemetry {
       .help("Total lines parsed")
       .register
 
+  val totalWaterMarksCreated: Counter =
+    Counter
+      .build
+      .namespace("reader")
+      .name("total_watermarks_created")
+      .help("Total watermarks created")
+      .register
 }
