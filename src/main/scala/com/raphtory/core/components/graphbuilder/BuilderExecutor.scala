@@ -15,7 +15,27 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-/** @DoNotDocument */
+/**
+  * {s}`BuilderExecutor`
+  *  : {s}`BuilderExecutor` is the entry-point for building graphs in Raphtory using {s}`GraphBuilder`. It is used to start the {s}`GraphBuilder`
+  *    consumer and to send {s}`GraphUpdate` messages to the {s}`Writer`. {s}`GraphUpdate` messages are created while the {s}`GraphBuilder` adds vertices and edges
+  *    to the graph.
+  *
+  * ## Methods
+  *
+  *   {s}`run(): Unit`
+  *    : Starts the Graph Builder executor by starting the graph builder consumer
+  *
+  *   {s}`stop(): Unit`
+  *    : Stops the Graph Builder executor by stopping the graph builder consumer and producers
+  *
+  *   {s}`handleMessage(msg: T): Unit`
+  *    : Handles {s}`GraphUpdate` messages received by the graph builder consumer for each tuple or row of data parsed
+  *
+  *   {s}`sendUpdate(graphUpdate: GraphUpdate): Unit `
+  *    : Sends serialised {s}`GraphUpdate` messages to {s}`Writer` producers
+  *
+  */
 class BuilderExecutor[T: ClassTag](
     name: String,
     graphBuilder: GraphBuilder[T],
