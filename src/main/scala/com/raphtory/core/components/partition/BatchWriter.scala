@@ -11,9 +11,9 @@ import com.raphtory.core.components.graphbuilder.SyncExistingEdgeRemoval
 import com.raphtory.core.components.graphbuilder.SyncNewEdgeAdd
 import com.raphtory.core.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.core.components.graphbuilder.VertexAdd
-import com.raphtory.core.config.Telemetry
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.Telemetry
 import com.raphtory.core.graph._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger

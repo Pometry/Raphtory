@@ -75,4 +75,43 @@ object Telemetry {
       .help("Total edge deletions for batch writer")
       .register
 
+  val streamWriterGraphUpdates: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_stream_writer_graph_updates")
+      .help("Total graph updates for stream writer")
+      .register
+
+  val streamWriterVertexAdditions: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_stream_writer_vertex_adds")
+      .help("Total vertex additions for stream writer")
+      .register
+
+  val streamWriterEdgeAdditions: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_stream_writer_edge_adds")
+      .help("Total edge additions for stream writer")
+      .register
+
+  val streamWriterEdgeDeletions: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_stream_writer_edge_deletes")
+      .help("Total edge deletions for stream writer")
+      .register
+
+  val streamWriterVertexDeletions: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_stream_writer_vertex_deletes")
+      .help("Total vertex deletions for stream writer")
+      .register
 }
