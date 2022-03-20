@@ -27,6 +27,14 @@ object Telemetry {
       .help("Total lines parsed")
       .register
 
+  val batchWriterGraphUpdates: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_batch_writer_graph_updates")
+      .help("Total graph updates for batch writer")
+      .register
+
   val totalWaterMarksCreated: Counter =
     Counter
       .build
@@ -34,4 +42,37 @@ object Telemetry {
       .name("total_watermarks_created")
       .help("Total watermarks created")
       .register
+
+  val batchWriterVertexAdditions: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_batch_writer_vertex_adds")
+      .help("Total vertex additions for batch writer")
+      .register
+
+  val batchWriterEdgeAdditions: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_batch_writer_edge_adds")
+      .help("Total edge additions for batch writer")
+      .register
+
+  val batchWriterRemoteEdgeAdditions: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_batch_writer_remote_edge_adds")
+      .help("Total remote edge additions for batch writer")
+      .register
+
+  val batchWriterEdgeDeletions: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_batch_writer_edge_deletes")
+      .help("Total edge deletions for batch writer")
+      .register
+
 }
