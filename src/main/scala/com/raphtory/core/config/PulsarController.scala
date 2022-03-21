@@ -78,12 +78,11 @@ class PulsarController(conf: Config) {
     pulsarAdmin.namespaces().setDeduplicationStatus(namespace, false)
   }
 
-  def createListeningConsumer[T](
+  private def configuredConsumerBuilder[T](
       subscriptionName: String,
-      messageListener: MessageListener[T],
       schema: Schema[T],
-      topics: String*
-  ): Consumer[T] =
+      topics: Seq[String]
+  ): ConsumerBuilder[T] =
     client
       .newConsumer(schema)
       .priorityLevel(0)
@@ -94,20 +93,45 @@ class PulsarController(conf: Config) {
       .maxTotalReceiverQueueSizeAcrossPartitions(Integer.MAX_VALUE)
       .receiverQueueSize(200_000)
       .poolMessages(true)
+
+  def createSharedListeningConsumer[T](
+      subscriptionName: String,
+      messageListener: MessageListener[T],
+      schema: Schema[T],
+      topics: String*
+  ): Consumer[T] =
+    configuredConsumerBuilder(subscriptionName, schema, topics)
       .messageListener(messageListener)
+      .subscriptionType(SubscriptionType.Shared)
       .subscribe()
 
-  def createConsumer[T](subscriptionName: String, schema: Schema[T], topics: String*): Consumer[T] =
-    client
-      .newConsumer(schema)
-      .priorityLevel(0)
-      .topics(topics.toList.asJava)
-      .subscriptionName(subscriptionName)
+  def createExclusiveListeningConsumer[T](
+      subscriptionName: String,
+      messageListener: MessageListener[T],
+      schema: Schema[T],
+      topics: String*
+  ): Consumer[T] =
+    configuredConsumerBuilder(subscriptionName, schema, topics)
+      .messageListener(messageListener)
+      .subscriptionType(SubscriptionType.Exclusive)
+      .subscribe()
+
+  def createSharedConsumer[T](
+      subscriptionName: String,
+      schema: Schema[T],
+      topics: String*
+  ): Consumer[T] =
+    configuredConsumerBuilder(subscriptionName, schema, topics)
       .subscriptionType(SubscriptionType.Shared)
-      .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-      .maxTotalReceiverQueueSizeAcrossPartitions(Integer.MAX_VALUE)
-      .receiverQueueSize(200_000)
-      .poolMessages(true)
+      .subscribe()
+
+  def createExclusiveConsumer[T](
+      subscriptionName: String,
+      schema: Schema[T],
+      topics: String*
+  ): Consumer[T] =
+    configuredConsumerBuilder(subscriptionName, schema, topics)
+      .subscriptionType(SubscriptionType.Exclusive)
       .subscribe()
 
   def createProducer[T](schema: Schema[T], topic: String): Producer[T] =
@@ -156,7 +180,7 @@ class PulsarController(conf: Config) {
       messageListener: MessageListener[Array[Byte]]
   ): Consumer[Array[Byte]] = {
     val topic = createTopic("spout", spoutTopic)
-    createListeningConsumer("GraphBuilder", messageListener, Schema.BYTES, topic)
+    createSharedListeningConsumer("GraphBuilder", messageListener, Schema.BYTES, topic)
   }
 
   def startPartitionConsumer(
@@ -164,7 +188,7 @@ class PulsarController(conf: Config) {
       messageListener: MessageListener[Array[Byte]]
   ): Consumer[Array[Byte]] = {
     val topic1 = createTopic("builders", s"${deploymentID}_$partitionID")
-    createListeningConsumer(
+    createExclusiveListeningConsumer(
             s"Writer_$partitionID",
             messageListener,
             Schema.BYTES,
@@ -178,7 +202,7 @@ class PulsarController(conf: Config) {
   ): Consumer[Array[Byte]] = {
     val topic = createTopic("query", s"${deploymentID}_jobs")
 
-    createListeningConsumer(
+    createExclusiveListeningConsumer(
             s"Reader_$partitionID",
             messageListener,
             Schema.BYTES,
@@ -193,7 +217,7 @@ class PulsarController(conf: Config) {
   ): Consumer[Array[Byte]] = {
 
     val topic = createTopic("query", s"${deploymentID}_${jobID}_$partitionID")
-    createListeningConsumer(
+    createExclusiveListeningConsumer(
             s"Executor_$partitionID",
             messageListener,
             Schema.BYTES,
@@ -206,7 +230,7 @@ class PulsarController(conf: Config) {
   ): Consumer[Array[Byte]] = {
 
     val topic = createTopic("query", s"${deploymentID}_submission")
-    createListeningConsumer(
+    createExclusiveListeningConsumer(
             "QueryManager",
             messageListener,
             Schema.BYTES,
@@ -219,7 +243,7 @@ class PulsarController(conf: Config) {
       messageListener: MessageListener[Array[Byte]]
   ): Consumer[Array[Byte]] = {
     val topic = createTopic("query", s"${deploymentID}_${jobID}_queryHandler")
-    createListeningConsumer(
+    createExclusiveListeningConsumer(
             s"QueryHandler_$jobID",
             messageListener,
             Schema.BYTES,
@@ -233,7 +257,7 @@ class PulsarController(conf: Config) {
   ): Consumer[Array[Byte]] = {
 
     val topic = createTopic("query", s"${deploymentID}_${jobId}_querytracking")
-    createListeningConsumer(
+    createExclusiveListeningConsumer(
             "queryProgressConsumer",
             messageListener,
             Schema.BYTES,
