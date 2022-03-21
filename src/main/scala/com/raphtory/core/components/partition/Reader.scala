@@ -1,10 +1,14 @@
 package com.raphtory.core.components.partition
 
 import com.raphtory.core.components.Component
-import com.raphtory.core.components.querymanager.{EndQuery, EstablishExecutor, QueryManagement, WatermarkTime}
+import com.raphtory.core.components.querymanager.EndQuery
+import com.raphtory.core.components.querymanager.EstablishExecutor
+import com.raphtory.core.components.querymanager.QueryManagement
+import com.raphtory.core.components.querymanager.WatermarkTime
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph.GraphPartition
 import com.typesafe.config.Config
+import monix.execution.Cancelable
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 
@@ -14,18 +18,20 @@ import scala.collection.mutable
 
 /** @DoNotDocument */
 class Reader(
-              partitionID: Int,
-              storage: GraphPartition,
-              scheduler: Scheduler,
-              conf: Config,
-              pulsarController: PulsarController
-            ) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
+    partitionID: Int,
+    storage: GraphPartition,
+    scheduler: Scheduler,
+    conf: Config,
+    pulsarController: PulsarController
+) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
 
   private val executorMap                               = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish                          = pulsarController.watermarkPublisher()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  var scheduledWatermark: Option[Cancelable]            = None
+  private var lastWatermark                             = (0L, false)
 
-  val watermarking = new Runnable {
+  private val watermarking = new Runnable {
     override def run(): Unit = createWatermark()
   }
 
@@ -35,7 +41,7 @@ class Reader(
     scheduleWaterMarker()
 
     cancelableConsumer = Some(
-      pulsarController.startReaderConsumer(partitionID, messageListener())
+            pulsarController.startReaderConsumer(partitionID, messageListener())
     )
   }
 
@@ -45,23 +51,23 @@ class Reader(
         value.close()
       case None        =>
     }
+    scheduledWatermark.foreach(_.cancel())
     watermarkPublish.close()
     executorMap.foreach(_._2.stop())
   }
 
-  override def handleMessage(msg: QueryManagement): Unit = {
+  override def handleMessage(msg: QueryManagement): Unit =
     msg match {
       case req: EstablishExecutor =>
-        val jobID = req.jobID
+        val jobID         = req.jobID
         val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
         scheduler.execute(queryExecutor)
         executorMap += ((jobID, queryExecutor))
 
-      case req: EndQuery =>
+      case req: EndQuery          =>
         executorMap(req.jobID).stop()
         executorMap.remove(req.jobID)
     }
-  }
 
   def createWatermark(): Unit = {
     if (!storage.currentyBatchIngesting()) {
@@ -97,19 +103,26 @@ class Reader(
 
       val finalTime = Array(newestTime, BEAtime, BEDtime, BVDtime).min
 
-      logger.trace(s"Partition $partitionID: Creating watermark at '$finalTime'.")
-
-      if (!blockingEdgeAdditions && !blockingEdgeDeletions && !blockingVertexDeletions)
-        watermarkPublish.sendAsync(serialise(WatermarkTime(partitionID, finalTime, true)))
-      else
-        watermarkPublish.sendAsync(serialise(WatermarkTime(partitionID, finalTime, false)))
+      val noBlockingOperations =
+        !blockingEdgeAdditions && !blockingEdgeDeletions && !blockingVertexDeletions
+      if (finalTime > lastWatermark._1 || noBlockingOperations != lastWatermark._2) {
+        logger.trace(s"Partition $partitionID: Creating watermark at '$finalTime'.")
+        watermarkPublish.sendAsync(
+                serialise(WatermarkTime(partitionID, finalTime, noBlockingOperations))
+        )
+        lastWatermark = (finalTime, noBlockingOperations)
+      }
 
     }
     scheduleWaterMarker()
   }
 
-  private def scheduleWaterMarker(): Unit =
-    scheduler
-      .scheduleOnce(1, TimeUnit.SECONDS, watermarking)
+  private def scheduleWaterMarker(): Unit = {
+    logger.trace("Scheduled watermarker to recheck time in 1 second.")
+    scheduledWatermark = Some(
+            scheduler
+              .scheduleOnce(1, TimeUnit.SECONDS, watermarking)
+    )
+  }
 
 }

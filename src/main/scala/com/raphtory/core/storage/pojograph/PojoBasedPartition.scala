@@ -1,21 +1,16 @@
 package com.raphtory.core.storage.pojograph
 
-import com.raphtory.core.components.graphbuilder.DoubleProperty
 import com.raphtory.core.components.graphbuilder.EdgeSyncAck
-import com.raphtory.core.components.graphbuilder.FloatProperty
 import com.raphtory.core.components.graphbuilder.GraphUpdateEffect
-import com.raphtory.core.components.graphbuilder.ImmutableProperty
 import com.raphtory.core.components.graphbuilder.InboundEdgeRemovalViaVertex
-import com.raphtory.core.components.graphbuilder.LongProperty
 import com.raphtory.core.components.graphbuilder.OutboundEdgeRemovalViaVertex
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.StringProperty
+import com.raphtory.core.components.graphbuilder.Properties._
 import com.raphtory.core.components.graphbuilder.SyncExistingEdgeAdd
 import com.raphtory.core.components.graphbuilder.SyncExistingEdgeRemoval
 import com.raphtory.core.components.graphbuilder.SyncExistingRemovals
 import com.raphtory.core.components.graphbuilder.SyncNewEdgeAdd
 import com.raphtory.core.components.graphbuilder.SyncNewEdgeRemoval
-import com.raphtory.core.components.graphbuilder.Type
+
 import com.raphtory.core.components.graphbuilder.VertexRemoveSyncAck
 import com.raphtory.core.graph.visitor.Vertex
 import com.raphtory.core.graph._
@@ -33,10 +28,6 @@ import scala.collection.mutable
 class PojoBasedPartition(partition: Int, conf: Config)
         extends GraphPartition(partition: Int, conf: Config) {
 
-  /**
-    * Map of vertices contained in the partition
-    */
-
   val hasDeletionsPath      = "raphtory.data.containsDeletions"
   val hasDeletions: Boolean = conf.getBoolean(hasDeletionsPath)
   logger.debug(
@@ -44,6 +35,7 @@ class PojoBasedPartition(partition: Int, conf: Config)
             s"To change this modify '$hasDeletionsPath' in the application conf."
   )
 
+  // Map of vertices contained in the partition
   val vertices: mutable.Map[Long, PojoVertex] = mutable.Map[Long, PojoVertex]()
 
   def addProperties(msgTime: Long, entity: PojoEntity, properties: Properties): Unit =
@@ -154,9 +146,8 @@ class PojoBasedPartition(partition: Int, conf: Config)
     messages
   }
 
-  /**
-    * Edges Methods
-    */
+  // Edge methods
+
   def addEdge(
       msgTime: Long,
       srcId: Long,
@@ -448,9 +439,7 @@ class PojoBasedPartition(partition: Int, conf: Config)
         logger.trace(s"deduplicating ${vertex.vertexId}")
     }
 
-  /**
-    * Analysis Functions
-    */
+  // Analysis Functions
   override def getVertices(
       lens: GraphLens,
       time: Long,

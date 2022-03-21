@@ -6,7 +6,9 @@ import com.raphtory.core.time.DiscreteInterval
 import com.raphtory.core.time.Interval
 import com.raphtory.core.time.TimeConverters._
 
-/** @DoNotDocument */
+/** @DoNotDocument
+  * The PerspectiveController is responsible for constructing graph views
+  */
 case class Perspective(timestamp: Long, window: Option[Interval]) extends QueryManagement
 
 class PerspectiveController(timestamps: Stream[Long], windows: List[Interval]) {
