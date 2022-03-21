@@ -56,9 +56,13 @@ abstract class BaseCorrectnessTest extends AnyFunSuite {
     queryProgressTracker.waitForJob()
     graph.stop()
 
-    val dir     = new File(testDir + s"/$jobId").listFiles.filter(_.isFile)
-    val results =
-      (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
+    val dirPath = new File(testDir + s"/$jobId")
+    var results = Array.empty[Char]
+    if (dirPath.isDirectory) {
+      val dir = dirPath.listFiles.filter(_.isFile)
+      results =
+        (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
+    }
     Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
   }
 
