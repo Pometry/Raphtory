@@ -226,6 +226,9 @@ import scala.reflect.ClassTag
   *
   * ## Messaging
   *
+  * {s}`voteToHalt(): Unit`
+  *   : vote to stop iterating (iteration stops if all vertices voted to halt)
+  *
   * {s}`hasMessage(): Boolean`
   *   : check if vertex has received messages
   *
