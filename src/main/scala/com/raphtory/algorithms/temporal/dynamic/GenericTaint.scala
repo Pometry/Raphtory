@@ -69,7 +69,8 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
                       edge =>
                         // get all the transactions that this node sent
                         edge
-                          .history()._1
+                          .history()
+                          ._1
                           .zipWithIndex
                           .foreach({ case (event, c) =>
                             if (edge.history()._2(c) & event >= startTime)

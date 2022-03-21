@@ -5,7 +5,7 @@ class PojoEdge(msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean)
         extends PojoEntity(msgTime, initialValue) {
 
   def killList(vKills: List[Long]): Unit = {
-    history.zipWithIndex.foreach{ case (k, c) =>
+    historyTime.zipWithIndex.foreach{ case (k, c) =>
       if (vKills.contains(k))
         historyValue.update(c, false)
     }

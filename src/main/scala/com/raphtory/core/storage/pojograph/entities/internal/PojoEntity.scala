@@ -26,11 +26,11 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   // var history: Long2BooleanOpenHashMap = new Long2BooleanOpenHashMap()
 
-  var history: Array[Long] = new Array[Long](0)
+  var historyTime: Array[Long] = new Array[Long](0)
   var historyValue: Array[Boolean] = new Array[Boolean](0)
 
   def historyAdd(time: Long, value: Boolean): Unit = {
-      history = history :+ time
+      historyTime = historyTime :+ time
       historyValue = historyValue :+ value
   }
 
@@ -95,7 +95,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
     }
 
   def wipe() : Unit = {
-    history = new Array[Long](0)
+    historyTime = new Array[Long](0)
     historyValue = new Array[Boolean](0)
   }
 
@@ -103,7 +103,7 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   protected def closestTime(time: Long): (Long, Boolean) = {
     var closestTime: Long = -1
     var value             = false
-    history.zipWithIndex.foreach{case (k, count) =>
+    historyTime.zipWithIndex.foreach{case (k, count) =>
       if (k <= time)
         if ((time - k) < (time - closestTime)) {
           closestTime = k

@@ -22,7 +22,7 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
     HistoricEvent(res._1, history()._2(res._2))
   }
 
-  def latestActivity(): HistoricEvent = HistoricEvent(history()._1(0), history()._2(0))
+  def latestActivity(): HistoricEvent = HistoricEvent(history()._1(history()._1.length-1), history()._2(history()._2.length-1))
 
   def earliestActivity(): HistoricEvent = {
     val res = history()._1.zipWithIndex.minBy(x => x._1)
@@ -85,9 +85,9 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
     val historyEvent = new Array[Boolean](0)
     view.window match {
       case Some(w) =>
-        entity.history.zipWithIndex.foreach { case (k, count) =>
-          if (k <= view.timestamp && k >= view.timestamp - w) {
-            historyFilter :+ k
+        entity.historyTime.zipWithIndex.foreach { case (time, count) =>
+          if (time <= view.timestamp && time >= view.timestamp - w) {
+            historyFilter :+ time
             historyEvent :+ entity.historyValue(count)
           }
         }
@@ -97,9 +97,9 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
     //          .map(e => HistoricEvent(e.getLongKey, e.getBooleanValue))
     //          .toArray.toList.asInstanceOf[List[HistoricEvent]]
       case None    =>
-        entity.history.zipWithIndex.foreach { case (k, count) =>
-          if (k <= view.timestamp) {
-            historyFilter :+ k
+        entity.historyTime.zipWithIndex.foreach { case (time, count) =>
+          if (time <= view.timestamp) {
+            historyFilter :+ time
             historyEvent :+ entity.historyValue(count)
           }
         }
@@ -117,5 +117,5 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
 
   def active(after: Long = 0, before: Long = Long.MaxValue): Boolean =
     // entity.history.keySet.longStream().allMatch(k => k > after && k <= before)
-    !entity.history.filter(k => k > after && k <= before).isEmpty
+    !entity.historyTime.filter(k => k > after && k <= before).isEmpty
 }
