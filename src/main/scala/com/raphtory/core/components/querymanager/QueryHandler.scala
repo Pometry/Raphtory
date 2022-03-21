@@ -90,13 +90,21 @@ abstract class QueryHandler(
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
-    currentState match {
+    try currentState match {
       case Stages.SpawnExecutors       =>
         currentState = spawnExecutors(msg.asInstanceOf[ExecutorEstablished])
       case Stages.EstablishPerspective => currentState = establishPerspective(msg)
       case Stages.ExecuteGraph         => currentState = executeGraph(msg)
       case Stages.ExecuteTable         => currentState = executeTable(msg)
       case Stages.EndTask              => //TODO?
+    }
+    catch {
+      case e: Throwable =>
+        e.printStackTrace()
+        logger.error(
+                s"Deployment $deploymentID: Failed to handle message. ${e.getMessage}. Skipping perspective."
+        )
+        executeNextPerspective()
     }
 
   ////OPERATION STATES
