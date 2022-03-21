@@ -1,5 +1,6 @@
 package com.raphtory.core.components.spout.executor
 
+import com.raphtory.algorithms.generic.TwoHopPaths.Response
 import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.components.spout.executor.Util.filterRules
 import com.raphtory.core.components.spout.executor.Util.hashtag
@@ -38,13 +39,23 @@ class LiveTwitterSpoutExecutor(
       twitterClient.startSampledStream(twitterEventListener(conf))
 
   override def run(): Unit = {
+    val start         = System.currentTimeMillis()
+    val timeInSeconds = 60
+    val end           = start + timeInSeconds * 1000
+    /*
+      Line 46, 49 and 50 can be uncommented out to turn on the stop function,
+      timeInSeconds is the time (in seconds) you want the streaming to run for.
+     */
+//    while (System.currentTimeMillis() < end) {
     logger.info("Starting Twitter Stream")
     streamTweets()
+//    }
+//    stop()
   }
 
   override def stop(): Unit = {
     logger.info("Stopping Twitter Stream")
-    twitterClient.stopFilteredStream(streamTweets())
+    System.exit(1)
   }
 }
 
