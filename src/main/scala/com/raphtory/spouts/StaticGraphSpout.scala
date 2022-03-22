@@ -1,7 +1,6 @@
 package com.raphtory.spouts
 
 import com.raphtory.core.components.spout.BatchableSpout
-import com.raphtory.core.components.spout.Spout
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
