@@ -18,7 +18,8 @@ import scala.collection.mutable.ListBuffer
 
 /**
   * {s}`QueryProgressTracker`
-  *  : {s}`QueryProgressTracker` is used to track the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
+  *  : Tracks the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
+  *
   *    Queries in Raphtory run as a series of {s}`Perspectives` which are graph views at specific timestamps and windows as the query progresses.
   *    The progress tracker thus helps track query progress until the job is completed. Query types supported include {s}`PointQuery`, {s}`RangeQuery` and {s}`LiveQuery`
   *
@@ -31,26 +32,16 @@ import scala.collection.mutable.ListBuffer
   *    : Returns the latest {s}`Perspective` processed by the query
   *
   *   {s}`getPerspectivesProcessed(): List[Perspective]`
-  *    : Returns list of perspectives processed for the query till the current timestamp
+  *    : Returns list of perspectives processed for the query so far
   *
   *   {s}`getPerspectiveDurations(): List[Long]`
-  *    : Returns the time duration taken to process each of perspectives till the current timestamp
+  *    : Returns the time duration taken to process each of perspectives
   *
   *   {s}`isJobDone(): Boolean`
   *    : Checks if job is complete
   *
   *   {s}`waitForJob()`
-  *    : Polling mechanism to checks if the job is complete, repeats check after every second
-  *
-  *   {s}`handleMessage(msg: QueryManagement): Unit`
-  *    : Handles message to process the {s}`Perspective` received in case the query is in progress, or {s}`JobDone` if the query is complete
-  *
-  *   {s}`run(): Unit`
-  *    : Starts the query tracker pulsar consumer
-  *
-  *   {s}`stop(): Unit`
-  *    : Stops the query tracker consumer
-  *
+  *    : Block until job is complete, repeats check every second
   *
   * Example Usage:
   *
@@ -62,14 +53,11 @@ import scala.collection.mutable.ListBuffer
   * import com.raphtory.GraphState
   * import com.raphtory.output.FileOutputFormat
   *
-  * val customConfig = Map(("raphtory.pulsar.endpoint", "localhost:1234"))
-  * Raphtory.createClient("deployment123", customConfig)
   * val graph = Raphtory.createGraph(ResourceSpout("resource"), LOTRGraphBuilder())
   * val queryProgressTracker = graph.rangeQuery(GraphState(),FileOutputFormat("/test_dir"),1, 32674, 10000, List(500, 1000, 10000))
   * val jobId                = queryProgressTracker.getJobId()
-  * Thread.sleep(2000)
-  * val perspectivesProcessed = queryProgressTracker.getPerspectivesProcessed()
   * queryProgressTracker.waitForJob()
+  * val perspectivesProcessed = queryProgressTracker.getPerspectivesProcessed()
   *
   * ```
   *
@@ -114,11 +102,13 @@ class QueryProgressTracker(
     while (!jobDone)
       Thread.sleep(1000)
 
+  // Starts the query tracker pulsar consumer
   override def run(): Unit =
     cancelableConsumer = Some(
             pulsarController.startQueryTrackerConsumer(jobID, messageListener())
     )
 
+  // Stops the query tracker consumer
   def stop(): Unit =
     cancelableConsumer match {
       case Some(value) =>
@@ -126,6 +116,7 @@ class QueryProgressTracker(
       case None        =>
     }
 
+  // Handles message to process the {s}`Perspective` received in case the query is in progress, or {s}`JobDone` if the query is complete
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
 
