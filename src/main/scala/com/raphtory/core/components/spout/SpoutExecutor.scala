@@ -41,7 +41,7 @@ class SpoutExecutor[T](
     executeSpout()
 
   private def executeSpout() = {
-    while (spout.hasNext()) {
+    while (spout.hasNext) {
       linesProcessed = linesProcessed + 1
       if (linesProcessed % 100_000 == 0)
         logger.debug(s"Spout: sent $linesProcessed messages.")
