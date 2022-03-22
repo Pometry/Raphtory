@@ -93,7 +93,7 @@ class LiveTwitterAddSpout(tweetQueue: ConcurrentLinkedQueue[Tweet]) {
 
       override def onTweetStreamed(tweet: Tweet): Unit = {
 
-        def postInThisLanguage: Boolean =
+        def postIfThisLanguage: Boolean =
           getTweetLanguage.nonEmpty match {
             case true => tweet.getLang == getTweetLanguage
             case _    => tweet.getLang == tweet.getLang
@@ -105,7 +105,7 @@ class LiveTwitterAddSpout(tweetQueue: ConcurrentLinkedQueue[Tweet]) {
             case _    => tweet.getTweetType.equals(TweetType.DEFAULT)
           }
 
-        try if (postInThisLanguage && getRetweet) {
+        try if (postIfThisLanguage && getRetweet) {
           filterRules()
           tweetQueue.add(tweet)
         }
