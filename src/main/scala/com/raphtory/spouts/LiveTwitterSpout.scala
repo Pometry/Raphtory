@@ -23,10 +23,10 @@ class LiveTwitterSpout() extends Spout[Tweet] {
     //Filter Twitter stream if hashtag field in application.conf is not empty
     if (spout.hashtag.nonEmpty) {
       spout.filterRules()
-      spout.twitterClient.startFilteredStream(spout.twitterEventListener(spout.raphtoryConfig))
+      spout.twitterClient.startFilteredStream(spout.twitterEventListener())
     }
     else
-      spout.twitterClient.startSampledStream(spout.twitterEventListener(spout.raphtoryConfig))
+      spout.twitterClient.startSampledStream(spout.twitterEventListener())
 
   override def close(): Unit = streamTweets.get().close()
 
