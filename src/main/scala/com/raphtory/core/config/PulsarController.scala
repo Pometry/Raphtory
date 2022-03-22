@@ -139,7 +139,7 @@ class PulsarController(conf: Config) {
       .topic(topic)
       .enableBatching(true)
       .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
-      .batchingMaxMessages(10000)
+      .batchingMaxMessages(Int.MaxValue)
       .blockIfQueueFull(true)
       .maxPendingMessages(1000)
       .create()
