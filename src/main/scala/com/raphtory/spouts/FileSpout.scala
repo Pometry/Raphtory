@@ -53,7 +53,7 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
     case None       => Iterator[String]()
   }
 
-  override def hasNext(): Boolean =
+  override def hasNext: Boolean =
     if (lines.hasNext)
       true
     else {
@@ -172,20 +172,9 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
     }
   }
 
-  override def hasNextIterator(): Boolean = hasNext()
-
   override def nextIterator(): Iterator[T] =
     if (typeOf[T] =:= typeOf[String]) lines.asInstanceOf[Iterator[T]]
     else lines.map(lineConverter)
-
-  override def executeNextIterator(): Unit =
-    for (line <- lines)
-      try graphBuilder.parseTuple(lineConverter(line))
-      catch {
-        case ex: Exception =>
-          logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
-          throw ex
-      }
 
 }
 
