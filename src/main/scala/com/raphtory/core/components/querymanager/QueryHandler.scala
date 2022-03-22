@@ -14,6 +14,7 @@ import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Producer
+import org.apache.pulsar.client.api.Schema
 
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
@@ -209,8 +210,24 @@ abstract class QueryHandler(
             logger.debug(
                     s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
             )
-            if (checkingMessages)
+            if (checkingMessages) {
+              workerList.foreach {
+                case (pID, worker) =>
+                  val topic    = worker.getTopic
+                  logger.debug(s"Checking messages for topic $topic")
+                  val consumer =
+                    pulsarController.createExclusiveConsumer("dumping", Schema.BYTES, topic)
+                  while (!consumer.hasReachedEndOfTopic) {
+                    val msg     = consumer.receive()
+                    val message = deserialise[QueryManagement](msg.getValue)
+                    consumer.acknowledge(msg)
+                    msg.release()
+                    logger.debug(s"Partition $pID has message $message")
+                  }
+
+              }
               throw new RuntimeException("Message check called twice")
+            }
             readyCount = 0
             receivedMessageCount = 0
             sentMessageCount = 0
