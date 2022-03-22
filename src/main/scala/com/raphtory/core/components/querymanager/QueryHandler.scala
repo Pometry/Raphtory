@@ -175,7 +175,7 @@ abstract class QueryHandler(
   //execute the steps of the graph algorithm until a select is run
   private def executeGraph(msg: QueryManagement): Stage =
     msg match {
-      case StartGraph                                                                         =>
+      case StartGraph                                                                      =>
         graphPerspective = new GenericGraphPerspective(vertexCount)
         graphState = GraphStateImplementation()
         val startingGraphTime = System.currentTimeMillis() - timeTaken
@@ -189,89 +189,78 @@ abstract class QueryHandler(
 
         nextGraphOperation(vertexCount)
 
-      case GraphFunctionCompleteWithState(receivedMessages, sentMessages, votedToHalt, state) =>
-        sentMessageCount += sentMessages
-        receivedMessageCount += receivedMessages
-        allVoteToHalt = votedToHalt & allVoteToHalt
-        readyCount += 1
+      case GraphFunctionCompleteWithState(
+                  partitionID,
+                  receivedMessages,
+                  sentMessages,
+                  votedToHalt,
+                  state
+          ) =>
         graphState.update(state)
-
-        if (readyCount == totalPartitions) {
+        if (readyCount + 1 == totalPartitions)
           graphState.rotate()
-          if (receivedMessageCount == sentMessageCount) {
-            val graphFuncCompleteTime = System.currentTimeMillis() - timeTaken
-            logger.debug(
-                    s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages:$receivedMessageCount , Sent messages: $sentMessageCount."
-            )
-            timeTaken = System.currentTimeMillis()
-            nextGraphOperation(vertexCount)
-          }
-          else {
-            logger.debug(
-                    s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
-            )
-            if (checkingMessages) {
-              workerList.foreach {
-                case (pID, worker) =>
-                  val topic    = worker.getTopic
-                  logger.debug(s"Checking messages for topic $topic")
-                  val consumer =
-                    pulsarController.createExclusiveConsumer("dumping", Schema.BYTES, topic)
-                  while (!consumer.hasReachedEndOfTopic) {
-                    val msg     = consumer.receive()
-                    val message = deserialise[QueryManagement](msg.getValue)
-                    consumer.acknowledge(msg)
-                    msg.release()
-                    logger.debug(s"Partition $pID has message $message")
-                  }
+        processGraphFunctionComplete(partitionID, receivedMessages, sentMessages, votedToHalt)
 
-              }
-              throw new RuntimeException("Message check called twice")
-            }
-            readyCount = 0
-            receivedMessageCount = 0
-            sentMessageCount = 0
-            checkingMessages = true
-            messagetoAllJobWorkers(CheckMessages(jobID))
-            Stages.ExecuteGraph
-          }
-        }
-        else
-          Stages.ExecuteGraph
+      case GraphFunctionComplete(partitionID, receivedMessages, sentMessages, votedToHalt) =>
+        processGraphFunctionComplete(partitionID, receivedMessages, sentMessages, votedToHalt)
 
-      case GraphFunctionComplete(partitionID, receivedMessages, sentMessages, votedToHalt)    =>
-        sentMessageCount += sentMessages
-        receivedMessageCount += receivedMessages
-        allVoteToHalt = votedToHalt & allVoteToHalt
-        readyCount += 1
-        logger.debug(
-                s"Job '$jobID': Partition $partitionID Received messages:$receivedMessages , Sent messages: $sentMessages."
-        )
-        if (readyCount == totalPartitions)
-          if (receivedMessageCount == sentMessageCount) {
-            val graphFuncCompleteTime = System.currentTimeMillis() - timeTaken
-            logger.debug(
-                    s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages Total:$receivedMessageCount , Sent messages: $sentMessageCount."
-            )
-            timeTaken = System.currentTimeMillis()
-            nextGraphOperation(vertexCount)
-          }
-          else {
-            logger.debug(
-                    s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
-            )
-            if (checkingMessages)
-              throw new RuntimeException("Message check called twice")
-            readyCount = 0
-            receivedMessageCount = 0
-            sentMessageCount = 0
-            checkingMessages = true
-            messagetoAllJobWorkers(CheckMessages(jobID))
-            Stages.ExecuteGraph
-          }
-        else
-          Stages.ExecuteGraph
     }
+
+  private def processGraphFunctionComplete(
+      partitionID: Int,
+      receivedMessages: Int,
+      sentMessages: Int,
+      votedToHalt: Boolean
+  ) = {
+    sentMessageCount += sentMessages
+    receivedMessageCount += receivedMessages
+    allVoteToHalt = votedToHalt & allVoteToHalt
+    readyCount += 1
+    logger.debug(
+            s"Job '$jobID': Partition $partitionID Received messages:$receivedMessages , Sent messages: $sentMessages."
+    )
+    if (readyCount == totalPartitions)
+      if (receivedMessageCount == sentMessageCount) {
+        val graphFuncCompleteTime = System.currentTimeMillis() - timeTaken
+        logger.debug(
+                s"Job '$jobID': Graph Function Complete in ${graphFuncCompleteTime}ms Received messages Total:$receivedMessageCount , Sent messages: $sentMessageCount."
+        )
+        timeTaken = System.currentTimeMillis()
+        nextGraphOperation(vertexCount)
+      }
+      else {
+        logger.debug(
+                s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
+        )
+        if (checkingMessages) {
+          logger.debug(s"Check messages called twice, num_workers=${workerList.size}.")
+          workerList.foreach {
+            case (pID, worker) =>
+              val topic    = worker.getTopic
+              logger.debug(s"Checking messages for topic $topic")
+              val consumer =
+                pulsarController.createSharedConsumer("dumping", Schema.BYTES, topic)
+              while (!consumer.hasReachedEndOfTopic) {
+                val msg     = consumer.receive()
+                val message = deserialise[QueryManagement](msg.getValue)
+                consumer.acknowledge(msg)
+                msg.release()
+                logger.debug(s"Partition $pID has message $message")
+              }
+
+          }
+          throw new RuntimeException("Message check called twice")
+        }
+        readyCount = 0
+        receivedMessageCount = 0
+        sentMessageCount = 0
+        checkingMessages = true
+        messagetoAllJobWorkers(CheckMessages(jobID))
+        Stages.ExecuteGraph
+      }
+    else
+      Stages.ExecuteGraph
+  }
 
   //once the select has been run, execute all of the table functions until we hit a writeTo
   private def executeTable(msg: QueryManagement): Stage =
