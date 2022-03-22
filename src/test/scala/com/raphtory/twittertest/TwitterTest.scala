@@ -13,7 +13,6 @@ import java.io.File
 import scala.language.postfixOps
 import scala.sys.process._
 
-@DoNotDiscover
 class TwitterTest extends BaseRaphtoryAlgoTest[String] {
   override val testDir: String         = "/tmp/raphtoryTwitterTest"
   override def batchLoading(): Boolean = true
