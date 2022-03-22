@@ -53,7 +53,7 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
     case None       => Iterator[String]()
   }
 
-  override def hasNext(): Boolean =
+  override def hasNext: Boolean =
     if (lines.hasNext)
       true
     else {
@@ -171,8 +171,6 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
       case None       => Iterator[String]()
     }
   }
-
-  override def hasNextIterator(): Boolean = hasNext()
 
   override def nextIterator(): Iterator[T] =
     if (typeOf[T] =:= typeOf[String]) lines.asInstanceOf[Iterator[T]]
