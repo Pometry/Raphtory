@@ -21,7 +21,7 @@ import scala.util.matching.Regex
 import scala.reflect.runtime.universe._
 
 class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String => T), conf: Config)
-        extends BatchableSpout[T] {
+        extends Spout[T] {
   private val completedFiles: mutable.Set[String] = mutable.Set.empty[String]
   val logger: Logger                              = Logger(LoggerFactory.getLogger(this.getClass))
 
