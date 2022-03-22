@@ -15,8 +15,6 @@ import com.raphtory.core.deploy.Raphtory
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema
-import io.prometheus.client.exporter.HTTPServer
-import java.io.IOException
 
 
 import java.io.File
@@ -28,12 +26,6 @@ import sys.process._
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
   val outputFormat: FileOutputFormat = FileOutputFormat(testDir)
   override def batchLoading(): Boolean = false
-//
-//  try {
-//    new HTTPServer(8899)
-//  } catch {
-//    case e: IOException => e.printStackTrace()
-//  }
 
   test("Graph State Test") {
     assert(

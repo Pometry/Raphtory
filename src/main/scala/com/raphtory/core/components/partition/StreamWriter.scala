@@ -17,7 +17,6 @@ import com.raphtory.core.components.graphbuilder.VertexAdd
 import com.raphtory.core.components.graphbuilder.VertexDelete
 import com.raphtory.core.components.graphbuilder.VertexRemoveSyncAck
 import com.raphtory.core.config.PulsarController
-import com.raphtory.core.config.Telemetry
 import com.raphtory.core.graph._
 import com.typesafe.config.Config
 import org.apache.pulsar.client.admin.PulsarAdminException
@@ -116,7 +115,6 @@ class StreamWriter(
   // Graph Updates from the builders
   def processVertexAdd(update: VertexAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
-    Telemetry.streamWriterVertexAdditions.inc()
 
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
@@ -124,7 +122,6 @@ class StreamWriter(
 
   def processEdgeAdd(update: EdgeAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received EdgeAdd message '$update'.")
-    Telemetry.streamWriterEdgeAdditions.inc()
 
     storage.timings(update.updateTime)
     storage.addEdge(
@@ -143,7 +140,6 @@ class StreamWriter(
 
   def processEdgeDelete(update: EdgeDelete): Unit = {
     logger.trace(s"Partition $partitionID: Received EdgeDelete message '$update'.")
-    Telemetry.streamWriterEdgeDeletions.inc()
 
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId) match {
@@ -156,7 +152,6 @@ class StreamWriter(
 
   def processVertexDelete(update: VertexDelete): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexDelete message '$update'.")
-    Telemetry.streamWriterVertexDeletions.inc()
 
     val edgeRemovals = storage.removeVertex(update.updateTime, update.srcId)
     if (edgeRemovals.nonEmpty) {
@@ -269,7 +264,6 @@ class StreamWriter(
 
   def printUpdateCount() = {
     processedMessages += 1
-    Telemetry.streamWriterGraphUpdates.inc()
 
     // TODO Should this be externalised?
     //  Do we need it now that we have progress tracker?

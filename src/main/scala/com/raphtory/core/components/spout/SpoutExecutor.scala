@@ -6,7 +6,7 @@ import com.typesafe.config.Config
 import monix.execution.Cancelable
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Message
-import com.raphtory.core.config.Telemetry
+import com.raphtory.core.config.telemetry.SpoutTelemetry
 
 import java.util.concurrent.TimeUnit
 import scala.reflect.runtime.universe.TypeTag
@@ -42,7 +42,7 @@ class SpoutExecutor[T](
     executeSpout()
 
   private def executeSpout() = {
-    Telemetry.totalSpoutReschedules.inc()
+    SpoutTelemetry.totalSpoutReschedules.inc()
     while (spout.hasNext()) {
       linesProcessed = linesProcessed + 1
       if (linesProcessed % 100_000 == 0)
