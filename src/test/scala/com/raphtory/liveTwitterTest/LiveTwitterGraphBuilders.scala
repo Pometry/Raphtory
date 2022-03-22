@@ -1,11 +1,12 @@
 package com.raphtory.liveTwitterTest
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.ImmutableProperty
-import com.raphtory.core.components.graphbuilder.Properties
-import com.raphtory.core.components.graphbuilder.Type
-import com.raphtory.core.components.spout.executor.Util.twitterClient
+import com.raphtory.core.components.graphbuilder.Properties._
+import com.raphtory.spouts.LiveTwitterAddSpout
+import com.raphtory.spouts.LiveTwitterSpout
+import io.github.redouane59.twitter.TwitterClient
 import io.github.redouane59.twitter.dto.tweet.Tweet
+
 import java.time.ZoneOffset
 import scala.util.matching.Regex
 
@@ -22,10 +23,11 @@ class LiveTwitterRetweetGraphBuilder() extends GraphBuilder[Tweet] {
     val srcID           = sourceNode.toLong
     val timeStamp       = tweet.getCreatedAt.toEpochSecond(ZoneOffset.UTC)
     val pattern         = new Regex("(@[\\w-]+)")
+    val client          = new TwitterClient()
     //finding retweeted username in tweet by matching regex pattern, extracting the ID of that user by dropping the @ sign (substring method)
     val retweetedUserId = for {
       username <- pattern.findFirstIn(tweet.getText)
-    } yield twitterClient.getUserFromUserName(username.substring(1)).getId
+    } yield client.getUserFromUserName(username.substring(1)).getId
     val targetNode      = retweetedUserId.getOrElse(sourceNode)
     val tarID           = targetNode.toLong
     println(tweet.getText)

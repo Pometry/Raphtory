@@ -1,11 +1,9 @@
 package com.raphtory.liveTwitterTest
 
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.components.spout.executor.Util.raphtoryConfig
-import com.raphtory.core.components.spout.instance.LiveTwitterSpout
 import com.raphtory.core.deploy.Raphtory
 import com.raphtory.output.PulsarOutputFormat
+import com.raphtory.spouts.LiveTwitterSpout
 import com.typesafe.config.Config
 import io.github.redouane59.twitter.dto.tweet.Tweet
 
@@ -20,13 +18,14 @@ object LiveTwitterTest {
     raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
 
   def main(args: Array[String]): Unit = {
-    val spout: Spout[Tweet] = LiveTwitterSpout()
-    val graphBuilder        =
+
+    val spout        = new LiveTwitterSpout()
+    val graphBuilder =
       if (enableRetweetGraphBuilder)
         new LiveTwitterRetweetGraphBuilder()
       else
         new LiveTwitterUserGraphBuilder()
-    val graph               = Raphtory.createGraph[Tweet](spout, graphBuilder)
+    val graph        = Raphtory.streamGraph[Tweet](spout, graphBuilder)
     graph.liveQuery(
             graphAlgorithm = EdgeList(),
             outputFormat = PulsarOutputFormat("EdgeList1"),

@@ -1,65 +1,47 @@
-package com.raphtory.core.components.spout.executor
+package com.raphtory.spouts
 
-import com.raphtory.algorithms.generic.TwoHopPaths.Response
-import com.raphtory.core.components.spout.SpoutExecutor
-import com.raphtory.core.components.spout.executor.Util.filterRules
-import com.raphtory.core.components.spout.executor.Util.hashtag
-import com.raphtory.core.components.spout.executor.Util.twitterClient
-import com.raphtory.core.components.spout.executor.Util.twitterEventListener
+import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.deploy.Raphtory
-import com.raphtory.core.util.FileUtils.logger
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
-import io.github.redouane59.twitter.dto.tweet.Tweet
-import io.github.redouane59.twitter.dto.tweet.TweetType
+import com.typesafe.scalalogging.Logger
 import io.github.redouane59.twitter.IAPIEventListener
 import io.github.redouane59.twitter.TwitterClient
 import io.github.redouane59.twitter.dto.rules.FilteredStreamRulePredicate
+import io.github.redouane59.twitter.dto.tweet.Tweet
+import io.github.redouane59.twitter.dto.tweet.TweetType
 import io.github.redouane59.twitter.signature.TwitterCredentials
-import monix.execution.Scheduler
+import org.slf4j.LoggerFactory
 
-class LiveTwitterSpoutExecutor(
-    conf: Config,
-    pulsarController: PulsarController,
-    scheduler: Scheduler
-) extends SpoutExecutor[Tweet](
-                conf: Config,
-                pulsarController: PulsarController,
-                scheduler: Scheduler
-        ) {
+import java.util.concurrent.ConcurrentLinkedQueue
 
-  def streamTweets() =
+class LiveTwitterSpout() extends Spout[Tweet] {
+
+  val tweetQueue = new ConcurrentLinkedQueue[Tweet]()
+  val spout      = new LiveTwitterAddSpout(tweetQueue)
+
+  val streamTweets =
     //Filter Twitter stream if hashtag field in application.conf is not empty
-    if (hashtag.nonEmpty) {
-      filterRules()
-      twitterClient.startFilteredStream(twitterEventListener(conf))
+    if (spout.hashtag.nonEmpty) {
+      spout.filterRules()
+      spout.twitterClient.startFilteredStream(spout.twitterEventListener(spout.raphtoryConfig))
     }
     else
-      twitterClient.startSampledStream(twitterEventListener(conf))
+      spout.twitterClient.startSampledStream(spout.twitterEventListener(spout.raphtoryConfig))
 
-  override def run(): Unit = {
-    val start         = System.currentTimeMillis()
-    val timeInSeconds = 60
-    val end           = start + timeInSeconds * 1000
-    /*
-      Line 46, 49 and 50 can be uncommented out to turn on the stop function,
-      timeInSeconds is the time (in seconds) you want the streaming to run for.
-     */
-//    while (System.currentTimeMillis() < end) {
-    logger.info("Starting Twitter Stream")
-    streamTweets()
-//    }
-//    stop()
-  }
+  override def close(): Unit = streamTweets.get().close()
 
-  override def stop(): Unit = {
-    logger.info("Stopping Twitter Stream")
-    System.exit(1)
-  }
+  override def spoutReschedules(): Boolean = true
+
+  override def hasNext(): Boolean =
+    !tweetQueue.isEmpty //always true as we are waiting for new tweets
+
+  override def next(): Tweet = tweetQueue.poll()
 }
 
-object Util {
+class LiveTwitterAddSpout(tweetQueue: ConcurrentLinkedQueue[Tweet]) {
+  val logger: Logger         = Logger(LoggerFactory.getLogger(this.getClass))
   val raphtoryConfig: Config = Raphtory.getDefaultConfig()
   val hashtag: String        = raphtoryConfig.getString("raphtory.spout.twitter.local.hashtag")
   val tag: String            = raphtoryConfig.getString("raphtory.spout.twitter.local.tag")
@@ -116,10 +98,8 @@ object Util {
         TweetType.DEFAULT
 
     new IAPIEventListener {
-
       override def onStreamError(httpCode: Int, error: String): Unit =
         logger.error(s"Error: $error, Http Code: $httpCode")
-
       override def onTweetStreamed(tweet: Tweet): Unit = {
         val tweetLanguage =
           if (getTweetLanguage.nonEmpty)
@@ -127,8 +107,12 @@ object Util {
           else tweet.getLang == tweet.getLang
         try
         //serialise tweet (Java Object) into Array bytes if tweet is in English and was retweet
-        if (tweetLanguage && tweet.getTweetType.equals(tweetType))
-          producer.sendAsync(kryo.serialise(tweet))
+        if (tweetLanguage && tweet.getTweetType.equals(tweetType) && hashtag.nonEmpty) {
+          filterRules()
+          tweetQueue.add(tweet)
+        }
+        else if (tweetLanguage && tweet.getTweetType.equals(tweetType))
+          tweetQueue.add(tweet)
         catch {
           case e: Exception =>
             e.printStackTrace()
@@ -140,6 +124,7 @@ object Util {
 
       override def onStreamEnded(e: Exception): Unit =
         logger.warn(s"Ended: ${e.getMessage}")
+
     }
   }
 
