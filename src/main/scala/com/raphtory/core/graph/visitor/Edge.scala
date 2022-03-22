@@ -1,7 +1,7 @@
 package com.raphtory.core.graph.visitor
 
 import PropertyMergeStrategy.PropertyMerge
-import com.raphtory.algorithms.generic.centrality.WeightedPageRank
+import com.raphtory.util.ExtendedNumeric.numericFromInt // implicit conversion from int to abstract numeric type
 
 /**
   * {s}`Edge`
@@ -83,13 +83,11 @@ trait Edge extends EntityVisitor {
       case None        => mergeStrategy(history().filter(_.event).map(p => (p.time, default)))
     }
 
-  def weight[A, B](weightProperty: String, mergeStrategy: PropertyMerge[A, B])(implicit
-      numeric: Numeric[A]
-  ): B = weight(weightProperty, mergeStrategy, numeric.one)
+  def weight[A: Numeric, B](weightProperty: String, mergeStrategy: PropertyMerge[A, B]): B =
+    weight(weightProperty, mergeStrategy, 1: A)
 
-  def weight[A, B](mergeStrategy: PropertyMerge[A, B])(implicit
-      numeric: Numeric[A]
-  ): B = weight[A, B]("weight", mergeStrategy, numeric.one)
+  def weight[A: Numeric, B](mergeStrategy: PropertyMerge[A, B]): B =
+    weight[A, B]("weight", mergeStrategy, 1: A)
 
   def weight[A: Numeric](weightProperty: String, default: A): A =
     weight(weightProperty, PropertyMergeStrategy.sum[A], default)
@@ -97,11 +95,11 @@ trait Edge extends EntityVisitor {
   def weight[A: Numeric](default: A): A =
     weight("weight", PropertyMergeStrategy.sum[A], default)
 
-  def weight[A](weightProperty: String)(implicit numeric: Numeric[A]): A =
-    weight(weightProperty, PropertyMergeStrategy.sum[A], numeric.one)
+  def weight[A: Numeric](weightProperty: String): A =
+    weight(weightProperty, PropertyMergeStrategy.sum[A], 1: A)
 
-  def weight[A]()(implicit numeric: Numeric[A]): A =
-    weight("weight", PropertyMergeStrategy.sum[A], numeric.one)
+  def weight[A: Numeric](): A =
+    weight("weight", PropertyMergeStrategy.sum[A], 1: A)
 
   //send a message to the vertex on the other end of the edge
   def send(data: Any): Unit
