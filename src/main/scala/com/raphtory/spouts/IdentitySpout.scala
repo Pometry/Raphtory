@@ -12,5 +12,4 @@ class IdentitySpout[T]() extends Spout[T] {
 
   override def spoutReschedules(): Boolean = false
 
-  override def executeNextIterator(): Unit = ???
 }

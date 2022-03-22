@@ -45,7 +45,4 @@ case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
       data
     }
 
-  override def executeNextIterator(): Unit =
-    for (line <- nextIterator())
-      try graphBuilder.parseTuple(line)
 }

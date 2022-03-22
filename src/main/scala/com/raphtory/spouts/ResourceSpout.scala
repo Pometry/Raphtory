@@ -21,7 +21,4 @@ case class ResourceSpout(resource: String) extends Spout[String] {
 
   override def nextIterator(): Iterator[String] = lines
 
-  override def executeNextIterator(): Unit =
-    for (line <- lines)
-      try graphBuilder.parseTuple(line)
 }

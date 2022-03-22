@@ -39,11 +39,10 @@ class LocalBatchHandler[T: ClassTag](
   override def run(): Unit =
     runIngestion
 
-  private def runIngestion() = {
-    spout.setBuilder(graphBuilder)
+  private def runIngestion(): Unit = {
     while (spout.hasNextIterator()) {
       startIngesting()
-      spout.executeNextIterator()
+      spout.nextIterator().foreach(graphBuilder.parseTuple)
     }
 
     stopIngesting()
