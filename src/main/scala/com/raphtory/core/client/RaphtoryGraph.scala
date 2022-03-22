@@ -5,6 +5,9 @@ import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.config.{ComponentFactory, Partitions, PulsarController, ThreadedWorker, ZookeeperIDManager}
 import com.typesafe.config.Config
 import monix.execution.Scheduler
+import io.prometheus.client.exporter.HTTPServer
+import java.io.IOException
+
 import org.apache.pulsar.client.api.Schema
 
 import scala.language.postfixOps
@@ -76,6 +79,12 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
 
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
+
+  try {
+    new HTTPServer(8899)
+  } catch {
+    case e: IOException => e.printStackTrace()
+  }
 
   def stop(): Unit = {
     partitions.writers.foreach(_.stop())

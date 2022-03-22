@@ -13,6 +13,7 @@ import com.raphtory.core.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.core.components.graphbuilder.VertexAdd
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.Telemetry
 import com.raphtory.core.graph._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -23,9 +24,9 @@ import scala.reflect.ClassTag
 
 /** @DoNotDocument */
 class BatchWriter[T: ClassTag](
-    partitionID: Int,
-    storage: GraphPartition
-) {
+                                partitionID: Int,
+                                storage: GraphPartition
+                              ) {
 
   def getStorage() = storage
 
@@ -44,7 +45,7 @@ class BatchWriter[T: ClassTag](
       case other =>
         logger.error(s"Partition '$partitionID': Received unsupported message type '$other'.")
         throw new IllegalStateException(
-                s"Partition '$partitionID': Received unsupported message '$other'."
+          s"Partition '$partitionID': Received unsupported message '$other'."
         )
     }
 
@@ -56,24 +57,27 @@ class BatchWriter[T: ClassTag](
     */
   def processVertexAdd(update: VertexAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
+    Telemetry.batchWriterVertexAdditions.inc()
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
   }
 
   def processEdgeAdd(update: EdgeAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received EdgeAdd message '$update'.")
+    Telemetry.batchWriterEdgeAdditions.inc()
     storage.timings(update.updateTime)
     storage.addEdge(
-            update.updateTime,
-            update.srcId,
-            update.dstId,
-            update.properties,
-            update.eType
+      update.updateTime,
+      update.srcId,
+      update.dstId,
+      update.properties,
+      update.eType
     )
   }
 
   def processRemoteEdgeAdd(req: BatchAddRemoteEdge): Unit = {
     logger.trace("A writer has requested a new edge sync for a destination node in this worker.")
+    Telemetry.batchWriterRemoteEdgeAdditions.inc()
 
     storage.timings(req.msgTime)
     storage
@@ -82,7 +86,7 @@ class BatchWriter[T: ClassTag](
 
   def processSyncNewEdgeRemoval(req: SyncNewEdgeRemoval): Unit = {
     logger.trace(
-            s"Partition '$partitionID': A remote worker is asking for a new edge to be removed for a destination node in this worker."
+      s"Partition '$partitionID': A remote worker is asking for a new edge to be removed for a destination node in this worker."
     )
     storage.timings(req.msgTime)
     storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals)
@@ -90,18 +94,20 @@ class BatchWriter[T: ClassTag](
 
   def processEdgeDelete(update: EdgeDelete): Unit = {
     logger.trace(s"Partition $partitionID: Received EdgeDelete message '$update'.")
+    Telemetry.batchWriterEdgeDeletions.inc()
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId)
   }
 
   def printUpdateCount() = {
+    Telemetry.batchWriterGraphUpdates.inc()
     processedMessages += 1
 
     // TODO Should this be externalised?
     //  Do we need it now that we have progress tracker?
     if (processedMessages % 100_000 == 0)
       logger.debug(
-              s"Partition '$partitionID': Processed '$processedMessages' messages."
+        s"Partition '$partitionID': Processed '$processedMessages' messages."
       )
   }
 

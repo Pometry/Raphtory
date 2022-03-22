@@ -11,6 +11,7 @@ import com.typesafe.config.Config
 import monix.execution.Cancelable
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
+import com.raphtory.core.config.Telemetry
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -18,12 +19,12 @@ import scala.collection.mutable
 
 /** @DoNotDocument */
 class Reader(
-    partitionID: Int,
-    storage: GraphPartition,
-    scheduler: Scheduler,
-    conf: Config,
-    pulsarController: PulsarController
-) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
+              partitionID: Int,
+              storage: GraphPartition,
+              scheduler: Scheduler,
+              conf: Config,
+              pulsarController: PulsarController
+            ) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
 
   private val executorMap                               = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish                          = pulsarController.watermarkPublisher()
@@ -41,7 +42,7 @@ class Reader(
     scheduleWaterMarker()
 
     cancelableConsumer = Some(
-            pulsarController.startReaderConsumer(partitionID, messageListener())
+      pulsarController.startReaderConsumer(partitionID, messageListener())
     )
   }
 
@@ -61,6 +62,7 @@ class Reader(
       case req: EstablishExecutor =>
         val jobID         = req.jobID
         val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
+        Telemetry.queryExecutorMapCounter.inc()
         scheduler.execute(queryExecutor)
         executorMap += ((jobID, queryExecutor))
 
@@ -108,11 +110,12 @@ class Reader(
       if (finalTime > lastWatermark._1 || noBlockingOperations != lastWatermark._2) {
         logger.trace(s"Partition $partitionID: Creating watermark at '$finalTime'.")
         watermarkPublish.sendAsync(
-                serialise(WatermarkTime(partitionID, finalTime, noBlockingOperations))
+          serialise(WatermarkTime(partitionID, finalTime, noBlockingOperations))
         )
         lastWatermark = (finalTime, noBlockingOperations)
+        Telemetry.lastWaterMarkProcessed.set(finalTime)
       }
-
+      Telemetry.totalWaterMarksCreated.inc()
     }
     scheduleWaterMarker()
   }
@@ -120,8 +123,8 @@ class Reader(
   private def scheduleWaterMarker(): Unit = {
     logger.trace("Scheduled watermarker to recheck time in 1 second.")
     scheduledWatermark = Some(
-            scheduler
-              .scheduleOnce(1, TimeUnit.SECONDS, watermarking)
+      scheduler
+        .scheduleOnce(1, TimeUnit.SECONDS, watermarking)
     )
   }
 

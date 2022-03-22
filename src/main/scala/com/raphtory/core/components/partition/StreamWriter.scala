@@ -17,8 +17,10 @@ import com.raphtory.core.components.graphbuilder.VertexAdd
 import com.raphtory.core.components.graphbuilder.VertexDelete
 import com.raphtory.core.components.graphbuilder.VertexRemoveSyncAck
 import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.Telemetry
 import com.raphtory.core.graph._
 import com.typesafe.config.Config
+import io.prometheus.client.Summary
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
@@ -30,22 +32,27 @@ import scala.language.postfixOps
 
 /** @DoNotDocument */
 class StreamWriter(
-    partitionID: Int,
-    storage: GraphPartition,
-    conf: Config,
-    pulsarController: PulsarController
-) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
+                    partitionID: Int,
+                    storage: GraphPartition,
+                    conf: Config,
+                    pulsarController: PulsarController
+                  ) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
 
   private val neighbours        = pulsarController.writerSyncProducers()
   private var processedMessages = 0
 
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  val ingestionTimer = Telemetry.totalTimeForIngestion
+
+  var timerStart : Option[Summary.Timer] =  None
 
   override def run(): Unit =
     cancelableConsumer = Some(
-            pulsarController
-              .startPartitionConsumer(partitionID, messageListener())
+      pulsarController
+        .startPartitionConsumer(partitionID, messageListener())
     )
+    timerStart = Option(ingestionTimer.startTimer())
+
 
   override def stop(): Unit = {
 
@@ -55,6 +62,7 @@ class StreamWriter(
       case None        =>
     }
     neighbours.foreach(_._2.close())
+    timerStart.get.observeDuration()
   }
 
   override def handleMessage(msg: GraphAlteration): Unit = {
@@ -69,34 +77,34 @@ class StreamWriter(
       //Syncing Edge Additions
       case update: SyncNewEdgeAdd               =>
         processSyncNewEdgeAdd(
-                update
+          update
         ) //A writer has requested a new edge sync for a destination node in this worker
       case update: SyncExistingEdgeAdd          =>
         processSyncExistingEdgeAdd(
-                update
+          update
         ) // A writer has requested an existing edge sync for a destination node on in this worker
 
       //Syncing Edge Removals
       case update: SyncNewEdgeRemoval           =>
         processSyncNewEdgeRemoval(
-                update
+          update
         ) //A remote worker is asking for a new edge to be removed for a destination node in this worker
       case update: SyncExistingEdgeRemoval      =>
         processSyncExistingEdgeRemoval(
-                update
+          update
         ) //A remote worker is asking for the deletion of an existing edge
 
       //Syncing Vertex Removals
       case update: OutboundEdgeRemovalViaVertex =>
         processOutboundEdgeRemovalViaVertex(
-                update
+          update
         ) //Syncs the deletion of an edge, but for when the removal comes from a vertex
       case update: InboundEdgeRemovalViaVertex  => processInboundEdgeRemovalViaVertex(update)
 
       //Response from storing the destination node being synced
       case update: SyncExistingRemovals =>
         processSyncExistingRemovals(
-                update
+          update
         ) //The remote worker has returned all removals in the destination node -- for new edges
       case update: EdgeSyncAck          =>
         processEdgeSyncAck(update) //The remote worker acknowledges the completion of an edge sync
@@ -105,7 +113,7 @@ class StreamWriter(
       case other =>
         logger.error(s"Partition '$partitionID': Received unsupported message type '$other'.")
         throw new IllegalStateException(
-                s"Partition '$partitionID': Received unsupported message '$other'."
+          s"Partition '$partitionID': Received unsupported message '$other'."
         )
     }
 
@@ -115,6 +123,7 @@ class StreamWriter(
   // Graph Updates from the builders
   def processVertexAdd(update: VertexAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
+    Telemetry.streamWriterVertexAdditions.inc()
 
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
@@ -122,14 +131,15 @@ class StreamWriter(
 
   def processEdgeAdd(update: EdgeAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received EdgeAdd message '$update'.")
+    Telemetry.streamWriterEdgeAdditions.inc()
 
     storage.timings(update.updateTime)
     storage.addEdge(
-            update.updateTime,
-            update.srcId,
-            update.dstId,
-            update.properties,
-            update.eType
+      update.updateTime,
+      update.srcId,
+      update.dstId,
+      update.properties,
+      update.eType
     ) match {
       case Some(value) =>
         neighbours(getWriter(value.updateId)).sendAsync(serialise(value))
@@ -140,6 +150,7 @@ class StreamWriter(
 
   def processEdgeDelete(update: EdgeDelete): Unit = {
     logger.trace(s"Partition $partitionID: Received EdgeDelete message '$update'.")
+    Telemetry.streamWriterEdgeDeletions.inc()
 
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId) match {
@@ -152,6 +163,7 @@ class StreamWriter(
 
   def processVertexDelete(update: VertexDelete): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexDelete message '$update'.")
+    Telemetry.streamWriterVertexDeletions.inc()
 
     val edgeRemovals = storage.removeVertex(update.updateTime, update.srcId)
     if (edgeRemovals.nonEmpty) {
@@ -174,7 +186,7 @@ class StreamWriter(
 
   def processSyncExistingEdgeAdd(req: SyncExistingEdgeAdd): Unit = {
     logger.trace(
-            s"Partition '$partitionID': A writer has requested an existing edge sync for a destination node on in this worker."
+      s"Partition '$partitionID': A writer has requested an existing edge sync for a destination node on in this worker."
     )
 
     storage.timings(req.msgTime)
@@ -185,7 +197,7 @@ class StreamWriter(
   // Graph Effects for syncing edge deletions
   def processSyncNewEdgeRemoval(req: SyncNewEdgeRemoval): Unit = {
     logger.trace(
-            s"Partition '$partitionID': A remote worker is asking for a new edge to be removed for a destination node in this worker."
+      s"Partition '$partitionID': A remote worker is asking for a new edge to be removed for a destination node in this worker."
     )
 
     storage.timings(req.msgTime)
@@ -195,7 +207,7 @@ class StreamWriter(
 
   def processSyncExistingEdgeRemoval(req: SyncExistingEdgeRemoval): Unit = {
     logger.trace(
-            s"Partition '$partitionID': A remote worker is asking for the deletion of an existing edge."
+      s"Partition '$partitionID': A remote worker is asking for the deletion of an existing edge."
     )
 
     storage.timings(req.msgTime)
@@ -206,7 +218,7 @@ class StreamWriter(
   // Graph Effects for syncing vertex deletions
   def processOutboundEdgeRemovalViaVertex(req: OutboundEdgeRemovalViaVertex): Unit = {
     logger.trace(
-            s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes from a vertex."
+      s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes from a vertex."
     )
 
     storage.timings(req.msgTime)
@@ -216,7 +228,7 @@ class StreamWriter(
 
   def processInboundEdgeRemovalViaVertex(req: InboundEdgeRemovalViaVertex): Unit = { //remote worker same as above
     logger.trace(
-            s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes to a vertex."
+      s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes to a vertex."
     )
 
     val effect = storage.inboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
@@ -226,7 +238,7 @@ class StreamWriter(
   // Responses from the secondary server
   def processSyncExistingRemovals(req: SyncExistingRemovals): Unit = { //when the new edge add is responded to we can say it is synced
     logger.trace(
-            s"Partition '$partitionID': The remote worker has returned all removals in the destination node -- for new edges"
+      s"Partition '$partitionID': The remote worker has returned all removals in the destination node -- for new edges"
     )
 
     storage.syncExistingRemovals(req.msgTime, req.srcId, req.dstId, req.removals)
@@ -235,14 +247,14 @@ class StreamWriter(
 
   def processEdgeSyncAck(req: EdgeSyncAck): Unit = {
     logger.trace(
-            s"Partition '$partitionID': The remote worker acknowledges the completion of an edge sync."
+      s"Partition '$partitionID': The remote worker acknowledges the completion of an edge sync."
     )
 
     untrackEdgeUpdate(
-            req.msgTime,
-            req.srcId,
-            req.dstId,
-            req.fromAddition
+      req.msgTime,
+      req.srcId,
+      req.dstId,
+      req.fromAddition
     ) //when the edge isn't new we will get this response instead
   }
 
@@ -254,7 +266,7 @@ class StreamWriter(
 
   def processVertexRemoveSyncAck(req: VertexRemoveSyncAck): Unit = {
     logger.trace(
-            s"Partition '$partitionID': The remote worker acknowledges the completion of vertex removal."
+      s"Partition '$partitionID': The remote worker acknowledges the completion of vertex removal."
     )
 
     storage.untrackVertexDeletion(req.msgTime, req.updateId)
@@ -264,12 +276,13 @@ class StreamWriter(
 
   def printUpdateCount() = {
     processedMessages += 1
+    Telemetry.streamWriterGraphUpdates.inc()
 
     // TODO Should this be externalised?
     //  Do we need it now that we have progress tracker?
     if (processedMessages % 100_000 == 0)
       logger.debug(
-              s"Partition '$partitionID': Processed '$processedMessages' messages."
+        s"Partition '$partitionID': Processed '$processedMessages' messages."
       )
   }
 
