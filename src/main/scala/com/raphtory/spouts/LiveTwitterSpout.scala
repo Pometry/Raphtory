@@ -1,9 +1,7 @@
 package com.raphtory.spouts
 
 import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.config.PulsarController
 import com.raphtory.core.deploy.Raphtory
-import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import io.github.redouane59.twitter.IAPIEventListener
@@ -75,44 +73,42 @@ class LiveTwitterAddSpout(tweetQueue: ConcurrentLinkedQueue[Tweet]) {
         )
     }
 
-  def filterRules() = {
-    //retrieve filtered stream rules
-    val rules = twitterClient.retrieveFilteredStreamRules()
-    //Clear hashtag rules
-    if (rules != null)
-      rules.forEach { existingStreamRules =>
-        twitterClient.deleteFilteredStreamRuleId(existingStreamRules.getId)
-      }
-    twitterClient.addFilteredStreamRule(FilteredStreamRulePredicate.withHashtag(hashtag), tag)
-  }
+  def filterRules() =
+    if (hashtag.nonEmpty) {
+      //retrieve filtered stream rules
+      val rules = twitterClient.retrieveFilteredStreamRules()
+      //Clear hashtag rules
+      if (rules != null)
+        rules.forEach { existingStreamRules =>
+          twitterClient.deleteFilteredStreamRuleId(existingStreamRules.getId)
+        }
+      twitterClient.addFilteredStreamRule(FilteredStreamRulePredicate.withHashtag(hashtag), tag)
+    }
 
-  def twitterEventListener(conf: Config): IAPIEventListener = {
-    val pulsarController           = new PulsarController(conf)
-    val producer                   = pulsarController.toBuildersProducer()
-    val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
-
-    val tweetType =
-      if (enableRetweetGraphBuilder)
-        TweetType.RETWEETED
-      else
-        TweetType.DEFAULT
-
+  def twitterEventListener(): IAPIEventListener =
     new IAPIEventListener {
+
       override def onStreamError(httpCode: Int, error: String): Unit =
         logger.error(s"Error: $error, Http Code: $httpCode")
+
       override def onTweetStreamed(tweet: Tweet): Unit = {
-        val tweetLanguage =
-          if (getTweetLanguage.nonEmpty)
-            tweet.getLang == getTweetLanguage
-          else tweet.getLang == tweet.getLang
-        try
-        //serialise tweet (Java Object) into Array bytes if tweet is in English and was retweet
-        if (tweetLanguage && tweet.getTweetType.equals(tweetType) && hashtag.nonEmpty) {
+
+        def postInThisLanguage: Boolean =
+          getTweetLanguage.nonEmpty match {
+            case true => tweet.getLang == getTweetLanguage
+            case _    => tweet.getLang == tweet.getLang
+          }
+
+        def getRetweet: Boolean =
+          enableRetweetGraphBuilder match {
+            case true => tweet.getTweetType.equals(TweetType.RETWEETED)
+            case _    => tweet.getTweetType.equals(TweetType.DEFAULT)
+          }
+
+        try if (postInThisLanguage && getRetweet) {
           filterRules()
           tweetQueue.add(tweet)
         }
-        else if (tweetLanguage && tweet.getTweetType.equals(tweetType))
-          tweetQueue.add(tweet)
         catch {
           case e: Exception =>
             e.printStackTrace()
@@ -126,6 +122,4 @@ class LiveTwitterAddSpout(tweetQueue: ConcurrentLinkedQueue[Tweet]) {
         logger.warn(s"Ended: ${e.getMessage}")
 
     }
-  }
-
 }
