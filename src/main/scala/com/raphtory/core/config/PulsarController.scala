@@ -88,7 +88,6 @@ class PulsarController(conf: Config) {
       .priorityLevel(0)
       .topics(topics.toList.asJava)
       .subscriptionName(subscriptionName)
-      .subscriptionType(SubscriptionType.Exclusive)
       .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
       .maxTotalReceiverQueueSizeAcrossPartitions(Integer.MAX_VALUE)
       .receiverQueueSize(200_000)
