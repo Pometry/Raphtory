@@ -17,7 +17,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
       .transform(ConnectedComponents())
       .select(vertex => Row(vertex.getState("new")))
       .filter(_.getInt(0) == 1)
-    val query = table.asInstanceOf[GenericTable].queryBuilder.query
+    val query = table.asInstanceOf[GenericTable].query
 
     assert(query.startTime === Some(100))
     assert(query.endTime === Some(500))
@@ -39,7 +39,6 @@ class RaphtoryGraphTest extends AnyFunSuite {
     val query = Raphtory
       .getGraph()
       .from("2020-02-25 23:12:08")
-      .queryBuilder
       .query
 
     assert(query.startTime.isDefined)
@@ -49,7 +48,6 @@ class RaphtoryGraphTest extends AnyFunSuite {
     val query = Raphtory
       .getGraph()
       .from("2020-02-25 23:12:08.567")
-      .queryBuilder
       .query
 
     assert(query.startTime.isDefined)
@@ -59,7 +57,6 @@ class RaphtoryGraphTest extends AnyFunSuite {
     val query = Raphtory
       .getGraph()
       .from("2020-02-25")
-      .queryBuilder
       .query
 
     assert(query.startTime.isDefined)
@@ -70,7 +67,6 @@ class RaphtoryGraphTest extends AnyFunSuite {
     val query = Raphtory
       .getGraph(conf)
       .from("2020-02-25 23:12:08.56")
-      .queryBuilder
       .query
 
     assert(query.startTime.isDefined)
@@ -81,7 +77,6 @@ class RaphtoryGraphTest extends AnyFunSuite {
     val query = Raphtory
       .getGraph(conf)
       .from("2020-02-25 12:23")
-      .queryBuilder
       .query
 
     assert(query.startTime.isDefined)

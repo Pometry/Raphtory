@@ -3,6 +3,7 @@ package com.raphtory.core.client
 import com.raphtory.core.algorithm.GraphAlgorithm
 import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.algorithm.RaphtoryGraph
+import com.raphtory.core.components.querymanager.Query
 import com.raphtory.core.components.querytracker.QueryProgressTracker
 import com.raphtory.core.time.DiscreteInterval
 import com.typesafe.config.Config
@@ -101,7 +102,7 @@ import org.slf4j.LoggerFactory
   *  ```
   */
 private[core] class RaphtoryClient(
-    private val queryBuilder: QueryBuilder,
+    private val querySender: QuerySender,
     private val conf: Config
 ) {
 
@@ -114,11 +115,9 @@ private[core] class RaphtoryClient(
       timestamp: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobName                 = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
-    val raphtorizedQueryBuilder = queryBuilder
-      .setEndTime(timestamp)
-      .setWindows(windows map DiscreteInterval)
-    val graph                   = new RaphtoryGraph(raphtorizedQueryBuilder)
+    val jobName          = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
+    val raphtorizedQuery = Query(endTime = Some(timestamp), windows = windows map DiscreteInterval)
+    val graph            = new RaphtoryGraph(raphtorizedQuery, querySender)
     graph.execute(graphAlgorithm).writeTo(outputFormat, jobName)
   }
 
@@ -130,13 +129,14 @@ private[core] class RaphtoryClient(
       increment: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobName                 = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
-    val raphtorizedQueryBuilder = queryBuilder
-      .setStartTime(start)
-      .setEndTime(end)
-      .setIncrement(DiscreteInterval(increment))
-      .setWindows(windows map DiscreteInterval)
-    val graph                   = new RaphtoryGraph(raphtorizedQueryBuilder)
+    val jobName          = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
+    val raphtorizedQuery = Query(
+            startTime = Some(start),
+            endTime = Some(end),
+            increment = Some(DiscreteInterval(increment)),
+            windows = windows map DiscreteInterval
+    )
+    val graph            = new RaphtoryGraph(raphtorizedQuery, querySender)
     graph.execute(graphAlgorithm).writeTo(outputFormat, jobName)
   }
 
@@ -146,15 +146,14 @@ private[core] class RaphtoryClient(
       increment: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobName                 = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
-    val raphtorizedQueryBuilder = queryBuilder
-      .setIncrement(DiscreteInterval(increment))
-      .setWindows(windows map DiscreteInterval)
-    val graph                   = new RaphtoryGraph(raphtorizedQueryBuilder)
+    val jobName          = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
+    val raphtorizedQuery =
+      Query(increment = Some(DiscreteInterval(increment)), windows = windows map DiscreteInterval)
+    val graph            = new RaphtoryGraph(raphtorizedQuery, querySender)
     graph.execute(graphAlgorithm).writeTo(outputFormat, jobName)
   }
 
   def getConfig(): Config = conf
 
-  def getQueryBuilder(): QueryBuilder = queryBuilder
+  def getQuerySender(): QuerySender = querySender
 }

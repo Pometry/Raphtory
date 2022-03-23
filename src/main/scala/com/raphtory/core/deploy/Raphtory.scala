@@ -7,9 +7,10 @@ import com.raphtory.core.config.ComponentFactory
 import com.raphtory.core.config.ConfigHandler
 import com.raphtory.core.config.MonixScheduler
 import com.raphtory.core.config.PulsarController
-import com.raphtory.core.client.QueryBuilder
-import com.raphtory.core.client.RaphtoryClient
 import com.raphtory.core.client.GraphDeployment
+import com.raphtory.core.client.QuerySender
+import com.raphtory.core.client.RaphtoryClient
+import com.raphtory.core.components.querymanager.Query
 import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
 
@@ -84,12 +85,12 @@ object Raphtory {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
+    val querySender      = new QuerySender(componentFactory, scheduler, pulsarController)
     new GraphDeployment[T](
             false,
             spout,
             graphBuilder,
-            queryBuilder,
+            querySender,
             conf,
             componentFactory,
             scheduler
@@ -104,12 +105,12 @@ object Raphtory {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
+    val querySender      = new QuerySender(componentFactory, scheduler, pulsarController)
     new GraphDeployment[T](
             true,
             spout,
             graphBuilder,
-            queryBuilder,
+            querySender,
             conf,
             componentFactory,
             scheduler
@@ -120,14 +121,14 @@ object Raphtory {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
-    new TemporalGraph(queryBuilder, conf)
+    val querySender      = new QuerySender(componentFactory, scheduler, pulsarController)
+    new TemporalGraph(Query(), querySender, conf)
   }
 
   def getLocalGraph[T: ClassTag: TypeTag](deployment: GraphDeployment[T]): TemporalGraph = {
-    val conf         = deployment.getConfig()
-    val queryBuilder = deployment.getQueryBuilder()
-    new TemporalGraph(queryBuilder, conf)
+    val conf        = deployment.getConfig()
+    val querySender = deployment.getQuerySender()
+    new TemporalGraph(Query(), querySender, conf)
   }
 
   def createClient(
@@ -137,8 +138,8 @@ object Raphtory {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
-    val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
-    new RaphtoryClient(queryBuilder, conf)
+    val querySender      = new QuerySender(componentFactory, scheduler, pulsarController)
+    new RaphtoryClient(querySender, conf)
   }
 
   def createSpout[T](spout: Spout[T]): Unit = {

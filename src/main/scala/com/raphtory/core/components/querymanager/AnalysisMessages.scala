@@ -1,5 +1,6 @@
 package com.raphtory.core.components.querymanager
 
+import com.raphtory.core.algorithm.Alignment
 import com.raphtory.core.algorithm.GraphFunction
 import com.raphtory.core.algorithm.GraphStateImplementation
 import com.raphtory.core.algorithm.TableFunction

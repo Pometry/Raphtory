@@ -1,10 +1,11 @@
 package com.raphtory.core.algorithm
 
-import com.raphtory.core.client.QueryBuilder
+import com.raphtory.core.client.QuerySender
+import com.raphtory.core.components.querymanager.Query
 import com.raphtory.core.components.querytracker.QueryProgressTracker
 
 /** @DoNotDocument */
-class GenericTable(val queryBuilder: QueryBuilder) extends Table {
+class GenericTable(val query: Query, private val querySender: QuerySender) extends Table {
 
   override def filter(f: Row => Boolean): Table = {
     def closurefunc(v: Row): Boolean = f(v)
@@ -16,9 +17,14 @@ class GenericTable(val queryBuilder: QueryBuilder) extends Table {
     addFunction(Explode(closurefunc))
   }
 
-  override def writeTo(outputFormat: OutputFormat, jobName: String = ""): QueryProgressTracker =
-    queryBuilder.addTableFunction(WriteTo(outputFormat)).submit(jobName)
+  override def writeTo(outputFormat: OutputFormat, jobName: String = ""): QueryProgressTracker = {
+    val query = addFunction(WriteTo(outputFormat)).query
+    querySender.submit(query, jobName)
+  }
 
   private def addFunction(function: TableFunction) =
-    new GenericTable(queryBuilder.addTableFunction(function))
+    new GenericTable(
+            query.copy(tableFunctions = query.tableFunctions.enqueue(function)),
+            querySender
+    )
 }

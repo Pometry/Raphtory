@@ -1,6 +1,7 @@
 package com.raphtory.core.algorithm
 
-import com.raphtory.core.client.QueryBuilder
+import com.raphtory.core.client.QuerySender
+import com.raphtory.core.components.querymanager.Query
 
 /**
   * {s}`RaphtoryGraph`
@@ -44,22 +45,22 @@ import com.raphtory.core.client.QueryBuilder
   * [](com.raphtory.core.algorithm.GraphOperations)
   * ```
   */
-class RaphtoryGraph(queryBuilder: QueryBuilder)
-        extends DefaultGraphOperations[RaphtoryGraph](queryBuilder) {
+class RaphtoryGraph(query: Query, private val querySender: QuerySender)
+        extends DefaultGraphOperations[RaphtoryGraph](query, querySender) {
 
   def transform(f: RaphtoryGraph => RaphtoryGraph): RaphtoryGraph = f(this)
 
   def transform(algorithm: GraphAlgorithm): RaphtoryGraph = {
-    val graph            = new GenericGraphPerspective(queryBuilder)
+    val graph            = new GenericGraphPerspective(query, querySender)
     val transformedGraph = algorithm.apply(graph)
-    newGraph(transformedGraph.asInstanceOf[GenericGraphPerspective].queryBuilder)
+    newGraph(transformedGraph.asInstanceOf[GenericGraphPerspective].query, querySender)
   }
 
   def execute(algorithm: GraphAlgorithm): Table =
-    algorithm.run(new GenericGraphPerspective(queryBuilder))
+    algorithm.run(new GenericGraphPerspective(query, querySender))
 
   def execute(f: RaphtoryGraph => Table): Table = f(this)
 
-  override protected def newGraph(queryBuilder: QueryBuilder): RaphtoryGraph =
-    new RaphtoryGraph(queryBuilder)
+  override protected def newGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
+    new RaphtoryGraph(query, querySender)
 }

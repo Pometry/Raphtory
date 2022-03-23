@@ -1,13 +1,15 @@
 package com.raphtory.core.algorithm
 
-import com.raphtory.core.client.QueryBuilder
+import com.raphtory.core.client.QuerySender
+import com.raphtory.core.components.querymanager.Query
 import com.raphtory.core.graph.visitor.Vertex
 
 /**
   * @DoNotDocument
   */
 abstract class DefaultGraphOperations[G <: GraphOperations[G]](
-    val queryBuilder: QueryBuilder
+    val query: Query,
+    private val querySender: QuerySender
 ) extends GraphOperations[G] {
   override def setGlobalState(f: GraphState => Unit): G = addFunction(Setup(f))
 
@@ -34,22 +36,28 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
   ): G = addFunction(IterateWithGraph(f, iterations, executeMessagedOnly))
 
   override def select(f: Vertex => Row): Table =
-    new GenericTable(queryBuilder.addGraphFunction(Select(f)))
+    addSelect(Select(f))
 
   override def select(f: (Vertex, GraphState) => Row): Table =
-    new GenericTable(queryBuilder.addGraphFunction(SelectWithGraph(f)))
+    addSelect(SelectWithGraph(f))
 
   override def globalSelect(f: GraphState => Row): Table =
-    new GenericTable(queryBuilder.addGraphFunction(GlobalSelect(f)))
+    addSelect(GlobalSelect(f))
 
   override def explodeSelect(f: Vertex => List[Row]): Table =
-    new GenericTable(queryBuilder.addGraphFunction(ExplodeSelect(f)))
+    addSelect(ExplodeSelect(f))
 
   override def clearMessages(): G =
     addFunction(ClearChain())
 
   private def addFunction(function: GraphFunction) =
-    newGraph(queryBuilder.addGraphFunction(function))
+    newGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
 
-  protected def newGraph(queryBuilder: QueryBuilder): G
+  private def addSelect(function: GraphFunction) =
+    new GenericTable(
+            query.copy(graphFunctions = query.graphFunctions.enqueue(function)),
+            querySender
+    )
+
+  protected def newGraph(query: Query, querySender: QuerySender): G
 }

@@ -1,6 +1,7 @@
 package com.raphtory.core.algorithm
 
-import com.raphtory.core.client.QueryBuilder
+import com.raphtory.core.client.QuerySender
+import com.raphtory.core.components.querymanager.Query
 import com.raphtory.core.time.DateTimeParser
 import com.raphtory.core.time.DiscreteInterval
 import com.raphtory.core.time.Interval
@@ -125,19 +126,25 @@ import com.typesafe.config.Config
   * [](com.raphtory.core.algorithm.RaphtoryGraph)
   * ```
   */
-class TemporalGraph(queryBuilder: QueryBuilder, private val conf: Config)
-        extends RaphtoryGraph(queryBuilder) {
+class TemporalGraph(query: Query, private val querySender: QuerySender, private val conf: Config)
+        extends RaphtoryGraph(query, querySender) {
 
-  def from(startTime: Long): TemporalGraph =
-    new TemporalGraph(queryBuilder.setStartTime(startTime), conf)
+  def from(startTime: Long): TemporalGraph = {
+    val newStartTime =
+      query.startTime.fold(startTime)(current => if (current > startTime) current else startTime)
+    new TemporalGraph(query.copy(startTime = Some(newStartTime)), querySender, conf)
+  }
 
   def from(startTime: String): TemporalGraph = {
     println(conf.getString("raphtory.query.timeFormat"))
     from(DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(startTime))
   }
 
-  def until(endTime: Long): TemporalGraph =
-    new TemporalGraph(queryBuilder.setEndTime(endTime), conf)
+  def until(endTime: Long): TemporalGraph = {
+    val newEndTime =
+      query.endTime.fold(endTime)(current => if (current < endTime) current else endTime)
+    new TemporalGraph(query.copy(endTime = Some(newEndTime)), querySender, conf)
+  }
 
   def until(endTime: String): TemporalGraph =
     until(DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(endTime))
@@ -165,11 +172,6 @@ class TemporalGraph(queryBuilder: QueryBuilder, private val conf: Config)
   def raphtorize(increment: String, windows: List[String]): RaphtoryGraph =
     raphtorize(Some(parseInterval(increment)), windows map parseInterval)
 
-  private def raphtorize(increment: Option[Interval], windows: List[Interval]) = {
-    val queryBuilderWithIncrement = increment match {
-      case Some(increment) => queryBuilder.setIncrement(increment)
-      case None            => queryBuilder
-    }
-    new RaphtoryGraph(queryBuilderWithIncrement.setWindows(windows))
-  }
+  private def raphtorize(increment: Option[Interval], windows: List[Interval]) =
+    new RaphtoryGraph(query.copy(increment = increment, windows = windows), querySender)
 }

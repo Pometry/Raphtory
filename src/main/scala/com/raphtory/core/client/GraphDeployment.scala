@@ -36,12 +36,12 @@ private[core] class GraphDeployment[T: ClassTag: TypeTag](
     batchLoading: Boolean,
     spout: Spout[T],
     graphBuilder: GraphBuilder[T],
-    private val queryBuilder: QueryBuilder,
+    private val querySender: QuerySender,
     private val conf: Config,
     private val componentFactory: ComponentFactory,
     private val scheduler: Scheduler
 ) extends RaphtoryClient(
-                queryBuilder,
+                querySender,
                 conf
         ) {
 
