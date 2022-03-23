@@ -1,6 +1,5 @@
 package com.raphtory.core.deploy
 
-import com.raphtory.core.algorithm.DefaultTemporalGraph
 import com.raphtory.core.algorithm.TemporalGraph
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.Spout
@@ -122,13 +121,13 @@ object Raphtory {
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
     val queryBuilder     = new QueryBuilder(componentFactory, scheduler, pulsarController)
-    new DefaultTemporalGraph(queryBuilder, conf)
+    new TemporalGraph(queryBuilder, conf)
   }
 
   def getLocalGraph[T: ClassTag: TypeTag](deployment: GraphDeployment[T]): TemporalGraph = {
     val conf         = deployment.getConfig()
     val queryBuilder = deployment.getQueryBuilder()
-    new DefaultTemporalGraph(queryBuilder, conf)
+    new TemporalGraph(queryBuilder, conf)
   }
 
   def createClient(

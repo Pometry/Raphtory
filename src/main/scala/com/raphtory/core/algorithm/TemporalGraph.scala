@@ -1,5 +1,12 @@
 package com.raphtory.core.algorithm
 
+import com.raphtory.core.client.QueryBuilder
+import com.raphtory.core.time.DateTimeParser
+import com.raphtory.core.time.DiscreteInterval
+import com.raphtory.core.time.Interval
+import com.raphtory.core.time.IntervalParser.{parse => parseInterval}
+import com.typesafe.config.Config
+
 /**
   * {s}`TemporalGraph`
   *  : Public interface for the analysis API
@@ -118,17 +125,51 @@ package com.raphtory.core.algorithm
   * [](com.raphtory.core.algorithm.RaphtoryGraph)
   * ```
   */
-trait TemporalGraph extends RaphtoryGraph {
-  def from(startTime: Long): TemporalGraph
-  def from(startTime: String): TemporalGraph
-  def until(endTime: Long): TemporalGraph
-  def until(endTime: String): TemporalGraph
-  def slice(startTime: Long, endTime: Long): TemporalGraph
-  def slice(startTime: String, endTime: String): TemporalGraph
-  def raphtorize(increment: Long): RaphtoryGraph
-  def raphtorize(increment: String): RaphtoryGraph
-  def raphtorize(increment: Long, window: Long): RaphtoryGraph
-  def raphtorize(increment: String, window: String): RaphtoryGraph
-  def raphtorize(increment: Long, windows: List[Long]): RaphtoryGraph
-  def raphtorize(increment: String, windows: List[String]): RaphtoryGraph
+class TemporalGraph(queryBuilder: QueryBuilder, private val conf: Config)
+        extends RaphtoryGraph(queryBuilder) {
+
+  def from(startTime: Long): TemporalGraph =
+    new TemporalGraph(queryBuilder.setStartTime(startTime), conf)
+
+  def from(startTime: String): TemporalGraph = {
+    println(conf.getString("raphtory.query.timeFormat"))
+    from(DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(startTime))
+  }
+
+  def until(endTime: Long): TemporalGraph =
+    new TemporalGraph(queryBuilder.setEndTime(endTime), conf)
+
+  def until(endTime: String): TemporalGraph =
+    until(DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(endTime))
+
+  def slice(startTime: Long, endTime: Long): TemporalGraph =
+    this from startTime until endTime
+
+  def slice(startTime: String, endTime: String): TemporalGraph =
+    this from startTime until endTime
+
+  def raphtorize(increment: Long): RaphtoryGraph = raphtorize(increment, List())
+
+  def raphtorize(increment: String): RaphtoryGraph =
+    raphtorize(increment, List())
+
+  def raphtorize(increment: Long, window: Long): RaphtoryGraph =
+    raphtorize(increment, List(window))
+
+  def raphtorize(increment: String, window: String): RaphtoryGraph =
+    raphtorize(increment, List(window))
+
+  def raphtorize(increment: Long, windows: List[Long]): RaphtoryGraph =
+    raphtorize(Some(DiscreteInterval(increment)), windows map DiscreteInterval)
+
+  def raphtorize(increment: String, windows: List[String]): RaphtoryGraph =
+    raphtorize(Some(parseInterval(increment)), windows map parseInterval)
+
+  private def raphtorize(increment: Option[Interval], windows: List[Interval]) = {
+    val queryBuilderWithIncrement = increment match {
+      case Some(increment) => queryBuilder.setIncrement(increment)
+      case None            => queryBuilder
+    }
+    new RaphtoryGraph(queryBuilderWithIncrement.setWindows(windows))
+  }
 }
