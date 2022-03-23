@@ -1,12 +1,12 @@
 package com.raphtory.spouts
 
-import com.raphtory.core.components.spout.Spout
+import com.raphtory.core.components.spout.BatchableSpout
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import scala.io.Source
 
-case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
+case class StaticGraphSpout(fileDataPath: String) extends BatchableSpout[String] {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   val source = Source.fromFile(fileDataPath)
@@ -14,7 +14,7 @@ case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
   var lineNo = 1
   var count  = 0
 
-  override def hasNext(): Boolean = lines.hasNext
+  override def hasNext: Boolean = lines.hasNext
 
   override def next(): String = {
     val line = lines.next()
@@ -24,7 +24,6 @@ case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
     if (count % 100_000 == 0)
       logger.debug(s"File spout sent $count messages.")
     data
-
   }
 
   override def close(): Unit = {
@@ -33,20 +32,4 @@ case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
   }
 
   override def spoutReschedules(): Boolean = false
-
-  override def hasNextIterator(): Boolean = lines.hasNext
-
-  override def nextIterator(): Iterator[String] =
-    lines.map { line =>
-      val data = s"$line $lineNo"
-      lineNo += 1
-      count += 1
-      if (count % 100_000 == 0)
-        logger.debug(s"File spout sent $count messages.")
-      data
-    }
-
-  override def executeNextIterator(): Unit =
-    for (line <- lines)
-      try graphBuilder.parseTuple(line)
 }

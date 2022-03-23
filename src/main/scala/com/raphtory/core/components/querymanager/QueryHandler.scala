@@ -50,6 +50,7 @@ class QueryHandler(
   private var vertexCount: Int          = 0
   private var receivedMessageCount: Int = 0
   private var sentMessageCount: Int     = 0
+  private var checkingMessages: Boolean = false
   private var allVoteToHalt: Boolean    = true
   private var timeTaken                 = System.currentTimeMillis()
 
@@ -87,13 +88,21 @@ class QueryHandler(
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
-    currentState match {
+    try currentState match {
       case Stages.SpawnExecutors       =>
         currentState = spawnExecutors(msg.asInstanceOf[ExecutorEstablished])
       case Stages.EstablishPerspective => currentState = establishPerspective(msg)
       case Stages.ExecuteGraph         => currentState = executeGraph(msg)
       case Stages.ExecuteTable         => currentState = executeTable(msg)
       case Stages.EndTask              => //TODO?
+    }
+    catch {
+      case e: Throwable =>
+        e.printStackTrace()
+        logger.error(
+                s"Deployment $deploymentID: Failed to handle message. ${e.getMessage}. Skipping perspective."
+        )
+        executeNextPerspective()
     }
 
   ////OPERATION STATES
@@ -193,9 +202,15 @@ class QueryHandler(
             nextGraphOperation(vertexCount)
           }
           else {
+            logger.debug(
+                    s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
+            )
+            if (checkingMessages)
+              throw new RuntimeException("Message check called twice")
             readyCount = 0
             receivedMessageCount = 0
             sentMessageCount = 0
+            checkingMessages = true
             messagetoAllJobWorkers(CheckMessages(jobID))
             Stages.ExecuteGraph
           }
@@ -224,9 +239,12 @@ class QueryHandler(
             logger.debug(
                     s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
             )
+            if (checkingMessages)
+              throw new RuntimeException("Message check called twice")
             readyCount = 0
             receivedMessageCount = 0
             sentMessageCount = 0
+            checkingMessages = true
             messagetoAllJobWorkers(CheckMessages(jobID))
             Stages.ExecuteGraph
           }
@@ -345,6 +363,7 @@ class QueryHandler(
     readyCount = 0
     receivedMessageCount = 0
     sentMessageCount = 0
+    checkingMessages = false
 
     currentOperation match {
       case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>

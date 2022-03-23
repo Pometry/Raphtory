@@ -32,7 +32,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
 
   val consumer =
     pulsarController
-      .createConsumer("pulsarOutputTest", Schema.BYTES, "EdgeList" + deploymentID)
+      .createSharedConsumer("pulsarOutputTest", Schema.BYTES, "EdgeList" + deploymentID)
 
   logger.info("Consumer created.")
 

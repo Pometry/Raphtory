@@ -4,21 +4,12 @@ import com.raphtory.core.components.graphbuilder.GraphBuilder
 
 import scala.reflect.runtime.universe._
 
-trait Spout[T] {
-
-  var graphBuilder: GraphBuilder[T] = _
-
-  def hasNext(): Boolean
-  def next(): T
-
-  def hasNextIterator(): Boolean
-  def nextIterator(): Iterator[T]
-  def executeNextIterator(): Unit
-  private[core] def setBuilder(gb: GraphBuilder[T]) = graphBuilder = gb
+trait Spout[T] extends Iterator[T] {
+  def hasNextIterator(): Boolean  = hasNext
+  def nextIterator(): Iterator[T] = this
 
   def close(): Unit = {}
 
   def spoutReschedules(): Boolean
   def executeReschedule(): Unit = {}
-
 }

@@ -8,7 +8,9 @@ import com.raphtory.core.config.ThreadedWorker
 import com.raphtory.core.config.ZookeeperIDManager
 import com.typesafe.config.Config
 import monix.execution.Scheduler
+import io.prometheus.client.exporter.HTTPServer
 
+import java.io.IOException
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -49,6 +51,7 @@ private[core] class GraphDeployment[T: ClassTag: TypeTag](
 
   private val deploymentID: String = conf.getString("raphtory.deploy.id")
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
+  private val prometheusPort: Int  = conf.getInt("raphtory.prometheus.server")
 
   private val zookeeperAddress: String = conf.getString("raphtory.zookeeper.address")
 
@@ -71,8 +74,15 @@ private[core] class GraphDeployment[T: ClassTag: TypeTag](
   private val graphBuilderworker: Option[List[ThreadedWorker[T]]] =
     componentFactory.builder[T](graphBuilder, batchLoading, scheduler)
 
+  private var prometheusServer: Option[HTTPServer] = None
+
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
+
+  try prometheusServer = Option(new HTTPServer(prometheusPort))
+  catch {
+    case e: IOException => e.printStackTrace()
+  }
 
   def stop(): Unit = {
     partitions.writers.foreach(_.stop())
@@ -86,12 +96,14 @@ private[core] class GraphDeployment[T: ClassTag: TypeTag](
 
     spoutworker match {
       case Some(w) => w.worker.stop()
-      case None    => ???
+      case None    =>
     }
     graphBuilderworker match {
       case Some(worker) => worker.foreach(builder => builder.worker.stop())
-      case None         => ???
+      case None         =>
     }
+
+    prometheusServer.get.stop()
   }
 
   private def allowIllegalReflection() = {

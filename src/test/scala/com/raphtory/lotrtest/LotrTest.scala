@@ -7,6 +7,7 @@ import com.raphtory.algorithms.generic.{BinaryDiffusion, ConnectedComponents}
 import com.raphtory.algorithms.generic.centrality.{AverageNeighbourDegree, Degree, Distinctiveness, PageRank, WeightedDegree, WeightedPageRank}
 import com.raphtory.algorithms.generic.community.{LPA, SLPA}
 import com.raphtory.algorithms.generic.dynamic.{DiscreteSI, RandomWalk, WattsCascade, WeightedRandomWalk}
+import com.raphtory.algorithms.generic.gametheory.PrisonersDilemma
 import com.raphtory.algorithms.generic.motif.{SquareCount, TriangleCount}
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.core.components.spout.{Spout, SpoutExecutor}
