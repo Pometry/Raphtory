@@ -15,6 +15,53 @@ import org.apache.pulsar.client.api.Schema
 
 import scala.collection.mutable.ListBuffer
 
+
+/**
+  * {s}`QueryProgressTracker`
+  *  : Tracks the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
+  *
+  *    Queries in Raphtory run as a series of {s}`Perspectives` which are graph views at specific timestamps and windows as the query progresses.
+  *    The progress tracker thus helps track query progress until the job is completed. Query types supported include {s}`PointQuery`, {s}`RangeQuery` and {s}`LiveQuery`
+  *
+  * ## Methods
+  *
+  *   {s}`getJobId(): String`
+  *    : Returns job identifier for the query
+  *
+  *   {s}`getLatestPerspectiveProcessed(): Perspective`
+  *    : Returns the latest {s}`Perspective` processed by the query
+  *
+  *   {s}`getPerspectivesProcessed(): List[Perspective]`
+  *    : Returns list of perspectives processed for the query so far
+  *
+  *   {s}`getPerspectiveDurations(): List[Long]`
+  *    : Returns the time taken to process each perspective in milliseconds
+  *
+  *   {s}`isJobDone(): Boolean`
+  *    : Checks if job is complete
+  *
+  *   {s}`waitForJob()`
+  *    : Block until job is complete, repeats check every second
+  *
+  * Example Usage:
+  *
+  * ```{code-block} scala
+  *
+  * import com.raphtory.core.deploy.Raphtory
+  * import com.raphtory.lotrtest.LOTRGraphBuilder
+  * import com.raphtory.core.components.spout.instance.ResourceSpout
+  * import com.raphtory.GraphState
+  * import com.raphtory.output.FileOutputFormat
+  *
+  * val graph = Raphtory.batchLoadGraph(ResourceSpout("resource"), LOTRGraphBuilder())
+  * val queryProgressTracker = graph.rangeQuery(GraphState(),FileOutputFormat("/test_dir"),1, 32674, 10000, List(500, 1000, 10000))
+  * val jobId                = queryProgressTracker.getJobId()
+  * queryProgressTracker.waitForJob()
+  * val perspectivesProcessed = queryProgressTracker.getPerspectivesProcessed()
+  *
+  * ```
+  *
+  */
 class QueryProgressTracker(
     jobID: String,
     conf: Config,
@@ -55,11 +102,13 @@ class QueryProgressTracker(
     while (!jobDone)
       Thread.sleep(1000)
 
+  // Starts the query tracker pulsar consumer
   override def run(): Unit =
     cancelableConsumer = Some(
             pulsarController.startQueryTrackerConsumer(jobID, messageListener())
     )
 
+  // Stops the query tracker consumer
   def stop(): Unit =
     cancelableConsumer match {
       case Some(value) =>
@@ -67,6 +116,7 @@ class QueryProgressTracker(
       case None        =>
     }
 
+  // Handles message to process the {s}`Perspective` received in case the query is in progress, or {s}`JobDone` if the query is complete
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
 
