@@ -3,6 +3,7 @@ package com.raphtory.spouts
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.deploy.Raphtory
 import com.typesafe.config.Config
+import com.raphtory.core.config.telemetry.SpoutTelemetry
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.util.FileUtils
@@ -81,6 +82,7 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
     catch {
       case ex: Exception =>
         logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
+        SpoutTelemetry.totalFileProcessingErrors.inc()
         throw ex
     }
 
@@ -97,10 +99,12 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
       case _                             => Source.fromFile(file)
     }
 
+    SpoutTelemetry.totalFilesProcessed.inc()
     try source.getLines()
     catch {
       case ex: Exception =>
         logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
+        SpoutTelemetry.totalFileProcessingErrors.inc()
         source.close()
 
         // Remove hard-link
