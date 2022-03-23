@@ -57,6 +57,7 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
 
   private val deploymentID: String = conf.getString("raphtory.deploy.id")
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
+  private val prometheusPort: Int = conf.getInt("raphtory.prometheus.server")
 
   private val zookeeperAddress: String = conf.getString("raphtory.zookeeper.address")
 
@@ -83,7 +84,7 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
   try {
-    new HTTPServer(8899)
+    new HTTPServer(prometheusPort)
   } catch {
     case e: IOException => e.printStackTrace()
   }
