@@ -54,6 +54,9 @@ libraryDependencies += "com.typesafe"                 % "config"                
 
 libraryDependencies ~= { _.map(_.exclude("org.slf4j","slf4j-log4j12")) }
 
+libraryDependencies += "io.prometheus" % "simpleclient" % "0.15.0"
+libraryDependencies += "io.prometheus" % "simpleclient_hotspot" % "0.15.0"
+
 assembly / assemblyMergeStrategy := {
   case PathList("META-INF", "MANIFEST.MF") => MergeStrategy.discard
   case x if Assembly.isConfigFile(x) =>
