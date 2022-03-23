@@ -13,6 +13,24 @@ import io.github.redouane59.twitter.signature.TwitterCredentials
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentLinkedQueue
 
+/**
+  * {s}`LiveTwitterSpout`
+  * : Reads in data from the Twitter API
+  *
+  * The Live Twitter Spout uses Twitter credentials
+  * that can be entered into application.conf, and this builds a Twitter Client
+  * to be used as an entry point for the Twitter data. You will need to have a
+  * Twitter Developer account and enter your API Key, API secret key, access token,
+  * and secret access token, which can all be found in the Twitter Developer Portal.
+  *
+  * This Twitter Event Listener detects the tweets coming through and adds this
+  * to tweetQueue (a concurrent linked queue which is thread-safe).
+  * Whilst the tweets are being added, it filters for language (which can be set in application.conf)
+  * and retweets only if the retweet filter is on.
+  *
+  * A filter for hashtag can also be added in application.conf as well.
+  */
+
 class LiveTwitterSpout() extends Spout[Tweet] {
 
   val tweetQueue = new ConcurrentLinkedQueue[Tweet]()
