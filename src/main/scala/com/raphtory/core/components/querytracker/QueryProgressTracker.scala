@@ -35,7 +35,7 @@ import scala.collection.mutable.ListBuffer
   *    : Returns list of perspectives processed for the query so far
   *
   *   {s}`getPerspectiveDurations(): List[Long]`
-  *    : Returns the time duration taken to process each of perspectives
+  *    : Returns the time duration taken to process each of perspectives in milliseconds
   *
   *   {s}`isJobDone(): Boolean`
   *    : Checks if job is complete
@@ -53,7 +53,7 @@ import scala.collection.mutable.ListBuffer
   * import com.raphtory.GraphState
   * import com.raphtory.output.FileOutputFormat
   *
-  * val graph = Raphtory.createGraph(ResourceSpout("resource"), LOTRGraphBuilder())
+  * val graph = Raphtory.batchLoadGraph[T](ResourceSpout("resource"), LOTRGraphBuilder())
   * val queryProgressTracker = graph.rangeQuery(GraphState(),FileOutputFormat("/test_dir"),1, 32674, 10000, List(500, 1000, 10000))
   * val jobId                = queryProgressTracker.getJobId()
   * queryProgressTracker.waitForJob()
