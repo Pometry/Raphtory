@@ -80,11 +80,14 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
   private val graphBuilderworker: Option[List[ThreadedWorker[T]]] =
     componentFactory.builder[T](graphBuilder, batchLoading, scheduler)
 
+  private var prometheusServer: Option[HTTPServer] = None
+
+
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
   try {
-    new HTTPServer(prometheusPort)
+    prometheusServer = Option(new HTTPServer(prometheusPort))
   } catch {
     case e: IOException => e.printStackTrace()
   }
@@ -107,6 +110,8 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
       case Some(worker) => worker.foreach(builder => builder.worker.stop())
       case None         =>
     }
+
+    prometheusServer.get.stop()
   }
 
   private def allowIllegalReflection() = {
