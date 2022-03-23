@@ -18,7 +18,6 @@ object LiveTwitterTest {
     raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
 
   def main(args: Array[String]): Unit = {
-
     val spout        = new LiveTwitterSpout()
     val graphBuilder =
       if (enableRetweetGraphBuilder)

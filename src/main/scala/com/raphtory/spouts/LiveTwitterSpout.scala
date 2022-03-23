@@ -11,7 +11,6 @@ import io.github.redouane59.twitter.dto.tweet.Tweet
 import io.github.redouane59.twitter.dto.tweet.TweetType
 import io.github.redouane59.twitter.signature.TwitterCredentials
 import org.slf4j.LoggerFactory
-
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class LiveTwitterSpout() extends Spout[Tweet] {
@@ -19,16 +18,7 @@ class LiveTwitterSpout() extends Spout[Tweet] {
   val tweetQueue = new ConcurrentLinkedQueue[Tweet]()
   val spout      = new LiveTwitterAddSpout(tweetQueue)
 
-  val streamTweets =
-    //Filter Twitter stream if hashtag field in application.conf is not empty
-    if (spout.hashtag.nonEmpty) {
-      spout.filterRules()
-      spout.twitterClient.startFilteredStream(spout.twitterEventListener())
-    }
-    else
-      spout.twitterClient.startSampledStream(spout.twitterEventListener())
-
-  override def close(): Unit = streamTweets.get().close()
+  override def close(): Unit = System.exit(1)
 
   override def spoutReschedules(): Boolean = true
 
