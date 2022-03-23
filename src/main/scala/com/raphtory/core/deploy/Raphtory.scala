@@ -2,19 +2,14 @@ package com.raphtory.core.deploy
 
 import com.raphtory.core.components.graphbuilder.GraphBuilder
 import com.raphtory.core.components.spout.Spout
-import com.raphtory.core.components.spout.SpoutExecutor
 import com.raphtory.core.config.ComponentFactory
 import com.raphtory.core.config.ConfigHandler
 import com.raphtory.core.config.MonixScheduler
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.client.RaphtoryClient
 import com.raphtory.core.client.RaphtoryGraph
-import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.IdentitySpout
-import com.raphtory.spouts.ResourceSpout
-import com.raphtory.spouts.StaticGraphSpout
 import com.typesafe.config.Config
-import org.apache.pulsar.client.api.Schema
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -52,7 +47,6 @@ import scala.reflect.runtime.universe._
   *
   *   {s}`createSpoutExecutor(spout: Spout[T], conf: Config, pulsarController: PulsarController): SpoutExecutor[T]]`
   *    : Create spout executor for ingesting data from resources and files. Supported executors include `FileSpoutExecutor`, `StaticGraphSpoutExecutor`
-  *
   *
   * Example Usage:
   *
