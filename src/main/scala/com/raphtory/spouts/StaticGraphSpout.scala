@@ -1,12 +1,12 @@
 package com.raphtory.spouts
 
-import com.raphtory.core.components.spout.Spout
+import com.raphtory.core.components.spout.BatchableSpout
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import scala.io.Source
 
-case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
+case class StaticGraphSpout(fileDataPath: String) extends BatchableSpout[String] {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   val source = Source.fromFile(fileDataPath)

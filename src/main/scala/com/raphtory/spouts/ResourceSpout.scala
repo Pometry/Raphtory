@@ -1,10 +1,10 @@
 package com.raphtory.spouts
 
-import com.raphtory.core.components.spout.Spout
+import com.raphtory.core.components.spout.BatchableSpout
 
 import scala.io.Source
 
-case class ResourceSpout(resource: String) extends Spout[String] {
+case class ResourceSpout(resource: String) extends BatchableSpout[String] {
 
   val source = Source.fromResource(resource)
   val lines  = source.getLines()
