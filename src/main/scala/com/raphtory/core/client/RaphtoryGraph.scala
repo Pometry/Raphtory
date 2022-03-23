@@ -10,7 +10,9 @@ import com.raphtory.core.config.ZookeeperIDManager
 import com.typesafe.config.Config
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
+import io.prometheus.client.exporter.HTTPServer
 
+import java.io.IOException
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -79,6 +81,12 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
 
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
+
+  try {
+    new HTTPServer(8899)
+  } catch {
+    case e: IOException => e.printStackTrace()
+  }
 
   def stop(): Unit = {
     partitions.writers.foreach(_.stop())

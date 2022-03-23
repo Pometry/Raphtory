@@ -3,6 +3,7 @@ package com.raphtory.spouts
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.deploy.Raphtory
 import com.typesafe.config.Config
+import com.raphtory.core.config.telemetry.SpoutTelemetry
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.util.FileUtils
@@ -86,6 +87,7 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
 
   private def processFile(file: File) = {
     logger.info(s"Spout: Processing file '${file.toPath.getFileName}' ...")
+    SpoutTelemetry.totalFilesProcessed.inc()
 
     val fileName = file.getPath.toLowerCase
     currentfile = file
