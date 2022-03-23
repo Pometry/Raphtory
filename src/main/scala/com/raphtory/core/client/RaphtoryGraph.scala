@@ -111,7 +111,10 @@ private[core] class RaphtoryGraph[T: ClassTag: TypeTag](
       case None         =>
     }
 
-    prometheusServer.get.stop()
+    prometheusServer match {
+      case Some(w) => w.stop()
+      case None    =>
+    }
   }
 
   private def allowIllegalReflection() = {

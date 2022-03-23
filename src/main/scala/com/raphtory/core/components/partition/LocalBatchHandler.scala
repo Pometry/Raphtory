@@ -6,6 +6,8 @@ import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
+import com.raphtory.core.config.telemetry.PartitionTelemetry
+import io.prometheus.client.Summary
 
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
@@ -23,6 +25,10 @@ class LocalBatchHandler[T: ClassTag](
 ) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
 
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)
+
+  val ingestionTimer = PartitionTelemetry.totalTimeForIngestion
+
+  var timerStart : Option[Summary.Timer] =  None
 
   private val rescheduler: Runnable = new Runnable {
 
@@ -64,10 +70,13 @@ class LocalBatchHandler[T: ClassTag](
       case (id, partition) => partition.getStorage().startBatchIngesting()
     }
 
-  private def stopIngesting(): Unit =
+  private def stopIngesting(): Unit = {
     batchWriters.foreach {
       case (id, partition) => partition.getStorage().stopBatchIngesting()
     }
+    timerStart.get.observeDuration()
+  }
+
 
   override def stop(): Unit = {}
 }

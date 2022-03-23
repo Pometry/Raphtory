@@ -11,6 +11,7 @@ import com.typesafe.config.Config
 import monix.execution.Cancelable
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
+import com.raphtory.core.config.telemetry.PartitionTelemetry
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -62,6 +63,7 @@ class Reader(
         val jobID         = req.jobID
         val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
         scheduler.execute(queryExecutor)
+        PartitionTelemetry.queryExecutorMapCounter.inc()
         executorMap += ((jobID, queryExecutor))
 
       case req: EndQuery          =>
@@ -111,8 +113,10 @@ class Reader(
                 serialise(WatermarkTime(partitionID, finalTime, noBlockingOperations))
         )
         lastWatermark = (finalTime, noBlockingOperations)
+        PartitionTelemetry.lastWaterMarkProcessed.set(finalTime)
       }
 
+      PartitionTelemetry.totalWaterMarksCreated.inc()
     }
     scheduleWaterMarker()
   }

@@ -11,6 +11,7 @@ import com.raphtory.core.components.graphbuilder.SyncExistingEdgeRemoval
 import com.raphtory.core.components.graphbuilder.SyncNewEdgeAdd
 import com.raphtory.core.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.core.components.graphbuilder.VertexAdd
+import com.raphtory.core.config.telemetry.PartitionTelemetry
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph._
@@ -58,6 +59,7 @@ class BatchWriter[T: ClassTag](
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
+    PartitionTelemetry.batchWriterVertexAdditions.inc()
   }
 
   def processEdgeAdd(update: EdgeAdd): Unit = {
@@ -70,6 +72,7 @@ class BatchWriter[T: ClassTag](
             update.properties,
             update.eType
     )
+    PartitionTelemetry.batchWriterEdgeAdditions.inc()
   }
 
   def processRemoteEdgeAdd(req: BatchAddRemoteEdge): Unit = {
@@ -92,10 +95,12 @@ class BatchWriter[T: ClassTag](
     logger.trace(s"Partition $partitionID: Received EdgeDelete message '$update'.")
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId)
+    PartitionTelemetry.batchWriterEdgeDeletions.inc()
   }
 
   def printUpdateCount() = {
     processedMessages += 1
+    PartitionTelemetry.batchWriterGraphUpdates.inc()
 
     // TODO Should this be externalised?
     //  Do we need it now that we have progress tracker?

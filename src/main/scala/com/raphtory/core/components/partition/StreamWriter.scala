@@ -19,6 +19,9 @@ import com.raphtory.core.components.graphbuilder.VertexRemoveSyncAck
 import com.raphtory.core.config.PulsarController
 import com.raphtory.core.graph._
 import com.typesafe.config.Config
+import com.raphtory.core.config.telemetry.PartitionTelemetry
+import io.prometheus.client.Summary
+
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
@@ -41,11 +44,16 @@ class StreamWriter(
 
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
+  val ingestionTimer = PartitionTelemetry.totalTimeForIngestion
+
+  var timerStart : Option[Summary.Timer] =  None
+
   override def run(): Unit =
     cancelableConsumer = Some(
             pulsarController
               .startPartitionConsumer(partitionID, messageListener())
     )
+    timerStart = Option(ingestionTimer.startTimer())
 
   override def stop(): Unit = {
 
@@ -55,6 +63,7 @@ class StreamWriter(
       case None        =>
     }
     neighbours.foreach(_._2.close())
+    timerStart.get.observeDuration()
   }
 
   override def handleMessage(msg: GraphAlteration): Unit = {
@@ -115,6 +124,7 @@ class StreamWriter(
   // Graph Updates from the builders
   def processVertexAdd(update: VertexAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
+    PartitionTelemetry.streamWriterVertexAdditions.inc()
 
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
@@ -122,6 +132,7 @@ class StreamWriter(
 
   def processEdgeAdd(update: EdgeAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received EdgeAdd message '$update'.")
+    PartitionTelemetry.streamWriterEdgeAdditions.inc()
 
     storage.timings(update.updateTime)
     storage.addEdge(
@@ -140,6 +151,7 @@ class StreamWriter(
 
   def processEdgeDelete(update: EdgeDelete): Unit = {
     logger.trace(s"Partition $partitionID: Received EdgeDelete message '$update'.")
+    PartitionTelemetry.streamWriterEdgeDeletions.inc()
 
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId) match {
@@ -152,6 +164,7 @@ class StreamWriter(
 
   def processVertexDelete(update: VertexDelete): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexDelete message '$update'.")
+    PartitionTelemetry.streamWriterVertexDeletions.inc()
 
     val edgeRemovals = storage.removeVertex(update.updateTime, update.srcId)
     if (edgeRemovals.nonEmpty) {
@@ -264,6 +277,7 @@ class StreamWriter(
 
   def printUpdateCount() = {
     processedMessages += 1
+    PartitionTelemetry.streamWriterGraphUpdates.inc()
 
     // TODO Should this be externalised?
     //  Do we need it now that we have progress tracker?
