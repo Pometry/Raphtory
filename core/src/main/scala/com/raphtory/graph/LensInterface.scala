@@ -3,6 +3,7 @@ package com.raphtory.graph
 import com.raphtory.algorithms.api.GraphState
 import com.raphtory.algorithms.api.GraphStateImplementation
 import com.raphtory.algorithms.api.Row
+import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
@@ -42,10 +43,10 @@ trait LensInterface {
   ): Unit
   def getMessageHandler(): VertexMessageHandler
   def checkVotes(): Boolean
-  def sendMessage[T](msg: VertexMessage[T]): Unit
+  def sendMessage(msg: GenericVertexMessage): Unit
   def vertexVoted(): Unit
   def nextStep(): Unit
-  def receiveMessage[T](msg: VertexMessage[T]): Unit
+  def receiveMessage(msg: GenericVertexMessage): Unit
 
   def clearMessages(): Unit
 

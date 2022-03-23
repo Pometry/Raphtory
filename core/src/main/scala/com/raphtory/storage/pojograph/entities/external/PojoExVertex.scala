@@ -1,5 +1,9 @@
 package com.raphtory.storage.pojograph.entities.external
 
+import com.raphtory.components.querymanager.FilteredEdgeMessage
+import com.raphtory.components.querymanager.FilteredInEdgeMessage
+import com.raphtory.components.querymanager.FilteredOutEdgeMessage
+import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.Edge
 import com.raphtory.graph.visitor.ExplodedEdge
@@ -14,8 +18,8 @@ import scala.reflect.ClassTag
 /** @DoNotDocument */
 class PojoExVertex(
     private val v: PojoVertex,
-    private val internalIncomingEdges: mutable.Map[Long, Edge],
-    private val internalOutgoingEdges: mutable.Map[Long, Edge],
+    private val internalIncomingEdges: mutable.Map[Long, PojoExEdge],
+    private val internalOutgoingEdges: mutable.Map[Long, PojoExEdge],
     private val lens: PojoGraphLens
 ) extends PojoExEntity(v, lens)
         with Vertex {
@@ -37,36 +41,51 @@ class PojoExVertex(
     queue
   }
 
+  private var incomingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
+  private var outgoingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
+  private var filtered                                       = false
+
+  def executeEdgeDelete(): Unit = {
+    internalOutgoingEdges --= outgoingEdgeDeleteMultiQueue
+      .getMessageQueue(lens.superStep)
+      .map(_.asInstanceOf[Long])
+    internalIncomingEdges --= incomingEdgeDeleteMultiQueue
+      .getMessageQueue(lens.superStep)
+      .map(_.asInstanceOf[Long])
+    outgoingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
+    incomingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
+  }
+
   def clearMessageQueue(): Unit =
     multiQueue = new VertexMultiQueue()
 
   def voteToHalt(): Unit = lens.vertexVoted()
 
   //out edges whole
-  def getOutEdges(after: Long = 0L, before: Long = Long.MaxValue): List[Edge] =
+  def getOutEdges(after: Long = 0L, before: Long = Long.MaxValue): List[PojoExEdge] =
     allEdge(internalOutgoingEdges, after, before)
 
   //in edges whole
-  def getInEdges(after: Long = 0L, before: Long = Long.MaxValue): List[Edge] =
+  def getInEdges(after: Long = 0L, before: Long = Long.MaxValue): List[PojoExEdge] =
     allEdge(internalIncomingEdges, after, before)
 
   //all edges
-  def getEdges(after: Long = 0L, before: Long = Long.MaxValue): List[Edge] =
+  def getEdges(after: Long = 0L, before: Long = Long.MaxValue): List[PojoExEdge] =
     getInEdges(after, before) ++ getOutEdges(after, before)
 
   //out edges individual
-  def getOutEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[Edge] =
+  def getOutEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[PojoExEdge] =
     individualEdge(internalOutgoingEdges, after, before, id)
 
   //In edges individual
-  def getInEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[Edge] =
+  def getInEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[PojoExEdge] =
     individualEdge(internalIncomingEdges, after, before, id)
 
   // edge individual
-  def getEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[Edge] =
+  def getEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[PojoExEdge] =
     individualEdge(internalIncomingEdges ++ internalOutgoingEdges, after, before, id)
 
-  private def allEdge(edges: mutable.Map[Long, Edge], after: Long, before: Long) =
+  private def allEdge(edges: mutable.Map[Long, PojoExEdge], after: Long, before: Long) =
     if (after == 0 && before == Long.MaxValue)
       edges.values.toList
     else
@@ -74,7 +93,12 @@ class PojoExVertex(
         case (_, edge) if edge.active(after, before) => edge
       }.toList
 
-  private def individualEdge(edges: mutable.Map[Long, Edge], after: Long, before: Long, id: Long) =
+  private def individualEdge(
+      edges: mutable.Map[Long, PojoExEdge],
+      after: Long,
+      before: Long,
+      id: Long
+  ) =
     if (after == 0 && before == Long.MaxValue)
       edges.get(id)
     else
@@ -150,9 +174,27 @@ class PojoExVertex(
   def messageInNeighbours(message: Any): Unit =
     internalIncomingEdges.keys.foreach(vId => messageVertex(vId, message))
 
-  // todo hide
-  def receiveMessage[T](msg: VertexMessage[T]): Unit =
-    multiQueue.receiveMessage(msg.superstep, msg.data)
+  def receiveMessage(msg: GenericVertexMessage): Unit =
+    msg match {
+      case msg: VertexMessage[_]       => multiQueue.receiveMessage(msg.superstep, msg.data)
+      case msg: FilteredOutEdgeMessage =>
+        outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.vertexId)
+      case msg: FilteredInEdgeMessage  =>
+        incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.vertexId)
+    }
+
+  def isFiltered = filtered
+
+  def remove(): Unit = {
+    // key is the vertex of the other side of edge
+    filtered = true
+    internalIncomingEdges.keys.foreach(k =>
+      lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k))
+    )
+    internalOutgoingEdges.keys.foreach(k =>
+      lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k))
+    )
+  }
 
   override def getOutNeighbours(after: Long, before: Long): List[Long] =
     getOutEdges(after, before).map(_.dst())

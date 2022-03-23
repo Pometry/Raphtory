@@ -13,10 +13,9 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
 ) extends GraphOperations[G] {
   override def setGlobalState(f: GraphState => Unit): G = addFunction(Setup(f))
 
-  override def filter(f: (Vertex) => Boolean): G = addFunction(VertexFilter(f))
+  override def filter(f: (Vertex) => Boolean): G = VertexFilter(f)(this)
 
-  override def filter(f: (Vertex, GraphState) => Boolean): G =
-    addFunction(VertexFilterWithGraph(f))
+  override def filter(f: (Vertex, GraphState) => Boolean): G = VertexFilterGraphState(f)(this)
 
   override def step(f: (Vertex) => Unit): G = addFunction(Step(f))
 

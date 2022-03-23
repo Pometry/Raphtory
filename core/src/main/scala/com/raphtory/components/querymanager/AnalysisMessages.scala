@@ -69,8 +69,20 @@ case object RecheckTime                 extends QueryManagement
 case object RecheckEarliestTime         extends QueryManagement
 case class CheckMessages(jobId: String) extends QueryManagement
 
-case class VertexMessage[+T](superstep: Int, vertexId: Long, data: T) extends QueryManagement
-case class VertexMessageBatch[T](data: Array[VertexMessage[T]])       extends QueryManagement
+sealed trait GenericVertexMessage extends QueryManagement {
+  def superstep: Int
+  def vertexId: Long
+}
+
+case class VertexMessage[+T](superstep: Int, vertexId: Long, data: T) extends GenericVertexMessage
+
+case class VertexMessageBatch(data: Array[GenericVertexMessage]) extends QueryManagement
+
+case class FilteredEdgeMessage(superstep: Int, vertexId: Long) extends GenericVertexMessage
+
+case class FilteredInEdgeMessage(superstep: Int, vertexId: Long) extends GenericVertexMessage
+
+case class FilteredOutEdgeMessage(superstep: Int, vertexId: Long) extends GenericVertexMessage
 
 case class Query(
     name: String = "",
