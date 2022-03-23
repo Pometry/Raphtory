@@ -82,12 +82,12 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
     catch {
       case ex: Exception =>
         logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
+        SpoutTelemetry.totalFileProcessingErrors.inc()
         throw ex
     }
 
   private def processFile(file: File) = {
     logger.info(s"Spout: Processing file '${file.toPath.getFileName}' ...")
-    SpoutTelemetry.totalFilesProcessed.inc()
 
     val fileName = file.getPath.toLowerCase
     currentfile = file
@@ -99,10 +99,12 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
       case _                             => Source.fromFile(file)
     }
 
+    SpoutTelemetry.totalFilesProcessed.inc()
     try source.getLines()
     catch {
       case ex: Exception =>
         logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
+        SpoutTelemetry.totalFileProcessingErrors.inc()
         source.close()
 
         // Remove hard-link
