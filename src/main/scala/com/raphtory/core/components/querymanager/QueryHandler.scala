@@ -247,7 +247,11 @@ abstract class QueryHandler(
                 .subscribe()
               var has_message = true
               while (has_message) {
-                val msg = consumer.receive(0, TimeUnit.MILLISECONDS)
+                val msg =
+                  consumer.receive(
+                          10,
+                          TimeUnit.SECONDS
+                  ) // add some timeout to see if new messages come in
                 if (msg == null)
                   has_message = false
                 else {
