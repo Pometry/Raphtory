@@ -142,6 +142,7 @@ class QueryExecutor(
         graphLens.getMessageHandler().flushMessages().thenApply { _ =>
           taskManager sendAsync serialise(
                   GraphFunctionCompleteWithState(
+                          partitionID,
                           receivedMessages,
                           sentMessages,
                           graphState = graphState
@@ -191,6 +192,7 @@ class QueryExecutor(
         graphLens.getMessageHandler().flushMessages().thenApply { _ =>
           taskManager sendAsync serialise(
                   GraphFunctionCompleteWithState(
+                          partitionID,
                           receivedMessages,
                           sentMessages,
                           votedToHalt,
