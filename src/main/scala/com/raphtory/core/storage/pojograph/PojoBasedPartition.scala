@@ -251,8 +251,17 @@ class PojoBasedPartition(partition: Int, conf: Config)
     val dstVertex =
       addVertexInternal(msgTime, dstId, Properties(), None) //create or revive the destination node
     logger.trace(s"created and revived destination vertex: $dstId")
-    val edge = new SplitEdge(msgTime, srcId, dstId, initialValue = true)
-    dstVertex addIncomingEdge edge //add the edge to the associated edges of the destination node
+    val edge   = dstVertex.getIncomingEdge(srcId) match {
+      case Some(edge) =>
+        logger.debug(
+                s"Edge $srcId $dstId already existed in partition $partition for syncNewEdgeAdd"
+        )
+        edge
+      case None       =>
+        val e = new SplitEdge(msgTime, srcId, dstId, initialValue = true)
+        dstVertex addIncomingEdge e
+        e
+    }
     logger.trace(s"added $edge to $dstVertex")
     val deaths = if (hasDeletions) {
       val list = dstVertex.removeList
@@ -286,12 +295,13 @@ class PojoBasedPartition(partition: Int, conf: Config)
         addProperties(msgTime, edge, properties)
         logger.trace(s"Added properties: $properties to edge")
       case None       =>
-        logger.error(s"Error: Edge $srcId $dstId missing from partition $partition.")
+        logger.debug(
+                s"Edge $srcId $dstId missing from partition $partition for syncExistingEdgeAdd"
+        )
+        val edge = new SplitEdge(msgTime, srcId, dstId, initialValue = true)
+        addProperties(msgTime, edge, properties)
+        dstVertex addIncomingEdge edge
 
-        if (failOnError)
-          throw new IllegalStateException(
-                  s"Edge $srcId $dstId is missing from partition $partition."
-          )
     }
     EdgeSyncAck(msgTime, srcId, dstId, fromAddition = true)
   }
@@ -384,9 +394,15 @@ class PojoBasedPartition(partition: Int, conf: Config)
   }
 
   def syncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long): GraphUpdateEffect = {
-    getVertexOrPlaceholder(msgTime, dstId).getIncomingEdge(srcId) match {
+    val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
+    dstVertex.getIncomingEdge(srcId) match {
       case Some(e) => e kill msgTime
-      case None    => logger.error("Remote edge removal with no incoming edge.")
+      case None    =>
+        logger.debug(
+                s"Edge $srcId $dstId missing from partition $partition for syncExistingEdgeRemoval"
+        )
+        val edge = new SplitEdge(msgTime, srcId, dstId, initialValue = false)
+        dstVertex addIncomingEdge edge
     }
     EdgeSyncAck(msgTime, srcId, dstId, fromAddition = false)
   }
@@ -407,8 +423,19 @@ class PojoBasedPartition(partition: Int, conf: Config)
   ): GraphUpdateEffect = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.incrementEdgesRequiringSync()
-    val edge      = new SplitEdge(msgTime, srcId, dstId, initialValue = false)
-    dstVertex addIncomingEdge edge //add the edge to the destination nodes associated list
+
+    val edge = dstVertex.getIncomingEdge(srcId) match {
+      case Some(edge) =>
+        logger.debug(
+                s"Edge $srcId $dstId already existed in partition $partition for syncNewEdgeRemoval"
+        )
+        edge
+      case None       =>
+        val e = new SplitEdge(msgTime, srcId, dstId, initialValue = false)
+        dstVertex addIncomingEdge e
+        e
+    }
+
     val deaths = if (hasDeletions) {
       val list = dstVertex.removeList
       edge killList srcRemovals //pass source node death lists to the edge
@@ -427,7 +454,7 @@ class PojoBasedPartition(partition: Int, conf: Config)
         case Some(edge) =>
           edge killList dstRemovals
           logger.trace("Synced Existing Removals")
-        case None       => /*todo Should this happen*/
+        case None       =>
       }
 
   override def deduplicate(): Unit =
