@@ -15,6 +15,7 @@ import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
+import org.apache.pulsar.client.api.SubscriptionInitialPosition
 
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
@@ -236,18 +237,26 @@ abstract class QueryHandler(
           logger.debug(s"Check messages called twice, num_workers=${workerList.size}.")
           workerList.foreach {
             case (pID, worker) =>
-              val topic    = worker.getTopic
+              val topic       = worker.getTopic
               logger.debug(s"Checking messages for topic $topic")
-              val consumer =
-                pulsarController.createSharedConsumer("dumping", Schema.BYTES, topic)
-              while (!consumer.hasReachedEndOfTopic) {
-                val msg     = consumer.receive()
-                val message = deserialise[QueryManagement](msg.getValue)
-                consumer.acknowledge(msg)
-                msg.release()
-                logger.debug(s"Partition $pID has message $message")
+              val consumer    = pulsarController.accessClient
+                .newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("dumping")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe()
+              var has_message = true
+              while (has_message) {
+                val msg = consumer.receive(0, TimeUnit.MILLISECONDS)
+                if (msg == null)
+                  has_message = false
+                else {
+                  val message = deserialise[QueryManagement](msg.getValue)
+                  consumer.acknowledge(msg)
+                  msg.release()
+                  logger.debug(s"Partition $pID has message $message")
+                }
               }
-
           }
           throw new RuntimeException("Message check called twice")
         }
