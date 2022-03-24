@@ -141,8 +141,6 @@ final case class PojoGraphLens(
     t1 = System.currentTimeMillis()
     voteCount.set(0)
     vertexCount.set(0)
-    sentMessages.set(0)
-    receivedMessages.set(0)
     superStep += 1
   }
 
