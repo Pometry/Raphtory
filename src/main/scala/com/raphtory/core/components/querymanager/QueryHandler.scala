@@ -239,12 +239,8 @@ abstract class QueryHandler(
             case (pID, worker) =>
               val topic       = worker.getTopic
               logger.debug(s"Checking messages for topic $topic")
-              val consumer    = pulsarController.accessClient
-                .newConsumer(Schema.BYTES)
-                .topic(topic)
-                .subscriptionName("dumping")
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe()
+              val consumer    =
+                pulsarController.createExclusiveConsumer("dumping", Schema.BYTES, topic)
               var has_message = true
               while (has_message) {
                 val msg =
