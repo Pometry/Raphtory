@@ -8,6 +8,7 @@ import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.algorithm._
 import com.raphtory.core.components.Component
 import com.raphtory.core.config.PulsarController
+import com.raphtory.core.config.telemetry.QueryTelemetry
 import com.raphtory.core.graph.Perspective
 import com.raphtory.core.graph.PerspectiveController
 import com.typesafe.config.Config
@@ -124,6 +125,7 @@ abstract class QueryHandler(
     }
     else {
       readyCount += 1
+      QueryTelemetry.readyCount.inc()
       Stages.SpawnExecutors
     }
   }
@@ -190,9 +192,12 @@ abstract class QueryHandler(
 
       case GraphFunctionCompleteWithState(receivedMessages, sentMessages, votedToHalt, state) =>
         sentMessageCount += sentMessages
+        QueryTelemetry.sentMessageCount.inc(sentMessages)
         receivedMessageCount += receivedMessages
+        QueryTelemetry.receivedMessageCount.inc(receivedMessages)
         allVoteToHalt = votedToHalt & allVoteToHalt
         readyCount += 1
+        QueryTelemetry.readyCount.inc()
         graphState.update(state)
 
         if (readyCount == totalPartitions) {
@@ -224,9 +229,12 @@ abstract class QueryHandler(
 
       case GraphFunctionComplete(partitionID, receivedMessages, sentMessages, votedToHalt)    =>
         sentMessageCount += sentMessages
+        QueryTelemetry.sentMessageCount.inc(sentMessages)
         receivedMessageCount += receivedMessages
+        QueryTelemetry.receivedMessageCount.inc(receivedMessageCount)
         allVoteToHalt = votedToHalt & allVoteToHalt
         readyCount += 1
+        QueryTelemetry.readyCount.inc()
         logger.debug(
                 s"Job '$jobID': Partition $partitionID Received messages:$receivedMessages , Sent messages: $sentMessages."
         )
@@ -295,6 +303,7 @@ abstract class QueryHandler(
   ///HELPER FUNCTIONS
   private def executeNextPerspective(): Stage = {
     val latestTime = whatsTheTime()
+    QueryTelemetry.totalPerspectivesProcessed.inc()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
       tracker.sendAsync(serialise(currentPerspective))
     perspectiveController.nextPerspective() match {
@@ -369,6 +378,7 @@ abstract class QueryHandler(
     sentMessageCount = 0
     checkingMessages = false
 
+    QueryTelemetry.totalGraphOperations.inc()
     currentOperation match {
       case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
         currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
@@ -445,6 +455,7 @@ abstract class QueryHandler(
   }
 
   private def nextTableOperation(): Stage =
+    QueryTelemetry.totalTableOperations.inc()
     table.getNextOperation() match {
 
       case Some(f: TableFunction) =>
