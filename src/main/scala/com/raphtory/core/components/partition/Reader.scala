@@ -72,6 +72,7 @@ class Reader(
   def createWatermark(): Unit = {
     if (!storage.currentyBatchIngesting()) {
       val newestTime              = storage.newestTime
+      val oldestTime              = storage.oldestTime
       val blockingEdgeAdditions   = storage.blockingEdgeAdditions.nonEmpty
       val blockingEdgeDeletions   = storage.blockingEdgeDeletions.nonEmpty
       val blockingVertexDeletions = storage.blockingVertexDeletions.nonEmpty
