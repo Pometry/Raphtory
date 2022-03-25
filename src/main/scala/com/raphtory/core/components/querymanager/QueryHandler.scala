@@ -455,7 +455,6 @@ abstract class QueryHandler(
   }
 
   private def nextTableOperation(): Stage =
-    QueryTelemetry.totalTableOperations.inc()
     table.getNextOperation() match {
 
       case Some(f: TableFunction) =>

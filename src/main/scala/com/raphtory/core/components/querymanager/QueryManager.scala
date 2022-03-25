@@ -5,6 +5,7 @@ import com.raphtory.core.components.Component
 import com.raphtory.core.components.querymanager.handler.LiveQueryHandler
 import com.raphtory.core.components.querymanager.handler.PointQueryHandler
 import com.raphtory.core.components.querymanager.handler.RangeQueryHandler
+import com.raphtory.core.config.telemetry.QueryTelemetry
 import com.raphtory.core.config.PulsarController
 import com.typesafe.config.Config
 import monix.execution.Scheduler
@@ -78,6 +79,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
 
   private def spawnPointQuery(id: String, query: PointQuery): QueryHandler = {
     logger.info(s"Point Query '${query.name}' received, your job ID is '$id'.")
+    QueryTelemetry.totalPointQueriesSpawned.inc()
 
     val queryHandler = new PointQueryHandler(
             this,
@@ -96,6 +98,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
 
   private def spawnRangeQuery(id: String, query: RangeQuery): QueryHandler = {
     logger.info(s"Range Query '${query.name}' received, your job ID is '$id'.")
+    QueryTelemetry.totalRangeQueriesSpawned.inc()
 
     val queryHandler = new RangeQueryHandler(
             this,
@@ -116,6 +119,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
 
   private def spawnLiveQuery(id: String, query: LiveQuery): QueryHandler = {
     logger.info(s"Live Query '${query.name}' received, your job ID is '$id'.")
+    QueryTelemetry.totalLiveQueriesSpawned.inc()
 
     val queryHandler = new LiveQueryHandler(
             this,
@@ -132,9 +136,11 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
     queryHandler
   }
 
-  private def trackNewQuery(jobID: String, queryHandler: QueryHandler): Unit =
+  private def trackNewQuery(jobID: String, queryHandler: QueryHandler): Unit = {
     //sender() ! ManagingTask(queryHandler)
     currentQueries += ((jobID, queryHandler))
+    QueryTelemetry.totalQueriesSpawned.inc()
+  }
 
   def whatsTheTime(): Long = {
     val watermark = if (watermarks.size == totalPartitions) {
@@ -150,6 +156,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
       if (safe) maxTime else minTime
     }
     else 0 // not received a message from each partition yet
+    QueryTelemetry.totalQueryManagerWatermarks.inc()
     watermarkGlobal.sendAsync(serialise(watermark))
     watermark
   }

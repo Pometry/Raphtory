@@ -20,8 +20,8 @@ object QueryTelemetry {
     Counter
       .build
       .namespace(conf.getString("raphtory.prometheus.query_namespace"))
-      .name("total_files_processed")
-      .help("Total files processed by spout")
+      .name("query_handler_ready_count")
+      .help("Ready count for query handler ")
       .register
 
   val vertexCount: Counter =
@@ -72,4 +72,43 @@ object QueryTelemetry {
       .help("Total perspectives processed by Query Handler")
       .register
 
+  val totalPointQueriesSpawned: Counter =
+    Counter
+      .build
+      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
+      .name("query_manager_point_query_count")
+      .help("Total point queries by query manager")
+      .register
+
+  val totalRangeQueriesSpawned: Counter =
+    Counter
+      .build
+      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
+      .name("query_manager_range_query_count")
+      .help("Total range queries by query manager")
+      .register
+
+  val totalLiveQueriesSpawned: Counter =
+    Counter
+      .build
+      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
+      .name("query_manager_live_query_count")
+      .help("Total live queries by query manager")
+      .register
+
+  val totalQueryManagerWatermarks: Counter =
+    Counter
+      .build
+      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
+      .name("query_manager_watermarks_count")
+      .help("Total watermarks created by query manager")
+      .register
+
+  val totalQueriesSpawned: Counter =
+    Counter
+      .build
+      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
+      .name("query_manager_total_query_count")
+      .help("Total queries spawned by query manager")
+      .register
 }
