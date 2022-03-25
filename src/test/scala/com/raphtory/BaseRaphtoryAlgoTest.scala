@@ -3,6 +3,7 @@ package com.raphtory
 import java.io.File
 import java.nio.charset.StandardCharsets
 import com.google.common.hash.Hashing
+import com.raphtory.core.algorithm.Alignment
 import com.raphtory.core.algorithm.GraphAlgorithm
 import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.components.graphbuilder.GraphBuilder
@@ -82,8 +83,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
     val hash1                 = getHash(testDir + s"/$jobId1")
 
     val queryProgressTracker2 = temporalGraph
-      .slice(start, end)
-      .raphtorize(increment, windows)
+      .range(start, end, increment)
+      .window(windows, Alignment.END)
       .execute(algorithm)
       .writeTo(outputFormat)
     val jobId2                = queryProgressTracker2.getJobId()
@@ -105,8 +106,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
       windows: List[String]
   ): String = {
     val queryProgressTracker = temporalGraph
-      .slice(start, end)
-      .raphtorize(increment, windows)
+      .range(start, end, increment)
+      .window(windows)
       .execute(algorithm)
       .writeTo(outputFormat)
     val jobId                = queryProgressTracker.getJobId()

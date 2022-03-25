@@ -72,6 +72,7 @@ class Reader(
   def createWatermark(): Unit = {
     if (!storage.currentyBatchIngesting()) {
       val newestTime              = storage.newestTime
+      val oldestTime              = storage.oldestTime
       val blockingEdgeAdditions   = storage.blockingEdgeAdditions.nonEmpty
       val blockingEdgeDeletions   = storage.blockingEdgeDeletions.nonEmpty
       val blockingVertexDeletions = storage.blockingVertexDeletions.nonEmpty
@@ -106,9 +107,12 @@ class Reader(
       val noBlockingOperations =
         !blockingEdgeAdditions && !blockingEdgeDeletions && !blockingVertexDeletions
       if (finalTime > lastWatermark._1 || noBlockingOperations != lastWatermark._2) {
-        logger.trace(s"Partition $partitionID: Creating watermark at '$finalTime'.")
+        logger.trace(
+                s"Partition $partitionID: Creating watermark with " +
+                  s"earliest time '$oldestTime' and latest time '$finalTime'."
+        )
         watermarkPublish.sendAsync(
-                serialise(WatermarkTime(partitionID, finalTime, noBlockingOperations))
+                serialise(WatermarkTime(partitionID, oldestTime, finalTime, noBlockingOperations))
         )
         lastWatermark = (finalTime, noBlockingOperations)
       }

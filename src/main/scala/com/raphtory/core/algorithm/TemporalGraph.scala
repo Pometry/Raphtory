@@ -1,10 +1,13 @@
 package com.raphtory.core.algorithm
 
 import com.raphtory.core.client.QuerySender
+import com.raphtory.core.components.querymanager.PointPath
 import com.raphtory.core.components.querymanager.Query
+import com.raphtory.core.components.querymanager.SinglePoint
 import com.raphtory.core.time.DateTimeParser
 import com.raphtory.core.time.DiscreteInterval
 import com.raphtory.core.time.Interval
+import com.raphtory.core.time.NullInterval
 import com.raphtory.core.time.IntervalParser.{parse => parseInterval}
 import com.typesafe.config.Config
 
@@ -130,48 +133,76 @@ class TemporalGraph(query: Query, private val querySender: QuerySender, private 
         extends RaphtoryGraph(query, querySender) {
 
   def from(startTime: Long): TemporalGraph = {
-    val newStartTime =
-      query.startTime.fold(startTime)(current => if (current > startTime) current else startTime)
-    new TemporalGraph(query.copy(startTime = Some(newStartTime)), querySender, conf)
+    val updatedStart = query.timelineStart max startTime
+    new TemporalGraph(query.copy(timelineStart = updatedStart), querySender, conf)
   }
 
-  def from(startTime: String): TemporalGraph = {
-    println(conf.getString("raphtory.query.timeFormat"))
-    from(DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(startTime))
-  }
+  def from(startTime: String): TemporalGraph = from(parseDateTime(startTime))
 
   def until(endTime: Long): TemporalGraph = {
-    val newEndTime =
-      query.endTime.fold(endTime)(current => if (current < endTime) current else endTime)
-    new TemporalGraph(query.copy(endTime = Some(newEndTime)), querySender, conf)
+    val updatedEnd = query.timelineEnd min endTime
+    new TemporalGraph(query.copy(timelineEnd = updatedEnd), querySender, conf)
   }
 
-  def until(endTime: String): TemporalGraph =
-    until(DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(endTime))
+  def until(endTime: String): TemporalGraph = until(parseDateTime(endTime))
 
-  def slice(startTime: Long, endTime: Long): TemporalGraph =
-    this from startTime until endTime
+  def slice(startTime: Long, endTime: Long): TemporalGraph = this from startTime until endTime
 
-  def slice(startTime: String, endTime: String): TemporalGraph =
-    this from startTime until endTime
+  def slice(startTime: String, endTime: String): TemporalGraph = this from startTime until endTime
 
-  def raphtorize(increment: Long): RaphtoryGraph = raphtorize(increment, List())
+  def at(time: Long): DottedGraph =
+    new DottedGraph(query.copy(points = SinglePoint(time)), querySender, conf)
 
-  def raphtorize(increment: String): RaphtoryGraph =
-    raphtorize(increment, List())
+  def at(time: String): DottedGraph = at(parseDateTime(time))
 
-  def raphtorize(increment: Long, window: Long): RaphtoryGraph =
-    raphtorize(increment, List(window))
+  def walk(increment: Long): DottedGraph = setPointPath(DiscreteInterval(increment))
 
-  def raphtorize(increment: String, window: String): RaphtoryGraph =
-    raphtorize(increment, List(window))
+  def walk(increment: Long, offset: Long): DottedGraph =
+    setPointPath(DiscreteInterval(increment), offset = DiscreteInterval(offset))
 
-  def raphtorize(increment: Long, windows: List[Long]): RaphtoryGraph =
-    raphtorize(Some(DiscreteInterval(increment)), windows map DiscreteInterval)
+  def walk(increment: String): DottedGraph = setPointPath(parseInterval(increment))
 
-  def raphtorize(increment: String, windows: List[String]): RaphtoryGraph =
-    raphtorize(Some(parseInterval(increment)), windows map parseInterval)
+  def walk(increment: String, offset: String): DottedGraph =
+    setPointPath(parseInterval(increment), offset = parseInterval(offset))
 
-  private def raphtorize(increment: Option[Interval], windows: List[Interval]) =
-    new RaphtoryGraph(query.copy(increment = increment, windows = windows), querySender)
+  def depart(start: Long, increment: Long): DottedGraph =
+    setPointPath(DiscreteInterval(increment), start = start, customStart = true)
+
+  def depart(start: String, increment: String): DottedGraph =
+    setPointPath(parseInterval(increment), start = parseDateTime(start), customStart = true)
+
+  def climb(end: Long, increment: Long): DottedGraph =
+    setPointPath(DiscreteInterval(increment), end = end)
+
+  def climb(end: String, increment: String): DottedGraph =
+    setPointPath(parseInterval(increment), end = parseDateTime(end))
+
+  def range(start: Long, end: Long, increment: Long): DottedGraph =
+    setPointPath(DiscreteInterval(increment), start = start, end = end, customStart = true)
+
+  def range(start: String, end: String, increment: String): DottedGraph =
+    setPointPath(
+            parseInterval(increment),
+            start = parseDateTime(start),
+            end = parseDateTime(end),
+            customStart = true
+    )
+
+  private def setPointPath(
+      increment: Interval,
+      start: Long = Long.MinValue,
+      end: Long = Long.MaxValue,
+      offset: Interval = NullInterval,
+      customStart: Boolean = false
+  ) = {
+    assert(customStart || (!customStart && start == Long.MinValue))
+    new DottedGraph(
+            query.copy(points = PointPath(increment, start, end, offset, customStart)),
+            querySender,
+            conf
+    )
+  }
+
+  private def parseDateTime(dateTime: String) =
+    DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(dateTime)
 }

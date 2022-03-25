@@ -1,5 +1,7 @@
 package com.raphtory.core.time
 
+import com.raphtory.core.config.ConfigHandler
+
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -19,4 +21,5 @@ class DateTimeParser(format: String) {
 
 object DateTimeParser {
   def apply(format: String) = new DateTimeParser(format)
+  def defaultParse(datetime: String): Long = DateTimeParser("yyyy-MM-dd[ HH:mm:ss[.SSS]]").parse(datetime)
 }

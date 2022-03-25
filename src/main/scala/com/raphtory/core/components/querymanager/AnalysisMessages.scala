@@ -1,16 +1,19 @@
 package com.raphtory.core.components.querymanager
 
+import com.raphtory.core.algorithm.Alignment
 import com.raphtory.core.algorithm.GraphFunction
 import com.raphtory.core.algorithm.GraphStateImplementation
 import com.raphtory.core.algorithm.TableFunction
 import com.raphtory.core.time.Interval
+import com.raphtory.core.time.NullInterval
 
 import scala.collection.immutable.Queue
 
 /** @DoNotDocument */
 trait QueryManagement extends Serializable
 
-case class WatermarkTime(partitionID: Int, time: Long, safe: Boolean) extends QueryManagement
+case class WatermarkTime(partitionID: Int, startTime: Long, endTime: Long, safe: Boolean)
+        extends QueryManagement
 
 case object StartAnalysis                   extends QueryManagement
 case class EstablishExecutor(jobID: String) extends QueryManagement
@@ -42,6 +45,7 @@ case object TableBuilt            extends QueryManagement
 case object TableFunctionComplete extends QueryManagement
 
 case object RecheckTime                 extends QueryManagement
+case object RecheckEarliestTime         extends QueryManagement
 case class CheckMessages(jobId: String) extends QueryManagement
 
 case class VertexMessage[+T](superstep: Int, vertexId: Long, data: T) extends QueryManagement
@@ -49,13 +53,26 @@ case class VertexMessageBatch[T](data: Array[VertexMessage[T]])       extends Qu
 
 case class Query(
     name: String = "",
+    points: PointSet = NullPointSet,
+    timelineStart: Long = Long.MinValue,
+    timelineEnd: Long = Long.MaxValue,
+    windows: List[Interval] = List(),
+    windowAlignment: Alignment.Value = Alignment.END,
     graphFunctions: Queue[GraphFunction] = Queue(),
-    tableFunctions: Queue[TableFunction] = Queue(),
-    startTime: Option[Long] = None,
-    endTime: Option[Long] = None,
-    increment: Option[Interval] = None,
-    windows: List[Interval] = List()
+    tableFunctions: Queue[TableFunction] = Queue()
 ) extends QueryManagement
+
+sealed trait PointSet
+case object NullPointSet           extends PointSet
+case class SinglePoint(time: Long) extends PointSet
+
+case class PointPath(
+    increment: Interval,
+    start: Long = Long.MinValue,
+    end: Long = Long.MaxValue,
+    offset: Interval = NullInterval,
+    customStart: Boolean = false
+) extends PointSet
 
 case class EndQuery(jobID: String)        extends QueryManagement
 case class QueryNotPresent(jobID: String) extends QueryManagement

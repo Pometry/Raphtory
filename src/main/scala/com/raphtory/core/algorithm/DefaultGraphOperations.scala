@@ -8,7 +8,7 @@ import com.raphtory.core.graph.visitor.Vertex
   * @DoNotDocument
   */
 abstract class DefaultGraphOperations[G <: GraphOperations[G]](
-    val query: Query,
+    private[algorithm] val query: Query,
     private val querySender: QuerySender
 ) extends GraphOperations[G] {
   override def setGlobalState(f: GraphState => Unit): G = addFunction(Setup(f))

@@ -1,6 +1,7 @@
 package com.raphtory.core.algorithm
 
 import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.core.components.querymanager.PointPath
 import com.raphtory.core.deploy.Raphtory
 import com.raphtory.core.time.DiscreteInterval
 import org.scalatest.funsuite.AnyFunSuite
@@ -11,7 +12,8 @@ class RaphtoryGraphTest extends AnyFunSuite {
     val table = graph
       .from(100)
       .until(500)
-      .raphtorize(100, 50)
+      .walk(100)
+      .window(50)
       .filter(_.getState("name") == "some name")
       .step(_.setState("new", 1))
       .transform(ConnectedComponents())
@@ -19,9 +21,9 @@ class RaphtoryGraphTest extends AnyFunSuite {
       .filter(_.getInt(0) == 1)
     val query = table.asInstanceOf[GenericTable].query
 
-    assert(query.startTime === Some(100))
-    assert(query.endTime === Some(500))
-    assert(query.increment === Some(DiscreteInterval(100)))
+    assert(query.timelineStart === 100)
+    assert(query.timelineEnd === 500)
+    assert(query.points.asInstanceOf[PointPath].increment === DiscreteInterval(100))
     assert(query.windows === List(DiscreteInterval(50)))
 
     assert(query.graphFunctions.length === 5)
@@ -41,7 +43,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
       .from("2020-02-25 23:12:08")
       .query
 
-    assert(query.startTime.isDefined)
+    assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with milliseconds") {
@@ -50,7 +52,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
       .from("2020-02-25 23:12:08.567")
       .query
 
-    assert(query.startTime.isDefined)
+    assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with date") {
@@ -59,7 +61,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
       .from("2020-02-25")
       .query
 
-    assert(query.startTime.isDefined)
+    assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with custom configuration for 2 digit milliseconds") {
@@ -69,7 +71,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
       .from("2020-02-25 23:12:08.56")
       .query
 
-    assert(query.startTime.isDefined)
+    assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with custom configuration for hours and minutes") {
@@ -79,6 +81,6 @@ class RaphtoryGraphTest extends AnyFunSuite {
       .from("2020-02-25 12:23")
       .query
 
-    assert(query.startTime.isDefined)
+    assert(query.timelineStart != Long.MinValue)
   }
 }

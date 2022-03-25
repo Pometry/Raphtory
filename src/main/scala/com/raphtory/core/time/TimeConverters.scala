@@ -9,6 +9,7 @@ object TimeConverters {
 
     def -(interval: Interval): Long =
       interval match {
+        case NullInterval           => time
         case DiscreteInterval(size) => time - size
         case TimeInterval(size)     =>
           Instant.ofEpochMilli(time).atZone(ZoneOffset.UTC).minus(size).toInstant.toEpochMilli
@@ -16,6 +17,7 @@ object TimeConverters {
 
     def +(interval: Interval): Long =
       interval match {
+        case NullInterval           => time
         case DiscreteInterval(size) => time + size
         case TimeInterval(size)     =>
           Instant.ofEpochMilli(time).atZone(ZoneOffset.UTC).plus(size).toInstant.toEpochMilli

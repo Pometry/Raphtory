@@ -40,7 +40,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
       case query: Query             =>
         val jobID        = query.name
         logger.debug(
-                s"Handling query name: ${query.name}, start: ${query.startTime}, end: ${query.endTime}, increment: ${query.increment}, windows: ${query.windows}"
+                s"Handling query: $query"
         )
         val queryHandler = spawnQuery(jobID, query)
         trackNewQuery(jobID, queryHandler)
@@ -52,7 +52,11 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
           case None               => //sender ! QueryNotPresent(req.jobID)
         }
       case watermark: WatermarkTime =>
-        logger.debug(s"Setting watermark to '$watermark' for partition '${watermark.partitionID}'.")
+        logger.debug(
+                s"Setting watermark to earliest time '${watermark.startTime}'" +
+                  s" and latest time '${watermark.endTime}'" +
+                  s" for partition '${watermark.partitionID}'."
+        )
         watermarks.put(watermark.partitionID, watermark)
     }
 
@@ -75,7 +79,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
     //sender() ! ManagingTask(queryHandler)
     currentQueries += ((jobID, queryHandler))
 
-  def whatsTheTime(): Long = {
+  def latestTime(): Long = {
     val watermark = if (watermarks.size == totalPartitions) {
       var safe    = true
       var minTime = Long.MaxValue
@@ -83,8 +87,8 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
       watermarks.foreach {
         case (key, watermark) =>
           safe = watermark.safe && safe
-          minTime = Math.min(minTime, watermark.time)
-          maxTime = Math.max(maxTime, watermark.time)
+          minTime = Math.min(minTime, watermark.endTime)
+          maxTime = Math.max(maxTime, watermark.endTime)
       }
       if (safe) maxTime else minTime
     }
@@ -92,4 +96,15 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
     watermarkGlobal.sendAsync(serialise(watermark))
     watermark
   }
+
+  def earliestTime(): Option[Long] =
+    if (watermarks.size == totalPartitions) {
+      val startTimes = watermarks map {
+        case (_, watermark) => watermark.startTime
+      }
+      Some(startTimes.min)
+    }
+    else
+      None
+  // not received a message from each partition yet
 }

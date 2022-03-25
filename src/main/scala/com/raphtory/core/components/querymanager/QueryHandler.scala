@@ -56,12 +56,14 @@ class QueryHandler(
 
   private var currentState: Stage = SpawnExecutors
 
-  class RecheckTimer extends Runnable {
-
-    def run(): Unit =
-      self sendAsync serialise(RecheckTime)
+  private val recheckTimer = new Runnable {
+    override def run(): Unit = self sendAsync serialise(RecheckTime)
   }
-  private val recheckTimer                              = new RecheckTimer()
+
+  private val recheckEarliestTimer = new Runnable {
+    override def run(): Unit = self sendAsync serialise(RecheckEarliestTime)
+  }
+
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
   override def run(): Unit = {
@@ -89,8 +91,7 @@ class QueryHandler(
 
   override def handleMessage(msg: QueryManagement): Unit =
     try currentState match {
-      case Stages.SpawnExecutors       =>
-        currentState = spawnExecutors(msg.asInstanceOf[ExecutorEstablished])
+      case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
       case Stages.EstablishPerspective => currentState = establishPerspective(msg)
       case Stages.ExecuteGraph         => currentState = executeGraph(msg)
       case Stages.ExecuteTable         => currentState = executeTable(msg)
@@ -107,24 +108,20 @@ class QueryHandler(
 
   ////OPERATION STATES
   //Communicate with all readers and get them to spawn a QueryExecutor for their partition
-  private def spawnExecutors(msg: ExecutorEstablished): Stage = {
-    val workerID = msg.worker
-    logger.trace(s"Job '$jobID': Deserialized worker '$workerID'.")
+  private def spawnExecutors(msg: QueryManagement): Stage =
+    msg match {
+      case msg: ExecutorEstablished =>
+        val workerID = msg.worker
+        logger.trace(s"Job '$jobID': Deserialized worker '$workerID'.")
 
-    if (readyCount + 1 == totalPartitions) {
-      val latestTime          = whatsTheTime()
-      perspectiveController = PerspectiveController(latestTime, query)
-      val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
-      logger.debug(s"Job '$jobID': Spawned all executors in ${schedulingTimeTaken}ms.")
-      timeTaken = System.currentTimeMillis()
-      readyCount = 0
-      executeNextPerspective()
+        if (readyCount + 1 == totalPartitions)
+          safelyStartPerspectives()
+        else {
+          readyCount += 1
+          Stages.SpawnExecutors
+        }
+      case RecheckEarliestTime      => safelyStartPerspectives()
     }
-    else {
-      readyCount += 1
-      Stages.SpawnExecutors
-    }
-  }
 
   //build the perspective within the QueryExecutor for each partition -- the view to be analysed
   private def establishPerspective(msg: QueryManagement): Stage =
@@ -289,8 +286,22 @@ class QueryHandler(
   ////END OPERATION STATES
 
   ///HELPER FUNCTIONS
+  private def safelyStartPerspectives(): Stage =
+    getOptionalEarliestTime() match {
+      case None               =>
+        scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckEarliestTimer)
+        Stages.SpawnExecutors
+      case Some(earliestTime) =>
+        perspectiveController = PerspectiveController(earliestTime, getLatestTime(), query)
+        val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
+        logger.debug(s"Job '$jobID': Spawned all executors in ${schedulingTimeTaken}ms.")
+        timeTaken = System.currentTimeMillis()
+        readyCount = 0
+        executeNextPerspective()
+    }
+
   private def executeNextPerspective(): Stage = {
-    val latestTime = whatsTheTime()
+    val latestTime = getLatestTime()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
       tracker.sendAsync(serialise(currentPerspective))
     perspectiveController.nextPerspective() match {
@@ -343,7 +354,7 @@ class QueryHandler(
   }
 
   private def recheckTime(perspective: Perspective): Stage = {
-    val time = whatsTheTime()
+    val time = getLatestTime()
     timeTaken = System.currentTimeMillis()
     if (perspective.timestamp <= time) {
       logger.debug(s"Job '$jobID': Created perspective at time $time.")
@@ -482,8 +493,9 @@ class QueryHandler(
   private def getNextTableOperation(queue: mutable.Queue[TableFunction]) =
     Try(queue.dequeue).toOption
 
-  def whatsTheTime(): Long = queryManager.whatsTheTime()
+  private def getLatestTime(): Long = queryManager.latestTime()
 
+  private def getOptionalEarliestTime(): Option[Long] = queryManager.earliestTime()
 }
 
 object Stages extends Enumeration {

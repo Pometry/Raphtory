@@ -12,7 +12,7 @@ class IntervalParserTest extends AnyFunSuite {
   }
 
   test("Duration without days is correctly parsed") {
-    val interval = IntervalParser.parse("3 hours, 4 minutes, and 45.67 seconds")
+    val interval = IntervalParser.parse("3 hours, 4 minutes, 45 seconds, and 670 millis")
     assert(
             interval.size === Duration
               .ofHours(3)
