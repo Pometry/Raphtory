@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.raphtory.core.components.querymanager.VertexMessageBatch
 import com.raphtory.core.components.querymanager.VertexMessage
 import com.raphtory.core.components.querymanager.VertexMessageBatch
+import com.raphtory.core.config.telemetry.StorageTelemetry
 import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
@@ -30,6 +31,7 @@ class VertexMessageHandler(
   val msgBatchPath: String  = "raphtory.partitions.batchMessages"
   val messageBatch: Boolean = config.getBoolean(msgBatchPath)
   val maxBatchSize: Int     = config.getInt("raphtory.partitions.maxMessageBatchSize")
+  StorageTelemetry.batchSizeVertexMessages.set(maxBatchSize)
 
   if (messageBatch)
     logger.debug(
@@ -40,6 +42,7 @@ class VertexMessageHandler(
           "raphtory.partitions.serverCount"
   )
   logger.debug(s"Setting total partitions to '$totalPartitions'.")
+  StorageTelemetry.storageCountsPerServer.set(totalPartitions)
 
   private val messageCache =
     mutable.Map[Producer[Array[Byte]], mutable.ArrayBuffer[VertexMessage[Any]]]()
@@ -47,6 +50,7 @@ class VertexMessageHandler(
 
   def sendMessage[T](message: VertexMessage[T]): Unit = {
     sentMessages.incrementAndGet()
+    StorageTelemetry.totalVertexMessagesSent.inc()
     val destinationPartition = (message.vertexId.abs % totalPartitions).toInt
     if (destinationPartition == pojoGraphLens.partitionID) { //sending to this partition
       pojoGraphLens.receiveMessage(message)

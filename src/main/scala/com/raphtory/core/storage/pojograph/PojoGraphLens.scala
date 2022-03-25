@@ -10,6 +10,7 @@ import com.raphtory.core.graph.LensInterface
 import com.raphtory.core.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
 import com.typesafe.config.Config
+import com.raphtory.core.config.telemetry.StorageTelemetry
 import org.apache.pulsar.client.api.Producer
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -45,6 +46,7 @@ final case class PojoGraphLens(
 
   def setFullGraphSize(size: Int): Unit = {
     fullGraphSize = size
+    StorageTelemetry.pojoLensGraphSize.set(size)
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
 
@@ -103,6 +105,7 @@ final case class PojoGraphLens(
   def runGraphFunction(f: Vertex => Unit): Unit = {
     vertices.foreach { case (id, vertex) => f(vertex) }
     vertexCount.set(vertices.size)
+    StorageTelemetry.pojoLensVertexCount.inc()
   }
 
   override def runGraphFunction(
@@ -111,11 +114,13 @@ final case class PojoGraphLens(
   ): Unit = {
     vertices.foreach { case (id, vertex) => f(vertex, graphState) }
     vertexCount.set(vertices.size)
+    StorageTelemetry.pojoLensVertexCount.inc()
   }
 
   override def runMessagedGraphFunction(f: Vertex => Unit): Unit = {
     val size = vertices.collect { case (id, vertex) if vertex.hasMessage() => f(vertex) }.size
     vertexCount.set(size)
+    StorageTelemetry.pojoLensVertexCount.inc()
   }
 
   override def runMessagedGraphFunction(
@@ -126,6 +131,7 @@ final case class PojoGraphLens(
       case (id, vertex) if vertex.hasMessage() => f(vertex, graphState)
     }.size
     vertexCount.set(size)
+    StorageTelemetry.pojoLensVertexCount.inc()
   }
 
   def getMessageHandler(): VertexMessageHandler =
@@ -145,7 +151,10 @@ final case class PojoGraphLens(
   }
 
   def receiveMessage[T](msg: VertexMessage[T]): Unit =
-    try vertexMap(msg.vertexId).asInstanceOf[PojoExVertex].receiveMessage(msg)
+    try {
+      vertexMap(msg.vertexId).asInstanceOf[PojoExVertex].receiveMessage(msg)
+      StorageTelemetry.graphLensReceivedMessageCount.inc()
+    }
     catch {
       case e: java.util.NoSuchElementException =>
         logger.warn(
