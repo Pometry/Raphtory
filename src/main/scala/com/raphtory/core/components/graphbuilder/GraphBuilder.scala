@@ -1,6 +1,7 @@
 package com.raphtory.core.components.graphbuilder
 
 import com.raphtory.core.components.partition.BatchWriter
+import com.raphtory.core.config.telemetry.GraphBuilderTelemetry
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
 import org.slf4j.LoggerFactory
@@ -162,6 +163,7 @@ trait GraphBuilder[T] extends Serializable {
     }
 
     val toReturn = updates
+    GraphBuilderTelemetry.totalGraphBuilderUpdates.inc(updates.size)
     updates = ArrayBuffer()
 
     toReturn.toList
@@ -176,6 +178,7 @@ trait GraphBuilder[T] extends Serializable {
     batchWriters = writers
     batching = true
     totalPartitions = partitions
+    GraphBuilderTelemetry.totalBuilderPartitions.set(partitions)
   }
 
   protected def addVertex(updateTime: Long, srcId: Long): Unit = {
@@ -203,8 +206,10 @@ trait GraphBuilder[T] extends Serializable {
     handleVertexAdd(update)
   }
 
-  protected def deleteVertex(updateTime: Long, srcId: Long): Unit =
+  protected def deleteVertex(updateTime: Long, srcId: Long): Unit = {
+    GraphBuilderTelemetry.totalVertexDeletes.inc()
     updates += VertexDelete(updateTime, srcId)
+  }
 
   protected def addEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, Properties(), None)
@@ -240,10 +245,13 @@ trait GraphBuilder[T] extends Serializable {
 
   }
 
-  protected def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit =
+  protected def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
+    GraphBuilderTelemetry.totalEdgeDeletes.inc()
     updates += EdgeDelete(updateTime, srcId, dstId)
+  }
 
-  private def handleVertexAdd(update: VertexAdd) =
+  private def handleVertexAdd(update: VertexAdd) = {
+    GraphBuilderTelemetry.totalVertexAdds.inc()
     if (batching) {
       val partitionForTuple = checkPartition(update.srcId)
       if (partitionIDs contains partitionForTuple)
@@ -251,8 +259,10 @@ trait GraphBuilder[T] extends Serializable {
     }
     else
       updates += update
+  }
 
-  private def handleEdgeAdd(update: EdgeAdd) =
+  private def handleEdgeAdd(update: EdgeAdd) = {
+    GraphBuilderTelemetry.totalEdgeAdds.inc()
     if (batching) {
       val partitionForSrc = checkPartition(update.srcId)
       val partitionForDst = checkPartition(update.dstId)
@@ -273,6 +283,7 @@ trait GraphBuilder[T] extends Serializable {
     }
     else
       updates += update
+  }
 
   private def checkPartition(id: Long): Int =
     (id.abs % totalPartitions).toInt
