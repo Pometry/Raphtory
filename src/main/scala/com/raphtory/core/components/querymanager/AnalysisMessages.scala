@@ -35,6 +35,7 @@ case class GraphFunctionComplete(
 ) extends QueryManagement
 
 case class GraphFunctionCompleteWithState(
+    partitionID: Int,
     receivedMessages: Int,
     sentMessages: Int,
     votedToHalt: Boolean = false,
