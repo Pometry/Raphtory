@@ -47,7 +47,7 @@ sbt-test:
       export SBT_VERSION=1.5.5 && \
       curl -L "https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.zip" -o sbt-${SBT_VERSION}.zip && \
       apt-get update && apt-get install unzip && unzip sbt-${SBT_VERSION}.zip
-    - sbt test
+    - sbt core/test
   only:
     - branches
     - schedules
@@ -61,7 +61,7 @@ build-package:
   extends:
     - .rule-default-branch-push-or-schedule
   script:
-    - sbt assembly
+    - sbt core/assembly
     - TARGET_BUILT_JAR=$(find . -name raphtory*.jar)
     - mv $TARGET_BUILT_JAR raphtory.jar
   needs:

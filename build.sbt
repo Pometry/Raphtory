@@ -1,63 +1,161 @@
+import sbt.Compile
+import sbt.Keys.baseDirectory
+
 lazy val root = (project in file("."))
   .settings(
-          inThisBuild(
-                  List(
-                          organization := "com.raphtory",
-                          scalaVersion := "2.13.7"
-                  )
-          ),
-          name := "raphtory",
-          version := "0.1",
-          assembly / test := {}
+          name := "Raphtory",
+          version := "0.5",
+          defaultSettings
+  )
+  .disablePlugins(AssemblyPlugin)
+  .aggregate(
+          core,
+          examplesEnron,
+          examplesFacebook,
+          examplesGab,
+          examplesLotr,
+          examplesPresto,
+          examplesTwitter,
+          examplesTwitterCircles
   )
 
-Test / parallelExecution := false
+lazy val core = (project in file("core"))
+  .settings(
+          name := "core",
+          version := "0.5",
+          assembly / test := {},
+          assemblySettings,
+          defaultSettings,
+          libraryDependencies ++= Seq(
+                  dependencies.curatorRecipes,
+                  dependencies.k8Client,
+                  dependencies.log4jSlft4,
+                  dependencies.log4jApi,
+                  dependencies.log4jCore,
+                  dependencies.monix,
+                  dependencies.openhft,
+                  dependencies.prometheusClient,
+                  dependencies.prometheusHotspot,
+                  dependencies.prometheusHttp,
+                  dependencies.pulsarAdmin,
+                  dependencies.pulsarApi,
+                  dependencies.pulsarCommon,
+                  dependencies.pulsarCrypto,
+                  dependencies.pulsarOriginal,
+                  dependencies.scalaLogging,
+                  dependencies.scalaTest,
+                  dependencies.scalaTestCompile,
+                  dependencies.slf4j,
+                  dependencies.sprayJson,
+                  dependencies.twitterChill,
+                  dependencies.twittered,
+                  dependencies.typesafeConfig,
+                  dependencies.zookeeper
+          ),
+          libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
+  )
 
-Global / concurrentRestrictions := Seq(
-        Tags.limit(Tags.Test, 1)
+// DEPLOYMENTS
+
+//lazy val core = (project in file("deployment"))
+//  .settings(
+//          name := "deployment",
+//          version := "0.5",
+//          assembly / test := {},
+//          assemblySettings,
+//          defaultSettings,
+//          libraryDependencies ++= Seq(
+//                  dependencies.curatorRecipes,
+//                  dependencies.k8Client,
+//          ),
+//          libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
+//  )
+
+// EXAMPLE PROJECTS
+
+lazy val examplesEnron          = project in file("examples/raphtory-example-enron")
+lazy val examplesEthereum       = project in file("examples/raphtory-example-ethereum")
+lazy val examplesFacebook       = project in file("examples/raphtory-example-facebook")
+lazy val examplesGab            = project in file("examples/raphtory-example-gab")
+lazy val examplesLotr           = project in file("examples/raphtory-example-lotr")
+lazy val examplesPresto         = project in file("examples/raphtory-example-presto")
+lazy val examplesTwitter        = project in file("examples/raphtory-example-twitter")
+lazy val examplesTwitterCircles = project in file("examples/raphtory-example-twittercircles")
+
+// SETTINGS
+
+lazy val defaultSettings = Seq(
+        version := "0.5",
+        scalaVersion := "2.13.7",
+        organization := "com.raphtory",
+        scalacOptions := Seq(
+                "-feature",
+                "-language:implicitConversions",
+                "-language:postfixOps",
+                "-unchecked",
+                "-deprecation",
+                "-encoding",
+                "utf8"
+        )
 )
 
-val pulsarVersion        = "2.9.0"
-val pulsar4sVersion      = "2.8.0"
-val scalatestVersion     = "3.2.9"
-val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
+// DEPENDENCIES
 
-val excludeSlf4j = ExclusionRule(organization = "org.slf4j")
-val excludeLog4j = ExclusionRule(organization = "log4j")
+lazy val dependencies = new {
+  val chillVersion          = "0.10.0"
+  val curatorVersion        = "5.2.1"
+  val kubernetesClient      = "5.11.1"
+  val log4jVersion          = "2.17.1"
+  val monixVersion          = "3.4.0"
+  val openhftVersion        = "0.15"
+  val prometheusVersion     = "0.15.0"
+  val pulsarVersion         = "2.9.1"
+  val scalaLoggingVersion   = "3.9.4"
+  val scalatestVersion      = "3.2.11"
+  val slf4jVersion          = "1.7.36"
+  val sprayJsonVersion      = "1.3.6"
+  val twitteredVersion      = "2.16"
+  val typesafeConfigVersion = "1.4.2"
+  val zookeeperVersion      = "3.7.0"
 
-libraryDependencies += "org.apache.pulsar"   % "pulsar-common"    % pulsarVersion
-libraryDependencies += "com.sksamuel.avro4s" % "avro4s-core_2.13" % "4.0.12"
+  val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
+  val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
+  val excludeLog4j         = ExclusionRule(organization = "log4j")
 
-libraryDependencies += "org.apache.pulsar"            % "pulsar-io-file"                         % pulsarVersion
-libraryDependencies += "org.apache.pulsar"            % "pulsar-functions-api"                   % pulsarVersion
-libraryDependencies += "org.apache.pulsar"            % "pulsar-client-api"                      % pulsarVersion
-libraryDependencies += "org.apache.pulsar"            % "pulsar-client-original"                 % pulsarVersion
-libraryDependencies += "org.apache.pulsar"            % "pulsar-client-messagecrypto-bc"         % pulsarVersion
-libraryDependencies += "org.apache.pulsar"            % "pulsar-functions-local-runner-original" % pulsarVersion
-libraryDependencies += "org.apache.pulsar"            % "pulsar-client-admin-original"           % pulsarVersion excludeAll excludePulsarBinding
-libraryDependencies += "net.openhft"                  % "zero-allocation-hashing"                % "0.15" excludeAll (excludeLog4j, excludeSlf4j)
-libraryDependencies += "org.scalatest"               %% "scalatest"                              % scalatestVersion
-libraryDependencies += "org.scalatest"               %% "scalatest"                              % scalatestVersion % Test
-libraryDependencies += "org.apache.logging.log4j"     % "log4j-api"                              % "2.17.1"
-libraryDependencies += "org.apache.logging.log4j"     % "log4j-core"                             % "2.17.1"
-libraryDependencies += "org.apache.logging.log4j"     % "log4j-slf4j-impl"                       % "2.17.1"
-libraryDependencies += "org.slf4j"                    % "slf4j-api"                              % "1.7.36"
-libraryDependencies += "com.twitter"                 %% "chill"                                  % "0.10.0"
-libraryDependencies += "io.spray"                    %% "spray-json"                             % "1.3.6"
-libraryDependencies += "org.apache.zookeeper"         % "zookeeper"                              % "3.7.0"
-libraryDependencies += "io.github.kostaskougios"      % "cloning"                                % "1.10.3"
-libraryDependencies += "io.fabric8"                   % "kubernetes-client"                      % "5.11.1"
-libraryDependencies += "com.typesafe.scala-logging"  %% "scala-logging"                          % "3.9.4"
-libraryDependencies += "io.monix"                    %% "monix"                                  % "3.4.0"
-libraryDependencies += "com.typesafe"                 % "config"                                 % "1.4.1"
-libraryDependencies += "io.github.redouane59.twitter" % "twittered"                              % "2.15"
+  val curatorRecipes = "org.apache.curator"       % "curator-recipes"   % curatorVersion
+  val k8Client       = "io.fabric8"               % "kubernetes-client" % kubernetesClient
+  val log4jApi       = "org.apache.logging.log4j" % "log4j-api"         % log4jVersion
+  val log4jCore      = "org.apache.logging.log4j" % "log4j-core"        % log4jVersion
+  val log4jSlft4     = "org.apache.logging.log4j" % "log4j-slf4j-impl"  % log4jVersion
+  val monix          = "io.monix"                %% "monix"             % monixVersion
 
-libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
+  val openhft =
+    "net.openhft" % "zero-allocation-hashing" % openhftVersion excludeAll (excludeLog4j, excludeSlf4j)
 
-libraryDependencies += "io.prometheus" % "simpleclient" % "0.15.0"
-libraryDependencies += "io.prometheus" % "simpleclient_hotspot" % "0.15.0"
+  val prometheusClient  = "io.prometheus" % "simpleclient"            % prometheusVersion
+  val prometheusHttp    = "io.prometheus" % "simpleclient_httpserver" % prometheusVersion
+  val prometheusHotspot = "io.prometheus" % "simpleclient_hotspot"    % prometheusVersion
 
-assembly / assemblyMergeStrategy := {
+  val pulsarAdmin =
+    "org.apache.pulsar" % "pulsar-client-admin-original" % pulsarVersion excludeAll excludePulsarBinding
+  val pulsarApi        = "org.apache.pulsar"            % "pulsar-client-api"              % pulsarVersion
+  val pulsarCommon     = "org.apache.pulsar"            % "pulsar-common"                  % pulsarVersion
+  val pulsarCrypto     = "org.apache.pulsar"            % "pulsar-client-messagecrypto-bc" % pulsarVersion
+  val pulsarOriginal   = "org.apache.pulsar"            % "pulsar-client-original"         % pulsarVersion
+  val scalaLogging     = "com.typesafe.scala-logging"  %% "scala-logging"                  % scalaLoggingVersion
+  val scalaTest        = "org.scalatest"               %% "scalatest"                      % scalatestVersion % Test
+  val scalaTestCompile = "org.scalatest"               %% "scalatest"                      % scalatestVersion
+  val slf4j            = "org.slf4j"                    % "slf4j-api"                      % slf4jVersion
+  val sprayJson        = "io.spray"                    %% "spray-json"                     % sprayJsonVersion
+  val twitterChill     = "com.twitter"                 %% "chill"                          % chillVersion
+  val twittered        = "io.github.redouane59.twitter" % "twittered"                      % twitteredVersion
+  val typesafeConfig   = "com.typesafe"                 % "config"                         % typesafeConfigVersion
+  val zookeeper        = "org.apache.zookeeper"         % "zookeeper"                      % zookeeperVersion
+}
+
+// ASSEMBLY SETTINGS
+
+lazy val assemblySettings = assembly / assemblyMergeStrategy := {
   case PathList("META-INF", "MANIFEST.MF")                                                => MergeStrategy.discard
   case x if Assembly.isConfigFile(x)                                                      =>
     MergeStrategy.concat
@@ -80,3 +178,9 @@ assembly / assemblyMergeStrategy := {
     }
   case _                                                                                  => MergeStrategy.first
 }
+
+Test / parallelExecution := false
+
+Global / concurrentRestrictions := Seq(
+        Tags.limit(Tags.Test, 1)
+)
