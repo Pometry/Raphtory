@@ -56,7 +56,6 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
   }
 
   override def hasNext: Boolean = {
-    print("XXXXX")
     if (lines.hasNext)
       true
     else {
