@@ -17,6 +17,8 @@ object GraphBuilderTelemetry {
 
   val conf = new ConfigHandler().getConfig
 
+  var builder_id = ""
+
   val totalVertexAdds: Counter =
     Counter
       .build
@@ -55,14 +57,6 @@ object GraphBuilderTelemetry {
       .namespace(conf.getString("raphtory.prometheus.builder_namespace"))
       .name("graph_builder_total_updates")
       .help("Total graph builder updates")
-      .register
-
-  val totalBuilderPartitions: Gauge =
-    Gauge
-      .build
-      .namespace(conf.getString("raphtory.prometheus.builder_namespace"))
-      .name("graph_builder_partitions_count")
-      .help("Total partitions created by graph builder")
       .register
 
 }

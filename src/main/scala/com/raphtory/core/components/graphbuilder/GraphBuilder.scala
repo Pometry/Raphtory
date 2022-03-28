@@ -178,7 +178,6 @@ trait GraphBuilder[T] extends Serializable {
     batchWriters = writers
     batching = true
     totalPartitions = partitions
-    GraphBuilderTelemetry.totalBuilderPartitions.set(partitions)
   }
 
   protected def addVertex(updateTime: Long, srcId: Long): Unit = {
