@@ -4,10 +4,12 @@ import com.raphtory.core.algorithm.Alignment
 import com.raphtory.core.algorithm.GraphAlgorithm
 import com.raphtory.core.algorithm.OutputFormat
 import com.raphtory.core.algorithm.RaphtoryGraph
+import com.raphtory.core.algorithm.TemporalGraph
 import com.raphtory.core.components.querymanager.PointPath
 import com.raphtory.core.components.querymanager.Query
 import com.raphtory.core.components.querymanager.SinglePoint
 import com.raphtory.core.components.querytracker.QueryProgressTracker
+import com.raphtory.core.deploy.Raphtory
 import com.raphtory.core.time.DiscreteInterval
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -118,14 +120,12 @@ private[core] class RaphtoryClient(
       timestamp: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobName          = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
-    val raphtorizedQuery = Query(
-            points = SinglePoint(timestamp),
-            windows = windows map DiscreteInterval,
-            windowAlignment = Alignment.END
-    )
-    val graph            = new RaphtoryGraph(raphtorizedQuery, querySender)
-    graph.execute(graphAlgorithm).writeTo(outputFormat, jobName)
+    val jobName = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
+    new TemporalGraph(Query(), querySender, conf)
+      .at(timestamp)
+      .window(windows, Alignment.END)
+      .execute(graphAlgorithm)
+      .writeTo(outputFormat, jobName)
   }
 
   def rangeQuery(
@@ -136,14 +136,12 @@ private[core] class RaphtoryClient(
       increment: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobName          = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
-    val raphtorizedQuery = Query(
-            points = PointPath(DiscreteInterval(increment), start, end, customStart = true),
-            windows = windows map DiscreteInterval,
-            windowAlignment = Alignment.END
-    )
-    val graph            = new RaphtoryGraph(raphtorizedQuery, querySender)
-    graph.execute(graphAlgorithm).writeTo(outputFormat, jobName)
+    val jobName = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
+    new TemporalGraph(Query(), querySender, conf)
+      .range(start, end, increment)
+      .window(windows, Alignment.END)
+      .execute(graphAlgorithm)
+      .writeTo(outputFormat, jobName)
   }
 
   def liveQuery(
@@ -152,14 +150,12 @@ private[core] class RaphtoryClient(
       increment: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobName          = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
-    val raphtorizedQuery = Query(
-            points = PointPath(DiscreteInterval(increment)),
-            windows = windows map DiscreteInterval,
-            windowAlignment = Alignment.END
-    )
-    val graph            = new RaphtoryGraph(raphtorizedQuery, querySender)
-    graph.execute(graphAlgorithm).writeTo(outputFormat, jobName)
+    val jobName = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
+    new TemporalGraph(Query(), querySender, conf)
+      .walk(increment)
+      .window(windows, Alignment.END)
+      .execute(graphAlgorithm)
+      .writeTo(outputFormat, jobName)
   }
 
   def getConfig(): Config = conf
