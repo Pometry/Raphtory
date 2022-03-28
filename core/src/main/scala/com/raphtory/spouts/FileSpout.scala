@@ -89,7 +89,7 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
     }
 
   def processFile(file: File) = {
-    logger.info(s"Spoutyyy: Processing file '${file.toPath.getFileName}' ...")
+    logger.info(s"Spout: Processing file '${file.toPath.getFileName}' ...")
 
     val fileName = file.getPath.toLowerCase
     currentfile = file
