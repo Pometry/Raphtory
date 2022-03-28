@@ -2,18 +2,24 @@ package com.raphtory.core.time
 
 import java.time.Duration
 import java.time.Period
-import java.time.temporal.ChronoUnit
-import java.time.temporal.ChronoUnit.YEARS
-import java.time.temporal.ChronoUnit.MONTHS
-import java.time.temporal.ChronoUnit.WEEKS
-import java.time.temporal.ChronoUnit.DAYS
-import java.time.temporal.ChronoUnit.HOURS
-import java.time.temporal.ChronoUnit.MINUTES
-import java.time.temporal.ChronoUnit.SECONDS
-import java.time.temporal.ChronoUnit.MILLIS
 import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 object IntervalParser {
+
+  sealed trait Unit
+  sealed trait PeriodUnit   extends Unit // Can only be handled by java.time.Period
+  sealed trait DurationUnit extends Unit // Can only be handled by java.time.Duration
+  case object YEARS         extends PeriodUnit
+  case object MONTHS        extends PeriodUnit
+  case object WEEKS         extends PeriodUnit
+  case object DAYS          extends PeriodUnit with DurationUnit
+  case object HOURS         extends DurationUnit
+  case object MINUTES       extends DurationUnit
+  case object SECONDS       extends DurationUnit
+  case object MILLIS        extends DurationUnit
 
   private val periodOnlyUnits   = List(YEARS, MONTHS, WEEKS)
   private val durationOnlyUnits = List(HOURS, MINUTES, SECONDS, MILLIS)
@@ -47,30 +53,24 @@ object IntervalParser {
         (number, unit)
     }
 
-    val units                 = amounts map { case (number, unit) => unit }
-    val periodRepresentable   = units intersect periodOnlyUnits nonEmpty
-    val durationRepresentable = units intersect durationOnlyUnits nonEmpty
+    lazy val periodFromAmounts   = amounts map {
+      case (number, unit) => periodFromUnit(number, unit.asInstanceOf[PeriodUnit])
+    } reduce (_.plus(_))
+    lazy val durationFromAmounts = amounts map {
+      case (number, unit) => durationFromUnit(number, unit.asInstanceOf[DurationUnit])
+    } reduce (_.plus(_))
+    val temporalAmount           = Try(periodFromAmounts).orElse(Try(durationFromAmounts))
 
-    if (periodRepresentable && durationRepresentable) {
-      val msg = s"You cannot set years, months, or weeks at the same time as" +
-        s" hours, minutes, seconds, or milliseconds: '$interval'"
-      throw new InvalidIntervalException(msg)
+    temporalAmount match {
+      case Success(temporalAmount) => TimeInterval(temporalAmount)
+      case Failure(_)              =>
+        val msg = s"You cannot set years, months, or weeks at the same time as" +
+          s" hours, minutes, seconds, or milliseconds: '$interval'"
+        throw new InvalidIntervalException(msg)
     }
-
-    val temporalAmount =
-      if (periodRepresentable)
-        amounts.foldLeft(Period.ZERO)({
-          case (accumulator, (number, unit)) => accumulator.plus(periodFromUnit(number, unit))
-        })
-      else
-        amounts.foldLeft(Duration.ZERO)({
-          case (accumulator, (number, unit)) => accumulator.plus(durationFromUnit(number, unit))
-        })
-
-    TimeInterval(temporalAmount)
   }
 
-  private val periodFromUnit = (number: Int, unit: ChronoUnit) =>
+  private val periodFromUnit = (number: Int, unit: PeriodUnit) =>
     unit match {
       case YEARS  => Period.ofYears(number)
       case MONTHS => Period.ofMonths(number)
@@ -78,7 +78,7 @@ object IntervalParser {
       case DAYS   => Period.ofDays(number)
     }
 
-  private val durationFromUnit = (number: Int, unit: ChronoUnit) =>
+  private val durationFromUnit = (number: Int, unit: DurationUnit) =>
     unit match {
       case DAYS    => Duration.ofDays(number)
       case HOURS   => Duration.ofHours(number)
@@ -87,7 +87,7 @@ object IntervalParser {
       case MILLIS  => Duration.ofMillis(number)
     }
 
-  private def translateUnit(unit: String): ChronoUnit =
+  private def translateUnit(unit: String): Unit =
     unit match {
       case "year"        => YEARS
       case "month"       => MONTHS
