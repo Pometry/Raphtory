@@ -55,7 +55,8 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
     case None       => Iterator[String]()
   }
 
-  override def hasNext: Boolean =
+  override def hasNext: Boolean = {
+    print("XXXXX")
     if (lines.hasNext)
       true
     else {
@@ -77,6 +78,7 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
       else
         false
     }
+  }
 
   override def next(): T =
     try lineConverter(lines.next())
@@ -87,8 +89,8 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
         throw ex
     }
 
-  private def processFile(file: File) = {
-    logger.info(s"Spout: Processing file '${file.toPath.getFileName}' ...")
+  def processFile(file: File) = {
+    logger.info(s"Spoutyyy: Processing file '${file.toPath.getFileName}' ...")
 
     val fileName = file.getPath.toLowerCase
     currentfile = file
