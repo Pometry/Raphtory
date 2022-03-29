@@ -12,7 +12,11 @@ object Alignment extends Enumeration {
   val START, MIDDLE, END = Value
 }
 
-class DottedGraph(query: Query, private val querySender: QuerySender, private val conf: Config) {
+private[raphtory] class DottedGraph(
+    query: Query,
+    private val querySender: QuerySender,
+    private val conf: Config
+) {
 
   def window(size: Long): RaphtoryGraph =
     window(size, Alignment.START)

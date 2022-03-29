@@ -129,8 +129,11 @@ import com.typesafe.config.Config
   * [](com.raphtory.core.algorithm.RaphtoryGraph)
   * ```
   */
-class TemporalGraph(query: Query, private val querySender: QuerySender, private val conf: Config)
-        extends RaphtoryGraph(query, querySender) {
+private[raphtory] class TemporalGraph(
+    query: Query,
+    private val querySender: QuerySender,
+    private val conf: Config
+) extends RaphtoryGraph(query, querySender) {
 
   def from(startTime: Long): TemporalGraph = {
     val updatedStart = query.timelineStart max startTime

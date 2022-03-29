@@ -45,7 +45,7 @@ import com.raphtory.components.querymanager.Query
   * [](com.raphtory.core.algorithm.GraphOperations)
   * ```
   */
-class RaphtoryGraph(query: Query, private val querySender: QuerySender)
+private[raphtory] class RaphtoryGraph(query: Query, private val querySender: QuerySender)
         extends DefaultGraphOperations[RaphtoryGraph](query, querySender) {
 
   def transform(f: RaphtoryGraph => RaphtoryGraph): RaphtoryGraph = f(this)
