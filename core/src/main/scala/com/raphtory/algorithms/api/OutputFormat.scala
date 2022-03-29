@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory
   *
   *  ```{seealso}
   *  [](com.raphtory.output.FileOutputFormat), [](com.raphtory.output.PulsarOutputFormat),
-  *  [](com.raphtory.algorithm.api.Row)
+  *  [](com.raphtory.algorithms.api.Row)
   *  ```
   */
 abstract class OutputFormat extends Serializable {

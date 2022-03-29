@@ -13,7 +13,7 @@ package com.raphtory.algorithms.api
   *      : get last accumulated value
   *
   * ```{seealso}
-  * [](com.raphtory.algorithm.api.GraphState)
+  * [](com.raphtory.algorithms.api.GraphState)
   * ```
   */
 abstract class Accumulator[T] {

@@ -76,17 +76,16 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
   *    The exact behaviour depends on the type of the property:
   *
   *    In case of a
-  *    [{s}`MutableProperty`](com.raphtory.pojograph.entities.internal.MutableProperty), the history contains
-  *    the timestamps and values for all addition events within the current view and is empty if the property exists
-  *    but no addition events occurred in the current view.
-  *
-  *    In case of a
-  *    [{s}`ImmutableProperty`](com.raphtory.pojograph.entities.internal.ImmutableProperty), the history
+  *    [{s}`ImmutableProperty`](com.raphtory.components.graphbuilder.Properties), the history
   *    depends only on the creation time of the property. If the property was created within the current view, the
   *    history contains a single tuple with the value of the property and the timestamp given by the creation time
   *    of the property. If the property creation time is before the start of the current view, the history contains
   *    a single tuple with the value of the property and the timestamp given by the start time of the current view.
   *    If the property creation time is after the end of the current view, the history is empty.
+  *
+  *    For the [other property types](com.raphtory.components.graphbuilder.Properties), the history contains
+  *    the timestamps and values for all addition events within the current view and is empty if the property exists
+  *    but no addition events occurred in the current view.
   *
   *    ```{note}
   *    More property types with different value semantics are likely going to be added in the future.

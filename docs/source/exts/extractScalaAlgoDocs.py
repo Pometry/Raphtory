@@ -40,9 +40,11 @@ def handle_config_init(app: Sphinx, config: Config):
         # clean up old files
         shutil.rmtree(doc_root)
         for package in config.autodoc_packages:
-            src_root = scala_src_root / Path(*package.split('.'))
-            write_index(doc_root / src_root.name)
-            discover_files(doc_root / src_root.name, src_root, scala_src_root)
+            rel_path = Path(*package.split('.'))
+            src_root = scala_src_root / rel_path
+
+            write_index(doc_root / rel_path, package, package)
+            discover_files(doc_root / rel_path, src_root, scala_src_root)
 
 
 def discover_files(doc_root: Path, scala_root: Path, base_path: Path):
@@ -50,27 +52,26 @@ def discover_files(doc_root: Path, scala_root: Path, base_path: Path):
     file_added = False
     for file_or_folder in sorted(scala_root.iterdir()):
         doc_file_or_folder = doc_root / file_or_folder.name
+        rel_path = file_or_folder.relative_to(base_path)
         if file_or_folder.is_dir():
-            doc_file_or_folder.mkdir(exist_ok=True)
-            write_index(doc_file_or_folder)
+            write_index(doc_file_or_folder, ".".join(rel_path.parts))
             this_folder_not_empty = discover_files(doc_file_or_folder, file_or_folder, base_path)
             file_added = this_folder_not_empty or file_added
             if this_folder_not_empty:
                 with open(doc_root / "index.rst", "a") as f:
                     f.write(f"   {file_or_folder.name}/index.rst\n")
         elif file_or_folder.suffix == ".scala":
-                rel_path = file_or_folder.relative_to(base_path)
-                docstrs = extract_docs(base_path, rel_path)
-                names_used = set()
-                for docstr, name in docstrs:
-                    if name in names_used:
-                        raise RuntimeError(f"Documentation for {'.'.join(rel_path.parts[:-1])}.{name} already exists")
-                    with open((doc_root / f"{name}.md"), 'w') as f:
-                        f.write(docstr)
-                    with open(doc_root / "index.rst", "a") as f:
-                        f.write(f"   {name}.md\n")
-                    names_used.add(name)
-                    file_added = True
+            docstrs = extract_docs(base_path, rel_path)
+            names_used = set()
+            for docstr, name in docstrs:
+                if name in names_used:
+                    raise RuntimeError(f"Documentation for {'.'.join(rel_path.parts[:-1])}.{name} already exists")
+                with open((doc_root / f"{name}.md"), 'w') as f:
+                    f.write(docstr)
+                with open(doc_root / "index.rst", "a") as f:
+                    f.write(f"   {name}.md\n")
+                names_used.add(name)
+                file_added = True
     if not file_added:
         for f in doc_root.iterdir():
             f.unlink()
@@ -147,17 +148,23 @@ def parse_docstr(docstr_lines: list[str], file: Path):
     docstr_lines.insert(header_line, f"({path}.{name})=")
 
     # insert package path
-    docstr_lines.insert(0, f'`{path}.{name}`')
+    docstr_lines.insert(0, f'{{s}}`{path}.{name}`')
 
     return "\n".join(docstr_lines), name
 
 
-def write_index(folder: Path):
+def write_index(folder: Path, package, header=None):
     folder.mkdir(parents=True, exist_ok=True)
+    if header is None:
+        header = package.split(".")[-1]
     with open(folder / "index.rst", "w") as f:
         f.write(
-f"""{folder.name.capitalize()}
-{'=' * len(folder.name)}
+f""":s:`{package}`
+
+.. _{package}:
+
+{header}
+{'=' * len(header)}
 
 .. toctree::
    :glob:

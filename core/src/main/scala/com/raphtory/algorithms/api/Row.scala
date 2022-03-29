@@ -39,7 +39,7 @@ package com.raphtory.algorithms.api
   *    : Return Array of values
   *
   *  ```{seealso}
-  *  [](com.raphtory.algorithm.api.Table)
+  *  [](com.raphtory.algorithms.api.Table)
   *  ```
   */
 class Row(values: Array[Any]) {

@@ -48,7 +48,7 @@ package com.raphtory.algorithms.api
   *      : Check if graph state with `name` exists
   *
   * ```{seealso}
-  * [](com.raphtory.algorithm.api.GraphPerspective), [](com.raphtory.algorithm.api.Accumulator)
+  * [](com.raphtory.algorithms.api.GraphPerspective), [](com.raphtory.algorithms.api.Accumulator)
   * ```
   */
 abstract class GraphState {
