@@ -28,10 +28,10 @@ final case class WriteTo(outputFormat: OutputFormat) extends TableFunction
   *        : function that runs once for each row and returns a list of new rows
   *
   *  {s}`writeTo(outputFormat: OutputFormat)`
-  *    : write out data based on [{s}`outputFormat`](com.raphtory.algorithm.api.OutputFormat)
+  *    : write out data based on [{s}`outputFormat`](com.raphtory.algorithms.api.OutputFormat)
   *
   *  ```{seealso}
-  *  [](com.raphtory.algorithm.api.Row), [](com.raphtory.algorithm.api.OutputFormat)
+  *  [](com.raphtory.algorithms.api.Row), [](com.raphtory.algorithms.api.OutputFormat)
   *  ```
   */
 abstract class Table {

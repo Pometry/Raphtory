@@ -29,7 +29,7 @@ import org.apache.pulsar.client.api.Schema
   * ```
   *
   *  ```{seealso}
-  *  [](com.raphtory.algorithm.api.OutputFormat),
+  *  [](com.raphtory.algorithms.api.OutputFormat),
   *  [](com.raphtory.client.RaphtoryClient),
   *  [](com.raphtory.client.RaphtoryGraph),
   *  [](com.raphtory.deploy.Raphtory)

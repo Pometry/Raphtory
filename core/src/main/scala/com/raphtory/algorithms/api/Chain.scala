@@ -28,8 +28,8 @@ package com.raphtory.algorithms.api
   *    : Append a new graph algorithm to the chain.
   *
   *  ```{seealso}
-  *  [](com.raphtory.algorithm.api.GraphAlgorithm), [](com.raphtory.algorithm.api.GraphPerspective),
-  *  [](com.raphtory.algorithm.api.Table)
+  *  [](com.raphtory.algorithms.api.GraphAlgorithm), [](com.raphtory.algorithms.api.GraphPerspective),
+  *  [](com.raphtory.algorithms.api.Table)
   *  ```
   */
 class Chain(algorithms: Seq[GraphAlgorithm]) extends GraphAlgorithm {

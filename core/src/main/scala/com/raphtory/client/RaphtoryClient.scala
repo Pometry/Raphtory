@@ -106,7 +106,7 @@ import org.slf4j.LoggerFactory
   * ```
   *
   *  ```{seealso}
-  *  [](com.raphtory.algorithm.api.GraphAlgorithm), [](com.raphtory.components.querytracker.QueryProgressTracker),
+  *  [](com.raphtory.algorithms.api.GraphAlgorithm), [](com.raphtory.components.querytracker.QueryProgressTracker),
   *  [](com.raphtory.output.FileOutputFormat), [](com.raphtory.output.PulsarOutputFormat),
   *  [](com.raphtory.deploy.Raphtory)
   *  ```

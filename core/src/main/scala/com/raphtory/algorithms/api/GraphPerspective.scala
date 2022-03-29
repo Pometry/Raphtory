@@ -131,7 +131,7 @@ final case class PerspectiveDone()                     extends GraphFunction
   *     : return number of nodes in the graph
   *
   * ```{seealso}
-  * [](com.raphtory.algorithm.api.GraphState), [](com.raphtory.graph.visitor.Vertex)
+  * [](com.raphtory.algorithms.api.GraphState), [](com.raphtory.graph.visitor.Vertex)
   * ```
   */
 abstract class GraphPerspective {

@@ -23,11 +23,11 @@ import org.slf4j.LoggerFactory
   *   {s}`run(graph: GraphPerspective): Unit`
   *      : Run graph algorithm and output results (called internally by the query API to execute the algorithm).
   *        Normally, this method should not be overriden. Overriding this method can mean that the algorithm will
-  *        behave differently, depending on whether it is called as part of a [](com.raphtory.algorithm.api.Chain)
+  *        behave differently, depending on whether it is called as part of a [](com.raphtory.algorithms.api.Chain)
   *        or on its own.
   *
   *   {s}`->(graphAlgorithm: GraphAlgorithm): Chain`
-  *      : Create a new algorithm [](com.raphtory.algorithm.api.Chain) which runs this algorithm first before
+  *      : Create a new algorithm [](com.raphtory.algorithms.api.Chain) which runs this algorithm first before
   *        running the other algorithm.
   *
   *        {s}`graphAlgorithm: GraphAlgorithm)`
