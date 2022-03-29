@@ -3,6 +3,7 @@ package com.raphtory.output
 import com.raphtory.algorithms.api.OutputFormat
 import com.raphtory.algorithms.api.Row
 import com.raphtory.config.PulsarController
+import com.raphtory.time.Interval
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
 
@@ -39,7 +40,7 @@ class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
 
   override def write(
       timestamp: Long,
-      window: Option[Long],
+      window: Option[Interval],
       jobID: String,
       row: Row,
       partitionID: Int
@@ -47,7 +48,7 @@ class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
 
   def writeToPulsar(
       timestamp: Long,
-      window: Option[Long],
+      window: Option[Interval],
       jobID: String,
       row: Row,
       partitionID: Int,

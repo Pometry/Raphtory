@@ -37,14 +37,15 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition
 
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
+import scala.collection.mutable
+import scala.util.Try
 
 /** @DoNotDocument */
-abstract class QueryHandler(
+class QueryHandler(
     queryManager: QueryManager,
     scheduler: Scheduler,
     jobID: String,
-    algorithm: GraphAlgorithm,
-    outputFormat: OutputFormat,
+    query: Query,
     conf: Config,
     pulsarController: PulsarController
 ) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
@@ -57,13 +58,13 @@ abstract class QueryHandler(
     pulsarController.toQueryExecutorProducers(jobID)
 
   private var perspectiveController: PerspectiveController = _
-  private var graphPerspective: GenericGraphPerspective    = _
-  private var table: GenericTable                          = _
+  private var graphFunctions: mutable.Queue[GraphFunction] = _
+  private var tableFunctions: mutable.Queue[TableFunction] = _
   private var currentOperation: GraphFunction              = _
   private var graphState: GraphStateImplementation         = _
 
   private var currentPerspective: Perspective =
-    Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW)
+    Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW, 0, 0)
 
   private var lastTime: Long            = 0L
   private var readyCount: Int           = 0
@@ -74,16 +75,16 @@ abstract class QueryHandler(
   private var allVoteToHalt: Boolean    = true
   private var timeTaken                 = System.currentTimeMillis()
 
-  protected def buildPerspectiveController(latestTimestamp: Long): PerspectiveController
-
   private var currentState: Stage = SpawnExecutors
 
-  class RecheckTimer extends Runnable {
-
-    def run(): Unit =
-      self sendAsync serialise(RecheckTime)
+  private val recheckTimer = new Runnable {
+    override def run(): Unit = self sendAsync serialise(RecheckTime)
   }
-  private val recheckTimer                              = new RecheckTimer()
+
+  private val recheckEarliestTimer = new Runnable {
+    override def run(): Unit = self sendAsync serialise(RecheckEarliestTime)
+  }
+
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
   override def run(): Unit = {
@@ -111,8 +112,7 @@ abstract class QueryHandler(
 
   override def handleMessage(msg: QueryManagement): Unit =
     try currentState match {
-      case Stages.SpawnExecutors       =>
-        currentState = spawnExecutors(msg.asInstanceOf[ExecutorEstablished])
+      case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
       case Stages.EstablishPerspective => currentState = establishPerspective(msg)
       case Stages.ExecuteGraph         => currentState = executeGraph(msg)
       case Stages.ExecuteTable         => currentState = executeTable(msg)
@@ -129,24 +129,20 @@ abstract class QueryHandler(
 
   ////OPERATION STATES
   //Communicate with all readers and get them to spawn a QueryExecutor for their partition
-  private def spawnExecutors(msg: ExecutorEstablished): Stage = {
-    val workerID = msg.worker
-    logger.trace(s"Job '$jobID': Deserialized worker '$workerID'.")
+  private def spawnExecutors(msg: QueryManagement): Stage =
+    msg match {
+      case msg: ExecutorEstablished =>
+        val workerID = msg.worker
+        logger.trace(s"Job '$jobID': Deserialized worker '$workerID'.")
 
-    if (readyCount + 1 == totalPartitions) {
-      val latestTime          = whatsTheTime()
-      perspectiveController = buildPerspectiveController(latestTime)
-      val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
-      logger.debug(s"Job '$jobID': Spawned all executors in ${schedulingTimeTaken}ms.")
-      timeTaken = System.currentTimeMillis()
-      readyCount = 0
-      executeNextPerspective()
+        if (readyCount + 1 == totalPartitions)
+          safelyStartPerspectives()
+        else {
+          readyCount += 1
+          Stages.SpawnExecutors
+        }
+      case RecheckEarliestTime      => safelyStartPerspectives()
     }
-    else {
-      readyCount += 1
-      Stages.SpawnExecutors
-    }
-  }
 
   //build the perspective within the QueryExecutor for each partition -- the view to be analysed
   private def establishPerspective(msg: QueryManagement): Stage =
@@ -195,16 +191,14 @@ abstract class QueryHandler(
   private def executeGraph(msg: QueryManagement): Stage =
     msg match {
       case StartGraph                                                                      =>
-        graphPerspective = new GenericGraphPerspective(vertexCount)
+        graphFunctions = mutable.Queue.from(query.graphFunctions)
+        tableFunctions = mutable.Queue.from(query.tableFunctions)
         graphState = GraphStateImplementation()
         val startingGraphTime = System.currentTimeMillis() - timeTaken
         logger.debug(
-                s"Job '$jobID': Sending self GraphStart took ${startingGraphTime}ms. Running '${algorithm.getClass.getSimpleName}'."
+                s"Job '$jobID': Sending self GraphStart took ${startingGraphTime}ms. Executing next graph operation."
         )
-        algorithm.run(graphPerspective)
         timeTaken = System.currentTimeMillis()
-        table = graphPerspective.getTable()
-        table.writeTo(outputFormat) //sets output formatter
 
         nextGraphOperation(vertexCount)
 
@@ -326,18 +320,32 @@ abstract class QueryHandler(
   ////END OPERATION STATES
 
   ///HELPER FUNCTIONS
+  private def safelyStartPerspectives(): Stage =
+    getOptionalEarliestTime() match {
+      case None               =>
+        scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckEarliestTimer)
+        Stages.SpawnExecutors
+      case Some(earliestTime) =>
+        perspectiveController = PerspectiveController(earliestTime, getLatestTime(), query)
+        val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
+        logger.debug(s"Job '$jobID': Spawned all executors in ${schedulingTimeTaken}ms.")
+        timeTaken = System.currentTimeMillis()
+        readyCount = 0
+        executeNextPerspective()
+    }
+
   private def executeNextPerspective(): Stage = {
-    val latestTime = whatsTheTime()
+    val latestTime = getLatestTime()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
       tracker.sendAsync(serialise(currentPerspective))
     perspectiveController.nextPerspective() match {
-      case Some(perspective) if perspective.timestamp <= latestTime =>
+      case Some(perspective) if perspective.actualEnd <= latestTime =>
         logTotalTimeTaken(perspective)
-        messagetoAllJobWorkers(CreatePerspective(perspective.timestamp, perspective.window))
+        messagetoAllJobWorkers(CreatePerspective(perspective))
         currentPerspective = perspective
         graphState = GraphStateImplementation()
-        graphPerspective = null
-        table = null
+        graphFunctions = null
+        tableFunctions = null
         val localPerspectiveSetupTime = System.currentTimeMillis() - timeTaken
         logger.debug(
                 s"Job '$jobID': Perspective '$perspective' is starting. Took ${localPerspectiveSetupTime}ms"
@@ -350,8 +358,8 @@ abstract class QueryHandler(
         )
         logTotalTimeTaken(perspective)
         currentPerspective = perspective
-        graphPerspective = null
-        table = null
+        graphFunctions = null
+        tableFunctions = null
         scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckTimer)
 
         Stages.EstablishPerspective
@@ -380,12 +388,12 @@ abstract class QueryHandler(
   }
 
   private def recheckTime(perspective: Perspective): Stage = {
-    val time = whatsTheTime()
+    val time = getLatestTime()
     timeTaken = System.currentTimeMillis()
-    if (perspective.timestamp <= time) {
+    if (perspective.actualEnd <= time) {
       logger.debug(s"Job '$jobID': Created perspective at time $time.")
 
-      messagetoAllJobWorkers(CreatePerspective(perspective.timestamp, perspective.window))
+      messagetoAllJobWorkers(CreatePerspective(perspective))
       Stages.EstablishPerspective
     }
     else {
@@ -409,7 +417,7 @@ abstract class QueryHandler(
           if iterations > 1 && !allVoteToHalt =>
         currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly)
       case _                                                                               =>
-        currentOperation = graphPerspective.getNextOperation()
+        currentOperation = getNextGraphOperation(graphFunctions).get
     }
     allVoteToHalt = true
 
@@ -478,7 +486,7 @@ abstract class QueryHandler(
   }
 
   private def nextTableOperation(): Stage =
-    table.getNextOperation() match {
+    getNextTableOperation(tableFunctions) match {
 
       case Some(f: TableFunction) =>
         messagetoAllJobWorkers(f)
@@ -513,8 +521,15 @@ abstract class QueryHandler(
 
   }
 
-  def whatsTheTime(): Long = queryManager.whatsTheTime()
+  private def getNextGraphOperation(queue: mutable.Queue[GraphFunction]) =
+    Try(queue.dequeue).toOption
 
+  private def getNextTableOperation(queue: mutable.Queue[TableFunction]) =
+    Try(queue.dequeue).toOption
+
+  private def getLatestTime(): Long = queryManager.latestTime()
+
+  private def getOptionalEarliestTime(): Option[Long] = queryManager.earliestTime()
 }
 
 object Stages extends Enumeration {

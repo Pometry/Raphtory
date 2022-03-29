@@ -62,7 +62,8 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
       }
       .step { vertex =>
         val messages = vertex.messageQueue[(Long, Int, Double, Double)]
-        val N        = graph.nodeCount().toDouble
+        val N        =
+          1 // graph.nodeCount().toDouble TODO: nodeCount() is not available anymore, needs a solution
         vertex.setState("D1", D1(vertex, messages, N, alpha))
         vertex.setState("D2", D2(vertex, messages, N, alpha))
         vertex.setState("D3", D3(vertex, messages, N, alpha))
