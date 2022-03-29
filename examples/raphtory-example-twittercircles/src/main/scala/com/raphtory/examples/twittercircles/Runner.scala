@@ -1,9 +1,8 @@
 package com.raphtory.examples.twittercircles
 
 import com.raphtory.algorithms.generic.{ConnectedComponents, EdgeList}
-import com.raphtory.core.deploy.Raphtory
+import com.raphtory.deploy.Raphtory
 import com.raphtory.output.{FileOutputFormat, PulsarOutputFormat}
-import com.raphtory.core.components.spout.instance.StaticGraphSpout
 import org.apache.pulsar.client.admin.PulsarAdmin
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 
@@ -11,6 +10,7 @@ import java.io.File
 import scala.language.postfixOps
 import sys.process._
 import com.raphtory.examples.twittercircles.graphbuilders.TwitterCirclesGraphBuilder
+import com.raphtory.spouts.StaticGraphSpout
 
 
 object Runner extends App{
@@ -34,7 +34,7 @@ object Runner extends App{
   }
   val source  = StaticGraphSpout("/tmp/snap-twitter.csv")
   val builder = new TwitterCirclesGraphBuilder()
-  val graph = Raphtory.createGraph(spout = source, graphBuilder = builder)
+  val graph = Raphtory.batchLoadGraph(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
   graph.pointQuery(EdgeList(), PulsarOutputFormat("TwitterEdgeList"), 88234)
   graph.rangeQuery(ConnectedComponents(), PulsarOutputFormat("ConnectedComponents"), 10000, 88234, 10000, List(500, 1000, 10000))

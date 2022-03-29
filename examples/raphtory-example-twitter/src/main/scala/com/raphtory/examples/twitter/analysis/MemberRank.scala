@@ -1,19 +1,22 @@
 package com.raphtory.examples.twitter.analysis
 
-import com.raphtory.core.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
-import com.raphtory.core.graph.visitor.Edge
+import com.raphtory.algorithms.api.GraphAlgorithm
+import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.algorithms.api.Row
+import com.raphtory.algorithms.api.Table
+import com.raphtory.graph.visitor.Edge
 
 /**
-Description
-  This algorithm takes the Page Rank Score from the vertices neighbour's and multiplies
-  this by the vertices ranking from the original raw dataset (the vertex in degree). If the vertex gets a high MemberRank score,
-  this means that other people that have high Page Rank values have rated them highly. This should dampen
-  the effects of bots further.
- **/
+  * Description
+  * This algorithm takes the Page Rank Score from the vertices neighbour's and multiplies
+  * this by the vertices ranking from the original raw dataset (the vertex in degree). If the vertex gets a high MemberRank score,
+  * this means that other people that have high Page Rank values have rated them highly. This should dampen
+  * the effects of bots further.
+  */
 
 class MemberRank() extends GraphAlgorithm {
-  case class Score(negativeScore: Double = 0.0,
-                   positiveScore: Double = 0.0) {
+
+  case class Score(negativeScore: Double = 0.0, positiveScore: Double = 0.0) {
 
     def +(that: Score): Score = {
       val negative = this.negativeScore + that.negativeScore
@@ -23,29 +26,28 @@ class MemberRank() extends GraphAlgorithm {
     }
   }
 
-  override def apply(graph: GraphPerspective): GraphPerspective = {
-    graph.step({
-      vertex =>
+  override def apply(graph: GraphPerspective): GraphPerspective =
+    graph
+      .step { vertex =>
         //For this vertex get our Page Rank value
         val prValue = vertex.getState[Double]("prlabel")
         //Message all of our outgoing neighbours with our ID + Page Rank value
         vertex.messageOutNeighbours((vertex.ID(), prValue))
-    }).step({
-      vertex =>
+      }
+      .step { vertex =>
         //Get the Vertex ID and Page Rank (Long,Double) messages from our neighbours
-        val queue: Seq[(Long, Double)] = vertex.messageQueue[(Long,Double)]
+        val queue: Seq[(Long, Double)] = vertex.messageQueue[(Long, Double)]
 
         //Get the vertex in degree
         val inDegree = vertex.getInNeighbours().size.toDouble
 
         //makes list of all the raw scores from data
-        val rawScoreList: List[Score] = vertex.getInEdges().map{
+        val rawScoreList: List[Score] = vertex.getInEdges().map {
           case edge: Edge =>
-            if(inDegree < 0) Score(negativeScore = inDegree)
+            if (inDegree < 0) Score(negativeScore = inDegree)
             else Score(positiveScore = inDegree)
-          case _ => Score()
+          case _          => Score()
         }
-
 
         //Take output of val rawScoreList, sum all the positive scores and position on left of tuple, sum all negative scores and position on right of tuple. Does this for each vertex.
         val totalRaw: Option[Score] = rawScoreList
@@ -55,15 +57,15 @@ class MemberRank() extends GraphAlgorithm {
         val negativeRawScore = totalRaw.fold(0.0)(_.negativeScore)
         val positiveRawScore = totalRaw.fold(0.0)(_.positiveScore)
 
-        val newScore: Seq[Score] = queue.map{
+        val newScore: Seq[Score] = queue.map {
           case (neighbourID, prScore) =>
             vertex.getInEdge(neighbourID) match {
               case Some(edge) =>
                 //Multiplies page rank score of neighbour (how popular it is) to its own score
-                if(inDegree < 0) Score(negativeScore = inDegree * prScore)
+                if (inDegree < 0) Score(negativeScore = inDegree * prScore)
                 else Score(positiveScore = inDegree * prScore)
 
-              case None => Score()
+              case None       => Score()
             }
         }
 
@@ -80,36 +82,32 @@ class MemberRank() extends GraphAlgorithm {
         vertex.setState("negativeNewScore", negativeNewScore)
         vertex.setState("positiveRawScore", positiveRawScore)
         vertex.setState("positiveNewScore", positiveNewScore)
-    })
-  }
+      }
 
   /**
-   * Reports the following:
-   *   1) Vertex ID
-   *   2) Page Rank Score
-   *   3) Original Negative Score
-   *   4) Original Positive Score
-   *   5) New Negative Score
-   *   6) New Positive Score
-   */
-  override def tabularise(graph: GraphPerspective): Table = {
-    graph.select({
-      vertex =>
-        Row(
-          vertex.getPropertyOrElse("name", vertex.ID()),
-          //a vertices page rank score
-          vertex.getStateOrElse("prlabel", -1),
-          //gets vertex states and tabularises
-          vertex.getStateOrElse("negativeRawScore", 0.0),
-          vertex.getStateOrElse("positiveRawScore", 0.0),
-          vertex.getStateOrElse("negativeNewScore", 0.0),
-          vertex.getStateOrElse("positiveNewScore", 0.0)
-        )
-    })
-  }
+    * Reports the following:
+    *   1) Vertex ID
+    *   2) Page Rank Score
+    *   3) Original Negative Score
+    *   4) Original Positive Score
+    *   5) New Negative Score
+    *   6) New Positive Score
+    */
+  override def tabularise(graph: GraphPerspective): Table =
+    graph.select { vertex =>
+      Row(
+              vertex.getPropertyOrElse("name", vertex.ID()),
+              //a vertices page rank score
+              vertex.getStateOrElse("prlabel", -1),
+              //gets vertex states and tabularises
+              vertex.getStateOrElse("negativeRawScore", 0.0),
+              vertex.getStateOrElse("positiveRawScore", 0.0),
+              vertex.getStateOrElse("negativeNewScore", 0.0),
+              vertex.getStateOrElse("positiveNewScore", 0.0)
+      )
+    }
 }
 
-object MemberRank{
+object MemberRank {
   def apply() = new MemberRank()
 }
-

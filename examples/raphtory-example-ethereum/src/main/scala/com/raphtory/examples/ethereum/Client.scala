@@ -1,7 +1,7 @@
-package com.raphtory.ethereum
+package com.raphtory.examples.ethereum
 
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.core.deploy.Raphtory
+import com.raphtory.deploy.Raphtory
 import com.raphtory.output.FileOutputFormat
 
 object Client extends App {

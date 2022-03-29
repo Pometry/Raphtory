@@ -1,11 +1,11 @@
 package com.raphtory.examples.facebook
 
 import com.raphtory.algorithms.generic.{ConnectedComponents, EdgeList}
-import com.raphtory.core.deploy.Raphtory
+import com.raphtory.config.PulsarController
+import com.raphtory.deploy.Raphtory
 import com.raphtory.output.{FileOutputFormat, PulsarOutputFormat}
-import com.raphtory.core.config.PulsarController
-import com.raphtory.core.components.spout.instance.StaticGraphSpout
 import com.raphtory.examples.facebook.graphbuilders.FacebookGraphBuilder
+import com.raphtory.spouts.StaticGraphSpout
 import com.typesafe.config
 import org.apache.pulsar.client.admin.PulsarAdmin
 import org.apache.pulsar.common.policies.data.RetentionPolicies
@@ -40,7 +40,7 @@ object Runner extends App{
 
   val source: StaticGraphSpout  = StaticGraphSpout("/tmp/facebook.csv")
   val builder = new FacebookGraphBuilder()
-  val graph = Raphtory.createGraph(spout = source, graphBuilder = builder)
+  val graph = Raphtory.batchLoadGraph(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
   graph.pointQuery(EdgeList(), PulsarOutputFormat("EdgeList"), timestamp=88234)
   graph.rangeQuery(ConnectedComponents(), PulsarOutputFormat("ConnectedComponents"), 10000, 88234, 10000, List(500, 1000, 10000))

@@ -1,4 +1,4 @@
-package com.raphtory.ethereum
+package com.raphtory.examples.ethereum
 
 sealed trait RaphtorySchema {
   def caseString(str: String): RaphtorySchema
