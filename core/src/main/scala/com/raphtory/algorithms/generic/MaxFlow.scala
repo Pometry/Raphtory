@@ -70,7 +70,8 @@ class MaxFlow[T](
         extends GraphAlgorithm {
 
   override def apply(graph: GraphPerspective): GraphPerspective = {
-    val n = graph.nodeCount()
+    val n =
+      1 // graph.nodeCount().toDouble TODO: nodeCount() is not available anymore, needs a solution
     graph
       .step { vertex =>
         if (vertex.name() == source) {

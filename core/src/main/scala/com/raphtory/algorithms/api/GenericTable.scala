@@ -1,28 +1,30 @@
 package com.raphtory.algorithms.api
 
-import scala.collection.mutable
+import com.raphtory.client.QuerySender
+import com.raphtory.components.querymanager.Query
+import com.raphtory.components.querytracker.QueryProgressTracker
 
 /** @DoNotDocument */
-class GenericTable extends Table {
-  val tableOpps = mutable.Queue[TableFunction]()
-
-  def bulkAdd(tableFuncs: List[TableFunction]) = tableFuncs.foreach(f => tableOpps.enqueue(f))
+class GenericTable(val query: Query, private val querySender: QuerySender) extends Table {
 
   override def filter(f: Row => Boolean): Table = {
     def closurefunc(v: Row): Boolean = f(v)
-    tableOpps.enqueue(TableFilter(closurefunc))
-    this
+    addFunction(TableFilter(closurefunc))
   }
-
-  override def writeTo(outputFormat: OutputFormat): Unit =
-    tableOpps.enqueue(WriteTo(outputFormat))
 
   override def explode(f: Row => List[Row]): Table = {
     def closurefunc(v: Row): List[Row] = f(v)
-    tableOpps.enqueue(Explode(closurefunc))
-    this
+    addFunction(Explode(closurefunc))
   }
 
-  def getNextOperation(): Option[TableFunction] =
-    if (tableOpps.nonEmpty) Some(tableOpps.dequeue()) else None
+  override def writeTo(outputFormat: OutputFormat, jobName: String = ""): QueryProgressTracker = {
+    val query = addFunction(WriteTo(outputFormat)).query
+    querySender.submit(query, jobName)
+  }
+
+  private def addFunction(function: TableFunction) =
+    new GenericTable(
+            query.copy(tableFunctions = query.tableFunctions.enqueue(function)),
+            querySender
+    )
 }

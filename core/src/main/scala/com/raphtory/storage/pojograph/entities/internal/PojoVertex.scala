@@ -22,20 +22,20 @@ class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   def addIncomingEdge(edge: PojoEdge): Unit = incomingEdges.put(edge.getSrcId, edge)
   def addOutgoingEdge(edge: PojoEdge): Unit = outgoingEdges.put(edge.getDstId, edge)
 
-  def addAssociatedEdge(edge: PojoEdge): Unit     =
+  def addAssociatedEdge(edge: PojoEdge): Unit =
     if (edge.getSrcId == vertexId) addOutgoingEdge(edge) else addIncomingEdge(edge)
   def getOutgoingEdge(id: Long): Option[PojoEdge] = outgoingEdges.get(id)
   def getIncomingEdge(id: Long): Option[PojoEdge] = incomingEdges.get(id)
 
-  def viewAtWithWindow(time: Long, windowSize: Long, lens: PojoGraphLens): Vertex =
+  def viewBetween(startTime: Long, endTime: Long, lens: PojoGraphLens): Vertex =
     new PojoExVertex(
             this,
             incomingEdges.collect {
-              case (k, edge) if edge.aliveAtWithWindow(time, windowSize) =>
+              case (k, edge) if edge.aliveBetween(startTime, endTime) =>
                 k -> new PojoExEdge(edge, k, lens)
             },
             outgoingEdges.collect {
-              case (k, edge) if edge.aliveAtWithWindow(time, windowSize) =>
+              case (k, edge) if edge.aliveBetween(startTime, endTime) =>
                 k -> new PojoExEdge(edge, k, lens)
             },
             lens

@@ -1,23 +1,17 @@
 package com.raphtory.client
 
+import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.OutputFormat
+import com.raphtory.algorithms.api.TemporalGraph
 import com.raphtory.components.Component
-import com.raphtory.components.querymanager.LiveQuery
-import com.raphtory.components.querymanager.PointQuery
-import com.raphtory.components.querymanager.RangeQuery
+import com.raphtory.components.querymanager.Query
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.config.ComponentFactory
 import com.raphtory.config.PulsarController
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import monix.execution.Scheduler
-import org.apache.pulsar.client.admin.PulsarAdmin
-import org.apache.pulsar.client.api.Message
-import org.apache.pulsar.client.api.Producer
-import org.apache.pulsar.client.api.Schema
-import org.apache.pulsar.common.policies.data.RetentionPolicies
 import org.slf4j.LoggerFactory
 
 /**
@@ -88,7 +82,7 @@ import org.slf4j.LoggerFactory
   * ```{code-block} scala
   * import com.raphtory.algorithms.generic.EdgeList
   * import com.raphtory.output.FileOutputFormat
-  * import com.raphtory.algorithms.api.OutputFormat
+  * import com.raphtory.algorithm.api.OutputFormat
   * import com.raphtory.components.graphbuilder.GraphBuilder
   * import com.raphtory.components.spout.Spout
   *
@@ -112,18 +106,11 @@ import org.slf4j.LoggerFactory
   *  ```
   */
 private[raphtory] class RaphtoryClient(
-    private val deploymentID: String,
-    private val conf: Config,
-    private val componentFactory: ComponentFactory,
-    private val scheduler: Scheduler,
-    private val pulsarController: PulsarController
+    private val querySender: QuerySender,
+    private val conf: Config
 ) {
 
-  private var internalID = deploymentID
-
-  private val kryo                                 = PulsarKryoSerialiser()
-  implicit private val schema: Schema[Array[Byte]] = Schema.BYTES
-  val logger: Logger                               = Logger(LoggerFactory.getLogger(this.getClass))
+  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   // Raphtory Client extends scheduler, queries return QueryProgressTracker, not threaded worker
   def pointQuery(
@@ -132,11 +119,12 @@ private[raphtory] class RaphtoryClient(
       timestamp: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobID = getID(graphAlgorithm)
-    pulsarController.toQueryManagerProducer sendAsync kryo.serialise(
-            PointQuery(jobID, graphAlgorithm, timestamp, windows, outputFormat)
-    )
-    componentFactory.queryProgressTracker(jobID, scheduler)
+    val jobName = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
+    new TemporalGraph(Query(), querySender, conf)
+      .at(timestamp)
+      .window(windows, Alignment.END)
+      .execute(graphAlgorithm)
+      .writeTo(outputFormat, jobName)
   }
 
   def rangeQuery(
@@ -147,11 +135,12 @@ private[raphtory] class RaphtoryClient(
       increment: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobID = getID(graphAlgorithm)
-    pulsarController.toQueryManagerProducer sendAsync kryo.serialise(
-            RangeQuery(jobID, graphAlgorithm, start, end, increment, windows, outputFormat)
-    )
-    componentFactory.queryProgressTracker(jobID, scheduler)
+    val jobName = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
+    new TemporalGraph(Query(), querySender, conf)
+      .range(start, end, increment)
+      .window(windows, Alignment.END)
+      .execute(graphAlgorithm)
+      .writeTo(outputFormat, jobName)
   }
 
   def liveQuery(
@@ -160,22 +149,15 @@ private[raphtory] class RaphtoryClient(
       increment: Long,
       windows: List[Long] = List()
   ): QueryProgressTracker = {
-    val jobID = getID(graphAlgorithm)
-    pulsarController.toQueryManagerProducer sendAsync kryo.serialise(
-            LiveQuery(jobID, graphAlgorithm, increment, windows, outputFormat)
-    )
-    componentFactory.queryProgressTracker(jobID, scheduler)
+    val jobName = graphAlgorithm.getClass.getCanonicalName.split("\\.").last
+    new TemporalGraph(Query(), querySender, conf)
+      .walk(increment)
+      .window(windows, Alignment.END)
+      .execute(graphAlgorithm)
+      .writeTo(outputFormat, jobName)
   }
 
   def getConfig(): Config = conf
 
-  private def getID(algorithm: GraphAlgorithm): String =
-    try {
-      val path = algorithm.getClass.getCanonicalName.split("\\.")
-      path(path.size - 1) + "_" + System.currentTimeMillis()
-    }
-    catch {
-      case e: NullPointerException => "Anon_Func_" + System.currentTimeMillis()
-    }
-
+  def getQuerySender(): QuerySender = querySender
 }

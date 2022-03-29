@@ -4,12 +4,10 @@ import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.config.ComponentFactory
 import com.raphtory.config.Partitions
-import com.raphtory.config.PulsarController
 import com.raphtory.config.ThreadedWorker
 import com.raphtory.config.ZookeeperIDManager
 import com.typesafe.config.Config
 import monix.execution.Scheduler
-import org.apache.pulsar.client.api.Schema
 import io.prometheus.client.exporter.HTTPServer
 
 import java.io.IOException
@@ -18,14 +16,14 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
 /**
-  * {s}`RaphtoryGraph`
-  *    : Raphtory Graph extends Raphtory Client to initialise Query Manager, Partitions, Spout Worker
+  * {s}`GraphDeployment`
+  *    : Graph Deployment extends Raphtory Client to initialise Query Manager, Partitions, Spout Worker
   *    and GraphBuilder Worker for a deployment ID
   *
-  *  {s}`RaphtoryGraph` should not be created directly. To create a {s}`RaphtoryGraph` use
+  *  {s}`GraphDeployment` should not be created directly. To create a {s}`GraphDeployment` use
   *  {s}`Raphtory.createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`.
   *
-  *  The query methods for `RaphtoryGraph` are similar to `RaphtoryClient`
+  *  The query methods for `GraphDeployment` are similar to `RaphtoryClient`
   *
   *  ## Methods
   *
@@ -36,21 +34,17 @@ import scala.reflect.runtime.universe._
   *  [](com.raphtory.client.RaphtoryClient), [](com.raphtory.deployment.Raphtory)
   *  ```
   */
-
-private[raphtory] class RaphtoryGraph[T: ClassTag: TypeTag](
+private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
     batchLoading: Boolean,
     spout: Spout[T],
     graphBuilder: GraphBuilder[T],
+    private val querySender: QuerySender,
     private val conf: Config,
     private val componentFactory: ComponentFactory,
-    private val scheduler: Scheduler,
-    private val pulsarController: PulsarController
+    private val scheduler: Scheduler
 ) extends RaphtoryClient(
-                conf.getString("raphtory.deploy.id"),
-                conf,
-                componentFactory,
-                scheduler,
-                pulsarController
+                querySender,
+                conf
         ) {
 
   allowIllegalReflection()
@@ -109,7 +103,10 @@ private[raphtory] class RaphtoryGraph[T: ClassTag: TypeTag](
       case None         =>
     }
 
-    prometheusServer.get.stop()
+    prometheusServer match {
+      case Some(w) => w.stop()
+      case None    =>
+    }
   }
 
   private def allowIllegalReflection() = {
