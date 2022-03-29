@@ -12,22 +12,23 @@ class PerspectiveControllerTest extends AnyFunSuite {
     val increment  = parseInterval("2 months")
     val start      = parseDateTime("2021-01-01 00:00:00")
     val middle     = parseDateTime("2021-03-01 00:00:00")
-    val end        = parseDateTime("2021-07-01 00:00:00")
+    val end        = parseDateTime("2021-05-01 00:00:00")
     val query      = Query(
             timelineStart = start,
-            timelineEnd = end,
+            timelineEnd = end - 1,
             points = PointPath(increment),
-            windowAlignment = Alignment.END
+            windows = List(increment),
+            windowAlignment = Alignment.START
     )
     val controller = PerspectiveController(0, Long.MaxValue, query)
 
     val firstPerspective = controller.nextPerspective().get
     assert(firstPerspective.actualStart === start)
-    assert(firstPerspective.actualEnd === middle)
+    assert(firstPerspective.actualEnd === middle - 1)
 
     val secondPerspective = controller.nextPerspective().get
     assert(secondPerspective.actualStart === middle)
-    assert(secondPerspective.actualEnd === end)
+    assert(secondPerspective.actualEnd === end - 1)
 
     assert(controller.nextPerspective() === None)
   }

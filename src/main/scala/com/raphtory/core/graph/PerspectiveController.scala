@@ -82,8 +82,12 @@ object PerspectiveController {
 
     val perspectiveStreams = rawPerspectiveStreams map (stream =>
       stream
-        .filter(perspectivePartiallyInside(_, timelineStart, timelineEnd))
+        .dropWhile(!perspectivePartiallyInside(_, timelineStart, timelineEnd))
+        .takeWhile(perspectivePartiallyInside(_, timelineStart, timelineEnd))
         .map(boundPerspective(_, timelineStart, timelineEnd))
+      // Note that the code above is equivalent to stream.filter(perspectivePartiallyInside...).map(...).
+      // The reason to follow this approach is that otherwise a nonEmpty operation over the stream
+      // needs to walk through the whole stream
     )
 
     new PerspectiveController(perspectiveStreams)
@@ -145,8 +149,8 @@ object PerspectiveController {
                 timestamp,
                 Some(window),
                 timestamp,
-                timestamp + window - 1
-        ) // The end is exclusive
+                timestamp + window - 1 // The end is exclusive
+        )
       case Alignment.MIDDLE =>
         Perspective(
                 timestamp,
@@ -158,9 +162,9 @@ object PerspectiveController {
         Perspective(
                 timestamp,
                 Some(window),
-                timestamp - window + 1,
+                timestamp - window + 1, // The start is exclusive
                 timestamp
-        ) // The start is exclusive
+        )
     }
 
   private def perspectivePartiallyInside(perspective: Perspective, start: Long, end: Long) =
