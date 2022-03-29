@@ -76,17 +76,8 @@ from the Alan Turing Institute first! Once you are ready, hit next and lets get 
 
 .. toctree::
    :hidden:
-   :caption: Algorithms
-
-   _autodoc/algorithms/index.rst
-
-.. toctree::
-   :hidden:
    :caption: API
 
-   _autodoc/core/index.rst
-   _autodoc/output/index.rst
-   _autodoc/serialisers/index.rst
-   _autodoc/util/index.rst
+   _autodoc/com/raphtory/index.rst
 
 
