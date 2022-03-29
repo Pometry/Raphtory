@@ -11,6 +11,8 @@ import com.raphtory.core.time.DiscreteInterval
 import com.raphtory.core.time.Interval
 import com.raphtory.core.time.NullInterval
 import com.raphtory.core.time.TimeConverters._
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -49,6 +51,8 @@ object PerspectiveController {
   val DEFAULT_PERSPECTIVE_TIME: Long             = -1L
   val DEFAULT_PERSPECTIVE_WINDOW: Some[Interval] = Some(DiscreteInterval(-1L))
 
+  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
   def apply(
       firstAvailableTimestamp: Long,
       lastAvailableTimestamp: Long,
@@ -56,6 +60,9 @@ object PerspectiveController {
   ): PerspectiveController = {
     val timelineStart                                      = firstAvailableTimestamp max query.timelineStart
     val timelineEnd                                        = query.timelineEnd
+    logger.debug(
+            s"Defining perspective list from '$timelineStart' with first available timestamp '$firstAvailableTimestamp' and start defined by the user at '${query.timelineStart}'"
+    )
     val rawPerspectiveStreams: List[LazyList[Perspective]] = query.points match {
       // If there are no points marked by the user, we create
       // a windowless perspective that ends at the lastAvailableTimestamp
@@ -134,16 +141,26 @@ object PerspectiveController {
   ) =
     alignment match {
       case Alignment.START  =>
-        Perspective(timestamp, Some(window), timestamp, timestamp + window)
+        Perspective(
+                timestamp,
+                Some(window),
+                timestamp,
+                timestamp + window - 1
+        ) // The end is exclusive
       case Alignment.MIDDLE =>
         Perspective(
                 timestamp,
                 Some(window),
                 timestamp - window / 2,
-                timestamp - window / 2 + window
+                timestamp - window / 2 + window - 1 // The end is exclusive
         )
       case Alignment.END    =>
-        Perspective(timestamp, Some(window), timestamp - window, timestamp)
+        Perspective(
+                timestamp,
+                Some(window),
+                timestamp - window + 1,
+                timestamp
+        ) // The start is exclusive
     }
 
   private def perspectivePartiallyInside(perspective: Perspective, start: Long, end: Long) =

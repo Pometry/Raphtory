@@ -71,7 +71,9 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
 
   def aliveAt(time: Long): Boolean = entity.aliveAt(time)
 
-  def aliveAt(time: Long, window: Long): Boolean = entity.aliveBetween(time - window, time)
+  // This function considers that the start of the window is exclusive, but PojoEntity.aliveBetween
+  // considers both bounds as inclusive, we correct the start of the window by 1
+  def aliveAt(time: Long, window: Long): Boolean = entity.aliveBetween(time - window + 1, time)
 
   def active(after: Long = 0, before: Long = Long.MaxValue): Boolean =
     entity.history.exists(k => k._1 > after && k._1 <= before)
