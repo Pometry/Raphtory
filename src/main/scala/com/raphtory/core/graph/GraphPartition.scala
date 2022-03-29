@@ -80,8 +80,8 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   // Analysis Functions
   def getVertices(
       graphPerspective: GraphLens,
-      time: Long,
-      window: Option[Interval]
+      start: Long,
+      end: Long
   ): mutable.Map[Long, Vertex]
 
   // Partition Neighbours

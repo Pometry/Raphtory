@@ -469,14 +469,13 @@ class PojoBasedPartition(partition: Int, conf: Config)
   // Analysis Functions
   override def getVertices(
       lens: GraphLens,
-      time: Long,
-      window: Option[Interval]
+      start: Long,
+      end: Long
   ): mutable.Map[Long, Vertex] = {
-    val lenz            = lens.asInstanceOf[PojoGraphLens]
-    val startTime: Long = window.fold(0L)(window => time - window)
-    val x               = vertices.collect {
-      case (id, vertex) if vertex.aliveBetween(startTime, time) =>
-        (id, vertex.viewBetween(startTime, time, lenz))
+    val lenz = lens.asInstanceOf[PojoGraphLens]
+    val x    = vertices.collect {
+      case (id, vertex) if vertex.aliveBetween(start, end) =>
+        (id, vertex.viewBetween(start, end, lenz))
     }
     x
   }

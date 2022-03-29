@@ -21,6 +21,7 @@ import com.raphtory.core.graph.GraphPartition
 import com.raphtory.core.graph.LensInterface
 import com.raphtory.core.storage.pojograph.PojoGraphLens
 import com.raphtory.core.storage.pojograph.messaging.VertexMessageHandler
+import com.raphtory.core.time.Interval
 import com.raphtory.output.PulsarOutputFormat
 import com.typesafe.config.Config
 import org.apache.pulsar.client.admin.PulsarAdminException
@@ -37,6 +38,8 @@ class QueryExecutor(
     pulsarController: PulsarController
 ) extends Component[QueryManagement](conf: Config, pulsarController) {
 
+  var currentTimestamp: Long              = _
+  var currentWindow: Option[Interval]     = _
   var graphLens: LensInterface            = _
   var sentMessageCount: AtomicInteger     = new AtomicInteger(0)
   var receivedMessageCount: AtomicInteger = new AtomicInteger(0)
@@ -86,12 +89,12 @@ class QueryExecutor(
         graphLens.receiveMessage(msg)
         receivedMessageCount.addAndGet(1)
 
-      case CreatePerspective(timestamp, window)                             =>
+      case CreatePerspective(timestamp, window, actualStart, actualEnd)     =>
         val time = System.currentTimeMillis()
         val lens = PojoGraphLens(
                 jobID,
-                timestamp,
-                window,
+                actualStart,
+                actualEnd,
                 superStep = 0,
                 storage,
                 conf,
@@ -99,6 +102,8 @@ class QueryExecutor(
                 sentMessageCount,
                 receivedMessageCount
         )
+        currentTimestamp = timestamp
+        currentWindow = window
         graphLens = lens
         sentMessageCount.set(0)
         receivedMessageCount.set(0)
@@ -302,8 +307,8 @@ class QueryExecutor(
             outputFormat match {
               case format: PulsarOutputFormat =>
                 format.writeToPulsar(
-                        graphLens.getTimestamp(),
-                        graphLens.getWindow(),
+                        currentTimestamp,
+                        currentWindow,
                         jobID,
                         row,
                         partitionID,
@@ -311,7 +316,7 @@ class QueryExecutor(
                 )
               case format                     =>
                 format
-                  .write(graphLens.getTimestamp(), graphLens.getWindow(), jobID, row, partitionID)
+                  .write(currentTimestamp, currentWindow, jobID, row, partitionID)
 
             }
           )

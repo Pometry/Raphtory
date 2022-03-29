@@ -50,6 +50,6 @@ trait LensInterface {
 
   def clearMessages(): Unit
 
-  def getWindow(): Option[Interval]
-  def getTimestamp(): Long
+  def getStart(): Long
+  def getEnd(): Long
 }

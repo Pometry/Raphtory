@@ -19,15 +19,15 @@ import scala.collection.mutable
 /** @DoNotDocument */
 final case class PojoGraphLens(
     jobId: String,
-    timestamp: Long,
-    window: Option[Interval],
+    start: Long,
+    end: Long,
     var superStep: Int,
     private val storage: GraphPartition,
     private val conf: Config,
     private val neighbours: Map[Int, Producer[Array[Byte]]],
     private val sentMessages: AtomicInteger,
     private val receivedMessages: AtomicInteger
-) extends GraphLens(jobId, timestamp, window)
+) extends GraphLens(jobId, start, end)
         with LensInterface {
   private val voteCount     = new AtomicInteger(0)
   private val vertexCount   = new AtomicInteger(0)
@@ -50,7 +50,7 @@ final case class PojoGraphLens(
   }
 
   private lazy val vertexMap: mutable.Map[Long, Vertex] =
-    storage.getVertices(this, timestamp, window)
+    storage.getVertices(this, start, end)
 
   private lazy val vertices: Array[(Long, Vertex)] = vertexMap.toArray
 
@@ -148,9 +148,9 @@ final case class PojoGraphLens(
         )
     }
 
-  override def getWindow(): Option[Interval] = window
+  override def getStart(): Long = start
 
-  override def getTimestamp(): Long = timestamp
+  override def getEnd(): Long = end
 
   def clearMessages(): Unit =
     vertexMap.foreach {

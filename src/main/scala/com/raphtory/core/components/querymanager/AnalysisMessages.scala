@@ -4,6 +4,7 @@ import com.raphtory.core.algorithm.Alignment
 import com.raphtory.core.algorithm.GraphFunction
 import com.raphtory.core.algorithm.GraphStateImplementation
 import com.raphtory.core.algorithm.TableFunction
+import com.raphtory.core.graph.Perspective
 import com.raphtory.core.time.Interval
 import com.raphtory.core.time.NullInterval
 
@@ -19,11 +20,28 @@ case object StartAnalysis                   extends QueryManagement
 case class EstablishExecutor(jobID: String) extends QueryManagement
 case class ExecutorEstablished(worker: Int) extends QueryManagement
 
-case class CreatePerspective(timestamp: Long, window: Option[Interval]) extends QueryManagement
-case class PerspectiveEstablished(vertices: Int)                        extends QueryManagement
-case class SetMetaData(vertices: Int)                                   extends QueryManagement
-case object MetaDataSet                                                 extends QueryManagement
-case object JobDone                                                     extends QueryManagement
+case class PerspectiveEstablished(vertices: Int) extends QueryManagement
+case class SetMetaData(vertices: Int)            extends QueryManagement
+case object MetaDataSet                          extends QueryManagement
+case object JobDone                              extends QueryManagement
+
+case class CreatePerspective(
+    timestamp: Long,
+    window: Option[Interval],
+    actualStart: Long,
+    actualEnd: Long
+) extends QueryManagement
+
+object CreatePerspective {
+
+  def apply(perspective: Perspective): CreatePerspective =
+    CreatePerspective(
+            perspective.timestamp,
+            perspective.window,
+            perspective.actualStart,
+            perspective.actualEnd
+    )
+}
 
 case object StartGraph extends QueryManagement
 

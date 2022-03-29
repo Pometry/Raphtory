@@ -23,7 +23,7 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
   def earliestActivity(): HistoricEvent = history().minBy(k => k.time)
 
   def getPropertySet(): List[String] =
-    entity.properties.filter(p => p._2.creation() <= view.timestamp).keys.toList
+    entity.properties.filter(p => p._2.creation() <= view.end).keys.toList
 
 //  def getProperty[T](key: String): Option[T] = getPropertyAt[T](key, view.timestamp)
 //
@@ -55,36 +55,19 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[List[(Long, T)]] =
-    (entity.properties.get(key), view.window) match {
-      case (Some(p), Some(w)) =>
-        Some(
-                p.valueHistory(
-                        math.max(view.timestamp - w, after),
-                        math.min(view.timestamp, before)
-                ).toList
-                  .map(x => (x._1, x._2.asInstanceOf[T]))
-        )
-      case (Some(p), None)    =>
-        Some(
-                p.valueHistory(after, before = math.min(view.timestamp, before))
-                  .toList
-                  .map(x => (x._1, x._2.asInstanceOf[T]))
-        )
-      case (None, _)          => None
+    entity.properties.get(key) map { p =>
+      p.valueHistory(
+              math.max(view.start, after),
+              math.min(view.end, before)
+      ).toList
+        .map(x => (x._1, x._2.asInstanceOf[T]))
     }
 
   def history(): List[HistoricEvent] =
-    view.window match {
-      case Some(w) =>
-        entity.history.collect {
-          case (time, state) if time <= view.timestamp && time >= view.timestamp - w =>
-            HistoricEvent(time, state)
-        }.toList
-      case None    =>
-        entity.history.collect {
-          case (time, state) if time <= view.timestamp => HistoricEvent(time, state)
-        }.toList
-    }
+    entity.history.collect {
+      case (time, state) if time >= view.start && time <= view.end =>
+        HistoricEvent(time, state)
+    }.toList
 
   def aliveAt(time: Long): Boolean = entity.aliveAt(time)
 

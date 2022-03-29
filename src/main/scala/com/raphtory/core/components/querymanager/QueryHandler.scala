@@ -45,7 +45,7 @@ class QueryHandler(
   private var graphState: GraphStateImplementation         = _
 
   private var currentPerspective: Perspective =
-    Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW)
+    Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW, 0, 0)
 
   private var lastTime: Long            = 0L
   private var readyCount: Int           = 0
@@ -320,9 +320,9 @@ class QueryHandler(
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
       tracker.sendAsync(serialise(currentPerspective))
     perspectiveController.nextPerspective() match {
-      case Some(perspective) if perspective.timestamp <= latestTime =>
+      case Some(perspective) if perspective.actualEnd <= latestTime =>
         logTotalTimeTaken(perspective)
-        messagetoAllJobWorkers(CreatePerspective(perspective.timestamp, perspective.window))
+        messagetoAllJobWorkers(CreatePerspective(perspective))
         currentPerspective = perspective
         graphState = GraphStateImplementation()
         graphFunctions = null
@@ -371,10 +371,10 @@ class QueryHandler(
   private def recheckTime(perspective: Perspective): Stage = {
     val time = getLatestTime()
     timeTaken = System.currentTimeMillis()
-    if (perspective.timestamp <= time) {
+    if (perspective.actualEnd <= time) {
       logger.debug(s"Job '$jobID': Created perspective at time $time.")
 
-      messagetoAllJobWorkers(CreatePerspective(perspective.timestamp, perspective.window))
+      messagetoAllJobWorkers(CreatePerspective(perspective))
       Stages.EstablishPerspective
     }
     else {
