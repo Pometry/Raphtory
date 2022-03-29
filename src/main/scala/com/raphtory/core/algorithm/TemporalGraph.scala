@@ -146,9 +146,10 @@ class TemporalGraph(query: Query, private val querySender: QuerySender, private 
 
   def until(endTime: String): TemporalGraph = until(parseDateTime(endTime))
 
-  def slice(startTime: Long, endTime: Long): TemporalGraph = this from startTime until endTime
+  def slice(startTime: Long, endTime: Long): TemporalGraph = this from startTime until (endTime - 1)
 
-  def slice(startTime: String, endTime: String): TemporalGraph = this from startTime until endTime
+  def slice(startTime: String, endTime: String): TemporalGraph =
+    slice(parseDateTime(startTime), parseDateTime(endTime))
 
   def at(time: Long): DottedGraph =
     new DottedGraph(query.copy(points = SinglePoint(time)), querySender, conf)
