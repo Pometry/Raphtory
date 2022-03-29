@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 /** @DoNotDocument */
-abstract class GraphLens(jobId: String, timestamp: Long, window: Option[Long]) {
+abstract class GraphLens(jobId: String, start: Long, end: Long) {
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 

@@ -91,18 +91,19 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   def aliveAt(time: Long): Boolean = if (time < oldestPoint) false else closestTime(time)._2
 
-  def aliveAtWithWindow(time: Long, windowSize: Long): Boolean =
-    if (time < oldestPoint)
+  // startTime and endTime are inclusive. The existence of exclusive bounds is handled externally
+  def aliveBetween(startTime: Long, endTime: Long): Boolean =
+    if (endTime < oldestPoint)
       false
     else {
-      val closest = closestTime(time)
-      if (time - closest._1 < windowSize)
+      val closest = closestTime(endTime)
+      if (startTime <= closest._1)
         closest._2
       else false
     }
 
   def activityAfter(time: Long)             = history.exists(k => k._1 >= time)
   def activityBefore(time: Long)            = history.exists(k => k._1 <= time)
-  def activityBetween(min: Long, max: Long) = history.exists(k => k._1 > min && k._1 <= max)
+  def activityBetween(min: Long, max: Long) = history.exists(k => k._1 >= min && k._1 <= max)
 
 }
