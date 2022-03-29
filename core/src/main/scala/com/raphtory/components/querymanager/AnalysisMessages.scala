@@ -76,7 +76,7 @@ case class Query(
     timelineStart: Long = Long.MinValue,
     timelineEnd: Long = Long.MaxValue,
     windows: List[Interval] = List(),
-    windowAlignment: Alignment.Value = Alignment.END,
+    windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue()
 ) extends QueryManagement
