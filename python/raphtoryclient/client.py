@@ -27,7 +27,7 @@ import pandas as pd
 from datetime import datetime, timezone
 
 
-class raphtoryclient:
+class client:
     '''
     This is the class to create a raphtory client which interacts with pulsar.
     '''

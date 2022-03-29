@@ -60,7 +60,7 @@ First we setup the various libraries we will need
 
 
 ```python
-from raphtoryclient import raphtoryclient
+from raphtoryclient import client
 from pymotif import Motif
 ```
 
@@ -78,7 +78,7 @@ Note: Prior to this you should have already run these algorithms in Raphtory.
 
 
 ```python
-raphtoryClient = raphtoryclient()
+raphtoryClient = client()
 ```
 
     Connecting to RaphtoryClient...
