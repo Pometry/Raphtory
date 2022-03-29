@@ -40,15 +40,10 @@ extensions = [
 myst_enable_extensions = ["deflist", "dollarmath"]
 myst_heading_anchors = 3
 
-if "RAPHTORY_PATH" in os.environ and os.environ["RAPHTORY_PATH"]:
-    raphtory_src_root = str(Path(os.environ["RAPHTORY_PATH"]) / "src" / "main" / "scala")
-    autodoc_packages = [
-        "com.raphtory.algorithms",
-        "com.raphtory.core",
-        "com.raphtory.output",
-        "com.raphtory.serialisers",
-        "com.raphtory.util"
-    ]
+raphtory_src_root = str(Path(__file__).resolve().parents[2] / "core" / "src" / "main" / "scala")
+autodoc_packages = [
+    "com.raphtory"
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
