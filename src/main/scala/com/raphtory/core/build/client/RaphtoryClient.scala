@@ -22,14 +22,14 @@ class RaphtoryClient(leader:String,port:Int) {
 
   }
 
-  def pointQuery(graphAlgorithm: GraphAlgorithm,timestamp:Long,windows:List[Long]=List()) = {
-    handler ! PointQuery(getID(graphAlgorithm),graphAlgorithm,timestamp,windows)
+  def pointQuery(algorithm: GraphAlgorithm, timestamp:Long, windows:List[Long]=List()) = {
+    handler ! PointQuery(getID(algorithm),algorithm,timestamp,windows)
   }
-  def rangeQuery(graphAlgorithm: GraphAlgorithm,start:Long, end:Long, increment:Long,windows:List[Long]=List()) = {
-    handler ! RangeQuery(getID(graphAlgorithm),graphAlgorithm,start,end,increment,windows)
+  def rangeQuery(algorithm: GraphAlgorithm, start:Long, end:Long, increment:Long, windows:List[Long]=List()) = {
+    handler ! RangeQuery(getID(algorithm),algorithm,start,end,increment,windows)
   }
-  def liveQuery(graphAlgorithm: GraphAlgorithm,increment:Long,windows:List[Long]=List()) = {
-    handler ! LiveQuery(getID(graphAlgorithm),graphAlgorithm,increment,windows)
+  def liveQuery(algorithm: GraphAlgorithm, increment:Long, windows:List[Long]=List()) = {
+    handler ! LiveQuery(getID(algorithm),algorithm,increment,windows)
   }
 
 }

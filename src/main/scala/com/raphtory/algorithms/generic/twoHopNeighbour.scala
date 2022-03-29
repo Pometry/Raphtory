@@ -1,8 +1,9 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.generic
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
 Description
@@ -33,11 +34,11 @@ Warning
   The number of iterations makes a difference to ensure all messages have been read.
 **/
 class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour") extends GraphAlgorithm {
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     graph
       .step(
         vertex =>
-          if (nodeID == -1 || vertex.ID() == nodeID){
+          if (nodeID == -1 || vertex.ID() == nodeID) {
             vertex.getEdges().foreach(edge => edge.send(("twoHopRequest", vertex.ID, 0)))
           }
       )
@@ -50,7 +51,7 @@ class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour")
             vertex.getAllNeighbours().foreach { neighbour =>
               requests.foreach(msg =>
                 if (msg._2 != neighbour) {
-                  vertex.messageNeighbour(msg._2, ("twoHopResponse", neighbour, vertex.ID))
+                  vertex.messageVertex(msg._2, ("twoHopResponse", neighbour, vertex.ID))
                 })
             }
           }
@@ -63,24 +64,30 @@ class twoHopNeighbour(nodeID:Long = -1, output: String = "/tmp/twoHopNeighbour")
           }
         }, 25, true
       )
-      .select(vertex =>
-        Row(
-          vertex.getStateOrElse("twoHopResponse", false),
-          vertex.ID(),
-          vertex.getStateOrElse("twoHops", "")
-        )
+  }
+
+  override def tabularise(graph: GraphPerspective): Table = {
+    graph.select(vertex =>
+      Row(
+        vertex.getStateOrElse("twoHopResponse", false),
+        vertex.name(),
+        vertex.getStateOrElse("twoHops", "")
       )
+    )
       .filter(
         row =>
           row.get(0) == true)
       .explode(
         row =>
-          row.get(2).asInstanceOf[mutable.ListBuffer[(Long, Long)]]
+          row.get(2).asInstanceOf[ListBuffer[(Long, Long)]]
             .toList.map(hops =>
-              Row(row.get(1), hops._1, hops._2)
+            Row(row.get(1), hops._1, hops._2)
           )
       )
-      .writeTo(output)
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(output)
   }
 }
 

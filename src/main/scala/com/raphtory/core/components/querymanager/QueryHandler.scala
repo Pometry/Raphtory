@@ -70,7 +70,7 @@ abstract class QueryHandler(jobID:String,algorithm: GraphAlgorithm) extends Raph
   private def executeGraph(state: State, currentOpperation: GraphFunction, vertexCount:Int, readyCount: Int, receivedMessageCount: Int, sentMessageCount: Int, allVoteToHalt: Boolean):Receive = withDefaultMessageHandler("Execute Graph") {
     case StartGraph =>
       val graphPerspective = new GenericGraphPerspective(vertexCount)
-      algorithm.algorithm(graphPerspective)
+      algorithm.run(graphPerspective)
       val table = graphPerspective.getTable()
       graphPerspective.getNextOperation() match {
         case Some(f:Select) =>

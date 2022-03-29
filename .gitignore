@@ -77,3 +77,9 @@ logs
 /src/main/scala/com/raphtory/dev/algorithms/test.scala
 
 testupdates.txt
+
+# local files
+src/main/scala/com/raphtory/lotr
+/src/main/scala/com/raphtory/dev/lotr/lotr2.csv
+/src/main/scala/com/raphtory/dev/networkx/networkxGraphBuilder.scala
+/src/main/scala/com/raphtory/dev/networkx/networkxSpout.scala

@@ -1,6 +1,6 @@
-package com.raphtory.algorithms
+package com.raphtory.algorithms.temporal
 
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row}
+import com.raphtory.core.model.algorithm.{GraphAlgorithm, GraphPerspective, Row, Table}
 
 class Ancestors(path:String,
                 seed:String,
@@ -9,37 +9,44 @@ class Ancestors(path:String,
                 directed:Boolean=true)
   extends GraphAlgorithm{
 
-  override def algorithm(graph: GraphPerspective): Unit = {
+  override def apply(graph: GraphPerspective): GraphPerspective = {
     graph.step({
       vertex =>
         if (vertex.ID() == checkID(seed)) {
           val edges = (if (directed) vertex.getInEdges() else vertex.getEdges())
             .filter(e => e.earliestActivity().time < time)
-            .filter(e=> e.lastActivityBefore(time).time > time - delta)
+            .filter(e => e.lastActivityBefore(time).time > time - delta)
           edges.foreach({
             e =>
-              vertex.messageNeighbour(e.ID(), e.lastActivityBefore(time).time)
+              vertex.messageVertex(e.ID(), e.lastActivityBefore(time).time)
           })
-          vertex.setState("ancestor",false)
+          vertex.setState("ancestor", false)
         }
     })
       .iterate({
         vertex =>
           val latestTime = vertex.messageQueue[Long]
             .max
-          vertex.setState("ancestor",true)
+          vertex.setState("ancestor", true)
           val inEdges = (if (directed) vertex.getInEdges() else vertex.getEdges())
             .filter(e => e.earliestActivity().time < latestTime)
-            .filter(e=> e.lastActivityBefore(time).time > latestTime - delta)
+            .filter(e => e.lastActivityBefore(time).time > latestTime - delta)
           inEdges.foreach({
             e =>
-              vertex.messageNeighbour(e.ID(), e.lastActivityBefore(latestTime).time)
+              vertex.messageVertex(e.ID(), e.lastActivityBefore(latestTime).time)
           })
-      },executeMessagedOnly = true, iterations = 100)
-      .select(vertex => Row(vertex.getPropertyOrElse("name",vertex.ID()), vertex.getStateOrElse[Boolean]("ancestor",false)))
-      .writeTo(path)
+      }, executeMessagedOnly = true, iterations = 100)
+  }
+
+  override def tabularise(graph: GraphPerspective): Table = {
+    graph.select(vertex => Row(vertex.name(), vertex.getStateOrElse[Boolean]("ancestor", false)))
+  }
+
+  override def write(table: Table): Unit = {
+    table.writeTo(path)
   }
 }
+
 object Ancestors {
   def apply(path:String, seed:String,
             time:Long,

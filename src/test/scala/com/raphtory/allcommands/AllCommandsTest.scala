@@ -3,15 +3,15 @@ package com.raphtory.allcommands
 import org.scalatest.FunSuite
 import akka.pattern.ask
 import akka.util.Timeout
-import com.raphtory.algorithms.ConnectedComponents
 import com.raphtory.RaphtoryPD
 import com.raphtory.algorithms.GraphState
 import com.raphtory.core.components.querymanager.QueryManager.Message.{AreYouFinished, ManagingTask, PointQuery, RangeQuery, TaskFinished, Windows}
 import com.raphtory.core.components.leader.WatermarkManager.Message.{WatermarkTime, WhatsTheTime}
-import com.raphtory.core.model.algorithm.{GraphAlgorithm, GenericGraphPerspective}
+import com.raphtory.core.model.algorithm.{GenericGraphPerspective, GraphAlgorithm}
 import com.raphtory.spouts.FileSpout
 import spray.json._
 import com.google.common.hash.Hashing
+import com.raphtory.algorithms.generic.ConnectedComponents
 
 import java.io.File
 import java.nio.charset.StandardCharsets

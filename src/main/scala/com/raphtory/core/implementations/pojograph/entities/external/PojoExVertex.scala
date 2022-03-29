@@ -45,6 +45,8 @@ class PojoExVertex(private val v: PojoVertex,
   def getOutEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge] = individualEdge(internalOutgoingEdges,after,before,id)
   //In edges individual
   def getInEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge]  = individualEdge(internalIncomingEdges,after,before,id)
+  // edge individual
+  def getEdge(id: Long,after:Long=0L,before:Long=Long.MaxValue): Option[Edge]  = individualEdge(internalIncomingEdges++internalOutgoingEdges,after,before,id)
 
 
   override def explodeEdges(after: Long, before: Long): List[ExplodedEdge] = getEdges(after, before).flatMap(_.explode())
@@ -88,26 +90,45 @@ class PojoExVertex(private val v: PojoVertex,
   def setState(key: String, value: Any): Unit =
     computationValues += ((key, value))
 
-  def getState[T: ClassTag](key: String) =
-    computationValues(key).asInstanceOf[T]
-
-  def getStateOrElse[T: ClassTag](key: String,value:T) =
-    if (computationValues contains key)
-     computationValues(key).asInstanceOf[T]
-    else
-      value
-
-  def containsState(key: String): Boolean =
-    computationValues.contains(key)
-
-  def getOrSetState[T: ClassTag](key: String, value: T): T =
-    computationValues.get(key) match {
-      case Some(value) =>
-        value.asInstanceOf[T]
-      case None =>
-        setState(key, value)
-        value
+  def getState[T: ClassTag](key: String, includeProperties: Boolean = false):T = {
+    if(computationValues.contains(key)) {
+      computationValues(key).asInstanceOf[T]
+    } else if (includeProperties && v.properties.contains(key)) {
+      getProperty[T](key).get
     }
+    else {
+      if (includeProperties)
+        throw new Exception(s"$key not found within analytical state or properties for vertex ${v.vertexId}")
+      else
+        throw new Exception(s"$key not found within analytical state for vertex ${v.vertexId}")
+    }
+  }
+
+  def getStateOrElse[T: ClassTag](key: String,value:T, includeProperties: Boolean = false) = {
+    if (computationValues contains key) {
+     computationValues(key).asInstanceOf[T]
+    } else if (includeProperties && v.properties.contains(key)) {
+      getProperty[T](key).get
+    } else
+      value
+  }
+
+  def containsState(key: String, includeProperties: Boolean = false): Boolean = {
+    computationValues.contains(key) || (includeProperties && v.properties.contains(key))
+  }
+
+  def getOrSetState[T: ClassTag](key: String, value: T, includeProperties: Boolean = false): T = {
+    var output_value = value
+    if (containsState(key)) {
+      output_value = getState[T](key)
+    } else {
+      if (includeProperties && v.properties.contains(key)) {
+        output_value = getProperty[T](key).get
+      }
+      setState(key, output_value)
+    }
+    output_value
+  }
 
   def appendToState[T: ClassTag](key: String, value: Any) = //write function later
     computationValues.get(key) match {
@@ -122,19 +143,19 @@ class PojoExVertex(private val v: PojoVertex,
   override def messageSelf(data: Any): Unit =
     lens.sendMessage(VertexMessage(lens.superStep+1,ID(), data))
 
-  def messageNeighbour(vertexId: Long, data: Any): Unit = {
+  def messageVertex(vertexId: Long, data: Any): Unit = {
     val message = VertexMessage(lens.superStep+1,vertexId, data)
     lens.sendMessage(message)
   }
 
-  def messageAllOutgoingNeighbors(message: Any): Unit =
-    internalOutgoingEdges.keys.foreach(vId => messageNeighbour(vId, message))
+  def messageOutNeighbours(message: Any): Unit =
+    internalOutgoingEdges.keys.foreach(vId => messageVertex(vId, message))
 
   def messageAllNeighbours(message: Any) =
-    internalOutgoingEdges.keySet.union(internalIncomingEdges.keySet).foreach(vId => messageNeighbour(vId, message))
+    internalOutgoingEdges.keySet.union(internalIncomingEdges.keySet).foreach(vId => messageVertex(vId, message))
 
-  def messageAllIngoingNeighbors(message: Any): Unit =
-    internalIncomingEdges.keys.foreach(vId => messageNeighbour(vId, message))
+  def messageInNeighbours(message: Any): Unit =
+    internalIncomingEdges.keys.foreach(vId => messageVertex(vId, message))
 
   // todo hide
   def receiveMessage(msg: VertexMessage): Unit = {
