@@ -3,6 +3,7 @@ package com.raphtory.graph
 import com.raphtory.components.graphbuilder.GraphUpdateEffect
 import com.raphtory.components.graphbuilder.Properties._
 import com.raphtory.graph.visitor.Vertex
+import com.raphtory.time.Interval
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -79,8 +80,8 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   // Analysis Functions
   def getVertices(
       graphPerspective: GraphLens,
-      time: Long,
-      window: Long = Long.MaxValue
+      start: Long,
+      end: Long
   ): mutable.Map[Long, Vertex]
 
   // Partition Neighbours

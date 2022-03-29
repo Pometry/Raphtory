@@ -10,7 +10,6 @@ import com.raphtory.components.spout.Spout
 import com.raphtory.components.spout.SpoutExecutor
 import com.raphtory.config.PulsarController
 import com.raphtory.deployment.Raphtory
-import com.raphtory.client.RaphtoryGraph
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.config.Config
