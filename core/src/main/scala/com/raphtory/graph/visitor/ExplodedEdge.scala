@@ -43,13 +43,6 @@ package com.raphtory.graph.visitor
   *     {s}`data: Any`
   *       : message data to send
   */
-trait ExplodedEdge {
-  def Type(): String
-  def ID(): Long
-  def src(): Long
-  def dst(): Long
-  def getPropertySet(): List[String]
-  def getPropertyValue[T](key: String): Option[T]
-  def send(data: Any): Unit
+trait ExplodedEdge extends Edge {
   def timestamp: Long
 }

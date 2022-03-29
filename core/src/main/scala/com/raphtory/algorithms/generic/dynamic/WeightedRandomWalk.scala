@@ -21,7 +21,7 @@ class WeightedRandomWalk[T](
                 edge
                   .explode()
                   .map(explodedEdge =>
-                    explodedEdge.getPropertyValue[T](weight).getOrElse(numeric.one)
+                    explodedEdge.getProperty[T](weight).getOrElse(numeric.one)
                   )
                   .sum
         )
