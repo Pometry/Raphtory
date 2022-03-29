@@ -3,7 +3,6 @@ package com.raphtory
 import java.io.File
 import java.nio.charset.StandardCharsets
 import com.google.common.hash.Hashing
-import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.OutputFormat
 import com.raphtory.components.graphbuilder.GraphBuilder
@@ -43,11 +42,9 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
   val spout        = setSpout()
   val graphBuilder = setGraphBuilder()
 
-  val graph         =
+  val graph            =
     if (batchLoading) Raphtory.batchLoadGraph[T](spout, graphBuilder)
     else Raphtory.streamGraph[T](spout, graphBuilder)
-  val temporalGraph = Raphtory.getLocalGraph(graph)
-
   val conf             = graph.getConfig()
   val pulsarController = new PulsarController(conf)
 
@@ -75,44 +72,19 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
       increment: Long,
       windows: List[Long]
   ): String = {
-    val startingTime          = System.currentTimeMillis()
-    val queryProgressTracker1 =
+    val startingTime         = System.currentTimeMillis()
+    val queryProgressTracker =
       graph.rangeQuery(algorithm, outputFormat, start, end, increment, windows)
-    val jobId1                = queryProgressTracker1.getJobId()
-    queryProgressTracker1.waitForJob()
-    val hash1                 = getHash(testDir + s"/$jobId1")
-
-    val queryProgressTracker2 = temporalGraph
-      .range(start, end, increment)
-      .window(windows, Alignment.END)
-      .execute(algorithm)
-      .writeTo(outputFormat)
-    val jobId2                = queryProgressTracker2.getJobId()
-    queryProgressTracker2.waitForJob()
-    val hash2                 = getHash(testDir + s"/$jobId2")
-
-    if (hash1 != hash2)
-      throw new Exception(s"Hash value differs for different API submissions: '$hash1' != '$hash2'")
-    else
-      hash1
-  }
-
-  def algorithmTestWithTimes(
-      algorithm: GraphAlgorithm,
-      outputFormat: OutputFormat,
-      start: String,
-      end: String,
-      increment: String,
-      windows: List[String]
-  ): String = {
-    val queryProgressTracker = temporalGraph
-      .range(start, end, increment)
-      .window(windows)
-      .execute(algorithm)
-      .writeTo(outputFormat)
     val jobId                = queryProgressTracker.getJobId()
     queryProgressTracker.waitForJob()
-    getHash(testDir + s"/$jobId")
+
+    val dir     = new File(testDir + s"/$jobId").listFiles
+      .filter(_.isFile)
+    val results =
+      (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
+    val hash    = Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
+    logger.info(s"Generated hash code: '$hash'.")
+    hash
   }
 
   def algorithmPointTest(
@@ -126,11 +98,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
     val jobId                = queryProgressTracker.getJobId()
     queryProgressTracker.waitForJob()
 
-    getHash(testDir + s"/$jobId")
-  }
-
-  private def getHash(path: String) = {
-    val dir     = new File(path).listFiles.filter(_.isFile)
+    val dir     = new File(testDir + s"/$jobId").listFiles.filter(_.isFile)
     val results =
       (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
     val hash    = Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
