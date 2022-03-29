@@ -149,7 +149,7 @@ private[raphtory] class TemporalGraph(
 
   def until(endTime: String): TemporalGraph = until(parseDateTime(endTime))
 
-  def slice(startTime: Long, endTime: Long): TemporalGraph = this from startTime until (endTime - 1)
+  def slice(startTime: Long, endTime: Long): TemporalGraph = this from startTime until endTime
 
   def slice(startTime: String, endTime: String): TemporalGraph =
     slice(parseDateTime(startTime), parseDateTime(endTime))
