@@ -3,7 +3,7 @@ package com.raphtory.storage.pojograph.entities.external
 import com.raphtory.graph.visitor.ExplodedEdge
 
 /** @DoNotDocument */
-class PojoExplodedEdge(objectEdge: PojoExEdge, timestamp: Long) extends ExplodedEdge {
+class PojoExplodedEdge(objectEdge: PojoExEdge, override val timestamp: Long) extends ExplodedEdge {
 
   override def Type(): String =
     objectEdge.Type()
@@ -26,5 +26,4 @@ class PojoExplodedEdge(objectEdge: PojoExEdge, timestamp: Long) extends Exploded
   override def send(data: Any): Unit =
     objectEdge.send(data)
 
-  override def timestamp(): Long = timestamp
 }

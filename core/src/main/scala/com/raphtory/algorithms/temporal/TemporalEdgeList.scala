@@ -46,8 +46,8 @@ class TemporalEdgeList(
                 vertex.getOutEdges().flatMap { edge =>
                   val dst = neighbourMap(edge.dst())
                   edge.explode().map { exEdge =>
-                    dst +: exEdge.timestamp() +: properties.map(name =>
                       exEdge.getPropertyValue(name) match {
+                    dst +: exEdge.timestamp +: properties.map(name =>
                         case Some(v) => v
                         case None    => defaults.getOrElse(name, None)
                       }

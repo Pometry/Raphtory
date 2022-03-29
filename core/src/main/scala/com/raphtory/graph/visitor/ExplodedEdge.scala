@@ -51,5 +51,5 @@ trait ExplodedEdge {
   def getPropertySet(): List[String]
   def getPropertyValue[T](key: String): Option[T]
   def send(data: Any): Unit
-  def timestamp(): Long
+  def timestamp: Long
 }
