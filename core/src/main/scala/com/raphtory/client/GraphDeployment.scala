@@ -31,7 +31,7 @@ import scala.reflect.runtime.universe._
   *      : Stops components - partitions, query manager, graph builders, spout worker
   *
   *  ```{seealso}
-  *  [](com.raphtory.core.client.RaphtoryClient), [](com.raphtory.core.deploy.Raphtory)
+  *  [](com.raphtory.client.RaphtoryClient), [](com.raphtory.deploy.Raphtory)
   *  ```
   */
 private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
