@@ -185,48 +185,4 @@ object Raphtory {
     confHandler.getConfig
   }
 
-<<<<<<< HEAD
-  private def createSpoutExecutor[T](
-      spout: Spout[T],
-      conf: Config,
-      pulsarController: PulsarController
-  ): SpoutExecutor[T] =
-    spout match {
-      case spout: FileSpout[T]            =>
-        new FileSpoutExecutor[T](
-                spout.source,
-                spout.schema,
-                spout.lineConverter,
-                conf,
-                pulsarController,
-                scheduler
-        )
-<<<<<<< HEAD
-<<<<<<< HEAD
-      case IdentitySpout() => new IdentitySpoutExecutor[T](conf, pulsarController)
-      case ResourceSpout(resource) =>
-        new ResourceSpoutExecutor(resource, conf, pulsarController).asInstanceOf[SpoutExecutor[T]]
-      case StaticGraphSpout(fileDataPath) =>
-        new StaticGraphSpoutExecutor(fileDataPath, conf, pulsarController).asInstanceOf[SpoutExecutor[T]]
-=======
-      case IdentitySpout() => new IdentitySpoutExecutor[T](conf, pulsarController, scheduler)
-      case ResourceSpout(resource) =>
-        new ResourceSpoutExecutor(resource, conf, pulsarController, scheduler).asInstanceOf[SpoutExecutor[T]]
-      case StaticGraphSpout(fileDataPath) =>
-        new StaticGraphSpoutExecutor(fileDataPath, conf, pulsarController, scheduler).asInstanceOf[SpoutExecutor[T]]
->>>>>>> ca725f74 (Reenabled file polling via scheduler)
-=======
-      case IdentitySpout()                => new IdentitySpoutExecutor[T](conf, pulsarController, scheduler)
-      case ResourceSpout(resource)        =>
-        new ResourceSpoutExecutor(resource, conf, pulsarController, scheduler)
-          .asInstanceOf[SpoutExecutor[T]]
-      case StaticGraphSpout(fileDataPath) =>
-        new StaticGraphSpoutExecutor(fileDataPath, conf, pulsarController, scheduler)
-          .asInstanceOf[SpoutExecutor[T]]
->>>>>>> bda178d9 (Updated Scalafmt to 2.6.3)
-
-    }
-
-=======
->>>>>>> c7bd1089 (Created new spout API and added batchloading to the partitions (#271))
 }
