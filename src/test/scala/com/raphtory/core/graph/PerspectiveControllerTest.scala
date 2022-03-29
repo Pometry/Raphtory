@@ -10,22 +10,25 @@ import org.scalatest.funsuite.AnyFunSuite
 class PerspectiveControllerTest extends AnyFunSuite {
   test("A range of perspectives is correctly generated") {
     val increment  = parseInterval("2 months")
-    val startTime  = parseDateTime("2021-01-01 00:00:00")
-    val firstStep  = parseDateTime("2021-03-01 00:00:00")
-    val secondStep = parseDateTime("2021-05-01 00:00:00")
-    val endTime    = parseDateTime("2021-07-01 00:00:00")
+    val start      = parseDateTime("2021-01-01 00:00:00")
+    val middle     = parseDateTime("2021-03-01 00:00:00")
+    val end        = parseDateTime("2021-07-01 00:00:00")
     val query      = Query(
-            timelineStart = startTime,
-            timelineEnd = endTime,
+            timelineStart = start,
+            timelineEnd = end,
             points = PointPath(increment),
             windowAlignment = Alignment.END
     )
     val controller = PerspectiveController(0, Long.MaxValue, query)
 
-    assert(controller.nextPerspective().get === Perspective(startTime, None))
-    assert(controller.nextPerspective().get === Perspective(firstStep, None))
-    assert(controller.nextPerspective().get === Perspective(secondStep, None))
-    assert(controller.nextPerspective().get === Perspective(endTime, None))
+    val firstPerspective = controller.nextPerspective().get
+    assert(firstPerspective.actualStart === start)
+    assert(firstPerspective.actualEnd === middle)
+
+    val secondPerspective = controller.nextPerspective().get
+    assert(secondPerspective.actualStart === middle)
+    assert(secondPerspective.actualEnd === end)
+
     assert(controller.nextPerspective() === None)
   }
 }
