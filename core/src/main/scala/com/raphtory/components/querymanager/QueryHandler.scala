@@ -110,12 +110,18 @@ class QueryHandler(
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
-    try currentState match {
-      case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
-      case Stages.EstablishPerspective => currentState = establishPerspective(msg)
-      case Stages.ExecuteGraph         => currentState = executeGraph(msg)
-      case Stages.ExecuteTable         => currentState = executeTable(msg)
-      case Stages.EndTask              => //TODO?
+    try {
+      msg match {
+        case AlgorithmFailure(exception) => throw exception
+        case _                           =>
+      }
+      currentState match {
+        case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
+        case Stages.EstablishPerspective => currentState = establishPerspective(msg)
+        case Stages.ExecuteGraph         => currentState = executeGraph(msg)
+        case Stages.ExecuteTable         => currentState = executeTable(msg)
+        case Stages.EndTask              => //TODO?
+      }
     }
     catch {
       case e: Throwable =>
