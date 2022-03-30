@@ -1,7 +1,8 @@
 package com.raphtory.examples.gab.graphbuilders
 
-import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.Type
+import com.raphtory.components.graphbuilder.GraphBuilder
+import com.raphtory.components.graphbuilder.Properties.Type
+
 import java.text.SimpleDateFormat
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
@@ -14,7 +15,7 @@ import java.text.SimpleDateFormat
 class GabUserGraphBuilder extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String) = {
-    val fileLine = tuple.split(";").map(_.trim)
+    val fileLine   = tuple.split(";").map(_.trim)
     //user wise
     val sourceNode = fileLine(2).toInt
     val targetNode = fileLine(5).toInt

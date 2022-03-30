@@ -1,9 +1,11 @@
 package com.raphtory.examples.lotrTopic.graphbuilders
 
-import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.{ImmutableProperty, Properties, Type}
+import com.raphtory.components.graphbuilder.GraphBuilder
+import com.raphtory.components.graphbuilder.Properties.ImmutableProperty
+import com.raphtory.components.graphbuilder.Properties.Properties
+import com.raphtory.components.graphbuilder.Properties.Type
 
-class LOTRGraphBuilder extends GraphBuilder[String]{
+class LOTRGraphBuilder extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String): Unit = {
 //    val line = new String(tuple,"UTF-8")
@@ -14,8 +16,18 @@ class LOTRGraphBuilder extends GraphBuilder[String]{
     val tarID      = assignID(targetNode)
     val timeStamp  = fileLine(2).toLong
 
-    addVertex(timeStamp, srcID, Properties(ImmutableProperty("name",sourceNode)), Type("Character"))
-    addVertex(timeStamp, tarID, Properties(ImmutableProperty("name",targetNode)), Type("Character"))
+    addVertex(
+            timeStamp,
+            srcID,
+            Properties(ImmutableProperty("name", sourceNode)),
+            Type("Character")
+    )
+    addVertex(
+            timeStamp,
+            tarID,
+            Properties(ImmutableProperty("name", targetNode)),
+            Type("Character")
+    )
     addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
   }
 
