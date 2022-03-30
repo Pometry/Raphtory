@@ -326,12 +326,18 @@ class QueryHandler(
         scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckEarliestTimer)
         Stages.SpawnExecutors
       case Some(earliestTime) =>
-        perspectiveController = PerspectiveController(earliestTime, getLatestTime(), query)
-        val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
-        logger.debug(s"Job '$jobID': Spawned all executors in ${schedulingTimeTaken}ms.")
-        timeTaken = System.currentTimeMillis()
-        readyCount = 0
-        executeNextPerspective()
+        if (earliestTime > getLatestTime()) {
+          scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckEarliestTimer)
+          Stages.SpawnExecutors
+        }
+        else {
+          perspectiveController = PerspectiveController(earliestTime, getLatestTime(), query)
+          val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
+          logger.debug(s"Job '$jobID': Spawned all executors in ${schedulingTimeTaken}ms.")
+          timeTaken = System.currentTimeMillis()
+          readyCount = 0
+          executeNextPerspective()
+        }
     }
 
   private def executeNextPerspective(): Stage = {
