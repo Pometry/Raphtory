@@ -92,6 +92,11 @@ object PerspectiveController {
       // needs to walk through the whole stream
     )
 
+    if (perspectiveStreams forall (_.isEmpty))
+      throw new Exception(
+              s"No perspectives to be generated: '$perspectiveStreamStart', '$timelineStart', '$timelineEnd', '$query'"
+      )
+
     new PerspectiveController(perspectiveStreams.toArray)
   }
 
