@@ -1,10 +1,14 @@
 package com.raphtory.ethereum.graphbuilder
 
-import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.graphbuilder.Properties._
+import com.raphtory.components.graphbuilder.GraphBuilder
+import com.raphtory.components.graphbuilder.Properties.DoubleProperty
+import com.raphtory.components.graphbuilder.Properties.ImmutableProperty
+import com.raphtory.components.graphbuilder.Properties.Properties
+import com.raphtory.components.graphbuilder.Properties.Type
 import com.raphtory.ethereum.EthereumTransaction
 
-import java.io.{BufferedReader, FileReader}
+import java.io.BufferedReader
+import java.io.FileReader
 import scala.collection.mutable
 
 class EthereumTxGraphBuilder() extends GraphBuilder[EthereumTransaction] {
@@ -23,9 +27,9 @@ class EthereumTxGraphBuilder() extends GraphBuilder[EthereumTransaction] {
     val value       = tx.value
 
     val edgeProperties = Properties(
-      ImmutableProperty("hash", txHash),
-      ImmutableProperty("blockNumber", blockNumber),
-      DoubleProperty("value", value)
+            ImmutableProperty("hash", txHash),
+            ImmutableProperty("blockNumber", blockNumber),
+            DoubleProperty("value", value)
     )
     addVertex(timeStamp, srcID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
     addVertex(timeStamp, tarID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
@@ -53,7 +57,6 @@ class EthereumGraphBuilder(tagFile: String) extends GraphBuilder[String] {
   //  }
   //  br.close()
 
-
   override def parseTuple(tuple: String): Unit = {
     val line        = new String(tuple)
     if (line contains "block_hash")
@@ -71,18 +74,28 @@ class EthereumGraphBuilder(tagFile: String) extends GraphBuilder[String] {
     //    val targetNodeTags = tagMap.getOrElse(targetNode, mutable.Set[String]())
 
     val edgeProperties = Properties(
-      ImmutableProperty("hash", txHash),
-      ImmutableProperty("blockNumber", blockNumber),
-      DoubleProperty("value", value)
+            ImmutableProperty("hash", txHash),
+            ImmutableProperty("blockNumber", blockNumber),
+            DoubleProperty("value", value)
     )
-    addVertex(timeStamp, srcID, Properties(
-      ImmutableProperty("address", sourceNode),
-      //StringProperty("tags",sourceNodeTags.toString())
-    ), Type("node"))
-    addVertex(timeStamp, tarID, Properties(
-      ImmutableProperty("address", sourceNode),
-      //StringProperty("tags",targetNodeTags.toString())
-    ), Type("node"))
+    addVertex(
+            timeStamp,
+            srcID,
+            Properties(
+                    ImmutableProperty("address", sourceNode)
+                    //StringProperty("tags",sourceNodeTags.toString())
+            ),
+            Type("node")
+    )
+    addVertex(
+            timeStamp,
+            tarID,
+            Properties(
+                    ImmutableProperty("address", sourceNode)
+                    //StringProperty("tags",targetNodeTags.toString())
+            ),
+            Type("node")
+    )
     addEdge(timeStamp, srcID, tarID, edgeProperties, Type("transaction"))
   }
 }
