@@ -1,7 +1,10 @@
 package com.raphtory.examples.gab.graphbuilders
 
+import com.raphtory.components.graphbuilder.GraphBuilder
+import com.raphtory.components.graphbuilder.Properties.Properties
+import com.raphtory.components.graphbuilder.Properties.StringProperty
+
 import java.time.OffsetDateTime
-import com.raphtory.core.components.graphbuilder.{GraphBuilder, Properties, StringProperty}
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
 import spray.json._
 
@@ -24,9 +27,10 @@ final class GabRawGraphBuilder extends GraphBuilder[String] {
   override def parseTuple(tuple: String) = {
     try {
       val command = tuple
-      val post = command.parseJson.convertTo[GabPost]
+      val post    = command.parseJson.convertTo[GabPost]
       sendPostToPartitions(post)
-    } catch {
+    }
+    catch {
       case e: Exception => println("Could not parse post")
     }
 
@@ -34,84 +38,99 @@ final class GabRawGraphBuilder extends GraphBuilder[String] {
     //val manager = getManager(parsedOBJ.value.srcId, getManagerCount)
     //mediator ! DistributedPubSubMediator.Send(manager, parsedOBJ.value, false)
 
-    def sendPostToPartitions(post: GabPost, recursiveCall: Boolean = false, parent: Int = 0): Unit = {
-      val postUUID = post.id.get.toInt
+    def sendPostToPartitions(
+        post: GabPost,
+        recursiveCall: Boolean = false,
+        parent: Int = 0
+    ): Unit = {
+      val postUUID  = post.id.get.toInt
       val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
-       addVertex(
-          timestamp,
-          postUUID,
-          Properties(
-            StringProperty("user", post.user match {
-              case Some(u) => u.id.toString
-              case None => nullStr
-            }),
-            StringProperty("likeCount", post.like_count match {
-              case Some(likeCount) => likeCount.toString
-              case None => nullStr
-            }),
-            StringProperty("score", post.score match {
-              case Some(score) => score.toString
-              case None => nullStr
-            }),
-            StringProperty("topic", post.topic match {
-              case Some(topic) => topic.id
-              case None => nullStr
-            }),
-            StringProperty("type", "post")
-          )
+      addVertex(
+              timestamp,
+              postUUID,
+              Properties(
+                      StringProperty(
+                              "user",
+                              post.user match {
+                                case Some(u) => u.id.toString
+                                case None    => nullStr
+                              }
+                      ),
+                      StringProperty(
+                              "likeCount",
+                              post.like_count match {
+                                case Some(likeCount) => likeCount.toString
+                                case None            => nullStr
+                              }
+                      ),
+                      StringProperty(
+                              "score",
+                              post.score match {
+                                case Some(score) => score.toString
+                                case None        => nullStr
+                              }
+                      ),
+                      StringProperty(
+                              "topic",
+                              post.topic match {
+                                case Some(topic) => topic.id
+                                case None        => nullStr
+                              }
+                      ),
+                      StringProperty("type", "post")
+              )
       )
 
       post.user match {
         case Some(user) =>
           val userUUID: Int = "user".hashCode() + user.id //TODO improve in case of clashes
           addVertex(
-              timestamp,
-              userUUID,
-              Properties(
-                StringProperty("type", "user"),
-                StringProperty("id", user.id.toString),
-                StringProperty("name", user.name),
-                StringProperty("username", user.username),
-                StringProperty("verified", user.verified.toString)
-              )
+                  timestamp,
+                  userUUID,
+                  Properties(
+                          StringProperty("type", "user"),
+                          StringProperty("id", user.id.toString),
+                          StringProperty("name", user.name),
+                          StringProperty("username", user.username),
+                          StringProperty("verified", user.verified.toString)
+                  )
           )
 
           addEdge(timestamp, userUUID, postUUID, Properties((StringProperty("type", "userToPost"))))
           addEdge(timestamp, postUUID, userUUID, Properties(StringProperty("type", "postToUser")))
 
-        case None =>
+        case None       =>
       }
 
       post.topic match {
         case Some(topic) =>
           val topicUUID: Int = Math.pow(2, 24).toInt + (topic.id.hashCode())
           addVertex(
-              timestamp,
-              topicUUID,
-              Properties(
-                StringProperty("created_at", topic.created_at),
-                StringProperty("category", topic.category.toString),
-                StringProperty("title", topic.title.getOrElse("null")),
-                StringProperty("type", "topic"),
-                StringProperty("id", topic.id)
-              )
+                  timestamp,
+                  topicUUID,
+                  Properties(
+                          StringProperty("created_at", topic.created_at),
+                          StringProperty("category", topic.category.toString),
+                          StringProperty("title", topic.title.getOrElse("null")),
+                          StringProperty("type", "topic"),
+                          StringProperty("id", topic.id)
+                  )
           )
 
-            addEdge(timestamp, postUUID, topicUUID, Properties(StringProperty("type", "postToTopic")))
-        case None =>
+          addEdge(timestamp, postUUID, topicUUID, Properties(StringProperty("type", "postToTopic")))
+        case None        =>
       }
 
       // Edge from child to parent post
       if (recursiveCall && parent != 0)
-          addEdge(timestamp, postUUID, parent, Properties(StringProperty("type", "childToParent")))
+        addEdge(timestamp, postUUID, parent, Properties(StringProperty("type", "childToParent")))
       post.parent match {
         case Some(p) =>
           if (!recursiveCall) // Allow only one recursion per post
-          //println("Found parent post: Recursion!")
+            //println("Found parent post: Recursion!")
             sendPostToPartitions(p, true, postUUID)
-        case None =>
+        case None    =>
       }
     }
   }
 }
-
