@@ -28,22 +28,23 @@ case class Perspective(
 ) extends QueryManagement
 
 class PerspectiveController(
-    private var perspectiveStreams: List[LazyList[Perspective]]
+    private var perspectiveStreams: Array[LazyList[Perspective]]
 ) {
 
   /** Extract the earliest perspective among the head of all streams */
-  def nextPerspective(): Option[Perspective] =
-    perspectiveStreams map (_.head) match {
-      case Nil        => None
-      case candidates =>
-        val (earliestPerspective, index) = candidates.zipWithIndex minBy {
-          case (perspective, _) => perspective.timestamp
-        }
-        perspectiveStreams = perspectiveStreams
-          .updated(index, perspectiveStreams(index).tail)
-          .filter(_.nonEmpty)
-        Some(earliestPerspective)
+  def nextPerspective(): Option[Perspective] = {
+    perspectiveStreams = perspectiveStreams.filter(_.nonEmpty)
+    if (perspectiveStreams.isEmpty)
+      None
+    else {
+      val (earliestPerspective, index) = perspectiveStreams.map(_.head).zipWithIndex minBy {
+        case (perspective, _) => perspective.actualEnd
+      }
+      perspectiveStreams = perspectiveStreams
+        .updated(index, perspectiveStreams(index).tail)
+      Some(earliestPerspective)
     }
+  }
 }
 
 object PerspectiveController {
@@ -58,12 +59,12 @@ object PerspectiveController {
       lastAvailableTimestamp: Long,
       query: Query
   ): PerspectiveController = {
-    val timelineStart                                      = firstAvailableTimestamp max query.timelineStart
-    val timelineEnd                                        = query.timelineEnd
+    val timelineStart         = firstAvailableTimestamp max query.timelineStart
+    val timelineEnd           = query.timelineEnd
     logger.debug(
             s"Defining perspective list from '$timelineStart' with first available timestamp '$firstAvailableTimestamp' and start defined by the user at '${query.timelineStart}'"
     )
-    val rawPerspectiveStreams: List[LazyList[Perspective]] = query.points match {
+    val rawPerspectiveStreams = query.points match {
       // If there are no points marked by the user, we create
       // a windowless perspective that ends at the lastAvailableTimestamp
       case NullPointSet      =>
@@ -90,7 +91,7 @@ object PerspectiveController {
       // needs to walk through the whole stream
     )
 
-    new PerspectiveController(perspectiveStreams)
+    new PerspectiveController(perspectiveStreams.toArray)
   }
 
   private def timestampsAroundTimeline(
@@ -117,7 +118,7 @@ object PerspectiveController {
 
   private def streamsFromTimestamps(
       timestamps: LazyList[Long],
-      windows: List[Interval],
+      windows: Seq[Interval],
       alignment: Alignment.Value
   ) =
     windows match {
