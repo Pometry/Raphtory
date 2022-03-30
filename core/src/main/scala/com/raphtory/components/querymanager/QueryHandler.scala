@@ -336,10 +336,13 @@ class QueryHandler(
 
   private def executeNextPerspective(): Stage = {
     val latestTime = getLatestTime()
+    val oldestTime = getOptionalEarliestTime()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
       tracker.sendAsync(serialise(currentPerspective))
     perspectiveController.nextPerspective() match {
-      case Some(perspective) if perspective.actualEnd <= latestTime =>
+      case Some(perspective)
+          if perspective.actualEnd <= latestTime && oldestTime
+            .exists(perspective.actualStart >= _) =>
         logTotalTimeTaken(perspective)
         messagetoAllJobWorkers(CreatePerspective(perspective))
         currentPerspective = perspective
@@ -352,7 +355,7 @@ class QueryHandler(
         )
         timeTaken = System.currentTimeMillis()
         Stages.EstablishPerspective
-      case Some(perspective)                                        =>
+      case Some(perspective) =>
         logger.trace(
                 s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'."
         )
@@ -363,7 +366,7 @@ class QueryHandler(
         scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckTimer)
 
         Stages.EstablishPerspective
-      case None                                                     =>
+      case None              =>
         logger.debug(s"Job '$jobID': No more perspectives to run.")
         killJob()
         Stages.EndTask
