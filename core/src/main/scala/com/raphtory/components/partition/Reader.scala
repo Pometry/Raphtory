@@ -108,16 +108,15 @@ class Reader(
         !blockingEdgeAdditions && !blockingEdgeDeletions && !blockingVertexDeletions
       val watermark            = WatermarkTime(partitionID, oldestTime, finalTime, noBlockingOperations)
       if (watermark != lastWatermark) {
-        logger.trace(
+        logger.debug(
                 s"Partition $partitionID: Creating watermark with " +
                   s"earliest time '$oldestTime' and latest time '$finalTime'."
         )
         watermarkPublish.sendAsync(
                 serialise(watermark)
         )
-        lastWatermark = watermark
       }
-
+      lastWatermark = watermark
     }
     scheduleWaterMarker()
   }
