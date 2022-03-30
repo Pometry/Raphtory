@@ -29,7 +29,7 @@ class Reader(
   private val watermarkPublish                          = pulsarController.watermarkPublisher()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
   var scheduledWatermark: Option[Cancelable]            = None
-  private var lastWatermark                             = (0L, false)
+  private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
 
   private val watermarking = new Runnable {
     override def run(): Unit = createWatermark()
@@ -106,17 +106,17 @@ class Reader(
 
       val noBlockingOperations =
         !blockingEdgeAdditions && !blockingEdgeDeletions && !blockingVertexDeletions
-      if (finalTime > lastWatermark._1 || noBlockingOperations != lastWatermark._2) {
-        logger.trace(
+      val watermark            = WatermarkTime(partitionID, oldestTime, finalTime, noBlockingOperations)
+      if (watermark != lastWatermark) {
+        logger.debug(
                 s"Partition $partitionID: Creating watermark with " +
                   s"earliest time '$oldestTime' and latest time '$finalTime'."
         )
         watermarkPublish.sendAsync(
-                serialise(WatermarkTime(partitionID, oldestTime, finalTime, noBlockingOperations))
+                serialise(watermark)
         )
-        lastWatermark = (finalTime, noBlockingOperations)
       }
-
+      lastWatermark = watermark
     }
     scheduleWaterMarker()
   }
