@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Building a graph from your data &mdash; Raphtory 0.4.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Analysis in Raphtory" href="../Analysis/analysis-explained.html" />
+    <link rel="prev" title="Installation" href="../Install/installdependencies.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Raphtory
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Raphtory</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../Install/installdependencies.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Building a graph from your data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#raphtory-graph">Raphtory Graph</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#spout">Spout</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#resource-spout">Resource Spout</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#graph-builder">Graph Builder</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../Analysis/analysis-explained.html">Analysis in Raphtory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Querying/presto.html">Querying in-flight data</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Python Library</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html">Getting your data into Jupyter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html#example-notebook">Example Notebook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/RaphtoryClient.html">Raphtory Client</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Deployment</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/graphvsservice.html">Raphtory Graph VS Raphtory Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentlocal.html">Bare Metal Cluster Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentkube.html">Kubernetes Cluster Deployment</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples Projects</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/community-of-cheese.html">The Community of Cheese</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/gab.html">Gab Social Network Analysis</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Temporal Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/tmotifcount.html">Motif Alpha</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/mlpa.html">Multi-Layer Dynamic Community Detection</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Static Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/connectedComponents.html">Connected Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/degree.html">Degree</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/lpa.html">Label Propagation Algorithm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/cbod.html">Outlier Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/pageRank.html">Page Rank</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/genericTaint.html">Tainting / Infection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/triangleCount.html">Triangle Count</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/twoHopNeighbors.html">Two-Hop Neighbours</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/wattsCascade.html">Watts Cascade</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Raphtory</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Building a graph from your data</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/Ingestion/sprouter.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="building-a-graph-from-your-data">
+<h1>Building a graph from your data<a class="headerlink" href="#building-a-graph-from-your-data" title="Permalink to this headline"></a></h1>
+<p>The first step to getting your first temporal graph analysis up and running is to tell Raphtory how to read your data source and how to build it into a graph.</p>
+<p>Two classes help with this:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Spouts</span></code> help with reading the data file and output tuples.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Graph</span> <span class="pre">builders</span></code>, as the name suggests, convert these tuples into updates, building the graph.</p></li>
+</ul>
+<p>Once these classes are defined, they can be passed to <code class="docutils literal notranslate"><span class="pre">RaphtoryGraph</span></code> which will use both components to build the temporal graph.</p>
+<p>If you have downloaded the <a class="reference external" href="https://github.com/Raphtory/Examples.git">Examples</a> folder from the installation guide previously, then the LOTR example is already set up. If not, please return there and complete this step first.</p>
+<p>For this tutorial section we will continue to use the <code class="docutils literal notranslate"><span class="pre">raphtory-example-lotr</span></code> project and a dataset that tells us when two characters have some type of interaction in the Lord of the Rings trilogy books. The <code class="docutils literal notranslate"><span class="pre">csv</span></code> file (comma-separated values) in the examples folder can be found <a class="reference external" href="https://github.com/Raphtory/Examples/blob/master/raphtory-example-lotr/src/main/scala/com/raphtory/examples/lotr/data/lotr.csv">here</a>. Each line contains two characters that appear in the same sentence, along with which sentence they appeared in, indicated by a number (sentence count). In the example, the first line of the file is <code class="docutils literal notranslate"><span class="pre">Gandalf,Elrond,33</span></code> which tells us that Gandalf and Elrond appear together in sentence 33.</p>
+<div class="highlight-csv notranslate"><div class="highlight"><pre><span></span>Gandalf,Elrond,33
+Frodo,Bilbo,114
+Blanco,Marcho,146
+Frodo,Bilbo,205
+Thorin,Gandalf,270
+Thorin,Bilbo,270
+Gandalf,Bilbo,270
+Gollum,Bilbo,286
+Gollum,Bilbo,306
+Gollum,Bilbo,308
+</pre></div>
+</div>
+<p>Also, in the examples folder you will find <code class="docutils literal notranslate"><span class="pre">LOTRGraphBuilder.scala</span></code>, <code class="docutils literal notranslate"><span class="pre">DegreesSeperation.scala</span></code> and <code class="docutils literal notranslate"><span class="pre">LOTRDeployment.scala</span></code> which we will go through in detail.</p>
+<section id="raphtory-graph">
+<h2>Raphtory Graph<a class="headerlink" href="#raphtory-graph" title="Permalink to this headline"></a></h2>
+<p>First lets open <code class="docutils literal notranslate"><span class="pre">LOTRDeployment.scala</span></code>, which is our <code class="docutils literal notranslate"><span class="pre">main</span></code> class i.e. the file which we actually run. To do this we have made our class a scala app via <code class="docutils literal notranslate"><span class="pre">extends</span> <span class="pre">App</span></code>. This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. Inside of this we can create spout and graphbuilder objects and combine them into a <code class="docutils literal notranslate"><span class="pre">RaphtoryGraph</span></code>:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">object</span> <span class="nc">Runner</span> <span class="k">extends</span> <span class="nc">App</span><span class="p">{</span>
+        <span class="kd">val</span> <span class="n">source</span>  <span class="o">=</span> <span class="nc">ResourceSpout</span><span class="p">[</span><span class="nc">Array</span><span class="p">[</span><span class="nc">Byte</span><span class="p">]](</span><span class="s">&quot;lotr.csv&quot;</span><span class="p">)</span>
+        <span class="kd">val</span> <span class="n">builder</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">LOTRGraphBuilder</span><span class="p">()</span>
+        <span class="kd">val</span> <span class="n">graph</span> <span class="o">=</span> <span class="nc">RaphtoryGraph</span><span class="p">[</span><span class="nc">Array</span><span class="p">[</span><span class="nc">Byte</span><span class="p">]](</span><span class="n">spout</span> <span class="o">=</span> <span class="n">source</span><span class="p">,</span> <span class="n">graphBuilder</span> <span class="o">=</span> <span class="n">builder</span><span class="p">)</span>
+        
+        <span class="c1">//Don&#39;t worry about this bit yet</span>
+        <span class="kd">val</span> <span class="n">output</span> <span class="o">=</span> <span class="nc">FileOutputFormat</span><span class="p">(</span><span class="s">&quot;/tmp/raphtory&quot;</span><span class="p">)</span>
+        <span class="n">graph</span><span class="p">.</span><span class="n">pointQuery</span><span class="p">(</span><span class="nc">DegreesSeperation</span><span class="p">(),</span> <span class="n">output</span><span class="p">,</span> <span class="mi">32674</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Note 1:</strong> The <code class="docutils literal notranslate"><span class="pre">ResourceSpout</span></code> and <code class="docutils literal notranslate"><span class="pre">RaphtoryGraph</span></code> take a square bracketed argument <code class="docutils literal notranslate"><span class="pre">[Array[Byte]]</span></code>. This is the data type they are passing around and is used to make sure that the data coming out from the Spout matches the required type for the <code class="docutils literal notranslate"><span class="pre">GraphBuilder</span></code>.  Unless you are doing complicated data stuff with case classes and other advanced scala-isms this will always be <code class="docutils literal notranslate"><span class="pre">[Array[Byte]]</span></code>.</p>
+<p><strong>Note 2:</strong> Once a <code class="docutils literal notranslate"><span class="pre">RaphtoryGraph</span></code> has been created we can start submitting queries to it - which can be seen in the snippet above. Don’t worry about this yet as we will dive into it in the next section.</p>
+</section>
+<section id="spout">
+<h2>Spout<a class="headerlink" href="#spout" title="Permalink to this headline"></a></h2>
+<section id="resource-spout">
+<h3>Resource Spout<a class="headerlink" href="#resource-spout" title="Permalink to this headline"></a></h3>
+<p>There are many data sources that may be used to feed graphs in Raphtory, for this example we will make use of the simplest of these, the <code class="docutils literal notranslate"><span class="pre">ResourceSpout</span></code>. This takes a file which is inside of the <code class="docutils literal notranslate"><span class="pre">resources</span></code> directory of an SBT project and pushes it into Pulsar for our graph builders to parse. We have already put the lotr.csv file into this folder (hence why it run in the last tutorial), so you shouldn’t have to set anything if using it. If you are want to swap this file out for your own data, simply put your file into the resources directory and change the file name in the code.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="kd">val</span> <span class="n">source</span>  <span class="o">=</span> <span class="nc">ResourceSpout</span><span class="p">[</span><span class="nc">Array</span><span class="p">[</span><span class="nc">Byte</span><span class="p">]](</span><span class="s">&quot;YOUR_FILE_HERE&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="graph-builder">
+<h2>Graph Builder<a class="headerlink" href="#graph-builder" title="Permalink to this headline"></a></h2>
+<p>Now that our data is flowing in we can have a look at the graph builder class. This takes each ingested line of data and converts it into one or more graph updates. The function which does this (and in this case is the only part we need to define in this class) is <code class="docutils literal notranslate"><span class="pre">parseTuple</span></code>. Let’s look at the code:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">LOTRGraphBuilder</span> <span class="k">extends</span> <span class="nc">GraphBuilder</span><span class="p">[</span><span class="nc">Array</span><span class="p">[</span><span class="nc">Byte</span><span class="p">]]{</span>
+  <span class="k">override</span> <span class="k">def</span> <span class="nf">parseTuple</span><span class="p">(</span><span class="n">tuple</span><span class="p">:</span> <span class="nc">Array</span><span class="p">[</span><span class="nc">Byte</span><span class="p">]):</span> <span class="nc">Unit</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="kd">val</span> <span class="n">line</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">String</span><span class="p">(</span><span class="n">tuple</span><span class="p">,</span><span class="s">&quot;UTF-8&quot;</span><span class="p">)</span>
+    <span class="kd">val</span> <span class="n">fileLine</span>   <span class="o">=</span> <span class="n">line</span><span class="p">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;,&quot;</span><span class="p">).</span><span class="n">map</span><span class="p">(</span><span class="n">_</span><span class="p">.</span><span class="n">trim</span><span class="p">)</span>
+    <span class="kd">val</span> <span class="n">sourceNode</span> <span class="o">=</span> <span class="n">fileLine</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="kd">val</span> <span class="n">srcID</span>      <span class="o">=</span> <span class="n">assignID</span><span class="p">(</span><span class="n">sourceNode</span><span class="p">)</span>
+    <span class="kd">val</span> <span class="n">targetNode</span> <span class="o">=</span> <span class="n">fileLine</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="kd">val</span> <span class="n">tarID</span>      <span class="o">=</span> <span class="n">assignID</span><span class="p">(</span><span class="n">targetNode</span><span class="p">)</span>
+    <span class="kd">val</span> <span class="n">timeStamp</span>  <span class="o">=</span> <span class="n">fileLine</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="n">toLong</span>
+
+    <span class="n">addVertex</span><span class="p">(</span><span class="n">timeStamp</span><span class="p">,</span> <span class="n">srcID</span><span class="p">,</span> <span class="nc">Properties</span><span class="p">(</span><span class="nc">ImmutableProperty</span><span class="p">(</span><span class="s">&quot;name&quot;</span><span class="p">,</span><span class="n">sourceNode</span><span class="p">)),</span> <span class="nc">Type</span><span class="p">(</span><span class="s">&quot;Character&quot;</span><span class="p">))</span>
+    <span class="n">addVertex</span><span class="p">(</span><span class="n">timeStamp</span><span class="p">,</span> <span class="n">tarID</span><span class="p">,</span> <span class="nc">Properties</span><span class="p">(</span><span class="nc">ImmutableProperty</span><span class="p">(</span><span class="s">&quot;name&quot;</span><span class="p">,</span><span class="n">targetNode</span><span class="p">)),</span> <span class="nc">Type</span><span class="p">(</span><span class="s">&quot;Character&quot;</span><span class="p">))</span>
+    <span class="n">addEdge</span><span class="p">(</span><span class="n">timeStamp</span><span class="p">,</span> <span class="n">srcID</span><span class="p">,</span> <span class="n">tarID</span><span class="p">,</span> <span class="nc">Type</span><span class="p">(</span><span class="s">&quot;Character Co-occurence&quot;</span><span class="p">))</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>First, we take the byte array output by the Spout and turn this into a String. We then break up the line into the relevant components, splitting on commas (as it was a csv file ingested) via <code class="docutils literal notranslate"><span class="pre">.split(&quot;,&quot;)</span></code>. This means, for example, the line <code class="docutils literal notranslate"><span class="pre">Gandalf,Elrond,33</span></code> becomes a tuple <code class="docutils literal notranslate"><span class="pre">(Gandalf,</span> <span class="pre">Elrond,</span> <span class="pre">33)</span></code> where each is accessible. For each of the characters seen, we give them a node ID of type <code class="docutils literal notranslate"><span class="pre">Long</span></code> via the <code class="docutils literal notranslate"><span class="pre">assignID</span></code> function - if your data already has numerical node id’s you could skip this step. Finally, we send an update adding both of the vertices to the graph as well as the edge joining them, each with a timestamp of when that update occurred.</p>
+<p>There are a few things worth pointing out here:</p>
+<ul class="simple">
+<li><p>We added a <code class="docutils literal notranslate"><span class="pre">name</span></code> property to each of the nodes. If we had reason to, we could have added any other property that might be appropriate. We set this as an <code class="docutils literal notranslate"><span class="pre">ImmutableProperty</span></code> in this case, as character names are treated as fixed, but this could be a mutable property if it were required to change later.</p></li>
+<li><p>We didn’t check whether either vertices exist before sending a <code class="docutils literal notranslate"><span class="pre">addVertex</span></code> update. Another class deals with this so that we don’t have to worry about that.</p></li>
+<li><p>The spout wasn’t doing much heavy lifting here, just reading in the file line by line. The spout is used for pulling data from external sources (potentially streams) or extracting the useful parts of less structured data to send as a record to the graph builder.</p></li>
+</ul>
+<p>To summarise, the spout takes an external source of data and turns it into a <em>stream of records</em> and the graph builder converts each item from this stream of records into a <em>graph updates</em>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../Install/installdependencies.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../Analysis/analysis-explained.html" class="btn btn-neutral float-right" title="Analysis in Raphtory" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Ben Steer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

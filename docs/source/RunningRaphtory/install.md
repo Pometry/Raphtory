@@ -1,0 +1,122 @@
+# Installing Raphtory
+
+Getting started with Raphtory only takes a few steps. We will use an example Raphtory project and install Scala Build Tool (SBT) to get it up and running. This quick start tutorial is based around a Lord of the Rings example, but there are several other examples available that it will work for.
+
+## 1. Clone the example project and add the latest Raphtory release
+To begin, clone the example repository from [github](https://github.com/Raphtory/Examples.git) and download the latest stable build of [Raphtory (0.4.0)](https://github.com/Raphtory/Raphtory/releases/latest). Note that you can also find the nightly Raphtory build. However, it should not be used to avoid any differences between it and this tutorial. Create a `lib` directory at the root of the project and move the `raphtory.jar` into this directory.
+
+```bash
+git clone https://github.com/Raphtory/Examples.git
+cd Examples
+wget https://github.com/Raphtory/Raphtory/releases/download/0.4.0/raphtory-0.4.0.jar
+mkdir lib | mv raphtory-0.4.0.jar lib/
+```
+
+## 2. Install SBT  
+Install SBT by following the guide [here](https://www.scala-sbt.org/1.x/docs/Setup.html). The example project uses SBT to compile the source code.
+
+**OR** 
+
+If you do not want to install sbt locally, prepend `sbt/bin` to all your commands to use the sbt included in the project.
+
+## 3. Initiate SBT
+Move into an example project directory (eg. `raphtory_example/raphtory-example-lotr`) and use the command `sbt` to start the Scala Build Tool. Once you see the `>` prompt, it means that you are in the SBT interactive shell.
+
+## 4. Compile and run the code
+
+Once prompted again with `>`, you can run `compile` to build the project. This should produce the output below if working correctly:
+
+```bash
+[info] Loading settings for project global-plugins from idea.sbt ...
+[info] Loading global plugins from /Users/you/.sbt/1.0/plugins
+[info] Loading project definition from /Users/you/github/raphtory_example/raphtory-example-lotr
+[info] Loading settings for project examples from build.sbt ...
+[info] Set current project to RaphtoryExamples (in build file:/Users/you/github/raphtory_example/raphtory-example-lotr)
+[info] Executing in batch mode. For better performance use sbt\'s shell
+[info] Compiling 41 Scala sources to /Users/you/github/raphtory_example/raphtory-example-lotr/target/scala-2.12/classes ...
+[warn] there were two feature warnings; re-run with -feature for details
+[warn] one warning found
+[success] Total time: 12 s, completed 08-Dec-2020 22:35:31
+```
+To test that you have Raphtory working properly on your machine, use the command `run` when prompted again with `>`.
+
+Summary of running SBT: 
+
+```bash
+> sbt
+> compile
+> run
+```
+And you're done!  
+
+This will run the Lord of the Rings example that we will come back to in the next few tutorials. 
+
+----
+
+We have left logging on `INFO` so that you can see what is going on in as Raphtory. Some example output is as follows:
+
+**This is the system starting up**
+
+```bash
+16:28:55.591 [Raphtory-akka.actor.default-dispatcher-5] INFO  akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+16:28:56.101 [Raphtory-akka.actor.default-dispatcher-5] INFO  a.r.artery.tcp.ArteryTcpTransport - Remoting started with transport [Artery tcp]; listening on address [akka://Raphtory@127.0.0.1:1600] with UID [-8525538717996107206]
+16:28:56.135 [Raphtory-akka.actor.default-dispatcher-5] INFO  akka.cluster.Cluster - Cluster Node [akka://Raphtory@127.0.0.1:1600] - Starting up, Akka version [2.6.14] ...
+16:28:56.276 [Raphtory-akka.actor.default-dispatcher-5] INFO  akka.cluster.Cluster - Cluster Node [akka://Raphtory@127.0.0.1:1600] - Registered cluster JMX MBean [akka:type=Cluster,port=1600]
+16:28:56.276 [Raphtory-akka.actor.default-dispatcher-5] INFO  akka.cluster.Cluster - Cluster Node [akka://Raphtory@127.0.0.1:1600] - Started up successfully
+16:28:56.318 [Raphtory-akka.actor.default-dispatcher-13] INFO  akka.cluster.Cluster - Cluster Node [akka://Raphtory@127.0.0.1:1600] - No downing-provider-class configured, manual cluster downing required, see https://doc.akka.io/docs/akka/current/typed/cluster.html#downing
+16:28:56.351 [Raphtory-akka.actor.default-dispatcher-13] INFO  akka.cluster.Cluster - Cluster Node [akka://Raphtory@127.0.0.1:1600] - Node [akka://Raphtory@127.0.0.1:1600] is JOINING itself (with roles [dc-default], version [0.0.0]) and forming new cluster
+16:28:56.354 [Raphtory-akka.actor.default-dispatcher-13] INFO  akka.cluster.Cluster - Cluster Node [akka://Raphtory@127.0.0.1:1600] - is the new leader among reachable nodes (more leaders may exist)
+16:28:56.366 [Raphtory-akka.actor.default-dispatcher-13] INFO  akka.cluster.Cluster - Cluster Node [akka://Raphtory@127.0.0.1:1600] - Leader is moving node [akka://Raphtory@127.0.0.1:1600] to [Up]
+16:28:58.730 [Raphtory-akka.actor.default-dispatcher-13] INFO  c.r.c.c.a.c.BuilderConnector - Builder Machine 0 has come online.
+16:28:58.730 [Raphtory-akka.actor.default-dispatcher-13] INFO  c.r.c.c.a.c.BuilderConnector - Builder Machine 1 has come online.
+16:28:58.733 [Raphtory-akka.actor.default-dispatcher-13] INFO  c.r.c.c.a.c.PartitionConnector - Partition Manager 0 has come online.
+16:28:58.734 [Raphtory-akka.actor.default-dispatcher-20] INFO  c.r.c.c.a.c.PartitionConnector - Partition Manager 1 has come online.
+```
+
+This shows that the ingestion components of Raphtory are online and as such the system is ready for analysis to be performed. 
+
+
+````bash
+22:36:49.678 [Citation-system-akka.actor.default-dispatcher-18] INFO  c.r.c.a.C.RaphtoryReplicator - Router 0 has come online.
+22:36:49.678 [Citation-system-akka.actor.default-dispatcher-18] INFO  c.r.c.a.C.RaphtoryReplicator - Partition Manager 0 has come online.
+Cluster Started: 1 Graph Builders, 1 Partitions, 1 Spout, 1 Query Manager
+````
+
+**During ingestion the watermark will increase.** The watermark reports the status of 
+the paritions, and the time they believe is safe to execute on. Below, the first watermark reported shows that no data has been loaded into the partition manager, as both the minimum and maximum states are both at 0. The last watermark shows that the partitions have ingested the data and are now synced, as both minimum and maximum report the same result `32674` which is also the final timestamp in the file. Raphtory will only execute on time below the global minimum time to make sure the results are always correct.
+
+````bash
+12:03:56.230 [Raphtory-akka.actor.default-dispatcher-5] INFO  c.r.c.c.leader.WatermarkManager - Minimum Watermark: akka://Raphtory/user/write_0 0 Maximum Watermark: akka://Raphtory/user/write_0 0
+12:04:06.250 [Raphtory-akka.actor.default-dispatcher-19] INFO  c.r.c.c.leader.WatermarkManager - Minimum Watermark: akka://Raphtory/user/write_0 25000 Maximum Watermark: akka://Raphtory/user/write_0 32674
+12:05:03.360 [Raphtory-akka.actor.default-dispatcher-19] INFO  c.r.c.c.leader.WatermarkManager - Minimum Watermark: akka://Raphtory/user/write_0 32674 Maximum Watermark: akka://Raphtory/user/write_0 32674
+````
+
+This confirms that our analysis jobs have been submitted and that the times they are requesting are yet to be available (and shall be retried soon). Once the required timestamp is avaialble, the analysis will be run. 
+
+````bash
+12:03:36.445 [Raphtory-akka.actor.default-dispatcher-13] INFO  c.r.c.c.querymanager.QueryManager - Point Query received, your job ID is DegreesAnalyser_1637236996124
+12:03:36.508 [Raphtory-akka.actor.default-dispatcher-19] INFO  c.r.c.c.q.handler.PointQueryHandler - Perspective(32670,None) for Job DegreesAnalyser_1637236996124 is not ready, currently at 0. Rechecking
+Reading file lotr.csv
+12:03:46.207 [Raphtory-akka.actor.default-dispatcher-5] INFO  c.r.c.c.leader.WatermarkManager - Minimum Watermark: akka://Raphtory/user/write_0 32674 Maximum Watermark: akka://Raphtory/user/write_0 32674
+12:03:46.636 [Raphtory-akka.actor.default-dispatcher-5] INFO  c.r.c.c.p.QueryExecutor - Executor for Partition 0 Job DegreesAnalyser_1637236996124 has been terminated
+````
+
+**Finally, output for the example queries should begin being saved to/tmp or the directory specified.** Below is an example of the CSV file that has been output. This means that Raphtory is working as it should and you can move onto creating your first graph for analysis. Don't worry too much about this at the moment as again it will be covered later.
+
+
+````csv
+32670,  Odo,      2
+32670,  Samwise,  1
+32670,  Elendil,  2
+32670,  Valandil, 2
+32670,  Angbor,   2
+32670,  Arwen,    2
+32670,  Treebeard,1
+32670,  Óin,      3
+32670,  Butterbur,1
+32670,  Finduilas,2
+32670,  Celebrimbor,2
+32670,  Grimbeorn,2
+32670,  Lobelia,  2
+32670,  Helm,     1
+````

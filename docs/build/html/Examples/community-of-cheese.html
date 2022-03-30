@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Community of Cheese &mdash; Raphtory 0.4.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Gab Social Network Analysis" href="gab.html" />
+    <link rel="prev" title="Kubernetes Cluster Deployment" href="../Deployment/deploymentkube.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Raphtory
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Raphtory</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Install/installdependencies.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Ingestion/sprouter.html">Building a graph from your data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Analysis/analysis-explained.html">Analysis in Raphtory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Querying/presto.html">Querying in-flight data</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Python Library</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html">Getting your data into Jupyter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html#example-notebook">Example Notebook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/RaphtoryClient.html">Raphtory Client</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Deployment</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/graphvsservice.html">Raphtory Graph VS Raphtory Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentlocal.html">Bare Metal Cluster Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentkube.html">Kubernetes Cluster Deployment</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples Projects</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The Community of Cheese</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gab.html">Gab Social Network Analysis</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Temporal Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/tmotifcount.html">Motif Alpha</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/mlpa.html">Multi-Layer Dynamic Community Detection</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Static Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/connectedComponents.html">Connected Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/degree.html">Degree</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/lpa.html">Label Propagation Algorithm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/cbod.html">Outlier Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/pageRank.html">Page Rank</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/genericTaint.html">Tainting / Infection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/triangleCount.html">Triangle Count</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/twoHopNeighbors.html">Two-Hop Neighbours</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/wattsCascade.html">Watts Cascade</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Raphtory</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>The Community of Cheese</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/Examples/community-of-cheese.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="the-community-of-cheese">
+<h1>The Community of Cheese<a class="headerlink" href="#the-community-of-cheese" title="Permalink to this headline"></a></h1>
+<p>Raphtory implements a multi-layer LPA as a Dynamic community detection approach in large word-corpus network and is able to detect a “Community of Cheese” without prior training.</p>
+<hr class="docutils" />
+<p>
+ <img src="../_static/Various_cheeses.jpg" width="400px" style="padding: 15px; float: right; " alt="Yummy cheese graphic"/>
+</p>
+<p>We’re expanding Raphtory to work with a number of different algorithms to test its capability in a variety of areas. One of those areas is <em>community detection</em> which is quite a venerable area of research in graphs in general but less explored in the temporal graph space. The traditional problem is to divide the nodes of a graph into separate communities where links are more common between nodes in the same community and less common between nodes in different communities. There are various ways to make this more formal, for example defining the notion of <a class="reference external" href="https://en.wikipedia.org/wiki/Modularity">modularity</a> (the fraction of edges between nodes in the same community minus the fraction you would expect from a random graph with the same degree distribution).</p>
+<p>Here, we’re working with the <a class="reference external" href="https://en.wikipedia.org/wiki/Label_propagation_algorithm">Label Propagation Algorithm</a> which is an easy to understand algorithm that, in brief, has nodes propagate the most common label they see in their neighbours repeatedly until convergence. Communities end up having the same label. But how does this work on graphs that change in time? We want the possibiltiy to observe nodes migrating between communities. We want the possibility that communities merge or vanish. Some researchers try to achieve this with graph snapshots. You run your favourite community detection algorithm on many different snapshots and then try to identify when the “same” community is present in different snapshots in what’s call a community matching problem. So if in snapshot 1, nodes A, B, C and D were together in a community and in snapshot 2, nodes A, B, C, D and E were together, you might hypothesise that E has joined that community. However, this joining and merging presents some tricky problems in itself and is difficult to track with large graphs.</p>
+<p>Using a fully temporal graph system like Raphtory, we can try another approach (I should also say people have approached this problem with “hand rolled” solutions). In addition to “spatial” links connecting nodes at given times, we can imagine a “temporal” link that connects a node with itself at a later time. You can imagine it like this, instead of having a number of different graphs at different times you have a single graph in space-time with space-like and time-like links. You then run your favourite community detection algorithm on your “space-time” graph.</p>
+<p align="center">
+  <img src="../_static/mlpa-eg.png" style="width: 30vw;" alt="mlpa example"/>
+</p>
+<p>Of course, a number of questions remain open, in particular what weight should be given to the “time-like” links between a node and itself at a different time. If that is set very high a node can never change community. If it is set very low then nodes change community “too often” there’s no stickiness or notion that a node should in some sense be the same at later or earlier times. One of the nice things about Raphtory is it allows us to experiment with vectors of weights simultaneously.</p>
+<p>Right now, we’re looking at a word co-occurrence data set. Words are linked if they co-occur in a sentence in our corpus. The hope is that the community detection will allow us to find some communities that represent words that are in some sense the same. I should also emphasise that the corpus of words is very large. In fact it quite clearly includes some spurious “non-words” that are simply typos common enough to make it into the data set.</p>
+<p>The best community we have found so far is the “community of obscure cheese”. It is a small community centred on occurrences of non-that-common cheeses and cheeselike words in our 2008-year word set. The same community has cheesecloth, gruyere, gorgonzola, geta, cheesestrings, grated, truffled, rinded as well as misspellings like chedder and a few genuinely unexpected non-words “unscrewingtheinscrutable”.</p>
+<p>This is from a first run with no tuning whatsover so it’s fascinating to see this sort of thing emerge. I present the community of slightly obscure cheese.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span> (&#39;blintzes&#39;, &#39;2006&#39;),
+ (&#39;rinded&#39;, &#39;2006&#39;),
+ (&#39;blintzes&#39;, &#39;2007&#39;),
+ (&#39;rinded&#39;, &#39;2007&#39;),
+ (&#39;baguettes&#39;, &#39;2008&#39;),
+ (&#39;banir&#39;, &#39;2008&#39;),
+ (&#39;biocatalogue&#39;, &#39;2008&#39;),
+ (&#39;biryanilamb&#39;, &#39;2008&#39;),
+ (&#39;blintzes&#39;, &#39;2008&#39;),
+ (&#39;boerag&#39;, &#39;2008&#39;),
+ (&#39;camembert&#39;, &#39;2008&#39;),
+ (&#39;camenbert&#39;, &#39;2008&#39;),
+ (&#39;caws&#39;, &#39;2008&#39;),
+ (&#39;chavroux&#39;, &#39;2008&#39;),
+ (&#39;chaws&#39;, &#39;2008&#39;),
+ (&#39;chedder&#39;, &#39;2008&#39;),
+ (&#39;cheese&#39;, &#39;2008&#39;),
+ (&#39;cheesecloth&#39;, &#39;2008&#39;),
+ (&#39;cheesemaking&#39;, &#39;2008&#39;),
+ (&#39;cheestrings&#39;, &#39;2008&#39;),
+ (&#39;crostini&#39;, &#39;2008&#39;),
+ (&#39;crumbly&#39;, &#39;2008&#39;),
+ (&#39;dairying&#39;, &#39;2008&#39;),
+ (&#39;dairylea&#39;, &#39;2008&#39;),
+ (&#39;dolcelatte&#39;, &#39;2008&#39;),
+ (&#39;dowzer&#39;, &#39;2008&#39;),
+ (&#39;dunkers&#39;, &#39;2008&#39;),
+ (&#39;edam&#39;, &#39;2008&#39;),
+ (&#39;eggsdamp&#39;, &#39;2008&#39;),
+ (&#39;emmental&#39;, &#39;2008&#39;),
+ (&#39;emmenthal&#39;, &#39;2008&#39;),
+ (&#39;feta&#39;, &#39;2008&#39;),
+ (&#39;fontina&#39;, &#39;2008&#39;),
+ (&#39;goats&#39;, &#39;2008&#39;),
+ (&#39;gorgonzola&#39;, &#39;2008&#39;),
+ (&#39;gouda&#39;, &#39;2008&#39;),
+ (&#39;grated&#39;, &#39;2008&#39;),
+ (&#39;grater&#39;, &#39;2008&#39;),
+ (&#39;gruyere&#39;, &#39;2008&#39;),
+ (&#39;halloumi&#39;, &#39;2008&#39;),
+ (&#39;hashbrowns&#39;, &#39;2008&#39;),
+ (&#39;havarti&#39;, &#39;2008&#39;),
+ (&#39;jelo&#39;, &#39;2008&#39;),
+ (&#39;knivesprice&#39;, &#39;2008&#39;),
+ (&#39;leerdammer&#39;, &#39;2008&#39;),
+ (&#39;limburger&#39;, &#39;2008&#39;),
+ (&#39;livarot&#39;, &#39;2008&#39;),
+ (&#39;macaroni&#39;, &#39;2008&#39;),
+ (&#39;makingdairy&#39;, &#39;2008&#39;),
+ (&#39;manchego&#39;, &#39;2008&#39;),
+ (&#39;mixtura&#39;, &#39;2008&#39;),
+ (&#39;mozerella&#39;, &#39;2008&#39;),
+ (&#39;myzithra&#39;, &#39;2008&#39;),
+ (&#39;nachos&#39;, &#39;2008&#39;),
+ (&#39;panir&#39;, &#39;2008&#39;),
+ (&#39;parmesan&#39;, &#39;2008&#39;),
+ (&#39;pecorino&#39;, &#39;2008&#39;),
+ (&#39;pepperjack&#39;, &#39;2008&#39;),
+ (&#39;picanha&#39;, &#39;2008&#39;),
+ (&#39;poneer&#39;, &#39;2008&#39;),
+ (&#39;provolone&#39;, &#39;2008&#39;),
+ (&#39;pzh&#39;, &#39;2008&#39;),
+ (&#39;reblochon&#39;, &#39;2008&#39;),
+ (&#39;rennet&#39;, &#39;2008&#39;),
+ (&#39;rinded&#39;, &#39;2008&#39;),
+ (&#39;roquefort&#39;, &#39;2008&#39;),
+ (&#39;sachertorte&#39;, &#39;2008&#39;),
+ (&#39;salami&#39;, &#39;2008&#39;),
+ (&#39;selsig&#39;, &#39;2008&#39;),
+ (&#39;shopsdairies&#39;, &#39;2008&#39;),
+ (&#39;stomaching&#39;, &#39;2008&#39;),
+ (&#39;stonecycle&#39;, &#39;2008&#39;),
+ (&#39;truckles&#39;, &#39;2008&#39;),
+ (&#39;truffled&#39;, &#39;2008&#39;),
+ (&#39;unpasturised&#39;, &#39;2008&#39;),
+ (&#39;unscrewingtheinscrutable&#39;, &#39;2008&#39;),
+ (&#39;velveeta&#39;, &#39;2008&#39;),
+ (&#39;wedgets&#39;, &#39;2008&#39;),
+ (&#39;yogurts&#39;, &#39;2008&#39;)
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../Deployment/deploymentkube.html" class="btn btn-neutral float-left" title="Kubernetes Cluster Deployment" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="gab.html" class="btn btn-neutral float-right" title="Gab Social Network Analysis" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Ben Steer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

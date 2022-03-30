@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Raphtory Client &mdash; Raphtory 0.4.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Raphtory Graph VS Raphtory Service" href="../Deployment/graphvsservice.html" />
+    <link rel="prev" title="Getting your data into Jupyter" href="tutorial.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Raphtory
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Raphtory</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Install/installdependencies.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Ingestion/sprouter.html">Building a graph from your data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Analysis/analysis-explained.html">Analysis in Raphtory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Querying/presto.html">Querying in-flight data</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Python Library</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Getting your data into Jupyter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html#example-notebook">Example Notebook</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Raphtory Client</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#raphtoryclient-objects">RaphtoryClient Objects</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#make-name">make_name</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#setupclient">setupClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#createreaders">createReaders</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#getstats">getStats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#getresults">getResults</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#find-dates">find_dates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#add-node-attributes">add_node_attributes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#creategraph">createGraph</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#createlotrgraph">createLOTRGraph</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Deployment</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/graphvsservice.html">Raphtory Graph VS Raphtory Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentlocal.html">Bare Metal Cluster Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentkube.html">Kubernetes Cluster Deployment</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples Projects</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/community-of-cheese.html">The Community of Cheese</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/gab.html">Gab Social Network Analysis</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Temporal Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/tmotifcount.html">Motif Alpha</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/mlpa.html">Multi-Layer Dynamic Community Detection</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Static Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/connectedComponents.html">Connected Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/degree.html">Degree</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/lpa.html">Label Propagation Algorithm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/cbod.html">Outlier Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/pageRank.html">Page Rank</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/genericTaint.html">Tainting / Infection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/triangleCount.html">Triangle Count</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/twoHopNeighbors.html">Two-Hop Neighbours</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/wattsCascade.html">Watts Cascade</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Raphtory</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Raphtory Client</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/PythonClient/RaphtoryClient.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="raphtory-client">
+<h1>Raphtory Client<a class="headerlink" href="#raphtory-client" title="Permalink to this headline"></a></h1>
+<hr class="docutils" />
+<p style="margin-left: 1.5em;"> This is the class to create a raphtory client which interacts with pulsar. 
+The main purpose is to pull data to allow for analysis in python. </p>
+<section id="raphtoryclient-objects">
+<h2>RaphtoryClient Objects<a class="headerlink" href="#raphtoryclient-objects" title="Permalink to this headline"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">RaphtoryClient</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>This is the class to create a raphtory client which interacts with pulsar.</p>
+<p><strong>Attributes</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">topic</span></code> <em>str</em> - Name of a topic to read from</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">client_address</span></code> <em>str</em> - Address of pulsar client</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">subscription_name</span></code> <em>str</em> - Name of reader</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">delimiter</span></code> <em>str</em> - Delimiter to split the raw data from the reader</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">admin_url</span></code> <em>str</em> - Address of pulsar admin</p></li>
+</ul>
+<p><a id="RaphtoryClient.RaphtoryClient.make_name"></a></p>
+<section id="make-name">
+<h3>make_name<a class="headerlink" href="#make-name" title="Permalink to this headline"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">make_name</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Helper function which generates a random
+subscription suffix for the reader.</p>
+<p><strong>Arguments</strong>:</p>
+<p>none</p>
+<p><strong>Returns</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">str</span></code> - subcription suffix</p></li>
+</ul>
+<p><a id="RaphtoryClient.RaphtoryClient.setupClient"></a></p>
+</section>
+<section id="setupclient">
+<h3>setupClient<a class="headerlink" href="#setupclient" title="Permalink to this headline"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">setupClient</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Setups a pulsar client using the pulsar address.
+Retries at least 5 times before returning</p>
+<p><strong>Returns</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">PulsarClient</span></code> - A pulsar client object if successful</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">False</span></code> <em>boolean</em> - False if not successful</p></li>
+</ul>
+<p><a id="RaphtoryClient.RaphtoryClient.createReaders"></a></p>
+</section>
+<section id="createreaders">
+<h3>createReaders<a class="headerlink" href="#createreaders" title="Permalink to this headline"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">createReaders</span><span class="p">(</span><span class="n">topics</span><span class="p">,</span> <span class="n">subscription_name</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Setups a pulsar reader, which reads from a pulsar topic.
+Retries at least 5 times before returning</p>
+<p><strong>Arguments</strong>:</p>
+<p>topics (List(str)): Names of topic to read from</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">subscription_name</span></code> <em>str</em> - Name for this readers subscription</p></li>
+</ul>
+<p><strong>Returns</strong>:</p>
+<p>Dict(str, PulsarReader): A dict containing pulsar reader objects with key being topic name</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">False</span></code> <em>boolean</em> - False if not successful</p></li>
+</ul>
+<p><a id="RaphtoryClient.RaphtoryClient.getStats"></a></p>
+</section>
+<section id="getstats">
+<h3>getStats<a class="headerlink" href="#getstats" title="Permalink to this headline"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">getStats</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">tenant</span><span class="o">=</span><span class="s2">&quot;public&quot;</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Reads stats from a pulsar topic using the admin interface.
+If success returns the response as json else returns an empty dict.</p>
+<p><strong>Arguments</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">topic</span></code> <em>str</em> - Topic to obtain stats from</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tenant</span></code> <em>str</em> - (Optional, default: public) Pulsar tenant to access</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">namepsace</span></code> <em>str</em> - (Optional, default: default) Pulsar namespace to access</p></li>
+</ul>
+<p><strong>Returns</strong>:</p>
+<p>json response (dict/json): The response of the request. If unsuccessful then returns an empty dict.</p>
+<p><a id="RaphtoryClient.RaphtoryClient.getResults"></a></p>
+</section>
+<section id="getresults">
+<h3>getResults<a class="headerlink" href="#getresults" title="Permalink to this headline"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">getResults</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">max_messages</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">maxsize</span><span class="p">,</span> <span class="n">col_names</span><span class="o">=</span><span class="p">[])</span>
+</pre></div>
+</div>
+<p>Using the reader, reads a complete topic and converts
+it into a pandas Dataframe. This will split each message
+from the reader using the class delimiter.
+By default this expects the results to have three columns
+called timestamp, window and id. Any columns after this
+are called result_N.</p>
+<p><strong>Arguments</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">topic</span></code> <em>str</em> - Topic name to read from</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_messages</span></code> <em>int</em> - (Optional, default:sys.maxsize) The number of messages to return.
+By default, it returns the entire topic. This may cause memory
+issues.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">col_names</span></code> <em>list[string]</em> - (Optional: default: [“timestamp”, “window”, “id”]). These are
+the names of the columns. By default this expects the results
+to have three columns called timestamp, window and id. Any
+columns after this are called result_N.</p></li>
+</ul>
+<p><strong>Returns</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">dataframe</span></code> <em>pandas.dataframe</em> - A dataframe of the topic</p></li>
+</ul>
+<p><a id="RaphtoryClient.RaphtoryClient.find_dates"></a></p>
+</section>
+<section id="find-dates">
+<h3>find_dates<a class="headerlink" href="#find-dates" title="Permalink to this headline"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">find_dates</span><span class="p">(</span><span class="n">all_data</span><span class="p">,</span> <span class="n">node_a_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">node_b_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">time_col</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Given a dataframe of edges, this will find the first time an item was seen.
+This is returned as a dict with the key being the id and the value time.
+This can be helpful when trying to identify when a node was first created.</p>
+<p><strong>Arguments</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">all_data</span></code> <em>dataframe</em> - A dataframe containing a column with keys and a column with times/numbers to compare with.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">node_a_id</span></code> <em>int</em> - Position of the id or name to use as key for node A</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">node_b_id</span></code> <em>int</em> - Position of the id or name to use as key for node B</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">time_col</span></code> <em>int</em> - Position of the time column which is compared</p></li>
+</ul>
+<p><strong>Returns</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">first_seen</span></code> <em>dict</em> - A dictionary with the key= node_id and the value = time</p></li>
+</ul>
+<p><a id="RaphtoryClient.RaphtoryClient.add_node_attributes"></a></p>
+</section>
+<section id="add-node-attributes">
+<h3>add_node_attributes<a class="headerlink" href="#add-node-attributes" title="Permalink to this headline"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">add_node_attributes</span><span class="p">(</span><span class="n">G</span><span class="p">,</span> <span class="n">results</span><span class="p">,</span> <span class="n">abbr</span><span class="p">,</span> <span class="n">row_id</span><span class="o">=</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">time_col</span><span class="o">=</span><span class="s1">&#39;timestamp&#39;</span><span class="p">,</span> <span class="n">window_col</span><span class="o">=</span><span class="s1">&#39;window&#39;</span><span class="p">,</span> <span class="n">result_col</span><span class="o">=</span><span class="s1">&#39;result&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Given a graph, an array of attributes and a abbreviation.
+This will add all the attributes to the graph.
+For example, given a graph G, results</p>
+<p><strong>Arguments</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">G</span></code> <em>networkx.graph</em> - A networkx graph</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">results</span></code> <em>list[dict]</em> - A list of dataframes which contain attributes.
+The format for attributes is a dataframe with</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code> - node id</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">timestamp</span></code> - time the attribute was created</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">window</span></code> - (optional) the window the attribute was created</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">result_col</span></code> - the value of the attribute
+abbr    (list(str)): A list of strings which correspond to the abbreviation used when appending the attribute.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">row_id</span></code> <em>str</em> - Name of the row id column to use, must be the same across results</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">time_col</span></code> <em>str</em> - Name of the timestamp column to use</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">result_col</span></code> <em>str</em> - Name of the result column</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">window_col</span></code> <em>str</em> - (Optional, default:’window’) Name of the window column, set to ‘’ if not being used</p></li>
+</ul>
+<p><a id="RaphtoryClient.RaphtoryClient.createGraph"></a></p>
+</section>
+<section id="creategraph">
+<h3>createGraph<a class="headerlink" href="#creategraph" title="Permalink to this headline"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">createGraph</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">isMultiGraph</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Builds a simple networkx graph from an edge list in Raphtory.</p>
+<p><strong>Arguments</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">topic</span></code> <em>str</em> - Location of edge list</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">isMultiGraph</span></code> <em>bool</em> - If False will use DiGraph, otherwise will use MultiGraph</p></li>
+</ul>
+<p><strong>Returns</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">G</span></code> <em>networkx.DiGraph</em> - The graph as built in networkx</p></li>
+</ul>
+<p><a id="RaphtoryClient.RaphtoryClient.createLOTRGraph"></a></p>
+</section>
+<section id="createlotrgraph">
+<h3>createLOTRGraph<a class="headerlink" href="#createlotrgraph" title="Permalink to this headline"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">createLOTRGraph</span><span class="p">(</span><span class="n">filePath</span><span class="p">,</span> <span class="n">from_time</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">to_time</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">maxsize</span><span class="p">,</span> <span class="n">source_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">target_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">timestamp_col</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Example graph builder in python. Given a csv edgelist this will create a graph using networkx based on the lotr data.</p>
+<p><strong>Arguments</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">filePath</span></code> <em>str</em> - Location of csv file</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">from_time</span></code> <em>int</em> - (Optional, default: 0) timestamp to start building graph from</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">to_time</span></code> <em>int</em> - (Optional, default: sys.maxsize) timestamp to stop building graph</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">source_id</span></code> <em>int</em> - column for source node</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">target_id</span></code> <em>int</em> - column for target node</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">timestamp_col</span></code> <em>int</em> - column for lotr timestamp</p></li>
+</ul>
+<p><strong>Returns</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">G</span></code> <em>networkx.DiGraph</em> - The graph as built in networkx</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tutorial.html" class="btn btn-neutral float-left" title="Getting your data into Jupyter" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../Deployment/graphvsservice.html" class="btn btn-neutral float-right" title="Raphtory Graph VS Raphtory Service" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Ben Steer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

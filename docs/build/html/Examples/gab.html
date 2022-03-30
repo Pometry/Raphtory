@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gab Social Network Analysis &mdash; Raphtory 0.4.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Motif Alpha" href="../Algorithms/tmotifcount.html" />
+    <link rel="prev" title="The Community of Cheese" href="community-of-cheese.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Raphtory
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Raphtory</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Install/installdependencies.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Ingestion/sprouter.html">Building a graph from your data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Analysis/analysis-explained.html">Analysis in Raphtory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Querying/presto.html">Querying in-flight data</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Python Library</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html">Getting your data into Jupyter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html#example-notebook">Example Notebook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/RaphtoryClient.html">Raphtory Client</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Deployment</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/graphvsservice.html">Raphtory Graph VS Raphtory Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentlocal.html">Bare Metal Cluster Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentkube.html">Kubernetes Cluster Deployment</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples Projects</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="community-of-cheese.html">The Community of Cheese</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Gab Social Network Analysis</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Temporal Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/tmotifcount.html">Motif Alpha</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/mlpa.html">Multi-Layer Dynamic Community Detection</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Static Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/connectedComponents.html">Connected Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/degree.html">Degree</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/lpa.html">Label Propagation Algorithm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/cbod.html">Outlier Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/pageRank.html">Page Rank</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/genericTaint.html">Tainting / Infection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/triangleCount.html">Triangle Count</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/twoHopNeighbors.html">Two-Hop Neighbours</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/wattsCascade.html">Watts Cascade</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Raphtory</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Gab Social Network Analysis</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/Examples/gab.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="gab-social-network-analysis">
+<h1>Gab Social Network Analysis<a class="headerlink" href="#gab-social-network-analysis" title="Permalink to this headline"></a></h1>
+<hr class="docutils" />
+<p>In recent work, Raphtory has been used to study the evolution of a fairly new social network Gab used largely by the alt-right. For a deep delve into this topic, take a look at our paper <a class="reference external" href="https://www.researchgate.net/publication/344294385_Moving_with_the_Times_Investigating_the_Alt-Right_Network_Gab_with_Temporal_Interaction_Graphs">“Moving with the times: Investigating the alt right network Gab using temporal interaction graphs”</a></p>
+<hr class="docutils" />
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="community-of-cheese.html" class="btn btn-neutral float-left" title="The Community of Cheese" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../Algorithms/tmotifcount.html" class="btn btn-neutral float-right" title="Motif Alpha" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Ben Steer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

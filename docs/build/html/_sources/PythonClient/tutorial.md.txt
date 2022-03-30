@@ -1,0 +1,156 @@
+# Getting your data into Jupyter
+
+## Pre-requisites
+
+In order to run the example notebook you must first have 
+
+* Pulsar running 
+* Example running from https://github.com/Raphtory/Examples/raphtory-example-lotr-topics
+* Set up a python environment
+
+To run Raphtory and Pulsar, please view the Raphtory setup/installation guide. 
+
+###  Data for the Python Demo
+
+Once you have pulsar running and Raphtory setup, we can now run the https://github.com/Raphtory/Examples/raphtory-example-lotr-topics Runner. 
+This will run a `spout` and `graphbuilder` that ingests and creates a LOTR graph. 
+Then will run the `EdgeList` and `PageRank` algorithms. The `EdgeList` algorithm will produce an edge list that can be ingested into the graph. `PageRank` will run a page rank algorithm that will run page rank as a range query over specific times in the data. 
+More information can be found in the readme
+
+
+# Example Notebook
+
+## Setup Python Environment 
+
+- Install Python3 and Pip
+- Install the requirements file via
+  - `pip install -r requirements.txt` 
+- install the addons for pymotif
+```
+  # Jupyter Lab
+  jupyter labextension install @jupyter-widgets/jupyterlab-manager
+
+  # For Jupyter Lab <= 2, you may need to install the extension manually
+  jupyter labextension install @cylynx/pymotif
+
+  # For Jupyter Notebook <= 5.2, you may need to enable nbextensions
+  jupyter nbextension enable --py [--sys-prefix|--user|--system] pymotif
+```
+- then run jupyter via `jupyter`
+
+## Run Example Lab - Raphtory Python Client - LOTR DEMO
+
+This guide will show you how to use the client. This will walk through connecting to Raphtory, exporting a graph, exporting results, appending results to a graph and visualising the results. 
+
+On the Raphtory Github page under `src/main/python` there is a copy of this process as a jupyter notebook called `LOTR_demo.ipynb`.
+
+In this demo we will
+* Create a Python Raphtory client
+* Create a Graph from data in Raphtory
+* Pull results from an algorithm in Raphtory
+* Add these results to the Graph
+* Visualise the graph with pymotif
+
+### Setup Code
+
+First we setup the various libraries we will need
+
+
+```python
+from RaphtoryClient import RaphtoryClient
+from pymotif import Motif
+```
+
+### Next we list the topics we would like to read from
+
+In this case it is the EdgeList topic and PageRank.
+
+Note: Prior to this you should have already run these two algorithms in Raphtory.
+
+
+```python
+topics = ["EdgeList" , "PageRank"]
+```
+
+### Create a client
+
+Now we create a client and point it to a specific Raphtory Topics.
+
+If the connection fails, the code with automatically retry.
+
+This can occur when you have not closed previous pulsar connections.
+
+
+```python
+raphtoryClient = RaphtoryClient(topics)
+```
+
+```
+    2022-02-01 17:24:27.586 INFO  [0x111e1ee00] ConnectionPool:84 | Created connection for pulsar://127.0.0.1:6650
+    2022-02-01 17:24:27.586 INFO  [0x700013652000] ClientConnection:372 | [127.0.0.1:55411 -> 127.0.0.1:6650] Connected to broker
+    2022-02-01 17:24:27.588 INFO  [0x700013652000] HandlerBase:55 | [persistent://public/default/EdgeList, reader-6ca76f960c, 0] Getting connection from pool
+    2022-02-01 17:24:27.588 INFO  [0x700013652000] ConnectionPool:84 | Created connection for pulsar://localhost:6650
+    2022-02-01 17:24:27.589 INFO  [0x700013652000] ClientConnection:374 | [127.0.0.1:55412 -> 127.0.0.1:6650] Connected to broker through proxy. Logical broker: pulsar://localhost:6650
+    2022-02-01 17:24:27.596 INFO  [0x700013652000] ConsumerImpl:220 | [persistent://public/default/EdgeList, reader-6ca76f960c, 0] Created consumer on broker [127.0.0.1:55412 -> 127.0.0.1:6650] 
+    2022-02-01 17:24:27.597 INFO  [0x700013652000] HandlerBase:55 | [persistent://public/default/EdgeList, reader-0d48af59d, 1] Getting connection from pool
+    ...
+```
+
+### Creating a graph
+
+Next we create a graph by pulling the edge list from Raphtory.
+
+In this case we would like to create a graph from the LOTR dataset.
+
+So we run the `createGraph` method on the `EdgeList` topic.
+
+
+```python
+G = raphtoryClient.createGraph("EdgeList")
+G.number_of_nodes(), G.number_of_edges()
+```
+
+    Obtaining dataframe...
+    
+    Results processed 2100
+
+    (124, 538)
+
+
+
+### Adding properties to our graph
+
+Next we pull the results from the PageRank algorithm we run earlier.
+
+
+```python
+prResuls = raphtoryClient.getResults("PageRank", col_names=['timestamp', 'window', 'id', 'result'])
+```
+
+    Obtaining dataframe...
+    
+    Results processed
+    ...
+
+
+Now we merge these as node properties into our graph
+
+
+```python
+raphtoryClient.add_node_attributes(G, [prResuls], ['PageRank'])
+```
+
+### Visualisation
+
+Finally we plot the graph with an open source visualisation tool  e.g.
+
+
+```python
+motif_nx = Motif(nx_graph=G, title='NetworkX')
+motif_nx.plot()
+```
+
+
+    Motif(value=None, state={'data': [{'nodes': [{'id': 'Hador', 'value': 'Hador', 'name': 'Hador'}, {'PageRank_30…
+
+

@@ -1,0 +1,40 @@
+# Bare Metal Cluster Deployment
+
+**THIS TUTORIAL IS CURRENTLY OUT OF DATE, BUT WILL BE UPDATED SOON*
+
+Here we will describe how to deploy Raphtory onto a distributed cluster. 
+
+## Running Each Component
+Once you have your Service and machines defined and set up, you can run each service with the example commands below. Note that we use args(0) in the `RaphtoryService` superclass to define which component is being deployed, so do not use this for anything else.
+
+#### Leader
+
+```bash
+scala -classpath raphtory.jar:YOUR_CODE.jar the.path.to.your.service leader
+```
+
+#### Spout
+
+```bash
+scala -classpath raphtory.jar:YOUR_CODE.jar the.path.to.your.service spout
+```
+
+#### QueryManager 
+
+```bash
+scala -classpath raphtory.jar:YOUR_CODE.jar the.path.to.your.service analysisManager
+```
+
+#### GraphBuilder 
+
+```bash
+scala -classpath raphtory.jar:YOUR_CODE.jar the.path.to.your.service builder
+```
+
+#### ParitionManager
+
+```bash
+scala -classpath raphtory.jar:YOUR_CODE.jar the.path.to.your.service partitionManager
+```
+
+Once your services have been deployed, you should see exactly the same output when running in `RaphtoryGraph` mode. The head node should report that all components have come online and that you are ready to perform analysis.

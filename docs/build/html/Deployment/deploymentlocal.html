@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bare Metal Cluster Deployment &mdash; Raphtory 0.4.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Kubernetes Cluster Deployment" href="deploymentkube.html" />
+    <link rel="prev" title="Raphtory Graph VS Raphtory Service" href="graphvsservice.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Raphtory
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Raphtory</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Install/installdependencies.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Ingestion/sprouter.html">Building a graph from your data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Analysis/analysis-explained.html">Analysis in Raphtory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Querying/presto.html">Querying in-flight data</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Python Library</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html">Getting your data into Jupyter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html#example-notebook">Example Notebook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/RaphtoryClient.html">Raphtory Client</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Deployment</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="graphvsservice.html">Raphtory Graph VS Raphtory Service</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Bare Metal Cluster Deployment</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#running-each-component">Running Each Component</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#leader">Leader</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#spout">Spout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#querymanager">QueryManager</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#graphbuilder">GraphBuilder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#paritionmanager">ParitionManager</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="deploymentkube.html">Kubernetes Cluster Deployment</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples Projects</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/community-of-cheese.html">The Community of Cheese</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/gab.html">Gab Social Network Analysis</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Temporal Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/tmotifcount.html">Motif Alpha</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/mlpa.html">Multi-Layer Dynamic Community Detection</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Static Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/connectedComponents.html">Connected Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/degree.html">Degree</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/lpa.html">Label Propagation Algorithm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/cbod.html">Outlier Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/pageRank.html">Page Rank</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/genericTaint.html">Tainting / Infection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/triangleCount.html">Triangle Count</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/twoHopNeighbors.html">Two-Hop Neighbours</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/wattsCascade.html">Watts Cascade</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Raphtory</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Bare Metal Cluster Deployment</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/Deployment/deploymentlocal.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="bare-metal-cluster-deployment">
+<h1>Bare Metal Cluster Deployment<a class="headerlink" href="#bare-metal-cluster-deployment" title="Permalink to this headline"></a></h1>
+<p>*<em>THIS TUTORIAL IS CURRENTLY OUT OF DATE, BUT WILL BE UPDATED SOON</em></p>
+<p>Here we will describe how to deploy Raphtory onto a distributed cluster.</p>
+<section id="running-each-component">
+<h2>Running Each Component<a class="headerlink" href="#running-each-component" title="Permalink to this headline"></a></h2>
+<p>Once you have your Service and machines defined and set up, you can run each service with the example commands below. Note that we use args(0) in the <code class="docutils literal notranslate"><span class="pre">RaphtoryService</span></code> superclass to define which component is being deployed, so do not use this for anything else.</p>
+<section id="leader">
+<h3>Leader<a class="headerlink" href="#leader" title="Permalink to this headline"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>scala -classpath raphtory.jar:YOUR_CODE.jar the.path.to.your.service leader
+</pre></div>
+</div>
+</section>
+<section id="spout">
+<h3>Spout<a class="headerlink" href="#spout" title="Permalink to this headline"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>scala -classpath raphtory.jar:YOUR_CODE.jar the.path.to.your.service spout
+</pre></div>
+</div>
+</section>
+<section id="querymanager">
+<h3>QueryManager<a class="headerlink" href="#querymanager" title="Permalink to this headline"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>scala -classpath raphtory.jar:YOUR_CODE.jar the.path.to.your.service analysisManager
+</pre></div>
+</div>
+</section>
+<section id="graphbuilder">
+<h3>GraphBuilder<a class="headerlink" href="#graphbuilder" title="Permalink to this headline"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>scala -classpath raphtory.jar:YOUR_CODE.jar the.path.to.your.service builder
+</pre></div>
+</div>
+</section>
+<section id="paritionmanager">
+<h3>ParitionManager<a class="headerlink" href="#paritionmanager" title="Permalink to this headline"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>scala -classpath raphtory.jar:YOUR_CODE.jar the.path.to.your.service partitionManager
+</pre></div>
+</div>
+<p>Once your services have been deployed, you should see exactly the same output when running in <code class="docutils literal notranslate"><span class="pre">RaphtoryGraph</span></code> mode. The head node should report that all components have come online and that you are ready to perform analysis.</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="graphvsservice.html" class="btn btn-neutral float-left" title="Raphtory Graph VS Raphtory Service" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="deploymentkube.html" class="btn btn-neutral float-right" title="Kubernetes Cluster Deployment" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Ben Steer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

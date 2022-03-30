@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Installation &mdash; Raphtory 0.4.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Building a graph from your data" href="../Ingestion/sprouter.html" />
+    <link rel="prev" title="Documentation Overview" href="../index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Raphtory
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Raphtory</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#installing-java-scala-and-sbt-scala-build-tool">Installing Java, Scala and SBT (Scala Build Tool)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#using-sdk-man">Using SDK Man</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#installing-apache-pulsar">Installing Apache Pulsar</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#downloading-natively">Downloading Natively</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running-in-docker">Running in Docker</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#what-it-should-look-like">What it should look like</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#downloading-the-latest-raphtory-release">Downloading the latest Raphtory release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-raphtory-via-sbt">Running Raphtory via SBT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#compiling">Compiling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running">Running</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#understanding-the-execution-logs">Understanding the execution logs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#checking-your-output">Checking your output</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../Ingestion/sprouter.html">Building a graph from your data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Analysis/analysis-explained.html">Analysis in Raphtory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Querying/presto.html">Querying in-flight data</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Python Library</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html">Getting your data into Jupyter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html#example-notebook">Example Notebook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/RaphtoryClient.html">Raphtory Client</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Deployment</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/graphvsservice.html">Raphtory Graph VS Raphtory Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentlocal.html">Bare Metal Cluster Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentkube.html">Kubernetes Cluster Deployment</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples Projects</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/community-of-cheese.html">The Community of Cheese</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/gab.html">Gab Social Network Analysis</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Temporal Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/tmotifcount.html">Motif Alpha</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/mlpa.html">Multi-Layer Dynamic Community Detection</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Static Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/connectedComponents.html">Connected Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/degree.html">Degree</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/lpa.html">Label Propagation Algorithm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/cbod.html">Outlier Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/pageRank.html">Page Rank</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/genericTaint.html">Tainting / Infection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/triangleCount.html">Triangle Count</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/twoHopNeighbors.html">Two-Hop Neighbours</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/wattsCascade.html">Watts Cascade</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Raphtory</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Installation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/Install/installdependencies.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline"></a></h1>
+<p>Getting started with Raphtory only takes a few steps. We will first go through the different ways to install the packages required to run Raphtory.  We will then download the Raphtory library and attach this to an example project to check that everything is working correctly. This quick start tutorial is based around a Lord of the Rings example, but there are several other examples available that it will work for, all of which are explored in the <em>Examples Projects</em> section of this tutorial.</p>
+<section id="installing-java-scala-and-sbt-scala-build-tool">
+<h2>Installing Java, Scala and SBT (Scala Build Tool)<a class="headerlink" href="#installing-java-scala-and-sbt-scala-build-tool" title="Permalink to this headline"></a></h2>
+<p>Raphtory is a framework written in the <a class="reference external" href="https://www.scala-lang.org">Scala</a> programming language, which runs on the JVM (Java virtual machine). As such both Java and Scala are required to run Raphtory. We additionally require SBT, the scala build tool, to compile and run your first Raphtory project.</p>
+<section id="using-sdk-man">
+<h3>Using SDK Man<a class="headerlink" href="#using-sdk-man" title="Permalink to this headline"></a></h3>
+<p>Java, Scala and SBT are all very easy to install, but we must make sure that the correct versions are installed. To manage this we recommend the Software Development Kit Manager <a class="reference external" href="https://sdkman.io/">SDK Man</a>. This allows you to install and switch between versions of all these libraries. SDK Man is available for Mac, Linux and Windows and can be installed by following their simple tutorial <a class="reference external" href="https://sdkman.io/install">here</a>.</p>
+<p>Once you have this installed we will need to install a distribution of Java 11, Scala 12 and the latest version of SBT. Starting with java we can list the versions available via:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sdk list java
+</pre></div>
+</div>
+<p>This will look something like the following:</p>
+<p align="center">
+	<img src="../_static/install/sdkmanjava.png" alt="Sdk Man java lists"/>
+</p>
+<p>The Vendor here (i.e. Corretto, GrallVM) doesn’t matter really, we just need to make sure that the Major version (the first number) is 11. You can then copy the Identifier into the following command.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sdk install java IDENTIFIER
+</pre></div>
+</div>
+<p>For instance: <code class="docutils literal notranslate"><span class="pre">sdk</span> <span class="pre">install</span> <span class="pre">java</span> <span class="pre">11.0.11.hs-adpt</span></code> is the version I use</p>
+<p>Once this is installed it should set this version as your default. You can then do the same for Scala and SBT  - which only has one distributer and hence only version numbers. I have picked the latest version of Scala 12 and SBT below at the time of writing.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sdk install scala <span class="m">2</span>.12.15
+sdk install sbt <span class="m">1</span>.6.2
+</pre></div>
+</div>
+<p align="center">
+	<img src="../_static/install/sdkmaninstall.png" width="80%" alt="Sdk Man java lists"/>
+</p>
+<p>To test that these are installed and working correctly you can run them with the  –version argument to see if they are available on your class path and the correct version prints out.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>java --version
+scala --version
+</pre></div>
+</div>
+<p>If the correct version hasn’t been set as default you can do this explicitly via sdkman. This is also how you can change back to another version of these libraries for other projects.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sdk use java <span class="m">11</span>.0.11.hs-adpt
+sdk use scala <span class="m">2</span>.12.15
+sdk use sbt <span class="m">1</span>.6.2
+</pre></div>
+</div>
+</section>
+</section>
+<section id="installing-apache-pulsar">
+<h2>Installing Apache Pulsar<a class="headerlink" href="#installing-apache-pulsar" title="Permalink to this headline"></a></h2>
+<p>As of 0.5.0 Raphtory has moved away from Akka and now uses <a class="reference external" href="https://pulsar.apache.org">Apache Pulsar</a> as its message broker to support communication between its distributed components. Using Pulsar means that all data sent within Raphtory is fully backed up and communication can easily scale to millions of messages a second. Pulsar also provides connectors to every conceivable source of data which can be used to pull data into Raphtory when building graphs.</p>
+<p>For any running instance of Raphtory, even local, we need to be able to connect to a pulsar cluster. Fortunately, Pulsar comes with a standalone mode which packages everything together to be run once installed.</p>
+<section id="downloading-natively">
+<h3>Downloading Natively<a class="headerlink" href="#downloading-natively" title="Permalink to this headline"></a></h3>
+<p>The simplest way of getting Pulsar is to download it from the apache archive and unzip the tar.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget https://archive.apache.org/dist/pulsar/pulsar-2.9.0/apache-pulsar-2.9.0-bin.tar.gz 
+tar -xzf apache-pulsar-2.9.0-bin.tar.gz
+</pre></div>
+</div>
+<p>Once done you may <code class="docutils literal notranslate"><span class="pre">cd</span></code> into the pulsar directory and run the executable in standalone mode. This will launch Apache Zookeeper, Bookkeeper and Pulsar in one service and provide everything we need to run Raphtory.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> apache-pulsar-2.9.0
+bin/pulsar standalone
+</pre></div>
+</div>
+</section>
+<section id="running-in-docker">
+<h3>Running in Docker<a class="headerlink" href="#running-in-docker" title="Permalink to this headline"></a></h3>
+<p>The alternative way of running Pulsar is to do so inside a virtual environment, the easiest to use being <a class="reference external" href="https://www.docker.com">Docker</a>. <strong>Note:</strong> For Mac users with the new M1 chips, this is currently the only way of running Pulsar.</p>
+<p>The simplest way to install docker is to use the <a class="reference external" href="https://www.docker.com/products/docker-desktop">Desktop client</a> which is available for Mac, Linux and Windows. Once you have downloaded and installed docker desktop it will start up and you will be presented with a dashboard which shows you currently have no <code class="docutils literal notranslate"><span class="pre">containers</span></code> (services) running:</p>
+<p align="center">
+	<img src="../_static/install/dockerdesktop.png" width="80%" alt="Sdk Man java lists"/>
+</p>
+<p>Lets now run a container for Pulsar:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>docker run -it \ 
+-p 6650:6650 \
+-p 8080:8080 \
+-p 2181:2181 \
+-v $PWD/data:/pulsar/data \
+apachepulsar/pulsar:2.9.0 \
+bin/pulsar standalone
+</pre></div>
+</div>
+<p>Here we run the docker container in an interactive mode <code class="docutils literal notranslate"><span class="pre">run</span> <span class="pre">-it</span></code> where we attach to the service and can see the output. We bind the ports for Zookeeper and Pulsar to our localhost, so that Raphtory can communicate with the service. We create a volume called <code class="docutils literal notranslate"><span class="pre">data</span></code> in the current working directory which will contain everything written into pulsar <code class="docutils literal notranslate"><span class="pre">$PWD/data:/pulsar/data</span></code>. Finally we give the docker image (which contains all the code) <code class="docutils literal notranslate"><span class="pre">apachepulsar/pulsar:2.9.0</span></code> and tell it to run the same command as if we run it natively (<code class="docutils literal notranslate"><span class="pre">bin/pulsar</span> <span class="pre">standalone</span></code>).</p>
+</section>
+<section id="what-it-should-look-like">
+<h3>What it should look like<a class="headerlink" href="#what-it-should-look-like" title="Permalink to this headline"></a></h3>
+<p>Pulsar standalone produces <em>A LOT</em> of output, which can almost exclusively be ignored. It will take about a minute to start up and you will know when this is completed as it stops outputting and prints a block of JSON telling you its address.</p>
+<p align="center">
+	<img src="../_static/install/pulsarfinished.png" width="80%" alt="Sdk Man java lists"/>
+</p>
+<p>If you run in docker you now be able to see your container in the dashboard, given a random name, for example mine was called wonderful_fermat.</p>
+<p align="center">
+	<img src="../_static/install/dockerrunning.png" width="80%" alt="Sdk Man java lists"/>
+</p>
+<p><strong>Note</strong> If you have any issues with Pulsar (errors etc.) the quickest solution is often to delete the data folder and allow it to restart from scratch. This won’t affect Raphtory as most data is recreated on new runs anyway.</p>
+<p>Everything should now be installed and ready for us to get your first Raphtory Job underway!</p>
+</section>
+</section>
+<section id="downloading-the-latest-raphtory-release">
+<h2>Downloading the latest Raphtory release<a class="headerlink" href="#downloading-the-latest-raphtory-release" title="Permalink to this headline"></a></h2>
+<p>To begin, you must clone the example repository from <a class="reference external" href="https://github.com/Raphtory/Examples.git">github</a> and download the latest build of <a class="reference external" href="https://github.com/Raphtory/Raphtory/releases/latest">Raphtory (0.5.0)</a>.</p>
+<p><strong>Note:</strong> that you can also find the nightly Raphtory build. However, it should be used with caution, as there may be differences between it and this tutorial. We then want to checkout the examples for this version fo Raphtory.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/Raphtory/Examples.git
+<span class="nb">cd</span> Examples
+git checkout <span class="m">0</span>.5.0
+</pre></div>
+</div>
+<p>As we are using the Lord of the Rings example, we should now move into this directory - this is a totally independent sbt project. Finally here we can create a <code class="docutils literal notranslate"><span class="pre">lib</span></code> directory at the root of the project and move the <code class="docutils literal notranslate"><span class="pre">raphtory.jar</span></code> into this directory.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> raphtory-example-lotr
+wget https://github.com/Raphtory/Raphtory/releases/download/0.5.0/raphtory-0.5.0.jar
+mkdir lib <span class="p">|</span> mv raphtory-0.5.0.jar lib/
+</pre></div>
+</div>
+</section>
+<section id="running-raphtory-via-sbt">
+<h2>Running Raphtory via SBT<a class="headerlink" href="#running-raphtory-via-sbt" title="Permalink to this headline"></a></h2>
+<section id="compiling">
+<h3>Compiling<a class="headerlink" href="#compiling" title="Permalink to this headline"></a></h3>
+<p>You can now use the command <code class="docutils literal notranslate"><span class="pre">sbt</span></code> to start the Scala Build Tool. Once you see either the <code class="docutils literal notranslate"><span class="pre">&gt;</span></code> or <code class="docutils literal notranslate"><span class="pre">sbt:example-lotr&gt;</span></code> prompt, it means that you are in the SBT interactive shell. You can now run <code class="docutils literal notranslate"><span class="pre">compile</span></code> to build the project. This should produce the output similar to below if working correctly:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sbt:example-lotr&gt; compile
+<span class="o">[</span>info<span class="o">]</span> compiling <span class="m">3</span> Scala sources to /Users/YOUR_USERNAME/github/Examples/raphtory-example-lotr/target/scala-2.12/classes ...
+<span class="o">[</span>success<span class="o">]</span> Total time: <span class="m">3</span> s, completed <span class="m">2</span> Feb <span class="m">2022</span>, <span class="m">13</span>:30:49
+sbt:example-lotr&gt;
+</pre></div>
+</div>
+<p><strong>Note:</strong> If there are a million errors saying that classes are not part of the package <code class="docutils literal notranslate"><span class="pre">com.raphtory</span></code> this is probably because your lib is not in the <code class="docutils literal notranslate"><span class="pre">example-lotr</span></code> package or your <code class="docutils literal notranslate"><span class="pre">raphtory.jar</span></code> is incorrectly named. Alternatively if you have errors saying that something cannot be referenced as a URI, this is a Java version issue (the version you are using is higher than 11) and you should set the correct version as above.</p>
+</section>
+<section id="running">
+<h3>Running<a class="headerlink" href="#running" title="Permalink to this headline"></a></h3>
+<p>To test that you have Raphtory working properly on your machine, use the command <code class="docutils literal notranslate"><span class="pre">run</span></code> when prompted again with <code class="docutils literal notranslate"><span class="pre">&gt;</span></code>.</p>
+<p>And you’re done!  This will run the Lord of the Rings example that we will come back to in the next few tutorials.</p>
+</section>
+<hr class="docutils" />
+<section id="understanding-the-execution-logs">
+<h3>Understanding the execution logs<a class="headerlink" href="#understanding-the-execution-logs" title="Permalink to this headline"></a></h3>
+<p>First of all as Raphtory begins executing we should see some messages showing that the ingestion components of Raphtory are online and as such the system is ready for analysis to be performed. Don’t worry about what these are for the second, we will go through this in the next section.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Creating Partition Manager
+Creating Query Manager
+Creating Spout
+Creating Graph Builder
+</pre></div>
+</div>
+<p>We should then see that the Partitions have started to ingest messages, meaning the data has been picked up and is being turned into a graph. In this example there are two partitions running, so we get output for both.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="m">37</span>:680 -- Partition <span class="m">0</span> Processed Message <span class="m">1000</span>
+<span class="m">37</span>:725 -- Partition <span class="m">1</span> Processed Message <span class="m">1000</span>
+<span class="m">37</span>:761 -- Partition <span class="m">0</span> Processed Message <span class="m">2000</span>
+<span class="m">37</span>:998 -- Partition <span class="m">0</span> Processed Message <span class="m">3000</span>
+<span class="m">38</span>:61 -- Partition <span class="m">1</span> Processed Message <span class="m">2000</span>
+<span class="m">38</span>:162 -- Partition <span class="m">0</span> Processed Message <span class="m">4000</span>
+<span class="m">38</span>:191 -- Partition <span class="m">0</span> Processed Message <span class="m">5000</span>
+<span class="m">38</span>:266 -- Partition <span class="m">0</span> Processed Message <span class="m">6000</span>
+<span class="m">38</span>:407 -- Partition <span class="m">0</span> Processed Message <span class="m">7000</span>
+</pre></div>
+</div>
+<p>Finally we should see that our query has been submitted. If the time we have asked for within the query has yet to be ingested, or is busy synchronising we will get a message informing us so, but that it will be resubmitted soon. Once the required timestamp is avaialble, the analysis will be run. To manage these times Raphtory maintains a global watermark which reports the status of
+the partitions, and the time they believe is safe to execute on. These individual times are then aggregated into a global minimum time to make sure the results are always correct. The timestamp chosen for this query (<code class="docutils literal notranslate"><span class="pre">32670</span></code>) is just before the final timestamp in the file.</p>
+<p>Query submitted:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Point</span> <span class="n">Query</span> <span class="n">received</span><span class="p">,</span> <span class="n">your</span> <span class="n">job</span> <span class="n">ID</span> <span class="ow">is</span> <span class="n">DegreesSeperation_1643813015092</span>
+</pre></div>
+</div>
+<p>Data not fully ingested yet:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Perspective</span><span class="p">(</span><span class="mi">32674</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">Job</span> <span class="n">DegreesSeperation_1643813015092</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">ready</span><span class="p">,</span> <span class="n">currently</span> <span class="n">at</span> <span class="mf">270.</span> <span class="n">Rechecking</span>
+</pre></div>
+</div>
+<p>Data was fully ingested and the query completed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Perspective</span> <span class="k">for</span> <span class="n">Job</span> <span class="n">DegreesSeperation_1643813015092</span> <span class="ow">is</span> <span class="n">done</span>
+</pre></div>
+</div>
+</section>
+<section id="checking-your-output">
+<h3>Checking your output<a class="headerlink" href="#checking-your-output" title="Permalink to this headline"></a></h3>
+<p>Once the query has finished executing Raphtory will not stop running. This is because we may submit more queries to the running instance, now that it has ingested the graph. However, if you wish you can kill it and we can go and check out the output. For the example, queries should begin being saved to <code class="docutils literal notranslate"><span class="pre">/tmp</span></code> or the directory specified in the <code class="docutils literal notranslate"><span class="pre">Runner</span></code> class if you have changed it. Below is an example of the CSV file that has been output. This means that Raphtory is working as it should and you can move onto creating your first graph for analysis. The meaning of this output is only a couple pages away, so don’t threat if it looks a little odd right now!</p>
+<div class="highlight-csv notranslate"><div class="highlight"><pre><span></span>32670,  Odo,      2
+32670,  Samwise,  1
+32670,  Elendil,  2
+32670,  Valandil, 2
+32670,  Angbor,   2
+32670,  Arwen,    2
+32670,  Treebeard,1
+32670,  Óin,      3
+32670,  Butterbur,1
+32670,  Finduilas,2
+32670,  Celebrimbor,2
+32670,  Grimbeorn,2
+32670,  Lobelia,  2
+32670,  Helm,     1
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../index.html" class="btn btn-neutral float-left" title="Documentation Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../Ingestion/sprouter.html" class="btn btn-neutral float-right" title="Building a graph from your data" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Ben Steer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

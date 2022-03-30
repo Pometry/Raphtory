@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Layer Dynamic Community Detection &mdash; Raphtory 0.4.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Connected Components" href="connectedComponents.html" />
+    <link rel="prev" title="Motif Alpha" href="tmotifcount.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Raphtory
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Raphtory</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Install/installdependencies.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Ingestion/sprouter.html">Building a graph from your data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Analysis/analysis-explained.html">Analysis in Raphtory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Querying/presto.html">Querying in-flight data</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Python Library</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html">Getting your data into Jupyter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html#example-notebook">Example Notebook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/RaphtoryClient.html">Raphtory Client</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Deployment</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/graphvsservice.html">Raphtory Graph VS Raphtory Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentlocal.html">Bare Metal Cluster Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentkube.html">Kubernetes Cluster Deployment</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples Projects</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/community-of-cheese.html">The Community of Cheese</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/gab.html">Gab Social Network Analysis</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Temporal Algorithms</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="tmotifcount.html">Motif Alpha</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Multi-Layer Dynamic Community Detection</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#parameters">Parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#returns">Returns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#notes">Notes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#see-also">See also</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Static Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="connectedComponents.html">Connected Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="degree.html">Degree</a></li>
+<li class="toctree-l1"><a class="reference internal" href="lpa.html">Label Propagation Algorithm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cbod.html">Outlier Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pageRank.html">Page Rank</a></li>
+<li class="toctree-l1"><a class="reference internal" href="genericTaint.html">Tainting / Infection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="triangleCount.html">Triangle Count</a></li>
+<li class="toctree-l1"><a class="reference internal" href="twoHopNeighbors.html">Two-Hop Neighbours</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wattsCascade.html">Watts Cascade</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Raphtory</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Multi-Layer Dynamic Community Detection</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/Algorithms/mlpa.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="multi-layer-dynamic-community-detection">
+<h1>Multi-Layer Dynamic Community Detection<a class="headerlink" href="#multi-layer-dynamic-community-detection" title="Permalink to this headline"></a></h1>
+<hr class="docutils" />
+<p style="margin-left: 1.5em;"> Returns the communities of a multi-layer graph as detected by synchronous label propagation.</p>
+<p>This returns the communities of the constructed multi-layer graph as detected by synchronous label propagation.</p>
+<p>This transforms the graph into a multi-layer graph where the same vertices on different layers are handled as
+distinct vertices. The algorithm then runs a version of LPA on this view of the graph and returns communities that
+share the same label that can span both vertices on the same layer and other layers.</p>
+<section id="parameters">
+<h2>Parameters<a class="headerlink" href="#parameters" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">top</span></code> <strong>(Int)</strong>       : The number of top largest communities to return. (default: 0)
+If not specified, Raphtory will return all detected communities.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code> <strong>(String)</strong>     : Edge property (default: “”). To be specified in case of weighted graph.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">maxIter</span></code> <strong>(Int)</strong>       : Maximum iterations for LPA to run. (default: 500)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">layers</span></code> <strong>(List(Long))</strong> : List of layer timestamps.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">layerSize</span></code> <strong>(Long)</strong>    : Size of a single layer that spans all events occurring within this period.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">omega</span></code> <strong>(Double)</strong>      : Weight of temporal edge that are created between two layers for two persisting instances of a node.
+(Default: 1.0) If “-1”, the weights are assigned based on an average of the neighborhood of two layers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">seed</span></code> <strong>(Long)</strong>         : Seed for random elements. (Default: -1).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">output</span></code> <strong>(String)</strong>     : Directory path that points to where to store the results. (Default: “/tmp/mLPA”)</p></li>
+</ul>
+</section>
+<section id="returns">
+<h2>Returns<a class="headerlink" href="#returns" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">total</span></code> <em>(Int)</em> – Number of detected communities.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">communities</span></code> <em>(List[List[Long]])</em> – Communities sorted by their sizes where every member is in the form <code class="docutils literal notranslate"><span class="pre">vID_layerID</span></code>. Returns largest <code class="docutils literal notranslate"><span class="pre">top</span></code> communities if specified.</p></li>
+</ul>
+</section>
+<section id="notes">
+<h2>Notes<a class="headerlink" href="#notes" title="Permalink to this headline"></a></h2>
+<p>This implementation is based on LPA, which incorporates probabilistic elements. This makes it non-deterministic i.e. The returned communities may differ on multiple executions.</p>
+<section id="see-also">
+<h3>See also<a class="headerlink" href="#see-also" title="Permalink to this headline"></a></h3>
+<button onclick="location.href='lpa'" type="button" class="btn btn-default">
+         Label Propagation Algorithm</button>
+</section>
+</section>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline"></a></h2>
+<p>The temporal network in the figure is a weighted dynamic graph spanning a time period <span class="math notranslate nohighlight">\(t \in [1,3]\)</span> with edge property <code class="docutils literal notranslate"><span class="pre">weight</span></code>; and is built into (3) snapshots of window size 1.</p>
+<p align="center">
+	<img src="../_static/mlpa-eg.png" style="width: 30vw;" alt="mlpa example"/>
+</p>
+<p>Running the algorithm with a weak inter-layer coupling (<span class="math notranslate nohighlight">\(\omega = 1\)</span>);</p>
+<p>Returns communities of every layer as if the layers are disconnected:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;time&quot;</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span><span class="nt">&quot;top5&quot;</span><span class="p">:[</span><span class="mi">4</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">2</span><span class="p">],</span><span class="nt">&quot;total&quot;</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span><span class="nt">&quot;totalIslands&quot;</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span><span class="nt">&quot;communities&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[[</span><span class="s2">&quot;3_3&quot;</span><span class="p">,</span><span class="s2">&quot;4_3&quot;</span><span class="p">,</span><span class="s2">&quot;1_3&quot;</span><span class="p">,</span><span class="s2">&quot;2_3&quot;</span><span class="p">],[</span><span class="s2">&quot;3_1&quot;</span><span class="p">,</span><span class="s2">&quot;1_1&quot;</span><span class="p">,</span><span class="s2">&quot;2_1&quot;</span><span class="p">],[</span><span class="s2">&quot;1_2&quot;</span><span class="p">,</span><span class="s2">&quot;2_2&quot;</span><span class="p">]],</span><span class="w"> </span><span class="nt">&quot;viewTime&quot;</span><span class="p">:</span><span class="mi">47</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tmotifcount.html" class="btn btn-neutral float-left" title="Motif Alpha" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="connectedComponents.html" class="btn btn-neutral float-right" title="Connected Components" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Ben Steer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

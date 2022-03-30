@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analysis in Raphtory &mdash; Raphtory 0.4.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Querying in-flight data" href="../Querying/presto.html" />
+    <link rel="prev" title="Building a graph from your data" href="../Ingestion/sprouter.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Raphtory
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Raphtory</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../Install/installdependencies.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Ingestion/sprouter.html">Building a graph from your data</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Analysis in Raphtory</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-graphalgorithm-api">The <code class="docutils literal notranslate"><span class="pre">GraphAlgorithm</span></code> API</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#graph-processing">Graph processing</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#step">step()</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#iterate">iterate()</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#tabularising-results">Tabularising results</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#select">select()</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#filter-and-explode">filter() and explode()</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#filter">filter()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#explode">explode()</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#writing-out-results">Writing out results</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#types-of-algorithm">Types of Algorithm</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#zero-step-algorithms">Zero-step algorithms</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#one-step-algorithms">One-step algorithms</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#iterative-algorithms">Iterative algorithms</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tabularisers">Tabularisers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#composing-algorithms">Composing algorithms</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#what-now">What now?</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#six-degrees-of-gandalf">Six Degrees of Gandalf</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">Step</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-bulk">The bulk</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-return-of-the-king">The Return of The King</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#running-analysis">Running Analysis</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#point-query">Point Query</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#range-query">Range Query</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#raphtory-client">Raphtory Client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#whats-next">Whats next?</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#what-next">What Next?</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../Querying/presto.html">Querying in-flight data</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Python Library</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html">Getting your data into Jupyter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/tutorial.html#example-notebook">Example Notebook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PythonClient/RaphtoryClient.html">Raphtory Client</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Deployment</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/graphvsservice.html">Raphtory Graph VS Raphtory Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentlocal.html">Bare Metal Cluster Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Deployment/deploymentkube.html">Kubernetes Cluster Deployment</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples Projects</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/community-of-cheese.html">The Community of Cheese</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Examples/gab.html">Gab Social Network Analysis</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Temporal Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/tmotifcount.html">Motif Alpha</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/mlpa.html">Multi-Layer Dynamic Community Detection</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Static Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/connectedComponents.html">Connected Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/degree.html">Degree</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/lpa.html">Label Propagation Algorithm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/cbod.html">Outlier Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/pageRank.html">Page Rank</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/genericTaint.html">Tainting / Infection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/triangleCount.html">Triangle Count</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/twoHopNeighbors.html">Two-Hop Neighbours</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms/wattsCascade.html">Watts Cascade</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Raphtory</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Analysis in Raphtory</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/Analysis/analysis-explained.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="analysis-in-raphtory">
+<h1>Analysis in Raphtory<a class="headerlink" href="#analysis-in-raphtory" title="Permalink to this headline"></a></h1>
+<p>Raphtory’s analysis engine works by <em>vertex centric computation</em>. Each vertex has access to local information about the graph (just its immediate vicinity). To complement this, vertices can communicate with their neighbours (other vertices that are directly connected to it). Many graph algorithms which operate on per-vertex level can be expressed in this way. The benefit of this is that graphs can be distributed over multiple cores/machines, each containing a proportion of the vertices, and these vertex computations can be executed in a parallel manner.</p>
+<p>Each vertex knows:</p>
+<ul class="simple">
+<li><p>It’s own update history, property set and property history e.g. values and update times;</p></li>
+<li><p>The history/properties of the edges attached to it - both incoming and outgoing as Raphtory has a directed graph model - think twitter following, where the other person has to follow you back, instead of facebook friends.</p></li>
+<li><p>Its own algorithmic state - this is a map of temporary values that can be set and modified during the computation steps.</p></li>
+</ul>
+<p align="center">
+  <img src="../_static/vertex_time2.png" style="width: 20vw;" alt="vertex time view"/>
+<figcaption>The information available to node V1 which includes the time it was created, the IDs of its neighbours and the times at which its edges are established.</figcaption>
+</p>
+<p>The next sections will explore how algorithms can be written using these vertex communications.</p>
+<section id="the-graphalgorithm-api">
+<h2>The <code class="docutils literal notranslate"><span class="pre">GraphAlgorithm</span></code> API<a class="headerlink" href="#the-graphalgorithm-api" title="Permalink to this headline"></a></h2>
+<p>Algorithms in Raphtory take a <code class="docutils literal notranslate"><span class="pre">RaphtoryGraph</span></code> as input, and return a <code class="docutils literal notranslate"><span class="pre">Row</span></code> for each vertex of that graph containing the result of the executed algorithm. To this end, there are three functions which are executed sequentially on the graph to get to these vertex results.</p>
+<p>The core of the Raphtory algorithm API is the <code class="docutils literal notranslate"><span class="pre">GraphAlgorithm</span></code> class which custom algorithms should extend.
+In general, an algorithm has three stages: graph processing, tabularising results, and writing out results.
+Graph information is handled by the <code class="docutils literal notranslate"><span class="pre">GraphPerspective</span></code> class and tabular data by the <code class="docutils literal notranslate"><span class="pre">Table</span></code> class.
+Rows in a <code class="docutils literal notranslate"><span class="pre">Table</span></code> store information for a single vertex and are manipulated using the <code class="docutils literal notranslate"><span class="pre">Row</span></code> class.
+Thus, to import the core algorithm API use:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">import</span> <span class="nn">com</span><span class="p">.</span><span class="nn">raphtory</span><span class="p">.</span><span class="nn">core</span><span class="p">.</span><span class="nn">model</span><span class="p">.</span><span class="nn">algorithm</span><span class="p">.{</span><span class="nc">GraphAlgorithm</span><span class="p">,</span> <span class="nc">GraphPerspective</span><span class="p">,</span> <span class="nc">Row</span><span class="p">,</span> <span class="nc">Table</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>There are two other classes that form part of the algorithm API, <code class="docutils literal notranslate"><span class="pre">Chain</span></code> and <code class="docutils literal notranslate"><span class="pre">Identity</span></code>.
+A <code class="docutils literal notranslate"><span class="pre">Chain</span></code> applies a sequence of algorithms to the same graph and is discussed in more detail later.
+<code class="docutils literal notranslate"><span class="pre">Identitiy</span></code> is an algorithm that leaves the graph unchanged and does not write out any results.
+This is mainly useful as a default argument for algorithms that can optionally run another graph algorithm, e.g., as a pre- or post-processing step.</p>
+<section id="graph-processing">
+<h3>Graph processing<a class="headerlink" href="#graph-processing" title="Permalink to this headline"></a></h3>
+<p>The core of most algorithms (though not all, see zero-step algorithms below) is the graph processing stage.
+The graph processing is implemented by overriding the <code class="docutils literal notranslate"><span class="pre">apply</span></code> method, i.e.:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">override</span> <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="nc">GraphPerspective</span><span class="p">):</span> <span class="nc">GraphPerspective</span> <span class="o">=</span> <span class="p">{</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">apply</span></code> method takes a <code class="docutils literal notranslate"><span class="pre">GraphPerspective</span></code> as input, manipulates the state of vertices, and then returns the <code class="docutils literal notranslate"><span class="pre">GraphPerspective</span></code>, either for further processing by other algorithms or for collecting and writing out results.
+A <code class="docutils literal notranslate"><span class="pre">GraphPerspective</span></code> has two key methods which are used during graph processing, <code class="docutils literal notranslate"><span class="pre">step()</span></code> and <code class="docutils literal notranslate"><span class="pre">iterate()</span></code>.</p>
+<section id="step">
+<h4>step()<a class="headerlink" href="#step" title="Permalink to this headline"></a></h4>
+<p><code class="docutils literal notranslate"><span class="pre">step()</span></code> takes in a function to be applied to each vertex in the graph, and permits each vertex to mutate its state and send messages to some or all of its neighbours. This is often used as the setup for an algorithm, getting each vertex ready with a default state or finding the subset of nodes which are required to send the first messages. For example:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="n">graph</span>
+  <span class="p">.</span><span class="n">step</span><span class="p">({</span>
+    <span class="n">vertex</span> <span class="o">=&gt;</span>
+      <span class="n">vertex</span><span class="p">.</span><span class="n">setState</span><span class="p">(</span><span class="s">&quot;cclabel&quot;</span><span class="p">,</span> <span class="n">vertex</span><span class="p">.</span><span class="nc">ID</span><span class="p">)</span>
+      <span class="n">vertex</span><span class="p">.</span><span class="n">messageAllNeighbours</span><span class="p">(</span><span class="n">vertex</span><span class="p">.</span><span class="nc">ID</span><span class="p">)</span>
+  <span class="p">})</span>
+</pre></div>
+</div>
+<p>This is a snippet from the Raphtory connected components implementation. Here, each node sets its <code class="docutils literal notranslate"><span class="pre">cclabel</span></code> to its own ID and then sends this ID to all of its neighbours.</p>
+</section>
+<section id="iterate">
+<h4>iterate()<a class="headerlink" href="#iterate" title="Permalink to this headline"></a></h4>
+<p><code class="docutils literal notranslate"><span class="pre">iterate()</span></code> does the same thing as <code class="docutils literal notranslate"><span class="pre">step</span></code>, but is run repeatedly until some criterion is met or a maximum number of iterations is reached. Vertex state is often used to record progress during iterations and to decide if an algorithm has converged.  The convergence criterion is established by vertices <em>voting to halt</em> unanimously.  All of this can be seen in the example below:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span>        <span class="p">.</span><span class="n">iterate</span><span class="p">({</span>
+            <span class="n">vertex</span> <span class="o">=&gt;</span>
+                <span class="kd">val</span> <span class="n">label</span> <span class="o">=</span> <span class="n">vertex</span><span class="p">.</span><span class="n">messageQueue</span><span class="p">[</span><span class="nc">Long</span><span class="p">].</span><span class="n">min</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">label</span> <span class="o">&lt;</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getState</span><span class="p">[</span><span class="nc">Long</span><span class="p">](</span><span class="s">&quot;cclabel&quot;</span><span class="p">))</span> <span class="p">{</span>
+                    <span class="n">vertex</span><span class="p">.</span><span class="n">setState</span><span class="p">(</span><span class="s">&quot;cclabel&quot;</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+                    <span class="n">vertex</span> <span class="n">messageAllNeighbours</span> <span class="n">label</span>
+                <span class="p">}</span>
+                <span class="k">else</span>
+                    <span class="n">vertex</span><span class="p">.</span><span class="n">voteToHalt</span><span class="p">()</span>
+        <span class="p">},</span> <span class="n">iterations</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">executeMessagedOnly</span> <span class="o">=</span> <span class="kc">true</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In this instance, the vertices check the messages they have received from neighbours and set their <code class="docutils literal notranslate"><span class="pre">cclabel</span></code> to be the minimum number received. This new label is then sent to their neighbours, allowing it to propagate and the neighbours who sent other labels to set it themselves in the next step. If no new label is found (as their own label is already lower) a vertex may call <code class="docutils literal notranslate"><span class="pre">voteToHalt</span></code>. This means that they believe they have found their final value and therefore the algorithm may converge early. No new messages are sent in this instance.</p>
+<p>Due to the nature of this algorithm and those like it, <code class="docutils literal notranslate"><span class="pre">iterate</span></code> has an additional flag of <code class="docutils literal notranslate"><span class="pre">executeMessagedOnly</span></code>, which when set means that only vertices which have received new messages will execute the function.
+This can drastically increase the effeciency of algorithms on large graphs, where often only a few vertices may need to execute at any one step (especially when looking at algorithms like random walks or paths).
+For connected components, as a vertex won’t change its label unless a lower label is received from a neighbour, it can be set here.</p>
+</section>
+</section>
+<section id="tabularising-results">
+<h3>Tabularising results<a class="headerlink" href="#tabularising-results" title="Permalink to this headline"></a></h3>
+<p>Once graph processing is complete, the algorithm proceeds to collect vertex state into tabular form.
+This stage of the algorithm is implemented by overriding the <code class="docutils literal notranslate"><span class="pre">tabularise</span></code> method, i.e.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">override</span> <span class="k">def</span> <span class="nf">tabularise</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="nc">GraphPerspective</span><span class="p">):</span> <span class="nc">Table</span> <span class="o">=</span> <span class="p">{</span>
+</pre></div>
+</div>
+<section id="select">
+<h4>select()<a class="headerlink" href="#select" title="Permalink to this headline"></a></h4>
+<p>Typically, one calls <code class="docutils literal notranslate"><span class="pre">select</span></code> on the input graph as the first step of <code class="docutils literal notranslate"><span class="pre">tabularise</span></code> (though one could in principle do further graph post-processing at this stage).
+<code class="docutils literal notranslate"><span class="pre">select()</span></code> maps a vertex to a <code class="docutils literal notranslate"><span class="pre">Row</span></code> object containing the results for that vertex. For example:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span>    <span class="n">graph</span>
+        <span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="n">vertex</span> <span class="o">=&gt;</span> <span class="nc">Row</span><span class="p">(</span><span class="n">vertex</span><span class="p">.</span><span class="nc">ID</span><span class="p">(),</span><span class="n">vertex</span><span class="p">.</span><span class="n">getState</span><span class="p">[</span><span class="nc">Long</span><span class="p">](</span><span class="s">&quot;cclabel&quot;</span><span class="p">)))</span>
+</pre></div>
+</div>
+<p>In the connected components instance, we are interested in extracting the ID of the vertex and the final component ID that it saved in its state.</p>
+</section>
+<section id="filter-and-explode">
+<h4>filter() and explode()<a class="headerlink" href="#filter-and-explode" title="Permalink to this headline"></a></h4>
+<p>Once we have the data in Row form we may perform a different set of transformations:</p>
+</section>
+</section>
+<section id="filter">
+<h3>filter()<a class="headerlink" href="#filter" title="Permalink to this headline"></a></h3>
+<p>The filter function can only be run after the vertex data has been converted to <code class="docutils literal notranslate"><span class="pre">Table</span></code> format by the <code class="docutils literal notranslate"><span class="pre">select</span></code> call.
+For example:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="p">.</span><span class="n">filter</span><span class="p">(</span><span class="n">r</span><span class="o">=&gt;</span> <span class="n">r</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="kc">true</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This can be important if you only want to return elements that have received a certain label. Such as if we are looking for nodes reachable from a given entity in the graph, we can store a flag in their state and then filter on this once in Row form.</p>
+</section>
+<section id="explode">
+<h3>explode()<a class="headerlink" href="#explode" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">explode()</span></code> can be used to increase the number of rows, or prevent the output from producing any arrays. For example, if the select function returned a list within the row, we can use the explode to turn this list into individual items.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="p">.</span><span class="n">explode</span><span class="p">(</span> <span class="n">row</span> <span class="o">=&gt;</span> <span class="n">row</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="k">asInstanceOf</span><span class="p">[</span><span class="nc">List</span><span class="p">[(</span><span class="nc">Long</span><span class="p">,</span> <span class="nc">String</span><span class="p">)]].</span><span class="n">map</span><span class="p">(</span>
+          <span class="n">expl</span> <span class="o">=&gt;</span> <span class="nc">Row</span><span class="p">(</span> <span class="n">row</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">expl</span><span class="p">.</span><span class="n">_1</span><span class="p">,</span> <span class="n">expl</span><span class="p">.</span><span class="n">_2</span><span class="p">)</span>
+      <span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="writing-out-results">
+<h3>Writing out results<a class="headerlink" href="#writing-out-results" title="Permalink to this headline"></a></h3>
+<p>Finally, once you are happy with the format of your data you can output it to disk.
+This is implemented by overriding the <code class="docutils literal notranslate"><span class="pre">write</span></code> method. The <code class="docutils literal notranslate"><span class="pre">write</span></code> method takes a <code class="docutils literal notranslate"><span class="pre">Table</span></code> as input and is responsible for writing out the results. Normally, this will simply call the <code class="docutils literal notranslate"><span class="pre">writeTo</span></code> method on the table, i.e.,</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">override</span> <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="nc">Table</span><span class="p">):</span> <span class="nc">Unit</span> <span class="o">=</span> <span class="p">{</span><span class="n">table</span><span class="p">.</span><span class="n">writeTo</span><span class="p">(</span><span class="n">path</span><span class="p">)}</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">path</span></code> is anywhere on your local machine and should be defined during the setup of the algorithm.
+Inside this directory will appear a folder containing the ouput from each of the partitions within your running Raphtory instance.</p>
+</section>
+</section>
+<section id="types-of-algorithm">
+<h2>Types of Algorithm<a class="headerlink" href="#types-of-algorithm" title="Permalink to this headline"></a></h2>
+<section id="zero-step-algorithms">
+<h3>Zero-step algorithms<a class="headerlink" href="#zero-step-algorithms" title="Permalink to this headline"></a></h3>
+<p>Zero-step algorithms refer to all algorithms which require no vertex messaging step, and can be expressed just using a <code class="docutils literal notranslate"><span class="pre">select()</span></code> operation. This means that the algorithm only requires knowledge of each vertex and the edges connected to it, and might be known as local measures in the network science literature. Some algorithms that fit into this category are:</p>
+<ul class="simple">
+<li><p>Vertex degree</p></li>
+<li><p>Vertex/edge property extraction</p></li>
+<li><p><em>Some</em> temporal motifs centred on a vertex, e.g. 3-node 2-edge temporal motifs.</p></li>
+</ul>
+<p>In principle, one can implement such an algorithm by only overriding the <code class="docutils literal notranslate"><span class="pre">tabularise</span></code> and <code class="docutils literal notranslate"><span class="pre">write</span></code> methods, leaving the default <code class="docutils literal notranslate"><span class="pre">apply</span></code> method which simply returns the input graph unchanged.</p>
+<p>To see an example of this, here is a snippet from the <code class="docutils literal notranslate"><span class="pre">Degree</span></code> algorithm.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span>  <span class="k">override</span> <span class="k">def</span> <span class="nf">tabularise</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="nc">GraphPerspective</span><span class="p">):</span> <span class="nc">Table</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">graph</span><span class="p">.</span><span class="n">select</span><span class="p">({</span>
+      <span class="n">vertex</span> <span class="o">=&gt;</span>
+      <span class="kd">val</span> <span class="n">inDegree</span> <span class="o">=</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getInNeighbours</span><span class="p">().</span><span class="n">size</span>
+      <span class="kd">val</span> <span class="n">outDegree</span> <span class="o">=</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getOutNeighbours</span><span class="p">().</span><span class="n">size</span>
+      <span class="kd">val</span> <span class="n">totalDegree</span> <span class="o">=</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getAllNeighbours</span><span class="p">().</span><span class="n">size</span>
+    <span class="nc">Row</span><span class="p">(</span><span class="n">vertex</span><span class="p">.</span><span class="n">getPropertyOrElse</span><span class="p">(</span><span class="s">&quot;name&quot;</span><span class="p">,</span> <span class="n">vertex</span><span class="p">.</span><span class="nc">ID</span><span class="p">()),</span> <span class="n">inDegree</span><span class="p">,</span> <span class="n">outDegree</span><span class="p">,</span> <span class="n">totalDegree</span><span class="p">)</span>
+    <span class="p">})</span>
+</pre></div>
+</div>
+<p>In here, the vertex’s in/out/total degree is extracted in a straightforward way, with line 7 mapping these to a row for outputting.
+However, this means that the algorithm cannot usefully participate in a more complicated processing pipeline as downstream algorithms do not have access to the computed results.
+For something as simple as outputting node degrees, which other algorithms already trivially have access to, this may make sense.
+Generally, however, it is better practise to implement such algorithms using a single <code class="docutils literal notranslate"><span class="pre">step()</span></code> during graph processing which does not send any messages and sets the computed values as state on the vertices. For the degree algorithm above, we would instead have:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">override</span> <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="nc">GraphPerspective</span><span class="p">):</span> <span class="nc">GraphPerspective</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="n">graph</span><span class="p">.</span><span class="n">step</span><span class="p">({</span>
+    <span class="n">vertex</span> <span class="o">=&gt;</span> 
+      <span class="n">vertex</span><span class="p">.</span><span class="n">setState</span><span class="p">(</span><span class="s">&quot;inDegree&quot;</span><span class="p">,</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getInNeighbours</span><span class="p">().</span><span class="n">size</span><span class="p">)</span>
+      <span class="n">vertex</span><span class="p">.</span><span class="n">setState</span><span class="p">(</span><span class="s">&quot;outDegree&quot;</span><span class="p">,</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getOutNeighbours</span><span class="p">().</span><span class="n">size</span><span class="p">)</span>
+      <span class="n">vertex</span><span class="p">.</span><span class="n">setState</span><span class="p">(</span><span class="s">&quot;totalDegree&quot;</span><span class="p">,</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getAllNeighbours</span><span class="p">().</span><span class="n">size</span><span class="p">)</span>
+  <span class="p">})</span>
+<span class="p">}</span>
+<span class="k">override</span> <span class="k">def</span> <span class="nf">tabularise</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="nc">GraphPerspective</span><span class="p">):</span> <span class="nc">Table</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="n">graph</span><span class="p">.</span><span class="n">select</span><span class="p">({</span>
+    <span class="n">vertex</span> <span class="o">=&gt;</span> <span class="nc">Row</span><span class="p">(</span><span class="n">vertex</span><span class="p">.</span><span class="n">getPropertyOrElse</span><span class="p">(</span><span class="s">&quot;name&quot;</span><span class="p">,</span> <span class="n">vertex</span><span class="p">.</span><span class="nc">ID</span><span class="p">()),</span> 
+      <span class="n">vertex</span><span class="p">.</span><span class="n">getState</span><span class="p">(</span><span class="s">&quot;inDegree&quot;</span><span class="p">),</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getState</span><span class="p">(</span><span class="s">&quot;outDegree&quot;</span><span class="p">),</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getState</span><span class="p">(</span><span class="s">&quot;totalDegree&quot;</span><span class="p">))</span>
+  <span class="p">})</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Implemented in this way, the algorithm can participate usefully in algorithm chaining discussed below.</p>
+</section>
+<section id="one-step-algorithms">
+<h3>One-step algorithms<a class="headerlink" href="#one-step-algorithms" title="Permalink to this headline"></a></h3>
+<p>One-step algorithms are those which require precisely one messaging step, and can be expressed using  two calls to <code class="docutils literal notranslate"><span class="pre">step()</span></code> to send out the messages and collate the results. This maps to measures which require knowledge of a vertex’s neighbours and the connections between them. Some examples of these include:</p>
+<ul class="simple">
+<li><p>Local triangle count</p></li>
+<li><p>Local clustering coefficient</p></li>
+<li><p>Average neighbour degree</p></li>
+</ul>
+<p>For an example of this, let’s look at a snippet of the <code class="docutils literal notranslate"><span class="pre">TriangleCount</span></code> algorithm.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span>  <span class="k">override</span> <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="nc">GraphPerspective</span><span class="p">):</span> <span class="nc">GraphPerspective</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">graph</span><span class="p">.</span><span class="n">step</span><span class="p">({</span>
+      <span class="n">vertex</span> <span class="o">=&gt;</span>
+        <span class="n">vertex</span><span class="p">.</span><span class="n">setState</span><span class="p">(</span><span class="s">&quot;triangles&quot;</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+        <span class="kd">val</span> <span class="n">neighbours</span> <span class="o">=</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getAllNeighbours</span><span class="p">().</span><span class="n">toSet</span>
+        <span class="n">neighbours</span><span class="p">.</span><span class="n">foreach</span><span class="p">({</span>
+          <span class="n">nb</span> <span class="o">=&gt;</span>
+            <span class="n">vertex</span><span class="p">.</span><span class="n">messageNeighbour</span><span class="p">(</span><span class="n">nb</span><span class="p">,</span> <span class="n">neighbours</span><span class="p">)</span>
+        <span class="p">})</span>
+    <span class="p">})</span>
+      <span class="p">.</span><span class="n">step</span><span class="p">({</span>
+        <span class="n">vertex</span> <span class="o">=&gt;</span>
+          <span class="kd">val</span> <span class="n">neighbours</span> <span class="o">=</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getAllNeighbours</span><span class="p">().</span><span class="n">toSet</span>
+          <span class="kd">val</span> <span class="n">queue</span> <span class="o">=</span> <span class="n">vertex</span><span class="p">.</span><span class="n">messageQueue</span><span class="p">[</span><span class="nc">Set</span><span class="p">[</span><span class="nc">Long</span><span class="p">]]</span>
+          <span class="kd">var</span> <span class="n">tri</span> <span class="o">=</span> <span class="mi">0</span>
+          <span class="n">queue</span><span class="p">.</span><span class="n">foreach</span><span class="p">(</span>
+            <span class="n">nbs</span> <span class="o">=&gt;</span>
+              <span class="n">tri</span><span class="o">+=</span><span class="n">nbs</span><span class="p">.</span><span class="n">intersect</span><span class="p">(</span><span class="n">neighbours</span><span class="p">).</span><span class="n">size</span>
+          <span class="p">)</span>
+          <span class="n">vertex</span><span class="p">.</span><span class="n">setState</span><span class="p">(</span><span class="s">&quot;triangles&quot;</span><span class="p">,</span><span class="n">tri</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
+        <span class="p">})</span>
+    <span class="p">}</span>
+    
+    <span class="k">override</span> <span class="k">def</span> <span class="nf">tabularise</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="nc">GraphPerspective</span><span class="p">):</span> <span class="nc">Table</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">graph</span><span class="p">.</span><span class="n">select</span><span class="p">({</span><span class="n">vertex</span> <span class="o">=&gt;</span> 
+          <span class="nc">Row</span><span class="p">(</span><span class="n">vertex</span><span class="p">.</span><span class="n">getPropertyOrElse</span><span class="p">(</span><span class="s">&quot;name&quot;</span><span class="p">,</span> <span class="n">vertex</span><span class="p">.</span><span class="nc">ID</span><span class="p">()),</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getState</span><span class="p">[</span><span class="nc">Int</span><span class="p">](</span><span class="s">&quot;triangles&quot;</span><span class="p">))</span>
+      <span class="p">}))</span>
+</pre></div>
+</div>
+<p>The first <code class="docutils literal notranslate"><span class="pre">step()</span></code> function tells each vertex to send a list of its neighbours to all neighbours. Then the second <code class="docutils literal notranslate"><span class="pre">step()</span></code> function tells each vertex to compute the intersection of the received sets with its own set of neighbours. The sum of these intersections is twice the number of triangles for that vertex, so this number is halved.</p>
+</section>
+<section id="iterative-algorithms">
+<h3>Iterative algorithms<a class="headerlink" href="#iterative-algorithms" title="Permalink to this headline"></a></h3>
+<p>Finally, iterative algorithms cover those which require an unknown number of messaging steps, which are executed using a mixture of <code class="docutils literal notranslate"><span class="pre">step()</span></code> and <code class="docutils literal notranslate"><span class="pre">iterate()</span></code>. These algorithms correspond to measures that take into account the large scale structure of the graph, including:</p>
+<ul class="simple">
+<li><p>Connected components</p></li>
+<li><p>Single source shortest path</p></li>
+<li><p>PageRank, eigenvector and hub/authority centrality</p></li>
+<li><p>Community detection (using the label propagation algorithm)</p></li>
+<li><p>Watts’ linear threshold model</p></li>
+<li><p>Diffusion models (taint tracking, SIS/SIR)</p></li>
+</ul>
+<p>An example of this is the <code class="docutils literal notranslate"><span class="pre">ConnectedComponents</span></code> algorithm discussed previously.</p>
+</section>
+<section id="tabularisers">
+<h3>Tabularisers<a class="headerlink" href="#tabularisers" title="Permalink to this headline"></a></h3>
+<p>It is possible to write algorithms that only extract vertex state and output it in table format.
+These are particularly useful as the final step in an algorithm chain where one may want to also extract intermediate results.
+In this case, there is no need to override the <code class="docutils literal notranslate"><span class="pre">apply</span></code> method as the default implementation simply returns the input graph unchanged. A tabulariser can simply override the <code class="docutils literal notranslate"><span class="pre">tabularise</span></code> and <code class="docutils literal notranslate"><span class="pre">write</span></code> methods as needed.</p>
+</section>
+</section>
+<section id="composing-algorithms">
+<h2>Composing algorithms<a class="headerlink" href="#composing-algorithms" title="Permalink to this headline"></a></h2>
+<p>It is often useful to compose different algorithms. This is implemented in Raphtory using the <code class="docutils literal notranslate"><span class="pre">Chain</span></code> class.
+As an example, consider the <code class="docutils literal notranslate"><span class="pre">CBOD</span></code> algorithm which detects outliers based on community labels for vertices.
+In some cases, community labels may already be included in the input data.
+However, most of the time one would need to run a community detection algorithm (e.g., <code class="docutils literal notranslate"><span class="pre">LPA</span></code>) first to get the labels.
+One way to express this in Raphtory is to use a <code class="docutils literal notranslate"><span class="pre">Chain</span></code>, i.e,</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">import</span> <span class="nn">com</span><span class="p">.</span><span class="nn">raphtory</span><span class="p">.</span><span class="nn">core</span><span class="p">.</span><span class="nn">model</span><span class="p">.</span><span class="nn">algorithm</span><span class="p">.</span><span class="nc">Chain</span>
+<span class="k">import</span> <span class="nn">com</span><span class="p">.</span><span class="nn">raphtory</span><span class="p">.</span><span class="nn">algorithms</span><span class="p">.{</span><span class="nc">LPA</span><span class="p">,</span> <span class="nc">CBOD</span><span class="p">}</span>
+<span class="kd">val</span> <span class="n">lpa_cbod</span> <span class="o">=</span> <span class="nc">Chain</span><span class="p">(</span><span class="nc">LPA</span><span class="p">(),</span> <span class="nc">CBOD</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s">&quot;lpalabel&quot;</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">apply</span></code> method of a <code class="docutils literal notranslate"><span class="pre">Chain</span></code> simply calls the <code class="docutils literal notranslate"><span class="pre">apply</span></code> method of the input algorithms in sequence, i.e., <code class="docutils literal notranslate"><span class="pre">lpa_cbod.apply(graph)</span></code> is equivalent to calling <code class="docutils literal notranslate"><span class="pre">CBOD(label='lpalabel').apply(LPA().apply(graph))</span></code>{:.language-scala .highlight}.
+The <code class="docutils literal notranslate"><span class="pre">tabularise</span></code> and <code class="docutils literal notranslate"><span class="pre">write</span></code> methods of a chain call the corresponding methods of the last algorithm in the chain, i.e.,
+<code class="docutils literal notranslate"><span class="pre">lpa-cbod.tabularise(graph)</span></code>{:.language-scala .highlight} is equivalent to <code class="docutils literal notranslate"><span class="pre">CBOD(label='lpalabel).tabularise(graph)</span></code>{:.language-scala .highlight} and similar for <code class="docutils literal notranslate"><span class="pre">write</span></code>.
+In this example, <code class="docutils literal notranslate"><span class="pre">LPA()</span></code> first computes community labels and stores them in a vertex state with key <code class="docutils literal notranslate"><span class="pre">&quot;lpalabel&quot;</span></code>{:.language-scala .highlight}.
+<code class="docutils literal notranslate"><span class="pre">CBOD</span></code> then uses the labels to identify outliers and writes out the results.
+Instead of using <code class="docutils literal notranslate"><span class="pre">Chain</span></code> directly, one can also use the <code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> operator to achieve the same result, i.e.,</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="kd">val</span> <span class="n">lpa_cbod</span> <span class="o">=</span> <span class="nc">LPA</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nc">CBOD</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s">&quot;lpalabel&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>which constructs the same <code class="docutils literal notranslate"><span class="pre">Chain</span></code> object under the hood.
+In the case of <code class="docutils literal notranslate"><span class="pre">CBOD</span></code>, one can also supply the community detection algorithm as an optional argument, i.e., <code class="docutils literal notranslate"><span class="pre">CBOD(label=&quot;lpalabel&quot;,</span> <span class="pre">labeler=LPA())</span></code>{:.language-scala .highlight}, where by default <code class="docutils literal notranslate"><span class="pre">labeler=Identity()</span></code>{:.language-scala .highlight} which does nothing.</p>
+<section id="what-now">
+<h3>What now?<a class="headerlink" href="#what-now" title="Permalink to this headline"></a></h3>
+<p>To summarise, Raphtory’s analytical engine provides a way of expressing a large variety of graph algorithms, implemented by vertex computations. Unlike more general graph analytics libraries, it has functionalities for expressing temporal queries in a simple way.</p>
+<p>Next, you can take a look at implementing the Degree of Separation algorithm we run during the installation.</p>
+</section>
+</section>
+<section id="six-degrees-of-gandalf">
+<h2>Six Degrees of Gandalf<a class="headerlink" href="#six-degrees-of-gandalf" title="Permalink to this headline"></a></h2>
+<p>In the previous entry, you learnt how to write your own spout and builder to ingest the data and how our analysis API works. Here, we’re going to go over how to write an new algorithm for a Lord of the Rings dataset that will get the size of the <em>six degrees of separation</em> network for a character; in this case,<code class="docutils literal notranslate"><span class="pre">Gandalf</span></code>. Six degrees of separation is “the idea that all people on average are six, or fewer, social connections away from each other.” (<a class="reference external" href="https://en.wikipedia.org/wiki/Six_degrees_of_separation">wiki here in case you want to know more</a>).</p>
+<p>The example data can be found in the path <code class="docutils literal notranslate"><span class="pre">src/main/scala/examples</span></code> in the example directory cloned in the <a class="reference external" href="https://raphtory.github.io/documentation/install">installation guide</a>.
+The class we are creating extends <code class="docutils literal notranslate"><span class="pre">GraphAlgorithm</span></code> with the type of the data the algorithm is to return, in this case:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">import</span> <span class="nn">com</span><span class="p">.</span><span class="nn">raphtory</span><span class="p">.</span><span class="nn">core</span><span class="p">.</span><span class="nn">model</span><span class="p">.</span><span class="nn">algorithm</span><span class="p">.{</span><span class="nc">GraphAlgorithm</span><span class="p">,</span> <span class="nc">GraphPerspective</span><span class="p">,</span> <span class="nc">Row</span><span class="p">,</span> <span class="nc">Table</span><span class="p">}</span>
+
+<span class="k">class</span> <span class="nc">DegreesSeperation</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nc">String</span> <span class="o">=</span> <span class="s">&quot;Gandalf&quot;</span><span class="p">,</span> <span class="n">fileOutput</span><span class="p">:</span><span class="nc">String</span><span class="o">=</span><span class="s">&quot;/tmp/DegreesSeperation&quot;</span><span class="p">)</span> 
+  <span class="k">extends</span> <span class="nc">GraphAlgorithm</span> <span class="p">{</span>
+</pre></div>
+</div>
+<p><strong>Note:</strong> For those not familar with scala, the name argument given to the class has a default value of <code class="docutils literal notranslate"><span class="pre">Gandalf</span></code>. This means if the user does not explicitly give a name when they create an instance of the algorithm, this value will be used. A similar premise is used for the output path.</p>
+<p>First we need to override the <code class="docutils literal notranslate"><span class="pre">apply</span></code> method to implement the core algorithm:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span>    <span class="k">override</span> <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="nc">GraphPerspective</span><span class="p">):</span> <span class="nc">GraphPerspective</span> <span class="o">=</span> <span class="p">{</span>
+</pre></div>
+</div>
+<section id="id1">
+<h3>Step<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h3>
+<p>First, we need to create a property to store the state of <em>separation</em> and initialize it in <code class="docutils literal notranslate"><span class="pre">step</span></code>. Here we are finding the node which is the starting point, in this case we are looking for Gandalf. Once found we set his state to <code class="docutils literal notranslate"><span class="pre">0</span></code> and then message all of its neighbours. If a node is not Gandalf, their state is initialised to -1, which will be used later to work out nodes which are unreachable from Gandalf.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span>    <span class="n">graph</span>
+      <span class="p">.</span><span class="n">step</span><span class="p">({</span>
+        <span class="n">vertex</span> <span class="o">=&gt;</span>
+          <span class="k">if</span> <span class="p">(</span><span class="n">vertex</span><span class="p">.</span><span class="n">getPropertyOrElse</span><span class="p">(</span><span class="s">&quot;name&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">name</span><span class="p">)</span> 
+          <span class="p">{</span>
+            <span class="n">vertex</span><span class="p">.</span><span class="n">messageAllNeighbours</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">vertex</span><span class="p">.</span><span class="n">setState</span><span class="p">(</span><span class="nc">SEPARATION</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+          <span class="p">}</span> <span class="k">else</span> 
+          <span class="p">{</span>
+            <span class="n">vertex</span><span class="p">.</span><span class="n">setState</span><span class="p">(</span><span class="nc">SEPARATION</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+          <span class="p">}</span>
+      <span class="p">})</span>
+</pre></div>
+</div>
+</section>
+<section id="the-bulk">
+<h3>The bulk<a class="headerlink" href="#the-bulk" title="Permalink to this headline"></a></h3>
+<p>As mentioned before, the <code class="docutils literal notranslate"><span class="pre">iterate</span></code> module implements the bulk of the algorithm. In here, message queues for all nodes are checked, their separation status is updated if it has not been set previously. Nodes that are a single hop from Gandalf will have received a message of <code class="docutils literal notranslate"><span class="pre">0</span></code>, this is thus incremented to <code class="docutils literal notranslate"><span class="pre">1</span></code> and this becomes their separation state. These nodes then message all their neighbours with their new state, <code class="docutils literal notranslate"><span class="pre">1</span></code>, and the cycle repeats. Nodes only update their state if they have not been changed before.</p>
+<p>This process only runs through vertices that have been sent a message (<code class="docutils literal notranslate"><span class="pre">executeMessagedOnly</span> <span class="pre">=</span> <span class="pre">true</span></code>) and runs up to 6 times <code class="docutils literal notranslate"><span class="pre">iterations</span> <span class="pre">=</span> <span class="pre">6</span></code>.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span>  <span class="p">.</span><span class="n">iterate</span><span class="p">(</span>
+    <span class="p">{</span>
+    <span class="n">vertex</span> <span class="o">=&gt;</span>
+      <span class="kd">val</span> <span class="n">sep_state</span> <span class="o">=</span> <span class="n">vertex</span><span class="p">.</span><span class="n">messageQueue</span><span class="p">[</span><span class="nc">Int</span><span class="p">].</span><span class="n">max</span> <span class="o">+</span> <span class="mi">1</span>
+      <span class="kd">val</span> <span class="n">current_sep</span> <span class="o">=</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getStateOrElse</span><span class="p">[</span><span class="nc">Int</span><span class="p">](</span><span class="nc">SEPARATION</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">current_sep</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">vertex</span><span class="p">.</span><span class="n">setState</span><span class="p">(</span><span class="nc">SEPARATION</span><span class="p">,</span> <span class="n">sep_state</span><span class="p">)</span>
+        <span class="n">vertex</span><span class="p">.</span><span class="n">messageAllNeighbours</span><span class="p">(</span><span class="n">sep_state</span><span class="p">)</span>
+      <span class="p">}</span>
+    <span class="p">},</span> <span class="n">iterations</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span> <span class="n">executeMessagedOnly</span> <span class="o">=</span> <span class="kc">true</span><span class="p">)</span>
+ <span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="the-return-of-the-king">
+<h3>The Return of The King<a class="headerlink" href="#the-return-of-the-king" title="Permalink to this headline"></a></h3>
+<p>Now that the algorithm has converged, we need to get the results back and process them if necessary.
+The following goes through all nodes and extracts the final label value aquired.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">override</span> <span class="k">def</span> <span class="nf">tabularise</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="nc">GraphPerspective</span><span class="p">):</span> <span class="nc">Table</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="n">graph</span><span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="n">vertex</span> <span class="o">=&gt;</span> <span class="nc">Row</span><span class="p">(</span><span class="n">vertex</span><span class="p">.</span><span class="n">getPropertyOrElse</span><span class="p">(</span><span class="s">&quot;name&quot;</span><span class="p">,</span> <span class="s">&quot;unknown&quot;</span><span class="p">),</span> <span class="n">vertex</span><span class="p">.</span><span class="n">getStateOrElse</span><span class="p">[</span><span class="nc">Int</span><span class="p">](</span><span class="nc">SEPARATION</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)))</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>We could add a filter <code class="docutils literal notranslate"><span class="pre">.filter(row=&gt;</span> <span class="pre">row.getInt(1)</span> <span class="pre">&gt;</span> <span class="pre">-1)</span></code> to ignore any nodes that have not had their state change. This would exclude nodes that are not at all connected to Gandalf.
+We also should write out the results:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">override</span> <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="nc">Table</span><span class="p">):</span> <span class="nc">Unit</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="n">table</span><span class="p">.</span><span class="n">writeTo</span><span class="p">(</span><span class="n">fileOutput</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="running-analysis">
+<h2>Running Analysis<a class="headerlink" href="#running-analysis" title="Permalink to this headline"></a></h2>
+<p>To run your implemented algorithm or any of the algorithms included in the most recent Raphtory Release (<a class="reference external" href="https://github.com/Raphtory/Raphtory/tree/master/mainproject/src/main/scala/com/raphtory/algorithms">See here</a>), you must submit them to the graph. You can either request a <code class="docutils literal notranslate"><span class="pre">pointQuery</span></code> to look at a single point in time or a <code class="docutils literal notranslate"><span class="pre">rangeQuery</span></code> over a subset of the history of the graph.</p>
+<p>Some example point queries are found within the <code class="docutils literal notranslate"><span class="pre">Runner</span></code> App we created in the previous tutorial:</p>
+<section id="point-query">
+<h3>Point Query<a class="headerlink" href="#point-query" title="Permalink to this headline"></a></h3>
+<p>Point queries take the algorithm you wish to run and a timestamp specifying the time of interest. You may additionally specify a List of windows with which Raphtory will generate a unique perspective for each. Within these perspectives of the graph, entities which have been updated before the chosen timestamp, but as recently as the window size specified are included.  An example of these running a <code class="docutils literal notranslate"><span class="pre">DegreesSeperation</span></code> function on line 10000 can be seen below:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span>  <span class="n">rg</span><span class="p">.</span><span class="n">pointQuery</span><span class="p">(</span><span class="nc">DegreesSeperation</span><span class="p">(</span><span class="n">name</span> <span class="o">=</span> <span class="s">&quot;Gandalf&quot;</span><span class="p">),</span><span class="n">timestamp</span><span class="o">=</span><span class="mi">32670</span><span class="p">)</span>
+  <span class="n">rg</span><span class="p">.</span><span class="n">pointQuery</span><span class="p">(</span><span class="nc">DegreesSeperation</span><span class="p">(</span><span class="n">name</span> <span class="o">=</span> <span class="s">&quot;Gandalf&quot;</span><span class="p">),</span><span class="n">timestamp</span><span class="o">=</span><span class="mi">25000</span><span class="p">,</span><span class="n">windows</span><span class="o">=</span><span class="nc">List</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">1000</span><span class="p">,</span><span class="mi">10000</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Running this algorithm, returns the following data:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span>32670,Odo,2
+32670,Samwise,1
+32670,Elendil,2
+32670,Valandil,2
+32670,Angbor,2
+32670,Arwen,2
+32670,Treebeard,1
+32670,Óin,3
+32670,Butterbur,1
+32670,Finduilas,2
+32670,Celebrimbor,2
+32670,Grimbeorn,2
+32670,Lobelia,2
+</pre></div>
+</div>
+<p>This data tells us that at a given time the time, person X and is N number of hops away.
+For example at time 32670, Samwise was at minimum 1 hop away from Gandalf, whereas Lobelia was 2 hops away.</p>
+</section>
+<section id="range-query">
+<h3>Range Query<a class="headerlink" href="#range-query" title="Permalink to this headline"></a></h3>
+<p>Range queries are similar to this, but take a start time, end time (inclusive) and increment with which it moves between these two points. An example of range queries over the full history (all pages) running <code class="docutils literal notranslate"><span class="pre">ConnectedComponents</span></code> can be seen below:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span>  <span class="n">rg</span><span class="p">.</span><span class="n">rangeQuery</span><span class="p">(</span><span class="nc">ConnectedComponents</span><span class="p">(),</span> <span class="n">start</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span><span class="n">end</span> <span class="o">=</span> <span class="mi">32674</span><span class="p">,</span><span class="n">increment</span> <span class="o">=</span> <span class="mi">100</span><span class="p">)</span>
+  <span class="n">rg</span><span class="p">.</span><span class="n">rangeQuery</span><span class="p">(</span><span class="nc">ConnectedComponents</span><span class="p">(),</span> <span class="n">start</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span><span class="n">end</span> <span class="o">=</span> <span class="mi">32674</span><span class="p">,</span><span class="n">increment</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span><span class="n">windows</span><span class="o">=</span><span class="nc">List</span><span class="p">(</span><span class="mi">100</span><span class="p">))</span>
+    
+</pre></div>
+</div>
+</section>
+</section>
+<section id="raphtory-client">
+<h2>Raphtory Client<a class="headerlink" href="#raphtory-client" title="Permalink to this headline"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">RaphtoryClient</span></code> is very simple to implement and can be run compiled, as the Service code above, or via the Scala REPL. An example client may be seen below:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">import</span> <span class="nn">com</span><span class="p">.</span><span class="nn">raphtory</span><span class="p">.</span><span class="nn">algorithms</span><span class="p">.</span><span class="nc">ConnectedComponents</span>
+<span class="k">import</span> <span class="nn">com</span><span class="p">.</span><span class="nn">raphtory</span><span class="p">.</span><span class="nn">core</span><span class="p">.</span><span class="nn">build</span><span class="p">.</span><span class="nn">client</span><span class="p">.</span><span class="nc">RaphtoryClient</span>
+
+<span class="k">object</span> <span class="nc">ExampleClient</span> <span class="k">extends</span> <span class="nc">App</span> <span class="p">{</span>
+  <span class="kd">val</span> <span class="n">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">RaphtoryClient</span><span class="p">(</span><span class="s">&quot;leaderIP/hostname:1600&quot;</span><span class="p">,</span><span class="mi">1700</span><span class="p">)</span>
+  <span class="n">client</span><span class="p">.</span><span class="n">pointQuery</span><span class="p">(</span><span class="nc">ConnectedComponents</span><span class="p">(</span><span class="s">&quot;/tmp&quot;</span><span class="p">),</span><span class="mi">10000</span><span class="p">,</span><span class="nc">List</span><span class="p">(</span><span class="mi">10000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span><span class="mi">100</span><span class="p">))</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Here we can see that the client has only two arguments. The first is the leader’s <code class="docutils literal notranslate"><span class="pre">RAPHTORY_BIND_ADDRESS</span></code> and <code class="docutils literal notranslate"><span class="pre">RAPHTORY_BIND_PORT</span></code> combined into one string, seperated by a colon. Secondly is a port on the local machine with which to bind to - in this instance 1700 is chosen.</p>
+<p>The client then has the same <code class="docutils literal notranslate"><span class="pre">pointQuery</span></code> and <code class="docutils literal notranslate"><span class="pre">rangeQuery</span></code> functionality available to it as the RaphtoryGraph, and can be interacted with as such. Algorithms submitted this way will be sent across to the QueryManager and the results saved into each partition for retrieval.</p>
+<p><strong>Note:</strong> Unfortunately you cannot submit brand new algorithms in this manner, only those which are availble within the Jars submitted with the Components previously. This is because of the manner in which closures (anonymous functions) work in Scala 2.12 and currently has no work around. This should hopefully be fixed in later versions of Raphtory!</p>
+</section>
+<section id="whats-next">
+<h2>Whats next?<a class="headerlink" href="#whats-next" title="Permalink to this headline"></a></h2>
+<p>You have reached the end of the quick start tutorial! For any discussion of it, or help with your own projects using Raphtory, please join the <a class="reference external" href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA">slack</a>.</p>
+<section id="what-next">
+<h3>What Next?<a class="headerlink" href="#what-next" title="Permalink to this headline"></a></h3>
+<p>Now that we have gone through how to build a graph and how to perform analytics on it the final step is how to properly deploy it in a distributed environment!</p>
+<p><sub>If you have any questions, come join the Raphtory Slack and get involved with the discussion. </sub></p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../Ingestion/sprouter.html" class="btn btn-neutral float-left" title="Building a graph from your data" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../Querying/presto.html" class="btn btn-neutral float-right" title="Querying in-flight data" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Ben Steer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

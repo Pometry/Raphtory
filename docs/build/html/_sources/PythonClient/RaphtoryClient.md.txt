@@ -1,0 +1,227 @@
+# Raphtory Client
+---
+
+<p style="margin-left: 1.5em;"> This is the class to create a raphtory client which interacts with pulsar. 
+The main purpose is to pull data to allow for analysis in python. </p>
+
+## RaphtoryClient Objects
+
+```python
+class RaphtoryClient()
+```
+
+This is the class to create a raphtory client which interacts with pulsar.
+
+**Attributes**:
+
+- `topic` _str_ - Name of a topic to read from
+- `client_address` _str_ - Address of pulsar client
+- `subscription_name` _str_ - Name of reader
+- `delimiter` _str_ - Delimiter to split the raw data from the reader
+- `admin_url` _str_ - Address of pulsar admin
+
+<a id="RaphtoryClient.RaphtoryClient.make_name"></a>
+
+### make\_name
+
+```python
+def make_name()
+```
+
+Helper function which generates a random
+subscription suffix for the reader.
+
+**Arguments**:
+
+  none
+  
+
+**Returns**:
+
+- `str` - subcription suffix
+
+<a id="RaphtoryClient.RaphtoryClient.setupClient"></a>
+
+### setupClient
+
+```python
+def setupClient()
+```
+
+Setups a pulsar client using the pulsar address.
+Retries at least 5 times before returning
+
+**Returns**:
+
+- `PulsarClient` - A pulsar client object if successful
+- `False` _boolean_ - False if not successful
+
+<a id="RaphtoryClient.RaphtoryClient.createReaders"></a>
+
+### createReaders
+
+```python
+def createReaders(topics, subscription_name)
+```
+
+Setups a pulsar reader, which reads from a pulsar topic.
+Retries at least 5 times before returning
+
+**Arguments**:
+
+  topics (List(str)): Names of topic to read from
+- `subscription_name` _str_ - Name for this readers subscription
+  
+
+**Returns**:
+
+  Dict(str, PulsarReader): A dict containing pulsar reader objects with key being topic name
+- `False` _boolean_ - False if not successful
+
+<a id="RaphtoryClient.RaphtoryClient.getStats"></a>
+
+### getStats
+
+```python
+def getStats(topic, tenant="public", namespace="default")
+```
+
+Reads stats from a pulsar topic using the admin interface.
+If success returns the response as json else returns an empty dict.
+
+**Arguments**:
+
+- `topic` _str_ - Topic to obtain stats from
+- `tenant` _str_ - (Optional, default: public) Pulsar tenant to access
+- `namepsace` _str_ - (Optional, default: default) Pulsar namespace to access
+  
+
+**Returns**:
+
+  json response (dict/json): The response of the request. If unsuccessful then returns an empty dict.
+
+<a id="RaphtoryClient.RaphtoryClient.getResults"></a>
+
+### getResults
+
+```python
+def getResults(topic, max_messages=sys.maxsize, col_names=[])
+```
+
+Using the reader, reads a complete topic and converts
+it into a pandas Dataframe. This will split each message
+from the reader using the class delimiter.
+By default this expects the results to have three columns
+called timestamp, window and id. Any columns after this
+are called result_N.
+
+**Arguments**:
+
+- `topic` _str_ - Topic name to read from
+- `max_messages` _int_ - (Optional, default:sys.maxsize) The number of messages to return.
+  By default, it returns the entire topic. This may cause memory
+  issues.
+- `col_names` _list[string]_ - (Optional: default: ["timestamp", "window", "id"]). These are
+  the names of the columns. By default this expects the results
+  to have three columns called timestamp, window and id. Any
+  columns after this are called result_N.
+  
+
+**Returns**:
+
+- `dataframe` _pandas.dataframe_ - A dataframe of the topic
+
+<a id="RaphtoryClient.RaphtoryClient.find_dates"></a>
+
+### find\_dates
+
+```python
+def find_dates(all_data, node_a_id=0, node_b_id=1, time_col=2)
+```
+
+Given a dataframe of edges, this will find the first time an item was seen.
+This is returned as a dict with the key being the id and the value time.
+This can be helpful when trying to identify when a node was first created.
+
+**Arguments**:
+
+- `all_data` _dataframe_ - A dataframe containing a column with keys and a column with times/numbers to compare with.
+- `node_a_id` _int_ - Position of the id or name to use as key for node A
+- `node_b_id` _int_ - Position of the id or name to use as key for node B
+- `time_col` _int_ - Position of the time column which is compared
+  
+
+**Returns**:
+
+- `first_seen` _dict_ - A dictionary with the key= node_id and the value = time
+
+<a id="RaphtoryClient.RaphtoryClient.add_node_attributes"></a>
+
+### add\_node\_attributes
+
+```python
+def add_node_attributes(G, results, abbr, row_id='id', time_col='timestamp', window_col='window', result_col='result')
+```
+
+Given a graph, an array of attributes and a abbreviation.
+This will add all the attributes to the graph.
+For example, given a graph G, results
+
+**Arguments**:
+
+- `G` _networkx.graph_ - A networkx graph
+- `results` _list[dict]_ - A list of dataframes which contain attributes.
+  The format for attributes is a dataframe with
+- `id` - node id
+- `timestamp` - time the attribute was created
+- `window` - (optional) the window the attribute was created
+- `result_col` - the value of the attribute
+  abbr    (list(str)): A list of strings which correspond to the abbreviation used when appending the attribute.
+- `row_id` _str_ - Name of the row id column to use, must be the same across results
+- `time_col` _str_ - Name of the timestamp column to use
+- `result_col` _str_ - Name of the result column
+- `window_col` _str_ - (Optional, default:'window') Name of the window column, set to '' if not being used
+
+<a id="RaphtoryClient.RaphtoryClient.createGraph"></a>
+
+### createGraph
+
+```python
+def createGraph(topic, isMultiGraph=False)
+```
+
+Builds a simple networkx graph from an edge list in Raphtory.
+
+**Arguments**:
+
+- `topic` _str_ - Location of edge list
+- `isMultiGraph` _bool_ - If False will use DiGraph, otherwise will use MultiGraph
+
+**Returns**:
+
+- `G` _networkx.DiGraph_ - The graph as built in networkx
+
+<a id="RaphtoryClient.RaphtoryClient.createLOTRGraph"></a>
+
+### createLOTRGraph
+
+```python
+def createLOTRGraph(filePath, from_time=0, to_time=sys.maxsize, source_id=0, target_id=1, timestamp_col=2)
+```
+
+Example graph builder in python. Given a csv edgelist this will create a graph using networkx based on the lotr data.
+
+**Arguments**:
+
+- `filePath` _str_ - Location of csv file
+- `from_time` _int_ - (Optional, default: 0) timestamp to start building graph from
+- `to_time` _int_ - (Optional, default: sys.maxsize) timestamp to stop building graph
+- `source_id` _int_ - column for source node
+- `target_id` _int_ - column for target node
+- `timestamp_col` _int_ - column for lotr timestamp
+  
+
+**Returns**:
+
+- `G` _networkx.DiGraph_ - The graph as built in networkx
+
