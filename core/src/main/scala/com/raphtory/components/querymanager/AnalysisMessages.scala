@@ -45,6 +45,8 @@ object CreatePerspective {
 
 case object StartGraph extends QueryManagement
 
+case class AlgorithmFailure(exception: Throwable) extends QueryManagement
+
 case class GraphFunctionComplete(
     partitionID: Int,
     receivedMessages: Int,
