@@ -128,7 +128,7 @@ object PerspectiveController {
       alignment: Alignment.Value
   ) =
     windows match {
-      case Nil     => List(timestamps map (createWindowlessPerspective(_, alignment)))
+      case Seq()   => List(timestamps map (createWindowlessPerspective(_, alignment)))
       case windows =>
         windows.sorted.reverse map { window =>
           timestamps map (createPerspective(_, window, alignment))
