@@ -1,7 +1,8 @@
 package com.raphtory.examples.gab.graphbuilders
 
+import com.raphtory.components.graphbuilder.GraphBuilder
+
 import java.text.SimpleDateFormat
-import com.raphtory.core.components.graphbuilder.GraphBuilder
 
 // The lines sent by the Gab mining spout are read and processed accordingly.
 //In this router we needed to transform the data that was sent by the spout by turning it into a epoch value (long value)
@@ -13,7 +14,7 @@ import com.raphtory.core.components.graphbuilder.GraphBuilder
 class GabPostGraphBuilder extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String) = {
-    val fileLine = tuple.split(";").map(_.trim)
+    val fileLine   = tuple.split(";").map(_.trim)
     //user wise
 //     val sourceNode=fileLine(2).toInt
 //     val targetNode=fileLine(5).toInt
@@ -33,9 +34,9 @@ class GabPostGraphBuilder extends GraphBuilder[String] {
     //if(timestamp == null) return null;
     // println("TIME FUNC: "+ timestamp)
     //val sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'+'HH:mm")
-    val sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
+    val sdf   = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
     //println(sdf)
-    val dt = sdf.parse(timestamp)
+    val dt    = sdf.parse(timestamp)
     //println(dt)
     val epoch = dt.getTime
     //println("*******EPOCH: "+epoch)
