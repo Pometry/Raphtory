@@ -59,12 +59,13 @@ object PerspectiveController {
       lastAvailableTimestamp: Long,
       query: Query
   ): PerspectiveController = {
-    val timelineStart         = firstAvailableTimestamp max query.timelineStart
-    val timelineEnd           = query.timelineEnd
+    val timelineStart          = query.timelineStart
+    val timelineEnd            = query.timelineEnd
+    val perspectiveStreamStart = query.timelineStart max firstAvailableTimestamp
     logger.debug(
             s"Defining perspective list from '$timelineStart' with first available timestamp '$firstAvailableTimestamp' and start defined by the user at '${query.timelineStart}'"
     )
-    val rawPerspectiveStreams = query.points match {
+    val rawPerspectiveStreams  = query.points match {
       // If there are no points marked by the user, we create
       // a windowless perspective that ends at the lastAvailableTimestamp
       case NullPointSet      =>
@@ -77,14 +78,14 @@ object PerspectiveController {
       // Similar to RangeQuery and LiveQuery
       case path: PointPath   =>
         val maxSeparation = Try(query.windows.max).getOrElse(NullInterval)
-        val timestamps    = timestampsAroundTimeline(path, maxSeparation, timelineStart)
+        val timestamps    = timestampsAroundTimeline(path, maxSeparation, perspectiveStreamStart)
         streamsFromTimestamps(timestamps, query.windows, query.windowAlignment)
     }
 
     val perspectiveStreams = rawPerspectiveStreams map (stream =>
       stream
-        .dropWhile(!perspectivePartiallyInside(_, timelineStart, timelineEnd))
-        .takeWhile(perspectivePartiallyInside(_, timelineStart, timelineEnd))
+        .dropWhile(!perspectivePartiallyInside(_, perspectiveStreamStart, timelineEnd))
+        .takeWhile(perspectivePartiallyInside(_, perspectiveStreamStart, timelineEnd))
         .map(boundPerspective(_, timelineStart, timelineEnd))
       // Note that the code above is equivalent to stream.filter(perspectivePartiallyInside...).map(...).
       // The reason to follow this approach is that otherwise a nonEmpty operation over the stream
