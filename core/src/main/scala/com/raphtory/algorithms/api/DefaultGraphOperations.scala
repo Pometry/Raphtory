@@ -7,10 +7,11 @@ import com.raphtory.graph.visitor.Vertex
 /**
   * @DoNotDocument
   */
-abstract class DefaultGraphOperations[G <: GraphOperations[G]](
+abstract class DefaultGraphOperations[+G <: DefaultGraphOperations[G]](
     private[api] val query: Query,
     private val querySender: QuerySender
-) extends GraphOperations[G] {
+) extends GraphPerspective
+        with GraphOperations[DefaultGraphOperations[G]] {
   override def setGlobalState(f: GraphState => Unit): G = addFunction(Setup(f))
 
   override def filter(f: (Vertex) => Boolean): G = addFunction(VertexFilter(f))
@@ -50,7 +51,7 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
   override def clearMessages(): G =
     addFunction(ClearChain())
 
-  private def addFunction(function: GraphFunction) =
+  private def addFunction(function: GraphFunction): G =
     newGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
 
   private def addSelect(function: GraphFunction) =
