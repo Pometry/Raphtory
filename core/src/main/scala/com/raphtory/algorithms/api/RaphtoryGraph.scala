@@ -66,6 +66,6 @@ private[raphtory] class RaphtoryGraph(query: Query, private val querySender: Que
 object RaphtoryGraph {
 
   // dangerous?
-  implicit def raphtoryGraphFromPerspective(graph: GraphPerspective): RaphtoryGraph =
+  implicit private def raphtoryGraphFromPerspective(graph: GraphPerspective): RaphtoryGraph =
     graph.asInstanceOf[RaphtoryGraph]
 }
