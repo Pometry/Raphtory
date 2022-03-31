@@ -2,8 +2,9 @@
 
 package com.raphtory.lotrtest
 
+import com.raphtory.algorithms.api.Alignment
 import com.raphtory.{BaseRaphtoryAlgoTest, GlobalState, GraphState}
-import com.raphtory.algorithms.generic.{BinaryDiffusion, ConnectedComponents}
+import com.raphtory.algorithms.generic.{BinaryDiffusion, ConnectedComponents, NodeList}
 import com.raphtory.algorithms.generic.centrality.{AverageNeighbourDegree, Degree, Distinctiveness, PageRank, WeightedDegree, WeightedPageRank}
 import com.raphtory.algorithms.generic.community.{LPA, SLPA}
 import com.raphtory.algorithms.generic.dynamic.{DiscreteSI, RandomWalk, WattsCascade, WeightedRandomWalk}
@@ -44,6 +45,17 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
       algorithmTest(Degree(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
       equals "53fe18d6e38b2b32a1c8498100b888e3fd6b0d552dae99bb65fc29fd4f76336f"
     )
+  }
+
+  test("New API test") {
+    val graphView = Raphtory.getLocalGraph(graph)
+    val test = graphView.range(1, 32674, 10000)
+      .window(sizes = List(500L, 1000, 10000), alignment = Alignment.END)
+      .transform((Degree()))
+    val job = test.execute(NodeList("inDegree", "outDegree", "degree")).writeTo(outputFormat)
+    job.waitForJob()
+    val hash = resultsHash(job.getJobId())
+    assert(hash equals "53fe18d6e38b2b32a1c8498100b888e3fd6b0d552dae99bb65fc29fd4f76336f")
   }
 
 //  test("Distinctiveness Test") {
