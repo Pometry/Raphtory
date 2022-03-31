@@ -40,8 +40,8 @@ object PartitionTelemetry {
       .help("Last reader watermark")
       .register
 
-  val queryExecutorMapCounter: Counter =
-    Counter
+  val queryExecutorMapCounter: Gauge =
+    Gauge
       .build
       .namespace("reader")
       .name("total_query_executor_jobs")

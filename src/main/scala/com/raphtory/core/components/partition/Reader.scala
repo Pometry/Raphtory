@@ -69,6 +69,7 @@ class Reader(
       case req: EndQuery          =>
         executorMap(req.jobID).stop()
         executorMap.remove(req.jobID)
+        PartitionTelemetry.queryExecutorMapCounter.dec()
     }
 
   def createWatermark(): Unit = {
@@ -116,7 +117,6 @@ class Reader(
         PartitionTelemetry.lastWaterMarkProcessed.set(finalTime)
       }
 
-      PartitionTelemetry.totalWaterMarksCreated.inc()
     }
     scheduleWaterMarker()
   }

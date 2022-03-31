@@ -81,6 +81,8 @@ class BatchWriter[T: ClassTag](
     storage.timings(req.msgTime)
     storage
       .batchAddRemoteEdge(req.msgTime, req.srcId, req.dstId, req.properties, req.vType)
+    PartitionTelemetry.batchWriterRemoteEdgeAdditions.inc()
+
   }
 
   def processSyncNewEdgeRemoval(req: SyncNewEdgeRemoval): Unit = {
@@ -100,7 +102,6 @@ class BatchWriter[T: ClassTag](
 
   def printUpdateCount() = {
     processedMessages += 1
-    PartitionTelemetry.batchWriterGraphUpdates.inc()
 
     // TODO Should this be externalised?
     //  Do we need it now that we have progress tracker?
@@ -108,6 +109,10 @@ class BatchWriter[T: ClassTag](
       logger.debug(
               s"Partition '$partitionID': Processed '$processedMessages' messages."
       )
+  }
+
+  def totalProcessedMessages(): Int = {
+    processedMessages
   }
 
 }
