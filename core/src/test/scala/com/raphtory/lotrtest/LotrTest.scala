@@ -35,7 +35,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Global State Test") {
     assert(
-      algorithmTest(new GlobalState(),outputFormat,1, 32674, 10000, List(500, 1000, 10000))equals "770e5063d367c101d71d0d10d437fd762a50a94744af3d07ea34291ffb2da253"
+      algorithmTest(new GlobalState(),outputFormat,1, 32674, 10000, List(500, 1000, 10000))equals "206d686bb8c5c119980d1743e4ec2aceb1dc62895d0931b5608f521e4da5c334"
     )
   }
 
