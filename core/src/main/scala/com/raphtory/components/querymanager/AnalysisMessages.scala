@@ -78,11 +78,14 @@ case class VertexMessage[+T](superstep: Int, vertexId: Long, data: T) extends Ge
 
 case class VertexMessageBatch(data: Array[GenericVertexMessage]) extends QueryManagement
 
-case class FilteredEdgeMessage(superstep: Int, vertexId: Long) extends GenericVertexMessage
+case class FilteredEdgeMessage(superstep: Int, vertexId: Long, sourceId: Long)
+        extends GenericVertexMessage
 
-case class FilteredInEdgeMessage(superstep: Int, vertexId: Long) extends GenericVertexMessage
+case class FilteredInEdgeMessage(superstep: Int, vertexId: Long, sourceId: Long)
+        extends GenericVertexMessage
 
-case class FilteredOutEdgeMessage(superstep: Int, vertexId: Long) extends GenericVertexMessage
+case class FilteredOutEdgeMessage(superstep: Int, vertexId: Long, sourceId: Long)
+        extends GenericVertexMessage
 
 case class Query(
     name: String = "",

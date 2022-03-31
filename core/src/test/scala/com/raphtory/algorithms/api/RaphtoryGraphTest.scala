@@ -27,7 +27,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
     assert(query.windows === List(DiscreteInterval(50)))
 
     assert(query.graphFunctions.length === 5)
-    assert(query.graphFunctions(0).isInstanceOf[VertexFilter])
+    assert(query.graphFunctions(0).isInstanceOf[Step])
     assert(query.graphFunctions(1).isInstanceOf[Step])
     assert(query.graphFunctions(2).isInstanceOf[Step])
     assert(query.graphFunctions(3).isInstanceOf[Iterate])

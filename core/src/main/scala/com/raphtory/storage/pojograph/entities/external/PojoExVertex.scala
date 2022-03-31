@@ -178,9 +178,9 @@ class PojoExVertex(
     msg match {
       case msg: VertexMessage[_]       => multiQueue.receiveMessage(msg.superstep, msg.data)
       case msg: FilteredOutEdgeMessage =>
-        outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.vertexId)
+        outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
       case msg: FilteredInEdgeMessage  =>
-        incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.vertexId)
+        incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
     }
 
   def isFiltered = filtered
@@ -189,10 +189,10 @@ class PojoExVertex(
     // key is the vertex of the other side of edge
     filtered = true
     internalIncomingEdges.keys.foreach(k =>
-      lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k))
+      lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k, ID()))
     )
     internalOutgoingEdges.keys.foreach(k =>
-      lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k))
+      lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID()))
     )
   }
 
