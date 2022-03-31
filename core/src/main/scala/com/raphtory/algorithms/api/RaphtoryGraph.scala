@@ -46,21 +46,26 @@ import com.raphtory.components.querymanager.Query
   * ```
   */
 private[raphtory] class RaphtoryGraph(query: Query, private val querySender: QuerySender)
-        extends DefaultGraphOperations[RaphtoryGraph](query, querySender) {
-
+        extends DefaultGraphOperations[RaphtoryGraph](query, querySender)
+        with GraphPerspective
+        with GraphOperations[RaphtoryGraph] {
+  type G = RaphtoryGraph
   def transform(f: RaphtoryGraph => RaphtoryGraph): RaphtoryGraph = f(this)
 
-  def transform(algorithm: GraphAlgorithm): RaphtoryGraph = {
-    val graph            = new GenericGraphPerspective(query, querySender)
-    val transformedGraph = algorithm.apply(graph)
-    newGraph(transformedGraph.asInstanceOf[GenericGraphPerspective].query, querySender)
-  }
+  def transform(algorithm: GraphAlgorithm): RaphtoryGraph = algorithm(this)
 
   def execute(algorithm: GraphAlgorithm): Table =
-    algorithm.run(new GenericGraphPerspective(query, querySender))
+    algorithm.run(this)
 
   def execute(f: RaphtoryGraph => Table): Table = f(this)
 
   override protected def newGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
     new RaphtoryGraph(query, querySender)
+}
+
+object RaphtoryGraph {
+
+  // dangerous?
+  implicit def raphtoryGraphFromPerspective(graph: GraphPerspective): RaphtoryGraph =
+    graph.asInstanceOf[RaphtoryGraph]
 }
