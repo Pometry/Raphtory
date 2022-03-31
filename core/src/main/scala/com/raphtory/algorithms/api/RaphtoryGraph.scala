@@ -62,10 +62,3 @@ private[raphtory] class RaphtoryGraph(query: Query, private val querySender: Que
   override protected def newGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
     new RaphtoryGraph(query, querySender)
 }
-
-object RaphtoryGraph {
-
-  // dangerous?
-  implicit private def raphtoryGraphFromPerspective(graph: GraphPerspective): RaphtoryGraph =
-    graph.asInstanceOf[RaphtoryGraph]
-}
