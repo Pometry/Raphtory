@@ -77,12 +77,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
       graph.rangeQuery(algorithm, outputFormat, start, end, increment, windows)
     val jobId                = queryProgressTracker.getJobId()
     queryProgressTracker.waitForJob()
-
-    val dir     = new File(testDir + s"/$jobId").listFiles
-      .filter(_.isFile)
-    val results =
-      (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
-    val hash    = Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
+    val hash                 = resultsHash(jobId)
     logger.info(s"Generated hash code: '$hash'.")
     hash
   }
@@ -98,11 +93,16 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag]
     val jobId                = queryProgressTracker.getJobId()
     queryProgressTracker.waitForJob()
 
+    val hash = resultsHash(jobId)
+    logger.info(s"Generated hash code: '$hash'.")
+    hash
+  }
+
+  def resultsHash(jobId: String): String = {
     val dir     = new File(testDir + s"/$jobId").listFiles.filter(_.isFile)
     val results =
       (for (i <- dir) yield scala.io.Source.fromFile(i).getLines().toList).flatten.sorted.flatten
     val hash    = Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
-    logger.info(s"Generated hash code: '$hash'.")
     hash
   }
 
