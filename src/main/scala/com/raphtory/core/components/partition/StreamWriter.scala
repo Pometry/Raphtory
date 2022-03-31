@@ -48,6 +48,8 @@ class StreamWriter(
 
   var timerStart : Option[Summary.Timer] =  None
 
+  PartitionTelemetry.partitionID = Option(partitionID)
+
   override def run(): Unit =
     cancelableConsumer = Some(
             pulsarController
@@ -63,7 +65,12 @@ class StreamWriter(
       case None        =>
     }
     neighbours.foreach(_._2.close())
-    timerStart.get.observeDuration()
+    //timerStart.get.observeDuration()
+    timerStart match {
+      case Some(value) =>
+        value.observeDuration()
+      case None        =>
+    }
   }
 
   override def handleMessage(msg: GraphAlteration): Unit = {
@@ -90,10 +97,13 @@ class StreamWriter(
         processSyncNewEdgeRemoval(
                 update
         ) //A remote worker is asking for a new edge to be removed for a destination node in this worker
+        PartitionTelemetry.streamWriterRemoteGraphUpdates.inc()
+
       case update: SyncExistingEdgeRemoval      =>
         processSyncExistingEdgeRemoval(
                 update
         ) //A remote worker is asking for the deletion of an existing edge
+        PartitionTelemetry.streamWriterRemoteGraphUpdates.inc()
 
       //Syncing Vertex Removals
       case update: OutboundEdgeRemovalViaVertex =>
@@ -107,8 +117,12 @@ class StreamWriter(
         processSyncExistingRemovals(
                 update
         ) //The remote worker has returned all removals in the destination node -- for new edges
+        PartitionTelemetry.streamWriterRemoteGraphUpdates.inc()
+
       case update: EdgeSyncAck          =>
         processEdgeSyncAck(update) //The remote worker acknowledges the completion of an edge sync
+        PartitionTelemetry.streamWriterRemoteGraphUpdates.inc()
+
       case update: VertexRemoveSyncAck  => processVertexRemoveSyncAck(update)
 
       case other =>
@@ -183,6 +197,8 @@ class StreamWriter(
     val effect = storage
       .syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType)
     neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+
+    PartitionTelemetry.totalSyncedStreamWriterUpdates.inc()
   }
 
   def processSyncExistingEdgeAdd(req: SyncExistingEdgeAdd): Unit = {
@@ -193,6 +209,8 @@ class StreamWriter(
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties)
     neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+
+    PartitionTelemetry.totalSyncedStreamWriterUpdates.inc()
   }
 
   // Graph Effects for syncing edge deletions
@@ -204,6 +222,8 @@ class StreamWriter(
     storage.timings(req.msgTime)
     val effect = storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals)
     neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+
+    PartitionTelemetry.totalSyncedStreamWriterUpdates.inc()
   }
 
   def processSyncExistingEdgeRemoval(req: SyncExistingEdgeRemoval): Unit = {
@@ -214,6 +234,8 @@ class StreamWriter(
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeRemoval(req.msgTime, req.srcId, req.dstId)
     neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+
+    PartitionTelemetry.totalSyncedStreamWriterUpdates.inc()
   }
 
   // Graph Effects for syncing vertex deletions
@@ -244,6 +266,8 @@ class StreamWriter(
 
     storage.syncExistingRemovals(req.msgTime, req.srcId, req.dstId, req.removals)
     untrackEdgeUpdate(req.msgTime, req.srcId, req.dstId, req.fromAddition)
+
+    PartitionTelemetry.totalSyncedStreamWriterUpdates.inc()
   }
 
   def processEdgeSyncAck(req: EdgeSyncAck): Unit = {
@@ -257,6 +281,8 @@ class StreamWriter(
             req.dstId,
             req.fromAddition
     ) //when the edge isn't new we will get this response instead
+
+    PartitionTelemetry.totalSyncedStreamWriterUpdates.inc()
   }
 
   private def untrackEdgeUpdate(msgTime: Long, srcId: Long, dstId: Long, fromAddition: Boolean) =
@@ -271,6 +297,8 @@ class StreamWriter(
     )
 
     storage.untrackVertexDeletion(req.msgTime, req.updateId)
+
+    PartitionTelemetry.totalSyncedStreamWriterUpdates.inc()
   }
 
   private def dedupe(): Unit = storage.deduplicate()

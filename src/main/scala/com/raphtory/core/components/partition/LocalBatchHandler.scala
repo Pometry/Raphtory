@@ -74,7 +74,12 @@ class LocalBatchHandler[T: ClassTag](
     batchWriters.foreach {
       case (id, partition) => partition.getStorage().stopBatchIngesting()
     }
-    timerStart.get.observeDuration()
+
+    timerStart match {
+      case Some(value) =>
+        value.observeDuration()
+      case None        =>
+    }
   }
 
 

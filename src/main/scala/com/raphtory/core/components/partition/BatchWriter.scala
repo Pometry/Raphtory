@@ -97,7 +97,7 @@ class BatchWriter[T: ClassTag](
     logger.trace(s"Partition $partitionID: Received EdgeDelete message '$update'.")
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId)
-    PartitionTelemetry.batchWriterEdgeDeletions.inc()
+    PartitionTelemetry.batchWriterRemoteEdgeAdditions.inc()
   }
 
   def printUpdateCount() = {

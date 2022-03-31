@@ -15,6 +15,7 @@ import io.prometheus.client.{Counter, Gauge, Summary}
 object PartitionTelemetry {
 
   val conf = new ConfigHandler().getConfig
+  var partitionID : Option[Int] = None
 
   val batchWriterGraphUpdates: Counter =
     Counter
@@ -72,20 +73,28 @@ object PartitionTelemetry {
       .help("Total remote edge additions for batch writer")
       .register
 
-  val batchWriterEdgeDeletions: Counter =
-    Counter
-      .build
-      .namespace("writer")
-      .name("total_batch_writer_edge_deletes")
-      .help("Total edge deletions for batch writer")
-      .register
-
   val streamWriterGraphUpdates: Counter =
     Counter
       .build
       .namespace("writer")
       .name("total_stream_writer_graph_updates")
       .help("Total graph updates for stream writer")
+      .register
+
+  val totalSyncedStreamWriterUpdates: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_synced_stream_writer_updates")
+      .help("Total synced stream writer updates")
+      .register
+
+  val streamWriterRemoteGraphUpdates: Counter =
+    Counter
+      .build
+      .namespace("writer")
+      .name("total_stream_writer_remote_graph_updates")
+      .help("Total remote graph updates for stream writer")
       .register
 
   val streamWriterVertexAdditions: Counter =
