@@ -61,4 +61,8 @@ abstract class DefaultGraphOperations[+G <: DefaultGraphOperations[G]](
     )
 
   protected def newGraph(query: Query, querySender: QuerySender): G
+
+  // this conversion allows us to use a GraphAlgorithm to implement a method in DefaultGraphOperations or its subclasses
+  implicit protected def graphOperationsFromPerspective(graph: GraphPerspective): G =
+    graph.asInstanceOf[G]
 }
