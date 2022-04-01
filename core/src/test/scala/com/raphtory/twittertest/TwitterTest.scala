@@ -44,7 +44,8 @@ class TwitterTest extends BaseRaphtoryAlgoTest[String] {
           logger.error(s"Failed to download 'twitter.csv' due to ${ex.getMessage}.")
           ex.printStackTrace()
 
-          s"rm $path" !
+          (s"rm $path" !)
+          throw ex
       }
   }
 }

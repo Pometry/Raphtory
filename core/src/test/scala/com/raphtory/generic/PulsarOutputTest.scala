@@ -62,7 +62,8 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
           logger.error(s"Failed to download 'lotr.csv' due to ${ex.getMessage}.")
           ex.printStackTrace()
 
-          s"rm $path" !
+          (s"rm $path" !)
+          throw ex
       }
   }
 

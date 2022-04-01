@@ -62,8 +62,8 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
         case ex: Exception =>
           logger.error(s"Failed to download 'email_test.csv' due to ${ex.getMessage}.")
           ex.printStackTrace()
-
-          s"rm $path" !
+          (s"rm $path" !)
+          throw ex
       }
   }
 
