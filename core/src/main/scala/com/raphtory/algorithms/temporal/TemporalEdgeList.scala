@@ -26,10 +26,10 @@ import com.raphtory.algorithms.api.Table
   *
   *  ## Returns
   *
-  * temporal edge list with selected properties
+  *  temporal edge list with selected properties
   *
   *  | source name          | destination name     | time stamp      |  property 1     | ... |
-  *  | -------------------- | -------------------- | --------------- | --- ----------- | --- |
+  *  | -------------------- | -------------------- | --------------- | --------------- | --- |
   *  | {s}`srcName: String` | {s}`dstName: String` | {s}`time: Long` | {s}`value: Any` | ... |
   */
 class TemporalEdgeList(
