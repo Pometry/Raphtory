@@ -174,6 +174,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
 
   def query(scheduler: Scheduler): ThreadedWorker[QueryManagement] = {
     logger.info(s"Creating new Query Manager.")
+
     val queryManager = new QueryManager(scheduler, conf, pulsarController)
 
     scheduler.execute(queryManager)
@@ -185,14 +186,13 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
       scheduler: Scheduler
   ): QueryProgressTracker = {
     logger.info(
-            s"Creating new Query Progress Tracker for  '$jobID'."
+            s"Creating new Query Progress Tracker for '$jobID'."
     )
 
     val queryTracker =
       new QueryProgressTracker(jobID, conf, pulsarController)
 
     scheduler.execute(queryTracker)
-    ThreadedWorker(queryTracker)
 
     queryTracker
   }

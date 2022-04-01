@@ -72,6 +72,7 @@ object Marshal {
                   "\n required: " + expected
         )
     }
+    finally in.close()
   }
 
   def deepCopy[A](a: A)(implicit m: reflect.ClassTag[A]): A =
