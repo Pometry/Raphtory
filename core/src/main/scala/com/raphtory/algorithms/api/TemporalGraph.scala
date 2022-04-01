@@ -15,185 +15,118 @@ import com.typesafe.config.Config
   * {s}`TemporalGraph`
   *  : Public interface for the analysis API
   *
-  * A {s}`TemporalGraph` is a graph with an underlying
+  * A {s}`TemporalGraph` is a {s}`RaphtoryGraph` with only one view. Because of this, there is a unique underlying
   * timeline with a start time and, optionally, an end time. It offers methods to modify this timeline.
-  * There are also methods to create a one or a sequence of temporal marks over the timeline,
-  * therefore producing a so-called DottedGraph,
-  * that can be further used to create a set of perspectives over the timeline of the graph to work with.
-  * This class supports all the graph operations defined in {s}`GraphOperations`.
+  * There are also methods to create a collection of views over it, transforming this graph into a {s}`RaphtoryGraph`.
   * If any graph operation is invoked from this instance, it is applied only over the elements of the graph within
   * the timeline.
-  *
-  * ```{note}
-  *  All the timestamps must follow the format set in the configuration path {s}`"raphtory.query.timeFormat"`.
-  *  By default is {s}`"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`.
-  *
-  *  All the strings expressing intervals need to be in the format {s}`"<number> <unit> [<number> <unit> [...]]"`,
-  *  where numbers must be integers and units must be one of
-  *  {'year', 'month', 'week', 'day', 'hour', 'min'/'minute', 'sec'/'second', 'milli'/'millisecond'}
-  *  using the plural when the number is different than 1.
-  *  Commas and the construction 'and' are omitted to allow natural text.
-  *  For instance, the interval "1 month 1 week 3 days" can be rewritten as "1 month, 1 week, and 3 days"
-  * ```
   *
   * ## Methods
   *
   *  {s}`from(startTime: Long): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the activity before {s}`startTime`.
+  *    : Set the start of the timeline to {s}`startTime`.
   *
   *      {s}`startTime: Long`
   *      : time interpreted in milliseconds by default
   *
   *  {s}`from(startTime: String): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the activity before {s}`startTime`.
+  *    : Set the start of the timeline to {s}`startTime`. The format of the timestamp can be set in the configuration
+  *    path: {s}`"raphtory.query.timeFormat"`. By default is {s}`"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`.
   *
   *      {s}`startTime: String`
   *      : timestamp
   *
   *  {s}`until(endTime: Long): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the activity after {s}`endTime`.
+  *    : Set the end of the timeline to {s}`endTime`.
   *
   *      {s}`endTime: Long`
   *        : time interpreted in milliseconds by default
   *
   *  {s}`until(endTime: String): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the activity after {s}`endTime`.
+  *    : Set the end of the timeline to {s}`endTime`. The format of the timestamp can be set in the configuration
+  *    path: {s}`"raphtory.query.timeFormat"`. By default is {s}`"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`.
   *
   *      {s}`endTime: String`
   *        : timestamp
   *
   *  {s}`slice(startTime: Long, endTime: Long): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the before {s}`startTime` and after {s}`endTime`.
+  *    : Set the start and the end of the timeline to {s}`startTime` and {s}`endTime` respectively.
   *    {s}`graph.slice(startTime, endTime)` is equivalent to {s}`graph.from(startTime).until(endTime)`
   *
   *  {s}`slice(startTime: String, endTime: String): TemporalGraph`
-  *     : Creates a new `TemporalGraph` filtering out all the before {s}`startTime` and after {s}`endTime`.
+  *     : Set the start and the end of the timeline to {s}`startTime` and {s}`endTime` respectively.
   *    {s}`graph.slice(startTime, endTime)` is equivalent to {s}`graph.from(startTime).until(endTime)`.
+  *    The format of the timestamps can be set in the configuration
+  *    path: {s}`"raphtory.query.timeFormat"`. By default is {s}`"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`.
   *
-  *      {s}`startTime: String`
-  *        : timestamp
-  *
-  *      {s}`endTime: String`
-  *        : timestamp
-  *
-  *   {s}`at(time: Long): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a temporal mark at {s}`time`.
-  *
-  *       {s}`time: Long`
-  *         : the temporal mark to be added to the timeline
-  *
-  *  {s}`at(time: String): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a temporal mark at {s}`time`.
-  *
-  *       {s}`time: String`
-  *         : timestamp
-  *
-  *  {s}`walk(increment: Long): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a sequence of temporal marks with a separation of {s}`increment`
-  *     covering all the timeline aligned with 0.
+  *   {s}`raphtorize(increment: Long): RaphtoryGraph`
+  *     : Create a collection of incrementally growing views over the graph beginning from the start of the
+  *     timeline with the step size set by {s}`increment`.
+  *     If the timeline has an end, the last view is created at that point.
+  *     If not, it produces an unbounded collection of views.
   *
   *       {s}`increment: Long`
   *         : the step size
   *
-  *  {s}`walk(increment: Long, offset: Long): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a sequence of temporal marks with a separation of {s}`increment`
-  *     covering all the timeline aligned with {s}`offset`.
+  *  {s}`raphtorize(increment: String): RaphtoryGraph`
+  *     : Create a collection of incrementally growing views over the graph beginning from the start of the
+  *     timeline with the step size set by {s}`increment`.
+  *     If the timeline has an end, the last view is created at that point.
+  *     If not, it produces an unbounded collection of views.
+  *
+  *       {s}`increment: String`
+  *         : the step size in natural language. E.g. {s}`"2 seconds"`, {s}`"1 months"`, {s}`"1 day and 12 hours"`
+  *
+  *  {s}`raphtorize(increment: Long, window: Long): RaphtoryGraph`
+  *     : Create a collection of equally sized views over the graph beginning from the start of the
+  *     timeline with the step size set by {s}`increment`.
+  *     If the timeline has an end, the last view is created at that point.
+  *     If not, it produces an unbounded collection of views.
   *
   *       {s}`increment: Long`
   *         : the step size
   *
-  *       {s}`offset: Long`
-  *         : the offset to align with
+  *       {s}`window: Long`
+  *         : the window size
   *
-  *  {s}`walk(increment: String): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a sequence of temporal marks with a separation of {s}`increment`
-  *     covering all the timeline aligned with the epoch.
-  *     These temporal marks get generated as the timeline keeps growing.
-  *
-  *       {s}`increment: String`
-  *         : the interval to use as the step size
-  *
-  *  {s}`walk(increment: String, offset: String): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a sequence of temporal marks with a separation of {s}`increment`
-  *     covering all the timeline aligned with {s}`offset`.
-  *     These temporal marks get generated as the timeline keeps growing.
+  *  {s}`raphtorize(increment: String, window: String): RaphtoryGraph`
+  *     : Create a collection of equally sized views over the graph beginning from the start of the
+  *     timeline with the step size set by {s}`increment`.
+  *     If the timeline has an end, the last view is created at that point.
+  *     If not, it produces an unbounded collection of views.
   *
   *       {s}`increment: String`
-  *         : the interval to use as the step size
+  *          : the step size in natural language. E.g. {s}`"2 seconds"`, {s}`"1 months"`, {s}`"1 day and 12 hours"`
   *
-  *       {s}`offset: String`
-  *         : the interval to expressing the offset from the epoch to align with
+  *       {s}`window: String`
+  *         : the window size in natural language
   *
-  *  {s}`depart(start: Long, increment: Long): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     starting at {s}`start`.
-  *     These temporal marks get generated as the timeline keeps growing.
-  *
-  *       {s}`start: Long`
-  *         : the point to create the first temporal mark
+  *  {s}`raphtorize(increment: Long, windows: List[Long]): RaphtoryGraph`
+  *    : Create a collection of views over the graph beginning from the start of the
+  *     timeline with the step size set by {s}`increment` and for every window size set in {s}`windows`.
+  *     If the timeline has an end, the last view is created at that point.
+  *     If not, it produces an unbounded collection of views.
   *
   *       {s}`increment: Long`
   *         : the step size
   *
-  *  {s}`depart(start: String, increment: String): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     starting at {s}`start`.
-  *     These temporal marks get generated as the timeline keeps growing.
+  *       {s}`windows: Long`
+  *         : the window sizes
   *
-  *       {s}`start: String`
-  *         : the timestamp to create the first temporal mark
-  *
-  *       {s}`increment: String`
-  *         : the interval expressing the step size
-  *
-  *  {s}`climb(end: Long, increment: Long): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     from the start of the timeline ending at {s}`end`.
-  *
-  *       {s}`end: Long`
-  *         : the point to create the last temporal mark
-  *
-  *       {s}`increment: Long`
-  *         : the step size
-  *
-  *  {s}`climb(end: String, increment: String): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     starting at {s}`start`.
-  *
-  *       {s}`start: String`
-  *         : the timestamp to create the first temporal mark
+  *  {s}`raphtorize(increment: String, windows: List[String]): RaphtoryGraph`
+  *     : Create a collection of views over the graph beginning from the start of the
+  *     timeline with the step size set by {s}`increment` and for every window size set in {s}`windows`.
+  *     If the timeline has an end, the last view is created at that point.
+  *     If not, it produces an unbounded collection of views.
   *
   *       {s}`increment: String`
-  *         : the interval expressing the step size
+  *          : the step size in natural language. E.g. {s}`"2 seconds"`, {s}`"1 months"`, {s}`"1 day and 12 hours"`
   *
-  *  {s}`range(start: Long, end: Long, increment: Long): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     starting at {s}`start` and ending at {s}`end` (with a smaller step at the end if necessary).
-  *
-  *       {s}`start: Long`
-  *         : the point to create the first temporal mark
-  *
-  *       {s}`end: Long`
-  *         : the point to create the last temporal mark
-  *
-  *       {s}`increment: Long`
-  *         : the step size
-  *
-  *  {s}`range(start: String, end: String, increment: String): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     starting at {s}`start` and ending at {s}`end` (with a smaller step at the end if necessary).
-  *
-  *       {s}`start: String`
-  *         : the timestamp to create the first temporal mark
-  *
-  *       {s}`end: String`
-  *         : the timestamp to create the first temporal mark
-  *
-  *       {s}`increment: String`
-  *         : the interval expressing the step size
+  *       {s}`windows: String`
+  *         : the window sizes in natural language
   *
   * ```{seealso}
-  * [](com.raphtory.algorithms.api.DottedGraph), [](com.raphtory.algorithms.api.GraphOperations)
+  * [](com.raphtory.algorithms.api.RaphtoryGraph)
   * ```
   */
 private[raphtory] class TemporalGraph(
