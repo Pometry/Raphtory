@@ -33,6 +33,19 @@ class BatchWriter[T: ClassTag](
   private var processedMessages = 0
   val logger: Logger            = Logger(LoggerFactory.getLogger(this.getClass))
 
+  val batchWriterVertexAdditions = PartitionTelemetry.batchWriterVertexAdditions
+    .name("batch_writer_vertex_adds_" + partitionID)
+    .register()
+
+  val batchWriterEdgeAdditions = PartitionTelemetry.batchWriterEdgeAdditions
+    .name("batch_writer_edge_adds_" + partitionID)
+    .register()
+
+  val batchWriterRemoteEdgeAdditions = PartitionTelemetry.batchWriterRemoteEdgeAdditions
+    .name("batch_writer_remote_edge_adds_" + partitionID)
+    .register()
+
+
   def handleMessage(msg: GraphAlteration): Unit = {
     msg match {
       //Updates from the Graph Builder
@@ -59,7 +72,7 @@ class BatchWriter[T: ClassTag](
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
-    PartitionTelemetry.batchWriterVertexAdditions.inc()
+    batchWriterVertexAdditions.inc()
   }
 
   def processEdgeAdd(update: EdgeAdd): Unit = {
@@ -72,7 +85,7 @@ class BatchWriter[T: ClassTag](
             update.properties,
             update.eType
     )
-    PartitionTelemetry.batchWriterEdgeAdditions.inc()
+    batchWriterEdgeAdditions.inc()
   }
 
   def processRemoteEdgeAdd(req: BatchAddRemoteEdge): Unit = {
@@ -81,7 +94,7 @@ class BatchWriter[T: ClassTag](
     storage.timings(req.msgTime)
     storage
       .batchAddRemoteEdge(req.msgTime, req.srcId, req.dstId, req.properties, req.vType)
-    PartitionTelemetry.batchWriterRemoteEdgeAdditions.inc()
+    batchWriterRemoteEdgeAdditions.inc()
 
   }
 
@@ -97,7 +110,7 @@ class BatchWriter[T: ClassTag](
     logger.trace(s"Partition $partitionID: Received EdgeDelete message '$update'.")
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId)
-    PartitionTelemetry.batchWriterRemoteEdgeAdditions.inc()
+    batchWriterRemoteEdgeAdditions.inc()
   }
 
   def printUpdateCount() = {

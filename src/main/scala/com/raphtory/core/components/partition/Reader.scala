@@ -32,6 +32,15 @@ class Reader(
   var scheduledWatermark: Option[Cancelable]            = None
   private var lastWatermark                             = (0L, false)
 
+
+  val lastWaterMarkProcessed = PartitionTelemetry.lastWaterMarkProcessed
+    .name("last_watermark_processed_" + partitionID)
+    .register()
+
+  val queryExecutorMapCounter = PartitionTelemetry.queryExecutorMapCounter
+    .name("total_query_executor_jobs_" + partitionID)
+    .register()
+
   private val watermarking = new Runnable {
     override def run(): Unit = createWatermark()
   }
@@ -63,13 +72,13 @@ class Reader(
         val jobID         = req.jobID
         val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
         scheduler.execute(queryExecutor)
-        PartitionTelemetry.queryExecutorMapCounter.inc()
+        queryExecutorMapCounter.inc()
         executorMap += ((jobID, queryExecutor))
 
       case req: EndQuery          =>
         executorMap(req.jobID).stop()
         executorMap.remove(req.jobID)
-        PartitionTelemetry.queryExecutorMapCounter.dec()
+        queryExecutorMapCounter.dec()
     }
 
   def createWatermark(): Unit = {
@@ -114,7 +123,7 @@ class Reader(
                 serialise(WatermarkTime(partitionID, finalTime, noBlockingOperations))
         )
         lastWatermark = (finalTime, noBlockingOperations)
-        PartitionTelemetry.lastWaterMarkProcessed.set(finalTime)
+        lastWaterMarkProcessed.set(finalTime)
       }
 
     }
