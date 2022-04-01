@@ -3,7 +3,7 @@ package com.raphtory.algorithms
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.VertexFilter
+import com.raphtory.algorithms.generic.filters.VertexFilter
 import com.raphtory.graph.visitor.Vertex
 
 class VertexFilterTest extends BaseCorrectnessTest {
