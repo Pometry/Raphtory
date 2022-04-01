@@ -126,7 +126,7 @@ import com.typesafe.config.Config
   *         : the window sizes in natural language
   *
   * ```{seealso}
-  * [](com.raphtory.core.algorithm.RaphtoryGraph)
+  * [](com.raphtory.algorithms.api.RaphtoryGraph)
   * ```
   */
 private[raphtory] class TemporalGraph(

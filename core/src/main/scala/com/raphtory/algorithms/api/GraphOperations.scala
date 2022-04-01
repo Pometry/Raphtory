@@ -131,7 +131,7 @@ final case class PerspectiveDone()                     extends GraphFunction
   *     : Clear messages from previous operations
   *
   * ```{seealso}
-  * [](com.raphtory.core.algorithm.GraphState), [](com.raphtory.core.graph.visitor.Vertex)
+  * [](com.raphtory.algorithms.api.GraphState), [](com.raphtory.graph.visitor.Vertex)
   * ```
   */
 trait GraphOperations[G <: GraphOperations[G]] {
