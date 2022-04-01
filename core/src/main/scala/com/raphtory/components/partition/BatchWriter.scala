@@ -33,18 +33,9 @@ class BatchWriter[T: ClassTag](
   private var processedMessages = 0
   val logger: Logger            = Logger(LoggerFactory.getLogger(this.getClass))
 
-  val batchWriterVertexAdditions = PartitionTelemetry.batchWriterVertexAdditions
-    .name("batch_writer_vertex_adds_" + partitionID)
-    .register()
-
-  val batchWriterEdgeAdditions = PartitionTelemetry.batchWriterEdgeAdditions
-    .name("batch_writer_edge_adds_" + partitionID)
-    .register()
-
-  val batchWriterRemoteEdgeAdditions = PartitionTelemetry.batchWriterRemoteEdgeAdditions
-    .name("batch_writer_remote_edge_adds_" + partitionID)
-    .register()
-
+  val batchWriterVertexAdditions = PartitionTelemetry.batchWriterVertexAdditions(partitionID)
+  val batchWriterEdgeAdditions = PartitionTelemetry.batchWriterEdgeAdditions(partitionID)
+  val batchWriterRemoteEdgeAdditions = PartitionTelemetry.batchWriterRemoteEdgeAdditions(partitionID)
 
   def handleMessage(msg: GraphAlteration): Unit = {
     msg match {

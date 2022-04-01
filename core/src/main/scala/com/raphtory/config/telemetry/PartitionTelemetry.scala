@@ -13,85 +13,95 @@ import io.prometheus.client.{Counter, Gauge, Summary}
   */
 object PartitionTelemetry {
 
-  var partitionID : Option[Int] = None
-
-  val lastWaterMarkProcessed: Gauge.Builder =
+  def lastWaterMarkProcessed(partitionID: Int): Gauge =
     Gauge
       .build
       .namespace("reader")
-      .help("Last reader watermark")
+      .name("last_reader_watermark_" + partitionID.toString)
+      .help("Last reader watermark").register()
 
-  val queryExecutorMapCounter: Gauge.Builder =
+  def queryExecutorMapCounter(partitionID: Int): Gauge =
     Gauge
       .build
       .namespace("reader")
-      .name("total_query_executor_jobs")
-      .help("Total query executor jobs created")
+      .name("total_query_executor_jobs_" + partitionID.toString)
+      .help("Total query executor jobs created").register()
 
-  val batchWriterVertexAdditions: Counter.Builder =
+  def batchWriterVertexAdditions(partitionID: Int): Counter =
     Counter
       .build
       .namespace("writer")
-      .help("Total vertex additions for batch writer")
+      .name("total_batch_writer_vertex_adds_" + partitionID.toString)
+      .help("Total vertex additions for batch writer").register()
 
-  val batchWriterEdgeAdditions: Counter.Builder =
+  def batchWriterEdgeAdditions(partitionID: Int): Counter =
     Counter
       .build
       .namespace("writer")
-      .help("Total edge additions for batch writer")
+      .name("total_batch_writer_edge_adds_" + partitionID.toString)
+      .help("Total edge additions for batch writer").register()
 
-  val batchWriterRemoteEdgeAdditions: Counter.Builder =
+  def batchWriterRemoteEdgeAdditions(partitionID: Int): Counter =
     Counter
       .build
       .namespace("writer")
-      .help("Total remote edge additions for batch writer")
+      .name("total_batch_writer_remote_edge_adds_" + partitionID.toString)
+      .help("Total remote edge additions for batch writer").register()
 
-  val streamWriterGraphUpdates: Counter.Builder =
+  def streamWriterGraphUpdates(partitionID: Int): Counter =
     Counter
       .build
       .namespace("writer")
-      .help("Total graph updates for stream writer")
+      .name("total_stream_writer_graph_updates_" + partitionID.toString)
+      .help("Total graph updates for stream writer").register()
 
-  val totalSyncedStreamWriterUpdates: Counter.Builder =
+  def totalSyncedStreamWriterUpdates(partitionID: Int): Counter =
     Counter
       .build
       .namespace("writer")
-      .help("Total synced stream writer updates")
+      .name("synced_stream_writer_updates_" + partitionID.toString)
+      .help("Total synced stream writer updates").register()
 
-  val streamWriterRemoteGraphUpdates: Counter.Builder =
+  def streamWriterRemoteGraphUpdates(partitionID: Int): Counter =
     Counter
       .build
       .namespace("writer")
-      .help("Total remote graph updates for stream writer")
+      .name("total_stream_writer_remote_graph_updates_" + partitionID.toString)
+      .help("Total remote graph updates for stream writer").register()
 
-  val streamWriterVertexAdditions: Counter.Builder =
+  def streamWriterVertexAdditions(partitionID: Int): Counter =
     Counter
       .build
       .namespace("writer")
-      .help("Total vertex additions for stream writer")
+      .name("total_stream_writer_vertex_adds" + partitionID.toString)
+      .help("Total vertex additions for stream writer").register()
 
-  val streamWriterEdgeAdditions: Counter.Builder =
+  def streamWriterEdgeAdditions(partitionID: Int): Counter =
     Counter
       .build
       .namespace("writer")
-      .help("Total edge additions for stream writer")
+      .name("total_stream_writer_edge_adds" + partitionID.toString)
+      .help("Total edge additions for stream writer").register()
 
-  val streamWriterEdgeDeletions: Counter.Builder =
+  def streamWriterEdgeDeletions(partitionID: Int): Counter =
     Counter
       .build
       .namespace("writer")
-      .help("Total edge deletions for stream writer")
+      .name("total_stream_writer_edge_deletes" + partitionID.toString)
+      .help("Total edge deletions for stream writer").register()
 
-  val streamWriterVertexDeletions: Counter.Builder =
+  def streamWriterVertexDeletions(partitionID: Int): Counter =
     Counter
       .build
       .namespace("writer")
-      .help("Total vertex deletions for stream writer")
+      .name("total_stream_writer_vertex_deletes" + partitionID.toString)
+      .help("Total vertex deletions for stream writer").register()
 
-  val totalTimeForIngestion: Summary =
+  def totalTimeForIngestion(partitionID: Int): Summary =
     Summary
       .build()
-      .name("writer")
+      .namespace("writer")
+      .name("total_time_for_ingestion_" + partitionID.toString)
       .help("Total time for ingestion")
       .create();
 

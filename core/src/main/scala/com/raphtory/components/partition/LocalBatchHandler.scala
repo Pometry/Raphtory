@@ -26,10 +26,6 @@ class LocalBatchHandler[T: ClassTag](
 
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)
 
-  val ingestionTimer = PartitionTelemetry.totalTimeForIngestion
-
-  var timerStart : Option[Summary.Timer] =  None
-
   private val rescheduler: Runnable = new Runnable {
 
     override def run(): Unit = {
@@ -75,11 +71,6 @@ class LocalBatchHandler[T: ClassTag](
       case (id, partition) => partition.getStorage().stopBatchIngesting()
     }
 
-    timerStart match {
-      case Some(value) =>
-        value.observeDuration()
-      case None        =>
-    }
   }
 
 

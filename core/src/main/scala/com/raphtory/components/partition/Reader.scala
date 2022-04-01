@@ -32,14 +32,8 @@ class Reader(
   var scheduledWatermark: Option[Cancelable]            = None
   private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
 
-
-  val lastWaterMarkProcessed = PartitionTelemetry.lastWaterMarkProcessed
-    .name("last_watermark_processed_" + partitionID)
-    .register()
-
-  val queryExecutorMapCounter = PartitionTelemetry.queryExecutorMapCounter
-    .name("total_query_executor_jobs_" + partitionID)
-    .register()
+  val lastWaterMarkProcessed = PartitionTelemetry.lastWaterMarkProcessed(partitionID)
+  val queryExecutorMapCounter = PartitionTelemetry.queryExecutorMapCounter(partitionID)
 
   private val watermarking = new Runnable {
     override def run(): Unit = createWatermark()
