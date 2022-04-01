@@ -31,7 +31,7 @@ class PerspectiveController(
     private var perspectiveStreams: Array[LazyList[Perspective]]
 ) {
 
-  /** Extract the earliest perspective among the head of all streams */
+  // Extract the earliest perspective among the head of all streams
   def nextPerspective(): Option[Perspective] = {
     perspectiveStreams = perspectiveStreams.filter(_.nonEmpty)
     if (perspectiveStreams.isEmpty)
@@ -189,9 +189,8 @@ object PerspectiveController {
     else lowerBounded
   }
 
-  /** Departing from the source point, moves forward or backward using the given
-    * increment until it founds the immediate greater or equal than the bound
-    */
+  //Departing from the source point, moves forward or backward using the given increment until it
+  // founds the immediate greater or equal than the bound
   @tailrec
   private def getImmediateGreaterOrEqual(source: Long, increment: Interval, bound: Long): Long = {
     lazy val jumps = LazyList.iterate(1)(_ * 10)
