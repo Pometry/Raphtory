@@ -42,7 +42,7 @@ import com.raphtory.components.querymanager.Query
   *      : algorithm to apply
   *
   * ```{seealso}
-  * [](com.raphtory.core.algorithm.GraphOperations)
+  * [](com.raphtory.algorithms.api.GraphOperations)
   * ```
   */
 private[raphtory] class RaphtoryGraph(query: Query, private val querySender: QuerySender)

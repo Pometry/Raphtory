@@ -38,7 +38,7 @@ def handle_config_init(app: Sphinx, config: Config):
     if scala_src_root:
         scala_src_root = Path(scala_src_root)
         # clean up old files
-        shutil.rmtree(doc_root)
+        shutil.rmtree(doc_root, ignore_errors=True)
         for package in config.autodoc_packages:
             rel_path = Path(*package.split('.'))
             src_root = scala_src_root / rel_path

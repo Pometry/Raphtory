@@ -32,7 +32,7 @@ import org.apache.pulsar.client.api.Schema
   *  ```{seealso}
   *  [](com.raphtory.algorithms.api.OutputFormat),
   *  [](com.raphtory.client.RaphtoryClient),
-  *  [](com.raphtory.client.RaphtoryGraph),
+  *  [](com.raphtory.client.GraphDeployment),
   *  [](com.raphtory.deployment.Raphtory)
   *  ```
   */
