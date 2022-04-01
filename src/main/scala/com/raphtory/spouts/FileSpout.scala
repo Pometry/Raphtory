@@ -1,5 +1,6 @@
 package com.raphtory.spouts
 
+import com.raphtory.core.components.spout.BatchableSpout
 import com.raphtory.core.components.spout.Spout
 import com.raphtory.core.deploy.Raphtory
 import com.typesafe.config.Config
