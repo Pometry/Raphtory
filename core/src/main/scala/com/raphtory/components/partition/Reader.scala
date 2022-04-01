@@ -11,7 +11,7 @@ import com.typesafe.config.Config
 import monix.execution.Cancelable
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
-import com.raphtory.core.config.telemetry.PartitionTelemetry
+import com.raphtory.config.telemetry.PartitionTelemetry
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
