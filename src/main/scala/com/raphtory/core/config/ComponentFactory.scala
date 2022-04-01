@@ -27,7 +27,6 @@ import scala.reflect.runtime.universe.TypeTag
 /** @DoNotDocument */
 private[core] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  val builderIDs: List[String] = List()
 
   def builder[T: ClassTag](
                             graphbuilder: GraphBuilder[T],
