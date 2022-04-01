@@ -17,15 +17,25 @@ class FailingAlgo extends GraphAlgorithm {
 
 class FailureTest extends AnyFunSuite {
   test("test failure propagation") {
-    val graph =
-      Raphtory.streamGraph(spout = SequenceSpout("1,1,1"), graphBuilder = BasicGraphBuilder())
-    val query = graph.pointQuery(new FailingAlgo, FileOutputFormat("/tmp/raphtoryTest"), 1)
-    for (i <- 1 to 20 if !query.isJobDone())
+    val graph = Raphtory
+      .streamGraph(
+              spout = SequenceSpout("1,1,1"),
+              graphBuilder = BasicGraphBuilder()
+      )
+
+    val query = graph.pointQuery(
+            graphAlgorithm = new FailingAlgo,
+            outputFormat = FileOutputFormat("/tmp/raphtoryTest"),
+            timestamp = 1
+    )
+
+    for (i <- 1 to 20 if !query.isJobDone)
       Thread.sleep(1000)
+
     assert(
-            query.isJobDone()
+            query.isJobDone
     ) // if query failed to terminate after 20 seconds, assuming infinite loop
+
     graph.stop()
   }
-
 }
