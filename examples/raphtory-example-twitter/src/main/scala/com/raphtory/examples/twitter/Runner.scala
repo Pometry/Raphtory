@@ -2,7 +2,7 @@ package com.raphtory.examples.twitter
 
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
-import com.raphtory.deploy.Raphtory
+import com.raphtory.deployment.Raphtory
 import com.raphtory.examples.twitter.graphbuilders.TwitterGraphBuilder
 import com.raphtory.examples.twitter.analysis.MemberRank
 import com.raphtory.examples.twitter.analysis.TemporalMemberRank

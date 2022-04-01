@@ -1,13 +1,13 @@
 package com.raphtory.generic
 
-import com.raphtory.implementations.BaseCorrectnessTest
-import com.raphtory.implementations.BasicGraphBuilder
+import com.raphtory.algorithms.BaseCorrectnessTest
+import com.raphtory.algorithms.BasicGraphBuilder
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.deploy.Raphtory
+import com.raphtory.deployment.Raphtory
 import com.raphtory.generic.CheckHistory.isSortedIncreasing
 import com.raphtory.graph.visitor.HistoricEvent
 import com.raphtory.spouts.SequenceSpout
