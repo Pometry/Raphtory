@@ -6,9 +6,13 @@ import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.config.PulsarController
 import com.raphtory.graph.Perspective
 import com.typesafe.config.Config
+import monix.eval.Task
+import monix.execution.Scheduler.Implicits.global
 import org.apache.pulsar.client.api.Consumer
 
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 /**
   * {s}`QueryProgressTracker`
@@ -55,6 +59,9 @@ import scala.collection.mutable.ListBuffer
   *
   * ```
   */
+
+class DoneException extends Exception
+
 class QueryProgressTracker(
     jobID: String,
     conf: Config,
@@ -71,6 +78,18 @@ class QueryProgressTracker(
 
   val startTime: Long       = System.currentTimeMillis
   var perspectiveTime: Long = startTime
+
+  private val isJobDoneFuture = Task
+    .never[Unit]
+    .doOnCancel(
+            Task.eval[Unit] {
+              stop()
+            }
+    )
+    .onCancelRaiseError(
+            new DoneException
+    ) // see this for why this is necessary https://github.com/monix/monix/issues/860
+    .runToFuture
 
   // Handles message to process the {s}`Perspective` received in case
   // the query is in progress, or {s}`JobDone` if the query is complete
@@ -105,6 +124,7 @@ class QueryProgressTracker(
         )
 
         jobDone = true
+        isJobDoneFuture.cancel()
     }
 
   override def run(): Unit = {
@@ -115,12 +135,14 @@ class QueryProgressTracker(
     )
   }
 
-  override def stop(): Unit =
+  override def stop(): Unit = {
+    logger.debug(s"Stopping QueryProgressTracker for $jobID")
     cancelableConsumer match {
       case Some(value) =>
         value.close()
       case None        =>
     }
+  }
 
   def getJobId: String =
     jobID
@@ -137,15 +159,9 @@ class QueryProgressTracker(
   def isJobDone: Boolean =
     jobDone
 
-  def waitForJob(): Unit = {
-    val sleepTimeInMillis = 1000
-
-    //TODO as executor sleep
-    while (!jobDone) {
-      logger.debug(s"Job '$jobID': Job not yet finished. Sleeping for $sleepTimeInMillis ms.")
-      Thread.sleep(sleepTimeInMillis)
+  def waitForJob(timeout: Duration = Duration.Inf): Unit =
+    try Await.result[Unit](isJobDoneFuture, timeout)
+    catch {
+      case e: DoneException =>
     }
-
-    this.stop()
-  }
 }
