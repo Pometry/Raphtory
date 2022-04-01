@@ -8,11 +8,9 @@ import scala.util.Random
 class BinaryDiffusion(
     infectedNodes: Set[Long] = Set[Long](),
     seed: Long = -1,
-    reinfect: Boolean = true
 ) extends NodeList(Seq("infected")) {
 
   val infectedStatus     = "infected"
-  val previouslyInfected = "prevInfected"
   val randomiser: Random = if (seed != -1) new Random(seed) else new Random()
 
   def randomlyInfect(vertex: Vertex): Unit =
@@ -42,13 +40,8 @@ class BinaryDiffusion(
                     vertex.setState(infectedStatus, true)
                     randomlyInfect(vertex)
                   }
-                  // if you are already infected and want to repeat reinfection
-                  else if (vertex.getState[Boolean](infectedStatus) & reinfect)
-                    randomlyInfect(vertex)
-                  // if you are already infected and dont want to repeat infection
-                  else if (vertex.getState[Boolean](infectedStatus) & !reinfect)
+                  else
                     vertex.voteToHalt()
-
               },
               iterations = 100,
               executeMessagedOnly = true
@@ -57,6 +50,6 @@ class BinaryDiffusion(
 
 object BinaryDiffusion {
 
-  def apply(infectedNodes: Set[Long] = Set[Long](), seed: Long = -1, reinfect: Boolean = true) =
-    new BinaryDiffusion(infectedNodes, seed, reinfect)
+  def apply(infectedNodes: Set[Long] = Set[Long](), seed: Long = -1) =
+    new BinaryDiffusion(infectedNodes, seed)
 }
