@@ -13,14 +13,14 @@ import io.prometheus.client.{Counter, Gauge, Summary}
   */
 object PartitionTelemetry {
 
-  def lastWaterMarkProcessed(partitionID: Int): Gauge =
+  def lastWaterMarkProcessed(partitionID: String): Gauge =
     Gauge
       .build
       .namespace("reader")
       .name("last_reader_watermark_" + partitionID.toString)
       .help("Last reader watermark").register()
 
-  def queryExecutorMapCounter(partitionID: Int): Gauge =
+  def queryExecutorMapCounter(partitionID: String): Gauge =
     Gauge
       .build
       .namespace("reader")
@@ -48,49 +48,49 @@ object PartitionTelemetry {
       .name("total_batch_writer_remote_edge_adds_" + partitionID.toString)
       .help("Total remote edge additions for batch writer").register()
 
-  def streamWriterGraphUpdates(partitionID: Int): Counter =
+  def streamWriterGraphUpdates(partitionID: String): Counter =
     Counter
       .build
       .namespace("writer")
       .name("total_stream_writer_graph_updates_" + partitionID.toString)
       .help("Total graph updates for stream writer").register()
 
-  def totalSyncedStreamWriterUpdates(partitionID: Int): Counter =
+  def totalSyncedStreamWriterUpdates(partitionID: String): Counter =
     Counter
       .build
       .namespace("writer")
       .name("synced_stream_writer_updates_" + partitionID.toString)
       .help("Total synced stream writer updates").register()
 
-  def streamWriterRemoteGraphUpdates(partitionID: Int): Counter =
+  def streamWriterRemoteGraphUpdates(partitionID: String): Counter =
     Counter
       .build
       .namespace("writer")
       .name("total_stream_writer_remote_graph_updates_" + partitionID.toString)
       .help("Total remote graph updates for stream writer").register()
 
-  def streamWriterVertexAdditions(partitionID: Int): Counter =
+  def streamWriterVertexAdditions(partitionID: String): Counter =
     Counter
       .build
       .namespace("writer")
       .name("total_stream_writer_vertex_adds" + partitionID.toString)
       .help("Total vertex additions for stream writer").register()
 
-  def streamWriterEdgeAdditions(partitionID: Int): Counter =
+  def streamWriterEdgeAdditions(partitionID: String): Counter =
     Counter
       .build
       .namespace("writer")
       .name("total_stream_writer_edge_adds" + partitionID.toString)
       .help("Total edge additions for stream writer").register()
 
-  def streamWriterEdgeDeletions(partitionID: Int): Counter =
+  def streamWriterEdgeDeletions(partitionID: String): Counter =
     Counter
       .build
       .namespace("writer")
       .name("total_stream_writer_edge_deletes" + partitionID.toString)
       .help("Total edge deletions for stream writer").register()
 
-  def streamWriterVertexDeletions(partitionID: Int): Counter =
+  def streamWriterVertexDeletions(partitionID: String): Counter =
     Counter
       .build
       .namespace("writer")

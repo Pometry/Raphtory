@@ -47,13 +47,13 @@ class StreamWriter(
 
   var timerStart : Option[Summary.Timer] =  None
 
-  val streamWriterVertexDeletions = PartitionTelemetry.streamWriterVertexDeletions(partitionID)
-  val streamWriterEdgeDeletions = PartitionTelemetry.streamWriterEdgeDeletions(partitionID)
-  val streamWriterVertexAdditions = PartitionTelemetry.streamWriterVertexAdditions(partitionID)
-  val streamWriterEdgeAdditions = PartitionTelemetry.streamWriterEdgeAdditions(partitionID)
-  val streamWriterGraphUpdates = PartitionTelemetry.streamWriterGraphUpdates(partitionID)
-  val totalSyncedStreamWriterUpdates = PartitionTelemetry.totalSyncedStreamWriterUpdates(partitionID)
-  val streamWriterRemoteGraphUpdates = PartitionTelemetry.streamWriterRemoteGraphUpdates(partitionID)
+  val streamWriterVertexDeletions = PartitionTelemetry.streamWriterVertexDeletions(partitionID + "_" + deploymentID)
+  val streamWriterEdgeDeletions = PartitionTelemetry.streamWriterEdgeDeletions(partitionID + "_" + deploymentID)
+  val streamWriterVertexAdditions = PartitionTelemetry.streamWriterVertexAdditions(partitionID + "_" + deploymentID)
+  val streamWriterEdgeAdditions = PartitionTelemetry.streamWriterEdgeAdditions(partitionID + "_" + deploymentID)
+  val streamWriterGraphUpdates = PartitionTelemetry.streamWriterGraphUpdates(partitionID + "_" + deploymentID)
+  val totalSyncedStreamWriterUpdates = PartitionTelemetry.totalSyncedStreamWriterUpdates(partitionID + "_" + deploymentID)
+  val streamWriterRemoteGraphUpdates = PartitionTelemetry.streamWriterRemoteGraphUpdates(partitionID + "_" + deploymentID)
 
   override def run(): Unit =
     cancelableConsumer = Some(
