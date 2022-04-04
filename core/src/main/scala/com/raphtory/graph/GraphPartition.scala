@@ -4,6 +4,7 @@ import com.raphtory.components.graphbuilder.GraphUpdateEffect
 import com.raphtory.components.graphbuilder.Properties._
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.time.Interval
+import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -82,7 +83,7 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
       graphPerspective: GraphLens,
       start: Long,
       end: Long
-  ): mutable.Map[Long, Vertex]
+  ): mutable.Map[Long, PojoExVertex]
 
   // Partition Neighbours
   val totalPartitions                = conf.getInt("raphtory.partitions.countPerServer") * conf.getInt(
