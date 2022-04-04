@@ -237,42 +237,38 @@ private[raphtory] class TemporalGraph(
     setPointPath(parseInterval(increment), offset = parseInterval(offset))
 
   def depart(start: Long, increment: Long): DottedGraph =
-    setPointPath(DiscreteInterval(increment), start = start, customStart = true)
+    setPointPath(DiscreteInterval(increment), start = Some(start))
 
   def depart(start: String, increment: String): DottedGraph =
-    setPointPath(parseInterval(increment), start = parseDateTime(start), customStart = true)
+    setPointPath(parseInterval(increment), start = Some(parseDateTime(start)))
 
   def climb(end: Long, increment: Long): DottedGraph =
-    setPointPath(DiscreteInterval(increment), end = end)
+    setPointPath(DiscreteInterval(increment), end = Some(end))
 
   def climb(end: String, increment: String): DottedGraph =
-    setPointPath(parseInterval(increment), end = parseDateTime(end))
+    setPointPath(parseInterval(increment), end = Some(parseDateTime(end)))
 
   def range(start: Long, end: Long, increment: Long): DottedGraph =
-    setPointPath(DiscreteInterval(increment), start = start, end = end, customStart = true)
+    setPointPath(DiscreteInterval(increment), start = Some(start), end = Some(end))
 
   def range(start: String, end: String, increment: String): DottedGraph =
     setPointPath(
             parseInterval(increment),
-            start = parseDateTime(start),
-            end = parseDateTime(end),
-            customStart = true
+            start = Some(parseDateTime(start)),
+            end = Some(parseDateTime(end))
     )
 
   private def setPointPath(
       increment: Interval,
-      start: Long = Long.MinValue,
-      end: Long = Long.MaxValue,
-      offset: Interval = NullInterval,
-      customStart: Boolean = false
-  ) = {
-    assert(customStart || (!customStart && start == Long.MinValue))
+      start: Option[Long] = None,
+      end: Option[Long] = None,
+      offset: Interval = NullInterval
+  ) =
     new DottedGraph(
-            query.copy(points = PointPath(increment, start, end, offset, customStart)),
+            query.copy(points = PointPath(increment, start, end, offset)),
             querySender,
             conf
     )
-  }
 
   private def parseDateTime(dateTime: String) =
     DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(dateTime)
