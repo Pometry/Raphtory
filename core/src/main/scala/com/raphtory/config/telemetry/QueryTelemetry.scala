@@ -48,6 +48,14 @@ object QueryTelemetry {
       .help("Total graph operations by Query Handler")
       .register
 
+  def totalTableOperations(jobID: String): Counter =
+    Counter
+      .build
+      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
+      .name("query_handler_table_operations_" + jobID)
+      .help("Total table operations by Query Handler")
+      .register
+
   def totalPerspectivesProcessed(jobID: String): Counter =
     Counter
       .build

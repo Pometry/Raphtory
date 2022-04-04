@@ -81,6 +81,7 @@ class QueryHandler(
   val readyCounter = QueryTelemetry.readyCount(jobID + "_" + deploymentID)
   val totalPerspectivesProcessed = QueryTelemetry.totalPerspectivesProcessed(jobID + "_" + deploymentID)
   val totalGraphOperations = QueryTelemetry.totalGraphOperations(jobID + "_" + deploymentID)
+  val totalTableOperations = QueryTelemetry.totalTableOperations(jobID + "_" + deploymentID)
 
   private val recheckTimer = new Runnable {
     override def run(): Unit = self sendAsync serialise(RecheckTime)
@@ -528,7 +529,7 @@ class QueryHandler(
         readyCount = 0
         readyCounter.set(0)
         logger.debug(s"Job '$jobID': Executing table function '${f.getClass.getSimpleName}'.")
-
+        totalGraphOperations.inc()
         Stages.ExecuteTable
 
       case None                   =>
