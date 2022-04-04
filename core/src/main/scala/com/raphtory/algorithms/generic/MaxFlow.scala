@@ -75,7 +75,7 @@ class MaxFlow[T](
     graph
       .step { vertex =>
         if (vertex.name() == source) {
-          val flow = mutable.Map[Long, T]()
+          val flow = mutable.Map[vertex.IdType, T]()
           vertex.setState("distanceLabel", n)
           vertex.getOutEdges().foreach { edge =>
             val c: T = edge.weight[T](capacityLabel)
@@ -91,10 +91,11 @@ class MaxFlow[T](
       }
       .iterate(
               { vertex =>
-                val flow      = vertex.getOrSetState("flow", mutable.Map.empty[Long, T])
-                val labels    = vertex.getOrSetState("neighbourLabels", mutable.Map.empty[Long, Int])
+                val flow      = vertex.getOrSetState("flow", mutable.Map.empty[vertex.IdType, T])
+                val labels    =
+                  vertex.getOrSetState("neighbourLabels", mutable.Map.empty[vertex.IdType, Int])
                 var excess: T = vertex.getOrSetState[T]("excess", 0)
-                vertex.messageQueue[Message].foreach {
+                vertex.messageQueue[Message[vertex.IdType]].foreach {
                   case FlowAdded(source, value) =>
                     flow(source) = flow.getOrElse[T](source, 0) - value
                     excess += value
@@ -174,10 +175,10 @@ class MaxFlow[T](
       else List.empty[Row]
     )
 
-  sealed trait Message {}
-  case class FlowAdded(source: Long, value: T)  extends Message
-  case class NewLabel(source: Long, label: Int) extends Message
-  case class Recheck()                          extends Message
+  sealed trait Message[VertexID] {}
+  case class FlowAdded[VertexID](source: VertexID, value: T)  extends Message[VertexID]
+  case class NewLabel[VertexID](source: VertexID, label: Int) extends Message[VertexID]
+  case class Recheck[VertexID]()                              extends Message[VertexID]
 }
 
 object MaxFlow {

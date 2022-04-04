@@ -11,7 +11,7 @@ class WeightedRandomWalk[T](
 )(implicit numeric: Numeric[T])
         extends RandomWalk(walkLength, numWalks, seed) {
 
-  override protected def selectNeighbour(vertex: Vertex): Long = {
+  override protected def selectNeighbour(vertex: Vertex): vertex.IdType = {
     val neighbours = vertex.getOutNeighbours()
     if (neighbours.isEmpty)
       vertex.ID()
@@ -20,9 +20,7 @@ class WeightedRandomWalk[T](
         numeric.toDouble(
                 edge
                   .explode()
-                  .map(explodedEdge =>
-                    explodedEdge.getProperty[T](weight).getOrElse(numeric.one)
-                  )
+                  .map(explodedEdge => explodedEdge.getProperty[T](weight).getOrElse(numeric.one))
                   .sum
         )
       }

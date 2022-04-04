@@ -29,7 +29,7 @@ class NeighbourNames extends GraphAlgorithm {
     graph
       .step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.name())))
       .step { vertex =>
-        vertex.setState("neighbourNames", vertex.messageQueue[(Long, String)].toMap)
+        vertex.setState("neighbourNames", vertex.messageQueue[(vertex.IdType, String)].toMap)
       }
 }
 

@@ -7,6 +7,7 @@ import com.raphtory.algorithms.api.Table
 import com.raphtory.graph.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
 
 /**
   *  {s}`ThreeNodeMotifs()`
@@ -105,7 +106,7 @@ class ThreeNodeMotifs() extends GraphAlgorithm {
           (5, inEdge)     -> 11
   )
 
-  def _getEdgeType(vertex: Vertex): Long => Int = { vID =>
+  def _getEdgeType(vertex: Vertex): vertex.IdType => Int = { vID =>
     if (vertex.isInNeighbour(vID) && vertex.isOutNeighbour(vID))
       inoutEdge
     else if (vertex.isOutNeighbour(vID))
@@ -121,8 +122,8 @@ class ThreeNodeMotifs() extends GraphAlgorithm {
       .step { vertex =>
         val motifCounts = ArrayBuffer.fill[Long](13)(0)
 
-        val neighbours               = vertex.getAllNeighbours().toArray
-        val getEdgeType: Long => Int = _getEdgeType(vertex)
+        val neighbours                        = vertex.getAllNeighbours().toArray(ClassTag(vertex.ID().getClass))
+        val getEdgeType: vertex.IdType => Int = _getEdgeType(vertex)
 
         for (i <- neighbours.indices) {
           val first = neighbours(i)
@@ -136,8 +137,8 @@ class ThreeNodeMotifs() extends GraphAlgorithm {
         vertex.setState("motifCounts", motifCounts)
       }
       .step { vertex =>
-        val messages                 = vertex.messageQueue[(Long, Long, Int)]
-        val getEdgeType: Long => Int = _getEdgeType(vertex)
+        val messages                          = vertex.messageQueue[(vertex.IdType, vertex.IdType, Int)]
+        val getEdgeType: vertex.IdType => Int = _getEdgeType(vertex)
 
         for ((source, second, mType) <- messages) {
           val eType = getEdgeType(second)

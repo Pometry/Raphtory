@@ -4,6 +4,7 @@ import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import math.Ordering.Implicits._
 
 /**
   * {s}`ConnectedComponents()`
@@ -45,11 +46,6 @@ import com.raphtory.algorithms.api.Table
 class ConnectedComponents() extends NodeList(Seq("cclabel")) {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
-//    TODO: Uncommenting any of these lines fixes the twitter test
-//    println(s"Finding components for graph with ${graph.nodeCount()} nodes")
-//    println("")
-//    val n = graph.nodeCount()
-//    val x = 0
     graph
       .step { vertex =>
         vertex.setState("cclabel", vertex.ID)
@@ -57,8 +53,9 @@ class ConnectedComponents() extends NodeList(Seq("cclabel")) {
       }
       .iterate(
               { vertex =>
-                val label = vertex.messageQueue[Long].min
-                if (label < vertex.getState[Long]("cclabel")) {
+                import vertex.ordering
+                val label = vertex.messageQueue[vertex.IdType].min
+                if (label < vertex.getState[vertex.IdType]("cclabel")) {
                   vertex.setState("cclabel", label)
                   vertex.messageAllNeighbours(label)
                 }
