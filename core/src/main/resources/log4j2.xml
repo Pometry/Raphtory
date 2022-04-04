@@ -31,6 +31,8 @@
         </Logger>
         <Logger name="com.raphtory.components.partition.QueryExecutor" level="DEBUG">
         </Logger>
+        <Logger name="com.raphtory.components.querytracker.QueryProgressTracker" level="DEBUG">
+        </Logger>
         <Logger name="com.raphtory.components.querymanager.QueryManager" level="INFO">
         </Logger>
 

@@ -2,6 +2,8 @@ package com.raphtory.storage.pojograph
 
 import com.raphtory.algorithms.api.GraphState
 import com.raphtory.algorithms.api.Row
+import com.raphtory.components.querymanager.FilteredEdgeMessage
+import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph.GraphLens
@@ -48,10 +50,10 @@ final case class PojoGraphLens(
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
 
-  private lazy val vertexMap: mutable.Map[Long, Vertex] =
+  private lazy val vertexMap: mutable.Map[Long, PojoExVertex] =
     storage.getVertices(this, start, end)
 
-  private lazy val vertices: Array[(Long, Vertex)] = vertexMap.toArray
+  private var vertices: Array[(Long, PojoExVertex)] = vertexMap.toArray
 
   def getSize(): Int = vertices.size
 
@@ -126,7 +128,7 @@ final case class PojoGraphLens(
 
   def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
 
-  def sendMessage[T](msg: VertexMessage[T]): Unit = messageHandler.sendMessage(msg)
+  def sendMessage(msg: GenericVertexMessage): Unit = messageHandler.sendMessage(msg)
 
   def vertexVoted(): Unit = voteCount.incrementAndGet()
 
@@ -135,10 +137,16 @@ final case class PojoGraphLens(
     voteCount.set(0)
     vertexCount.set(0)
     superStep += 1
+    vertexMap.foreach(_._2.executeEdgeDelete())
+    deleteVertices()
   }
 
-  def receiveMessage[T](msg: VertexMessage[T]): Unit =
-    try vertexMap(msg.vertexId).asInstanceOf[PojoExVertex].receiveMessage(msg)
+//keep the vertices that are not being deleted
+  private def deleteVertices(): Unit =
+    vertices = vertices.filter(!_._2.isFiltered)
+
+  def receiveMessage(msg: GenericVertexMessage): Unit =
+    try vertexMap(msg.vertexId).receiveMessage(msg)
     catch {
       case e: java.util.NoSuchElementException =>
         logger.warn(
@@ -153,7 +161,7 @@ final case class PojoGraphLens(
 
   def clearMessages(): Unit =
     vertexMap.foreach {
-      case (key, vertex) => vertex.asInstanceOf[PojoExVertex].clearMessageQueue()
+      case (key, vertex) => vertex.clearMessageQueue()
     }
 
 }

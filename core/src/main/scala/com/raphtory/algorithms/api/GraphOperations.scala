@@ -20,13 +20,8 @@ final case class IterateWithGraph(
     iterations: Int,
     executeMessagedOnly: Boolean,
     graphState: GraphStateImplementation = GraphStateImplementation.empty
-)                                                     extends GraphFunction
-final case class VertexFilter(f: (Vertex) => Boolean) extends GraphFunction
+) extends GraphFunction
 
-final case class VertexFilterWithGraph(
-    f: (Vertex, GraphState) => Boolean,
-    graphState: GraphStateImplementation = GraphStateImplementation.empty
-)                                         extends GraphFunction
 final case class Select(f: Vertex => Row) extends GraphFunction
 
 final case class SelectWithGraph(
@@ -131,7 +126,7 @@ final case class PerspectiveDone()                     extends GraphFunction
   *     : Clear messages from previous operations
   *
   * ```{seealso}
-  * [](com.raphtory.core.algorithm.GraphState), [](com.raphtory.core.graph.visitor.Vertex)
+  * [](com.raphtory.algorithms.api.GraphState), [](com.raphtory.graph.visitor.Vertex)
   * ```
   */
 trait GraphOperations[G <: GraphOperations[G]] {

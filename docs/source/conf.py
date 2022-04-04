@@ -32,8 +32,8 @@ release = '0.4.0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'myst_parser',
     'extractScalaAlgoDocs',
+    'myst_parser'
 ]
 
 # Extension options

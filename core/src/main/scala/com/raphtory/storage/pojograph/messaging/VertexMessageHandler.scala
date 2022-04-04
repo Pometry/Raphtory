@@ -1,6 +1,7 @@
 package com.raphtory.storage.pojograph.messaging
 
 import java.util.concurrent.atomic.AtomicInteger
+import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
@@ -42,10 +43,10 @@ class VertexMessageHandler(
   logger.debug(s"Setting total partitions to '$totalPartitions'.")
 
   private val messageCache =
-    mutable.Map[Producer[Array[Byte]], mutable.ArrayBuffer[VertexMessage[Any]]]()
+    mutable.Map[Producer[Array[Byte]], mutable.ArrayBuffer[GenericVertexMessage]]()
   refreshBuffers()
 
-  def sendMessage[T](message: VertexMessage[T]): Unit = {
+  def sendMessage(message: GenericVertexMessage): Unit = {
     sentMessages.incrementAndGet()
     val destinationPartition = (message.vertexId.abs % totalPartitions).toInt
     if (destinationPartition == pojoGraphLens.partitionID) { //sending to this partition
@@ -70,7 +71,7 @@ class VertexMessageHandler(
     readerJobWorker sendAsync kryo.serialise(
             VertexMessageBatch(messageCache(readerJobWorker).toArray)
     )
-    messageCache.put(readerJobWorker, mutable.ArrayBuffer[VertexMessage[Any]]())
+    messageCache.put(readerJobWorker, mutable.ArrayBuffer[GenericVertexMessage]())
   }
 
   def flushMessages(): CompletableFuture[Void] = {
@@ -86,7 +87,8 @@ class VertexMessageHandler(
     logger.debug("Refreshing messageCache buffers for all Producers.")
 
     producers.foreach {
-      case (key, producer) => messageCache.put(producer, mutable.ArrayBuffer[VertexMessage[Any]]())
+      case (key, producer) =>
+        messageCache.put(producer, mutable.ArrayBuffer[GenericVertexMessage]())
     }
   }
 

@@ -1,49 +1,85 @@
-
-
 package com.raphtory.lotrtest
 
-import com.raphtory.{BaseRaphtoryAlgoTest, GlobalState, GraphState}
-import com.raphtory.algorithms.generic.{BinaryDiffusion, ConnectedComponents}
-import com.raphtory.algorithms.generic.centrality.{AverageNeighbourDegree, Degree, Distinctiveness, PageRank, WeightedDegree, WeightedPageRank}
-import com.raphtory.algorithms.generic.community.{LPA, SLPA}
-import com.raphtory.algorithms.generic.dynamic.{DiscreteSI, RandomWalk, WattsCascade, WeightedRandomWalk}
-import com.raphtory.algorithms.generic.gametheory.PrisonersDilemma
-import com.raphtory.algorithms.generic.motif.{SquareCount, TriangleCount}
+import com.raphtory.BaseRaphtoryAlgoTest
+import com.raphtory.GlobalState
+import com.raphtory.GraphState
+import com.raphtory.algorithms.generic.BinaryDiffusion
+import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.centrality.AverageNeighbourDegree
+import com.raphtory.algorithms.generic.centrality.Degree
+import com.raphtory.algorithms.generic.centrality.Distinctiveness
+import com.raphtory.algorithms.generic.centrality.PageRank
+import com.raphtory.algorithms.generic.centrality.WeightedDegree
+import com.raphtory.algorithms.generic.centrality.WeightedPageRank
+import com.raphtory.algorithms.generic.community.LPA
+import com.raphtory.algorithms.generic.community.SLPA
+import com.raphtory.algorithms.generic.dynamic.DiscreteSI
+import com.raphtory.algorithms.generic.dynamic.RandomWalk
+import com.raphtory.algorithms.generic.dynamic.WattsCascade
+import com.raphtory.algorithms.generic.dynamic.WeightedRandomWalk
+import com.raphtory.algorithms.generic.motif.SquareCount
+import com.raphtory.algorithms.generic.motif.TriangleCount
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
-import com.raphtory.components.spout.{Spout, SpoutExecutor}
+import com.raphtory.components.spout.Spout
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
-import com.raphtory.spouts.FileSpout
-import org.apache.pulsar.client.api.Schema
 
+import com.raphtory.spouts.FileSpout
 import java.io.File
+
 import scala.language.postfixOps
 import sys.process._
 
-
-
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
-  val outputFormat: FileOutputFormat = FileOutputFormat(testDir)
+  val outputFormat: FileOutputFormat = FileOutputFormat(outputDirectory)
+
   override def batchLoading(): Boolean = false
 
   test("Graph State Test") {
-    assert(
-      algorithmTest(GraphState(),outputFormat,1, 32674, 10000, List(500, 1000, 10000))equals "9fa9e48ab6e79e186bcacd7c9f9e3e60897c8657e76c348180be87abe8ec53fe"
+    val result = algorithmTest(
+            algorithm = GraphState(),
+            outputFormat = outputFormat,
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
     )
+
+    val expected = "9fa9e48ab6e79e186bcacd7c9f9e3e60897c8657e76c348180be87abe8ec53fe"
+
+    result shouldEqual expected
   }
 
   test("Global State Test") {
-    assert(
-      algorithmTest(new GlobalState(),outputFormat,1, 32674, 10000, List(500, 1000, 10000))equals "206d686bb8c5c119980d1743e4ec2aceb1dc62895d0931b5608f521e4da5c334"
-    )
+    val result =
+      algorithmTest(
+              algorithm = new GlobalState(),
+              outputFormat = outputFormat,
+              start = 1,
+              end = 32674,
+              increment = 10000,
+              windows = List(500, 1000, 10000)
+      )
+
+    val expected = "206d686bb8c5c119980d1743e4ec2aceb1dc62895d0931b5608f521e4da5c334"
+
+    result shouldEqual expected
   }
 
   test("Degree Test") {
-    assert(
-      algorithmTest(Degree(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
-      equals "53fe18d6e38b2b32a1c8498100b888e3fd6b0d552dae99bb65fc29fd4f76336f"
+    val result = algorithmTest(
+            algorithm = Degree(),
+            outputFormat = outputFormat,
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
     )
+
+    val expected = "53fe18d6e38b2b32a1c8498100b888e3fd6b0d552dae99bb65fc29fd4f76336f"
+
+    result shouldEqual expected
   }
 
 //  test("Distinctiveness Test") {
@@ -53,10 +89,19 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //  }
 
   test("AverageNeighbourDegree Test") {
-    assert(
-      algorithmTest(AverageNeighbourDegree(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
-        equals "61d767d6ba98d5a06099d4f6d1e42f139dcb893b1caba7983ba4d87d648c6a8a"
-    )
+    val result =
+      algorithmTest(
+              algorithm = AverageNeighbourDegree(),
+              outputFormat = outputFormat,
+              start = 1,
+              end = 32674,
+              increment = 10000,
+              windows = List(500, 1000, 10000)
+      )
+
+    val expected = "61d767d6ba98d5a06099d4f6d1e42f139dcb893b1caba7983ba4d87d648c6a8a"
+
+    result shouldEqual expected
   }
 
 //  test("PageRank Test") {
@@ -72,10 +117,19 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //  }
 
   test("Strength Test") {
-    assert(
-      algorithmTest(WeightedDegree[Long](), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
-      equals "ce2c985cd5db976c5fda5ffaa317d52f8e04236cc602b41468eb80d01be333ac"
-    )
+    val result =
+      algorithmTest(
+              algorithm = WeightedDegree[Long](),
+              outputFormat = outputFormat,
+              start = 1,
+              end = 32674,
+              increment = 10000,
+              windows = List(500, 1000, 10000)
+      )
+
+    val expected = "ce2c985cd5db976c5fda5ffaa317d52f8e04236cc602b41468eb80d01be333ac"
+
+    result shouldEqual expected
   }
 
 //  test("LPA Test") {
@@ -93,10 +147,19 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //  }
 
   test("Connected Components Test") {
-    assert(
-      algorithmTest(ConnectedComponents(),outputFormat,1, 32674, 10000, List(500, 1000, 10000))
-        equals "c6c26df04212ac7c0ba352d3acd79fb2c38f2c2943079bbe48dde9ea2b399410"
-    )
+    val result =
+      algorithmTest(
+              algorithm = ConnectedComponents(),
+              outputFormat = outputFormat,
+              start = 1,
+              end = 32674,
+              increment = 10000,
+              windows = List(500, 1000, 10000)
+      )
+
+    val expected = "c6c26df04212ac7c0ba352d3acd79fb2c38f2c2943079bbe48dde9ea2b399410"
+
+    result shouldEqual expected
   }
 
 //  test("Random Walk Test") {
@@ -106,10 +169,18 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //  }
 
   test("Watts Cascade Test") {
-    assert(
-      algorithmTest(WattsCascade(infectedSeed = Array("Gandalf"), threshold = 0.1), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
-      equals "772d24456e6b63f2a7b4c4111f34ea0685344d16237b77880058770903b5ae27"
+    val result = algorithmTest(
+            algorithm = WattsCascade(infectedSeed = Array("Gandalf"), threshold = 0.1),
+            outputFormat = outputFormat,
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
     )
+
+    val expected = "772d24456e6b63f2a7b4c4111f34ea0685344d16237b77880058770903b5ae27"
+
+    result shouldEqual expected
   }
 
 //  test("DiscreteSI test") {
@@ -120,31 +191,72 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //  }
 
   test("Chain Test") {
-    assert(
-      algorithmTest(TriangleCount() -> ConnectedComponents(),outputFormat,1, 32674, 10000, List(500, 1000, 10000)) equals "c6c26df04212ac7c0ba352d3acd79fb2c38f2c2943079bbe48dde9ea2b399410"
+    val result = algorithmTest(
+            algorithm = TriangleCount() -> ConnectedComponents(),
+            outputFormat = outputFormat,
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
     )
+
+    val expected = "c6c26df04212ac7c0ba352d3acd79fb2c38f2c2943079bbe48dde9ea2b399410"
+
+    result shouldEqual expected
   }
 
   test("Square counting test") {
-    val result = algorithmTest(SquareCount(), outputFormat,1, 32674, 10000, List(500, 1000, 10000))
-    assert(result equals "7f025a14361326d15e6ce9736cc5b292873a9b3a638e1f3bda1f029b44153cd8")
+    val result = algorithmTest(
+            algorithm = SquareCount(),
+            outputFormat = outputFormat,
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
+    )
+
+    val expected = "7f025a14361326d15e6ce9736cc5b292873a9b3a638e1f3bda1f029b44153cd8"
+
+    result shouldEqual expected
   }
 
   test("Temporal Triangle Count") {
-    assert(
-      algorithmTest(TriangleCount(),outputFormat,1, 32674, 10000, List(500, 1000, 10000)) equals "91588edb0139e62ff1acc1be54d89a12e1691bf1ef610da8667f91e5089a0d27"
+    val result = algorithmTest(
+            algorithm = TriangleCount(),
+            outputFormat = outputFormat,
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
     )
+
+    val expected = "91588edb0139e62ff1acc1be54d89a12e1691bf1ef610da8667f91e5089a0d27"
+
+    result shouldEqual expected
   }
 
   test("Taint Tracking") {
-    assert(
-      algorithmTest(GenericTaint(1, infectedNodes = Set("Bilbo"), stopNodes = Set("Aragorn")),outputFormat,1, 32674, 10000, List(500, 1000, 10000))
-        equals "85c24ece1ac693814abbac304d18858572a0d7644457f9272cf642caf8517660"
+    val result = algorithmTest(
+            algorithm = GenericTaint(1, infectedNodes = Set("Bilbo"), stopNodes = Set("Aragorn")),
+            outputFormat = outputFormat,
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
     )
+
+    val expected = "85c24ece1ac693814abbac304d18858572a0d7644457f9272cf642caf8517660"
+
+    result shouldEqual expected
   }
 
   test("Weighted Random Walk") {
-    algorithmPointTest(WeightedRandomWalk[Int](), outputFormat, 32674)
+    algorithmPointTest(
+            algorithm = WeightedRandomWalk[Int](),
+            outputFormat = outputFormat,
+            timestamp = 32674
+    )
+
     assert(true)
   }
 
@@ -161,13 +273,18 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   override def setGraphBuilder(): GraphBuilder[String] = new LOTRGraphBuilder()
 
   override def setup(): Unit = {
-    if (!new File("/tmp", "lotr.csv").exists()) {
-      val status = {s"curl -o /tmp/lotr.csv https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv " !}
-      if (status != 0) {
-        logger.error("Failed to download LOTR data!")
+    val path = "/tmp/lotr.csv"
+    val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
 
-        "rm /tmp/lotr.csv" !
+    if (!new File(path).exists())
+      try s"curl -o $path $url" !!
+      catch {
+        case ex: Exception =>
+          logger.error(s"Failed to download 'lotr.csv' due to ${ex.getMessage}.")
+          ex.printStackTrace()
+
+          (s"rm $path" !)
+          throw ex
       }
-    }
   }
 }
