@@ -13,8 +13,6 @@ import com.raphtory.algorithms.api.SelectWithGraph
 import com.raphtory.algorithms.api.Step
 import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFilter
-import com.raphtory.algorithms.api.VertexFilter
-import com.raphtory.algorithms.api.VertexFilterWithGraph
 import com.raphtory.algorithms.api.WriteTo
 import com.raphtory.components.Component
 import com.raphtory.components.querymanager.CheckMessages
@@ -58,6 +56,7 @@ class QueryExecutor(
   var sentMessageCount: AtomicInteger     = new AtomicInteger(0)
   var receivedMessageCount: AtomicInteger = new AtomicInteger(0)
   var votedToHalt: Boolean                = false
+  var filtered: Boolean                   = false
 
   private val taskManager: Producer[Array[Byte]] = pulsarController.toQueryHandlerProducer(jobID)
 
@@ -100,6 +99,13 @@ class QueryExecutor(
         case msg: VertexMessage[_]                                            =>
           logger.trace(
                   s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
+          )
+          graphLens.receiveMessage(msg)
+          receivedMessageCount.addAndGet(1)
+
+        case msg: FilteredEdgeMessage                                         =>
+          logger.trace(
+                  s"Job '$jobID' at Partition '$partitionID': Executing 'FilteredEdgeMessage', '$msg'."
           )
           graphLens.receiveMessage(msg)
           receivedMessageCount.addAndGet(1)
@@ -225,14 +231,6 @@ class QueryExecutor(
                       .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
             )
           }
-
-        //TODO implement
-        case VertexFilter(f)                                                  =>
-          taskManager sendAsync serialise(GraphFunctionComplete(partitionID, 0, 0))
-
-        //TODO implement
-        case VertexFilterWithGraph(f, graphState)                             =>
-          taskManager sendAsync serialise(GraphFunctionComplete(partitionID, 0, 0))
 
         case ClearChain()                                                     =>
           val time = System.currentTimeMillis()
