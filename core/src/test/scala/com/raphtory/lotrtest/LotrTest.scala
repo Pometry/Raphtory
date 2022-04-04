@@ -62,7 +62,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
               windows = List(500, 1000, 10000)
       )
 
-    val expected = "770e5063d367c101d71d0d10d437fd762a50a94744af3d07ea34291ffb2da253"
+    val expected = "206d686bb8c5c119980d1743e4ec2aceb1dc62895d0931b5608f521e4da5c334"
 
     result shouldEqual expected
   }
