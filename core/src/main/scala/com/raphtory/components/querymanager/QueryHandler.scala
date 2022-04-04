@@ -22,7 +22,6 @@ import com.raphtory.algorithms.api.Setup
 import com.raphtory.algorithms.api.Step
 import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFunction
-import com.raphtory.algorithms.api.VertexFilterWithGraph
 import com.raphtory.components.Component
 import com.raphtory.config.PulsarController
 import com.raphtory.graph.Perspective
@@ -493,9 +492,6 @@ class QueryHandler(
         fun(graphState)
         nextGraphOperation(vertexCount)
 
-      case VertexFilterWithGraph(fun, _)                             =>
-        messagetoAllJobWorkers(VertexFilterWithGraph(fun, graphState))
-        Stages.ExecuteGraph
     }
   }
 

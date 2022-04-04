@@ -13,6 +13,7 @@ import com.raphtory.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.components.graphbuilder.VertexRemoveSyncAck
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph._
+import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.storage.pojograph.entities.internal.PojoEdge
 import com.raphtory.storage.pojograph.entities.internal.PojoEntity
 import com.raphtory.storage.pojograph.entities.internal.PojoVertex
@@ -468,7 +469,7 @@ class PojoBasedPartition(partition: Int, conf: Config)
       lens: GraphLens,
       start: Long,
       end: Long
-  ): mutable.Map[Long, Vertex] = {
+  ): mutable.Map[Long, PojoExVertex] = {
     val lenz = lens.asInstanceOf[PojoGraphLens]
     val x    = vertices.collect {
       case (id, vertex) if vertex.aliveBetween(start, end) =>

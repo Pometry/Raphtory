@@ -27,7 +27,7 @@ class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   def getOutgoingEdge(id: Long): Option[PojoEdge] = outgoingEdges.get(id)
   def getIncomingEdge(id: Long): Option[PojoEdge] = incomingEdges.get(id)
 
-  def viewBetween(startTime: Long, endTime: Long, lens: PojoGraphLens): Vertex =
+  def viewBetween(startTime: Long, endTime: Long, lens: PojoGraphLens): PojoExVertex =
     new PojoExVertex(
             this,
             incomingEdges.collect {

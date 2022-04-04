@@ -379,6 +379,15 @@ trait Vertex extends EntityVisitor {
   def isInNeighbour(id: Long): Boolean  = inNeighbourSet.contains(id)
   def isOutNeighbour(id: Long): Boolean = outNeighbourSet.contains(id)
 
+//  def removeInNeighbour(id: Long)
+//  def removeOutNeighbour(id: Long)
+//  def removeNeighbour(id: Long)
+//  def addInNeighbour(id: Long)
+//  def addOutNeighbour(id: Long)
+//  def addNeighbour(id: Long)
+
+//  def removeSelf
+
   //Degree
   lazy val degree: Int    = getAllNeighbours().size
   lazy val outDegree: Int = getOutNeighbours().size
@@ -610,6 +619,7 @@ trait Vertex extends EntityVisitor {
             DefaultValues.defaultVal[A]
     )
 
+  def remove(): Unit
   // Also need a function for receiving messages, but the user should not have access to this
   //private def receiveMessage(msg: VertexMessage): Unit
 }

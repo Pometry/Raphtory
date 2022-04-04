@@ -5,6 +5,7 @@ import com.raphtory.graph.visitor.Edge
 import com.raphtory.graph.visitor.ExplodedEdge
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoEdge
+import com.raphtory.storage.pojograph.entities.internal.SplitEdge
 
 /** @DoNotDocument */
 class PojoExEdge(edge: PojoEdge, id: Long, view: PojoGraphLens)
@@ -22,4 +23,7 @@ class PojoExEdge(edge: PojoEdge, id: Long, view: PojoGraphLens)
 
   override def explode(): List[ExplodedEdge] =
     history().map(event => new PojoExplodedEdge(this, event.time))
+
+  val isExternal: Boolean = edge.isInstanceOf[SplitEdge]
+
 }
