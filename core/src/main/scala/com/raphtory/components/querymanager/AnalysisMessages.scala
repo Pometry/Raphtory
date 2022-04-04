@@ -104,10 +104,9 @@ case class SinglePoint(time: Long) extends PointSet
 
 case class PointPath(
     increment: Interval,
-    start: Long = Long.MinValue,
-    end: Long = Long.MaxValue,
-    offset: Interval = NullInterval,
-    customStart: Boolean = false
+    start: Option[Long] = None,
+    end: Option[Long] = None,
+    offset: Interval = NullInterval
 ) extends PointSet
 
 case class EndQuery(jobID: String)        extends QueryManagement
