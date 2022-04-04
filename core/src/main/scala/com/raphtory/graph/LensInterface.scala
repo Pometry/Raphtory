@@ -43,10 +43,10 @@ trait LensInterface {
   ): Unit
   def getMessageHandler(): VertexMessageHandler
   def checkVotes(): Boolean
-  def sendMessage(msg: GenericVertexMessage): Unit
+  def sendMessage(msg: GenericVertexMessage[_]): Unit
   def vertexVoted(): Unit
   def nextStep(): Unit
-  def receiveMessage(msg: GenericVertexMessage): Unit
+  def receiveMessage(msg: GenericVertexMessage[_]): Unit
 
   def clearMessages(): Unit
 

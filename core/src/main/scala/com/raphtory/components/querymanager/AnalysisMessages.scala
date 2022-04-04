@@ -69,23 +69,24 @@ case object RecheckTime                 extends QueryManagement
 case object RecheckEarliestTime         extends QueryManagement
 case class CheckMessages(jobId: String) extends QueryManagement
 
-sealed trait GenericVertexMessage extends QueryManagement {
+sealed trait GenericVertexMessage[VertexID] extends QueryManagement {
   def superstep: Int
-  def vertexId: Long
+  def vertexId: VertexID
 }
 
-case class VertexMessage[+T](superstep: Int, vertexId: Long, data: T) extends GenericVertexMessage
+case class VertexMessage[+T, VertexID](superstep: Int, vertexId: VertexID, data: T)
+        extends GenericVertexMessage[VertexID]
 
-case class VertexMessageBatch(data: Array[GenericVertexMessage]) extends QueryManagement
+case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends QueryManagement
 
-case class FilteredEdgeMessage(superstep: Int, vertexId: Long, sourceId: Long)
-        extends GenericVertexMessage
+case class FilteredEdgeMessage[VertexID](superstep: Int, vertexId: VertexID, sourceId: Long)
+        extends GenericVertexMessage[VertexID]
 
-case class FilteredInEdgeMessage(superstep: Int, vertexId: Long, sourceId: Long)
-        extends GenericVertexMessage
+case class FilteredInEdgeMessage[VertexID](superstep: Int, vertexId: VertexID, sourceId: Long)
+        extends GenericVertexMessage[VertexID]
 
-case class FilteredOutEdgeMessage(superstep: Int, vertexId: Long, sourceId: Long)
-        extends GenericVertexMessage
+case class FilteredOutEdgeMessage[VertexID](superstep: Int, vertexId: VertexID, sourceId: Long)
+        extends GenericVertexMessage[VertexID]
 
 case class Query(
     name: String = "",

@@ -12,13 +12,13 @@ import com.raphtory.util.ExtendedNumeric.numericFromInt // implicit conversion f
   *
   * ## Attributes
   *
-  * {s}`ID: Long`
+  * {s}`ID: VertexID`
   *  : Edge ID
   *
-  * {s}`src: Long`
+  * {s}`src: VertexID`
   *  : ID of the source vertex of the edge
   *
-  * {s}`dst: Long`
+  * {s}`dst: VertexID`
   *  : ID of the destination vertex of the edge
   *
   * ## Methods
@@ -65,13 +65,13 @@ import com.raphtory.util.ExtendedNumeric.numericFromInt // implicit conversion f
   * [](com.raphtory.graph.visitor.Vertex)
   * ```
   */
-trait Edge extends EntityVisitor {
+trait Edge[VertexID] extends EntityVisitor {
 
   //information about the edge meta data
-  def ID(): Long
-  def src(): Long
-  def dst(): Long
-  def explode(): List[ExplodedEdge]
+  def ID(): VertexID
+  def src(): VertexID
+  def dst(): VertexID
+  def explode(): List[ExplodedEdge[VertexID]]
 
   def weight[A, B](
       weightProperty: String = "weight",

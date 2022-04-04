@@ -128,7 +128,7 @@ final case class PojoGraphLens(
 
   def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
 
-  def sendMessage(msg: GenericVertexMessage): Unit = messageHandler.sendMessage(msg)
+  def sendMessage(msg: GenericVertexMessage[_]): Unit = messageHandler.sendMessage(msg)
 
   def vertexVoted(): Unit = voteCount.incrementAndGet()
 
@@ -145,8 +145,12 @@ final case class PojoGraphLens(
   private def deleteVertices(): Unit =
     vertices = vertices.filter(!_._2.isFiltered)
 
-  def receiveMessage(msg: GenericVertexMessage): Unit =
-    try vertexMap(msg.vertexId).receiveMessage(msg)
+  def receiveMessage(msg: GenericVertexMessage[_]): Unit = {
+    val vertexId = msg.vertexId match {
+      case v: Long       => v
+      case (id: Long, _) => id
+    }
+    try vertexMap(vertexId).receiveMessage(msg)
     catch {
       case e: java.util.NoSuchElementException =>
         logger.warn(
@@ -154,6 +158,7 @@ final case class PojoGraphLens(
                   s"Partition '${storage.getPartitionID}'. Please consider rerunning computation on this perspective."
         )
     }
+  }
 
   override def getStart(): Long = start
 

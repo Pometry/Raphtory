@@ -96,16 +96,9 @@ class QueryExecutor(
           msgBatch.foreach(message => graphLens.receiveMessage(message))
           receivedMessageCount.addAndGet(msgBatch.size)
 
-        case msg: VertexMessage[_]                                            =>
+        case msg: GenericVertexMessage[_]                                     =>
           logger.trace(
                   s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
-          )
-          graphLens.receiveMessage(msg)
-          receivedMessageCount.addAndGet(1)
-
-        case msg: FilteredEdgeMessage                                         =>
-          logger.trace(
-                  s"Job '$jobID' at Partition '$partitionID': Executing 'FilteredEdgeMessage', '$msg'."
           )
           graphLens.receiveMessage(msg)
           receivedMessageCount.addAndGet(1)
