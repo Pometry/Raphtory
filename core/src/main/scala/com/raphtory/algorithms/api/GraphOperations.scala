@@ -1,11 +1,16 @@
 package com.raphtory.algorithms.api
 
 import com.raphtory.components.querymanager.QueryManagement
+import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.Vertex
 
 sealed trait GraphFunction                    extends QueryManagement
 final case class Setup(f: GraphState => Unit) extends GraphFunction
-final case class Step(f: (Vertex) => Unit)    extends GraphFunction
+
+final case class MultilayerView(
+    interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
+)                                          extends GraphFunction
+final case class Step(f: (Vertex) => Unit) extends GraphFunction
 
 final case class StepWithGraph(
     f: (Vertex, GraphState) => Unit,
@@ -133,6 +138,10 @@ trait GraphOperations[G <: GraphOperations[G]] {
   def setGlobalState(f: (GraphState) => Unit): G
   def filter(f: (Vertex) => Boolean): G
   def filter(f: (Vertex, GraphState) => Boolean): G
+
+  def multilayerView(
+      interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
+  ): G
   def step(f: (Vertex) => Unit): G
   def step(f: (Vertex, GraphState) => Unit): G
   def iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): G

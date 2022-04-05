@@ -2,6 +2,7 @@ package com.raphtory.algorithms.api
 
 import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
+import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.Vertex
 
 /**
@@ -17,6 +18,11 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
 
   override def filter(f: (Vertex, GraphState) => Boolean): G =
     step((vertex, graphState) => if (!f(vertex, graphState)) vertex.remove())
+
+  override def multilayerView(
+      interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
+  ): G =
+    addFunction(MultilayerView(interlayerEdgeBuilder))
 
   override def step(f: (Vertex) => Unit): G = addFunction(Step(f))
 

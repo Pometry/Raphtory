@@ -72,6 +72,7 @@ trait Edge[VertexID] extends EntityVisitor {
   def src(): VertexID
   def dst(): VertexID
   def explode(): List[ExplodedEdge[VertexID]]
+  def remove(): Unit
 
   def weight[A, B](
       weightProperty: String = "weight",

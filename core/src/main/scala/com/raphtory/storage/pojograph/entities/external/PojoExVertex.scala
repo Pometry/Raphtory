@@ -5,6 +5,9 @@ import com.raphtory.components.querymanager.FilteredInEdgeMessage
 import com.raphtory.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessage
+import com.raphtory.graph.visitor.Edge
+import com.raphtory.graph.visitor.HistoricEvent
+import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoVertex
@@ -13,6 +16,8 @@ import com.raphtory.storage.pojograph.messaging.VertexMultiQueue
 import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.math.Ordering
+import scala.reflect.runtime.universe._
+import scala.math.exp
 
 /** @DoNotDocument */
 class PojoExVertex(
@@ -21,12 +26,87 @@ class PojoExVertex(
     override protected val internalOutgoingEdges: mutable.Map[Long, PojoExEdge],
     override protected val lens: PojoGraphLens
 ) extends PojoExEntity(v, lens)
-        with PojoVertexBase[Long, PojoExEdge] {
+        with PojoVertexBase {
 
+  override type VertexID = Long
+  override type E        = PojoExEdge
   implicit override val ordering: Ordering[Long] = Ordering.Long
-  override def ID(): Long                        = v.vertexId
 
-  var exploded = Map.empty[Long, PojoExplodedVertex]
+  override def ID(): Long = v.vertexId
+
+  val exploded               = mutable.Map.empty[Long, PojoExplodedVertex]
+  var explodedNeedsFiltering = false
+  var interlayerEdges        = Seq.empty[InterlayerEdge]
+
+  def explode(
+      interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
+  ): Unit = {
+    interlayerEdges = interlayerEdgeBuilder(this)
+    if (exploded.isEmpty)
+      // exploding the view
+      history().foreach {
+        case HistoricEvent(time, event) =>
+          if (event)
+            exploded += (time -> new PojoExplodedVertex(this, time, lens))
+      }
+    else
+      // view is already exploded, reset edges only
+      exploded.values.foreach { vertex =>
+        vertex.internalIncomingEdges.clear()
+        vertex.internalOutgoingEdges.clear()
+      }
+    interlayerEdges.foreach { edge =>
+      val srcID = (ID(), edge.sourceTime)
+      val dstID = (ID(), edge.dstTime)
+      exploded(edge.sourceTime).internalOutgoingEdges += dstID -> new PojoExMultilayerEdge(
+              edge.dstTime,
+              dstID,
+              srcID,
+              dstID,
+              edge,
+              lens
+      )
+      exploded(edge.dstTime).internalIncomingEdges += srcID    -> new PojoExMultilayerEdge(
+              edge.sourceTime,
+              srcID,
+              srcID,
+              dstID,
+              edge,
+              lens
+      )
+    }
+
+    explodeInEdges().foreach { edge =>
+      exploded(edge.timestamp).internalIncomingEdges += (
+              edge.src(),
+              edge.timestamp
+      ) -> new PojoExMultilayerEdge(
+              timestamp = edge.timestamp,
+              ID = (edge.src(), edge.timestamp),
+              src = (edge.src(), edge.timestamp),
+              dst = (edge.dst(), edge.timestamp),
+              edge = edge,
+              view = lens
+      )
+    }
+
+    explodeOutEdges().foreach { edge =>
+      exploded(edge.timestamp).internalOutgoingEdges += (
+              edge.dst(),
+              edge.timestamp
+      ) -> new PojoExMultilayerEdge(
+              timestamp = edge.timestamp,
+              ID = (edge.dst(), edge.timestamp),
+              src = (edge.src(), edge.timestamp),
+              dst = (edge.dst(), edge.timestamp),
+              edge = edge,
+              view = lens
+      )
+    }
+  }
+
+  def filterExplodedVertices(): Unit =
+    if (explodedNeedsFiltering) exploded.filterNot(_._2.isFiltered)
 
   private var computationValues: Map[String, Any] =
     Map.empty //Partial results kept between supersteps in calculation
@@ -80,8 +160,11 @@ class PojoExVertex(
 
   // implement receive in case of exploded view (normal receive is handled in PojoVertexBase)
   override def receiveMessage(msg: GenericVertexMessage[_]): Unit =
-    msg match {
-      case msg: GenericVertexMessage[VertexID]     => super.receiveMessage(msg)
-      case msg: GenericVertexMessage[(Long, Long)] => exploded(msg.vertexId._2).receiveMessage(msg)
+    msg.vertexId match {
+      case _: Long               =>
+        super.receiveMessage(msg)
+      case (_: Long, time: Long) =>
+        exploded(time)
+          .receiveMessage(msg)
     }
 }

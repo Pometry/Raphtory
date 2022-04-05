@@ -1,5 +1,7 @@
 package com.raphtory.storage.pojograph.entities.external
 
+import com.raphtory.components.querymanager.FilteredInEdgeMessage
+import com.raphtory.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.Edge
 import com.raphtory.graph.visitor.ExplodedEdge
@@ -26,4 +28,9 @@ class PojoExEdge(val edge: PojoEdge, id: Long, val view: PojoGraphLens)
 
   def isExternal: Boolean                          = edge.isInstanceOf[SplitEdge]
 
+  override def remove(): Unit = {
+    view.needsFiltering = true
+    view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src(), dst()))
+    view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst(), src()))
+  }
 }

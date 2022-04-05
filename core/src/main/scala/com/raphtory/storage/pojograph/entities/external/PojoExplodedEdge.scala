@@ -1,5 +1,7 @@
 package com.raphtory.storage.pojograph.entities.external
 
+import com.raphtory.components.querymanager.FilteredInEdgeMessage
+import com.raphtory.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.ExplodedEdge
 import com.raphtory.graph.visitor.HistoricEvent
@@ -29,6 +31,11 @@ class PojoExplodedEdge(
       before: Long = timestamp
   ): Option[List[(Long, T)]] = super.getPropertyHistory(key, after, before)
 
+  override def remove(): Unit = {
+    view.needsFiltering = true
+    view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src, dst))
+    view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst, src))
+  }
 }
 
 object PojoExplodedEdge {

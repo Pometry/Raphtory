@@ -13,8 +13,8 @@ import com.raphtory.storage.pojograph.messaging.VertexMultiQueue
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-trait PojoVertexBase[VID, E <: Edge[VID]] extends Vertex {
-  override type VertexID = VID
+trait PojoVertexBase extends Vertex {
+  type E <: Edge[VertexID]
   // abstract state
   protected def lens: PojoGraphLens
   protected val internalIncomingEdges: mutable.Map[VertexID, E]
@@ -62,17 +62,19 @@ trait PojoVertexBase[VID, E <: Edge[VID]] extends Vertex {
   override def messageInNeighbours(message: Any): Unit =
     internalIncomingEdges.keys.foreach(vId => messageVertex(vId, message))
 
-  def receiveMessage(msg: GenericVertexMessage[_]): Unit =
+  def receiveMessage(msg: GenericVertexMessage[_]): Unit = {
+    println(msg)
     msg match {
-      case msg: VertexMessage[_, VertexID]       => multiQueue.receiveMessage(msg.superstep, msg.data)
-      case msg: FilteredOutEdgeMessage[VertexID] =>
+      case msg: VertexMessage[_, _]       => multiQueue.receiveMessage(msg.superstep, msg.data)
+      case msg: FilteredOutEdgeMessage[_] =>
         outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
-      case msg: FilteredInEdgeMessage[VertexID]  =>
+      case msg: FilteredInEdgeMessage[_]  =>
         incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
-      case msg: FilteredEdgeMessage[VertexID]    =>
+      case msg: FilteredEdgeMessage[_]    =>
         outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
         incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
     }
+  }
 
   //filtering
   private var filtered = false
@@ -93,6 +95,7 @@ trait PojoVertexBase[VID, E <: Edge[VID]] extends Vertex {
   def remove(): Unit = {
     // key is the vertex of the other side of edge
     filtered = true
+    lens.needsFiltering = true
     internalIncomingEdges.keys.foreach(k =>
       lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k, ID()))
     )

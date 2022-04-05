@@ -5,6 +5,7 @@ import com.raphtory.algorithms.api.GraphStateImplementation
 import com.raphtory.algorithms.api.Row
 import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessage
+import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 
@@ -29,6 +30,11 @@ trait LensInterface {
   def filteredTable(f: Row => Boolean): Unit
   def explodeTable(f: Row => List[Row]): Unit
   def getDataTable(): List[Row]
+
+  def explodeView(
+      interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
+  ): Unit
+
   def runGraphFunction(f: Vertex => Unit): Unit
 
   def runGraphFunction(
