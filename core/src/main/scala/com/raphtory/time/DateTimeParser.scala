@@ -7,6 +7,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import scala.util.Try
 
+/** @DoNotDocument */
 class DateTimeParser(format: String) {
   val formatter = DateTimeFormatter.ofPattern(format)
 
@@ -18,7 +19,7 @@ class DateTimeParser(format: String) {
 }
 
 object DateTimeParser {
-  def apply(format: String)                = new DateTimeParser(format)
+  def apply(format: String) = new DateTimeParser(format)
 
   def defaultParse(datetime: String): Long =
     DateTimeParser("yyyy-MM-dd[ HH:mm:ss[.SSS]]").parse(datetime)
