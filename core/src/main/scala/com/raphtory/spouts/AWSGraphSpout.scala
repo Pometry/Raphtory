@@ -26,16 +26,16 @@ case class AWSGraphSpout(bucketName: String, objectKey: String) extends Batchabl
 
   override def next(): String = {
     val line = in.readLine
-    val data = s"$line $lineNo"
+    val data = s"$line"
     lineNo += 1
     count += 1
     if (count % 100_000 == 0)
-      logger.debug(s"File spout sent $count messages.")
+      logger.debug(s"AWS spout sent $count messages.")
     data
   }
 
   override def close(): Unit = {
-    logger.debug(s"Spout for '$bucketName' finished, edge count: ${lineNo - 1}")
+    logger.debug(s"Spout for AWS '$bucketName' finished, edge count: ${lineNo - 1}")
   }
 
   override def spoutReschedules(): Boolean = false
