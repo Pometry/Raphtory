@@ -16,103 +16,20 @@ import scala.math.Ordering
 
 /** @DoNotDocument */
 class PojoExVertex(
-    val v: PojoVertex,
-    private val internalIncomingEdges: mutable.Map[Long, PojoExEdge],
-    private val internalOutgoingEdges: mutable.Map[Long, PojoExEdge],
-    val lens: PojoGraphLens
+    private val v: PojoVertex,
+    override protected val internalIncomingEdges: mutable.Map[Long, PojoExEdge],
+    override protected val internalOutgoingEdges: mutable.Map[Long, PojoExEdge],
+    override protected val lens: PojoGraphLens
 ) extends PojoExEntity(v, lens)
-        with Vertex {
+        with PojoVertexBase[Long, PojoExEdge] {
 
-  override type VertexID = Long
-  implicit override val ordering = Ordering.Long
-  override def ID(): Long        = v.vertexId
-
-  private var multiQueue: VertexMultiQueue =
-    new VertexMultiQueue() //Map of queues for all ongoing processing
-  private var computationValues: Map[String, Any] =
-    Map.empty //Partial results kept between supersteps in calculation
+  implicit override val ordering: Ordering[Long] = Ordering.Long
+  override def ID(): Long                        = v.vertexId
 
   var exploded = Map.empty[Long, PojoExplodedVertex]
 
-  def hasMessage(): Boolean =
-    multiQueue.getMessageQueue(lens.superStep).nonEmpty
-
-  def messageQueue[T]
-      : List[T] = { //clears queue after getting it to make sure not there for next iteration
-    val queue = multiQueue.getMessageQueue(lens.superStep).map(_.asInstanceOf[T])
-    multiQueue.clearQueue(lens.superStep)
-    queue
-  }
-
-  private val incomingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
-  private val outgoingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
-  private var filtered                                       = false
-
-  def executeEdgeDelete(): Unit = {
-    internalOutgoingEdges --= outgoingEdgeDeleteMultiQueue
-      .getMessageQueue(lens.superStep)
-      .map(_.asInstanceOf[Long])
-    internalIncomingEdges --= incomingEdgeDeleteMultiQueue
-      .getMessageQueue(lens.superStep)
-      .map(_.asInstanceOf[Long])
-    outgoingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
-    incomingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
-  }
-
-  def clearMessageQueue(): Unit =
-    multiQueue = new VertexMultiQueue()
-
-  def voteToHalt(): Unit = lens.vertexVoted()
-
-  //out edges whole
-  def getOutEdges(after: Long = 0L, before: Long = Long.MaxValue): List[PojoExEdge] =
-    allEdge(internalOutgoingEdges, after, before)
-
-  //in edges whole
-  def getInEdges(after: Long = 0L, before: Long = Long.MaxValue): List[PojoExEdge] =
-    allEdge(internalIncomingEdges, after, before)
-
-  //all edges
-  def getEdges(after: Long = 0L, before: Long = Long.MaxValue): List[PojoExEdge] =
-    getInEdges(after, before) ++ getOutEdges(after, before)
-
-  //out edges individual
-  def getOutEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[PojoExEdge] =
-    individualEdge(internalOutgoingEdges, after, before, id)
-
-  //In edges individual
-  def getInEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[PojoExEdge] =
-    individualEdge(internalIncomingEdges, after, before, id)
-
-  // edge individual
-  def getEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[PojoExEdge] =
-    individualEdge(internalIncomingEdges ++ internalOutgoingEdges, after, before, id)
-
-  private def allEdge(
-      edges: mutable.Map[Long, PojoExEdge],
-      after: Long,
-      before: Long
-  ): List[PojoExEdge] =
-    if (after == 0 && before == Long.MaxValue)
-      edges.values.toList
-    else
-      edges.collect {
-        case (_, edge) if edge.active(after, before) => edge
-      }.toList
-
-  private def individualEdge(
-      edges: mutable.Map[Long, PojoExEdge],
-      after: Long,
-      before: Long,
-      id: Long
-  ) =
-    if (after == 0 && before == Long.MaxValue)
-      edges.get(id)
-    else
-      edges.get(id) match {
-        case Some(edge) => if (edge.active(after, before)) Some(edge) else None
-        case None       => None
-      }
+  private var computationValues: Map[String, Any] =
+    Map.empty //Partial results kept between supersteps in calculation
 
   // state related
   def setState(key: String, value: Any): Unit =
@@ -161,50 +78,10 @@ class PojoExVertex(
         setState(key, Array(value))
     }
 
-  //Send message
-  override def messageSelf(data: Any): Unit =
-    lens.sendMessage(VertexMessage(lens.superStep + 1, ID(), data))
-
-  def messageVertex(vertexId: Long, data: Any): Unit = {
-    val message = VertexMessage(lens.superStep + 1, vertexId, data)
-    lens.sendMessage(message)
-  }
-
-  override def messageOutNeighbours(message: Any): Unit =
-    internalOutgoingEdges.keys.foreach(vId => messageVertex(vId, message))
-
-  override def messageAllNeighbours(message: Any): Unit =
-    internalOutgoingEdges.keySet
-      .union(internalIncomingEdges.keySet)
-      .foreach(vId => messageVertex(vId, message))
-
-  override def messageInNeighbours(message: Any): Unit =
-    internalIncomingEdges.keys.foreach(vId => messageVertex(vId, message))
-
-  def receiveMessage(msg: GenericVertexMessage[_]): Unit =
+  // implement receive in case of exploded view (normal receive is handled in PojoVertexBase)
+  override def receiveMessage(msg: GenericVertexMessage[_]): Unit =
     msg match {
-      case msg: VertexMessage[_, Long]             => multiQueue.receiveMessage(msg.superstep, msg.data)
-      case msg: FilteredOutEdgeMessage[Long]       =>
-        outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
-      case msg: FilteredInEdgeMessage[Long]        =>
-        incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
-      case msg: FilteredEdgeMessage[Long]          =>
-        outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
-        incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
+      case msg: GenericVertexMessage[VertexID]     => super.receiveMessage(msg)
       case msg: GenericVertexMessage[(Long, Long)] => exploded(msg.vertexId._2).receiveMessage(msg)
     }
-
-  def isFiltered = filtered
-
-  def remove(): Unit = {
-    // key is the vertex of the other side of edge
-    filtered = true
-    internalIncomingEdges.keys.foreach(k =>
-      lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k, ID()))
-    )
-    internalOutgoingEdges.keys.foreach(k =>
-      lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID()))
-    )
-  }
-
 }
