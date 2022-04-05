@@ -1,0 +1,71 @@
+package com.raphtory.output
+
+import com.raphtory.core.algorithm.{OutputFormat, Row}
+import com.raphtory.core.config.AWSUpload
+import com.raphtory.core.deploy.Raphtory
+import com.typesafe.config.Config
+import java.io.InputStream
+import java.io.ByteArrayInputStream
+import java.nio.charset.StandardCharsets
+
+/**
+  * {s}`AWSOutputFormat(awsBucketKey: String)`
+  *   : writes output to a AWS bucket
+  *
+  *     {s}`awsBucketKey: String`
+  *       : Bucket path to write to.
+  *
+  * Usage while querying or running algorithmic tests:
+  *
+  * ```{code-block} scala
+  * import com.raphtory.algorithms.generic.EdgeList
+  * import com.raphtory.output.AWSOutputFormat
+  * import com.raphtory.core.algorithm.OutputFormat
+  * import com.raphtory.core.components.graphbuilder.GraphBuilder
+  * import com.raphtory.core.components.spout.Spout
+  *
+  * val graph = Raphtory.createGraph[T](Spout[T], GraphBuilder[T])
+  * val outputFormat: OutputFormat = AWSOutputFormat("EdgeList")
+  *
+  * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
+  * ```
+  *
+  *  ```{seealso}
+  *  [](com.raphtory.core.algorithm.OutputFormat),
+  *  [](com.raphtory.core.client.RaphtoryClient),
+  *  [](com.raphtory.core.client.RaphtoryGraph),
+  *  [](com.raphtory.core.deploy.Raphtory)
+  *  ```
+  */
+class AWSOutputFormat(val awsBucketKey: String) extends OutputFormat {
+
+  val awsClient = AWSUpload.getAWSClient()
+  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  val bucketName: String        = raphtoryConfig.getString("raphtory.aws.bucket_name")
+
+  override def write(
+      timestamp: Long,
+      window: Option[Long],
+      jobID: String,
+      row: Row,
+      partitionID: Int
+  ): Unit = {}
+
+  def writeToS3(
+      timestamp: Long,
+      window: Option[Long],
+      jobID: String,
+      row: Row,
+  ) = {
+    val value = window match {
+      case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}"
+      case None    => s"$timestamp,${row.getValues().mkString(",")}"
+    }
+    val stream = new ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8))
+    awsClient.putObject(bucketName, awsBucketKey, stream)
+
+  }
+
+}
+
+
