@@ -144,6 +144,9 @@ lazy val dependencies = new {
   val prometheusClient  = "io.prometheus" % "simpleclient"            % prometheusVersion
   val prometheusHttp    = "io.prometheus" % "simpleclient_httpserver" % prometheusVersion
   val prometheusHotspot = "io.prometheus" % "simpleclient_hotspot"    % prometheusVersion
+  
+  val awsSdk            = "com.amazonaws" % "aws-java-sdk" % "1.0.002"
+  val awsSdkCore        = "com.amazonaws" % "aws-java-sdk-core" % "1.11.3"
 
   val pulsarAdmin =
     "org.apache.pulsar" % "pulsar-client-admin-original" % pulsarVersion excludeAll excludePulsarBinding
