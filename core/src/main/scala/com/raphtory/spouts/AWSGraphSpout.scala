@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.amazonaws.services.s3.model.GetObjectRequest
 import com.amazonaws.services.s3.model.S3Object
-import java.io.BufferedReader
+import java.io.{BufferedReader, InputStreamReader}
 import com.amazonaws.services.s3.AmazonS3Client
 import com.raphtory.core.deploy.AWSUpload
 import com.raphtory.core.deploy.Raphtory
@@ -16,7 +16,7 @@ case class AWSGraphSpout(bucketName: String, objectKey: String) extends Batchabl
   
   val s3 = AWSUpload.getAWSClient()
   val s3object: S3Object = s3.getObject(new GetObjectRequest(bucketName, objectKey))
-  val in = new BufferedReader(new Nothing(s3object.getObjectContent))
+  val in = new BufferedReader(new InputStreamReader(s3object.getObjectContent()))
   var line: String = null
 
   var lineNo = 1
