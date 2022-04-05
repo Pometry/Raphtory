@@ -6,6 +6,7 @@ import java.time.Period
 import java.time.temporal.TemporalAmount
 import scala.language.postfixOps
 
+/** @DoNotDocument */
 sealed trait Interval extends Ordered[Interval] {
   def toString: String
   def *(number: Long): Interval
