@@ -13,6 +13,7 @@ import com.raphtory.client.RaphtoryClient
 import com.raphtory.components.querymanager.Query
 import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
+import py4j.GatewayServer
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -76,6 +77,8 @@ import scala.reflect.runtime.universe._
 object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
+  private val gatewayServer = new GatewayServer(null)
+  gatewayServer.start()
 
   def streamGraph[T: TypeTag: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
@@ -130,6 +133,8 @@ object Raphtory {
     val querySender = deployment.getQuerySender()
     new TemporalGraph(Query(), querySender, conf)
   }
+
+  def createClient(): RaphtoryClient = createClient("", Map())
 
   def createClient(
       deploymentID: String = "",
