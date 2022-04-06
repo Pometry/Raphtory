@@ -35,4 +35,15 @@ object AWSUpload extends App {
   amazonS3Client.createBucket(bucketName)
 
   amazonS3Client.putObject(bucketName, uploadFileName, fileToUpload)
+  
+  
+  // Tests succesful upload of the file by reading first line
+  val s3object: S3Object = amazonS3Client.getObject(new GetObjectRequest(bucketName, uploadFileName))
+  val in = new BufferedReader(new InputStreamReader(s3object.getObjectContent()))
+
+  val line = in.readLine
+  val data = s"$line"
+  println("Printing first line of fetched file: ")
+  println(data)
+  
 }
