@@ -63,19 +63,6 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
         .map(x => (x._1, x._2.asInstanceOf[T]))
     }
 
-  def getTimeSeriesPropertyHistory[T](
-      key: String,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
-  ): Option[TimeSeries[(Long, T)]] =
-    entity.properties.get(key) map { p =>
-      p.valueHistory(
-              math.max(view.start, after),
-              math.min(view.end, before)
-      ).toList
-        .map(x => (x._1, x._2.asInstanceOf[T]))
-    }
-
   def history(): List[HistoricEvent] =
     entity.history.collect {
       case (time, state) if time >= view.start && time <= view.end =>

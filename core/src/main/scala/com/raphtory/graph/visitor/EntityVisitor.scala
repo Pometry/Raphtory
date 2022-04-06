@@ -253,19 +253,22 @@ abstract class EntityVisitor {
       key: String,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[TimeSeries[(Long, T)]]
+  ): Option[TimeSeries[T]] =
+
+//convert list of (long, T) into TimeSeries T
+  //construct list of timeseries entries
+  //test: set property, assert property
 
   //functionality to access the history of the edge or vertex + helpers
   def history(): List[HistoricEvent]
-  def timeSeriesHistory(): TimeSeries[HistoricEvent]
+  def timeSeriesHistory(): TimeSeries[Boolean] = ???
+
   def active(after: Long = Long.MinValue, before: Long = Long.MaxValue): Boolean
   def aliveAt(time: Long, window: Long = Long.MaxValue): Boolean
 
   lazy val numCreations: Long = history().count(f => f.event)
   lazy val numDeletions: Long = history().count(f => !f.event)
 
-  lazy val numTimeSeriesCreations: Long = timeSeriesHistory().map(f => f.event).size
-  lazy val numTimeSeriesDeletions: Long = timeSeriesHistory().map(f => !f.event).size
 }
 
 /**

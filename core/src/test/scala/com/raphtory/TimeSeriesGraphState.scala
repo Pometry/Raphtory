@@ -9,16 +9,9 @@ class TimeSeriesGraphState() extends GraphAlgorithm {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
-      val inDeg            = vertex.inDegree
-      val outDeg           = vertex.outDegree
-      val degSum           = vertex.inDegree + vertex.outDegree
-      val vdeletions       = vertex.numTimeSeriesDeletions
-      val vcreations       = vertex.numTimeSeriesCreations
-      val outedgedeletions = vertex.getOutEdges().map(edge => edge.numTimeSeriesDeletions).sum
-      val outedgecreations = vertex.getOutEdges().map(edge => edge.numTimeSeriesCreations).sum
-
-      val inedgedeletions = vertex.getInEdges().map(edge => edge.numTimeSeriesDeletions).sum
-      val inedgecreations = vertex.getInEdges().map(edge => edge.numTimeSeriesCreations).sum
+      val inDeg  = vertex.inDegree
+      val outDeg = vertex.outDegree
+      val degSum = vertex.inDegree + vertex.outDegree
 
       val properties             = vertex.getPropertySet().size
       val propertyhistory        =
@@ -44,12 +37,6 @@ class TimeSeriesGraphState() extends GraphAlgorithm {
               inDeg,
               outDeg,
               degSum,
-              vdeletions,
-              vcreations,
-              outedgedeletions,
-              outedgecreations,
-              inedgedeletions,
-              inedgecreations,
               properties,
               propertyhistory,
               outedgeProperties,
