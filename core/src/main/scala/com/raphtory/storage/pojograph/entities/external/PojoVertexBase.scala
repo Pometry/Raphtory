@@ -62,8 +62,7 @@ trait PojoVertexBase extends Vertex {
   override def messageInNeighbours(message: Any): Unit =
     internalIncomingEdges.keys.foreach(vId => messageVertex(vId, message))
 
-  def receiveMessage(msg: GenericVertexMessage[_]): Unit = {
-    println(msg)
+  def receiveMessage(msg: GenericVertexMessage[_]): Unit =
     msg match {
       case msg: VertexMessage[_, _]       => multiQueue.receiveMessage(msg.superstep, msg.data)
       case msg: FilteredOutEdgeMessage[_] =>
@@ -74,7 +73,6 @@ trait PojoVertexBase extends Vertex {
         outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
         incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
     }
-  }
 
   //filtering
   private var filtered = false
