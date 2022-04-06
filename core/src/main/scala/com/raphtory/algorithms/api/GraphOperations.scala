@@ -2,14 +2,22 @@ package com.raphtory.algorithms.api
 
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.graph.visitor.InterlayerEdge
+import com.raphtory.graph.visitor.PropertyMergeStrategy
 import com.raphtory.graph.visitor.Vertex
+import PropertyMergeStrategy.PropertyMerge
 
 sealed trait GraphFunction                    extends QueryManagement
 final case class Setup(f: GraphState => Unit) extends GraphFunction
 
 final case class MultilayerView(
     interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
-)                                          extends GraphFunction
+) extends GraphFunction
+
+final case class ReduceView(
+    defaultMergeStrategy: PropertyMerge[Any, Any],
+    mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]
+) extends GraphFunction
+
 final case class Step(f: (Vertex) => Unit) extends GraphFunction
 
 final case class StepWithGraph(
@@ -141,6 +149,12 @@ trait GraphOperations[G <: GraphOperations[G]] {
 
   def multilayerView(
       interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
+  ): G
+
+  def reduceView(
+      defaultMergeStrategy: PropertyMerge[Any, Any] = PropertyMergeStrategy.sequence[Any],
+      mergeStrategyMap: Map[String, PropertyMerge[Any, Any]] =
+        Map.empty[String, PropertyMerge[Any, Any]]
   ): G
   def step(f: (Vertex) => Unit): G
   def step(f: (Vertex, GraphState) => Unit): G

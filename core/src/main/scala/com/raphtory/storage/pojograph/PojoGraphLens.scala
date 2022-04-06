@@ -10,6 +10,7 @@ import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph.GraphLens
 import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
+import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.storage.pojograph.entities.external.PojoVertexBase
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
@@ -101,6 +102,12 @@ final case class PojoGraphLens(
       .flatten
       .toArray
   }
+
+  override def reduceView(
+      defaultMergeStrategy: PropertyMerge[Any, Any],
+      mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]
+  ): Unit =
+    vertexMap.values.foreach(_.reduce(defaultMergeStrategy, mergeStrategyMap))
 
   def runGraphFunction(f: Vertex => Unit): Unit = {
     vertices.foreach(f)

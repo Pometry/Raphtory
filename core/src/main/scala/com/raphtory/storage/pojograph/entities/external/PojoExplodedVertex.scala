@@ -22,7 +22,7 @@ class PojoExplodedVertex(
   implicit override val ordering: Ordering[(Long, Long)] =
     Ordering.Tuple2(Ordering.Long, Ordering.Long)
 
-  private var computationValues: Map[String, Any] =
+  var computationValues: Map[String, Any] =
     Map.empty //Partial results kept between supersteps in calculation
 
   override def ID(): VertexID = (vertex.ID(), timestamp)

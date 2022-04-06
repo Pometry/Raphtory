@@ -3,6 +3,7 @@ package com.raphtory.algorithms.api
 import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
 import com.raphtory.graph.visitor.InterlayerEdge
+import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.graph.visitor.Vertex
 
 /**
@@ -23,6 +24,12 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
       interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
   ): G =
     addFunction(MultilayerView(interlayerEdgeBuilder))
+
+  override def reduceView(
+      defaultMergeStrategy: PropertyMerge[Any, Any],
+      mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]
+  ): G =
+    addFunction(ReduceView(defaultMergeStrategy, mergeStrategyMap))
 
   override def step(f: (Vertex) => Unit): G = addFunction(Step(f))
 

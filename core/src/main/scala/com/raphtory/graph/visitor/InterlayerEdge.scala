@@ -53,3 +53,66 @@ case class InterlayerEdge(
   override def aliveAt(time: Long, window: Long = Long.MaxValue): Boolean =
     time < latestActivity().time && time > earliestActivity().time
 }
+
+object InterlayerEdgeBuilders {
+
+  def linkNext(properties: Map[String, Any]): Vertex => Seq[InterlayerEdge] =
+    linkNext((_, _) => properties)
+
+  def linkNext(
+      propertyBuilder: (Long, Long) => Map[String, Any] = (_, _) => Map.empty[String, Any]
+  ): Vertex => Seq[InterlayerEdge] = { vertex =>
+    vertex
+      .history()
+      .sliding(2)
+      .collect {
+        case List(event1, event2) if event1.event && event2.event =>
+          InterlayerEdge(event1.time, event2.time, propertyBuilder(event1.time, event2.time))
+      }
+      .toSeq
+  }
+
+  def linkPrevious(properties: Map[String, Any]): Vertex => Seq[InterlayerEdge] =
+    linkPrevious((_, _) => properties)
+
+  def linkPrevious(
+      propertyBuilder: (Long, Long) => Map[String, Any] = (_, _) => Map.empty[String, Any]
+  ): Vertex => Seq[InterlayerEdge] = { vertex =>
+    vertex
+      .history()
+      .sliding(2)
+      .collect {
+        case List(event1, event2) if event1.event && event2.event =>
+          InterlayerEdge(event2.time, event1.time, propertyBuilder(event2.time, event1.time))
+      }
+      .toSeq
+  }
+
+  def linkPreviousAndNext(properties: Map[String, Any]): Vertex => Seq[InterlayerEdge] =
+    linkPreviousAndNext((_, _) => properties)
+
+  def linkPreviousAndNext(
+      propertyBuilder: (Long, Long) => Map[String, Any] = (_, _) => Map.empty[String, Any]
+  ): Vertex => Seq[InterlayerEdge] = { vertex =>
+    vertex
+      .history()
+      .sliding(2)
+      .collect {
+        case List(event1, event2) if event1.event && event2.event =>
+          List(
+                  InterlayerEdge(
+                          event1.time,
+                          event2.time,
+                          propertyBuilder(event1.time, event2.time)
+                  ),
+                  InterlayerEdge(
+                          event2.time,
+                          event1.time,
+                          propertyBuilder(event2.time, event1.time)
+                  )
+          )
+      }
+      .flatten
+      .toSeq
+  }
+}

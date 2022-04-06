@@ -64,4 +64,6 @@ object PropertyMergeStrategy {
   def earliest[T](history: Seq[(Long, T)]): T =
     history.minBy(_._1)._2
 
+  def sequence[T](history: Seq[(Long, T)]): Seq[T] =
+    history.map(_._2)
 }

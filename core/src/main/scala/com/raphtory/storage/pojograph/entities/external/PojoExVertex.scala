@@ -8,6 +8,7 @@ import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.Edge
 import com.raphtory.graph.visitor.HistoricEvent
 import com.raphtory.graph.visitor.InterlayerEdge
+import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoVertex
@@ -103,6 +104,28 @@ class PojoExVertex(
               view = lens
       )
     }
+  }
+
+  def reduce(
+      defaultMergeStrategy: PropertyMerge[Any, Any],
+      mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]
+  ): Unit = {
+    val states = mutable.Map.empty[String, mutable.ArrayBuffer[(Long, Any)]]
+    exploded.values.foreach { vertex =>
+      vertex.computationValues.foreach {
+        case (key, value) =>
+          states.getOrElseUpdate(
+                  key,
+                  mutable.ArrayBuffer.empty[(Long, Any)]
+          ) += ((vertex.timestamp, value))
+      }
+    }
+    states.foreach {
+      case (key, history) =>
+        setState(key, mergeStrategyMap.getOrElse(key, defaultMergeStrategy)(history.toSeq))
+    }
+    exploded.clear()
+    interlayerEdges = Seq()
   }
 
   def filterExplodedVertices(): Unit =

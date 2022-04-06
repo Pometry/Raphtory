@@ -17,6 +17,7 @@ import com.raphtory.algorithms.api.IterateWithGraph
 import com.raphtory.algorithms.api.MultilayerView
 import com.raphtory.algorithms.api.OutputFormat
 import com.raphtory.algorithms.api.PerspectiveDone
+import com.raphtory.algorithms.api.ReduceView
 import com.raphtory.algorithms.api.Select
 import com.raphtory.algorithms.api.SelectWithGraph
 import com.raphtory.algorithms.api.Setup
@@ -455,6 +456,10 @@ class QueryHandler(
         Stages.ExecuteGraph
 
       case f: MultilayerView                                         =>
+        messagetoAllJobWorkers(f)
+        Stages.ExecuteGraph
+
+      case f: ReduceView                                             =>
         messagetoAllJobWorkers(f)
         Stages.ExecuteGraph
 
