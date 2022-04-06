@@ -70,6 +70,8 @@ lazy val core = (project in file("core"))
           assemblySettings,
           defaultSettings,
           libraryDependencies ++= Seq(
+                  awsS3Sdk,
+                  awsStsSdk,
                   curatorRecipes,
                   k8Client,
                   gson,

@@ -1,6 +1,7 @@
 import sbt._
 
 object Dependencies {
+  private lazy val awsVersion            = "1.12.220"
   private lazy val chillVersion          = "0.10.0"
   private lazy val curatorVersion        = "5.2.1"
   private lazy val kubernetesClient      = "5.11.1"
@@ -24,6 +25,9 @@ object Dependencies {
   lazy val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
   lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
+
+  lazy val awsS3Sdk  = "com.amazonaws" % "aws-java-sdk-s3"  % awsVersion
+  lazy val awsStsSdk = "com.amazonaws" % "aws-java-sdk-sts" % awsVersion
 
   lazy val curatorRecipes = "org.apache.curator" % "curator-recipes"   % curatorVersion
   lazy val k8Client       = "io.fabric8"         % "kubernetes-client" % kubernetesClient
