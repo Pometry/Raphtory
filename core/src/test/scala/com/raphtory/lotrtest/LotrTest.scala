@@ -3,6 +3,7 @@ package com.raphtory.lotrtest
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.GlobalState
 import com.raphtory.GraphState
+import com.raphtory.TimeSeriesGraphState
 import com.raphtory.algorithms.generic.BinaryDiffusion
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.centrality.AverageNeighbourDegree
@@ -24,10 +25,9 @@ import com.raphtory.components.spout.Spout
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
-
 import com.raphtory.spouts.FileSpout
-import java.io.File
 
+import java.io.File
 import scala.language.postfixOps
 import sys.process._
 
@@ -38,7 +38,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Graph State Test") {
     val result = algorithmTest(
-            algorithm = GraphState(),
+            algorithm = TimeSeriesGraphState(),
             outputFormat = outputFormat,
             start = 1,
             end = 32674,

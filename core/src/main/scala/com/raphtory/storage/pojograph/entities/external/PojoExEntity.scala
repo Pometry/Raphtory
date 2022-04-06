@@ -4,6 +4,7 @@ import com.raphtory.graph.visitor.EntityVisitor
 import com.raphtory.graph.visitor.HistoricEvent
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoEntity
+import io.sqooba.oss.timeseries.TimeSeries
 
 import scala.reflect.ClassTag
 
@@ -54,6 +55,19 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[List[(Long, T)]] =
+    entity.properties.get(key) map { p =>
+      p.valueHistory(
+              math.max(view.start, after),
+              math.min(view.end, before)
+      ).toList
+        .map(x => (x._1, x._2.asInstanceOf[T]))
+    }
+
+  def getTimeSeriesPropertyHistory[T](
+      key: String,
+      after: Long = Long.MinValue,
+      before: Long = Long.MaxValue
+  ): Option[TimeSeries[(Long, T)]] =
     entity.properties.get(key) map { p =>
       p.valueHistory(
               math.max(view.start, after),

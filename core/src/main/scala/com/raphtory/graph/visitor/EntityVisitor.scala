@@ -1,6 +1,7 @@
 package com.raphtory.graph.visitor
 
 import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
+import io.sqooba.oss.timeseries.TimeSeries
 
 /**
   * {s}`EntityVisitor`
@@ -248,13 +249,23 @@ abstract class EntityVisitor {
       before: Long = Long.MaxValue
   ): Option[List[(Long, T)]]
 
+  def getTimeSeriesPropertyHistory[T](
+      key: String,
+      after: Long = Long.MinValue,
+      before: Long = Long.MaxValue
+  ): Option[TimeSeries[(Long, T)]]
+
   //functionality to access the history of the edge or vertex + helpers
   def history(): List[HistoricEvent]
+  def timeSeriesHistory(): TimeSeries[HistoricEvent]
   def active(after: Long = Long.MinValue, before: Long = Long.MaxValue): Boolean
   def aliveAt(time: Long, window: Long = Long.MaxValue): Boolean
 
   lazy val numCreations: Long = history().count(f => f.event)
   lazy val numDeletions: Long = history().count(f => !f.event)
+
+  lazy val numTimeSeriesCreations: Long = timeSeriesHistory().map(f => f.event).size
+  lazy val numTimeSeriesDeletions: Long = timeSeriesHistory().map(f => !f.event).size
 }
 
 /**
