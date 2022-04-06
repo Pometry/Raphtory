@@ -144,11 +144,11 @@ final case class PojoGraphLens(
     voteCount.set(0)
     vertexCount.set(0)
     superStep += 1
-//    if (needsFiltering) {
-    vertices.foreach(_.executeEdgeDelete())
-    deleteVertices()
-//    needsFiltering = false
-//    }
+    if (needsFiltering) {
+      vertices.foreach(_.executeEdgeDelete())
+      deleteVertices()
+      needsFiltering = false
+    }
   }
 
 //keep the vertices that are not being deleted

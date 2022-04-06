@@ -66,10 +66,13 @@ trait PojoVertexBase extends Vertex {
     msg match {
       case msg: VertexMessage[_, _]       => multiQueue.receiveMessage(msg.superstep, msg.data)
       case msg: FilteredOutEdgeMessage[_] =>
+        lens.needsFiltering = true
         outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
       case msg: FilteredInEdgeMessage[_]  =>
+        lens.needsFiltering = true
         incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
       case msg: FilteredEdgeMessage[_]    =>
+        lens.needsFiltering = true
         outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
         incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
     }
