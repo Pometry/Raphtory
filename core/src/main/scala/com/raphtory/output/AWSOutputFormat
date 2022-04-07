@@ -1,7 +1,8 @@
 package com.raphtory.output
 
+import com.amazonaws.services.s3.model.{ObjectMetadata, PutObjectRequest, PutObjectResult}
 import com.raphtory.core.algorithm.{OutputFormat, Row}
-import com.raphtory.core.config.AWSUpload
+import com.raphtory.core.deploy.AWSUpload
 import com.raphtory.core.deploy.Raphtory
 import com.typesafe.config.Config
 import java.io.InputStream
@@ -56,13 +57,13 @@ class AWSOutputFormat(val awsBucketKey: String) extends OutputFormat {
       window: Option[Long],
       jobID: String,
       row: Row,
-  ) = {
+  ): PutObjectResult = {
     val value = window match {
       case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}"
       case None    => s"$timestamp,${row.getValues().mkString(",")}"
     }
     val stream = new ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8))
-    awsClient.putObject(bucketName, awsBucketKey, stream)
+    awsClient.putObject(new PutObjectRequest(bucketName, awsBucketKey, stream, new ObjectMetadata))
 
   }
 
