@@ -6,6 +6,8 @@ package com.raphtory.graph.visitor
   */
 trait ExplodedVertex extends Vertex with ExplodedEntityVisitor {
   override def name(nameProperty: String): String = s"${super.name(nameProperty)}_$timestamp"
+  def baseName: String                            = super.name()
+  def baseName(nameProperty: String): String      = super.name(nameProperty)
 }
 
 object ExplodedVertex {
