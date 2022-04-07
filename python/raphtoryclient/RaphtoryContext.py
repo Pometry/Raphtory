@@ -22,7 +22,18 @@ class RaphtoryContext(object):
                 " is not allowed as it is a security risk.")
 
         RaphtoryContext._ensure_initialized(self, gateway=gateway)
-        # TODO HERE HAAROON
+        # # TODO HERE HAAROON
+        # RaphtoryContext.load()
+
+    # def load(self):
+    #     # Create the Java SparkContext through Py4J
+    #     self._jsc = self._initialize_context()
+
+    def hi(self):
+        print("hi")
+
+    def _initialize_context(self):
+        self._jvm.JavaRaphtoryContext()
 
 
     @classmethod
