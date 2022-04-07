@@ -26,6 +26,7 @@ import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFunction
 import com.raphtory.components.Component
 import com.raphtory.config.PulsarController
+import com.raphtory.config.telemetry.QueryTelemetry
 import com.raphtory.graph.Perspective
 import com.raphtory.graph.PerspectiveController
 import com.typesafe.config.Config
@@ -76,6 +77,10 @@ class QueryHandler(
   private var timeTaken                 = System.currentTimeMillis()
 
   private var currentState: Stage = SpawnExecutors
+
+  val totalPerspectivesProcessed = QueryTelemetry.totalPerspectivesProcessed(jobID + "_" + deploymentID)
+  val totalGraphOperations = QueryTelemetry.totalGraphOperations(jobID + "_" + deploymentID)
+  val totalTableOperations = QueryTelemetry.totalTableOperations(jobID + "_" + deploymentID)
 
   private val recheckTimer = new Runnable {
     override def run(): Unit = self sendAsync serialise(RecheckTime)
@@ -302,6 +307,7 @@ class QueryHandler(
                   s"Job '$jobID': Table Built in ${tableBuiltTimeTaken}ms Executing next table operation."
           )
           timeTaken = System.currentTimeMillis()
+          totalTableOperations.inc()
           nextTableOperation()
         }
         else
@@ -315,6 +321,7 @@ class QueryHandler(
                   s"Job '$jobID': Table Function complete in ${tableFuncTimeTaken}ms. Running next table operation."
           )
           timeTaken = System.currentTimeMillis()
+          totalTableOperations.inc()
           nextTableOperation()
         }
         else {
@@ -350,6 +357,7 @@ class QueryHandler(
   private def executeNextPerspective(): Stage = {
     val latestTime = getLatestTime()
     val oldestTime = getOptionalEarliestTime()
+    totalPerspectivesProcessed.inc()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
       tracker.sendAsync(serialise(currentPerspective))
     perspectiveController.nextPerspective() match {
@@ -425,6 +433,7 @@ class QueryHandler(
     receivedMessageCount = 0
     sentMessageCount = 0
     checkingMessages = false
+    totalGraphOperations.inc()
 
     currentOperation match {
       case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>

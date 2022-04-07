@@ -2,7 +2,9 @@ package com.raphtory.components.querymanager
 
 import com.raphtory.components.Component
 import com.raphtory.config.PulsarController
+import com.raphtory.config.telemetry.QueryTelemetry
 import com.typesafe.config.Config
+import io.prometheus.client.Counter
 import monix.execution.Scheduler
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
@@ -19,10 +21,26 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   private val watermarks                                = mutable.Map[Int, WatermarkTime]()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
+  val globalWatermarkMin = QueryTelemetry.globalWatermarkMin(deploymentID)
+  val globalWatermarkMax = QueryTelemetry.globalWatermarkMax(deploymentID)
+
+  var spawnedQueryMetrics : Option[Counter] = None
+
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
 
     cancelableConsumer = Some(pulsarController.startQueryManagerConsumer(messageListener()))
+  }
+
+  def spawnQueryMetrics(jobID: String): Unit = {
+    spawnedQueryMetrics match {
+      case Some(counter) => counter.inc()
+      case None        =>
+      {
+        spawnedQueryMetrics = Option(QueryTelemetry.newQueriesTracked(jobID + "_" + deploymentID))
+        spawnedQueryMetrics.get.inc()
+      }
+    }
   }
 
   override def stop(): Unit = {
@@ -45,6 +63,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
         )
         val queryHandler = spawnQuery(jobID, query)
         trackNewQuery(jobID, queryHandler)
+        spawnQueryMetrics(jobID)
 
       case req: EndQuery            =>
         currentQueries.get(req.jobID) match {
@@ -91,6 +110,8 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
           safe = watermark.safe && safe
           minTime = Math.min(minTime, watermark.endTime)
           maxTime = Math.max(maxTime, watermark.endTime)
+          globalWatermarkMin.set(minTime)
+          globalWatermarkMax.set(maxTime)
       }
       if (safe) maxTime else minTime
     }
