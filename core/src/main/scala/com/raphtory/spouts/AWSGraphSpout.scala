@@ -18,7 +18,6 @@ case class AWSGraphSpout(bucketName: String, objectKey: String) extends Batchabl
   val s3object: S3Object = s3.getObject(new GetObjectRequest(bucketName, objectKey))
   val in = new BufferedReader(new InputStreamReader(s3object.getObjectContent()))
   var line: String = null
-
   var lineNo = 1
   var count  = 0
 
