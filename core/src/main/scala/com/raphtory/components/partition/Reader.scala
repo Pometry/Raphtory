@@ -6,6 +6,7 @@ import com.raphtory.components.querymanager.EstablishExecutor
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.WatermarkTime
 import com.raphtory.config.PulsarController
+import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
 import monix.execution.Cancelable
@@ -30,6 +31,12 @@ class Reader(
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
   var scheduledWatermark: Option[Cancelable]            = None
   private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
+
+  val lastWaterMarkProcessed  =
+    PartitionTelemetry.lastWaterMarkProcessed(partitionID + "_" + deploymentID)
+
+  val queryExecutorMapCounter =
+    PartitionTelemetry.queryExecutorMapCounter(partitionID + "_" + deploymentID)
 
   private val watermarking = new Runnable {
     override def run(): Unit = createWatermark()
@@ -66,6 +73,7 @@ class Reader(
         val jobID         = req.jobID
         val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
         scheduler.execute(queryExecutor)
+        queryExecutorMapCounter.inc()
         executorMap += ((jobID, queryExecutor))
 
       case req: EndQuery          =>
@@ -130,6 +138,7 @@ class Reader(
         )
       }
       lastWatermark = watermark
+      lastWaterMarkProcessed.set(finalTime)
     }
     scheduleWaterMarker()
   }

@@ -5,6 +5,7 @@ import com.raphtory.components.graphbuilder.BatchAddRemoteEdge
 import com.raphtory.components.graphbuilder.EdgeAdd
 import com.raphtory.components.graphbuilder.EdgeDelete
 import com.raphtory.components.graphbuilder.GraphAlteration
+import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.graphbuilder.SyncExistingEdgeAdd
 import com.raphtory.components.graphbuilder.SyncExistingEdgeRemoval
@@ -32,6 +33,10 @@ class BatchWriter[T: ClassTag](
   private var processedMessages = 0
   val logger: Logger            = Logger(LoggerFactory.getLogger(this.getClass))
 
+  val batchWriterVertexAdditions = PartitionTelemetry.batchWriterVertexAdditions(partitionID)
+  val batchWriterEdgeAdditions = PartitionTelemetry.batchWriterEdgeAdditions(partitionID)
+  val batchWriterRemoteEdgeAdditions = PartitionTelemetry.batchWriterRemoteEdgeAdditions(partitionID)
+
   def handleMessage(msg: GraphAlteration): Unit = {
     msg match {
       //Updates from the Graph Builder
@@ -58,6 +63,7 @@ class BatchWriter[T: ClassTag](
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
+    batchWriterVertexAdditions.inc()
   }
 
   def processEdgeAdd(update: EdgeAdd): Unit = {
@@ -70,6 +76,7 @@ class BatchWriter[T: ClassTag](
             update.properties,
             update.eType
     )
+    batchWriterEdgeAdditions.inc()
   }
 
   def processRemoteEdgeAdd(req: BatchAddRemoteEdge): Unit = {
@@ -78,6 +85,7 @@ class BatchWriter[T: ClassTag](
     storage.timings(req.msgTime)
     storage
       .batchAddRemoteEdge(req.msgTime, req.srcId, req.dstId, req.properties, req.vType)
+    batchWriterRemoteEdgeAdditions.inc()
   }
 
   def processSyncNewEdgeRemoval(req: SyncNewEdgeRemoval): Unit = {
@@ -86,6 +94,7 @@ class BatchWriter[T: ClassTag](
     )
     storage.timings(req.msgTime)
     storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals)
+    batchWriterRemoteEdgeAdditions.inc()
   }
 
   def processEdgeDelete(update: EdgeDelete): Unit = {
