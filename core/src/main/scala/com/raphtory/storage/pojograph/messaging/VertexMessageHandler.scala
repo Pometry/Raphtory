@@ -5,6 +5,7 @@ import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
+import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
@@ -31,6 +32,9 @@ class VertexMessageHandler(
   val msgBatchPath: String  = "raphtory.partitions.batchMessages"
   val messageBatch: Boolean = config.getBoolean(msgBatchPath)
   val maxBatchSize: Int     = config.getInt("raphtory.partitions.maxMessageBatchSize")
+
+  val totalVertexMessagesSent =
+    StorageTelemetry.totalVertexMessagesSent(config.getString("raphtory.deploy.id"))
 
   if (messageBatch)
     logger.debug(

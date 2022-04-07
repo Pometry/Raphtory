@@ -32,19 +32,19 @@ object StorageTelemetry {
       .help("Vertex Count for Graph Lens")
       .register
 
-  def graphLensReceivedMessageCount(partitionID: String): Counter =
+  def graphLensReceivedMessageCount(jobID: String): Counter =
     Counter
       .build
       .namespace(conf.getString("raphtory.prometheus.storage_namespace"))
-      .name("pojo_lens_received_messages_" + partitionID)
+      .name("pojo_lens_received_messages_" + jobID)
       .help("Received Messages count for Graph Lens ")
       .register
 
-  def totalVertexMessagesSent(partitionID: String): Counter =
+  def totalVertexMessagesSent(jobID: String): Counter =
     Counter
       .build
       .namespace(conf.getString("raphtory.prometheus.storage_namespace_"))
-      .name("total_vertex_messages_sent_" + partitionID)
+      .name("total_vertex_messages_sent_" + jobID)
       .help("Vertex messages sent")
       .register
 }

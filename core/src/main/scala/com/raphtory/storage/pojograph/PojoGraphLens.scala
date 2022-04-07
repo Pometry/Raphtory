@@ -12,6 +12,7 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 import com.typesafe.config.Config
+import com.raphtory.config.telemetry.StorageTelemetry
 import org.apache.pulsar.client.api.Producer
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -40,6 +41,8 @@ final case class PojoGraphLens(
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
   var needsFiltering            = false
+
+  val graphLensReceivedMessageCount = StorageTelemetry.graphLensReceivedMessageCount(jobId)
 
   val messageHandler: VertexMessageHandler =
     VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)

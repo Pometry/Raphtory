@@ -59,7 +59,7 @@ object QueryTelemetry {
   def totalPerspectivesProcessed(jobID: String): Counter =
     Counter
       .build
-      .namespace(conf.getString("raphtory.prometheus.query_namespace_"))
+      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
       .name("query_handler_perspective_processed_" + jobID )
       .help("Total perspectives processed by Query Handler")
       .register
