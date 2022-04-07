@@ -1,7 +1,6 @@
-package com.raphtory.core.config.telemetry
+package com.raphtory.config.telemetry
 
 import com.raphtory.config.ConfigHandler
-import com.raphtory.core.config.ConfigHandler
 import io.prometheus.client.{Counter, Gauge}
 
 /**
@@ -44,8 +43,8 @@ object StorageTelemetry {
   def totalVertexMessagesSent(partitionID: String): Counter =
     Counter
       .build
-      .namespace(conf.getString("raphtory.prometheus.storage_namespace_" + partitionID))
-      .name("total_vertex_messages_sent")
+      .namespace(conf.getString("raphtory.prometheus.storage_namespace_"))
+      .name("total_vertex_messages_sent_" + partitionID)
       .help("Vertex messages sent")
       .register
 }
