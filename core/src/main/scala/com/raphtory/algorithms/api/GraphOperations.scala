@@ -148,7 +148,7 @@ trait GraphOperations[G <: GraphOperations[G]] {
   def filter(f: (Vertex, GraphState) => Boolean): G
 
   def multilayerView(
-      interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
+      interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge] = _ => Seq()
   ): G
 
   def reduceView(
@@ -156,6 +156,7 @@ trait GraphOperations[G <: GraphOperations[G]] {
       mergeStrategyMap: Map[String, PropertyMerge[Any, Any]] =
         Map.empty[String, PropertyMerge[Any, Any]]
   ): G
+
   def step(f: (Vertex) => Unit): G
   def step(f: (Vertex, GraphState) => Unit): G
   def iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): G
