@@ -2,10 +2,15 @@ package com.raphtory.core.deploy
 
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.auth.BasicAWSCredentials
-import com.amazonaws.SDKGlobalConfiguration
-import java.io.File
+import com.amazonaws.{AmazonWebServiceClient, ClientConfiguration, SDKGlobalConfiguration}
+import com.amazonaws.services.s3.AmazonS3Client
+import com.amazonaws.services.s3.model.{GetObjectRequest, ObjectMetadata, PutObjectRequest, Region, S3Object}
+import java.io.{BufferedReader, ByteArrayInputStream, File}
 import com.raphtory.core.deploy.Raphtory
 import com.typesafe.config.Config
+import com.amazonaws.services.s3.model.ObjectMetadata
+import com.amazonaws.services.s3.model.PutObjectRequest
+import java.nio.charset.StandardCharsets
 
 object AWSUpload extends App {
 
