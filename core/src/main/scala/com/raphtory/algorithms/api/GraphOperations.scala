@@ -79,6 +79,64 @@ final case class PerspectiveDone()                     extends GraphFunction
   *      {s}`f: (Vertex, GraphState) => Boolean`
   *        : filter function with access to graph state (only vertices for which {s}`f` returns {s}`true` are kept)
   *
+  *  {s}`multilayerView: G`
+  *    : Switch to multilayer view
+  *
+  *      After calling {s}`multilayerView`, subsequent methods that manipulate vertices act on
+  *      [{s}`ExplodedVertex`](com.raphtory.graph.visitor.ExplodedVertex) instead. If [{s}`ExplodedVertex](com.raphtory.graph.visitor.ExplodedVertex)`
+  *      instances were already created by a previous call to {s}`multilayerView`, they are preserved. Otherwise, this
+  *      method creates an [{s}`ExplodedVertex`](com.raphtory.graph.visitor.ExplodedVertex) instance for each
+  *      timepoint that a vertex is active.
+  *
+  *  {s}`multilayerView(interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]): G`
+  *    : Switch to multilayer view and add interlayer edges.
+  *
+  *      {s}`interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]`
+  *        : Interlayer edge builder to create interlayer edges for each vertex. See
+  *          [{s}`InterlayerEdgeBuilders`](com.raphtory.graph.visitor.InterlayerEdgeBuilders) for predefined
+  *          options.
+  *
+  *      Existing {s}`ExplodedVertex` instances are preserved but all interlayer edges are recreated using the supplied
+  *      {s}`interlayerEdgeBuilder`.
+  *
+  *  {s}`reducedView: G`
+  *    : Switch computation to act on [{S}`Vertex`](com.raphtory.graph.visitor.Vertex), inverse of {s}`multilayerView`
+  *
+  *      This operation does nothing if the view is already reduced. Otherwise it switches back to running computations
+  *      on vertices but preserves any existing [{s}`ExplodedVertex`](com.raphtory.graph.visitor.ExplodedVertex) instances
+  *      created by previous calls to {s}`multilayerView` to allow switching back-and-forth between views while
+  *      preserving computational state. Computational state on [{s}`ExplodedVertex`](com.raphtory.graph.visitor.ExplodedVertex)
+  *      instances is not accessible from the {s}`Vertex` unless a merge strategy is supplied (see below).
+  *
+  *  {s}`reducedView(mergeStrategy: PropertyMerge[_, _]): G`
+  *    : Reduce view and apply the same merge strategy to convert each exploded state to vertex state
+  *
+  *      {s}`mergeStragegy: PropertyMerge[_, _]`
+  *        : Function to convert a history of values of type to a single value of type (see
+  *          [{s}`PropertyMergeStrategy`](com.raphtory.graph.visitor.PropertyMergeStrategy) for predefined options)
+  *
+  *  {s}`reducedView(mergeStrategyMap: Map[String, PropertyMerge[_, _]]): G`
+  *    : Reduce view and merge selected exploded state to vertex state
+  *
+  *      {s}`mergeStrategyMap: Map[String, PropertyMerge[_, _]]`
+  *        : Map from state key to merge strategy. Only state included in `mergeStrategyMap` will be reduced and
+  *          made available on the Vertex.
+  *
+  *  {s}`reducedView(defaultMergeStrategy: PropertyMerge[_, _], mergeStrategyMap: Map[String, PropertyMerge[_, _]]): G
+  *    : Reduce view and merge all exploded vertex state
+  *
+  *      {s}`defaultMergeStrategy: `PropertyMerge[_, _]`
+  *        : Merge strategy for state not included in {s}`mergeStrategyMap`
+  *
+  *      {s}`mergeStrategyMap: Map[String, PropertyMerge[_, _]]`
+  *        : Map from state key to merge strategy (used to override {s}`defaultMergeStrategy`).
+  *
+  *  {s}`aggregate(defaultMergeStrategy: PropertyMerge[_, _] = PropertyMergeStrategy.sequence[Any], mergeStrategyMap: Map[String, PropertyMerge[_, _]] = Map.empty[String, PropertyMerge[_, _]]): G
+  *    : Reduce view and delete exploded vertices permanently
+  *
+  *      This function has the same effect as {s}`reducedView`, except that the exploded vertices are deleted and no longer
+  *      available for subsequent calls of {s}`multilayerView`.
+  *
   *  {s}`step(f: (Vertex) => Unit): G`
   *    : Execute algorithm step
   *
