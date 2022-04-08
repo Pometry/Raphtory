@@ -31,21 +31,21 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
   override def reducedView: G =
     addFunction(ReduceView(None, None))
 
-  override def reducedView(mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]): G =
+  override def reducedView(mergeStrategyMap: Map[String, PropertyMerge[_, _]]): G =
     addFunction(ReduceView(None, Some(mergeStrategyMap)))
 
-  override def reducedView(mergeStrategy: PropertyMerge[Any, Any]): G =
+  override def reducedView(mergeStrategy: PropertyMerge[_, _]): G =
     addFunction(ReduceView(Some(mergeStrategy), None))
 
   override def reducedView(
-      defaultMergeStrategy: PropertyMerge[Any, Any],
-      mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]
+      defaultMergeStrategy: PropertyMerge[_, _],
+      mergeStrategyMap: Map[String, PropertyMerge[_, _]]
   ): G =
     addFunction(ReduceView(Some(defaultMergeStrategy), Some(mergeStrategyMap)))
 
   override def aggregate(
-      defaultMergeStrategy: PropertyMerge[Any, Any],
-      mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]
+      defaultMergeStrategy: PropertyMerge[_, _],
+      mergeStrategyMap: Map[String, PropertyMerge[_, _]]
   ): G =
     addFunction(ReduceView(Some(defaultMergeStrategy), Some(mergeStrategyMap), aggregate = true))
 

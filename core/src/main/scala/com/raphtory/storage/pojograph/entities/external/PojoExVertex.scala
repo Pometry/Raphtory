@@ -8,8 +8,9 @@ import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.Edge
 import com.raphtory.graph.visitor.HistoricEvent
 import com.raphtory.graph.visitor.InterlayerEdge
-import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
+import com.raphtory.graph.visitor.PropertyMergeStrategy
 import com.raphtory.graph.visitor.Vertex
+import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoVertex
 import com.raphtory.storage.pojograph.messaging.VertexMultiQueue
@@ -111,8 +112,8 @@ class PojoExVertex(
   }
 
   def reduce(
-      defaultMergeStrategy: Option[PropertyMerge[Any, Any]],
-      mergeStrategyMap: Option[Map[String, PropertyMerge[Any, Any]]],
+      defaultMergeStrategy: Option[PropertyMerge[_, _]],
+      mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
       aggregate: Boolean
   ): Unit = {
     if (defaultMergeStrategy.nonEmpty || mergeStrategyMap.nonEmpty) {
@@ -146,7 +147,10 @@ class PojoExVertex(
 
       states.foreach {
         case (key, history) =>
-          setState(key, strategy(key)(history.toSeq))
+          val strat = strategy(key)
+          strat match {
+            case v: PropertyMerge[Any, Any] => setState(key, v(history.toSeq))
+          }
       }
     }
     if (aggregate) {

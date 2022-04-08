@@ -106,8 +106,8 @@ final case class PojoGraphLens(
     }
 
   override def reduceView(
-      defaultMergeStrategy: Option[PropertyMerge[Any, Any]],
-      mergeStrategyMap: Option[Map[String, PropertyMerge[Any, Any]]],
+      defaultMergeStrategy: Option[PropertyMerge[_, _]],
+      mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
       aggregate: Boolean
   ): Unit = {
     exploded = false

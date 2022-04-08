@@ -43,8 +43,7 @@ import com.raphtory.util.Reduction._
 object PropertyMergeStrategy {
   type PropertyMerge[A, B] = Seq[(Long, A)] => B
 
-  def sum[T: Numeric](history: Seq[(Long, T)]): T =
-    history.map(_._2).sum
+  def sum[T: Numeric]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.map(_._2).sum
 
   def max[T: Numeric](history: Seq[(Long, T)]): T =
     history.map(_._2).max

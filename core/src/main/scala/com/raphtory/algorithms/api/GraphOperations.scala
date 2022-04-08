@@ -14,8 +14,8 @@ final case class MultilayerView(
 ) extends GraphFunction
 
 final case class ReduceView(
-    defaultMergeStrategy: Option[PropertyMerge[Any, Any]],
-    mergeStrategyMap: Option[Map[String, PropertyMerge[Any, Any]]],
+    defaultMergeStrategy: Option[PropertyMerge[_, _]],
+    mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
     aggregate: Boolean = false
 ) extends GraphFunction
 
@@ -156,19 +156,18 @@ trait GraphOperations[G <: GraphOperations[G]] {
 
   def reducedView: G
 
-  def reducedView(mergeStrategy: PropertyMerge[Any, Any]): G
+  def reducedView(mergeStrategy: PropertyMerge[_, _]): G
 
-  def reducedView(mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]): G
+  def reducedView(mergeStrategyMap: Map[String, PropertyMerge[_, _]]): G
 
   def reducedView(
-      defaultMergeStrategy: PropertyMerge[Any, Any],
-      mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]
+      defaultMergeStrategy: PropertyMerge[_, _],
+      mergeStrategyMap: Map[String, PropertyMerge[_, _]]
   ): G
 
   def aggregate(
-      defaultMergeStrategy: PropertyMerge[Any, Any] = PropertyMergeStrategy.sequence[Any],
-      mergeStrategyMap: Map[String, PropertyMerge[Any, Any]] =
-        Map.empty[String, PropertyMerge[Any, Any]]
+      defaultMergeStrategy: PropertyMerge[_, _] = PropertyMergeStrategy.sequence[Any],
+      mergeStrategyMap: Map[String, PropertyMerge[_, _]] = Map.empty[String, PropertyMerge[_, _]]
   ): G
 
   def step(f: (Vertex) => Unit): G

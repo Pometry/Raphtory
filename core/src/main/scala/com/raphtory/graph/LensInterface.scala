@@ -37,8 +37,8 @@ trait LensInterface {
   ): Unit
 
   def reduceView(
-      defaultMergeStrategy: Option[PropertyMerge[Any, Any]],
-      mergeStrategyMap: Option[Map[String, PropertyMerge[Any, Any]]],
+      defaultMergeStrategy: Option[PropertyMerge[_, _]],
+      mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
       aggregate: Boolean
   ): Unit
 
