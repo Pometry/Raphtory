@@ -2,6 +2,8 @@ package com.raphtory.graph.visitor
 
 import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import io.sqooba.oss.timeseries.TimeSeries
+import io.sqooba.oss.timeseries.immutable.EmptyTimeSeries
+import io.sqooba.oss.timeseries.immutable.TSEntry
 
 /**
   * {s}`EntityVisitor`
@@ -254,10 +256,23 @@ abstract class EntityVisitor {
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[TimeSeries[T]] =
-
-//convert list of (long, T) into TimeSeries T
-  //construct list of timeseries entries
-  //test: set property, assert property
+    getPropertyHistory[T](key, after, before).map { timestampList =>
+      if (timestampList.nonEmpty) {
+        println(s"$timestampList")
+        TimeSeries.ofOrderedEntriesUnsafe {
+          timestampList.iterator
+            .sliding(2)
+            .withPartial(false)
+            .map {
+              case List((timestamp1, value1), (timestamp2, value2)) =>
+                TSEntry[T](timestamp1, value1, timestamp2 - timestamp1)
+            }
+            .++(Seq(TSEntry[T](timestampList.last._1, timestampList.last._2, before)))
+            .toSeq
+        }
+      }
+      else EmptyTimeSeries
+    }
 
   //functionality to access the history of the edge or vertex + helpers
   def history(): List[HistoricEvent]

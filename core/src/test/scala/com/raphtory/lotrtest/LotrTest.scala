@@ -38,7 +38,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Graph State Test") {
     val result = algorithmTest(
-            algorithm = TimeSeriesGraphState(),
+            algorithm = GraphState(),
             outputFormat = outputFormat,
             start = 1,
             end = 32674,
