@@ -2,6 +2,7 @@ package com.raphtory.graph.visitor
 
 import PropertyMergeStrategy.PropertyMerge
 import com.raphtory.graph.visitor.EdgeDirection.Direction
+import com.raphtory.graph.visitor
 
 import scala.reflect.ClassTag
 
@@ -353,8 +354,10 @@ import scala.reflect.ClassTag
   */
 trait Vertex extends EntityVisitor {
   type VertexID
+  type Edge <: visitor.Edge[VertexID]
   implicit val ordering: Ordering[VertexID]
 
+  type ExplodedEdge = visitor.ExplodedEdge[VertexID]
   def ID(): VertexID
 
   def name(nameProperty: String = "name"): String =
@@ -410,54 +413,54 @@ trait Vertex extends EntityVisitor {
 
   //all edges
 //  def getEdges(): List[Edge[VertexID]]
-  def getEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge[VertexID]]
+  def getEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
   //all out edges
 //  def getOutEdges(): List[Edge[VertexID]]
-  def getOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge[VertexID]]
+  def getOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
   //all in edges
 //  def getInEdges(): List[Edge[VertexID]]
-  def getInEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge[VertexID]]
+  def getInEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
 
   //individual out edge
   def getOutEdge(
       id: VertexID,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[Edge[VertexID]]
+  ): Option[Edge]
 
   //individual in edge
   def getInEdge(
       id: VertexID,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[Edge[VertexID]]
+  ): Option[Edge]
 
   //get individual edge irrespective of direction
   def getEdge(
       id: VertexID,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[Edge[VertexID]]
+  ): Option[Edge]
 
   //all edges
   def explodeEdges(
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): List[ExplodedEdge[VertexID]] =
+  ): List[ExplodedEdge] =
     getEdges(after, before).flatMap(_.explode())
 
   //all out edges
   def explodeOutEdges(
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): List[ExplodedEdge[VertexID]] =
+  ): List[ExplodedEdge] =
     getOutEdges(after, before).flatMap(_.explode())
 
   //all in edges
   def explodeInEdges(
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): List[ExplodedEdge[VertexID]] =
+  ): List[ExplodedEdge] =
     getInEdges(after, before).flatMap(_.explode())
 
   //individual out edge
@@ -465,7 +468,7 @@ trait Vertex extends EntityVisitor {
       id: VertexID,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[List[ExplodedEdge[VertexID]]] =
+  ): Option[List[ExplodedEdge]] =
     getOutEdge(id, after, before).map(_.explode())
 
   //individual in edge
@@ -473,7 +476,7 @@ trait Vertex extends EntityVisitor {
       id: VertexID,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[List[ExplodedEdge[VertexID]]] =
+  ): Option[List[ExplodedEdge]] =
     getInEdge(id, after, before).map(_.explode())
 
   //individual edge
@@ -481,7 +484,7 @@ trait Vertex extends EntityVisitor {
       id: VertexID,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[List[ExplodedEdge[VertexID]]] =
+  ): Option[List[ExplodedEdge]] =
     getEdge(id, after, before).map(_.explode())
 
   // analytical state

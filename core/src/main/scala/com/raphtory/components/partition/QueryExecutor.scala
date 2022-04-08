@@ -153,10 +153,10 @@ class QueryExecutor(
                 .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
           }
 
-        case ReduceView(defaultMergeStrategy, mergeStrategyMap)               =>
+        case ReduceView(defaultMergeStrategy, mergeStrategyMap, aggregate)    =>
           val time             = System.currentTimeMillis()
           graphLens.nextStep()
-          graphLens.reduceView(defaultMergeStrategy, mergeStrategyMap)
+          graphLens.reduceView(defaultMergeStrategy, mergeStrategyMap, aggregate)
           val sentMessages     = sentMessageCount.get()
           val receivedMessages = receivedMessageCount.get()
           graphLens.getMessageHandler().flushMessages().thenApply { _ =>

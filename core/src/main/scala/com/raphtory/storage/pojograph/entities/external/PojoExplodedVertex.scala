@@ -16,8 +16,7 @@ class PojoExplodedVertex(
   override val internalIncomingEdges = mutable.Map.empty[(Long, Long), PojoExMultilayerEdge]
   override val internalOutgoingEdges = mutable.Map.empty[(Long, Long), PojoExMultilayerEdge]
 
-  override type VertexID = (Long, Long)
-  override type E        = PojoExMultilayerEdge
+  override type Edge = PojoExMultilayerEdge
 
   implicit override val ordering: Ordering[(Long, Long)] =
     Ordering.Tuple2(Ordering.Long, Ordering.Long)
@@ -89,4 +88,9 @@ class PojoExplodedVertex(
   override def active(after: Long, before: Long): Boolean = vertex.active(after, before)
 
   override def aliveAt(time: Long, window: Long): Boolean = vertex.aliveAt(time, window)
+
+  override def remove(): Unit = {
+    super.remove()
+    vertex.explodedNeedsFiltering = true
+  }
 }

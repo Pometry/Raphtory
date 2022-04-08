@@ -5,6 +5,8 @@ package com.raphtory.graph.visitor
   *  : Public interface for vertices in the multilayer view of the network
   */
 trait ExplodedVertex extends Vertex with ExplodedEntityVisitor {
+  override type VertexID = (Long, Long)
+  override type Edge <: ExplodedEdge
   override def name(nameProperty: String): String = s"${super.name(nameProperty)}_$timestamp"
   def baseName: String                            = super.name()
   def baseName(nameProperty: String): String      = super.name(nameProperty)

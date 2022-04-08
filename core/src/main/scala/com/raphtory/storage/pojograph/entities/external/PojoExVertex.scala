@@ -30,26 +30,29 @@ class PojoExVertex(
         with PojoVertexBase {
 
   override type VertexID = Long
-  override type E        = PojoExEdge
+  override type Edge     = PojoExEdge
   implicit override val ordering: Ordering[Long] = Ordering.Long
 
   override def ID(): Long = v.vertexId
 
   val exploded               = mutable.Map.empty[Long, PojoExplodedVertex]
+  var explodedVertices       = Array.empty[PojoExplodedVertex]
   var explodedNeedsFiltering = false
   var interlayerEdges        = Seq.empty[InterlayerEdge]
 
   def explode(
-      interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
+      interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
   ): Unit = {
-    interlayerEdges = interlayerEdgeBuilder(this)
-    if (exploded.isEmpty)
+    interlayerEdgeBuilder.foreach(builder => interlayerEdges = builder(this))
+    if (exploded.isEmpty) {
       // exploding the view
       history().foreach {
         case HistoricEvent(time, event) =>
           if (event)
             exploded += (time -> new PojoExplodedVertex(this, time, lens))
       }
+      explodedVertices = exploded.values.toArray[PojoExplodedVertex]
+    }
     else
       // view is already exploded, reset edges only
       exploded.values.foreach { vertex =>
@@ -107,29 +110,55 @@ class PojoExVertex(
   }
 
   def reduce(
-      defaultMergeStrategy: PropertyMerge[Any, Any],
-      mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]
+      defaultMergeStrategy: Option[PropertyMerge[Any, Any]],
+      mergeStrategyMap: Option[Map[String, PropertyMerge[Any, Any]]],
+      aggregate: Boolean
   ): Unit = {
-    val states = mutable.Map.empty[String, mutable.ArrayBuffer[(Long, Any)]]
-    exploded.values.foreach { vertex =>
-      vertex.computationValues.foreach {
-        case (key, value) =>
-          states.getOrElseUpdate(
-                  key,
-                  mutable.ArrayBuffer.empty[(Long, Any)]
-          ) += ((vertex.timestamp, value))
+    if (defaultMergeStrategy.nonEmpty || mergeStrategyMap.nonEmpty) {
+      val states   = mutable.Map.empty[String, mutable.ArrayBuffer[(Long, Any)]]
+      val collect  = defaultMergeStrategy match {
+        case Some(_) => (_: String) => true
+        case None    =>
+          val strategyMap = mergeStrategyMap.get
+          (key: String) => strategyMap contains key
+      }
+      exploded.values.foreach { vertex =>
+        vertex.computationValues.foreach {
+          case (key, value) =>
+            if (collect(key))
+              states.getOrElseUpdate(
+                      key,
+                      mutable.ArrayBuffer.empty[(Long, Any)]
+              ) += ((vertex.timestamp, value))
+        }
+      }
+      val strategy = defaultMergeStrategy match {
+        case Some(strategy) =>
+          mergeStrategyMap match {
+            case Some(strategyMap) => (key: String) => strategyMap.getOrElse(key, strategy)
+            case None              => (_: String) => strategy
+          }
+        case None           =>
+          val strategyMap = mergeStrategyMap.get
+          (key: String) => strategyMap(key)
+      }
+
+      states.foreach {
+        case (key, history) =>
+          setState(key, strategy(key)(history.toSeq))
       }
     }
-    states.foreach {
-      case (key, history) =>
-        setState(key, mergeStrategyMap.getOrElse(key, defaultMergeStrategy)(history.toSeq))
+    if (aggregate) {
+      exploded.clear()
+      interlayerEdges = Seq()
     }
-    exploded.clear()
-    interlayerEdges = Seq()
   }
 
   def filterExplodedVertices(): Unit =
-    if (explodedNeedsFiltering) exploded.filterNot(_._2.isFiltered)
+    if (explodedNeedsFiltering) {
+      explodedVertices.filterNot(_.isFiltered)
+      explodedNeedsFiltering = false
+    }
 
   private var computationValues: Map[String, Any] =
     Map.empty //Partial results kept between supersteps in calculation

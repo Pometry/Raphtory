@@ -10,12 +10,13 @@ sealed trait GraphFunction                    extends QueryManagement
 final case class Setup(f: GraphState => Unit) extends GraphFunction
 
 final case class MultilayerView(
-    interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
+    interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
 ) extends GraphFunction
 
 final case class ReduceView(
-    defaultMergeStrategy: PropertyMerge[Any, Any],
-    mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]
+    defaultMergeStrategy: Option[PropertyMerge[Any, Any]],
+    mergeStrategyMap: Option[Map[String, PropertyMerge[Any, Any]]],
+    aggregate: Boolean = false
 ) extends GraphFunction
 
 final case class Step(f: (Vertex) => Unit) extends GraphFunction
@@ -147,11 +148,24 @@ trait GraphOperations[G <: GraphOperations[G]] {
   def filter(f: (Vertex) => Boolean): G
   def filter(f: (Vertex, GraphState) => Boolean): G
 
+  def multilayerView: G
+
   def multilayerView(
       interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge] = _ => Seq()
   ): G
 
-  def reduceView(
+  def reducedView: G
+
+  def reducedView(mergeStrategy: PropertyMerge[Any, Any]): G
+
+  def reducedView(mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]): G
+
+  def reducedView(
+      defaultMergeStrategy: PropertyMerge[Any, Any],
+      mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]
+  ): G
+
+  def aggregate(
       defaultMergeStrategy: PropertyMerge[Any, Any] = PropertyMergeStrategy.sequence[Any],
       mergeStrategyMap: Map[String, PropertyMerge[Any, Any]] =
         Map.empty[String, PropertyMerge[Any, Any]]

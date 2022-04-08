@@ -33,12 +33,13 @@ trait LensInterface {
   def getDataTable(): List[Row]
 
   def explodeView(
-      interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
+      interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
   ): Unit
 
   def reduceView(
-      defaultMergeStrategy: PropertyMerge[Any, Any],
-      mergeStrategyMap: Map[String, PropertyMerge[Any, Any]]
+      defaultMergeStrategy: Option[PropertyMerge[Any, Any]],
+      mergeStrategyMap: Option[Map[String, PropertyMerge[Any, Any]]],
+      aggregate: Boolean
   ): Unit
 
   def runGraphFunction(f: Vertex => Unit): Unit
