@@ -24,7 +24,9 @@ import com.raphtory.components.spout.Spout
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
+
 import com.raphtory.spouts.FileSpout
+import java.io.File
 
 import scala.language.postfixOps
 import sys.process._
