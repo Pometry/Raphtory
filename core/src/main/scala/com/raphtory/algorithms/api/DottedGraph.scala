@@ -105,7 +105,7 @@ object Alignment extends Enumeration {
   *      : the alignment of the windows
   *
   * ```{seealso}
-  * [](com.raphtory.core.algorithm.RaphtoryGraph)
+  * [](com.raphtory.algorithms.api.RaphtoryGraph)
   * ```
   */
 private[raphtory] class DottedGraph(
