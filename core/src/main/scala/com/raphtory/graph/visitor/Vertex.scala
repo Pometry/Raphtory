@@ -1,8 +1,6 @@
 package com.raphtory.graph.visitor
 
 import PropertyMergeStrategy.PropertyMerge
-import com.raphtory.components.graphbuilder.Properties.Properties
-import com.raphtory.components.graphbuilder.Properties.Type
 import com.raphtory.graph.visitor.EdgeDirection.Direction
 
 import scala.reflect.ClassTag
@@ -351,6 +349,7 @@ import scala.reflect.ClassTag
   *         or vertex properties
   */
 trait Vertex extends EntityVisitor {
+
   def ID(): Long
 
   def name(nameProperty: String = "name"): String =

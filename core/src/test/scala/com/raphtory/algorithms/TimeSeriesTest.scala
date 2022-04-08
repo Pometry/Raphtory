@@ -3,7 +3,6 @@ package com.raphtory.algorithms
 import com.raphtory.TimeSeriesGraphState
 
 class TimeSeriesTest extends BaseCorrectnessTest {
-
   test("Time Series Property History Test") {
     assert(
             correctnessTest(
@@ -13,7 +12,5 @@ class TimeSeriesTest extends BaseCorrectnessTest {
                     4
             )
     )
-
   }
-
 }

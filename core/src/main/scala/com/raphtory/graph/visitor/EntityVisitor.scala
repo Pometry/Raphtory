@@ -283,7 +283,6 @@ abstract class EntityVisitor {
 
   lazy val numCreations: Long = history().count(f => f.event)
   lazy val numDeletions: Long = history().count(f => !f.event)
-
 }
 
 /**
