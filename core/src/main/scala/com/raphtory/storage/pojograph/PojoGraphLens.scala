@@ -141,10 +141,11 @@ final case class PojoGraphLens(
 
   override def runMessagedGraphFunction(f: Vertex => Unit): Unit = {
     var count: Int = 0
-    vertexIterator.collect {
-      case vertex if vertex.hasMessage() =>
+    vertexIterator.foreach { vertex =>
+      if (vertex.hasMessage()) {
         count += 1
         f(vertex)
+      }
     }
     vertexCount.set(count)
   }
@@ -154,7 +155,7 @@ final case class PojoGraphLens(
       graphState: GraphState
   ): Unit = {
     var count: Int = 0
-    vertexIterator.collect {
+    vertexIterator.foreach {
       case vertex if vertex.hasMessage() =>
         count += 1
         f(vertex, graphState)
