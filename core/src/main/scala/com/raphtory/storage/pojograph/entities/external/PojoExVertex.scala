@@ -43,7 +43,6 @@ class PojoExVertex(
   def explode(
       interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
   ): Unit = {
-    interlayerEdgeBuilder.foreach(builder => interlayerEdges = builder(this))
     if (exploded.isEmpty) {
       // exploding the view
       history().foreach {
@@ -52,60 +51,62 @@ class PojoExVertex(
             exploded += (time -> new PojoExplodedVertex(this, time, lens))
       }
       explodedVertices = exploded.values.toArray[PojoExplodedVertex]
-    }
-    else
-      // view is already exploded, reset edges only
-      exploded.values.foreach { vertex =>
-        vertex.internalIncomingEdges.clear()
-        vertex.internalOutgoingEdges.clear()
+
+      explodeInEdges().foreach { edge =>
+        exploded(edge.timestamp).internalIncomingEdges += (
+                edge.src(),
+                edge.timestamp
+        ) -> new PojoExMultilayerEdge(
+                timestamp = edge.timestamp,
+                ID = (edge.src(), edge.timestamp),
+                src = (edge.src(), edge.timestamp),
+                dst = (edge.dst(), edge.timestamp),
+                edge = edge,
+                view = lens
+        )
       }
-    interlayerEdges.foreach { edge =>
-      val srcID = (ID(), edge.sourceTime)
-      val dstID = (ID(), edge.dstTime)
-      exploded(edge.sourceTime).internalOutgoingEdges += dstID -> new PojoExMultilayerEdge(
-              edge.dstTime,
-              dstID,
-              srcID,
-              dstID,
-              edge,
-              lens
-      )
-      exploded(edge.dstTime).internalIncomingEdges += srcID    -> new PojoExMultilayerEdge(
-              edge.sourceTime,
-              srcID,
-              srcID,
-              dstID,
-              edge,
-              lens
-      )
+      explodeOutEdges().foreach { edge =>
+        exploded(edge.timestamp).internalOutgoingEdges += (
+                edge.dst(),
+                edge.timestamp
+        ) -> new PojoExMultilayerEdge(
+                timestamp = edge.timestamp,
+                ID = (edge.dst(), edge.timestamp),
+                src = (edge.src(), edge.timestamp),
+                dst = (edge.dst(), edge.timestamp),
+                edge = edge,
+                view = lens
+        )
+      }
     }
-
-    explodeInEdges().foreach { edge =>
-      exploded(edge.timestamp).internalIncomingEdges += (
-              edge.src(),
-              edge.timestamp
-      ) -> new PojoExMultilayerEdge(
-              timestamp = edge.timestamp,
-              ID = (edge.src(), edge.timestamp),
-              src = (edge.src(), edge.timestamp),
-              dst = (edge.dst(), edge.timestamp),
-              edge = edge,
-              view = lens
-      )
-    }
-
-    explodeOutEdges().foreach { edge =>
-      exploded(edge.timestamp).internalOutgoingEdges += (
-              edge.dst(),
-              edge.timestamp
-      ) -> new PojoExMultilayerEdge(
-              timestamp = edge.timestamp,
-              ID = (edge.dst(), edge.timestamp),
-              src = (edge.src(), edge.timestamp),
-              dst = (edge.dst(), edge.timestamp),
-              edge = edge,
-              view = lens
-      )
+//    handle interlayer edges if provided
+    interlayerEdgeBuilder.foreach { builder =>
+      if (interlayerEdges.nonEmpty)
+        interlayerEdges.foreach { edge =>
+          exploded(edge.sourceTime).internalOutgoingEdges -= ((ID(), edge.dstTime))
+          exploded(edge.dstTime).internalIncomingEdges -= ((ID(), edge.sourceTime))
+        }
+      interlayerEdges = builder(this)
+      interlayerEdges.foreach { edge =>
+        val srcID = (ID(), edge.sourceTime)
+        val dstID = (ID(), edge.dstTime)
+        exploded(edge.sourceTime).internalOutgoingEdges += dstID -> new PojoExMultilayerEdge(
+                edge.dstTime,
+                dstID,
+                srcID,
+                dstID,
+                edge,
+                lens
+        )
+        exploded(edge.dstTime).internalIncomingEdges += srcID    -> new PojoExMultilayerEdge(
+                edge.sourceTime,
+                srcID,
+                srcID,
+                dstID,
+                edge,
+                lens
+        )
+      }
     }
   }
 
