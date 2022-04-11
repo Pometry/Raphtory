@@ -145,7 +145,7 @@ class PulsarController(conf: Config) {
       .create()
 
   def deleteTopic(topic: String) =
-    pulsarAdmin.topics().delete(topic)
+    pulsarAdmin.topics().delete(topic, true)
 
   def createTopic(component: String, topicSuffix: String): String = {
     val persistence = true
