@@ -30,8 +30,8 @@ final class VertexMultiQueue {
 
   def receiveMessage(superStep: Int, data: Any): Unit =
     if (superStep % 2 == 0)
-      evenMessageQueue += data
+      evenMessageQueue.synchronized(evenMessageQueue += data)
     else
-      oddMessageQueue += data
+      oddMessageQueue.synchronized(oddMessageQueue += data)
 
 }
