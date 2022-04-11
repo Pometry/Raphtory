@@ -14,7 +14,7 @@ private class AccumulatorImplementation[T](
   var value: T        = initialValue
 
   def +=(newValue: T): Unit =
-    currentValue = op(currentValue, newValue)
+    this.synchronized(this.currentValue = op(currentValue, newValue))
 
   def reset(): Unit = {
     if (retainState)
