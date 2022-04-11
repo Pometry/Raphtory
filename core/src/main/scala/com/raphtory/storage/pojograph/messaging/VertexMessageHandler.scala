@@ -61,9 +61,11 @@ class VertexMessageHandler(
       val producer = producers(destinationPartition)
       if (messageBatch) {
         val cache = messageCache(producer)
-        cache += message
-        if (cache.size > maxBatchSize)
-          sendCached(producer)
+        cache.synchronized {
+          cache += message
+          if (cache.size > maxBatchSize)
+            sendCached(producer)
+        }
       }
       else
         producer sendAsync (kryo.serialise(message))
@@ -75,7 +77,7 @@ class VertexMessageHandler(
     readerJobWorker sendAsync kryo.serialise(
             VertexMessageBatch(messageCache(readerJobWorker).toArray)
     )
-    messageCache.put(readerJobWorker, mutable.ArrayBuffer[GenericVertexMessage[_]]())
+    messageCache(readerJobWorker).clear() // synchronisation breaks if we create a new object here
   }
 
   def flushMessages(): CompletableFuture[Void] = {
