@@ -171,7 +171,6 @@ class QueryProgressTracker(
       }
   }
 
-//when this is closed, topics should close, once every thing is disconnected, close. or reschedule (try every second)
   def getJobId: String =
     jobID
 
