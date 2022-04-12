@@ -23,11 +23,12 @@ import com.raphtory.algorithms.api.Step
 import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFunction
 import com.raphtory.components.Component
+import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
+import com.raphtory.config.Scheduler
 import com.raphtory.graph.Perspective
 import com.raphtory.graph.PerspectiveController
 import com.typesafe.config.Config
-import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
@@ -45,15 +46,14 @@ class QueryHandler(
     jobID: String,
     query: Query,
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
+    gateway: Gateway
+) extends Component[QueryManagement](conf, gateway) {
+  private val self    = gateway.toRechecks(jobID)
+  private val readers = gateway.toQueryPrep
+  private val tracker = gateway.toEndedPerspectives(jobID)
 
-  private val self: Producer[Array[Byte]]    = pulsarController.toQueryHandlerProducer(jobID)
-  private val readers: Producer[Array[Byte]] = pulsarController.toReaderProducer
-  private val tracker: Producer[Array[Byte]] = pulsarController.toQueryTrackerProducer(jobID)
-
-  private val workerList: Map[Int, Producer[Array[Byte]]] =
-    pulsarController.toQueryExecutorProducers(jobID)
+  private val workerList =
+    gateway.toJobOperations(jobID)
 
   private var perspectiveController: PerspectiveController = _
   private var graphFunctions: mutable.Queue[GraphFunction] = _

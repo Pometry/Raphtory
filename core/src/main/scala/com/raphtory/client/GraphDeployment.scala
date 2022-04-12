@@ -4,10 +4,10 @@ import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.config.ComponentFactory
 import com.raphtory.config.Partitions
+import com.raphtory.config.Scheduler
 import com.raphtory.config.ThreadedWorker
 import com.raphtory.config.ZookeeperIDManager
 import com.typesafe.config.Config
-import monix.execution.Scheduler
 import io.prometheus.client.exporter.HTTPServer
 
 import java.io.IOException

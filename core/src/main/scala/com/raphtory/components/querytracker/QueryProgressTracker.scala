@@ -3,6 +3,7 @@ package com.raphtory.components.querytracker
 import com.raphtory.components.Component
 import com.raphtory.components.querymanager.JobDone
 import com.raphtory.components.querymanager.QueryManagement
+import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
 import com.raphtory.graph.Perspective
 import com.typesafe.config.Config
@@ -65,8 +66,8 @@ class DoneException extends Exception
 class QueryProgressTracker(
     jobID: String,
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
+    gateway: Gateway
+) extends Component[QueryManagement](conf, gateway) {
   private var perspectivesProcessed: Long = 0
   private var jobDone: Boolean            = false
 
@@ -127,15 +128,10 @@ class QueryProgressTracker(
         isJobDoneFuture.cancel()
     }
 
-  override def run(): Unit = {
+  override def setup(): Unit =
     logger.info(s"Job $jobID: Starting query progress tracker.")
 
-    cancelableConsumer = Some(
-            pulsarController.startQueryTrackerConsumer(jobID, messageListener())
-    )
-  }
-
-  override def stop(): Unit = {
+  override def stopHandler(): Unit = {
     logger.debug(s"Stopping QueryProgressTracker for $jobID")
     cancelableConsumer match {
       case Some(value) =>

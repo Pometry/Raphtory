@@ -5,6 +5,7 @@ import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
+import com.raphtory.config.EndPoint
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
@@ -19,7 +20,7 @@ import scala.concurrent.Future
 /** @DoNotDocument */
 class VertexMessageHandler(
     config: Config,
-    producers: Map[Int, Producer[Array[Byte]]],
+    producers: EndPoint[GenericVertexMessage],
     pojoGraphLens: PojoGraphLens,
     sentMessages: AtomicInteger,
     receivedMessages: AtomicInteger
@@ -98,7 +99,7 @@ object VertexMessageHandler {
 
   def apply(
       config: Config,
-      producers: Map[Int, Producer[Array[Byte]]],
+      producers: EndPoint[GenericVertexMessage],
       pojoGraphLens: PojoGraphLens,
       sentMessages: AtomicInteger,
       receivedMessages: AtomicInteger

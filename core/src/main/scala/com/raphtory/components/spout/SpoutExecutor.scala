@@ -1,44 +1,46 @@
 package com.raphtory.components.spout
 
 import com.raphtory.components.Component
+import com.raphtory.config.Cancelable
+import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
+import com.raphtory.config.Scheduler
 import com.typesafe.config.Config
-import monix.execution.Cancelable
-import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Message
 
 import java.util.concurrent.TimeUnit
 import scala.reflect.runtime.universe.TypeTag
 import com.raphtory.config.telemetry.SpoutTelemetry
 
+import scala.concurrent.duration.DurationInt
+
 /** @DoNotDocument */
 class SpoutExecutor[T](
     spout: Spout[T],
     conf: Config,
-    private val pulsarController: PulsarController,
+    private val gateway: Gateway,
     scheduler: Scheduler
-) extends Component[T](conf: Config, pulsarController: PulsarController) {
+) extends Component(conf, gateway) {
+  override type MsgType = Nothing
   protected val failOnError: Boolean           = conf.getBoolean("raphtory.spout.failOnError")
   private var linesProcessed: Int              = 0
   private var scheduledRun: Option[Cancelable] = None
 
-  val rescheduler = new Runnable {
-
-    override def run(): Unit = {
+  val rescheduler: () => Unit = () =>
+    {
       spout.executeReschedule()
       executeSpout()
-    }
-  }
-  private val producer = pulsarController.toBuildersProducer()
+    }: Unit
+  private val builders        = gateway.toBuilders
 
-  override def stop(): Unit = {
+  override def stopHandler(): Unit = {
     scheduledRun.foreach(_.cancel())
-    producer.close()
+    builders.close()
   }
 
-  override def handleMessage(msg: T): Unit = {} //Currently nothing to listen to here
+  override def handleMessage(msg: MsgType): Unit = {} //Currently nothing to listen to here
 
-  override def run(): Unit =
+  override def setup(): Unit =
     executeSpout()
 
   private def executeSpout() = {
@@ -47,7 +49,7 @@ class SpoutExecutor[T](
       linesProcessed = linesProcessed + 1
       if (linesProcessed % 100_000 == 0)
         logger.debug(s"Spout: sent $linesProcessed messages.")
-      producer.sendAsync(serialise(spout.next()))
+      builders sendAsync spout.next()
     }
     if (spout.spoutReschedules())
       reschedule()
@@ -56,7 +58,7 @@ class SpoutExecutor[T](
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
-    scheduledRun = Some(scheduler.scheduleOnce(10, TimeUnit.SECONDS, rescheduler))
+    scheduledRun = Some(scheduler.scheduleOnce(10.seconds, rescheduler))
   }
 
 }

@@ -5,6 +5,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.components.querymanager.FilteredEdgeMessage
 import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessage
+import com.raphtory.config.EndPoint
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph.GraphLens
 import com.raphtory.graph.GraphPartition
@@ -25,7 +26,7 @@ final case class PojoGraphLens(
     var superStep: Int,
     private val storage: GraphPartition,
     private val conf: Config,
-    private val neighbours: Map[Int, Producer[Array[Byte]]],
+    private val neighbours: EndPoint[GenericVertexMessage],
     private val sentMessages: AtomicInteger,
     private val receivedMessages: AtomicInteger
 ) extends GraphLens(jobId, start, end)

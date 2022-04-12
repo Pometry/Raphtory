@@ -50,7 +50,8 @@ lazy val core = (project in file("core"))
                   dependencies.twitterChill,
                   dependencies.twittered,
                   dependencies.typesafeConfig,
-                  dependencies.zookeeper
+                  dependencies.zookeeper,
+                  dependencies.akkaTyped
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
   )
@@ -117,6 +118,7 @@ lazy val dependencies = new {
   val twitteredVersion      = "2.16"
   val typesafeConfigVersion = "1.4.2"
   val zookeeperVersion      = "3.7.0"
+  val akkaVersion           = "2.6.19"
 
   val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
   val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
@@ -151,6 +153,7 @@ lazy val dependencies = new {
   val twittered        = "io.github.redouane59.twitter" % "twittered"                      % twitteredVersion
   val typesafeConfig   = "com.typesafe"                 % "config"                         % typesafeConfigVersion
   val zookeeper        = "org.apache.zookeeper"         % "zookeeper"                      % zookeeperVersion
+  val akkaTyped        = "com.typesafe.akka"           %% "akka-actor-typed"               % akkaVersion
 }
 
 // ASSEMBLY SETTINGS

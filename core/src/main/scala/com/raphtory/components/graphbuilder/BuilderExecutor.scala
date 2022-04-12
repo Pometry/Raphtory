@@ -1,6 +1,7 @@
 package com.raphtory.components.graphbuilder
 
 import com.raphtory.components.Component
+import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
 import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
@@ -18,37 +19,22 @@ class BuilderExecutor[T: ClassTag](
     name: String,
     graphBuilder: GraphBuilder[T],
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[T](conf, pulsarController) {
+    gateway: Gateway
+) extends Component[T](conf, gateway) {
   private val safegraphBuilder     = Marshal.deepCopy(graphBuilder)
-  private val producers            = pulsarController.toWriterProducers
   private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
+  private val writers              = gateway.toGraphUpdates(update => getWriter(update.srcId))
 
   private var messagesProcessed = 0
 
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
-
-  override def run(): Unit = {
+  override def setup(): Unit =
     logger.debug(
             s"Starting Graph Builder executor with deploymentID ${conf.getString("raphtory.deploy.id")}"
     )
 
-    cancelableConsumer = Some(
-            pulsarController.startGraphBuilderConsumer(messageListener())
-    )
-
-  }
-
-  override def stop(): Unit = {
+  override def stopHandler(): Unit = {
     logger.debug("Stopping Graph Builder executor.")
-
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-      case None        =>
-    }
-
-    producers.foreach(_._2.close())
+    writers.close()
   }
 
   override def handleMessage(msg: T): Unit =
@@ -59,9 +45,8 @@ class BuilderExecutor[T: ClassTag](
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
     logger.trace(s"Sending graph update: $graphUpdate")
 
-    producers(getWriter(graphUpdate.srcId))
-      .sendAsync(serialise(graphUpdate))
-      .thenApply(msgId => msgId -> null)
+    writers.sendAsync(graphUpdate)
+    //.thenApply(msgId => msgId -> null) TODO: remove I guess ?
 
     messagesProcessed = messagesProcessed + 1
 

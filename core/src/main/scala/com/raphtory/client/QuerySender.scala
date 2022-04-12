@@ -4,8 +4,8 @@ import com.raphtory.components.querymanager.Query
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.config.ComponentFactory
 import com.raphtory.config.PulsarController
+import com.raphtory.config.Scheduler
 import com.raphtory.serialisers.PulsarKryoSerialiser
-import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
 
 class QuerySender(

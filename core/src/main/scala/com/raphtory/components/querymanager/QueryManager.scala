@@ -1,9 +1,10 @@
 package com.raphtory.components.querymanager
 
 import com.raphtory.components.Component
+import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
+import com.raphtory.config.Scheduler
 import com.typesafe.config.Config
-import monix.execution.Scheduler
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
@@ -12,27 +13,24 @@ import org.apache.pulsar.client.api.Schema
 import scala.collection.mutable
 
 /** @DoNotDocument */
-class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarController)
-        extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
+class QueryManager(scheduler: Scheduler, conf: Config, gateway: Gateway)
+        extends Component[QueryManagement](conf, gateway) {
   private val currentQueries                            = mutable.Map[String, QueryHandler]()
-  private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher()
+  //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: remove?
   private val watermarks                                = mutable.Map[Int, WatermarkTime]()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
-  override def run(): Unit = {
+  override def setup(): Unit =
     logger.debug("Starting Query Manager Consumer.")
 
-    cancelableConsumer = Some(pulsarController.startQueryManagerConsumer(messageListener()))
-  }
-
-  override def stop(): Unit = {
+  override def stopHandler(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
         value.close()
       case None        =>
     }
     currentQueries.foreach(_._2.stop())
-    watermarkGlobal.close()
+    // watermarkGlobal.close() TODO: remove?
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
@@ -69,7 +67,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
             id,
             query,
             conf,
-            pulsarController
+            gateway
     )
     scheduler.execute(queryHandler)
     queryHandler

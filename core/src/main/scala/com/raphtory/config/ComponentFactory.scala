@@ -17,7 +17,6 @@ import com.raphtory.graph.GraphPartition
 import com.raphtory.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import monix.execution.Scheduler
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
@@ -25,11 +24,11 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
 /** @DoNotDocument */
-private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
+private[raphtory] class ComponentFactory(conf: Config, gateway: Gateway) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def builder[T: ClassTag](
-      graphbuilder: GraphBuilder[T],
+      graphBuilder: GraphBuilder[T],
       batchLoading: Boolean = false,
       scheduler: Scheduler
   ): Option[List[ThreadedWorker[T]]] =
@@ -56,8 +55,8 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
           )
 
         val builderExecutor =
-          new BuilderExecutor[T](builderId.toString, graphbuilder, conf, pulsarController)
-
+          new BuilderExecutor[T](builderId.toString, graphBuilder, conf, gateway)
+        gateway.registerBuilderExecutor(builderExecutor)
         scheduler.execute(builderExecutor)
         ThreadedWorker(builderExecutor)
       }
@@ -165,7 +164,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
   ): Option[ThreadedWorker[T]] =
     if (!batchLoading) {
       val spoutExecutor = new SpoutExecutor[T](spout, conf, pulsarController, scheduler)
-      logger.info(s"Creating new Spout '${spoutExecutor.spoutTopic}'.")
+      logger.info(s"Creating new Spout.")
 
       scheduler.execute(spoutExecutor)
       Some(ThreadedWorker(spoutExecutor))
@@ -176,7 +175,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
     logger.info(s"Creating new Query Manager.")
 
     val queryManager = new QueryManager(scheduler, conf, pulsarController)
-
+    gateway.registerQueryManager(queryManager)
     scheduler.execute(queryManager)
     ThreadedWorker(queryManager)
   }
@@ -189,9 +188,8 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
             s"Creating new Query Progress Tracker for '$jobID'."
     )
 
-    val queryTracker =
-      new QueryProgressTracker(jobID, conf, pulsarController)
-
+    val queryTracker = new QueryProgressTracker(jobID, conf, pulsarController)
+    gateway.registerQueryProgressTracker(queryTracker, jobID)
     scheduler.execute(queryTracker)
 
     queryTracker

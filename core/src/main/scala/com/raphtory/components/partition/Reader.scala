@@ -5,6 +5,7 @@ import com.raphtory.components.querymanager.EndQuery
 import com.raphtory.components.querymanager.EstablishExecutor
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.WatermarkTime
+import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
@@ -22,11 +23,10 @@ class Reader(
     storage: GraphPartition,
     scheduler: Scheduler,
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
-
+    gateway: Gateway
+) extends Component[QueryManagement](conf, gateway) {
   private val executorMap                               = mutable.Map[String, QueryExecutor]()
-  private val watermarkPublish                          = pulsarController.watermarkPublisher()
+  private val watermarkPublish                          = gateway.toWatermark
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
   var scheduledWatermark: Option[Cancelable]            = None
   private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
@@ -35,17 +35,13 @@ class Reader(
     override def run(): Unit = createWatermark()
   }
 
-  override def run(): Unit = {
+  override def setup(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
 
     scheduleWaterMarker()
-
-    cancelableConsumer = Some(
-            pulsarController.startReaderConsumer(partitionID, messageListener())
-    )
   }
 
-  override def stop(): Unit = {
+  override def stopHandler(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
         value.close()
