@@ -79,9 +79,9 @@ class QueryExecutor(
     neighbours.foreach(_._2.close())
     cancelableConsumer match {
       case Some(value) =>
+        value.unsubscribe()
         value.close()
         logger.debug(s"closing query executor consumer for $jobID on partition $partitionID")
-        pulsarController.deleteTopic(value.getTopic)
       case None        =>
     }
   }

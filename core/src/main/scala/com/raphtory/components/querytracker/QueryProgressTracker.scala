@@ -142,7 +142,6 @@ class QueryProgressTracker(
       case Some(value) =>
         value.unsubscribe()
         value.close()
-        pulsarController.deleteTopic(value.getTopic)
       case None        =>
     }
     val PulsarAdmin = pulsarController.pulsarAdmin
