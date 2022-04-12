@@ -26,12 +26,13 @@ class RaphtoryGraphTest extends AnyFunSuite {
     assert(query.points.asInstanceOf[PointPath].increment === DiscreteInterval(100))
     assert(query.windows === List(DiscreteInterval(50)))
 
-    assert(query.graphFunctions.length === 5)
+    assert(query.graphFunctions.length === 6)
     assert(query.graphFunctions(0).isInstanceOf[Step])
     assert(query.graphFunctions(1).isInstanceOf[Step])
     assert(query.graphFunctions(2).isInstanceOf[Step])
     assert(query.graphFunctions(3).isInstanceOf[Iterate])
-    assert(query.graphFunctions(4).isInstanceOf[Select])
+    assert(query.graphFunctions(4).isInstanceOf[ClearChain])
+    assert(query.graphFunctions(5).isInstanceOf[Select])
 
     assert(query.tableFunctions.length === 1)
     assert(query.tableFunctions.head.isInstanceOf[TableFilter])
