@@ -23,14 +23,15 @@ class RaphtoryContext(object):
 
         RaphtoryContext._ensure_initialized(self, gateway=gateway)
         # # TODO HERE HAAROON
-        # RaphtoryContext.load()
+        RaphtoryContext._start()
 
     # def load(self):
     #     # Create the Java SparkContext through Py4J
     #     self._jsc = self._initialize_context()
 
-    def hi(self):
-        print("hi")
+    def _start(self, jrc):
+        self._jrc = jrc or self._initialize_context()
+
 
     def _initialize_context(self):
         self._jvm.JavaRaphtoryContext()

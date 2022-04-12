@@ -1,6 +1,6 @@
 package com.raphtory.examples.lotrTopic
 
-import com.raphtory.deploy.Raphtory
+import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.examples.lotrTopic.analysis.DegreesSeparation
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder

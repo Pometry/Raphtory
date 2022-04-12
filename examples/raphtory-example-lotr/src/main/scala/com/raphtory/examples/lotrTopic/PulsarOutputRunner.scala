@@ -2,28 +2,15 @@ package com.raphtory.examples.lotrTopic
 
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
-import com.raphtory.deploy.Raphtory
+import com.raphtory.deployment.Raphtory
 import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
-import com.raphtory.spouts.ResourceSpout
-import org.apache.pulsar.client.admin.PulsarAdmin
-import org.apache.pulsar.common.policies.data.RetentionPolicies
+import com.raphtory.spouts.{FileSpout, ResourceSpout}
 
 object PulsarOutputRunner extends App {
-  // Set unlimited retention to keep topic
-  val retentionTime = -1
-  val retentionSize = -1
-
-  val admin         = PulsarAdmin.builder
-    .serviceHttpUrl("http://localhost:8080")
-    .tlsTrustCertsFilePath(null)
-    .allowTlsInsecureConnection(false)
-    .build
-  val policies      = new RetentionPolicies(retentionTime, retentionSize)
-  admin.namespaces.setRetention("public/default", policies)
 
   // Create Graph
-  val source  = ResourceSpout("lotr.csv")
+  val source  = FileSpout("/Users/haaroony/Documents/Raphtory/examples/raphtory-example-lotr/lotr.csv")
   val builder = new LOTRGraphBuilder()
   val graph   = Raphtory.streamGraph(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
