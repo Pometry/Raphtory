@@ -528,6 +528,7 @@ class QueryHandler(
     )
     messageReader(EndQuery(jobID))
     readers.flushAsync().thenApply(_ => readers.closeAsync())
+
     val queryManagerProducer = pulsarController.toQueryManagerProducer
     queryManagerProducer
       .sendAsync(serialise(EndQuery(jobID)))

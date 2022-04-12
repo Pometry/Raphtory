@@ -49,6 +49,7 @@ class Reader(
     logger.debug(s"stopping Reader for partition $partitionID")
     cancelableConsumer match {
       case Some(value) =>
+        value.unsubscribe()
         value.close()
       case None        =>
     }
