@@ -35,7 +35,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
               increment = 10000,
               windows = List(500, 1000, 10000)
       )
-
+    jobId = queryProgressTracker.getJobId
     queryProgressTracker.waitForJob()
 
     val firstResult = new String(receiveMessage(consumer).getValue)

@@ -1,4 +1,4 @@
-package com.raphtory.algorithms
+package com.raphtory
 
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.graphbuilder.Properties._

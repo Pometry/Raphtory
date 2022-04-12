@@ -8,6 +8,7 @@ import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.config.PulsarController
 import com.raphtory.deployment.Raphtory
+import com.raphtory.output.FileOutputFormat
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.commons.io.FileUtils
@@ -23,7 +24,6 @@ import org.slf4j.LoggerFactory
 
 import java.io.File
 import java.nio.charset.StandardCharsets
-import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
@@ -35,13 +35,14 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  var jobId: String           = ""
-  val outputDirectory: String = "/tmp/raphtoryTest"
+  var jobId: String                     = ""
+  val outputDirectory: String           = "/tmp/raphtoryTest"
+  def defaultOutputFormat: OutputFormat = FileOutputFormat(outputDirectory)
 
   var graph: GraphDeployment[T]          = _
-  var pulsarController: PulsarController = _
-  var conf: Config                       = _
-  var deploymentID: String               = _
+  def pulsarController: PulsarController = new PulsarController(conf)
+  def conf: Config                       = graph.getConfig()
+  def deploymentID: String               = conf.getString("raphtory.deploy.id")
 
   override def beforeAll(): Unit = {
     setup()
@@ -52,11 +53,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     graph = Option
       .when(batchLoading())(Raphtory.batchLoadGraph[T](spout, graphBuilder))
       .fold(Raphtory.streamGraph[T](spout, graphBuilder))(identity)
-
-    conf = graph.getConfig()
-    deploymentID = conf.getString("raphtory.deploy.id")
-
-    pulsarController = new PulsarController(conf)
   }
 
   override def afterAll(): Unit =
@@ -70,15 +66,18 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
         failed
       case other          =>
         if (deleteResultAfterFinish)
-          FileUtils
+          try FileUtils
             .cleanDirectory(new File(outputDirectory + s"/$jobId"))
-
+          catch {
+            case e: Throwable =>
+              e.printStackTrace()
+          }
         other
     }
 
   def setSpout(): Spout[T]
   def setGraphBuilder(): GraphBuilder[T]
-  def batchLoading(): Boolean
+  def batchLoading(): Boolean                                               = false
   def setup(): Unit = {}
 
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
@@ -86,11 +85,11 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   def algorithmTest(
       algorithm: GraphAlgorithm,
-      outputFormat: OutputFormat,
       start: Long,
       end: Long,
       increment: Long,
-      windows: List[Long]
+      windows: List[Long] = List[Long](),
+      outputFormat: OutputFormat = defaultOutputFormat
   ): String = {
     val queryProgressTracker =
       graph.rangeQuery(algorithm, outputFormat, start, end, increment, windows)
@@ -104,9 +103,9 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   def algorithmPointTest(
       algorithm: GraphAlgorithm,
-      outputFormat: OutputFormat,
       timestamp: Long,
-      windows: List[Long] = List[Long]()
+      windows: List[Long] = List[Long](),
+      outputFormat: OutputFormat = defaultOutputFormat
   ): String = {
     val queryProgressTracker = graph.pointQuery(algorithm, outputFormat, timestamp, windows)
 
@@ -117,25 +116,27 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     generateTestHash(outputDirectory + s"/$jobId")
   }
 
+  def resultsHash(results: IterableOnce[String]): String =
+    Hashing
+      .sha256()
+      .hashString(results.iterator.toSeq.sorted.mkString, StandardCharsets.UTF_8)
+      .toString
+
   private def generateTestHash(outputPath: String): String = {
     val files = new File(outputPath)
       .listFiles()
       .filter(_.isFile)
 
-    val results = files.flatMap { file =>
+    val results = files.iterator.flatMap { file =>
       val source = scala.io.Source.fromFile(file)
       try source.getLines().toList
       catch {
         case e: Exception => throw e
       }
       finally source.close()
-    }.sorted
+    }
 
-    val hash = Hashing
-      .sha256()
-      .hashString(results.mkString, StandardCharsets.UTF_8)
-      .toString
-
+    val hash = resultsHash(results)
     logger.info(s"Generated hash code: '$hash'.")
 
     hash
