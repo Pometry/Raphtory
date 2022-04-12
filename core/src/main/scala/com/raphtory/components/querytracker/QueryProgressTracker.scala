@@ -76,9 +76,8 @@ class QueryProgressTracker(
   private val perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
   private val perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
 
-  val startTime: Long               = System.currentTimeMillis
-  var perspectiveTime: Long         = startTime
-  private val deleteTopics: Boolean = conf.getBoolean("raphtory.topics.delete")
+  val startTime: Long       = System.currentTimeMillis
+  var perspectiveTime: Long = startTime
 
   private val isJobDoneFuture = Task
     .never[Unit]
@@ -144,34 +143,6 @@ class QueryProgressTracker(
         value.close()
       case None        =>
     }
-    val PulsarAdmin = pulsarController.pulsarAdmin
-//    if (deleteTopics)
-//      PulsarAdmin
-//        .tenants()
-//        .getTenants
-//        .forEach(tenant =>
-//          PulsarAdmin
-//            .namespaces()
-//            .getNamespaces(tenant)
-//            .forEach(namespace =>
-//              PulsarAdmin.topics
-//                .getList(namespace)
-//                .forEach(topic =>
-//                  if (topic.contains(jobID))
-////                    Thread.sleep(1000)
-//                    try {
-//                      pulsarController.deleteTopic(topic)
-//                      logger.info(s"Deleted topic: $topic")
-//                    }
-//                    catch {
-//                      case exception: Exception =>
-//                        logger.warn(s"Failed to delete topic: $topic")
-////                        exception.printStackTrace()
-//                    }
-//                )
-//            )
-//        )
-
   }
 
   def getJobId: String =
