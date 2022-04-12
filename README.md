@@ -1,4 +1,4 @@
-a<p align="center">
+<p align="center">
   <img src="https://user-images.githubusercontent.com/6665739/130641943-fa7fcdb8-a0e7-4aa4-863f-3df61b5de775.png" alt="Raphtory" height="250"/>
 </p>
 
