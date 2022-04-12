@@ -140,35 +140,39 @@ class QueryProgressTracker(
     logger.debug(s"Stopping QueryProgressTracker for $jobID")
     cancelableConsumer match {
       case Some(value) =>
+        value.unsubscribe()
         value.close()
+        pulsarController.deleteTopic(value.getTopic)
       case None        =>
     }
     val PulsarAdmin = pulsarController.pulsarAdmin
-    if (deleteTopics)
-      try PulsarAdmin
-        .tenants()
-        .getTenants
-        .forEach(tenant =>
-          PulsarAdmin
-            .namespaces()
-            .getNamespaces(tenant)
-            .forEach(namespace =>
-              PulsarAdmin.topics
-                .getList(namespace)
-                .forEach(topic =>
-                  if (topic.contains(jobID)) {
-                    Thread.sleep(1000)
-                    pulsarController.deleteTopic(topic)
-                    logger.info(s"Deleted topic: $topic")
-                  }
-                )
-            )
-        )
-      catch {
-        case exception: Exception =>
-          logger.warn("Failed to delete topic")
-          exception.printStackTrace()
-      }
+//    if (deleteTopics)
+//      PulsarAdmin
+//        .tenants()
+//        .getTenants
+//        .forEach(tenant =>
+//          PulsarAdmin
+//            .namespaces()
+//            .getNamespaces(tenant)
+//            .forEach(namespace =>
+//              PulsarAdmin.topics
+//                .getList(namespace)
+//                .forEach(topic =>
+//                  if (topic.contains(jobID))
+////                    Thread.sleep(1000)
+//                    try {
+//                      pulsarController.deleteTopic(topic)
+//                      logger.info(s"Deleted topic: $topic")
+//                    }
+//                    catch {
+//                      case exception: Exception =>
+//                        logger.warn(s"Failed to delete topic: $topic")
+////                        exception.printStackTrace()
+//                    }
+//                )
+//            )
+//        )
+
   }
 
   def getJobId: String =

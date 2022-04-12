@@ -48,6 +48,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
       case req: EndQuery            =>
         currentQueries.get(req.jobID) match {
           case Some(queryhandler) =>
+            queryhandler.stop()
             currentQueries.remove(req.jobID)
           case None               => //sender ! QueryNotPresent(req.jobID)
         }
