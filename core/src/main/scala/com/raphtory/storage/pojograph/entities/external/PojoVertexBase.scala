@@ -16,8 +16,8 @@ import scala.reflect.ClassTag
 trait PojoVertexBase extends Vertex {
   // abstract state
   protected def lens: PojoGraphLens
-  protected val internalIncomingEdges: mutable.Map[VertexID, Edge]
-  protected val internalOutgoingEdges: mutable.Map[VertexID, Edge]
+  protected val internalIncomingEdges: mutable.Map[IdType, Edge]
+  protected val internalOutgoingEdges: mutable.Map[IdType, Edge]
 
   // queues
   protected var multiQueue: VertexMultiQueue =
@@ -45,7 +45,7 @@ trait PojoVertexBase extends Vertex {
   override def messageSelf(data: Any): Unit =
     lens.sendMessage(VertexMessage(lens.superStep + 1, ID(), data))
 
-  def messageVertex(vertexId: VertexID, data: Any): Unit = {
+  def messageVertex(vertexId: IdType, data: Any): Unit = {
     val message = VertexMessage(lens.superStep + 1, vertexId, data)
     lens.sendMessage(message)
   }
@@ -82,10 +82,10 @@ trait PojoVertexBase extends Vertex {
   def executeEdgeDelete(): Unit = {
     internalOutgoingEdges --= outgoingEdgeDeleteMultiQueue
       .getMessageQueue(lens.superStep)
-      .map(_.asInstanceOf[VertexID])
+      .map(_.asInstanceOf[IdType])
     internalIncomingEdges --= incomingEdgeDeleteMultiQueue
       .getMessageQueue(lens.superStep)
-      .map(_.asInstanceOf[VertexID])
+      .map(_.asInstanceOf[IdType])
     outgoingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
     incomingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
   }
@@ -117,7 +117,7 @@ trait PojoVertexBase extends Vertex {
 
   //out edges individual
   def getOutEdge(
-      id: VertexID,
+      id: IdType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge] =
@@ -125,7 +125,7 @@ trait PojoVertexBase extends Vertex {
 
   //In edges individual
   def getInEdge(
-      id: VertexID,
+      id: IdType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge] =
@@ -133,14 +133,14 @@ trait PojoVertexBase extends Vertex {
 
   // edge individual
   def getEdge(
-      id: VertexID,
+      id: IdType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge] =
     individualEdge(internalIncomingEdges ++ internalOutgoingEdges, after, before, id)
 
   private def allEdge(
-      edges: mutable.Map[VertexID, Edge],
+      edges: mutable.Map[IdType, Edge],
       after: Long,
       before: Long
   ): List[Edge] =
@@ -152,10 +152,10 @@ trait PojoVertexBase extends Vertex {
       }.toList
 
   private def individualEdge(
-      edges: mutable.Map[VertexID, Edge],
+      edges: mutable.Map[IdType, Edge],
       after: Long,
       before: Long,
-      id: VertexID
+      id: IdType
   ) =
     if (after == 0 && before == Long.MaxValue)
       edges.get(id)

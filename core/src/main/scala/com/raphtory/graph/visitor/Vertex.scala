@@ -353,12 +353,12 @@ import scala.reflect.ClassTag
   *         or vertex properties
   */
 trait Vertex extends EntityVisitor {
-  type VertexID
-  type Edge <: visitor.Edge[VertexID]
-  implicit val ordering: Ordering[VertexID]
+  type IdType
+  type Edge <: visitor.Edge[IdType]
+  implicit val ordering: Ordering[IdType]
 
-  type ExplodedEdge = visitor.ExplodedEdge[VertexID]
-  def ID(): VertexID
+  type ExplodedEdge = visitor.ExplodedEdge[IdType]
+  def ID(): IdType
 
   def name(nameProperty: String = "name"): String =
     getPropertyOrElse[String](nameProperty, ID.toString)
@@ -369,7 +369,7 @@ trait Vertex extends EntityVisitor {
   def voteToHalt(): Unit
   //Send message
   def messageSelf(data: Any): Unit = messageVertex(ID(), data)
-  def messageVertex(vertexId: VertexID, data: Any): Unit
+  def messageVertex(vertexId: IdType, data: Any): Unit
 
   def messageOutNeighbours(message: Any): Unit =
     getOutNeighbours().foreach(messageVertex(_, message))
@@ -379,23 +379,23 @@ trait Vertex extends EntityVisitor {
   def messageInNeighbours(message: Any): Unit  = getInNeighbours().foreach(messageVertex(_, message))
 
   //Get Neighbours
-  def getOutNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[VertexID] =
+  def getOutNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IdType] =
     getOutEdges(after, before).map(_.dst())
 
-  def getInNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[VertexID] =
+  def getInNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IdType] =
     getInEdges(after, before).map(_.src())
 
-  def getAllNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[VertexID] =
+  def getAllNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IdType] =
     (getInNeighbours(after, before) ++ getOutNeighbours(after, before)).distinct
 
   //Check Neighbours
   private lazy val inNeighbourSet  = getInNeighbours().toSet
   private lazy val outNeighbourSet = getOutNeighbours().toSet
 
-  def isNeighbour(id: VertexID): Boolean    =
+  def isNeighbour(id: IdType): Boolean    =
     inNeighbourSet.contains(id) || outNeighbourSet.contains(id)
-  def isInNeighbour(id: VertexID): Boolean  = inNeighbourSet.contains(id)
-  def isOutNeighbour(id: VertexID): Boolean = outNeighbourSet.contains(id)
+  def isInNeighbour(id: IdType): Boolean  = inNeighbourSet.contains(id)
+  def isOutNeighbour(id: IdType): Boolean = outNeighbourSet.contains(id)
 
 //  def removeInNeighbour(id: VertexID)
 //  def removeOutNeighbour(id: VertexID)
@@ -423,21 +423,21 @@ trait Vertex extends EntityVisitor {
 
   //individual out edge
   def getOutEdge(
-      id: VertexID,
+      id: IdType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge]
 
   //individual in edge
   def getInEdge(
-      id: VertexID,
+      id: IdType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge]
 
   //get individual edge irrespective of direction
   def getEdge(
-      id: VertexID,
+      id: IdType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge]
@@ -465,7 +465,7 @@ trait Vertex extends EntityVisitor {
 
   //individual out edge
   def explodeOutEdge(
-      id: VertexID,
+      id: IdType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[List[ExplodedEdge]] =
@@ -473,7 +473,7 @@ trait Vertex extends EntityVisitor {
 
   //individual in edge
   def explodeInEdge(
-      id: VertexID,
+      id: IdType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[List[ExplodedEdge]] =
@@ -481,7 +481,7 @@ trait Vertex extends EntityVisitor {
 
   //individual edge
   def explodedEdge(
-      id: VertexID,
+      id: IdType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[List[ExplodedEdge]] =
