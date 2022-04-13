@@ -94,6 +94,20 @@ import io.sqooba.oss.timeseries.immutable.TSEntry
   *    More property types with different value semantics are likely going to be added in the future.
   *    ```
   *
+  * {s}`getTimeSeriesPropertyHistory[T](key: String, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[TimeSeries[T]]`
+  *  :  Return values for property {s}`key`. Returns {s}`None` if no property with name {s}`key` exists.
+  *     Otherwise returns a TimeSeries (from this library: https://github.com/Sqooba/scala-timeseries-lib) which may be empty.
+  *     This function utilises the getPropertyHistory function and maps over the list of tuples, retrieving the timestamps to work out the individual TimeSeries entries.
+  *
+  *     {s}`key: String`
+  *       : name of property
+  *
+  *    {s}`after: Long` (optional)
+  *      : Only consider addition events in the current view that happened after time {s}`after`
+  *
+  *    {s}`before: Long` (optional)
+  *      : Only consider addition events in the current view that happened before time {s}`before`
+  *
   * {s}`getPropertyValues[T](key: String, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[List[T]]`
   *  :  Return values for property {s}`key`. Returns {s}`None` if no property with name {s}`key` exists.
   *    Otherwise returns a list of values (which may be empty).
@@ -257,8 +271,7 @@ abstract class EntityVisitor {
       before: Long = Long.MaxValue
   ): Option[TimeSeries[T]] =
     getPropertyHistory[T](key, after, before).map { timestampList =>
-      if (timestampList.nonEmpty) {
-        println(s"$timestampList")
+      if (timestampList.nonEmpty)
         TimeSeries.ofOrderedEntriesUnsafe {
           timestampList.iterator
             .sliding(2)
@@ -270,7 +283,6 @@ abstract class EntityVisitor {
             .++(Seq(TSEntry[T](timestampList.last._1, timestampList.last._2, before)))
             .toSeq
         }
-      }
       else EmptyTimeSeries
     }
 
