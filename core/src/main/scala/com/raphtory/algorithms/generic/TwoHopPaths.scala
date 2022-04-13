@@ -63,7 +63,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends GraphAlgorithm {
       )
       .iterate(
               { vertex =>
-                val newMessages = vertex.messageQueue[Message[vertex.IdType]]
+                val newMessages = vertex.messageQueue[Message[vertex.IDType]]
                 newMessages.foreach {
                   message =>
                     message match {

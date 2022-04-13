@@ -11,7 +11,7 @@ class WeightedRandomWalk[T](
 )(implicit numeric: Numeric[T])
         extends RandomWalk(walkLength, numWalks, seed) {
 
-  override protected def selectNeighbour(vertex: Vertex): vertex.IdType = {
+  override protected def selectNeighbour(vertex: Vertex): vertex.IDType = {
     val neighbours = vertex.getOutNeighbours()
     if (neighbours.isEmpty)
       vertex.ID()

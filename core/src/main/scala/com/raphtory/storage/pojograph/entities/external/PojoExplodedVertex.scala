@@ -18,13 +18,13 @@ class PojoExplodedVertex(
 
   override type Edge = PojoExMultilayerEdge
 
-  implicit override val ordering: Ordering[(Long, Long)] =
+  implicit override val IDOrdering: Ordering[(Long, Long)] =
     Ordering.Tuple2(Ordering.Long, Ordering.Long)
 
   var computationValues: Map[String, Any] =
     Map.empty //Partial results kept between supersteps in calculation
 
-  override def ID(): IdType = (vertex.ID(), timestamp)
+  override def ID(): IDType = (vertex.ID(), timestamp)
 
   override def Type(): String = vertex.Type()
 

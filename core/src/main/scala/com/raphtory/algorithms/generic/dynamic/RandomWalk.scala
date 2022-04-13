@@ -69,12 +69,12 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphA
       }
       .iterate(
               vertex =>
-                vertex.messageQueue[Message[vertex.IdType]].foreach {
+                vertex.messageQueue[Message[vertex.IDType]].foreach {
 //              propagate walks
                   case WalkMessage(source, walkID) =>
                     vertex.messageVertex(source, StoreMessage(vertex.name(), walkID))
                     vertex.messageVertex(
-                            selectNeighbour(vertex).asInstanceOf[vertex.IdType],
+                            selectNeighbour(vertex).asInstanceOf[vertex.IDType],
                             WalkMessage(source, walkID)
                     )
                   //          store walks on source node
@@ -87,7 +87,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphA
       )
       .step { vertex =>
 //      collect last step of walk
-        vertex.messageQueue[Message[vertex.IdType]].foreach {
+        vertex.messageQueue[Message[vertex.IDType]].foreach {
           case WalkMessage(source, walkID) =>
           case StoreMessage(name, walkID)  =>
             val walks = vertex.getState[Array[ArrayBuffer[String]]]("walks")

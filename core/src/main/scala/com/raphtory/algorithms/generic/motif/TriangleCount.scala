@@ -55,7 +55,7 @@ class TriangleCount() extends NodeList(Seq("triangleCount")) {
       }
       .step { vertex =>
         val neighbours = vertex.getAllNeighbours().toSet
-        val queue      = vertex.messageQueue[Set[vertex.IdType]]
+        val queue      = vertex.messageQueue[Set[vertex.IDType]]
         var tri        = 0
         queue.foreach(nbs => tri += nbs.intersect(neighbours).size)
         vertex.setState("triangleCount", tri / 2)

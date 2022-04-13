@@ -40,18 +40,18 @@ class AdjPlus extends GraphAlgorithm {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph.step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.degree))).step { vertex =>
-      implicit val tag = ClassTag[vertex.IdType](vertex.ID().getClass)
-      import vertex.ordering
+      implicit val tag = ClassTag[vertex.IDType](vertex.ID().getClass)
+      import vertex.IDOrdering
       val degree       = vertex.degree
       //        Find set of neighbours with higher degree
       val adj          = vertex
-        .messageQueue[(vertex.IdType, Int)]
+        .messageQueue[(vertex.IDType, Int)]
         .filter(message =>
           degree < message._2 || (message._2 == degree && vertex.ID() < message._1)
         )
         .sortBy(m => (m._2, m._1))
         .map(message => message._1)
-        .toArray[vertex.IdType]
+        .toArray[vertex.IDType]
       vertex.setState("adjPlus", adj)
     }
 
@@ -59,11 +59,11 @@ class AdjPlus extends GraphAlgorithm {
 //    return adjPlus as edge list
     graph
       .step { vertex =>
-        val adj = vertex.getState[Array[vertex.IdType]]("adjPlus")
+        val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
         adj.foreach(a => vertex.messageVertex(a, vertex.ID()))
       }
       .step(vertex =>
-        vertex.messageQueue[vertex.IdType].foreach(v => vertex.messageVertex(v, vertex.name()))
+        vertex.messageQueue[vertex.IDType].foreach(v => vertex.messageVertex(v, vertex.name()))
       )
       .select(vertex => Row(vertex.name(), vertex.messageQueue[String]))
       .explode(row => row.getAs[List[String]](1).map(v => Row(row.get(0), v)))

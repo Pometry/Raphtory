@@ -23,8 +23,8 @@ class AccumulateCounts() extends GraphAlgorithm {
       .step { vertex =>
         //        count pr and qr squares and forward counts for accumulating
         var count = vertex.getStateOrElse[Long]("squareCount", 0L)
-        val adj   = vertex.getState[Array[vertex.IdType]]("adjPlus").toSet
-        vertex.messageQueue[SecondStep[vertex.IdType]].foreach { message =>
+        val adj   = vertex.getState[Array[vertex.IDType]]("adjPlus").toSet
+        vertex.messageQueue[SecondStep[vertex.IDType]].foreach { message =>
           val adj_n      = message.adj
           val p          = message.p
           val q          = message.q
@@ -55,15 +55,15 @@ class CountPR() extends GraphAlgorithm {
     AccumulateCounts()(
             graph
               .step { vertex =>
-                val adj = vertex.getState[Array[vertex.IdType]]("adjPlus")
+                val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
                 //        message neighbour set for pr and qr counting
                 adj.foreach(neighbour_id =>
                   vertex.messageVertex(neighbour_id, FirstStep(vertex.ID(), adj))
                 )
               }
               .step { vertex =>
-                val adj = vertex.getState[Array[vertex.IdType]]("adjPlus")
-                vertex.messageQueue[FirstStep[vertex.IdType]].foreach { message =>
+                val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
+                vertex.messageQueue[FirstStep[vertex.IDType]].foreach { message =>
                   val p     = message.p
                   val adj_p = message.adj
                   //          forward neighbour set for pr square counting
@@ -85,14 +85,14 @@ class CountQR() extends GraphAlgorithm {
     AccumulateCounts()(
             graph
               .step { vertex =>
-                val adj = vertex.getState[Array[vertex.IdType]]("adjPlus")
+                val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
                 //        message neighbour set for pr and qr counting
                 for (i <- adj.indices.dropRight(1))
                   vertex.messageVertex(adj(i), FirstStep(vertex.ID(), adj.slice(i + 1, adj.length)))
               }
               .step { vertex =>
-                val adj = vertex.getState[Array[vertex.IdType]]("adjPlus")
-                vertex.messageQueue[FirstStep[vertex.IdType]].foreach { message =>
+                val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
+                vertex.messageQueue[FirstStep[vertex.IDType]].foreach { message =>
                   val p     = message.p
                   val adj_p = message.adj
                   //          forward neighbour set for pr square counting
@@ -114,7 +114,7 @@ class CountPQ() extends GraphAlgorithm {
     graph
       .step { vertex =>
         //        pq wedge count messages (wedges are counted on lower-degree wedge vertex)
-        val adj = vertex.getState[Array[vertex.IdType]]("adjPlus")
+        val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
         for (i <- adj.indices.dropRight(1)) {
           val r = adj(i)
           vertex.messageVertex(r, WedgeMessage(vertex.ID(), adj.slice(i + 1, adj.length)))
@@ -123,10 +123,10 @@ class CountPQ() extends GraphAlgorithm {
       .step { vertex =>
         //        count wedges
         var count      = vertex.getStateOrElse[Long]("squareCount", 0L)
-        val wedgeCount = mutable.Map[vertex.IdType, mutable.ArrayBuffer[vertex.IdType]]()
-        vertex.messageQueue[WedgeMessage[vertex.IdType]].foreach { message =>
+        val wedgeCount = mutable.Map[vertex.IDType, mutable.ArrayBuffer[vertex.IDType]]()
+        vertex.messageQueue[WedgeMessage[vertex.IDType]].foreach { message =>
           message.s.foreach(s =>
-            wedgeCount.getOrElseUpdate(s, mutable.ArrayBuffer[vertex.IdType]()).append(message.p)
+            wedgeCount.getOrElseUpdate(s, mutable.ArrayBuffer[vertex.IDType]()).append(message.p)
           )
         }
         wedgeCount.foreach({

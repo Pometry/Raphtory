@@ -75,7 +75,7 @@ class MaxFlow[T](
     graph
       .step { vertex =>
         if (vertex.name() == source) {
-          val flow = mutable.Map[vertex.IdType, T]()
+          val flow = mutable.Map[vertex.IDType, T]()
           vertex.setState("distanceLabel", n)
           vertex.getOutEdges().foreach { edge =>
             val c: T = edge.weight[T](capacityLabel)
@@ -91,11 +91,11 @@ class MaxFlow[T](
       }
       .iterate(
               { vertex =>
-                val flow      = vertex.getOrSetState("flow", mutable.Map.empty[vertex.IdType, T])
+                val flow      = vertex.getOrSetState("flow", mutable.Map.empty[vertex.IDType, T])
                 val labels    =
-                  vertex.getOrSetState("neighbourLabels", mutable.Map.empty[vertex.IdType, Int])
+                  vertex.getOrSetState("neighbourLabels", mutable.Map.empty[vertex.IDType, Int])
                 var excess: T = vertex.getOrSetState[T]("excess", 0)
-                vertex.messageQueue[Message[vertex.IdType]].foreach {
+                vertex.messageQueue[Message[vertex.IDType]].foreach {
                   case FlowAdded(source, value) =>
                     flow(source) = flow.getOrElse[T](source, 0) - value
                     excess += value

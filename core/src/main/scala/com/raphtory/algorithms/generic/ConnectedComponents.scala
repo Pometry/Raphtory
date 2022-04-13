@@ -53,9 +53,9 @@ class ConnectedComponents() extends NodeList(Seq("cclabel")) {
       }
       .iterate(
               { vertex =>
-                import vertex.ordering
-                val label = vertex.messageQueue[vertex.IdType].min
-                if (label < vertex.getState[vertex.IdType]("cclabel")) {
+                import vertex.IDOrdering
+                val label = vertex.messageQueue[vertex.IDType].min
+                if (label < vertex.getState[vertex.IDType]("cclabel")) {
                   vertex.setState("cclabel", label)
                   vertex.messageAllNeighbours(label)
                 }

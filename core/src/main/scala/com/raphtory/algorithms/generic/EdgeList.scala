@@ -39,7 +39,7 @@ class EdgeList(
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .explodeSelect { vertex =>
-        val neighbourMap = vertex.getState[Map[vertex.IdType, String]]("neighbourNames")
+        val neighbourMap = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")
         val name         = vertex.name()
         vertex
           .getOutEdges()

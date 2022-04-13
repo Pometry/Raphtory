@@ -93,7 +93,7 @@ object LPA {
       .mapValues(x => numeric.toFloat(x.map(_._2).sum))
     // Process neighbour labels into (label, frequency)
     val gp         = vertex
-      .messageQueue[(vertex.IdType, Long)]
+      .messageQueue[(vertex.IDType, Long)]
       .map(v => (v._2, neigh_freq.getOrElse(v._1, 1.0f)))
     // Get label most prominent in neighborhood of vertex
     val maxlab     = gp.groupBy(_._1).mapValues(_.map(_._2).sum)

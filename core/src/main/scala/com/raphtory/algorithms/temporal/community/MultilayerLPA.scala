@@ -81,7 +81,7 @@ class MultilayerLPA(
         case _  => omega.toFloat
       }
 
-    def weightFunction(v: Vertex, ts: Long): Map[v.IdType, Float] =
+    def weightFunction(v: Vertex, ts: Long): Map[v.IDType, Float] =
       (v.getInEdges(after = ts - layerSize, before = ts) ++ v.getOutEdges(
               after = ts - layerSize,
               before = ts
@@ -102,7 +102,7 @@ class MultilayerLPA(
       .iterate(
               { vertex =>
                 val vlabel     = vertex.getState[List[(Long, Long)]]("mlpalabel").toMap
-                val msgQueue   = vertex.messageQueue[(vertex.IdType, List[(Long, Long)])]
+                val msgQueue   = vertex.messageQueue[(vertex.IDType, List[(Long, Long)])]
                 var voteStatus = vertex.getOrSetState[Boolean]("vote", false)
                 var voteCount  = 0
                 val newLabel   = vlabel.map {

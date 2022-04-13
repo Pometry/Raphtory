@@ -17,10 +17,13 @@ import scala.reflect.ClassTag
   *
   * ## Attributes
   *
-  * {s}`type VertexID`
+  * {s}`type IDType`
   *   : ID type of this vertex
   *
-  * {s}`ID(): VertexID`
+  * {s}`implicit val IDOrdering: Ordering[IDType]`
+  *   : ordering to use with ID
+  *
+  * {s}`ID(): IDType`
   *   : vertex ID
   *
   * {s}`name(nameProperty: String = "name"): String`
@@ -60,7 +63,7 @@ import scala.reflect.ClassTag
   *
   * ## Neighbours and Edges
   *
-  * {s}`getAllNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[VertexID]`
+  * {s}`getAllNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType]`
   *   : get IDs of all in- and out-neighbours of the vertex
   *
   *     {s}`after: Long = Long.MinValue`
@@ -69,7 +72,7 @@ import scala.reflect.ClassTag
   *     {s}`before: Long = Long.MaxValue`
   *       : only return neighbours that are active before time {s}`before`
   *
-  * {s}`getOutNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[VertexID]`
+  * {s}`getOutNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType]`
   *   : get IDs of all out-neighbours of the vertex
   *
   *     {s}`after: Long = Long.MinValue`
@@ -78,7 +81,7 @@ import scala.reflect.ClassTag
   *     {s}`before: Long = Long.MaxValue`
   *       : only return neighbours that are active before time {s}`before`
   *
-  * {s}`getInNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[VertexID]`
+  * {s}`getInNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType]`
   *   : get IDs fo all in-neighbours of the vertex
   *
   *     {s}`after: Long = Long.MinValue`
@@ -87,13 +90,13 @@ import scala.reflect.ClassTag
   *     {s}`before: Long = Long.MaxValue`
   *       : only return neighbours that are active before time {s}`before`
   *
-  * {s}`isNeighbour(id: VertexID): Boolean`
+  * {s}`isNeighbour(id: IDType): Boolean`
   *   : check if the vertex with ID {s}`id` is an in- or out-neighbour of this vertex
   *
-  * {s}`isInNeighbour(id: VertexID): Boolean`
+  * {s}`isInNeighbour(id: IDType): Boolean`
   *   : check if the vertex with ID {s}`id` is an in-neighbour of this vertex
   *
-  * {s}`isOutNeighbour(id: VertexID): Boolean`
+  * {s}`isOutNeighbour(id: IDType): Boolean`
   *   : check if the vertex with ID {s}`id` is an out-neighbour of this vertex
   *
   * {s}`getEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]`
@@ -123,10 +126,10 @@ import scala.reflect.ClassTag
   *     {s}`before: Long = Long.MaxValue`
   *       : only return edges that are active before time {s}`before`
   *
-  * {s}`getEdge(id: VertexID, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[Edge]`
+  * {s}`getEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[Edge]`
   *   : return specified edge if it is an in- or out-edge of this vertex
   *
-  *     {s}`id: VertexID`
+  *     {s}`id: IDType`
   *       : ID of edge to return
   *
   *     {s}`after: Long = Long.MinValue`
@@ -135,10 +138,10 @@ import scala.reflect.ClassTag
   *     {s}`before: Long = Long.MaxValue`
   *       : only return edge if it is active before time {s}`before`
   *
-  * {s}`getOutEdge(id: VertexID, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[Edge]`
+  * {s}`getOutEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[Edge]`
   *   : return specified edge if it is an out-edge of this vertex
   *
-  *     {s}`id: VertexID`
+  *     {s}`id: IDType`
   *       : ID of edge to return
   *
   *     {s}`after: Long = Long.MinValue`
@@ -147,10 +150,10 @@ import scala.reflect.ClassTag
   *     {s}`before: Long = Long.MaxValue`
   *       : only return edge if it is active before time {s}`before`
   *
-  * {s}`getInEdge(id: VertexID, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[Edge]`
+  * {s}`getInEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[Edge]`
   *   : return specified edge if it is an in-edge of this vertex
   *
-  *     {s}`id: VertexID`
+  *     {s}`id: IDType`
   *       : ID of edge to return
   *
   *     {s}`after: Long = Long.MinValue`
@@ -189,11 +192,11 @@ import scala.reflect.ClassTag
   *     {s}`before: Long = Long.MaxValue`
   *       : only return view for activity before time {s}`before`
   *
-  * {s}`explodeEdge(id: VertexID, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[List[ExplodedEdge]]`
+  * {s}`explodeEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[List[ExplodedEdge]]`
   *   : return exploded [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge) views for an individual edge
   *     if it is an in- or out-edge of this vertex
   *
-  *     {s}`id: VertexID`
+  *     {s}`id: IDType`
   *       : ID of edge to explode
   *
   *     {s}`after: Long = Long.MinValue`
@@ -202,11 +205,11 @@ import scala.reflect.ClassTag
   *     {s}`before: Long = Long.MaxValue`
   *       : only return view for activity before time {s}`before`
   *
-  * {s}`explodeOutEdge(id: VertexID, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[List[ExplodedEdge]]`
+  * {s}`explodeOutEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[List[ExplodedEdge]]`
   *   : return exploded [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge) views for an individual edge
   *     if it is an out-edge of this vertex
   *
-  *     {s}`id: VertexID`
+  *     {s}`id: IDType`
   *       : ID of edge to explode
   *
   *     {s}`after: Long = Long.MinValue`
@@ -215,11 +218,11 @@ import scala.reflect.ClassTag
   *     {s}`before: Long = Long.MaxValue`
   *       : only return view for activity before time {s}`before`
   *
-  * {s}`explodeInEdge(id: VertexID, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[List[ExplodedEdge]]`
+  * {s}`explodeInEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[List[ExplodedEdge]]`
   *   : return exploded [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge) views for an individual edge
   *     if it is an in-edge of this vertex
   *
-  *     {s}`id: VertexID`
+  *     {s}`id: IDType`
   *       : ID of edge to explode
   *
   *     {s}`after: Long = Long.MinValue`
@@ -248,10 +251,10 @@ import scala.reflect.ClassTag
   *     {s}`data: Any`
   *       : message data to send
   *
-  * {s}`messageVertex(vertexId: VertexID, data: Any): Unit`
+  * {s}`messageVertex(vertexId: IDType, data: Any): Unit`
   *   : send data to another vertex at next Step/Iteration
   *
-  *     {s}`vertexID: VertexID`
+  *     {s}`vertexID: IDType`
   *       : ID of target vertex for the message
   *
   *     {s}`data: Any`
@@ -353,12 +356,12 @@ import scala.reflect.ClassTag
   *         or vertex properties
   */
 trait Vertex extends EntityVisitor {
-  type IdType
-  type Edge <: visitor.Edge[IdType]
-  implicit val ordering: Ordering[IdType]
+  type IDType
+  type Edge <: visitor.Edge[IDType]
+  implicit val IDOrdering: Ordering[IDType]
 
-  type ExplodedEdge = visitor.ExplodedEdge[IdType]
-  def ID(): IdType
+  type ExplodedEdge = visitor.ExplodedEdge[IDType]
+  def ID(): IDType
 
   def name(nameProperty: String = "name"): String =
     getPropertyOrElse[String](nameProperty, ID.toString)
@@ -369,7 +372,7 @@ trait Vertex extends EntityVisitor {
   def voteToHalt(): Unit
   //Send message
   def messageSelf(data: Any): Unit = messageVertex(ID(), data)
-  def messageVertex(vertexId: IdType, data: Any): Unit
+  def messageVertex(vertexId: IDType, data: Any): Unit
 
   def messageOutNeighbours(message: Any): Unit =
     getOutNeighbours().foreach(messageVertex(_, message))
@@ -379,32 +382,23 @@ trait Vertex extends EntityVisitor {
   def messageInNeighbours(message: Any): Unit  = getInNeighbours().foreach(messageVertex(_, message))
 
   //Get Neighbours
-  def getOutNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IdType] =
+  def getOutNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
     getOutEdges(after, before).map(_.dst())
 
-  def getInNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IdType] =
+  def getInNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
     getInEdges(after, before).map(_.src())
 
-  def getAllNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IdType] =
+  def getAllNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
     (getInNeighbours(after, before) ++ getOutNeighbours(after, before)).distinct
 
   //Check Neighbours
   private lazy val inNeighbourSet  = getInNeighbours().toSet
   private lazy val outNeighbourSet = getOutNeighbours().toSet
 
-  def isNeighbour(id: IdType): Boolean    =
+  def isNeighbour(id: IDType): Boolean    =
     inNeighbourSet.contains(id) || outNeighbourSet.contains(id)
-  def isInNeighbour(id: IdType): Boolean  = inNeighbourSet.contains(id)
-  def isOutNeighbour(id: IdType): Boolean = outNeighbourSet.contains(id)
-
-//  def removeInNeighbour(id: VertexID)
-//  def removeOutNeighbour(id: VertexID)
-//  def removeNeighbour(id: VertexID)
-//  def addInNeighbour(id: VertexID)
-//  def addOutNeighbour(id: VertexID)
-//  def addNeighbour(id: VertexID)
-
-//  def removeSelf
+  def isInNeighbour(id: IDType): Boolean  = inNeighbourSet.contains(id)
+  def isOutNeighbour(id: IDType): Boolean = outNeighbourSet.contains(id)
 
   //Degree
   lazy val degree: Int    = getAllNeighbours().size
@@ -412,32 +406,29 @@ trait Vertex extends EntityVisitor {
   lazy val inDegree: Int  = getInNeighbours().size
 
   //all edges
-//  def getEdges(): List[Edge[VertexID]]
   def getEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
   //all out edges
-//  def getOutEdges(): List[Edge[VertexID]]
   def getOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
   //all in edges
-//  def getInEdges(): List[Edge[VertexID]]
   def getInEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
 
   //individual out edge
   def getOutEdge(
-      id: IdType,
+      id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge]
 
   //individual in edge
   def getInEdge(
-      id: IdType,
+      id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge]
 
   //get individual edge irrespective of direction
   def getEdge(
-      id: IdType,
+      id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge]
@@ -465,7 +456,7 @@ trait Vertex extends EntityVisitor {
 
   //individual out edge
   def explodeOutEdge(
-      id: IdType,
+      id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[List[ExplodedEdge]] =
@@ -473,7 +464,7 @@ trait Vertex extends EntityVisitor {
 
   //individual in edge
   def explodeInEdge(
-      id: IdType,
+      id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[List[ExplodedEdge]] =
@@ -481,7 +472,7 @@ trait Vertex extends EntityVisitor {
 
   //individual edge
   def explodedEdge(
-      id: IdType,
+      id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[List[ExplodedEdge]] =
@@ -665,8 +656,6 @@ trait Vertex extends EntityVisitor {
     )
 
   def remove(): Unit
-  // Also need a function for receiving messages, but the user should not have access to this
-  //private def receiveMessage(msg: VertexMessage): Unit
 }
 
 private object DefaultValues {

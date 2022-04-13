@@ -61,7 +61,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
         vertex.messageAllNeighbours(vertex.ID(), degree, weight, nodeWeight)
       }
       .step { vertex =>
-        val messages = vertex.messageQueue[(vertex.IdType, Int, Double, Double)]
+        val messages = vertex.messageQueue[(vertex.IDType, Int, Double, Double)]
         val N        =
           1 // graph.nodeCount().toDouble TODO: nodeCount() is not available anymore, needs a solution
         vertex.setState("D1", D1(vertex)(messages, N, alpha))
@@ -72,7 +72,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
       }
 
   def D1(vertex: Vertex)(
-      messages: List[(vertex.IdType, Int, Double, Double)],
+      messages: List[(vertex.IDType, Int, Double, Double)],
       noNodes: Double,
       alpha: Double
   ): Double =
@@ -86,7 +86,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
       .sum
 
   def D2(vertex: Vertex)(
-      messages: List[(vertex.IdType, Int, Double, Double)],
+      messages: List[(vertex.IDType, Int, Double, Double)],
       noNodes: Double,
       alpha: Double
   ): Double =
@@ -98,7 +98,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
       .sum
 
   def D3(vertex: Vertex)(
-      messages: List[(vertex.IdType, Int, Double, Double)],
+      messages: List[(vertex.IDType, Int, Double, Double)],
       noNodes: Double,
       alpha: Double
   ): Double =
@@ -114,7 +114,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
       .sum
 
   def D4(vertex: Vertex)(
-      messages: List[(vertex.IdType, Int, Double, Double)],
+      messages: List[(vertex.IDType, Int, Double, Double)],
       noNodes: Double,
       alpha: Double
   ): Double =
@@ -128,7 +128,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
       .sum
 
   def D5(vertex: Vertex)(
-      messages: List[(vertex.IdType, Int, Double, Double)],
+      messages: List[(vertex.IDType, Int, Double, Double)],
       noNodes: Double,
       alpha: Double
   ): Double =

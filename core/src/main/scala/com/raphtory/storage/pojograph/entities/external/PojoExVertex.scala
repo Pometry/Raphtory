@@ -30,9 +30,9 @@ class PojoExVertex(
 ) extends PojoExEntity(v, lens)
         with PojoVertexBase {
 
-  override type IdType = Long
+  override type IDType = Long
   override type Edge   = PojoExEdge
-  implicit override val ordering: Ordering[Long] = Ordering.Long
+  implicit override val IDOrdering: Ordering[Long] = Ordering.Long
 
   override def ID(): Long = v.vertexId
 
