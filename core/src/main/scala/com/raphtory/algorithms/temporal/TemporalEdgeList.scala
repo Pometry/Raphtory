@@ -4,6 +4,7 @@ import com.raphtory.algorithms.generic.NeighbourNames
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.graph.visitor.ExplodedVertex
 
 /**
   *  {s}`TemporalEdgeList(properties: String*)`
@@ -34,32 +35,26 @@ import com.raphtory.algorithms.api.Table
 class TemporalEdgeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends NeighbourNames {
+) extends GraphAlgorithm {
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph
-      .select { vertex =>
-        val neighbourMap = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")
-        Row(
-                vertex.name(),
-                vertex.getOutEdges().flatMap { edge =>
-                  val dst = neighbourMap(edge.dst())
-                  edge.explode().map { exEdge =>
-                    dst +: exEdge.timestamp +: properties.map(name =>
-                      exEdge.getProperty(name) match {
-                        case Some(v) => v
-                        case None    => defaults.getOrElse(name, None)
-                      }
-                    )
-                  }
-                }
-        )
-      }
-      .explode { row =>
-        row.getAs[List[Seq[String]]](1).map { neighbourProperties =>
-          val rowList = row.get(0) +: neighbourProperties
-          Row(rowList: _*)
-        }
+    NeighbourNames()(graph.reducedView)
+      .multilayerView()
+      .explodeSelect { vertex =>
+        val explodedVertex = vertex.asInstanceOf[ExplodedVertex]
+        val neighbourMap   = explodedVertex.getState[Map[Long, String]]("neighbourNames")
+        explodedVertex
+          .getOutEdges()
+          .map { edge =>
+            Row(
+                    explodedVertex.baseName +:
+                      neighbourMap(edge.dst._1) +:
+                      edge.timestamp +:
+                      properties.map { name =>
+                        edge.getPropertyOrElse(name, defaults.getOrElse(name, None))
+                      }: _*
+            )
+          }
       }
 }
 
