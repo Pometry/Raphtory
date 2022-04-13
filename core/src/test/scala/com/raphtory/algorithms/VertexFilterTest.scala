@@ -1,5 +1,6 @@
 package com.raphtory.algorithms
 
+import com.raphtory.BaseCorrectnessTest
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
