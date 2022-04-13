@@ -66,8 +66,10 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
         failed
       case other          =>
         if (deleteResultAfterFinish)
-          try FileUtils
-            .cleanDirectory(new File(outputDirectory + s"/$jobId"))
+          try {
+            val path = new File(outputDirectory + s"/$jobId")
+            FileUtils.deleteDirectory(path)
+          }
           catch {
             case e: Throwable =>
               e.printStackTrace()
