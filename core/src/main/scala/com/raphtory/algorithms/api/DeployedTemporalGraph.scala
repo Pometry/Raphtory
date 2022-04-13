@@ -33,4 +33,6 @@ private[raphtory] class DeployedTemporalGraph(
   private val deploymentRef = new Deployment()
 
   def deployment: Deployment = deploymentRef
+
+  private[raphtory] def getConfig() = conf
 }
