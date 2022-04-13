@@ -109,18 +109,21 @@ import scala.reflect.runtime.universe._
   * Example Usage:
   *
   * ```{code-block} scala
-  *
   * import com.raphtory.deployment.Raphtory
-  * import com.raphtory.lotrtest.LOTRGraphBuilder
   * import com.raphtory.components.spout.instance.ResourceSpout
   * import com.raphtory.GraphState
   * import com.raphtory.output.FileOutputFormat
   *
+  * val builder = ???
   * val customConfig = Map(("raphtory.pulsar.endpoint", "localhost:1234"))
-  * Raphtory.createClient("deployment123", customConfig)
-  * val graph = Raphtory.createGraph(ResourceSpout("resource"), LOTRGraphBuilder())
-  * graph.rangeQuery(GraphState(),FileOutputFormat("/test_dir"),1, 32674, 10000, List(500, 1000, 10000))
+  * val graph = Raphtory.stream(ResourceSpout("resource"), builder, customConfig)
+  * graph
+  *   .range(1, 32674, 10000)
+  *   .windows(List(500, 1000, 10000))
+  *   .execute(GraphState())
+  *   .writeTo(FileOutputFormat("/test_dir"))
   *
+  * graph.deployment.stop()
   * ```
   *
   *  ```{seealso}
