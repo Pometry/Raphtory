@@ -114,7 +114,7 @@ If you run Pulsar in Docker, you will now be able to see your container in the d
 Everything should now be installed and ready for us to get your first Raphtory Job underway!
 
 ## Running the latest Raphtory release in an Examples Project
-All the example projects can be found in the [Raphtory repo](https://github.com/Raphtory/Raphtory/tree/development), currently the projects in the `development` branch are working (raphtory-example-presto is in progress).
+All the example projects can be found in the [Raphtory repo](https://github.com/Raphtory/Raphtory). All projects are working other than `raphtory-examples-presto` which will be re-enabled soon.
 
 ```bash
 git clone https://github.com/Raphtory/Raphtory.git
