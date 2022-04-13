@@ -7,7 +7,6 @@ import com.raphtory.components.spout.Spout
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.spouts.FileSpout
-import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Schema
 
 import java.io.File
@@ -18,7 +17,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
   test("Outputting to Pulsar") {
     val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)
 
-    val consumer: Consumer[Array[Byte]] =
+    val consumer =
       pulsarController
         .createSharedConsumer(
                 subscriptionName = "pulsarOutputTest",
@@ -37,12 +36,12 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
       )
     jobId = queryProgressTracker.getJobId
     queryProgressTracker.waitForJob()
-
     val firstResult = new String(receiveMessage(consumer).getValue)
-
     logger.info(s"Output to Pulsar complete. First result is: '$firstResult'.")
 
     assert(firstResult.nonEmpty)
+
+    consumer.unsubscribe()
   }
 
   override def batchLoading(): Boolean = false

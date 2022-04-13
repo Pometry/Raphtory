@@ -88,7 +88,7 @@ class QueryHandler(
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
   override def run(): Unit = {
-    readers sendAsync serialise(EstablishExecutor(jobID))
+    messageReader(EstablishExecutor(jobID))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
 
     cancelableConsumer = Some(
@@ -101,6 +101,7 @@ class QueryHandler(
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
+        value.unsubscribe()
         value.close()
       case None        =>
     }
@@ -532,7 +533,16 @@ class QueryHandler(
 
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
+    workerList.values.foreach(producer =>
+      producer.flushAsync().thenApply(_ => producer.closeAsync())
+    )
     messageReader(EndQuery(jobID))
+    readers.flushAsync().thenApply(_ => readers.closeAsync())
+
+    val queryManagerProducer = pulsarController.toQueryManagerProducer
+    queryManagerProducer
+      .sendAsync(serialise(EndQuery(jobID)))
+      .thenApply(_ => queryManagerProducer.closeAsync())
     logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
 
     tracker
