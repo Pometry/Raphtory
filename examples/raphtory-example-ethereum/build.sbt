@@ -6,9 +6,9 @@ organization := "com.raphtory"
 
 scalaVersion := "2.13.7"
 
-assembly / test := {}
+resolvers += Resolver.mavenLocal
 
-Compile / unmanagedJars += baseDirectory.value / "lib/core-assembly-0.5.jar"
+libraryDependencies += "com.raphtory" %% "core" % "0.5"
 Compile / resourceDirectory := baseDirectory.value / "resources"
 
 libraryDependencies ++= Seq(

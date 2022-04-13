@@ -1,8 +1,7 @@
 name := "example-lotr"
 version := "0.5"
 organization := "com.raphtory"
-
-assembly / test := {}
-
-Compile / unmanagedJars += baseDirectory.value / "lib/core-assembly-0.5.jar"
+scalaVersion := "2.13.7"
+libraryDependencies += "com.raphtory" %% "core" % "0.5"
+resolvers += Resolver.mavenLocal
 Compile / resourceDirectory := baseDirectory.value / "resources"
