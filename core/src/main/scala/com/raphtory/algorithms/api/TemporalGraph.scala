@@ -50,24 +50,38 @@ import com.typesafe.config.Config
   *      {s}`startTime: String`
   *      : timestamp
   *
-  *  {s}`until(endTime: Long): TemporalGraph`
+  *  {s}`to(endTime: Long): TemporalGraph`
   *    : Creates a new `TemporalGraph` filtering out all the activity after {s}`endTime`.
   *
   *      {s}`endTime: Long`
   *        : time interpreted in milliseconds by default
   *
-  *  {s}`until(endTime: String): TemporalGraph`
+  *  {s}`to(endTime: String): TemporalGraph`
   *    : Creates a new `TemporalGraph` filtering out all the activity after {s}`endTime`.
   *
   *      {s}`endTime: String`
   *        : timestamp
   *
+  *  {s}`until(endTime: Long): TemporalGraph`
+  *    : Creates a new `TemporalGraph` filtering out all the activity after and at {s}`endTime`.
+  *
+  *      {s}`endTime: Long`
+  *        : time interpreted in milliseconds by default
+  *
+  *  {s}`until(endTime: String): TemporalGraph`
+  *    : Creates a new `TemporalGraph` filtering out all the activity after and at {s}`endTime`.
+  *
+  *      {s}`endTime: String`
+  *        : timestamp
+  *
   *  {s}`slice(startTime: Long, endTime: Long): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the before {s}`startTime` and after {s}`endTime`.
+  *    : Creates a new `TemporalGraph` filtering out all the activity
+  *    before {s}`startTime` and after and at {s}`endTime`.
   *    {s}`graph.slice(startTime, endTime)` is equivalent to {s}`graph.from(startTime).until(endTime)`
   *
   *  {s}`slice(startTime: String, endTime: String): TemporalGraph`
-  *     : Creates a new `TemporalGraph` filtering out all the before {s}`startTime` and after {s}`endTime`.
+  *     : Creates a new `TemporalGraph` filtering out all the activity
+  *     before {s}`startTime` and after and at {s}`endTime`.
   *    {s}`graph.slice(startTime, endTime)` is equivalent to {s}`graph.from(startTime).until(endTime)`.
   *
   *      {s}`startTime: String`
@@ -209,10 +223,14 @@ private[raphtory] class TemporalGraph(
 
   def from(startTime: String): TemporalGraph = from(parseDateTime(startTime))
 
-  def until(endTime: Long): TemporalGraph = {
+  def to(endTime: Long): TemporalGraph = {
     val updatedEnd = query.timelineEnd min endTime
     new TemporalGraph(query.copy(timelineEnd = updatedEnd), querySender, conf)
   }
+
+  def to(endTime: String): TemporalGraph = to(parseDateTime(endTime))
+
+  def until(endTime: Long): TemporalGraph = to(endTime - 1)
 
   def until(endTime: String): TemporalGraph = until(parseDateTime(endTime))
 

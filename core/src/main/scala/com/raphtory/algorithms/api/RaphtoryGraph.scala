@@ -1,5 +1,6 @@
 package com.raphtory.algorithms.api
 
+import com.raphtory.client.GraphDeployment
 import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
 

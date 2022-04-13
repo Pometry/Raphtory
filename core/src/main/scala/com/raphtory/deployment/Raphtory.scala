@@ -1,5 +1,6 @@
 package com.raphtory.deployment
 
+import com.raphtory.algorithms.api.DeployedTemporalGraph
 import com.raphtory.algorithms.api.TemporalGraph
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
@@ -23,12 +24,72 @@ import scala.reflect.runtime.universe._
   *
   * ## Methods
   *
-  *   {s}`createGraph(spout: Spout[T] = new IdentitySpout[T](), graphBuilder: GraphBuilder[T], customConfig: Map[String, Any] = Map()): RaphtoryGraph[T]`
-  *    : Creates Graph using spout, graph-builder and custom config. Returns {s}`RaphtoryGraph` object for the user to run queries. {s}`customConfig` is a key-value mapping of Raphtory parameters for Pulsar and components like partitions, etc. Refer to the example usage below.
+  *   {s}`stream[T: TypeTag: ClassTag](spout: Spout[T] = new IdentitySpout[T](),graphBuilder: GraphBuilder[T], customConfig: Map[String, Any] = Map()): DeployedTemporalGraph`
+  *    : Creates a streaming version of a {s}`DeployedTemporalGraph` object that can be used to express queries from and to access the deployment
+  *    using the given {s}`spout`, {s}`graphBuilder` and {s}`customConfig`.
   *
-  *   {s}`createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`
-  *    : Create Client to expose APIs for running point, range and live queries for graph algorithms in Raphtory.
-  *      Client is for a {s}`deploymentID` and config {s}`customConfig` of parameters eg. Pulsar endpoint as illustrated in the example usage
+  *      {s}`spout: Spout[T]`
+  *      : Spout to use to ingest objects of type {s}`T` into the deployment
+  *
+  *      {s}`graphBuilder: GraphBuilder[T]`
+  *      : Graph builder to use to parse the input objects
+  *
+  *      {s}`customConfig: Map[String, Any]`
+  *      : Custom configuration for the deployment
+  *
+  *   {s}`batchLoad[T: TypeTag: ClassTag](spout: Spout[T] = new IdentitySpout[T](),graphBuilder: GraphBuilder[T], customConfig: Map[String, Any] = Map()): DeployedTemporalGraph`
+  *    : Creates a batch loading version of a {s}`DeployedTemporalGraph` object that can be used to express queries from and to access the deployment
+  *    using the given {s}`spout`, {s}`graphBuilder` and {s}`customConfig`.
+  *
+  *      {s}`spout: Spout[T]`
+  *      : Spout to use to ingest objects of type {s}`T` into the deployment
+  *
+  *      {s}`graphBuilder: GraphBuilder[T]`
+  *      : Graph builder to use to parse the input objects
+  *
+  *      {s}`customConfig: Map[String, Any]`
+  *      : Custom configuration for the deployment
+  *
+  *   {s}`deployedGraph(customConfig: Map[String, Any] = Map()): TemporalGraph`
+  *    : Creates {s}`TemporalGraph` object referencing an already deployed graph that can be used to express queries from
+  *    using the given {s}`customConfig`.
+  *
+  *      {s}`customConfig: Map[String, Any]`
+  *      : Custom configuration for the deployment being referenced
+  *
+  *   {s}`streamGraph[T: TypeTag: ClassTag](spout: Spout[T] = new IdentitySpout[T](),graphBuilder: GraphBuilder[T], customConfig: Map[String, Any] = Map()): DeployedTemporalGraph`
+  *    : Creates a streaming version of a {s}`graphDeployment` object
+  *    using the given {s}`spout`, {s}`graphBuilder` and {s}`customConfig`.
+  *
+  *      {s}`spout: Spout[T]`
+  *      : Spout to use to ingest objects of type {s}`T` into the deployment
+  *
+  *      {s}`graphBuilder: GraphBuilder[T]`
+  *      : Graph builder to use to parse the input objects
+  *
+  *      {s}`customConfig: Map[String, Any]`
+  *      : Custom configuration for the deployment
+  *
+  *   {s}`batchLoadGraph[T: TypeTag: ClassTag](spout: Spout[T] = new IdentitySpout[T](),graphBuilder: GraphBuilder[T], customConfig: Map[String, Any] = Map()): DeployedTemporalGraph`
+  *    : Creates a batch loading version of a {s}`graphDeployment`
+  *    using the given {s}`spout`, {s}`graphBuilder` and {s}`customConfig`.
+  *
+  *      {s}`spout: Spout[T]`
+  *      : Spout to use to ingest objects of type {s}`T` into the deployment
+  *
+  *      {s}`graphBuilder: GraphBuilder[T]`
+  *      : Graph builder to use to parse the input objects
+  *
+  *      {s}`customConfig: Map[String, Any]`
+  *      : Custom configuration for the deployment
+  *
+  *   {s}`createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map()): RaphtoryClient`
+  *    : Creates a {s}`RaphtoryClient` object referencing an already deployed graph
+  *    that can be used to express point range and live queries
+  *    using the given {s}`customConfig`.
+  *
+  *      {s}`customConfig: Map[String, Any]`
+  *      : Custom configuration for the deployment being referenced
   *
   *   {s}`createSpout(spout: Spout[T])`
   *    : Creates {s}`Spout` to read or ingest data from resources or files, sending messages to builder producers for each row. Supported spout types are {s}FileSpout`, {s}`ResourceSpout`, {s}`StaticGraphSpout`.
@@ -44,12 +105,6 @@ import scala.reflect.runtime.universe._
   *
   *   {s}`getDefaultConfig(customConfig: Map[String, Any] = Map()): Config`
   *    : Returns default config using {s}`ConfigFactory` for initialising parameters for running Raphtory components. This uses the default application parameters
-  *
-  *   {s}`confBuilder(customConfig: Map[String, Any] = Map()): Config`
-  *    : Creates {s}`Config` by using the input map {s}`customConfig`
-  *
-  *   {s}`createSpoutExecutor(spout: Spout[T], conf: Config, pulsarController: PulsarController): SpoutExecutor[T]]`
-  *    : Create spout executor for ingesting data from resources and files. Supported executors include `FileSpoutExecutor`, `StaticGraphSpoutExecutor`
   *
   * Example Usage:
   *
@@ -70,13 +125,42 @@ import scala.reflect.runtime.universe._
   *
   *  ```{seealso}
   *  [](com.raphtory.components.graphbuilder.GraphBuilder),
-  *  [](com.raphtory.components.spout.Spout)
+  *  [](com.raphtory.components.spout.Spout),
+  *  [](com.raphtory.algorithms.api.DeployedTemporalGraph),
+  *  [](com.raphtory.algorithms.api.TemporalGraph)
   *  ```
   */
 object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
 
+  def stream[T: TypeTag: ClassTag](
+      spout: Spout[T] = new IdentitySpout[T](),
+      graphBuilder: GraphBuilder[T],
+      customConfig: Map[String, Any] = Map()
+  ): DeployedTemporalGraph = {
+    val deployment = Raphtory.streamGraph(spout, graphBuilder, customConfig)
+    getLocalGraph(deployment)
+  }
+
+  def batchLoad[T: TypeTag: ClassTag](
+      spout: Spout[T] = new IdentitySpout[T](),
+      graphBuilder: GraphBuilder[T],
+      customConfig: Map[String, Any] = Map()
+  ): DeployedTemporalGraph = {
+    val deployment = Raphtory.batchLoadGraph(spout, graphBuilder, customConfig)
+    getLocalGraph(deployment)
+  }
+
+  def deployedGraph(customConfig: Map[String, Any] = Map()): TemporalGraph = {
+    val conf             = confBuilder(customConfig)
+    val pulsarController = new PulsarController(conf)
+    val componentFactory = new ComponentFactory(conf, pulsarController)
+    val querySender      = new QuerySender(componentFactory, scheduler, pulsarController)
+    new TemporalGraph(Query(), querySender, conf)
+  }
+
+  @deprecated("Use Raphtory.stream(...) instead", "Raphtory 0.5.0")
   def streamGraph[T: TypeTag: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
@@ -97,6 +181,7 @@ object Raphtory {
     )
   }
 
+  @deprecated("Use Raphtory.batchLoad(...) instead", "Raphtory 0.5.0")
   def batchLoadGraph[T: ClassTag: TypeTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
@@ -117,24 +202,7 @@ object Raphtory {
     )
   }
 
-  def getGraph(customConfig: Map[String, Any] = Map()): TemporalGraph = {
-    val conf             = confBuilder(customConfig)
-    val pulsarController = new PulsarController(conf)
-    val componentFactory = new ComponentFactory(conf, pulsarController)
-    val querySender      = new QuerySender(componentFactory, scheduler, pulsarController)
-    new TemporalGraph(Query(), querySender, conf)
-  }
-
-  def getLocalGraph[T: ClassTag: TypeTag](deployment: GraphDeployment[T]): TemporalGraph = {
-    val conf        = deployment.getConfig()
-    val querySender = deployment.getQuerySender()
-    new TemporalGraph(Query(), querySender, conf)
-  }
-
-  def createClient(
-      deploymentID: String = "",
-      customConfig: Map[String, Any] = Map()
-  ): RaphtoryClient = {
+  def createClient(customConfig: Map[String, Any] = Map()): RaphtoryClient = {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
@@ -185,4 +253,9 @@ object Raphtory {
     confHandler.getConfig
   }
 
+  private def getLocalGraph[T: ClassTag: TypeTag](deployment: GraphDeployment[T]) = {
+    val conf        = deployment.getConfig()
+    val querySender = deployment.getQuerySender()
+    new DeployedTemporalGraph(Query(), querySender, deployment.stop, conf)
+  }
 }
