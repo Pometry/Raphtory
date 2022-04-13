@@ -7,7 +7,6 @@ import com.raphtory.components.spout.Spout
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.spouts.FileSpout
-import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Schema
 
 import java.io.File
