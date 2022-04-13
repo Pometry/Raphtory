@@ -196,6 +196,7 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
   * ```
   */
 abstract class EntityVisitor {
+
   def Type(): String
 
   def firstActivityAfter(time: Long): HistoricEvent

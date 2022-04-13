@@ -5,6 +5,8 @@ import com.raphtory.algorithms.api.GraphStateImplementation
 import com.raphtory.algorithms.api.Row
 import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessage
+import com.raphtory.graph.visitor.InterlayerEdge
+import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 
@@ -29,6 +31,17 @@ trait LensInterface {
   def filteredTable(f: Row => Boolean): Unit
   def explodeTable(f: Row => List[Row]): Unit
   def getDataTable(): List[Row]
+
+  def explodeView(
+      interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
+  ): Unit
+
+  def reduceView(
+      defaultMergeStrategy: Option[PropertyMerge[_, _]],
+      mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
+      aggregate: Boolean
+  ): Unit
+
   def runGraphFunction(f: Vertex => Unit): Unit
 
   def runGraphFunction(
@@ -43,10 +56,10 @@ trait LensInterface {
   ): Unit
   def getMessageHandler(): VertexMessageHandler
   def checkVotes(): Boolean
-  def sendMessage(msg: GenericVertexMessage): Unit
+  def sendMessage(msg: GenericVertexMessage[_]): Unit
   def vertexVoted(): Unit
   def nextStep(): Unit
-  def receiveMessage(msg: GenericVertexMessage): Unit
+  def receiveMessage(msg: GenericVertexMessage[_]): Unit
 
   def clearMessages(): Unit
 

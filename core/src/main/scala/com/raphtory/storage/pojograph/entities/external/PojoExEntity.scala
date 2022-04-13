@@ -24,14 +24,6 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
   def getPropertySet(): List[String] =
     entity.properties.filter(p => p._2.creation() <= view.end).keys.toList
 
-//  def getProperty[T](key: String): Option[T] = getPropertyAt[T](key, view.timestamp)
-//
-//  def getPropertyOrElse[T](key: String, otherwise: T): T =
-//    getPropertyAt[T](key, view.timestamp) match {
-//      case Some(v) => v
-//      case None    => otherwise
-//    }
-
   def getPropertyAt[T](key: String, time: Long): Option[T] =
     entity.properties.get(key) match {
       case Some(p) =>

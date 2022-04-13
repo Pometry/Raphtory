@@ -81,13 +81,12 @@ class MultilayerLPA(
         case _  => omega.toFloat
       }
 
-    def weightFunction(v: Vertex, ts: Long): Map[Long, Float] =
+    def weightFunction(v: Vertex, ts: Long): Map[v.IDType, Float] =
       (v.getInEdges(after = ts - layerSize, before = ts) ++ v.getOutEdges(
               after = ts - layerSize,
               before = ts
       )).map(e => (e.ID(), e.weight(default = 1.0f)))
         .groupBy(_._1)
-        .view
         .mapValues(x => x.map(_._2).sum / x.size)
         .toMap // (ID -> Freq)
 
@@ -103,7 +102,7 @@ class MultilayerLPA(
       .iterate(
               { vertex =>
                 val vlabel     = vertex.getState[List[(Long, Long)]]("mlpalabel").toMap
-                val msgQueue   = vertex.messageQueue[(Long, List[(Long, Long)])]
+                val msgQueue   = vertex.messageQueue[(vertex.IDType, List[(Long, Long)])]
                 var voteStatus = vertex.getOrSetState[Boolean]("vote", false)
                 var voteCount  = 0
                 val newLabel   = vlabel.map {
@@ -112,7 +111,8 @@ class MultilayerLPA(
                     val Curlab = tv._2
 
                     // Get weights/labels of neighbours of vertex at time ts
-                    val nei_ts_freq = weightFunction(vertex, ts) // ID -> freq
+                    val nei_ts_freq = weightFunction(vertex, ts)
+//                      .asInstanceOf[Map[vertex.VertexID, Float]] // ID -> freq
                     var newlab      = if (nei_ts_freq.nonEmpty) {
                       val nei_labs = msgQueue
                         .filter(x =>
@@ -123,7 +123,7 @@ class MultilayerLPA(
                           val label_ts = msg._2.filter(_._1 == ts).head._2
                           (label_ts, freq) //get label and its frequency at time ts -> (lab, freq)
                         }
-                        .to(ListBuffer)
+                        .toBuffer
 
                       //Get labels of past/future instances of vertex
                       if (vlabel.contains(ts - layerSize))
@@ -138,7 +138,9 @@ class MultilayerLPA(
                         nei_labs += ((vlabel(ts + layerSize), interLayerWeights(omega, vertex, ts)))
 
                       // Get label most prominent in neighborhood of vertex
-                      val max_freq = nei_labs.groupBy(_._1).mapValues(_.map(_._2).sum)
+                      val max_freq = nei_labs
+                        .groupBy[Long](_._1)
+                        .mapValues(_.map(_._2).sum)
                       max_freq.filter(_._2 == max_freq.values.max).keySet.max
                     }
                     else Curlab

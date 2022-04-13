@@ -8,6 +8,8 @@ import com.raphtory.algorithms.api.ExplodeSelect
 import com.raphtory.algorithms.api.GlobalSelect
 import com.raphtory.algorithms.api.Iterate
 import com.raphtory.algorithms.api.IterateWithGraph
+import com.raphtory.algorithms.api.MultilayerView
+import com.raphtory.algorithms.api.ReduceView
 import com.raphtory.algorithms.api.Select
 import com.raphtory.algorithms.api.SelectWithGraph
 import com.raphtory.algorithms.api.Step
@@ -96,16 +98,9 @@ class QueryExecutor(
           msgBatch.foreach(message => graphLens.receiveMessage(message))
           receivedMessageCount.addAndGet(msgBatch.size)
 
-        case msg: VertexMessage[_]                                            =>
+        case msg: GenericVertexMessage[_]                                     =>
           logger.trace(
                   s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
-          )
-          graphLens.receiveMessage(msg)
-          receivedMessageCount.addAndGet(1)
-
-        case msg: FilteredEdgeMessage                                         =>
-          logger.trace(
-                  s"Job '$jobID' at Partition '$partitionID': Executing 'FilteredEdgeMessage', '$msg'."
           )
           graphLens.receiveMessage(msg)
           receivedMessageCount.addAndGet(1)
@@ -141,6 +136,38 @@ class QueryExecutor(
           logger.debug(
                   s"Job $jobID at Partition '$partitionID': Meta Data set in ${System.currentTimeMillis() - time}ms"
           )
+
+        case MultilayerView(interlayerEdgeBuilder)                            =>
+          val time             = System.currentTimeMillis()
+          graphLens.nextStep()
+          graphLens.explodeView(interlayerEdgeBuilder)
+          val sentMessages     = sentMessageCount.get()
+          val receivedMessages = receivedMessageCount.get()
+          graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+            taskManager sendAsync serialise(
+                    GraphFunctionComplete(partitionID, receivedMessages, sentMessages)
+            )
+
+            logger
+              .debug(s"Job '$jobID' at Partition '$partitionID': MultilayerView function finished in ${System
+                .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+          }
+
+        case ReduceView(defaultMergeStrategy, mergeStrategyMap, aggregate)    =>
+          val time             = System.currentTimeMillis()
+          graphLens.nextStep()
+          graphLens.reduceView(defaultMergeStrategy, mergeStrategyMap, aggregate)
+          val sentMessages     = sentMessageCount.get()
+          val receivedMessages = receivedMessageCount.get()
+          graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+            taskManager sendAsync serialise(
+                    GraphFunctionComplete(partitionID, receivedMessages, sentMessages)
+            )
+
+            logger
+              .debug(s"Job '$jobID' at Partition '$partitionID': MultilayerView function finished in ${System
+                .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+          }
 
         case Step(f)                                                          =>
           val time             = System.currentTimeMillis()

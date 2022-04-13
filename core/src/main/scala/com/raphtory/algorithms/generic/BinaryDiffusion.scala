@@ -6,7 +6,7 @@ import com.raphtory.graph.visitor.Vertex
 import scala.util.Random
 
 class BinaryDiffusion(
-    infectedNodes: Set[Long] = Set[Long](),
+    infectedNodes: Set[String] = Set[String](),
     seed: Long = -1,
 ) extends NodeList(Seq("infected")) {
 
@@ -26,7 +26,7 @@ class BinaryDiffusion(
             randomlyInfect(vertex)
           }
         }
-        else if (infectedNodes.contains(vertex.ID())) {
+        else if (infectedNodes.contains(vertex.name())) {
           vertex.setState(infectedStatus, true)
           randomlyInfect(vertex)
         }
@@ -50,6 +50,6 @@ class BinaryDiffusion(
 
 object BinaryDiffusion {
 
-  def apply(infectedNodes: Set[Long] = Set[Long](), seed: Long = -1) =
+  def apply(infectedNodes: Set[String] = Set[String](), seed: Long = -1) =
     new BinaryDiffusion(infectedNodes, seed)
 }

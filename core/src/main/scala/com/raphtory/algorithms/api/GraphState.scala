@@ -104,6 +104,10 @@ abstract class GraphState {
       bounded: Bounded[T]
   ): Unit
 
+  def newAll(name: String, retainState: Boolean = false): Unit
+
+  def newAny(name: String, retainState: Boolean = false): Unit
+
   def apply[T](name: String): Accumulator[T]
   def get[T](name: String): Option[Accumulator[T]]
   def contains(name: String): Boolean

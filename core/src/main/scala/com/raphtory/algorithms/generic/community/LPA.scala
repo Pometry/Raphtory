@@ -90,12 +90,13 @@ object LPA {
     val neigh_freq = vneigh
       .map(e => (e.ID(), e.weight(weightProperty = weight)))
       .groupBy(_._1)
-      .view
       .mapValues(x => numeric.toFloat(x.map(_._2).sum))
     // Process neighbour labels into (label, frequency)
-    val gp         = vertex.messageQueue[(Long, Long)].map(v => (v._2, neigh_freq.getOrElse(v._1, 1.0f)))
+    val gp         = vertex
+      .messageQueue[(vertex.IDType, Long)]
+      .map(v => (v._2, neigh_freq.getOrElse(v._1, 1.0f)))
     // Get label most prominent in neighborhood of vertex
-    val maxlab     = gp.groupBy(_._1).view.mapValues(_.map(_._2).sum)
+    val maxlab     = gp.groupBy(_._1).mapValues(_.map(_._2).sum)
     var newLabel   = maxlab.filter(_._2 == maxlab.values.max).keySet.max
     // Update node label and broadcast
     if (newLabel == vlabel)

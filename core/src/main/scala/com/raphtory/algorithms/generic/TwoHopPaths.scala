@@ -63,7 +63,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends GraphAlgorithm {
       )
       .iterate(
               { vertex =>
-                val newMessages = vertex.messageQueue[Message]
+                val newMessages = vertex.messageQueue[Message[vertex.IDType]]
                 newMessages.foreach {
                   message =>
                     message match {
@@ -109,8 +109,10 @@ object TwoHopPaths {
   def apply(seeds: Iterable[String] = Set[String]()) = new TwoHopPaths(seeds.toSet)
   def apply(seeds: String*)                          = new TwoHopPaths(seeds.toSet)
 
-  sealed trait Message
-  case class RequestFirstHop(source: Long)                    extends Message
-  case class RequestSecondHop(source: Long, firstHop: String) extends Message
-  case class Response(firstHop: String, secondHop: String)    extends Message
+  sealed trait Message[VertexID]
+  case class RequestFirstHop[VertexID](source: VertexID) extends Message[VertexID]
+
+  case class RequestSecondHop[VertexID](source: VertexID, firstHop: String)
+          extends Message[VertexID]
+  case class Response[VertexID](firstHop: String, secondHop: String) extends Message[VertexID]
 }

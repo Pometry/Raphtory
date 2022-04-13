@@ -43,12 +43,16 @@ class VertexMessageHandler(
   logger.debug(s"Setting total partitions to '$totalPartitions'.")
 
   private val messageCache =
-    mutable.Map[Producer[Array[Byte]], mutable.ArrayBuffer[GenericVertexMessage]]()
+    mutable.Map[Producer[Array[Byte]], mutable.ArrayBuffer[GenericVertexMessage[_]]]()
   refreshBuffers()
 
-  def sendMessage(message: GenericVertexMessage): Unit = {
+  def sendMessage(message: GenericVertexMessage[_]): Unit = {
+    val vId                  = message.vertexId match {
+      case (v: Long, _) => v
+      case v: Long      => v
+    }
     sentMessages.incrementAndGet()
-    val destinationPartition = (message.vertexId.abs % totalPartitions).toInt
+    val destinationPartition = (vId.abs % totalPartitions).toInt
     if (destinationPartition == pojoGraphLens.partitionID) { //sending to this partition
       pojoGraphLens.receiveMessage(message)
       receivedMessages.incrementAndGet()
@@ -71,7 +75,7 @@ class VertexMessageHandler(
     readerJobWorker sendAsync kryo.serialise(
             VertexMessageBatch(messageCache(readerJobWorker).toArray)
     )
-    messageCache.put(readerJobWorker, mutable.ArrayBuffer[GenericVertexMessage]())
+    messageCache.put(readerJobWorker, mutable.ArrayBuffer[GenericVertexMessage[_]]())
   }
 
   def flushMessages(): CompletableFuture[Void] = {
@@ -88,7 +92,7 @@ class VertexMessageHandler(
 
     producers.foreach {
       case (key, producer) =>
-        messageCache.put(producer, mutable.ArrayBuffer[GenericVertexMessage]())
+        messageCache.put(producer, mutable.ArrayBuffer[GenericVertexMessage[_]]())
     }
   }
 
