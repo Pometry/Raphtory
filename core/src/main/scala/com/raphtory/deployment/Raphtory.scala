@@ -202,6 +202,7 @@ object Raphtory {
     )
   }
 
+  @deprecated("Use Raphtory.deployedGraph(...) instead", "Raphtory 0.5.0")
   def createClient(customConfig: Map[String, Any] = Map()): RaphtoryClient = {
     val conf             = confBuilder(customConfig)
     val pulsarController = new PulsarController(conf)
