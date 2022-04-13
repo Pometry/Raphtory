@@ -37,7 +37,7 @@ class EthereumTxGraphBuilder() extends GraphBuilder[EthereumTransaction] {
   }
 }
 
-class EthereumGraphBuilder(tagFile: String) extends GraphBuilder[String] {
+class EthereumGraphBuilder() extends GraphBuilder[String] {
 
   //  val br = new BufferedReader(new FileReader(tagFile))
   //  val tagMap = new mutable.HashMap[String, mutable.Set[String]]()

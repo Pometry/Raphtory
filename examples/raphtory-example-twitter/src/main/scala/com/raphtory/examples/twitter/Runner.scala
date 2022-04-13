@@ -2,12 +2,14 @@ package com.raphtory.examples.twitter
 
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
-import com.raphtory.deploy.Raphtory
+import com.raphtory.deployment.Raphtory
 import com.raphtory.examples.twitter.graphbuilders.TwitterGraphBuilder
 import com.raphtory.examples.twitter.analysis.MemberRank
 import com.raphtory.examples.twitter.analysis.TemporalMemberRank
 import com.raphtory.output.PulsarOutputFormat
+import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
+import com.raphtory.util.FileUtils
 import org.apache.pulsar.client.admin.PulsarAdmin
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 
@@ -24,8 +26,12 @@ object Runner extends App {
   val policies = new RetentionPolicies(retentionTime, retentionSize)
   admin.namespaces.setRetention("public/default", policies)
 
+  val path = "/tmp/higgs-retweet-activity.csv"
+  val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/higgs-retweet-activity.csv"
+  FileUtils.curlFile(path, url)
+
   // Create Graph
-  val source  = ResourceSpout("higgs-retweet-activity.csv")
+  val source  = FileSpout(path)
   val builder = new TwitterGraphBuilder()
   val graph   = Raphtory.streamGraph(spout = source, graphBuilder = builder)
   Thread.sleep(20000)

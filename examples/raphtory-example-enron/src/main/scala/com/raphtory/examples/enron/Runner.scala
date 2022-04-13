@@ -2,7 +2,7 @@ package com.raphtory.examples.enron
 
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.deploy.Raphtory
+import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.output.PulsarOutputFormat
 import org.apache.pulsar.client.admin.PulsarAdmin
@@ -12,7 +12,8 @@ import java.io.File
 import scala.language.postfixOps
 import sys.process._
 import com.raphtory.examples.enron.graphbuilders.EnronGraphBuilder
-import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.FileSpout
+import com.raphtory.util.FileUtils
 
 object Runner extends App {
   //Set unlimited retention to keep topic
@@ -27,8 +28,12 @@ object Runner extends App {
   val policies = new RetentionPolicies(retentionTime, retentionSize)
   admin.namespaces.setRetention("public/default", policies)
 
+  val path = "/tmp/email_test.csv"
+  val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv"
+  FileUtils.curlFile(path, url)
+
   // Create Graph
-  val source  = ResourceSpout("email_test.csv")
+  val source  = FileSpout(path)
   val builder = new EnronGraphBuilder()
   val graph   = Raphtory.streamGraph(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
