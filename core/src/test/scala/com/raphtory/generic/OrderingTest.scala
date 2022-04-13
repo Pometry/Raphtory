@@ -1,7 +1,7 @@
 package com.raphtory.generic
 
-import com.raphtory.algorithms.BaseCorrectnessTest
-import com.raphtory.algorithms.BasicGraphBuilder
+import com.raphtory.BaseCorrectnessTest
+import com.raphtory.BasicGraphBuilder
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
