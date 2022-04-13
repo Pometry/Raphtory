@@ -11,6 +11,9 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import scala.collection.mutable
 import scala.util.matching.Regex
+import java.io.File
+import scala.language.postfixOps
+import sys.process._
 
 object FileUtils {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -98,4 +101,15 @@ object FileUtils {
     }
     true
   }
+
+  def curlFile(path: String, url: String) =
+    if (!new File(path).exists())
+      try s"curl -o $path $url" !!
+      catch {
+        case ex: Exception =>
+          logger.error(s"Failed to download $path due to ${ex.getMessage}.")
+          ex.printStackTrace()
+          (s"rm $path" !)
+          throw ex
+      }
 }

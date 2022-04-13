@@ -4,15 +4,20 @@ import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.components.spout.Spout
-import com.raphtory.deploy.Raphtory
+import com.raphtory.deployment.Raphtory
 import com.raphtory.output.PulsarOutputFormat
+import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
+import com.raphtory.util.FileUtils
 
 object Runner extends App {
-  val source: Spout[String] = ResourceSpout("gabNetwork500.csv")
+
+  val path                  = "/tmp/gabNetwork500.csv"
+  val url                   = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
+  FileUtils.curlFile(path, url)
+  val source: Spout[String] = FileSpout(path)
   val builder               = new GabUserGraphBuilder()
   val rg                    = Raphtory.streamGraph(spout = source, graphBuilder = builder)
-  Thread.sleep(60000)
   val outputFormat          = PulsarOutputFormat("Gab")
   rg.pointQuery(EdgeList(), PulsarOutputFormat("EdgeList"), timestamp = 1476113868000L)
   rg.rangeQuery(

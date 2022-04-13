@@ -7,25 +7,18 @@ import com.raphtory.examples.twitter.graphbuilders.TwitterGraphBuilder
 import com.raphtory.examples.twitter.analysis.MemberRank
 import com.raphtory.examples.twitter.analysis.TemporalMemberRank
 import com.raphtory.output.PulsarOutputFormat
+import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
-import org.apache.pulsar.client.admin.PulsarAdmin
-import org.apache.pulsar.common.policies.data.RetentionPolicies
+import com.raphtory.util.FileUtils
 
 object Runner extends App {
-  //Set unlimited retention to keep topic
-  val retentionTime = -1
-  val retentionSize = -1
 
-  val admin    = PulsarAdmin.builder
-    .serviceHttpUrl("http://localhost:8080")
-    .tlsTrustCertsFilePath(null)
-    .allowTlsInsecureConnection(false)
-    .build
-  val policies = new RetentionPolicies(retentionTime, retentionSize)
-  admin.namespaces.setRetention("public/default", policies)
+  val path = "/tmp/higgs-retweet-activity.csv"
+  val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/higgs-retweet-activity.csv"
+  FileUtils.curlFile(path, url)
 
   // Create Graph
-  val source  = ResourceSpout("higgs-retweet-activity.csv")
+  val source  = FileSpout(path)
   val builder = new TwitterGraphBuilder()
   val graph   = Raphtory.streamGraph(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
