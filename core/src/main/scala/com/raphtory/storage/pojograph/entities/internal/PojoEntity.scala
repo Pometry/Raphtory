@@ -1,6 +1,10 @@
 package com.raphtory.storage.pojograph.entities.internal
 
 import scala.collection.mutable
+import com.raphtory.util.OrderedBuffer._
+
+import scala.collection.Searching.Found
+import scala.collection.Searching.InsertionPoint
 
 /** @DoNotDocument
   * Represents Graph Entities (Edges and Vertices)
@@ -18,10 +22,11 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   // History of that entity
 
-  //var history: mutable.TreeMap[Long, Boolean] = mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
+//  var history: mutable.TreeMap[Long, Boolean]       =
+//    mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
   var history: mutable.ArrayBuffer[(Long, Boolean)] = mutable.ArrayBuffer()
   var deletions: mutable.ListBuffer[Long]           = mutable.ListBuffer.empty
-  history += ((creationTime, isInitialValue))
+  history sortedAppend ((creationTime, isInitialValue))
   var toClean                                       = false
 
   def dedupe() =
@@ -46,14 +51,14 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   def revive(msgTime: Long): Unit = {
     checkOldestTime(msgTime)
-    history += ((msgTime, true))
+    history sortedAppend ((msgTime, true))
     toClean = true
   }
 
   def kill(msgTime: Long): Unit = {
     checkOldestTime(msgTime)
-    history += ((msgTime, false))
-    deletions += msgTime
+    history sortedAppend ((msgTime, false))
+    deletions sortedAppend msgTime
     toClean = true
   }
 
@@ -77,17 +82,16 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   def wipe() = history = mutable.ArrayBuffer()
 
-  protected def closestTime(time: Long): (Long, Boolean) = {
-    var closestTime: Long = -1
-    var value             = false
-    for ((k, v) <- history)
-      if (k <= time)
-        if ((time - k) < (time - closestTime)) {
-          closestTime = k
-          value = v
-        }
-    (closestTime, value)
-  }
+  protected def closestTime(time: Long): (Long, Boolean) =
+    if (time < oldestPoint)
+      (-1, false)
+    else {
+      val index = history.search((time, None))
+      index match {
+        case Found(i)          => history(i)
+        case InsertionPoint(i) => history(i - 1)
+      }
+    }
 
   def aliveAt(time: Long): Boolean = if (time < oldestPoint) false else closestTime(time)._2
 

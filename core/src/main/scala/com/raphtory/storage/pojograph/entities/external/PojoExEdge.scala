@@ -1,5 +1,7 @@
 package com.raphtory.storage.pojograph.entities.external
 
+import com.raphtory.components.querymanager.FilteredInEdgeMessage
+import com.raphtory.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.Edge
 import com.raphtory.graph.visitor.ExplodedEdge
@@ -8,9 +10,9 @@ import com.raphtory.storage.pojograph.entities.internal.PojoEdge
 import com.raphtory.storage.pojograph.entities.internal.SplitEdge
 
 /** @DoNotDocument */
-class PojoExEdge(edge: PojoEdge, id: Long, view: PojoGraphLens)
+class PojoExEdge(val edge: PojoEdge, id: Long, val view: PojoGraphLens)
         extends PojoExEntity(edge, view)
-        with Edge {
+        with Edge[Long] {
 
   def ID() = id
 
@@ -21,9 +23,14 @@ class PojoExEdge(edge: PojoEdge, id: Long, view: PojoGraphLens)
   def send(data: Any): Unit =
     view.sendMessage(VertexMessage(view.superStep + 1, id, data))
 
-  override def explode(): List[ExplodedEdge] =
-    history().map(event => new PojoExplodedEdge(this, event.time))
+  override def explode(): List[ExplodedEdge[Long]] =
+    history().collect { case event if event.event => PojoExplodedEdge.fromEdge(this, event.time) }
 
-  val isExternal: Boolean = edge.isInstanceOf[SplitEdge]
+  def isExternal: Boolean                          = edge.isInstanceOf[SplitEdge]
 
+  override def remove(): Unit = {
+    view.needsFiltering = true
+    view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src(), dst()))
+    view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst(), src()))
+  }
 }

@@ -1,30 +1,52 @@
 package com.raphtory.storage.pojograph.entities.external
 
+import com.raphtory.components.querymanager.FilteredInEdgeMessage
+import com.raphtory.components.querymanager.FilteredOutEdgeMessage
+import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.ExplodedEdge
+import com.raphtory.graph.visitor.HistoricEvent
+import com.raphtory.storage.pojograph.PojoGraphLens
+import com.raphtory.storage.pojograph.entities.internal.PojoEdge
 
 /** @DoNotDocument */
-class PojoExplodedEdge(objectEdge: PojoExEdge, timestamp: Long) extends ExplodedEdge {
+class PojoExplodedEdge(
+    objectEdge: PojoEdge,
+    view: PojoGraphLens,
+    id: Long,
+    val src: Long,
+    val dst: Long,
+    override val timestamp: Long
+) extends PojoExEntity(objectEdge, view)
+        with ExplodedEdge[Long] {
 
-  override def Type(): String =
-    objectEdge.Type()
+  override def ID(): Long = id
 
-  override def ID(): Long =
-    objectEdge.ID()
+  override def explode(): List[PojoExplodedEdge] = List(this)
 
-  override def src(): Long =
-    objectEdge.src()
+  override def send(data: Any): Unit = view.sendMessage(VertexMessage(view.superStep + 1, id, data))
 
-  override def dst(): Long =
-    objectEdge.dst()
+  override def getPropertyHistory[T](
+      key: String,
+      after: Long,
+      before: Long = timestamp
+  ): Option[List[(Long, T)]] = super.getPropertyHistory(key, after, before)
 
-  override def getPropertySet(): List[String] =
-    objectEdge.getPropertySet()
+  override def remove(): Unit = {
+    view.needsFiltering = true
+    view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src, dst))
+    view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst, src))
+  }
+}
 
-  override def getPropertyValue[T](key: String): Option[T] =
-    objectEdge.getPropertyAt[T](key, timestamp)
+object PojoExplodedEdge {
 
-  override def send(data: Any): Unit =
-    objectEdge.send(data)
-
-  override def timestamp(): Long = timestamp
+  def fromEdge(pojoExEdge: PojoExEdge, timestamp: Long): PojoExplodedEdge =
+    new PojoExplodedEdge(
+            pojoExEdge.edge,
+            pojoExEdge.view,
+            pojoExEdge.ID(),
+            pojoExEdge.src(),
+            pojoExEdge.dst(),
+            timestamp
+    )
 }

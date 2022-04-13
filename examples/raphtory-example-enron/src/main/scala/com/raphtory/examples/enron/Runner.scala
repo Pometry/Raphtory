@@ -2,7 +2,7 @@ package com.raphtory.examples.enron
 
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.deploy.Raphtory
+import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.output.PulsarOutputFormat
 import org.apache.pulsar.client.admin.PulsarAdmin

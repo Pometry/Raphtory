@@ -43,25 +43,21 @@ import com.raphtory.util.Reduction._
 object PropertyMergeStrategy {
   type PropertyMerge[A, B] = Seq[(Long, A)] => B
 
-  def sum[T: Numeric](history: Seq[(Long, T)]): T =
-    history.map(_._2).sum
+  def sum[T: Numeric]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.map(_._2).sum
 
-  def max[T: Numeric](history: Seq[(Long, T)]): T =
-    history.map(_._2).max
+  def max[T: Numeric]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.map(_._2).max
 
-  def min[T: Numeric](history: Seq[(Long, T)]): T =
-    history.map(_._2).min
+  def min[T: Numeric]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.map(_._2).min
 
-  def product[T: Numeric](history: Seq[(Long, T)]): T =
-    history.map(_._2).product
+  def product[T: Numeric]: PropertyMerge[T, T] =
+    (history: Seq[(Long, T)]) => history.map(_._2).product
 
-  def average[T: Numeric](history: Seq[(Long, T)]): Double =
-    history.map(_._2).mean
+  def average[T: Numeric]: PropertyMerge[T, Double] =
+    (history: Seq[(Long, T)]) => history.map(_._2).mean
 
-  def latest[T](history: Seq[(Long, T)]): T =
-    history.maxBy(_._1)._2
+  def latest[T]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.maxBy(_._1)._2
 
-  def earliest[T](history: Seq[(Long, T)]): T =
-    history.minBy(_._1)._2
+  def earliest[T]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.minBy(_._1)._2
 
+  def sequence[T]: PropertyMerge[T, Seq[T]] = (history: Seq[(Long, T)]) => history.map(_._2)
 }

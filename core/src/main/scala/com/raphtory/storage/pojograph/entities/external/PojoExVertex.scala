@@ -6,106 +6,167 @@ import com.raphtory.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.Edge
-import com.raphtory.graph.visitor.ExplodedEdge
+import com.raphtory.graph.visitor.HistoricEvent
+import com.raphtory.graph.visitor.InterlayerEdge
+import com.raphtory.graph.visitor.PropertyMergeStrategy
 import com.raphtory.graph.visitor.Vertex
+import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoVertex
 import com.raphtory.storage.pojograph.messaging.VertexMultiQueue
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
+import scala.math.Ordering
+import scala.reflect.runtime.universe._
+import scala.math.exp
 
 /** @DoNotDocument */
 class PojoExVertex(
     private val v: PojoVertex,
-    private val internalIncomingEdges: mutable.Map[Long, PojoExEdge],
-    private val internalOutgoingEdges: mutable.Map[Long, PojoExEdge],
-    private val lens: PojoGraphLens
+    override protected val internalIncomingEdges: mutable.Map[Long, PojoExEdge],
+    override protected val internalOutgoingEdges: mutable.Map[Long, PojoExEdge],
+    override protected val lens: PojoGraphLens
 ) extends PojoExEntity(v, lens)
-        with Vertex {
+        with PojoVertexBase {
+
+  override type IDType = Long
+  override type Edge   = PojoExEdge
+  implicit override val IDOrdering: Ordering[Long] = Ordering.Long
 
   override def ID(): Long = v.vertexId
 
-  private var multiQueue: VertexMultiQueue =
-    new VertexMultiQueue() //Map of queues for all ongoing processing
+  val exploded               = mutable.Map.empty[Long, PojoExplodedVertex]
+  var explodedVertices       = Array.empty[PojoExplodedVertex]
+  var explodedNeedsFiltering = false
+  var interlayerEdges        = Seq.empty[InterlayerEdge]
+
+  def explode(
+      interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
+  ): Unit = {
+    if (exploded.isEmpty) {
+      // exploding the view
+      history().foreach {
+        case HistoricEvent(time, event) =>
+          if (event)
+            exploded += (time -> new PojoExplodedVertex(this, time, lens))
+      }
+      explodedVertices = exploded.values.toArray[PojoExplodedVertex]
+
+      explodeInEdges().foreach { edge =>
+        exploded(edge.timestamp).internalIncomingEdges += (
+                edge.src(),
+                edge.timestamp
+        ) -> new PojoExMultilayerEdge(
+                timestamp = edge.timestamp,
+                ID = (edge.src(), edge.timestamp),
+                src = (edge.src(), edge.timestamp),
+                dst = (edge.dst(), edge.timestamp),
+                edge = edge,
+                view = lens
+        )
+      }
+      explodeOutEdges().foreach { edge =>
+        exploded(edge.timestamp).internalOutgoingEdges += (
+                edge.dst(),
+                edge.timestamp
+        ) -> new PojoExMultilayerEdge(
+                timestamp = edge.timestamp,
+                ID = (edge.dst(), edge.timestamp),
+                src = (edge.src(), edge.timestamp),
+                dst = (edge.dst(), edge.timestamp),
+                edge = edge,
+                view = lens
+        )
+      }
+    }
+//    handle interlayer edges if provided
+    interlayerEdgeBuilder.foreach { builder =>
+      if (interlayerEdges.nonEmpty)
+        interlayerEdges.foreach { edge =>
+          exploded(edge.sourceTime).internalOutgoingEdges -= ((ID(), edge.dstTime))
+          exploded(edge.dstTime).internalIncomingEdges -= ((ID(), edge.sourceTime))
+        }
+      interlayerEdges = builder(this)
+      interlayerEdges.foreach { edge =>
+        val srcID = (ID(), edge.sourceTime)
+        val dstID = (ID(), edge.dstTime)
+        exploded(edge.sourceTime).internalOutgoingEdges += dstID -> new PojoExMultilayerEdge(
+                edge.dstTime,
+                dstID,
+                srcID,
+                dstID,
+                edge,
+                lens
+        )
+        exploded(edge.dstTime).internalIncomingEdges += srcID    -> new PojoExMultilayerEdge(
+                edge.sourceTime,
+                srcID,
+                srcID,
+                dstID,
+                edge,
+                lens
+        )
+      }
+    }
+  }
+
+  def reduce(
+      defaultMergeStrategy: Option[PropertyMerge[_, _]],
+      mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
+      aggregate: Boolean
+  ): Unit = {
+    if (defaultMergeStrategy.nonEmpty || mergeStrategyMap.nonEmpty) {
+      val states   = mutable.Map.empty[String, mutable.ArrayBuffer[(Long, Any)]]
+      val collect  = defaultMergeStrategy match {
+        case Some(_) => (_: String) => true
+        case None    =>
+          val strategyMap = mergeStrategyMap.get
+          (key: String) => strategyMap contains key
+      }
+      exploded.values.foreach { vertex =>
+        vertex.computationValues.foreach {
+          case (key, value) =>
+            if (collect(key))
+              states.getOrElseUpdate(
+                      key,
+                      mutable.ArrayBuffer.empty[(Long, Any)]
+              ) += ((vertex.timestamp, value))
+        }
+      }
+      val strategy = defaultMergeStrategy match {
+        case Some(strategy) =>
+          mergeStrategyMap match {
+            case Some(strategyMap) => (key: String) => strategyMap.getOrElse(key, strategy)
+            case None              => (_: String) => strategy
+          }
+        case None           =>
+          val strategyMap = mergeStrategyMap.get
+          (key: String) => strategyMap(key)
+      }
+
+      states.foreach {
+        case (key, history) =>
+          val strat = strategy(key)
+          strat match {
+            case v: PropertyMerge[Any, Any] => setState(key, v(history.toSeq))
+          }
+      }
+    }
+    if (aggregate) {
+      exploded.clear()
+      interlayerEdges = Seq()
+    }
+  }
+
+  def filterExplodedVertices(): Unit =
+    if (explodedNeedsFiltering) {
+      explodedVertices.filterNot(_.isFiltered)
+      explodedNeedsFiltering = false
+    }
+
   private var computationValues: Map[String, Any] =
     Map.empty //Partial results kept between supersteps in calculation
-
-  def hasMessage(): Boolean =
-    multiQueue.getMessageQueue(lens.superStep).nonEmpty
-
-  def messageQueue[T]
-      : List[T] = { //clears queue after getting it to make sure not there for next iteration
-    val queue = multiQueue.getMessageQueue(lens.superStep).map(_.asInstanceOf[T])
-    multiQueue.clearQueue(lens.superStep)
-    queue
-  }
-
-  private var incomingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
-  private var outgoingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
-  private var filtered                                       = false
-
-  def executeEdgeDelete(): Unit = {
-    internalOutgoingEdges --= outgoingEdgeDeleteMultiQueue
-      .getMessageQueue(lens.superStep)
-      .map(_.asInstanceOf[Long])
-    internalIncomingEdges --= incomingEdgeDeleteMultiQueue
-      .getMessageQueue(lens.superStep)
-      .map(_.asInstanceOf[Long])
-    outgoingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
-    incomingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
-  }
-
-  def clearMessageQueue(): Unit =
-    multiQueue = new VertexMultiQueue()
-
-  def voteToHalt(): Unit = lens.vertexVoted()
-
-  //out edges whole
-  def getOutEdges(after: Long = 0L, before: Long = Long.MaxValue): List[PojoExEdge] =
-    allEdge(internalOutgoingEdges, after, before)
-
-  //in edges whole
-  def getInEdges(after: Long = 0L, before: Long = Long.MaxValue): List[PojoExEdge] =
-    allEdge(internalIncomingEdges, after, before)
-
-  //all edges
-  def getEdges(after: Long = 0L, before: Long = Long.MaxValue): List[PojoExEdge] =
-    getInEdges(after, before) ++ getOutEdges(after, before)
-
-  //out edges individual
-  def getOutEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[PojoExEdge] =
-    individualEdge(internalOutgoingEdges, after, before, id)
-
-  //In edges individual
-  def getInEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[PojoExEdge] =
-    individualEdge(internalIncomingEdges, after, before, id)
-
-  // edge individual
-  def getEdge(id: Long, after: Long = 0L, before: Long = Long.MaxValue): Option[PojoExEdge] =
-    individualEdge(internalIncomingEdges ++ internalOutgoingEdges, after, before, id)
-
-  private def allEdge(edges: mutable.Map[Long, PojoExEdge], after: Long, before: Long) =
-    if (after == 0 && before == Long.MaxValue)
-      edges.values.toList
-    else
-      edges.collect {
-        case (_, edge) if edge.active(after, before) => edge
-      }.toList
-
-  private def individualEdge(
-      edges: mutable.Map[Long, PojoExEdge],
-      after: Long,
-      before: Long,
-      id: Long
-  ) =
-    if (after == 0 && before == Long.MaxValue)
-      edges.get(id)
-    else
-      edges.get(id) match {
-        case Some(edge) => if (edge.active(after, before)) Some(edge) else None
-        case None       => None
-      }
 
   // state related
   def setState(key: String, value: Any): Unit =
@@ -154,55 +215,13 @@ class PojoExVertex(
         setState(key, Array(value))
     }
 
-  //Send message
-  override def messageSelf(data: Any): Unit =
-    lens.sendMessage(VertexMessage(lens.superStep + 1, ID(), data))
-
-  def messageVertex(vertexId: Long, data: Any): Unit = {
-    val message = VertexMessage(lens.superStep + 1, vertexId, data)
-    lens.sendMessage(message)
-  }
-
-  def messageOutNeighbours(message: Any): Unit =
-    internalOutgoingEdges.keys.foreach(vId => messageVertex(vId, message))
-
-  def messageAllNeighbours(message: Any): Unit =
-    internalOutgoingEdges.keySet
-      .union(internalIncomingEdges.keySet)
-      .foreach(vId => messageVertex(vId, message))
-
-  def messageInNeighbours(message: Any): Unit =
-    internalIncomingEdges.keys.foreach(vId => messageVertex(vId, message))
-
-  def receiveMessage(msg: GenericVertexMessage): Unit =
-    msg match {
-      case msg: VertexMessage[_]       => multiQueue.receiveMessage(msg.superstep, msg.data)
-      case msg: FilteredOutEdgeMessage =>
-        outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
-      case msg: FilteredInEdgeMessage  =>
-        incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
+  // implement receive in case of exploded view (normal receive is handled in PojoVertexBase)
+  override def receiveMessage(msg: GenericVertexMessage[_]): Unit =
+    msg.vertexId match {
+      case _: Long               =>
+        super.receiveMessage(msg)
+      case (_: Long, time: Long) =>
+        exploded(time)
+          .receiveMessage(msg)
     }
-
-  def isFiltered = filtered
-
-  def remove(): Unit = {
-    // key is the vertex of the other side of edge
-    filtered = true
-    internalIncomingEdges.keys.foreach(k =>
-      lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k, ID()))
-    )
-    internalOutgoingEdges.keys.foreach(k =>
-      lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID()))
-    )
-  }
-
-  override def getOutNeighbours(after: Long, before: Long): List[Long] =
-    getOutEdges(after, before).map(_.dst())
-
-  override def getInNeighbours(after: Long, before: Long): List[Long] =
-    getInEdges(after, before).map(_.src())
-
-  override def getAllNeighbours(after: Long, before: Long): List[Long] =
-    (getInNeighbours() ++ getOutNeighbours()).distinct
-
 }

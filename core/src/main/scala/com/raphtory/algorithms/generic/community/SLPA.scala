@@ -74,8 +74,9 @@ class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends 
       }
       .iterate(
               { vertex =>
-                val newlab = listenerRule.chooseLabel(mutable.Queue(vertex.messageQueue[Long]: _*))
-                val memory = vertex.getState[mutable.Queue[Long]]("memory")
+                val newlab =
+                  listenerRule.chooseLabel(mutable.Queue(vertex.messageQueue[vertex.IDType]: _*))
+                val memory = vertex.getState[mutable.Queue[vertex.IDType]]("memory")
                 memory += newlab
 
                 val message = speakerRule.chooseLabel(memory)
@@ -102,25 +103,25 @@ object SLPA {
   ) = new SLPA(iterNumber, speakerRule, listenerRule)
 
   sealed trait Rule {
-    def chooseLabel(labels: mutable.Queue[Long]): Long
+    def chooseLabel[VertexID](labels: mutable.Queue[VertexID]): VertexID
   }
 
   case class Fifo() extends Rule {
 
-    override def chooseLabel(labels: mutable.Queue[Long]): Long =
+    override def chooseLabel[VertexID](labels: mutable.Queue[VertexID]): VertexID =
       labels.dequeue()
   }
 
   case class MostCommon() extends Rule {
 
-    override def chooseLabel(labels: mutable.Queue[Long]): Long =
-      labels.groupBy(identity).view.mapValues(_.size).maxBy(_._2)._1
+    override def chooseLabel[VertexID](labels: mutable.Queue[VertexID]): VertexID =
+      labels.groupBy(identity).mapValues(_.size).maxBy(_._2)._1
   }
 
   case class ChooseRandom(seed: Long = -1) extends Rule {
     val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
 
-    override def chooseLabel(labels: mutable.Queue[Long]): Long = {
+    override def chooseLabel[VertexID](labels: mutable.Queue[VertexID]): VertexID = {
       val asList = labels.toList
       asList(rnd.nextInt(labels.size))
     }

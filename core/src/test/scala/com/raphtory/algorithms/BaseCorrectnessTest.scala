@@ -15,6 +15,7 @@ import com.raphtory.output.FileOutputFormat
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.SequenceSpout
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
@@ -35,19 +36,24 @@ abstract class BaseCorrectnessTest extends AnyFunSuite {
   def setSpout(resource: String): Spout[String] =
     ResourceSpout(resource)
 
-  def correctResultsHash(resultsResource: String): String = {
+  private def correctResultsHash(resultsResource: String): String = {
     val results =
       scala.io.Source.fromResource(resultsResource).getLines().toList.sorted.flatten.toArray
     Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
   }
 
+  private def correctResultsHash(rows: Iterable[String]): String = {
+    val results = rows.toList.sorted.flatten.toArray
+    Hashing.sha256().hashString(new String(results), StandardCharsets.UTF_8).toString
+  }
+
   def algorithmPointTest(
       algorithm: GraphAlgorithm,
-      graphResource: String,
+      spout: Spout[String],
       lastTimestamp: Long,
       outputFormat: OutputFormat = defaultOutputFormat
   ): String = {
-    val graph = Raphtory.streamGraph(setSpout(graphResource), setGraphBuilder())
+    val graph = Raphtory.streamGraph(spout, setGraphBuilder())
 
     val conf                 = graph.getConfig()
     val startingTime         = System.currentTimeMillis()
@@ -72,8 +78,26 @@ abstract class BaseCorrectnessTest extends AnyFunSuite {
       resultsResource: String,
       lastTimestamp: Int
   ): Boolean =
-    algorithmPointTest(algorithm, graphResource, lastTimestamp) == correctResultsHash(
+    algorithmPointTest(
+            algorithm,
+            ResourceSpout(graphResource),
+            lastTimestamp
+    ) == correctResultsHash(
             resultsResource
+    )
+
+  def correctnessTest(
+      algorithm: GraphAlgorithm,
+      graphEdges: Seq[String],
+      results: Seq[String],
+      lastTimestamp: Int
+  ): Boolean =
+    algorithmPointTest(
+            algorithm,
+            SequenceSpout[String](graphEdges: _*),
+            lastTimestamp
+    ) == correctResultsHash(
+            results
     )
 
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =

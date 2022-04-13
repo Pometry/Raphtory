@@ -61,19 +61,18 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
         vertex.messageAllNeighbours(vertex.ID(), degree, weight, nodeWeight)
       }
       .step { vertex =>
-        val messages = vertex.messageQueue[(Long, Int, Double, Double)]
+        val messages = vertex.messageQueue[(vertex.IDType, Int, Double, Double)]
         val N        =
           1 // graph.nodeCount().toDouble TODO: nodeCount() is not available anymore, needs a solution
-        vertex.setState("D1", D1(vertex, messages, N, alpha))
-        vertex.setState("D2", D2(vertex, messages, N, alpha))
-        vertex.setState("D3", D3(vertex, messages, N, alpha))
-        vertex.setState("D4", D4(vertex, messages, N, alpha))
-        vertex.setState("D5", D5(vertex, messages, N, alpha))
+        vertex.setState("D1", D1(vertex)(messages, N, alpha))
+        vertex.setState("D2", D2(vertex)(messages, N, alpha))
+        vertex.setState("D3", D3(vertex)(messages, N, alpha))
+        vertex.setState("D4", D4(vertex)(messages, N, alpha))
+        vertex.setState("D5", D5(vertex)(messages, N, alpha))
       }
 
-  def D1(
-      vertex: Vertex,
-      messages: List[(Long, Int, Double, Double)],
+  def D1(vertex: Vertex)(
+      messages: List[(vertex.IDType, Int, Double, Double)],
       noNodes: Double,
       alpha: Double
   ): Double =
@@ -86,9 +85,8 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
       })
       .sum
 
-  def D2(
-      vertex: Vertex,
-      messages: List[(Long, Int, Double, Double)],
+  def D2(vertex: Vertex)(
+      messages: List[(vertex.IDType, Int, Double, Double)],
       noNodes: Double,
       alpha: Double
   ): Double =
@@ -99,9 +97,8 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
       })
       .sum
 
-  def D3(
-      vertex: Vertex,
-      messages: List[(Long, Int, Double, Double)],
+  def D3(vertex: Vertex)(
+      messages: List[(vertex.IDType, Int, Double, Double)],
       noNodes: Double,
       alpha: Double
   ): Double =
@@ -116,9 +113,8 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
       })
       .sum
 
-  def D4(
-      vertex: Vertex,
-      messages: List[(Long, Int, Double, Double)],
+  def D4(vertex: Vertex)(
+      messages: List[(vertex.IDType, Int, Double, Double)],
       noNodes: Double,
       alpha: Double
   ): Double =
@@ -131,9 +127,8 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
       })
       .sum
 
-  def D5(
-      vertex: Vertex,
-      messages: List[(Long, Int, Double, Double)],
+  def D5(vertex: Vertex)(
+      messages: List[(vertex.IDType, Int, Double, Double)],
       noNodes: Double,
       alpha: Double
   ): Double =
