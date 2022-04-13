@@ -17,12 +17,8 @@ class TwitterTest extends BaseRaphtoryAlgoTest[String] {
   override val outputDirectory: String = "/tmp/raphtoryTwitterTest"
 
   test("Connected Components Test") {
-    val outputFormat = FileOutputFormat(outputDirectory)
-
-    // Finishes in ~88000ms on Avg.
-    // TODO: this suicides pulsar on CI
     assert(
-            algorithmPointTest(ConnectedComponents(), outputFormat, 1400000)
+            algorithmPointTest(ConnectedComponents(), 1400000)
               equals "59ca85238e0c43ed8cdb4afe3a8a9248ea2c5497c945de6f4007ac4ed31946eb"
     )
   }

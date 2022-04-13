@@ -14,7 +14,7 @@ import java.io.File
 import scala.language.postfixOps
 import scala.sys.process._
 
-class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
+class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
   test("Outputting to Pulsar") {
     val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)
 
@@ -35,7 +35,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
               increment = 10000,
               windows = List(500, 1000, 10000)
       )
-
+    jobId = queryProgressTracker.getJobId
     queryProgressTracker.waitForJob()
 
     val firstResult = new String(receiveMessage(consumer).getValue)
