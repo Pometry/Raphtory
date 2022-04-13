@@ -5,28 +5,11 @@ import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.output.PulsarOutputFormat
-import org.apache.pulsar.client.admin.PulsarAdmin
-import org.apache.pulsar.common.policies.data.RetentionPolicies
-
-import java.io.File
-import scala.language.postfixOps
-import sys.process._
 import com.raphtory.examples.enron.graphbuilders.EnronGraphBuilder
 import com.raphtory.spouts.FileSpout
 import com.raphtory.util.FileUtils
 
 object Runner extends App {
-  //Set unlimited retention to keep topic
-  val retentionTime = -1
-  val retentionSize = -1
-
-  val admin    = PulsarAdmin.builder
-    .serviceHttpUrl("http://localhost:8080")
-    .tlsTrustCertsFilePath(null)
-    .allowTlsInsecureConnection(false)
-    .build
-  val policies = new RetentionPolicies(retentionTime, retentionSize)
-  admin.namespaces.setRetention("public/default", policies)
 
   val path = "/tmp/email_test.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv"

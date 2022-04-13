@@ -10,21 +10,8 @@ import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
 import com.raphtory.util.FileUtils
-import org.apache.pulsar.client.admin.PulsarAdmin
-import org.apache.pulsar.common.policies.data.RetentionPolicies
 
 object Runner extends App {
-  //Set unlimited retention to keep topic
-  val retentionTime = -1
-  val retentionSize = -1
-
-  val admin    = PulsarAdmin.builder
-    .serviceHttpUrl("http://localhost:8080")
-    .tlsTrustCertsFilePath(null)
-    .allowTlsInsecureConnection(false)
-    .build
-  val policies = new RetentionPolicies(retentionTime, retentionSize)
-  admin.namespaces.setRetention("public/default", policies)
 
   val path = "/tmp/higgs-retweet-activity.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/higgs-retweet-activity.csv"

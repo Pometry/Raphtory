@@ -107,7 +107,7 @@ object FileUtils {
       try s"curl -o $path $url" !!
       catch {
         case ex: Exception =>
-          println(s"Failed to download $path due to ${ex.getMessage}.")
+          logger.error(s"Failed to download $path due to ${ex.getMessage}.")
           ex.printStackTrace()
           (s"rm $path" !)
           throw ex
