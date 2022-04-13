@@ -2,8 +2,7 @@ package com.raphtory.algorithms.api
 
 import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
-import com.raphtory.graph.visitor.InterlayerEdge
-import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
+import com.raphtory.graph.visitor.Edge
 import com.raphtory.graph.visitor.Vertex
 
 /**
@@ -20,7 +19,29 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
   override def filter(f: (Vertex, GraphState) => Boolean): G =
     step((vertex, graphState) => if (!f(vertex, graphState)) vertex.remove())
 
-//  override def multilayerView: G =
+  override def edgeFilter(f: Edge => Boolean, pruneNodes: Boolean): G = {
+    val filtered = step { vertex =>
+      vertex
+        .getOutEdges()
+        .foreach(edge => if (!f(edge.asInstanceOf[Edge])) edge.remove())
+    }
+    if (pruneNodes)
+      filtered.filter(vertex => vertex.degree > 0)
+    else filtered
+  }
+
+  override def edgeFilter(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean): G = {
+    val filtered = step((vertex, graphState) =>
+      vertex
+        .getOutEdges()
+        .foreach(edge => if (!f(edge.asInstanceOf[Edge], graphState)) edge.remove())
+    )
+    if (pruneNodes)
+      filtered.filter(vertex => vertex.degree > 0)
+    else filtered
+  }
+
+  //  override def multilayerView: G =
 //    addFunction(MultilayerView(None))
 //
 //  override def multilayerView(

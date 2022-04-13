@@ -1,6 +1,7 @@
 package com.raphtory.algorithms.api
 
 import com.raphtory.components.querymanager.QueryManagement
+import com.raphtory.graph.visitor.Edge
 import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.PropertyMergeStrategy
 import com.raphtory.graph.visitor.Vertex
@@ -210,6 +211,8 @@ trait GraphOperations[G <: GraphOperations[G]] {
   def setGlobalState(f: (GraphState) => Unit): G
   def filter(f: (Vertex) => Boolean): G
   def filter(f: (Vertex, GraphState) => Boolean): G
+  def edgeFilter(f: (Edge) => Boolean, pruneNodes: Boolean): G
+  def edgeFilter(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean): G
 
 //  def multilayerView: G
 //
