@@ -13,4 +13,15 @@ class TimeSeriesTest extends BaseCorrectnessTest {
             )
     )
   }
+
+  test("Time Series History Test") {
+    assert(
+            correctnessTest(
+                    TimeSeriesGraphState(),
+                    "",
+                    "",
+                    4
+            )
+    )
+  }
 }

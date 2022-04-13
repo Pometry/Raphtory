@@ -288,7 +288,11 @@ abstract class EntityVisitor {
 
   //functionality to access the history of the edge or vertex + helpers
   def history(): List[HistoricEvent]
-  def timeSeriesHistory(): TimeSeries[Boolean] = ???
+
+  def timeSeriesHistory[T]: TimeSeries[T] =
+    TimeSeries.ofOrderedEntriesUnsafe(TSEntry[T](history().map { history =>
+      (history.time, history.event)
+    }))
 
   def active(after: Long = Long.MinValue, before: Long = Long.MaxValue): Boolean
   def aliveAt(time: Long, window: Long = Long.MaxValue): Boolean
