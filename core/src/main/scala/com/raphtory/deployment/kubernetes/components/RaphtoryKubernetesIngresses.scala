@@ -3,6 +3,29 @@ package com.raphtory.deployment.kubernetes.components
 import com.raphtory.deployment.kubernetes.utils.KubernetesIngress
 import com.raphtory.deployment.kubernetes.utils.KubernetesService
 
+/**
+  * {s}`RaphtoryKubernetesIngresses`
+  *
+  * Extends KubernetesClient which extends Config.
+  *
+  * KubernetesClient is used to establish kubernetes connection.
+  * 
+  * Kubernetes objects that are iterated over are read from application.conf values.
+  *
+  * ## Methods
+  *
+  *   {s}`create(): Unit` : Create kubernetes ingresses needed for Raphtory (if toggled in application.conf)
+  *
+  *   {s}`delete(): Unit` : Delete kubernetes ingresses needed for Raphtory (if toggled in application.conf)
+  *
+  * ```{seealso}
+  * [](com.raphtory.deployment.kubernetes.components.Config),
+  * [](com.raphtory.deployment.kubernetes.components.KubernetesClient),
+  * [](com.raphtory.deployment.kubernetes.utils.KubernetesIngress),
+  * [](com.raphtory.deployment.kubernetes.utils.KubernetesService)
+  * ```
+  */
+
 object RaphtoryKubernetesIngresses extends KubernetesClient {
 
   def create(): Unit =
