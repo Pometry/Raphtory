@@ -16,15 +16,16 @@ import scala.sys.process._
 
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
   test("Outputting to Pulsar") {
-    val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)
-
-    val consumer: Consumer[Array[Byte]] =
-      pulsarController
-        .createSharedConsumer(
-                subscriptionName = "pulsarOutputTest",
-                schema = Schema.BYTES,
-                topics = "EdgeList" + deploymentID
-        )
+    val outputFormat: PulsarOutputFormat                  = PulsarOutputFormat("EdgeList" + deploymentID)
+    var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+    cancelableConsumer = Some(
+            pulsarController
+              .createSharedConsumer(
+                      subscriptionName = "pulsarOutputTest",
+                      schema = Schema.BYTES,
+                      topics = "EdgeList" + deploymentID
+              )
+    )
 
     val queryProgressTracker =
       graph.rangeQuery(
@@ -37,12 +38,17 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
       )
 
     queryProgressTracker.waitForJob()
-
-    val firstResult = new String(receiveMessage(consumer).getValue)
-
+    val firstResult = new String(receiveMessage(cancelableConsumer.get).getValue)
     logger.info(s"Output to Pulsar complete. First result is: '$firstResult'.")
 
     assert(firstResult.nonEmpty)
+
+    cancelableConsumer match {
+      case Some(value) =>
+        value.unsubscribe()
+      case None        =>
+    }
+
   }
 
   override def batchLoading(): Boolean = false
