@@ -114,7 +114,7 @@ import scala.reflect.runtime.universe._
   * import com.raphtory.GraphState
   * import com.raphtory.output.FileOutputFormat
   *
-  * val builder = ???
+  * val builder = new YourGraphBuilder()
   * val customConfig = Map(("raphtory.pulsar.endpoint", "localhost:1234"))
   * val graph = Raphtory.stream(ResourceSpout("resource"), builder, customConfig)
   * graph
