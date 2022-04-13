@@ -78,13 +78,15 @@ class QueryExecutor(
   }
 
   override def stop(): Unit = {
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-      case None        =>
-    }
     taskManager.close()
     neighbours.foreach(_._2.close())
+    cancelableConsumer match {
+      case Some(value) =>
+        value.unsubscribe()
+        value.close()
+        logger.debug(s"closing query executor consumer for $jobID on partition $partitionID")
+      case None        =>
+    }
   }
 
   override def handleMessage(msg: QueryManagement): Unit = {

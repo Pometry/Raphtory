@@ -5,6 +5,7 @@ import com.raphtory.config.PulsarController
 import com.typesafe.config.Config
 import monix.execution.Cancelable
 import monix.execution.Scheduler
+import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 
 import java.util.concurrent.TimeUnit
@@ -18,11 +19,12 @@ class SpoutExecutor[T](
     private val pulsarController: PulsarController,
     scheduler: Scheduler
 ) extends Component[T](conf: Config, pulsarController: PulsarController) {
-  protected val failOnError: Boolean           = conf.getBoolean("raphtory.spout.failOnError")
-  private var linesProcessed: Int              = 0
-  private var scheduledRun: Option[Cancelable] = None
+  protected val failOnError: Boolean                    = conf.getBoolean("raphtory.spout.failOnError")
+  private var linesProcessed: Int                       = 0
+  private var scheduledRun: Option[Cancelable]          = None
+  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
-  val rescheduler = new Runnable {
+  val rescheduler                                       = new Runnable {
 
     override def run(): Unit = {
       spout.executeReschedule()
@@ -33,6 +35,12 @@ class SpoutExecutor[T](
 
   override def stop(): Unit = {
     scheduledRun.foreach(_.cancel())
+    cancelableConsumer match {
+      case Some(value) =>
+        value.unsubscribe()
+        value.close()
+      case None        =>
+    }
     producer.close()
   }
 

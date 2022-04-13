@@ -28,6 +28,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
+        value.unsubscribe()
         value.close()
       case None        =>
     }
@@ -48,6 +49,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
       case req: EndQuery            =>
         currentQueries.get(req.jobID) match {
           case Some(queryhandler) =>
+            queryhandler.stop()
             currentQueries.remove(req.jobID)
           case None               => //sender ! QueryNotPresent(req.jobID)
         }

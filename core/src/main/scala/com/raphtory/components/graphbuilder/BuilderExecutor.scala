@@ -44,6 +44,7 @@ class BuilderExecutor[T: ClassTag](
 
     cancelableConsumer match {
       case Some(value) =>
+        value.unsubscribe()
         value.close()
       case None        =>
     }

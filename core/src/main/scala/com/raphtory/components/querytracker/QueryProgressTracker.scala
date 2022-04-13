@@ -139,6 +139,7 @@ class QueryProgressTracker(
     logger.debug(s"Stopping QueryProgressTracker for $jobID")
     cancelableConsumer match {
       case Some(value) =>
+        value.unsubscribe()
         value.close()
       case None        =>
     }
