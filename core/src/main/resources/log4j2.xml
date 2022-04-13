@@ -27,11 +27,11 @@
         </Logger>
         <Logger name="com.raphtory.core" level="${env:CORE_LOG:-INFO}">
         </Logger>
-        <Logger name="com.raphtory.components.querymanager" level="DEBUG">
+        <Logger name="com.raphtory.components.querymanager" level="INFO">
         </Logger>
-        <Logger name="com.raphtory.components.partition.QueryExecutor" level="DEBUG">
+        <Logger name="com.raphtory.components.partition.QueryExecutor" level="INFO">
         </Logger>
-        <Logger name="com.raphtory.components.querytracker.QueryProgressTracker" level="DEBUG">
+        <Logger name="com.raphtory.components.querytracker.QueryProgressTracker" level="INFO">
         </Logger>
         <Logger name="com.raphtory.components.querymanager.QueryManager" level="INFO">
         </Logger>

@@ -1,5 +1,7 @@
 package com.raphtory.graph.visitor
 
+import scala.runtime.RichLong
+
 /**
   * {s}`ExplodedEdge`
   *   : trait representing a view of an edge at a given point in time
@@ -43,13 +45,4 @@ package com.raphtory.graph.visitor
   *     {s}`data: Any`
   *       : message data to send
   */
-trait ExplodedEdge {
-  def Type(): String
-  def ID(): Long
-  def src(): Long
-  def dst(): Long
-  def getPropertySet(): List[String]
-  def getPropertyValue[T](key: String): Option[T]
-  def send(data: Any): Unit
-  def timestamp(): Long
-}
+trait ExplodedEdge[VertexID] extends Edge[VertexID] with ExplodedEntityVisitor
