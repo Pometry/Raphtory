@@ -16,10 +16,15 @@ package com.raphtory.graph.visitor
   *
   * {s}`baseName(nameProperty: String): String`
   *   : use {s}`nameProperty` instead of {s}`"name"` to look up vertex name
+  *
+  * ```{seealso}
+  * [](com.raphtory.graph.visitor.Vertex),
+  * [](com.raphtory.graph.visitor.ExplodedEntityVisitor)
+  * ```
   */
 trait ExplodedVertex extends Vertex with ExplodedEntityVisitor {
   override type IDType = (Long, Long)
-  override type Edge <: ExplodedEdge
+  override type Edge <: ConcreteExplodedEdge[IDType]
   override def name(nameProperty: String): String = s"${super.name(nameProperty)}_$timestamp"
   def baseName: String                            = super.name()
   def baseName(nameProperty: String): String      = super.name(nameProperty)

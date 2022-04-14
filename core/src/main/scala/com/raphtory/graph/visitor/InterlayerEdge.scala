@@ -1,10 +1,10 @@
 package com.raphtory.graph.visitor
 
 /**
-  * {s}`InterlayerEdge(sourceTime: Long, dstTime: Long, properties: Map[String, Any] = Map.empty[String, Any]`)
+  * {s}`InterlayerEdge(srcTime: Long, dstTime: Long, properties: Map[String, Any] = Map.empty[String, Any])`
   *   : Class for representing interlayer edges
   *
-  *     {s}`sourceTime: Long`
+  *     {s}`srcTime: Long`
   *       : source time-stamp for the edge
   *
   *     {s}`dstTime: Long`
@@ -14,7 +14,7 @@ package com.raphtory.graph.visitor
   *       : properties that the interlayer edge should have
   */
 case class InterlayerEdge(
-    sourceTime: Long,
+    srcTime: Long,
     dstTime: Long,
     properties: Map[String, Any] = Map.empty[String, Any]
 ) extends EntityVisitor {
@@ -39,7 +39,7 @@ case class InterlayerEdge(
     properties.get(key) match {
       case None        => None
       case Some(value) =>
-        val actualTime = Seq(sourceTime, dstTime, after).min
+        val actualTime = Seq(srcTime, dstTime, after).min
         if (actualTime > before)
           Some(List.empty[(Long, T)])
         else
@@ -47,13 +47,13 @@ case class InterlayerEdge(
     }
 
   override def latestActivity(): HistoricEvent =
-    HistoricEvent(math.max(sourceTime, dstTime), event = false)
+    HistoricEvent(math.max(srcTime, dstTime), event = false)
 
   override def earliestActivity(): HistoricEvent =
-    HistoricEvent(math.min(sourceTime, dstTime), event = true)
+    HistoricEvent(math.min(srcTime, dstTime), event = true)
 
   override def getPropertyAt[T](key: String, time: Long): Option[T] =
-    if (time < math.min(sourceTime, dstTime) || time > math.max(sourceTime, dstTime))
+    if (time < math.min(srcTime, dstTime) || time > math.max(srcTime, dstTime))
       None
     else
       properties.get(key).map(_.asInstanceOf[T])

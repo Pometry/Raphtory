@@ -3,6 +3,7 @@ package com.raphtory.storage.pojograph.entities.external
 import com.raphtory.components.querymanager.FilteredInEdgeMessage
 import com.raphtory.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.components.querymanager.VertexMessage
+import com.raphtory.graph.visitor.ConcreteExplodedEdge
 import com.raphtory.graph.visitor.ExplodedEdge
 import com.raphtory.graph.visitor.HistoricEvent
 import com.raphtory.storage.pojograph.PojoGraphLens
@@ -17,11 +18,11 @@ class PojoExplodedEdge(
     val dst: Long,
     override val timestamp: Long
 ) extends PojoExEntity(objectEdge, view)
-        with ExplodedEdge[Long] {
-
+        with ConcreteExplodedEdge[Long] {
+  override type ExplodedEdge = PojoExplodedEdge
   override def ID(): Long = id
 
-  override def explode(): List[PojoExplodedEdge] = List(this)
+  override def explode(): List[ExplodedEdge] = List(this)
 
   override def send(data: Any): Unit = view.sendMessage(VertexMessage(view.superStep + 1, id, data))
 
