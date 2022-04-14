@@ -42,13 +42,15 @@ import io.sqooba.oss.timeseries.immutable.TSEntry
   *    If a value for {s}`window` is given, the entity is considered as having been deleted if more
   *    than {s}`window` time has passed since the last addition event.
   *
-  * {s}`firstActivityAfter(time: Long): HistoricEvent`
+  * {s}`firstActivityAfter(time: Long): Option[HistoricEvent]`
   *  : Return next event (addition or deletion) after timestamp {s}`time` as an
-  *    [{s}`HistoricEvent`](com.raphtory.graph.visitor.HistoricEvent)
+  *    [{s}`HistoricEvent`](com.raphtory.graph.visitor.HistoricEvent). This is wrapped in an option as
+  *    it is possible that no activity occurred after the given time.
   *
-  * {s}`lastActivityBefore(time: Long): HistoricEvent`
-  *  : Return the last event (addition or deltion) before timestamp {s}`time` as an
-  *    [{s}`HistoricEvent`](com.raphtory.graph.visitor.HistoricEvent)
+  * {s}`lastActivityBefore(time: Long): Option[HistoricEvent]`
+  *  : Return the last event (addition or deletion) before timestamp {s}`time` as an
+  *    [{s}`HistoricEvent`](com.raphtory.graph.visitor.HistoricEvent). This is wrapped in an option as
+  *    it is possible that no activity occurred before the given time.
   *
   * {s}`latestActivity(): HistoricEvent`
   *  : Return the most recent event (addition or deletion) in the current view as an
