@@ -7,7 +7,7 @@ Two classes help with this:
 - `Spouts` help with reading the data file and output tuples.
 - `Graph builders`, as the name suggests, convert these tuples into updates, building the graph.
 
-Once these classes are defined, they can be passed to `RaphtoryGraph` which will use both components to build the temporal graph.  
+Once these classes are defined, they can be passed to the `stream()` or `batchLoad()` methods on the `Raphtory` object, which will use both components to build the temporal graph.  
 
 If you have downloaded the [Examples](https://github.com/Raphtory/Examples.git) folder from the installation guide previously, then the LOTR example is already set up. If not, please return there and complete this step first.  
 
@@ -28,19 +28,32 @@ Gollum,Bilbo,308
 
 Also, in the examples folder you will find `LOTRGraphBuilder.scala`, `DegreesSeparation.scala` and `FileOutputRunner.scala` which we will go through in detail. 
 
-## Raphtory Graph
-First lets open `FileOutputRunner.scala`, which is our `main` class i.e. the file which we actually run. To do this we have made our class a scala app via `extends App`. This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. Inside of this we can create spout and graphbuilder objects and combine them into a `RaphtoryGraph`:
+## Local Deployment
+First lets open `FileOutputRunner.scala`, which is our `main` class i.e. the file which we actually run.
+To do this we have made our class a scala app via `extends App`.
+This is a short hand for creating your runnable main class (if you come from a Java background)
+or can be viewed as a script if you are more comfortable with Python.
+Inside of this we can create spout and graphbuilder objects and combine them into a graph object,
+which can be further used to make queries from:
 
 ````scala
 object FileOutputRunner extends App {
-  val source = ResourceSpout("lotr.csv")
+  val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
-  val graph = Raphtory.createGraph(spout = source, graphBuilder = builder)
-  val output = FileOutputFormat("/tmp/raphtory")
-  graph.pointQuery(DegreesSeparation(), output, 32674)
+  val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
+  val output  = FileOutputFormat("/tmp/raphtory")
+
+  val queryHandler = graph
+    .at(32674)
+    .past()
+    .execute(DegreesSeparation())
+    .writeTo(output)
 }
 ````
-**Note:** Once `Raphtory.createGraph` is called, we can start submitting queries to it - which can be seen in the snippet above. Don't worry about this yet as we will dive into it in the next section.
+
+**Note:** Once `Raphtory.stream` is called,
+we can start submitting queries to it - which can be seen in the snippet above.
+Don't worry about this yet as we will dive into it in the next section.
 
 ## Spout
 
