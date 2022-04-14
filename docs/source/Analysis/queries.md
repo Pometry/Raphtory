@@ -68,7 +68,7 @@ or timestamps with up to seconds (`"2020-01-01 00:00:00"`) or up to milliseconds
 Note that these three examples are equivalent as the trailing units are interpreted as zeros.
 
 For instance, let's say that you are only interested in the activity of your graph that happened within the year 2020.
-In order to apply an algorithm only over the activity of the graph within the year 2020, you can do this:
+In order to apply an algorithm only over that interval, you can do this:
 
 ```scala
 graph
@@ -94,7 +94,7 @@ graph
   .execute(ConnectedComponents())
   .writeTo(output)
 ```
-In this example, departing from Jan 1st 2020 with steps of one day, we create a window of one day each time.
+In this example, departing from Jan 1, 2020 with steps of one day, we create a window of one day each time.
 Over all the perspectives of the graph enclosed by those windows,
 we execute the algorithm and write the results to the file.
 If we set up a spout from a streaming source, Raphtory creates a new window every day with the new information.
@@ -104,7 +104,7 @@ The first one is setting the points you are interested in.
 You can just set one point using `at()` as well as a sequence of points with a given increment.
 For the latter, you have available four different methods that allow you to set
 the start of the sequence, the end of it, both, or none of them.
-The methods are respectively `depart()`, `climb()`, `range()`, `walk()`.
+The methods are respectively `depart()`, `climb()`, `range()`, and `walk()`.
 The points are always aligned with the provided start or end.
 In the case of a walk, as there are no points to align with,
 the epoch or the point 0 is minded regarding if timestamps or just numbers are being used.
@@ -113,7 +113,7 @@ The second step is to create perspectives from those points.
 We have three options here.
 We can just look to the `past` from every point, to the `future`, or set a `window`.
 In the third case, we can align the windows using the start, the middle, or the end of it.
-Refer to the [DottedGraph](com.raphtory.algorithms.api.DottedGraph) documentation for further details.
+Refer to the [`DottedGraph`](com.raphtory.algorithms.api.DottedGraph) documentation for further details.
 
 Coming back to our first example,
 we can set up a walk along a prefiltered year of our data in steps of one day
@@ -202,7 +202,7 @@ Running this algorithm returns the following data:
 32670,Lobelia,2
 ```
 
-This data tells us that at a given time the time, person X and is N number of hops away.
+This data tells us that at a given time, person X and Gandalf are N number of hops away.
 For example, at time 32670, Samwise was at minimum 1 hop away from Gandalf, whereas Lobelia was 2 hops away.
 
 ## Using Raphtory as a client
@@ -219,8 +219,7 @@ val graph = Raphtory.deployedGraph()
 
 From this point, you can keep working with your graph as we have done so far.
 
-Additionally, you still have access to the `RaphtoryClient` class provided in previous releases of Raphtory.
-The 
+Additionally, you still have access to the `RaphtoryClient` class provided in previous releases of Raphtory:
 
 ```scala
 val client = Raphtory.createClient()
