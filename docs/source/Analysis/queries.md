@@ -6,11 +6,11 @@ graph](../Ingestion/sprouter.md) and the [degrees of separation algorithm](LOTR_
 
 When running queries, the start point is a [`TemporalGraph`](com.raphtory.algorithms.api.TemporalGraph),
 which holds the information of a graph over a timeline. 
-From this point, the overall process to get the things done is as follows.
+From this point, the overall process to get things done is as follows.
 First, you can filter the portion of the timeline you are interested in.
-Then, you can create one or a collection of perspectives over selected timeline.
-Thereafter, you can apply a sequence of graph operations that end up with a table and sequence
-of table operations afterwards to get a writable result for your query.
+Then, you can create one or a collection of perspectives over the selected timeline.
+Thereafter, you can apply a sequence of graph operations that end up with a table
+and a sequence of table operations afterwards to get a writable result for your query.
 Finally, you can write out your result using an output format.
 This last step kicks off the computation inside Raphtory.
 
@@ -55,7 +55,7 @@ The table below provides a quick summary:
 | `to(end)`           | everything before `end` (inclusive)    |
 | `slice(start, end)` | equivalent to `from(start).until(end)` |
 
-If you are working with real times, then you can also  provide strings expressing timestamps.
+If you are working with real times, then you can also provide strings expressing timestamps.
 The default format is `"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`. 
 This means that you can provide just dates (`"2020-01-01"`),
 or timestamps with up to seconds (`"2020-01-01 00:00:00"`) or up to milliseconds (`"2020-01-01 00:00:00.000"`).
@@ -79,7 +79,7 @@ In such a case, Raphtory interprets numbers as milliseconds since the epoch to i
 We have only executed algorithms over monolithic views of graphs so far.
 However, the nice part about Raphtory is that you can run them over sequences of perspectives
 to discover dynamic changes.
-A quick example to do so below:
+A quick example to do so:
 
 ```scala
 graph
@@ -132,8 +132,8 @@ as there is no available data for them after the initial filtering.
 
 ## Operating over the graph
 
-Once we have defined the set ot perspectives we want to work with,
-we can define a sequence of operations to apply over every of those perspectives.
+Once we have defined the set of perspectives we want to work with,
+we can define a sequence of operations to apply over every one of those perspectives.
 The operations available are described in the documentation for the
 [`GraphOperations`](com.raphtory.algorithms.api.GraphOperations) trait.
 In addition to using already defined graph algorithms as we have done so far,
@@ -164,7 +164,7 @@ graph
 
 This possibility is especially useful when you want to
 preprocess the graph before applying an already defined algorithm.
-For instance, you can filter a set of nodes that fulfill some condition.
+For instance, you can filter a set of nodes that fulfil some conditions.
 
 ## Looking at the output
 
@@ -180,7 +180,7 @@ graph
 ```
 As we can understand now, what we are doing is creating a perspective at line 32674 looking at the past,
 and therefore including from line 1.
-Running this algorithm, returns the following data:
+Running this algorithm returns the following data:
 
 ```
 32670,Odo,2
@@ -199,7 +199,7 @@ Running this algorithm, returns the following data:
 ```
 
 This data tells us that at a given time the time, person X and is N number of hops away.
-For example at time 32670, Samwise was at minimum 1 hop away from Gandalf, whereas Lobelia was 2 hops away.
+For example, at time 32670, Samwise was at minimum 1 hop away from Gandalf, whereas Lobelia was 2 hops away.
 
 ## Using Raphtory as a client
 
