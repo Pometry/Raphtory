@@ -24,9 +24,10 @@ class PojoExMultilayerEdge(
 
   override def Type(): String = edge.Type()
 
-  override def firstActivityAfter(time: Long): HistoricEvent = edge.firstActivityAfter(time)
+  override def firstActivityAfter(time: Long): Option[HistoricEvent] = edge.firstActivityAfter(time)
 
-  override def lastActivityBefore(time: Long): HistoricEvent = edge.lastActivityBefore(time)
+  override def lastActivityBefore(time: Long): Option[HistoricEvent] =
+    edge.lastActivityBefore(time)
 
   override def latestActivity(): HistoricEvent = edge.latestActivity()
 

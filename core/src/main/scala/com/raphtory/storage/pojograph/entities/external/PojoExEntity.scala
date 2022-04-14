@@ -11,11 +11,19 @@ import scala.reflect.ClassTag
 abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends EntityVisitor {
   def Type(): String = entity.getType
 
-  def firstActivityAfter(time: Long): HistoricEvent =
-    history().filter(k => k.time >= time).minBy(x => x.time)
+  def firstActivityAfter(time: Long): Option[HistoricEvent] = {
+    val activitiesAfter = history().filter(k => k.time >= time)
+    if (activitiesAfter.nonEmpty)
+      Some(activitiesAfter.minBy(x => x.time))
+    else None
+  }
 
-  def lastActivityBefore(time: Long): HistoricEvent =
-    history().filter(k => k.time <= time).maxBy(x => x.time)
+  def lastActivityBefore(time: Long): Option[HistoricEvent] = {
+    val activitiesBefore = history().filter(k => k.time <= time)
+    if (activitiesBefore.nonEmpty)
+      Some(activitiesBefore.maxBy(x => x.time))
+    else None
+  }
 
   def latestActivity(): HistoricEvent = history().head
 

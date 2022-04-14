@@ -47,8 +47,18 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
         if (vertex.name() == seed) {
           val edges = (if (directed) vertex.getInEdges() else vertex.getEdges())
             .filter(e => e.earliestActivity().time < time)
-            .filter(e => e.lastActivityBefore(time).time > time - delta)
-          edges.foreach(e => vertex.messageVertex(e.ID(), e.lastActivityBefore(time).time))
+            .filter(e =>
+              e.lastActivityBefore(time) match {
+                case Some(event) => event.time > time - delta
+                case None        => false
+              }
+            )
+          edges.foreach(e =>
+            e.lastActivityBefore(time) match {
+              case Some(event) => vertex.messageVertex(e.ID(), event.time)
+              case None        =>
+            }
+          )
           vertex.setState("ancestor", false)
         }
       }
@@ -58,9 +68,19 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
                 vertex.setState("ancestor", true)
                 val inEdges    = (if (directed) vertex.getInEdges() else vertex.getEdges())
                   .filter(e => e.earliestActivity().time < latestTime)
-                  .filter(e => e.lastActivityBefore(time).time > latestTime - delta)
+                  .filter(e =>
+                    e.lastActivityBefore(time) match {
+                      case Some(event) => event.time > time - delta
+                      case None        => false
+                    }
+                  )
                 inEdges
-                  .foreach(e => vertex.messageVertex(e.ID(), e.lastActivityBefore(latestTime).time))
+                  .foreach(e =>
+                    e.lastActivityBefore(time) match {
+                      case Some(event) => vertex.messageVertex(e.ID(), event.time)
+                      case None        =>
+                    }
+                  )
               },
               executeMessagedOnly = true,
               iterations = 100

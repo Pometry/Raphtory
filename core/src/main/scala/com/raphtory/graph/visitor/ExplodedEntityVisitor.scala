@@ -12,8 +12,8 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 trait ExplodedEntityVisitor extends EntityVisitor {
   def timestamp: Long
 
-  def firstActivityAfter(time: Long = timestamp): HistoricEvent
-  def lastActivityBefore(time: Long = timestamp): HistoricEvent
+  def firstActivityAfter(time: Long = timestamp): Option[HistoricEvent]
+  def lastActivityBefore(time: Long = timestamp): Option[HistoricEvent]
 
   override def getPropertyValues[T](
       key: String,

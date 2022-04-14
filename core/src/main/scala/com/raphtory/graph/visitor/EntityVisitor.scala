@@ -216,8 +216,8 @@ abstract class EntityVisitor {
 
   def Type(): String
 
-  def firstActivityAfter(time: Long): HistoricEvent
-  def lastActivityBefore(time: Long): HistoricEvent
+  def firstActivityAfter(time: Long): Option[HistoricEvent]
+  def lastActivityBefore(time: Long): Option[HistoricEvent]
   def latestActivity(): HistoricEvent
   def earliestActivity(): HistoricEvent
 

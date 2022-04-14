@@ -47,8 +47,18 @@ class Descendants(seed: String, time: Long, delta: Long = Long.MaxValue, directe
         if (vertex.name() == seed) {
           val edges = (if (directed) vertex.getOutEdges() else vertex.getEdges())
             .filter(e => e.latestActivity().time > time)
-            .filter(e => e.firstActivityAfter(time).time < time + delta)
-          edges.foreach(e => vertex.messageVertex(e.ID(), e.firstActivityAfter(time).time))
+            .filter(e =>
+              e.firstActivityAfter(time) match {
+                case Some(event) => event.time < time + delta
+                case None        => false
+              }
+            )
+          edges.foreach(e =>
+            e.firstActivityAfter(time) match {
+              case Some(event) => vertex.messageVertex(e.ID(), event.time)
+              case None        =>
+            }
+          )
           vertex.setState("descendant", false)
         }
       }
@@ -58,9 +68,17 @@ class Descendants(seed: String, time: Long, delta: Long = Long.MaxValue, directe
                 vertex.setState("descendant", true)
                 val outEdges     = (if (directed) vertex.getOutEdges() else vertex.getEdges())
                   .filter(e => e.latestActivity().time > earliestTime)
-                  .filter(e => e.firstActivityAfter(earliestTime).time < earliestTime + delta)
+                  .filter(e =>
+                    e.firstActivityAfter(time) match {
+                      case Some(event) => event.time < time + delta
+                      case None        => false
+                    }
+                  )
                 outEdges.foreach(e =>
-                  vertex.messageVertex(e.ID(), e.firstActivityAfter(earliestTime).time)
+                  e.firstActivityAfter(time) match {
+                    case Some(event) => vertex.messageVertex(e.ID(), event.time)
+                    case None        =>
+                  }
                 )
               },
               executeMessagedOnly = true,
