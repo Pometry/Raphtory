@@ -36,7 +36,7 @@ abstract class BaseCorrectnessTest extends BaseRaphtoryAlgoTest[String] {
       resultsResource: String,
       lastTimestamp: Int
   ): Boolean = {
-    graph = Raphtory.streamGraph(ResourceSpout(graphResource), setGraphBuilder())
+    graph = Raphtory.stream(ResourceSpout(graphResource), setGraphBuilder())
 
     val res = algorithmPointTest(
             algorithm,
@@ -44,7 +44,7 @@ abstract class BaseCorrectnessTest extends BaseRaphtoryAlgoTest[String] {
     ) == correctResultsHash(
             resultsResource
     )
-    graph.stop()
+    graph.deployment.stop()
     res
   }
 
@@ -54,14 +54,14 @@ abstract class BaseCorrectnessTest extends BaseRaphtoryAlgoTest[String] {
       results: Seq[String],
       lastTimestamp: Int
   ): Boolean = {
-    graph = Raphtory.streamGraph(SequenceSpout(graphEdges: _*), setGraphBuilder())
+    graph = Raphtory.stream(SequenceSpout(graphEdges: _*), setGraphBuilder())
     val res = algorithmPointTest(
             algorithm,
             lastTimestamp
     ) == correctResultsHash(
             results
     )
-    graph.stop()
+    graph.deployment.stop()
     res
   }
 }
