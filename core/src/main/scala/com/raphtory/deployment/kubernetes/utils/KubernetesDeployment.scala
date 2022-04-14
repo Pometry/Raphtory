@@ -13,13 +13,17 @@ import scala.collection.JavaConverters._
   *
   * ## Methods
   *
-  *   {s}`get(client: KubernetesClient, name: String, namespace: String): Deployment` : Get Kubernetes deployment
+  *   {s}`get(client: KubernetesClient, name: String, namespace: String): Deployment`
+  *     : Get Kubernetes deployment
   *
-  *   {s}`build(name: String, replicas: Int, labels: Map[String, String], annotations: Map[String, String] = Map(), containerName: String, containerImage: String, containerImagePullPolicy: String, containerPort: Int, matchLabels: Map[String, String], environmentVariables: Map[String, String], imagePullSecretsName: String, resources: Config, affinity: Config, antiAffinity: Config): Deployment` : Build Kubernetes deployment
+  *   {s}`build(name: String, replicas: Int, labels: Map[String, String], annotations: Map[String, String] = Map(), containerName: String, containerImage: String, containerImagePullPolicy: String, containerPort: Int, matchLabels: Map[String, String], environmentVariables: Map[String, String], imagePullSecretsName: String, resources: Config, affinity: Config, antiAffinity: Config): Deployment`
+  *     : Build Kubernetes deployment
   *
-  *   {s}`create(client: KubernetesClient, namespace: String, deploymentConfig: Deployment): Deployment` : Create Kubernetes deployment
+  *   {s}`create(client: KubernetesClient, namespace: String, deploymentConfig: Deployment): Deployment`
+  *     : Create Kubernetes deployment
   * 
-  *   {s}`delete(client: KubernetesClient, namespace: String, name: String): Boolean` : Delete Kubernetes deployment
+  *   {s}`delete(client: KubernetesClient, namespace: String, name: String): Boolean`
+  *     : Delete Kubernetes deployment
   */
 
 object KubernetesDeployment {

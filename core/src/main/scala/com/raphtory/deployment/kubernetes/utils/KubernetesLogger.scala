@@ -11,13 +11,17 @@ import com.typesafe.scalalogging.LazyLogging
   *
   *   {s}`apply()` : create new Kubernetes Logger
   *
-  *   {s}`info(string: String)` : Log info message
+  *   {s}`info(string: String)` 
+  *     : Log info message
   *
-  *   {s}`warn(string: String)` : Log warn message
+  *   {s}`warn(string: String)`
+  *     : Log warn message
   *
-  *   {s}`error(string: String)` : Log error message
+  *   {s}`error(string: String)`
+  *     : Log error message
   * 
-  *   {s}`debug(string: String)` : Log debug message
+  *   {s}`debug(string: String)`
+  *     : Log debug message
   */
 
 class KubernetesLogger extends LazyLogging {

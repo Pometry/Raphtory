@@ -15,9 +15,11 @@ import com.raphtory.deployment.kubernetes.components.KubernetesClient
   *
   * ## Methods
   *
-  *   {s}`create(): Unit` : Create kubernetes registry secrets needed for Raphtory (if toggled in application.conf)
+  *   {s}`create(): Unit`
+  *     : Create kubernetes registry secrets needed for Raphtory (if toggled in application.conf)
   *
-  *   {s}`delete(): Unit` : Delete kubernetes registry secrets needed for Raphtory (if toggled in application.conf)
+  *   {s}`delete(): Unit`
+  *     : Delete kubernetes registry secrets needed for Raphtory (if toggled in application.conf)
   *
   * ```{seealso}
   * [](com.raphtory.deployment.kubernetes.components.Config),

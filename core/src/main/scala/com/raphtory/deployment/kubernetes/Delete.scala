@@ -11,15 +11,16 @@ import com.raphtory.deployment.kubernetes.components._
   *
   * ## Methods
   *
-  *   {s}`main(args: Array[String]): Unit` : Delete
+  *   {s}`main(args: Array[String]): Unit`
+        : Delete Kubernetes resources
   *
   * ```{seealso}
-  * [](com.raphtory.deployment.kubernetes.RaphtoryKubernetesNamespaces),
-  * [](com.raphtory.deployment.kubernetes.RaphtoryKubernetesRegistrySecret),
-  * [](com.raphtory.deployment.kubernetes.RaphtoryKubernetesServiceAccounts),
-  * [](com.raphtory.deployment.kubernetes.RaphtoryKubernetesDeployments),
-  * [](com.raphtory.deployment.kubernetes.RaphtoryKubernetesServices),
-  * [](com.raphtory.deployment.kubernetes.RaphtoryKubernetesIngresses)
+  * [](com.raphtory.deployment.kubernetes.components.RaphtoryKubernetesNamespaces),
+  * [](com.raphtory.deployment.kubernetes.components.RaphtoryKubernetesRegistrySecret),
+  * [](com.raphtory.deployment.kubernetes.components.RaphtoryKubernetesServiceAccounts),
+  * [](com.raphtory.deployment.kubernetes.components.RaphtoryKubernetesDeployments),
+  * [](com.raphtory.deployment.kubernetes.components.RaphtoryKubernetesServices),
+  * [](com.raphtory.deployment.kubernetes.components.RaphtoryKubernetesIngresses)
   * ```
   */
 

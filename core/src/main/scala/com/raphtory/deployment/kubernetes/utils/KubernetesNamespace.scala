@@ -14,13 +14,17 @@ import scala.collection.JavaConverters._
   *
   * ## Methods
   *
-  *   {s}`get(client: KubernetesClient, name: String): Namespace` : Get Kubernetes namespace
+  *   {s}`get(client: KubernetesClient, name: String): Namespace` 
+  *     : Get Kubernetes namespace
   *
-  *   {s}`listAll( client: KubernetesClient): ListBuffer[String]` : Get a list of Kubernetes namespaces
+  *   {s}`listAll( client: KubernetesClient): ListBuffer[String]`
+  *     : Get a list of Kubernetes namespaces
   *
-  *   {s}`create( client: KubernetesClient, name: String, labels: Map[String, String] = Map()): Namespace` : Create Kubernetes namespace
+  *   {s}`create( client: KubernetesClient, name: String, labels: Map[String, String] = Map()): Namespace`
+  *     : Create Kubernetes namespace
   * 
-  *   {s}`delete(client: KubernetesClient, name: String): Boolean` : Delete Kubernetes namespace
+  *   {s}`delete(client: KubernetesClient, name: String): Boolean`
+  *     : Delete Kubernetes namespace
   */
 
 object KubernetesNamespace {

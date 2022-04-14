@@ -13,9 +13,11 @@ import com.raphtory.deployment.kubernetes.utils._
   *
   * ## Methods
   *
-  *   {s}`create(): Unit` : Create kubernetes services needed for Raphtory (if toggled in application.conf)
+  *   {s}`create(): Unit`
+  *     : Create kubernetes services needed for Raphtory (if toggled in application.conf)
   *
-  *   {s}`delete(): Unit` : Delete kubernetes services needed for Raphtory (if toggled in application.conf)
+  *   {s}`delete(): Unit`
+  *     : Delete kubernetes services needed for Raphtory (if toggled in application.conf)
   *
   * ```{seealso}
   * [](com.raphtory.deployment.kubernetes.components.Config),

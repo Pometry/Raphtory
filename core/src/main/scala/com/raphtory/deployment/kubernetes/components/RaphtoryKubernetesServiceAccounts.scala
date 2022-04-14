@@ -13,9 +13,11 @@ import com.raphtory.deployment.kubernetes.utils.KubernetesServiceAccount
   *
   * ## Methods
   *
-  *   {s}`create(): Unit` : Create kubernetes service accounts needed for Raphtory (if toggled in application.conf)
+  *   {s}`create(): Unit`
+  *     : Create kubernetes service accounts needed for Raphtory (if toggled in application.conf)
   *
-  *   {s}`delete(): Unit` : Delete kubernetes service accounts needed for Raphtory (if toggled in application.conf)
+  *   {s}`delete(): Unit`
+  *     : Delete kubernetes service accounts needed for Raphtory (if toggled in application.conf)
   *
   * ```{seealso}
   * [](com.raphtory.deployment.kubernetes.components.Config),

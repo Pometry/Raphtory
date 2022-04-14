@@ -12,11 +12,14 @@ import scala.collection.JavaConverters._
   *
   * ## Methods
   *
-  *   {s}`build(client: KubernetesClient, data: Map[String, String], name: String, secretType: String): Secret` : Build Kubernetes secret
+  *   {s}`build(client: KubernetesClient, data: Map[String, String], name: String, secretType: String): Secret`
+  *     : Build Kubernetes secret
   *
-  *   {s}`create(client: KubernetesClient, namespace: String, secret: Secret): Secret` : Create Kubernetes secret
+  *   {s}`create(client: KubernetesClient, namespace: String, secret: Secret): Secret`
+  *     : Create Kubernetes secret
   * 
-  *   {s}`delete(client: KubernetesClient, namespace: String, name: String): Boolean` : Delete Kubernetes secret
+  *   {s}`delete(client: KubernetesClient, namespace: String, name: String): Boolean`
+  *     : Delete Kubernetes secret
   */
 
 object KubernetesSecret {
