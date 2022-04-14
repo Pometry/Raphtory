@@ -201,6 +201,29 @@ Running this algorithm, returns the following data:
 This data tells us that at a given time the time, person X and is N number of hops away.
 For example at time 32670, Samwise was at minimum 1 hop away from Gandalf, whereas Lobelia was 2 hops away.
 
+## Using Raphtory as a client
+
+Finally, if you have a graph deployed somewhere else and want to submit new queries to it,
+you can do this via the `deployedGraph(customConfig)` method in `Raphtory` object,
+providing the appropriate configuration to locate it.
+If the graph is deployed in the same machine using the default configuration,
+you can even omit the configuration parameter:
+
+```scala
+val graph = Raphtory.deployedGraph()
+```
+
+From this point, you can keep working with your graph as we have done so far.
+
+Additionally, you still have access to the `RaphtoryClient` class provided in previous releases of Raphtory.
+The 
+
+```scala
+val client = Raphtory.createClient()
+client.pointQuery(ConnectedComponents(), output, 10000)
+```
+
+
 ## What now?
 To summarise, Raphtory's analytical engine provides a way of expressing a large variety of graph algorithms,
 implemented by vertex computations. Unlike more general graph analytics libraries, it has functionalities
