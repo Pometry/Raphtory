@@ -28,7 +28,7 @@ object LocalRunner extends App {
   // create graph
   val source  = FileSpout("/tmp/etherscan_tags.csv")
   val builder = new EthereumGraphBuilder()
-  val graph   = Raphtory.batchLoadGraph(source, builder)
+  val graph   = Raphtory.batchLoad(source, builder)
 
   // setup ethereum vars
   val startTime = 1574814233
@@ -236,7 +236,11 @@ object LocalRunner extends App {
   // val graphQuery = new TaintAlgorithm(startTime, infectedNodes, stopNodes)
   val fileOutput   = FileOutputFormat("/tmp/ethereum/Taint")
   val pulsarOutput = PulsarOutputFormat("TaintTracking")
-  graph.pointQuery(TaintAlgorithm(startTime, infectedNodes, stopNodes), pulsarOutput, 1575013446)
+  graph
+    .at(1575013446)
+    .past()
+    .execute(TaintAlgorithm(startTime, infectedNodes, stopNodes))
+    .writeTo(pulsarOutput)
   // graph.pointQuery(ConnectedComponents(), FileOutputFormat("/tmp/ethereum/connected_components"), 1591951621)
 
   // Range query, run the same command over certain time periods

@@ -75,6 +75,22 @@ object Alignment extends Enumeration {
   *      {s}`alignment: Alignment.Value`
   *      : the alignment of the window
   *
+  *  {s}`window(sizes: List[Int]): RaphtoryGraph`
+  *    : Create a number of windows with the given {s}`sizes` starting from every temporal mark.
+  *
+  *      {s}`sizes: List[Int]`
+  *      : the exact sizes of the windows
+  *
+  *  {s}`window(sizes: List[Int], alignment: Alignment.Value): RaphtoryGraph`
+  *    : Create a number of windows with the given {s}`sizes` and the given {s}`alignment`
+  *    using every temporal mark.
+  *
+  *      {s}`sizes: List[Int]`
+  *      : the exact sizes of the windows
+  *
+  *      {s}`alignment: Alignment.Value`
+  *      : the alignment of the windows
+  *
   *  {s}`window(sizes: List[Long]): RaphtoryGraph`
   *    : Create a number of windows with the given {s}`sizes` starting from every temporal mark.
   *
@@ -91,17 +107,17 @@ object Alignment extends Enumeration {
   *      {s}`alignment: Alignment.Value`
   *      : the alignment of the windows
   *
-  *  {s}`window(sizes: => List[String]): RaphtoryGraph`
+  *  {s}`window(sizes: List[String]): RaphtoryGraph`
   *    : Create a number of windows with the given {s}`sizes` starting from every temporal mark.
   *
-  *      {s}`sizes: => List[String]`
+  *      {s}`sizes: List[String]`
   *      : intervals expressing the exact sizes of the windows
   *
-  *  {s}`window(sizes: => List[String], alignment: Alignment.Value): RaphtoryGraph`
+  *  {s}`window(sizes: List[String], alignment: Alignment.Value): RaphtoryGraph`
   *    : Create a number of windows with the given {s}`sizes` and the given {s}`alignment`
   *    using every temporal mark.
   *
-  *      {s}`sizes: => List[String]`
+  *      {s}`sizes: List[String]`
   *      : intervals expressing the exact sizes of the windows
   *
   *      {s}`alignment: Alignment.Value`

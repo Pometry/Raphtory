@@ -17,17 +17,16 @@ object Runner extends App {
   FileUtils.curlFile(path, url)
   val source: Spout[String] = FileSpout(path)
   val builder               = new GabUserGraphBuilder()
-  val rg                    = Raphtory.streamGraph(spout = source, graphBuilder = builder)
+  val rg                    = Raphtory.stream(spout = source, graphBuilder = builder)
   val outputFormat          = PulsarOutputFormat("Gab")
-  rg.pointQuery(EdgeList(), PulsarOutputFormat("EdgeList"), timestamp = 1476113868000L)
-  rg.rangeQuery(
-          ConnectedComponents(),
-          outputFormat = outputFormat,
-          start = 1470797917000L,
-          end = 1476113868000L,
-          increment = 86400000L,
-          windows = List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L)
-  )
+  rg.at(1476113868000L)
+    .past()
+    .execute(EdgeList())
+    .writeTo(PulsarOutputFormat("EdgeList"))
+  rg.range(1470797917000L, 1476113868000L, 86400000L)
+    .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L))
+    .execute(ConnectedComponents())
+    .writeTo(outputFormat)
   //rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,window=100,arguments)
   //rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,windowBatch=Array(3600,36000,360000),arguments)
   //rg.viewQuery(DegreeBasic(),timestamp = 10000,arguments)
