@@ -14,6 +14,12 @@ and a sequence of table operations afterwards to get a writable result for your 
 Finally, you can write out your result using an output format.
 This last step kicks off the computation inside Raphtory.
 
+A conceptual example of the stages for creating perspectives from a temporal graph is depicted below.
+
+<p align="center">
+	<img src="../_static/query-stages.png" width="80%" alt="Stages of queries"/>
+</p>
+
 ## Quick start
 
 Instead of going through this whole process,
@@ -112,8 +118,6 @@ Refer to the [DottedGraph](com.raphtory.algorithms.api.DottedGraph) documentatio
 Coming back to our first example,
 we can set up a walk along a prefiltered year of our data in steps of one day
 creating a window of one week in each step as follows:
-
-- maybe use window size different from increment, maybe weeks or months
 
 ```scala
 graph
