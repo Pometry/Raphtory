@@ -15,7 +15,7 @@ import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
 import py4j.GatewayServer
 
-import scala.reflect.ClassTag
+import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._
 
 /**
@@ -79,8 +79,14 @@ object Raphtory {
   private val scheduler = new MonixScheduler().scheduler
   private val gatewayServer = new GatewayServer(null)
   gatewayServer.start()
+  def createNew[A: ClassTag]: A = classTag[A].runtimeClass.newInstance().asInstanceOf[A]
+  def createOld[A](c: Class[A]): A = createNew(ClassTag[A](c))
+  def classTagFromObject(obj: Any): ClassTag[_] = {
+    ClassTag.apply(obj.getClass())
+  }
 
-  def streamGraph[T: TypeTag: ClassTag](
+  // def streamGraph[T: TypeTag: ClassTag](
+  def streamGraph[T: ClassTag: TypeTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()

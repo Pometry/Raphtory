@@ -33,7 +33,7 @@
         </Logger>
         <Logger name="com.raphtory.components.querytracker.QueryProgressTracker" level="DEBUG">
         </Logger>
-        <Logger name="com.raphtory.components.querymanager.QueryManager" level="INFO">
+        <Logger name="com.raphtory.components.querymanager.QueryManager" level="DEBUG">
         </Logger>
 
         <Logger name="com.raphtory.components.partition" level="INFO">

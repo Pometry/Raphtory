@@ -57,11 +57,11 @@ class EdgeList(
 }
 
 object EdgeList {
-
-  def apply(
-      properties: Seq[String] = Seq.empty[String],
-      defaults: Map[String, Any] = Map.empty[String, Any]
-  )                                                          = new EdgeList(properties, defaults)
-  def apply(properties: String*)                             = new EdgeList(properties)
-  def apply(defaults: Map[String, Any], properties: String*) = new EdgeList(properties, defaults)
+  def apply()                                                = new EdgeList()
+//  def apply(
+//      properties: Seq[String] = Seq.empty[String],
+//      defaults: Map[String, Any] = Map.empty[String, Any]
+//  )                                                          = new EdgeList(properties, defaults)
+//  def apply(properties: String*)                             = new EdgeList(properties)
+//  def apply(defaults: Map[String, Any], properties: String*) = new EdgeList(properties, defaults)
 }
