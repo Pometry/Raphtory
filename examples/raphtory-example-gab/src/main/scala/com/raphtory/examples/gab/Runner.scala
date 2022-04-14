@@ -1,5 +1,6 @@
 package com.raphtory.examples.gab;
 
+import com.raphtory.algorithms.api.Alignment
 import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
@@ -24,7 +25,7 @@ object Runner extends App {
     .execute(EdgeList())
     .writeTo(PulsarOutputFormat("EdgeList"))
   rg.range(1470797917000L, 1476113868000L, 86400000L)
-    .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L))
+    .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L), Alignment.END)
     .execute(ConnectedComponents())
     .writeTo(outputFormat)
   //rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,window=100,arguments)

@@ -1,5 +1,6 @@
 package com.raphtory.examples.twittercircles
 
+import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.deployment.Raphtory
@@ -26,7 +27,7 @@ object Runner extends App {
     .writeTo(PulsarOutputFormat("TwitterEdgeList"))
   graph
     .range(10000, 88234, 10000)
-    .window(List(500, 1000, 10000))
+    .window(List(500, 1000, 10000), Alignment.END)
     .execute(ConnectedComponents())
     .writeTo(PulsarOutputFormat("ConnectedComponents"))
 }

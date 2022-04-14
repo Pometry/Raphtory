@@ -1,5 +1,6 @@
 package com.raphtory.examples.lotrTopic
 
+import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.deployment.Raphtory
@@ -26,7 +27,7 @@ object PulsarOutputRunner extends App {
   graph.at(30000).past().execute(EdgeList()).writeTo(PulsarOutputFormat("EdgeList"))
   graph
     .range(20000, 30000, 10000)
-    .window(List(500, 1000, 10000))
+    .window(List(500, 1000, 10000), Alignment.END)
     .execute(PageRank())
     .writeTo(PulsarOutputFormat("PageRank"))
 }
