@@ -11,6 +11,6 @@ object Runner extends App {
 
   val spout        = FileSpout("/tmp")
   val graphBuilder = new LOTRGraphBuilder()
-  val graph        = Raphtory.batchLoadGraph(spout, graphBuilder)
+  val graph        = Raphtory.batchLoad(spout, graphBuilder)
 
 }

@@ -24,11 +24,11 @@ object LiveTwitterTest {
         new LiveTwitterRetweetGraphBuilder()
       else
         new LiveTwitterUserGraphBuilder()
-    val graph        = Raphtory.streamGraph[Tweet](spout, graphBuilder)
-    graph.liveQuery(
-            graphAlgorithm = EdgeList(),
-            outputFormat = PulsarOutputFormat("EdgeList1"),
-            increment = 1000
-    )
+    val graph        = Raphtory.stream[Tweet](spout, graphBuilder)
+    graph
+      .walk(1000)
+      .past()
+      .execute(EdgeList())
+      .writeTo(PulsarOutputFormat("EdgeList1"))
   }
 }

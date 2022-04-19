@@ -18,17 +18,17 @@ object Runner extends App {
   // Create Graph
   val source  = FileSpout(path)
   val builder = new EnronGraphBuilder()
-  val graph   = Raphtory.streamGraph(spout = source, graphBuilder = builder)
+  val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
 
-//  graph.rangeQuery(GraphState(), output, start = 1, end = 32674, increment = 10000, windows = List(500, 1000, 10000))
-  graph.pointQuery(EdgeList(), PulsarOutputFormat("EdgeList"), timestamp = 989858340000L)
-  graph.rangeQuery(
-          ConnectedComponents(),
-          PulsarOutputFormat("ConnectedComponents"),
-          start = 963557940000L,
-          end = 989858340000L,
-          increment = 1000000000,
-          windows = List()
-  )
+  graph
+    .at(989858340000L)
+    .past()
+    .execute(EdgeList())
+    .writeTo(PulsarOutputFormat("EdgeList"))
+  graph
+    .range(963557940000L, 989858340000L, 1000000000)
+    .past()
+    .execute(ConnectedComponents())
+    .writeTo(PulsarOutputFormat("ConnectedComponents"))
 }

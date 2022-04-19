@@ -23,7 +23,10 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
     val outputFormat: FileOutputFormat = FileOutputFormat(outputDirectory)
 
     graph
-      .liveQuery(graphAlgorithm = GraphState(), outputFormat = outputFormat, increment = 10000)
+      .walk(10000)
+      .past()
+      .execute(GraphState())
+      .writeTo(outputFormat)
       .waitForJob()
 
 //    algorithmTest(GraphState(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))

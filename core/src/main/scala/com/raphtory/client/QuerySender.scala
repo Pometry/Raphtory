@@ -10,6 +10,7 @@ import org.apache.pulsar.client.api.Schema
 
 import scala.util.Random
 
+/** @DoNotDocument */
 class QuerySender(
     private val componentFactory: ComponentFactory,
     private val scheduler: Scheduler,

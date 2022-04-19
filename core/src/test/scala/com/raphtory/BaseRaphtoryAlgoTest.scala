@@ -1,6 +1,8 @@
 package com.raphtory
 
 import com.google.common.hash.Hashing
+import com.raphtory.algorithms.api.Alignment
+import com.raphtory.algorithms.api.DeployedTemporalGraph
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.OutputFormat
 import com.raphtory.client.GraphDeployment
@@ -39,7 +41,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   val outputDirectory: String           = "/tmp/raphtoryTest"
   def defaultOutputFormat: OutputFormat = FileOutputFormat(outputDirectory)
 
-  var graph: GraphDeployment[T]          = _
+  var graph: DeployedTemporalGraph       = _
   def pulsarController: PulsarController = new PulsarController(conf)
   def conf: Config                       = graph.getConfig()
   def deploymentID: String               = conf.getString("raphtory.deploy.id")
@@ -51,12 +53,12 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     val graphBuilder: GraphBuilder[T] = setGraphBuilder()
 
     graph = Option
-      .when(batchLoading())(Raphtory.batchLoadGraph[T](spout, graphBuilder))
-      .fold(Raphtory.streamGraph[T](spout, graphBuilder))(identity)
+      .when(batchLoading())(Raphtory.batchLoad[T](spout, graphBuilder))
+      .fold(Raphtory.stream[T](spout, graphBuilder))(identity)
   }
 
   override def afterAll(): Unit =
-    graph.stop()
+    graph.deployment.stop()
 
   override def withFixture(test: NoArgTest): Outcome =
     // Only clean the test directory if test succeeds
@@ -93,8 +95,12 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       windows: List[Long] = List[Long](),
       outputFormat: OutputFormat = defaultOutputFormat
   ): String = {
-    val queryProgressTracker =
-      graph.rangeQuery(algorithm, outputFormat, start, end, increment, windows)
+    val jobName              = algorithm.getClass.getCanonicalName.split("\\.").last
+    val queryProgressTracker = graph
+      .range(start, end, increment)
+      .window(windows, Alignment.END)
+      .execute(algorithm)
+      .writeTo(outputFormat, jobName)
 
     jobId = queryProgressTracker.getJobId
 
@@ -109,7 +115,12 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       windows: List[Long] = List[Long](),
       outputFormat: OutputFormat = defaultOutputFormat
   ): String = {
-    val queryProgressTracker = graph.pointQuery(algorithm, outputFormat, timestamp, windows)
+    val jobName              = algorithm.getClass.getCanonicalName.split("\\.").last
+    val queryProgressTracker = graph
+      .at(timestamp)
+      .window(windows, Alignment.END)
+      .execute(algorithm)
+      .writeTo(outputFormat, jobName)
 
     jobId = queryProgressTracker.getJobId
 

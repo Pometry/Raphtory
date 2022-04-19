@@ -1,6 +1,7 @@
 package com.raphtory.generic
 
 import com.raphtory.BaseRaphtoryAlgoTest
+import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
@@ -26,14 +27,11 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
         )
 
     val queryProgressTracker =
-      graph.rangeQuery(
-              graphAlgorithm = EdgeList(),
-              outputFormat = outputFormat,
-              start = 1,
-              end = 32674,
-              increment = 10000,
-              windows = List(500, 1000, 10000)
-      )
+      graph
+        .range(1, 32674, 10000)
+        .window(List(500, 1000, 10000), Alignment.END)
+        .execute(EdgeList())
+        .writeTo(outputFormat, "EdgeList")
     jobId = queryProgressTracker.getJobId
     queryProgressTracker.waitForJob()
     val firstResult = new String(receiveMessage(consumer).getValue)

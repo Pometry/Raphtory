@@ -20,16 +20,14 @@ object Runner extends App {
   // Create Graph
   val source  = FileSpout(path)
   val builder = new TwitterGraphBuilder()
-  val graph   = Raphtory.streamGraph(spout = source, graphBuilder = builder)
+  val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
   val output  = PulsarOutputFormat("Retweets")
 
-  graph.rangeQuery(
-          PageRank() -> MemberRank() -> TemporalMemberRank(),
-          output,
-          start = 1341101181,
-          end = 1341705593,
-          increment = 500000000,
-          windows = List()
-  )
+  graph
+    .range(1341101181, 1341705593, 500000000)
+    .past()
+    .transform(PageRank())
+    .execute(MemberRank() -> TemporalMemberRank())
+    .writeTo(output)
 }
