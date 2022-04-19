@@ -4,6 +4,30 @@ import java.util.Base64
 
 import com.raphtory.deployment.kubernetes.components.KubernetesClient
 
+/**
+  * {s}`RaphtoryKubernetesRegistrySecret`
+  *
+  * Extends KubernetesClient which extends Config.
+  *
+  * KubernetesClient is used to establish kubernetes connection.
+  * 
+  * Kubernetes object config is read from application.conf values.
+  *
+  * ## Methods
+  *
+  *   {s}`create(): Unit`
+  *     : Create kubernetes registry secrets needed for Raphtory (if toggled in application.conf)
+  *
+  *   {s}`delete(): Unit`
+  *     : Delete kubernetes registry secrets needed for Raphtory (if toggled in application.conf)
+  *
+  * ```{seealso}
+  * [](com.raphtory.deployment.kubernetes.components.Config),
+  * [](com.raphtory.deployment.kubernetes.components.KubernetesClient),
+  * [](com.raphtory.deployment.kubernetes.utils.KubernetesSecret)
+  * ```
+  */
+
 object RaphtoryKubernetesRegistrySecret extends KubernetesClient {
 
   def create(): Unit =

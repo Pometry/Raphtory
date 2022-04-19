@@ -2,6 +2,30 @@ package com.raphtory.deployment.kubernetes.components
 
 import com.raphtory.deployment.kubernetes.utils._
 
+/**
+  * {s}`RaphtoryKubernetesServices`
+  *
+  * Extends KubernetesClient which extends Config.
+  *
+  * KubernetesClient is used to establish kubernetes connection.
+  * 
+  * Kubernetes object config is read from application.conf values.
+  *
+  * ## Methods
+  *
+  *   {s}`create(): Unit`
+  *     : Create kubernetes services needed for Raphtory (if toggled in application.conf)
+  *
+  *   {s}`delete(): Unit`
+  *     : Delete kubernetes services needed for Raphtory (if toggled in application.conf)
+  *
+  * ```{seealso}
+  * [](com.raphtory.deployment.kubernetes.components.Config),
+  * [](com.raphtory.deployment.kubernetes.components.KubernetesClient),
+  * [](com.raphtory.deployment.kubernetes.utils.KubernetesServices)
+  * ```
+  */
+
 object RaphtoryKubernetesServices extends KubernetesClient {
 
   def create(): Unit =

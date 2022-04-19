@@ -6,6 +6,13 @@ import java.util
 import com.raphtory.deployment.kubernetes.utils.KubernetesLogger
 import com.typesafe.config
 
+/**
+  * {s}`Config`
+  *
+  * Reads kubernetes configuration values from application.conf.
+  *
+  */
+
 class Config {
   val conf: config.Config          = Raphtory.getDefaultConfig()
   val raphtoryDeploymentId: String = conf.getString("raphtory.deploy.id")
