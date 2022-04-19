@@ -1,5 +1,6 @@
 package com.raphtory.examples.lotrTopic
 
+import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.deployment.Raphtory
@@ -19,17 +20,14 @@ object PulsarOutputRunner extends App {
   // Create Graph
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.streamGraph(spout = source, graphBuilder = builder)
+  val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
 
   // Run algorithms
-  graph.pointQuery(EdgeList(), PulsarOutputFormat("EdgeList"), timestamp = 30000)
-  graph.rangeQuery(
-          PageRank(),
-          PulsarOutputFormat("PageRank"),
-          20000,
-          30000,
-          10000,
-          List(500, 1000, 10000)
-  )
+  graph.at(30000).past().execute(EdgeList()).writeTo(PulsarOutputFormat("EdgeList"))
+  graph
+    .range(20000, 30000, 10000)
+    .window(List(500, 1000, 10000), Alignment.END)
+    .execute(PageRank())
+    .writeTo(PulsarOutputFormat("PageRank"))
 }

@@ -7,6 +7,9 @@ import com.raphtory.time.Interval
 import com.raphtory.time.IntervalParser.{parse => parseInterval}
 import com.typesafe.config.Config
 
+import scala.reflect.ClassTag
+import scala.reflect.runtime.universe._
+
 object Alignment extends Enumeration {
   type Alignment = Value
   val START, MIDDLE, END = Value
@@ -72,6 +75,22 @@ object Alignment extends Enumeration {
   *      {s}`alignment: Alignment.Value`
   *      : the alignment of the window
   *
+  *  {s}`window(sizes: List[Int]): RaphtoryGraph`
+  *    : Create a number of windows with the given {s}`sizes` starting from every temporal mark.
+  *
+  *      {s}`sizes: List[Int]`
+  *      : the exact sizes of the windows
+  *
+  *  {s}`window(sizes: List[Int], alignment: Alignment.Value): RaphtoryGraph`
+  *    : Create a number of windows with the given {s}`sizes` and the given {s}`alignment`
+  *    using every temporal mark.
+  *
+  *      {s}`sizes: List[Int]`
+  *      : the exact sizes of the windows
+  *
+  *      {s}`alignment: Alignment.Value`
+  *      : the alignment of the windows
+  *
   *  {s}`window(sizes: List[Long]): RaphtoryGraph`
   *    : Create a number of windows with the given {s}`sizes` starting from every temporal mark.
   *
@@ -88,17 +107,17 @@ object Alignment extends Enumeration {
   *      {s}`alignment: Alignment.Value`
   *      : the alignment of the windows
   *
-  *  {s}`window(sizes: => List[String]): RaphtoryGraph`
+  *  {s}`window(sizes: List[String]): RaphtoryGraph`
   *    : Create a number of windows with the given {s}`sizes` starting from every temporal mark.
   *
-  *      {s}`sizes: => List[String]`
+  *      {s}`sizes: List[String]`
   *      : intervals expressing the exact sizes of the windows
   *
-  *  {s}`window(sizes: => List[String], alignment: Alignment.Value): RaphtoryGraph`
+  *  {s}`window(sizes: List[String], alignment: Alignment.Value): RaphtoryGraph`
   *    : Create a number of windows with the given {s}`sizes` and the given {s}`alignment`
   *    using every temporal mark.
   *
-  *      {s}`sizes: => List[String]`
+  *      {s}`sizes: List[String]`
   *      : intervals expressing the exact sizes of the windows
   *
   *      {s}`alignment: Alignment.Value`
@@ -114,6 +133,9 @@ private[raphtory] class DottedGraph(
     private val conf: Config
 ) {
 
+  implicit val ignoreInt: Int       = 1
+  implicit val ignoreString: String = ""
+
   def window(size: Long): RaphtoryGraph =
     window(size, Alignment.START)
 
@@ -125,16 +147,26 @@ private[raphtory] class DottedGraph(
   def window(size: String, alignment: Alignment.Value): RaphtoryGraph =
     addWindows(List(parseInterval(size)), alignment)
 
-  def window(sizes: List[Long]): RaphtoryGraph =
+  def window(sizes: List[Int]): RaphtoryGraph =
     window(sizes, Alignment.START)
 
-  def window(sizes: List[Long], alignment: Alignment.Value): RaphtoryGraph =
+  def window(sizes: List[Int], alignment: Alignment.Value): RaphtoryGraph =
+    addWindows(sizes map (DiscreteInterval(_)), alignment)
+
+  def window(sizes: List[Long])(implicit ignore: DummyImplicit): RaphtoryGraph =
+    window(sizes, Alignment.START)
+
+  def window(sizes: List[Long], alignment: Alignment.Value)(implicit
+      ignore: DummyImplicit
+  ): RaphtoryGraph =
     addWindows(sizes map DiscreteInterval, alignment)
 
-  def window(sizes: => List[String]): RaphtoryGraph =
+  def window(sizes: List[String])(implicit ignore: ClassTag[String]): RaphtoryGraph =
     window(sizes, Alignment.START)
 
-  def window(sizes: => List[String], alignment: Alignment.Value): RaphtoryGraph =
+  def window(sizes: List[String], alignment: Alignment.Value)(implicit
+      ignore: ClassTag[String]
+  ): RaphtoryGraph =
     addWindows(sizes map parseInterval, alignment)
 
   def past(): RaphtoryGraph = addWindows(List(), Alignment.END)
