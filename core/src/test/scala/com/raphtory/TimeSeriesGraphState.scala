@@ -11,13 +11,21 @@ class TimeSeriesGraphState() extends GraphAlgorithm {
     graph.select { vertex =>
       val propertyhistory =
         vertex.getPropertySet().toArray.map(x => vertex.getTimeSeriesPropertyHistory(x).size).sum
-      val inEdges         = vertex.getInEdges()
-      val inEdgesHistory  =
+
+      val inEdges  = vertex.getInEdges()
+      val outEdges = vertex.getOutEdges()
+
+      val inEdgesHistory =
         inEdges.map(e => e.timeSeriesHistory().size).sum
+
+      val outEdgesHistory =
+        outEdges.map(e => e.timeSeriesHistory().size).sum
+
       Row(
               vertex.ID(),
               propertyhistory,
-              inEdgesHistory
+              inEdgesHistory,
+              outEdgesHistory
       )
     }
 }
