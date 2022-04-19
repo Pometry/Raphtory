@@ -91,8 +91,8 @@ case class FilteredOutEdgeMessage[VertexID](superstep: Int, vertexId: VertexID, 
 case class Query(
     name: String = "",
     points: PointSet = NullPointSet,
-    timelineStart: Long = Long.MinValue,
-    timelineEnd: Long = Long.MaxValue,
+    timelineStart: Long = Long.MinValue, // inclusive
+    timelineEnd: Long = Long.MaxValue,   // inclusive
     windows: List[Interval] = List(),
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),

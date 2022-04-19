@@ -1,5 +1,6 @@
 package com.raphtory.examples.twittercircles
 
+import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.deployment.Raphtory
@@ -17,15 +18,16 @@ object Runner extends App {
 
   val source  = StaticGraphSpout(path)
   val builder = new TwitterCirclesGraphBuilder()
-  val graph   = Raphtory.streamGraph(spout = source, graphBuilder = builder)
+  val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
-  graph.pointQuery(EdgeList(), PulsarOutputFormat("TwitterEdgeList"), 88234)
-  graph.rangeQuery(
-          ConnectedComponents(),
-          PulsarOutputFormat("ConnectedComponents"),
-          10000,
-          88234,
-          10000,
-          List(500, 1000, 10000)
-  )
+  graph
+    .at(88234)
+    .past()
+    .execute(EdgeList())
+    .writeTo(PulsarOutputFormat("TwitterEdgeList"))
+  graph
+    .range(10000, 88234, 10000)
+    .window(List(500, 1000, 10000), Alignment.END)
+    .execute(ConnectedComponents())
+    .writeTo(PulsarOutputFormat("ConnectedComponents"))
 }
