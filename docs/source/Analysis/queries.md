@@ -128,10 +128,12 @@ graph
   .writeTo(output)
 ```
 
-As we don't specify any start or end for the sequence, the points are aligned with the epoch,
-so we end up with a sequence of windows including from Jan 1 to Jan 7, from Jan 2 to Jan 7, etc.
+As we don't specify any start or end for the sequence, the points are aligned with the epoch.
+Therefore, we end up with a sequence of windows
+where the first one goes from Dec 26, 2019 to Jan 1, 2020,
+the second one goes from Dec 27, 2019 to Jan 2, 2020, etc.
 The last window of the sequence is that going from Dec 31, 2020 to Jan 6, 2021.
-The next window to this, from Jan 1 to Jan 7 (2021), and the following windows are omitted,
+All the preceding and following windows are omitted,
 as there is no available data for them after the initial filtering.
 
 ## Operating over the graph
