@@ -140,10 +140,9 @@ object Raphtory {
     new TemporalGraph(Query(), querySender, conf)
   }
 
-  def createClient(): RaphtoryClient = createClient("", Map())
+  def createClient(): RaphtoryClient = createClient(Map())
 
   def createClient(
-      deploymentID: String = "",
       customConfig: Map[String, Any] = Map()
   ): RaphtoryClient = {
     val conf             = confBuilder(customConfig)

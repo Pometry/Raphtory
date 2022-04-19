@@ -1,7 +1,7 @@
 package com.raphtory.ethereum
 
 import com.raphtory.components.spout.Spout
-import com.raphtory.deploy.RaphtoryService
+import com.raphtory.deployment.RaphtoryService
 import com.raphtory.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.spouts.FileSpout
 import com.typesafe.config.ConfigFactory

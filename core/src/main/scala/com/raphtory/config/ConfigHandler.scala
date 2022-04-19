@@ -1,9 +1,11 @@
 package com.raphtory.config
 
+import com.raphtory.graph.PerspectiveController.logger
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigValue
 import com.typesafe.config.ConfigValueFactory
+import sun.util.logging.resources.logging
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
@@ -30,8 +32,10 @@ private[raphtory] class ConfigHandler {
   def updateSalt(): Unit =
     this.salt = Random.nextInt().abs
 
-  def setSalt(salt: Int): Unit =
+  def setSalt(salt: Int): Unit = {
     this.salt = salt
+    logger.info(s"Raphtory deployment salt updated to '${salt}'.")
+  }
 
   private def createConf(): Config = {
     var tempConf = ConfigFactory
@@ -55,6 +59,7 @@ private[raphtory] class ConfigHandler {
   private def local(): Config = {
     val deploymentID = defaults.resolve().getString("raphtory.deploy.id") + "_" + salt
     val spoutTopic   = defaults.resolve().getString("raphtory.spout.topic") + "_" + salt
+    logger.info(s"Raphtory deployment id set to '${defaults.getString("raphtory.deploy.id")}'.")
     defaults
       .withValue("raphtory.spout.topic", ConfigValueFactory.fromAnyRef(spoutTopic))
       .withValue("raphtory.deploy.id", ConfigValueFactory.fromAnyRef(deploymentID))
