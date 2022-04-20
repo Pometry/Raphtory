@@ -11,17 +11,26 @@ import scala.reflect.ClassTag
   *   : Extends [{s}`EntityVisitor`](com.raphtory.graph.visitor.EntityVisitor) with vertex-specific functionality
   *
   * The {s}`Vertex` is the main entry point for exploring the graph using a
-  * [{s}`GraphAlgorithm](com.raphtory.algorithms.api.GraphAlgorithm) given the node-centric nature of Raphtory.
+  * [{s}`GraphAlgorithm`](com.raphtory.algorithms.api.GraphAlgorithm) given the node-centric nature of Raphtory.
   * It provides access to the edges of the graph and can send messages to and receive messages from other vertices.
   * A {s}`Vertex` can also store computational state.
   *
-  * ## Attributes
+  * ## Generic types
   *
-  * {s}`type IDType`
+  * {s}`IDType`
   *   : ID type of this vertex
   *
-  * {s}`implicit val IDOrdering: Ordering[IDType]`
-  *   : ordering to use with ID
+  * {s}`Edge`
+  *   : Concrete edge type for this vertex which implements [{s}`Edge`](com.raphtory.graph.visitor.Edge)
+  *
+  * {s}`ExplodedEdge`
+  *   : Concrete type for this vertex's exploded edges which implements
+  *     [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge)
+  *
+  * {s}`IDOrdering: Ordering[IDType]`
+  *   : implicit ordering object for use when comparing vertex IDs
+  *
+  * ## Attributes
   *
   * {s}`ID(): IDType`
   *   : vertex ID
@@ -357,10 +366,10 @@ import scala.reflect.ClassTag
   */
 trait Vertex extends EntityVisitor {
   type IDType
-  type Edge <: visitor.Edge[IDType]
+  type Edge <: visitor.ConcreteEdge[IDType]
+  type ExplodedEdge = visitor.ConcreteExplodedEdge[IDType]
   implicit val IDOrdering: Ordering[IDType]
 
-  type ExplodedEdge = visitor.ExplodedEdge[IDType]
   def ID(): IDType
 
   def name(nameProperty: String = "name"): String =
