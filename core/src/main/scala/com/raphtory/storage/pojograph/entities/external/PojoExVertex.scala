@@ -84,14 +84,14 @@ class PojoExVertex(
     interlayerEdgeBuilder.foreach { builder =>
       if (interlayerEdges.nonEmpty)
         interlayerEdges.foreach { edge =>
-          exploded(edge.sourceTime).internalOutgoingEdges -= ((ID(), edge.dstTime))
-          exploded(edge.dstTime).internalIncomingEdges -= ((ID(), edge.sourceTime))
+          exploded(edge.srcTime).internalOutgoingEdges -= ((ID(), edge.dstTime))
+          exploded(edge.dstTime).internalIncomingEdges -= ((ID(), edge.srcTime))
         }
       interlayerEdges = builder(this)
       interlayerEdges.foreach { edge =>
-        val srcID = (ID(), edge.sourceTime)
+        val srcID = (ID(), edge.srcTime)
         val dstID = (ID(), edge.dstTime)
-        exploded(edge.sourceTime).internalOutgoingEdges += dstID -> new PojoExMultilayerEdge(
+        exploded(edge.srcTime).internalOutgoingEdges += dstID -> new PojoExMultilayerEdge(
                 edge.dstTime,
                 dstID,
                 srcID,
@@ -99,8 +99,8 @@ class PojoExVertex(
                 edge,
                 lens
         )
-        exploded(edge.dstTime).internalIncomingEdges += srcID    -> new PojoExMultilayerEdge(
-                edge.sourceTime,
+        exploded(edge.dstTime).internalIncomingEdges += srcID -> new PojoExMultilayerEdge(
+                edge.srcTime,
                 srcID,
                 srcID,
                 dstID,
