@@ -59,7 +59,7 @@ private[raphtory] class ConfigHandler {
   private def local(): Config = {
     val deploymentID = defaults.resolve().getString("raphtory.deploy.id") + "_" + salt
     val spoutTopic   = defaults.resolve().getString("raphtory.spout.topic") + "_" + salt
-    logger.info(s"Raphtory deployment id set to '${defaults.getString("raphtory.deploy.id")}'.")
+    logger.info(s"Raphtory deployment id set to '$deploymentID'.")
     defaults
       .withValue("raphtory.spout.topic", ConfigValueFactory.fromAnyRef(spoutTopic))
       .withValue("raphtory.deploy.id", ConfigValueFactory.fromAnyRef(deploymentID))
