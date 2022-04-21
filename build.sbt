@@ -47,6 +47,7 @@ lazy val core = (project in file("core"))
                   dependencies.scalaTestCompile,
                   dependencies.slf4j,
                   dependencies.sprayJson,
+                  dependencies.timeSeries,
                   dependencies.twitterChill,
                   dependencies.twittered,
                   dependencies.typesafeConfig,
@@ -114,6 +115,7 @@ lazy val dependencies = new {
   val scalatestVersion      = "3.2.11"
   val slf4jVersion          = "1.7.36"
   val sprayJsonVersion      = "1.3.6"
+  val timeSeriesVersion     = "1.7.0"
   val twitteredVersion      = "2.16"
   val typesafeConfigVersion = "1.4.2"
   val zookeeperVersion      = "3.7.0"
@@ -147,6 +149,7 @@ lazy val dependencies = new {
   val scalaTestCompile = "org.scalatest"               %% "scalatest"                      % scalatestVersion
   val slf4j            = "org.slf4j"                    % "slf4j-api"                      % slf4jVersion
   val sprayJson        = "io.spray"                    %% "spray-json"                     % sprayJsonVersion
+  val timeSeries       = "io.sqooba.oss"               %% "scala-timeseries-lib"           % timeSeriesVersion
   val twitterChill     = "com.twitter"                 %% "chill"                          % chillVersion
   val twittered        = "io.github.redouane59.twitter" % "twittered"                      % twitteredVersion
   val typesafeConfig   = "com.typesafe"                 % "config"                         % typesafeConfigVersion
