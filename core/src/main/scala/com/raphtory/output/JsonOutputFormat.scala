@@ -29,6 +29,6 @@ class JsonOutputFormat() extends OutputFormat {
 
 object JsonOutputFormat {
 
-  def apply(filePath: String) =
-    new JsonOutputFormat(filePath)
+  def apply() =
+    new JsonOutputFormat()
 }
