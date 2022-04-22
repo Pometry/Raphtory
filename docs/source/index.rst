@@ -45,9 +45,11 @@ from the Alan Turing Institute first! Once you are ready, hit next and lets get 
    :hidden:
    :caption: Python Library
 
+   PythonClient/setup.md
    PythonClient/tutorial.md
    PythonClient/RaphtoryClient.md
    PythonClient/conf.md
+   PythonClient/algorithms.md
 
 .. toctree:: 
    :maxdepth: 2

@@ -11,6 +11,7 @@ The source code can be found `https://github.com/Raphtory/Raphtory/`
 
 ```python
 class raphtoryclient()
+    def __init__(self, pulsar_admin_url="http://127.0.0.1:8080", pulsar_client_args=None, raphtory_deployment_id=None):
 ```
 
 This is the class to create a raphtory client which interacts with pulsar.
@@ -18,7 +19,8 @@ This is the class to create a raphtory client which interacts with pulsar.
 **Attributes**:
 
 - `admin_url` _str_: the url for the pulsar admin client
-- `client_args` _dict_ : Dict of arguments to be used in the pulsar client, keys must match pulsar.Client parameters
+- `pulsar_client_args`: Dict of arguments to be used in the pulsar client, keys must match pulsar.Client parameters
+- `raphtory_deployment_id` _string_ : deployment id of the running raphtory instance
 
 <a id="RaphtoryClient.RaphtoryClient.make_name"></a>
 
@@ -233,4 +235,34 @@ Example graph builder in python. Given a csv edgelist this will create a graph u
 **Returns**:
 
 - `G` _networkx.DiGraph_ - The graph as built in networkx
+
+### setupRaphtory
+```python
+def setupRaphtory(self, deployment_id):
+```
+
+Setups a raphtory java client via the gateway object.
+This allows the user to invoke raphtory java/scalaa methods as if they were running on the
+raphtory/scala version.
+Note that arguements must be correct or the methods will not be called.
+
+**Arguments**:
+
+- `deployment_id` _string_: the deployment id of the raphtory instance to connect to
+
+**Returns**:
+
+- `client`: raphtory client java object
+
+### setupJavaGateway
+```python
+def setupJavaGateway(self):
+```
+
+Creates Java<>Raphtory gateway and imports required files.
+The gateway allows the user to run/read java/scala methods and objects from python.
+
+**Returns**:
+
+- `py4j.java_gateway`: py4j java gateway object
 

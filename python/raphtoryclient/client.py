@@ -25,30 +25,80 @@ import networkx as nx
 import sys
 import pandas as pd
 from datetime import datetime, timezone
+from py4j.java_gateway import JavaGateway, GatewayParameters
+from py4j.java_gateway import java_import
+from py4j.java_collections import MapConverter
 
 
 class client:
     '''
-    This is the class to create a raphtory client which interacts with pulsar.
+    This is the class to create a raphtory client which interacts with raphtory and pulsar.
     '''
 
-    def __init__(self, admin_url="http://127.0.0.1:8080", client_args=None):
+    def __init__(self, pulsar_admin_url="http://127.0.0.1:8080", pulsar_client_args=None, raphtory_deployment_id=None):
         '''
         Parameters:
         admin_url: the url for the pulsar admin client
-        : Dict of arguments to be used in the pulsar client, keys must match pulsar.Client parameters
+        pulsar_client_args: Dict of arguments to be used in the pulsar client, keys must match pulsar.Client parameters
+        raphtory_deployment_id: deployment id of the running raphtory instance
         '''
-        if client_args is None:
-            client_args = {'service_url': 'pulsar://127.0.0.1:6650'}
-        elif 'service_url' not in client_args:
+        if pulsar_client_args is None:
+            pulsar_client_args = {'service_url': 'pulsar://127.0.0.1:6650'}
+        elif 'service_url' not in pulsar_client_args:
             print('service_url not given in client_args, exiting..')
             sys.exit(1)
-        self.client = self.setupClient(max_attempts=5, client_args=client_args)
-        if self.client == None:
+        self._pulsar_client = self.setupPulsarClient(max_attempts=5, client_args=pulsar_client_args)
+        if self._pulsar_client == None:
             print('Could not setup client')
             sys.exit(1)
-        self.admin_url = admin_url
-        self.first_seen = ""
+        self._admin_url = pulsar_admin_url
+        self._first_seen = ""
+        if raphtory_deployment_id is not None:
+            self._gateway = self.setupJavaGateway()
+            self.raphtory = self.setupRaphtory(raphtory_deployment_id)
+        else:
+            self._gateway = None
+
+    def setupRaphtory(self, deployment_id):
+        '''
+        Setups a raphtory java client via the gateway object.
+        This allows the user to invoke raphtory java/scalaa methods as if they were running on the
+        raphtory/scala version.
+        Note that arguements must be correct or the methods will not be called.
+
+        Parameters:
+            deployment_id: the deployment id of the raphtory instance to connect to
+
+        Returns:
+            client: raphtory client java object
+        '''
+        print("Creating Raphtory java object...")
+        raphtory = self._gateway.jvm.Raphtory
+        customConfig = {"raphtory.deploy.id": deployment_id, "raphtory.deploy.distributed": True}
+        mc_run_map_dict = MapConverter().convert(customConfig, self._gateway._gateway_client)
+        jmap = self._gateway.jvm.PythonUtils.toScalaMap(mc_run_map_dict)
+        client = raphtory.createClient(jmap)
+        print("Created Raphtory java object.")
+        return client
+
+    def setupJavaGateway(self):
+        '''
+        Creates Java<>Raphtory gateway and imports required files.
+        The gateway allows the user to run/read java/scala methods and objects from python.
+
+        Returns:
+            py4j.java_gateway: py4j java gateway object
+        '''
+        print("Setting up Java gateway...")
+        gateway = JavaGateway(gateway_parameters=GatewayParameters(auto_field=True))
+        java_import(gateway.jvm, "com.raphtory.deployment.Raphtory")
+        java_import(gateway.jvm, "scala.collection.JavaConverters")
+        java_import(gateway.jvm, "com.raphtory.examples.lotrTopic.PythonUtils")
+        java_import(gateway.jvm, "com.raphtory.output.FileOutputFormat")
+        java_import(gateway.jvm, "com.raphtory.output.PulsarOutputFormat")
+        java_import(gateway.jvm, "com.raphtory.util.PythonUtils")
+        print("Java gateway connected.")
+        return gateway
 
     def make_name(self):
         '''
@@ -63,7 +113,7 @@ class client:
         '''
         return ''.join(random.choice(string.ascii_letters + string.punctuation) for x in range(10))
 
-    def setupClient(self, client_args, max_attempts=5):
+    def setupPulsarClient(self, client_args, max_attempts=5):
         '''
         Setups a pulsar client using the pulsar address.
         Retries at least 5 times before returning
@@ -112,7 +162,7 @@ class client:
         while (attempts <= 5):
             attempts += 1
             try:
-                reader = self.client.create_reader(
+                reader = self._pulsar_client.create_reader(
                     topic,
                     pulsar.MessageId.earliest,
                     reader_name=subscription_name + '_' + self.make_name(),
@@ -140,7 +190,7 @@ class client:
         Returns:
             json response (dict/json): The response of the request. If unsuccessful then returns an empty dict.
         '''
-        url = self.admin_url + "/admin/v2/persistent/" + tenant + "/" + namespace + "/" + topic + "/stats"
+        url = self._admin_url + "/admin/v2/persistent/" + tenant + "/" + namespace + "/" + topic + "/stats"
         response = requests.get(url)
         if response.status_code == 200:
             return response.json()
@@ -301,17 +351,17 @@ class client:
             G (networkx.DiGraph): The graph as built in networkx
         '''
         G = nx.DiGraph()
-        self.first_seen = self.find_dates(pd.read_csv(filePath), node_a_id=source_id, node_b_id=target_id,
-                                          time_col=timestamp_col)
+        self._first_seen = self.find_dates(pd.read_csv(filePath), node_a_id=source_id, node_b_id=target_id,
+                                           time_col=timestamp_col)
         with open(filePath) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
             for row in csv_reader:
                 edge_timestamp = int(row[timestamp_col])
                 if from_time <= edge_timestamp <= to_time:
-                    node_a_time = datetime.fromtimestamp(int(self.first_seen[row[source_id]]), tz=timezone.utc)
-                    G.add_node(row[source_id], create_time=int(self.first_seen[row[source_id]]))
-                    node_b_time = datetime.fromtimestamp(int(self.first_seen[row[target_id]]), tz=timezone.utc)
-                    G.add_node(row[target_id], create_time=int(self.first_seen[row[target_id]]))
+                    node_a_time = datetime.fromtimestamp(int(self._first_seen[row[source_id]]), tz=timezone.utc)
+                    G.add_node(row[source_id], create_time=int(self._first_seen[row[source_id]]))
+                    node_b_time = datetime.fromtimestamp(int(self._first_seen[row[target_id]]), tz=timezone.utc)
+                    G.add_node(row[target_id], create_time=int(self._first_seen[row[target_id]]))
                     edge_timestamp = edge_timestamp
                     edge_ts = datetime.fromtimestamp(edge_timestamp * 1000, tz=timezone.utc)
                     G.add_edge(row[source_id], row[target_id], time=edge_timestamp)

@@ -1,1 +1,0 @@
-exec java -cp "jar" com.raphtory.deployment.PythonGatewayServer

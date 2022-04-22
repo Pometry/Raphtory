@@ -77,7 +77,7 @@ import scala.reflect.runtime.universe._
 object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
-  private val gatewayServer = new GatewayServer(null)
+  private val gatewayServer = new GatewayServer(this)
   gatewayServer.start()
   def createNew[A: ClassTag]: A = classTag[A].runtimeClass.newInstance().asInstanceOf[A]
   def createOld[A](c: Class[A]): A = createNew(ClassTag[A](c))
