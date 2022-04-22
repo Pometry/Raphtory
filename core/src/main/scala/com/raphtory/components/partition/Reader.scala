@@ -5,17 +5,17 @@ import com.raphtory.components.querymanager.EndQuery
 import com.raphtory.components.querymanager.EstablishExecutor
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.WatermarkTime
+import com.raphtory.config.Cancelable
 import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
+import com.raphtory.config.Scheduler
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
-import monix.execution.Cancelable
-import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
 
 /** @DoNotDocument */
 class Reader(
@@ -56,7 +56,7 @@ class Reader(
     msg match {
       case req: EstablishExecutor =>
         val jobID         = req.jobID
-        val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
+        val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, gateway)
         scheduler.execute(queryExecutor)
         executorMap += ((jobID, queryExecutor))
 
@@ -108,9 +108,7 @@ class Reader(
                 s"Partition $partitionID: Creating watermark with " +
                   s"earliest time '$oldestTime' and latest time '$finalTime'."
         )
-        watermarkPublish.sendAsync(
-                serialise(watermark)
-        )
+        watermarkPublish sendAsync watermark
       }
       lastWatermark = watermark
     }
@@ -121,7 +119,7 @@ class Reader(
     logger.trace("Scheduled watermarker to recheck time in 1 second.")
     scheduledWatermark = Some(
             scheduler
-              .scheduleOnce(1, TimeUnit.SECONDS, watermarking)
+              .scheduleOnce(1.seconds, watermarking)
     )
   }
 

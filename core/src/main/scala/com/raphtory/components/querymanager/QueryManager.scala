@@ -91,7 +91,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, gateway: Gateway)
       if (safe) maxTime else minTime
     }
     else 0 // not received a message from each partition yet
-    watermarkGlobal.sendAsync(serialise(watermark))
+    // watermarkGlobal sendAsync watermark TODO: remove I guess?
     watermark
   }
 

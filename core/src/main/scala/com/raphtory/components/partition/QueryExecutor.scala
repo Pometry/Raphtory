@@ -300,7 +300,7 @@ class QueryExecutor(
           val producer =
             if (outputFormat.isInstanceOf[PulsarOutputFormat])
               Some(
-                      pulsarController.accessClient
+                      new PulsarController(conf).accessClient
                         .newProducer(Schema.STRING)
                         .topic(
                                 outputFormat.asInstanceOf[PulsarOutputFormat].pulsarTopic

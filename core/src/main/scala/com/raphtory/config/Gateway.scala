@@ -61,11 +61,11 @@ abstract class Gateway(defaultConnector: Connector, conf: Config) {
   protected val queryPrep    = Broadcast[QueryManagement](s"query-prep-$depId")
 
   // Job wise topics
-  protected val endedPerspectives = Exclusive[Perspective](s"ended-perspec-$depId")
-  protected val rechecks          = Exclusive[QueryManagement](s"recheck-$depId")
-  protected val jobStatus         = Exclusive[QueryManagement](s"job-status-$depId")
-  protected val vertexMessages    = Sharding[GenericVertexMessage](s"vertex-msg-$depId", numPartitions)
-  protected val jobOperations     = Broadcast[QueryManagement](s"job-ops-$depId")
+  protected val queryTrack     = Exclusive[QueryManagement](s"query-track-$depId")
+  protected val rechecks       = Exclusive[QueryManagement](s"recheck-$depId")
+  protected val jobStatus      = Exclusive[QueryManagement](s"job-status-$depId")
+  protected val vertexMessages = Sharding[GenericVertexMessage](s"vertex-msg-$depId", numPartitions)
+  protected val jobOperations  = Broadcast[QueryManagement](s"job-ops-$depId")
 
   // EndPoint getters
   private type gu = graphUpdates.MsgType
@@ -79,9 +79,9 @@ abstract class Gateway(defaultConnector: Connector, conf: Config) {
   def toQueryPrep                      = createEndPoint(queryPrep)
 
   private type vm = vertexMessages.MsgType
-  def toEndedPerspectives(jobId: String) = createEndPoint(endedPerspectives)
-  def toRechecks(jobId: String)          = createEndPoint(rechecks, Some(jobId))
-  def toJobStatus(jobId: String)         = createEndPoint(jobStatus, Some(jobId))
+  def toQueryTrack(jobId: String) = createEndPoint(queryTrack)
+  def toRechecks(jobId: String)   = createEndPoint(rechecks, Some(jobId))
+  def toJobStatus(jobId: String)  = createEndPoint(jobStatus, Some(jobId))
 
   def toVertexMessages(jobId: String, shard: vm => Int) =
     createEndPoint(vertexMessages, Some(jobId), Some(shard))
@@ -101,7 +101,7 @@ abstract class Gateway(defaultConnector: Connector, conf: Config) {
     register(component, Seq(queries, endedQueries, watermark))
 
   def registerQueryProgressTracker(component: QueryProgressTracker, jobId: String): Unit =
-    register(component, endedPerspectives, Some(jobId))
+    register(component, queryTrack, Some(jobId))
 
   def registerQueryHandler(component: QueryHandler, jobId: String): Unit =
     register(component, Seq(rechecks, jobStatus), Some(jobId))
@@ -131,6 +131,9 @@ abstract class Gateway(defaultConnector: Connector, conf: Config) {
           override def sendAsync(message: T): Unit =
             endPoints(sharding.get.apply(message)) sendAsync message
           override def close(): Unit               = endPoints foreach (_.close())
+
+          override def closeWithMessage(message: T): Unit =
+            endPoints foreach (_.closeWithMessage(message))
         }
     }
   }

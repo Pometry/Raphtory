@@ -20,8 +20,7 @@ class SpoutExecutor[T](
     conf: Config,
     private val gateway: Gateway,
     scheduler: Scheduler
-) extends Component(conf, gateway) {
-  override type MsgType = Nothing
+) extends Component[T](conf, gateway) {
   protected val failOnError: Boolean           = conf.getBoolean("raphtory.spout.failOnError")
   private var linesProcessed: Int              = 0
   private var scheduledRun: Option[Cancelable] = None
@@ -31,14 +30,14 @@ class SpoutExecutor[T](
       spout.executeReschedule()
       executeSpout()
     }: Unit
-  private val builders        = gateway.toBuilders
+  private val builders        = gateway.toSpoutOutput
 
   override def stopHandler(): Unit = {
     scheduledRun.foreach(_.cancel())
     builders.close()
   }
 
-  override def handleMessage(msg: MsgType): Unit = {} //Currently nothing to listen to here
+  override def handleMessage(msg: T): Unit = {} //Currently nothing to listen to here
 
   override def setup(): Unit =
     executeSpout()

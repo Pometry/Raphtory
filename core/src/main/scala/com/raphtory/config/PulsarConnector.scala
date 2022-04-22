@@ -20,6 +20,12 @@ class PulsarConnector(config: Config) extends Connector {
   case class PulsarEndPoint[T](producer: Producer[Array[Byte]]) extends EndPoint[T] {
     override def sendAsync(message: T): Unit = producer.sendAsync(serialise(message))
     override def close(): Unit               = producer.close()
+
+    override def closeWithMessage(message: T): Unit =
+      producer
+        .flushAsync()
+        .thenApply(_ => producer.send(serialise(message)))
+        .thenApply(_ => producer.close())
   }
 
   val pulsarAddress: String         = config.getString("raphtory.pulsar.broker.address")
