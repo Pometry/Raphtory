@@ -1,6 +1,5 @@
 package com.raphtory.spouts
 
-import com.raphtory.components.spout.BatchableSpout
 import com.raphtory.components.spout.Spout
 import com.raphtory.deployment.Raphtory
 import com.typesafe.config.Config
@@ -55,7 +54,7 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
     case None       => Iterator[String]()
   }
 
-  override def hasNext: Boolean = {
+  override def hasNext: Boolean =
     if (lines.hasNext)
       true
     else {
@@ -77,7 +76,6 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
       else
         false
     }
-  }
 
   override def next(): T =
     try lineConverter(lines.next())
