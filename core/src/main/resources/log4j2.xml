@@ -7,17 +7,14 @@
     </Appenders>
     <Loggers>
         <!-- LOGGERS FOR UNDERLYING PACKAGES -->
-        <Logger name="org.hibernate.SQL" level="${env:SQL_LOG:-INFO}">
+        <Logger name="org.hibernate" level="${env:RAPHTORY_SQL_LOG:-off}">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="org.hibernate.type.descriptor.sql" level="${env:SQL_LOG:-INFO}">
-            <AppenderRef ref="Console"/>
+        <Logger name="com.scurrilous.circe.checksum.Crc32cIntChecksum" level="${env:RAPHTORY_CHECKSUM_LOG:-off}">
         </Logger>
-        <Logger name="com.scurrilous.circe.checksum.Crc32cIntChecksum" level="${env:CHECKSUM_LOG:-off}">
+        <Logger name="io.netty" level="${env:RAPHTORY_NETTY_LOG:-off}">
         </Logger>
-        <Logger name="io.netty" level="${env:NETTY_LOG:-off}">
-        </Logger>
-        <Logger name="org.apache" level="${env:APACHE_LOG:-off}">
+        <Logger name="org.apache" level="${env:RAPHTORY_APACHE_LOG:-off}">
         </Logger>
 
         <!-- LOGGER FOR RAPHTORY CORE -->
