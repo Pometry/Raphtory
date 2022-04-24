@@ -140,20 +140,22 @@ lazy val dependencies = new {
 
   val pulsarAdmin =
     "org.apache.pulsar" % "pulsar-client-admin-original" % pulsarVersion excludeAll excludePulsarBinding
-  val pulsarApi        = "org.apache.pulsar"            % "pulsar-client-api"              % pulsarVersion
-  val pulsarCommon     = "org.apache.pulsar"            % "pulsar-common"                  % pulsarVersion
-  val pulsarCrypto     = "org.apache.pulsar"            % "pulsar-client-messagecrypto-bc" % pulsarVersion
-  val pulsarOriginal   = "org.apache.pulsar"            % "pulsar-client-original"         % pulsarVersion
-  val scalaLogging     = "com.typesafe.scala-logging"  %% "scala-logging"                  % scalaLoggingVersion
-  val scalaTest        = "org.scalatest"               %% "scalatest"                      % scalatestVersion % Test
-  val scalaTestCompile = "org.scalatest"               %% "scalatest"                      % scalatestVersion
-  val slf4j            = "org.slf4j"                    % "slf4j-api"                      % slf4jVersion
-  val sprayJson        = "io.spray"                    %% "spray-json"                     % sprayJsonVersion
-  val timeSeries       = "io.sqooba.oss"               %% "scala-timeseries-lib"           % timeSeriesVersion
-  val twitterChill     = "com.twitter"                 %% "chill"                          % chillVersion
-  val twittered        = "io.github.redouane59.twitter" % "twittered"                      % twitteredVersion
-  val typesafeConfig   = "com.typesafe"                 % "config"                         % typesafeConfigVersion
-  val zookeeper        = "org.apache.zookeeper"         % "zookeeper"                      % zookeeperVersion
+  val pulsarApi        = "org.apache.pulsar"           % "pulsar-client-api"              % pulsarVersion
+  val pulsarCommon     = "org.apache.pulsar"           % "pulsar-common"                  % pulsarVersion
+  val pulsarCrypto     = "org.apache.pulsar"           % "pulsar-client-messagecrypto-bc" % pulsarVersion
+  val pulsarOriginal   = "org.apache.pulsar"           % "pulsar-client-original"         % pulsarVersion
+  val scalaLogging     = "com.typesafe.scala-logging" %% "scala-logging"                  % scalaLoggingVersion
+  val scalaTest        = "org.scalatest"              %% "scalatest"                      % scalatestVersion % Test
+  val scalaTestCompile = "org.scalatest"              %% "scalatest"                      % scalatestVersion
+  val slf4j            = "org.slf4j"                   % "slf4j-api"                      % slf4jVersion
+  val sprayJson        = "io.spray"                   %% "spray-json"                     % sprayJsonVersion
+
+  val timeSeries       =
+    "io.sqooba.oss" %% "scala-timeseries-lib" % timeSeriesVersion excludeAll (excludeLog4j, excludeSlf4j)
+  val twitterChill   = "com.twitter"                 %% "chill"     % chillVersion
+  val twittered      = "io.github.redouane59.twitter" % "twittered" % twitteredVersion
+  val typesafeConfig = "com.typesafe"                 % "config"    % typesafeConfigVersion
+  val zookeeper      = "org.apache.zookeeper"         % "zookeeper" % zookeeperVersion
 }
 
 // ASSEMBLY SETTINGS
