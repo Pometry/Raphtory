@@ -45,20 +45,15 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
     graph
       .step { vertex =>
         if (vertex.name() == seed) {
-          val edges = (if (directed) vertex.getInEdges() else vertex.getEdges())
-            .filter(e => e.earliestActivity().time < time)
-            .filter(e =>
+          (if (directed) vertex.getInEdges() else vertex.getEdges())
+            .foreach(e =>
               e.lastActivityBefore(time) match {
-                case Some(event) => event.time > time - delta
-                case None        => false
+                case Some(event) =>
+                  if (event.time > time - delta)
+                    vertex.messageVertex(e.ID(), event.time)
+                case None        =>
               }
             )
-          edges.foreach(e =>
-            e.lastActivityBefore(time) match {
-              case Some(event) => vertex.messageVertex(e.ID(), event.time)
-              case None        =>
-            }
-          )
           vertex.setState("ancestor", false)
         }
       }
@@ -66,18 +61,12 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
               { vertex =>
                 val latestTime = vertex.messageQueue[Long].max
                 vertex.setState("ancestor", true)
-                val inEdges    = (if (directed) vertex.getInEdges() else vertex.getEdges())
-                  .filter(e => e.earliestActivity().time < latestTime)
-                  .filter(e =>
-                    e.lastActivityBefore(time) match {
-                      case Some(event) => event.time > time - delta
-                      case None        => false
-                    }
-                  )
-                inEdges
+                (if (directed) vertex.getInEdges() else vertex.getEdges())
                   .foreach(e =>
                     e.lastActivityBefore(time) match {
-                      case Some(event) => vertex.messageVertex(e.ID(), event.time)
+                      case Some(event) =>
+                        if (event.time > time - delta)
+                          vertex.messageVertex(e.ID(), event.time)
                       case None        =>
                     }
                   )

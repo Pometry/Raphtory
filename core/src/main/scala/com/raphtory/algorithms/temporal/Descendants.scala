@@ -45,20 +45,14 @@ class Descendants(seed: String, time: Long, delta: Long = Long.MaxValue, directe
     graph
       .step { vertex =>
         if (vertex.name() == seed) {
-          val edges = (if (directed) vertex.getOutEdges() else vertex.getEdges())
-            .filter(e => e.latestActivity().time > time)
-            .filter(e =>
+          (if (directed) vertex.getOutEdges() else vertex.getEdges())
+            .foreach(e =>
               e.firstActivityAfter(time) match {
-                case Some(event) => event.time < time + delta
-                case None        => false
+                case Some(event) =>
+                  if (event.time < time + delta) vertex.messageVertex(e.ID(), event.time)
+                case None        =>
               }
             )
-          edges.foreach(e =>
-            e.firstActivityAfter(time) match {
-              case Some(event) => vertex.messageVertex(e.ID(), event.time)
-              case None        =>
-            }
-          )
           vertex.setState("descendant", false)
         }
       }
@@ -66,20 +60,15 @@ class Descendants(seed: String, time: Long, delta: Long = Long.MaxValue, directe
               { vertex =>
                 val earliestTime = vertex.messageQueue[Long].min
                 vertex.setState("descendant", true)
-                val outEdges     = (if (directed) vertex.getOutEdges() else vertex.getEdges())
-                  .filter(e => e.latestActivity().time > earliestTime)
-                  .filter(e =>
+                (if (directed) vertex.getOutEdges() else vertex.getEdges())
+                  .foreach(e =>
                     e.firstActivityAfter(time) match {
-                      case Some(event) => event.time < time + delta
-                      case None        => false
+                      case Some(event) =>
+                        if (event.time < time + delta)
+                          vertex.messageVertex(e.ID(), event.time)
+                      case None        =>
                     }
                   )
-                outEdges.foreach(e =>
-                  e.firstActivityAfter(time) match {
-                    case Some(event) => vertex.messageVertex(e.ID(), event.time)
-                    case None        =>
-                  }
-                )
               },
               executeMessagedOnly = true,
               iterations = 100

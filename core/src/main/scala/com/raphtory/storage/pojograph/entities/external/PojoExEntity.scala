@@ -4,26 +4,48 @@ import com.raphtory.graph.visitor.EntityVisitor
 import com.raphtory.graph.visitor.HistoricEvent
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoEntity
+import com.raphtory.util.OrderedBuffer.TupleByFirstOrdering
 
+import scala.collection.Searching.Found
+import scala.collection.Searching.InsertionPoint
 import scala.reflect.ClassTag
 
 /** @DoNotDocument */
 abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends EntityVisitor {
   def Type(): String = entity.getType
 
-  def firstActivityAfter(time: Long): Option[HistoricEvent] = {
-    val activitiesAfter = history().filter(k => k.time >= time)
-    if (activitiesAfter.nonEmpty)
-      Some(activitiesAfter.minBy(x => x.time))
-    else None
-  }
+  def firstActivityAfter(time: Long): Option[HistoricEvent] =
+    if (
+            time >= entity.latestPoint()
+    ) // >= because if it equals the latest point there is nothing that happens after it
+      None
+    else
+      entity.history.search((time, None)) match {
+        case Found(i)          =>
+          val activity =
+            entity.history(i + 1) //is safe as we check the initial index in the first if above
+          Some(HistoricEvent(activity._1, activity._2))
+        case InsertionPoint(i) =>
+          val activity =
+            entity.history(i) // is not plus one as this would be the value above `time`
+          Some(HistoricEvent(activity._1, activity._2))
+      }
 
-  def lastActivityBefore(time: Long): Option[HistoricEvent] = {
-    val activitiesBefore = history().filter(k => k.time <= time)
-    if (activitiesBefore.nonEmpty)
-      Some(activitiesBefore.maxBy(x => x.time))
-    else None
-  }
+  def lastActivityBefore(time: Long): Option[HistoricEvent] =
+    if (
+            time <= entity.oldestPoint
+    ) // <= because if its the oldest time there cannot be an event before it
+      None
+    else
+      entity.history.search((time, None)) match {
+        case Found(i)          =>
+          val activity =
+            entity.history(i - 1) //is safe as we check the initial index in the first if above
+          Some(HistoricEvent(activity._1, activity._2))
+        case InsertionPoint(i) =>
+          val activity = entity.history(i - 1)
+          Some(HistoricEvent(activity._1, activity._2))
+      }
 
   def latestActivity(): HistoricEvent = history().head
 
