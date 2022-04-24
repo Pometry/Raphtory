@@ -47,7 +47,7 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
         if (vertex.name() == seed) {
           (if (directed) vertex.getInEdges() else vertex.getEdges())
             .foreach(e =>
-              e.lastActivityBefore(time) match {
+              e.lastActivityBefore(time, false) match {
                 case Some(event) =>
                   if (event.time > time - delta)
                     vertex.messageVertex(e.ID(), event.time)
@@ -63,7 +63,7 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
                 vertex.setState("ancestor", true)
                 (if (directed) vertex.getInEdges() else vertex.getEdges())
                   .foreach(e =>
-                    e.lastActivityBefore(time) match {
+                    e.lastActivityBefore(time, false) match {
                       case Some(event) =>
                         if (event.time > time - delta)
                           vertex.messageVertex(e.ID(), event.time)

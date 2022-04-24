@@ -47,7 +47,7 @@ class Descendants(seed: String, time: Long, delta: Long = Long.MaxValue, directe
         if (vertex.name() == seed) {
           (if (directed) vertex.getOutEdges() else vertex.getEdges())
             .foreach(e =>
-              e.firstActivityAfter(time) match {
+              e.firstActivityAfter(time, false) match {
                 case Some(event) =>
                   if (event.time < time + delta) vertex.messageVertex(e.ID(), event.time)
                 case None        =>
@@ -62,7 +62,7 @@ class Descendants(seed: String, time: Long, delta: Long = Long.MaxValue, directe
                 vertex.setState("descendant", true)
                 (if (directed) vertex.getOutEdges() else vertex.getEdges())
                   .foreach(e =>
-                    e.firstActivityAfter(time) match {
+                    e.firstActivityAfter(time, false) match {
                       case Some(event) =>
                         if (event.time < time + delta)
                           vertex.messageVertex(e.ID(), event.time)

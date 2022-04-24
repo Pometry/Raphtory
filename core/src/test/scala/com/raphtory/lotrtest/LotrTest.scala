@@ -19,15 +19,16 @@ import com.raphtory.algorithms.generic.dynamic.WattsCascade
 import com.raphtory.algorithms.generic.dynamic.WeightedRandomWalk
 import com.raphtory.algorithms.generic.motif.SquareCount
 import com.raphtory.algorithms.generic.motif.TriangleCount
+import com.raphtory.algorithms.temporal.Ancestors
+import com.raphtory.algorithms.temporal.Descendants
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.components.spout.Spout
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
-
 import com.raphtory.spouts.FileSpout
-import java.io.File
 
+import java.io.File
 import scala.language.postfixOps
 import sys.process._
 
@@ -258,6 +259,32 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     )
 
     assert(true)
+  }
+
+  test("Ancestors Test") {
+    val result   = algorithmTest(
+            algorithm = Ancestors("Gandalf", 32674),
+            outputFormat = outputFormat,
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
+    )
+    val expected = "5f7055f9493d2b328f8e4e13239e683276f48ab3e44d7f3a13a61347405b35a7"
+    result shouldEqual expected
+  }
+
+  test("Descendants Test") {
+    val result   = algorithmTest(
+            algorithm = Descendants("Gandalf", 1000),
+            outputFormat = outputFormat,
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
+    )
+    val expected = "3d31b8b47bd25d919993680eed78c51fb991cb062f863025d2e795ecac999873"
+    result shouldEqual expected
   }
 
   // TODO Re-enable with Seed to produce same result

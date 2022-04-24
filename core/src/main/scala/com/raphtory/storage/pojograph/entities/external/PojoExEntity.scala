@@ -14,16 +14,17 @@ import scala.reflect.ClassTag
 abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends EntityVisitor {
   def Type(): String = entity.getType
 
-  def firstActivityAfter(time: Long): Option[HistoricEvent] =
+  def firstActivityAfter(time: Long, strict: Boolean = true): Option[HistoricEvent] =
     if (
-            time >= entity.latestPoint()
+            strict && time >= entity.latestPoint()
     ) // >= because if it equals the latest point there is nothing that happens after it
+      None
+    else if (!strict && time > entity.latestPoint())
       None
     else
       entity.history.search((time, None)) match {
         case Found(i)          =>
-          val activity =
-            entity.history(i + 1) //is safe as we check the initial index in the first if above
+          val activity = if (strict) entity.history(i + 1) else entity.history(i)
           Some(HistoricEvent(activity._1, activity._2))
         case InsertionPoint(i) =>
           val activity =
@@ -31,16 +32,20 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
           Some(HistoricEvent(activity._1, activity._2))
       }
 
-  def lastActivityBefore(time: Long): Option[HistoricEvent] =
+  def lastActivityBefore(time: Long, strict: Boolean = true): Option[HistoricEvent] =
     if (
-            time <= entity.oldestPoint
+            strict && time <= entity.oldestPoint
     ) // <= because if its the oldest time there cannot be an event before it
+      None
+    else if (!strict && time < entity.oldestPoint)
       None
     else
       entity.history.search((time, None)) match {
         case Found(i)          =>
           val activity =
-            entity.history(i - 1) //is safe as we check the initial index in the first if above
+            if (strict)
+              entity.history(i - 1)
+            else entity.history(i)
           Some(HistoricEvent(activity._1, activity._2))
         case InsertionPoint(i) =>
           val activity = entity.history(i - 1)

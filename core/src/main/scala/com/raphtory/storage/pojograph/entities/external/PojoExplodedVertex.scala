@@ -28,11 +28,11 @@ class PojoExplodedVertex(
 
   override def Type(): String = vertex.Type()
 
-  override def firstActivityAfter(time: Long = timestamp): Option[HistoricEvent] =
-    vertex.firstActivityAfter(time)
+  override def firstActivityAfter(time: Long = timestamp, strict: Boolean): Option[HistoricEvent] =
+    vertex.firstActivityAfter(time, strict)
 
-  override def lastActivityBefore(time: Long = timestamp): Option[HistoricEvent] =
-    vertex.lastActivityBefore(time)
+  override def lastActivityBefore(time: Long = timestamp, strict: Boolean): Option[HistoricEvent] =
+    vertex.lastActivityBefore(time, strict)
 
   override def getPropertySet(): List[String] = vertex.getPropertySet()
 
