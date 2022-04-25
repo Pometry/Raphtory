@@ -14,6 +14,11 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends GraphAlgorithm
       incomingEdges: Array[Long]
   )
 
+  case class Node(label: String, metadata: NodeData, edges: Array[EdgeInfo])
+  case class NodeData(id: String)
+  case class EdgeInfo(source: String, target: String, weight: EdgeData)
+  case class EdgeData(value: Int)
+
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph
       .step { vertex =>
@@ -35,15 +40,27 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends GraphAlgorithm
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .select { vertex =>
-        val vertexID          = vertex.ID().toString
-        val name              = vertex.name()
-        val involved: Boolean = vertex.getStateOrElse("vertexInvolved", false)
-        val outgoingEdges     = vertex.getOutEdges().map(edge => edge.ID().toString.toLong).toArray
-        val incomingEdges     = vertex.getInEdges().map(edge => edge.ID().toString.toLong).toArray
+        val vertexID                         = vertex.ID()
+        val name                             = vertex.name()
+        val involved: Boolean                = vertex.getStateOrElse("vertexInvolved", false)
+        val edgeInformation: Array[EdgeInfo] = vertex
+          .getEdges()
+          .map { edge =>
+            EdgeInfo(
+                    edge.src().toString,
+                    edge.dst().toString,
+                    EdgeData(edge.weight(weightProperty = "Character Co-occurence", 0))
+            )
+          }
+          .toArray
 
         Row(
                 involved,
-                VertexInformation(vertexID, name, outgoingEdges, incomingEdges)
+                Node(
+                        name,
+                        NodeData(vertexID.toString),
+                        edgeInformation
+                )
         )
       }
       .filter(row => row.getBool(0))

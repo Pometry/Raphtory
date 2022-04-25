@@ -14,7 +14,7 @@ object JsonOutputRunner extends App {
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
   val graph   = Raphtory.streamGraph(spout = source, graphBuilder = builder)
-  val output  = JsonOutputFormat("/tmp/raphtory")
+  val output  = JsonOutputFormat()
 
   val queryHandler =
     graph.pointQuery(NodeInformation(initialID = 5415127257870295999L), output, 32674)
