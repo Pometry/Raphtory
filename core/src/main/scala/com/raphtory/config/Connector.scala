@@ -3,11 +3,9 @@ package com.raphtory.config
 import com.raphtory.components.Component
 
 trait Connector {
-  def registerExclusiveListener[T](component: Component[T], address: String): Unit
-  def registerWorkPullListener[T](component: Component[T], address: String): Unit
-  def registerBroadcastListener[T](component: Component[T], address: String, partition: Int): Unit
+  def listen[T](messageHandler: T => Unit, topic: ExclusiveTopic[T]): Unit
+  def listen[T](messageHandler: T => Unit, topic: WorkPullTopic[T]): Unit
+  def listen[T](messageHandler: T => Unit, topic: BroadcastTopic[T], partition: Int): Unit
 
-  def createExclusiveEndPoint[T](address: String): EndPoint[T]
-  def createWorkPullEndPoint[T](address: String): EndPoint[T]
-  def createBroadcastEndPoint[T](address: String): EndPoint[T]
+  def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T]
 }

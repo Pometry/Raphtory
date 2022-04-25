@@ -24,7 +24,6 @@ abstract class Component[T](conf: Config, private val gateway: Gateway) {
   val listeningSetup: TaskList   = new TaskList()
   val listeningCleanup: TaskList = new TaskList()
 
-  def handleMessage(msg: T): Unit = {}
   def stopHandler(): Unit = {}
   def setup(): Unit = {}
 
