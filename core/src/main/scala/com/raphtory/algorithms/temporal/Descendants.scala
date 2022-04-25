@@ -22,10 +22,14 @@ import com.raphtory.algorithms.api.Table
   *    : The time of interest
   *
   *  {s}`delta: Long = Long.MaxValue`
-  *    : The maximum timespan for the temporal path
+  *    : The maximum timespan for the temporal path. This is currently exclusive of the newest time
+  *       i.e. if looking forward a minute it will not include events that happen exactly 1 minute into the future.
   *
   *  {s}`directed: Boolean = true`
   *    : whether to treat the network as directed
+  *
+  *  {s}`strict: Boolean = true`
+  *    : Whether firstActivityAfter is strict in its following of paths that happen exactly at the given time. True will not follow, False will.
   *
   * ## States
   *
@@ -38,8 +42,13 @@ import com.raphtory.algorithms.api.Table
   *  | ----------------- | ---------------------- |
   *  | {s}`name: String` | {s}`descendant: Boolean` |
   */
-class Descendants(seed: String, time: Long, delta: Long = Long.MaxValue, directed: Boolean = true)
-        extends GraphAlgorithm {
+class Descendants(
+    seed: String,
+    time: Long,
+    delta: Long = Long.MaxValue,
+    directed: Boolean = true,
+    strict: Boolean = true
+) extends GraphAlgorithm {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph
@@ -47,7 +56,7 @@ class Descendants(seed: String, time: Long, delta: Long = Long.MaxValue, directe
         if (vertex.name() == seed) {
           (if (directed) vertex.getOutEdges() else vertex.getEdges())
             .foreach(e =>
-              e.firstActivityAfter(time, false) match {
+              e.firstActivityAfter(time, strict) match {
                 case Some(event) =>
                   if (event.time < time + delta) vertex.messageVertex(e.ID(), event.time)
                 case None        =>
@@ -62,7 +71,7 @@ class Descendants(seed: String, time: Long, delta: Long = Long.MaxValue, directe
                 vertex.setState("descendant", true)
                 (if (directed) vertex.getOutEdges() else vertex.getEdges())
                   .foreach(e =>
-                    e.firstActivityAfter(time, false) match {
+                    e.firstActivityAfter(time, strict) match {
                       case Some(event) =>
                         if (event.time < time + delta)
                           vertex.messageVertex(e.ID(), event.time)
@@ -80,6 +89,12 @@ class Descendants(seed: String, time: Long, delta: Long = Long.MaxValue, directe
 
 object Descendants {
 
-  def apply(seed: String, time: Long, delta: Long = Long.MaxValue, directed: Boolean = true) =
-    new Descendants(seed, time, delta, directed)
+  def apply(
+      seed: String,
+      time: Long,
+      delta: Long = Long.MaxValue,
+      directed: Boolean = true,
+      strict: Boolean = true
+  ) =
+    new Descendants(seed, time, delta, directed, strict)
 }

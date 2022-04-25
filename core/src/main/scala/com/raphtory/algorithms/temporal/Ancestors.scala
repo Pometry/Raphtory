@@ -22,10 +22,14 @@ import com.raphtory.algorithms.api.Table
   *    : The time of interest
   *
   *  {s}`delta: Long = Long.MaxValue`
-  *    : The maximum timespan for the temporal path
+  *    : The maximum timespan for the temporal path. This is currently exclusive of the oldest time
+  *       i.e. if looking back a minute it will not include events that happen exactly 1 minute ago.
   *
   *  {s}`directed: Boolean = true`
   *    : whether to treat the network as directed
+  *
+  *  {s}`strict: Boolean = true`
+  *    : Whether lastActivityBefore is strict in its following of paths that happen exactly at the given time. True will not follow, False will.
   *
   * ## States
   *
@@ -38,8 +42,13 @@ import com.raphtory.algorithms.api.Table
   *  | ----------------- | ---------------------- |
   *  | {s}`name: String` | {s}`ancestor: Boolean` |
   */
-class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed: Boolean = true)
-        extends GraphAlgorithm {
+class Ancestors(
+    seed: String,
+    time: Long,
+    delta: Long = Long.MaxValue,
+    directed: Boolean = true,
+    strict: Boolean = true
+) extends GraphAlgorithm {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph
@@ -47,7 +56,7 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
         if (vertex.name() == seed) {
           (if (directed) vertex.getInEdges() else vertex.getEdges())
             .foreach(e =>
-              e.lastActivityBefore(time, false) match {
+              e.lastActivityBefore(time, strict) match {
                 case Some(event) =>
                   if (event.time > time - delta)
                     vertex.messageVertex(e.ID(), event.time)
@@ -63,7 +72,7 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
                 vertex.setState("ancestor", true)
                 (if (directed) vertex.getInEdges() else vertex.getEdges())
                   .foreach(e =>
-                    e.lastActivityBefore(time, false) match {
+                    e.lastActivityBefore(time, strict) match {
                       case Some(event) =>
                         if (event.time > time - delta)
                           vertex.messageVertex(e.ID(), event.time)
@@ -82,6 +91,12 @@ class Ancestors(seed: String, time: Long, delta: Long = Long.MaxValue, directed:
 
 object Ancestors {
 
-  def apply(seed: String, time: Long, delta: Long = Long.MaxValue, directed: Boolean = true) =
-    new Ancestors(seed, time, delta, directed)
+  def apply(
+      seed: String,
+      time: Long,
+      delta: Long = Long.MaxValue,
+      directed: Boolean = true,
+      strict: Boolean = true
+  ) =
+    new Ancestors(seed, time, delta, directed, strict)
 }

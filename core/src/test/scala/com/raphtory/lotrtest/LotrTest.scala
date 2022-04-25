@@ -263,7 +263,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Ancestors Test") {
     val result   = algorithmTest(
-            algorithm = Ancestors("Gandalf", 32674),
+            algorithm = Ancestors("Gandalf", 32674, strict = false),
             outputFormat = outputFormat,
             start = 1,
             end = 32674,
@@ -276,7 +276,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Descendants Test") {
     val result   = algorithmTest(
-            algorithm = Descendants("Gandalf", 1000),
+            algorithm = Descendants("Gandalf", 1000, strict = false),
             outputFormat = outputFormat,
             start = 1,
             end = 32674,

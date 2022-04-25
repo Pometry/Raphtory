@@ -25,9 +25,9 @@ case class InterlayerEdge(
       case None        => ""
     }
 
-  override def firstActivityAfter(time: Long, strict: Boolean): Option[HistoricEvent] = ???
+  override def firstActivityAfter(time: Long, strict: Boolean): Option[HistoricEvent] = None
 
-  override def lastActivityBefore(time: Long, strict: Boolean): Option[HistoricEvent] = ???
+  override def lastActivityBefore(time: Long, strict: Boolean): Option[HistoricEvent] = None
 
   override def getPropertySet(): List[String] = properties.keys.toList
 

@@ -45,12 +45,14 @@ import io.sqooba.oss.timeseries.immutable.TSEntry
   * {s}`firstActivityAfter(time: Long): Option[HistoricEvent]`
   *  : Return next event (addition or deletion) after timestamp {s}`time` as an
   *    [{s}`HistoricEvent`](com.raphtory.graph.visitor.HistoricEvent). This is wrapped in an option as
-  *    it is possible that no activity occurred after the given time.
+  *    it is possible that no activity occurred after the given time. An optional {s}`strict` Boolean argument is also
+  *     available which allows events exactly at the given time to be returned if set to `false`.
   *
   * {s}`lastActivityBefore(time: Long): Option[HistoricEvent]`
   *  : Return the last event (addition or deletion) before timestamp {s}`time` as an
-  *    [{s}`HistoricEvent`](com.raphtory.graph.visitor.HistoricEvent). This is wrapped in an option as
-  *    it is possible that no activity occurred before the given time.
+  *    [{s}`HistoricEvent`](com.raphtory.graph.visitor.HistoricEvent).  The result is wrapped in an option as it is
+  *     possible that no activity occurred before the given time. An optional {s}`strict` Boolean argument is also
+  *     available which allows events exactly at the given time to be returned if set to `false`.
   *
   * {s}`latestActivity(): HistoricEvent`
   *  : Return the most recent event (addition or deletion) in the current view as an
