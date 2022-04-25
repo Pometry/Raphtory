@@ -2,7 +2,7 @@
 
 ## Architecture
 <p>
- <img src="../_static/RaphtoryKubernetesDeployment.png" width="400px" style="padding: 15px; float: right; " alt="Kubernetes deployment"/>
+ <img src="../_static/RaphtoryKubernetesDeployment.png" width="400px" style="padding: 15px;" alt="Kubernetes deployment"/>
 </p>
 
 Raphtory is deployed into Kubernetes using deployments. Each component gets a deployment which specifies a number of replicas which are deployed into a namespace. What is deployed and how many of each is determined by the configuration as defined in application conf.
