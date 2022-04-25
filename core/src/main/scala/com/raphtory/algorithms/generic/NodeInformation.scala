@@ -16,7 +16,7 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends GraphAlgorithm
 
   case class Node(label: String, metadata: NodeData, edges: Array[EdgeInfo])
   case class NodeData(id: String)
-  case class EdgeInfo(source: String, target: String, weight: EdgeData)
+  case class EdgeInfo(source: String, target: String, metadata: EdgeData)
   case class EdgeData(value: Int)
 
   override def apply(graph: GraphPerspective): GraphPerspective =
