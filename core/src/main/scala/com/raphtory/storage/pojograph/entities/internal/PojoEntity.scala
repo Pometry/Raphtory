@@ -35,11 +35,11 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
       toClean = false
     }
 
-  var oldestPoint: Long = creationTime
+  def oldestPoint(): Long = history(0)._1
+  def latestPoint(): Long = history(history.length - 1)._1
 
   // History of that entity
   def removeList: List[Long] = deletions.toList
-  //.filter(f => if(!f._2) f._1).toList
 
   def setType(newType: Option[String]): Unit =
     newType match {
@@ -50,21 +50,15 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   def getType: String = entityType
 
   def revive(msgTime: Long): Unit = {
-    checkOldestTime(msgTime)
     history sortedAppend ((msgTime, true))
     toClean = true
   }
 
   def kill(msgTime: Long): Unit = {
-    checkOldestTime(msgTime)
     history sortedAppend ((msgTime, false))
     deletions sortedAppend msgTime
     toClean = true
   }
-
-  def checkOldestTime(msgTime: Long) =
-    if (oldestPoint > msgTime) //check if the current point in history is the oldest
-      oldestPoint = msgTime
 
   // override the apply method so that we can do edge/vertex("key") to easily retrieve properties
   def apply(property: String): Property = properties(property)
