@@ -89,23 +89,25 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends GraphAlgorithm
           .getEdges()
           .map { edge =>
             EdgeInfo(
-                    edge.dst().toString,
                     edge.src().toString,
+                    edge.dst().toString,
                     EdgeData(edge.weight(weightProperty = "Character Co-occurence", 0))
             )
           }
           .toArray
 
-        Row(
-                involved,
-                Node(
-                        name,
-                        NodeData(vertexID.toString),
-                        edgeInformation
-                )
-        )
+        if (involved)
+          Row(
+                  Node(
+                          name,
+                          NodeData(vertexID.toString),
+                          edgeInformation
+                  )
+          )
+        else
+          Row()
       }
-      .filter(row => row.getBool(0))
+      .filter(row => row.getValues().nonEmpty)
 }
 
 object NodeInformation {
