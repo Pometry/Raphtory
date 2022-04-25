@@ -62,7 +62,7 @@ class client:
             self._conn_file_info = _conn_file_info
             self.gateway = self.setupJavaGateway()
             self.importDefaults()
-            self.raphtory = self.setupRaphtory()
+            self.raphtory_client = self.setupRaphtory()
         else:
             self.gateway = None
 
@@ -75,8 +75,7 @@ class client:
         self.java_import("com.raphtory.examples.lotrTopic.PythonUtils")
         self.java_import("com.raphtory.output.FileOutputFormat")
         self.java_import("com.raphtory.output.PulsarOutputFormat")
-        self.java_import("com.raphtory.util.PythonUtils")
-
+        self.java_import("com.raphtory.util.*")
 
     def java_import(self, import_class):
         '''
@@ -100,11 +99,10 @@ class client:
             client: raphtory client java object
         '''
         print("Creating Raphtory java object...")
-        raphtory = self.gateway.jvm.Raphtory
         customConfig = {"raphtory.deploy.id": self._raphtory_deployment_id, "raphtory.deploy.distributed": True}
         mc_run_map_dict = MapConverter().convert(customConfig, self.gateway._gateway_client)
-        jmap = self.gateway.jvm.PythonUtils.toScalaMap(mc_run_map_dict)
-        client = raphtory.createClient(jmap)
+        jmap = self.gateway.jvm.PythonUtil.toScalaMap(mc_run_map_dict)
+        client = self.gateway.jvm.Raphtory.createClient(jmap)
         print("Created Raphtory java object.")
         return client
 

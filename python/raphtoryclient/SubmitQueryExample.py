@@ -1,8 +1,17 @@
 from py4j.java_gateway import JavaGateway, GatewayParameters
 from py4j.java_gateway import java_import
 from py4j.java_collections import MapConverter
+from raphtoryclient.serializers import read_int, UTF8Deserializer
 
-gateway = JavaGateway(gateway_parameters=GatewayParameters(auto_field=True))
+rid = "raphtory_2132766705"
+
+with open("/tmp/"+rid+"_python_gateway_connection_file", "rb") as info_file:
+    gateway_port = read_int(info_file)
+    gateway_secret = UTF8Deserializer().loads(info_file)
+
+print("Setting up Java gateway...")
+gateway = JavaGateway(
+    gateway_parameters=GatewayParameters(port=gateway_port, auth_token=gateway_secret, auto_field=True))
 
 print("Importing items")
 java_import(gateway.jvm, "com.raphtory.deployment.Raphtory")
@@ -16,10 +25,10 @@ java_import(gateway.jvm, "com.raphtory.util.PythonUtils")
 
 print("Setting up the Raphtory Client")
 raphtory = gateway.jvm.Raphtory
-customConfig = {"raphtory.deploy.id": "raphtory_1974606656", "raphtory.deploy.distributed": True}
+customConfig = {"raphtory.deploy.id": rid, "raphtory.deploy.distributed": True}
 mc_run_map_dict = MapConverter().convert(customConfig, gateway._gateway_client)
 jmap = gateway.jvm.PythonUtils.toScalaMap(mc_run_map_dict)
-client = raphtory.createClient(jmap)
+client = raphtory.createClient(mc_run_map_dict)
 
 print("Setting up the algorithm")
 connectedComponentsAlgorithm = gateway.jvm.ConnectedComponents

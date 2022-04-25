@@ -14,11 +14,11 @@ import java.io.{DataOutputStream, File, FileOutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 
-private[raphtory] class Py4JServer(entryPoint: Object, conf: Config) {
+private[raphtory] class Py4JServer(entryPoint: Object) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private def writePortToFile(port: Int): Unit = {
+  private def writePortToFile(port: Int, conf: Config): Unit = {
     val filename = conf.getString("raphtory.python.gatewayFilePath")
     logger.info("Writing PythonGatewayServer details to file...")
     val connectionInfoPath = new File(filename)
@@ -58,7 +58,7 @@ private[raphtory] class Py4JServer(entryPoint: Object, conf: Config) {
 
   def getSecret(): String = secret
 
-  def start(): Unit = gatewayServer match {
+  def start(conf: Config): Unit = gatewayServer match {
     case gatewayServer: py4j.GatewayServer =>
       logger.info("Starting PythonGatewayServer...")
       gatewayServer.start()
@@ -67,7 +67,7 @@ private[raphtory] class Py4JServer(entryPoint: Object, conf: Config) {
         logger.error("Failed to bind; Not running python gateway")
       } else {
         logger.info(s"Started PythonGatewayServer on port $boundPort")
-        writePortToFile(boundPort)
+        writePortToFile(boundPort, conf)
       }
     case other => logger.error(s"Start given unexpected Py4J gatewayServer ${other.getClass}")
   }
@@ -84,6 +84,6 @@ private[raphtory] class Py4JServer(entryPoint: Object, conf: Config) {
 }
 
 object Py4JServer {
-  def apply(entryPoint: Object, conf: Config) =
-    new Py4JServer(entryPoint, conf)
+  def apply(entryPoint: Object) =
+    new Py4JServer(entryPoint)
 }

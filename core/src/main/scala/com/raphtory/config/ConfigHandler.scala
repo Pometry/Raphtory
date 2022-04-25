@@ -29,12 +29,14 @@ private[raphtory] class ConfigHandler {
     else
       local()
 
-  def updateSalt(): Unit =
+  def updateSalt(): Unit = {
     this.salt = Random.nextInt().abs
+    logger.info(s"Raphtory deployment salt updated to '${salt}'.")
+  }
 
   def setSalt(salt: Int): Unit = {
     this.salt = salt
-    logger.info(s"Raphtory deployment salt updated to '${salt}'.")
+    logger.info(s"Raphtory deployment salt set to '${salt}'.")
   }
 
   private def createConf(): Config = {
