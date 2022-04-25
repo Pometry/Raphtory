@@ -54,4 +54,7 @@ private[raphtory] class ZookeeperIDManager(zookeeperAddress: String, atomicPath:
     )
   }
 
+  def stop(): Unit =
+    client.close()
+
 }

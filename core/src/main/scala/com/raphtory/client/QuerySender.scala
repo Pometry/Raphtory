@@ -8,6 +8,9 @@ import com.raphtory.serialisers.PulsarKryoSerialiser
 import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Schema
 
+import scala.util.Random
+
+/** @DoNotDocument */
 class QuerySender(
     private val componentFactory: ComponentFactory,
     private val scheduler: Scheduler,
@@ -19,7 +22,7 @@ class QuerySender(
 
   def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {
     val jobName     = if (customJobName.nonEmpty) customJobName else getDefaultName(query)
-    val jobID       = jobName + "_" + System.currentTimeMillis()
+    val jobID       = jobName + "_" + Random.nextLong().abs
     val outputQuery = query.copy(name = jobID)
     pulsarController.toQueryManagerProducer sendAsync kryo.serialise(outputQuery)
     componentFactory.queryProgressTracker(jobID, scheduler)

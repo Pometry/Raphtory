@@ -144,9 +144,6 @@ class PulsarController(conf: Config) {
       .maxPendingMessages(1000)
       .create()
 
-  def deleteTopic(topic: String) =
-    pulsarAdmin.topics().delete(topic)
-
   def createTopic(component: String, topicSuffix: String): String = {
     val persistence = true
 

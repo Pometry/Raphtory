@@ -4,16 +4,18 @@ import com.raphtory.components.spout.Spout
 import com.raphtory.deployment.RaphtoryService
 import com.raphtory.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.spouts.FileSpout
+import com.raphtory.util.FileUtils
 import com.typesafe.config.ConfigFactory
 
 object Distributed extends RaphtoryService[String] {
 
-  val config  = ConfigFactory.load("ethereum.conf").getConfig("com.raphtory.ethereum")
-  val tagFile = config.getString("tagFile")
+  val path = "/tmp/etherscan_tags.csv"
+  val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/etherscan_tags.csv"
+  FileUtils.curlFile(path, url)
 
-  override def defineSpout(): Spout[String] = FileSpout()
+  override def defineSpout(): Spout[String] = FileSpout("/tmp/etherscan_tags.csv")
 
-  override def defineBuilder: EthereumGraphBuilder = new EthereumGraphBuilder(tagFile)
+  override def defineBuilder: EthereumGraphBuilder = new EthereumGraphBuilder()
 
   override def batchIngestion(): Boolean = true
 }

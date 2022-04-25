@@ -46,14 +46,18 @@ class Reader(
   }
 
   override def stop(): Unit = {
+    logger.debug(s"stopping Reader for partition $partitionID")
     cancelableConsumer match {
       case Some(value) =>
+        value.unsubscribe()
         value.close()
       case None        =>
     }
     scheduledWatermark.foreach(_.cancel())
     watermarkPublish.close()
-    executorMap.foreach(_._2.stop())
+    executorMap.synchronized {
+      executorMap.foreach(_._2.stop())
+    }
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
@@ -65,8 +69,17 @@ class Reader(
         executorMap += ((jobID, queryExecutor))
 
       case req: EndQuery          =>
-        executorMap(req.jobID).stop()
-        executorMap.remove(req.jobID)
+        logger.debug(s"Reader on partition $partitionID received $req")
+        executorMap.synchronized {
+          try {
+            executorMap(req.jobID).stop()
+            executorMap.remove(req.jobID)
+          }
+          catch {
+            case e: Exception =>
+              e.printStackTrace()
+          }
+        }
     }
 
   def createWatermark(): Unit = {

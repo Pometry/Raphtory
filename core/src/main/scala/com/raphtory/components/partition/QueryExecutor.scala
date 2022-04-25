@@ -6,8 +6,11 @@ import com.raphtory.algorithms.api.ClearChain
 import com.raphtory.algorithms.api.Explode
 import com.raphtory.algorithms.api.ExplodeSelect
 import com.raphtory.algorithms.api.GlobalSelect
+import com.raphtory.algorithms.api.GraphStateImplementation
 import com.raphtory.algorithms.api.Iterate
 import com.raphtory.algorithms.api.IterateWithGraph
+import com.raphtory.algorithms.api.MultilayerView
+import com.raphtory.algorithms.api.ReduceView
 import com.raphtory.algorithms.api.Select
 import com.raphtory.algorithms.api.SelectWithGraph
 import com.raphtory.algorithms.api.Step
@@ -75,13 +78,15 @@ class QueryExecutor(
   }
 
   override def stop(): Unit = {
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-      case None        =>
-    }
     taskManager.close()
     neighbours.foreach(_._2.close())
+    cancelableConsumer match {
+      case Some(value) =>
+        value.unsubscribe()
+        value.close()
+        logger.debug(s"closing query executor consumer for $jobID on partition $partitionID")
+      case None        =>
+    }
   }
 
   override def handleMessage(msg: QueryManagement): Unit = {
@@ -96,16 +101,9 @@ class QueryExecutor(
           msgBatch.foreach(message => graphLens.receiveMessage(message))
           receivedMessageCount.addAndGet(msgBatch.size)
 
-        case msg: VertexMessage[_]                                            =>
+        case msg: GenericVertexMessage[_]                                     =>
           logger.trace(
                   s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
-          )
-          graphLens.receiveMessage(msg)
-          receivedMessageCount.addAndGet(1)
-
-        case msg: FilteredEdgeMessage                                         =>
-          logger.trace(
-                  s"Job '$jobID' at Partition '$partitionID': Executing 'FilteredEdgeMessage', '$msg'."
           )
           graphLens.receiveMessage(msg)
           receivedMessageCount.addAndGet(1)
@@ -121,7 +119,8 @@ class QueryExecutor(
                   conf,
                   neighbours,
                   sentMessageCount,
-                  receivedMessageCount
+                  receivedMessageCount,
+                  errorHandler
           )
           currentTimestamp = timestamp
           currentWindow = window
@@ -142,94 +141,136 @@ class QueryExecutor(
                   s"Job $jobID at Partition '$partitionID': Meta Data set in ${System.currentTimeMillis() - time}ms"
           )
 
-        case Step(f)                                                          =>
-          val time             = System.currentTimeMillis()
+        case MultilayerView(interlayerEdgeBuilder)                            =>
+          val time = System.currentTimeMillis()
           graphLens.nextStep()
-          graphLens.runGraphFunction(f)
-          val sentMessages     = sentMessageCount.get()
-          val receivedMessages = receivedMessageCount.get()
-          graphLens.getMessageHandler().flushMessages().thenApply { _ =>
-            taskManager sendAsync serialise(
-                    GraphFunctionComplete(partitionID, receivedMessages, sentMessages)
-            )
+          graphLens.explodeView(interlayerEdgeBuilder) {
+            val sentMessages     = sentMessageCount.get()
+            val receivedMessages = receivedMessageCount.get()
+            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+              taskManager sendAsync serialise(
+                      GraphFunctionComplete(partitionID, receivedMessages, sentMessages)
+              )
 
-            logger
-              .debug(s"Job '$jobID' at Partition '$partitionID': Step function finished in ${System
-                .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+              logger
+                .debug(s"Job '$jobID' at Partition '$partitionID': MultilayerView function finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+            }
+          }
+
+        case ReduceView(defaultMergeStrategy, mergeStrategyMap, aggregate)    =>
+          val time = System.currentTimeMillis()
+          graphLens.nextStep()
+          graphLens.reduceView(defaultMergeStrategy, mergeStrategyMap, aggregate) {
+            val sentMessages     = sentMessageCount.get()
+            val receivedMessages = receivedMessageCount.get()
+            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+              taskManager sendAsync serialise(
+                      GraphFunctionComplete(partitionID, receivedMessages, sentMessages)
+              )
+
+              logger
+                .debug(s"Job '$jobID' at Partition '$partitionID': MultilayerView function finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+            }
+          }
+
+        case Step(f)                                                          =>
+          val time = System.currentTimeMillis()
+          graphLens.nextStep()
+          graphLens.runGraphFunction(f) {
+            val sentMessages     = sentMessageCount.get()
+            val receivedMessages = receivedMessageCount.get()
+            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+              taskManager sendAsync serialise(
+                      GraphFunctionComplete(partitionID, receivedMessages, sentMessages)
+              )
+
+              logger
+                .debug(s"Job '$jobID' at Partition '$partitionID': Step function finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+            }
           }
 
         case StepWithGraph(f, graphState)                                     =>
           val time = System.currentTimeMillis()
           graphLens.nextStep()
-          graphLens.runGraphFunction(f, graphState)
+          graphLens.runGraphFunction(f, graphState) {
 
-          val sentMessages     = sentMessageCount.get()
-          val receivedMessages = receivedMessageCount.get()
-          graphLens.getMessageHandler().flushMessages().thenApply { _ =>
-            taskManager sendAsync serialise(
-                    GraphFunctionCompleteWithState(
-                            partitionID,
-                            receivedMessages,
-                            sentMessages,
-                            graphState = graphState
-                    )
-            )
-            logger.debug(
-                    s"Job '$jobID' at Partition '$partitionID': Step function on graph with accumulators finished in ${System
-                      .currentTimeMillis() - time}ms and sent '$sentMessages' messages."
-            )
+            val sentMessages     = sentMessageCount.get()
+            val receivedMessages = receivedMessageCount.get()
+            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+              taskManager sendAsync serialise(
+                      GraphFunctionCompleteWithState(
+                              partitionID,
+                              receivedMessages,
+                              sentMessages,
+                              graphState = graphState
+                      )
+              )
+              logger.debug(
+                      s"Job '$jobID' at Partition '$partitionID': Step function on graph with accumulators finished in ${System
+                        .currentTimeMillis() - time}ms and sent '$sentMessages' messages."
+              )
+            }
           }
 
         case Iterate(f, iterations, executeMessagedOnly)                      =>
-          val time             = System.currentTimeMillis()
+          val time = System.currentTimeMillis()
           graphLens.nextStep()
-          if (executeMessagedOnly)
-            graphLens.runMessagedGraphFunction(f)
-          else
-            graphLens.runGraphFunction(f)
-          val sentMessages     = sentMessageCount.get()
-          val receivedMessages = receivedMessageCount.get()
-          graphLens.getMessageHandler().flushMessages().thenApply { _ =>
-            taskManager sendAsync serialise(
-                    GraphFunctionComplete(
-                            partitionID,
-                            receivedMessages,
-                            sentMessages,
-                            graphLens.checkVotes()
-                    )
-            )
-            votedToHalt = graphLens.checkVotes()
-            logger.debug(
-                    s"Job '$jobID' at Partition '$partitionID': Iterate function completed in ${System
-                      .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
-            )
+          val fun  =
+            if (executeMessagedOnly)
+              graphLens.runMessagedGraphFunction(f)(_)
+            else
+              graphLens.runGraphFunction(f)(_)
+          fun {
+            val sentMessages     = sentMessageCount.get()
+            val receivedMessages = receivedMessageCount.get()
+            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+              taskManager sendAsync serialise(
+                      GraphFunctionComplete(
+                              partitionID,
+                              receivedMessages,
+                              sentMessages,
+                              graphLens.checkVotes()
+                      )
+              )
+              votedToHalt = graphLens.checkVotes()
+              logger.debug(
+                      s"Job '$jobID' at Partition '$partitionID': Iterate function completed in ${System
+                        .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
+              )
+            }
           }
 
         case IterateWithGraph(f, iterations, executeMessagedOnly, graphState) =>
-          val time             = System.currentTimeMillis()
+          val time = System.currentTimeMillis()
           graphLens.nextStep()
-          if (executeMessagedOnly)
-            graphLens.runMessagedGraphFunction(f, graphState)
-          else
-            graphLens.runGraphFunction(f, graphState)
-          val sentMessages     = sentMessageCount.get()
-          val receivedMessages = receivedMessageCount.get()
-          votedToHalt = graphLens.checkVotes()
-          graphLens.getMessageHandler().flushMessages().thenApply { _ =>
-            taskManager sendAsync serialise(
-                    GraphFunctionCompleteWithState(
-                            partitionID,
-                            receivedMessages,
-                            sentMessages,
-                            votedToHalt,
-                            graphState
-                    )
-            )
+          val fun  =
+            if (executeMessagedOnly)
+              graphLens.runMessagedGraphFunction(f, graphState)(_)
+            else
+              graphLens.runGraphFunction(f, graphState)(_)
+          fun {
+            val sentMessages     = sentMessageCount.get()
+            val receivedMessages = receivedMessageCount.get()
+            votedToHalt = graphLens.checkVotes()
+            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+              taskManager sendAsync serialise(
+                      GraphFunctionCompleteWithState(
+                              partitionID,
+                              receivedMessages,
+                              sentMessages,
+                              votedToHalt,
+                              graphState
+                      )
+              )
 
-            logger.debug(
-                    s"Job '$jobID' at Partition '$partitionID': Iterate function on graph with accumulators completed  in ${System
-                      .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
-            )
+              logger.debug(
+                      s"Job '$jobID' at Partition '$partitionID': Iterate function on graph with accumulators completed  in ${System
+                        .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
+              )
+            }
           }
 
         case ClearChain()                                                     =>
@@ -244,62 +285,75 @@ class QueryExecutor(
         case Select(f)                                                        =>
           val time = System.currentTimeMillis()
           graphLens.nextStep()
-          graphLens.executeSelect(f)
-          taskManager sendAsync serialise(TableBuilt)
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Select executed on graph in ${System
-                    .currentTimeMillis() - time}ms."
-          )
+          graphLens.executeSelect(f) {
+            taskManager sendAsync serialise(TableBuilt)
+            logger.debug(
+                    s"Job '$jobID' at Partition '$partitionID': Select executed on graph in ${System
+                      .currentTimeMillis() - time}ms."
+            )
+          }
 
         case SelectWithGraph(f, graphState)                                   =>
           val time = System.currentTimeMillis()
           graphLens.nextStep()
-          graphLens.executeSelect(f, graphState)
-          taskManager sendAsync serialise(TableBuilt)
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Select executed on graph with accumulators in ${System
-                    .currentTimeMillis() - time}ms."
-          )
+          graphLens.executeSelect(f, graphState) {
+            taskManager sendAsync serialise(TableBuilt)
+            logger.debug(
+                    s"Job '$jobID' at Partition '$partitionID': Select executed on graph with accumulators in ${System
+                      .currentTimeMillis() - time}ms."
+            )
+          }
 
         case GlobalSelect(f, graphState)                                      =>
           val time = System.currentTimeMillis()
           graphLens.nextStep()
           if (partitionID == 0)
-            graphLens.executeSelect(f, graphState)
-          taskManager sendAsync serialise(TableBuilt)
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Global Select executed on graph with accumulators in ${System
-                    .currentTimeMillis() - time}ms."
-          )
+            graphLens.executeSelect(f, graphState) {
+              taskManager sendAsync serialise(TableBuilt)
+              logger.debug(
+                      s"Job '$jobID' at Partition '$partitionID': Global Select executed on graph with accumulators in ${System
+                        .currentTimeMillis() - time}ms."
+              )
+            }
+          else {
+            taskManager sendAsync serialise(TableBuilt)
+            logger.debug(
+                    s"Job '$jobID' at Partition '$partitionID': Global Select executed on graph with accumulators in ${System
+                      .currentTimeMillis() - time}ms."
+            )
+          }
 
         //TODO create explode select with accumulators
         case ExplodeSelect(f)                                                 =>
           val time = System.currentTimeMillis()
           graphLens.nextStep()
-          graphLens.explodeSelect(f)
-          taskManager sendAsync serialise(TableBuilt)
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Exploded Select executed on graph in ${System
-                    .currentTimeMillis() - time}ms."
-          )
+          graphLens.explodeSelect(f) {
+            taskManager sendAsync serialise(TableBuilt)
+            logger.debug(
+                    s"Job '$jobID' at Partition '$partitionID': Exploded Select executed on graph in ${System
+                      .currentTimeMillis() - time}ms."
+            )
+          }
 
         case TableFilter(f)                                                   =>
           val time = System.currentTimeMillis()
-          graphLens.filteredTable(f)
-          taskManager sendAsync serialise(TableFunctionComplete)
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Table Filter executed on table in ${System
-                    .currentTimeMillis() - time}ms."
-          )
+          graphLens.filteredTable(f) {
+            taskManager sendAsync serialise(TableFunctionComplete)
+            logger.debug(
+                    s"Job '$jobID' at Partition '$partitionID': Table Filter executed on table in ${System
+                      .currentTimeMillis() - time}ms."
+            )
+          }
 
         case Explode(f)                                                       =>
           val time = System.currentTimeMillis()
-          graphLens.explodeTable(f)
-          taskManager sendAsync serialise(TableFunctionComplete)
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Table Explode executed on table in ${System
-                    .currentTimeMillis() - time}ms."
-          )
+          graphLens.explodeTable(f) {
+            taskManager sendAsync serialise(TableFunctionComplete)
+            logger.debug(
+                    s"Job '$jobID' at Partition '$partitionID': Table Explode executed on table in ${System
+                      .currentTimeMillis() - time}ms."
+            )
+          }
 
         case WriteTo(outputFormat)                                            =>
           val time     = System.currentTimeMillis()
@@ -366,8 +420,12 @@ class QueryExecutor(
     }
     catch {
       case e: Throwable =>
-        e.printStackTrace()
-        taskManager sendAsync serialise(AlgorithmFailure(e))
+        errorHandler(e)
     }
+  }
+
+  def errorHandler(error: Throwable): Unit = {
+    error.printStackTrace()
+    taskManager sendAsync serialise(AlgorithmFailure(error))
   }
 }

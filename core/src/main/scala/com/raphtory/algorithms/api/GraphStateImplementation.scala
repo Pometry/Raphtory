@@ -14,7 +14,7 @@ private class AccumulatorImplementation[T](
   var value: T        = initialValue
 
   def +=(newValue: T): Unit =
-    currentValue = op(currentValue, newValue)
+    this.synchronized(this.currentValue = op(currentValue, newValue))
 
   def reset(): Unit = {
     if (retainState)
@@ -161,6 +161,14 @@ class GraphStateImplementation extends GraphState {
     state(name) = AccumulatorImplementation[T](initialValue, retainState = retainState, numeric.min)
       .asInstanceOf[AccumulatorImplementation[Any]]
 
+  override def newAll(name: String, retainState: Boolean): Unit =
+    state(name) = AccumulatorImplementation[Boolean](true, retainState, _ && _)
+      .asInstanceOf[AccumulatorImplementation[Any]]
+
+  override def newAny(name: String, retainState: Boolean): Unit =
+    state(name) = AccumulatorImplementation[Boolean](initialValue = false, retainState, _ || _)
+      .asInstanceOf[AccumulatorImplementation[Any]]
+
   def update(graphState: GraphStateImplementation): Unit =
     graphState.state.foreach {
       case (name, value) =>
@@ -178,6 +186,7 @@ class GraphStateImplementation extends GraphState {
 
   override def contains(name: String): Boolean =
     state.contains(name)
+
 }
 
 object GraphStateImplementation {

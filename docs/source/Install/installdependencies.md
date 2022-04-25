@@ -113,25 +113,27 @@ If you run Pulsar in Docker, you will now be able to see your container in the d
 
 Everything should now be installed and ready for us to get your first Raphtory Job underway!
 
-## Downloading the latest Raphtory release
-To begin, you must clone the example repository from [Github](https://github.com/Raphtory/Examples.git) and download the latest build of [Raphtory 0.5.0-pometry-release)](https://github.com/Raphtory/Raphtory/releases/tag/0.5.0-alpha). 
-
-**Note:** you can also find the nightly Raphtory build. However, it should be used with caution, as there may be differences between it and this tutorial. We then want to checkout the examples for this version of Raphtory.
+## Running the latest Raphtory release in an Examples Project
+All the example projects can be found in the [Raphtory repo](https://github.com/Raphtory/Raphtory). All projects are working other than `raphtory-examples-presto` which will be re-enabled soon.
 
 ```bash
-git clone https://github.com/Raphtory/Examples.git
-cd Examples
-git checkout 0.5.0
+git clone https://github.com/Raphtory/Raphtory.git
+git checkout development
 ```
-
-As we are using the Lord of the Rings example, we should now move into this directory - this is a totally independent sbt project. Finally here we can create a `lib` directory at the root of the project and move the `raphtory.jar` into this directory.
+We need to firstly build the Raphtory jar into the Maven folder on your local computer by running this command in your root Raphtory directory:
 
 ```bash
-cd raphtory-example-lotr
-wget https://github.com/Raphtory/Raphtory/releases/download/0.5.0-alpha/Raphtory-0.5.0-alpha.jar
-mkdir lib | mv Raphtory-0.5.0-alpha.jar lib/
+sbt "core/publishLocal"
 ```
-**Note:** If you do not have wget, you can go onto [here](https://github.com/Raphtory/Raphtory/releases/tag/0.5.0-alpha) and manually download the jar.  
+
+As we are using the Lord of the Rings example, we should now move into this directory - this is a totally independent sbt project. 
+
+```bash
+cd examples/raphtory-example-lotr
+```
+You should give your sbt a refresh on the right hand side of the Intellij window (sbt tab) to reload the project locally to use the Raphtory jar.  
+
+If you make any changes to the core Raphtory code, you can either go into your local ivy repo to delete the jar: `cd .ivy2/local/com.raphtory`, `ls`, then `rm (whichever jar you want to delete)` and re-download using `sbt "core/publishLocal"`, or you can add a dependency `version := "0.1-SNAPSHOT"` in the examples build.sbt file and subsequent `sbt publishLocal` will not require you to manually delete jars from your local repo. 
 
 ## Running Raphtory via SBT
 

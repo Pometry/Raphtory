@@ -1,5 +1,6 @@
 package com.raphtory.algorithms
 
+import com.raphtory.BaseCorrectnessTest
 import com.raphtory.algorithms.generic.AdjPlus
 
 class AdjPlusTest extends BaseCorrectnessTest {

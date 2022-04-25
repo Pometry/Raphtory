@@ -14,8 +14,10 @@ import com.raphtory.algorithms.api.GraphFunction
 import com.raphtory.algorithms.api.GraphStateImplementation
 import com.raphtory.algorithms.api.Iterate
 import com.raphtory.algorithms.api.IterateWithGraph
+import com.raphtory.algorithms.api.MultilayerView
 import com.raphtory.algorithms.api.OutputFormat
 import com.raphtory.algorithms.api.PerspectiveDone
+import com.raphtory.algorithms.api.ReduceView
 import com.raphtory.algorithms.api.Select
 import com.raphtory.algorithms.api.SelectWithGraph
 import com.raphtory.algorithms.api.Setup
@@ -86,7 +88,7 @@ class QueryHandler(
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
   override def run(): Unit = {
-    readers sendAsync serialise(EstablishExecutor(jobID))
+    messageReader(EstablishExecutor(jobID))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
 
     cancelableConsumer = Some(
@@ -99,6 +101,7 @@ class QueryHandler(
   override def stop(): Unit = {
     cancelableConsumer match {
       case Some(value) =>
+        value.unsubscribe()
         value.close()
       case None        =>
     }
@@ -453,6 +456,14 @@ class QueryHandler(
         )
         Stages.ExecuteGraph
 
+      case f: MultilayerView                                         =>
+        messagetoAllJobWorkers(f)
+        Stages.ExecuteGraph
+
+      case f: ReduceView                                             =>
+        messagetoAllJobWorkers(f)
+        Stages.ExecuteGraph
+
       case f: Step                                                   =>
         messagetoAllJobWorkers(f)
         Stages.ExecuteGraph
@@ -522,7 +533,16 @@ class QueryHandler(
 
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
+    workerList.values.foreach(producer =>
+      producer.flushAsync().thenApply(_ => producer.closeAsync())
+    )
     messageReader(EndQuery(jobID))
+    readers.flushAsync().thenApply(_ => readers.closeAsync())
+
+    val queryManagerProducer = pulsarController.toQueryManagerProducer
+    queryManagerProducer
+      .sendAsync(serialise(EndQuery(jobID)))
+      .thenApply(_ => queryManagerProducer.closeAsync())
     logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
 
     tracker

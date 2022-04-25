@@ -50,7 +50,7 @@ import scala.util.Random
 class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphAlgorithm {
   protected val rnd: Random = if (seed != -1) new Random(seed) else new Random()
 
-  protected def selectNeighbour(vertex: Vertex): Long = {
+  protected def selectNeighbour(vertex: Vertex) = {
     val neighbours = vertex.getOutNeighbours()
     if (neighbours.isEmpty)
       vertex.ID()
@@ -69,11 +69,14 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphA
       }
       .iterate(
               vertex =>
-                vertex.messageQueue[Message].foreach {
+                vertex.messageQueue[Message[vertex.IDType]].foreach {
 //              propagate walks
                   case WalkMessage(source, walkID) =>
                     vertex.messageVertex(source, StoreMessage(vertex.name(), walkID))
-                    vertex.messageVertex(selectNeighbour(vertex), WalkMessage(source, walkID))
+                    vertex.messageVertex(
+                            selectNeighbour(vertex).asInstanceOf[vertex.IDType],
+                            WalkMessage(source, walkID)
+                    )
                   //          store walks on source node
                   case StoreMessage(name, walkID)  =>
                     val walks = vertex.getState[Array[ArrayBuffer[String]]]("walks")
@@ -84,7 +87,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphA
       )
       .step { vertex =>
 //      collect last step of walk
-        vertex.messageQueue[Message].foreach {
+        vertex.messageQueue[Message[vertex.IDType]].foreach {
           case WalkMessage(source, walkID) =>
           case StoreMessage(name, walkID)  =>
             val walks = vertex.getState[Array[ArrayBuffer[String]]]("walks")
@@ -103,7 +106,7 @@ object RandomWalk {
   def apply(walkLength: Int = 10, numWalks: Int = 1, seed: Long = -1) =
     new RandomWalk(walkLength, numWalks, seed)
 
-  sealed abstract class Message
-  case class WalkMessage(sourceID: Long, walkID: Int) extends Message
-  case class StoreMessage(name: String, walkID: Int)  extends Message
+  sealed abstract class Message[VertexID]
+  case class WalkMessage[VertexID](sourceID: VertexID, walkID: Int) extends Message[VertexID]
+  case class StoreMessage[VertexID](name: String, walkID: Int)      extends Message[VertexID]
 }

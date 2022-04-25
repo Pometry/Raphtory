@@ -1,6 +1,7 @@
 package com.raphtory.deployment
 
 import com.raphtory.config.ConfigHandler
+import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 
 import java.net.InetAddress
@@ -13,9 +14,8 @@ import java.io.{DataOutputStream, File, FileOutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 
-private[raphtory] class Py4JServer(entryPoint: Object) {
+private[raphtory] class Py4JServer(entryPoint: Object, conf: Config) {
 
-  private val conf = new ConfigHandler().getConfig
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private def writePortToFile(port: Int): Unit = {
@@ -84,6 +84,6 @@ private[raphtory] class Py4JServer(entryPoint: Object) {
 }
 
 object Py4JServer {
-  def apply(entryPoint: Object) =
-    new Py4JServer(entryPoint)
+  def apply(entryPoint: Object, conf: Config) =
+    new Py4JServer(entryPoint, conf)
 }

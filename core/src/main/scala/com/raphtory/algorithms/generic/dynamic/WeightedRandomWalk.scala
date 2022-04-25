@@ -2,30 +2,21 @@ package com.raphtory.algorithms.generic.dynamic
 
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.util.Sampling._
+import math.Numeric.Implicits._
 
-class WeightedRandomWalk[T](
+class WeightedRandomWalk[T: Numeric](
     walkLength: Int,
     numWalks: Int,
     seed: Long = -1,
     weight: String = "weight"
-)(implicit numeric: Numeric[T])
-        extends RandomWalk(walkLength, numWalks, seed) {
+) extends RandomWalk(walkLength, numWalks, seed) {
 
-  override protected def selectNeighbour(vertex: Vertex): Long = {
+  override protected def selectNeighbour(vertex: Vertex): vertex.IDType = {
     val neighbours = vertex.getOutNeighbours()
     if (neighbours.isEmpty)
       vertex.ID()
     else {
-      val weights = vertex.getOutEdges().map { edge =>
-        numeric.toDouble(
-                edge
-                  .explode()
-                  .map(explodedEdge =>
-                    explodedEdge.getPropertyValue[T](weight).getOrElse(numeric.one)
-                  )
-                  .sum
-        )
-      }
+      val weights = vertex.getOutEdges().map(e => e.weight[T](weight).toDouble)
       neighbours(rnd.sample(weights))
     }
   }

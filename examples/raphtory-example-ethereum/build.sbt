@@ -6,7 +6,7 @@ organization := "com.raphtory"
 
 scalaVersion := "2.13.7"
 
-assembly / test := {}
+resolvers += Resolver.mavenLocal
 libraryDependencies += "com.raphtory" %% "core" % "0.5"
 Compile / resourceDirectory := baseDirectory.value / "resources"
 

@@ -2,13 +2,13 @@ package com.raphtory.storage.pojograph
 
 import com.raphtory.algorithms.api.GraphState
 import com.raphtory.algorithms.api.Row
-import com.raphtory.components.querymanager.FilteredEdgeMessage
 import com.raphtory.components.querymanager.GenericVertexMessage
-import com.raphtory.components.querymanager.VertexMessage
+import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph.GraphLens
 import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
+import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 import com.typesafe.config.Config
@@ -16,6 +16,9 @@ import org.apache.pulsar.client.api.Producer
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
+import monix.execution.Scheduler.Implicits.global
+import monix.eval.Task
+import monix.execution.Callback
 
 /** @DoNotDocument */
 final case class PojoGraphLens(
@@ -27,18 +30,32 @@ final case class PojoGraphLens(
     private val conf: Config,
     private val neighbours: Map[Int, Producer[Array[Byte]]],
     private val sentMessages: AtomicInteger,
-    private val receivedMessages: AtomicInteger
+    private val receivedMessages: AtomicInteger,
+    private val errorHandler: (Throwable) => Unit
 ) extends GraphLens(jobId, start, end)
         with LensInterface {
-  private val voteCount     = new AtomicInteger(0)
-  private val vertexCount   = new AtomicInteger(0)
-  var t1                    = System.currentTimeMillis()
-  private var fullGraphSize = 0
+  private val voteCount         = new AtomicInteger(0)
+  private val vertexCount       = new AtomicInteger(0)
+  var t1                        = System.currentTimeMillis()
+  private var fullGraphSize     = 0
+  private var exploded: Boolean = false
+  var needsFiltering            = false
 
   val messageHandler: VertexMessageHandler =
     VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)
 
   val partitionID = storage.getPartitionID
+
+  private lazy val vertexMap: mutable.Map[Long, PojoExVertex] =
+    storage.getVertices(this, start, end)
+
+  private var vertices: Array[PojoExVertex] = vertexMap.values.toArray
+
+  private def vertexIterator =
+    if (exploded)
+      vertices.iterator.flatMap(_.explodedVertices)
+    else
+      vertices.iterator
 
   def getFullGraphSize: Int = {
     logger.trace(s"Current Graph size at '$fullGraphSize'.")
@@ -50,77 +67,132 @@ final case class PojoGraphLens(
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
 
-  private lazy val vertexMap: mutable.Map[Long, PojoExVertex] =
-    storage.getVertices(this, start, end)
-
-  private var vertices: Array[(Long, PojoExVertex)] = vertexMap.toArray
-
   def getSize(): Int = vertices.size
 
   private var dataTable: List[Row] = List()
 
-  def executeSelect(f: Vertex => Row): Unit =
-    dataTable = vertices.collect {
-      case (id, vertex) => f(vertex)
-    }.toList
+  def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit = {
+    dataTable = vertexIterator.map(f).toList
+    onComplete
+  }
 
   def executeSelect(
       f: (Vertex, GraphState) => Row,
       graphState: GraphState
-  ): Unit =
-    dataTable = vertices.collect {
-      case (id, vertex) => f(vertex, graphState)
-    }.toList
+  )(onComplete: => Unit): Unit = {
+    dataTable = vertexIterator.map(f(_, graphState)).toList
+    onComplete
+  }
 
   def executeSelect(
       f: GraphState => Row,
       graphState: GraphState
-  ): Unit =
+  )(onComplete: => Unit): Unit = {
     dataTable = List(f(graphState))
+    onComplete
+  }
 
-  def explodeSelect(f: Vertex => List[Row]): Unit =
-    dataTable = vertices
-      .collect {
-        case (_, vertex) => f(vertex)
-      }
-      .flatten
-      .toList
+  def explodeSelect(f: Vertex => List[Row])(onComplete: => Unit): Unit = {
+    dataTable = vertexIterator.flatMap(f).toList
+    onComplete
+  }
 
-  def filteredTable(f: Row => Boolean): Unit =
+  def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit = {
     dataTable = dataTable.filter(f)
+    onComplete
+  }
 
-  def explodeTable(f: Row => List[Row]): Unit =
+  def explodeTable(f: Row => List[Row])(onComplete: => Unit): Unit = {
     dataTable = dataTable.flatMap(f)
+    onComplete
+  }
 
   def getDataTable(): List[Row] =
     dataTable
 
-  def runGraphFunction(f: Vertex => Unit): Unit = {
-    vertices.foreach { case (id, vertex) => f(vertex) }
-    vertexCount.set(vertices.size)
+  override def explodeView(
+      interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
+  )(onComplete: => Unit): Unit = {
+    val tasks: Iterable[Task[Unit]] = {
+      if (exploded)
+        if (interlayerEdgeBuilder.nonEmpty)
+          vertexMap.values.map { vertex =>
+            Task {
+              vertex.explode(interlayerEdgeBuilder)
+            }
+          }
+        else
+          Seq(Task.unit)
+      else {
+        exploded = true
+        vertexMap.values.map { vertex =>
+          Task {
+            vertex.explode(interlayerEdgeBuilder)
+          }
+        }
+      }
+    }
+    executeInParallel(tasks, onComplete)
+  }
+
+  override def reduceView(
+      defaultMergeStrategy: Option[PropertyMerge[_, _]],
+      mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
+      aggregate: Boolean
+  )(onComplete: => Unit): Unit = {
+    exploded = false
+    val tasks = vertexMap.values.map { vertex =>
+      Task(vertex.reduce(defaultMergeStrategy, mergeStrategyMap, aggregate))
+    }
+    executeInParallel(tasks, onComplete)
+  }
+
+  def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
+    var count: Int = 0
+    val tasks      = vertexIterator.map { vertex =>
+      count += 1
+      Task(f(vertex))
+    }.toIterable
+    vertexCount.set(count)
+    executeInParallel(tasks, onComplete)
   }
 
   override def runGraphFunction(
       f: (Vertex, GraphState) => Unit,
       graphState: GraphState
-  ): Unit = {
-    vertices.foreach { case (id, vertex) => f(vertex, graphState) }
-    vertexCount.set(vertices.size)
+  )(onComplete: => Unit): Unit = {
+    var count: Int = 0
+    val tasks      = vertexIterator.map { vertex =>
+      count += 1
+      Task(f(vertex, graphState))
+    }.toIterable
+    vertexCount.set(count)
+    executeInParallel(tasks, onComplete)
   }
 
-  override def runMessagedGraphFunction(f: Vertex => Unit): Unit = {
-    val size = vertices.collect { case (id, vertex) if vertex.hasMessage() => f(vertex) }.size
-    vertexCount.set(size)
+  override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
+    var count: Int = 0
+    val tasks      = vertexIterator.collect {
+      case vertex if vertex.hasMessage() =>
+        count += 1
+        Task(f(vertex))
+    }.toIterable
+    vertexCount.set(count)
+    executeInParallel(tasks, onComplete)
   }
 
   override def runMessagedGraphFunction(
       f: (Vertex, GraphState) => Unit,
       graphState: GraphState
-  ): Unit = {
-    val size = vertices.collect {
-      case (id, vertex) if vertex.hasMessage() => f(vertex, graphState)
-    }.size
-    vertexCount.set(size)
+  )(onComplete: => Unit): Unit = {
+    var count: Int = 0
+    val tasks      = vertexIterator.collect {
+      case vertex if vertex.hasMessage() =>
+        count += 1
+        Task(f(vertex, graphState))
+    }.toIterable
+    vertexCount.set(count)
+    executeInParallel(tasks, onComplete)
   }
 
   def getMessageHandler(): VertexMessageHandler =
@@ -128,7 +200,7 @@ final case class PojoGraphLens(
 
   def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
 
-  def sendMessage(msg: GenericVertexMessage): Unit = messageHandler.sendMessage(msg)
+  def sendMessage(msg: GenericVertexMessage[_]): Unit = messageHandler.sendMessage(msg)
 
   def vertexVoted(): Unit = voteCount.incrementAndGet()
 
@@ -137,16 +209,26 @@ final case class PojoGraphLens(
     voteCount.set(0)
     vertexCount.set(0)
     superStep += 1
-    vertexMap.foreach(_._2.executeEdgeDelete())
-    deleteVertices()
+    if (needsFiltering) {
+      vertexIterator.foreach(_.executeEdgeDelete())
+      deleteVertices()
+      needsFiltering = false
+    }
   }
 
 //keep the vertices that are not being deleted
   private def deleteVertices(): Unit =
-    vertices = vertices.filter(!_._2.isFiltered)
+    if (exploded)
+      vertices.foreach(_.filterExplodedVertices())
+    else
+      vertices = vertices.filterNot(_.isFiltered)
 
-  def receiveMessage(msg: GenericVertexMessage): Unit =
-    try vertexMap(msg.vertexId).receiveMessage(msg)
+  def receiveMessage(msg: GenericVertexMessage[_]): Unit = {
+    val vertexId = msg.vertexId match {
+      case v: Long       => v
+      case (id: Long, _) => id
+    }
+    try vertexMap(vertexId).receiveMessage(msg)
     catch {
       case e: java.util.NoSuchElementException =>
         logger.warn(
@@ -154,6 +236,7 @@ final case class PojoGraphLens(
                   s"Partition '${storage.getPartitionID}'. Please consider rerunning computation on this perspective."
         )
     }
+  }
 
   override def getStart(): Long = start
 
@@ -164,4 +247,9 @@ final case class PojoGraphLens(
       case (key, vertex) => vertex.clearMessageQueue()
     }
 
+  private def executeInParallel(tasks: Iterable[Task[Unit]], onSuccess: => Unit): Unit =
+    Task.parSequenceUnordered(tasks).runAsync {
+      case Right(_)                   => onSuccess
+      case Left(exception: Exception) => errorHandler(exception)
+    }
 }

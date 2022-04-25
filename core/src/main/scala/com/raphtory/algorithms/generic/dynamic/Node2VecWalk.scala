@@ -8,6 +8,8 @@ import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
+import scala.reflect.ClassTag
+
 // extend Random to include weighted sampling method
 
 import scala.collection.mutable.ArrayBuffer
@@ -69,8 +71,10 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph
       .step { vertex =>
+        implicit val tag: ClassTag[vertex.IDType] =
+          ClassTag[vertex.IDType](vertex.ID().getClass)
         vertex.setState("walk", ArrayBuffer[String](vertex.name()))
-        val neighbours = vertex.getOutNeighbours().toArray
+        val neighbours                            = vertex.getOutNeighbours().toArray
         if (neighbours.isEmpty)
           vertex.messageSelf(WalkMessage(vertex.ID(), vertex.ID(), neighbours))
         else
@@ -80,13 +84,15 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
           )
       }
       .iterate(
-              vertex =>
-                vertex.messageQueue[Messages].foreach {
+              { vertex =>
+                implicit val tag: ClassTag[vertex.IDType] =
+                  ClassTag[vertex.IDType](vertex.ID().getClass)
+                vertex.messageQueue[Messages[vertex.IDType]].foreach {
                   case WalkMessage(source, last, lastNeighbours) =>
                     vertex.messageVertex(source, StoreMessage(vertex.name()))
                     val neighbours = vertex.getOutNeighbours().toArray
                     if (neighbours.isEmpty)
-//              random walk remains at current vertex if no out-neighbours
+                      //              random walk remains at current vertex if no out-neighbours
                       vertex.messageSelf(WalkMessage(source, vertex.ID, neighbours))
                     else {
                       val lastNeighbourSet = lastNeighbours.toSet
@@ -100,18 +106,19 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
                       }
                       vertex.messageVertex(
                               neighbours(rng.sample(weights)),
-                              WalkMessage(source, vertex.ID, neighbours)
+                              WalkMessage(source, vertex.ID(), neighbours)
                       )
                     }
                   case StoreMessage(name)                        =>
                     vertex.getState[ArrayBuffer[String]]("walk").append(name)
-                },
+                }
+              },
               walkLength - 1,
               false
       ) // make iterate act on all vertices
       .step { vertex =>
 //        store last step of random walk
-        vertex.messageQueue[Messages].foreach {
+        vertex.messageQueue[Messages[vertex.IDType]].foreach {
           case StoreMessage(node)   => vertex.getState[ArrayBuffer[String]]("walk").append(node)
           case WalkMessage(_, _, _) =>
         }
@@ -126,7 +133,12 @@ object Node2VecWalk {
   def apply(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) =
     new Node2VecWalk(walkLength, p, q)
 
-  sealed trait Messages
-  case class WalkMessage(source: Long, last: Long, neighbours: Array[Long]) extends Messages
-  case class StoreMessage(node: String)                                     extends Messages
+  sealed trait Messages[VertexID]
+
+  case class WalkMessage[VertexID: ClassTag](
+      source: VertexID,
+      last: VertexID,
+      neighbours: Array[VertexID]
+  )                                               extends Messages[VertexID]
+  case class StoreMessage[VertexID](node: String) extends Messages[VertexID]
 }

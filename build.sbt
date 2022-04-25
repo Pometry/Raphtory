@@ -48,6 +48,7 @@ lazy val core = (project in file("core"))
                   dependencies.scalaTestCompile,
                   dependencies.slf4j,
                   dependencies.sprayJson,
+                  dependencies.timeSeries,
                   dependencies.twitterChill,
                   dependencies.twittered,
                   dependencies.typesafeConfig,
@@ -116,6 +117,7 @@ lazy val dependencies = new {
   val scalatestVersion      = "3.2.11"
   val slf4jVersion          = "1.7.36"
   val sprayJsonVersion      = "1.3.6"
+  val timeSeriesVersion     = "1.7.0"
   val twitteredVersion      = "2.16"
   val typesafeConfigVersion = "1.4.2"
   val zookeeperVersion      = "3.7.0"
@@ -140,21 +142,23 @@ lazy val dependencies = new {
 
   val pulsarAdmin =
     "org.apache.pulsar" % "pulsar-client-admin-original" % pulsarVersion excludeAll excludePulsarBinding
-  val pulsarApi        = "org.apache.pulsar"            % "pulsar-client-api"              % pulsarVersion
-  val pulsarCommon     = "org.apache.pulsar"            % "pulsar-common"                  % pulsarVersion
-  val pulsarCrypto     = "org.apache.pulsar"            % "pulsar-client-messagecrypto-bc" % pulsarVersion
-  val pulsarOriginal   = "org.apache.pulsar"            % "pulsar-client-original"         % pulsarVersion
-  val py4j             = "net.sf.py4j"                  % "py4j"                           % py4jVersion
+  val pulsarApi        = "org.apache.pulsar"           % "pulsar-client-api"              % pulsarVersion
+  val pulsarCommon     = "org.apache.pulsar"           % "pulsar-common"                  % pulsarVersion
+  val pulsarCrypto     = "org.apache.pulsar"           % "pulsar-client-messagecrypto-bc" % pulsarVersion
+  val pulsarOriginal   = "org.apache.pulsar"           % "pulsar-client-original"         % pulsarVersion
+  val py4j             = "net.sf.py4j"                 % "py4j"                           % py4jVersion
+  val scalaLogging     = "com.typesafe.scala-logging" %% "scala-logging"                  % scalaLoggingVersion
+  val scalaTest        = "org.scalatest"              %% "scalatest"                      % scalatestVersion % Test
+  val scalaTestCompile = "org.scalatest"              %% "scalatest"                      % scalatestVersion
+  val slf4j            = "org.slf4j"                   % "slf4j-api"                      % slf4jVersion
+  val sprayJson        = "io.spray"                   %% "spray-json"                     % sprayJsonVersion
 
-  val scalaLogging     = "com.typesafe.scala-logging"  %% "scala-logging"                  % scalaLoggingVersion
-  val scalaTest        = "org.scalatest"               %% "scalatest"                      % scalatestVersion % Test
-  val scalaTestCompile = "org.scalatest"               %% "scalatest"                      % scalatestVersion
-  val slf4j            = "org.slf4j"                    % "slf4j-api"                      % slf4jVersion
-  val sprayJson        = "io.spray"                    %% "spray-json"                     % sprayJsonVersion
-  val twitterChill     = "com.twitter"                 %% "chill"                          % chillVersion
-  val twittered        = "io.github.redouane59.twitter" % "twittered"                      % twitteredVersion
-  val typesafeConfig   = "com.typesafe"                 % "config"                         % typesafeConfigVersion
-  val zookeeper        = "org.apache.zookeeper"         % "zookeeper"                      % zookeeperVersion
+  val timeSeries       =
+    "io.sqooba.oss" %% "scala-timeseries-lib" % timeSeriesVersion excludeAll (excludeLog4j, excludeSlf4j)
+  val twitterChill   = "com.twitter"                 %% "chill"     % chillVersion
+  val twittered      = "io.github.redouane59.twitter" % "twittered" % twitteredVersion
+  val typesafeConfig = "com.typesafe"                 % "config"    % typesafeConfigVersion
+  val zookeeper      = "org.apache.zookeeper"         % "zookeeper" % zookeeperVersion
 }
 
 // ASSEMBLY SETTINGS

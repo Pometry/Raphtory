@@ -11,28 +11,34 @@ import com.raphtory.util.Reduction._
   * [{s}`EntityVisitor`](com.raphtory.graph.visitor.EntityVisitor).
   * The general signature for a merge strategy is {s}`Seq[(Long, A)] => B`.
   *
+  * ## Generic types
+  *
+  * {s}`PropertyMerge[A, B] = Seq[(Long, A)] => B`
+  *   : Type of a merge strategy with return type {s}`B` for a property with value type {s}`A`
+  *
   * ## Methods
   *
-  * {s}`sum[T: Numeric](history: (history: Seq[(Long, T)]): T`
-  *  : Return the sum of property values
+  * {s}`sum[T: Numeric]: PropertyMerge[T, T]`
+  *  : Merge strategy that sums the property values
   *
-  * {s}`max[T: Numeric](history: (history: Seq[(Long, T)]): T`
-  *  : Return the maximum property value
+  * {s}`max[T: Numeric]: PropertyMerge[T, T]`
+  *  : Merge strategy that returns the maximum property value
   *
-  * {s}`min[T: Numeric](history: (history: Seq[(Long, T)]): T`
-  *  : Return the minimum property value
+  * {s}`min[T: Numeric]: PropertyMerge[T, T]`
+  *  : Merge strategy that returns the minimum property value
   *
-  * {s}`product[T: Numeric](history: (history: Seq[(Long, T)]): T`
-  *  : Return the product of property values
+  * {s}`product[T: Numeric]: PropertyMerge[T, T]`
+  *  : Merge strategy that returns the product of property values
   *
-  * {s}`average[T: Numeric](history: (history: Seq[(Long, T)]): Double`
-  *  : Return the average of property values
+  * {s}`average[T: Numeric]: PropertyMerge[T, Double]`
+  *  : Merge strategy that returns the average of property values
   *
-  * {s}`latest[T](history: (history: Seq[(Long, T)]): T`
-  *  : Return the latest property value (i.e. the value corresponding to the largest timestamp)
+  * {s}`latest[T]: PropertyMerge[T, T]`
+  *  : Merge strategy that returns the latest property value (i.e. the value corresponding to the largest timestamp)
+  *    This is the default merge strategy for property access in Raphtory.
   *
-  * {s}`earliest[T](history: (history: Seq[(Long, T)]): T`
-  *  : Return the earliest property value (i.e., the value corresponding to the smallest timestamp)
+  * {s}`earliest[T]: PropertyMerge[T, T]`
+  *  : Merge startegy that returns the earliest property value (i.e., the value corresponding to the smallest timestamp)
   *
   * ```{seealso}
   * [](com.raphtory.graph.visitor.EntityVisitor),
@@ -43,25 +49,21 @@ import com.raphtory.util.Reduction._
 object PropertyMergeStrategy {
   type PropertyMerge[A, B] = Seq[(Long, A)] => B
 
-  def sum[T: Numeric](history: Seq[(Long, T)]): T =
-    history.map(_._2).sum
+  def sum[T: Numeric]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.map(_._2).sum
 
-  def max[T: Numeric](history: Seq[(Long, T)]): T =
-    history.map(_._2).max
+  def max[T: Numeric]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.map(_._2).max
 
-  def min[T: Numeric](history: Seq[(Long, T)]): T =
-    history.map(_._2).min
+  def min[T: Numeric]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.map(_._2).min
 
-  def product[T: Numeric](history: Seq[(Long, T)]): T =
-    history.map(_._2).product
+  def product[T: Numeric]: PropertyMerge[T, T] =
+    (history: Seq[(Long, T)]) => history.map(_._2).product
 
-  def average[T: Numeric](history: Seq[(Long, T)]): Double =
-    history.map(_._2).mean
+  def average[T: Numeric]: PropertyMerge[T, Double] =
+    (history: Seq[(Long, T)]) => history.map(_._2).mean
 
-  def latest[T](history: Seq[(Long, T)]): T =
-    history.maxBy(_._1)._2
+  def latest[T]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.maxBy(_._1)._2
 
-  def earliest[T](history: Seq[(Long, T)]): T =
-    history.minBy(_._1)._2
+  def earliest[T]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.minBy(_._1)._2
 
+  def sequence[T]: PropertyMerge[T, Seq[T]] = (history: Seq[(Long, T)]) => history.map(_._2)
 }
