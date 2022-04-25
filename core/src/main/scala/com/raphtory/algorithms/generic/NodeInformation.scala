@@ -7,13 +7,6 @@ import com.raphtory.algorithms.api.Table
 
 class NodeInformation(initialID: Long, hopsAway: Int = 1) extends GraphAlgorithm {
 
-  case class VertexInformation(
-      id: String,
-      name: String,
-      outgoingEdges: Array[Long],
-      incomingEdges: Array[Long]
-  )
-
   case class Node(label: String, metadata: NodeData, edges: Array[EdgeInfo])
   case class NodeData(id: String)
   case class EdgeInfo(source: String, target: String, metadata: EdgeData)
