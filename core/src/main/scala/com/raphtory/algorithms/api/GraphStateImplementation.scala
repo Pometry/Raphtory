@@ -32,6 +32,7 @@ private object AccumulatorImplementation {
 
   def apply[T](initialValue: T, retainState: Boolean = false, op: (T, T) => T) =
     new AccumulatorImplementation[T](initialValue, retainState, op)
+
 }
 
 class Bounded[T](min: T, max: T) {
@@ -69,6 +70,13 @@ class GraphStateImplementation extends GraphState {
       op: (T, T) => T
   ): Unit =
     state(name) = AccumulatorImplementation[T](initialValue, retainState, op)
+      .asInstanceOf[AccumulatorImplementation[Any]]
+
+  def newConstant[T](
+      name: String,
+      value: T
+  ): Unit =
+    state(name) = AccumulatorImplementation[T](value, retainState = false, (x, _) => x)
       .asInstanceOf[AccumulatorImplementation[Any]]
 
   def newAdder[T](name: String)(implicit numeric: Numeric[T]): Unit =
@@ -173,6 +181,16 @@ class GraphStateImplementation extends GraphState {
   ): Unit =
     state(name) = AccumulatorImplementation[T](initialValue, retainState = retainState, numeric.min)
       .asInstanceOf[AccumulatorImplementation[Any]]
+
+  override def newHistogram(name: String, noBins: Int, retainState: Boolean): Unit = {
+    val initialValue = Array.fill(noBins)(0)
+    val increment    = (x: Array[Int], y: Array[Int]) => x.zip(y).map { case (a, b) => a + b }
+    state(name) = AccumulatorImplementation[Array[Int]](
+            initialValue = initialValue,
+            retainState = retainState,
+            increment
+    ).asInstanceOf[AccumulatorImplementation[Any]]
+  }
 
   override def newAll(name: String, retainState: Boolean): Unit =
     state(name) = AccumulatorImplementation[Boolean](true, retainState, _ && _)

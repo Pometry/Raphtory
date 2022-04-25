@@ -27,10 +27,18 @@ abstract class GraphState {
       op: (T, T) => T
   ): Unit
 
+  def newConstant[T](
+                      name: String,
+                      value: T
+                    ): Unit
+
   /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String): Unit
+  /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String, initialValue: T): Unit
+  /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String, retainState: Boolean): Unit
+  /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
   /** Create a new accumulator that multiplies values */
@@ -82,6 +90,13 @@ abstract class GraphState {
   def newMin[T](name: String, initialValue: T, retainState: Boolean)(implicit
       numeric: Numeric[T],
       bounded: Bounded[T]
+  ): Unit
+
+  /** Create a new histogram that tracks the distribution of a graph quantity */
+  def newHistogram(
+      name: String,
+      noBins: Int,
+      retainState: Boolean
   ): Unit
 
   def newAll(name: String, retainState: Boolean = false): Unit
