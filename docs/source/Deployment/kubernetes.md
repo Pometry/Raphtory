@@ -1,5 +1,14 @@
 # Kubernetes Cluster Deployment
 
+## Architecture
+<p>
+ <img src="../_static/RaphtoryKubernetesDeployment.png" width="400px" style="padding: 15px; float: right; " alt="Kubernetes deployment"/>
+</p>
+
+Raphtory is deployed into Kubernetes using deployments. Each component gets a deployment which specifies a number of replicas which are deployed into a namespace. What is deployed and how many of each is determined by the configuration as defined in application conf.
+
+There is also the ability to store docker registry credentials as a secret and add a service and ingress to each of the components which is also controlled by config in application conf.
+
 ## Prerequisites
 
 * Raphtory compiled fat jar
