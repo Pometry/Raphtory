@@ -13,7 +13,7 @@ import com.raphtory.client.RaphtoryClient
 import com.raphtory.components.querymanager.Query
 import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
-import py4j.GatewayServer
+import py4j.{GatewayServer, Py4JNetworkException}
 
 import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._
@@ -77,8 +77,9 @@ import scala.reflect.runtime.universe._
 object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
-  private val gatewayServer = new GatewayServer(this)
+  private val gatewayServer = new Py4JServer(this)
   gatewayServer.start()
+
   def createNew[A: ClassTag]: A = classTag[A].runtimeClass.newInstance().asInstanceOf[A]
   def createOld[A](c: Class[A]): A = createNew(ClassTag[A](c))
   def classTagFromObject(obj: Any): ClassTag[_] = {

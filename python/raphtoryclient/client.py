@@ -26,77 +26,106 @@ import sys
 import pandas as pd
 from datetime import datetime, timezone
 from py4j.java_gateway import JavaGateway, GatewayParameters
-from py4j.java_gateway import java_import
+from py4j.java_gateway import java_import as py4j_java_import
 from py4j.java_collections import MapConverter
-
+from .serializers import UTF8Deserializer, read_int
 
 class client:
     '''
     This is the class to create a raphtory client which interacts with raphtory and pulsar.
     '''
 
-    def __init__(self, pulsar_admin_url="http://127.0.0.1:8080", pulsar_client_args=None, raphtory_deployment_id=None):
+    def __init__(self, pulsar_admin_url="http://127.0.0.1:8080", _pulsar_client_args=None, raphtory_deployment_id=None, _conn_file_info=None):
         '''
         Parameters:
         admin_url: the url for the pulsar admin client
         pulsar_client_args: Dict of arguments to be used in the pulsar client, keys must match pulsar.Client parameters
         raphtory_deployment_id: deployment id of the running raphtory instance
+        conn_file_info _string_: absolute file path of java gateway connection file, usually '/tmp/raphtory_python_gateway_'+deployment_id
         '''
-        if pulsar_client_args is None:
-            pulsar_client_args = {'service_url': 'pulsar://127.0.0.1:6650'}
-        elif 'service_url' not in pulsar_client_args:
+        if _pulsar_client_args is None:
+            _pulsar_client_args = {'service_url': 'pulsar://127.0.0.1:6650'}
+        elif 'service_url' not in _pulsar_client_args:
             print('service_url not given in client_args, exiting..')
             sys.exit(1)
-        self._pulsar_client = self.setupPulsarClient(max_attempts=5, client_args=pulsar_client_args)
+        self._pulsar_client_args = _pulsar_client_args
+        self._pulsar_client = self.setupPulsarClient(client_args=self._pulsar_client_args)
         if self._pulsar_client == None:
-            print('Could not setup client')
+            print('Could not setup client. Exiting...')
             sys.exit(1)
         self._admin_url = pulsar_admin_url
         self._first_seen = ""
         if raphtory_deployment_id is not None:
-            self._gateway = self.setupJavaGateway()
-            self.raphtory = self.setupRaphtory(raphtory_deployment_id)
+            self._raphtory_deployment_id = raphtory_deployment_id
+            if _conn_file_info == None:
+                _conn_file_info = "/tmp/" + str(raphtory_deployment_id) + "_python_gateway_connection_file"
+            self._conn_file_info = _conn_file_info
+            self.gateway = self.setupJavaGateway()
+            self.importDefaults()
+            self.raphtory = self.setupRaphtory()
         else:
-            self._gateway = None
+            self.gateway = None
 
-    def setupRaphtory(self, deployment_id):
+    def importDefaults(self):
+        '''
+        This function imports a bunch of java things
+        '''
+        self.java_import("com.raphtory.deployment.Raphtory")
+        self.java_import("scala.collection.JavaConverters")
+        self.java_import("com.raphtory.examples.lotrTopic.PythonUtils")
+        self.java_import("com.raphtory.output.FileOutputFormat")
+        self.java_import("com.raphtory.output.PulsarOutputFormat")
+        self.java_import("com.raphtory.util.PythonUtils")
+
+
+    def java_import(self, import_class):
+        '''
+        Wrapper around py4j java import
+
+        Parameters:
+            import_class __string__: Java class to import
+
+        '''
+        py4j_java_import(self.gateway.jvm, import_class)
+
+    def setupRaphtory(self):
         '''
         Setups a raphtory java client via the gateway object.
         This allows the user to invoke raphtory java/scalaa methods as if they were running on the
         raphtory/scala version.
         Note that arguements must be correct or the methods will not be called.
-
-        Parameters:
-            deployment_id: the deployment id of the raphtory instance to connect to
+        Uses raphtory_deployment_id: the deployment id of the raphtory instance to connect to
 
         Returns:
             client: raphtory client java object
         '''
         print("Creating Raphtory java object...")
-        raphtory = self._gateway.jvm.Raphtory
-        customConfig = {"raphtory.deploy.id": deployment_id, "raphtory.deploy.distributed": True}
-        mc_run_map_dict = MapConverter().convert(customConfig, self._gateway._gateway_client)
-        jmap = self._gateway.jvm.PythonUtils.toScalaMap(mc_run_map_dict)
+        raphtory = self.gateway.jvm.Raphtory
+        customConfig = {"raphtory.deploy.id": self._raphtory_deployment_id, "raphtory.deploy.distributed": True}
+        mc_run_map_dict = MapConverter().convert(customConfig, self.gateway._gateway_client)
+        jmap = self.gateway.jvm.PythonUtils.toScalaMap(mc_run_map_dict)
         client = raphtory.createClient(jmap)
         print("Created Raphtory java object.")
         return client
 
-    def setupJavaGateway(self):
+    def setupJavaGateway(self, conn_info_file=None):
         '''
         Creates Java<>Raphtory gateway and imports required files.
         The gateway allows the user to run/read java/scala methods and objects from python.
 
+        Parameters:
+            conn_info_file: full absolute file path to the connection info, usually '/tmp/raphtory_python_gateway_'+deployment_id
+
         Returns:
             py4j.java_gateway: py4j java gateway object
         '''
+
+        with open(self._conn_file_info, "rb") as info_file:
+            gateway_port = read_int(info_file)
+            gateway_secret = UTF8Deserializer().loads(info_file)
+
         print("Setting up Java gateway...")
-        gateway = JavaGateway(gateway_parameters=GatewayParameters(auto_field=True))
-        java_import(gateway.jvm, "com.raphtory.deployment.Raphtory")
-        java_import(gateway.jvm, "scala.collection.JavaConverters")
-        java_import(gateway.jvm, "com.raphtory.examples.lotrTopic.PythonUtils")
-        java_import(gateway.jvm, "com.raphtory.output.FileOutputFormat")
-        java_import(gateway.jvm, "com.raphtory.output.PulsarOutputFormat")
-        java_import(gateway.jvm, "com.raphtory.util.PythonUtils")
+        gateway = JavaGateway(gateway_parameters=GatewayParameters(port=gateway_port, auth_token=gateway_secret, auto_field=True))
         print("Java gateway connected.")
         return gateway
 
@@ -140,7 +169,6 @@ class client:
                 print(e)
         print('Could not connect client to Pulsar')
         return None
-
 
     def createReader(self, topic, subscription_name='', schema=schema.StringSchema()):
         '''

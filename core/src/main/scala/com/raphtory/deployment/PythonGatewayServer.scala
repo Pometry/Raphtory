@@ -1,60 +1,46 @@
 package com.raphtory.deployment
 
+import com.raphtory.config.ConfigHandler
+import com.typesafe.scalalogging.Logger
+
 import java.net.InetAddress
 import java.security.SecureRandom
 import java.lang.{Byte => JByte}
 import org.apache.commons.codec.binary.Hex
+import org.slf4j.LoggerFactory
+
 import java.io.{DataOutputStream, File, FileOutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 
-// TODO PRINTS TO LOGS
+private[raphtory] class Py4JServer(entryPoint: Object) {
 
-object PythonGatewayServer {
+  private val conf = new ConfigHandler().getConfig
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def writePortToFile(port: Int, gatewayServer: Py4JServer): Unit = {
-    val connectionInfoPath = new File(sys.env("_RAPHTORY_DRIVER_CONN_INFO_PATH"))
+  private def writePortToFile(port: Int): Unit = {
+    val filename = conf.getString("raphtory.python.gatewayFilePath")
+    logger.info("Writing PythonGatewayServer details to file...")
+    val connectionInfoPath = new File(filename)
     val tmpPath = Files.createTempFile(connectionInfoPath.getParentFile().toPath(),
       "connection", ".info").toFile()
 
     val dos = new DataOutputStream(new FileOutputStream(tmpPath))
     dos.writeInt(port)
 
-    val secretBytes = gatewayServer.getSecret.getBytes(UTF_8)
+    val secretBytes = getSecret().getBytes(UTF_8)
     dos.writeInt(secretBytes.length)
     dos.write(secretBytes, 0, secretBytes.length)
     dos.close()
     if (!tmpPath.renameTo(connectionInfoPath)) {
-      println(s"Unable to write connection information to $connectionInfoPath.")
-      System.exit(1)
+      logger.error(s"Unable to write connection information to $connectionInfoPath.")
+      return
     }
-
-    // Exit on EOF or broken pipe to ensure that this process dies when the Python driver dies:
-    while (System.in.read() != -1) {
-      // Do nothing
-    }
-    println("Exiting due to broken pipe from Python driver")
-    System.exit(0)
+    logger.info("Written PythonGatewayServer details to file.")
   }
 
-  def main(args: Array[String]): Unit = {
-    val gatewayServer: Py4JServer = new Py4JServer()
-    gatewayServer.start()
-    val boundPort: Int = gatewayServer.getListeningPort
-    if (boundPort == -1) {
-      println("failed to bind; exiting")
-      System.exit(1)
-    } else {
-      println(s"Started PythonGatewayServer on port $boundPort")
-    }
 
-    writePortToFile(boundPort, gatewayServer)
-  }
-}
-
-class Py4JServer() {
-
-  def createSecret(): String = {
+  private def createSecret(): String = {
     val rnd = new SecureRandom()
     val secretBytes = new Array[Byte](256 / JByte.SIZE)
     rnd.nextBytes(secretBytes)
@@ -63,7 +49,7 @@ class Py4JServer() {
 
   private val secret: String = createSecret()
   private val localhost = InetAddress.getLoopbackAddress()
-  private val server = new py4j.GatewayServer.GatewayServerBuilder()
+  private val gatewayServer = new py4j.GatewayServer.GatewayServerBuilder(entryPoint)
     .authToken(secret)
     .javaPort(0)
     .javaAddress(localhost)
@@ -72,18 +58,32 @@ class Py4JServer() {
 
   def getSecret(): String = secret
 
-  def start(): Unit = server match {
-    case gatewayServer: py4j.GatewayServer => gatewayServer.start()
-    case other => throw new RuntimeException(s"Unexpected Py4J server ${other.getClass}")
+  def start(): Unit = gatewayServer match {
+    case gatewayServer: py4j.GatewayServer =>
+      logger.info("Starting PythonGatewayServer...")
+      gatewayServer.start()
+      val boundPort: Int = gatewayServer.getListeningPort
+      if (boundPort == -1) {
+        logger.error("Failed to bind; Not running python gateway")
+      } else {
+        logger.info(s"Started PythonGatewayServer on port $boundPort")
+        writePortToFile(boundPort)
+      }
+    case other => logger.error(s"Start given unexpected Py4J gatewayServer ${other.getClass}")
   }
 
-  def getListeningPort: Int = server match {
+  def getListeningPort: Int = gatewayServer match {
     case gatewayServer: py4j.GatewayServer => gatewayServer.getListeningPort
-    case other => throw new RuntimeException(s"Unexpected Py4J server ${other.getClass}")
+    case other => logger.error(s"getListeningPort given unexpected Py4J gatewayServer ${other.getClass}"); -1
   }
 
-  def shutdown(): Unit = server match {
+  def shutdown(): Unit = gatewayServer match {
     case gatewayServer: py4j.GatewayServer => gatewayServer.shutdown()
-    case other => throw new RuntimeException(s"Unexpected Py4J server ${other.getClass}")
+    case other => logger.error(s"shutdown given unexpected Py4J gatewayServer ${other.getClass}")
   }
+}
+
+object Py4JServer {
+  def apply(entryPoint: Object) =
+    new Py4JServer(entryPoint)
 }
