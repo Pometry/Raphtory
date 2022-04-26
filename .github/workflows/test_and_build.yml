@@ -17,7 +17,7 @@ jobs:
       run: |
         if [ "${{ github.event.schedule }}" = "0 1 * * *" ]; then
           echo "::set-output name=date::$(date +'%Y-%m-%d')"
-          echo '::set-output name=branch::develop'
+          echo '::set-output name=branch::development'
           echo '::set-output name=type::nightly'
         elif [ "${GITHUB_REF##*/}" = "master" ]; then
           echo '::set-output name=branch::master'
