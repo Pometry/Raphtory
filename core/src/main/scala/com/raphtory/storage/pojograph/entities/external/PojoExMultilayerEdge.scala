@@ -9,6 +9,7 @@ import com.raphtory.graph.visitor.ExplodedEdge
 import com.raphtory.graph.visitor.HistoricEvent
 import com.raphtory.storage.pojograph.PojoGraphLens
 
+/** @DoNotDocument */
 class PojoExMultilayerEdge(
     override val timestamp: Long,
     override val ID: (Long, Long),

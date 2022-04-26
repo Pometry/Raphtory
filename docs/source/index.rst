@@ -63,13 +63,14 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    :hidden:
    :caption: Examples Projects
 
-   Examples/community-of-cheese.md
+   Examples/lotr.md
    Examples/gab.md
+   Examples/community-of-cheese.md
    Examples/higgs-twitter.md
    Examples/twitter-social-circles.md
    Examples/facebook-social-circles.md
    Examples/enron.md
-   Examples/lotr.md
+   
 
 
 .. toctree::

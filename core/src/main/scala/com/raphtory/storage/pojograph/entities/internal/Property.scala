@@ -1,5 +1,6 @@
 package com.raphtory.storage.pojograph.entities.internal
 
+/** @DoNotDocument */
 abstract class Property {
   def update(msgTime: Long, newValue: Any): Unit
   def valueAt(time: Long): Option[Any]
