@@ -4,9 +4,11 @@ import com.raphtory.config.PulsarController
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
+import org.apache.pulsar.client.api.MessageId
 import org.apache.pulsar.client.api.MessageListener
 import org.slf4j.LoggerFactory
 
+import scala.math.Ordering.Implicits.infixOrderingOps
 import scala.reflect.runtime.universe._
 
 /** @DoNotDocument */
@@ -24,6 +26,7 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
   val hasDeletions: Boolean      = conf.getBoolean("raphtory.data.containsDeletions")
   val totalPartitions: Int       = partitionServers * partitionsPerServer
   val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
+  var lastId: MessageId          = MessageId.earliest
 
   def handleMessage(msg: T)
   def run()
@@ -33,9 +36,16 @@ abstract class Component[T](conf: Config, private val pulsarController: PulsarCo
     (consumer, msg) => {
       try {
         val data = deserialise[T](msg.getValue)
+        val id   = msg.getMessageId
+        if (id <= lastId)
+          logger.error(
+                  s"Message $data received with index $id <= last index $lastId. Ignoring message"
+          )
+        else {
+          lastId = id
 
-        handleMessage(data)
-
+          handleMessage(data)
+        }
         consumer.acknowledgeAsync(msg)
       }
       catch {
