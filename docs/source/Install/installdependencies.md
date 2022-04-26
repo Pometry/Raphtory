@@ -27,18 +27,14 @@ sdk install java IDENTIFIER
 
 For instance: ```sdk install java 11.0.11.hs-adpt``` is the version I use
 
-Once this is installed it should set this version as your default. You can then do the same for Scala and SBT  - which only has one distributor and hence only version numbers. I have picked the latest version of Scala 13 and SBT below at the time of writing.  
+Once this is installed it should set this version as your default. You can then do the same for Scala and SBT  - which only have one distributor and hence only version numbers. I have picked the latest version of Scala 13 and SBT below at the time of writing.  
 
 ```bash 
 sdk install scala 2.13.7
 sdk install sbt 1.6.2
 ```
 
-<p align="center">
-	<img src="../_static/install/sdkmaninstall.png" width="80%" alt="Sdk Man java lists"/>
-</p>
-
-To test that these are installed and working correctly you can run them with the  --version argument to see if they are available on your class path and the correct version prints out. 
+To test that these are installed and working correctly you can run them with the  `--version` argument to see if they are available on your class path and the correct version prints out. 
 
 ```bash 
 java --version
@@ -113,12 +109,12 @@ If you run Pulsar in Docker, you will now be able to see your container in the d
 
 Everything should now be installed and ready for us to get your first Raphtory Job underway!
 
-## Running the latest Raphtory release in an Examples Project
-All the example projects can be found in the [Raphtory repo](https://github.com/Raphtory/Raphtory). All projects are working other than `raphtory-examples-presto` which will be re-enabled soon.
+## Running the latest Raphtory release in an Example Project
+All the example projects can be found in the [Raphtory repo](https://github.com/Raphtory/Raphtory). 
 
 ```bash
 git clone https://github.com/Raphtory/Raphtory.git
-git checkout development
+git checkout THE_BRANCH_YOU_ARE_WORKING_ON
 ```
 We need to firstly build the Raphtory jar into the Maven folder on your local computer by running this command in your root Raphtory directory:
 
@@ -131,9 +127,18 @@ As we are using the Lord of the Rings example, we should now move into this dire
 ```bash
 cd examples/raphtory-example-lotr
 ```
-You should give your sbt a refresh on the right hand side of the Intellij window (sbt tab) to reload the project locally to use the Raphtory jar.  
 
-If you make any changes to the core Raphtory code, you can either go into your local ivy repo to delete the jar: `cd .ivy2/local/com.raphtory`, `ls`, then `rm (whichever jar you want to delete)` and re-download using `sbt "core/publishLocal"`, or you can add a dependency `version := "0.1-SNAPSHOT"` in the examples build.sbt file and subsequent `sbt publishLocal` will not require you to manually delete jars from your local repo. 
+If you are working on this via Intellij you should give your sbt a refresh to reload the project locally and make sure it is using the new Raphtory jar. The button for this is the two rotating arrows located on the on the right hand side window within the sbt tab.  
+
+If you make any changes to the core Raphtory code, you can go into your local ivy repo to delete the old jar and then re-publish using `sbt "core/publishLocal"`
+
+```bash
+cd .ivy2/local/com.raphtory
+ls
+rm (whichever jar you want to delete)
+```
+
+ Alternatively, if you are making several iterative changes, you can add a dependency `version := "0.1-SNAPSHOT"` in the examples `build.sbt` file and subsequent calls to `sbt publishLocal` will not require you to manually delete jars from your local repo. 
 
 ## Running Raphtory via SBT
 
@@ -147,7 +152,7 @@ sbt:example-lotr> compile
 sbt:example-lotr>
 ```
 
-**Note:** If there are a million errors saying that classes are not part of the package `com.raphtory` this is probably because your lib is not in the `example-lotr` package or your `raphtory.jar` is incorrectly named. Alternatively if you have errors saying that something cannot be referenced as a URI, this is a Java version issue (the version you are using is higher than 11) and you should set the correct version as above.
+**Note:** If there are a million errors saying that classes are not part of the package `com.raphtory` this is probably because your `raphtory.jar` did not publish correctly or your refresh of the sbt project did not occur. Alternatively if you have errors saying that something cannot be referenced as a URI, this is a Java version issue (the version you are using is higher than 11) and you should set the correct version as above.
 
 
 ### Running
@@ -174,7 +179,24 @@ First of all as Raphtory begins executing we should see some messages showing th
 
 We should then see that the Partitions have started to ingest messages, meaning the data has been picked up and is being turned into a graph. In this example there are two partitions running, so we get output for both. 
 
-We can also see logs containing information about the Job ID, topics, perspectives, windows and the time it takes to run the jobs.
+Next, we should see that our query has been submitted. If the time we have asked for within the query has yet to be ingested, or is busy synchronising we will get a message informing us so, but that it will be resubmitted soon. Once the required timestamp is available, the analysis will be run. To manage these times Raphtory maintains a global watermark which reports the status of the partitions, and the time they believe is safe to execute on. These individual times are then aggregated into a global minimum time to make sure the results are always correct. The timestamp chosen for this query (`32670`) is just before the final timestamp in the file. 
+
+Query submitted:
+``` 
+18:59:58.307 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querymanager.QueryManager - Point Query 'EdgeList_1645815597845' received, your job ID is 'EdgeList_1645815597845'.
+```
+
+Data not fully ingested yet (only shows when logger level is set to 'debug'):
+```
+18:59:59.504 [pulsar-external-listener-9-1] DEBUG com.raphtory.core.components.querymanager.QueryHandler - Job 'EdgeList_1645815597845': Perspective 'Perspective(32674,None)' is not ready, currently at '270'.
+```
+
+Data was fully ingested and the query completed:
+```
+19:00:07.990 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job 'EdgeList_1645815597845': Perspective '30000' finished in 9788 ms.
+````
+
+Finally we can see logs containing information about the Job ID, topics, perspectives, windows and the time it has taken to run.
 
 ```bash
 18:59:58.202 [main] INFO  com.raphtory.core.config.ComponentFactory - Creating new Query Progress Tracker for deployment 'raphtory_1279440800' and job 'EdgeList_1645815597845' at topic 'raphtory_1279440800_EdgeList_1645815597845'.
@@ -194,24 +216,6 @@ We can also see logs containing information about the Job ID, topics, perspectiv
 19:01:12.685 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job 'PageRank_1645815598203': Perspective '30000' with window '500' finished in 4565 ms.
 19:01:12.686 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job PageRank_1645815598203: Running query, processed 6 perspectives.
 ```
-
-Finally we should see that our query has been submitted. If the time we have asked for within the query has yet to be ingested, or is busy synchronising we will get a message informing us so, but that it will be resubmitted soon. Once the required timestamp is available, the analysis will be run. To manage these times Raphtory maintains a global watermark which reports the status of 
-the partitions, and the time they believe is safe to execute on. These individual times are then aggregated into a global minimum time to make sure the results are always correct. The timestamp chosen for this query (`32670`) is just before the final timestamp in the file. 
-
-Query submitted:
-``` 
-18:59:58.307 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querymanager.QueryManager - Point Query 'EdgeList_1645815597845' received, your job ID is 'EdgeList_1645815597845'.
-```
-
-Data not fully ingested yet (only shows when logger level is set to 'debug'):
-```
-18:59:59.504 [pulsar-external-listener-9-1] DEBUG com.raphtory.core.components.querymanager.QueryHandler - Job 'EdgeList_1645815597845': Perspective 'Perspective(32674,None)' is not ready, currently at '270'.
-```
-
-Data was fully ingested and the query completed:
-```
-19:00:07.990 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job 'EdgeList_1645815597845': Perspective '30000' finished in 9788 ms.
-````
 
 ### Checking your output
 Once the query has finished executing Raphtory will not stop running. This is because we may submit more queries to the running instance, now that it has ingested the graph. However, you may kill the Raphtory job and check out the output. For the example, queries should begin being saved to `/tmp` or the directory specified in the `Runner` class if you have changed it. Below is an example of the CSV file that has been output. This means that Raphtory is working as it should and you can move onto creating your first graph for analysis. The meaning of this output is only a couple pages away, so don't threat if it looks a little odd right now!

@@ -39,7 +39,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
 .. toctree:: 
    :maxdepth: 2
    :hidden:
-   :caption: Python Library
+   :caption: Python Library (Alpha)
 
    PythonClient/setup.md
    PythonClient/tutorial_py_raphtory.md
