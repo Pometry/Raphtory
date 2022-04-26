@@ -8,7 +8,7 @@ dataset that will get the size of the _six degrees of separation_ network for a 
 Six degrees of separation is "the idea that all people on average are six, or fewer, social connections away from 
 each other." ([wiki here in case you want to know more](https://en.wikipedia.org/wiki/Six_degrees_of_separation)).
 
-This example can be found in this [repository](https://github.com/Raphtory/Examples/raphtory-example-lotr/src/main/resources). 
+This example can be found [here](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr). 
 
 ## Algorithm
 
