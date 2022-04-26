@@ -33,7 +33,8 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    Analysis/queries.md
    Analysis/analysis-explained.md
 
-   Querying/presto.md
+
+.. Querying/presto.md
 
 .. toctree:: 
    :maxdepth: 2
