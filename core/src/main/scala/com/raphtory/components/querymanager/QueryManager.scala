@@ -25,23 +25,11 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   val globalWatermarkMax  = QueryTelemetry.globalWatermarkMax(deploymentID)
   val totalQueriesSpawned = QueryTelemetry.totalQueriesSpawned(deploymentID)
 
-  var spawnedQueryMetrics: Option[Counter] = None
-
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
 
     cancelableConsumer = Some(pulsarController.startQueryManagerConsumer(messageListener()))
   }
-
-  def spawnQueryMetrics(jobID: String): Unit =
-    spawnedQueryMetrics match {
-      case Some(counter) => counter.inc()
-      case None          =>
-        spawnedQueryMetrics = Option(
-                QueryTelemetry.newQueriesTracked(jobID + "_deploymentID_" + deploymentID)
-        )
-        spawnedQueryMetrics.get.inc()
-    }
 
   override def stop(): Unit = {
     cancelableConsumer match {
@@ -63,7 +51,6 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
         )
         val queryHandler = spawnQuery(jobID, query)
         trackNewQuery(jobID, queryHandler)
-        spawnQueryMetrics(jobID)
 
       case req: EndQuery            =>
         currentQueries.get(req.jobID) match {

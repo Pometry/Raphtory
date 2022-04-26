@@ -57,18 +57,11 @@ object QueryTelemetry {
       .help("Total perspectives processed by Query Handler")
       .register
 
-  def totalQueriesSpawned(jobID: String): Counter =
+  def totalQueriesSpawned(deploymentID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name("manager_queries_spawned_jobID_" + jobID + "_total")
+      .name("manager_queries_spawned_deploymentID_" + deploymentID + "_total")
       .help("Total queries spawned by Query Manager")
       .register
 
-//need to double check if this method is correct (newQueriesTracked)
-  def newQueriesTracked(jobID: String): Counter   =
-    Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name("manager_new_queries_tracked_jobID_" + jobID + "_total")
-      .help("New queries tracked by Query Manager")
-      .register
 }
