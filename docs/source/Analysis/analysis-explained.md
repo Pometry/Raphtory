@@ -1,6 +1,6 @@
-# Analysis in Raphtory
+# A deeper dive into Raphtory analysis
 
-Raphtory's analysis engine works by *vertex centric computation*. Each vertex has access to local information about the graph (just its immediate vicinity). To complement this, vertices can communicate with their neighbours (other vertices that are directly connected to it). Many graph algorithms which operate on per-vertex level can be expressed in this way. The benefit of this is that graphs can be distributed over multiple cores/machines, each containing a proportion of the vertices, and these vertex computations can be executed in a parallel manner.
+Raphtory's analysis engine works by *vertex centric computation*. Each vertex has access to local information about the graph (just its immediate vicinity). To complement this, vertices can communicate with their neighbours (other vertices that are directly connected to it). Many graph algorithms which operate on a per-vertex level can be expressed in this way. The benefit of this is that graphs can be distributed over multiple cores/machines, each containing a proportion of the vertices, and these vertex computations can be executed in a parallel manner.
 
 Each vertex (or node) knows:
 
@@ -10,7 +10,7 @@ Each vertex (or node) knows:
 
 <p align="center">
   <img src="../_static/vertex_time2.png" style="width: 20vw;" alt="vertex time view"/>
-<figcaption>The information available to vertex V1 which includes the time it was created, the IDs of its neighbours and the times at which its edges are established.</figcaption>
+<figcaption>The information available to vertex V1 - this includes the time it was created, the IDs of its neighbours and the times at which its edges are established.</figcaption>
 </p>
 
 The next sections will explore how algorithms can be written using these vertex communications.
@@ -224,8 +224,9 @@ For example:
 
 ```scala
 val outputFormat = FileOutputFormat("/tmp")
-
-graph.rangeQuery(ConnectedComponents(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+graph
+  .execute(ConnectedComponents())
+  .writeTo(outputFormat)
 ```
 
 Similarly, {scaladoc}`com.raphtory.output.PulsarOutputFormat` can used to write results directly to
@@ -236,8 +237,9 @@ For example:
 
 ```scala
 val outputFormat = PulsarOutputFormat("components")
-
-graph.rangeQuery(ConnectedComponents(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+graph
+  .execute(ConnectedComponents())
+  .writeTo(outputFormat)
 ```
 
 ## Types of Algorithms
