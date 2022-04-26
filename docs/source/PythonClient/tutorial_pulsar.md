@@ -1,4 +1,4 @@
-# Getting your data into Jupyter
+# Getting started with Python and Jupyter
 
 ## Pre-requisites
 
@@ -6,7 +6,9 @@ Please ensure you have followed the Python Client Setup guide before continuing.
 
 # Run Example Lab - Raphtory Python Client - LOTR DEMO
 
-This guide will show you how to use the client. This will walk through connecting to Raphtory, exporting a graph, exporting results, appending results to a graph and visualising the results. 
+## Raphtory Python Client - LOTR DEMO
+
+This guide will show you how to use the client. This will walk through connecting to Raphtory, exporting a graph, exporting results, appending results to a graph and visualisation. 
 
 Within the example `python` there is a copy of this process as a jupyter notebook called `LOTR_demo.ipynb`.
 
