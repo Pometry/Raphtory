@@ -1,7 +1,8 @@
 package com.raphtory.config.telemetry
 
 import com.raphtory.config.ConfigHandler
-import io.prometheus.client.{Counter, Gauge}
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
 
 /**
   * {s}`StorageTelemetry`
@@ -9,42 +10,36 @@ import io.prometheus.client.{Counter, Gauge}
   *
   *    Exposes Counter and Gauge stats for tracking number of files processed, lines parsed, spout reschedules and processing errors
   *    Statistics are made available on http://localhost:8899 on running tests and can be visualised using Grafana dashboards
-  *
-  *
   */
 object StorageTelemetry {
 
   val conf = new ConfigHandler().getConfig
 
   def pojoLensGraphSize(partitionID: String): Gauge =
-    Gauge
-      .build
-      .namespace(conf.getString("raphtory.prometheus.spout_namespace"))
+    Gauge.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.spout"))
       .name("pojo_lens_graph_size_" + partitionID)
-      .help("Graph size for Graph Lens")
+      .help("Total graph size for Graph Lens")
       .register
 
   def pojoLensVertexCount(partitionID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.storage_namespace"))
-      .name("pojo_lens_vertex_count_" + partitionID)
-      .help("Vertex Count for Graph Lens")
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.storage"))
+      .name("pojo_lens_vertex_count_" + partitionID + "_total")
+      .help("Total vertex count for Graph Lens")
       .register
 
   def graphLensReceivedMessageCount(jobID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.storage_namespace"))
-      .name("pojo_lens_received_messages_" + jobID)
-      .help("Received Messages count for Graph Lens ")
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.storage"))
+      .name("pojo_lens_received_messages_" + jobID + "_total")
+      .help("Total received messages count for Graph Lens")
       .register
 
   def totalVertexMessagesSent(jobID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.storage_namespace_"))
-      .name("total_vertex_messages_sent_" + jobID)
-      .help("Vertex messages sent")
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.storage"))
+      .name("vertex_messages_sent_" + jobID + "_total")
+      .help("Total vertex messages sent")
       .register
 }

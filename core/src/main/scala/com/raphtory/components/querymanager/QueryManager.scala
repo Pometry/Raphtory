@@ -21,10 +21,11 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   private val watermarks                                = mutable.Map[Int, WatermarkTime]()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
-  val globalWatermarkMin = QueryTelemetry.globalWatermarkMin(deploymentID)
-  val globalWatermarkMax = QueryTelemetry.globalWatermarkMax(deploymentID)
+  val globalWatermarkMin  = QueryTelemetry.globalWatermarkMin(deploymentID)
+  val globalWatermarkMax  = QueryTelemetry.globalWatermarkMax(deploymentID)
+  val totalQueriesSpawned = QueryTelemetry.totalQueriesSpawned(deploymentID)
 
-  var spawnedQueryMetrics : Option[Counter] = None
+  var spawnedQueryMetrics: Option[Counter] = None
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
@@ -32,16 +33,15 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
     cancelableConsumer = Some(pulsarController.startQueryManagerConsumer(messageListener()))
   }
 
-  def spawnQueryMetrics(jobID: String): Unit = {
+  def spawnQueryMetrics(jobID: String): Unit =
     spawnedQueryMetrics match {
       case Some(counter) => counter.inc()
-      case None        =>
-      {
-        spawnedQueryMetrics = Option(QueryTelemetry.newQueriesTracked(jobID + "_" + deploymentID))
+      case None          =>
+        spawnedQueryMetrics = Option(
+                QueryTelemetry.newQueriesTracked(jobID + "_deploymentID_" + deploymentID)
+        )
         spawnedQueryMetrics.get.inc()
-      }
     }
-  }
 
   override def stop(): Unit = {
     cancelableConsumer match {
@@ -93,6 +93,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
             pulsarController
     )
     scheduler.execute(queryHandler)
+    totalQueriesSpawned.inc()
     queryHandler
   }
 
@@ -110,8 +111,8 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
           safe = watermark.safe && safe
           minTime = Math.min(minTime, watermark.endTime)
           maxTime = Math.max(maxTime, watermark.endTime)
-          globalWatermarkMin.set(minTime)
-          globalWatermarkMax.set(maxTime)
+          globalWatermarkMin.set(minTime / 1000)
+          globalWatermarkMax.set(maxTime / 1000)
       }
       if (safe) maxTime else minTime
     }

@@ -78,7 +78,10 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
     }
 
   override def next(): T =
-    try lineConverter(lines.next())
+    try {
+      SpoutTelemetry.totalLinesParsed.inc()
+      lineConverter(lines.next())
+    }
     catch {
       case ex: Exception =>
         logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")

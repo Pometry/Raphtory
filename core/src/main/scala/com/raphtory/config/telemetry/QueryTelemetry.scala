@@ -1,7 +1,8 @@
 package com.raphtory.config.telemetry
 
 import com.raphtory.config.ConfigHandler
-import io.prometheus.client.{Counter, Gauge}
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
 
 /**
   * {s}`QueryTelemetry`
@@ -9,74 +10,65 @@ import io.prometheus.client.{Counter, Gauge}
   *
   *    Exposes Counter and Gauge stats for tracking number of vertices, messages received and sent by {s}`Query` handler, manager and executor
   *    Statistics are made available on http://localhost:8899 on running tests and can be visualised using Grafana dashboards
-  *
-  *
   */
 object QueryTelemetry {
 
   val conf = new ConfigHandler().getConfig
 
   def readyCount(jobID: String): Gauge =
-    Gauge
-      .build
-      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
-      .name("query_handler_ready_count_" + jobID)
-      .help("Ready count for query handler ")
+    Gauge.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
+      .name("handler_ready_count_jobID_" + jobID + "_total")
+      .help("Ready count for Query Handler")
       .register
 
   def globalWatermarkMin(jobID: String): Gauge =
-    Gauge
-      .build
-      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
-      .name("query_manager_min_watermark_" + jobID)
-      .help("Minimum watermark for QueryManager ")
+    Gauge.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
+      .name("manager_min_watermark_jobID_" + jobID + "_timestamp_seconds")
+      .help("Minimum watermark for Query Manager")
       .register
 
   def globalWatermarkMax(jobID: String): Gauge =
-    Gauge
-      .build
-      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
-      .name("query_manager_max_watermark_" + jobID)
-      .help("Maximum watermark for Query Manager ")
+    Gauge.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
+      .name("manager_max_watermark_jobID_" + jobID + "_timestamp_seconds")
+      .help("Maximum watermark for Query Manager")
       .register
 
   def totalGraphOperations(jobID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
-      .name("query_handler_graph_operations_" + jobID)
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
+      .name("handler_graph_operations_jobID_" + jobID + "_total")
       .help("Total graph operations by Query Handler")
       .register
 
   def totalTableOperations(jobID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
-      .name("query_handler_table_operations_" + jobID)
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
+      .name("handler_table_operations_jobID_" + jobID + "_total")
       .help("Total table operations by Query Handler")
       .register
 
   def totalPerspectivesProcessed(jobID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
-      .name("query_handler_perspective_processed_" + jobID )
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
+      .name("handler_perspectives_processed_jobID_" + jobID + "_total")
       .help("Total perspectives processed by Query Handler")
       .register
 
   def totalQueriesSpawned(jobID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
-      .name("query_manager_total_query_count_" + jobID)
-      .help("Total queries spawned by query manager")
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
+      .name("manager_queries_spawned_jobID_" + jobID + "_total")
+      .help("Total queries spawned by Query Manager")
       .register
 
-  def newQueriesTracked(jobID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.query_namespace"))
-      .name("query_manager_new_query_tracked_" + jobID)
-      .help("New queries tracked by query manager")
+//need to double check if this method is correct (newQueriesTracked)
+  def newQueriesTracked(jobID: String): Counter   =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
+      .name("manager_new_queries_tracked_jobID_" + jobID + "_total")
+      .help("New queries tracked by Query Manager")
       .register
 }

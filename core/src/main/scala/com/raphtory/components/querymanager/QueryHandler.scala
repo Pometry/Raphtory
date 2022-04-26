@@ -78,9 +78,15 @@ class QueryHandler(
 
   private var currentState: Stage = SpawnExecutors
 
-  val totalPerspectivesProcessed = QueryTelemetry.totalPerspectivesProcessed(jobID + "_" + deploymentID)
-  val totalGraphOperations = QueryTelemetry.totalGraphOperations(jobID + "_" + deploymentID)
-  val totalTableOperations = QueryTelemetry.totalTableOperations(jobID + "_" + deploymentID)
+  val totalPerspectivesProcessed =
+    QueryTelemetry.totalPerspectivesProcessed(jobID + "_deploymentID_" + deploymentID)
+
+  val totalGraphOperations       =
+    QueryTelemetry.totalGraphOperations(jobID + "_deploymentID_" + deploymentID)
+
+  val totalTableOperations       =
+    QueryTelemetry.totalTableOperations(jobID + "_deploymentID_" + deploymentID)
+  val totalReadyCount            = QueryTelemetry.readyCount(jobID + "_deploymentID_" + deploymentID)
 
   private val recheckTimer = new Runnable {
     override def run(): Unit = self sendAsync serialise(RecheckTime)
@@ -151,6 +157,7 @@ class QueryHandler(
           safelyStartPerspectives()
         else {
           readyCount += 1
+          totalReadyCount.inc()
           Stages.SpawnExecutors
         }
       case RecheckEarliestTime      => safelyStartPerspectives()
@@ -166,6 +173,7 @@ class QueryHandler(
       case p: PerspectiveEstablished =>
         vertexCount += p.vertices
         readyCount += 1
+        totalReadyCount.inc()
         if (readyCount == totalPartitions) {
           readyCount = 0
           messagetoAllJobWorkers(SetMetaData(vertexCount))
@@ -195,6 +203,7 @@ class QueryHandler(
         }
         else {
           readyCount += 1
+          totalReadyCount.inc()
           Stages.EstablishPerspective
         }
     }
@@ -241,6 +250,7 @@ class QueryHandler(
     receivedMessageCount += receivedMessages
     allVoteToHalt = votedToHalt & allVoteToHalt
     readyCount += 1
+    totalReadyCount.inc()
     logger.debug(
             s"Job '$jobID': Partition $partitionID Received messages:$receivedMessages , Sent messages: $sentMessages."
     )
@@ -300,6 +310,7 @@ class QueryHandler(
     msg match {
       case TableBuilt            =>
         readyCount += 1
+        totalReadyCount.inc()
         if (readyCount == totalPartitions) {
           readyCount = 0
           val tableBuiltTimeTaken = System.currentTimeMillis() - timeTaken
@@ -315,6 +326,7 @@ class QueryHandler(
 
       case TableFunctionComplete =>
         readyCount += 1
+        totalReadyCount.inc()
         if (readyCount == totalPartitions) {
           val tableFuncTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(
