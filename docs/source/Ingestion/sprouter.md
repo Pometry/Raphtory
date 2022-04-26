@@ -9,7 +9,7 @@ Two classes help with this:
 
 Once these classes are defined, they can be passed to the `stream()` or `batchLoad()` methods on the `Raphtory` object, which will use both components to build the temporal graph.  
 
-If you have downloaded the [Examples](https://github.com/Raphtory/Examples.git) folder from the installation guide previously, then the LOTR example is already set up. If not, please return there and complete this step first.  
+If you have the LOTR example already set up from the installation guide previously ([raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)) then please continue. If not, please return there and complete this step first.  
 
 For this tutorial section we will continue to use the `raphtory-example-lotr` project and a dataset that tells us when two characters have some type of interaction in the Lord of the Rings trilogy books. The `csv` file (comma-separated values) in the examples folder can be found [here](https://github.com/Raphtory/Examples/blob/0.5.0/raphtory-example-lotr/resources/lotr.csv). Each line contains two characters that appear in the same sentence, along with which sentence they appeared in, indicated by a number (sentence count). In the example, the first line of the file is `Gandalf,Elrond,33` which tells us that Gandalf and Elrond appear together in sentence 33.  
 
