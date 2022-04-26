@@ -15,6 +15,7 @@ import java.io.File
 import scala.language.postfixOps
 import sys.process._
 
+/** @DoNotDocument */
 object FileUtils {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 

@@ -40,9 +40,6 @@ class BatchWriter[T: ClassTag](
     printUpdateCount()
   }
 
-  /**
-    * Graph Updates from the builders
-    */
   def processVertexAdd(update: VertexAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
