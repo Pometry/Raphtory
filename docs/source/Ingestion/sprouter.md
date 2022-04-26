@@ -36,7 +36,7 @@ object FileOutputRunner extends App {
   val path = "/tmp/lotr.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
 
-  FileUtils.curlFile(path, url)
+  FileUtils.curlFile(path, url) //download the LOTR.csv to your /tmp directory
 
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
@@ -60,10 +60,10 @@ Don't worry about this yet as we will dive into it in the next section.
 ## Spout
 
 ### File Spout
-There are many data sources that may be used to feed graphs in Raphtory, for this example we will make use of the `FileSpout`. This takes a file on your machine and pushes it into Pulsar for our graph builders to parse. We automatically download the lotr.csv file into this folder (hence why it run in the last tutorial), so you shouldn't have to set anything if using it. If you are want to swap this file out for your own data, simply put your file into the resources directory and change the file name in the code.
+There are many data sources that may be used to feed graphs in Raphtory, for this example we will make use of the `FileSpout`. This takes a file on your machine and pushes it into Pulsar for our graph builders to parse. We automatically download the lotr.csv file from the [Raphtory data repository](https://github.com/Raphtory/Data) (hence why it run in the last tutorial), so you shouldn't have to set anything if using it. If you are want to swap this file out for your own data, simply remove this download and change the `FileSpout` path to point to where your files are.
 
 ```scala 
-val source  = ResourceSpout("YOUR_FILE_HERE")
+val source  = FileSpout("YOUR_FILE_HERE")
 ```
 
 ## Graph Builder
@@ -88,7 +88,7 @@ class LOTRGraphBuilder extends GraphBuilder[String]{
 }
 ```
 
-First, we take the String output from the Spout. We then break up the line into the relevant components, splitting on commas (as it was a csv file ingested) via `.split(",")`. This means, for example, the line `Gandalf,Elrond,33` becomes a tuple `(Gandalf, Elrond, 33)` where each is accessible. For each of the characters seen, we give them a node ID of type `Long` via the `assignID` function - if your data already has numerical node id's you could skip this step. Finally, we send an update adding both of the vertices to the graph as well as the edge joining them, each with a timestamp of when that update occurred.
+First, we take the String output from the Spout. We then break up the line into the relevant components, splitting on commas (as it was a csv file ingested) via `.split(",")`. This means, for example, the line `Gandalf,Elrond,33` becomes a tuple `(Gandalf, Elrond, 33)` where each is accessible. For each of the characters seen, we give them a node ID of type `Long` via the `assignID` function - if your data already has numerical node id's you could skip this step. Finally, we send an update adding both of the vertices to the graph as well as the edge joining them, each with a timestamp of when the update occurred.
 
 There are a few things worth pointing out here:
 
