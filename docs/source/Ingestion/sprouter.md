@@ -7,7 +7,7 @@ Two classes help with this:
 - `Spouts` help with reading the data file and output tuples.
 - `Graph builders`, as the name suggests, convert these tuples into updates, building the graph.
 
-Once these classes are defined, they can be passed to the `stream()` or `batchLoad()` methods on the `Raphtory` object, which will use both components to build the temporal graph.  
+Once these classes are defined, they can be passed to the `stream()` or `batchLoad()` methods on the `Raphtory` object, which will use both components to build the temporal graph. The difference here is that `stream()` will launch the full pipeline and assume new data can continuously arrive, whilst `batchLoad()` will push through to the end of then data as it currently is and then close down the Spout and Graph Builder. For all examples discussed, both will work fine!
 
 If you have the LOTR example already set up from the installation guide previously ([raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)) then please continue. If not, please return there and complete this step first.  
 
@@ -90,7 +90,7 @@ First, we take the String output from the Spout. We then break up the line into 
 
 There are a few things worth pointing out here:
 
-* We added a `name` property to each of the nodes. If we had reason to, we could have added any other property that might be appropriate. We set this as an `ImmutableProperty` in this case, as character names are treated as fixed, but this could be a mutable property if it were required to change later.
+* We added a `name` property to each of the nodes. If we had reason to, we could have added any other property that might be appropriate. We set this as an `ImmutableProperty` in this case, as character names are treated as fixed, but this could be a mutable property if it were required to change later. The different types of properties that can be added into a Raphtory graph can be found [here](com.raphtory.components.graphbuilder.Properties).
 
 * We didn't check whether either vertices exist before sending an `addVertex` update. Another class deals with this so we don't have to worry about that.
 

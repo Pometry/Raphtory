@@ -211,7 +211,7 @@ For example, at time 32670, Samwise was at minimum 1 hop away from Gandalf, wher
 
 Finally, if you have a graph deployed somewhere else and want to submit new queries to it,
 you can do this via the `deployedGraph(customConfig)` method in `Raphtory` object,
-providing the appropriate configuration to locate it.
+providing the appropriate configuration to locate it (i.e. the pulsar address).
 If the graph is deployed in the same machine using the default configuration,
 you can even omit the configuration parameter:
 
