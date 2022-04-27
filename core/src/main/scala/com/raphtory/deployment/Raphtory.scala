@@ -15,6 +15,7 @@ import com.raphtory.components.querymanager.Query
 import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
 import py4j.{GatewayServer, Py4JNetworkException}
+import com.raphtory.deployment.Py4JServer
 
 import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._
@@ -111,7 +112,6 @@ import scala.reflect.runtime.universe._
 object Raphtory {
 
   private val scheduler = new MonixScheduler().scheduler
-  private val javaPy4jGatewayServer = new Py4JServer(this)
 
   def stream[T: TypeTag: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
@@ -129,6 +129,7 @@ object Raphtory {
 
   def deployedGraph(customConfig: Map[String, Any] = Map()): TemporalGraph = {
     val conf             = confBuilder(customConfig)
+    val javaPy4jGatewayServer = new Py4JServer(this).start(conf)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
     val querySender      = new QuerySender(componentFactory, scheduler, pulsarController)
@@ -193,7 +194,7 @@ object Raphtory {
       batchLoading: Boolean
   ) = {
     val conf             = confBuilder(customConfig)
-    javaPy4jGatewayServer.start(conf)
+    val javaPy4jGatewayServer = new Py4JServer(this).start(conf)
     val pulsarController = new PulsarController(conf)
     val componentFactory = new ComponentFactory(conf, pulsarController)
     val querySender      = new QuerySender(componentFactory, scheduler, pulsarController)

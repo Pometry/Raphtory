@@ -9,12 +9,13 @@ import java.security.SecureRandom
 import java.lang.{Byte => JByte}
 import org.apache.commons.codec.binary.Hex
 import org.slf4j.LoggerFactory
+import py4j.GatewayServer
 
 import java.io.{DataOutputStream, File, FileOutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 
-private[raphtory] class Py4JServer(entryPoint: Object) {
+class Py4JServer(entryPoint: Object) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -49,17 +50,18 @@ private[raphtory] class Py4JServer(entryPoint: Object) {
 
   private val secret: String = createSecret()
   private val localhost = InetAddress.getLoopbackAddress()
-  private val gatewayServer = new py4j.GatewayServer.GatewayServerBuilder(entryPoint)
-    .authToken(secret)
-    .javaPort(0)
-    .javaAddress(localhost)
-    .callbackClient(py4j.GatewayServer.DEFAULT_PYTHON_PORT, localhost, secret)
-    .build()
+  private val gatewayServer: GatewayServer = new GatewayServer.GatewayServerBuilder()
+      .entryPoint(entryPoint)
+      .authToken(secret)
+      .javaPort(0)
+      .javaAddress(localhost)
+      .callbackClient(GatewayServer.DEFAULT_PYTHON_PORT, localhost, secret)
+      .build()
 
   def getSecret(): String = secret
 
   def start(conf: Config): Unit = gatewayServer match {
-    case gatewayServer: py4j.GatewayServer =>
+    case gatewayServer: GatewayServer =>
       logger.info("Starting PythonGatewayServer...")
       gatewayServer.start()
       val boundPort: Int = gatewayServer.getListeningPort
@@ -73,17 +75,17 @@ private[raphtory] class Py4JServer(entryPoint: Object) {
   }
 
   def getListeningPort: Int = gatewayServer match {
-    case gatewayServer: py4j.GatewayServer => gatewayServer.getListeningPort
+    case gatewayServer: GatewayServer => gatewayServer.getListeningPort
     case other => logger.error(s"getListeningPort given unexpected Py4J gatewayServer ${other.getClass}"); -1
   }
 
   def shutdown(): Unit = gatewayServer match {
-    case gatewayServer: py4j.GatewayServer => gatewayServer.shutdown()
+    case gatewayServer: GatewayServer => gatewayServer.shutdown()
     case other => logger.error(s"shutdown given unexpected Py4J gatewayServer ${other.getClass}")
   }
 }
 
 object Py4JServer {
   def apply(entryPoint: Object) =
-    new Py4JServer(entryPoint)
+    new Py4JServer(entryPoint: Object)
 }
