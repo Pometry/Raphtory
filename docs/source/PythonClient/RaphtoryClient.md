@@ -5,13 +5,13 @@ The main purpose is to pull data to allow for analysis in python.  </p>
 
 This library can be installed via `pip install raphtory-client` 
 
-The source code can be found `https://github.com/Raphtory/Raphtory/` 
+The source code can be found `https://github.com/raphtory/raphtory/python` 
 
 ## RaphtoryClient Objects
 
 ```python
 class raphtoryclient()
-    def __init__(self, pulsar_admin_url="http://127.0.0.1:8080", pulsar_client_args=None, raphtory_deployment_id=None):
+    def __init__(self, pulsar_admin_url="http://127.0.0.1:8080", pulsar_client_args=None, raphtory_deployment_id=None, conn_file_info=None):
 ```
 
 This is the class to create a raphtory client which interacts with pulsar.
@@ -21,8 +21,41 @@ This is the class to create a raphtory client which interacts with pulsar.
 - `admin_url` _str_: the url for the pulsar admin client
 - `pulsar_client_args`: Dict of arguments to be used in the pulsar client, keys must match pulsar.Client parameters
 - `raphtory_deployment_id` _string_ : deployment id of the running raphtory instance
+- `conn_file_info` _string_: absolute file path of java gateway connection file, usually '/tmp/raphtory_python_gateway_'+deployment_id
 
-<a id="RaphtoryClient.RaphtoryClient.make_name"></a>
+- <a id="RaphtoryClient.RaphtoryClient.make_name"></a>
+
+### importDefaults
+```python
+def importDefaults(self)
+```
+
+Helper function that imports a some default classes used by Raphtory.
+
+**Arguments**:
+
+none
+
+**Returns**:
+
+none
+
+### java_import
+
+```python
+def java_import(self, import_class):
+```
+
+Wrapper around the py4j java import class, to improve readability cleaner. 
+
+
+**Arguments**:
+
+- `import_class` __string__: Java class to import
+
+**Returns**:
+
+  none
 
 ### make\_name
 
@@ -44,24 +77,20 @@ subscription suffix for the reader.
 
 <a id="RaphtoryClient.RaphtoryClient.setupClient"></a>
 
-### setupClient
+### setupPulsarClient
 
 ```python
-def setupClient(client_args, max_attempts=5)
+def setupPulsarClient(client_args, max_attempts=5)
 ```
 
 Setups a pulsar client using the pulsar address.
 Retries at least 5 times before returning
 
 **Attributes**:
-
 - `client_args` _dict_: Dict of arguments to be used in the pulsar client, keys must match pulsar.Client parameters
 - `max_attempts` _int_ : Number of attempts to retry
 
-
-
 **Returns**:
-
 - `PulsarClient` - A pulsar client object if successful
 - `None` _None_ - None if not successful
 
@@ -77,14 +106,11 @@ Setups a single pulsar reader, which reads from a pulsar topic.
 Retries at least 5 times before returning
 
 **Arguments**:
-
 - `topic` _str_ : Names of topic to read from
 - `subscription_name` _str_ : Name for this readers subscription
 - `schema` _Pulsar.Schema_ : Schema to use for reader
   
-
 **Returns**:
-
 - `PulsarReader` _Pulsar.reader_ : A pulsar reader object
 - `None` _None_ - None if not successful
 
@@ -204,12 +230,10 @@ def createGraphFromEdgeList(df, isMultiGraph=True)
 Builds a simple networkx graph from an edge list in Raphtory.
 
 **Arguments**:
-
 - `df` _pandas.Dataframe_: A dataframe of an edgelist where, col 0: timestamp, col 1: source, col 2: destination
 - `isMultiGraph` _bool_ - If False will use DiGraph, otherwise will use MultiGraph
 
 **Returns**:
-
 - `G` _networkx.DiGraph_ - The graph as built in networkx
 
 <a id="RaphtoryClient.RaphtoryClient.createLOTRGraph"></a>
@@ -223,7 +247,6 @@ def createLOTRGraph(filePath, from_time=0, to_time=sys.maxsize, source_id=0, tar
 Example graph builder in python. Given a csv edgelist this will create a graph using networkx based on the lotr data.
 
 **Arguments**:
-
 - `filePath` _str_ - Location of csv file
 - `from_time` _int_ - (Optional, default: 0) timestamp to start building graph from
 - `to_time` _int_ - (Optional, default: sys.maxsize) timestamp to stop building graph
@@ -233,36 +256,57 @@ Example graph builder in python. Given a csv edgelist this will create a graph u
   
 
 **Returns**:
-
 - `G` _networkx.DiGraph_ - The graph as built in networkx
+
+<a id="RaphtoryClient.RaphtoryClient.setupRaphtory"></a>
 
 ### setupRaphtory
 ```python
-def setupRaphtory(self, deployment_id):
+def setupRaphtory(self):
 ```
 
 Setups a raphtory java client via the gateway object.
 This allows the user to invoke raphtory java/scalaa methods as if they were running on the
 raphtory/scala version.
 Note that arguements must be correct or the methods will not be called.
+Uses internal raphtory_deployment_id: the deployment id of the raphtory instance to connect to
 
 **Arguments**:
-
-- `deployment_id` _string_: the deployment id of the raphtory instance to connect to
+- none
 
 **Returns**:
+- `graph`: raphtory client graph object
 
-- `client`: raphtory client java object
+<a id="RaphtoryClient.RaphtoryClient.setupJavaGateway"></a>
 
 ### setupJavaGateway
 ```python
-def setupJavaGateway(self):
+def setupJavaGateway(self, conn_info_file=None):
 ```
 
 Creates Java<>Raphtory gateway and imports required files.
 The gateway allows the user to run/read java/scala methods and objects from python.
 
-**Returns**:
 
+**Arguments**:
+- conn_info_file: full absolute file path to the connection info, usually '/tmp/raphtory_python_gateway_'+deployment_id
+
+**Returns**:
 - `py4j.java_gateway`: py4j java gateway object
+
+<a id="RaphtoryClient.RaphtoryClient.java"></a>
+
+### java
+```python
+def java(self):
+```
+
+Short helper function to make code easier to read
+
+**Arguments**:
+none
+
+**Returns**:
+- java gateway jvm: gateway jvm object
+
 

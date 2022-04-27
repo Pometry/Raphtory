@@ -50,26 +50,30 @@ class Py4JServer(entryPoint: Object) {
 
   private val secret: String = createSecret()
   private val localhost = InetAddress.getLoopbackAddress()
-  private val gatewayServer: GatewayServer = new GatewayServer.GatewayServerBuilder()
+  private lazy val gatewayServer: GatewayServer = new GatewayServer.GatewayServerBuilder()
       .entryPoint(entryPoint)
       .authToken(secret)
       .javaPort(0)
       .javaAddress(localhost)
       .callbackClient(GatewayServer.DEFAULT_PYTHON_PORT, localhost, secret)
       .build()
+  private var startedServer = false
 
   def getSecret(): String = secret
 
   def start(conf: Config): Unit = gatewayServer match {
     case gatewayServer: GatewayServer =>
-      logger.info("Starting PythonGatewayServer...")
+      if (!startedServer) {
+        logger.info("Starting PythonGatewayServer...")
       gatewayServer.start()
-      val boundPort: Int = gatewayServer.getListeningPort
-      if (boundPort == -1) {
-        logger.error("Failed to bind; Not running python gateway")
-      } else {
-        logger.info(s"Started PythonGatewayServer on port $boundPort")
-        writePortToFile(boundPort, conf)
+        val boundPort: Int = gatewayServer.getListeningPort
+        if (boundPort == -1) {
+          logger.error("Failed to bind; Not running python gateway")
+        } else {
+          logger.info(s"Started PythonGatewayServer on port $boundPort")
+          writePortToFile(boundPort, conf)
+          startedServer = true
+        }
       }
     case other => logger.error(s"Start given unexpected Py4J gatewayServer ${other.getClass}")
   }
@@ -80,7 +84,7 @@ class Py4JServer(entryPoint: Object) {
   }
 
   def shutdown(): Unit = gatewayServer match {
-    case gatewayServer: GatewayServer => gatewayServer.shutdown()
+    case gatewayServer: GatewayServer => gatewayServer.shutdown(); startedServer=false
     case other => logger.error(s"shutdown given unexpected Py4J gatewayServer ${other.getClass}")
   }
 }

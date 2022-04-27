@@ -22,6 +22,11 @@ class GenericTable(val query: Query, private val querySender: QuerySender) exten
     querySender.submit(query, jobName)
   }
 
+  override def writeTo(outputFormat: OutputFormat): QueryProgressTracker = {
+    val query = addFunction(WriteTo(outputFormat)).query
+    querySender.submit(query, "")
+  }
+
   private def addFunction(function: TableFunction) =
     new GenericTable(
             query.copy(tableFunctions = query.tableFunctions.enqueue(function)),

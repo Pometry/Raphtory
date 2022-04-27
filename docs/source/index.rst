@@ -41,10 +41,10 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    :caption: Python Library
 
    PythonClient/setup.md
-   PythonClient/tutorial.md
+   PythonClient/tutorial_pulsar.md
    PythonClient/RaphtoryClient.md
    PythonClient/conf.md
-   PythonClient/algorithms.md
+   PythonClient/tutorial_algorithms.md
 
 .. toctree:: 
    :maxdepth: 2

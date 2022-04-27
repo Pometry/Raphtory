@@ -6,11 +6,11 @@ Currently, the supported Python versions are 3.
 ## Install from PyPI
 
     #!shell
-    $ sudo pip install raphtory-client
+    $ pip install raphtory-client
 
 ## Examples
 
-Example jupyter notebooks can be found at https://www.github.com/raphtory/examples
+Example jupyter notebooks can be found at https://www.github.com/raphtory/raphtory/examples
 
 """
 
@@ -20,6 +20,7 @@ import random
 import string
 import requests
 import time
+from os.path import exists
 import csv
 import networkx as nx
 import sys
@@ -35,7 +36,7 @@ class client:
     This is the class to create a raphtory client which interacts with raphtory and pulsar.
     '''
 
-    def __init__(self, pulsar_admin_url="http://127.0.0.1:8080", _pulsar_client_args=None, raphtory_deployment_id=None, _conn_file_info=None):
+    def __init__(self, pulsar_admin_url="http://127.0.0.1:8080", _pulsar_client_args=None, raphtory_deployment_id=None, conn_file_info=None):
         '''
         Parameters:
         admin_url: the url for the pulsar admin client
@@ -57,18 +58,18 @@ class client:
         self._first_seen = ""
         if raphtory_deployment_id is not None:
             self._raphtory_deployment_id = raphtory_deployment_id
-            if _conn_file_info == None:
-                _conn_file_info = "/tmp/" + str(raphtory_deployment_id) + "_python_gateway_connection_file"
-            self._conn_file_info = _conn_file_info
+            if conn_file_info == None:
+                conn_file_info = "/tmp/" + str(raphtory_deployment_id) + "_python_gateway_connection_file"
+            self._conn_file_info = conn_file_info
             self.gateway = self.setupJavaGateway()
             self.importDefaults()
-            self.raphtory_client = self.setupRaphtory()
+            self.graph = self.setupRaphtory()
         else:
             self.gateway = None
 
     def importDefaults(self):
         '''
-        This function imports a bunch of java things
+        This function imports a some default classes used by Raphtory
         '''
         self.java_import("com.raphtory.deployment.Raphtory")
         self.java_import("scala.collection.JavaConverters")
@@ -93,18 +94,18 @@ class client:
         This allows the user to invoke raphtory java/scalaa methods as if they were running on the
         raphtory/scala version.
         Note that arguements must be correct or the methods will not be called.
-        Uses raphtory_deployment_id: the deployment id of the raphtory instance to connect to
+        Uses internal raphtory_deployment_id: the deployment id of the raphtory instance to connect to
 
         Returns:
-            client: raphtory client java object
+            graph: raphtory client graph object
         '''
         print("Creating Raphtory java object...")
         customConfig = {"raphtory.deploy.id": self._raphtory_deployment_id, "raphtory.deploy.distributed": True}
         mc_run_map_dict = MapConverter().convert(customConfig, self.gateway._gateway_client)
         jmap = self.gateway.jvm.PythonUtil.toScalaMap(mc_run_map_dict)
-        client = self.gateway.jvm.Raphtory.createClient(jmap)
+        graph = self.gateway.jvm.Raphtory.deployedGraph(jmap)
         print("Created Raphtory java object.")
-        return client
+        return graph
 
     def setupJavaGateway(self, conn_info_file=None):
         '''
@@ -118,14 +119,30 @@ class client:
             py4j.java_gateway: py4j java gateway object
         '''
 
-        with open(self._conn_file_info, "rb") as info_file:
-            gateway_port = read_int(info_file)
-            gateway_secret = UTF8Deserializer().loads(info_file)
+        if exists(self._conn_file_info):
+            with open(self._conn_file_info, "rb") as info_file:
+                gateway_port = read_int(info_file)
+                gateway_secret = UTF8Deserializer().loads(info_file)
+        else:
+            print("File %s does not exist. Cannot open secure gateway without this.", self._conn_file_info)
+            sys.exit(1)
 
         print("Setting up Java gateway...")
-        gateway = JavaGateway(gateway_parameters=GatewayParameters(port=gateway_port, auth_token=gateway_secret, auto_field=True))
+        gateway = JavaGateway(gateway_parameters=GatewayParameters(port=gateway_port, auth_token=gateway_secret))
         print("Java gateway connected.")
         return gateway
+
+    def java(self):
+        '''
+        short helper function to make code easier to read
+
+        Parameters:
+        none
+
+        Returns:
+        java gateway jvm: gateway jvm object
+        '''
+        return self.gateway.jvm
 
     def make_name(self):
         '''
@@ -274,14 +291,14 @@ class client:
                 if wait_counter == 6:
                     break
         print("Converting to columns...")
-        if len(messages) != 0:
-            num_cols = len(messages[0])
-            if len(col_names):
-                for i in range(len(col_names), num_cols, 1):  col_names.append("result_" + str(i - len(col_names)))
-            else:
-                for i in range(0, num_cols, 1):  col_names.append("result_" + str(i))
+        # if len(messages) != 0:
+        #     num_cols = len(messages[0])
+        #     if len(col_names):
+        #         for i in range(len(col_names), num_cols, 1):  col_names.append("result_" + str(i - len(col_names)))
+        #     else:
+        #         for i in range(0, num_cols, 1):  col_names.append("result_" + str(i))
         print("Completed.")
-        return pd.DataFrame(messages, columns=col_names)
+        return pd.DataFrame(messages)
 
     def find_dates(self, all_data, node_a_id=0, node_b_id=1, time_col=2):
         '''
