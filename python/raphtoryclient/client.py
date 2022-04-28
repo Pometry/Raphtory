@@ -73,10 +73,9 @@ class client:
         '''
         self.java_import("com.raphtory.deployment.Raphtory")
         self.java_import("scala.collection.JavaConverters")
-        self.java_import("com.raphtory.examples.lotrTopic.PythonUtils")
         self.java_import("com.raphtory.output.FileOutputFormat")
         self.java_import("com.raphtory.output.PulsarOutputFormat")
-        self.java_import("com.raphtory.util.*")
+        self.java_import("com.raphtory.util.PythonUtil")
 
     def java_import(self, import_class):
         '''
