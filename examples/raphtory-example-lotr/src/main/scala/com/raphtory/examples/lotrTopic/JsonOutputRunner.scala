@@ -8,13 +8,14 @@ import com.raphtory.spouts.FileSpout
 import com.raphtory.util.FileUtils
 
 object JsonOutputRunner extends App {
-  val path    = "/tmp/lotr.csv"
-  val url     = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
+  val path     = "/tmp/lotr.csv"
+  val url      = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
   FileUtils.curlFile(path, url)
-  val source  = FileSpout(path)
-  val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.streamGraph(spout = source, graphBuilder = builder)
-  val output  = JsonOutputFormat()
+  val source   = FileSpout(path)
+  val builder  = new LOTRGraphBuilder()
+  val graph    = Raphtory.streamGraph(spout = source, graphBuilder = builder)
+  val filepath = "/tmp/jsonLotrOutput"
+  val output   = JsonOutputFormat(filepath)
 
   val queryHandler =
     graph.pointQuery(NodeInformation(initialID = 5415127257870295999L), output, 32674)

@@ -5,12 +5,14 @@ import com.raphtory.algorithms.api.OutputFormat
 import com.raphtory.algorithms.api.Row
 import com.raphtory.time.Interval
 
+import java.io.File
+
 /**
   * {s}`JsonOutputFormat()`
   *   : writes output for Raphtory Job to Json Format
   */
 
-class JsonOutputFormat() extends OutputFormat {
+class JsonOutputFormat(filePath: String) extends OutputFormat {
 
   override def write(
       timestamp: Long,
@@ -19,16 +21,21 @@ class JsonOutputFormat() extends OutputFormat {
       row: Row,
       partitionID: Int
   ): Unit = {
+    val dir = new File(s"$filePath/$jobID")
+    dir.mkdirs()
+
     val gsonBuilder = new GsonBuilder()
       .setPrettyPrinting()
       .create()
-    val jsonString  = gsonBuilder.toJson(row.getValues())
-    println(jsonString)
+    gsonBuilder.toJson(row.getValues())
+
+    val value = s"${gsonBuilder.toJson(row.getValues())}"
+    reflect.io.File(s"$filePath/$jobID/partition-$partitionID").appendAll(value)
   }
 }
 
 object JsonOutputFormat {
 
-  def apply() =
-    new JsonOutputFormat()
+  def apply(filePath: String) =
+    new JsonOutputFormat(filePath)
 }
