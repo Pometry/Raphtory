@@ -11,16 +11,14 @@ jobs:
         with:
           python-version: 3.9
       - name: Install pypa/build
-        with:
-          packages_dir: python/
+        working-directory: ./python
         run: >-
           python -m
           pip install
           build
           --user
       - name: Build a binary wheel and a source tarball
-        with:
-          packages_dir: python/
+        working-directory: ./python
         run: >-
           python -m
           build
@@ -33,10 +31,10 @@ jobs:
         with:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository_url: https://test.pypi.org/legacy/
-          packages_dir: python/
+          packages_dir: ./python/dist/
       - name: Publish distribution 📦 to PyPI
         if: startsWith(github.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@master
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
-          packages_dir: python/
+          packages_dir: ./python/dist/
