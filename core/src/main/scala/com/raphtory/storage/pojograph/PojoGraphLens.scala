@@ -42,8 +42,6 @@ final case class PojoGraphLens(
   private var exploded: Boolean = false
   var needsFiltering            = false
 
-//  val graphLensReceivedMessageCount = StorageTelemetry.graphLensReceivedMessageCount(jobId)
-
   val messageHandler: VertexMessageHandler =
     VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)
 

@@ -26,7 +26,9 @@ import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFunction
 import com.raphtory.components.Component
 import com.raphtory.config.PulsarController
+import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.config.telemetry.QueryTelemetry
+import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.graph.Perspective
 import com.raphtory.graph.PerspectiveController
 import com.typesafe.config.Config
@@ -79,14 +81,26 @@ class QueryHandler(
   private var currentState: Stage = SpawnExecutors
 
   val totalPerspectivesProcessed =
-    QueryTelemetry.totalPerspectivesProcessed(jobID + "_deploymentID_" + deploymentID)
+    QueryTelemetry.totalPerspectivesProcessed(s"jobID_${jobID}_deploymentID_$deploymentID")
 
-  val totalGraphOperations       =
-    QueryTelemetry.totalGraphOperations(jobID + "_deploymentID_" + deploymentID)
+  val totalGraphOperations =
+    QueryTelemetry.totalGraphOperations(s"jobID_${jobID}_deploymentID_$deploymentID")
 
-  val totalTableOperations       =
-    QueryTelemetry.totalTableOperations(jobID + "_deploymentID_" + deploymentID)
-  val totalReadyCount            = QueryTelemetry.readyCount(jobID + "_deploymentID_" + deploymentID)
+  val totalTableOperations =
+    QueryTelemetry.totalTableOperations(s"jobID_${jobID}_deploymentID_$deploymentID")
+  val totalReadyCount      = QueryTelemetry.readyCount(s"jobID_${jobID}_deploymentID_$deploymentID")
+
+  val totalVertexCount =
+    QueryTelemetry.vertexCount(s"jobID_${jobID}_deploymentID_$deploymentID")
+
+  val totalReceivedMessageCount =
+    QueryTelemetry.receivedMessageCount(s"jobID_${jobID}_deploymentID_$deploymentID")
+
+  val totalSentMessageCount =
+    QueryTelemetry.sentMessageCount(s"jobID_${jobID}_deploymentID_$deploymentID")
+
+//  val timeTakenForIngestion =
+//    PartitionTelemetry.timeForIngestion(s"jobID_${jobID}_deploymentID_$deploymentID")
 
   private val recheckTimer = new Runnable {
     override def run(): Unit = self sendAsync serialise(RecheckTime)
@@ -172,6 +186,7 @@ class QueryHandler(
 
       case p: PerspectiveEstablished =>
         vertexCount += p.vertices
+        totalVertexCount.inc()
         readyCount += 1
         totalReadyCount.inc()
         if (readyCount == totalPartitions) {
@@ -247,7 +262,9 @@ class QueryHandler(
       votedToHalt: Boolean
   ) = {
     sentMessageCount += sentMessages
+    totalSentMessageCount.inc()
     receivedMessageCount += receivedMessages
+    totalReceivedMessageCount.inc()
     allVoteToHalt = votedToHalt & allVoteToHalt
     readyCount += 1
     totalReadyCount.inc()

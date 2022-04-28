@@ -4,6 +4,7 @@ import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder._
 import com.raphtory.components.spout.Spout
 import com.raphtory.config.PulsarController
+import com.raphtory.config.telemetry.PartitionTelemetry
 import com.typesafe.config.Config
 import monix.execution.Scheduler
 
@@ -61,12 +62,16 @@ class LocalBatchHandler[T: ClassTag](
 
   private def startIngesting(): Unit =
     batchWriters.foreach {
-      case (id, partition) => partition.getStorage().startBatchIngesting()
+      case (id, partition) =>
+        partition.getStorage().startBatchIngesting()
+        PartitionTelemetry.timeForIngestion(id).startTimer()
     }
 
   private def stopIngesting(): Unit =
     batchWriters.foreach {
-      case (id, partition) => partition.getStorage().stopBatchIngesting()
+      case (id, partition) =>
+        partition.getStorage().stopBatchIngesting()
+        PartitionTelemetry.timeForIngestion(id).startTimer().setDuration()
     }
 
   override def stop(): Unit = {}

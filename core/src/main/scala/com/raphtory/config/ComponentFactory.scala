@@ -28,10 +28,10 @@ import scala.reflect.runtime.universe.TypeTag
 private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val deploymentID       = conf.getString("raphtory.deploy.id")
-  private val zookeeperAddress   = conf.getString("raphtory.zookeeper.address")
+  private val deploymentID     = conf.getString("raphtory.deploy.id")
+  private val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
 
-  private val builderIDManager   =
+  private val builderIDManager =
     new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
 
   private val partitionIDManager =

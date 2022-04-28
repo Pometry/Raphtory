@@ -1,5 +1,6 @@
 package com.raphtory.config
 
+import com.raphtory.config.telemetry.PartitionTelemetry
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.admin.PulsarAdmin

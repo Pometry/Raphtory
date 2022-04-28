@@ -32,6 +32,7 @@ import com.raphtory.components.querymanager.TableFunctionComplete
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
 import com.raphtory.config.PulsarController
+import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
 import com.raphtory.output.PulsarOutputFormat
@@ -39,6 +40,7 @@ import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 import com.raphtory.time.Interval
 import com.typesafe.config.Config
+import io.prometheus.client.Counter
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api._
 
@@ -78,6 +80,9 @@ class QueryExecutor(
   }
 
   override def stop(): Unit = {
+    StorageTelemetry
+      .pojoLensGraphSize(s"${jobID}_$partitionID")
+      .set(graphLens.getFullGraphSize)
     taskManager.close()
     neighbours.foreach(_._2.close())
     cancelableConsumer match {

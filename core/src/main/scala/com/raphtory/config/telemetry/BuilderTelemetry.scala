@@ -4,6 +4,8 @@ import com.raphtory.config.ConfigHandler
 import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
 
+import scala.collection.mutable
+
 /**
   * {s}`GraphBuilderTelemetry`
   *  : Adds metrics for {s}`GraphBuilder` using Prometheus Client
@@ -13,7 +15,7 @@ import io.prometheus.client.Gauge
   *    Statistics are made available on http://localhost:8899 on running tests and can be visualised using Grafana dashboards
   */
 object BuilderTelemetry {
-
+//none of these implemented
   val conf = new ConfigHandler().getConfig
 
   def totalVertexAdds(builderID: String): Counter =
@@ -23,10 +25,10 @@ object BuilderTelemetry {
       .help("Total vertices added by Graph Builder")
       .register
 
-  def totalVertexDeletes(builderID: String): Counter =
+  def totalVertexDeletes(): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.builder"))
-      .name("vertex_delete_" + builderID + "_total")
+      .name("vertex_delete_total")
       .help("Total vertices deleted by Graph Builder")
       .register
 

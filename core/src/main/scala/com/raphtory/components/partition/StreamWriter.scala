@@ -42,26 +42,40 @@ class StreamWriter(
 
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
-  val streamWriterVertexDeletions    =
-    PartitionTelemetry.streamWriterVertexDeletions(partitionID + "_deploymentID_" + deploymentID)
+  val streamWriterVertexDeletions =
+    PartitionTelemetry.streamWriterVertexDeletions(
+            s"partitionID_${partitionID}_deploymentID_$deploymentID"
+    )
 
-  val streamWriterEdgeDeletions      =
-    PartitionTelemetry.streamWriterEdgeDeletions(partitionID + "_deploymentID_" + deploymentID)
+  val streamWriterEdgeDeletions =
+    PartitionTelemetry.streamWriterEdgeDeletions(
+            s"partitionID_${partitionID}_deploymentID_$deploymentID"
+    )
 
-  val streamWriterVertexAdditions    =
-    PartitionTelemetry.streamWriterVertexAdditions(partitionID + "_deploymentID_" + deploymentID)
+  val streamWriterVertexAdditions =
+    PartitionTelemetry.streamWriterVertexAdditions(
+            s"partitionID_${partitionID}_deploymentID_$deploymentID"
+    )
 
-  val streamWriterEdgeAdditions      =
-    PartitionTelemetry.streamWriterEdgeAdditions(partitionID + "_deploymentID_" + deploymentID)
+  val streamWriterEdgeAdditions =
+    PartitionTelemetry.streamWriterEdgeAdditions(
+            s"partitionID_${partitionID}_deploymentID_$deploymentID"
+    )
 
-  val streamWriterGraphUpdates       =
-    PartitionTelemetry.streamWriterGraphUpdates(partitionID + "_deploymentID_" + deploymentID)
+  val streamWriterGraphUpdates =
+    PartitionTelemetry.streamWriterGraphUpdates(
+            s"partitionID_${partitionID}_deploymentID_$deploymentID"
+    )
 
   val totalSyncedStreamWriterUpdates =
-    PartitionTelemetry.totalSyncedStreamWriterUpdates(partitionID + "_deploymentID_" + deploymentID)
+    PartitionTelemetry.totalSyncedStreamWriterUpdates(
+            s"partitionID_${partitionID}_deploymentID_$deploymentID"
+    )
 
   val streamWriterRemoteGraphUpdates =
-    PartitionTelemetry.streamWriterRemoteGraphUpdates(partitionID + "_deploymentID_" + deploymentID)
+    PartitionTelemetry.streamWriterRemoteGraphUpdates(
+            s"partitionID_${partitionID}_deploymentID_$deploymentID"
+    )
 
   override def run(): Unit =
     cancelableConsumer = Some(
