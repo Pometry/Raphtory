@@ -99,9 +99,6 @@ class QueryHandler(
   val totalSentMessageCount =
     QueryTelemetry.sentMessageCount(s"jobID_${jobID}_deploymentID_$deploymentID")
 
-//  val timeTakenForIngestion =
-//    PartitionTelemetry.timeForIngestion(s"jobID_${jobID}_deploymentID_$deploymentID")
-
   private val recheckTimer = new Runnable {
     override def run(): Unit = self sendAsync serialise(RecheckTime)
   }
