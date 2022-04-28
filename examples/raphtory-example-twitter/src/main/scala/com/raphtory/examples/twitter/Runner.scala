@@ -29,5 +29,5 @@ object Runner extends App {
     .past()
     .transform(PageRank())
     .execute(MemberRank() -> TemporalMemberRank())
-    .writeTo(output)
+    .writeTo(output, "prAndTmr")
 }

@@ -24,10 +24,10 @@ object PulsarOutputRunner extends App {
   Thread.sleep(20000)
 
   // Run algorithms
-  graph.at(30000).past().execute(EdgeList()).writeTo(PulsarOutputFormat("EdgeList"))
+  graph.at(30000).past().execute(EdgeList()).writeTo(PulsarOutputFormat("EdgeList"), "edgeList")
   graph
     .range(20000, 30000, 10000)
     .window(List(500, 1000, 10000), Alignment.END)
     .execute(PageRank())
-    .writeTo(PulsarOutputFormat("PageRank"))
+    .writeTo(PulsarOutputFormat("PageRank"), "PageRank")
 }

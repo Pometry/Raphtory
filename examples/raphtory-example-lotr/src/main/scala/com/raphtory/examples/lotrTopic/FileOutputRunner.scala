@@ -27,7 +27,7 @@ object FileOutputRunner extends App {
       .at(32674)
       .past()
       .execute(DegreesSeparation())
-      .writeTo(output)
+      .writeTo(output, "degSep")
 
     queryHandler.waitForJob()
 }

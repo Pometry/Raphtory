@@ -70,6 +70,6 @@ queryHandler = raphtory.graph\
     .at(32674)\
     .past()\
     .execute(connectedComponentsAlgorithm())\
-    .writeTo(fileOutputFormat.apply("/tmp/pythonCC"))
+    .writeTo(fileOutputFormat.apply("/tmp/pythonCC"), "connComp")
 ```
 

@@ -24,10 +24,10 @@ object Runner extends App {
     .at(88234)
     .past()
     .execute(EdgeList())
-    .writeTo(PulsarOutputFormat("TwitterEdgeList"))
+    .writeTo(PulsarOutputFormat("TwitterEdgeList"), "TwitterEdgeList")
   graph
     .range(10000, 88234, 10000)
     .window(List(500, 1000, 10000), Alignment.END)
     .execute(ConnectedComponents())
-    .writeTo(PulsarOutputFormat("ConnectedComponents"))
+    .writeTo(PulsarOutputFormat("ConnectedComponents"), "connComp")
 }

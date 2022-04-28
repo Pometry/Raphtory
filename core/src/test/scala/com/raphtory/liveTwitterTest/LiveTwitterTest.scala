@@ -29,6 +29,6 @@ object LiveTwitterTest {
       .walk(1000)
       .past()
       .execute(EdgeList())
-      .writeTo(PulsarOutputFormat("EdgeList1"))
+      .writeTo(PulsarOutputFormat("EdgeList1"), "EdgeList1")
   }
 }

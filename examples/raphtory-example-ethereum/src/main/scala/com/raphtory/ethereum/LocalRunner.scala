@@ -240,7 +240,7 @@ object LocalRunner extends App {
     .at(1575013446)
     .past()
     .execute(TaintAlgorithm(startTime, infectedNodes, stopNodes))
-    .writeTo(pulsarOutput)
+    .writeTo(pulsarOutput, "taintTrack")
   // graph.pointQuery(ConnectedComponents(), FileOutputFormat("/tmp/ethereum/connected_components"), 1591951621)
 
   // Range query, run the same command over certain time periods

@@ -36,10 +36,10 @@ object Runner extends App {
   val builder                  = new FacebookGraphBuilder()
   val graph                    = Raphtory.batchLoad(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
-  graph.at(88234).past().execute(EdgeList()).writeTo(PulsarOutputFormat("EdgeList"))
+  graph.at(88234).past().execute(EdgeList()).writeTo(PulsarOutputFormat("EdgeList"), "EdgeList")
   graph
     .range(10000, 88234, 10000)
     .window(List(500, 1000, 10000), Alignment.END)
     .execute(ConnectedComponents())
-    .writeTo(PulsarOutputFormat("ConnectedComponents"))
+    .writeTo(PulsarOutputFormat("ConnectedComponents"), "connComp")
 }

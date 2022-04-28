@@ -25,10 +25,10 @@ object Runner extends App {
     .at(989858340000L)
     .past()
     .execute(EdgeList())
-    .writeTo(PulsarOutputFormat("EdgeList"))
+    .writeTo(PulsarOutputFormat("EdgeList"), "edgeList")
   graph
     .range(963557940000L, 989858340000L, 1000000000)
     .past()
     .execute(ConnectedComponents())
-    .writeTo(PulsarOutputFormat("ConnectedComponents"))
+    .writeTo(PulsarOutputFormat("ConnectedComponents"), "connComp")
 }
