@@ -76,8 +76,8 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
   def jobStatus(jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](jobStatusConnector, "job-status", s"$depId-$jobId")
 
-  def vertexMessages(jobId: String): ShardingTopic[GenericVertexMessage] =
-    ShardingTopic[GenericVertexMessage](
+  def vertexMessages(jobId: String): ShardingTopic[QueryManagement] =
+    ShardingTopic[QueryManagement](
             numPartitions,
             vertexMessagesConnector,
             "vertex-msg",

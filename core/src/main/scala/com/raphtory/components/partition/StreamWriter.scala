@@ -36,7 +36,7 @@ class StreamWriter(
     conf: Config,
     topics: TopicRepository
 ) extends Component[GraphAlteration](conf) {
-  private val neighbours        = topics.graphSync.endPoint(effect => getWriter(effect.updateId))
+  private val neighbours = topics.graphSync.endPoint
 
   private val listener          =
     topics.registerListener(handleMessage, Seq(topics.graphUpdates, topics.graphSync), partitionID)
@@ -46,7 +46,7 @@ class StreamWriter(
     listener.start()
 
   override def stop(): Unit = {
-    neighbours.close()
+    neighbours.values.foreach(_.close())
     listener.close()
   }
 
@@ -125,7 +125,7 @@ class StreamWriter(
             update.eType
     ) match {
       case Some(value) =>
-        neighbours sendAsync value
+        neighbours(getWriter(value.updateId)) sendAsync value
         storage.trackEdgeAddition(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
@@ -137,7 +137,7 @@ class StreamWriter(
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId) match {
       case Some(value) =>
-        neighbours sendAsync value
+        neighbours(getWriter(value.updateId)) sendAsync value
         storage.trackEdgeDeletion(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
@@ -148,7 +148,7 @@ class StreamWriter(
 
     val edgeRemovals = storage.removeVertex(update.updateTime, update.srcId)
     if (edgeRemovals.nonEmpty) {
-      edgeRemovals.foreach(effect => neighbours sendAsync effect)
+      edgeRemovals.foreach(effect => neighbours(getWriter(effect.updateId)) sendAsync effect)
       storage.trackVertexDeletion(update.updateTime, update.srcId, edgeRemovals.size)
     }
   }
@@ -160,7 +160,7 @@ class StreamWriter(
     storage.timings(req.msgTime)
     val effect = storage
       .syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType)
-    neighbours sendAsync effect
+    neighbours(getWriter(effect.updateId)) sendAsync effect
   }
 
   def processSyncExistingEdgeAdd(req: SyncExistingEdgeAdd): Unit = {
@@ -170,7 +170,7 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties)
-    neighbours sendAsync effect
+    neighbours(getWriter(effect.updateId)) sendAsync effect
   }
 
   // Graph Effects for syncing edge deletions
@@ -181,7 +181,7 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals)
-    neighbours sendAsync effect
+    neighbours(getWriter(effect.updateId)) sendAsync effect
   }
 
   def processSyncExistingEdgeRemoval(req: SyncExistingEdgeRemoval): Unit = {
@@ -191,7 +191,7 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeRemoval(req.msgTime, req.srcId, req.dstId)
-    neighbours sendAsync effect
+    neighbours(getWriter(effect.updateId)) sendAsync effect
   }
 
   // Graph Effects for syncing vertex deletions
@@ -202,7 +202,7 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.outboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
-    neighbours sendAsync effect
+    neighbours(getWriter(effect.updateId)) sendAsync effect
   }
 
   def processInboundEdgeRemovalViaVertex(req: InboundEdgeRemovalViaVertex): Unit = { //remote worker same as above
@@ -211,7 +211,7 @@ class StreamWriter(
     )
 
     val effect = storage.inboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
-    neighbours sendAsync effect
+    neighbours(getWriter(effect.updateId)) sendAsync effect
   }
 
   // Responses from the secondary server

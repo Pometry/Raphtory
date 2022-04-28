@@ -2,7 +2,7 @@ package com.raphtory.storage.pojograph.messaging
 
 import java.util.concurrent.atomic.AtomicInteger
 import com.raphtory.components.querymanager.GenericVertexMessage
-import com.raphtory.components.querymanager.VertexMessageBatch
+import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
 import com.raphtory.config.EndPoint
@@ -20,7 +20,7 @@ import scala.concurrent.Future
 /** @DoNotDocument */
 class VertexMessageHandler(
     config: Config,
-    producers: EndPoint[GenericVertexMessage],
+    producers: Map[Int, EndPoint[QueryManagement]],
     pojoGraphLens: PojoGraphLens,
     sentMessages: AtomicInteger,
     receivedMessages: AtomicInteger
@@ -44,7 +44,7 @@ class VertexMessageHandler(
   logger.debug(s"Setting total partitions to '$totalPartitions'.")
 
   private val messageCache =
-    mutable.Map[Producer[Array[Byte]], mutable.ArrayBuffer[GenericVertexMessage]]()
+    mutable.Map[EndPoint[QueryManagement], mutable.ArrayBuffer[GenericVertexMessage]]()
   refreshBuffers()
 
   def sendMessage(message: GenericVertexMessage): Unit = {
@@ -63,15 +63,13 @@ class VertexMessageHandler(
           sendCached(producer)
       }
       else
-        producer sendAsync (kryo.serialise(message))
+        producer sendAsync message
     }
 
   }
 
-  def sendCached(readerJobWorker: Producer[Array[Byte]]): Unit = {
-    readerJobWorker sendAsync kryo.serialise(
-            VertexMessageBatch(messageCache(readerJobWorker).toArray)
-    )
+  def sendCached(readerJobWorker: EndPoint[QueryManagement]): Unit = {
+    readerJobWorker sendAsync VertexMessageBatch(messageCache(readerJobWorker).toArray)
     messageCache.put(readerJobWorker, mutable.ArrayBuffer[GenericVertexMessage]())
   }
 
@@ -99,7 +97,7 @@ object VertexMessageHandler {
 
   def apply(
       config: Config,
-      producers: EndPoint[GenericVertexMessage],
+      producers: Map[Int, EndPoint[QueryManagement]],
       pojoGraphLens: PojoGraphLens,
       sentMessages: AtomicInteger,
       receivedMessages: AtomicInteger

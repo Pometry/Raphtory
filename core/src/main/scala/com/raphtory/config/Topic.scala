@@ -35,22 +35,14 @@ case class ShardingTopic[T](
     subTopic: String = ""
 ) extends Topic[T] {
 
-  def endPoint(sharding: T => Int): EndPoint[T] =
-    new EndPoint[T] {
-      private val partitions = 0 until numPartitions
-
-      private val endPoints = partitions map { partition =>
-        val topic = exclusiveTopicForPartition(partition)
-        connector.endPoint[T](topic)
-      }
-
-      override def sendAsync(message: T): Unit =
-        endPoints(sharding.apply(message)) sendAsync message
-      override def close(): Unit               = endPoints foreach (_.close())
-
-      override def closeWithMessage(message: T): Unit =
-        endPoints foreach (_.closeWithMessage(message))
+  def endPoint: Map[Int, EndPoint[T]] = {
+    val partitions = 0 until numPartitions
+    val endPoints  = partitions map { partition =>
+      val topic = exclusiveTopicForPartition(partition)
+      (partition, connector.endPoint[T](topic))
     }
+    endPoints.toMap
+  }
 
   def exclusiveTopicForPartition(partition: Int): ExclusiveTopic[T] =
     ExclusiveTopic[T](connector, id, s"$subTopic-$partition")

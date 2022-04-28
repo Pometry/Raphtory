@@ -17,6 +17,7 @@ import org.apache.pulsar.client.api.SubscriptionType
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 import org.slf4j.LoggerFactory
 
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters._
 
@@ -24,8 +25,13 @@ class PulsarConnector(config: Config) extends Connector {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   case class PulsarEndPoint[T](producer: Producer[Array[Byte]]) extends EndPoint[T] {
-    override def sendAsync(message: T): Unit = producer.sendAsync(serialise(message))
-    override def close(): Unit               = producer.close()
+
+    override def sendAsync(message: T): Unit = {
+      logger.debug(s"sending message: '$message' to topic: '${producer.getTopic}'")
+      producer.sendAsync(serialise(message))
+    }
+    override def close(): Unit                         = producer.close()
+    override def flushAsync(): CompletableFuture[Void] = producer.flushAsync()
 
     override def closeWithMessage(message: T): Unit =
       producer
@@ -99,22 +105,25 @@ class PulsarConnector(config: Config) extends Connector {
       addresses: Seq[String],
       subscriptionType: SubscriptionType
   ): ConsumerBuilder[Array[Byte]] = {
-    val messageListener: MessageListener[Array[Byte]] =
-      (consumer, msg) => {
-        try {
-          val data: T = deserialise(msg.getValue)
-          messageHandler.apply(data)
-          consumer.acknowledgeAsync(msg)
-        }
-        catch {
-          case e: Exception =>
-            e.printStackTrace()
-            consumer.negativeAcknowledge(msg)
-            throw e
-        }
-        finally msg.release()
+    val messageListener: MessageListener[Array[Byte]] = { (consumer, msg) =>
+      try {
+        val data: T = deserialise(msg.getValue)
+        messageHandler.apply(data)
+        consumer.acknowledgeAsync(msg)
       }
-    configuredConsumerBuilder(messageHandler.hashCode().toString, Schema.BYTES, addresses)
+      catch {
+        case e: Exception =>
+          e.printStackTrace()
+          consumer.negativeAcknowledge(msg)
+          throw e
+      }
+      finally msg.release()
+    }
+    val subscriptionName = subscriptionType match {
+      case SubscriptionType.Exclusive => messageHandler.hashCode().toString
+      case SubscriptionType.Shared    => "shared"
+    }
+    configuredConsumerBuilder(subscriptionName, Schema.BYTES, addresses)
       .subscriptionType(subscriptionType)
       .messageListener(messageListener)
   }

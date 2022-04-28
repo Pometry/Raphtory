@@ -23,7 +23,7 @@ class BuilderExecutor[T: ClassTag](
 ) extends Component[T](conf) {
   private val safegraphBuilder     = Marshal.deepCopy(graphBuilder)
   private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
-  private val writers              = topics.graphUpdates.endPoint(update => getWriter(update.srcId))
+  private val writers              = topics.graphUpdates.endPoint
   private val spoutOutputListener  = topics.registerListener(handleMessage, topics.spoutOutput[T])
 
   private var messagesProcessed = 0
@@ -38,7 +38,7 @@ class BuilderExecutor[T: ClassTag](
   override def stop(): Unit = {
     logger.debug("Stopping Graph Builder executor.")
     spoutOutputListener.close()
-    writers.close()
+    writers.values.foreach(_.close())
   }
 
   override def handleMessage(msg: T): Unit =
@@ -49,7 +49,7 @@ class BuilderExecutor[T: ClassTag](
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
     logger.trace(s"Sending graph update: $graphUpdate")
 
-    writers.sendAsync(graphUpdate)
+    writers(getWriter(graphUpdate.srcId)).sendAsync(graphUpdate)
     //.thenApply(msgId => msgId -> null) TODO: remove I guess ?
 
     messagesProcessed = messagesProcessed + 1

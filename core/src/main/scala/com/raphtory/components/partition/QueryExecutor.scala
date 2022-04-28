@@ -67,8 +67,7 @@ class QueryExecutor(
 
   private val taskManager = topics.jobStatus(jobID).endPoint
 
-  private val neighbours =
-    topics.vertexMessages(jobID).endPoint(message => getWriter(message.vertexId))
+  private val neighbours = topics.vertexMessages(jobID).endPoint
 
   override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
@@ -79,7 +78,7 @@ class QueryExecutor(
   override def stop(): Unit = {
     listener.close()
     taskManager.close()
-    neighbours.close()
+    neighbours.values.foreach(_.close())
   }
 
   override def handleMessage(msg: QueryManagement): Unit = {
