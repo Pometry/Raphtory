@@ -1,11 +1,12 @@
 package com.raphtory.config
 
-object PulsarBasedDeployment extends PulsarConnector {
+import com.typesafe.config.Config
 
-  def apply(): (Scheduler, Gateway) = {
-    val scheduler: Scheduler = new MonixScheduler()
-    val gateway: Gateway     = new SingleConnectorGateway(new PulsarConnector())
+object PulsarBasedDeployment {
 
-    (scheduler, gateway)
+  def apply(config: Config): (Scheduler, TopicRepository) = {
+    val scheduler: Scheduler    = new MonixScheduler()
+    val topics: TopicRepository = new TopicRepository(new PulsarConnector(config), config)
+    (scheduler, topics)
   }
 }

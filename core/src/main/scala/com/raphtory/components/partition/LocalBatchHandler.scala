@@ -3,12 +3,9 @@ package com.raphtory.components.partition
 import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder._
 import com.raphtory.components.spout.Spout
-import com.raphtory.config.Gateway
-import com.raphtory.config.PulsarController
 import com.raphtory.config.Scheduler
 import com.typesafe.config.Config
 
-import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 import scala.reflect.ClassTag
@@ -20,13 +17,12 @@ class LocalBatchHandler[T: ClassTag](
     spout: Spout[T],
     graphBuilder: GraphBuilder[T],
     conf: Config,
-    gateway: Gateway,
     scheduler: Scheduler
-) extends Component[GraphAlteration](conf, gateway) {
+) extends Component[GraphAlteration](conf) {
 
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)
 
-  private val rescheduler    = () => {
+  private val rescheduler  = () => {
     spout.executeReschedule()
     runIngestion()
   }
@@ -35,7 +31,7 @@ class LocalBatchHandler[T: ClassTag](
       msg: GraphAlteration
   ): Unit = {} //No messages received by this component
 
-  override def setup(): Unit =
+  override def run(): Unit =
     runIngestion
 
   private def runIngestion(): Unit = {

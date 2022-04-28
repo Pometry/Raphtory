@@ -23,9 +23,9 @@ import com.raphtory.algorithms.api.Step
 import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFunction
 import com.raphtory.components.Component
-import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
 import com.raphtory.config.Scheduler
+import com.raphtory.config.TopicRepository
 import com.raphtory.graph.Perspective
 import com.raphtory.graph.PerspectiveController
 import com.typesafe.config.Config
@@ -47,15 +47,16 @@ class QueryHandler(
     jobID: String,
     query: Query,
     conf: Config,
-    gateway: Gateway
-) extends Component[QueryManagement](conf, gateway) {
+    topics: TopicRepository
+) extends Component[QueryManagement](conf) {
   val deploymentID: String = conf.getString("raphtory.deploy.id")
-  private val self         = gateway.toRechecks(jobID)
-  private val readers      = gateway.toQueryPrep
-  private val tracker      = gateway.toQueryTrack(jobID)
+  private val self         = topics.rechecks(jobID).endPoint
+  private val readers      = topics.queryPrep.endPoint
+  private val tracker      = topics.queryTrack(jobID).endPoint
+  private val workerList   = topics.jobOperations(jobID).endPoint
 
-  private val workerList =
-    gateway.toJobOperations(jobID)
+  private val listener =
+    topics.registerListener(handleMessage, Seq(topics.rechecks(jobID), topics.jobStatus(jobID)))
 
   private var perspectiveController: PerspectiveController = _
   private var graphFunctions: mutable.Queue[GraphFunction] = _
@@ -77,24 +78,18 @@ class QueryHandler(
 
   private var currentState: Stage = SpawnExecutors
 
-  private def recheckTimer(): Unit = self sendAsync RecheckTime
-
+  private def recheckTimer(): Unit         = self sendAsync RecheckTime
   private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
-
-  override def setup(): Unit = {
+  override def run(): Unit = {
     readers sendAsync EstablishExecutor(jobID)
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
+    listener.start()
   }
 
-  override def stopHandler(): Unit = {
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-      case None        =>
-    }
+  override def stop(): Unit = {
+    listener.close()
     self.close()
     readers.close()
     tracker.close()

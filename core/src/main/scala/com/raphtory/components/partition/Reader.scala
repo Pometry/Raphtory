@@ -6,9 +6,9 @@ import com.raphtory.components.querymanager.EstablishExecutor
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.WatermarkTime
 import com.raphtory.config.Cancelable
-import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
 import com.raphtory.config.Scheduler
+import com.raphtory.config.TopicRepository
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Consumer
@@ -23,10 +23,11 @@ class Reader(
     storage: GraphPartition,
     scheduler: Scheduler,
     conf: Config,
-    gateway: Gateway
-) extends Component[QueryManagement](conf, gateway) {
+    topics: TopicRepository
+) extends Component[QueryManagement](conf) {
   private val executorMap                               = mutable.Map[String, QueryExecutor]()
-  private val watermarkPublish                          = gateway.toWatermark
+  private val watermarkPublish                          = topics.watermark.endPoint
+  private val queryPrepListener                         = topics.registerListener(handleMessage, topics.queryPrep)
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
   var scheduledWatermark: Option[Cancelable]            = None
   private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
@@ -35,18 +36,14 @@ class Reader(
     override def run(): Unit = createWatermark()
   }
 
-  override def setup(): Unit = {
+  override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
-
+    queryPrepListener.start()
     scheduleWaterMarker()
   }
 
-  override def stopHandler(): Unit = {
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-      case None        =>
-    }
+  override def stop(): Unit = {
+    queryPrepListener.close()
     scheduledWatermark.foreach(_.cancel())
     watermarkPublish.close()
     executorMap.foreach(_._2.stop())
@@ -56,7 +53,7 @@ class Reader(
     msg match {
       case req: EstablishExecutor =>
         val jobID         = req.jobID
-        val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, gateway)
+        val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, topics)
         scheduler.execute(queryExecutor)
         executorMap += ((jobID, queryExecutor))
 

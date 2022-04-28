@@ -3,6 +3,9 @@ package com.raphtory.config
 import com.raphtory.components.Component
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
+import org.apache.pulsar.client.admin.PulsarAdmin
+import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.ConsumerBuilder
 import org.apache.pulsar.client.api.MessageListener
@@ -11,11 +14,14 @@ import org.apache.pulsar.client.api.PulsarClient
 import org.apache.pulsar.client.api.Schema
 import org.apache.pulsar.client.api.SubscriptionInitialPosition
 import org.apache.pulsar.client.api.SubscriptionType
+import org.apache.pulsar.common.policies.data.RetentionPolicies
+import org.slf4j.LoggerFactory
 
 import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters._
 
 class PulsarConnector(config: Config) extends Connector {
+  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   case class PulsarEndPoint[T](producer: Producer[Array[Byte]]) extends EndPoint[T] {
     override def sendAsync(message: T): Unit = producer.sendAsync(serialise(message))
@@ -52,42 +58,52 @@ class PulsarConnector(config: Config) extends Connector {
       .serviceUrl(pulsarAdminAddress)
       .build()
 
-  override def registerExclusiveListener[T](component: Component[T], address: String): Unit = {
-    val consumerBuilder = configuredConsumerBuilder(address, Schema.BYTES, Seq(address))
-      .subscriptionType(SubscriptionType.Exclusive)
-    registerListener[T](component, consumerBuilder)
+  val pulsarAdmin: PulsarAdmin = PulsarAdmin.builder
+    .serviceHttpUrl(pulsarAdminAddress)
+    .tlsTrustCertsFilePath(null)
+    .allowTlsInsecureConnection(false)
+    .build
+
+  override def register[T](
+      messageHandler: T => Unit,
+      topics: Seq[CanonicalTopic[T]]
+  ): CancelableListener = {
+    val consumerBuilders = topics
+      .groupBy {
+        case _: WorkPullTopic[T] => SubscriptionType.Shared
+        case _                   => SubscriptionType.Exclusive
+      }
+      .view
+      .mapValues(_ map createTopic)
+      .map {
+        case (subscriptionType, addresses) =>
+          registerListener(messageHandler, addresses, subscriptionType)
+      }
+      .toSeq
+
+    new CancelableListener {
+      var consumers: Seq[Consumer[Array[Byte]]] = _
+      override def start(): Unit                = consumers = consumerBuilders map (_.subscribe())
+      override def close(): Unit                = consumers foreach (_.close())
+    }
   }
 
-  override def registerBroadcastListener[T](
-      component: Component[T],
-      address: String,
-      partition: Int
-  ): Unit = {
-    val consumerBuilder =
-      configuredConsumerBuilder(s"$address-$partition", Schema.BYTES, Seq(address))
-        .subscriptionType(SubscriptionType.Exclusive)
-    registerListener(component, consumerBuilder)
+  override def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T] = {
+    val producerTopic = createTopic(topic)
+    val producer      = createProducer(Schema.BYTES, producerTopic)
+    PulsarEndPoint[T](producer)
   }
-
-  override def registerWorkPullListener[T](component: Component[T], address: String): Unit = {
-    val consumerBuilder = configuredConsumerBuilder(address, Schema.BYTES, Seq(address))
-      .subscriptionType(SubscriptionType.Shared)
-    registerListener(component, consumerBuilder)
-  }
-
-  override def createExclusiveEndPoint[T](address: String): EndPoint[T] = createEndPoint(address)
-  override def createWorkPullEndPoint[T](address: String): EndPoint[T]  = createEndPoint(address)
-  override def createBroadcastEndPoint[T](address: String): EndPoint[T] = createEndPoint(address)
 
   private def registerListener[T](
-      component: Component[T],
-      consumerBuilder: ConsumerBuilder[Array[Byte]]
-  ): Unit = {
+      messageHandler: T => Unit,
+      addresses: Seq[String],
+      subscriptionType: SubscriptionType
+  ): ConsumerBuilder[Array[Byte]] = {
     val messageListener: MessageListener[Array[Byte]] =
       (consumer, msg) => {
         try {
           val data: T = deserialise(msg.getValue)
-          component.handleMessage(data)
+          messageHandler.apply(data)
           consumer.acknowledgeAsync(msg)
         }
         catch {
@@ -98,19 +114,13 @@ class PulsarConnector(config: Config) extends Connector {
         }
         finally msg.release()
       }
-    component.listeningSetup.add { () =>
-      val consumer = consumerBuilder.messageListener(messageListener).subscribe()
-      component.listeningCleanup.add(consumer.close)
-    }
+    configuredConsumerBuilder(messageHandler.hashCode().toString, Schema.BYTES, addresses)
+      .subscriptionType(subscriptionType)
+      .messageListener(messageListener)
   }
 
   private def deserialise[T](bytes: Array[Byte]): T = kryo.deserialise[T](bytes)
   private def serialise(value: Any): Array[Byte]    = kryo.serialise(value)
-
-  private def createEndPoint[T](topic: String): EndPoint[T] = {
-    val producer: Producer[Array[Byte]] = createProducer(Schema.BYTES, topic)
-    PulsarEndPoint[T](producer)
-  }
 
   private def configuredConsumerBuilder[T](
       subscriptionName: String,
@@ -127,6 +137,37 @@ class PulsarConnector(config: Config) extends Connector {
       .receiverQueueSize(200_000)
       .poolMessages(true)
 
+  private def createTopic[T](topic: Topic[T]): String = {
+    val persistence = true
+
+//    val tenant        = config.getString(s"raphtory.$component.tenant") TODO: reenable this
+//    val namespace     = config.getString(s"raphtory.$component.namespace")
+//    val retentionTime = config.getString(s"raphtory.$component.retentionTime").toInt
+//    val retentionSize = config.getString(s"raphtory.$component.retentionSize").toInt
+    val tenant        = "public"
+    val namespace     = config.getString("raphtory.deploy.id")
+    val retentionTime = config.getString(s"raphtory.pulsar.retention.time").toInt
+    val retentionSize = config.getString(s"raphtory.pulsar.retention.size").toInt
+
+    try {
+      pulsarAdmin.namespaces().createNamespace(s"$tenant/$namespace")
+      setRetentionNamespace(
+              namespace = s"$tenant/$namespace",
+              retentionTime = retentionTime,
+              retentionSize = retentionSize
+      )
+    }
+    catch {
+      case _: PulsarAdminException =>
+        logger.debug(s"Namespace $namespace already exists.")
+    }
+
+    val subTopicSuffix = if (topic.subTopic.nonEmpty) s"-${topic.subTopic}" else ""
+    val protocol       = if (!persistence) "non-persistent" else "persistent"
+
+    s"$protocol://$tenant/$namespace/${topic.id}$subTopicSuffix"
+  }
+
   private def createProducer[T](schema: Schema[T], topic: String): Producer[T] =
     client
       .newProducer(schema)
@@ -137,4 +178,28 @@ class PulsarConnector(config: Config) extends Connector {
       .blockIfQueueFull(true)
       .maxPendingMessages(1000)
       .create()
+
+  private def setRetentionNamespace(
+      namespace: String,
+      retentionTime: Int,
+      retentionSize: Int
+  ): Unit = {
+    // TODO Re-enable and parameterise limitSize and limitTime
+    //  Adding Backlog { } to conf and doing conf.hasPath
+    //    pulsarAdmin
+    //      .namespaces()
+    //      .setBacklogQuota(
+    //              namespace,
+    //              BacklogQuota
+    //                .builder()
+    //                .limitSize(retentionSize)
+    //                .limitTime(retentionTime)
+    //                .retentionPolicy(RetentionPolicy.producer_exception)
+    //                .build()
+    //      )
+
+    val policies = new RetentionPolicies(retentionTime, retentionSize)
+    pulsarAdmin.namespaces.setRetention(namespace, policies)
+    pulsarAdmin.namespaces().setDeduplicationStatus(namespace, false)
+  }
 }

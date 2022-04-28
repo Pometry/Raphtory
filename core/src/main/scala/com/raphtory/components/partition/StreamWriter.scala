@@ -16,8 +16,8 @@ import com.raphtory.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.components.graphbuilder.VertexAdd
 import com.raphtory.components.graphbuilder.VertexDelete
 import com.raphtory.components.graphbuilder.VertexRemoveSyncAck
-import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
+import com.raphtory.config.TopicRepository
 import com.raphtory.graph._
 import com.typesafe.config.Config
 import org.apache.pulsar.client.admin.PulsarAdminException
@@ -34,19 +34,21 @@ class StreamWriter(
     partitionID: Int,
     storage: GraphPartition,
     conf: Config,
-    gateway: Gateway
-) extends Component[GraphAlteration](conf, gateway) {
-  private val neighbours        = gateway.toGraphSync(effect => getWriter(effect.updateId))
+    topics: TopicRepository
+) extends Component[GraphAlteration](conf) {
+  private val neighbours        = topics.graphSync.endPoint(effect => getWriter(effect.updateId))
+
+  private val listener          =
+    topics.registerListener(handleMessage, Seq(topics.graphUpdates, topics.graphSync), partitionID)
   private var processedMessages = 0
 
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  override def run(): Unit =
+    listener.start()
 
-  override def stopHandler(): Unit =
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-      case None        =>
-    }
+  override def stop(): Unit = {
+    neighbours.close()
+    listener.close()
+  }
 
   override def handleMessage(msg: GraphAlteration): Unit = {
     msg match {

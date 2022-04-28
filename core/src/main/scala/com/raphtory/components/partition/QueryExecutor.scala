@@ -28,8 +28,8 @@ import com.raphtory.components.querymanager.TableBuilt
 import com.raphtory.components.querymanager.TableFunctionComplete
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
-import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
+import com.raphtory.config.TopicRepository
 import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
 import com.raphtory.output.PulsarOutputFormat
@@ -48,8 +48,8 @@ class QueryExecutor(
     storage: GraphPartition,
     jobID: String,
     conf: Config,
-    gateway: Gateway
-) extends Component[QueryManagement](conf, gateway) {
+    topics: TopicRepository
+) extends Component[QueryManagement](conf) {
 
   var currentTimestamp: Long              = _
   var currentWindow: Option[Interval]     = _
@@ -59,23 +59,25 @@ class QueryExecutor(
   var votedToHalt: Boolean                = false
   var filtered: Boolean                   = false
 
-  private val taskManager = gateway.toJobStatus(jobID)
+  private val listener = topics.registerListener(
+          handleMessage,
+          Seq(topics.jobOperations(jobID), topics.vertexMessages(jobID)),
+          partitionID
+  )
 
-  private val neighbours                                =
-    gateway.toVertexMessages(jobID, message => getWriter(message.vertexId))
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  private val taskManager = topics.jobStatus(jobID).endPoint
 
-  override def setup(): Unit = {
+  private val neighbours =
+    topics.vertexMessages(jobID).endPoint(message => getWriter(message.vertexId))
+
+  override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
+    listener.start()
     taskManager sendAsync ExecutorEstablished(partitionID)
   }
 
-  override def stopHandler(): Unit = {
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-      case None        =>
-    }
+  override def stop(): Unit = {
+    listener.close()
     taskManager.close()
     neighbours.close()
   }

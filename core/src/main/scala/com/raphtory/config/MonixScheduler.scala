@@ -29,7 +29,7 @@ private[raphtory] class MonixScheduler extends Scheduler {
           AlwaysAsyncExecution
   )
 
-  override def execute(component: Component): Unit = scheduler.execute(() => component.run())
+  override def execute[T](component: Component[T]): Unit = scheduler.execute(() => component.run())
 
   override def scheduleOnce(delay: FiniteDuration, task: => Unit): Cancelable = {
     val cancelable = scheduler.scheduleOnce(delay)(task)

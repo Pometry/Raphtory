@@ -24,7 +24,7 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
 /** @DoNotDocument */
-private[raphtory] class ComponentFactory(conf: Config, gateway: Gateway) {
+private[raphtory] class ComponentFactory(conf: Config, topicRepo: TopicRepository) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def builder[T: ClassTag](
@@ -55,8 +55,7 @@ private[raphtory] class ComponentFactory(conf: Config, gateway: Gateway) {
           )
 
         val builderExecutor =
-          new BuilderExecutor[T](builderId.toString, graphBuilder, conf, gateway)
-        gateway.registerBuilderExecutor(builderExecutor)
+          new BuilderExecutor[T](builderId.toString, graphBuilder, conf, topicRepo)
         scheduler.execute(builderExecutor)
         ThreadedWorker(builderExecutor)
       }
@@ -109,7 +108,7 @@ private[raphtory] class ComponentFactory(conf: Config, gateway: Gateway) {
         )
         partitionIDs += i
 
-        val reader: Reader = new Reader(partitionID, storage, scheduler, conf, gateway)
+        val reader: Reader = new Reader(partitionID, storage, scheduler, conf, topicRepo)
         scheduler.execute(reader)
 
         (storage, reader)
@@ -121,7 +120,6 @@ private[raphtory] class ComponentFactory(conf: Config, gateway: Gateway) {
               spout.get,
               graphBuilder.get,
               conf,
-              gateway,
               scheduler
       )
       scheduler.execute(batchHandler)
@@ -142,10 +140,10 @@ private[raphtory] class ComponentFactory(conf: Config, gateway: Gateway) {
 
           val storage = new PojoBasedPartition(partitionID, conf)
 
-          val writer = new StreamWriter(partitionID, storage, conf, gateway)
+          val writer = new StreamWriter(partitionID, storage, conf, topicRepo)
           scheduler.execute(writer)
 
-          val reader = new Reader(partitionID, storage, scheduler, conf, gateway)
+          val reader = new Reader(partitionID, storage, scheduler, conf, topicRepo)
           scheduler.execute(reader)
 
           (storage, reader, writer)
@@ -163,7 +161,7 @@ private[raphtory] class ComponentFactory(conf: Config, gateway: Gateway) {
       scheduler: Scheduler
   ): Option[ThreadedWorker[T]] =
     if (!batchLoading) {
-      val spoutExecutor = new SpoutExecutor[T](spout, conf, gateway, scheduler)
+      val spoutExecutor = new SpoutExecutor[T](spout, conf, topicRepo, scheduler)
       logger.info(s"Creating new Spout.")
 
       scheduler.execute(spoutExecutor)
@@ -174,8 +172,7 @@ private[raphtory] class ComponentFactory(conf: Config, gateway: Gateway) {
   def query(scheduler: Scheduler): ThreadedWorker[QueryManagement] = {
     logger.info(s"Creating new Query Manager.")
 
-    val queryManager = new QueryManager(scheduler, conf, gateway)
-    gateway.registerQueryManager(queryManager)
+    val queryManager = new QueryManager(scheduler, conf, topicRepo)
     scheduler.execute(queryManager)
     ThreadedWorker(queryManager)
   }
@@ -188,8 +185,7 @@ private[raphtory] class ComponentFactory(conf: Config, gateway: Gateway) {
             s"Creating new Query Progress Tracker for '$jobID'."
     )
 
-    val queryTracker = new QueryProgressTracker(jobID, conf, gateway)
-    gateway.registerQueryProgressTracker(queryTracker, jobID)
+    val queryTracker = new QueryProgressTracker(jobID, conf, topicRepo)
     scheduler.execute(queryTracker)
 
     queryTracker

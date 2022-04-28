@@ -3,8 +3,8 @@ package com.raphtory.components.querytracker
 import com.raphtory.components.Component
 import com.raphtory.components.querymanager.JobDone
 import com.raphtory.components.querymanager.QueryManagement
-import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
+import com.raphtory.config.TopicRepository
 import com.raphtory.graph.Perspective
 import com.typesafe.config.Config
 import monix.eval.Task
@@ -66,13 +66,12 @@ class DoneException extends Exception
 class QueryProgressTracker(
     jobID: String,
     conf: Config,
-    gateway: Gateway
-) extends Component[QueryManagement](conf, gateway) {
+    topics: TopicRepository
+) extends Component[QueryManagement](conf) {
   private var perspectivesProcessed: Long = 0
   private var jobDone: Boolean            = false
 
-  private var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
-
+  private val queryTrackListener                        = topics.registerListener(handleMessage, topics.queryTrack(jobID))
   private var latestPerspective: Option[Perspective]    = None
   private val perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
   private val perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
@@ -128,16 +127,14 @@ class QueryProgressTracker(
         isJobDoneFuture.cancel()
     }
 
-  override def setup(): Unit =
+  override def run(): Unit = {
     logger.info(s"Job $jobID: Starting query progress tracker.")
+    queryTrackListener.start()
+  }
 
-  override def stopHandler(): Unit = {
+  override def stop(): Unit = {
     logger.debug(s"Stopping QueryProgressTracker for $jobID")
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-      case None        =>
-    }
+    queryTrackListener.close()
   }
 
   def getJobId: String =

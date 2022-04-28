@@ -1,0 +1,155 @@
+package com.raphtory.config
+
+import com.raphtory.components.Component
+import com.raphtory.components.graphbuilder.BuilderExecutor
+import com.raphtory.components.graphbuilder.GraphAlteration
+import com.raphtory.components.graphbuilder.GraphUpdate
+import com.raphtory.components.graphbuilder.GraphUpdateEffect
+import com.raphtory.components.partition.BatchWriter
+import com.raphtory.components.partition.QueryExecutor
+import com.raphtory.components.partition.Reader
+import com.raphtory.components.partition.StreamWriter
+import com.raphtory.components.querymanager.EndQuery
+import com.raphtory.components.querymanager.GenericVertexMessage
+import com.raphtory.components.querymanager.Query
+import com.raphtory.components.querymanager.QueryHandler
+import com.raphtory.components.querymanager.QueryManagement
+import com.raphtory.components.querymanager.QueryManager
+import com.raphtory.components.querymanager.WatermarkTime
+import com.raphtory.components.querytracker.QueryProgressTracker
+import com.raphtory.graph.Perspective
+import com.typesafe.config.Config
+
+import scala.reflect.ClassTag
+
+class TopicRepository(defaultConnector: Connector, conf: Config) {
+
+  // Methods to override:
+  protected def spoutOutputConnector: Connector  = defaultConnector
+  protected def graphUpdatesConnector: Connector = defaultConnector
+  protected def graphSyncConnector: Connector    = defaultConnector
+  protected def queriesConnector: Connector      = defaultConnector
+  protected def endedQueriesConnector: Connector = defaultConnector
+  protected def watermarkConnector: Connector    = defaultConnector
+  protected def queryPrepConnector: Connector    = defaultConnector
+
+  protected def queryTrackConnector: Connector     = defaultConnector
+  protected def rechecksConnector: Connector       = defaultConnector
+  protected def jobStatusConnector: Connector      = defaultConnector
+  protected def vertexMessagesConnector: Connector = defaultConnector
+  protected def jobOperationsConnector: Connector  = defaultConnector
+
+  // Configuration
+  val spoutAddress: String     = conf.getString("raphtory.spout.topic")
+  val depId: String            = conf.getString("raphtory.deploy.id")
+  val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
+  val numPartitions: Int       = partitionServers * partitionsPerServer
+
+  // Global topics
+  def spoutOutput[T]: WorkPullTopic[T] = WorkPullTopic[T](spoutOutputConnector, spoutAddress)
+
+  def graphUpdates: ShardingTopic[GraphUpdate] =
+    ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graph-updates", depId)
+
+  def graphSync: ShardingTopic[GraphUpdateEffect] =
+    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph-sync", depId)
+
+  def queries: ExclusiveTopic[Query] = ExclusiveTopic[Query](queriesConnector, s"queries", depId)
+
+  def endedQueries: ExclusiveTopic[EndQuery] =
+    ExclusiveTopic[EndQuery](endedQueriesConnector, "ended-queries", depId)
+
+  def watermark: ExclusiveTopic[WatermarkTime] =
+    ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", depId)
+
+  def queryPrep: BroadcastTopic[QueryManagement] =
+    BroadcastTopic[QueryManagement](queryPrepConnector, "query-prep", depId)
+
+  // Job wise topics
+  def queryTrack(jobId: String): ExclusiveTopic[QueryManagement] =
+    ExclusiveTopic[QueryManagement](queryTrackConnector, "query-track", s"$depId-$jobId")
+
+  def rechecks(jobId: String): ExclusiveTopic[QueryManagement] =
+    ExclusiveTopic[QueryManagement](rechecksConnector, "recheck", s"$depId-$jobId")
+
+  def jobStatus(jobId: String): ExclusiveTopic[QueryManagement] =
+    ExclusiveTopic[QueryManagement](jobStatusConnector, "job-status", s"$depId-$jobId")
+
+  def vertexMessages(jobId: String): ShardingTopic[GenericVertexMessage] =
+    ShardingTopic[GenericVertexMessage](
+            numPartitions,
+            vertexMessagesConnector,
+            "vertex-msg",
+            s"$depId-$jobId"
+    )
+
+  def jobOperations(jobId: String): BroadcastTopic[QueryManagement] =
+    BroadcastTopic[QueryManagement](jobOperationsConnector, s"job-ops", s"$depId-$jobId")
+
+  // Registering functions
+  def registerBuilderExecutor(component: BuilderExecutor[Any]): CancelableListener =
+    registerListener(component.handleMessage, Seq(spoutOutput))
+
+  def registerStreamWriter(component: StreamWriter, partition: Int): CancelableListener =
+    registerListener(component.handleMessage, Seq(graphUpdates, graphSync), partition)
+
+  def registerReader(component: Reader): CancelableListener =
+    registerListener(component.handleMessage, Seq(queryPrep))
+
+  def registerQueryManager(component: QueryManager): CancelableListener =
+    registerListener(component.handleMessage, Seq(queries, endedQueries, watermark))
+
+  def registerQueryProgressTracker(
+      component: QueryProgressTracker,
+      jobId: String
+  ): CancelableListener =
+    registerListener(component.handleMessage, Seq(queryTrack(jobId)))
+
+  def registerQueryHandler(component: QueryHandler, jobId: String): CancelableListener =
+    registerListener(component.handleMessage, Seq(rechecks(jobId), jobStatus(jobId)))
+
+  def registerQueryExecutor(
+      component: QueryExecutor,
+      jobId: String,
+      partition: Int
+  ): CancelableListener =
+    registerListener(
+            component.handleMessage,
+            Seq(vertexMessages(jobId), jobOperations(jobId)),
+            partition
+    )
+
+  def registerListener[T](
+      messageHandler: T => Unit,
+      topic: CanonicalTopic[T]
+  ): CancelableListener = registerListener(messageHandler, Seq(topic))
+
+  def registerListener[T](
+      messageHandler: T => Unit,
+      topics: Seq[CanonicalTopic[T]]
+  ): CancelableListener = registerListener(messageHandler, topics, 0)
+
+  def registerListener[T](
+      messageHandler: T => Unit,
+      topic: Topic[T],
+      partition: Int
+  ): CancelableListener = registerListener(messageHandler, Seq(topic), partition)
+
+  def registerListener[T](
+      messageHandler: T => Unit,
+      topics: Seq[Topic[T]],
+      partition: Int
+  ): CancelableListener = {
+    val listeners = topics
+      .map {
+        case topic: ShardingTopic[T]  => topic.exclusiveTopicForPartition(partition)
+        case topic: CanonicalTopic[T] => topic
+      }
+      .groupBy(_.connector)
+      .map { case (connector, topics) => connector.register(messageHandler, topics) }
+      .toSeq
+
+    CancelableListener(listeners)
+  }
+}

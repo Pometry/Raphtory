@@ -1,9 +1,9 @@
 package com.raphtory.components.querymanager
 
 import com.raphtory.components.Component
-import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
 import com.raphtory.config.Scheduler
+import com.raphtory.config.TopicRepository
 import com.typesafe.config.Config
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
@@ -13,22 +13,22 @@ import org.apache.pulsar.client.api.Schema
 import scala.collection.mutable
 
 /** @DoNotDocument */
-class QueryManager(scheduler: Scheduler, conf: Config, gateway: Gateway)
-        extends Component[QueryManagement](conf, gateway) {
-  private val currentQueries                            = mutable.Map[String, QueryHandler]()
+class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
+        extends Component[QueryManagement](conf) {
+  private val currentQueries = mutable.Map[String, QueryHandler]()
   //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: remove?
-  private val watermarks                                = mutable.Map[Int, WatermarkTime]()
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  private val watermarks     = mutable.Map[Int, WatermarkTime]()
 
-  override def setup(): Unit =
+  private val listener = topics
+    .registerListener(handleMessage, Seq(topics.queries, topics.watermark, topics.endedQueries))
+
+  override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
+    listener.start()
+  }
 
-  override def stopHandler(): Unit = {
-    cancelableConsumer match {
-      case Some(value) =>
-        value.close()
-      case None        =>
-    }
+  override def stop(): Unit = {
+    listener.close()
     currentQueries.foreach(_._2.stop())
     // watermarkGlobal.close() TODO: remove?
   }
@@ -67,7 +67,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, gateway: Gateway)
             id,
             query,
             conf,
-            gateway
+            topics
     )
     scheduler.execute(queryHandler)
     queryHandler

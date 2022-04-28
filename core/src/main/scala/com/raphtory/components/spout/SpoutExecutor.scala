@@ -2,9 +2,9 @@ package com.raphtory.components.spout
 
 import com.raphtory.components.Component
 import com.raphtory.config.Cancelable
-import com.raphtory.config.Gateway
 import com.raphtory.config.PulsarController
 import com.raphtory.config.Scheduler
+import com.raphtory.config.TopicRepository
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Message
 
@@ -18,9 +18,9 @@ import scala.concurrent.duration.DurationInt
 class SpoutExecutor[T](
     spout: Spout[T],
     conf: Config,
-    private val gateway: Gateway,
+    topics: TopicRepository,
     scheduler: Scheduler
-) extends Component[T](conf, gateway) {
+) extends Component[T](conf) {
   protected val failOnError: Boolean           = conf.getBoolean("raphtory.spout.failOnError")
   private var linesProcessed: Int              = 0
   private var scheduledRun: Option[Cancelable] = None
@@ -30,17 +30,17 @@ class SpoutExecutor[T](
       spout.executeReschedule()
       executeSpout()
     }: Unit
-  private val builders        = gateway.toSpoutOutput
+  private val builders        = topics.spoutOutput[T].endPoint
 
-  override def stopHandler(): Unit = {
+  override def stop(): Unit = {
     scheduledRun.foreach(_.cancel())
     builders.close()
   }
 
-  override def handleMessage(msg: T): Unit = {} //Currently nothing to listen to here
-
-  override def setup(): Unit =
+  override def run(): Unit =
     executeSpout()
+
+  override def handleMessage(msg: T): Unit = {} //No messages received by this component
 
   private def executeSpout() = {
     SpoutTelemetry.totalSpoutReschedules.inc()
