@@ -36,8 +36,9 @@ class PulsarConnector(config: Config) extends Connector {
     override def closeWithMessage(message: T): Unit =
       producer
         .flushAsync()
-        .thenApply(_ => producer.send(serialise(message)))
-        .thenApply(_ => producer.close())
+        .thenApply(_ =>
+          producer.sendAsync(serialise(message)).thenApply(_ => producer.closeAsync())
+        )
   }
 
   val pulsarAddress: String         = config.getString("raphtory.pulsar.broker.address")

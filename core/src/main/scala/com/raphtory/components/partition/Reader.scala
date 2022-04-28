@@ -32,10 +32,6 @@ class Reader(
   var scheduledWatermark: Option[Cancelable]            = None
   private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
 
-  private val watermarking = new Runnable {
-    override def run(): Unit = createWatermark()
-  }
-
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
     queryPrepListener.start()
@@ -116,7 +112,7 @@ class Reader(
     logger.trace("Scheduled watermarker to recheck time in 1 second.")
     scheduledWatermark = Some(
             scheduler
-              .scheduleOnce(1.seconds, watermarking)
+              .scheduleOnce(1.seconds, createWatermark)
     )
   }
 
