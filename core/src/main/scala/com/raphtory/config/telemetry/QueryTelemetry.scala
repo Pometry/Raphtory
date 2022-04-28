@@ -26,21 +26,21 @@ object QueryTelemetry {
   def vertexCount(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_vertex_count_${ID}_total")
+      .name(s"handler_vertex_count_$ID")
       .help("Total vertex count in Query Handler")
       .register
 
   def receivedMessageCount(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_received_messages_${ID}_total")
+      .name(s"handler_received_messages_$ID")
       .help("Total received messages count in Query Handler")
       .register
 
   def sentMessageCount(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_sent_messages_${ID}_total")
+      .name(s"handler_sent_messages_$ID")
       .help("Total sent messages count in Query Handler")
       .register
 
@@ -61,28 +61,28 @@ object QueryTelemetry {
   def totalGraphOperations(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_graph_operations_${ID}_total")
+      .name(s"handler_graph_operations_$ID")
       .help("Total graph operations by Query Handler")
       .register
 
   def totalTableOperations(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_table_operations_${ID}_total")
+      .name(s"handler_table_operations_$ID")
       .help("Total table operations by Query Handler")
       .register
 
   def totalPerspectivesProcessed(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_perspectives_processed_${ID}_total")
+      .name(s"handler_perspectives_processed_$ID")
       .help("Total perspectives processed by Query Handler")
       .register
 
   def totalQueriesSpawned(deploymentID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"manager_queries_spawned_deploymentID_${deploymentID}_total")
+      .name(s"manager_queries_spawned_deploymentID_$deploymentID")
       .help("Total queries spawned by Query Manager")
       .register
 

@@ -35,70 +35,70 @@ object PartitionTelemetry {
   def batchWriterVertexAdditions(partitionID: Int): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
-      .name(s"batch_vertex_adds_partitionID_${partitionID.toString}_total")
+      .name(s"batch_vertex_adds_partitionID_${partitionID.toString}")
       .help("Total vertex additions for Batch Writer")
       .register()
 
   def batchWriterEdgeAdditions(partitionID: Int): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
-      .name(s"batch_edge_adds_partitionID_${partitionID.toString}_total")
+      .name(s"batch_edge_adds_partitionID_${partitionID.toString}")
       .help("Total edge additions for Batch Writer")
       .register()
 
   def batchWriterRemoteEdgeAdditions(partitionID: Int): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
-      .name(s"batch_remote_edge_adds_partitionID_${partitionID.toString}_total")
+      .name(s"batch_remote_edge_adds_partitionID_${partitionID.toString}")
       .help("Total remote edge additions for Batch Writer")
       .register()
 
   def streamWriterGraphUpdates(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
-      .name(s"stream_graph_updates_${ID}_total")
+      .name(s"stream_graph_updates_$ID")
       .help("Total graph updates for Stream Writer")
       .register()
 
   def totalSyncedStreamWriterUpdates(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
-      .name(s"stream_synced_updates_${ID}_total")
+      .name(s"stream_synced_updates_$ID")
       .help("Total synced updates for Stream Writer")
       .register()
 
   def streamWriterRemoteGraphUpdates(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
-      .name(s"stream_remote_graph_updates_${ID}_total")
+      .name(s"stream_remote_graph_updates_$ID")
       .help("Total remote graph updates for Stream Writer")
       .register()
 
   def streamWriterVertexAdditions(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
-      .name(s"stream_vertex_adds_${ID}_total")
+      .name(s"stream_vertex_adds_$ID")
       .help("Total vertex additions for Stream Writer")
       .register()
 
   def streamWriterVertexDeletions(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
-      .name(s"stream_vertex_deletes_${ID}_total")
+      .name(s"stream_vertex_deletes_$ID")
       .help("Total vertex deletions for Stream Writer")
       .register()
 
   def streamWriterEdgeAdditions(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
-      .name(s"stream_edge_adds_${ID}_total")
+      .name(s"stream_edge_adds_$ID")
       .help("Total edge additions for Stream Writer")
       .register()
 
   def streamWriterEdgeDeletions(ID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
-      .name(s"stream_edge_deletes_${ID}_total")
+      .name(s"stream_edge_deletes_$ID")
       .help("Total edge deletions for Stream Writer")
       .register()
 
