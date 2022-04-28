@@ -27,7 +27,6 @@ class JsonOutputFormat(filePath: String) extends OutputFormat {
     val gsonBuilder = new GsonBuilder()
       .setPrettyPrinting()
       .create()
-    gsonBuilder.toJson(row.getValues())
 
     val value = s"${gsonBuilder.toJson(row.getValues())}"
     reflect.io.File(s"$filePath/$jobID/partition-$partitionID").appendAll(value)
