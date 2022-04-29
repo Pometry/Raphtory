@@ -32,6 +32,7 @@ import com.raphtory.components.querymanager.TableFunctionComplete
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
 import com.raphtory.config.PulsarController
+import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
 import com.raphtory.output.PulsarOutputFormat
@@ -128,6 +129,16 @@ class QueryExecutor(
           sentMessageCount.set(0)
           receivedMessageCount.set(0)
           taskManager sendAsync serialise(PerspectiveEstablished(lens.getSize()))
+          val id   = window match {
+            case Some(value) =>
+              s"${jobID}_partitionID_${partitionID}_time_${timestamp}_window_$value"
+            case None        => s"${jobID}_partitionID_${partitionID}_time_$timestamp"
+          }
+          StorageTelemetry
+            .pojoLensGraphSize(
+                    id
+            )
+            .set(graphLens.getFullGraphSize)
           logger.debug(
                   s"Job '$jobID' at Partition '$partitionID': Created perspective at time '$timestamp' with window '$window'. in ${System
                     .currentTimeMillis() - time}ms"

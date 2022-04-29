@@ -1,7 +1,9 @@
 package com.raphtory.config.telemetry
 
 import com.raphtory.config.ConfigHandler
-import io.prometheus.client.{Counter, Gauge}
+import io.prometheus.client.Counter
+
+import scala.collection.mutable
 
 /**
   * {s}`GraphBuilderTelemetry`
@@ -9,52 +11,44 @@ import io.prometheus.client.{Counter, Gauge}
   *
   *    Exposes Counter and Gauge stats for tracking number of vertices and edges added and deleted, total partitions created
   *    by the graph builder
-  *    Statistics are made available on http://localhost:8899 on running tests and can be visualised using Grafana dashboards
-  *
-  *
+  *    Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object BuilderTelemetry {
-
   val conf = new ConfigHandler().getConfig
 
-  def totalVertexAdds(builderID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.builder_namespace"))
-      .name("graph_builder_vertex_adds_" + builderID)
-      .help("Total vertices added by graph builder")
+  def totalVertexAdds(deploymentID: String): Counter =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.builder"))
+      .name(s"vertex_add_$deploymentID")
+      .help("Total vertices added by Graph Builder")
       .register
 
-  def totalEdgeAdds(builderID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.builder_namespace"))
-      .name("graph_builder_edge_adds")
-      .help("Total edges added by graph builder")
+  def totalVertexDeletes(deploymentID: String): Counter =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.builder"))
+      .name(s"vertex_delete_$deploymentID")
+      .help("Total vertices deleted by Graph Builder")
       .register
 
-  def totalVertexDeletes(builderID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.builder_namespace"))
-      .name("graph_builder_vertex_deletes_" + builderID)
-      .help("Total vertices deleted by graph builder")
+  def totalEdgeAdds(deploymentID: String): Counter =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.builder"))
+      .name(s"edge_add_$deploymentID")
+      .help("Total edges added by Graph Builder")
       .register
 
-  def totalEdgeDeletes(builderID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.builder_namespace"))
-      .name("graph_builder_edge_deletes_" + builderID)
-      .help("Total edges added by graph builder")
+  def totalEdgeDeletes(deploymentID: String): Counter =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.builder"))
+      .name(s"edge_delete_$deploymentID")
+      .help("Total edges deleted by Graph Builder")
       .register
 
-  def totalGraphBuilderUpdates(builderID: String): Counter =
-    Counter
-      .build
-      .namespace(conf.getString("raphtory.prometheus.builder_namespace"))
-      .name("graph_builder_total_updates_" + builderID)
-      .help("Total graph builder updates")
+  def totalGraphBuilderUpdates(deploymentID: String): Counter =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.builder"))
+      .name(s"graph_builder_update_$deploymentID")
+      .help("Total Graph Builder updates")
       .register
 
 }

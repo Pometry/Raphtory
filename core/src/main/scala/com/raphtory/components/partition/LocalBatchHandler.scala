@@ -4,7 +4,11 @@ import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder._
 import com.raphtory.components.spout.Spout
 import com.raphtory.config.PulsarController
+import com.raphtory.config.telemetry.BuilderTelemetry
+import com.raphtory.config.telemetry.PartitionTelemetry
+import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
+import io.prometheus.client.Counter
 import monix.execution.Scheduler
 
 import java.util.concurrent.TimeUnit
@@ -22,7 +26,22 @@ class LocalBatchHandler[T: ClassTag](
     scheduler: Scheduler
 ) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
 
+  private val vertexAddCounter    = BuilderTelemetry.totalVertexAdds(deploymentID)
+  private val vertexDeleteCounter = BuilderTelemetry.totalVertexDeletes(deploymentID)
+  private val edgeAddCounter      = BuilderTelemetry.totalEdgeAdds(deploymentID)
+  private val edgeDeleteCounter   = BuilderTelemetry.totalEdgeDeletes(deploymentID)
+
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)
+
+  // TODO get builderID to pull from zookeeper once stream and batch can run synchro
+  graphBuilder.setBuilderMetaData(
+          builderID = 0,
+          deploymentID,
+          vertexAddCounter,
+          vertexDeleteCounter,
+          edgeAddCounter,
+          edgeDeleteCounter
+  )
 
   private val rescheduler: Runnable = new Runnable {
 
@@ -61,12 +80,14 @@ class LocalBatchHandler[T: ClassTag](
 
   private def startIngesting(): Unit =
     batchWriters.foreach {
-      case (id, partition) => partition.getStorage().startBatchIngesting()
+      case (id, partition) =>
+        partition.getStorage().startBatchIngesting()
     }
 
   private def stopIngesting(): Unit =
     batchWriters.foreach {
-      case (id, partition) => partition.getStorage().stopBatchIngesting()
+      case (id, partition) =>
+        partition.getStorage().stopBatchIngesting()
     }
 
   override def stop(): Unit = {}

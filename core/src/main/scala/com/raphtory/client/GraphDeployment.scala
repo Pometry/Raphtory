@@ -51,7 +51,7 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 
   private val deploymentID: String = conf.getString("raphtory.deploy.id")
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
-  private val prometheusPort: Int  = conf.getInt("raphtory.prometheus.server")
+  private val prometheusPort: Int  = conf.getInt("raphtory.prometheus.metrics.port")
 
   private val partitions: Partitions =
     componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))

@@ -9,7 +9,7 @@ import scala.collection.Searching.InsertionPoint
 /** @DoNotDocument
   * Represents Graph Entities (Edges and Vertices)
   * Contains a Map of properties (currently String to string)
-  * longs representing unique vertex ID's stored in subclassses
+  * longs representing unique vertex ID's stored in subclasses
   *
   * @param creationTime ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced

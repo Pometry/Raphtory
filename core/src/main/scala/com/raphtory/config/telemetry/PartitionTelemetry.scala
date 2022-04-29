@@ -1,108 +1,106 @@
 package com.raphtory.config.telemetry
 
-import io.prometheus.client.{Counter, Gauge, Summary}
+import com.raphtory.config.ConfigHandler
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
+import io.prometheus.client.Summary
+
+import scala.collection.mutable
 
 /**
   * {s}`PartitionTelemetry`
-  *  : Adds metrics for partitions, i.e. {s}`Reader`, {s}`BatchWriter` and {s}`StreamWriter`  using Prometheus Client
+  *  : Adds metrics for partitions, i.e. {s}`Reader`, {s}`BatchWriter` and {s}`StreamWriter` using Prometheus Client
   *
   *    Exposes Counter and Summary stats for tracking number of graph updates, watermarks created by reader, vertices and edges added and deleted by writers in Raphtory
-  *    Statistics are made available on http://localhost:8899 on running tests and can be visualised using Grafana dashboards
-  *
-  *
+  *    Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object PartitionTelemetry {
 
-  def lastWaterMarkProcessed(partitionID: String): Gauge =
-    Gauge
-      .build
-      .namespace("reader")
-      .name("last_reader_watermark_" + partitionID.toString)
-      .help("Last reader watermark").register()
+  val conf = new ConfigHandler().getConfig
 
-  def queryExecutorMapCounter(partitionID: String): Gauge =
-    Gauge
-      .build
-      .namespace("reader")
-      .name("total_query_executor_jobs_" + partitionID.toString)
-      .help("Total query executor jobs created").register()
+  def lastWaterMarkProcessed(ID: String): Gauge =
+    Gauge.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.reader"))
+      .name(s"last_watermark_processed_$ID")
+      .help("Last watermark processed by Partition Reader")
+      .register()
+
+  def queryExecutorMapCounter(ID: String): Gauge =
+    Gauge.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.reader"))
+      .name(s"query_executor_jobs_${ID}_total")
+      .help("Total query executors running in this partition")
+      .register()
 
   def batchWriterVertexAdditions(partitionID: Int): Counter =
-    Counter
-      .build
-      .namespace("writer")
-      .name("total_batch_writer_vertex_adds_" + partitionID.toString)
-      .help("Total vertex additions for batch writer").register()
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
+      .name(s"batch_vertex_adds_partitionID_${partitionID.toString}")
+      .help("Total vertex additions for Batch Writer")
+      .register()
 
   def batchWriterEdgeAdditions(partitionID: Int): Counter =
-    Counter
-      .build
-      .namespace("writer")
-      .name("total_batch_writer_edge_adds_" + partitionID.toString)
-      .help("Total edge additions for batch writer").register()
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
+      .name(s"batch_edge_adds_partitionID_${partitionID.toString}")
+      .help("Total edge additions for Batch Writer")
+      .register()
 
   def batchWriterRemoteEdgeAdditions(partitionID: Int): Counter =
-    Counter
-      .build
-      .namespace("writer")
-      .name("total_batch_writer_remote_edge_adds_" + partitionID.toString)
-      .help("Total remote edge additions for batch writer").register()
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
+      .name(s"batch_remote_edge_adds_partitionID_${partitionID.toString}")
+      .help("Total remote edge additions for Batch Writer")
+      .register()
 
-  def streamWriterGraphUpdates(partitionID: String): Counter =
-    Counter
-      .build
-      .namespace("writer")
-      .name("total_stream_writer_graph_updates_" + partitionID.toString)
-      .help("Total graph updates for stream writer").register()
+  def streamWriterGraphUpdates(ID: String): Counter =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
+      .name(s"stream_graph_updates_$ID")
+      .help("Total graph updates for Stream Writer")
+      .register()
 
-  def totalSyncedStreamWriterUpdates(partitionID: String): Counter =
-    Counter
-      .build
-      .namespace("writer")
-      .name("synced_stream_writer_updates_" + partitionID.toString)
-      .help("Total synced stream writer updates").register()
+  def totalSyncedStreamWriterUpdates(ID: String): Counter =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
+      .name(s"stream_synced_updates_$ID")
+      .help("Total synced updates for Stream Writer")
+      .register()
 
-  def streamWriterRemoteGraphUpdates(partitionID: String): Counter =
-    Counter
-      .build
-      .namespace("writer")
-      .name("total_stream_writer_remote_graph_updates_" + partitionID.toString)
-      .help("Total remote graph updates for stream writer").register()
+  def streamWriterVertexAdditions(ID: String): Counter =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
+      .name(s"stream_vertex_adds_$ID")
+      .help("Total vertex additions for Stream Writer")
+      .register()
 
-  def streamWriterVertexAdditions(partitionID: String): Counter =
-    Counter
-      .build
-      .namespace("writer")
-      .name("total_stream_writer_vertex_adds" + partitionID.toString)
-      .help("Total vertex additions for stream writer").register()
+  def streamWriterVertexDeletions(ID: String): Counter =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
+      .name(s"stream_vertex_deletes_$ID")
+      .help("Total vertex deletions for Stream Writer")
+      .register()
 
-  def streamWriterEdgeAdditions(partitionID: String): Counter =
-    Counter
-      .build
-      .namespace("writer")
-      .name("total_stream_writer_edge_adds" + partitionID.toString)
-      .help("Total edge additions for stream writer").register()
+  def streamWriterEdgeAdditions(ID: String): Counter =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
+      .name(s"stream_edge_adds_$ID")
+      .help("Total edge additions for Stream Writer")
+      .register()
 
-  def streamWriterEdgeDeletions(partitionID: String): Counter =
-    Counter
-      .build
-      .namespace("writer")
-      .name("total_stream_writer_edge_deletes" + partitionID.toString)
-      .help("Total edge deletions for stream writer").register()
+  def streamWriterEdgeDeletions(ID: String): Counter =
+    Counter.build
+      .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
+      .name(s"stream_edge_deletes_$ID")
+      .help("Total edge deletions for Stream Writer")
+      .register()
 
-  def streamWriterVertexDeletions(partitionID: String): Counter =
-    Counter
-      .build
-      .namespace("writer")
-      .name("total_stream_writer_vertex_deletes" + partitionID.toString)
-      .help("Total vertex deletions for stream writer").register()
-
-  def totalTimeForIngestion(partitionID: Int): Summary =
-    Summary
+  def timeForIngestion(partitionID: Int): Gauge =
+    Gauge
       .build()
-      .namespace("writer")
-      .name("total_time_for_ingestion_" + partitionID.toString)
-      .help("Total time for ingestion")
-      .create();
+      .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
+      .name(s"ingestion_time_partitionID_${partitionID.toString}")
+      .help("Time for ingestion of partition")
+      .create()
 
 }

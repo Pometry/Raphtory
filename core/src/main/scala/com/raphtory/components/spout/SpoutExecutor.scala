@@ -24,7 +24,7 @@ class SpoutExecutor[T](
   private var scheduledRun: Option[Cancelable]          = None
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
-  val rescheduler                                       = new Runnable {
+  val rescheduler = new Runnable {
 
     override def run(): Unit = {
       spout.executeReschedule()
@@ -52,6 +52,7 @@ class SpoutExecutor[T](
   private def executeSpout() = {
     SpoutTelemetry.totalSpoutReschedules.inc()
     while (spout.hasNext) {
+      SpoutTelemetry.totalLinesSent.inc()
       linesProcessed = linesProcessed + 1
       if (linesProcessed % 100_000 == 0)
         logger.debug(s"Spout: sent $linesProcessed messages.")

@@ -2,7 +2,9 @@ package com.raphtory.components.querymanager
 
 import com.raphtory.components.Component
 import com.raphtory.config.PulsarController
+import com.raphtory.config.telemetry.QueryTelemetry
 import com.typesafe.config.Config
+import io.prometheus.client.Counter
 import monix.execution.Scheduler
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
@@ -18,6 +20,10 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher()
   private val watermarks                                = mutable.Map[Int, WatermarkTime]()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+
+  val globalWatermarkMin  = QueryTelemetry.globalWatermarkMin(deploymentID)
+  val globalWatermarkMax  = QueryTelemetry.globalWatermarkMax(deploymentID)
+  val totalQueriesSpawned = QueryTelemetry.totalQueriesSpawned(deploymentID)
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
@@ -74,6 +80,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
             pulsarController
     )
     scheduler.execute(queryHandler)
+    totalQueriesSpawned.inc()
     queryHandler
   }
 
@@ -91,6 +98,8 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
           safe = watermark.safe && safe
           minTime = Math.min(minTime, watermark.endTime)
           maxTime = Math.max(maxTime, watermark.endTime)
+          globalWatermarkMin.set(minTime)
+          globalWatermarkMax.set(maxTime)
       }
       if (safe) maxTime else minTime
     }
