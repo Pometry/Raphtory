@@ -10,6 +10,7 @@ import akka.actor.typed.Props
 import akka.actor.typed.Scheduler
 import akka.actor.typed.SpawnProtocol
 import akka.util.Timeout
+import com.raphtory.serialisers.PulsarKryoSerialiser
 
 import java.util.concurrent.CompletableFuture
 import scala.annotation.tailrec
@@ -23,11 +24,13 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
   val akkaSpawnerTimeout: Timeout                 = 1.seconds
   val akkaReceptionistFindingTimeout: Timeout     = 1.seconds
 
-  case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Any]]]) extends EndPoint[T] {
-    private val endPointResolutionTimeout: Duration = 1.seconds
+  val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
+
+  case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Array[Byte]]]]) extends EndPoint[T] {
+    private val endPointResolutionTimeout: Duration = 10.seconds
 
     override def sendAsync(message: T): Unit           =
-      Await.result(actorRefs, endPointResolutionTimeout) foreach (_ ! message)
+      Await.result(actorRefs, endPointResolutionTimeout) foreach (_ ! serialise(message))
     override def close(): Unit = {}
 
     override def flushAsync(): CompletableFuture[Void] = CompletableFuture.completedFuture(null)
@@ -73,14 +76,14 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
       messageHandler: T => Unit,
       topics: Seq[CanonicalTopic[T]]
   ): CancelableListener = {
-    val behavior = Behaviors.setup[Any] { context =>
+    val behavior = Behaviors.setup[Array[Byte]] { context =>
       implicit val timeout: Timeout     = akkaReceptionistRegisteringTimeout
       implicit val scheduler: Scheduler = context.system.scheduler
       topics foreach { topic =>
         context.system.receptionist ! Receptionist.Register(getServiceKey(topic), context.self)
       }
-      Behaviors.receiveMessage[Any] { message =>
-        messageHandler.apply(message.asInstanceOf[T])
+      Behaviors.receiveMessage[Array[Byte]] { message =>
+        messageHandler.apply(deserialise(message))
         Behaviors.same
       }
     }
@@ -88,7 +91,7 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
       override def start(): Unit = {
         implicit val timeout: Timeout     = akkaSpawnerTimeout
         implicit val scheduler: Scheduler = actorSystem.scheduler
-        actorSystem ? ((ref: ActorRef[ActorRef[T]]) =>
+        actorSystem ? ((ref: ActorRef[ActorRef[Array[Byte]]]) =>
           SpawnProtocol.Spawn(behavior, id, Props.empty, ref)
         )
       }
@@ -99,9 +102,9 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
 
   @tailrec
   private def queryServiceKeyActors(
-      serviceKey: ServiceKey[Any],
+      serviceKey: ServiceKey[Array[Byte]],
       numActors: Int
-  ): Set[ActorRef[Any]] = {
+  ): Set[ActorRef[Array[Byte]]] = {
     implicit val scheduler: Scheduler = actorSystem.scheduler
     implicit val timeout: Timeout     = akkaReceptionistFindingTimeout
     val futureListing                 = actorSystem.receptionist ? Receptionist.Find(serviceKey)
@@ -120,5 +123,8 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
   }
 
   private def getServiceKey[T](topic: Topic[T]) =
-    ServiceKey[Any](s"${topic.id}-${topic.subTopic}")
+    ServiceKey[Array[Byte]](s"${topic.id}-${topic.subTopic}")
+
+  private def deserialise[T](bytes: Array[Byte]): T = kryo.deserialise[T](bytes)
+  private def serialise(value: Any): Array[Byte]    = kryo.serialise(value)
 }
