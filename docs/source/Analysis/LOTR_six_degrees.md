@@ -23,7 +23,7 @@ be used.
 To actually implement the algorithm we need to override the `apply` method within which we gain access to a `GraphPerspective`. This has all of the functional building blocks which allow us to specify what a vertex should be doing at each stage from initialisation through to output. All of these functions are explored in-depth in the [next section of the tutorial](analysis-explained.md).
 
 ```scala
-    override def apply(graph: GraphPerspective): GraphPerspective = {
+override def apply(graph: GraphPerspective): GraphPerspective = {
 ```
 
 ### Step
@@ -45,6 +45,7 @@ graph
         vertex.setState("SEPARATION", -1)
       }
   })
+
 ```
 
 ### The bulk
