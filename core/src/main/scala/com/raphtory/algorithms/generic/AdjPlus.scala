@@ -6,7 +6,6 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 import scala.math.Ordering.Implicits._
-import scala.reflect.ClassTag
 
 /**
   * {s}`AdjPlus()`
@@ -40,11 +39,10 @@ class AdjPlus extends GraphAlgorithm {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph.step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.degree))).step { vertex =>
-      implicit val tag = ClassTag[vertex.IDType](vertex.ID().getClass)
-      import vertex.IDOrdering
-      val degree       = vertex.degree
+      import vertex._ // make ClassTag and Ordering for IDType available
+      val degree = vertex.degree
       //        Find set of neighbours with higher degree
-      val adj          = vertex
+      val adj    = vertex
         .messageQueue[(vertex.IDType, Int)]
         .filter(message =>
           degree < message._2 || (message._2 == degree && vertex.ID() < message._1)
