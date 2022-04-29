@@ -8,11 +8,11 @@ import com.raphtory.time.Interval
 import java.io.File
 
 /**
-  * {s}`JsonOutputFormat()`
-  *   : writes output for Raphtory Job to Json Format
+  * {s}`GsonOutputFormat()`
+  *   : writes output for Raphtory Job to Gson Format
   */
 
-class JsonOutputFormat(filePath: String) extends OutputFormat {
+class GsonOutputFormat(filePath: String) extends OutputFormat {
 
   override def write(
       timestamp: Long,
@@ -33,8 +33,8 @@ class JsonOutputFormat(filePath: String) extends OutputFormat {
   }
 }
 
-object JsonOutputFormat {
+object GsonOutputFormat {
 
   def apply(filePath: String) =
-    new JsonOutputFormat(filePath)
+    new GsonOutputFormat(filePath)
 }

@@ -10,7 +10,7 @@ import com.raphtory.algorithms.api.Table
   *   : Finds information about node and neighbours of node X hops away (default = 1).
   *
   *  ## Usage
-  *     Used with JsonOutputRunner.scala (located in the lotrTopic example) and JsonOutputFormat.scala to output node information in Json format.
+  *     Used with GsonOutputRunner.scala (located in the lotrTopic example) and GsonOutputFormat.scala to output node information in Gson format.
   *
   *  ## Parameters
   *     {s}`initialID: Long`
@@ -50,7 +50,7 @@ import com.raphtory.algorithms.api.Table
   *    }
   *
   *   ```{note}
-  *   To be used with JsonOutputFormat.scala and JsonOutputRunner.scala (in lotrTopic example) to return this Json format.
+  *   To be used with GsonOutputFormat.scala and GsonOutputRunner.scala (in lotrTopic example) to return this Gson format.
   *   ```
   */
 
