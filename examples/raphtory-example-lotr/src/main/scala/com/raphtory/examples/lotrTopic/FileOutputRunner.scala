@@ -23,11 +23,11 @@ object FileOutputRunner extends App {
   val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
   val output  = FileOutputFormat("/tmp/raphtory")
 
-  val queryHandler = graph
-    .at(32674)
-    .past()
-    .execute(DegreesSeparation())
-    .writeTo(output)
+    val queryHandler = graph
+      .at(32674)
+      .past()
+      .execute(DegreesSeparation())
+      .writeTo(output)
 
-  queryHandler.waitForJob()
+    queryHandler.waitForJob()
 }

@@ -43,6 +43,7 @@ lazy val core = (project in file("core"))
                   dependencies.pulsarCommon,
                   dependencies.pulsarCrypto,
                   dependencies.pulsarOriginal,
+                  dependencies.py4j,
                   dependencies.scalaLogging,
                   dependencies.scalaTest,
                   dependencies.scalaTestCompile,
@@ -115,6 +116,7 @@ lazy val dependencies = new {
   val openhftVersion        = "0.15"
   val prometheusVersion     = "0.15.0"
   val pulsarVersion         = "2.9.1"
+  val py4jVersion           = "0.10.9.5"
   val scalaLoggingVersion   = "3.9.4"
   val scalatestVersion      = "3.2.11"
   val slf4jVersion          = "1.7.36"
@@ -149,6 +151,7 @@ lazy val dependencies = new {
   val pulsarCommon     = "org.apache.pulsar"           % "pulsar-common"                  % pulsarVersion
   val pulsarCrypto     = "org.apache.pulsar"           % "pulsar-client-messagecrypto-bc" % pulsarVersion
   val pulsarOriginal   = "org.apache.pulsar"           % "pulsar-client-original"         % pulsarVersion
+  val py4j             = "net.sf.py4j"                 % "py4j"                           % py4jVersion excludeAll (excludeLog4j, excludeSlf4j)
   val scalaLogging     = "com.typesafe.scala-logging" %% "scala-logging"                  % scalaLoggingVersion
   val scalaTest        = "org.scalatest"              %% "scalatest"                      % scalatestVersion % Test
   val scalaTestCompile = "org.scalatest"              %% "scalatest"                      % scalatestVersion
