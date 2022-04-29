@@ -13,6 +13,7 @@ import com.raphtory.components.querymanager.QueryManager
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.components.spout.Spout
 import com.raphtory.components.spout.SpoutExecutor
+import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.graph.GraphPartition
 import com.raphtory.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config
@@ -28,8 +29,12 @@ import scala.reflect.runtime.universe.TypeTag
 private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val deploymentID     = conf.getString("raphtory.deploy.id")
-  private val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
+  private val deploymentID        = conf.getString("raphtory.deploy.id")
+  private val zookeeperAddress    = conf.getString("raphtory.zookeeper.address")
+  private val vertexAddMetrics    = BuilderTelemetry.totalVertexAdds(deploymentID)
+  private val vertexDeleteCounter = BuilderTelemetry.totalVertexDeletes(deploymentID)
+  private val edgeAddCounter      = BuilderTelemetry.totalEdgeAdds(deploymentID)
+  private val edgeDeleteCounter   = BuilderTelemetry.totalEdgeDeletes(deploymentID)
 
   private val builderIDManager =
     new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
@@ -62,7 +67,17 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
           )
 
         val builderExecutor =
-          new BuilderExecutor[T](builderId.toString, graphbuilder, conf, pulsarController)
+          new BuilderExecutor[T](
+                  builderId,
+                  deploymentID,
+                  vertexAddMetrics,
+                  vertexDeleteCounter,
+                  edgeAddCounter,
+                  edgeDeleteCounter,
+                  graphbuilder,
+                  conf,
+                  pulsarController
+          )
 
         scheduler.execute(builderExecutor)
         ThreadedWorker(builderExecutor)

@@ -2,7 +2,6 @@ package com.raphtory.config.telemetry
 
 import com.raphtory.config.ConfigHandler
 import io.prometheus.client.Counter
-import io.prometheus.client.Gauge
 
 import scala.collection.mutable
 
@@ -15,41 +14,40 @@ import scala.collection.mutable
   *    Statistics are made available on http://localhost:8899 on running tests and can be visualised using Grafana dashboards
   */
 object BuilderTelemetry {
-//none of these implemented
   val conf = new ConfigHandler().getConfig
 
-  def totalVertexAdds(builderID: String): Counter =
+  def totalVertexAdds(deploymentID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.builder"))
-      .name("vertex_add_" + builderID + "_total")
+      .name(s"vertex_add_$deploymentID")
       .help("Total vertices added by Graph Builder")
       .register
 
-  def totalVertexDeletes(): Counter =
+  def totalVertexDeletes(deploymentID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.builder"))
-      .name("vertex_delete_total")
+      .name(s"vertex_delete_$deploymentID")
       .help("Total vertices deleted by Graph Builder")
       .register
 
-  def totalEdgeAdds(builderID: String): Counter =
+  def totalEdgeAdds(deploymentID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.builder"))
-      .name("edge_add_" + builderID + "_total")
+      .name(s"edge_add_$deploymentID")
       .help("Total edges added by Graph Builder")
       .register
 
-  def totalEdgeDeletes(builderID: String): Counter =
+  def totalEdgeDeletes(deploymentID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.builder"))
-      .name("edge_delete_" + builderID + "_total")
+      .name(s"edge_delete_$deploymentID")
       .help("Total edges deleted by Graph Builder")
       .register
 
-  def totalGraphBuilderUpdates(builderID: String): Counter =
+  def totalGraphBuilderUpdates(deploymentID: String): Counter =
     Counter.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.builder"))
-      .name("update_" + builderID + "_total")
+      .name(s"graph_builder_update_$deploymentID")
       .help("Total Graph Builder updates")
       .register
 
