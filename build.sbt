@@ -29,6 +29,7 @@ lazy val core = (project in file("core"))
           libraryDependencies ++= Seq(
                   dependencies.curatorRecipes,
                   dependencies.k8Client,
+                  dependencies.gson,
                   dependencies.log4jSlft4,
                   dependencies.log4jApi,
                   dependencies.log4jCore,
@@ -106,6 +107,7 @@ lazy val dependencies = new {
   val chillVersion          = "0.10.0"
   val curatorVersion        = "5.2.1"
   val kubernetesClient      = "5.11.1"
+  val gsonVersion           = "2.9.0"
   val log4jVersion          = "2.17.1"
   val monixVersion          = "3.4.0"
   val openhftVersion        = "0.15"
@@ -126,6 +128,7 @@ lazy val dependencies = new {
 
   val curatorRecipes = "org.apache.curator"       % "curator-recipes"   % curatorVersion
   val k8Client       = "io.fabric8"               % "kubernetes-client" % kubernetesClient
+  val gson           = "com.google.code.gson"     % "gson"              % gsonVersion excludeAll (excludeLog4j, excludeSlf4j)
   val log4jApi       = "org.apache.logging.log4j" % "log4j-api"         % log4jVersion
   val log4jCore      = "org.apache.logging.log4j" % "log4j-core"        % log4jVersion
   val log4jSlft4     = "org.apache.logging.log4j" % "log4j-slf4j-impl"  % log4jVersion
@@ -150,7 +153,7 @@ lazy val dependencies = new {
   val slf4j            = "org.slf4j"                   % "slf4j-api"                      % slf4jVersion
   val sprayJson        = "io.spray"                   %% "spray-json"                     % sprayJsonVersion
 
-  val timeSeries       =
+  val timeSeries =
     "io.sqooba.oss" %% "scala-timeseries-lib" % timeSeriesVersion excludeAll (excludeLog4j, excludeSlf4j)
   val twitterChill   = "com.twitter"                 %% "chill"     % chillVersion
   val twittered      = "io.github.redouane59.twitter" % "twittered" % twitteredVersion
