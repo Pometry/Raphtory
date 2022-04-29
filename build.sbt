@@ -74,14 +74,16 @@ lazy val core = (project in file("core"))
 
 // EXAMPLE PROJECTS
 
-lazy val examplesEnron          = project in file("examples/raphtory-example-enron")
-lazy val examplesEthereum       = project in file("examples/raphtory-example-ethereum")
-lazy val examplesFacebook       = project in file("examples/raphtory-example-facebook")
-lazy val examplesGab            = project in file("examples/raphtory-example-gab")
-lazy val examplesLotr           = project in file("examples/raphtory-example-lotr")
-lazy val examplesPresto         = project in file("examples/raphtory-example-presto")
-lazy val examplesTwitter        = project in file("examples/raphtory-example-twitter")
-lazy val examplesTwitterCircles = project in file("examples/raphtory-example-twittercircles")
+lazy val examplesEnron    = (project in file("examples/raphtory-example-enron")).dependsOn(core)
+lazy val examplesEthereum = (project in file("examples/raphtory-example-ethereum")).dependsOn(core)
+lazy val examplesFacebook = (project in file("examples/raphtory-example-facebook")).dependsOn(core)
+lazy val examplesGab      = (project in file("examples/raphtory-example-gab")).dependsOn(core)
+lazy val examplesLotr     = (project in file("examples/raphtory-example-lotr")).dependsOn(core)
+lazy val examplesPresto   = (project in file("examples/raphtory-example-presto")).dependsOn(core)
+lazy val examplesTwitter  = (project in file("examples/raphtory-example-twitter")).dependsOn(core)
+
+lazy val examplesTwitterCircles =
+  (project in file("examples/raphtory-example-twittercircles")).dependsOn(core)
 
 // SETTINGS
 
