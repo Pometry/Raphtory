@@ -17,14 +17,13 @@ class GenericTable(val query: Query, private val querySender: QuerySender) exten
     addFunction(Explode(closurefunc))
   }
 
-  override def writeTo(outputFormat: OutputFormat, jobName: String = ""): QueryProgressTracker = {
+  override def writeTo(outputFormat: OutputFormat, jobName: String): QueryProgressTracker = {
     val query = addFunction(WriteTo(outputFormat)).query
     querySender.submit(query, jobName)
   }
 
-  override def writeTo(outputFormat: OutputFormat): QueryProgressTracker = {
-    val query = addFunction(WriteTo(outputFormat)).query
-    querySender.submit(query, "")
+   override def writeTo(outputFormat: OutputFormat): QueryProgressTracker = {
+    writeTo(outputFormat, "")
   }
 
   private def addFunction(function: TableFunction) =
