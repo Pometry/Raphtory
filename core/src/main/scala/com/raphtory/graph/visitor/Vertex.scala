@@ -30,6 +30,9 @@ import scala.reflect.ClassTag
   * {s}`IDOrdering: Ordering[IDType]`
   *   : implicit ordering object for use when comparing vertex IDs
   *
+  * {s}`IDClassTag: ClassTag[IDType]`
+  *   : implicit ClassTag object for vertex IDType
+  *
   * ## Attributes
   *
   * {s}`ID(): IDType`
@@ -369,6 +372,7 @@ trait Vertex extends EntityVisitor {
   type Edge <: visitor.ConcreteEdge[IDType]
   type ExplodedEdge = visitor.ConcreteExplodedEdge[IDType]
   implicit val IDOrdering: Ordering[IDType]
+  implicit val IDClassTag: ClassTag[IDType] = ClassTag[IDType](ID().getClass)
 
   def ID(): IDType
 

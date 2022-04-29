@@ -7,7 +7,6 @@ import com.raphtory.algorithms.api.Table
 import com.raphtory.graph.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
-import scala.reflect.ClassTag
 
 /**
   *  {s}`ThreeNodeMotifs()`
@@ -120,9 +119,9 @@ class ThreeNodeMotifs() extends GraphAlgorithm {
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph
       .step { vertex =>
-        val motifCounts = ArrayBuffer.fill[Long](13)(0)
-
-        val neighbours                        = vertex.getAllNeighbours().toArray(ClassTag(vertex.ID().getClass))
+        import vertex._
+        val motifCounts                       = ArrayBuffer.fill[Long](13)(0)
+        val neighbours                        = vertex.getAllNeighbours().toArray
         val getEdgeType: vertex.IDType => Int = _getEdgeType(vertex)
 
         for (i <- neighbours.indices) {
