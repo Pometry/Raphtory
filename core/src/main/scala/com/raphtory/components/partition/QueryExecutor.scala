@@ -80,7 +80,7 @@ class QueryExecutor(
 
   override def stop(): Unit = {
     StorageTelemetry
-      .pojoLensGraphSize(s"${jobID}_$partitionID")
+      .pojoLensGraphSize(s"${jobID}_partitionID_${partitionID}_time_$currentTimestamp")
       .set(graphLens.getFullGraphSize)
     taskManager.close()
     neighbours.foreach(_._2.close())

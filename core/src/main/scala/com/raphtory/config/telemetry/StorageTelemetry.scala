@@ -15,10 +15,10 @@ object StorageTelemetry {
 
   val conf = new ConfigHandler().getConfig
 
-  def pojoLensGraphSize(partitionID: String): Gauge =
+  def pojoLensGraphSize(ID: String): Gauge =
     Gauge.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.storage"))
-      .name(s"pojo_lens_graph_size_${partitionID}_total")
+      .name(s"pojo_lens_graph_size_$ID")
       .help("Total graph size for Graph Lens")
       .register
 
