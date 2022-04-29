@@ -12,7 +12,7 @@ readme = (current_dir / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="raphtory-client",
-    version="0.1.2",
+    version="0.1.3",
     description="Raphtory Python Client - Temporal Graph Analytics",
     long_description=readme,
     long_description_content_type="text/markdown",
@@ -49,5 +49,6 @@ setup(
         'requests',
         'six',
         'urllib3',
+        'py4j'
     ],
 )

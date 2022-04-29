@@ -57,7 +57,7 @@ class EdgeList(
 }
 
 object EdgeList {
-
+  def apply()                                                = new EdgeList()
   def apply(
       properties: Seq[String] = Seq.empty[String],
       defaults: Map[String, Any] = Map.empty[String, Any]
