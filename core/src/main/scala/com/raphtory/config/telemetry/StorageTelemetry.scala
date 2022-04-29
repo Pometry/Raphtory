@@ -9,7 +9,7 @@ import io.prometheus.client.Gauge
   *  : Adds metrics for Raphtory storage components including {s}`GraphLens`, Vertex messaging and queue using Prometheus Client
   *
   *    Exposes Counter and Gauge stats for tracking number of files processed, lines parsed, spout reschedules and processing errors
-  *    Statistics are made available on http://localhost:8899 on running tests and can be visualised using Grafana dashboards
+  *    Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object StorageTelemetry {
 

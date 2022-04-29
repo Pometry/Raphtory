@@ -98,8 +98,8 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
           safe = watermark.safe && safe
           minTime = Math.min(minTime, watermark.endTime)
           maxTime = Math.max(maxTime, watermark.endTime)
-          globalWatermarkMin.set(minTime / 1000)
-          globalWatermarkMax.set(maxTime / 1000)
+          globalWatermarkMin.set(minTime)
+          globalWatermarkMax.set(maxTime)
       }
       if (safe) maxTime else minTime
     }

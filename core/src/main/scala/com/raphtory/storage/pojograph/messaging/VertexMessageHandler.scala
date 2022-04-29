@@ -33,9 +33,6 @@ class VertexMessageHandler(
   val messageBatch: Boolean = config.getBoolean(msgBatchPath)
   val maxBatchSize: Int     = config.getInt("raphtory.partitions.maxMessageBatchSize")
 
-//  val totalVertexMessagesSent =
-//    StorageTelemetry.totalVertexMessagesSent(config.getString("raphtory.deploy.id"))
-
   if (messageBatch)
     logger.debug(
             s"Message batching is set to on. To change this modify '$msgBatchPath' in the application conf."

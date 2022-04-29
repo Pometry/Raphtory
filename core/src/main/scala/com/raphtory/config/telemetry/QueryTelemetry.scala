@@ -10,25 +10,11 @@ import io.prometheus.client.Gauge
   *  : Adds metrics for {s}`QueryHandler`, {s}`QueryManager` and {s}`QueryExecutor`  using Prometheus Client
   *
   *    Exposes Counter and Gauge stats for tracking number of vertices, messages received and sent by {s}`Query` handler, manager and executor
-  *    Statistics are made available on http://localhost:8899 on running tests and can be visualised using Grafana dashboards
+  *    Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object QueryTelemetry {
 
   val conf = new ConfigHandler().getConfig
-
-  def readyCount(ID: String): Gauge =
-    Gauge.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_ready_count_${ID}_total")
-      .help("Ready count for Query Handler")
-      .register
-
-  def vertexCount(ID: String): Counter =
-    Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_vertex_count_$ID")
-      .help("Total vertex count in Query Handler")
-      .register
 
   def receivedMessageCount(ID: String): Counter =
     Counter.build
@@ -47,14 +33,14 @@ object QueryTelemetry {
   def globalWatermarkMin(deploymentID: String): Gauge =
     Gauge.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"manager_min_watermark_deploymentID_${deploymentID}_timestamp_seconds")
+      .name(s"manager_min_watermark_deploymentID_${deploymentID}_timestamp")
       .help("Minimum watermark for Query Manager")
       .register
 
   def globalWatermarkMax(deploymentID: String): Gauge =
     Gauge.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"manager_max_watermark_deploymentID_${deploymentID}_timestamp_seconds")
+      .name(s"manager_max_watermark_deploymentID_${deploymentID}_timestamp")
       .help("Maximum watermark for Query Manager")
       .register
 

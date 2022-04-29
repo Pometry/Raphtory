@@ -12,7 +12,7 @@ import scala.collection.mutable
   *  : Adds metrics for partitions, i.e. {s}`Reader`, {s}`BatchWriter` and {s}`StreamWriter` using Prometheus Client
   *
   *    Exposes Counter and Summary stats for tracking number of graph updates, watermarks created by reader, vertices and edges added and deleted by writers in Raphtory
-  *    Statistics are made available on http://localhost:8899 on running tests and can be visualised using Grafana dashboards
+  *    Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object PartitionTelemetry {
 
@@ -21,7 +21,7 @@ object PartitionTelemetry {
   def lastWaterMarkProcessed(ID: String): Gauge =
     Gauge.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.reader"))
-      .name(s"last_watermark_processed_${ID}_seconds")
+      .name(s"last_watermark_processed_$ID")
       .help("Last watermark processed by Partition Reader")
       .register()
 
@@ -29,7 +29,7 @@ object PartitionTelemetry {
     Gauge.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.reader"))
       .name(s"query_executor_jobs_${ID}_total")
-      .help("Total Query Executor jobs created by Partition Reader")
+      .help("Total query executors running in this partition")
       .register()
 
   def batchWriterVertexAdditions(partitionID: Int): Counter =
@@ -65,13 +65,6 @@ object PartitionTelemetry {
       .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
       .name(s"stream_synced_updates_$ID")
       .help("Total synced updates for Stream Writer")
-      .register()
-
-  def streamWriterRemoteGraphUpdates(ID: String): Counter =
-    Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.writer"))
-      .name(s"stream_remote_graph_updates_$ID")
-      .help("Total remote graph updates for Stream Writer")
       .register()
 
   def streamWriterVertexAdditions(ID: String): Counter =

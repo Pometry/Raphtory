@@ -86,6 +86,7 @@ class Reader(
           try {
             executorMap(req.jobID).stop()
             executorMap.remove(req.jobID)
+            queryExecutorMapCounter.dec()
           }
           catch {
             case e: Exception =>
@@ -142,7 +143,7 @@ class Reader(
         )
       }
       lastWatermark = watermark
-      lastWaterMarkProcessed.set(finalTime / 1000)
+      lastWaterMarkProcessed.set(finalTime)
     }
     scheduleWaterMarker()
   }

@@ -9,7 +9,7 @@ import com.raphtory.config.ConfigHandler
   *  : Adds metrics for {s}`Spout` using Prometheus Client
   *
   *    Exposes Counter and Gauge stats for tracking number of files processed, lines parsed, spout reschedules and processing errors
-  *    Statistics are made available on http://localhost:8899 on running tests and can be visualised using Grafana dashboards
+  *    Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object SpoutTelemetry {
 
@@ -29,11 +29,11 @@ object SpoutTelemetry {
       .help("Total spout reschedules")
       .register
 
-  val totalLinesParsed: Gauge =
+  val totalLinesSent: Gauge =
     Gauge.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.spout"))
-      .name("file_line_parsed_total")
-      .help("Total lines of file parsed")
+      .name("file_line_sent_total")
+      .help("Total lines of file sent")
       .register
 
   val totalFileProcessingErrors: Counter =

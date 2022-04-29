@@ -82,14 +82,12 @@ class LocalBatchHandler[T: ClassTag](
     batchWriters.foreach {
       case (id, partition) =>
         partition.getStorage().startBatchIngesting()
-        PartitionTelemetry.timeForIngestion(id).startTimer()
     }
 
   private def stopIngesting(): Unit =
     batchWriters.foreach {
       case (id, partition) =>
         partition.getStorage().stopBatchIngesting()
-        PartitionTelemetry.timeForIngestion(id).startTimer().setDuration()
     }
 
   override def stop(): Unit = {}

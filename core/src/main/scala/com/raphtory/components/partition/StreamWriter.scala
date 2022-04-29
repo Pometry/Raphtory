@@ -72,11 +72,6 @@ class StreamWriter(
             s"partitionID_${partitionID}_deploymentID_$deploymentID"
     )
 
-  val streamWriterRemoteGraphUpdates =
-    PartitionTelemetry.streamWriterRemoteGraphUpdates(
-            s"partitionID_${partitionID}_deploymentID_$deploymentID"
-    )
-
   override def run(): Unit =
     cancelableConsumer = Some(
             pulsarController
@@ -123,7 +118,6 @@ class StreamWriter(
         processSyncExistingEdgeRemoval(
                 update
         ) //A remote worker is asking for the deletion of an existing edge
-        streamWriterRemoteGraphUpdates.inc()
 
       //Syncing Vertex Removals
       case update: OutboundEdgeRemovalViaVertex =>
@@ -149,7 +143,7 @@ class StreamWriter(
         )
     }
 
-    printUpdateCount()
+    handleUpdateCount()
   }
 
   // Graph Updates from the builders
@@ -260,6 +254,7 @@ class StreamWriter(
     storage.timings(req.msgTime)
     val effect = storage.outboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
     neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    totalSyncedStreamWriterUpdates.inc()
   }
 
   def processInboundEdgeRemovalViaVertex(req: InboundEdgeRemovalViaVertex): Unit = { //remote worker same as above
@@ -269,6 +264,7 @@ class StreamWriter(
 
     val effect = storage.inboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
     neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    totalSyncedStreamWriterUpdates.inc()
   }
 
   // Responses from the secondary server
@@ -293,6 +289,7 @@ class StreamWriter(
             req.dstId,
             req.fromAddition
     ) //when the edge isn't new we will get this response instead
+    totalSyncedStreamWriterUpdates.inc()
   }
 
   private def untrackEdgeUpdate(msgTime: Long, srcId: Long, dstId: Long, fromAddition: Boolean) =
@@ -307,11 +304,12 @@ class StreamWriter(
     )
 
     storage.untrackVertexDeletion(req.msgTime, req.updateId)
+    totalSyncedStreamWriterUpdates.inc()
   }
 
   private def dedupe(): Unit = storage.deduplicate()
 
-  def printUpdateCount() = {
+  def handleUpdateCount() = {
     processedMessages += 1
     streamWriterGraphUpdates.inc()
 
