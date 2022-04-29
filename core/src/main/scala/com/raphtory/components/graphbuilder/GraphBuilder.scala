@@ -289,8 +289,7 @@ trait GraphBuilder[T] extends Serializable {
     if (batching) {
       val partitionForTuple = checkPartition(update.srcId)
       if (partitionIDs contains partitionForTuple)
-        vertexAddCounter.inc()
-      batchWriters(partitionForTuple).handleMessage(update)
+        batchWriters(partitionForTuple).handleMessage(update)
     }
     else
       updates += update
