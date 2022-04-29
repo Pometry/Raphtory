@@ -204,22 +204,19 @@ trait GraphBuilder[T] extends Serializable {
   protected def addVertex(updateTime: Long, srcId: Long): Unit = {
     val update = VertexAdd(updateTime, srcId, Properties(), None)
     handleVertexAdd(update)
-    if (!batching)
-      vertexAddCounter.inc()
+    vertexAddCounter.inc()
   }
 
   protected def addVertex(updateTime: Long, srcId: Long, properties: Properties): Unit = {
     val update = VertexAdd(updateTime, srcId, properties, None)
     handleVertexAdd(update)
-    if (!batching)
-      vertexAddCounter.inc()
+    vertexAddCounter.inc()
   }
 
   protected def addVertex(updateTime: Long, srcId: Long, vertexType: Type): Unit = {
     val update = VertexAdd(updateTime, srcId, Properties(), Some(vertexType))
     handleVertexAdd(update)
-    if (!batching)
-      vertexAddCounter.inc()
+    vertexAddCounter.inc()
   }
 
   protected def addVertex(
@@ -230,21 +227,18 @@ trait GraphBuilder[T] extends Serializable {
   ): Unit = {
     val update = VertexAdd(updateTime, srcId, properties, Some(vertexType))
     handleVertexAdd(update)
-    if (!batching)
-      vertexAddCounter.inc()
+    vertexAddCounter.inc()
   }
 
   protected def deleteVertex(updateTime: Long, srcId: Long): Unit = {
     updates += VertexDelete(updateTime, srcId)
-    if (!batching)
-      vertexDeleteCounter.inc()
+    vertexDeleteCounter.inc()
   }
 
   protected def addEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, Properties(), None)
     handleEdgeAdd(update)
-    if (!batching)
-      edgeAddCounter.inc()
+    edgeAddCounter.inc()
   }
 
   protected def addEdge(
@@ -255,15 +249,13 @@ trait GraphBuilder[T] extends Serializable {
   ): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, properties, None)
     handleEdgeAdd(update)
-    if (!batching)
-      edgeAddCounter.inc()
+    edgeAddCounter.inc()
   }
 
   protected def addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, Properties(), Some(edgeType))
     handleEdgeAdd(update)
-    if (!batching)
-      edgeAddCounter.inc()
+    edgeAddCounter.inc()
   }
 
   protected def addEdge(
@@ -275,14 +267,12 @@ trait GraphBuilder[T] extends Serializable {
   ): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, properties, Some(edgeType))
     handleEdgeAdd(update)
-    if (!batching)
-      edgeAddCounter.inc()
+    edgeAddCounter.inc()
   }
 
   protected def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
     updates += EdgeDelete(updateTime, srcId, dstId)
-    if (!batching)
-      edgeDeleteCounter.inc()
+    edgeDeleteCounter.inc()
   }
 
   private def handleVertexAdd(update: VertexAdd) =

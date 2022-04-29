@@ -29,12 +29,8 @@ import scala.reflect.runtime.universe.TypeTag
 private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val deploymentID        = conf.getString("raphtory.deploy.id")
-  private val zookeeperAddress    = conf.getString("raphtory.zookeeper.address")
-  private val vertexAddMetrics    = BuilderTelemetry.totalVertexAdds(deploymentID)
-  private val vertexDeleteCounter = BuilderTelemetry.totalVertexDeletes(deploymentID)
-  private val edgeAddCounter      = BuilderTelemetry.totalEdgeAdds(deploymentID)
-  private val edgeDeleteCounter   = BuilderTelemetry.totalEdgeDeletes(deploymentID)
+  private val deploymentID     = conf.getString("raphtory.deploy.id")
+  private val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
 
   private val builderIDManager =
     new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
@@ -48,7 +44,11 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
       scheduler: Scheduler
   ): Option[List[ThreadedWorker[T]]] =
     if (!batchLoading) {
-      val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
+      val vertexAddCounter    = BuilderTelemetry.totalVertexAdds(deploymentID)
+      val vertexDeleteCounter = BuilderTelemetry.totalVertexDeletes(deploymentID)
+      val edgeAddCounter      = BuilderTelemetry.totalEdgeAdds(deploymentID)
+      val edgeDeleteCounter   = BuilderTelemetry.totalEdgeDeletes(deploymentID)
+      val totalBuilders       = conf.getInt("raphtory.builders.countPerServer")
       logger.info(s"Creating '$totalBuilders' Graph Builders.")
 
       logger.debug(s"Deployment ID set to '$deploymentID'.")
@@ -70,7 +70,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
           new BuilderExecutor[T](
                   builderId,
                   deploymentID,
-                  vertexAddMetrics,
+                  vertexAddCounter,
                   vertexDeleteCounter,
                   edgeAddCounter,
                   edgeDeleteCounter,
