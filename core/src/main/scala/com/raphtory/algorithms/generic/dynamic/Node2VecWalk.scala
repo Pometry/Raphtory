@@ -71,10 +71,9 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph
       .step { vertex =>
-        implicit val tag: ClassTag[vertex.IDType] =
-          ClassTag[vertex.IDType](vertex.ID().getClass)
+        import vertex._
         vertex.setState("walk", ArrayBuffer[String](vertex.name()))
-        val neighbours                            = vertex.getOutNeighbours().toArray
+        val neighbours = vertex.getOutNeighbours().toArray
         if (neighbours.isEmpty)
           vertex.messageSelf(WalkMessage(vertex.ID(), vertex.ID(), neighbours))
         else
@@ -85,8 +84,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
       }
       .iterate(
               { vertex =>
-                implicit val tag: ClassTag[vertex.IDType] =
-                  ClassTag[vertex.IDType](vertex.ID().getClass)
+                import vertex._
                 vertex.messageQueue[Messages[vertex.IDType]].foreach {
                   case WalkMessage(source, last, lastNeighbours) =>
                     vertex.messageVertex(source, StoreMessage(vertex.name()))
@@ -118,6 +116,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
       ) // make iterate act on all vertices
       .step { vertex =>
 //        store last step of random walk
+        import vertex._
         vertex.messageQueue[Messages[vertex.IDType]].foreach {
           case StoreMessage(node)   => vertex.getState[ArrayBuffer[String]]("walk").append(node)
           case WalkMessage(_, _, _) =>
