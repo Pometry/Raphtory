@@ -26,7 +26,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
       .walk(10000)
       .past()
       .execute(GraphState())
-      .writeTo(outputFormat, "graphstate")
+      .writeTo(outputFormat)
       .waitForJob()
 
 //    algorithmTest(GraphState(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))

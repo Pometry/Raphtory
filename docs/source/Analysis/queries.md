@@ -28,7 +28,7 @@ we can just start executing algorithms from the same graph object we saw in the 
 ```scala
 graph
   .execute(DegreesSeparation())
-  .writeTo(output, "degreeSep")
+  .writeTo(output)
 ```
 
 In this case, Raphtory runs the algorithm using all the information it has about the graph,
@@ -74,7 +74,7 @@ In order to apply an algorithm only over that interval, you can do this:
 graph
   .slice("2020-01-01", "2021-01-01")
   .execute(ConnectedComponents())
-  .writeTo(output, "connComp")
+  .writeTo(output)
 ```
 
 As a third option, you can mix both styles.
@@ -92,7 +92,7 @@ graph
   .depart("2020-01-01", "1 day") // departing from Jan 1, 2020 with steps of one day
   .window("1 day") // creates a window of one day in every step
   .execute(ConnectedComponents())
-  .writeTo(output, "connComp")
+  .writeTo(output)
 ```
 In this example, departing from Jan 1, 2020 with steps of one day, we create a window of one day each time.
 Over all the perspectives of the graph enclosed by those windows,
@@ -125,7 +125,7 @@ graph
   .walk("1 day")
   .window("1 week")
   .execute(ConnectedComponents())
-  .writeTo(output, "connComp")
+  .writeTo(output)
 ```
 
 As we don't specify any start or end for the sequence, the points are aligned with the epoch.
@@ -153,7 +153,7 @@ graph
   .filter(vertex => vertex.outDegree > 10)
   .step(vertex => vertex.messageOutNeighbours(vertex.name()))
   .select(vertex => Row(vertex.messageQueue))
-  .writeTo(FileOutputFormat("path/to/your/file"), "JOBNAME")
+  .writeTo(FileOutputFormat("path/to/your/file"))
 ```
 
 Or a combination of both:
@@ -165,7 +165,7 @@ graph
   .window("1 day")
   .filter(vertex => vertex.outDegree > 10)
   .execute(ConnectedComponents())
-  .writeTo(FileOutputFormat("path/to/your/file"), "JOBNAME")
+  .writeTo(FileOutputFormat("path/to/your/file"))
 ```
 
 This possibility is especially useful when you want to
@@ -182,7 +182,7 @@ graph
   .at(32674)
   .past()
   .execute(DegreesSeparation())
-  .writeTo(output, "degreeSep")
+  .writeTo(output)
 ```
 As we can understand now, what we are doing is creating a perspective at line 32674 looking at the past,
 and therefore including from line 1.
