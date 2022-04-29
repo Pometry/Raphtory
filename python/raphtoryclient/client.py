@@ -290,12 +290,6 @@ class client:
                 if wait_counter == 6:
                     break
         print("Converting to columns...")
-        # if len(messages) != 0:
-        #     num_cols = len(messages[0])
-        #     if len(col_names):
-        #         for i in range(len(col_names), num_cols, 1):  col_names.append("result_" + str(i - len(col_names)))
-        #     else:
-        #         for i in range(0, num_cols, 1):  col_names.append("result_" + str(i))
         print("Completed.")
         return pd.DataFrame(messages)
 
