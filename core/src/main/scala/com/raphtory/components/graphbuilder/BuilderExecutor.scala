@@ -24,7 +24,9 @@ class BuilderExecutor[T: ClassTag](
   private val safegraphBuilder     = Marshal.deepCopy(graphBuilder)
   private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
   private val writers              = topics.graphUpdates.endPoint
-  private val spoutOutputListener  = topics.registerListener(handleMessage, topics.spoutOutput[T])
+
+  private val spoutOutputListener  =
+    topics.registerListener(name, handleMessage, topics.spoutOutput[T])
 
   private var messagesProcessed = 0
 

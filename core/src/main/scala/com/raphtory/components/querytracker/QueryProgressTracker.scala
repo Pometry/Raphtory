@@ -71,7 +71,8 @@ class QueryProgressTracker(
   private var perspectivesProcessed: Long = 0
   private var jobDone: Boolean            = false
 
-  private val queryTrackListener                        = topics.registerListener(handleMessage, topics.queryTrack(jobID))
+  private val queryTrackListener                        =
+    topics.registerListener(s"query-tracker-$jobID", handleMessage, topics.queryTrack(jobID))
   private var latestPerspective: Option[Perspective]    = None
   private val perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
   private val perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()

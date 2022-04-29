@@ -87,56 +87,60 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
   def jobOperations(jobId: String): BroadcastTopic[QueryManagement] =
     BroadcastTopic[QueryManagement](jobOperationsConnector, s"job-ops", s"$depId-$jobId")
 
-  // Registering functions
-  def registerBuilderExecutor(component: BuilderExecutor[Any]): CancelableListener =
-    registerListener(component.handleMessage, Seq(spoutOutput))
-
-  def registerStreamWriter(component: StreamWriter, partition: Int): CancelableListener =
-    registerListener(component.handleMessage, Seq(graphUpdates, graphSync), partition)
-
-  def registerReader(component: Reader): CancelableListener =
-    registerListener(component.handleMessage, Seq(queryPrep))
-
-  def registerQueryManager(component: QueryManager): CancelableListener =
-    registerListener(component.handleMessage, Seq(queries, endedQueries, watermark))
-
-  def registerQueryProgressTracker(
-      component: QueryProgressTracker,
-      jobId: String
-  ): CancelableListener =
-    registerListener(component.handleMessage, Seq(queryTrack(jobId)))
-
-  def registerQueryHandler(component: QueryHandler, jobId: String): CancelableListener =
-    registerListener(component.handleMessage, Seq(rechecks(jobId), jobStatus(jobId)))
-
-  def registerQueryExecutor(
-      component: QueryExecutor,
-      jobId: String,
-      partition: Int
-  ): CancelableListener =
-    registerListener(
-            component.handleMessage,
-            Seq(vertexMessages(jobId), jobOperations(jobId)),
-            partition
-    )
+//  // Registering functions
+//  def registerBuilderExecutor(component: BuilderExecutor[Any]): CancelableListener =
+//    registerListener(component.handleMessage, Seq(spoutOutput))
+//
+//  def registerStreamWriter(component: StreamWriter, partition: Int): CancelableListener =
+//    registerListener(component.handleMessage, Seq(graphUpdates, graphSync), partition)
+//
+//  def registerReader(component: Reader): CancelableListener =
+//    registerListener(component.handleMessage, Seq(queryPrep))
+//
+//  def registerQueryManager(component: QueryManager): CancelableListener =
+//    registerListener(component.handleMessage, Seq(queries, endedQueries, watermark))
+//
+//  def registerQueryProgressTracker(
+//      component: QueryProgressTracker,
+//      jobId: String
+//  ): CancelableListener =
+//    registerListener(component.handleMessage, Seq(queryTrack(jobId)))
+//
+//  def registerQueryHandler(component: QueryHandler, jobId: String): CancelableListener =
+//    registerListener(component.handleMessage, Seq(rechecks(jobId), jobStatus(jobId)))
+//
+//  def registerQueryExecutor(
+//      component: QueryExecutor,
+//      jobId: String,
+//      partition: Int
+//  ): CancelableListener =
+//    registerListener(
+//            component.handleMessage,
+//            Seq(vertexMessages(jobId), jobOperations(jobId)),
+//            partition
+//    )
 
   def registerListener[T](
+      id: String,
       messageHandler: T => Unit,
       topic: CanonicalTopic[T]
-  ): CancelableListener = registerListener(messageHandler, Seq(topic))
+  ): CancelableListener = registerListener(id, messageHandler, Seq(topic))
 
   def registerListener[T](
+      id: String,
       messageHandler: T => Unit,
       topics: Seq[CanonicalTopic[T]]
-  ): CancelableListener = registerListener(messageHandler, topics, 0)
+  ): CancelableListener = registerListener(id, messageHandler, topics, 0)
 
   def registerListener[T](
+      id: String,
       messageHandler: T => Unit,
       topic: Topic[T],
       partition: Int
-  ): CancelableListener = registerListener(messageHandler, Seq(topic), partition)
+  ): CancelableListener = registerListener(id, messageHandler, Seq(topic), partition)
 
   def registerListener[T](
+      id: String,
       messageHandler: T => Unit,
       topics: Seq[Topic[T]],
       partition: Int
@@ -147,7 +151,7 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
         case topic: CanonicalTopic[T] => topic
       }
       .groupBy(_.connector)
-      .map { case (connector, topics) => connector.register(messageHandler, topics) }
+      .map { case (connector, topics) => connector.register(id, messageHandler, topics) }
       .toSeq
 
     CancelableListener(listeners)

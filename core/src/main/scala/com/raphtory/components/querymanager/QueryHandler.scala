@@ -56,7 +56,11 @@ class QueryHandler(
   private val workerList   = topics.jobOperations(jobID).endPoint
 
   private val listener =
-    topics.registerListener(handleMessage, Seq(topics.rechecks(jobID), topics.jobStatus(jobID)))
+    topics.registerListener(
+            s"query-handler-$jobID",
+            handleMessage,
+            Seq(topics.rechecks(jobID), topics.jobStatus(jobID))
+    )
 
   private var perspectiveController: PerspectiveController = _
   private var graphFunctions: mutable.Queue[GraphFunction] = _

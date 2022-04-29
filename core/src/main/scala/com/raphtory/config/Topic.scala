@@ -10,7 +10,7 @@ sealed trait CanonicalTopic[+T] extends Topic[T] {
   def endPoint[E >: T]: EndPoint[E] = connector.endPoint(this)
 }
 
-case class ExclusiveTopic[+T](
+case class ExclusiveTopic[T](
     connector: Connector,
     id: String,
     subTopic: String = ""

@@ -72,6 +72,7 @@ class PulsarConnector(config: Config) extends Connector {
     .build
 
   override def register[T](
+      id: String, // TODO: use this for the subscription name
       messageHandler: T => Unit,
       topics: Seq[CanonicalTopic[T]]
   ): CancelableListener = {

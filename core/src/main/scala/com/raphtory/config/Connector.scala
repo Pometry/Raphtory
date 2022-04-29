@@ -5,6 +5,7 @@ import com.raphtory.components.Component
 trait Connector {
 
   def register[T](
+      id: String,
       messageHandler: T => Unit,
       topics: Seq[CanonicalTopic[T]]
   ): CancelableListener

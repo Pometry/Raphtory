@@ -60,6 +60,7 @@ class QueryExecutor(
   var filtered: Boolean                   = false
 
   private val listener = topics.registerListener(
+          s"query-executor-$jobID-$partitionID",
           handleMessage,
           Seq(topics.jobOperations(jobID), topics.vertexMessages(jobID)),
           partitionID

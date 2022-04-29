@@ -39,7 +39,12 @@ class StreamWriter(
   private val neighbours = topics.graphSync.endPoint
 
   private val listener          =
-    topics.registerListener(handleMessage, Seq(topics.graphUpdates, topics.graphSync), partitionID)
+    topics.registerListener(
+            s"writer-$partitionID",
+            handleMessage,
+            Seq(topics.graphUpdates, topics.graphSync),
+            partitionID
+    )
   private var processedMessages = 0
 
   override def run(): Unit =

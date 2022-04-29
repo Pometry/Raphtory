@@ -20,7 +20,11 @@ class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
   private val watermarks     = mutable.Map[Int, WatermarkTime]()
 
   private val listener = topics
-    .registerListener(handleMessage, Seq(topics.queries, topics.watermark, topics.endedQueries))
+    .registerListener(
+            "query-manager",
+            handleMessage,
+            Seq(topics.queries, topics.watermark, topics.endedQueries)
+    )
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")

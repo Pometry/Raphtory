@@ -27,7 +27,9 @@ class Reader(
 ) extends Component[QueryManagement](conf) {
   private val executorMap                               = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish                          = topics.watermark.endPoint
-  private val queryPrepListener                         = topics.registerListener(handleMessage, topics.queryPrep)
+
+  private val queryPrepListener                         =
+    topics.registerListener(s"reader-$partitionID", handleMessage, topics.queryPrep)
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
   var scheduledWatermark: Option[Cancelable]            = None
   private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
