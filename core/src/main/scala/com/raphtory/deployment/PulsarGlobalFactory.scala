@@ -6,7 +6,7 @@ import com.raphtory.config.Scheduler
 import com.raphtory.config.TopicRepository
 import com.typesafe.config.Config
 
-object PulsarBasedGlobalFactory extends GlobalFactory {
+object PulsarGlobalFactory extends GlobalFactory {
   private val scheduler = new MonixScheduler()
 
   override def getScheduler: Scheduler = scheduler

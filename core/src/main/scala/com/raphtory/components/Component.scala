@@ -1,6 +1,5 @@
 package com.raphtory.components
 
-import com.raphtory.config.TopicRepository
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory

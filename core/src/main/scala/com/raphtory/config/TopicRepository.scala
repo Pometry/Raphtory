@@ -40,43 +40,44 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
   protected def jobOperationsConnector: Connector  = defaultConnector
 
   // Configuration
-  val spoutAddress: String     = conf.getString("raphtory.spout.topic")
-  val depId: String            = conf.getString("raphtory.deploy.id")
-  val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
-  val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
-  val numPartitions: Int       = partitionServers * partitionsPerServer
+  private val spoutAddress: String     = conf.getString("raphtory.spout.topic")
+  private val depId: String            = conf.getString("raphtory.deploy.id")
+  private val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
+  private val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
+  private val numPartitions: Int       = partitionServers * partitionsPerServer
 
   // Global topics
-  def spoutOutput[T]: WorkPullTopic[T] = WorkPullTopic[T](spoutOutputConnector, spoutAddress)
+  final def spoutOutput[T]: WorkPullTopic[T] = WorkPullTopic[T](spoutOutputConnector, spoutAddress)
 
-  def graphUpdates: ShardingTopic[GraphUpdate] =
+  final def graphUpdates: ShardingTopic[GraphUpdate] =
     ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graph-updates", depId)
 
-  def graphSync: ShardingTopic[GraphUpdateEffect] =
+  final def graphSync: ShardingTopic[GraphUpdateEffect] =
     ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph-sync", depId)
 
-  def queries: ExclusiveTopic[Query] = ExclusiveTopic[Query](queriesConnector, s"queries", depId)
+  final def queries: ExclusiveTopic[Query] =
+    ExclusiveTopic[Query](queriesConnector, s"queries", depId)
 
-  def endedQueries: ExclusiveTopic[EndQuery] =
+  final def endedQueries: ExclusiveTopic[EndQuery] =
     ExclusiveTopic[EndQuery](endedQueriesConnector, "ended-queries", depId)
 
-  def watermark: ExclusiveTopic[WatermarkTime] =
+  final def watermark: ExclusiveTopic[WatermarkTime] =
     ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", depId)
 
-  def queryPrep: BroadcastTopic[QueryManagement] =
-    BroadcastTopic[QueryManagement](queryPrepConnector, "query-prep", depId)
+  final def queryPrep: BroadcastTopic[QueryManagement] =
+    BroadcastTopic[QueryManagement](numPartitions, queryPrepConnector, "query-prep", depId)
 
   // Job wise topics
-  def queryTrack(jobId: String): ExclusiveTopic[QueryManagement] =
+  final def queryTrack(jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](queryTrackConnector, "query-track", s"$depId-$jobId")
 
-  def rechecks(jobId: String): ExclusiveTopic[QueryManagement] =
+  final def rechecks(jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](rechecksConnector, "recheck", s"$depId-$jobId")
 
-  def jobStatus(jobId: String): ExclusiveTopic[QueryManagement] =
+  final def jobStatus(jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](jobStatusConnector, "job-status", s"$depId-$jobId")
 
-  def vertexMessages(jobId: String): ShardingTopic[QueryManagement] =
+  final def vertexMessages(jobId: String): ShardingTopic[QueryManagement] =
     ShardingTopic[QueryManagement](
             numPartitions,
             vertexMessagesConnector,
@@ -84,8 +85,13 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
             s"$depId-$jobId"
     )
 
-  def jobOperations(jobId: String): BroadcastTopic[QueryManagement] =
-    BroadcastTopic[QueryManagement](jobOperationsConnector, s"job-ops", s"$depId-$jobId")
+  final def jobOperations(jobId: String): BroadcastTopic[QueryManagement] =
+    BroadcastTopic[QueryManagement](
+            numPartitions,
+            jobOperationsConnector,
+            s"job-ops",
+            s"$depId-$jobId"
+    )
 
 //  // Registering functions
 //  def registerBuilderExecutor(component: BuilderExecutor[Any]): CancelableListener =
@@ -120,26 +126,26 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
 //            partition
 //    )
 
-  def registerListener[T](
+  final def registerListener[T](
       id: String,
       messageHandler: T => Unit,
       topic: CanonicalTopic[T]
   ): CancelableListener = registerListener(id, messageHandler, Seq(topic))
 
-  def registerListener[T](
+  final def registerListener[T](
       id: String,
       messageHandler: T => Unit,
       topics: Seq[CanonicalTopic[T]]
   ): CancelableListener = registerListener(id, messageHandler, topics, 0)
 
-  def registerListener[T](
+  final def registerListener[T](
       id: String,
       messageHandler: T => Unit,
       topic: Topic[T],
       partition: Int
   ): CancelableListener = registerListener(id, messageHandler, Seq(topic), partition)
 
-  def registerListener[T](
+  final def registerListener[T](
       id: String,
       messageHandler: T => Unit,
       topics: Seq[Topic[T]],

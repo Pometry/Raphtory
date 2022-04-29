@@ -6,7 +6,6 @@ import com.raphtory.components.spout.Spout
 import com.raphtory.config.ComponentFactory
 import com.raphtory.config.ConfigHandler
 import com.raphtory.config.MonixScheduler
-import com.raphtory.config.PulsarBasedDeployment
 import com.raphtory.config.PulsarConnector
 import com.raphtory.config.PulsarController
 import com.raphtory.config.TopicRepository
@@ -78,7 +77,7 @@ import scala.reflect.runtime.universe._
   */
 object Raphtory {
 
-  private val globalFactory = PulsarBasedGlobalFactory
+  private val globalFactory = PulsarAkkaGlobalFactory
   private val scheduler     = globalFactory.getScheduler
 
   def streamGraph[T: TypeTag: ClassTag](

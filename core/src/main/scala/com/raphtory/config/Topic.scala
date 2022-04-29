@@ -23,6 +23,7 @@ case class WorkPullTopic[T](
 ) extends CanonicalTopic[T]
 
 case class BroadcastTopic[T](
+    numListeners: Int,
     connector: Connector,
     id: String,
     subTopic: String = ""
