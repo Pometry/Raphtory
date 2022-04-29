@@ -13,6 +13,7 @@ import com.raphtory.components.querymanager.QueryManager
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.components.spout.Spout
 import com.raphtory.components.spout.SpoutExecutor
+import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.graph.GraphPartition
 import com.raphtory.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config
@@ -28,10 +29,10 @@ import scala.reflect.runtime.universe.TypeTag
 private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val deploymentID       = conf.getString("raphtory.deploy.id")
-  private val zookeeperAddress   = conf.getString("raphtory.zookeeper.address")
+  private val deploymentID     = conf.getString("raphtory.deploy.id")
+  private val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
 
-  private val builderIDManager   =
+  private val builderIDManager =
     new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
 
   private val partitionIDManager =
@@ -43,7 +44,11 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
       scheduler: Scheduler
   ): Option[List[ThreadedWorker[T]]] =
     if (!batchLoading) {
-      val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
+      val vertexAddCounter    = BuilderTelemetry.totalVertexAdds(deploymentID)
+      val vertexDeleteCounter = BuilderTelemetry.totalVertexDeletes(deploymentID)
+      val edgeAddCounter      = BuilderTelemetry.totalEdgeAdds(deploymentID)
+      val edgeDeleteCounter   = BuilderTelemetry.totalEdgeDeletes(deploymentID)
+      val totalBuilders       = conf.getInt("raphtory.builders.countPerServer")
       logger.info(s"Creating '$totalBuilders' Graph Builders.")
 
       logger.debug(s"Deployment ID set to '$deploymentID'.")
@@ -62,7 +67,17 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
           )
 
         val builderExecutor =
-          new BuilderExecutor[T](builderId.toString, graphbuilder, conf, pulsarController)
+          new BuilderExecutor[T](
+                  builderId,
+                  deploymentID,
+                  vertexAddCounter,
+                  vertexDeleteCounter,
+                  edgeAddCounter,
+                  edgeDeleteCounter,
+                  graphbuilder,
+                  conf,
+                  pulsarController
+          )
 
         scheduler.execute(builderExecutor)
         ThreadedWorker(builderExecutor)

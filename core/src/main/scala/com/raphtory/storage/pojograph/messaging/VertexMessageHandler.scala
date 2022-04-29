@@ -5,6 +5,7 @@ import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
+import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
