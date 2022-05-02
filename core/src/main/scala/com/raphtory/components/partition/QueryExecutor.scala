@@ -110,7 +110,7 @@ class QueryExecutor(
           graphLens = lens
           sentMessageCount.set(0)
           receivedMessageCount.set(0)
-          taskManager sendAsync PerspectiveEstablished(lens.getSize())
+          taskManager sendAsync PerspectiveEstablished(lens.getSize)
           val id   = window match {
             case Some(value) =>
               s"${jobID}_partitionID_${partitionID}_time_${timestamp}_window_$value"
@@ -353,31 +353,31 @@ class QueryExecutor(
               )
             else
               None
+          val writer   = outputFormat match {
+            case format: PulsarOutputFormat =>
+              (row, partitionID) =>
+                format.writeToPulsar(
+                        currentTimestamp,
+                        currentWindow,
+                        jobID,
+                        row,
+                        partitionID,
+                        producer.get
+                )
+            case format                     =>
+              (row, partitionID) =>
+                format
+                  .write(currentTimestamp, currentWindow, jobID, row, partitionID)
 
+          }
           graphLens
-            .getDataTable()
-            .foreach(row =>
-              outputFormat match {
-                case format: PulsarOutputFormat =>
-                  format.writeToPulsar(
-                          currentTimestamp,
-                          currentWindow,
-                          jobID,
-                          row,
-                          partitionID,
-                          producer.get
-                  )
-                case format                     =>
-                  format
-                    .write(currentTimestamp, currentWindow, jobID, row, partitionID)
-
-              }
-            )
-          taskManager sendAsync TableFunctionComplete
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Writing Results executed on table in ${System
-                    .currentTimeMillis() - time}ms. Results written to '${outputFormat.getClass.getSimpleName}'."
-          )
+            .writeDataTable(writer) {
+              taskManager sendAsync TableFunctionComplete
+              logger.debug(
+                      s"Job '$jobID' at Partition '$partitionID': Writing Results executed on table in ${System
+                        .currentTimeMillis() - time}ms. Results written to '${outputFormat.getClass.getSimpleName}'."
+              )
+            }
 
         //TODO Kill this worker once this is received
         case EndQuery(jobID)                                                  =>

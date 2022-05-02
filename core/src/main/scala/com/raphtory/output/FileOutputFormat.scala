@@ -38,7 +38,7 @@ class FileOutputFormat(filePath: String) extends OutputFormat {
       window: Option[Interval],
       jobID: String,
       row: Row,
-      partitionID: Int
+      partitionID: String
   ): Unit = {
     val dir = new File(s"$filePath/$jobID")
 

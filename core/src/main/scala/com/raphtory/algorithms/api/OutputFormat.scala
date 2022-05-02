@@ -28,6 +28,6 @@ abstract class OutputFormat extends Serializable {
       window: Option[Interval],
       jobID: String,
       row: Row,
-      partitionID: Int
+      partitionID: String
   ): Unit
 }
