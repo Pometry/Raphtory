@@ -43,7 +43,7 @@ class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
       window: Option[Interval],
       jobID: String,
       row: Row,
-      partitionID: Int
+      partitionID: String
   ): Unit = {}
 
   def writeToPulsar(
@@ -51,9 +51,9 @@ class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
       window: Option[Interval],
       jobID: String,
       row: Row,
-      partitionID: Int,
+      partitionID: String,
       producer: Producer[String]
-  ) = {
+  ): Unit = {
     val value = window match {
       case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}"
       case None    => s"$timestamp,${row.getValues().mkString(",")}"

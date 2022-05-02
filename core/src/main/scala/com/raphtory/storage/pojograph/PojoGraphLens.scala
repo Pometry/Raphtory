@@ -18,7 +18,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import monix.execution.Scheduler.Implicits.global
 import monix.eval.Task
-import monix.execution.Callback
 
 /** @DoNotDocument */
 final case class PojoGraphLens(
@@ -44,12 +43,13 @@ final case class PojoGraphLens(
   val messageHandler: VertexMessageHandler =
     VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)
 
-  val partitionID = storage.getPartitionID
+  val partitionID: Int = storage.getPartitionID
 
   private lazy val vertexMap: mutable.Map[Long, PojoExVertex] =
     storage.getVertices(this, start, end)
 
-  private var vertices: Array[PojoExVertex] = vertexMap.values.toArray
+  private var vertices: Array[PojoExVertex] =
+    vertexMap.values.toArray
 
   private def vertexIterator =
     if (exploded)
@@ -67,7 +67,7 @@ final case class PojoGraphLens(
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
 
-  def getSize(): Int = vertices.size
+  def getSize: Int = vertices.length
 
   private var dataTable: List[Row] = List()
 
@@ -92,7 +92,7 @@ final case class PojoGraphLens(
     onComplete
   }
 
-  def explodeSelect(f: Vertex => List[Row])(onComplete: => Unit): Unit = {
+  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit = {
     dataTable = vertexIterator.flatMap(f).toList
     onComplete
   }
@@ -102,13 +102,15 @@ final case class PojoGraphLens(
     onComplete
   }
 
-  def explodeTable(f: Row => List[Row])(onComplete: => Unit): Unit = {
+  def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit = {
     dataTable = dataTable.flatMap(f)
     onComplete
   }
 
-  def getDataTable(): List[Row] =
-    dataTable
+  def writeDataTable(writer: (Row, String) => Unit)(onComplete: => Unit): Unit = {
+    dataTable.foreach(row => writer(row, partitionID.toString))
+    onComplete
+  }
 
   override def explodeView(
       interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
@@ -195,8 +197,7 @@ final case class PojoGraphLens(
     executeInParallel(tasks, onComplete)
   }
 
-  def getMessageHandler(): VertexMessageHandler =
-    messageHandler
+  def getMessageHandler(): VertexMessageHandler = messageHandler
 
   def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
 
