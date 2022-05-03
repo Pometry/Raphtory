@@ -29,7 +29,7 @@ import java.util.Calendar
 import scala.collection.mutable
 import scala.language.postfixOps
 
-/** @DoNotDocument */
+/** !DoNotDocument */
 class StreamWriter(
     partitionID: Int,
     storage: GraphPartition,

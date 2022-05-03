@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture
 import scala.collection.mutable
 import scala.concurrent.Future
 
-/** @DoNotDocument */
+/** !DoNotDocument */
 class VertexMessageHandler(
     config: Config,
     producers: Map[Int, Producer[Array[Byte]]],

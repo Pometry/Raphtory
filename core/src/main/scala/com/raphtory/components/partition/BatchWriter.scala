@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 
-/** @DoNotDocument */
+/** !DoNotDocument */
 class BatchWriter[T: ClassTag](
     partitionID: Int,
     storage: GraphPartition

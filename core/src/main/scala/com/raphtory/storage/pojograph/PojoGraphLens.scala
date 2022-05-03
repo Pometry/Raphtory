@@ -20,7 +20,7 @@ import monix.execution.Scheduler.Implicits.global
 import monix.eval.Task
 import monix.execution.Callback
 
-/** @DoNotDocument */
+/** !DoNotDocument */
 final case class PojoGraphLens(
     jobId: String,
     start: Long,

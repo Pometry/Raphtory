@@ -144,7 +144,7 @@ final case class PerspectiveDone()                     extends GraphFunction
   * ```
   */
 
-/** @DoNotDocument
+/** !DoNotDocument
   *
   * Multilayer view interface (work in progress)
   *

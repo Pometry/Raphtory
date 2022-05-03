@@ -24,6 +24,7 @@ lazy val core = (project in file("core"))
           name := "core",
           version := "0.5",
           assembly / test := {},
+          Compile / doc / scalacOptions := Seq("-private"),
           assemblySettings,
           defaultSettings,
           libraryDependencies ++= Seq(

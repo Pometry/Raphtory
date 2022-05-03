@@ -4,7 +4,7 @@ import io.fabric8.kubernetes.client.ConfigBuilder
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 
 /**
-  * {s}`KubernetesClient`
+  * ]`KubernetesClient`
   *
   * Establishes kubernetes connection. Extends Config.
   * 

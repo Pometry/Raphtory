@@ -10,7 +10,7 @@ import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 import scala.reflect.ClassTag
 
-/** @DoNotDocument */
+/** !DoNotDocument */
 abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends EntityVisitor {
   def Type(): String = entity.getType
 

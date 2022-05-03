@@ -1,14 +1,9 @@
 package com.raphtory.algorithms.api
 
-/**
-  * {s}`GraphPerspective`
-  *  : Public interface for graph algorithms
+/** Core Public interface of the algorithm API
+  * This implements the operations exposed by GraphOperations returning
+  * a new GraphPerspective for those operations that have a graph as a result.
   *
-  * The {s}`GraphPerspective` is the core interface of the algorithm API. It implements the operations exposed
-  * by {s}`GraphOperations` returning a new {s}`GraphPerspective` for those operations that have a graph as a result.
-  *
-  * ```{seealso}
-  * [](com.raphtory.algorithms.api.GraphOperations)
-  * ```
+  * @see [[com.raphtory.algorithms.api.GraphOperations]]
   */
 trait GraphPerspective extends GraphOperations[GraphPerspective]

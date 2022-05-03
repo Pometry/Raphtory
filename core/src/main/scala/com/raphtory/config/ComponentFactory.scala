@@ -25,7 +25,7 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-/** @DoNotDocument */
+/** !DoNotDocument */
 private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 

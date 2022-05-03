@@ -7,7 +7,7 @@ import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 
 import scala.collection.mutable
 
-/** @DoNotDocument */
+/** !DoNotDocument */
 class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
         extends PojoEntity(msgTime, initialValue) {
 

@@ -4,7 +4,7 @@ import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
 
 /**
-  * @DoNotDocument
+  * !DoNotDocument
   */
 class GenericGraphPerspective(query: Query, private val querySender: QuerySender)
         extends DefaultGraphOperations[GraphPerspective](query, querySender)

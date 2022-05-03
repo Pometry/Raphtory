@@ -22,7 +22,7 @@ import com.typesafe.config.Config
 
 import scala.collection.mutable
 
-/** @DoNotDocument */
+/** !DoNotDocument */
 class PojoBasedPartition(partition: Int, conf: Config)
         extends GraphPartition(partition: Int, conf: Config) {
 

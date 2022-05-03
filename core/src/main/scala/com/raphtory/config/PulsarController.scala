@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters._
 
-/** @DoNotDocument */
+/** !DoNotDocument */
 class PulsarController(conf: Config) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 

@@ -45,7 +45,7 @@ import org.apache.pulsar.client.api._
 
 import java.util.concurrent.atomic.AtomicInteger
 
-/** @DoNotDocument */
+/** !DoNotDocument */
 class QueryExecutor(
     partitionID: Int,
     storage: GraphPartition,

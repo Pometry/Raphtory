@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory
 import scala.math.Ordering.Implicits.infixOrderingOps
 import scala.reflect.runtime.universe._
 
-/** @DoNotDocument */
+/** !DoNotDocument */
 abstract class Component[T](conf: Config, private val pulsarController: PulsarController)
         extends Runnable {
 
