@@ -12,7 +12,7 @@ import com.raphtory.algorithms.api.Table
   */
 class TemporalMemberRank() extends GraphAlgorithm {
 
-  case class NeighbourAndTime(id: Long, time: Long)
+  case class NeighbourAndTime[T](id: T, time: Long)
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph.step { vertex =>
@@ -38,8 +38,8 @@ class TemporalMemberRank() extends GraphAlgorithm {
         *  return list of times of in edge creation for each vertex
         */
 
-      val times: Seq[NeighbourAndTime] = vertex.explodeInEdges().collect {
-        case edge if difference => NeighbourAndTime(edge.src(), edge.timestamp())
+      val times: Seq[NeighbourAndTime[vertex.IDType]] = vertex.explodeInEdges().collect {
+        case edge if difference => NeighbourAndTime(edge.src(), edge.timestamp)
       }
 
       vertex.setState("times", times)
@@ -54,12 +54,12 @@ class TemporalMemberRank() extends GraphAlgorithm {
         )
       }
       .filter { row =>
-        val times = row.getAs[Seq[NeighbourAndTime]](1)
+        val times = row.getAs[Seq[NeighbourAndTime[_]]](1)
         times.nonEmpty
       }
       .explode { row =>
         val rowId = row.getLong(0)
-        val times = row.getAs[Seq[NeighbourAndTime]](1)
+        val times = row.getAs[Seq[NeighbourAndTime[_]]](1)
         times.map { neighbourAndTime =>
           Row(rowId, neighbourAndTime.id, neighbourAndTime.time)
         }.toList
