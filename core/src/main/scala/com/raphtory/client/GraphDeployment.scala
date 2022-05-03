@@ -15,24 +15,11 @@ import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
-/**
-  * `GraphDeployment`
-  *    : Graph Deployment extends Raphtory Client to initialise Query Manager, Partitions, Spout Worker
-  *    and GraphBuilder Worker for a deployment ID
-  *
+/** Graph Deployment extends Raphtory Client to initialise Query Manager, Partitions, Spout Worker and GraphBuilder Worker for a deployment ID
   *  `GraphDeployment` should not be created directly. To create a `GraphDeployment` use
   *  `Raphtory.createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`.
-  *
   *  The query methods for `GraphDeployment` are similar to `RaphtoryClient`
-  *
-  *  ## Methods
-  *
-  *    `stop()`
-  *      : Stops components - partitions, query manager, graph builders, spout worker
-  *
-  *  ```{seealso}
-  *  [](com.raphtory.client.RaphtoryClient), [](com.raphtory.deployment.Raphtory)
-  *  ```
+  * @see [[com.raphtory.client.RaphtoryClient]], [[com.raphtory.deployment.Raphtory]]
   */
 private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
     batchLoading: Boolean,
@@ -74,6 +61,7 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
     case e: IOException => e.printStackTrace()
   }
 
+  /** Stops components - partitions, query manager, graph builders, spout worker */
   def stop(): Unit = {
     partitions.writers.foreach(_.stop())
     partitions.readers.foreach(_.stop())
