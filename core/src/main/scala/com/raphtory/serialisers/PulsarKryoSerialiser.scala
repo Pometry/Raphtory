@@ -6,15 +6,15 @@ import com.twitter.chill.ScalaKryoInstantiator
 import scala.reflect.runtime.universe._
 
 /**
-  *  {s}`PulsarKryoSerialiser()`
+  *  `PulsarKryoSerialiser()`
   *    : support serialisation and deserialisation using ScalaKryoInstantiator from twitter.chill package
   *
   *  ## Methods
   *
-  *    {s}`serialise[T](value: T): Array[Byte]`
+  *    `serialise[T](value: T): Array[Byte]`
   *      : serialise value to byte array
   *
-  *    {s}`deserialise[T](bytes: Array[Byte]): T`
+  *    `deserialise[T](bytes: Array[Byte]): T`
   *      : deserialise byte array to object
   *
   *  Example Usage:

@@ -1,15 +1,15 @@
 package com.raphtory.algorithms.api
 
 /**
-  *  {s}`Accumulator[T]`
+  *  `Accumulator[T]`
   *    : Public accumulator interface
   *
   *  ## Methods
   *
-  *    {s}`+= (newValue: T): Unit`
+  *    `+= (newValue: T): Unit`
   *      : add new value to accumulator
   *
-  *    {s}`value: T`
+  *    `value: T`
   *      : get last accumulated value
   *
   * ```{seealso}

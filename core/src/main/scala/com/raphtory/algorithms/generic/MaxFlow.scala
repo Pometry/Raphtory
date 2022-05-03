@@ -11,48 +11,48 @@ import math.Numeric.Implicits._
 import scala.language.existentials
 import scala.math.Ordering.Implicits.infixOrderingOps
 
-/** {s}`MaxFlow[T](source: String, target: String, capacityLabel: String = "weight", maxIterations: Int = Int.MaxValue)`
+/** `MaxFlow[T](source: String, target: String, capacityLabel: String = "weight", maxIterations: Int = Int.MaxValue)`
   *   : Finds the maximum flow (equivalently, the minimum cut) between a source and a target vertex
   *
   *   Implements the parallel push-relabel max-flow algorithm of Goldberg and Tarjan. [^ref]
   *
   * ## Parameters
-  *  {s}`T: Numeric`
+  *  `T: Numeric`
   *    : Type of edge weight attribute (needs to be specified as not possible to infer automatically)
   *
-  *  {s}`source: String`
+  *  `source: String`
   *    : name of source vertex
   *
-  *  {s}`target: String`
+  *  `target: String`
   *    : name of target vertex
   *
-  *  {s}`capacityLabel: String = "weight"`
+  *  `capacityLabel: String = "weight"`
   *    : Edge attribute key to use for computing capacities. Capacities are computed as the sum of weights over occurrences
   *      of the edge. If the edge property does not exist, weight is computed as the edge count.
   *
-  *   {s}`maxIterations: Int = Int.MaxValue`
-  *    : terminate the algorithm if it has not converged after {s}`maxIterations` pulses (note that the flow will be
+  *   `maxIterations: Int = Int.MaxValue`
+  *    : terminate the algorithm if it has not converged after `maxIterations` pulses (note that the flow will be
   *      incorrect if this happens)
   *
   *  ## States
   *
-  *  {s}`flow: mutable.Map[Long, T]`
-  *    : Map of {s}`targetID -> flow`  for outflow at vertex (negative values are backflow used by the algorithm)
+  *  `flow: mutable.Map[Long, T]`
+  *    : Map of `targetID -> flow`  for outflow at vertex (negative values are backflow used by the algorithm)
   *
-  *  {s}`excess: T`
+  *  `excess: T`
   *    : excess flow at vertex (should be 0 except for source and target after algorithm converged)
   *
-  *  {s}`distanceLabel: Int`
+  *  `distanceLabel: Int`
   *    : vertex label used by the algorithm to decide where to push flow
   *
-  *  {s}`neighbourLabels: mutable.Map[Long, Int]`
-  *    : Map of {s}`targetID -> label` containing the distance labels for the vertexes neighbours
+  *  `neighbourLabels: mutable.Map[Long, Int]`
+  *    : Map of `targetID -> label` containing the distance labels for the vertexes neighbours
   *
   *  ## Returns
   *
   *  | Maximum Flow |
   *  | ------------ |
-  *  | {s}`flow: T` |
+  *  | `flow: T` |
   *
   *  ```{note}
   *  The algorithm returns a single line with the value of the maximum flow between the source and target.

@@ -10,37 +10,37 @@ import Properties._
   *
   * ## Members
   *
-  * {s}`Type(name: String)`
-  *   : Vertex/Edge type (this is not a {s}`Property`)
+  * `Type(name: String)`
+  *   : Vertex/Edge type (this is not a `Property`)
   *
-  * {s}`Property`
+  * `Property`
   *  : sealed trait defining different types of properties
   *
   *    **Attributes**
   *
-  *    {s}`key: String`
+  *    `key: String`
   *      : property name
   *
-  *    {s}`value: Any`
+  *    `value: Any`
   *      : property value
   *
-  * {s}`Properties(property: Property*)`
+  * `Properties(property: Property*)`
   *   : Wrapper class for properties
   *
-  * {s}`ImmutableProperty(key: String, value: String)`
-  *   : {s}`Property` with a fixed value (the value should be the same for each update to the entity)
+  * `ImmutableProperty(key: String, value: String)`
+  *   : `Property` with a fixed value (the value should be the same for each update to the entity)
   *
-  * {s}`StringProperty(key: String, value: String)`
-  *   : {s}`Property` with a {s}`String` value
+  * `StringProperty(key: String, value: String)`
+  *   : `Property` with a `String` value
   *
-  * {s}`LongProperty(key: String, value: Long)`
-  *   : {s}`Property` with a {s}`Long` value
+  * `LongProperty(key: String, value: Long)`
+  *   : `Property` with a `Long` value
   *
-  * {s}`DoubleProperty(key: String, value: Double)`
-  *   : {s}`Property` with a {s}`Double` value
+  * `DoubleProperty(key: String, value: Double)`
+  *   : `Property` with a `Double` value
   *
-  * {s}`FloatProperty(key: String, value: Float)`
-  *   : {s}`Property` with a {s}`Float` value
+  * `FloatProperty(key: String, value: Float)`
+  *   : `Property` with a `Float` value
   *
   * ```{seealso}
   * [](com.raphtory.components.graphbuilder.GraphBuilder)

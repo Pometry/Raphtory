@@ -7,7 +7,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  * {s}`AverageNeighbourDegree()`
+  * `AverageNeighbourDegree()`
   *  : Compute the average degree of a vertex's neighbours
   *
   *  ```{note}
@@ -16,14 +16,14 @@ import com.raphtory.algorithms.api.Table
   *
   * ## States
   *
-  *  {s}`avgNeighbourDegree: Double`
+  *  `avgNeighbourDegree: Double`
   *    : Average degree of the vertex's neighbours
   *
   * ## Returns
   *
   *  | vertex name       | average neighbour degree     |
   *  | ----------------- | ---------------------------- |
-  *  | {s}`name: String` | `avgNeighbourDegree: Double` |
+  *  | `name: String` | `avgNeighbourDegree: Double` |
   */
 class AverageNeighbourDegree extends NodeList(Seq("avgNeighbourDegree")) {
 

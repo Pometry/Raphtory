@@ -6,10 +6,10 @@ import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
 
 /**
-  * {s}`QueryTelemetry`
-  *  : Adds metrics for {s}`QueryHandler`, {s}`QueryManager` and {s}`QueryExecutor`  using Prometheus Client
+  * `QueryTelemetry`
+  *  : Adds metrics for `QueryHandler`, `QueryManager` and `QueryExecutor`  using Prometheus Client
   *
-  *    Exposes Counter and Gauge stats for tracking number of vertices, messages received and sent by {s}`Query` handler, manager and executor
+  *    Exposes Counter and Gauge stats for tracking number of vertices, messages received and sent by `Query` handler, manager and executor
   *    Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object QueryTelemetry {

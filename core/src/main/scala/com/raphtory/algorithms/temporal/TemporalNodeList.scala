@@ -6,13 +6,13 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  * {s}`TemporalNodeList(properties: String*) = new TemporalNodeList(properties)`
+  * `TemporalNodeList(properties: String*) = new TemporalNodeList(properties)`
   *  : Write out timestamped nodes with selected properties to table
   *
-  * {s}`TemporalNodeLisst(defaults: Map[String, Any], properties: String*)`
+  * `TemporalNodeLisst(defaults: Map[String, Any], properties: String*)`
   *  : Specify default values for missing properties
   *
-  * {s}`TemporalNodeList(properties: Seq[String] = Seq.empty[String], defaults: Map[String, Any] = Map.empty[String, Any])`
+  * `TemporalNodeList(properties: Seq[String] = Seq.empty[String], defaults: Map[String, Any] = Map.empty[String, Any])`
   *  : Specify property names as sequence
   *
   * Property names are looked up on a node's computational state first and then in a node's property. Property values
@@ -23,18 +23,18 @@ import com.raphtory.algorithms.api.Table
   *
   * ## Params
   *
-  *  {s}`properties: Seq[String]`
+  *  `properties: Seq[String]`
   *    : Sequence of property names
   *
-  *  {s}`defaults: Map[String, Any]`
+  *  `defaults: Map[String, Any]`
   *    : Map from property names to default values (if a property name is not found on a node,
-  *      it is first looked up in defaults, and if not found there, set to {s}`None`)
+  *      it is first looked up in defaults, and if not found there, set to `None`)
   *
   * ## Returns
   *
   *  | vertex name       | time stamp      | property 1      | ... |
   *  | ----------------- | --------------- | --------------- | --- |
-  *  | {s}`name: String` | {s}`time: Long` | {s}`value: Any` | ... |
+  *  | `name: String` | `time: Long` | `value: Any` | ... |
   */
 class TemporalNodeList(
     properties: Seq[String] = Seq.empty[String],

@@ -151,7 +151,7 @@ object CountPQ {
 }
 
 /**
-  * {s}`SquareCount()`
+  * `SquareCount()`
   *   : Count undirected squares that a vertex is part of
   *
   *  This is similar to counting triangles and especially useful for
@@ -160,18 +160,18 @@ object CountPQ {
   *
   * ## States
   *
-  *  {s}`adjPlus: Array[Long]`
+  *  `adjPlus: Array[Long]`
   *    : List of neighbours that have a larger degree than the current vertex or the same degree and a larger ID
   *      as computed by the [](com.raphtory.algorithms.generic.AdjPlus) algorithm.
   *
-  *  {s}`squareCount: Long`
+  *  `squareCount: Long`
   *    : Number of squares the vertex is part of
   *
   * Returns
   *
   *  | vertex name       | square count           |
   *  | ----------------- | ---------------------- |
-  *  | {s}`name: String` | {s}`squareCount: Long` |
+  *  | `name: String` | `squareCount: Long` |
   */
 class SquareCount()
         extends Chain(Seq(AdjPlus(), CountPR(), CountQR(), CountPQ(), NodeList("squareCount")))

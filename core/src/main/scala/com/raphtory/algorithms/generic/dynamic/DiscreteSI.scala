@@ -9,7 +9,7 @@ import com.raphtory.algorithms.api.Table
 import scala.util.Random
 
 /**
-  * {s}`DiscreteSI(infectedNode: Iterable[String], infectionProbability: Double = 0.5, maxGenerations: Int = 100, seed:Long = -1)`
+  * `DiscreteSI(infectedNode: Iterable[String], infectionProbability: Double = 0.5, maxGenerations: Int = 100, seed:Long = -1)`
   *    : discrete susceptible-infected (SI) model on the network
   *
   *  The network is treated as directed. An infected node propagates the infection along each
@@ -18,31 +18,31 @@ import scala.util.Random
   *
   * ## Parameters
   *
-  *  {s}`infectedNode: Seq[String]`
+  *  `infectedNode: Seq[String]`
   *    : names of initially infected nodes
   *
-  *  {s}`infectionProbability: Double = 0.5`
+  *  `infectionProbability: Double = 0.5`
   *    : probability of infection propagation along each edge
   *
-  *  {s}`seed: Long`
+  *  `seed: Long`
   *    : seed for random number generator (specify for deterministic results)
   *
-  *  {s}`maxGenerations: Int = 100`
+  *  `maxGenerations: Int = 100`
   *    : maximum number of propagation generations
   *
   * ## States
   *
-  *  {s}`infected: Boolean`
+  *  `infected: Boolean`
   *    : infection status of vertex
   *
-  *  {s}`generation: Int`
+  *  `generation: Int`
   *    : generation at which vertex became infected (unset for vertices that were never infected)
   *
   * ## Returns
   *
   * | vertex name       | infection status       |
   * | ----------------- | ---------------------- |
-  * | {s}`name: String` | {s}`infected: Boolean` |
+  * | `name: String` | `infected: Boolean` |
   */
 class DiscreteSI(
     infectedNodes: Set[String],

@@ -6,21 +6,21 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  *  {s}`EdgeList(properties: String*)`
+  *  `EdgeList(properties: String*)`
   *  : Writes out edge list with selected properties to table with format srcName, dstName, edgeProperty1, ...
   *
-  *  {s}`EdgeList(defaults: Map[String, Any], properties: String*)`
+  *  `EdgeList(defaults: Map[String, Any], properties: String*)`
   *  : Specify default values for missing properties
   *
-  *  {s}`EdgeList(properties: Seq[String] = Seq.empty[String], defaults: Map[String, Any] = Map.empty[String, Any])`
+  *  `EdgeList(properties: Seq[String] = Seq.empty[String], defaults: Map[String, Any] = Map.empty[String, Any])`
   *  : Specify sequence of property names
   *
   *  ## Parameters
   *
-  *  {s}`properties: Seq[String]`
+  *  `properties: Seq[String]`
   *  : Sequence of property names to extract (default: empty)
   *
-  *  {s}`defaults: Map[String, Any]`
+  *  `defaults: Map[String, Any]`
   *  : Map of property names to default values (default value: None)
   *
   *  ## Returns
@@ -29,7 +29,7 @@ import com.raphtory.algorithms.api.Table
   *
   *  | source name          | destination name     | property 1      | ... |
   *  | -------------------- | -------------------- | --------------- | --- |
-  *  | {s}`srcName: String` | {s}`dstName: String` | {s}`value: Any` | ... |
+  *  | `srcName: String` | `dstName: String` | `value: Any` | ... |
   */
 class EdgeList(
     properties: Seq[String] = Seq.empty[String],

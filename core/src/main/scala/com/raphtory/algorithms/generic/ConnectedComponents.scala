@@ -7,7 +7,7 @@ import com.raphtory.algorithms.api.Table
 import math.Ordering.Implicits._
 
 /**
-  * {s}`ConnectedComponents()`
+  * `ConnectedComponents()`
   * : Identify connected components
   *
   * A connected component of an undirected graph is a set of vertices all of which
@@ -21,14 +21,14 @@ import math.Ordering.Implicits._
   *
   * ## States
   *
-  * {s}`cclabel: Long`
+  * `cclabel: Long`
   * : Label of connected component the vertex belongs to (minimum vertex ID in component)
   *
   * ## Returns
   *
   * | vertex name       | component label    |
   * | ----------------- | ------------------ |
-  * | {s}`name: String` | {s}`cclabel: Long` |
+  * | `name: String` | `cclabel: Long` |
   *
   * ## Implementation
   *

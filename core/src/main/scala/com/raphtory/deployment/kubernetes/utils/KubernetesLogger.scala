@@ -3,24 +3,24 @@ package com.raphtory.deployment.kubernetes.utils
 import com.typesafe.scalalogging.LazyLogging
 
 /**
-  * {s}`KubernetesLogger`
+  * `KubernetesLogger`
   *
   * Kubernetes Logger
   *
   * ## Methods
   *
-  *   {s}`apply()` : create new Kubernetes Logger
+  *   `apply()` : create new Kubernetes Logger
   *
-  *   {s}`info(string: String)` 
+  *   `info(string: String)`
   *     : Log info message
   *
-  *   {s}`warn(string: String)`
+  *   `warn(string: String)`
   *     : Log warn message
   *
-  *   {s}`error(string: String)`
+  *   `error(string: String)`
   *     : Log error message
   * 
-  *   {s}`debug(string: String)`
+  *   `debug(string: String)`
   *     : Log debug message
   */
 

@@ -4,7 +4,7 @@ import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.generic.NodeList
 
 /**
-  * {s}`MotifAlpha()`
+  * `MotifAlpha()`
   *  : count Type1 2-edge-1-node temporal motifs
   *
   * The algorithms identifies 2-edge-1-node temporal motifs; It detects one type of motifs:
@@ -23,14 +23,14 @@ import com.raphtory.algorithms.generic.NodeList
   *
   * ## States
   *
-  *  {s}`motifAlpha: Int`
+  *  `motifAlpha: Int`
   *    : Number of Type-1 temporal motifs centered on the vertex
   *
   * ## Returns
   *
   *  | vertex name       | Number of Type-1 motifs |
   *  | ----------------- | ----------------------- |
-  *  | {s}`name: String` | {s}`motifAlpha: Int`    |
+  *  | `name: String` | `motifAlpha: Int`    |
   */
 class MotifAlpha(fileOutput: String = "/tmp/motif_alpha") extends NodeList(Seq("motifAlpha")) {
 

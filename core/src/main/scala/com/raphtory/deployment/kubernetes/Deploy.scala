@@ -10,7 +10,7 @@ import com.raphtory.deployment.kubernetes.components._
   *
   * ## Methods
   *
-  *   {s}`main(args: Array[String]): Unit`
+  *   `main(args: Array[String]): Unit`
   *     : Deploy Kubernetes resources
   *
   * ```{seealso}

@@ -7,22 +7,22 @@ import io.fabric8.kubernetes.client.KubernetesClient
 import scala.collection.JavaConverters._
 
 /**
-  * {s}`KubernetesIngress`
+  * `KubernetesIngress`
   *
   * Kubernetes Ingress
   *
   * ## Methods
   *
-  *   {s}`get(client: KubernetesClient, name: String, namespace: String): Ingress`
+  *   `get(client: KubernetesClient, name: String, namespace: String): Ingress`
   *     : Get Kubernetes ingress
   *
-  *   {s}`build(name: String, annotations: Map[String, String] = Map(), path: String, backendServiceName: String, backendServicePort: Int): Ingress`
+  *   `build(name: String, annotations: Map[String, String] = Map(), path: String, backendServiceName: String, backendServicePort: Int): Ingress`
   *     : Build Kubernetes ingress
   *
-  *   {s}`create(client: KubernetesClient, namespace: String, ingressConfig: Ingress): Ingress`
+  *   `create(client: KubernetesClient, namespace: String, ingressConfig: Ingress): Ingress`
   *     : Create Kubernetes ingress
   * 
-  *   {s}`delete(client: KubernetesClient, namespace: String, name: String): Ingress`
+  *   `delete(client: KubernetesClient, namespace: String, name: String): Ingress`
   *     : Delete Kubernetes ingress
   */
 

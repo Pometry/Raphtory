@@ -6,7 +6,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  * {s}`GenericTaint((startTime: Int, infectedNodes: Iterable[Long], stopNodes: Set[Long] = Set())`
+  * `GenericTaint((startTime: Int, infectedNodes: Iterable[Long], stopNodes: Set[Long] = Set())`
   *  : temporal tainting/infection dynamic
   *
   * A tainting/infection algorithm for a directed graph. Given the start node(s) and time
@@ -16,24 +16,24 @@ import com.raphtory.algorithms.api.Table
   *
   * ## Parameters
   *
-  *  {s}`startTime: Long`
+  *  `startTime: Long`
   *    : Time to start spreading taint
   *
-  *  {s}`infectedNodes: Iterable[String]`
+  *  `infectedNodes: Iterable[String]`
   *    : List of node names that will start as tainted
   *
-  *  {s}`stopNodes: Iterable[String] = Set()`
+  *  `stopNodes: Iterable[String] = Set()`
   *    : If set, any node names that will not propagate taint
   *
   * ## States
   *
-  *  {s}`taintStatus: Boolean`
-  *    : {s}`true` if node is infected/tainted
+  *  `taintStatus: Boolean`
+  *    : `true` if node is infected/tainted
   *
-  *  {s}`taintHistory: List[(String, Long, Long, String)]`
+  *  `taintHistory: List[(String, Long, Long, String)]`
   *    : List of taint messages received by the vertex. Each message has the format
-  *     {s}`("tainted", edge.ID, event.time, name)`, where {s}`edge.ID` is the `ID` of the edge sending the message,
-  *     {s}`event.time` is the timestamp for the tainting event, and {s}`name` is the name of the source node for the
+  *     `("tainted", edge.ID, event.time, name)`, where `edge.ID` is the `ID` of the edge sending the message,
+  *     `event.time` is the timestamp for the tainting event, and `name` is the name of the source node for the
   *     message
   *
   * ## Returns
@@ -42,7 +42,7 @@ import com.raphtory.algorithms.api.Table
   *
   *  | vertex name       | propagating edge   | time of event         | source node       |
   *  | ----------------- | ------------------ | --------------------- | ----------------- |
-  *  | {s}`name: String` | {s}`edge.ID: Long` | {s}`event.time: Long` | {s}`name: String` |
+  *  | `name: String` | `edge.ID: Long` | `event.time: Long` | `name: String` |
   */
 class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
         extends GraphAlgorithm {

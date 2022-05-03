@@ -6,7 +6,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  * {s}`Ancestors(seed:String, time:Long, delta:Long=Long.MaxValue, directed:Boolean=true)`
+  * `Ancestors(seed:String, time:Long, delta:Long=Long.MaxValue, directed:Boolean=true)`
   *  : find all ancestors of a vertex at a given time point
   *
   * The ancestors of a seed vertex are defined as those vertices which can reach the seed vertex via a temporal
@@ -15,32 +15,32 @@ import com.raphtory.algorithms.api.Table
   *
   * ## Parameters
   *
-  *  {s}`seed: String`
+  *  `seed: String`
   *    : The name of the target vertex
   *
-  *  {s}`time: Long`
+  *  `time: Long`
   *    : The time of interest
   *
-  *  {s}`delta: Long = Long.MaxValue`
+  *  `delta: Long = Long.MaxValue`
   *    : The maximum timespan for the temporal path. This is currently exclusive of the oldest time
   *       i.e. if looking back a minute it will not include events that happen exactly 1 minute ago.
   *
-  *  {s}`directed: Boolean = true`
+  *  `directed: Boolean = true`
   *    : whether to treat the network as directed
   *
-  *  {s}`strict: Boolean = true`
+  *  `strict: Boolean = true`
   *    : Whether lastActivityBefore is strict in its following of paths that happen exactly at the given time. True will not follow, False will.
   *
   * ## States
   *
-  *  {s}`ancestor: Boolean`
-  *    : flag indicating that the vertex is an ancestor of {s}`seed`
+  *  `ancestor: Boolean`
+  *    : flag indicating that the vertex is an ancestor of `seed`
   *
   * ## Returns
   *
   *  | vertex name       | is ancestor of seed?   |
   *  | ----------------- | ---------------------- |
-  *  | {s}`name: String` | {s}`ancestor: Boolean` |
+  *  | `name: String` | `ancestor: Boolean` |
   */
 class Ancestors(
     seed: String,

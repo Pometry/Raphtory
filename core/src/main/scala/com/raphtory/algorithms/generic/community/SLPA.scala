@@ -10,7 +10,7 @@ import scala.collection.mutable
 import scala.util.Random
 
 /**
-  * {s}`SLPA(iterNumber: Int = 50, speakerRule: Rule = ChooseRandom(), listenerRule: Rule = MostCommon())`
+  * `SLPA(iterNumber: Int = 50, speakerRule: Rule = ChooseRandom(), listenerRule: Rule = MostCommon())`
   *  : find overlapping communities using synchronous label propagation
   *
   * This returns the overlapping communities of the graph by a variant of the synchronous label propagation algorithm.
@@ -23,35 +23,35 @@ import scala.util.Random
   *
   * ## Parameters
   *
-  *  {s}`iterNumber: Int = 50`
+  *  `iterNumber: Int = 50`
   *    : Number of iterations to run (default 50).
   *
-  *  {s}`speakerRule: Rule = ChooseRandom()`
+  *  `speakerRule: Rule = ChooseRandom()`
   *    : rule for choosing label to propagate (default: ChooseRandom())
   *
-  *  {s}`listenerRule: Rule = MostCommon()`
+  *  `listenerRule: Rule = MostCommon()`
   *    : rule for choosing label to add to mem (default: MostCommon())
   *
   * ## States
   *
-  *  {s}`memory: Queue[Long]`
+  *  `memory: Queue[Long]`
   *    : memory of labels
   *
   * ## Returns
   *
   *  | vertex name       | label memory             |
   *  | ----------------- | ------------------------ |
-  *  | {s}`name: String` | {s}`memory: Array[Long]` |
+  *  | `name: String` | `memory: Array[Long]` |
   *
   * ## Rules
   *
-  * {s}`Fifo()`
+  * `Fifo()`
   *  : Return labels in first-in-first-out order
   *
-  * {s}`MostCommon()`
+  * `MostCommon()`
   *  : Return most common label
   *
-  * {s}`ChooseRandom()`
+  * `ChooseRandom()`
   *  : Sample label at random from list of labels
   *
   *  ```{note}

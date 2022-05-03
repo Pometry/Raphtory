@@ -1,11 +1,11 @@
 package com.raphtory.util
 
 /**
-  * Extra reduction functions for collections of {s}`Numeric` type
+  * Extra reduction functions for collections of `Numeric` type
   *
   * ## Methods
   *
-  *  {s}`mean: Double`
+  *  `mean: Double`
   *    : Calculate the mean value of the collection
   */
 object Reduction {

@@ -8,7 +8,7 @@ import com.raphtory.time.Interval
 import java.io.File
 
 /**
-  * {s}`GsonOutputFormat()`
+  * `GsonOutputFormat()`
   *   : writes output for Raphtory Job to Gson Format
   */
 

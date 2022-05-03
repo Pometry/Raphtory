@@ -5,7 +5,7 @@ import java.util.Base64
 import com.raphtory.deployment.kubernetes.components.KubernetesClient
 
 /**
-  * {s}`RaphtoryKubernetesRegistrySecret`
+  * `RaphtoryKubernetesRegistrySecret`
   *
   * Extends KubernetesClient which extends Config.
   *
@@ -15,10 +15,10 @@ import com.raphtory.deployment.kubernetes.components.KubernetesClient
   *
   * ## Methods
   *
-  *   {s}`create(): Unit`
+  *   `create(): Unit`
   *     : Create kubernetes registry secrets needed for Raphtory (if toggled in application.conf)
   *
-  *   {s}`delete(): Unit`
+  *   `delete(): Unit`
   *     : Delete kubernetes registry secrets needed for Raphtory (if toggled in application.conf)
   *
   * ```{seealso}

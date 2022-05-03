@@ -7,7 +7,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  * {s}`Degree()`
+  * `Degree()`
   *  : return in-degree, out-degree, and degree of nodes
   *
   * The degree of a node in an undirected networks counts the number of neighbours that
@@ -16,20 +16,20 @@ import com.raphtory.algorithms.api.Table
   *
   * ## States
   *
-  *  {s}`inDegree: Int`
+  *  `inDegree: Int`
   *    : The in-degree of the node
   *
-  *  {s}`outDegree: Int`
+  *  `outDegree: Int`
   *    : The out-degree of the node
   *
-  *  {s}`degree: Int`
+  *  `degree: Int`
   *    : The undirected degree (i.e. the overall number of neighbours)
   *
   * ## Returns
   *
   *  | vertex name       | in-degree          | out-degree          | degree           |
   *  | ----------------- | ------------------ | ------------------- | ---------------- |
-  *  | {s}`name: String` | {s}`inDegree: Int` | {s}`outDegree: Int` | {s}`degree: Int` |
+  *  | `name: String` | `inDegree: Int` | `outDegree: Int` | `degree: Int` |
   *
   * ```{seealso}
   * [](com.raphtory.algorithms.generic.centrality.WeightedDegree)

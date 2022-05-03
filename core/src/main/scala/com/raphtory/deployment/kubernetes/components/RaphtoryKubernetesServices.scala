@@ -3,7 +3,7 @@ package com.raphtory.deployment.kubernetes.components
 import com.raphtory.deployment.kubernetes.utils._
 
 /**
-  * {s}`RaphtoryKubernetesServices`
+  * `RaphtoryKubernetesServices`
   *
   * Extends KubernetesClient which extends Config.
   *
@@ -13,10 +13,10 @@ import com.raphtory.deployment.kubernetes.utils._
   *
   * ## Methods
   *
-  *   {s}`create(): Unit`
+  *   `create(): Unit`
   *     : Create kubernetes services needed for Raphtory (if toggled in application.conf)
   *
-  *   {s}`delete(): Unit`
+  *   `delete(): Unit`
   *     : Delete kubernetes services needed for Raphtory (if toggled in application.conf)
   *
   * ```{seealso}

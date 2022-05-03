@@ -16,18 +16,18 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
 /**
-  * {s}`GraphDeployment`
+  * `GraphDeployment`
   *    : Graph Deployment extends Raphtory Client to initialise Query Manager, Partitions, Spout Worker
   *    and GraphBuilder Worker for a deployment ID
   *
-  *  {s}`GraphDeployment` should not be created directly. To create a {s}`GraphDeployment` use
-  *  {s}`Raphtory.createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`.
+  *  `GraphDeployment` should not be created directly. To create a `GraphDeployment` use
+  *  `Raphtory.createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`.
   *
   *  The query methods for `GraphDeployment` are similar to `RaphtoryClient`
   *
   *  ## Methods
   *
-  *    {s}`stop()`
+  *    `stop()`
   *      : Stops components - partitions, query manager, graph builders, spout worker
   *
   *  ```{seealso}

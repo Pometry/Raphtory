@@ -9,10 +9,10 @@ import org.slf4j.LoggerFactory
 import java.io.File
 
 /**
-  * {s}`FileOutputFormat(filePath: String)`
+  * `FileOutputFormat(filePath: String)`
   *   : writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File
   *
-  *     {s}`filePath: String`
+  *     `filePath: String`
   *       : Filepath for writing Raphtory output.
   *
   * Usage while querying or running algorithmic tests:

@@ -15,30 +15,30 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 /**
-  * {s}`QueryProgressTracker`
+  * `QueryProgressTracker`
   *  : Tracks the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
   *
-  *    Queries in Raphtory run as a series of {s}`Perspectives` which are graph views at specific timestamps and windows as the query progresses.
-  *    The progress tracker thus helps track query progress until the job is completed. Query types supported include {s}`PointQuery`, {s}`RangeQuery` and {s}`LiveQuery`
+  *    Queries in Raphtory run as a series of `Perspectives` which are graph views at specific timestamps and windows as the query progresses.
+  *    The progress tracker thus helps track query progress until the job is completed. Query types supported include `PointQuery`, `RangeQuery` and `LiveQuery`
   *
   * ## Methods
   *
-  *   {s}`getJobId(): String`
+  *   `getJobId(): String`
   *    : Returns job identifier for the query
   *
-  *   {s}`getLatestPerspectiveProcessed(): Perspective`
-  *    : Returns the latest {s}`Perspective` processed by the query
+  *   `getLatestPerspectiveProcessed(): Perspective`
+  *    : Returns the latest `Perspective` processed by the query
   *
-  *   {s}`getPerspectivesProcessed(): List[Perspective]`
+  *   `getPerspectivesProcessed(): List[Perspective]`
   *    : Returns list of perspectives processed for the query so far
   *
-  *   {s}`getPerspectiveDurations(): List[Long]`
+  *   `getPerspectiveDurations(): List[Long]`
   *    : Returns the time taken to process each perspective in milliseconds
   *
-  *   {s}`isJobDone(): Boolean`
+  *   `isJobDone(): Boolean`
   *    : Checks if job is complete
   *
-  *   {s}`waitForJob()`
+  *   `waitForJob()`
   *    : Block until job is complete, repeats check every second
   *
   * Example Usage:
@@ -91,8 +91,8 @@ class QueryProgressTracker(
     ) // see this for why this is necessary https://github.com/monix/monix/issues/860
     .runToFuture
 
-  // Handles message to process the {s}`Perspective` received in case
-  // the query is in progress, or {s}`JobDone` if the query is complete
+  // Handles message to process the `Perspective` received in case
+  // the query is in progress, or `JobDone` if the query is complete
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
       case perspective: Perspective =>

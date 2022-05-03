@@ -4,7 +4,7 @@ import com.raphtory.deployment.kubernetes.utils.KubernetesIngress
 import com.raphtory.deployment.kubernetes.utils.KubernetesService
 
 /**
-  * {s}`RaphtoryKubernetesIngresses`
+  * `RaphtoryKubernetesIngresses`
   *
   * Extends KubernetesClient which extends Config.
   *
@@ -14,10 +14,10 @@ import com.raphtory.deployment.kubernetes.utils.KubernetesService
   *
   * ## Methods
   *
-  *   {s}`create(): Unit`
+  *   `create(): Unit`
   *     : Create kubernetes ingresses needed for Raphtory (if toggled in application.conf)
   *
-  *   {s}`delete(): Unit`
+  *   `delete(): Unit`
   *     : Delete kubernetes ingresses needed for Raphtory (if toggled in application.conf)
   *
   * ```{seealso}

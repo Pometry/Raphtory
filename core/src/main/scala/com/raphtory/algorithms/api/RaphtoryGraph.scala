@@ -17,7 +17,7 @@ import com.raphtory.components.querymanager.Query
 private[raphtory] class RaphtoryGraph(query: Query, private val querySender: QuerySender)
         extends DefaultGraphOperations[RaphtoryGraph](query, querySender) {
 
-  /** Apply f over itself and return the result. {s}`graph.transform(f)` is equivalent to {s}`f(graph)`
+  /** Apply f over itself and return the result. `graph.transform(f)` is equivalent to `f(graph)`
     * @param f function to apply
     * */
   def transform(f: RaphtoryGraph => RaphtoryGraph): RaphtoryGraph = f(this)
@@ -31,13 +31,13 @@ private[raphtory] class RaphtoryGraph(query: Query, private val querySender: Que
     newGraph(transformedGraph.asInstanceOf[GenericGraphPerspective].query, querySender)
   }
 
-  /** Execute the algorithm on every perspective and returns a new {s}`RaphtoryGraph` with the result.
+  /** Execute the algorithm on every perspective and returns a new `RaphtoryGraph` with the result.
     * @param algorithm to apply
     * */
   def execute(algorithm: GraphAlgorithm): Table =
     algorithm.run(new GenericGraphPerspective(query, querySender))
 
-  /** Apply f over itself and return the result. {s}`graph.execute(f)` is equivalent to {s}`f(graph)`
+  /** Apply f over itself and return the result. `graph.execute(f)` is equivalent to `f(graph)`
     *  @param f function to apply
     */
   def execute(f: RaphtoryGraph => Table): Table = f(this)

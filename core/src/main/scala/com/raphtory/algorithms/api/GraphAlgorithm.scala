@@ -4,33 +4,33 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 /**
-  * {s}`GraphAlgorithm`
+  * `GraphAlgorithm`
   *  : Base class for writing graph algorithms
   *
   * ## Attributes
   *
-  *  {s}`logger: Logger`
+  *  `logger: Logger`
   *    : Logger instance for writing out log messages
   *
   * ## Methods
   *
-  *  {s}`apply(graph: GraphPerspective): GraphPerspective`
+  *  `apply(graph: GraphPerspective): GraphPerspective`
   *    : Default implementation returns the graph unchanged
   *
-  *   {s}`tabularise(graph: GraphPerspective): Table`
+  *   `tabularise(graph: GraphPerspective): Table`
   *    : Return tabularised results (default implementation returns empty table)
   *
-  *   {s}`run(graph: GraphPerspective): Unit`
+  *   `run(graph: GraphPerspective): Unit`
   *      : Run graph algorithm and output results (called internally by the query API to execute the algorithm).
   *        Normally, this method should not be overriden. Overriding this method can mean that the algorithm will
   *        behave differently, depending on whether it is called as part of a [](com.raphtory.algorithms.api.Chain)
   *        or on its own.
   *
-  *   {s}`->(graphAlgorithm: GraphAlgorithm): Chain`
+  *   `->(graphAlgorithm: GraphAlgorithm): Chain`
   *      : Create a new algorithm [](com.raphtory.algorithms.api.Chain) which runs this algorithm first before
   *        running the other algorithm.
   *
-  *        {s}`graphAlgorithm: GraphAlgorithm)`
+  *        `graphAlgorithm: GraphAlgorithm)`
   *          : next algorithm to run in the chain
   */
 abstract class GraphAlgorithm extends Serializable {

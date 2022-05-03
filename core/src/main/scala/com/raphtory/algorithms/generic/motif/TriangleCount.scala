@@ -7,7 +7,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  * {s}`TriangleCount()`
+  * `TriangleCount()`
   *  : Returns the number of triangles.
   *
   * The triangle count algorithm counts the number of triangles
@@ -30,14 +30,14 @@ import com.raphtory.algorithms.api.Table
   *
   * ## States
   *
-  *  {s}`triangleCount: Long`
+  *  `triangleCount: Long`
   *    : Number of triangles a vertex is part of
   *
   * ## Returns
   *
   *  | vertex name       | number of triangles      |
   *  | ----------------- | ------------------------ |
-  *  | {s}`name: String` | {s}`triangleCount: Long` |
+  *  | `name: String` | `triangleCount: Long` |
   *
   * ```{note}
   *  Edges here are treated as undirected, so if the underlying network is directed here,

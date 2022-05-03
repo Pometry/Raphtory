@@ -13,7 +13,7 @@ import collection.mutable.ArrayBuffer
 import scala.util.Random
 
 /**
-  * {s}`RandomWalk(walkLength: Int = 10, numWalks: Int = 1, seed: Long = -1)`
+  * `RandomWalk(walkLength: Int = 10, numWalks: Int = 1, seed: Long = -1)`
   *    : Implements random walks on unweighted graph
   *
   *  This algorithm starts `numWalks` unbiased random walks from each node
@@ -22,13 +22,13 @@ import scala.util.Random
   *
   * ## Parameters
   *
-  *  {s}`walkLength: Int = 10`
+  *  `walkLength: Int = 10`
   *    : maximum length of generated walks
   *
-  *  {s}`numWalks: Int = 1`
+  *  `numWalks: Int = 1`
   *    : number of walks to start for each node
   *
-  *  {s}`seed: Long`
+  *  `seed: Long`
   *    : seed for the random number generator
   *
   * ```{note}
@@ -37,13 +37,13 @@ import scala.util.Random
   *
   * ## States
   *
-  *  {s}`walks: Array[ArrayBuffer[String]]`: List of nodes for each random walk started from this vertex
+  *  `walks: Array[ArrayBuffer[String]]`: List of nodes for each random walk started from this vertex
   *
   * ## Returns
   *
   * | vertex 1          | vertex 2          | ... | vertex `walkLength` |
   * | ----------------- | ----------------- | --- | ------------------- |
-  * | {s}`name: String` | {s}`name: String` | ... | {s}`name: String`   |
+  * | `name: String` | `name: String` | ... | `name: String`   |
   *
   *  Each row of the table corresponds to a single random walk and columns correspond to the vertex at a given step
   */

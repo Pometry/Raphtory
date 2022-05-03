@@ -8,10 +8,10 @@ import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
 
 /**
-  * {s}`PulsarOutputFormat(pulsarTopic: String)`
+  * `PulsarOutputFormat(pulsarTopic: String)`
   *   : writes output output to a Raphtory Pulsar topic
   *
-  *     {s}`pulsarTopic: String`
+  *     `pulsarTopic: String`
   *       : Topic name for writing to Pulsar.
   *
   * Usage while querying or running algorithmic tests:

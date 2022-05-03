@@ -3,7 +3,7 @@ package com.raphtory.spouts
 import com.raphtory.components.spout.Spout
 
 /**
-  * {s}`SequenceSpout[T](seq: T*)`
+  * `SequenceSpout[T](seq: T*)`
   *  : output input messages to Raphtory
   *
   * This spout is mainly useful for testing functionality

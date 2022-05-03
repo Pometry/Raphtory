@@ -8,7 +8,7 @@ import com.raphtory.algorithms.api.Table
 import scala.math.Ordering.Implicits._
 
 /**
-  * {s}`AdjPlus()`
+  * `AdjPlus()`
   * : AdjPlus transform of the graph
   *
   *  This transforms the graph using the AdjPlus projection, which treats the input graph as undirected and returns a
@@ -20,7 +20,7 @@ import scala.math.Ordering.Implicits._
   *
   * ## States
   *
-  *  {s}`adjPlus: Array[Long]`
+  *  `adjPlus: Array[Long]`
   *  : List of neighbour IDs that have a larger degree than the current vertex
   *    or the same degree and a larger ID, ordered by increasing degree
   *
@@ -29,7 +29,7 @@ import scala.math.Ordering.Implicits._
   *
   *  | source name          | destination name     |
   *  | -------------------- | -------------------- |
-  *  | {s}`srcName: String` | {s}`dstName: String` |
+  *  | `srcName: String` | `dstName: String` |
   *
   * ```{seealso}
   * [](com.raphtory.algorithms.generic.motif.SquareCount)

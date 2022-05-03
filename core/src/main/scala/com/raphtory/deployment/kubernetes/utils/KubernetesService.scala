@@ -8,22 +8,22 @@ import io.fabric8.kubernetes.client.KubernetesClient
 import scala.collection.JavaConverters._
 
 /**
-  * {s}`KubernetesService`
+  * `KubernetesService`
   *
   * Kubernetes Service
   *
   * ## Methods
   *
-  *   {s}`get(client: KubernetesClient, namespace: String, name: String): Service`
+  *   `get(client: KubernetesClient, namespace: String, name: String): Service`
   *     : Get Kubernetes service
   *
-  *   {s}`build( name: String, selectorLabels: Map[String, String], annotations: Map[String, String] = Map(), labels: Map[String, String], portName: String, portProtocol: String, port: Int, targetPort: Int, serviceType: String): Service`
+  *   `build( name: String, selectorLabels: Map[String, String], annotations: Map[String, String] = Map(), labels: Map[String, String], portName: String, portProtocol: String, port: Int, targetPort: Int, serviceType: String): Service`
   *     : Build Kubernetes service
   *
-  *   {s}`create(client: KubernetesClient, namespace: String, serviceConfig: Service): Service`
+  *   `create(client: KubernetesClient, namespace: String, serviceConfig: Service): Service`
   *     : Create Kubernetes service
   * 
-  *   {s}`delete(client: KubernetesClient, namespace: String, name: String): Boolean`
+  *   `delete(client: KubernetesClient, namespace: String, name: String): Boolean`
   *     : Delete Kubernetes service
   */
 

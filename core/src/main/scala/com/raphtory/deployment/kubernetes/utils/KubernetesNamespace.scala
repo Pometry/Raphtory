@@ -8,22 +8,22 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConverters._
 
 /**
-  * {s}`KubernetesNamespace`
+  * `KubernetesNamespace`
   *
   * Kubernetes Namespace
   *
   * ## Methods
   *
-  *   {s}`get(client: KubernetesClient, name: String): Namespace` 
+  *   `get(client: KubernetesClient, name: String): Namespace`
   *     : Get Kubernetes namespace
   *
-  *   {s}`listAll( client: KubernetesClient): ListBuffer[String]`
+  *   `listAll( client: KubernetesClient): ListBuffer[String]`
   *     : Get a list of Kubernetes namespaces
   *
-  *   {s}`create( client: KubernetesClient, name: String, labels: Map[String, String] = Map()): Namespace`
+  *   `create( client: KubernetesClient, name: String, labels: Map[String, String] = Map()): Namespace`
   *     : Create Kubernetes namespace
   * 
-  *   {s}`delete(client: KubernetesClient, name: String): Boolean`
+  *   `delete(client: KubernetesClient, name: String): Boolean`
   *     : Delete Kubernetes namespace
   */
 

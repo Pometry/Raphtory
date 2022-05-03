@@ -12,23 +12,23 @@ import com.raphtory.time.IntervalParser.{parse => parseInterval}
 import com.typesafe.config.Config
 
 /**
-  * {s}`TemporalGraph`
+  * `TemporalGraph`
   *  : Public interface for the analysis API
   *
-  * A {s}`TemporalGraph` is a graph with an underlying
+  * A `TemporalGraph` is a graph with an underlying
   * timeline with a start time and, optionally, an end time. It offers methods to modify this timeline.
   * There are also methods to create a one or a sequence of temporal marks over the timeline,
   * therefore producing a so-called DottedGraph,
   * that can be further used to create a set of perspectives over the timeline of the graph to work with.
-  * This class supports all the graph operations defined in {s}`GraphOperations`.
+  * This class supports all the graph operations defined in `GraphOperations`.
   * If any graph operation is invoked from this instance, it is applied only over the elements of the graph within
   * the timeline.
   *
   * ```{note}
-  *  All the timestamps must follow the format set in the configuration path {s}`"raphtory.query.timeFormat"`.
-  *  By default is {s}`"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`.
+  *  All the timestamps must follow the format set in the configuration path `"raphtory.query.timeFormat"`.
+  *  By default is `"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`.
   *
-  *  All the strings expressing intervals need to be in the format {s}`"<number> <unit> [<number> <unit> [...]]"`,
+  *  All the strings expressing intervals need to be in the format `"<number> <unit> [<number> <unit> [...]]"`,
   *  where numbers must be integers and units must be one of
   *  {'year', 'month', 'week', 'day', 'hour', 'min'/'minute', 'sec'/'second', 'milli'/'millisecond'}
   *  using the plural when the number is different than 1.
@@ -38,172 +38,172 @@ import com.typesafe.config.Config
   *
   * ## Methods
   *
-  *  {s}`from(startTime: Long): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the activity before {s}`startTime`.
+  *  `from(startTime: Long): TemporalGraph`
+  *    : Creates a new `TemporalGraph` filtering out all the activity before `startTime`.
   *
-  *      {s}`startTime: Long`
+  *      `startTime: Long`
   *      : time interpreted in milliseconds by default
   *
-  *  {s}`from(startTime: String): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the activity before {s}`startTime`.
+  *  `from(startTime: String): TemporalGraph`
+  *    : Creates a new `TemporalGraph` filtering out all the activity before `startTime`.
   *
-  *      {s}`startTime: String`
+  *      `startTime: String`
   *      : timestamp
   *
-  *  {s}`to(endTime: Long): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the activity after {s}`endTime`.
+  *  `to(endTime: Long): TemporalGraph`
+  *    : Creates a new `TemporalGraph` filtering out all the activity after `endTime`.
   *
-  *      {s}`endTime: Long`
+  *      `endTime: Long`
   *        : time interpreted in milliseconds by default
   *
-  *  {s}`to(endTime: String): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the activity after {s}`endTime`.
+  *  `to(endTime: String): TemporalGraph`
+  *    : Creates a new `TemporalGraph` filtering out all the activity after `endTime`.
   *
-  *      {s}`endTime: String`
+  *      `endTime: String`
   *        : timestamp
   *
-  *  {s}`until(endTime: Long): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the activity after and at {s}`endTime`.
+  *  `until(endTime: Long): TemporalGraph`
+  *    : Creates a new `TemporalGraph` filtering out all the activity after and at `endTime`.
   *
-  *      {s}`endTime: Long`
+  *      `endTime: Long`
   *        : time interpreted in milliseconds by default
   *
-  *  {s}`until(endTime: String): TemporalGraph`
-  *    : Creates a new `TemporalGraph` filtering out all the activity after and at {s}`endTime`.
+  *  `until(endTime: String): TemporalGraph`
+  *    : Creates a new `TemporalGraph` filtering out all the activity after and at `endTime`.
   *
-  *      {s}`endTime: String`
+  *      `endTime: String`
   *        : timestamp
   *
-  *  {s}`slice(startTime: Long, endTime: Long): TemporalGraph`
+  *  `slice(startTime: Long, endTime: Long): TemporalGraph`
   *    : Creates a new `TemporalGraph` filtering out all the activity
-  *    before {s}`startTime` and after and at {s}`endTime`.
-  *    {s}`graph.slice(startTime, endTime)` is equivalent to {s}`graph.from(startTime).until(endTime)`
+  *    before `startTime` and after and at `endTime`.
+  *    `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`
   *
-  *  {s}`slice(startTime: String, endTime: String): TemporalGraph`
+  *  `slice(startTime: String, endTime: String): TemporalGraph`
   *     : Creates a new `TemporalGraph` filtering out all the activity
-  *     before {s}`startTime` and after and at {s}`endTime`.
-  *    {s}`graph.slice(startTime, endTime)` is equivalent to {s}`graph.from(startTime).until(endTime)`.
+  *     before `startTime` and after and at `endTime`.
+  *    `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`.
   *
-  *      {s}`startTime: String`
+  *      `startTime: String`
   *        : timestamp
   *
-  *      {s}`endTime: String`
+  *      `endTime: String`
   *        : timestamp
   *
-  *   {s}`at(time: Long): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a temporal mark at {s}`time`.
+  *   `at(time: Long): DottedGraph`
+  *     : Create a `DottedGraph` with a temporal mark at `time`.
   *
-  *       {s}`time: Long`
+  *       `time: Long`
   *         : the temporal mark to be added to the timeline
   *
-  *  {s}`at(time: String): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a temporal mark at {s}`time`.
+  *  `at(time: String): DottedGraph`
+  *     : Create a `DottedGraph` with a temporal mark at `time`.
   *
-  *       {s}`time: String`
+  *       `time: String`
   *         : timestamp
   *
-  *  {s}`walk(increment: Long): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a sequence of temporal marks with a separation of {s}`increment`
+  *  `walk(increment: Long): DottedGraph`
+  *     : Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment`
   *     covering all the timeline aligned with 0.
   *
-  *       {s}`increment: Long`
+  *       `increment: Long`
   *         : the step size
   *
-  *  {s}`walk(increment: Long, offset: Long): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a sequence of temporal marks with a separation of {s}`increment`
-  *     covering all the timeline aligned with {s}`offset`.
+  *  `walk(increment: Long, offset: Long): DottedGraph`
+  *     : Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment`
+  *     covering all the timeline aligned with `offset`.
   *
-  *       {s}`increment: Long`
+  *       `increment: Long`
   *         : the step size
   *
-  *       {s}`offset: Long`
+  *       `offset: Long`
   *         : the offset to align with
   *
-  *  {s}`walk(increment: String): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a sequence of temporal marks with a separation of {s}`increment`
+  *  `walk(increment: String): DottedGraph`
+  *     : Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment`
   *     covering all the timeline aligned with the epoch.
   *     These temporal marks get generated as the timeline keeps growing.
   *
-  *       {s}`increment: String`
+  *       `increment: String`
   *         : the interval to use as the step size
   *
-  *  {s}`walk(increment: String, offset: String): DottedGraph`
-  *     : Create a {s}`DottedGraph` with a sequence of temporal marks with a separation of {s}`increment`
-  *     covering all the timeline aligned with {s}`offset`.
+  *  `walk(increment: String, offset: String): DottedGraph`
+  *     : Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment`
+  *     covering all the timeline aligned with `offset`.
   *     These temporal marks get generated as the timeline keeps growing.
   *
-  *       {s}`increment: String`
+  *       `increment: String`
   *         : the interval to use as the step size
   *
-  *       {s}`offset: String`
+  *       `offset: String`
   *         : the interval to expressing the offset from the epoch to align with
   *
-  *  {s}`depart(start: Long, increment: Long): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     starting at {s}`start`.
+  *  `depart(start: Long, increment: Long): DottedGraph`
+  *     : Create a DottedGraph with a sequence of temporal marks with a separation of `increment`
+  *     starting at `start`.
   *     These temporal marks get generated as the timeline keeps growing.
   *
-  *       {s}`start: Long`
+  *       `start: Long`
   *         : the point to create the first temporal mark
   *
-  *       {s}`increment: Long`
+  *       `increment: Long`
   *         : the step size
   *
-  *  {s}`depart(start: String, increment: String): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     starting at {s}`start`.
+  *  `depart(start: String, increment: String): DottedGraph`
+  *     : Create a DottedGraph with a sequence of temporal marks with a separation of `increment`
+  *     starting at `start`.
   *     These temporal marks get generated as the timeline keeps growing.
   *
-  *       {s}`start: String`
+  *       `start: String`
   *         : the timestamp to create the first temporal mark
   *
-  *       {s}`increment: String`
+  *       `increment: String`
   *         : the interval expressing the step size
   *
-  *  {s}`climb(end: Long, increment: Long): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     from the start of the timeline ending at {s}`end`.
+  *  `climb(end: Long, increment: Long): DottedGraph`
+  *     : Create a DottedGraph with a sequence of temporal marks with a separation of `increment`
+  *     from the start of the timeline ending at `end`.
   *
-  *       {s}`end: Long`
+  *       `end: Long`
   *         : the point to create the last temporal mark
   *
-  *       {s}`increment: Long`
+  *       `increment: Long`
   *         : the step size
   *
-  *  {s}`climb(end: String, increment: String): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     starting at {s}`start`.
+  *  `climb(end: String, increment: String): DottedGraph`
+  *     : Create a DottedGraph with a sequence of temporal marks with a separation of `increment`
+  *     starting at `start`.
   *
-  *       {s}`start: String`
+  *       `start: String`
   *         : the timestamp to create the first temporal mark
   *
-  *       {s}`increment: String`
+  *       `increment: String`
   *         : the interval expressing the step size
   *
-  *  {s}`range(start: Long, end: Long, increment: Long): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     starting at {s}`start` and ending at {s}`end` (with a smaller step at the end if necessary).
+  *  `range(start: Long, end: Long, increment: Long): DottedGraph`
+  *     : Create a DottedGraph with a sequence of temporal marks with a separation of `increment`
+  *     starting at `start` and ending at `end` (with a smaller step at the end if necessary).
   *
-  *       {s}`start: Long`
+  *       `start: Long`
   *         : the point to create the first temporal mark
   *
-  *       {s}`end: Long`
+  *       `end: Long`
   *         : the point to create the last temporal mark
   *
-  *       {s}`increment: Long`
+  *       `increment: Long`
   *         : the step size
   *
-  *  {s}`range(start: String, end: String, increment: String): DottedGraph`
-  *     : Create a DottedGraph with a sequence of temporal marks with a separation of {s}`increment`
-  *     starting at {s}`start` and ending at {s}`end` (with a smaller step at the end if necessary).
+  *  `range(start: String, end: String, increment: String): DottedGraph`
+  *     : Create a DottedGraph with a sequence of temporal marks with a separation of `increment`
+  *     starting at `start` and ending at `end` (with a smaller step at the end if necessary).
   *
-  *       {s}`start: String`
+  *       `start: String`
   *         : the timestamp to create the first temporal mark
   *
-  *       {s}`end: String`
+  *       `end: String`
   *         : the timestamp to create the first temporal mark
   *
-  *       {s}`increment: String`
+  *       `increment: String`
   *         : the interval expressing the step size
   *
   * ```{seealso}

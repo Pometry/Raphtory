@@ -12,98 +12,98 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * {s}`GraphBuilder[T]`
+  * `GraphBuilder[T]`
   *   : trait for creating a Graph by adding and deleting vertices and edges.
   *
-  *      {s}`T`
-  *        : data type returned by the [{s}`Spout`](com.raphtory.components.spout.Spout)
-  *           to be processed by the {s}`GraphBuilder`
+  *      `T`
+  *        : data type returned by the [`Spout`](com.raphtory.components.spout.Spout)
+  *           to be processed by the `GraphBuilder`
   *
-  * An implementation of {s}`GraphBuilder` needs to override {s}`parseTuple(tuple: T)` to define parsing of input data.
-  * The input data is generated using a [{s}`Spout`](com.raphtory.components.spout.Spout) and passed to the
-  * {s}`parseTuple` method which is responsible for turning the raw data into a list of graph updates. Inside the
-  * {s}`parseTuple` implementation, use methods {s}`addVertex`/{s}`deleteVertex` and {s}`addEdge`/{s}`deleteEdge`
+  * An implementation of `GraphBuilder` needs to override `parseTuple(tuple: T)` to define parsing of input data.
+  * The input data is generated using a [`Spout`](com.raphtory.components.spout.Spout) and passed to the
+  * `parseTuple` method which is responsible for turning the raw data into a list of graph updates. Inside the
+  * `parseTuple` implementation, use methods `addVertex`/`deleteVertex` and `addEdge`/`deleteEdge`
   * for adding/deleting vertices and edges. The resulting graph updates are send to the partitions responsible for
   * handling the vertices and edges.
   *
   * ## Methods
   *
-  *    {s}`parseTuple(tuple: T): Unit`
-  *      : Processes raw data message {s}`tuple` from the spout to extract source node, destination node,
+  *    `parseTuple(tuple: T): Unit`
+  *      : Processes raw data message `tuple` from the spout to extract source node, destination node,
   *        timestamp info, etc.
   *
-  *        {s}`tuple: T`
+  *        `tuple: T`
   *          : raw input data
   *
-  *        A concrete implementation of a {s}`GraphBuilder` needs to override this method to
-  *        define the graph updates, calling the {s}`addVertex`/{s}`deleteVertex` and {s}`addEdge`/{s}`deleteEdge`
+  *        A concrete implementation of a `GraphBuilder` needs to override this method to
+  *        define the graph updates, calling the `addVertex`/`deleteVertex` and `addEdge`/`deleteEdge`
   *        methods documented below.
   *
-  *    {s}`assignID(uniqueChars: String): Long`
+  *    `assignID(uniqueChars: String): Long`
   *      : Convenience method for generating unique IDs based on vertex names
   *
-  *        {s}`uniqueChars: String`
+  *        `uniqueChars: String`
   *          : Vertex name
   *
-  *        Use of this method is optional. A {s}`GraphBuilder` is free to assign vertex IDs in different ways, provided
-  *        that each vertex is assigned a unique ID of type {s}`Long`.
+  *        Use of this method is optional. A `GraphBuilder` is free to assign vertex IDs in different ways, provided
+  *        that each vertex is assigned a unique ID of type `Long`.
   *
   * ### Graph updates
   *
-  *    {s}`addVertex(updateTime: Long, srcId: Long, properties: Properties, vertexType: Type)`
+  *    `addVertex(updateTime: Long, srcId: Long, properties: Properties, vertexType: Type)`
   *      : Add a new vertex to the graph or update existing vertex
   *
-  *        {s}`updateTime: Long`
+  *        `updateTime: Long`
   *          : timestamp for vertex update
   *
-  *        {s}`srcID`
+  *        `srcID`
   *          : ID of vertex to add/update
   *
-  *        {s}`properties: Properties` (optional)
+  *        `properties: Properties` (optional)
   *          : vertex properties for the update (see [](com.raphtory.components.graphbuilder.Properties) for the
   *            available property types)
   *
-  *        {s}`vertexType: Type` (optional)
-  *          : specify a [{s}`Type`](com.raphtory.components.graphbuilder.Properties) for the vertex
+  *        `vertexType: Type` (optional)
+  *          : specify a [`Type`](com.raphtory.components.graphbuilder.Properties) for the vertex
   *
-  *    {s}`deleteVertex(updateTime: Long, srcId: Long)`
+  *    `deleteVertex(updateTime: Long, srcId: Long)`
   *      : mark vertex as deleted
   *
-  *        {s}`updateTime: Long`
+  *        `updateTime: Long`
   *          : time of deletion (vertex is considered as no longer present in the graph after this time)
   *
-  *        {s}`srcID: Long`
+  *        `srcID: Long`
   *          : Id of vertex to delete
   *
-  *    {s}`addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Type)`
+  *    `addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Type)`
   *      : Add a new edge to the graph or update an existing edge
   *
-  *        {s}`updateTime: Long`
+  *        `updateTime: Long`
   *          : timestamp for edge update
   *
-  *        {s}`srcId: Long`
+  *        `srcId: Long`
   *          : ID of source vertex of the edge
   *
-  *        {s}`dstId: Long`
+  *        `dstId: Long`
   *          : ID of destination vertex of the edge
   *
-  *        {s}`properties: Properties` (optional)
+  *        `properties: Properties` (optional)
   *          : edge properties for the update (see [](com.raphtory.components.graphbuilder.Properties) for the
   *            available property types)
   *
-  *        {s}`edgeType: Type` (optional)
-  *          : specify a [{s}`Type`](com.raphtory.components.graphbuilder.Properties) for the edge
+  *        `edgeType: Type` (optional)
+  *          : specify a [`Type`](com.raphtory.components.graphbuilder.Properties) for the edge
   *
-  *    {s}`deleteEdge(updateTime: Long, srcId: Long, dstId: Long)`
+  *    `deleteEdge(updateTime: Long, srcId: Long, dstId: Long)`
   *      : mark edge as deleted
   *
-  *        {s}`updateTime`
+  *        `updateTime`
   *          : time of deletion (edge is considered as no longer present in the graph after this time)
   *
-  *        {s}`srcId`
+  *        `srcId`
   *          : ID of source vertex of the edge
   *
-  *        {s}`dstId`
+  *        `dstId`
   *          : ID of the destination vertex of the edge
   *
   * Example Usage:

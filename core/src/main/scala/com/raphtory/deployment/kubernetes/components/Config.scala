@@ -7,7 +7,7 @@ import com.raphtory.deployment.kubernetes.utils.KubernetesLogger
 import com.typesafe.config
 
 /**
-  * {s}`Config`
+  * `Config`
   *
   * Reads kubernetes configuration values from application.conf.
   *

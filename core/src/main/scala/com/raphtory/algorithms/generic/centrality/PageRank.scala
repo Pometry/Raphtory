@@ -7,7 +7,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  * {s}`PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100)`
+  * `PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100)`
   *  : Compute PageRank for all nodes
   *
   * Page Rank algorithm ranks nodes depending on their connections to determine how important
@@ -22,22 +22,22 @@ import com.raphtory.algorithms.api.Table
   *
   * ## Parameters
   *
-  *  {s}`dampingFactor: Double = 0.85`
+  *  `dampingFactor: Double = 0.85`
   *    : Probability that a node will be randomly selected by a user traversing the graph, defaults to 0.85.
   *
-  *  {s}`iterateSteps: Int = 100`
+  *  `iterateSteps: Int = 100`
   *    : Maximum number of iterations for the algorithm to run.
   *
   * ## States
   *
-  *  {s}`prlabel: Double`
+  *  `prlabel: Double`
   *    : PageRank of the node
   *
   * ## Returns
   *
   *  | vertex name       | PageRank             |
   *  | ----------------- | -------------------- |
-  *  | {s}`name: String` | {s}`prlabel: Double` |
+  *  | `name: String` | `prlabel: Double` |
   *
   * ```{seealso}
   * [](com.raphtory.algorithms.generic.centrality.WeightedPageRank

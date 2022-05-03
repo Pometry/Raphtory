@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
-  * {s}`LiveTwitterSpout`
+  * `LiveTwitterSpout`
   * : Reads in data from the Twitter API
   *
   * The Live Twitter Spout uses Twitter credentials

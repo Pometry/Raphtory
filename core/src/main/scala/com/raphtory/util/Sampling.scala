@@ -3,9 +3,9 @@ package com.raphtory.util
 import scala.util.Random
 
 /**
-  * Extended sampling methods for {s}`scala.util.Random`.
+  * Extended sampling methods for `scala.util.Random`.
   *
-  * To make these methods available to instances of {s}`scala.util.Random`, use
+  * To make these methods available to instances of `scala.util.Random`, use
   *
   * ```{code-block} scala
   * import com.raphtory.algorithms.utils.Sampling._
@@ -13,8 +13,8 @@ import scala.util.Random
   *
   * ## Methods
   *
-  *  {s}`sample(weights: Seq[Double]): Int`
-  *    : Weighted random sampling. Returns integer {s}`i` with probability proportional to {s}`weights(i)`.
+  *  `sample(weights: Seq[Double]): Int`
+  *    : Weighted random sampling. Returns integer `i` with probability proportional to `weights(i)`.
   *      ```{note}
   *      This implementation uses binary search to sample the index.
   *      ```

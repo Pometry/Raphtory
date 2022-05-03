@@ -11,7 +11,7 @@ import scala.collection.mutable
 import scala.collection.mutable.Queue
 
 /**
-  * {s}`PrisonersDilemma(proportionCoop: Float = 0.5f, benefit: Float, cost: Float = 1.0f, noGames: Int = 100)`
+  * `PrisonersDilemma(proportionCoop: Float = 0.5f, benefit: Float, cost: Float = 1.0f, noGames: Int = 100)`
   *   : run iterative game of prisoners dilemma
   *
   *   An iterative game of Prisoners' dilemma is played on the network. In each round, vertices simultaneously play a round
@@ -22,35 +22,35 @@ import scala.collection.mutable.Queue
   *
   * ## Parameters
   *
-  *   {s}`proportionCoop: Float=0.5f`
+  *   `proportionCoop: Float=0.5f`
   *    : Proportion of vertices that start out as cooperators (uniformly sampled). Alternatively, vertices
   *     starting with a status "cooperator" set to 0 begin as cooperators.
   *
-  *   {s}`benefit: Float`
+  *   `benefit: Float`
   *    : Benefit parameter for prisoners' dilemma game. See [1]
   *
-  *   {s}`cost: Float`
+  *   `cost: Float`
   *    : Cost parameter for prisoners' dilemma game. See [1]
   *
-  *   {s}`noGames`
+  *   `noGames`
   *    : Maximum number of games to be played.
   *
-  *   {s}`seed`
+  *   `seed`
   *    : optional seed for testing purposes.
   *
   * ## States
   *
-  *   {s}`cooperator: Int`
+  *   `cooperator: Int`
   *    : The latest status: cooperator (0), or defector (1), of the vertex at that iteration.
   *
-  *   {s}`cooperationHistory: mutable.Queue[Int]`
+  *   `cooperationHistory: mutable.Queue[Int]`
   *    : The full history of a vertex' cooperation status for the games played.
   *
   * ## Returns
   *
   *   | vertex name       | cooperation history                 |
   *   | ----------------- | ----------------------------------- |
-  *   | {s}`name: String` | {s}`cooperationHistory: Queue[Int]` |
+  *   | `name: String` | `cooperationHistory: Queue[Int]` |
   *
   * ## References
   *
