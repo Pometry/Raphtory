@@ -7,7 +7,6 @@ import com.raphtory.config.ComponentFactory
 import com.raphtory.config.ConfigHandler
 import com.raphtory.config.MonixScheduler
 import com.raphtory.config.PulsarConnector
-import com.raphtory.config.PulsarController
 import com.raphtory.config.TopicRepository
 import com.raphtory.client.GraphDeployment
 import com.raphtory.client.QuerySender

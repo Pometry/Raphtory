@@ -6,7 +6,7 @@ import com.raphtory.algorithms.api.OutputFormat
 import com.raphtory.client.GraphDeployment
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
-import com.raphtory.config.PulsarController
+import com.raphtory.config.PulsarConnector
 import com.raphtory.deployment.Raphtory
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -38,10 +38,10 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   var jobId: String           = ""
   val outputDirectory: String = "/tmp/raphtoryTest"
 
-  var graph: GraphDeployment[T]          = _
-  var pulsarController: PulsarController = _
-  var conf: Config                       = _
-  var deploymentID: String               = _
+  var graph: GraphDeployment[T]        = _
+  var pulsarConnector: PulsarConnector = _
+  var conf: Config                     = _
+  var deploymentID: String             = _
 
   override def beforeAll(): Unit = {
     setup()
@@ -56,7 +56,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     conf = graph.getConfig()
     deploymentID = conf.getString("raphtory.deploy.id")
 
-    pulsarController = new PulsarController(conf)
+    pulsarConnector = new PulsarConnector(conf)
   }
 
   override def afterAll(): Unit =

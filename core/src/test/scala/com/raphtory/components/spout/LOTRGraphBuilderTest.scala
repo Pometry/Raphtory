@@ -6,7 +6,7 @@ import com.raphtory.components.graphbuilder.EdgeAdd
 import com.raphtory.components.graphbuilder.GraphUpdate
 import com.raphtory.components.graphbuilder.Properties._
 import com.raphtory.components.graphbuilder.VertexAdd
-import com.raphtory.config.PulsarController
+import com.raphtory.config.PulsarConnector
 import com.raphtory.deployment.Raphtory
 import com.raphtory.graph._
 import com.raphtory.lotrtest.LOTRGraphBuilder
@@ -40,7 +40,7 @@ class LOTRGraphBuilderTest extends AnyFunSuite with BeforeAndAfter {
   val admin: PulsarAdmin                           =
     PulsarAdmin.builder.serviceHttpUrl(config.getString("raphtory.pulsar.admin.address")).build
   implicit private val schema: Schema[Array[Byte]] = Schema.BYTES
-  val pulsarController                             = new PulsarController(config)
+  val pulsarConnector                              = new PulsarConnector(config)
   val kryo                                         = new PulsarKryoSerialiser()
 
   def deleteTestTopic(): Unit = {
@@ -70,7 +70,7 @@ class LOTRGraphBuilderTest extends AnyFunSuite with BeforeAndAfter {
   try {
     // first create a local spout and ingest some local data
     deleteTestTopic()
-    val client         = pulsarController.accessClient
+    val client         = pulsarConnector.accessClient
     val producer_topic = test_producer_topic
     val producer       = client.newProducer(Schema.BYTES).topic(producer_topic).create()
 

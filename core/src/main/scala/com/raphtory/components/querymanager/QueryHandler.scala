@@ -23,7 +23,6 @@ import com.raphtory.algorithms.api.Step
 import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFunction
 import com.raphtory.components.Component
-import com.raphtory.config.PulsarController
 import com.raphtory.config.Scheduler
 import com.raphtory.config.TopicRepository
 import com.raphtory.graph.Perspective

@@ -2,7 +2,6 @@ package com.raphtory.components.spout
 
 import com.raphtory.components.Component
 import com.raphtory.config.Cancelable
-import com.raphtory.config.PulsarController
 import com.raphtory.config.Scheduler
 import com.raphtory.config.TopicRepository
 import com.typesafe.config.Config

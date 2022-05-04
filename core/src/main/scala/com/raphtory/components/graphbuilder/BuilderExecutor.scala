@@ -1,7 +1,6 @@
 package com.raphtory.components.graphbuilder
 
 import com.raphtory.components.Component
-import com.raphtory.config.PulsarController
 import com.raphtory.config.TopicRepository
 import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
@@ -25,7 +24,7 @@ class BuilderExecutor[T: ClassTag](
   private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
   private val writers              = topics.graphUpdates.endPoint
 
-  private val spoutOutputListener  =
+  private val spoutOutputListener =
     topics.registerListener(name, handleMessage, topics.spoutOutput[T])
 
   private var messagesProcessed = 0

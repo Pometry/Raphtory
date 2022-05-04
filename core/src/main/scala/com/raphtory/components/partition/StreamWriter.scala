@@ -16,7 +16,6 @@ import com.raphtory.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.components.graphbuilder.VertexAdd
 import com.raphtory.components.graphbuilder.VertexDelete
 import com.raphtory.components.graphbuilder.VertexRemoveSyncAck
-import com.raphtory.config.PulsarController
 import com.raphtory.config.TopicRepository
 import com.raphtory.graph._
 import com.typesafe.config.Config

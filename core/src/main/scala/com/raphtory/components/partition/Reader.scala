@@ -6,7 +6,6 @@ import com.raphtory.components.querymanager.EstablishExecutor
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.WatermarkTime
 import com.raphtory.config.Cancelable
-import com.raphtory.config.PulsarController
 import com.raphtory.config.Scheduler
 import com.raphtory.config.TopicRepository
 import com.raphtory.graph.GraphPartition
@@ -25,8 +24,8 @@ class Reader(
     conf: Config,
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {
-  private val executorMap                               = mutable.Map[String, QueryExecutor]()
-  private val watermarkPublish                          = topics.watermark.endPoint
+  private val executorMap      = mutable.Map[String, QueryExecutor]()
+  private val watermarkPublish = topics.watermark.endPoint
 
   private val queryPrepListener                         =
     topics.registerListener(s"reader-$partitionID", handleMessage, topics.queryPrep)

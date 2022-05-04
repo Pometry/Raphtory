@@ -19,7 +19,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
     val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)
 
     val consumer: Consumer[Array[Byte]] =
-      pulsarController
+      pulsarConnector
         .createSharedConsumer(
                 subscriptionName = "pulsarOutputTest",
                 schema = Schema.BYTES,

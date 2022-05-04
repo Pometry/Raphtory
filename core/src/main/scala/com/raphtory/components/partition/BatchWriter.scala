@@ -12,7 +12,6 @@ import com.raphtory.components.graphbuilder.SyncNewEdgeAdd
 import com.raphtory.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.components.graphbuilder.VertexAdd
 import com.raphtory.components.spout.Spout
-import com.raphtory.config.PulsarController
 import com.raphtory.graph._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger

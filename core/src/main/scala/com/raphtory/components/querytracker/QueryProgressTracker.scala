@@ -3,7 +3,6 @@ package com.raphtory.components.querytracker
 import com.raphtory.components.Component
 import com.raphtory.components.querymanager.JobDone
 import com.raphtory.components.querymanager.QueryManagement
-import com.raphtory.config.PulsarController
 import com.raphtory.config.TopicRepository
 import com.raphtory.graph.Perspective
 import com.typesafe.config.Config

@@ -28,7 +28,7 @@ import com.raphtory.components.querymanager.TableBuilt
 import com.raphtory.components.querymanager.TableFunctionComplete
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
-import com.raphtory.config.PulsarController
+import com.raphtory.config.PulsarConnector
 import com.raphtory.config.TopicRepository
 import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
@@ -302,7 +302,7 @@ class QueryExecutor(
           val producer =
             if (outputFormat.isInstanceOf[PulsarOutputFormat])
               Some(
-                      new PulsarController(conf).accessClient
+                      new PulsarConnector(conf).accessClient
                         .newProducer(Schema.STRING)
                         .topic(
                                 outputFormat.asInstanceOf[PulsarOutputFormat].pulsarTopic
