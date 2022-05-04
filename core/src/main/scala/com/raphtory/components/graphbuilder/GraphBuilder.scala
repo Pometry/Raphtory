@@ -140,10 +140,10 @@ trait GraphBuilder[T] extends Serializable {
   private var batchWriters: mutable.Map[Int, BatchWriter[T]] = _
   private var builderID: Int                                 = _
   private var deploymentID: String                           = _
-  private var vertexAddCounter: Counter                      = _
-  private var vertexDeleteCounter: Counter                   = _
-  private var edgeAddCounter: Counter                        = _
-  private var edgeDeleteCounter: Counter                     = _
+  private var vertexAddCounter: Counter.Child                = _
+  private var vertexDeleteCounter: Counter.Child             = _
+  private var edgeAddCounter: Counter.Child                  = _
+  private var edgeDeleteCounter: Counter.Child               = _
   private var batching: Boolean                              = false
   private var totalPartitions: Int                           = 1
 
@@ -177,10 +177,10 @@ trait GraphBuilder[T] extends Serializable {
   private[raphtory] def setBuilderMetaData(
       builderID: Int,
       deploymentID: String,
-      vertexAddCounter: Counter,
-      vertexDeleteCounter: Counter,
-      edgeAddCounter: Counter,
-      edgeDeleteCounter: Counter
+      vertexAddCounter: Counter.Child,
+      vertexDeleteCounter: Counter.Child,
+      edgeAddCounter: Counter.Child,
+      edgeDeleteCounter: Counter.Child
   ) = {
     this.builderID = builderID
     this.deploymentID = deploymentID

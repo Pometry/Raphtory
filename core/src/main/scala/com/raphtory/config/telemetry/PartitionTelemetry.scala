@@ -18,12 +18,15 @@ object PartitionTelemetry {
 
   val conf = new ConfigHandler().getConfig
 
-  def lastWaterMarkProcessed(ID: String): Gauge =
-    Gauge.build
+  def lastWaterMarkProcessed(partitionID: String, deploymentID: String) = {
+    val gauge = Gauge.build
       .namespace(conf.getString("raphtory.prometheus.namespaces.reader"))
-      .name(s"last_watermark_processed_$ID")
+      .name(s"last_watermark_processed")
       .help("Last watermark processed by Partition Reader")
+      .labelNames("raphtory_partitionID", "raphtory_deploymentID")
       .register()
+    gauge.labels(partitionID, deploymentID)
+  }
 
   def queryExecutorMapCounter(ID: String): Gauge =
     Gauge.build

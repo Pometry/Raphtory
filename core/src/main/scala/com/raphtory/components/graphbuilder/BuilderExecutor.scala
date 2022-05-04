@@ -19,10 +19,10 @@ import scala.reflect.runtime.universe._
 class BuilderExecutor[T: ClassTag](
     name: Int,
     deploymentID: String,
-    vertexAddCounter: Counter,
-    vertexDeleteCounter: Counter,
-    edgeAddCounter: Counter,
-    edgeDeleteCounter: Counter,
+    vertexAddCounter: Counter.Child,
+    vertexDeleteCounter: Counter.Child,
+    edgeAddCounter: Counter.Child,
+    edgeDeleteCounter: Counter.Child,
     graphBuilder: GraphBuilder[T],
     conf: Config,
     pulsarController: PulsarController

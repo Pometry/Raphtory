@@ -34,7 +34,8 @@ class Reader(
 
   val lastWaterMarkProcessed =
     PartitionTelemetry.lastWaterMarkProcessed(
-            s"partitionID_${partitionID}_deploymentID_$deploymentID"
+            partitionID.toString,
+            deploymentID
     )
 
   val queryExecutorMapCounter =
