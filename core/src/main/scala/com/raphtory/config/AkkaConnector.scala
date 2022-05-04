@@ -42,7 +42,7 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
       case topic: ExclusiveTopic[T] => (getServiceKey(topic), 1)
       case topic: BroadcastTopic[T] => (getServiceKey(topic), topic.numListeners)
       case _: WorkPullTopic[T]      =>
-        throw new Exception("Work pull topics cannot be handled by Akka yet")
+        (getServiceKey(topic), 1) // TODO: implement for more than one listener
     }
     implicit val ec             = actorSystem.executionContext
     AkkaEndPoint(Future(queryServiceKeyActors(serviceKey, numActors)))
