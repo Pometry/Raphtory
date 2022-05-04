@@ -13,12 +13,13 @@ import com.typesafe.config.Config
 object PulsarAkkaGlobalFactory extends GlobalFactory {
   private val actorSystem          = ActorSystem(SpawnProtocol(), "spawner")
   private val scheduler: Scheduler = new AkkaScheduler(actorSystem)
-  private val akkaConnector        = new AkkaConnector(actorSystem)
 
   override def getScheduler: Scheduler = scheduler
 
-  override def createTopicRepository(config: Config): TopicRepository =
-    new TopicRepository(new PulsarConnector(config), config) {
+  override def createTopicRepository(config: Config): TopicRepository = {
+    val akkaConnector   = new AkkaConnector(actorSystem)
+    val pulsarConnector = new PulsarConnector(config)
+    new TopicRepository(pulsarConnector, config) {
       override def jobOperationsConnector: Connector = akkaConnector
       override def jobStatusConnector: Connector     = akkaConnector
       override def queryPrepConnector: Connector     = akkaConnector
@@ -26,4 +27,5 @@ object PulsarAkkaGlobalFactory extends GlobalFactory {
       override def watermarkConnector: Connector     = akkaConnector
       override def rechecksConnector: Connector      = akkaConnector
     }
+  }
 }
