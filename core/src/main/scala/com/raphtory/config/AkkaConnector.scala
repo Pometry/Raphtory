@@ -48,29 +48,6 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
     AkkaEndPoint(Future(queryServiceKeyActors(serviceKey, numActors)))
   }
 
-//  @tailrec
-//  private def queryServiceKeyActors(
-//      serviceKey: ServiceKey[Any],
-//      numActors: Int
-//  ): Future[Set[ActorRef[Any]]] = {
-//    implicit val scheduler: Scheduler = actorSystem.scheduler
-//    implicit val timeout: Timeout     = akkaReceptionistFindingTimeout
-//    val listing                       = actorSystem.receptionist ? Receptionist.Find(serviceKey)
-//    implicit val ec                   = actorSystem.executionContext
-//    val instances                     = listing.map(_.serviceInstances(serviceKey)) // TODO: unsafe
-//    instances.flatMap { instances =>
-//      if (instances.size == numActors)
-//        Future(instances)
-//      else if (instances.size > numActors) {
-//        val msg =
-//          s"${instances.size} instances for service key '${serviceKey.id}', but only $numActors expected"
-//        throw new Exception(msg)
-//      }
-//      else
-//        queryServiceKeyActors(serviceKey, numActors)
-//    }
-//  }
-
   override def register[T](
       id: String,
       messageHandler: T => Unit,
