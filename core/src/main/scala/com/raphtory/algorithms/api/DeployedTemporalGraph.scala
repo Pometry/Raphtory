@@ -4,21 +4,13 @@ import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
 import com.typesafe.config.Config
 
-/**
-  * {s}`DeployedTemporalGraph`
-  *  : Root class for local deployments of the analysis API
+/** Root class for local deployments of the analysis API
   *
-  * A {s}`DeployedTemporalGraph` is a {s}`TemporalGraph`
+  * A DeployedTemporalGraph is a TemporalGraph
   * with a deployment object attached to it that allows to stop it.
   *
-  * ## Methods
-  *
-  *  {s}`deployment: Deployment`
-  *    : Access to the deployment to allow stopping it: {s}`graph.deployment.stop()`.
-  *
-  * ```{seealso}
-  * [](com.raphtory.algorithms.api.TemporalGraph)
-  * ```
+  *  See also
+  *  [[com.raphtory.algorithms.api.TemporalGraph]]
   */
 private[raphtory] class DeployedTemporalGraph(
     query: Query,
@@ -32,6 +24,10 @@ private[raphtory] class DeployedTemporalGraph(
   }
   private val deploymentRef = new Deployment()
 
+  /** Access to the deployment to call functions upon it, e.g. graph.deployment.stop()
+    *
+    * @return Deployment reference
+    * */
   def deployment: Deployment = deploymentRef
 
   private[raphtory] def getConfig() = conf
