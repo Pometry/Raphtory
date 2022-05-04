@@ -12,7 +12,7 @@ class LOTRGraphBuilder() extends GraphBuilder[String] {
     val targetNode = fileLine(1)
     val tarID      = assignID(targetNode)
     val timeStamp  = fileLine(2).toLong
-
+    println(fileLine)
     addVertex(
             timeStamp,
             srcID,

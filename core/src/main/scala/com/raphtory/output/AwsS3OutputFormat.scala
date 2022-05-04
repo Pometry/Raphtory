@@ -1,17 +1,20 @@
 package com.raphtory.output
 
-import com.amazonaws.services.s3.model.{ObjectMetadata, PutObjectRequest, PutObjectResult}
-import com.raphtory.core.algorithm.{OutputFormat, Row}
-import com.raphtory.core.deploy.AWSUpload
-import com.raphtory.core.deploy.Raphtory
+import com.amazonaws.services.s3.model.ObjectMetadata
+import com.amazonaws.services.s3.model.PutObjectRequest
+import com.amazonaws.services.s3.model.PutObjectResult
+import com.raphtory.algorithms.api.OutputFormat
+import com.raphtory.algorithms.api.Row
+import com.raphtory.config.AWSUpload
+import com.raphtory.deployment.Raphtory
+import com.raphtory.time.Interval
 import com.typesafe.config.Config
-import java.io.InputStream
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 
 /**
   * {s}`AWSOutputFormat(awsBucketKey: String)`
-  *   : writes output to a AWS bucket
+  *   : writes output to an AWS bucket
   *
   *     {s}`awsBucketKey: String`
   *       : Bucket path to write to.
@@ -38,35 +41,37 @@ import java.nio.charset.StandardCharsets
   *  [](com.raphtory.core.deploy.Raphtory)
   *  ```
   */
-class AWSOutputFormat(val awsBucketKey: String) extends OutputFormat {
+class AwsS3OutputFormat(awsS3OutputFormatBucketName: String, awsS3OutputFormatBucketPath: String)
+        extends OutputFormat {
 
-  val awsClient = AWSUpload.getAWSClient()
+  val awsClient              = AWSUpload.getAWSClient()
   val raphtoryConfig: Config = Raphtory.getDefaultConfig()
-  val bucketName: String        = raphtoryConfig.getString("raphtory.aws.bucket_name")
 
   override def write(
       timestamp: Long,
-      window: Option[Long],
+      window: Option[Interval],
       jobID: String,
       row: Row,
       partitionID: Int
-  ): Unit = {}
-
-  def writeToS3(
-      timestamp: Long,
-      window: Option[Long],
-      jobID: String,
-      row: Row,
-  ): PutObjectResult = {
-    val value = window match {
+  ): Unit = {
+    val value  = window match {
       case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}"
       case None    => s"$timestamp,${row.getValues().mkString(",")}"
     }
     val stream = new ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8))
-    awsClient.putObject(new PutObjectRequest(bucketName, awsBucketKey, stream, new ObjectMetadata))
-
+    awsClient.putObject(
+            new PutObjectRequest(
+                    awsS3OutputFormatBucketName,
+                    awsS3OutputFormatBucketPath,
+                    stream,
+                    new ObjectMetadata
+            )
+    )
   }
-
 }
 
+object AwsS3OutputFormat {
 
+  def apply(awsS3OutputFormatBucketName: String, awsS3OutputFormatBucketPath: String) =
+    new AwsS3OutputFormat(awsS3OutputFormatBucketName, awsS3OutputFormatBucketPath)
+}

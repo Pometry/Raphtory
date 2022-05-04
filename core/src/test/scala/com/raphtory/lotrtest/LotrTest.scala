@@ -24,9 +24,13 @@ import com.raphtory.algorithms.temporal.Descendants
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.components.spout.Spout
 import com.raphtory.components.graphbuilder.GraphBuilder
+import com.raphtory.config.AWSUpload.raphtoryConfig
 import com.raphtory.deployment.Raphtory
+import com.raphtory.output.AwsS3OutputFormat
 import com.raphtory.output.FileOutputFormat
+import com.raphtory.spouts.AwsS3Spout
 import com.raphtory.spouts.FileSpout
+import com.typesafe.config.Config
 
 import java.io.File
 import scala.language.postfixOps
@@ -36,13 +40,20 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   override def batchLoading(): Boolean = false
 
+  val awsS3OutputFormatBucketName: String = "pometry-data"
+  val awsS3OutputFormatBucketPath: String = "newTwitterData"
+  val awsS3SpoutBucketName: String        = "pometry-data"
+  val awsS3SpoutBucketPath: String        = "lotr/"
+
   test("Graph State Test") {
     val result = algorithmTest(
             algorithm = GraphState(),
             start = 1,
             end = 32674,
             increment = 10000,
-            windows = List(500, 1000, 10000)
+            windows = List(500, 1000, 10000),
+            outputFormat =
+              AwsS3OutputFormat(awsS3OutputFormatBucketName, awsS3OutputFormatBucketPath)
     )
 
     val expected = "c21170ae40544156af69000d2b0d6e8eaf5f593d3905810c7527f2e09b8e9172"
@@ -64,14 +75,15 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
     result shouldEqual expected
   }
-
   test("Degree Test") {
     val result = algorithmTest(
             algorithm = Degree(),
             start = 1,
             end = 32674,
             increment = 10000,
-            windows = List(500, 1000, 10000)
+            windows = List(500, 1000, 10000),
+            outputFormat =
+              AwsS3OutputFormat(awsS3OutputFormatBucketName, awsS3OutputFormatBucketPath)
     )
 
     val expected = "53fe18d6e38b2b32a1c8498100b888e3fd6b0d552dae99bb65fc29fd4f76336f"
@@ -280,23 +292,23 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //    )
 //  }
 
-  override def setSpout(): Spout[String] = FileSpout(s"/tmp/lotr.csv")
+  override def setSpout() = AwsS3Spout(awsS3SpoutBucketName, awsS3SpoutBucketPath)
 
   override def setGraphBuilder(): GraphBuilder[String] = new LOTRGraphBuilder()
 
-  override def setup(): Unit = {
-    val path = "/tmp/lotr.csv"
-    val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
-
-    if (!new File(path).exists())
-      try s"curl -o $path $url" !!
-      catch {
-        case ex: Exception =>
-          logger.error(s"Failed to download 'lotr.csv' due to ${ex.getMessage}.")
-          ex.printStackTrace()
-
-          (s"rm $path" !)
-          throw ex
-      }
-  }
+//  override def setup(): Unit = {
+//    val path = "/tmp/lotr.csv"
+//    val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
+//
+//    if (!new File(path).exists())
+//      try s"curl -o $path $url" !!
+//      catch {
+//        case ex: Exception =>
+//          logger.error(s"Failed to download 'lotr.csv' due to ${ex.getMessage}.")
+//          ex.printStackTrace()
+//
+//          (s"rm $path" !)
+//          throw ex
+//      }
+//  }
 }
