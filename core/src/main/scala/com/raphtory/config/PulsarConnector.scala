@@ -186,14 +186,10 @@ class PulsarConnector(config: Config) extends Connector {
   private def createTopic[T](topic: Topic[T]): String = {
     val persistence = true
 
-//    val tenant        = config.getString(s"raphtory.$component.tenant") TODO: reenable this
-//    val namespace     = config.getString(s"raphtory.$component.namespace")
-//    val retentionTime = config.getString(s"raphtory.$component.retentionTime").toInt
-//    val retentionSize = config.getString(s"raphtory.$component.retentionSize").toInt
-    val tenant        = "public"
-    val namespace     = config.getString("raphtory.deploy.id")
-    val retentionTime = config.getString(s"raphtory.pulsar.retention.time").toInt
-    val retentionSize = config.getString(s"raphtory.pulsar.retention.size").toInt
+    val tenant        = config.getString(s"raphtory.pulsar.topics.${topic.id}.tenant")
+    val namespace     = config.getString(s"raphtory.pulsar.topics.${topic.id}.namespace")
+    val retentionTime = config.getString(s"raphtory.pulsar.topics.${topic.id}.retentionTime").toInt
+    val retentionSize = config.getString(s"raphtory.pulsar.topics.${topic.id}.retentionSize").toInt
 
     try {
       pulsarAdmin.namespaces().createNamespace(s"$tenant/$namespace")
@@ -208,10 +204,15 @@ class PulsarConnector(config: Config) extends Connector {
         logger.debug(s"Namespace $namespace already exists.")
     }
 
-    val subTopicSuffix = if (topic.subTopic.nonEmpty) s"-${topic.subTopic}" else ""
-    val protocol       = if (!persistence) "non-persistent" else "persistent"
+    val protocol = if (!persistence) "non-persistent" else "persistent"
+    val address  = if (topic.customAddress.isEmpty) {
+      val subTopicSuffix = if (topic.subTopic.nonEmpty) s"-${topic.subTopic}" else ""
+      s"${topic.id}$subTopicSuffix"
+    }
+    else
+      topic.customAddress
 
-    s"$protocol://$tenant/$namespace/${topic.id}$subTopicSuffix"
+    s"$protocol://$tenant/$namespace/$address"
   }
 
   private def createProducer[T](schema: Schema[T], topic: String): Producer[T] =

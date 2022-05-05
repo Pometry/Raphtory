@@ -3,6 +3,7 @@ package com.raphtory.config
 sealed trait Topic[+T] {
   def id: String
   def subTopic: String
+  def customAddress: String
   def connector: Connector
 }
 
@@ -13,27 +14,31 @@ sealed trait CanonicalTopic[+T] extends Topic[T] {
 case class ExclusiveTopic[T](
     connector: Connector,
     id: String,
-    subTopic: String = ""
+    subTopic: String = "",
+    customAddress: String = ""
 ) extends CanonicalTopic[T]
 
 case class WorkPullTopic[T](
     connector: Connector,
     id: String,
-    subTopic: String = ""
+    subTopic: String = "",
+    customAddress: String = ""
 ) extends CanonicalTopic[T]
 
 case class BroadcastTopic[T](
     numListeners: Int,
     connector: Connector,
     id: String,
-    subTopic: String = ""
+    subTopic: String = "",
+    customAddress: String = ""
 ) extends CanonicalTopic[T]
 
 case class ShardingTopic[T](
     numPartitions: Int,
     connector: Connector,
     id: String,
-    subTopic: String = ""
+    subTopic: String = "",
+    customAddress: String = ""
 ) extends Topic[T] {
 
   def endPoint: Map[Int, EndPoint[T]] = {
