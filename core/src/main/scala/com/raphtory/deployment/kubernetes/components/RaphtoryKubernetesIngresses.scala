@@ -3,33 +3,19 @@ package com.raphtory.deployment.kubernetes.components
 import com.raphtory.deployment.kubernetes.utils.KubernetesIngress
 import com.raphtory.deployment.kubernetes.utils.KubernetesService
 
-/**
-  * `RaphtoryKubernetesIngresses`
-  *
-  * Extends KubernetesClient which extends Config.
-  *
+/** Extends KubernetesClient which extends Config.
   * KubernetesClient is used to establish kubernetes connection.
-  * 
   * Kubernetes objects that are iterated over are read from application.conf values.
   *
-  * ## Methods
-  *
-  *   `create(): Unit`
-  *     : Create kubernetes ingresses needed for Raphtory (if toggled in application.conf)
-  *
-  *   `delete(): Unit`
-  *     : Delete kubernetes ingresses needed for Raphtory (if toggled in application.conf)
-  *
-  * ```{seealso}
-  * [](com.raphtory.deployment.kubernetes.components.Config),
-  * [](com.raphtory.deployment.kubernetes.components.KubernetesClient),
-  * [](com.raphtory.deployment.kubernetes.utils.KubernetesIngress),
-  * [](com.raphtory.deployment.kubernetes.utils.KubernetesService)
+  * @see [[com.raphtory.deployment.kubernetes.components.Config]]
+  * [[com.raphtory.deployment.kubernetes.components.KubernetesClient]]
+  * [[com.raphtory.deployment.kubernetes.utils.KubernetesIngress]]
+  * [[com.raphtory.deployment.kubernetes.utils.KubernetesService]]
   * ```
   */
-
 object RaphtoryKubernetesIngresses extends KubernetesClient {
 
+  /** Create kubernetes ingresses needed for Raphtory (if toggled in application.conf) */
   def create(): Unit =
     raphtoryKubernetesDeployments.forEach { raphtoryComponent =>
       if (
@@ -103,6 +89,7 @@ object RaphtoryKubernetesIngresses extends KubernetesClient {
         )
     }
 
+  /** Delete kubernetes ingresses needed for Raphtory (if toggled in application.conf) */
   def delete(): Unit =
     raphtoryKubernetesDeployments.forEach { raphtoryComponent =>
       val ingressNamePrefix: String =

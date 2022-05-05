@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 class LocalBatchHandler[T: ClassTag](
     partitionIDs: mutable.Set[Int],
     batchWriters: mutable.Map[Int, BatchWriter[T]],

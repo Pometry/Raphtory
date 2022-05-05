@@ -3,67 +3,38 @@ package com.raphtory.components.graphbuilder
 import org.apache.pulsar.client.api.Schema
 import Properties._
 
-/**
-  * # Properties
-  *
-  * Properties are characteristic attributes like name, etc. assigned to Vertices and Edges by the [Graph Builder](com.raphtory.components.graphbuilder.GraphBuilder).
-  *
-  * ## Members
-  *
-  * `Type(name: String)`
-  *   : Vertex/Edge type (this is not a `Property`)
-  *
-  * `Property`
-  *  : sealed trait defining different types of properties
-  *
-  *    **Attributes**
-  *
-  *    `key: String`
-  *      : property name
-  *
-  *    `value: Any`
-  *      : property value
-  *
-  * `Properties(property: Property*)`
-  *   : Wrapper class for properties
-  *
-  * `ImmutableProperty(key: String, value: String)`
-  *   : `Property` with a fixed value (the value should be the same for each update to the entity)
-  *
-  * `StringProperty(key: String, value: String)`
-  *   : `Property` with a `String` value
-  *
-  * `LongProperty(key: String, value: Long)`
-  *   : `Property` with a `Long` value
-  *
-  * `DoubleProperty(key: String, value: Double)`
-  *   : `Property` with a `Double` value
-  *
-  * `FloatProperty(key: String, value: Float)`
-  *   : `Property` with a `Float` value
-  *
-  * ```{seealso}
-  * [](com.raphtory.components.graphbuilder.GraphBuilder)
-  * ```
+/** Properties are characteristic attributes like name, etc. assigned to Vertices and Edges by the [Graph Builder](com.raphtory.components.graphbuilder.GraphBuilder).
+  * @see [[com.raphtory.components.graphbuilder.GraphBuilder]]
   */
 object Properties {
 
+  /** Sealed trait defining different types of properties */
   sealed trait Property {
+    /** property name */
     def key: String
+    /** value property value */
     def value: Any
   }
+
+  /** Vertex/Edge type (this is not a `Property`) */
   case class Type(name: String)
 
+  /** `Property` with a fixed value (the value should be the same for each update to the entity) */
   case class ImmutableProperty(key: String, value: String) extends Property
 
+  /** `Property` with a `String` value */
   case class StringProperty(key: String, value: String) extends Property
 
+  /** `Property` with a `Long` value */
   case class LongProperty(key: String, value: Long) extends Property
 
+  /**  `Property` with a `Double` value */
   case class DoubleProperty(key: String, value: Double) extends Property
 
+  /** `Property` with a `Float` value */
   case class FloatProperty(key: String, value: Float) extends Property
 
+  /** Wrapper class for properties */
   case class Properties(property: Property*)
 }
 
@@ -76,7 +47,7 @@ sealed trait GraphUpdate extends GraphAlteration {
   val srcId: Long
 }
 
-//basic update types
+/** basic update types */
 case class VertexAdd(updateTime: Long, srcId: Long, properties: Properties, vType: Option[Type])
         extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
 case class VertexDelete(updateTime: Long, srcId: Long) extends GraphUpdate
@@ -90,7 +61,7 @@ case class EdgeAdd(
 )                                                                 extends GraphUpdate
 case class EdgeDelete(updateTime: Long, srcId: Long, dstId: Long) extends GraphUpdate
 
-//Required sync after an update has been applied to a partition
+/** Required sync after an update has been applied to a partition */
 sealed abstract class GraphUpdateEffect(val updateId: Long) extends GraphAlteration {
   val msgTime: Long
 }
@@ -121,14 +92,14 @@ case class SyncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long)
 case class SyncNewEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long, removals: List[Long])
         extends GraphUpdateEffect(dstId)
 
-//Edge removals generated via vertex removals
+/** Edge removals generated via vertex removals */
 case class OutboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long)
         extends GraphUpdateEffect(dstId)
 
 case class InboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long)
         extends GraphUpdateEffect(srcId)
 
-//Responses from a partition receiving any of the above
+/** Responses from a partition receiving any of the above */
 case class SyncExistingRemovals(
     msgTime: Long,
     srcId: Long,

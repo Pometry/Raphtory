@@ -7,7 +7,7 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.graph.visitor.Vertex
 
 /**
-  * !DoNotDocument
+  * @note DoNotDocument
   */
 abstract class DefaultGraphOperations[G <: GraphOperations[G]](
     private[api] val query: Query,

@@ -10,10 +10,8 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 
-/** !DoNotDocument
-  * Abstract interface for the GraphLens
-  *
-  * The GraphLens is responsible for executing algorithms
+/** Abstract interface for the GraphLens, responsible for executing algorithms
+  * @note DoNotDocument
   */
 trait LensInterface {
 

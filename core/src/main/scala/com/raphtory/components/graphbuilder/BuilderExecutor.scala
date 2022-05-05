@@ -15,7 +15,7 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 class BuilderExecutor[T: ClassTag](
     name: Int,
     deploymentID: String,

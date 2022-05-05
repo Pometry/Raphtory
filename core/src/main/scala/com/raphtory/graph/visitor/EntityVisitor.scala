@@ -5,10 +5,7 @@ import io.sqooba.oss.timeseries.TimeSeries
 import io.sqooba.oss.timeseries.immutable.EmptyTimeSeries
 import io.sqooba.oss.timeseries.immutable.TSEntry
 
-/**
-  * `EntityVisitor`
-  *  : Common base class for [`Edge`](com.raphtory.graph.visitor.Edge)
-  *    and [`Vertex`](com.raphtory.graph.visitor.Vertex)
+/** Common base class for [`Edge`](com.raphtory.graph.visitor.Edge) and [`Vertex`](com.raphtory.graph.visitor.Vertex)
   *
   * The `EntityVisitor` class defines the interface for accessing properties (set when the graph is constructed)
   * and historic activity for vertices and edges.

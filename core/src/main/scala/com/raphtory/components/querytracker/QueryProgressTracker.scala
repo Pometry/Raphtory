@@ -14,37 +14,13 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-/**
-  * `QueryProgressTracker`
-  *  : Tracks the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
+/** Tracks the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
+  * Queries in Raphtory run as a series of `Perspectives` which are graph views at specific timestamps and windows as the query progresses.
+  * The progress tracker thus helps track query progress until the job is completed. Query types supported include `PointQuery`, `RangeQuery` and `LiveQuery`
   *
-  *    Queries in Raphtory run as a series of `Perspectives` which are graph views at specific timestamps and windows as the query progresses.
-  *    The progress tracker thus helps track query progress until the job is completed. Query types supported include `PointQuery`, `RangeQuery` and `LiveQuery`
+  * Usage:
   *
-  * ## Methods
-  *
-  *   `getJobId(): String`
-  *    : Returns job identifier for the query
-  *
-  *   `getLatestPerspectiveProcessed(): Perspective`
-  *    : Returns the latest `Perspective` processed by the query
-  *
-  *   `getPerspectivesProcessed(): List[Perspective]`
-  *    : Returns list of perspectives processed for the query so far
-  *
-  *   `getPerspectiveDurations(): List[Long]`
-  *    : Returns the time taken to process each perspective in milliseconds
-  *
-  *   `isJobDone(): Boolean`
-  *    : Checks if job is complete
-  *
-  *   `waitForJob()`
-  *    : Block until job is complete, repeats check every second
-  *
-  * Example Usage:
-  *
-  * ```{code-block} scala
-  *
+  * {{{
   * import com.raphtory.deployment.Raphtory
   * import com.raphtory.lotrtest.LOTRGraphBuilder
   * import com.raphtory.components.spout.instance.ResourceSpout
@@ -56,8 +32,7 @@ import scala.concurrent.duration.Duration
   * val jobId                = queryProgressTracker.getJobId()
   * queryProgressTracker.waitForJob()
   * val perspectivesProcessed = queryProgressTracker.getPerspectivesProcessed()
-  *
-  * ```
+  * }}}
   */
 
 class DoneException extends Exception
@@ -145,21 +120,31 @@ class QueryProgressTracker(
     }
   }
 
+  /** Returns job identifier for the query
+    * @return job identifier */
   def getJobId: String =
     jobID
 
+  /** Returns the latest `Perspective` processed by the query
+    * @return latest perspective */
   def getLatestPerspectiveProcessed: Option[Perspective] =
     latestPerspective
 
+  /** Returns list of perspectives processed for the query so far
+    * @return a list of perspectives */
   def getPerspectivesProcessed: List[Perspective] =
     perspectivesList.toList
 
+  /** Returns the time taken to process each perspective in milliseconds */
   def getPerspectiveDurations: List[Long] =
     perspectivesDurations.toList
 
+  /** Checks if job is complete
+    * @return job status */
   def isJobDone: Boolean =
     jobDone
 
+  /**  Block until job is complete, repeats check every second */
   def waitForJob(timeout: Duration = Duration.Inf): Unit =
     try Await.result[Unit](isJobDoneFuture, timeout)
     catch {

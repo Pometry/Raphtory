@@ -7,7 +7,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import scala.util.Try
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 class DateTimeParser(format: String) {
   val formatter = DateTimeFormatter.ofPattern(format)
 

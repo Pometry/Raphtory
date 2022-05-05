@@ -10,7 +10,7 @@ import sun.util.logging.resources.logging
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 private[raphtory] class ConfigHandler {
   private lazy val defaults = createConf()
 

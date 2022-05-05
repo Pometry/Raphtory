@@ -7,28 +7,10 @@ import io.fabric8.kubernetes.client.KubernetesClient
 
 import scala.collection.JavaConverters._
 
-/**
-  * `KubernetesService`
-  *
-  * Kubernetes Service
-  *
-  * ## Methods
-  *
-  *   `get(client: KubernetesClient, namespace: String, name: String): Service`
-  *     : Get Kubernetes service
-  *
-  *   `build( name: String, selectorLabels: Map[String, String], annotations: Map[String, String] = Map(), labels: Map[String, String], portName: String, portProtocol: String, port: Int, targetPort: Int, serviceType: String): Service`
-  *     : Build Kubernetes service
-  *
-  *   `create(client: KubernetesClient, namespace: String, serviceConfig: Service): Service`
-  *     : Create Kubernetes service
-  * 
-  *   `delete(client: KubernetesClient, namespace: String, name: String): Boolean`
-  *     : Delete Kubernetes service
-  */
-
+/** Kubernetes Service */
 object KubernetesService {
 
+  /** Get Kubernetes service */
   def get(
       client: KubernetesClient,
       namespace: String,
@@ -36,6 +18,7 @@ object KubernetesService {
   ): Service =
     client.services.inNamespace(namespace).withName(name).get
 
+  /** Build Kubernetes service */
   def build(
       name: String,
       selectorLabels: Map[String, String],
@@ -67,6 +50,7 @@ object KubernetesService {
 
   //      .addToLabels("expose", "true")
 
+  /** Create Kubernetes service */
   def create(
       client: KubernetesClient,
       namespace: String,
@@ -74,6 +58,7 @@ object KubernetesService {
   ): Service =
     client.services().inNamespace(namespace).createOrReplace(serviceConfig)
 
+  /** Delete Kubernetes service */
   def delete(
       client: KubernetesClient,
       namespace: String,

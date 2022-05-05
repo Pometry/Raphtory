@@ -3,7 +3,7 @@ package com.raphtory.time
 import java.time.Instant
 import java.time.ZoneOffset
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 object TimeConverters {
 
   implicit class TimeHolder(val time: Long) {

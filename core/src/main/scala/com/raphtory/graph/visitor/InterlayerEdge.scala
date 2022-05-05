@@ -1,17 +1,10 @@
 package com.raphtory.graph.visitor
 
-/**
-  * `InterlayerEdge(srcTime: Long, dstTime: Long, properties: Map[String, Any] = Map.empty[String, Any])`
-  *   : Class for representing interlayer edges
+/** Class for representing interlayer edges
   *
-  *     `srcTime: Long`
-  *       : source time-stamp for the edge
-  *
-  *     `dstTime: Long`
-  *       : destination time-stamp for the edge
-  *
-  *     `properties: Map[String, Any] = Map.empty[String, Any]`
-  *       : properties that the interlayer edge should have
+  * @param srcTime source time-stamp for the edge
+  * @param dstTime destination time-stamp for the edge
+  * @param properties properties that the interlayer edge should have
   */
 case class InterlayerEdge(
     srcTime: Long,

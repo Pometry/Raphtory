@@ -21,7 +21,7 @@ import scala.math.Ordering
 import scala.reflect.runtime.universe._
 import scala.math.exp
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 class PojoExVertex(
     private val v: PojoVertex,
     override protected val internalIncomingEdges: mutable.Map[Long, PojoExEdge],

@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 import scala.reflect.runtime.universe.TypeTag
 import com.raphtory.config.telemetry.SpoutTelemetry
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 class SpoutExecutor[T](
     spout: Spout[T],
     conf: Config,

@@ -5,21 +5,10 @@ import com.twitter.chill.ScalaKryoInstantiator
 
 import scala.reflect.runtime.universe._
 
-/**
-  *  `PulsarKryoSerialiser()`
-  *    : support serialisation and deserialisation using ScalaKryoInstantiator from twitter.chill package
+/** Support serialisation and deserialisation using ScalaKryoInstantiator from twitter.chill package
+  * Usage:
   *
-  *  ## Methods
-  *
-  *    `serialise[T](value: T): Array[Byte]`
-  *      : serialise value to byte array
-  *
-  *    `deserialise[T](bytes: Array[Byte]): T`
-  *      : deserialise byte array to object
-  *
-  *  Example Usage:
-  *
-  * ```{code-block} scala
+  * {{{
   * import com.raphtory.serialisers.PulsarKryoSerialiser
   * import com.raphtory.config.PulsarController
   * import org.apache.pulsar.client.api.Schema
@@ -32,17 +21,19 @@ import scala.reflect.runtime.universe._
   * val producer_topic = "test_lotr_graph_input_topic"
   * val producer       = client.newProducer(Schema.BYTES).topic(producer_topic).create()
   * producer.sendAsync(kryo.serialise("Gandalf,Benjamin,400"))
-  * ```
+  * }}}
   *
-  * ```{seealso}
-  * [](com.raphtory.client.RaphtoryClient)
-  * ```
+  * @see [[com.raphtory.client.RaphtoryClient]]
   */
 class PulsarKryoSerialiser {
   private val kryo = ScalaKryoInstantiator.defaultPool
 
+  /** serialise value to byte array
+    * @param value value to serialise */
   def serialise[T](value: T): Array[Byte] = kryo.toBytesWithClass(value)
 
+  /** deserialise byte array to object
+    * @param bytes byte array to de-serialise */
   def deserialise[T](bytes: Array[Byte]): T =
     kryo.fromBytes(bytes).asInstanceOf[T]
 }

@@ -4,7 +4,7 @@ import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
 import com.raphtory.components.querytracker.QueryProgressTracker
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 class GenericTable(val query: Query, private val querySender: QuerySender) extends Table {
 
   override def filter(f: Row => Boolean): Table = {

@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 class Reader(
     partitionID: Int,
     storage: GraphPartition,

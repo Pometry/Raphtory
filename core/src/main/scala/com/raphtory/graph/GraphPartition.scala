@@ -12,8 +12,8 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
-/** !DoNotDocument
-  * Singleton representing the Storage for the entities
+/** Singleton representing the Storage for the entities
+  * @note DoNotDocument
   */
 abstract class GraphPartition(partitionID: Int, conf: Config) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

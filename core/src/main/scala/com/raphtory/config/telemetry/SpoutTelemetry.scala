@@ -4,12 +4,9 @@ import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
 import com.raphtory.config.ConfigHandler
 
-/**
-  * `SpoutTelemetry`
-  *  : Adds metrics for `Spout` using Prometheus Client
-  *
-  *    Exposes Counter and Gauge stats for tracking number of files processed, lines parsed, spout reschedules and processing errors
-  *    Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
+/** Adds metrics for `Spout` using Prometheus Client
+  * Exposes Counter and Gauge stats for tracking number of files processed, lines parsed, spout reschedules and processing errors
+  * Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object SpoutTelemetry {
 

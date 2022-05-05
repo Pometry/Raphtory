@@ -7,16 +7,12 @@ import com.raphtory.time.Interval
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
 
-/**
-  * `PulsarOutputFormat(pulsarTopic: String)`
-  *   : writes output output to a Raphtory Pulsar topic
+/** Writes output output to a Raphtory Pulsar topic
+  * @param pulsarTopic Topic name for writing to Pulsar.
   *
-  *     `pulsarTopic: String`
-  *       : Topic name for writing to Pulsar.
-  *
-  * Usage while querying or running algorithmic tests:
-  *
-  * ```{code-block} scala
+  * Usage:
+  * (while querying or running algorithmic tests)
+  * {{{
   * import com.raphtory.algorithms.generic.EdgeList
   * import com.raphtory.output.PulsarOutputFormat
   * import com.raphtory.algorithms.api.OutputFormat
@@ -27,14 +23,12 @@ import org.apache.pulsar.client.api.Schema
   * val outputFormat: OutputFormat = PulsarOutputFormat("EdgeList")
   *
   * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
-  * ```
+  * }}}
   *
-  *  ```{seealso}
-  *  [](com.raphtory.algorithms.api.OutputFormat),
-  *  [](com.raphtory.client.RaphtoryClient),
-  *  [](com.raphtory.client.GraphDeployment),
-  *  [](com.raphtory.deployment.Raphtory)
-  *  ```
+  *  @see [[com.raphtory.algorithms.api.OutputFormat]]
+  *       [[com.raphtory.client.RaphtoryClient]]
+  *       [[com.raphtory.client.GraphDeployment]]
+  *       [[com.raphtory.deployment.Raphtory]]
   */
 class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
 
@@ -63,6 +57,8 @@ class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
 
 }
 
+/** Writes output output to a Raphtory Pulsar topic */
 object PulsarOutputFormat {
+  /** @param pulsarTopic Topic name for writing to Pulsar. */
   def apply(pulsarTopic: String) = new PulsarOutputFormat(pulsarTopic)
 }

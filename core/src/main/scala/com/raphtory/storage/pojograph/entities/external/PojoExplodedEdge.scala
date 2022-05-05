@@ -9,7 +9,7 @@ import com.raphtory.graph.visitor.HistoricEvent
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoEdge
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 class PojoExplodedEdge(
     objectEdge: PojoEdge,
     view: PojoGraphLens,

@@ -11,13 +11,8 @@ import io.prometheus.client.Counter
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-/**
-  * `GraphBuilder[T]`
-  *   : trait for creating a Graph by adding and deleting vertices and edges.
-  *
-  *      `T`
-  *        : data type returned by the [`Spout`](com.raphtory.components.spout.Spout)
-  *           to be processed by the `GraphBuilder`
+/** trait for creating a Graph by adding and deleting vertices and edges.
+  * @tpram  data type returned by the [`Spout`](com.raphtory.components.spout.Spout) to be processed by the `GraphBuilder`
   *
   * An implementation of `GraphBuilder` needs to override `parseTuple(tuple: T)` to define parsing of input data.
   * The input data is generated using a [`Spout`](com.raphtory.components.spout.Spout) and passed to the
@@ -26,92 +21,10 @@ import scala.collection.mutable.ArrayBuffer
   * for adding/deleting vertices and edges. The resulting graph updates are send to the partitions responsible for
   * handling the vertices and edges.
   *
-  * ## Methods
-  *
-  *    `parseTuple(tuple: T): Unit`
-  *      : Processes raw data message `tuple` from the spout to extract source node, destination node,
-  *        timestamp info, etc.
-  *
-  *        `tuple: T`
-  *          : raw input data
-  *
-  *        A concrete implementation of a `GraphBuilder` needs to override this method to
-  *        define the graph updates, calling the `addVertex`/`deleteVertex` and `addEdge`/`deleteEdge`
-  *        methods documented below.
-  *
-  *    `assignID(uniqueChars: String): Long`
-  *      : Convenience method for generating unique IDs based on vertex names
-  *
-  *        `uniqueChars: String`
-  *          : Vertex name
-  *
-  *        Use of this method is optional. A `GraphBuilder` is free to assign vertex IDs in different ways, provided
-  *        that each vertex is assigned a unique ID of type `Long`.
-  *
-  * ### Graph updates
-  *
-  *    `addVertex(updateTime: Long, srcId: Long, properties: Properties, vertexType: Type)`
-  *      : Add a new vertex to the graph or update existing vertex
-  *
-  *        `updateTime: Long`
-  *          : timestamp for vertex update
-  *
-  *        `srcID`
-  *          : ID of vertex to add/update
-  *
-  *        `properties: Properties` (optional)
-  *          : vertex properties for the update (see [](com.raphtory.components.graphbuilder.Properties) for the
-  *            available property types)
-  *
-  *        `vertexType: Type` (optional)
-  *          : specify a [`Type`](com.raphtory.components.graphbuilder.Properties) for the vertex
-  *
-  *    `deleteVertex(updateTime: Long, srcId: Long)`
-  *      : mark vertex as deleted
-  *
-  *        `updateTime: Long`
-  *          : time of deletion (vertex is considered as no longer present in the graph after this time)
-  *
-  *        `srcID: Long`
-  *          : Id of vertex to delete
-  *
-  *    `addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Type)`
-  *      : Add a new edge to the graph or update an existing edge
-  *
-  *        `updateTime: Long`
-  *          : timestamp for edge update
-  *
-  *        `srcId: Long`
-  *          : ID of source vertex of the edge
-  *
-  *        `dstId: Long`
-  *          : ID of destination vertex of the edge
-  *
-  *        `properties: Properties` (optional)
-  *          : edge properties for the update (see [](com.raphtory.components.graphbuilder.Properties) for the
-  *            available property types)
-  *
-  *        `edgeType: Type` (optional)
-  *          : specify a [`Type`](com.raphtory.components.graphbuilder.Properties) for the edge
-  *
-  *    `deleteEdge(updateTime: Long, srcId: Long, dstId: Long)`
-  *      : mark edge as deleted
-  *
-  *        `updateTime`
-  *          : time of deletion (edge is considered as no longer present in the graph after this time)
-  *
-  *        `srcId`
-  *          : ID of source vertex of the edge
-  *
-  *        `dstId`
-  *          : ID of the destination vertex of the edge
-  *
-  * Example Usage:
-  *
-  * ```{code-block} scala
-  *
+
+  * Usage:  
+  * {{{
   * class TwitterGraphBuilder() extends GraphBuilder[String] {
-  *
   *   override def parseTuple(fileLine: String): Unit = {
   *     val sourceNode = fileLine(0)
   *     val srcID      = sourceNode.toLong
@@ -124,13 +37,8 @@ import scala.collection.mutable.ArrayBuffer
   *     addEdge(timeStamp, srcID, tarID, Type("Follows"))
   *   }
   * }
-  *
-  * ```
-  *
-  * ```{seealso}
-  *  [](com.raphtory.components.graphbuilder.Properties),
-  *  [](com.raphtory.components.spout.Spout),
-  *  ```
+  * }}}
+  * @see [[com.raphtory.components.graphbuilder.Properties]] [[com.raphtory.components.spout.Spout]]
   */
 trait GraphBuilder[T] extends Serializable {
 
@@ -147,12 +55,27 @@ trait GraphBuilder[T] extends Serializable {
   private var batching: Boolean                              = false
   private var totalPartitions: Int                           = 1
 
+  /** Processes raw data message `tuple` from the spout to extract source node, destination node,
+    * timestamp info, etc.
+    *
+    *  A concrete implementation of a `GraphBuilder` needs to override this method to
+    *  define the graph updates, calling the `addVertex`/`deleteVertex` and `addEdge`/`deleteEdge`
+    *  methods documented below.
+    *
+    *  @param tuple raw input data
+    */
   def parseTuple(tuple: T): Unit
 
+  /** Convenience method for generating unique IDs based on vertex names
+    *
+    * Use of this method is optional. A `GraphBuilder` is free to assign vertex IDs in different ways, provided
+    * that each vertex is assigned a unique ID of type `Long`.
+    *
+    * @param uniqueChars Vertex name
+    */
   def assignID(uniqueChars: String): Long = LongHashFunction.xx3().hashChars(uniqueChars)
 
-  // Parses `tuple` and fetches list of updates for the graph.
-  // This is used internally to retrieve updates.
+  /** Parses `tuple` and fetches list of updates for the graph This is used internally to retrieve updates. */
   private[raphtory] def getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate] = {
     try {
       logger.trace(s"Parsing tuple: $tuple")
@@ -201,24 +124,50 @@ trait GraphBuilder[T] extends Serializable {
     totalPartitions = partitions
   }
 
+  /** Add a new vertex to the graph or update existing vertex
+    *
+    * @param updateTime timestamp for vertex update
+    * @param srcId ID of vertex to add/update
+  */
   protected def addVertex(updateTime: Long, srcId: Long): Unit = {
     val update = VertexAdd(updateTime, srcId, Properties(), None)
     handleVertexAdd(update)
     vertexAddCounter.inc()
   }
 
+  /** Add a new vertex to the graph or update existing vertex
+    *
+    * @param updateTime timestamp for vertex update
+    * @param srcId ID of vertex to add/update
+    * @param properties vertex properties for the update (see [](com.raphtory.components.graphbuilder.Properties) for the
+    *                   available property types)
+    * */
   protected def addVertex(updateTime: Long, srcId: Long, properties: Properties): Unit = {
     val update = VertexAdd(updateTime, srcId, properties, None)
     handleVertexAdd(update)
     vertexAddCounter.inc()
   }
 
+   /** Add a new vertex to the graph or update existing vertex
+    *
+    * @param updateTime timestamp for vertex update
+    * @param srcId ID of vertex to add/update
+    * @param vertexType specify a [`Type`](com.raphtory.components.graphbuilder.Properties) for the vertex
+    * */
   protected def addVertex(updateTime: Long, srcId: Long, vertexType: Type): Unit = {
     val update = VertexAdd(updateTime, srcId, Properties(), Some(vertexType))
     handleVertexAdd(update)
     vertexAddCounter.inc()
   }
 
+  /** Add a new vertex to the graph or update existing vertex
+    *
+    * @param updateTime timestamp for vertex update
+    * @param srcId ID of vertex to add/update
+    * @param properties vertex properties for the update (see [](com.raphtory.components.graphbuilder.Properties) for the
+    *                   available property types)
+    * @param vertexType specify a [`Type`](com.raphtory.components.graphbuilder.Properties) for the vertex
+    * */
   protected def addVertex(
       updateTime: Long,
       srcId: Long,
@@ -230,17 +179,34 @@ trait GraphBuilder[T] extends Serializable {
     vertexAddCounter.inc()
   }
 
+  /** mark vertex as deleted
+    * @param updateTime time of deletion (vertex is considered as no longer present in the graph after this time)
+    * @param srcId Id of vertex to delete
+    */
   protected def deleteVertex(updateTime: Long, srcId: Long): Unit = {
     updates += VertexDelete(updateTime, srcId)
     vertexDeleteCounter.inc()
   }
 
+  /** Add a new edge to the graph or update an existing edge
+    * @param updateTime timestamp for edge update
+    * @param srcId ID of source vertex of the edge
+    * @param dstId ID of destination vertex of the edge
+    */
   protected def addEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, Properties(), None)
     handleEdgeAdd(update)
     edgeAddCounter.inc()
   }
 
+  /** Add a new edge to the graph or update an existing edge
+    * @param updateTime timestamp for edge update
+    * @param srcId ID of source vertex of the edge
+    * @param dstId ID of destination vertex of the edge
+    * @param properties edge properties for the update (see [](com.raphtory.components.graphbuilder.Properties) for the
+    *                   available property types)
+    * @param edgeType specify a [`Type`](com.raphtory.components.graphbuilder.Properties) for the edge
+    */
   protected def addEdge(
       updateTime: Long,
       srcId: Long,
@@ -252,12 +218,26 @@ trait GraphBuilder[T] extends Serializable {
     edgeAddCounter.inc()
   }
 
+  /** Add a new edge to the graph or update an existing edge
+    * @param updateTime timestamp for edge update
+    * @param srcId ID of source vertex of the edge
+    * @param dstId ID of destination vertex of the edge
+    * @param edgeType specify a [`Type`](com.raphtory.components.graphbuilder.Properties) for the edge
+    */
   protected def addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, Properties(), Some(edgeType))
     handleEdgeAdd(update)
     edgeAddCounter.inc()
   }
 
+  /** Add a new edge to the graph or update an existing edge
+    * @param updateTime timestamp for edge update
+    * @param srcId ID of source vertex of the edge
+    * @param dstId ID of destination vertex of the edge
+    * @param properties edge properties for the update (see [](com.raphtory.components.graphbuilder.Properties) for the
+    *                   available property types)
+    * @param edgeType specify a [`Type`](com.raphtory.components.graphbuilder.Properties) for the edge
+    */
   protected def addEdge(
       updateTime: Long,
       srcId: Long,
@@ -270,6 +250,11 @@ trait GraphBuilder[T] extends Serializable {
     edgeAddCounter.inc()
   }
 
+  /** Mark edge as deleted
+    * @param updateTime time of deletion (edge is considered as no longer present in the graph after this time)
+    * @param srcId ID of source vertex of the edge
+    * @param dstId ID of the destination vertex of the edge
+    * */
   protected def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
     updates += EdgeDelete(updateTime, srcId, dstId)
     edgeDeleteCounter.inc()

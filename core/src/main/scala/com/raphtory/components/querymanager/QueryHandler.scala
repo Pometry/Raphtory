@@ -43,7 +43,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.Try
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 class QueryHandler(
     queryManager: QueryManager,
     scheduler: Scheduler,

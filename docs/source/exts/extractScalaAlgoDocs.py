@@ -125,7 +125,7 @@ def parse_docstr(docstr_lines: list[str], file: Path):
     # Check if title line exists (first non-trivial line is heading1), else create it based on file name
     for header_line, line in enumerate(docstr_lines):
         if line:
-            if line.startswith("!DoNotDocument"):
+            if line.startswith("@note DoNotDocument"):
                 raise SkipFile()
             elif not line.startswith("# "):
                 header_line = 0

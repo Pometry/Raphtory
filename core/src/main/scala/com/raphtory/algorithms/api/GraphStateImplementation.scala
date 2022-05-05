@@ -3,7 +3,7 @@ package com.raphtory.algorithms.api
 import scala.collection.mutable
 
 /**
-  * !DoNotDocument
+  * @note DoNotDocument
   */
 private class AccumulatorImplementation[T](
     initialValue: T,
@@ -26,7 +26,7 @@ private class AccumulatorImplementation[T](
 }
 
 /**
-  * !DoNotDocument
+  * @note DoNotDocument
   */
 private object AccumulatorImplementation {
 
@@ -40,7 +40,7 @@ class Bounded[T](min: T, max: T) {
 }
 
 /**
-  * !DoNotDocument
+  * @note DoNotDocument
   */
 object Bounded {
   def apply[T](min: T, max: T) = new Bounded[T](min, max)
@@ -56,7 +56,7 @@ object Bounded {
 }
 
 /**
-  * !DoNotDocument
+  * @note DoNotDocument
   */
 class GraphStateImplementation extends GraphState {
   private val state = mutable.Map.empty[String, AccumulatorImplementation[Any]]

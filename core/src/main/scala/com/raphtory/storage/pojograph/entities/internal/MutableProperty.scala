@@ -6,9 +6,7 @@ import com.raphtory.util.OrderedBuffer._
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 
-/** *
-  * Node or Vertice Property. Created by Mirate on 10/03/2017.
-  *
+/**
   * @param creationTime
   * @param value         Property value
   */

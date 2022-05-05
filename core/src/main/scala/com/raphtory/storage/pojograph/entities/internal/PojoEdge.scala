@@ -2,7 +2,7 @@ package com.raphtory.storage.pojograph.entities.internal
 
 import com.raphtory.util.OrderedBuffer._
 
-/** !DoNotDocument */
+/** @note DoNotDocument */
 class PojoEdge(msgTime: Long, srcId: Long, dstId: Long, initialValue: Boolean)
         extends PojoEntity(msgTime, initialValue) {
 

@@ -8,16 +8,12 @@ import org.slf4j.LoggerFactory
 
 import java.io.File
 
-/**
-  * `FileOutputFormat(filePath: String)`
-  *   : writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File
+/** Writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File
+  * @param filePath Filepath for writing Raphtory output.
   *
-  *     `filePath: String`
-  *       : Filepath for writing Raphtory output.
-  *
-  * Usage while querying or running algorithmic tests:
-  *
-  * ```{code-block} scala
+  * Usage:
+  * (while querying or running algorithmic tests)
+  * {{{
   * import com.raphtory.algorithms.generic.EdgeList
   * import com.raphtory.output.FileOutputFormat
   * import com.raphtory.algorithms.api.OutputFormat
@@ -29,14 +25,12 @@ import java.io.File
   * val outputFormat: OutputFormat = FileOutputFormat(testDir)
   *
   * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
-  * ```
+  * }}}
   *
-  *  ```{seealso}
-  *  [](com.raphtory.algorithms.api.OutputFormat),
-  *  [](com.raphtory.client.RaphtoryClient),
-  *  [](com.raphtory.client.GraphDeployment),
-  *  [](com.raphtory.deployment.Raphtory)
-  *  ```
+  * @see [[com.raphtory.algorithms.api.OutputFormat]]
+  *       [[com.raphtory.client.RaphtoryClient]]
+  *       [[com.raphtory.client.GraphDeployment]]
+  *       [[com.raphtory.deployment.Raphtory]]
   */
 class FileOutputFormat(filePath: String) extends OutputFormat {
 
@@ -70,6 +64,8 @@ class FileOutputFormat(filePath: String) extends OutputFormat {
   }
 }
 
+/** Writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File */
 object FileOutputFormat {
+  /** @param filePath Filepath for writing Raphtory output. */
   def apply(filePath: String) = new FileOutputFormat(filePath)
 }

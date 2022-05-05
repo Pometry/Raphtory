@@ -1,6 +1,6 @@
 package com.raphtory.storage.pojograph.entities.internal
 
-/** !DoNotDocument
+/** @note DoNotDocument
   * Extension of the Edge entity, used when we want to store a remote edge
   * i.e. one spread across two partitions
   * currently only stores what end of the edge is remote
