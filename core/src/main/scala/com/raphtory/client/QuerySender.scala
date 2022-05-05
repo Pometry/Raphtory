@@ -8,6 +8,9 @@ import com.raphtory.config.TopicRepository
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import org.apache.pulsar.client.api.Schema
 
+import scala.util.Random
+
+/** @DoNotDocument */
 class QuerySender(
     private val componentFactory: ComponentFactory,
     private val scheduler: Scheduler,
@@ -16,11 +19,12 @@ class QuerySender(
 
   def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {
     val jobName     = if (customJobName.nonEmpty) customJobName else getDefaultName(query)
-    val jobID       = jobName + "_" + System.currentTimeMillis()
+    val jobID       = jobName + "_" + Random.nextLong().abs
     val outputQuery = query.copy(name = jobID)
     topics.queries.endPoint sendAsync outputQuery
     componentFactory.queryProgressTracker(jobID, scheduler)
   }
 
-  private def getDefaultName(query: Query): String = query.hashCode().abs.toString
+  private def getDefaultName(query: Query): String =
+    if (query.name.nonEmpty) query.name else query.hashCode().abs.toString
 }

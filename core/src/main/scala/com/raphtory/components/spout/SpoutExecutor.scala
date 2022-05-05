@@ -5,6 +5,7 @@ import com.raphtory.config.Cancelable
 import com.raphtory.config.Scheduler
 import com.raphtory.config.TopicRepository
 import com.typesafe.config.Config
+import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 
 import java.util.concurrent.TimeUnit
@@ -44,6 +45,7 @@ class SpoutExecutor[T](
   private def executeSpout() = {
     SpoutTelemetry.totalSpoutReschedules.inc()
     while (spout.hasNext) {
+      SpoutTelemetry.totalLinesSent.inc()
       linesProcessed = linesProcessed + 1
       if (linesProcessed % 100_000 == 0)
         logger.debug(s"Spout: sent $linesProcessed messages.")

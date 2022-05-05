@@ -10,15 +10,24 @@ import com.raphtory.util.ExtendedNumeric.numericFromInt // implicit conversion f
   * For documentation of the property access and update history methods see the
   * [{s}`EntityVisitor` documentation](com.raphtory.graph.visitor.EntityVisitor).
   *
+  * ## Generic types
+  *
+  * {s}`IDType`
+  *   : type of vertex IDs for this edge
+  *
+  * {s}`ExplodedEdge`
+  *   : concrete type for exploded edge views of this edge which implements
+  *     [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge)
+  *
   * ## Attributes
   *
-  * {s}`ID: Long`
+  * {s}`ID: IDType`
   *  : Edge ID
   *
-  * {s}`src: Long`
+  * {s}`src: IDType`
   *  : ID of the source vertex of the edge
   *
-  * {s}`dst: Long`
+  * {s}`dst: IDType`
   *  : ID of the destination vertex of the edge
   *
   * ## Methods
@@ -66,12 +75,14 @@ import com.raphtory.util.ExtendedNumeric.numericFromInt // implicit conversion f
   * ```
   */
 trait Edge extends EntityVisitor {
-
+  type IDType
+  type ExplodedEdge <: ConcreteExplodedEdge[IDType]
   //information about the edge meta data
-  def ID(): Long
-  def src(): Long
-  def dst(): Long
+  def ID(): IDType
+  def src(): IDType
+  def dst(): IDType
   def explode(): List[ExplodedEdge]
+  def remove(): Unit
 
   def weight[A, B](
       weightProperty: String = "weight",

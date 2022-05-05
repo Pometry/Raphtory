@@ -105,7 +105,7 @@ class ThreeNodeMotifs() extends GraphAlgorithm {
           (5, inEdge)     -> 11
   )
 
-  def _getEdgeType(vertex: Vertex): Long => Int = { vID =>
+  def _getEdgeType(vertex: Vertex): vertex.IDType => Int = { vID =>
     if (vertex.isInNeighbour(vID) && vertex.isOutNeighbour(vID))
       inoutEdge
     else if (vertex.isOutNeighbour(vID))
@@ -119,10 +119,10 @@ class ThreeNodeMotifs() extends GraphAlgorithm {
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph
       .step { vertex =>
-        val motifCounts = ArrayBuffer.fill[Long](13)(0)
-
-        val neighbours               = vertex.getAllNeighbours().toArray
-        val getEdgeType: Long => Int = _getEdgeType(vertex)
+        import vertex._
+        val motifCounts                       = ArrayBuffer.fill[Long](13)(0)
+        val neighbours                        = vertex.getAllNeighbours().toArray
+        val getEdgeType: vertex.IDType => Int = _getEdgeType(vertex)
 
         for (i <- neighbours.indices) {
           val first = neighbours(i)
@@ -136,8 +136,8 @@ class ThreeNodeMotifs() extends GraphAlgorithm {
         vertex.setState("motifCounts", motifCounts)
       }
       .step { vertex =>
-        val messages                 = vertex.messageQueue[(Long, Long, Int)]
-        val getEdgeType: Long => Int = _getEdgeType(vertex)
+        val messages                          = vertex.messageQueue[(vertex.IDType, vertex.IDType, Int)]
+        val getEdgeType: vertex.IDType => Int = _getEdgeType(vertex)
 
         for ((source, second, mType) <- messages) {
           val eType = getEdgeType(second)

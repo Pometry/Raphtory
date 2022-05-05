@@ -13,6 +13,7 @@ import com.raphtory.components.querymanager.QueryManager
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.components.spout.Spout
 import com.raphtory.components.spout.SpoutExecutor
+import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.graph.GraphPartition
 import com.raphtory.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config
@@ -27,35 +28,56 @@ import scala.reflect.runtime.universe.TypeTag
 private[raphtory] class ComponentFactory(conf: Config, topicRepo: TopicRepository) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
+  private val deploymentID     = conf.getString("raphtory.deploy.id")
+  private val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
+
+  private val builderIDManager =
+    new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
+
+  private val partitionIDManager =
+    new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
+
   def builder[T: ClassTag](
       graphBuilder: GraphBuilder[T],
       batchLoading: Boolean = false,
       scheduler: Scheduler
   ): Option[List[ThreadedWorker[T]]] =
     if (!batchLoading) {
-      val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
+      val vertexAddCounter    = BuilderTelemetry.totalVertexAdds(deploymentID)
+      val vertexDeleteCounter = BuilderTelemetry.totalVertexDeletes(deploymentID)
+      val edgeAddCounter      = BuilderTelemetry.totalEdgeAdds(deploymentID)
+      val edgeDeleteCounter   = BuilderTelemetry.totalEdgeDeletes(deploymentID)
+      val totalBuilders       = conf.getInt("raphtory.builders.countPerServer")
       logger.info(s"Creating '$totalBuilders' Graph Builders.")
 
-      val deploymentID = conf.getString("raphtory.deploy.id")
       logger.debug(s"Deployment ID set to '$deploymentID'.")
 
-      val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
-      logger.debug(s"Zookeeper Address set to '$deploymentID'.")
-
-      val idManager = new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
+      val zookeeperAddress =
+        logger.debug(s"Zookeeper Address set to '$deploymentID'.")
 
       val builders = for (name <- (0 until totalBuilders)) yield {
-        val builderId = idManager
+        val builderId = builderIDManager
           .getNextAvailableID()
           .getOrElse(
                   throw new Exception(
                           s"Failed to retrieve Builder ID. " +
-                            s"ID Manager at Zookeeper '$idManager' was unreachable."
+                            s"ID Manager at Zookeeper '$builderIDManager' was unreachable."
                   )
           )
 
         val builderExecutor =
-          new BuilderExecutor[T](builderId.toString, graphBuilder, conf, topicRepo)
+          new BuilderExecutor[T](
+                  builderId,
+                  deploymentID,
+                  vertexAddCounter,
+                  vertexDeleteCounter,
+                  edgeAddCounter,
+                  edgeDeleteCounter,
+                  graphBuilder,
+                  conf,
+                  topicRepo
+          )
+
         scheduler.execute(builderExecutor)
         ThreadedWorker(builderExecutor)
       }
@@ -71,27 +93,19 @@ private[raphtory] class ComponentFactory(conf: Config, topicRepo: TopicRepositor
       graphBuilder: Option[GraphBuilder[T]] = None
   ): Partitions = {
     val totalPartitions = conf.getInt("raphtory.partitions.countPerServer")
-    logger.info(s"Creating '$totalPartitions' Partition Managers.")
-
-    val deploymentID = conf.getString("raphtory.deploy.id")
-    logger.debug(s"Deployment ID set to '$deploymentID'.")
-
-    val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
-    logger.debug(s"Zookeeper Address set to '$deploymentID'.")
-
-    val idManager = new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
+    logger.info(s"Creating '$totalPartitions' Partition Managers for $deploymentID.")
 
     val batchWriters = mutable.Map[Int, BatchWriter[T]]()
     val partitionIDs = mutable.Set[Int]()
 
     val partitions = if (batchLoading) {
       val x: Seq[(GraphPartition, Reader)] = for (i <- 0 until totalPartitions) yield {
-        val partitionID = idManager.getNextAvailableID() match {
+        val partitionID = partitionIDManager.getNextAvailableID() match {
           case Some(id) => id
           case None     =>
             throw new Exception(
                     s"Failed to retrieve Partition ID. " +
-                      s"ID Manager at Zookeeper '$idManager' was unreachable."
+                      s"ID Manager at Zookeeper '$partitionIDManager' was unreachable."
             )
         }
 
@@ -129,12 +143,12 @@ private[raphtory] class ComponentFactory(conf: Config, topicRepo: TopicRepositor
     else {
       val x: Seq[(GraphPartition, Reader, Component[GraphAlteration])] =
         for (i <- 0 until totalPartitions) yield {
-          val partitionID = idManager.getNextAvailableID() match {
+          val partitionID = partitionIDManager.getNextAvailableID() match {
             case Some(id) => id
             case None     =>
               throw new Exception(
                       s"Failed to retrieve Partition ID. " +
-                        s"ID Manager at Zookeeper '$idManager' was unreachable."
+                        s"ID Manager at Zookeeper '$partitionIDManager' was unreachable."
               )
           }
 
@@ -191,6 +205,10 @@ private[raphtory] class ComponentFactory(conf: Config, topicRepo: TopicRepositor
     queryTracker
   }
 
+  def stop(): Unit = {
+    partitionIDManager.stop()
+    builderIDManager.stop()
+  }
 }
 
 case class ThreadedWorker[T](worker: Component[T])

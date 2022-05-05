@@ -1,24 +1,24 @@
 package com.raphtory.generic
 
 import com.raphtory.BaseRaphtoryAlgoTest
+import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.spouts.FileSpout
-import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Schema
 
 import java.io.File
 import scala.language.postfixOps
 import scala.sys.process._
 
-class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
+class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
   test("Outputting to Pulsar") {
     val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)
 
-    val consumer: Consumer[Array[Byte]] =
+    val consumer =
       pulsarConnector
         .createSharedConsumer(
                 subscriptionName = "pulsarOutputTest",
@@ -27,22 +27,19 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String] {
         )
 
     val queryProgressTracker =
-      graph.rangeQuery(
-              graphAlgorithm = EdgeList(),
-              outputFormat = outputFormat,
-              start = 1,
-              end = 32674,
-              increment = 10000,
-              windows = List(500, 1000, 10000)
-      )
-
+      graph
+        .range(1, 32674, 10000)
+        .window(List(500, 1000, 10000), Alignment.END)
+        .execute(EdgeList())
+        .writeTo(outputFormat, "EdgeList")
+    jobId = queryProgressTracker.getJobId
     queryProgressTracker.waitForJob()
-
-    val firstResult = new String(receiveMessage(consumer).getValue)
-
+    val firstResult          = new String(receiveMessage(consumer).getValue)
     logger.info(s"Output to Pulsar complete. First result is: '$firstResult'.")
 
     assert(firstResult.nonEmpty)
+
+    consumer.unsubscribe()
   }
 
   override def batchLoading(): Boolean = false

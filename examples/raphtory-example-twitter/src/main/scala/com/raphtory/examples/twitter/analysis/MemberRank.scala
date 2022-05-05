@@ -4,6 +4,7 @@ import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.graph.visitor.Edge
 
 /**
   * Description
@@ -35,7 +36,7 @@ class MemberRank() extends GraphAlgorithm {
       }
       .step { vertex =>
         //Get the Vertex ID and Page Rank (Long,Double) messages from our neighbours
-        val queue: Seq[(Long, Double)] = vertex.messageQueue[(Long, Double)]
+        val queue: Seq[(vertex.IDType, Double)] = vertex.messageQueue[(vertex.IDType, Double)]
 
         //Get the vertex in degree
         val inDegree = vertex.getInNeighbours().size.toDouble

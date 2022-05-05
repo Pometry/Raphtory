@@ -19,34 +19,33 @@ import com.raphtory.algorithms.generic.dynamic.WattsCascade
 import com.raphtory.algorithms.generic.dynamic.WeightedRandomWalk
 import com.raphtory.algorithms.generic.motif.SquareCount
 import com.raphtory.algorithms.generic.motif.TriangleCount
+import com.raphtory.algorithms.temporal.Ancestors
+import com.raphtory.algorithms.temporal.Descendants
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.components.spout.Spout
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
-
 import com.raphtory.spouts.FileSpout
-import java.io.File
 
+import java.io.File
 import scala.language.postfixOps
 import sys.process._
 
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
-  val outputFormat: FileOutputFormat = FileOutputFormat(outputDirectory)
 
   override def batchLoading(): Boolean = false
 
   test("Graph State Test") {
     val result = algorithmTest(
             algorithm = GraphState(),
-            outputFormat = outputFormat,
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
     )
 
-    val expected = "9fa9e48ab6e79e186bcacd7c9f9e3e60897c8657e76c348180be87abe8ec53fe"
+    val expected = "c21170ae40544156af69000d2b0d6e8eaf5f593d3905810c7527f2e09b8e9172"
 
     result shouldEqual expected
   }
@@ -55,7 +54,6 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     val result =
       algorithmTest(
               algorithm = new GlobalState(),
-              outputFormat = outputFormat,
               start = 1,
               end = 32674,
               increment = 10000,
@@ -70,7 +68,6 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("Degree Test") {
     val result = algorithmTest(
             algorithm = Degree(),
-            outputFormat = outputFormat,
             start = 1,
             end = 32674,
             increment = 10000,
@@ -84,7 +81,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
 //  test("Distinctiveness Test") {
 //    //    TODO: Implement actual test as output is not deterministic due to floating point errors
-//    algorithmTest(Distinctiveness(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+//    algorithmTest(Distinctiveness(), 1, 32674, 10000, List(500, 1000, 10000))
 //    assert(true)
 //  }
 
@@ -92,7 +89,6 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     val result =
       algorithmTest(
               algorithm = AverageNeighbourDegree(),
-              outputFormat = outputFormat,
               start = 1,
               end = 32674,
               increment = 10000,
@@ -106,13 +102,13 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
 //  test("PageRank Test") {
 //    //    TODO: Implement actual test as output is not deterministic due to floating point errors
-//    algorithmTest(PageRank(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+//    algorithmTest(PageRank(), 1, 32674, 10000, List(500, 1000, 10000))
 //    assert(true)
 //  }
 
 //  test("WeightedPageRank Test") {
 //    //    TODO: Implement actual test as output is not deterministic due to floating point errors
-//    algorithmTest(WeightedPageRank(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+//    algorithmTest(WeightedPageRank(), 1, 32674, 10000, List(500, 1000, 10000))
 //    assert(true)
 //  }
 
@@ -120,7 +116,6 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     val result =
       algorithmTest(
               algorithm = WeightedDegree[Long](),
-              outputFormat = outputFormat,
               start = 1,
               end = 32674,
               increment = 10000,
@@ -134,14 +129,14 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
 //  test("LPA Test") {
 //    assert(
-//      algorithmTest(LPA[Int](seed=1234), outputFormat, 32674, 32674, 10000, List(10000))
+//      algorithmTest(LPA[Int](seed=1234), 32674, 32674, 10000, List(10000))
 //      equals "cf7bf559d634a0cf02739d9116b4d2f47c25679be724a896223c0917d55d2143"
 //    )
 //  }
 //
 //  test("SLPA Test") {
 //    assert(
-//      algorithmTest(SLPA(speakerRule = SLPA.ChooseRandom(seed=1234)), outputFormat, 32674, 32674, 10000, List(10000))
+//      algorithmTest(SLPA(speakerRule = SLPA.ChooseRandom(seed=1234)), 32674, 32674, 10000, List(10000))
 //      equals "a7c72dac767dc94d64d76e2c046c1dbe95154a8da7994d2133cf9e1b09b65570"
 //    )
 //  }
@@ -150,7 +145,6 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     val result =
       algorithmTest(
               algorithm = ConnectedComponents(),
-              outputFormat = outputFormat,
               start = 1,
               end = 32674,
               increment = 10000,
@@ -161,17 +155,16 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
     result shouldEqual expected
   }
-
+//
 //  test("Random Walk Test") {
 ////    TODO: non-deterministic even with fixed seed, maybe message order is non-deterministic?
-//      algorithmTest(RandomWalk(seed=1234), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+//    algorithmTest(RandomWalk(seed = 1234), 1, 32674, 10000, List(500, 1000, 10000))
 //    assert(true)
 //  }
 
   test("Watts Cascade Test") {
     val result = algorithmTest(
             algorithm = WattsCascade(infectedSeed = Array("Gandalf"), threshold = 0.1),
-            outputFormat = outputFormat,
             start = 1,
             end = 32674,
             increment = 10000,
@@ -185,7 +178,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
 //  test("DiscreteSI test") {
 //    assert(
-//      algorithmTest(DiscreteSI(Set("Gandalf"), seed=1234), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+//      algorithmTest(DiscreteSI(Set("Gandalf"), seed=1234), 1, 32674, 10000, List(500, 1000, 10000))
 //      equals "57191e340ef3e8268d255751b14fff76292087af2365048d961d59a5c0fbbc3f"
 //    )
 //  }
@@ -193,7 +186,6 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("Chain Test") {
     val result = algorithmTest(
             algorithm = TriangleCount() -> ConnectedComponents(),
-            outputFormat = outputFormat,
             start = 1,
             end = 32674,
             increment = 10000,
@@ -208,7 +200,6 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("Square counting test") {
     val result = algorithmTest(
             algorithm = SquareCount(),
-            outputFormat = outputFormat,
             start = 1,
             end = 32674,
             increment = 10000,
@@ -223,7 +214,6 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("Temporal Triangle Count") {
     val result = algorithmTest(
             algorithm = TriangleCount(),
-            outputFormat = outputFormat,
             start = 1,
             end = 32674,
             increment = 10000,
@@ -238,7 +228,6 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("Taint Tracking") {
     val result = algorithmTest(
             algorithm = GenericTaint(1, infectedNodes = Set("Bilbo"), stopNodes = Set("Aragorn")),
-            outputFormat = outputFormat,
             start = 1,
             end = 32674,
             increment = 10000,
@@ -253,17 +242,40 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("Weighted Random Walk") {
     algorithmPointTest(
             algorithm = WeightedRandomWalk[Int](),
-            outputFormat = outputFormat,
             timestamp = 32674
     )
 
     assert(true)
   }
 
+  test("Ancestors Test") {
+    val result   = algorithmTest(
+            algorithm = Ancestors("Gandalf", 32674, strict = false),
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
+    )
+    val expected = "5f7055f9493d2b328f8e4e13239e683276f48ab3e44d7f3a13a61347405b35a7"
+    result shouldEqual expected
+  }
+
+  test("Descendants Test") {
+    val result   = algorithmTest(
+            algorithm = Descendants("Gandalf", 1000, strict = false),
+            start = 1,
+            end = 32674,
+            increment = 10000,
+            windows = List(500, 1000, 10000)
+    )
+    val expected = "3d31b8b47bd25d919993680eed78c51fb991cb062f863025d2e795ecac999873"
+    result shouldEqual expected
+  }
+
   // TODO Re-enable with Seed to produce same result
 //  test("Binary Diffusion") {
 //    assert(
-//      algorithmTest(BinaryDiffusion(seed=1, reinfect=false),outputFormat,1, 32674, 10000, List(500, 1000, 10000))
+//      algorithmTest(BinaryDiffusion(seed=1, reinfect=false), 1, 32674, 10000, List(500, 1000, 10000))
 //        equals "dc7a2a28857913f03f3f955353cfe6701abbf4703441ae6bdf92ec454efdd46b"
 //    )
 //  }

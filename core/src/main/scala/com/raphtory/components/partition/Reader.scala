@@ -8,6 +8,7 @@ import com.raphtory.components.querymanager.WatermarkTime
 import com.raphtory.config.Cancelable
 import com.raphtory.config.Scheduler
 import com.raphtory.config.TopicRepository
+import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Consumer
@@ -33,6 +34,16 @@ class Reader(
   var scheduledWatermark: Option[Cancelable]            = None
   private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
 
+  val lastWaterMarkProcessed =
+    PartitionTelemetry.lastWaterMarkProcessed(
+            s"partitionID_${partitionID}_deploymentID_$deploymentID"
+    )
+
+  val queryExecutorMapCounter =
+    PartitionTelemetry.queryExecutorMapCounter(
+            s"partitionID_${partitionID}_deploymentID_$deploymentID"
+    )
+
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
     queryPrepListener.start()
@@ -43,7 +54,9 @@ class Reader(
     queryPrepListener.close()
     scheduledWatermark.foreach(_.cancel())
     watermarkPublish.close()
-    executorMap.foreach(_._2.stop())
+    executorMap.synchronized {
+      executorMap.foreach(_._2.stop())
+    }
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
@@ -52,11 +65,22 @@ class Reader(
         val jobID         = req.jobID
         val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, topics)
         scheduler.execute(queryExecutor)
+        queryExecutorMapCounter.inc()
         executorMap += ((jobID, queryExecutor))
 
       case req: EndQuery          =>
-        executorMap(req.jobID).stop()
-        executorMap.remove(req.jobID)
+        logger.debug(s"Reader on partition $partitionID received $req")
+        executorMap.synchronized {
+          try {
+            executorMap(req.jobID).stop()
+            executorMap.remove(req.jobID)
+            queryExecutorMapCounter.dec()
+          }
+          catch {
+            case e: Exception =>
+              e.printStackTrace()
+          }
+        }
     }
 
   def createWatermark(): Unit = {
@@ -105,6 +129,7 @@ class Reader(
         watermarkPublish sendAsync watermark
       }
       lastWatermark = watermark
+      lastWaterMarkProcessed.set(finalTime)
     }
     scheduleWaterMarker()
   }

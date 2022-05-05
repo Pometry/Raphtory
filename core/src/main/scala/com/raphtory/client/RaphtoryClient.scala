@@ -126,6 +126,12 @@ private[raphtory] class RaphtoryClient(
       .writeTo(outputFormat, jobName)
   }
 
+  def pointQuery(
+                  graphAlgorithm: GraphAlgorithm,
+                  outputFormat: OutputFormat,
+                  timestamp: Long
+                ): QueryProgressTracker = pointQuery(graphAlgorithm, outputFormat, timestamp,  List())
+
   def rangeQuery(
       graphAlgorithm: GraphAlgorithm,
       outputFormat: OutputFormat,

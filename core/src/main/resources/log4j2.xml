@@ -6,43 +6,62 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="org.hibernate.SQL" level="${env:SQL_LOG:-INFO}">
+        <!-- LOGGERS FOR UNDERLYING PACKAGES -->
+        <Logger name="org.hibernate" level="${env:RAPHTORY_SQL_LOG:-off}">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="org.hibernate.type.descriptor.sql" level="${env:SQL_LOG:-INFO}">
-            <AppenderRef ref="Console"/>
+        <Logger name="com.scurrilous.circe.checksum.Crc32cIntChecksum" level="${env:RAPHTORY_CHECKSUM_LOG:-off}">
         </Logger>
-        <Logger name="org.hibernate.type.descriptor.sql" level="${env:SQL_LOG:-INFO}">
-            <AppenderRef ref="Console"/>
+        <Logger name="io.netty" level="${env:RAPHTORY_NETTY_LOG:-off}">
         </Logger>
-        <Logger name="com.scurrilous.circe.checksum.Crc32cIntChecksum" level="${env:CHECKSUM_LOG:-off}">
+        <Logger name="org.apache" level="${env:RAPHTORY_APACHE_LOG:-off}">
         </Logger>
-        <Logger name="io.netty" level="${env:NETTY_LOG:-off}">
+
+        <!-- LOGGER FOR RAPHTORY CORE -->
+        <Logger name="com.raphtory" level="${env:RAPHTORY_CORE_LOG:-INFO}">
         </Logger>
-        <Logger name="org.apache" level="${env:APACHE_LOG:-off}">
+
+        <!-- LOGGERS FOR RAPHTORY PACKAGES -->
+        <Logger name="com.raphtory.algorithms" level="${env:RAPHTORY_ALGORITHMS_LOG:-INFO}">
         </Logger>
-        <Logger name="com.raphtory.deployment" level="${env:DEPLOY_LOG:-INFO}">
+        <Logger name="com.raphtory.client" level="${env:RAPHTORY_CLIENT_LOG:-INFO}">
         </Logger>
+        <Logger name="com.raphtory.config" level="${env:RAPHTORY_CONFIG_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.deployment" level="${env:RAPHTORY_DEPLOYMENT_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.graph" level="${env:RAPHTORY_GRAPH_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.output" level="${env:RAPHTORY_OUTPUT_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.serialisers" level="${env:RAPHTORY_SERIALISERS_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.spouts" level="${env:RAPHTORY_SPOUTS_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.storage" level="${env:RAPHTORY_STORAGE_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.time" level="${env:RAPHTORY_TIME_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.util" level="${env:RAPHTORY_UTIL_LOG:-INFO}">
+        </Logger>
+
+        <!-- LOGGERS FOR RAPHTORY COMPONENTS -->
+        <Logger name="com.raphtory.components" level="${env:RAPHTORY_COMPONENTS_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.components.graphbuilder" level="${env:RAPHTORY_COMPONENTS_GRAPHBUILDER_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.components.partition" level="${env:RAPHTORY_COMPONENTS_PARTITION_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.components.querymanager" level="${env:RAPHTORY_COMPONENTS_QUERYMANAGER_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.components.querytracker" level="${env:RAPHTORY_COMPONENTS_QUERYTRACKER_LOG:-INFO}">
+        </Logger>
+        <Logger name="com.raphtory.components.spout" level="${env:RAPHTORY_COMPONENTS_SPOUT_LOG:-INFO}">
+        </Logger>
+
+        <!-- LOGGER FOR RAPHTORY DEVELOPMENT WHEN IT IS IN USE -->
         <Logger name="com.raphtory.develop" level="${env:DEVELOP_LOG:-INFO}">
         </Logger>
-        <Logger name="com.raphtory.core" level="${env:CORE_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.components.querymanager" level="DEBUG">
-        </Logger>
-        <Logger name="com.raphtory.components.partition.QueryExecutor" level="DEBUG">
-        </Logger>
-        <Logger name="com.raphtory.components.querytracker.QueryProgressTracker" level="DEBUG">
-        </Logger>
-        <Logger name="com.raphtory.components.querymanager.QueryManager" level="INFO">
-        </Logger>
-
-        <Logger name="com.raphtory.components.partition" level="INFO">
-        </Logger>
-        <Logger name="com.raphtory.components.graphbuilder" level="INFO">
-        </Logger>
-        <Logger name="com.raphtory.components.spout" level="INFO">
-        </Logger>
-
 
         <Root level="info">
             <AppenderRef ref="Console"/>

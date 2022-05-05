@@ -1,6 +1,9 @@
 package com.raphtory.graph.visitor
 
 import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
+import io.sqooba.oss.timeseries.TimeSeries
+import io.sqooba.oss.timeseries.immutable.EmptyTimeSeries
+import io.sqooba.oss.timeseries.immutable.TSEntry
 
 /**
   * {s}`EntityVisitor`
@@ -39,13 +42,17 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
   *    If a value for {s}`window` is given, the entity is considered as having been deleted if more
   *    than {s}`window` time has passed since the last addition event.
   *
-  * {s}`firstActivityAfter(time: Long): HistoricEvent`
+  * {s}`firstActivityAfter(time: Long): Option[HistoricEvent]`
   *  : Return next event (addition or deletion) after timestamp {s}`time` as an
-  *    [{s}`HistoricEvent`](com.raphtory.graph.visitor.HistoricEvent)
+  *    [{s}`HistoricEvent`](com.raphtory.graph.visitor.HistoricEvent). This is wrapped in an option as
+  *    it is possible that no activity occurred after the given time. An optional {s}`strict` Boolean argument is also
+  *     available which allows events exactly at the given time to be returned if set to `false`.
   *
-  * {s}`lastActivityBefore(time: Long): HistoricEvent`
-  *  : Return the last event (addition or deltion) before timestamp {s}`time` as an
-  *    [{s}`HistoricEvent`](com.raphtory.graph.visitor.HistoricEvent)
+  * {s}`lastActivityBefore(time: Long): Option[HistoricEvent]`
+  *  : Return the last event (addition or deletion) before timestamp {s}`time` as an
+  *    [{s}`HistoricEvent`](com.raphtory.graph.visitor.HistoricEvent).  The result is wrapped in an option as it is
+  *     possible that no activity occurred before the given time. An optional {s}`strict` Boolean argument is also
+  *     available which allows events exactly at the given time to be returned if set to `false`.
   *
   * {s}`latestActivity(): HistoricEvent`
   *  : Return the most recent event (addition or deletion) in the current view as an
@@ -90,6 +97,20 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
   *    ```{note}
   *    More property types with different value semantics are likely going to be added in the future.
   *    ```
+  *
+  * {s}`getTimeSeriesPropertyHistory[T](key: String, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[TimeSeries[T]]`
+  *  :  Return values for property {s}`key`. Returns {s}`None` if no property with name {s}`key` exists.
+  *     Otherwise returns a TimeSeries (from this library: https://github.com/Sqooba/scala-timeseries-lib) which may be empty.
+  *     This function utilises the getPropertyHistory function and maps over the list of tuples, retrieving the timestamps to work out the individual TimeSeries entries.
+  *
+  *     {s}`key: String`
+  *       : name of property
+  *
+  *    {s}`after: Long` (optional)
+  *      : Only consider addition events in the current view that happened after time {s}`after`
+  *
+  *    {s}`before: Long` (optional)
+  *      : Only consider addition events in the current view that happened before time {s}`before`
   *
   * {s}`getPropertyValues[T](key: String, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[List[T]]`
   *  :  Return values for property {s}`key`. Returns {s}`None` if no property with name {s}`key` exists.
@@ -196,10 +217,11 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
   * ```
   */
 abstract class EntityVisitor {
+
   def Type(): String
 
-  def firstActivityAfter(time: Long): HistoricEvent
-  def lastActivityBefore(time: Long): HistoricEvent
+  def firstActivityAfter(time: Long, strict: Boolean = true): Option[HistoricEvent]
+  def lastActivityBefore(time: Long, strict: Boolean = true): Option[HistoricEvent]
   def latestActivity(): HistoricEvent
   def earliestActivity(): HistoricEvent
 
@@ -248,8 +270,37 @@ abstract class EntityVisitor {
       before: Long = Long.MaxValue
   ): Option[List[(Long, T)]]
 
+  def getTimeSeriesPropertyHistory[T](
+      key: String,
+      after: Long = Long.MinValue,
+      before: Long = Long.MaxValue
+  ): Option[TimeSeries[T]] =
+    getPropertyHistory[T](key, after, before).map { timestampList =>
+      if (timestampList.nonEmpty)
+        TimeSeries.ofOrderedEntriesUnsafe {
+          timestampList.iterator
+            .sliding(2)
+            .withPartial(false)
+            .map {
+              case List((timestamp1, value1), (timestamp2, value2)) =>
+                TSEntry[T](timestamp1, value1, timestamp2 - timestamp1)
+            }
+            .++(Seq(TSEntry[T](timestampList.last._1, timestampList.last._2, before)))
+            .toSeq
+        }
+      else EmptyTimeSeries
+    }
+
   //functionality to access the history of the edge or vertex + helpers
   def history(): List[HistoricEvent]
+
+  def timeSeriesHistory(): TimeSeries[Boolean] = {
+    val tsSeq: List[TSEntry[Boolean]] = history().map(history =>
+      TSEntry(history.time, history.event, 1) //1 as the history is already in order
+    )
+    TimeSeries.ofOrderedEntriesUnsafe(tsSeq)
+  }
+
   def active(after: Long = Long.MinValue, before: Long = Long.MaxValue): Boolean
   def aliveAt(time: Long, window: Long = Long.MaxValue): Boolean
 

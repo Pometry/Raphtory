@@ -1,7 +1,8 @@
 package com.raphtory.generic
 
-import com.raphtory.algorithms.BaseCorrectnessTest
-import com.raphtory.algorithms.BasicGraphBuilder
+import com.raphtory.BaseCorrectnessTest
+import com.raphtory.BasicGraphBuilder
+import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.deployment.Raphtory
@@ -18,16 +19,16 @@ class FailingAlgo extends GraphAlgorithm {
 class FailureTest extends AnyFunSuite {
   test("test failure propagation") {
     val graph = Raphtory
-      .streamGraph(
+      .stream(
               spout = SequenceSpout("1,1,1"),
               graphBuilder = BasicGraphBuilder()
       )
 
-    val query = graph.pointQuery(
-            graphAlgorithm = new FailingAlgo,
-            outputFormat = FileOutputFormat("/tmp/raphtoryTest"),
-            timestamp = 1
-    )
+    val query = graph
+      .at(1)
+      .past()
+      .execute(new FailingAlgo)
+      .writeTo(FileOutputFormat("/tmp/raphtoryTest"), "FailingAlgo")
 
     for (i <- 1 to 20 if !query.isJobDone)
       Thread.sleep(1000)
@@ -36,6 +37,6 @@ class FailureTest extends AnyFunSuite {
             query.isJobDone
     ) // if query failed to terminate after 20 seconds, assuming infinite loop
 
-    graph.stop()
+    graph.deployment.stop()
   }
 }

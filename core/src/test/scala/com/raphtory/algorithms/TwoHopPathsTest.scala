@@ -1,10 +1,18 @@
 package com.raphtory.algorithms
 
+import com.raphtory.BaseCorrectnessTest
 import com.raphtory.algorithms.generic.TwoHopPaths
 
 class TwoHopPathsTest extends BaseCorrectnessTest {
   test("Test two-hop Paths") {
-    assert(correctnessTest(TwoHopPaths("1","7"), "MotifCount/motiftest.csv", "TwoHopPaths/twohopResults.csv", 23))
+    assert(
+            correctnessTest(
+                    TwoHopPaths("1", "7"),
+                    "MotifCount/motiftest.csv",
+                    "TwoHopPaths/twohopResults.csv",
+                    23
+            )
+    )
   }
 
 }

@@ -1,9 +1,11 @@
 package com.raphtory.components.graphbuilder
 
 import com.raphtory.components.Component
+import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.config.TopicRepository
 import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
+import io.prometheus.client.Counter
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
@@ -15,19 +17,34 @@ import scala.reflect.runtime.universe._
 
 /** @DoNotDocument */
 class BuilderExecutor[T: ClassTag](
-    name: String,
+    name: Int,
+    deploymentID: String,
+    vertexAddCounter: Counter,
+    vertexDeleteCounter: Counter,
+    edgeAddCounter: Counter,
+    edgeDeleteCounter: Counter,
     graphBuilder: GraphBuilder[T],
     conf: Config,
     topics: TopicRepository
 ) extends Component[T](conf) {
   private val safegraphBuilder     = Marshal.deepCopy(graphBuilder)
+  safegraphBuilder
+    .setBuilderMetaData(
+            name,
+            deploymentID,
+            vertexAddCounter,
+            vertexDeleteCounter,
+            edgeAddCounter,
+            edgeDeleteCounter
+    )
   private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
   private val writers              = topics.graphUpdates.endPoint
 
   private val spoutOutputListener =
-    topics.registerListener(name, handleMessage, topics.spoutOutput[T])
+    topics.registerListener(s"builder-$name", handleMessage, topics.spoutOutput[T])
 
-  private var messagesProcessed = 0
+  private val graphUpdateCounter = BuilderTelemetry.totalGraphBuilderUpdates(deploymentID)
+  private var messagesProcessed  = 0
 
   override def run(): Unit = {
     logger.debug(
@@ -45,7 +62,10 @@ class BuilderExecutor[T: ClassTag](
   override def handleMessage(msg: T): Unit =
     safegraphBuilder
       .getUpdates(msg)(failOnError = failOnError)
-      .foreach(message => sendUpdate(message))
+      .foreach { message =>
+        sendUpdate(message)
+        graphUpdateCounter.inc()
+      }
 
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
     logger.trace(s"Sending graph update: $graphUpdate")

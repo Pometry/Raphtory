@@ -12,6 +12,7 @@ abstract class Component[T](conf: Config) {
   val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
   val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
+  val deploymentID: String     = conf.getString("raphtory.deploy.id")
 
   def getWriter(srcId: Long): Int = (srcId.abs % totalPartitions).toInt
   def handleMessage(msg: T): Unit

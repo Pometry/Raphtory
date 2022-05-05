@@ -1,12 +1,13 @@
 package com.raphtory.ethereum
 
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.deploy.Raphtory
+import com.raphtory.deployment.Raphtory
 import com.raphtory.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.ethereum.analysis.TaintAlgorithm
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.spouts.FileSpout
+import com.raphtory.util.FileUtils
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -20,16 +21,17 @@ object LocalRunner extends App {
   logger.info("Starting Ethereum application")
 
   // set up env
-  val config  = ConfigFactory.load("ethereum.conf").getConfig("com.raphtory.ethereum")
-  val tagFile = config.getString("tagFile")
+  val path = "/tmp/etherscan_tags.csv"
+  val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/etherscan_tags.csv"
+  FileUtils.curlFile(path, url)
 
   // create graph
-  val source  = FileSpout()
-  val builder = new EthereumGraphBuilder(tagFile)
-  val graph   = Raphtory.batchLoadGraph(source, builder)
+  val source  = FileSpout("/tmp/etherscan_tags.csv")
+  val builder = new EthereumGraphBuilder()
+  val graph   = Raphtory.batchLoad(source, builder)
 
   // setup ethereum vars
-  val startTime                  = 1574814233
+  val startTime = 1574814233
 
   val infectedNodes: Set[String] =
     Set(
@@ -234,7 +236,11 @@ object LocalRunner extends App {
   // val graphQuery = new TaintAlgorithm(startTime, infectedNodes, stopNodes)
   val fileOutput   = FileOutputFormat("/tmp/ethereum/Taint")
   val pulsarOutput = PulsarOutputFormat("TaintTracking")
-  graph.pointQuery(TaintAlgorithm(startTime, infectedNodes, stopNodes), pulsarOutput, 1575013446)
+  graph
+    .at(1575013446)
+    .past()
+    .execute(TaintAlgorithm(startTime, infectedNodes, stopNodes))
+    .writeTo(pulsarOutput)
   // graph.pointQuery(ConnectedComponents(), FileOutputFormat("/tmp/ethereum/connected_components"), 1591951621)
 
   // Range query, run the same command over certain time periods

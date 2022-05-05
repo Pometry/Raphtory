@@ -51,17 +51,7 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 
   private val deploymentID: String = conf.getString("raphtory.deploy.id")
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
-  private val prometheusPort: Int  = conf.getInt("raphtory.prometheus.server")
-
-  private val zookeeperAddress: String = conf.getString("raphtory.zookeeper.address")
-
-  private val partitionIdManager =
-    new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
-  partitionIdManager.resetID()
-
-  private val builderIdManager =
-    new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
-  builderIdManager.resetID()
+  private val prometheusPort: Int  = conf.getInt("raphtory.prometheus.metrics.port")
 
   private val partitions: Partitions =
     componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
@@ -87,11 +77,6 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
   def stop(): Unit = {
     partitions.writers.foreach(_.stop())
     partitions.readers.foreach(_.stop())
-    //TODO reenable partition stop
-//    partitions.foreach { partition =>
-//      partition.writer.stop()
-//      partition.reader.stop()
-//    }
     queryManager.worker.stop()
 
     spoutworker match {
@@ -107,6 +92,8 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
       case Some(w) => w.stop()
       case None    =>
     }
+
+    componentFactory.stop()
   }
 
   private def allowIllegalReflection() = {

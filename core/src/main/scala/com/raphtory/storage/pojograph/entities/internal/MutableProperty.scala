@@ -1,6 +1,10 @@
 package com.raphtory.storage.pojograph.entities.internal
 
 import scala.collection.mutable
+import com.raphtory.util.OrderedBuffer._
+
+import scala.collection.Searching.Found
+import scala.collection.Searching.InsertionPoint
 
 /** *
   * Node or Vertice Property. Created by Mirate on 10/03/2017.
@@ -9,13 +13,12 @@ import scala.collection.mutable
   * @param value         Property value
   */
 class MutableProperty(creationTime: Long, value: Any) extends Property {
-
   var previousState: mutable.ArrayBuffer[(Long, Any)] = mutable.ArrayBuffer()
   // add in the initial information
   update(creationTime, value)
 
-  var earliest                  = creationTime
-  var earliestval               = value
+  var earliest: Long            = creationTime
+  var earliestval: Any          = value
   override def creation(): Long = earliest
 
   def update(msgTime: Long, newValue: Any): Unit = {
@@ -23,22 +26,18 @@ class MutableProperty(creationTime: Long, value: Any) extends Property {
       earliest = msgTime
       earliestval = newValue
     }
-    previousState += ((msgTime, newValue))
+    previousState.sortedAppend(msgTime, newValue)
   }
 
   def valueAt(time: Long): Option[Any] =
     if (time < earliest)
       None
     else {
-      var closestTime: Long = earliest
-      var value: Any        = earliestval
-      for ((k, v) <- previousState)
-        if (k <= time)
-          if ((time - k) < (time - closestTime)) {
-            closestTime = k
-            value = v
-          }
-      Some(value)
+      val index = previousState.search((time, None))(TupleByFirstOrdering)
+      index match {
+        case Found(i)          => Some(previousState(i)._2)
+        case InsertionPoint(i) => Some(previousState(i - 1)._2)
+      }
     }
 
   override def valueHistory(

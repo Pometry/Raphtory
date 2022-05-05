@@ -14,8 +14,10 @@ import com.raphtory.algorithms.api.GraphFunction
 import com.raphtory.algorithms.api.GraphStateImplementation
 import com.raphtory.algorithms.api.Iterate
 import com.raphtory.algorithms.api.IterateWithGraph
+import com.raphtory.algorithms.api.MultilayerView
 import com.raphtory.algorithms.api.OutputFormat
 import com.raphtory.algorithms.api.PerspectiveDone
+import com.raphtory.algorithms.api.ReduceView
 import com.raphtory.algorithms.api.Select
 import com.raphtory.algorithms.api.SelectWithGraph
 import com.raphtory.algorithms.api.Setup
@@ -25,6 +27,9 @@ import com.raphtory.algorithms.api.TableFunction
 import com.raphtory.components.Component
 import com.raphtory.config.Scheduler
 import com.raphtory.config.TopicRepository
+import com.raphtory.config.telemetry.PartitionTelemetry
+import com.raphtory.config.telemetry.QueryTelemetry
+import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.graph.Perspective
 import com.raphtory.graph.PerspectiveController
 import com.typesafe.config.Config
@@ -48,11 +53,10 @@ class QueryHandler(
     conf: Config,
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {
-  val deploymentID: String = conf.getString("raphtory.deploy.id")
-  private val self         = topics.rechecks(jobID).endPoint
-  private val readers      = topics.queryPrep.endPoint
-  private val tracker      = topics.queryTrack(jobID).endPoint
-  private val workerList   = topics.jobOperations(jobID).endPoint
+  private val self       = topics.rechecks(jobID).endPoint
+  private val readers    = topics.queryPrep.endPoint
+  private val tracker    = topics.queryTrack(jobID).endPoint
+  private val workerList = topics.jobOperations(jobID).endPoint
 
   private val listener =
     topics.registerListener(
@@ -81,11 +85,26 @@ class QueryHandler(
 
   private var currentState: Stage = SpawnExecutors
 
+  val totalPerspectivesProcessed =
+    QueryTelemetry.totalPerspectivesProcessed(s"jobID_${jobID}_deploymentID_$deploymentID")
+
+  val totalGraphOperations =
+    QueryTelemetry.totalGraphOperations(s"jobID_${jobID}_deploymentID_$deploymentID")
+
+  val totalTableOperations =
+    QueryTelemetry.totalTableOperations(s"jobID_${jobID}_deploymentID_$deploymentID")
+
+  val totalReceivedMessageCount =
+    QueryTelemetry.receivedMessageCount(s"jobID_${jobID}_deploymentID_$deploymentID")
+
+  val totalSentMessageCount =
+    QueryTelemetry.sentMessageCount(s"jobID_${jobID}_deploymentID_$deploymentID")
+
   private def recheckTimer(): Unit         = self sendAsync RecheckTime
   private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
   override def run(): Unit = {
-    readers sendAsync EstablishExecutor(jobID)
+    messageReader(EstablishExecutor(jobID))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()
@@ -221,7 +240,9 @@ class QueryHandler(
       votedToHalt: Boolean
   ) = {
     sentMessageCount += sentMessages
+    totalSentMessageCount.inc(sentMessages)
     receivedMessageCount += receivedMessages
+    totalReceivedMessageCount.inc(receivedMessages)
     allVoteToHalt = votedToHalt & allVoteToHalt
     readyCount += 1
     logger.debug(
@@ -290,6 +311,7 @@ class QueryHandler(
                   s"Job '$jobID': Table Built in ${tableBuiltTimeTaken}ms Executing next table operation."
           )
           timeTaken = System.currentTimeMillis()
+          totalTableOperations.inc()
           nextTableOperation()
         }
         else
@@ -303,6 +325,7 @@ class QueryHandler(
                   s"Job '$jobID': Table Function complete in ${tableFuncTimeTaken}ms. Running next table operation."
           )
           timeTaken = System.currentTimeMillis()
+          totalTableOperations.inc()
           nextTableOperation()
         }
         else {
@@ -338,6 +361,7 @@ class QueryHandler(
   private def executeNextPerspective(): Stage = {
     val latestTime = getLatestTime()
     val oldestTime = getOptionalEarliestTime()
+    totalPerspectivesProcessed.inc()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
       tracker sendAsync currentPerspective
     perspectiveController.nextPerspective() match {
@@ -413,6 +437,7 @@ class QueryHandler(
     receivedMessageCount = 0
     sentMessageCount = 0
     checkingMessages = false
+    totalGraphOperations.inc()
 
     currentOperation match {
       case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
@@ -442,6 +467,14 @@ class QueryHandler(
                         graphState
                 )
         )
+        Stages.ExecuteGraph
+
+      case f: MultilayerView                                         =>
+        messagetoAllJobWorkers(f)
+        Stages.ExecuteGraph
+
+      case f: ReduceView                                             =>
+        messagetoAllJobWorkers(f)
         Stages.ExecuteGraph
 
       case f: Step                                                   =>
@@ -513,7 +546,12 @@ class QueryHandler(
 
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
+    workerList.close()
     messageReader(EndQuery(jobID))
+    readers.close()
+
+    val queryManager = topics.endedQueries.endPoint
+    queryManager closeWithMessage EndQuery(jobID)
     logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
 
     tracker closeWithMessage JobDone

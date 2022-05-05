@@ -8,6 +8,8 @@ import org.apache.pulsar.client.admin.PulsarAdmin
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.ConsumerBuilder
+import org.apache.pulsar.client.api.Message
+import org.apache.pulsar.client.api.MessageId
 import org.apache.pulsar.client.api.MessageListener
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.PulsarClient
@@ -19,7 +21,9 @@ import org.slf4j.LoggerFactory
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
+import scala.collection.mutable
 import scala.jdk.CollectionConverters._
+import scala.math.Ordering.Implicits.infixOrderingOps
 
 class PulsarConnector(config: Config) extends Connector {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -30,7 +34,8 @@ class PulsarConnector(config: Config) extends Connector {
       logger.debug(s"sending message: '$message' to topic: '${producer.getTopic}'")
       producer.sendAsync(serialise(message))
     }
-    override def close(): Unit                         = producer.close()
+    override def close(): Unit = producer.flushAsync().thenApply(_ => producer.closeAsync())
+
     override def flushAsync(): CompletableFuture[Void] = producer.flushAsync()
 
     override def closeWithMessage(message: T): Unit =
@@ -87,14 +92,18 @@ class PulsarConnector(config: Config) extends Connector {
       .mapValues(_ map createTopic)
       .map {
         case (subscriptionType, addresses) =>
-          registerListener(messageHandler, addresses, subscriptionType)
+          registerListener(id, messageHandler, addresses, subscriptionType)
       }
       .toSeq
 
     new CancelableListener {
       var consumers: Seq[Consumer[Array[Byte]]] = _
       override def start(): Unit                = consumers = consumerBuilders map (_.subscribe())
-      override def close(): Unit                = consumers foreach (_.close())
+      override def close(): Unit                =
+        consumers foreach { consumer =>
+          consumer.unsubscribe()
+          consumer.close()
+        }
     }
   }
 
@@ -105,24 +114,39 @@ class PulsarConnector(config: Config) extends Connector {
   }
 
   private def registerListener[T](
+      listenerId: String,
       messageHandler: T => Unit,
       addresses: Seq[String],
       subscriptionType: SubscriptionType
   ): ConsumerBuilder[Array[Byte]] = {
-    val messageListener: MessageListener[Array[Byte]] = { (consumer, msg) =>
-      try {
-        val data: T = deserialise(msg.getValue)
-        messageHandler.apply(data)
-        consumer.acknowledgeAsync(msg)
-      }
-      catch {
-        case e: Exception =>
-          e.printStackTrace()
-          consumer.negativeAcknowledge(msg)
-          throw e
-      }
-      finally msg.release()
+
+    val messageListener: MessageListener[Array[Byte]] = new MessageListener[Array[Byte]] {
+      val lastIds: mutable.Map[String, MessageId]                                             = mutable.Map()
+      override def received(consumer: Consumer[Array[Byte]], msg: Message[Array[Byte]]): Unit =
+        try {
+          val data   = deserialise[T](msg.getValue)
+          val id     = msg.getMessageId
+          val lastId = lastIds.getOrElse(msg.getTopicName, MessageId.earliest)
+          if (id <= lastId)
+            logger.error(
+                    s"Message $data received by $listenerId with index $id <= last index $lastId. Ignoring message"
+            )
+          else {
+            lastIds(msg.getTopicName) = id
+            messageHandler.apply(data)
+          }
+          consumer.acknowledgeAsync(msg)
+        }
+        catch {
+          case e: Exception =>
+            e.printStackTrace()
+            logger.error(s"Component $listenerId: Failed to handle message. ${e.getMessage}")
+            consumer.negativeAcknowledge(msg)
+            throw e
+        }
+        finally msg.release()
     }
+
     val subscriptionName = subscriptionType match {
       case SubscriptionType.Exclusive => messageHandler.hashCode().toString
       case SubscriptionType.Shared    => "shared"

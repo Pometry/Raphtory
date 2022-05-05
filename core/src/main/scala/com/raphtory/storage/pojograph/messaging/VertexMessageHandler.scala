@@ -5,6 +5,7 @@ import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
+import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.config.EndPoint
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.raphtory.storage.pojograph.PojoGraphLens
@@ -44,12 +45,16 @@ class VertexMessageHandler(
   logger.debug(s"Setting total partitions to '$totalPartitions'.")
 
   private val messageCache =
-    mutable.Map[EndPoint[QueryManagement], mutable.ArrayBuffer[GenericVertexMessage]]()
+    mutable.Map[EndPoint[QueryManagement], mutable.ArrayBuffer[GenericVertexMessage[_]]]()
   refreshBuffers()
 
-  def sendMessage(message: GenericVertexMessage): Unit = {
+  def sendMessage(message: GenericVertexMessage[_]): Unit = {
+    val vId                  = message.vertexId match {
+      case (v: Long, _) => v
+      case v: Long      => v
+    }
     sentMessages.incrementAndGet()
-    val destinationPartition = (message.vertexId.abs % totalPartitions).toInt
+    val destinationPartition = (vId.abs % totalPartitions).toInt
     if (destinationPartition == pojoGraphLens.partitionID) { //sending to this partition
       pojoGraphLens.receiveMessage(message)
       receivedMessages.incrementAndGet()
@@ -58,9 +63,11 @@ class VertexMessageHandler(
       val producer = producers(destinationPartition)
       if (messageBatch) {
         val cache = messageCache(producer)
-        cache += message
-        if (cache.size > maxBatchSize)
-          sendCached(producer)
+        cache.synchronized {
+          cache += message
+          if (cache.size > maxBatchSize)
+            sendCached(producer)
+        }
       }
       else
         producer sendAsync message
@@ -70,7 +77,7 @@ class VertexMessageHandler(
 
   def sendCached(readerJobWorker: EndPoint[QueryManagement]): Unit = {
     readerJobWorker sendAsync VertexMessageBatch(messageCache(readerJobWorker).toArray)
-    messageCache.put(readerJobWorker, mutable.ArrayBuffer[GenericVertexMessage]())
+    messageCache(readerJobWorker).clear() // synchronisation breaks if we create a new object here
   }
 
   def flushMessages(): CompletableFuture[Void] = {
@@ -87,7 +94,7 @@ class VertexMessageHandler(
 
     producers.foreach {
       case (key, producer) =>
-        messageCache.put(producer, mutable.ArrayBuffer[GenericVertexMessage]())
+        messageCache.put(producer, mutable.ArrayBuffer[GenericVertexMessage[_]]())
     }
   }
 

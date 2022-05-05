@@ -52,12 +52,17 @@ private[raphtory] class RaphtoryGraph(query: Query, private val querySender: Que
 
   def transform(algorithm: GraphAlgorithm): RaphtoryGraph = {
     val graph            = new GenericGraphPerspective(query, querySender)
-    val transformedGraph = algorithm.apply(graph)
+    val transformedGraph = algorithm.apply(graph).clearMessages()
     newGraph(transformedGraph.asInstanceOf[GenericGraphPerspective].query, querySender)
   }
 
   def execute(algorithm: GraphAlgorithm): Table =
-    algorithm.run(new GenericGraphPerspective(query, querySender))
+    algorithm.run(
+            new GenericGraphPerspective(
+                    query.copy(name = algorithm.getClass.getSimpleName),
+                    querySender
+            )
+    )
 
   def execute(f: RaphtoryGraph => Table): Table = f(this)
 

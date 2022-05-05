@@ -39,7 +39,7 @@ class EdgeList(
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .explodeSelect { vertex =>
-        val neighbourMap = vertex.getState[Map[Long, String]]("neighbourNames")
+        val neighbourMap = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")
         val name         = vertex.name()
         vertex
           .getOutEdges()
@@ -57,7 +57,7 @@ class EdgeList(
 }
 
 object EdgeList {
-
+  def apply()                                                = new EdgeList()
   def apply(
       properties: Seq[String] = Seq.empty[String],
       defaults: Map[String, Any] = Map.empty[String, Any]
