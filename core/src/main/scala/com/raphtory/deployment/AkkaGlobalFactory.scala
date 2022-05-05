@@ -14,13 +14,7 @@ import com.typesafe.config.ConfigFactory
 import collection.JavaConverters._
 
 object AkkaGlobalFactory extends GlobalFactory {
-
-  private val conf                 = Map(
-          "akka.actor.serializers.kryo" -> "io.altoo.akka.serialization.kryo.KryoSerializer",
-          "scala.Any"                   -> "kryo"
-  )
-  private val akkaConfig           = ConfigFactory.parseMap(conf.asJava).resolve()
-  private val actorSystem          = ActorSystem(SpawnProtocol(), "spawner", akkaConfig)
+  private val actorSystem          = ActorSystem(SpawnProtocol(), "spawner")
   private val scheduler: Scheduler = new AkkaScheduler(actorSystem)
 
   override def getScheduler: Scheduler = scheduler

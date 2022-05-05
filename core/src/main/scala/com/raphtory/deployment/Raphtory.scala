@@ -15,6 +15,7 @@ import com.raphtory.client.RaphtoryClient
 import com.raphtory.components.querymanager.Query
 import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 import py4j.GatewayServer
 import py4j.Py4JNetworkException
 import com.raphtory.deployment.Py4JServer
@@ -114,7 +115,8 @@ import scala.reflect.runtime.universe._
   */
 object Raphtory {
 
-  private val globalFactory              = PulsarGlobalFactory
+  private val distributed                = getDefaultConfig().getBoolean("raphtory.deploy.distributed")
+  private val globalFactory              = if (distributed) PulsarGlobalFactory else AkkaGlobalFactory
   private val scheduler                  = globalFactory.getScheduler
   private lazy val javaPy4jGatewayServer = new Py4JServer(this)
 
