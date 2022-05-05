@@ -14,11 +14,11 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 
 /**
-  * `TwoHopPaths()`
+  * {s}`TwoHopPaths()`
   *    : List all two-hop paths in the network
   *
-  * `TwoHopPaths(seeds: Iterable[String])`, `TwoHopPaths(seeds: String*)`
-  *    : List all two-hop paths starting at nodes in `seeds`
+  * {s}`TwoHopPaths(seeds: Iterable[String])`, {s}`TwoHopPaths(seeds: String*)`
+  *    : List all two-hop paths starting at nodes in {s}`seeds`
   *
   * This algorithm will return the two hop neighbours of each node in
   * the graph. If the user provides input seeds, then it will only return
@@ -32,7 +32,7 @@ import scala.collection.mutable.ListBuffer
   *
   * ## Parameters
   *
-  *  `seeds: Set[String]`
+  *  {s}`seeds: Set[String]`
   *    : The set of node names to start paths from. If not specified, then this is
   *      run for all nodes.
   *
@@ -40,7 +40,7 @@ import scala.collection.mutable.ListBuffer
   *
   *  | vertex1           | vertex2           | vertex3           |
   *  | ----------------- | ----------------- | ----------------- |
-  *  | `name: String` | `name: String` | `name: String` |
+  *  | {s}`name: String` | {s}`name: String` | {s}`name: String` |
   *
   * ## Implementation
   *

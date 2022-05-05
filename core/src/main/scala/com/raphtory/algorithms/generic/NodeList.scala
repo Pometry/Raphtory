@@ -6,9 +6,9 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  * `NodeList(properties: Seq[String] = Seq.empty[String], defaults: Map[String, Any] = Map.empty[String, Any])`
-  * `NodeList(properties: String*)`
-  * `NodeList(defaults: Map[String, Any], properties: String*)`
+  * {s}`NodeList(properties: Seq[String] = Seq.empty[String], defaults: Map[String, Any] = Map.empty[String, Any])`
+  * {s}`NodeList(properties: String*)`
+  * {s}`NodeList(defaults: Map[String, Any], properties: String*)`
   * : Write out nodes with selected properties to table with optional default values
   *
   * The first column in the table is the node's name and the other columns correspond to the selected properties
@@ -20,19 +20,19 @@ import com.raphtory.algorithms.api.Table
   *
   * ## Parameters
   *
-  * `properties: Seq[String]`
+  * {s}`properties: Seq[String]`
   * : Sequence of property names
   *
-  * `defaults: Map[String, Any]`
+  * {s}`defaults: Map[String, Any]`
   * : Map from property names to default values
   * (if a property name is not found on a node, it is first looked up in defaults,
-  * and if not found there, set to `None`)
+  * and if not found there, set to {s}`None`)
   *
   * ## Returns
   *
   * | vertex name       | Property1       | ... |
   * | ----------------- | --------------- | --- |
-  * | `name: String` | `value: Any` | ... |
+  * | {s}`name: String` | {s}`value: Any` | ... |
   *
   * ```{seealso}
   * [](com.raphtory.algorithms.generic.ConnectedComponents),

@@ -4,14 +4,14 @@ import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 
 /**
-  * `NeighbourNames()`
+  * {s}`NeighbourNames()`
   *  : Get name of all neighbours and store the map from vertexID to name in state "neighbourNames".
   *
   *  This is mainly useful as part of algorithms or chains that return neighbourhood or edge information.
   *
   * ## States
   *
-  *  `neighbourNames: Map[Long, String]`
+  *  {s}`neighbourNames: Map[Long, String]`
   *    : map of vertex ID to name for all neighbours of vertex
   *
   * ## Returns

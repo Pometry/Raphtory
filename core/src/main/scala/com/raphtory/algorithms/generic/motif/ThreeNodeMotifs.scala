@@ -9,7 +9,7 @@ import com.raphtory.graph.visitor.Vertex
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  *  `ThreeNodeMotifs()`
+  *  {s}`ThreeNodeMotifs()`
   *    : Count occurrences of three-node motifs that a node participates in.
   *
   *  The algorithm works by first counting star motifs, including potential triangles.
@@ -45,14 +45,14 @@ import scala.collection.mutable.ArrayBuffer
   *    - 12: 5 + l <-> r
   *
   * ## States
-  *  `motifCounts: Array[Long]`
+  *  {s}`motifCounts: Array[Long]`
   *    : Motif counts stored as an array (see indices above)
   *
   * ## Returns
   *
   *  | vertex name       | Motif 0                   | ... | Motif 12                   |
   *  | ----------------- | ------------------------- | --- | -------------------------- |
-  *  | `name: String` | `motifCounts(0): Long` | ... | `motifCounts(12): Long` |
+  *  | {s}`name: String` | {s}`motifCounts(0): Long` | ... | {s}`motifCounts(12): Long` |
   */
 class ThreeNodeMotifs() extends GraphAlgorithm {
   //  edge direction constants

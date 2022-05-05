@@ -17,7 +17,7 @@ import scala.util.Random
 import com.raphtory.util.Sampling._
 
 /**
-  * `Node2VecWalk(walkLength:Int = 10, p: Double = 1.0, q: Double = 1.0)`
+  * {s}`Node2VecWalk(walkLength:Int = 10, p: Double = 1.0, q: Double = 1.0)`
   *  : Node2Vec biased random walk on directed, unweighted graph
   *
   * Node2Vec is used to construct feature vectors to represent vertices or edges in a graph such that classical machine
@@ -35,30 +35,30 @@ import com.raphtory.util.Sampling._
   * ```
   *
   * ```{note}
-  * If the walk reaches a vertex with out-degree 0, it will remain there until `walkLength` is reached.
+  * If the walk reaches a vertex with out-degree 0, it will remain there until {s}`walkLength` is reached.
   * ```
   *
   * ## Parameters
   *
-  *  `walkLength: Int = 10`
+  *  {s}`walkLength: Int = 10`
   *    : Lengths of the generated random walks
   *
-  *  `p: Double = 1.0`
+  *  {s}`p: Double = 1.0`
   *    : bias parameter $p$
   *
-  *  `q: Double = 1.0`
+  *  {s}`q: Double = 1.0`
   *    : bias parameter $q$
   *
   * ## States
   *
-  *  `walk: ArrayBuffer[String]`
+  *  {s}`walk: ArrayBuffer[String]`
   *    : List of vertices visited by the random walk starting from this vertex
   *
   * ## Returns
   *
   * | vertex 1          | vertex 2          | ... | vertex `walkLength` |
   * | ----------------- | ----------------- | --- | ------------------- |
-  * | `name: String` | `name: String` | ... | `name: String`   |
+  * | {s}`name: String` | {s}`name: String` | ... | {s}`name: String`   |
   *
   *  Each row of the table corresponds to a single random walk and columns correspond to the vertex at a given step.
   *  The algorithm starts one random walk from each vertex in the graph.

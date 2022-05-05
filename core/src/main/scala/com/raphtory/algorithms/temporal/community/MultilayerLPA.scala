@@ -10,7 +10,7 @@ import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 /**
-  * `MultilayerLPA(weight: String = "", maxIter: Int = 500, layers: List[Long], layerSize: Long, omega: Double = 1.0, seed: Long = -1)`
+  * {s}`MultilayerLPA(weight: String = "", maxIter: Int = 500, layers: List[Long], layerSize: Long, omega: Double = 1.0, seed: Long = -1)`
   *  : find multilayer communities using synchronous label propagation
   *
   * This returns the communities of the constructed multi-layer graph as detected by synchronous label propagation.
@@ -20,35 +20,35 @@ import scala.util.Random
   *
   * ## Parameters
   *
-  *  `weight: String = ""`
+  *  {s}`weight: String = ""`
   *    : Edge property to be specified in case of weighted graph.
   *
-  *  `maxIter: Int = 500`
+  *  {s}`maxIter: Int = 500`
   *    : Maximum iterations for LPA to run.
   *
-  *  `layers: List[Long]`
+  *  {s}`layers: List[Long]`
   *    : List of layer timestamps.
   *
-  *  `layerSize: Long`
+  *  {s}`layerSize: Long`
   *    : Size of a single layer that spans all events occurring within this period.
   *
-  *  `omega: Double = 1.0`
+  *  {s}`omega: Double = 1.0`
   *    : Weight of temporal edge that are created between two layers for two persisting instances of a node.
-  *      If `omega=-1`, the weights are assigned based on an average of the neighborhood of two layers.
+  *      If {s}`omega=-1`, the weights are assigned based on an average of the neighborhood of two layers.
   *
-  *  `seed: Long`
+  *  {s}`seed: Long`
   *    : Seed for random elements. Defaults to random seed.
   *
   * ## States
   *
-  *  `mlpalabel: List[Long, Long]`
+  *  {s}`mlpalabel: List[Long, Long]`
   *    : List of community labels for all instances of the vertex of the form (timestamp, label)
   *
   * ## Returns
   *
   *  | community label  | vertex name and timestamp   |
   *  | ---------------- | --------------------------- |
-  *  | `label: Long` | `name + "_" + timestamp` |
+  *  | {s}`label: Long` | {s}`name + "_" + timestamp` |
   *
   * ```{note}
   *   This implementation is based on LPA, which incorporates probabilistic elements. This makes it

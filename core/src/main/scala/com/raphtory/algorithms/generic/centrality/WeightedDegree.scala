@@ -9,7 +9,7 @@ import com.raphtory.algorithms.api.Table
 import math.Numeric.Implicits._
 
 /**
-  * `WeightedDegree(weightProperty: String = "weight")`
+  * {s}`WeightedDegree(weightProperty: String = "weight")`
   *  : compute the weighted degree (i.e. strength)
   *
   * This algorithm returns the weighted degree (i.e., strength) of a node, defined by the weighted sum of incoming,
@@ -21,25 +21,25 @@ import math.Numeric.Implicits._
   *
   * ## Parameters
   *
-  *  `weightProperty: String = "weight"`
+  *  {s}`weightProperty: String = "weight"`
   *    : the property (if any) containing a numerical weight value for each edge, defaults to "weight".
   *
   * ## States
   *
-  *  `inWeight: Double`
+  *  {s}`inWeight: Double`
   *    : Sum of weighted incoming edges
   *
-  *  `outWeight: Double`
+  *  {s}`outWeight: Double`
   *    : Sum of weighted outgoing edges
   *
-  *  `totWeight: Double`
+  *  {s}`totWeight: Double`
   *    : Sum of the above
   *
   * ## Returns
   *
   *  | vertex name       | total incoming weight | total outgoing weight  | total weight           |
   *  | ----------------- | --------------------- | ---------------------- | ---------------------- |
-  *  | `name: String` | `inWeight: Double` | `outWeight: Double` | `totWeight: Double` |
+  *  | {s}`name: String` | {s}`inWeight: Double` | {s}`outWeight: Double` | {s}`totWeight: Double` |
   *
   * ```{seealso}
   * [](com.raphtory.algorithms.generic.centrality.Degree)

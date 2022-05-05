@@ -6,22 +6,22 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  * `NodeInformation(initialID: Long, hopsAway: Int = 1)`
+  * {s}`NodeInformation(initialID: Long, hopsAway: Int = 1)`
   *   : Finds information about node and neighbours of node X hops away (default = 1).
   *
   *  ## Usage
   *     Used with GsonOutputRunner.scala (located in the lotrTopic example) and GsonOutputFormat.scala to output node information in Gson format.
   *
   *  ## Parameters
-  *     `initialID: Long`
+  *     {s}`initialID: Long`
   *       : initial vertex ID that user inputs
   *
-  *     `hopAway: Int = 1`
+  *     {s}`hopAway: Int = 1`
   *       : information about neighbours nodes set to X number of hops away from original vertex. Default is set to 1 hop away.
   *
   *   ## States
   *
-  *   `vertexInvolved: Boolean`
+  *   {s}`vertexInvolved: Boolean`
   *     : Boolean flag of whether vertex should be included in the final tabularised output.
   *
   *  ## Returns

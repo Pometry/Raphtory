@@ -7,21 +7,21 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  *  `TemporalEdgeList(properties: String*)`
+  *  {s}`TemporalEdgeList(properties: String*)`
   *  : Writes out temporal edge list with selected properties
   *
-  *  `EdgeList(defaults: Map[String, Any], properties: String*)`
+  *  {s}`EdgeList(defaults: Map[String, Any], properties: String*)`
   *  : Specify default values for missing properties
   *
-  *  `EdgeList(properties: Seq[String] = Seq.empty[String], defaults: Map[String, Any] = Map.empty[String, Any])`
+  *  {s}`EdgeList(properties: Seq[String] = Seq.empty[String], defaults: Map[String, Any] = Map.empty[String, Any])`
   *  : Specify sequence of property names
   *
   *  ## Parameters
   *
-  *  `properties: Seq[String]`
+  *  {s}`properties: Seq[String]`
   *  : Sequence of property names to extract (default: empty)
   *
-  *  `defaults: Map[String, Any]`
+  *  {s}`defaults: Map[String, Any]`
   *  : Map of property names to default values (default value: None)
   *
   *  ## Returns
@@ -30,7 +30,7 @@ import com.raphtory.algorithms.api.Table
   *
   *  | source name          | destination name     | time stamp      |  property 1     | ... |
   *  | -------------------- | -------------------- | --------------- | --------------- | --- |
-  *  | `srcName: String` | `dstName: String` | `time: Long` | `value: Any` | ... |
+  *  | {s}`srcName: String` | {s}`dstName: String` | {s}`time: Long` | {s}`value: Any` | ... |
   */
 class TemporalEdgeList(
     properties: Seq[String] = Seq.empty[String],

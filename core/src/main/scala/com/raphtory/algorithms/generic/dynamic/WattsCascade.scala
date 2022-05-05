@@ -8,7 +8,7 @@ import com.raphtory.algorithms.api.GraphPerspective
 import scala.util.Random
 
 /**
-  * `WattsCascade(infectedSeed:Iterable[String], threshold: T = Threshold.UNIFORM_RANDOM, seed:Long = -1, maxGenerations: Int = 100)`
+  * {s}`WattsCascade(infectedSeed:Iterable[String], threshold: T = Threshold.UNIFORM_RANDOM, seed:Long = -1, maxGenerations: Int = 100)`
   *  : run the Watts Cascade dynamic on the network
   *
   *  This algorithm, presented by Duncan Watts in 2002, presents a method for the spread of "infectious ideas."
@@ -25,37 +25,37 @@ import scala.util.Random
   *
   * ## Parameters
   *
-  *  `infectedSeed: Seq[String]`
+  *  {s}`infectedSeed: Seq[String]`
   *    : The list of node names that begin infection.
   *
-  *  `threshold: Double | Threshold.UNIFORM_RANDOM | Threshold.RANDOM_SAME_VAL = Threshold.UNIFORM_RANDOM`
-  *    : fraction of infected neighbours necessary to trigger change of state. Set to `UNIFORM_RANDOM` to choose
-  *      thresholds independently at random for each vertex and `RANDOM_SAME_VAL` to choose a single random threshold
+  *  {s}`threshold: Double | Threshold.UNIFORM_RANDOM | Threshold.RANDOM_SAME_VAL = Threshold.UNIFORM_RANDOM`
+  *    : fraction of infected neighbours necessary to trigger change of state. Set to {s}`UNIFORM_RANDOM` to choose
+  *      thresholds independently at random for each vertex and {s}`RANDOM_SAME_VAL` to choose a single random threshold
   *      to apply to all vertices..
   *
-  *  `seed: Long`
+  *  {s}`seed: Long`
   *    : Value used for the random selection, can be set to ensure same result is returned per run.
   *      If not specified, it will generate a random seed.
   *
-  *  `maxGenerations: Int = 100`
+  *  {s}`maxGenerations: Int = 100`
   *    : Maximum number of spreading generations, where seeds are at generation 0.
   *
   * ## States
   *
-  *  `numInfectedNeighbours: Int`
+  *  {s}`numInfectedNeighbours: Int`
   *    : Number of infected neighbours
   *
-  *  `threshold: Double`
+  *  {s}`threshold: Double`
   *    : infection threshold for vertex
   *
-  *  `infected: Boolean`
+  *  {s}`infected: Boolean`
   *    : true if vertex is infected, else false
   *
   * ## Returns
   *
   *  | vertex name       | infection status       |
   *  | ----------------- | ---------------------- |
-  *  | `name: String` | `infected: Boolean` |
+  *  | {s}`name: String` | {s}`infected: Boolean` |
   */
 class WattsCascade[T: Threshold](
     infectedSeed: Set[String],

@@ -7,7 +7,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  * `WeightedPageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, weightProperty = "weight")`
+  * {s}`WeightedPageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100, weightProperty = "weight")`
   *  : Compute PageRank for all nodes, treating the network as weighted
   *
   * Page Rank algorithm ranks nodes depending on their connections to determine how important
@@ -22,13 +22,13 @@ import com.raphtory.algorithms.api.Table
   *
   * ## Parameters
   *
-  *  `dampingFactor: Double = 0.85`
+  *  {s}`dampingFactor: Double = 0.85`
   *    : Probability that a node will be randomly selected by a user traversing the graph, defaults to 0.85.
   *
-  *  `iterateSteps: Int = 100`
+  *  {s}`iterateSteps: Int = 100`
   *    : Maximum number of iterations for the algorithm to run.
   *
-  *  `weightProperty: String = "weight"`
+  *  {s}`weightProperty: String = "weight"`
   *    : the property (if any) containing a numerical weight value for each edge, defaults to "weight".
   *
   *  ```{note}
@@ -37,14 +37,14 @@ import com.raphtory.algorithms.api.Table
   *
   * ## States
   *
-  *  `prlabel: Double`
+  *  {s}`prlabel: Double`
   *    : PageRank of the node
   *
   * ## Returns
   *
   *  | vertex name       | PageRank             |
   *  | ----------------- | -------------------- |
-  *  | `name: String` | `prlabel: Double` |
+  *  | {s}`name: String` | {s}`prlabel: Double` |
   *
   * ```{seealso}
   * [](com.raphtory.algorithms.generic.centrality.PageRank)

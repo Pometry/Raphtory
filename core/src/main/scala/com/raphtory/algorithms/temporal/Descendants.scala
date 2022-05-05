@@ -6,7 +6,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 /**
-  * `Descendants(seed:String, time:Long, delta:Long=Long.MaxValue, directed:Boolean=true)`
+  * {s}`Descendants(seed:String, time:Long, delta:Long=Long.MaxValue, directed:Boolean=true)`
   *  : find all descendants of a vertex at a given time point
   *
   * The descendants of a seed vertex are defined as those vertices which can be reached from the seed vertex
@@ -15,32 +15,32 @@ import com.raphtory.algorithms.api.Table
   *
   * ## Parameters
   *
-  *  `seed: String`
+  *  {s}`seed: String`
   *    : The name of the target vertex
   *
-  *  `time: Long`
+  *  {s}`time: Long`
   *    : The time of interest
   *
-  *  `delta: Long = Long.MaxValue`
+  *  {s}`delta: Long = Long.MaxValue`
   *    : The maximum timespan for the temporal path. This is currently exclusive of the newest time
   *       i.e. if looking forward a minute it will not include events that happen exactly 1 minute into the future.
   *
-  *  `directed: Boolean = true`
+  *  {s}`directed: Boolean = true`
   *    : whether to treat the network as directed
   *
-  *  `strict: Boolean = true`
+  *  {s}`strict: Boolean = true`
   *    : Whether firstActivityAfter is strict in its following of paths that happen exactly at the given time. True will not follow, False will.
   *
   * ## States
   *
-  *  `descendant: Boolean`
-  *    : flag indicating that the vertex is a descendant of `seed`
+  *  {s}`descendant: Boolean`
+  *    : flag indicating that the vertex is a descendant of {s}`seed`
   *
   * ## Returns
   *
   *  | vertex name       | is descendant of seed?   |
   *  | ----------------- | ---------------------- |
-  *  | `name: String` | `descendant: Boolean` |
+  *  | {s}`name: String` | {s}`descendant: Boolean` |
   */
 class Descendants(
     seed: String,

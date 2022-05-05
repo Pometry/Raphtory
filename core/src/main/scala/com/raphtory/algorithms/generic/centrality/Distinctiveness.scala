@@ -8,7 +8,7 @@ import com.raphtory.algorithms.api.Table
 import com.raphtory.graph.visitor.Vertex
 
 /**
-  * `Distinctiveness(alpha: Double=1.0, weightProperty="weight")`
+  * {s}`Distinctiveness(alpha: Double=1.0, weightProperty="weight")`
   *  : compute distinctiveness centralities of nodes
   *
   * Distinctiveness centrality measures importance of a node through how it
@@ -22,22 +22,22 @@ import com.raphtory.graph.visitor.Vertex
   *
   * ## Parameters
   *
-  *  `alpha: Double = 1.0`
+  *  {s}`alpha: Double = 1.0`
   *    : tuning exponent
   *
-  *  `weightProperty: String = "weight"`
+  *  {s}`weightProperty: String = "weight"`
   *    : name of property to use for edge weight. If not found, edge weight is treated as number of edge occurrences.
   *
   * ## States
   *
-  *  `D1: Double`, ... , `D5: Double`
+  *  {s}`D1: Double`, ... , {s}`D5: Double`
   *    : versions of distinctiveness centrality
   *
   * ## Returns
   *
   *  | vertex name       | D1              | ... | D5              |
   *  | ----------------- | --------------- | --- | --------------- |
-  *  | `name: String` | `D1: Double` | ... | `D5: Double` |
+  *  | {s}`name: String` | {s}`D1: Double` | ... | {s}`D5: Double` |
   */
 import scala.math.log10
 import scala.math.pow
