@@ -24,7 +24,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
     .registerListener(
             "query-manager",
             handleMessage,
-            Seq(topics.queries, topics.watermark, topics.endedQueries)
+            Seq(topics.submissions, topics.watermark, topics.endedQueries)
     )
 
   val globalWatermarkMin  = QueryTelemetry.globalWatermarkMin(deploymentID)

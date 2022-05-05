@@ -28,7 +28,7 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
   protected def spoutOutputConnector: Connector  = defaultConnector
   protected def graphUpdatesConnector: Connector = defaultConnector
   protected def graphSyncConnector: Connector    = defaultConnector
-  protected def queriesConnector: Connector      = defaultConnector
+  protected def submissionsConnector: Connector  = defaultConnector
   protected def endedQueriesConnector: Connector = defaultConnector
   protected def watermarkConnector: Connector    = defaultConnector
   protected def queryPrepConnector: Connector    = defaultConnector
@@ -55,8 +55,8 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
   final def graphSync: ShardingTopic[GraphUpdateEffect] =
     ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph-sync", depId)
 
-  final def queries: ExclusiveTopic[Query] =
-    ExclusiveTopic[Query](queriesConnector, s"queries", depId)
+  final def submissions: ExclusiveTopic[Query] =
+    ExclusiveTopic[Query](submissionsConnector, s"queries", depId)
 
   final def endedQueries: ExclusiveTopic[EndQuery] =
     ExclusiveTopic[EndQuery](endedQueriesConnector, "ended-queries", depId)

@@ -21,7 +21,7 @@ class QuerySender(
     val jobName     = if (customJobName.nonEmpty) customJobName else getDefaultName(query)
     val jobID       = jobName + "_" + Random.nextLong().abs
     val outputQuery = query.copy(name = jobID)
-    topics.queries.endPoint sendAsync outputQuery
+    topics.submissions.endPoint sendAsync outputQuery
     componentFactory.queryProgressTracker(jobID, scheduler)
   }
 
