@@ -38,7 +38,7 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
   protected def rechecksConnector: Connector       = defaultConnector
   protected def jobStatusConnector: Connector      = defaultConnector
   protected def vertexMessagesConnector: Connector = defaultConnector
-  protected def jobOperationsConnector: Connector  = defaultConnector
+  def jobOperationsConnector: Connector            = defaultConnector // accessed within the queryHandler
 
   // Configuration
   private val spoutAddress: String     = conf.getString("raphtory.spout.topic")

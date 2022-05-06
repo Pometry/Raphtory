@@ -190,6 +190,15 @@ class PulsarConnector(config: Config) extends Connector {
       .subscriptionType(SubscriptionType.Shared)
       .subscribe()
 
+  def createExclusiveConsumer[T](
+      subscriptionName: String,
+      schema: Schema[T],
+      topics: String*
+  ): Consumer[T] =
+    configuredConsumerBuilder(subscriptionName, schema, topics)
+      .subscriptionType(SubscriptionType.Exclusive)
+      .subscribe()
+
   private def createTopic[T](topic: Topic[T]): String = {
     val persistence = true
 

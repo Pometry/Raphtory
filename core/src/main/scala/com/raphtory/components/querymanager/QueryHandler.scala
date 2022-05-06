@@ -25,6 +25,7 @@ import com.raphtory.algorithms.api.Step
 import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFunction
 import com.raphtory.communication.TopicRepository
+import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.Component
 import com.raphtory.config.Scheduler
 import com.raphtory.config.telemetry.PartitionTelemetry
@@ -32,6 +33,7 @@ import com.raphtory.config.telemetry.QueryTelemetry
 import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.graph.Perspective
 import com.raphtory.graph.PerspectiveController
+import com.raphtory.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Producer
@@ -261,32 +263,32 @@ class QueryHandler(
         logger.debug(
                 s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
         )
-        if (checkingMessages) {
-//          logger.debug(s"Check messages called twice, num_workers=${workerList.size}.") TODO: uncomment
-//          workerList.foreach {
-//            case (pID, worker) =>
-//              val topic       = worker.getTopic
-//              logger.debug(s"Checking messages for topic $topic")
-//              val consumer    =
-//                pulsarController.createExclusiveConsumer("dumping", Schema.BYTES, topic)
-//              var has_message = true
-//              while (has_message) {
-//                val msg =
-//                  consumer.receive(
-//                          10,
-//                          TimeUnit.SECONDS
-//                  ) // add some timeout to see if new messages come in
-//                if (msg == null)
-//                  has_message = false
-//                else {
-//                  val message = deserialise[QueryManagement](msg.getValue)
-//                  consumer.acknowledge(msg)
-//                  msg.release()
-//                  logger.debug(s"Partition $pID has message $message")
-//                }
-//              }
-//          }
-//          throw new RuntimeException("Message check called twice")
+        if (checkingMessages && topics.jobOperationsConnector.isInstanceOf[PulsarConnector]) {
+          logger.debug(s"Check messages called twice")
+
+          val pulsarConnector = topics.jobOperationsConnector.asInstanceOf[PulsarConnector]
+          val pulsarEndPoint  =
+            workerList.asInstanceOf[pulsarConnector.PulsarEndPoint[QueryManagement]]
+          val topic           = pulsarEndPoint.producer.getTopic
+          logger.debug(s"Checking messages for topic $topic")
+          val consumer        = pulsarConnector.createExclusiveConsumer("dumping", Schema.BYTES, topic)
+          var has_message     = true
+          while (has_message) {
+            val msg =
+              consumer.receive(
+                      10,
+                      TimeUnit.SECONDS
+              ) // add some timeout to see if new messages come in
+            if (msg == null)
+              has_message = false
+            else {
+              val message = KryoSerialiser().deserialise[QueryManagement](msg.getValue)
+              consumer.acknowledge(msg)
+              msg.release()
+              logger.debug(s"Read message $message")
+            }
+          }
+          throw new RuntimeException("Message check called twice")
         }
         readyCount = 0
         receivedMessageCount = 0
