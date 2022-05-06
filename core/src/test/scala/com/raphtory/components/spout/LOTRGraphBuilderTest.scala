@@ -1,12 +1,12 @@
 package com.raphtory.components.spout
 
+import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.graphbuilder.GraphBuilder.assignID
 import com.raphtory.components.graphbuilder.BuilderExecutor
 import com.raphtory.components.graphbuilder.EdgeAdd
 import com.raphtory.components.graphbuilder.GraphUpdate
 import com.raphtory.components.graphbuilder.Properties._
 import com.raphtory.components.graphbuilder.VertexAdd
-import com.raphtory.config.PulsarConnector
 import com.raphtory.deployment.Raphtory
 import com.raphtory.graph._
 import com.raphtory.lotrtest.LOTRGraphBuilder

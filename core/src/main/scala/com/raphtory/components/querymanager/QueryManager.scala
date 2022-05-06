@@ -1,8 +1,8 @@
 package com.raphtory.components.querymanager
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.config.Scheduler
-import com.raphtory.config.TopicRepository
 import com.raphtory.config.telemetry.QueryTelemetry
 import com.typesafe.config.Config
 import io.prometheus.client.Counter

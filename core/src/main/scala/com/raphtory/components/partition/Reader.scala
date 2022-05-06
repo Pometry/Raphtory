@@ -1,5 +1,6 @@
 package com.raphtory.components.partition
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.components.querymanager.EndQuery
 import com.raphtory.components.querymanager.EstablishExecutor
@@ -7,7 +8,6 @@ import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.WatermarkTime
 import com.raphtory.config.Cancelable
 import com.raphtory.config.Scheduler
-import com.raphtory.config.TopicRepository
 import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config

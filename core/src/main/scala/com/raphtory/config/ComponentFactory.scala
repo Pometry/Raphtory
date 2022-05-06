@@ -1,5 +1,6 @@
 package com.raphtory.config
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder.BuilderExecutor
 import com.raphtory.components.graphbuilder.GraphAlteration

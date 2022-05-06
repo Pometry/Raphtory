@@ -1,5 +1,11 @@
-package com.raphtory.config
+package com.raphtory.communication.connectors
 
+import com.raphtory.communication.CancelableListener
+import com.raphtory.communication.CanonicalTopic
+import com.raphtory.communication.Connector
+import com.raphtory.communication.EndPoint
+import com.raphtory.communication.Topic
+import com.raphtory.communication.WorkPullTopic
 import com.raphtory.components.Component
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config

@@ -1,8 +1,8 @@
 package com.raphtory.components.graphbuilder
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.config.telemetry.BuilderTelemetry
-import com.raphtory.config.TopicRepository
 import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
 import io.prometheus.client.Counter

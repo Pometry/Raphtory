@@ -24,9 +24,9 @@ import com.raphtory.algorithms.api.Setup
 import com.raphtory.algorithms.api.Step
 import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFunction
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.config.Scheduler
-import com.raphtory.config.TopicRepository
 import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.config.telemetry.QueryTelemetry
 import com.raphtory.config.telemetry.StorageTelemetry

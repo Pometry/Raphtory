@@ -6,9 +6,9 @@ import com.raphtory.algorithms.api.DeployedTemporalGraph
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.OutputFormat
 import com.raphtory.client.GraphDeployment
+import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
-import com.raphtory.config.PulsarConnector
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
 import com.typesafe.config.Config

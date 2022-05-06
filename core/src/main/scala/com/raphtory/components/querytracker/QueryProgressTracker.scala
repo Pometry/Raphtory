@@ -1,9 +1,9 @@
 package com.raphtory.components.querytracker
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.components.querymanager.JobDone
 import com.raphtory.components.querymanager.QueryManagement
-import com.raphtory.config.TopicRepository
 import com.raphtory.graph.Perspective
 import com.typesafe.config.Config
 import monix.eval.Task

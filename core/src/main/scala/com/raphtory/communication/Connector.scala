@@ -1,4 +1,4 @@
-package com.raphtory.config
+package com.raphtory.communication
 
 import com.raphtory.components.Component
 

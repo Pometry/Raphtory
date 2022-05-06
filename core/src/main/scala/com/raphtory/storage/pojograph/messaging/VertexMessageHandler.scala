@@ -1,12 +1,13 @@
 package com.raphtory.storage.pojograph.messaging
 
+import com.raphtory.communication.EndPoint
+
 import java.util.concurrent.atomic.AtomicInteger
 import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
 import com.raphtory.config.telemetry.StorageTelemetry
-import com.raphtory.config.EndPoint
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config

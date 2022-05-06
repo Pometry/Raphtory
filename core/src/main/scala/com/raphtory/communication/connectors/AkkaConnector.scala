@@ -1,4 +1,4 @@
-package com.raphtory.config
+package com.raphtory.communication.connectors
 
 import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.receptionist.ServiceKey
@@ -10,6 +10,14 @@ import akka.actor.typed.Props
 import akka.actor.typed.Scheduler
 import akka.actor.typed.SpawnProtocol
 import akka.util.Timeout
+import com.raphtory.communication.BroadcastTopic
+import com.raphtory.communication.CancelableListener
+import com.raphtory.communication.CanonicalTopic
+import com.raphtory.communication.Connector
+import com.raphtory.communication.EndPoint
+import com.raphtory.communication.ExclusiveTopic
+import com.raphtory.communication.Topic
+import com.raphtory.communication.WorkPullTopic
 import com.raphtory.serialisers.PulsarKryoSerialiser
 
 import java.util.concurrent.CompletableFuture

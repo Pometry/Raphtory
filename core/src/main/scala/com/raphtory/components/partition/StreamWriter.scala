@@ -1,5 +1,6 @@
 package com.raphtory.components.partition
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder.EdgeAdd
 import com.raphtory.components.graphbuilder.EdgeDelete
@@ -16,7 +17,6 @@ import com.raphtory.components.graphbuilder.SyncNewEdgeRemoval
 import com.raphtory.components.graphbuilder.VertexAdd
 import com.raphtory.components.graphbuilder.VertexDelete
 import com.raphtory.components.graphbuilder.VertexRemoveSyncAck
-import com.raphtory.config.TopicRepository
 import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.graph._
 import com.typesafe.config.Config

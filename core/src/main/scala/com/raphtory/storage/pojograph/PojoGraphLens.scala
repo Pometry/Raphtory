@@ -2,9 +2,9 @@ package com.raphtory.storage.pojograph
 
 import com.raphtory.algorithms.api.GraphState
 import com.raphtory.algorithms.api.Row
+import com.raphtory.communication.EndPoint
 import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.QueryManagement
-import com.raphtory.config.EndPoint
 import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph.GraphLens

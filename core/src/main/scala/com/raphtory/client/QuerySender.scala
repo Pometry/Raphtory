@@ -1,10 +1,10 @@
 package com.raphtory.client
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.querymanager.Query
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.config.ComponentFactory
 import com.raphtory.config.Scheduler
-import com.raphtory.config.TopicRepository
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import org.apache.pulsar.client.api.Schema
 

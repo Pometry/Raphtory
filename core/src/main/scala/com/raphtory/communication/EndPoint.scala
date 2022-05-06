@@ -1,4 +1,4 @@
-package com.raphtory.config
+package com.raphtory.communication
 
 import java.util.concurrent.CompletableFuture
 

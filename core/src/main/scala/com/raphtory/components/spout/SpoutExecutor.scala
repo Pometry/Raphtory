@@ -1,9 +1,9 @@
 package com.raphtory.components.spout
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.config.Cancelable
 import com.raphtory.config.Scheduler
-import com.raphtory.config.TopicRepository
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message

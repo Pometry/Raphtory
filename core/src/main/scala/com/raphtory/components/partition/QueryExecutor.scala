@@ -17,6 +17,8 @@ import com.raphtory.algorithms.api.Step
 import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFilter
 import com.raphtory.algorithms.api.WriteTo
+import com.raphtory.communication.TopicRepository
+import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.Component
 import com.raphtory.components.querymanager.CheckMessages
 import com.raphtory.components.querymanager.CreatePerspective
@@ -31,8 +33,6 @@ import com.raphtory.components.querymanager.TableBuilt
 import com.raphtory.components.querymanager.TableFunctionComplete
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
-import com.raphtory.config.PulsarConnector
-import com.raphtory.config.TopicRepository
 import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
