@@ -32,7 +32,6 @@ class BuilderExecutor[T: ClassTag](
   private val producers                                 = pulsarController.toWriterProducers
   private val failOnError: Boolean                      = conf.getBoolean("raphtory.builders.failOnError")
   private var messagesProcessed                         = 0
-//  private val graphUpdateCounter                        = BuilderTelemetry.totalGraphBuilderUpdates(deploymentID)
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
   override def run(): Unit = {
@@ -64,7 +63,7 @@ class BuilderExecutor[T: ClassTag](
       .getUpdates(msg)(failOnError = failOnError)
       .foreach { message =>
         sendUpdate(message)
-//        graphUpdateCounter.inc()
+        telemetry.graphBuilderUpdatesCounter.labels(deploymentID).inc()
       }
 
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
