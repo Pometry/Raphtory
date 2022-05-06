@@ -63,16 +63,24 @@ class QueryExecutor(
   var votedToHalt: Boolean                = false
   var filtered: Boolean                   = false
 
+  private val listeningTopics =
+    if (totalPartitions > 1) Seq(topics.jobOperations(jobID), topics.vertexMessages(jobID))
+    else Seq(topics.jobOperations(jobID))
+
   private val listener = topics.registerListener(
           s"query-executor-$jobID-$partitionID",
           handleMessage,
-          Seq(topics.jobOperations(jobID), topics.vertexMessages(jobID)),
+          listeningTopics,
           partitionID
   )
 
   private val taskManager = topics.jobStatus(jobID).endPoint
 
-  private val neighbours = topics.vertexMessages(jobID).endPoint
+  private val neighbours =
+    if (totalPartitions > 1)
+      Some(topics.vertexMessages(jobID).endPoint)
+    else
+      None
 
   override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
@@ -84,7 +92,10 @@ class QueryExecutor(
     listener.close()
     logger.debug(s"closing query executor consumer for $jobID on partition $partitionID")
     taskManager.close()
-    neighbours.values.foreach(_.close())
+    neighbours match {
+      case Some(neighbours) => neighbours.values.foreach(_.close())
+      case None             =>
+    }
   }
 
   override def handleMessage(msg: QueryManagement): Unit = {

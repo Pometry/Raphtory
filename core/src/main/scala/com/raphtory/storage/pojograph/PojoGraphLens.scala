@@ -30,7 +30,7 @@ final case class PojoGraphLens(
     var superStep: Int,
     private val storage: GraphPartition,
     private val conf: Config,
-    private val neighbours: Map[Int, EndPoint[QueryManagement]],
+    private val neighbours: Option[Map[Int, EndPoint[QueryManagement]]],
     private val sentMessages: AtomicInteger,
     private val receivedMessages: AtomicInteger,
     private val errorHandler: (Throwable) => Unit

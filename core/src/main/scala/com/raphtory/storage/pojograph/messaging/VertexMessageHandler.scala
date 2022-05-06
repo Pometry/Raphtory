@@ -21,12 +21,11 @@ import scala.concurrent.Future
 /** @DoNotDocument */
 class VertexMessageHandler(
     config: Config,
-    producers: Map[Int, EndPoint[QueryManagement]],
+    producers: Option[Map[Int, EndPoint[QueryManagement]]],
     pojoGraphLens: PojoGraphLens,
     sentMessages: AtomicInteger,
     receivedMessages: AtomicInteger
 ) {
-  private val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -60,7 +59,7 @@ class VertexMessageHandler(
       receivedMessages.incrementAndGet()
     }
     else { //sending to a remote partition
-      val producer = producers(destinationPartition)
+      val producer = producers.get(destinationPartition)
       if (messageBatch) {
         val cache = messageCache(producer)
         cache.synchronized {
@@ -85,17 +84,21 @@ class VertexMessageHandler(
 
     if (messageBatch)
       messageCache.keys.foreach(producer => sendCached(producer))
-    val futures = producers.values.map(_.flushAsync())
-    CompletableFuture.allOf(futures.toSeq: _*)
+    producers match {
+      case Some(producers) =>
+        val futures = producers.values.map(_.flushAsync())
+        CompletableFuture.allOf(futures.toSeq: _*)
+      case None            => CompletableFuture.completedFuture(null)
+    }
   }
 
   private def refreshBuffers(): Unit = {
     logger.debug("Refreshing messageCache buffers for all Producers.")
 
-    producers.foreach {
+    producers.foreach(_.foreach {
       case (key, producer) =>
         messageCache.put(producer, mutable.ArrayBuffer[GenericVertexMessage[_]]())
-    }
+    })
   }
 
 }
@@ -104,7 +107,7 @@ object VertexMessageHandler {
 
   def apply(
       config: Config,
-      producers: Map[Int, EndPoint[QueryManagement]],
+      producers: Option[Map[Int, EndPoint[QueryManagement]]],
       pojoGraphLens: PojoGraphLens,
       sentMessages: AtomicInteger,
       receivedMessages: AtomicInteger
