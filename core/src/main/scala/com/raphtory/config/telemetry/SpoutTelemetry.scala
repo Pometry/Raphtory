@@ -22,6 +22,7 @@ object SpoutTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_processed_total")
       .help("Total files processed by spout")
+      .labelNames("raphtory_deploymentID")
       .register
 
   val totalSpoutReschedules: Counter =
@@ -29,6 +30,7 @@ object SpoutTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("reschedule_total")
       .help("Total spout reschedules")
+      .labelNames("raphtory_deploymentID")
       .register
 
   val totalLinesSent: Gauge =
@@ -36,6 +38,7 @@ object SpoutTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_line_sent_total")
       .help("Total lines of file sent")
+      .labelNames("raphtory_deploymentID")
       .register
 
   val totalFileProcessingErrors: Counter =
@@ -43,6 +46,7 @@ object SpoutTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_processing_error_total")
       .help("Total file processing errors")
+      .labelNames("raphtory_deploymentID")
       .register
 
 }

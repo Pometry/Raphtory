@@ -4,6 +4,10 @@ import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
 
 private[raphtory] object ComponentTelemetryHandler {
+  val filesProcessed                          = SpoutTelemetry.totalFilesProcessed
+  val spoutReschedules                        = SpoutTelemetry.totalSpoutReschedules
+  val fileLinesSent                           = SpoutTelemetry.totalLinesSent
+  val fileProcessingErrors                    = SpoutTelemetry.totalFileProcessingErrors
   val vertexAddCounter                        = BuilderTelemetry.totalVertexAdds()
   val vertexDeleteCounter                     = BuilderTelemetry.totalVertexDeletes()
   val edgeAddCounter                          = BuilderTelemetry.totalEdgeAdds()
