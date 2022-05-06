@@ -2,10 +2,46 @@ import sbt.Compile
 import sbt.Keys.baseDirectory
 import Dependencies._
 
+ThisBuild / scalaVersion := "2.13.7"
+ThisBuild / version := "0.5"
+ThisBuild / organization := "com.raphtory"
+ThisBuild / organizationName := "raphtory"
+ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/"))
+
+sonatypeCredentialHost := "s01.oss.sonatype.org"
+sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
+
+ThisBuild / scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/Raphtory/Raphtory"),
+    "scm:git@github.com:Raphtory/Raphtory.git"
+  )
+)
+ThisBuild / developers := List(
+  Developer(
+    id    = "miratepuffin",
+    name  = "Ben Steer",
+    email = "ben.steer@raphtory.com",
+    url   = url("https://twitter.com/miratepuffin")
+  )
+)
+
+ThisBuild / description := "A Distributed Temporal Graph Processing System"
+ThisBuild / licenses := List("Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt"))
+ThisBuild / homepage := Some(url("https://github.com/Raphtory/Raphtory"))
+
+// Remove all additional repository other than Maven Central from POM
+ThisBuild / pomIncludeRepository := { _ => false }
+ThisBuild / publishTo := {
+  val nexus = "https://s01.oss.sonatype.org/"
+  if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
+  else Some("releases" at nexus + "service/local/staging/deploy/maven2")
+}
+ThisBuild / publishMavenStyle := true
+
 lazy val root = (project in file("."))
   .settings(
           name := "Raphtory",
-          version := "0.5",
           defaultSettings
   )
   .disablePlugins(AssemblyPlugin)
@@ -23,7 +59,6 @@ lazy val root = (project in file("."))
 lazy val core = (project in file("core"))
   .settings(
           name := "core",
-          version := "0.5",
           assembly / test := {},
           assemblySettings,
           defaultSettings,
@@ -89,9 +124,6 @@ lazy val examplesTwitterCircles  = (project in file("examples/raphtory-example-t
 // SETTINGS
 
 lazy val defaultSettings = Seq(
-        version := "0.5",
-        scalaVersion := "2.13.7",
-        organization := "com.raphtory",
         scalacOptions := Seq(
                 "-feature",
                 "-language:implicitConversions",
