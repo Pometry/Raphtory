@@ -40,6 +40,7 @@ import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 import com.raphtory.time.Interval
 import com.typesafe.config.Config
+import io.prometheus.client.Gauge
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api._
 
@@ -134,11 +135,6 @@ class QueryExecutor(
               s"${jobID}_partitionID_${partitionID}_time_${timestamp}_window_$value"
             case None        => s"${jobID}_partitionID_${partitionID}_time_$timestamp"
           }
-          StorageTelemetry
-            .pojoLensGraphSize(
-                    id
-            )
-            .set(graphLens.getFullGraphSize)
           logger.debug(
                   s"Job '$jobID' at Partition '$partitionID': Created perspective at time '$timestamp' with window '$window'. in ${System
                     .currentTimeMillis() - time}ms"

@@ -3,6 +3,8 @@ package com.raphtory.config.telemetry
 import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
 import com.raphtory.config.ConfigHandler
+import com.raphtory.deployment.Raphtory
+import com.typesafe.config.Config
 
 /**
   * {s}`SpoutTelemetry`
@@ -13,32 +15,32 @@ import com.raphtory.config.ConfigHandler
   */
 object SpoutTelemetry {
 
-  val conf = new ConfigHandler().getConfig
+  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
   val totalFilesProcessed: Counter =
     Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.spout"))
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_processed_total")
       .help("Total files processed by spout")
       .register
 
   val totalSpoutReschedules: Counter =
     Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.spout"))
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("reschedule_total")
       .help("Total spout reschedules")
       .register
 
   val totalLinesSent: Gauge =
     Gauge.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.spout"))
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_line_sent_total")
       .help("Total lines of file sent")
       .register
 
   val totalFileProcessingErrors: Counter =
     Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.spout"))
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_processing_error_total")
       .help("Total file processing errors")
       .register

@@ -80,21 +80,6 @@ class QueryHandler(
 
   private var currentState: Stage = SpawnExecutors
 
-  val totalPerspectivesProcessed =
-    QueryTelemetry.totalPerspectivesProcessed(s"jobID_${jobID}_deploymentID_$deploymentID")
-
-  val totalGraphOperations =
-    QueryTelemetry.totalGraphOperations(s"jobID_${jobID}_deploymentID_$deploymentID")
-
-  val totalTableOperations =
-    QueryTelemetry.totalTableOperations(s"jobID_${jobID}_deploymentID_$deploymentID")
-
-  val totalReceivedMessageCount =
-    QueryTelemetry.receivedMessageCount(s"jobID_${jobID}_deploymentID_$deploymentID")
-
-  val totalSentMessageCount =
-    QueryTelemetry.sentMessageCount(s"jobID_${jobID}_deploymentID_$deploymentID")
-
   private val recheckTimer = new Runnable {
     override def run(): Unit = self sendAsync serialise(RecheckTime)
   }
@@ -181,6 +166,7 @@ class QueryHandler(
         readyCount += 1
         if (readyCount == totalPartitions) {
           readyCount = 0
+          telemetry.graphSizeCollector.labels(jobID).set(vertexCount)
           messagetoAllJobWorkers(SetMetaData(vertexCount))
           val establishingPerspectiveTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(
@@ -251,9 +237,9 @@ class QueryHandler(
       votedToHalt: Boolean
   ) = {
     sentMessageCount += sentMessages
-    totalSentMessageCount.inc(sentMessages)
+    telemetry.totalSentMessageCount.labels(jobID, deploymentID).inc(sentMessages)
     receivedMessageCount += receivedMessages
-    totalReceivedMessageCount.inc(receivedMessages)
+    telemetry.receivedMessageCountCollector.labels(jobID, deploymentID).inc(receivedMessages)
     allVoteToHalt = votedToHalt & allVoteToHalt
     readyCount += 1
     logger.debug(
@@ -322,7 +308,7 @@ class QueryHandler(
                   s"Job '$jobID': Table Built in ${tableBuiltTimeTaken}ms Executing next table operation."
           )
           timeTaken = System.currentTimeMillis()
-          totalTableOperations.inc()
+          telemetry.totalTableOperations.labels(jobID, deploymentID).inc()
           nextTableOperation()
         }
         else
@@ -336,7 +322,7 @@ class QueryHandler(
                   s"Job '$jobID': Table Function complete in ${tableFuncTimeTaken}ms. Running next table operation."
           )
           timeTaken = System.currentTimeMillis()
-          totalTableOperations.inc()
+          telemetry.totalTableOperations.labels(jobID, deploymentID).inc()
           nextTableOperation()
         }
         else {
@@ -372,7 +358,7 @@ class QueryHandler(
   private def executeNextPerspective(): Stage = {
     val latestTime = getLatestTime()
     val oldestTime = getOptionalEarliestTime()
-    totalPerspectivesProcessed.inc()
+    telemetry.totalPerspectivesProcessed.labels(jobID, deploymentID).inc()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
       tracker.sendAsync(serialise(currentPerspective))
     perspectiveController.nextPerspective() match {
@@ -448,7 +434,7 @@ class QueryHandler(
     receivedMessageCount = 0
     sentMessageCount = 0
     checkingMessages = false
-    totalGraphOperations.inc()
+    telemetry.totalGraphOperations.labels(jobID, deploymentID).inc()
 
     currentOperation match {
       case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
