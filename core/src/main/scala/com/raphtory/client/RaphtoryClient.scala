@@ -8,7 +8,6 @@ import com.raphtory.components.Component
 import com.raphtory.components.querymanager.Query
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.config.ComponentFactory
-import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -127,10 +126,10 @@ private[raphtory] class RaphtoryClient(
   }
 
   def pointQuery(
-                  graphAlgorithm: GraphAlgorithm,
-                  outputFormat: OutputFormat,
-                  timestamp: Long
-                ): QueryProgressTracker = pointQuery(graphAlgorithm, outputFormat, timestamp,  List())
+      graphAlgorithm: GraphAlgorithm,
+      outputFormat: OutputFormat,
+      timestamp: Long
+  ): QueryProgressTracker = pointQuery(graphAlgorithm, outputFormat, timestamp, List())
 
   def rangeQuery(
       graphAlgorithm: GraphAlgorithm,
