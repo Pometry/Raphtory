@@ -1,6 +1,7 @@
 package com.raphtory.components
 
 import com.raphtory.config.PulsarController
+import com.raphtory.config.telemetry.ComponentTelemetryHandler
 import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -15,8 +16,8 @@ import scala.reflect.runtime.universe._
 abstract class Component[T](conf: Config, private val pulsarController: PulsarController)
         extends Runnable {
 
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-
+  val logger: Logger             = Logger(LoggerFactory.getLogger(this.getClass))
+  val telemetry                  = ComponentTelemetryHandler
   val pulsarAddress: String      = conf.getString("raphtory.pulsar.broker.address")
   val pulsarAdminAddress: String = conf.getString("raphtory.pulsar.admin.address")
   val spoutTopic: String         = conf.getString("raphtory.spout.topic")

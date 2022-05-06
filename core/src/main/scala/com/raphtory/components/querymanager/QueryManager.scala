@@ -21,10 +21,6 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
   private val watermarks                                = mutable.Map[Int, WatermarkTime]()
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
-  val globalWatermarkMin  = QueryTelemetry.globalWatermarkMin(deploymentID)
-  val globalWatermarkMax  = QueryTelemetry.globalWatermarkMax(deploymentID)
-  val totalQueriesSpawned = QueryTelemetry.totalQueriesSpawned(deploymentID)
-
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
 
@@ -80,7 +76,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
             pulsarController
     )
     scheduler.execute(queryHandler)
-    totalQueriesSpawned.inc()
+    telemetry.totalQueriesSpawned.labels(deploymentID).inc()
     queryHandler
   }
 
@@ -98,8 +94,8 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
           safe = watermark.safe && safe
           minTime = Math.min(minTime, watermark.endTime)
           maxTime = Math.max(maxTime, watermark.endTime)
-          globalWatermarkMin.set(minTime)
-          globalWatermarkMax.set(maxTime)
+          telemetry.globalWatermarkMin.labels(deploymentID).set(minTime)
+          telemetry.globalWatermarkMax.labels(deploymentID).set(maxTime)
       }
       if (safe) maxTime else minTime
     }
