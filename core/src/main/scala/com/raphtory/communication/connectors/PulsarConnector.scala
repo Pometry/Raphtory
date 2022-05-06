@@ -7,7 +7,7 @@ import com.raphtory.communication.EndPoint
 import com.raphtory.communication.Topic
 import com.raphtory.communication.WorkPullTopic
 import com.raphtory.components.Component
-import com.raphtory.serialisers.PulsarKryoSerialiser
+import com.raphtory.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.admin.PulsarAdmin
@@ -64,7 +64,7 @@ class PulsarConnector(config: Config) extends Connector {
     else
       config.getInt("raphtory.pulsar.broker.listenerThreads")
 
-  val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
+  val kryo: KryoSerialiser = KryoSerialiser()
 
   private val client: PulsarClient =
     PulsarClient

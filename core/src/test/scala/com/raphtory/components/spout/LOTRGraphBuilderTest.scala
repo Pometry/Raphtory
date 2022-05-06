@@ -10,7 +10,7 @@ import com.raphtory.components.graphbuilder.VertexAdd
 import com.raphtory.deployment.Raphtory
 import com.raphtory.graph._
 import com.raphtory.lotrtest.LOTRGraphBuilder
-import com.raphtory.serialisers.PulsarKryoSerialiser
+import com.raphtory.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import org.apache.pulsar.client.admin.PulsarAdmin
 import org.apache.pulsar.client.admin.PulsarAdminException
@@ -41,7 +41,7 @@ class LOTRGraphBuilderTest extends AnyFunSuite with BeforeAndAfter {
     PulsarAdmin.builder.serviceHttpUrl(config.getString("raphtory.pulsar.admin.address")).build
   implicit private val schema: Schema[Array[Byte]] = Schema.BYTES
   val pulsarConnector                              = new PulsarConnector(config)
-  val kryo                                         = new PulsarKryoSerialiser()
+  val kryo                                         = new KryoSerialiser()
 
   def deleteTestTopic(): Unit = {
     val all_topics = admin.topics.getList("public/default")

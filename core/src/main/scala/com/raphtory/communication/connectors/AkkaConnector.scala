@@ -18,7 +18,7 @@ import com.raphtory.communication.EndPoint
 import com.raphtory.communication.ExclusiveTopic
 import com.raphtory.communication.Topic
 import com.raphtory.communication.WorkPullTopic
-import com.raphtory.serialisers.PulsarKryoSerialiser
+import com.raphtory.serialisers.KryoSerialiser
 
 import java.util.concurrent.CompletableFuture
 import scala.annotation.tailrec
@@ -33,7 +33,7 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
   val akkaSpawnerTimeout: Timeout                 = 1.seconds
   val akkaReceptionistFindingTimeout: Timeout     = 1.seconds
 
-  val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
+  val kryo: KryoSerialiser = KryoSerialiser()
 
   case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Array[Byte]]]]) extends EndPoint[T] {
     private val endPointResolutionTimeout: Duration = 10.seconds
