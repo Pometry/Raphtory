@@ -60,7 +60,7 @@ class QueryHandler(
 
   private val listener =
     topics.registerListener(
-            s"query-handler-$jobID",
+            s"$deploymentID-$jobID-query-handler",
             handleMessage,
             Seq(topics.rechecks(jobID), topics.jobStatus(jobID))
     )

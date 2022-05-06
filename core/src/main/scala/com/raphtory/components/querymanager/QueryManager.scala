@@ -22,7 +22,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
 
   private val listener = topics
     .registerListener(
-            "query-manager",
+            s"$deploymentID-query-manager",
             handleMessage,
             Seq(topics.submissions, topics.watermark, topics.endedQueries)
     )

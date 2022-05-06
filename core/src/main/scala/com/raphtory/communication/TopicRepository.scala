@@ -147,6 +147,7 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
       partition: Int
   ): CancelableListener = registerListener(id, messageHandler, Seq(topic), partition)
 
+  /** The id provided here must be unique among different deployments */
   final def registerListener[T](
       id: String,
       messageHandler: T => Unit,

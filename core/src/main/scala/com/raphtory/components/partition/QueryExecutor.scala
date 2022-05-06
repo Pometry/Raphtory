@@ -68,7 +68,7 @@ class QueryExecutor(
     else Seq(topics.jobOperations(jobID))
 
   private val listener = topics.registerListener(
-          s"query-executor-$jobID-$partitionID",
+          s"$deploymentID-$jobID-query-executor-$partitionID",
           handleMessage,
           listeningTopics,
           partitionID

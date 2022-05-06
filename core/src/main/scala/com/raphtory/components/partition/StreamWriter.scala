@@ -40,7 +40,7 @@ class StreamWriter(
 
   private val listener          =
     topics.registerListener(
-            s"writer-$partitionID",
+            s"$deploymentID-writer-$partitionID",
             handleMessage,
             Seq(topics.graphUpdates, topics.graphSync),
             partitionID
