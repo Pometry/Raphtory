@@ -51,7 +51,7 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
       case topic: ExclusiveTopic[T] => (getServiceKey(topic), 1)
       case topic: BroadcastTopic[T] => (getServiceKey(topic), topic.numListeners)
       case _: WorkPullTopic[T]      =>
-        (getServiceKey(topic), 1) // TODO: implement for more than one listener
+        throw new Exception("work pull topics are not supported by Akka connector")
     }
     implicit val ec             = actorSystem.executionContext
     AkkaEndPoint(Future(queryServiceKeyActors(serviceKey, numActors)))
@@ -82,7 +82,7 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
         )
       }
 
-      override def close(): Unit = {} // TODO: there should be a way to deregister the actor
+      override def close(): Unit = {} // TODO: deregister the actor
     }
   }
 

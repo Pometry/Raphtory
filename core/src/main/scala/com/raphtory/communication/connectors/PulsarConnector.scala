@@ -86,7 +86,7 @@ class PulsarConnector(config: Config) extends Connector {
   def accessClient: PulsarClient = client
 
   override def register[T](
-      id: String, // TODO: use this for the subscription name
+      id: String,
       messageHandler: T => Unit,
       topics: Seq[CanonicalTopic[T]]
   ): CancelableListener = {
@@ -169,7 +169,7 @@ class PulsarConnector(config: Config) extends Connector {
   private def configuredConsumerBuilder[T](
       subscriptionName: String,
       schema: Schema[T],
-      topics: Seq[String] //TODO: cleanup this
+      topics: Seq[String]
   ): ConsumerBuilder[T] =
     client
       .newConsumer(schema)
