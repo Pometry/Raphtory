@@ -19,6 +19,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 
+/** @DoNotDocument */
 class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Connector {
   val akkaReceptionistRegisteringTimeout: Timeout = 1.seconds
   val akkaSpawnerTimeout: Timeout                 = 1.seconds

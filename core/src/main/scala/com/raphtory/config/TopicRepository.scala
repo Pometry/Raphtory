@@ -22,6 +22,7 @@ import com.typesafe.config.Config
 
 import scala.reflect.ClassTag
 
+/** @DoNotDocument */
 class TopicRepository(defaultConnector: Connector, conf: Config) {
 
   // Methods to override:

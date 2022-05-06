@@ -1,5 +1,6 @@
 package com.raphtory.config
 
+/** @DoNotDocument */
 trait CancelableListener {
   def start(): Unit
   def close(): Unit

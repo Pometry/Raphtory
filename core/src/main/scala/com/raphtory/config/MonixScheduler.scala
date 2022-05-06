@@ -8,6 +8,7 @@ import monix.execution.UncaughtExceptionReporter
 import java.util.concurrent.Executors
 import scala.concurrent.duration.FiniteDuration
 
+/** @DoNotDocument */
 private[raphtory] class MonixScheduler extends Scheduler {
   val threads: Int = 8
 

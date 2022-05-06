@@ -1,5 +1,6 @@
 package com.raphtory.config
 
+/** @DoNotDocument */
 class LocalIDManager extends IDManager {
   private var nextId = 0
 

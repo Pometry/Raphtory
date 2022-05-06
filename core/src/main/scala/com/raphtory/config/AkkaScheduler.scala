@@ -7,6 +7,7 @@ import com.raphtory.components.Component
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
+/** @DoNotDocument */
 class AkkaScheduler(system: ActorSystem[SpawnProtocol.Command]) extends Scheduler {
 
   override def execute[T](component: Component[T]): Unit =

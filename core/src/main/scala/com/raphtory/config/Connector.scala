@@ -2,6 +2,7 @@ package com.raphtory.config
 
 import com.raphtory.components.Component
 
+/** @DoNotDocument */
 trait Connector {
 
   def register[T](

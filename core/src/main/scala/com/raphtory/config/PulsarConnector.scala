@@ -25,6 +25,7 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.math.Ordering.Implicits.infixOrderingOps
 
+/** @DoNotDocument */
 class PulsarConnector(config: Config) extends Connector {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 

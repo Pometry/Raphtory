@@ -1,5 +1,6 @@
 package com.raphtory.config
 
+/** @DoNotDocument */
 sealed trait Topic[+T] {
   def id: String
   def subTopic: String

@@ -4,6 +4,7 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.SpawnProtocol
 import com.typesafe.config.Config
 
+/** @DoNotDocument */
 object AkkaTopicRepository {
   private lazy val actorSystem = ActorSystem(SpawnProtocol(), "spawner")
 
