@@ -18,6 +18,8 @@ object PulsarAkkaTopicRepository {
       override def endedQueriesConnector: Connector  = akkaConnector
       override def watermarkConnector: Connector     = akkaConnector
       override def rechecksConnector: Connector      = akkaConnector
+      override def queryTrackConnector: Connector    = akkaConnector
+      override def submissionsConnector: Connector   = akkaConnector
     }
   }
 }
