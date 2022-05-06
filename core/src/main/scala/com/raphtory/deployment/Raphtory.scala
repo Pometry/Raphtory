@@ -4,10 +4,13 @@ import com.raphtory.algorithms.api.DeployedTemporalGraph
 import com.raphtory.algorithms.api.TemporalGraph
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
+import com.raphtory.config.AkkaTopicRepository
 import com.raphtory.config.ComponentFactory
 import com.raphtory.config.ConfigHandler
 import com.raphtory.config.MonixScheduler
+import com.raphtory.config.PulsarAkkaTopicRepository
 import com.raphtory.config.PulsarConnector
+import com.raphtory.config.PulsarTopicRepository
 import com.raphtory.config.TopicRepository
 import com.raphtory.client.GraphDeployment
 import com.raphtory.client.QuerySender
@@ -114,10 +117,7 @@ import scala.reflect.runtime.universe._
   *  ```
   */
 object Raphtory {
-
-  private val distributed                = getDefaultConfig().getBoolean("raphtory.deploy.distributed")
-  private val globalFactory              = if (distributed) PulsarGlobalFactory else AkkaGlobalFactory
-  private val scheduler                  = globalFactory.getScheduler
+  private val scheduler                  = new MonixScheduler()
   private lazy val javaPy4jGatewayServer = new Py4JServer(this)
 
   def stream[T: TypeTag: ClassTag](
@@ -137,7 +137,7 @@ object Raphtory {
   def deployedGraph(customConfig: Map[String, Any] = Map()): TemporalGraph = {
     val conf             = confBuilder(customConfig)
     javaPy4jGatewayServer.start(conf)
-    val topics           = globalFactory.createTopicRepository(conf)
+    val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     val querySender      = new QuerySender(componentFactory, scheduler, topics)
     new TemporalGraph(Query(), querySender, conf)
@@ -145,7 +145,7 @@ object Raphtory {
 
   def createClient(customConfig: Map[String, Any] = Map()): RaphtoryClient = {
     val conf             = confBuilder(customConfig)
-    val topics           = globalFactory.createTopicRepository(conf)
+    val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     val querySender      = new QuerySender(componentFactory, scheduler, topics)
     new RaphtoryClient(querySender, conf)
@@ -153,7 +153,7 @@ object Raphtory {
 
   def createSpout[T](spout: Spout[T]): Unit = {
     val conf             = confBuilder()
-    val topics           = globalFactory.createTopicRepository(conf)
+    val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.spout(spout, false, scheduler)
   }
@@ -162,7 +162,7 @@ object Raphtory {
       builder: GraphBuilder[T]
   ): Unit = {
     val conf             = confBuilder()
-    val topics           = globalFactory.createTopicRepository(conf)
+    val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.builder(builder, false, scheduler)
   }
@@ -173,14 +173,14 @@ object Raphtory {
       graphBuilder: Option[GraphBuilder[T]] = None
   ): Unit = {
     val conf             = confBuilder()
-    val topics           = globalFactory.createTopicRepository(conf)
+    val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.partition(scheduler, batchLoading, spout, graphBuilder)
   }
 
   def createQueryManager(): Unit = {
     val conf             = confBuilder()
-    val topics           = globalFactory.createTopicRepository(conf)
+    val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.query(scheduler)
   }
@@ -202,7 +202,7 @@ object Raphtory {
   ) = {
     val conf             = confBuilder(customConfig)
     javaPy4jGatewayServer.start(conf)
-    val topics           = globalFactory.createTopicRepository(conf)
+    val topics           = PulsarAkkaTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     val querySender      = new QuerySender(componentFactory, scheduler, topics)
     val deployment       = new GraphDeployment[T](

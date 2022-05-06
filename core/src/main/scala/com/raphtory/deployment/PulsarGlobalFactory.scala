@@ -7,7 +7,7 @@ import com.raphtory.config.TopicRepository
 import com.typesafe.config.Config
 
 object PulsarGlobalFactory extends GlobalFactory {
-  private val scheduler = new MonixScheduler()
+  private lazy val scheduler = new MonixScheduler()
 
   override def getScheduler: Scheduler = scheduler
 

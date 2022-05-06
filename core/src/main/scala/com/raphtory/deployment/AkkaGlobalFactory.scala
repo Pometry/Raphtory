@@ -14,8 +14,8 @@ import com.typesafe.config.ConfigFactory
 import collection.JavaConverters._
 
 object AkkaGlobalFactory extends GlobalFactory {
-  private val actorSystem          = ActorSystem(SpawnProtocol(), "spawner")
-  private val scheduler: Scheduler = new AkkaScheduler(actorSystem)
+  private lazy val actorSystem          = ActorSystem(SpawnProtocol(), "spawner")
+  private lazy val scheduler: Scheduler = new AkkaScheduler(actorSystem)
 
   override def getScheduler: Scheduler = scheduler
 
