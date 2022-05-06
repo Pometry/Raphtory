@@ -2,7 +2,6 @@ package com.raphtory.config
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.SpawnProtocol
-import com.raphtory.deployment.PulsarAkkaGlobalFactory.actorSystem
 import com.typesafe.config.Config
 
 object PulsarAkkaTopicRepository {
