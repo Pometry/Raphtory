@@ -13,7 +13,6 @@ import com.raphtory.components.querymanager.QueryManager
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.components.spout.Spout
 import com.raphtory.components.spout.SpoutExecutor
-import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.graph.GraphPartition
 import com.raphtory.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config
@@ -44,11 +43,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
       scheduler: Scheduler
   ): Option[List[ThreadedWorker[T]]] =
     if (!batchLoading) {
-      val vertexAddCounter    = BuilderTelemetry.totalVertexAdds(deploymentID)
-      val vertexDeleteCounter = BuilderTelemetry.totalVertexDeletes(deploymentID)
-      val edgeAddCounter      = BuilderTelemetry.totalEdgeAdds(deploymentID)
-      val edgeDeleteCounter   = BuilderTelemetry.totalEdgeDeletes(deploymentID)
-      val totalBuilders       = conf.getInt("raphtory.builders.countPerServer")
+      val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
       logger.info(s"Creating '$totalBuilders' Graph Builders.")
 
       logger.debug(s"Deployment ID set to '$deploymentID'.")
@@ -70,10 +65,6 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
           new BuilderExecutor[T](
                   builderId,
                   deploymentID,
-                  vertexAddCounter,
-                  vertexDeleteCounter,
-                  edgeAddCounter,
-                  edgeDeleteCounter,
                   graphbuilder,
                   conf,
                   pulsarController
@@ -123,7 +114,13 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
         )
         partitionIDs += i
 
-        val reader: Reader = new Reader(partitionID, storage, scheduler, conf, pulsarController)
+        val reader: Reader = new Reader(
+                partitionID,
+                storage,
+                scheduler,
+                conf,
+                pulsarController
+        )
         scheduler.execute(reader)
 
         (storage, reader)
@@ -156,10 +153,22 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
 
           val storage = new PojoBasedPartition(partitionID, conf)
 
-          val writer = new StreamWriter(partitionID, storage, conf, pulsarController)
+          val writer =
+            new StreamWriter(
+                    partitionID,
+                    storage,
+                    conf,
+                    pulsarController
+            )
           scheduler.execute(writer)
 
-          val reader = new Reader(partitionID, storage, scheduler, conf, pulsarController)
+          val reader = new Reader(
+                  partitionID,
+                  storage,
+                  scheduler,
+                  conf,
+                  pulsarController
+          )
           scheduler.execute(reader)
 
           (storage, reader, writer)

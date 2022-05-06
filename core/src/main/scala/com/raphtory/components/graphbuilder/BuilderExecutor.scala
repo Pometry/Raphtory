@@ -19,10 +19,6 @@ import scala.reflect.runtime.universe._
 class BuilderExecutor[T: ClassTag](
     name: Int,
     deploymentID: String,
-    vertexAddCounter: Counter,
-    vertexDeleteCounter: Counter,
-    edgeAddCounter: Counter,
-    edgeDeleteCounter: Counter,
     graphBuilder: GraphBuilder[T],
     conf: Config,
     pulsarController: PulsarController
@@ -31,16 +27,11 @@ class BuilderExecutor[T: ClassTag](
   safegraphBuilder
     .setBuilderMetaData(
             name,
-            deploymentID,
-            vertexAddCounter,
-            vertexDeleteCounter,
-            edgeAddCounter,
-            edgeDeleteCounter
+            deploymentID
     )
   private val producers                                 = pulsarController.toWriterProducers
   private val failOnError: Boolean                      = conf.getBoolean("raphtory.builders.failOnError")
   private var messagesProcessed                         = 0
-  private val graphUpdateCounter                        = BuilderTelemetry.totalGraphBuilderUpdates(deploymentID)
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
 
   override def run(): Unit = {
@@ -72,7 +63,7 @@ class BuilderExecutor[T: ClassTag](
       .getUpdates(msg)(failOnError = failOnError)
       .foreach { message =>
         sendUpdate(message)
-        graphUpdateCounter.inc()
+        telemetry.graphBuilderUpdatesCounter.labels(deploymentID).inc()
       }
 
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
