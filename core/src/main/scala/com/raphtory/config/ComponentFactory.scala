@@ -25,17 +25,26 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
 /** @DoNotDocument */
-private[raphtory] class ComponentFactory(conf: Config, topicRepo: TopicRepository) {
+private[raphtory] class ComponentFactory(
+    conf: Config,
+    topicRepo: TopicRepository,
+    localDeployment: Boolean = false
+) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val deploymentID     = conf.getString("raphtory.deploy.id")
-  private val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
+  private val deploymentID = conf.getString("raphtory.deploy.id")
 
-  private val builderIDManager =
-    new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
-
-  private val partitionIDManager =
-    new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
+  private val (builderIDManager, partitionIDManager) =
+    if (localDeployment)
+      (new LocalIDManager, new LocalIDManager)
+    else {
+      val zookeeperAddress     = conf.getString("raphtory.zookeeper.address")
+      val zkBuilderIDManager   =
+        new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
+      val zkPartitionIDManager =
+        new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
+      (zkBuilderIDManager, zkPartitionIDManager)
+    }
 
   def builder[T: ClassTag](
       graphBuilder: GraphBuilder[T],
@@ -51,9 +60,6 @@ private[raphtory] class ComponentFactory(conf: Config, topicRepo: TopicRepositor
       logger.info(s"Creating '$totalBuilders' Graph Builders.")
 
       logger.debug(s"Deployment ID set to '$deploymentID'.")
-
-      val zookeeperAddress =
-        logger.debug(s"Zookeeper Address set to '$deploymentID'.")
 
       val builders = for (name <- (0 until totalBuilders)) yield {
         val builderId = builderIDManager
@@ -103,10 +109,7 @@ private[raphtory] class ComponentFactory(conf: Config, topicRepo: TopicRepositor
         val partitionID = partitionIDManager.getNextAvailableID() match {
           case Some(id) => id
           case None     =>
-            throw new Exception(
-                    s"Failed to retrieve Partition ID. " +
-                      s"ID Manager at Zookeeper '$partitionIDManager' was unreachable."
-            )
+            throw new Exception(s"Failed to retrieve Partition ID")
         }
 
         val storage: GraphPartition = new PojoBasedPartition(partitionID, conf)
@@ -146,10 +149,7 @@ private[raphtory] class ComponentFactory(conf: Config, topicRepo: TopicRepositor
           val partitionID = partitionIDManager.getNextAvailableID() match {
             case Some(id) => id
             case None     =>
-              throw new Exception(
-                      s"Failed to retrieve Partition ID. " +
-                        s"ID Manager at Zookeeper '$partitionIDManager' was unreachable."
-              )
+              throw new Exception(s"Failed to retrieve Partition ID")
           }
 
           val storage = new PojoBasedPartition(partitionID, conf)

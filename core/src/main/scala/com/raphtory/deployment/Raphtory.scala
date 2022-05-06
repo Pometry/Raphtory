@@ -203,7 +203,7 @@ object Raphtory {
     val conf             = confBuilder(customConfig)
     javaPy4jGatewayServer.start(conf)
     val topics           = PulsarAkkaTopicRepository(conf)
-    val componentFactory = new ComponentFactory(conf, topics)
+    val componentFactory = new ComponentFactory(conf, topics, true)
     val querySender      = new QuerySender(componentFactory, scheduler, topics)
     val deployment       = new GraphDeployment[T](
             batchLoading,
