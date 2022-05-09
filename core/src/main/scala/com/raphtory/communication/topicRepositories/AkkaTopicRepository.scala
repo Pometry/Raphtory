@@ -6,7 +6,7 @@ import com.raphtory.communication.TopicRepository
 import com.raphtory.communication.connectors.AkkaConnector
 import com.typesafe.config.Config
 
-/** @DoNotDocument */
+/** @DoNotDocument This object only exists for testing purposes -- no more deployments are fully akka */
 object AkkaTopicRepository {
   private lazy val actorSystem = ActorSystem(SpawnProtocol(), "spawner")
 
