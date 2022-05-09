@@ -21,7 +21,7 @@ import scala.concurrent.Future
 /** @DoNotDocument */
 class VertexMessageHandler(
     config: Config,
-    producers: Option[Map[Int, EndPoint[QueryManagement]]],
+    endPoints: Option[Map[Int, EndPoint[QueryManagement]]],
     pojoGraphLens: PojoGraphLens,
     sentMessages: AtomicInteger,
     receivedMessages: AtomicInteger
@@ -59,7 +59,7 @@ class VertexMessageHandler(
       receivedMessages.incrementAndGet()
     }
     else { //sending to a remote partition
-      val producer = producers.get(destinationPartition)
+      val producer = endPoints.get(destinationPartition)
       if (messageBatch) {
         val cache = messageCache(producer)
         cache.synchronized {
@@ -84,7 +84,7 @@ class VertexMessageHandler(
 
     if (messageBatch)
       messageCache.keys.foreach(producer => sendCached(producer))
-    producers match {
+    endPoints match {
       case Some(producers) =>
         val futures = producers.values.map(_.flushAsync())
         CompletableFuture.allOf(futures.toSeq: _*)
@@ -95,7 +95,7 @@ class VertexMessageHandler(
   private def refreshBuffers(): Unit = {
     logger.debug("Refreshing messageCache buffers for all Producers.")
 
-    producers.foreach(_.foreach {
+    endPoints.foreach(_.foreach {
       case (key, producer) =>
         messageCache.put(producer, mutable.ArrayBuffer[GenericVertexMessage[_]]())
     })
