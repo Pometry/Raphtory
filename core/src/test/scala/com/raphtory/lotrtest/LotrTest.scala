@@ -24,7 +24,6 @@ import com.raphtory.algorithms.temporal.Descendants
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.components.spout.Spout
 import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.config.AWSUpload.raphtoryConfig
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.AwsS3OutputFormat
 import com.raphtory.output.FileOutputFormat
@@ -41,9 +40,9 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   override def batchLoading(): Boolean = false
 
   val awsS3OutputFormatBucketName: String = "pometry-data"
-  val awsS3OutputFormatBucketPath: String = "newTwitterData"
+  val awsS3OutputFormatBucketPath: String = "lotrGraphStateResults"
   val awsS3SpoutBucketName: String        = "pometry-data"
-  val awsS3SpoutBucketPath: String        = "lotr/"
+  val awsS3SpoutBucketPath: String        = "lotr/lotr.csv"
 
   test("Graph State Test") {
     val result = algorithmTest(

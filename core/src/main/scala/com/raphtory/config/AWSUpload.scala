@@ -47,7 +47,7 @@ object AWSUpload extends App {
 
 object AwsS3Client {
 
-  val raphtoryConfig: Config             = Raphtory.getDefaultConfig()
+  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
   val clientConfiguration                =
     new ClientConfiguration()
@@ -55,8 +55,8 @@ object AwsS3Client {
   System.setProperty(SDKGlobalConfiguration.ENABLE_S3_SIGV4_SYSTEM_PROPERTY, "true")
   val awsS3ClientAccessKey: String       = raphtoryConfig.getString("raphtory.aws.accessKey")
   val awsS3ClientSecretAccessKey: String = raphtoryConfig.getString("raphtory.aws.secretAccessKey")
-
+  val numberOfFileLines: Int             = raphtoryConfig.getInt("raphtory.aws.fileLines")
   /* These Keys available  in “Security Credentials” of Amazon S3 account */
-  val AWSCredentials = new BasicAWSCredentials(awsS3ClientAccessKey, awsS3ClientSecretAccessKey)
-  val amazonS3Client = new AmazonS3Client(AWSCredentials, clientConfiguration)
+  val AWSCredentials                     = new BasicAWSCredentials(awsS3ClientAccessKey, awsS3ClientSecretAccessKey)
+  val amazonS3Client                     = new AmazonS3Client(AWSCredentials, clientConfiguration)
 }
