@@ -95,39 +95,6 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
             s"$depId-$jobId"
     )
 
-//  // Registering functions
-//  def registerBuilderExecutor(component: BuilderExecutor[Any]): CancelableListener =
-//    registerListener(component.handleMessage, Seq(spoutOutput))
-//
-//  def registerStreamWriter(component: StreamWriter, partition: Int): CancelableListener =
-//    registerListener(component.handleMessage, Seq(graphUpdates, graphSync), partition)
-//
-//  def registerReader(component: Reader): CancelableListener =
-//    registerListener(component.handleMessage, Seq(queryPrep))
-//
-//  def registerQueryManager(component: QueryManager): CancelableListener =
-//    registerListener(component.handleMessage, Seq(queries, endedQueries, watermark))
-//
-//  def registerQueryProgressTracker(
-//      component: QueryProgressTracker,
-//      jobId: String
-//  ): CancelableListener =
-//    registerListener(component.handleMessage, Seq(queryTrack(jobId)))
-//
-//  def registerQueryHandler(component: QueryHandler, jobId: String): CancelableListener =
-//    registerListener(component.handleMessage, Seq(rechecks(jobId), jobStatus(jobId)))
-//
-//  def registerQueryExecutor(
-//      component: QueryExecutor,
-//      jobId: String,
-//      partition: Int
-//  ): CancelableListener =
-//    registerListener(
-//            component.handleMessage,
-//            Seq(vertexMessages(jobId), jobOperations(jobId)),
-//            partition
-//    )
-
   final def registerListener[T](
       id: String,
       messageHandler: T => Unit,
