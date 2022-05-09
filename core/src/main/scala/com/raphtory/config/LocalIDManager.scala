@@ -1,16 +1,12 @@
 package com.raphtory.config
 
+import monix.execution.atomic.AtomicInt
+
 /** @DoNotDocument */
 class LocalIDManager extends IDManager {
-  private var nextId = 0
+  private val nextId = AtomicInt(0)
 
-  override def getNextAvailableID(): Option[Int] = {
-    val id = nextId
-    nextId += 1
-    Some(id)
-  }
-
-  override def resetID(): Unit = nextId = 0
-
+  override def getNextAvailableID(): Option[Int] = Some(nextId.getAndIncrement())
+  override def resetID(): Unit                   = nextId.set(0)
   override def stop(): Unit = {}
 }
