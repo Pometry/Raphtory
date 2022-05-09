@@ -12,8 +12,8 @@ class GenericTable(val query: Query, private val querySender: QuerySender) exten
     addFunction(TableFilter(closurefunc))
   }
 
-  override def explode(f: Row => List[Row]): Table = {
-    def closurefunc(v: Row): List[Row] = f(v)
+  override def explode(f: Row => IterableOnce[Row]): Table = {
+    def closurefunc(v: Row): IterableOnce[Row] = f(v)
     addFunction(Explode(closurefunc))
   }
 
@@ -22,9 +22,8 @@ class GenericTable(val query: Query, private val querySender: QuerySender) exten
     querySender.submit(query, jobName)
   }
 
-   override def writeTo(outputFormat: OutputFormat): QueryProgressTracker = {
+  override def writeTo(outputFormat: OutputFormat): QueryProgressTracker =
     writeTo(outputFormat, "")
-  }
 
   private def addFunction(function: TableFunction) =
     new GenericTable(
