@@ -16,14 +16,14 @@ object PulsarAkkaTopicRepository {
     val akkaConnector   = new AkkaConnector(actorSystem)
     val pulsarConnector = new PulsarConnector(config)
     new TopicRepository(pulsarConnector, config) {
-      override def jobOperationsConnector: Connector = akkaConnector
-      override def jobStatusConnector: Connector     = akkaConnector
-      override def queryPrepConnector: Connector     = akkaConnector
-      override def endedQueriesConnector: Connector  = akkaConnector
-      override def watermarkConnector: Connector     = akkaConnector
-      override def rechecksConnector: Connector      = akkaConnector
-      override def queryTrackConnector: Connector    = akkaConnector
-      override def submissionsConnector: Connector   = akkaConnector
+      override def jobOperationsConnector: Connector    = akkaConnector
+      override def jobStatusConnector: Connector        = akkaConnector
+      override def queryPrepConnector: Connector        = akkaConnector
+      override def completedQueriesConnector: Connector = akkaConnector
+      override def watermarkConnector: Connector        = akkaConnector
+      override def rechecksConnector: Connector         = akkaConnector
+      override def queryTrackConnector: Connector       = akkaConnector
+      override def submissionsConnector: Connector      = akkaConnector
     }
   }
 }

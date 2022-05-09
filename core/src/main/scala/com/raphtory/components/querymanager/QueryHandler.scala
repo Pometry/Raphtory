@@ -552,7 +552,7 @@ class QueryHandler(
     messageReader(EndQuery(jobID))
     readers.close()
 
-    val queryManager = topics.endedQueries.endPoint
+    val queryManager = topics.completedQueries.endPoint
     queryManager closeWithMessage EndQuery(jobID)
     logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
 

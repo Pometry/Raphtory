@@ -26,13 +26,13 @@ import scala.reflect.ClassTag
 class TopicRepository(defaultConnector: Connector, conf: Config) {
 
   // Methods to override:
-  protected def spoutOutputConnector: Connector  = defaultConnector
-  protected def graphUpdatesConnector: Connector = defaultConnector
-  protected def graphSyncConnector: Connector    = defaultConnector
-  protected def submissionsConnector: Connector  = defaultConnector
-  protected def endedQueriesConnector: Connector = defaultConnector
-  protected def watermarkConnector: Connector    = defaultConnector
-  protected def queryPrepConnector: Connector    = defaultConnector
+  protected def spoutOutputConnector: Connector      = defaultConnector
+  protected def graphUpdatesConnector: Connector     = defaultConnector
+  protected def graphSyncConnector: Connector        = defaultConnector
+  protected def submissionsConnector: Connector      = defaultConnector
+  protected def completedQueriesConnector: Connector = defaultConnector
+  protected def watermarkConnector: Connector        = defaultConnector
+  protected def queryPrepConnector: Connector        = defaultConnector
 
   protected def queryTrackConnector: Connector     = defaultConnector
   protected def rechecksConnector: Connector       = defaultConnector
@@ -60,8 +60,8 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
   final def submissions: ExclusiveTopic[Query] =
     ExclusiveTopic[Query](submissionsConnector, s"submissions", depId)
 
-  final def endedQueries: ExclusiveTopic[EndQuery] =
-    ExclusiveTopic[EndQuery](endedQueriesConnector, "endedQueries", depId)
+  final def completedQueries: ExclusiveTopic[EndQuery] =
+    ExclusiveTopic[EndQuery](completedQueriesConnector, "completedQueries", depId)
 
   final def watermark: ExclusiveTopic[WatermarkTime] =
     ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", depId)
