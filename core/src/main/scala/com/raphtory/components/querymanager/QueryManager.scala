@@ -17,7 +17,7 @@ import scala.collection.mutable
 class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
         extends Component[QueryManagement](conf) {
   private val currentQueries = mutable.Map[String, QueryHandler]()
-  //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: remove?
+  //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
   private val watermarks     = mutable.Map[Int, WatermarkTime]()
 
   private val listener = topics
@@ -39,7 +39,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
   override def stop(): Unit = {
     listener.close()
     currentQueries.foreach(_._2.stop())
-    // watermarkGlobal.close() TODO: remove?
+    // watermarkGlobal.close() TODO: turn back on when needed
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
@@ -104,7 +104,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
       if (safe) maxTime else minTime
     }
     else 0 // not received a message from each partition yet
-    // watermarkGlobal sendAsync watermark TODO: remove I guess?
+    // watermarkGlobal sendAsync watermark TODO: turn back on when needed
     watermark
   }
 
