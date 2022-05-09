@@ -263,7 +263,7 @@ class QueryHandler(
         logger.debug(
                 s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
         )
-        if (checkingMessages && topics.jobOperationsConnector.isInstanceOf[PulsarConnector]) {
+        if (checkingMessages && topics.jobOperationsConnector.isInstanceOf[PulsarConnector]) { // TODO: clean up later this section
           logger.debug(s"Check messages called twice")
 
           val pulsarConnector = topics.jobOperationsConnector.asInstanceOf[PulsarConnector]
