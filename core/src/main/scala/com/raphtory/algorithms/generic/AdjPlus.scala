@@ -64,7 +64,7 @@ class AdjPlus extends GraphAlgorithm {
         vertex.messageQueue[vertex.IDType].foreach(v => vertex.messageVertex(v, vertex.name()))
       )
       .select(vertex => Row(vertex.name(), vertex.messageQueue[String]))
-      .explode(row => row.getAs[List[String]](1).map(v => Row(row.get(0), v)))
+      .explode(row => row.getAs[Iterable[String]](1).map(v => Row(row.get(0), v)))
 }
 
 object AdjPlus {

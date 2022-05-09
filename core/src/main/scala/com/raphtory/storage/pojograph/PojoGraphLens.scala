@@ -11,6 +11,7 @@ import com.raphtory.graph.LensInterface
 import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
+
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Producer
 

@@ -17,6 +17,8 @@ import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
   */
 trait LensInterface {
 
+  def partitionID(): Int
+
   def getFullGraphSize: Int
   def setFullGraphSize(size: Int): Unit
 
@@ -27,9 +29,9 @@ trait LensInterface {
       graphState: GraphState
   )(onComplete: => Unit): Unit
   def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit
-  def explodeSelect(f: Vertex => List[Row])(onComplete: => Unit): Unit
+  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit
   def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit
-  def explodeTable(f: Row => List[Row])(onComplete: => Unit): Unit
+  def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit
   def writeDataTable(f: (Row, String) => Unit)(onComplete: => Unit): Unit
 
   def explodeView(
