@@ -4,9 +4,11 @@ import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.api.GraphFunction
 import com.raphtory.algorithms.api.GraphStateImplementation
 import com.raphtory.algorithms.api.TableFunction
+import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.graph.Perspective
 import com.raphtory.time.Interval
 import com.raphtory.time.NullInterval
+import io.prometheus.client.Gauge
 
 import scala.collection.immutable.Queue
 

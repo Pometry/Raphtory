@@ -19,10 +19,6 @@ import scala.reflect.runtime.universe._
 class BuilderExecutor[T: ClassTag](
     name: Int,
     deploymentID: String,
-    vertexAddCounter: Counter,
-    vertexDeleteCounter: Counter,
-    edgeAddCounter: Counter,
-    edgeDeleteCounter: Counter,
     graphBuilder: GraphBuilder[T],
     conf: Config,
     topics: TopicRepository
@@ -31,11 +27,7 @@ class BuilderExecutor[T: ClassTag](
   safegraphBuilder
     .setBuilderMetaData(
             name,
-            deploymentID,
-            vertexAddCounter,
-            vertexDeleteCounter,
-            edgeAddCounter,
-            edgeDeleteCounter
+            deploymentID
     )
   private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
   private val writers              = topics.graphUpdates.endPoint
@@ -43,8 +35,7 @@ class BuilderExecutor[T: ClassTag](
   private val spoutOutputListener =
     topics.registerListener(s"$deploymentID-builder-$name", handleMessage, topics.spout[T])
 
-  private val graphUpdateCounter = BuilderTelemetry.totalGraphBuilderUpdates(deploymentID)
-  private var messagesProcessed  = 0
+  private var messagesProcessed = 0
 
   override def run(): Unit = {
     logger.debug(
@@ -64,7 +55,7 @@ class BuilderExecutor[T: ClassTag](
       .getUpdates(msg)(failOnError = failOnError)
       .foreach { message =>
         sendUpdate(message)
-        graphUpdateCounter.inc()
+        telemetry.graphBuilderUpdatesCounter.labels(deploymentID).inc()
       }
 
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {

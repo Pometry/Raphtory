@@ -8,9 +8,9 @@ import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.WatermarkTime
 import com.raphtory.config.Cancelable
 import com.raphtory.config.Scheduler
-import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
+import io.prometheus.client.Gauge
 import org.apache.pulsar.client.api.Consumer
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -34,16 +34,6 @@ class Reader(
   var scheduledWatermark: Option[Cancelable]            = None
   private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
 
-  val lastWaterMarkProcessed =
-    PartitionTelemetry.lastWaterMarkProcessed(
-            s"partitionID_${partitionID}_deploymentID_$deploymentID"
-    )
-
-  val queryExecutorMapCounter =
-    PartitionTelemetry.queryExecutorMapCounter(
-            s"partitionID_${partitionID}_deploymentID_$deploymentID"
-    )
-
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
     queryPrepListener.start()
@@ -65,7 +55,7 @@ class Reader(
         val jobID         = req.jobID
         val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, topics)
         scheduler.execute(queryExecutor)
-        queryExecutorMapCounter.inc()
+        telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executorMap += ((jobID, queryExecutor))
 
       case req: EndQuery          =>
@@ -74,7 +64,7 @@ class Reader(
           try {
             executorMap(req.jobID).stop()
             executorMap.remove(req.jobID)
-            queryExecutorMapCounter.dec()
+            telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).dec()
           }
           catch {
             case e: Exception =>
@@ -129,7 +119,9 @@ class Reader(
         watermarkPublish sendAsync watermark
       }
       lastWatermark = watermark
-      lastWaterMarkProcessed.set(finalTime)
+      telemetry.lastWatermarkProcessedCollector
+        .labels(partitionID.toString, deploymentID)
+        .set(finalTime)
     }
     scheduleWaterMarker()
   }

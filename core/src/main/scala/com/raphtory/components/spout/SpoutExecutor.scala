@@ -10,6 +10,7 @@ import org.apache.pulsar.client.api.Message
 
 import java.util.concurrent.TimeUnit
 import scala.reflect.runtime.universe.TypeTag
+import com.raphtory.config.telemetry.ComponentTelemetryHandler
 import com.raphtory.config.telemetry.SpoutTelemetry
 
 import scala.concurrent.duration.DurationInt
@@ -43,9 +44,9 @@ class SpoutExecutor[T](
   override def handleMessage(msg: T): Unit = {} //No messages received by this component
 
   private def executeSpout() = {
-    SpoutTelemetry.totalSpoutReschedules.inc()
+    telemetry.spoutReschedules.labels(deploymentID).inc()
     while (spout.hasNext) {
-      SpoutTelemetry.totalLinesSent.inc()
+      telemetry.fileLinesSent.labels(deploymentID).inc()
       linesProcessed = linesProcessed + 1
       if (linesProcessed % 100_000 == 0)
         logger.debug(s"Spout: sent $linesProcessed messages.")

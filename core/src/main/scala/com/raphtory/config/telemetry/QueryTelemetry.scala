@@ -1,7 +1,7 @@
 package com.raphtory.config.telemetry
 
-import com.raphtory.config.ConfigHandler
-import com.raphtory.config.telemetry.StorageTelemetry.conf
+import com.raphtory.deployment.Raphtory
+import com.typesafe.config.Config
 import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
 
@@ -14,62 +14,70 @@ import io.prometheus.client.Gauge
   */
 object QueryTelemetry {
 
-  val conf = new ConfigHandler().getConfig
+  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
-  def receivedMessageCount(ID: String): Counter =
+  def receivedMessageCount() =
     Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_received_messages_$ID")
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
+      .name("handler_received_messages")
       .help("Total received messages count in Query Handler")
+      .labelNames("jobID", "deploymentID")
       .register
 
-  def sentMessageCount(ID: String): Counter =
+  def sentMessageCount(): Counter =
     Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_sent_messages_$ID")
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
+      .name("handler_sent_messages")
       .help("Total sent messages count in Query Handler")
+      .labelNames("jobID", "deploymentID")
       .register
 
-  def globalWatermarkMin(deploymentID: String): Gauge =
+  def globalWatermarkMin(): Gauge =
     Gauge.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"manager_min_watermark_deploymentID_${deploymentID}_timestamp")
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
+      .name("manager_min_watermark_timestamp")
       .help("Minimum watermark for Query Manager")
+      .labelNames("deploymentID")
       .register
 
-  def globalWatermarkMax(deploymentID: String): Gauge =
+  def globalWatermarkMax(): Gauge =
     Gauge.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"manager_max_watermark_deploymentID_${deploymentID}_timestamp")
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
+      .name("manager_max_watermark_timestamp")
       .help("Maximum watermark for Query Manager")
+      .labelNames("deploymentID")
       .register
 
-  def totalGraphOperations(ID: String): Counter =
+  def totalGraphOperations(): Counter =
     Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_graph_operations_$ID")
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
+      .name("handler_graph_operations")
       .help("Total graph operations by Query Handler")
+      .labelNames("jobID", "deploymentID")
       .register
 
-  def totalTableOperations(ID: String): Counter =
+  def totalTableOperations(): Counter =
     Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_table_operations_$ID")
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
+      .name("handler_table_operations")
       .help("Total table operations by Query Handler")
+      .labelNames("jobID", "deploymentID")
       .register
 
-  def totalPerspectivesProcessed(ID: String): Counter =
+  def totalPerspectivesProcessed(): Counter =
     Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"handler_perspectives_processed_$ID")
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
+      .name("handler_perspectives_processed")
       .help("Total perspectives processed by Query Handler")
+      .labelNames("jobID", "deploymentID")
       .register
 
-  def totalQueriesSpawned(deploymentID: String): Counter =
+  def totalQueriesSpawned(): Counter =
     Counter.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.query"))
-      .name(s"manager_queries_spawned_deploymentID_$deploymentID")
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
+      .name("manager_queries_spawned")
       .help("Total queries spawned by Query Manager")
+      .labelNames("deploymentID")
       .register
 
 }

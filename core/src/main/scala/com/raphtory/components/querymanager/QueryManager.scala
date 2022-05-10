@@ -27,10 +27,6 @@ class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
             Seq(topics.submissions, topics.watermark, topics.completedQueries)
     )
 
-  val globalWatermarkMin  = QueryTelemetry.globalWatermarkMin(deploymentID)
-  val globalWatermarkMax  = QueryTelemetry.globalWatermarkMax(deploymentID)
-  val totalQueriesSpawned = QueryTelemetry.totalQueriesSpawned(deploymentID)
-
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
     listener.start()
@@ -80,7 +76,7 @@ class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
             topics
     )
     scheduler.execute(queryHandler)
-    totalQueriesSpawned.inc()
+    telemetry.totalQueriesSpawned.labels(deploymentID).inc()
     queryHandler
   }
 
@@ -98,8 +94,8 @@ class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
           safe = watermark.safe && safe
           minTime = Math.min(minTime, watermark.endTime)
           maxTime = Math.max(maxTime, watermark.endTime)
-          globalWatermarkMin.set(minTime)
-          globalWatermarkMax.set(maxTime)
+          telemetry.globalWatermarkMin.labels(deploymentID).set(minTime)
+          telemetry.globalWatermarkMax.labels(deploymentID).set(maxTime)
       }
       if (safe) maxTime else minTime
     }

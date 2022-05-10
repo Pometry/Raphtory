@@ -14,7 +14,6 @@ import com.raphtory.components.querymanager.QueryManager
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.components.spout.Spout
 import com.raphtory.components.spout.SpoutExecutor
-import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.graph.GraphPartition
 import com.raphtory.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config
@@ -53,11 +52,7 @@ private[raphtory] class ComponentFactory(
       scheduler: Scheduler
   ): Option[List[ThreadedWorker[T]]] =
     if (!batchLoading) {
-      val vertexAddCounter    = BuilderTelemetry.totalVertexAdds(deploymentID)
-      val vertexDeleteCounter = BuilderTelemetry.totalVertexDeletes(deploymentID)
-      val edgeAddCounter      = BuilderTelemetry.totalEdgeAdds(deploymentID)
-      val edgeDeleteCounter   = BuilderTelemetry.totalEdgeDeletes(deploymentID)
-      val totalBuilders       = conf.getInt("raphtory.builders.countPerServer")
+      val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
       logger.info(s"Creating '$totalBuilders' Graph Builders.")
 
       logger.debug(s"Deployment ID set to '$deploymentID'.")
@@ -76,10 +71,6 @@ private[raphtory] class ComponentFactory(
           new BuilderExecutor[T](
                   builderId,
                   deploymentID,
-                  vertexAddCounter,
-                  vertexDeleteCounter,
-                  edgeAddCounter,
-                  edgeDeleteCounter,
                   graphBuilder,
                   conf,
                   topicRepo
@@ -155,10 +146,22 @@ private[raphtory] class ComponentFactory(
 
           val storage = new PojoBasedPartition(partitionID, conf)
 
-          val writer = new StreamWriter(partitionID, storage, conf, topicRepo)
+          val writer =
+            new StreamWriter(
+                    partitionID,
+                    storage,
+                    conf,
+                    topicRepo
+            )
           scheduler.execute(writer)
 
-          val reader = new Reader(partitionID, storage, scheduler, conf, topicRepo)
+          val reader = new Reader(
+                  partitionID,
+                  storage,
+                  scheduler,
+                  conf,
+                  topicRepo
+          )
           scheduler.execute(reader)
 
           (storage, reader, writer)

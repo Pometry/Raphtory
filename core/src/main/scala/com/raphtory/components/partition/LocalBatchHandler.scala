@@ -24,21 +24,12 @@ class LocalBatchHandler[T: ClassTag](
     scheduler: Scheduler
 ) extends Component[GraphAlteration](conf) {
 
-  private val vertexAddCounter    = BuilderTelemetry.totalVertexAdds(deploymentID)
-  private val vertexDeleteCounter = BuilderTelemetry.totalVertexDeletes(deploymentID)
-  private val edgeAddCounter      = BuilderTelemetry.totalEdgeAdds(deploymentID)
-  private val edgeDeleteCounter   = BuilderTelemetry.totalEdgeDeletes(deploymentID)
-
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)
 
   // TODO get builderID to pull from zookeeper once stream and batch can run synchro
   graphBuilder.setBuilderMetaData(
           builderID = 0,
-          deploymentID,
-          vertexAddCounter,
-          vertexDeleteCounter,
-          edgeAddCounter,
-          edgeDeleteCounter
+          deploymentID
   )
 
   private val rescheduler  = () => {
