@@ -30,7 +30,7 @@ class SpoutExecutor[T](
       spout.executeReschedule()
       executeSpout()
     }: Unit
-  private val builders        = topics.spoutOutput[T].endPoint
+  private val builders        = topics.spout[T].endPoint
 
   override def stop(): Unit = {
     scheduledRun.foreach(_.cancel())

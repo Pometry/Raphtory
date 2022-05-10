@@ -41,7 +41,7 @@ class BuilderExecutor[T: ClassTag](
   private val writers              = topics.graphUpdates.endPoint
 
   private val spoutOutputListener =
-    topics.registerListener(s"$deploymentID-builder-$name", handleMessage, topics.spoutOutput[T])
+    topics.registerListener(s"$deploymentID-builder-$name", handleMessage, topics.spout[T])
 
   private val graphUpdateCounter = BuilderTelemetry.totalGraphBuilderUpdates(deploymentID)
   private var messagesProcessed  = 0

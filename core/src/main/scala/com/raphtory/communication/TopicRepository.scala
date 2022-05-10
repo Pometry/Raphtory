@@ -26,7 +26,7 @@ import scala.reflect.ClassTag
 class TopicRepository(defaultConnector: Connector, conf: Config) {
 
   // Methods to override:
-  protected def spoutOutputConnector: Connector      = defaultConnector
+  protected def spoutConnector: Connector            = defaultConnector
   protected def graphUpdatesConnector: Connector     = defaultConnector
   protected def graphSyncConnector: Connector        = defaultConnector
   protected def submissionsConnector: Connector      = defaultConnector
@@ -48,42 +48,42 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
   private val numPartitions: Int       = partitionServers * partitionsPerServer
 
   // Global topics
-  final def spoutOutput[T]: WorkPullTopic[T] =
-    WorkPullTopic[T](spoutOutputConnector, "spoutOutput", customAddress = spoutAddress)
+  final def spout[T]: WorkPullTopic[T] =
+    WorkPullTopic[T](spoutConnector, "spout", customAddress = spoutAddress)
 
   final def graphUpdates: ShardingTopic[GraphUpdate] =
-    ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graphUpdates", depId)
+    ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graph.updates", depId)
 
   final def graphSync: ShardingTopic[GraphUpdateEffect] =
-    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graphSync", depId)
+    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", depId)
 
   final def submissions: ExclusiveTopic[Query] =
     ExclusiveTopic[Query](submissionsConnector, s"submissions", depId)
 
   final def completedQueries: ExclusiveTopic[EndQuery] =
-    ExclusiveTopic[EndQuery](completedQueriesConnector, "completedQueries", depId)
+    ExclusiveTopic[EndQuery](completedQueriesConnector, "completed.queries", depId)
 
   final def watermark: ExclusiveTopic[WatermarkTime] =
     ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", depId)
 
   final def queryPrep: BroadcastTopic[QueryManagement] =
-    BroadcastTopic[QueryManagement](numPartitions, queryPrepConnector, "queryPrep", depId)
+    BroadcastTopic[QueryManagement](numPartitions, queryPrepConnector, "query.prep", depId)
 
   // Job wise topics
   final def queryTrack(jobId: String): ExclusiveTopic[QueryManagement] =
-    ExclusiveTopic[QueryManagement](queryTrackConnector, "queryTrack", s"$depId-$jobId")
+    ExclusiveTopic[QueryManagement](queryTrackConnector, "query.track", s"$depId-$jobId")
 
   final def rechecks(jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](rechecksConnector, "rechecks", s"$depId-$jobId")
 
   final def jobStatus(jobId: String): ExclusiveTopic[QueryManagement] =
-    ExclusiveTopic[QueryManagement](jobStatusConnector, "jobStatus", s"$depId-$jobId")
+    ExclusiveTopic[QueryManagement](jobStatusConnector, "job.status", s"$depId-$jobId")
 
   final def vertexMessages(jobId: String): ShardingTopic[QueryManagement] =
     ShardingTopic[QueryManagement](
             numPartitions,
             vertexMessagesConnector,
-            "vertexMessages",
+            "vertex.messages",
             s"$depId-$jobId"
     )
 
@@ -91,7 +91,7 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
     BroadcastTopic[QueryManagement](
             numPartitions,
             jobOperationsConnector,
-            s"jobOperations",
+            s"job.operations",
             s"$depId-$jobId"
     )
 
