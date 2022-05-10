@@ -1,12 +1,10 @@
 package com.raphtory.client
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.querymanager.Query
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.config.ComponentFactory
-import com.raphtory.config.PulsarController
-import com.raphtory.serialisers.PulsarKryoSerialiser
-import monix.execution.Scheduler
-import org.apache.pulsar.client.api.Schema
+import com.raphtory.config.Scheduler
 
 import scala.util.Random
 
@@ -14,17 +12,14 @@ import scala.util.Random
 class QuerySender(
     private val componentFactory: ComponentFactory,
     private val scheduler: Scheduler,
-    private val pulsarController: PulsarController
+    private val topics: TopicRepository
 ) {
-
-  val kryo                                         = PulsarKryoSerialiser()
-  implicit private val schema: Schema[Array[Byte]] = Schema.BYTES
 
   def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {
     val jobName     = if (customJobName.nonEmpty) customJobName else getDefaultName(query)
     val jobID       = jobName + "_" + Random.nextLong().abs
     val outputQuery = query.copy(name = jobID)
-    pulsarController.toQueryManagerProducer sendAsync kryo.serialise(outputQuery)
+    topics.submissions.endPoint sendAsync outputQuery
     componentFactory.queryProgressTracker(jobID, scheduler)
   }
 

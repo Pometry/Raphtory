@@ -1,7 +1,7 @@
 package com.raphtory.components.graphbuilder
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
-import com.raphtory.config.PulsarController
 import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
@@ -21,41 +21,33 @@ class BuilderExecutor[T: ClassTag](
     deploymentID: String,
     graphBuilder: GraphBuilder[T],
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[T](conf, pulsarController) {
-  private val safegraphBuilder                          = Marshal.deepCopy(graphBuilder)
+    topics: TopicRepository
+) extends Component[T](conf) {
+  private val safegraphBuilder     = Marshal.deepCopy(graphBuilder)
   safegraphBuilder
     .setBuilderMetaData(
             name,
             deploymentID
     )
-  private val producers                                 = pulsarController.toWriterProducers
-  private val failOnError: Boolean                      = conf.getBoolean("raphtory.builders.failOnError")
-  private var messagesProcessed                         = 0
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
+  private val writers              = topics.graphUpdates.endPoint
+
+  private val spoutOutputListener =
+    topics.registerListener(s"$deploymentID-builder-$name", handleMessage, topics.spout[T])
+
+  private var messagesProcessed = 0
 
   override def run(): Unit = {
     logger.debug(
             s"Starting Graph Builder executor with deploymentID ${conf.getString("raphtory.deploy.id")}"
     )
-
-    cancelableConsumer = Some(
-            pulsarController.startGraphBuilderConsumer(messageListener())
-    )
-
+    spoutOutputListener.start()
   }
 
   override def stop(): Unit = {
     logger.debug("Stopping Graph Builder executor.")
-
-    cancelableConsumer match {
-      case Some(value) =>
-        value.unsubscribe()
-        value.close()
-      case None        =>
-    }
-
-    producers.foreach(_._2.close())
+    spoutOutputListener.close()
+    writers.values.foreach(_.close())
   }
 
   override def handleMessage(msg: T): Unit =
@@ -69,9 +61,8 @@ class BuilderExecutor[T: ClassTag](
   protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
     logger.trace(s"Sending graph update: $graphUpdate")
 
-    producers(getWriter(graphUpdate.srcId))
-      .sendAsync(serialise(graphUpdate))
-      .thenApply(msgId => msgId -> null)
+    writers(getWriter(graphUpdate.srcId)).sendAsync(graphUpdate)
+    //.thenApply(msgId => msgId -> null) TODO: remove I guess ?
 
     messagesProcessed = messagesProcessed + 1
 

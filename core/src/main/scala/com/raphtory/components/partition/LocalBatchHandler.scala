@@ -3,16 +3,15 @@ package com.raphtory.components.partition
 import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder._
 import com.raphtory.components.spout.Spout
-import com.raphtory.config.PulsarController
+import com.raphtory.config.Scheduler
 import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
 import io.prometheus.client.Counter
-import monix.execution.Scheduler
 
-import java.util.concurrent.TimeUnit
 import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
 import scala.reflect.ClassTag
 
 /** @DoNotDocument */
@@ -22,9 +21,8 @@ class LocalBatchHandler[T: ClassTag](
     spout: Spout[T],
     graphBuilder: GraphBuilder[T],
     conf: Config,
-    pulsarController: PulsarController,
     scheduler: Scheduler
-) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
+) extends Component[GraphAlteration](conf) {
 
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)
 
@@ -34,12 +32,9 @@ class LocalBatchHandler[T: ClassTag](
           deploymentID
   )
 
-  private val rescheduler: Runnable = new Runnable {
-
-    override def run(): Unit = {
-      spout.executeReschedule()
-      runIngestion()
-    }
+  private val rescheduler  = () => {
+    spout.executeReschedule()
+    runIngestion()
   }
 
   override def handleMessage(
@@ -66,7 +61,7 @@ class LocalBatchHandler[T: ClassTag](
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
-    scheduler.scheduleOnce(10, TimeUnit.SECONDS, rescheduler)
+    scheduler.scheduleOnce(10.seconds, rescheduler)
   }
 
   private def startIngesting(): Unit =
@@ -80,6 +75,4 @@ class LocalBatchHandler[T: ClassTag](
       case (id, partition) =>
         partition.getStorage().stopBatchIngesting()
     }
-
-  override def stop(): Unit = {}
 }

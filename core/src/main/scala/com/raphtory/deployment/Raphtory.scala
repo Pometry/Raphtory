@@ -7,17 +7,21 @@ import com.raphtory.components.spout.Spout
 import com.raphtory.config.ComponentFactory
 import com.raphtory.config.ConfigHandler
 import com.raphtory.config.MonixScheduler
-import com.raphtory.config.PulsarController
 import com.raphtory.client.GraphDeployment
 import com.raphtory.client.QuerySender
 import com.raphtory.client.RaphtoryClient
+import com.raphtory.communication.topicRepositories.PulsarAkkaTopicRepository
+import com.raphtory.communication.topicRepositories.PulsarTopicRepository
 import com.raphtory.components.querymanager.Query
 import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
-import py4j.{GatewayServer, Py4JNetworkException}
+import com.typesafe.config.ConfigFactory
+import py4j.GatewayServer
+import py4j.Py4JNetworkException
 import com.raphtory.deployment.Py4JServer
 
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.ClassTag
+import scala.reflect.classTag
 import scala.reflect.runtime.universe._
 
 /**
@@ -110,8 +114,7 @@ import scala.reflect.runtime.universe._
   *  ```
   */
 object Raphtory {
-
-  private val scheduler = new MonixScheduler().scheduler
+  private val scheduler                  = new MonixScheduler()
   private lazy val javaPy4jGatewayServer = new Py4JServer(this)
 
   def stream[T: TypeTag: ClassTag](
@@ -131,24 +134,24 @@ object Raphtory {
   def deployedGraph(customConfig: Map[String, Any] = Map()): TemporalGraph = {
     val conf             = confBuilder(customConfig)
     javaPy4jGatewayServer.start(conf)
-    val pulsarController = new PulsarController(conf)
-    val componentFactory = new ComponentFactory(conf, pulsarController)
-    val querySender      = new QuerySender(componentFactory, scheduler, pulsarController)
+    val topics           = PulsarTopicRepository(conf)
+    val componentFactory = new ComponentFactory(conf, topics)
+    val querySender      = new QuerySender(componentFactory, scheduler, topics)
     new TemporalGraph(Query(), querySender, conf)
   }
 
   def createClient(customConfig: Map[String, Any] = Map()): RaphtoryClient = {
     val conf             = confBuilder(customConfig)
-    val pulsarController = new PulsarController(conf)
-    val componentFactory = new ComponentFactory(conf, pulsarController)
-    val querySender      = new QuerySender(componentFactory, scheduler, pulsarController)
+    val topics           = PulsarTopicRepository(conf)
+    val componentFactory = new ComponentFactory(conf, topics)
+    val querySender      = new QuerySender(componentFactory, scheduler, topics)
     new RaphtoryClient(querySender, conf)
   }
 
   def createSpout[T](spout: Spout[T]): Unit = {
     val conf             = confBuilder()
-    val pulsarController = new PulsarController(conf)
-    val componentFactory = new ComponentFactory(conf, pulsarController)
+    val topics           = PulsarTopicRepository(conf)
+    val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.spout(spout, false, scheduler)
   }
 
@@ -156,8 +159,8 @@ object Raphtory {
       builder: GraphBuilder[T]
   ): Unit = {
     val conf             = confBuilder()
-    val pulsarController = new PulsarController(conf)
-    val componentFactory = new ComponentFactory(conf, pulsarController)
+    val topics           = PulsarTopicRepository(conf)
+    val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.builder(builder, false, scheduler)
   }
 
@@ -167,15 +170,15 @@ object Raphtory {
       graphBuilder: Option[GraphBuilder[T]] = None
   ): Unit = {
     val conf             = confBuilder()
-    val pulsarController = new PulsarController(conf)
-    val componentFactory = new ComponentFactory(conf, pulsarController)
+    val topics           = PulsarTopicRepository(conf)
+    val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.partition(scheduler, batchLoading, spout, graphBuilder)
   }
 
   def createQueryManager(): Unit = {
     val conf             = confBuilder()
-    val pulsarController = new PulsarController(conf)
-    val componentFactory = new ComponentFactory(conf, pulsarController)
+    val topics           = PulsarTopicRepository(conf)
+    val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.query(scheduler)
   }
 
@@ -196,9 +199,9 @@ object Raphtory {
   ) = {
     val conf             = confBuilder(customConfig)
     javaPy4jGatewayServer.start(conf)
-    val pulsarController = new PulsarController(conf)
-    val componentFactory = new ComponentFactory(conf, pulsarController)
-    val querySender      = new QuerySender(componentFactory, scheduler, pulsarController)
+    val topics           = PulsarAkkaTopicRepository(conf)
+    val componentFactory = new ComponentFactory(conf, topics, true)
+    val querySender      = new QuerySender(componentFactory, scheduler, topics)
     val deployment       = new GraphDeployment[T](
             batchLoading,
             spout,

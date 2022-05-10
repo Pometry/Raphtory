@@ -1,21 +1,21 @@
 package com.raphtory.components.partition
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.components.querymanager.EndQuery
 import com.raphtory.components.querymanager.EstablishExecutor
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.WatermarkTime
-import com.raphtory.config.PulsarController
+import com.raphtory.config.Cancelable
+import com.raphtory.config.Scheduler
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
 import io.prometheus.client.Gauge
-import monix.execution.Cancelable
-import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
 
 /** @DoNotDocument */
 class Reader(
@@ -23,37 +23,25 @@ class Reader(
     storage: GraphPartition,
     scheduler: Scheduler,
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
+    topics: TopicRepository
+) extends Component[QueryManagement](conf) {
+  private val executorMap      = mutable.Map[String, QueryExecutor]()
+  private val watermarkPublish = topics.watermark.endPoint
 
-  private val executorMap                               = mutable.Map[String, QueryExecutor]()
-  private val watermarkPublish                          = pulsarController.watermarkPublisher()
+  private val queryPrepListener                         =
+    topics.registerListener(s"$deploymentID-reader-$partitionID", handleMessage, topics.queryPrep)
   var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
   var scheduledWatermark: Option[Cancelable]            = None
   private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
 
-  private val watermarking = new Runnable {
-    override def run(): Unit = createWatermark()
-  }
-
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
-
+    queryPrepListener.start()
     scheduleWaterMarker()
-
-    cancelableConsumer = Some(
-            pulsarController.startReaderConsumer(partitionID, messageListener())
-    )
   }
 
   override def stop(): Unit = {
-    logger.debug(s"stopping Reader for partition $partitionID")
-    cancelableConsumer match {
-      case Some(value) =>
-        value.unsubscribe()
-        value.close()
-      case None        =>
-    }
+    queryPrepListener.close()
     scheduledWatermark.foreach(_.cancel())
     watermarkPublish.close()
     executorMap.synchronized {
@@ -65,8 +53,7 @@ class Reader(
     msg match {
       case req: EstablishExecutor =>
         val jobID         = req.jobID
-        val queryExecutor =
-          new QueryExecutor(partitionID, storage, jobID, conf, pulsarController)
+        val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, topics)
         scheduler.execute(queryExecutor)
         telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executorMap += ((jobID, queryExecutor))
@@ -129,9 +116,7 @@ class Reader(
                 s"Partition $partitionID: Creating watermark with " +
                   s"earliest time '$oldestTime' and latest time '$finalTime'."
         )
-        watermarkPublish.sendAsync(
-                serialise(watermark)
-        )
+        watermarkPublish sendAsync watermark
       }
       lastWatermark = watermark
       telemetry.lastWatermarkProcessedCollector
@@ -145,7 +130,7 @@ class Reader(
     logger.trace("Scheduled watermarker to recheck time in 1 second.")
     scheduledWatermark = Some(
             scheduler
-              .scheduleOnce(1, TimeUnit.SECONDS, watermarking)
+              .scheduleOnce(1.seconds, createWatermark)
     )
   }
 

@@ -1,16 +1,16 @@
 package com.raphtory.components.spout
 
+import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.graphbuilder.GraphBuilder.assignID
 import com.raphtory.components.graphbuilder.BuilderExecutor
 import com.raphtory.components.graphbuilder.EdgeAdd
 import com.raphtory.components.graphbuilder.GraphUpdate
 import com.raphtory.components.graphbuilder.Properties._
 import com.raphtory.components.graphbuilder.VertexAdd
-import com.raphtory.config.PulsarController
 import com.raphtory.deployment.Raphtory
 import com.raphtory.graph._
 import com.raphtory.lotrtest.LOTRGraphBuilder
-import com.raphtory.serialisers.PulsarKryoSerialiser
+import com.raphtory.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import org.apache.pulsar.client.admin.PulsarAdmin
 import org.apache.pulsar.client.admin.PulsarAdminException
@@ -40,8 +40,8 @@ class LOTRGraphBuilderTest extends AnyFunSuite with BeforeAndAfter {
   val admin: PulsarAdmin                           =
     PulsarAdmin.builder.serviceHttpUrl(config.getString("raphtory.pulsar.admin.address")).build
   implicit private val schema: Schema[Array[Byte]] = Schema.BYTES
-  val pulsarController                             = new PulsarController(config)
-  val kryo                                         = new PulsarKryoSerialiser()
+  val pulsarConnector                              = new PulsarConnector(config)
+  val kryo                                         = new KryoSerialiser()
 
   def deleteTestTopic(): Unit = {
     val all_topics = admin.topics.getList("public/default")
@@ -70,7 +70,7 @@ class LOTRGraphBuilderTest extends AnyFunSuite with BeforeAndAfter {
   try {
     // first create a local spout and ingest some local data
     deleteTestTopic()
-    val client         = pulsarController.accessClient
+    val client         = pulsarConnector.accessClient
     val producer_topic = test_producer_topic
     val producer       = client.newProducer(Schema.BYTES).topic(producer_topic).create()
 
