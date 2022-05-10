@@ -204,8 +204,8 @@ class PulsarConnector(config: Config) extends Connector {
 
     val tenant        = config.getString(s"raphtory.pulsar.topics.${topic.id}.tenant")
     val namespace     = config.getString(s"raphtory.pulsar.topics.${topic.id}.namespace")
-    val retentionTime = config.getString(s"raphtory.pulsar.topics.${topic.id}.retentionTime").toInt
-    val retentionSize = config.getString(s"raphtory.pulsar.topics.${topic.id}.retentionSize").toInt
+    val retentionTime = config.getString(s"raphtory.pulsar.topics.${topic.id}.retention.time").toInt
+    val retentionSize = config.getString(s"raphtory.pulsar.topics.${topic.id}.retention.size").toInt
 
     try {
       pulsarAdmin.namespaces().createNamespace(s"$tenant/$namespace")
