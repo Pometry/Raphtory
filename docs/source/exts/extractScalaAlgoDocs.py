@@ -3,6 +3,7 @@ from pathlib import Path
 import shutil
 from docutils import nodes
 from docutils.parsers.rst.roles import set_classes, Lexer, utils, LexerError
+import subprocess
 
 """
 Minimal Sphinx extension to extract Algorithm documentation from Raphtory.
@@ -22,6 +23,7 @@ def setup(app: Sphinx):
     app.add_role("s", scala_inline_code)
     app.add_config_value("raphtory_src_root", "", 'env', [str])
     app.add_config_value("autodoc_packages", [], 'env', [list[str]])
+    app.add_config_value("raphtory_root", "", 'env', [str])
     app.connect("config-inited", handle_config_init)
 
     return {
@@ -29,6 +31,20 @@ def setup(app: Sphinx):
         "parallel_read_safe": False,
         "parallel_write_safe": False,
     }
+
+
+def compile_move_scaladoc(config, doc_root):
+    scalabuild_root = Path(config.raphtory_root) / "core" / "target"
+    scaladoc_root = Path(config.raphtory_root) / "core" / "target" / "scala-2.13" / "api"
+    # clean up old files
+    shutil.rmtree(scalabuild_root, ignore_errors=True)
+    # Use SBT to build the scala docs, this is blocking
+    process_call = subprocess.call(['sbt', 'core/doc'], cwd=config.raphtory_root)
+    if process_call == 0:
+        # Move the scala docs to a custom folder
+        shutil.move(scaladoc_root, doc_root / "com" / "raphtory")
+    # clean up folder
+    shutil.rmtree(scalabuild_root, ignore_errors=True)
 
 
 def handle_config_init(app: Sphinx, config: Config):
@@ -43,8 +59,9 @@ def handle_config_init(app: Sphinx, config: Config):
             rel_path = Path(*package.split('.'))
             src_root = scala_src_root / rel_path
 
-            write_index(doc_root / rel_path, package, package)
-            discover_files(doc_root / rel_path, src_root, scala_src_root)
+            # write_index(doc_root / rel_path, package, package)
+            # discover_files(doc_root / rel_path, src_root, scala_src_root)
+        compile_move_scaladoc(config, doc_root)
 
 
 def discover_files(doc_root: Path, scala_root: Path, base_path: Path):
@@ -125,7 +142,7 @@ def parse_docstr(docstr_lines: list[str], file: Path):
     # Check if title line exists (first non-trivial line is heading1), else create it based on file name
     for header_line, line in enumerate(docstr_lines):
         if line:
-            if line.startswith("@note DoNotDocument"):
+            if line.startswith("@DoNotDocument"):
                 raise SkipFile()
             elif not line.startswith("# "):
                 header_line = 0
@@ -142,8 +159,6 @@ def parse_docstr(docstr_lines: list[str], file: Path):
             "```",
         ]
 
-
-
     # create cross-reference link
     docstr_lines.insert(header_line, f"({path}.{name})=")
 
@@ -159,7 +174,7 @@ def write_index(folder: Path, package, header=None):
         header = package.split(".")[-1]
     with open(folder / "index.rst", "w") as f:
         f.write(
-f""":s:`{package}`
+            f""":s:`{package}`
 
 .. _{package}:
 
@@ -169,7 +184,7 @@ f""":s:`{package}`
 .. toctree::
    :glob:
    :maxdepth: 1
-   
+
 """
         )
 
