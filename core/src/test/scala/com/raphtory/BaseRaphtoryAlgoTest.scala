@@ -6,9 +6,9 @@ import com.raphtory.algorithms.api.DeployedTemporalGraph
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.OutputFormat
 import com.raphtory.client.GraphDeployment
+import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
-import com.raphtory.config.PulsarController
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
 import com.typesafe.config.Config
@@ -41,10 +41,10 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   val outputDirectory: String           = "/tmp/raphtoryTest"
   def defaultOutputFormat: OutputFormat = FileOutputFormat(outputDirectory)
 
-  var graph: DeployedTemporalGraph       = _
-  def pulsarController: PulsarController = new PulsarController(conf)
-  def conf: Config                       = graph.getConfig()
-  def deploymentID: String               = conf.getString("raphtory.deploy.id")
+  var graph: DeployedTemporalGraph     = _
+  def pulsarConnector: PulsarConnector = new PulsarConnector(conf)
+  def conf: Config                     = graph.getConfig()
+  def deploymentID: String             = conf.getString("raphtory.deploy.id")
 
   override def beforeAll(): Unit = {
     setup()

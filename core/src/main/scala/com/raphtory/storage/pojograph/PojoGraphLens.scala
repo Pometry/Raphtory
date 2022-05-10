@@ -2,7 +2,9 @@ package com.raphtory.storage.pojograph
 
 import com.raphtory.algorithms.api.GraphState
 import com.raphtory.algorithms.api.Row
+import com.raphtory.communication.EndPoint
 import com.raphtory.components.querymanager.GenericVertexMessage
+import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph.GraphLens
@@ -28,7 +30,7 @@ final case class PojoGraphLens(
     var superStep: Int,
     private val storage: GraphPartition,
     private val conf: Config,
-    private val neighbours: Map[Int, Producer[Array[Byte]]],
+    private val neighbours: Option[Map[Int, EndPoint[QueryManagement]]],
     private val sentMessages: AtomicInteger,
     private val receivedMessages: AtomicInteger,
     private val errorHandler: (Throwable) => Unit

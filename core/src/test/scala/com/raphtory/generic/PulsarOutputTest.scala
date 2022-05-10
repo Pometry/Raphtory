@@ -19,7 +19,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
     val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)
 
     val consumer =
-      pulsarController
+      pulsarConnector
         .createSharedConsumer(
                 subscriptionName = "pulsarOutputTest",
                 schema = Schema.BYTES,
@@ -34,7 +34,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
         .writeTo(outputFormat, "EdgeList")
     jobId = queryProgressTracker.getJobId
     queryProgressTracker.waitForJob()
-    val firstResult = new String(receiveMessage(consumer).getValue)
+    val firstResult          = new String(receiveMessage(consumer).getValue)
     logger.info(s"Output to Pulsar complete. First result is: '$firstResult'.")
 
     assert(firstResult.nonEmpty)

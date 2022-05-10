@@ -12,22 +12,24 @@ sonatypeCredentialHost := "s01.oss.sonatype.org"
 sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 
 ThisBuild / scmInfo := Some(
-  ScmInfo(
-    url("https://github.com/Raphtory/Raphtory"),
-    "scm:git@github.com:Raphtory/Raphtory.git"
-  )
+        ScmInfo(
+                url("https://github.com/Raphtory/Raphtory"),
+                "scm:git@github.com:Raphtory/Raphtory.git"
+        )
 )
 ThisBuild / developers := List(
-  Developer(
-    id    = "miratepuffin",
-    name  = "Ben Steer",
-    email = "ben.steer@raphtory.com",
-    url   = url("https://twitter.com/miratepuffin")
-  )
+        Developer(
+                id = "miratepuffin",
+                name = "Ben Steer",
+                email = "ben.steer@raphtory.com",
+                url = url("https://twitter.com/miratepuffin")
+        )
 )
 
 ThisBuild / description := "A Distributed Temporal Graph Processing System"
-ThisBuild / licenses := List("Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt"))
+ThisBuild / licenses := List(
+        "Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt")
+)
 ThisBuild / homepage := Some(url("https://github.com/Raphtory/Raphtory"))
 
 // Remove all additional repository other than Maven Central from POM
@@ -89,7 +91,8 @@ lazy val core = (project in file("core"))
                   twitterChill,
                   twittered,
                   typesafeConfig,
-                  zookeeper
+                  zookeeper,
+                  akkaTyped
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
   )
@@ -112,14 +115,16 @@ lazy val core = (project in file("core"))
 
 // EXAMPLE PROJECTS
 
-lazy val examplesEnron           = (project in file("examples/raphtory-example-enron")).dependsOn(core)
-lazy val examplesEthereum        = (project in file("examples/raphtory-example-ethereum")).dependsOn(core)
-lazy val examplesFacebook        = (project in file("examples/raphtory-example-facebook")).dependsOn(core)
-lazy val examplesGab             = (project in file("examples/raphtory-example-gab")).dependsOn(core)
-lazy val examplesLotr            = (project in file("examples/raphtory-example-lotr")).dependsOn(core)
-lazy val examplesPresto          = (project in file("examples/raphtory-example-presto")).dependsOn(core)
-lazy val examplesTwitter         = (project in file("examples/raphtory-example-twitter")).dependsOn(core)
-lazy val examplesTwitterCircles  = (project in file("examples/raphtory-example-twittercircles")).dependsOn(core)
+lazy val examplesEnron          = (project in file("examples/raphtory-example-enron")).dependsOn(core)
+lazy val examplesEthereum       = (project in file("examples/raphtory-example-ethereum")).dependsOn(core)
+lazy val examplesFacebook       = (project in file("examples/raphtory-example-facebook")).dependsOn(core)
+lazy val examplesGab            = (project in file("examples/raphtory-example-gab")).dependsOn(core)
+lazy val examplesLotr           = (project in file("examples/raphtory-example-lotr")).dependsOn(core)
+lazy val examplesPresto         = (project in file("examples/raphtory-example-presto")).dependsOn(core)
+lazy val examplesTwitter        = (project in file("examples/raphtory-example-twitter")).dependsOn(core)
+
+lazy val examplesTwitterCircles =
+  (project in file("examples/raphtory-example-twittercircles")).dependsOn(core)
 
 // SETTINGS
 

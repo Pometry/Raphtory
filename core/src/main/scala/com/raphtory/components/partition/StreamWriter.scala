@@ -1,8 +1,8 @@
 package com.raphtory.components.partition
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder._
-import com.raphtory.config.PulsarController
 import com.raphtory.graph._
 import com.typesafe.config.Config
 import io.prometheus.client.Counter
@@ -17,29 +17,25 @@ class StreamWriter(
     partitionID: Int,
     storage: GraphPartition,
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
+    topics: TopicRepository
+) extends Component[GraphAlteration](conf) {
+  private val neighbours = topics.graphSync.endPoint
 
-  private val neighbours        = pulsarController.writerSyncProducers()
+  private val listener          =
+    topics.registerListener(
+            s"$deploymentID-writer-$partitionID",
+            handleMessage,
+            Seq(topics.graphUpdates, topics.graphSync),
+            partitionID
+    )
   private var processedMessages = 0
 
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
-
   override def run(): Unit =
-    cancelableConsumer = Some(
-            pulsarController
-              .startPartitionConsumer(partitionID, messageListener())
-    )
+    listener.start()
 
   override def stop(): Unit = {
-
-    cancelableConsumer match {
-      case Some(value) =>
-        value.unsubscribe()
-        value.close()
-      case None        =>
-    }
-    neighbours.foreach(_._2.close())
+    neighbours.values.foreach(_.close())
+    listener.close()
   }
 
   override def handleMessage(msg: GraphAlteration): Unit = {
@@ -123,7 +119,7 @@ class StreamWriter(
             update.eType
     ) match {
       case Some(value) =>
-        neighbours(getWriter(value.updateId)).sendAsync(serialise(value))
+        neighbours(getWriter(value.updateId)) sendAsync value
         storage.trackEdgeAddition(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
@@ -136,7 +132,7 @@ class StreamWriter(
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId) match {
       case Some(value) =>
-        neighbours(getWriter(value.updateId)).sendAsync(serialise(value))
+        neighbours(getWriter(value.updateId)) sendAsync value
         storage.trackEdgeDeletion(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
@@ -148,9 +144,7 @@ class StreamWriter(
 
     val edgeRemovals = storage.removeVertex(update.updateTime, update.srcId)
     if (edgeRemovals.nonEmpty) {
-      edgeRemovals.foreach(effect =>
-        neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
-      )
+      edgeRemovals.foreach(effect => neighbours(getWriter(effect.updateId)) sendAsync effect)
       storage.trackVertexDeletion(update.updateTime, update.srcId, edgeRemovals.size)
     }
     telemetry.streamWriterVertexDeletionsCollector
@@ -165,7 +159,7 @@ class StreamWriter(
     storage.timings(req.msgTime)
     val effect = storage
       .syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
@@ -176,7 +170,7 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
@@ -188,7 +182,7 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
@@ -199,7 +193,7 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeRemoval(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
@@ -211,7 +205,7 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.outboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
@@ -221,7 +215,7 @@ class StreamWriter(
     )
 
     val effect = storage.inboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
+    neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 

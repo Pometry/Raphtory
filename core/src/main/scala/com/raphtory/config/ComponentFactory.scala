@@ -1,5 +1,6 @@
 package com.raphtory.config
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder.BuilderExecutor
 import com.raphtory.components.graphbuilder.GraphAlteration
@@ -17,7 +18,6 @@ import com.raphtory.graph.GraphPartition
 import com.raphtory.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import monix.execution.Scheduler
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
@@ -25,20 +25,29 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
 /** @DoNotDocument */
-private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarController) {
+private[raphtory] class ComponentFactory(
+    conf: Config,
+    topicRepo: TopicRepository,
+    localDeployment: Boolean = false
+) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val deploymentID     = conf.getString("raphtory.deploy.id")
-  private val zookeeperAddress = conf.getString("raphtory.zookeeper.address")
+  private val deploymentID = conf.getString("raphtory.deploy.id")
 
-  private val builderIDManager =
-    new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
-
-  private val partitionIDManager =
-    new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
+  private val (builderIDManager, partitionIDManager) =
+    if (localDeployment)
+      (new LocalIDManager, new LocalIDManager)
+    else {
+      val zookeeperAddress     = conf.getString("raphtory.zookeeper.address")
+      val zkBuilderIDManager   =
+        new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
+      val zkPartitionIDManager =
+        new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
+      (zkBuilderIDManager, zkPartitionIDManager)
+    }
 
   def builder[T: ClassTag](
-      graphbuilder: GraphBuilder[T],
+      graphBuilder: GraphBuilder[T],
       batchLoading: Boolean = false,
       scheduler: Scheduler
   ): Option[List[ThreadedWorker[T]]] =
@@ -47,9 +56,6 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
       logger.info(s"Creating '$totalBuilders' Graph Builders.")
 
       logger.debug(s"Deployment ID set to '$deploymentID'.")
-
-      val zookeeperAddress =
-        logger.debug(s"Zookeeper Address set to '$deploymentID'.")
 
       val builders = for (name <- (0 until totalBuilders)) yield {
         val builderId = builderIDManager
@@ -65,9 +71,9 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
           new BuilderExecutor[T](
                   builderId,
                   deploymentID,
-                  graphbuilder,
+                  graphBuilder,
                   conf,
-                  pulsarController
+                  topicRepo
           )
 
         scheduler.execute(builderExecutor)
@@ -95,10 +101,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
         val partitionID = partitionIDManager.getNextAvailableID() match {
           case Some(id) => id
           case None     =>
-            throw new Exception(
-                    s"Failed to retrieve Partition ID. " +
-                      s"ID Manager at Zookeeper '$partitionIDManager' was unreachable."
-            )
+            throw new Exception(s"Failed to retrieve Partition ID")
         }
 
         val storage: GraphPartition = new PojoBasedPartition(partitionID, conf)
@@ -114,13 +117,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
         )
         partitionIDs += i
 
-        val reader: Reader = new Reader(
-                partitionID,
-                storage,
-                scheduler,
-                conf,
-                pulsarController
-        )
+        val reader: Reader = new Reader(partitionID, storage, scheduler, conf, topicRepo)
         scheduler.execute(reader)
 
         (storage, reader)
@@ -132,7 +129,6 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
               spout.get,
               graphBuilder.get,
               conf,
-              pulsarController,
               scheduler
       )
       scheduler.execute(batchHandler)
@@ -145,10 +141,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
           val partitionID = partitionIDManager.getNextAvailableID() match {
             case Some(id) => id
             case None     =>
-              throw new Exception(
-                      s"Failed to retrieve Partition ID. " +
-                        s"ID Manager at Zookeeper '$partitionIDManager' was unreachable."
-              )
+              throw new Exception(s"Failed to retrieve Partition ID")
           }
 
           val storage = new PojoBasedPartition(partitionID, conf)
@@ -158,7 +151,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
                     partitionID,
                     storage,
                     conf,
-                    pulsarController
+                    topicRepo
             )
           scheduler.execute(writer)
 
@@ -167,7 +160,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
                   storage,
                   scheduler,
                   conf,
-                  pulsarController
+                  topicRepo
           )
           scheduler.execute(reader)
 
@@ -186,8 +179,8 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
       scheduler: Scheduler
   ): Option[ThreadedWorker[T]] =
     if (!batchLoading) {
-      val spoutExecutor = new SpoutExecutor[T](spout, conf, pulsarController, scheduler)
-      logger.info(s"Creating new Spout '${spoutExecutor.spoutTopic}'.")
+      val spoutExecutor = new SpoutExecutor[T](spout, conf, topicRepo, scheduler)
+      logger.info(s"Creating new Spout.")
 
       scheduler.execute(spoutExecutor)
       Some(ThreadedWorker(spoutExecutor))
@@ -197,8 +190,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
   def query(scheduler: Scheduler): ThreadedWorker[QueryManagement] = {
     logger.info(s"Creating new Query Manager.")
 
-    val queryManager = new QueryManager(scheduler, conf, pulsarController)
-
+    val queryManager = new QueryManager(scheduler, conf, topicRepo)
     scheduler.execute(queryManager)
     ThreadedWorker(queryManager)
   }
@@ -211,9 +203,7 @@ private[raphtory] class ComponentFactory(conf: Config, pulsarController: PulsarC
             s"Creating new Query Progress Tracker for '$jobID'."
     )
 
-    val queryTracker =
-      new QueryProgressTracker(jobID, conf, pulsarController)
-
+    val queryTracker = new QueryProgressTracker(jobID, conf, topicRepo)
     scheduler.execute(queryTracker)
 
     queryTracker

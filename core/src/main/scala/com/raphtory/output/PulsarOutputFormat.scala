@@ -2,7 +2,6 @@ package com.raphtory.output
 
 import com.raphtory.algorithms.api.OutputFormat
 import com.raphtory.algorithms.api.Row
-import com.raphtory.config.PulsarController
 import com.raphtory.time.Interval
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
