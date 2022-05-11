@@ -21,6 +21,7 @@ def setup(app: Sphinx):
     """Sphinx entrypoint"""
 
     app.add_role("s", scala_inline_code)
+    app.add_role("scaladoc", scaladoc_link)
     app.add_config_value("raphtory_src_root", "", 'env', [str])
     app.add_config_value("autodoc_packages", [], 'env', [list[str]])
     app.add_config_value("raphtory_root", "", 'env', [str])
@@ -33,22 +34,25 @@ def setup(app: Sphinx):
     }
 
 
-def compile_move_scaladoc(config, doc_root):
+def compile_move_scaladoc(config, source_dir):
     scalabuild_root = Path(config.raphtory_root) / "core" / "target"
-    scaladoc_root = Path(config.raphtory_root) / "core" / "target" / "scala-2.13" / "api"
+    scaladoc_root = scalabuild_root / "scala-2.13" / "api"
+    source_dir_scaladoc = source_dir / "_scaladoc"
     # clean up old files
     shutil.rmtree(scalabuild_root, ignore_errors=True)
     # Use SBT to build the scala docs, this is blocking
     process_call = subprocess.call(['sbt', 'core/doc'], cwd=config.raphtory_root)
     if process_call == 0:
+        shutil.rmtree(source_dir_scaladoc, ignore_errors=True)
         # Move the scala docs to a custom folder
-        shutil.move(scaladoc_root, doc_root / "com" / "raphtory")
+        shutil.move(scaladoc_root, source_dir_scaladoc )
     # clean up folder
     shutil.rmtree(scalabuild_root, ignore_errors=True)
 
 
 def handle_config_init(app: Sphinx, config: Config):
-    doc_root = Path(app.srcdir) / "_autodoc"
+    source_root = Path(app.srcdir)
+    doc_root = source_root / "_autodoc"
     scala_src_root = config.raphtory_src_root
 
     if scala_src_root:
@@ -59,10 +63,10 @@ def handle_config_init(app: Sphinx, config: Config):
             rel_path = Path(*package.split('.'))
             src_root = scala_src_root / rel_path
 
-            # write_index(doc_root / rel_path, package, package)
-            # discover_files(doc_root / rel_path, src_root, scala_src_root)
-        compile_move_scaladoc(config, doc_root)
-
+            write_index(doc_root / rel_path, package, package)
+            discover_files(doc_root / rel_path, src_root, scala_src_root)
+        # build scala doc
+        compile_move_scaladoc(config, source_root)
 
 def discover_files(doc_root: Path, scala_root: Path, base_path: Path):
     """Recursively search for files to include and copy doc strings"""
@@ -82,6 +86,7 @@ def discover_files(doc_root: Path, scala_root: Path, base_path: Path):
             names_used = set()
             for docstr, name in docstrs:
                 if name in names_used:
+                    # continue
                     raise RuntimeError(f"Documentation for {'.'.join(rel_path.parts[:-1])}.{name} already exists")
                 with open((doc_root / f"{name}.md"), 'w') as f:
                     f.write(docstr)
@@ -214,4 +219,8 @@ def scala_inline_code(role, rawtext, text, lineno, inliner, options={}, content=
             # insert as Text to decrease the verbosity of the output
             node += nodes.Text(value, value)
 
+    return [node], []
+
+def scaladoc_link(role, rawtext, text, lineno, inliner, options={}, content=[]):
+    node = nodes.Text('<a href="http://www.google.com"> com.raphtory.algorithms.api.GraphAlgorithm </a>')
     return [node], []

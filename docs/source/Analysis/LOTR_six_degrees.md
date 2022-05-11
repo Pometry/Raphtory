@@ -12,7 +12,7 @@ This example can be found in this [repository](https://github.com/Raphtory/Examp
 
 ## Algorithm
 
-The class we are creating extends [{s}`GraphAlgorithm`](com.raphtory.algorithms.api.GraphAlgorithm) with the type of 
+The class we are creating extends {scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm` with the type of 
 the data the algorithm is to return, in this case:
 
 ```scala
