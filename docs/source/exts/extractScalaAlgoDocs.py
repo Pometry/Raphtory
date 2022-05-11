@@ -42,10 +42,13 @@ def compile_move_scaladoc(config, source_dir):
     shutil.rmtree(scalabuild_root, ignore_errors=True)
     # Use SBT to build the scala docs, this is blocking
     process_call = subprocess.call(['sbt', 'core/doc'], cwd=config.raphtory_root)
+    if process_call != 0:
+        shutil.rmtree(scalabuild_root, ignore_errors=True)
+        raise RuntimeError(f"sbt failed to build docs, error code: {process_call}")
     if process_call == 0:
         shutil.rmtree(source_dir_scaladoc, ignore_errors=True)
         # Move the scala docs to a custom folder
-        shutil.move(scaladoc_root, source_dir_scaladoc )
+        shutil.move(scaladoc_root, source_dir_scaladoc)
     # clean up folder
     shutil.rmtree(scalabuild_root, ignore_errors=True)
 

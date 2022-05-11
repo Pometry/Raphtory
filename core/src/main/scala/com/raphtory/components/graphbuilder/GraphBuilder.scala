@@ -12,7 +12,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /** trait for creating a Graph by adding and deleting vertices and edges.
-  * @tpram  data type returned by the [`Spout`](com.raphtory.components.spout.Spout) to be processed by the `GraphBuilder`
   *
   * An implementation of `GraphBuilder` needs to override `parseTuple(tuple: T)` to define parsing of input data.
   * The input data is generated using a [`Spout`](com.raphtory.components.spout.Spout) and passed to the

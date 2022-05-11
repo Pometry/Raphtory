@@ -24,7 +24,7 @@ lazy val core = (project in file("core"))
           name := "core",
           version := "0.5",
           assembly / test := {},
-          Compile / doc / scalacOptions := Seq("-private"),
+          Compile / doc / scalacOptions := Seq("-skip-packages", "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal", "-private"),
           assemblySettings,
           defaultSettings,
           libraryDependencies ++= Seq(
@@ -198,3 +198,6 @@ Test / parallelExecution := false
 Global / concurrentRestrictions := Seq(
         Tags.limit(Tags.Test, 1)
 )
+
+// Scaladocs parameters
+// doc / scalacOptions ++= Seq("-skip-packages", "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal", "-private")

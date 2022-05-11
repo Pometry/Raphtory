@@ -35,8 +35,11 @@ abstract class GraphState {
 
   /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String): Unit
+  /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String, initialValue: T): Unit
+  /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String, retainState: Boolean): Unit
+  /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
   /** Create a new accumulator that tracks the maximum value */

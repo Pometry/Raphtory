@@ -109,7 +109,7 @@ class GraphStateImplementation extends GraphState {
     state(name) = AccumulatorImplementation[T](numeric.one, retainState, numeric.times)
       .asInstanceOf[AccumulatorImplementation[Any]]
 
-  /** @inheritdoc */
+  /** Create a new accumulator that multiplies values */
   override def newMultiplier[T](name: String, initialValue: T, retainState: Boolean)(implicit
       numeric: Numeric[T]
   ): Unit =
@@ -174,7 +174,6 @@ class GraphStateImplementation extends GraphState {
     state(name) = AccumulatorImplementation[T](initialValue, retainState = retainState, numeric.min)
       .asInstanceOf[AccumulatorImplementation[Any]]
 
-  /** @inheritdoc */
   override def newAll(name: String, retainState: Boolean): Unit =
     state(name) = AccumulatorImplementation[Boolean](true, retainState, _ && _)
       .asInstanceOf[AccumulatorImplementation[Any]]
