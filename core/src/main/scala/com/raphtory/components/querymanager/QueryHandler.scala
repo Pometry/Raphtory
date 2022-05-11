@@ -24,15 +24,17 @@ import com.raphtory.algorithms.api.Setup
 import com.raphtory.algorithms.api.Step
 import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFunction
+import com.raphtory.communication.TopicRepository
+import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.Component
-import com.raphtory.config.PulsarController
+import com.raphtory.config.Scheduler
 import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.config.telemetry.QueryTelemetry
 import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.graph.Perspective
 import com.raphtory.graph.PerspectiveController
+import com.raphtory.serialisers.KryoSerialiser
 import com.typesafe.config.Config
-import monix.execution.Scheduler
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
@@ -41,6 +43,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
 /** @note DoNotDocument */
@@ -50,15 +53,19 @@ class QueryHandler(
     jobID: String,
     query: Query,
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
+    topics: TopicRepository
+) extends Component[QueryManagement](conf) {
+  private val self       = topics.rechecks(jobID).endPoint
+  private val readers    = topics.queryPrep.endPoint
+  private val tracker    = topics.queryTrack(jobID).endPoint
+  private val workerList = topics.jobOperations(jobID).endPoint
 
-  private val self: Producer[Array[Byte]]    = pulsarController.toQueryHandlerProducer(jobID)
-  private val readers: Producer[Array[Byte]] = pulsarController.toReaderProducer
-  private val tracker: Producer[Array[Byte]] = pulsarController.toQueryTrackerProducer(jobID)
-
-  private val workerList: Map[Int, Producer[Array[Byte]]] =
-    pulsarController.toQueryExecutorProducers(jobID)
+  private val listener =
+    topics.registerListener(
+            s"$deploymentID-$jobID-query-handler",
+            handleMessage,
+            Seq(topics.rechecks(jobID), topics.jobStatus(jobID))
+    )
 
   private var perspectiveController: PerspectiveController = _
   private var graphFunctions: mutable.Queue[GraphFunction] = _
@@ -80,53 +87,22 @@ class QueryHandler(
 
   private var currentState: Stage = SpawnExecutors
 
-  val totalPerspectivesProcessed =
-    QueryTelemetry.totalPerspectivesProcessed(s"jobID_${jobID}_deploymentID_$deploymentID")
-
-  val totalGraphOperations =
-    QueryTelemetry.totalGraphOperations(s"jobID_${jobID}_deploymentID_$deploymentID")
-
-  val totalTableOperations =
-    QueryTelemetry.totalTableOperations(s"jobID_${jobID}_deploymentID_$deploymentID")
-
-  val totalReceivedMessageCount =
-    QueryTelemetry.receivedMessageCount(s"jobID_${jobID}_deploymentID_$deploymentID")
-
-  val totalSentMessageCount =
-    QueryTelemetry.sentMessageCount(s"jobID_${jobID}_deploymentID_$deploymentID")
-
-  private val recheckTimer = new Runnable {
-    override def run(): Unit = self sendAsync serialise(RecheckTime)
-  }
-
-  private val recheckEarliestTimer = new Runnable {
-    override def run(): Unit = self sendAsync serialise(RecheckEarliestTime)
-  }
-
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  private def recheckTimer(): Unit         = self sendAsync RecheckTime
+  private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
   override def run(): Unit = {
     messageReader(EstablishExecutor(jobID))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
-
-    cancelableConsumer = Some(
-            pulsarController.startQueryHandlerConsumer(jobID, messageListener())
-    )
-
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
+    listener.start()
   }
 
   override def stop(): Unit = {
-    cancelableConsumer match {
-      case Some(value) =>
-        value.unsubscribe()
-        value.close()
-      case None        =>
-    }
+    listener.close()
     self.close()
     readers.close()
     tracker.close()
-    workerList.foreach(_._2.close())
+    workerList.close()
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
@@ -181,6 +157,7 @@ class QueryHandler(
         readyCount += 1
         if (readyCount == totalPartitions) {
           readyCount = 0
+          telemetry.graphSizeCollector.labels(jobID).set(vertexCount)
           messagetoAllJobWorkers(SetMetaData(vertexCount))
           val establishingPerspectiveTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(
@@ -192,7 +169,7 @@ class QueryHandler(
 
       case MetaDataSet               =>
         if (readyCount + 1 == totalPartitions) {
-          self sendAsync serialise(StartGraph)
+          self sendAsync StartGraph
           readyCount = 0
           receivedMessageCount = 0
           sentMessageCount = 0
@@ -251,9 +228,9 @@ class QueryHandler(
       votedToHalt: Boolean
   ) = {
     sentMessageCount += sentMessages
-    totalSentMessageCount.inc(sentMessages)
+    telemetry.totalSentMessageCount.labels(jobID, deploymentID).inc(sentMessages)
     receivedMessageCount += receivedMessages
-    totalReceivedMessageCount.inc(receivedMessages)
+    telemetry.receivedMessageCountCollector.labels(jobID, deploymentID).inc(receivedMessages)
     allVoteToHalt = votedToHalt & allVoteToHalt
     readyCount += 1
     logger.debug(
@@ -272,30 +249,30 @@ class QueryHandler(
         logger.debug(
                 s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
         )
-        if (checkingMessages) {
-          logger.debug(s"Check messages called twice, num_workers=${workerList.size}.")
-          workerList.foreach {
-            case (pID, worker) =>
-              val topic       = worker.getTopic
-              logger.debug(s"Checking messages for topic $topic")
-              val consumer    =
-                pulsarController.createExclusiveConsumer("dumping", Schema.BYTES, topic)
-              var has_message = true
-              while (has_message) {
-                val msg =
-                  consumer.receive(
-                          10,
-                          TimeUnit.SECONDS
-                  ) // add some timeout to see if new messages come in
-                if (msg == null)
-                  has_message = false
-                else {
-                  val message = deserialise[QueryManagement](msg.getValue)
-                  consumer.acknowledge(msg)
-                  msg.release()
-                  logger.debug(s"Partition $pID has message $message")
-                }
-              }
+        if (checkingMessages && topics.jobOperationsConnector.isInstanceOf[PulsarConnector]) { // TODO: clean up later this section
+          logger.debug(s"Check messages called twice")
+
+          val pulsarConnector = topics.jobOperationsConnector.asInstanceOf[PulsarConnector]
+          val pulsarEndPoint  =
+            workerList.asInstanceOf[pulsarConnector.PulsarEndPoint[QueryManagement]]
+          val topic           = pulsarEndPoint.producer.getTopic
+          logger.debug(s"Checking messages for topic $topic")
+          val consumer        = pulsarConnector.createExclusiveConsumer("dumping", Schema.BYTES, topic)
+          var has_message     = true
+          while (has_message) {
+            val msg =
+              consumer.receive(
+                      10,
+                      TimeUnit.SECONDS
+              ) // add some timeout to see if new messages come in
+            if (msg == null)
+              has_message = false
+            else {
+              val message = KryoSerialiser().deserialise[QueryManagement](msg.getValue)
+              consumer.acknowledge(msg)
+              msg.release()
+              logger.debug(s"Read message $message")
+            }
           }
           throw new RuntimeException("Message check called twice")
         }
@@ -322,7 +299,7 @@ class QueryHandler(
                   s"Job '$jobID': Table Built in ${tableBuiltTimeTaken}ms Executing next table operation."
           )
           timeTaken = System.currentTimeMillis()
-          totalTableOperations.inc()
+          telemetry.totalTableOperations.labels(jobID, deploymentID).inc()
           nextTableOperation()
         }
         else
@@ -336,7 +313,7 @@ class QueryHandler(
                   s"Job '$jobID': Table Function complete in ${tableFuncTimeTaken}ms. Running next table operation."
           )
           timeTaken = System.currentTimeMillis()
-          totalTableOperations.inc()
+          telemetry.totalTableOperations.labels(jobID, deploymentID).inc()
           nextTableOperation()
         }
         else {
@@ -352,11 +329,11 @@ class QueryHandler(
   private def safelyStartPerspectives(): Stage =
     getOptionalEarliestTime() match {
       case None               =>
-        scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckEarliestTimer)
+        scheduler.scheduleOnce(1.seconds, recheckEarliestTimer)
         Stages.SpawnExecutors
       case Some(earliestTime) =>
         if (earliestTime > getLatestTime()) {
-          scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckEarliestTimer)
+          scheduler.scheduleOnce(1.seconds, recheckEarliestTimer)
           Stages.SpawnExecutors
         }
         else {
@@ -372,9 +349,9 @@ class QueryHandler(
   private def executeNextPerspective(): Stage = {
     val latestTime = getLatestTime()
     val oldestTime = getOptionalEarliestTime()
-    totalPerspectivesProcessed.inc()
+    telemetry.totalPerspectivesProcessed.labels(jobID, deploymentID).inc()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
-      tracker.sendAsync(serialise(currentPerspective))
+      tracker sendAsync currentPerspective
     perspectiveController.nextPerspective() match {
       case Some(perspective)
           if perspective.actualEnd <= latestTime && oldestTime
@@ -399,7 +376,7 @@ class QueryHandler(
         currentPerspective = perspective
         graphFunctions = null
         tableFunctions = null
-        scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckTimer)
+        scheduler.scheduleOnce(1.seconds, recheckTimer)
 
         Stages.EstablishPerspective
       case None              =>
@@ -437,7 +414,7 @@ class QueryHandler(
     }
     else {
       logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
-      scheduler.scheduleOnce(1, TimeUnit.SECONDS, recheckTimer)
+      scheduler.scheduleOnce(1.seconds, recheckTimer)
       Stages.EstablishPerspective
     }
   }
@@ -448,7 +425,7 @@ class QueryHandler(
     receivedMessageCount = 0
     sentMessageCount = 0
     checkingMessages = false
-    totalGraphOperations.inc()
+    telemetry.totalGraphOperations.labels(jobID, deploymentID).inc()
 
     currentOperation match {
       case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
@@ -550,29 +527,22 @@ class QueryHandler(
     }
 
   private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
-    workerList.values.foreach(worker => worker sendAsync serialise(msg))
+    workerList sendAsync msg
 
   private def messageReader(msg: QueryManagement): Unit =
-    readers sendAsync serialise(msg)
+    readers sendAsync msg
 
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
-    workerList.values.foreach(producer =>
-      producer.flushAsync().thenApply(_ => producer.closeAsync())
-    )
+    workerList.close()
     messageReader(EndQuery(jobID))
-    readers.flushAsync().thenApply(_ => readers.closeAsync())
+    readers.close()
 
-    val queryManagerProducer = pulsarController.toQueryManagerProducer
-    queryManagerProducer
-      .sendAsync(serialise(EndQuery(jobID)))
-      .thenApply(_ => queryManagerProducer.closeAsync())
+    val queryManager = topics.completedQueries.endPoint
+    queryManager closeWithMessage EndQuery(jobID)
     logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
 
-    tracker
-      .flushAsync()
-      .thenApply(_ => tracker.sendAsync(serialise(JobDone)).thenApply(_ => tracker.closeAsync()))
-
+    tracker closeWithMessage JobDone
   }
 
   private def getNextGraphOperation(queue: mutable.Queue[GraphFunction]) =

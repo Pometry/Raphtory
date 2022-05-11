@@ -6,6 +6,7 @@ import com.twitter.chill.ScalaKryoInstantiator
 import scala.reflect.runtime.universe._
 
 /** Support serialisation and deserialisation using ScalaKryoInstantiator from twitter.chill package
+  *
   * Usage:
   *
   * {{{
@@ -14,7 +15,7 @@ import scala.reflect.runtime.universe._
   * import org.apache.pulsar.client.api.Schema
   *
   * val schema: Schema[Array[Byte]] = Schema.BYTES
-  * val kryo = PulsarKryoSerialiser()
+  * val kryo = KryoSerialiser()
   *
   * val pulsarController = new PulsarController(config)
   * val client         = pulsarController.accessClient
@@ -25,7 +26,7 @@ import scala.reflect.runtime.universe._
   *
   * @see [[com.raphtory.client.RaphtoryClient]]
   */
-class PulsarKryoSerialiser {
+class KryoSerialiser {
   private val kryo = ScalaKryoInstantiator.defaultPool
 
   /** serialise value to byte array
@@ -38,8 +39,8 @@ class PulsarKryoSerialiser {
     kryo.fromBytes(bytes).asInstanceOf[T]
 }
 
-object PulsarKryoSerialiser {
+object KryoSerialiser {
 
-  def apply(): PulsarKryoSerialiser =
-    new PulsarKryoSerialiser()
+  def apply(): KryoSerialiser =
+    new KryoSerialiser()
 }

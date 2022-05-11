@@ -1,29 +1,12 @@
 package com.raphtory.components.partition
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
-import com.raphtory.components.graphbuilder.EdgeAdd
-import com.raphtory.components.graphbuilder.EdgeDelete
-import com.raphtory.components.graphbuilder.EdgeSyncAck
-import com.raphtory.components.graphbuilder.GraphAlteration
-import com.raphtory.components.graphbuilder.GraphUpdate
-import com.raphtory.components.graphbuilder.InboundEdgeRemovalViaVertex
-import com.raphtory.components.graphbuilder.OutboundEdgeRemovalViaVertex
-import com.raphtory.components.graphbuilder.SyncExistingEdgeAdd
-import com.raphtory.components.graphbuilder.SyncExistingEdgeRemoval
-import com.raphtory.components.graphbuilder.SyncExistingRemovals
-import com.raphtory.components.graphbuilder.SyncNewEdgeAdd
-import com.raphtory.components.graphbuilder.SyncNewEdgeRemoval
-import com.raphtory.components.graphbuilder.VertexAdd
-import com.raphtory.components.graphbuilder.VertexDelete
-import com.raphtory.components.graphbuilder.VertexRemoveSyncAck
-import com.raphtory.config.PulsarController
-import com.raphtory.config.telemetry.PartitionTelemetry
+import com.raphtory.components.graphbuilder._
 import com.raphtory.graph._
 import com.typesafe.config.Config
-import org.apache.pulsar.client.admin.PulsarAdminException
+import io.prometheus.client.Counter
 import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
-import org.apache.pulsar.client.api.Schema
 
 import java.util.Calendar
 import scala.collection.mutable
@@ -34,59 +17,25 @@ class StreamWriter(
     partitionID: Int,
     storage: GraphPartition,
     conf: Config,
-    pulsarController: PulsarController
-) extends Component[GraphAlteration](conf: Config, pulsarController: PulsarController) {
+    topics: TopicRepository
+) extends Component[GraphAlteration](conf) {
+  private val neighbours = topics.graphSync.endPoint
 
-  private val neighbours        = pulsarController.writerSyncProducers()
+  private val listener          =
+    topics.registerListener(
+            s"$deploymentID-writer-$partitionID",
+            handleMessage,
+            Seq(topics.graphUpdates, topics.graphSync),
+            partitionID
+    )
   private var processedMessages = 0
 
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
-
-  val streamWriterVertexDeletions =
-    PartitionTelemetry.streamWriterVertexDeletions(
-            s"partitionID_${partitionID}_deploymentID_$deploymentID"
-    )
-
-  val streamWriterEdgeDeletions =
-    PartitionTelemetry.streamWriterEdgeDeletions(
-            s"partitionID_${partitionID}_deploymentID_$deploymentID"
-    )
-
-  val streamWriterVertexAdditions =
-    PartitionTelemetry.streamWriterVertexAdditions(
-            s"partitionID_${partitionID}_deploymentID_$deploymentID"
-    )
-
-  val streamWriterEdgeAdditions =
-    PartitionTelemetry.streamWriterEdgeAdditions(
-            s"partitionID_${partitionID}_deploymentID_$deploymentID"
-    )
-
-  val streamWriterGraphUpdates =
-    PartitionTelemetry.streamWriterGraphUpdates(
-            s"partitionID_${partitionID}_deploymentID_$deploymentID"
-    )
-
-  val totalSyncedStreamWriterUpdates =
-    PartitionTelemetry.totalSyncedStreamWriterUpdates(
-            s"partitionID_${partitionID}_deploymentID_$deploymentID"
-    )
-
   override def run(): Unit =
-    cancelableConsumer = Some(
-            pulsarController
-              .startPartitionConsumer(partitionID, messageListener())
-    )
+    listener.start()
 
   override def stop(): Unit = {
-
-    cancelableConsumer match {
-      case Some(value) =>
-        value.unsubscribe()
-        value.close()
-      case None        =>
-    }
-    neighbours.foreach(_._2.close())
+    neighbours.values.foreach(_.close())
+    listener.close()
   }
 
   override def handleMessage(msg: GraphAlteration): Unit = {
@@ -152,7 +101,10 @@ class StreamWriter(
 
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
-    streamWriterVertexAdditions.inc()
+    telemetry.vertexAddCollector
+      .labels(partitionID.toString, deploymentID)
+      .inc()
+
   }
 
   def processEdgeAdd(update: EdgeAdd): Unit = {
@@ -167,11 +119,11 @@ class StreamWriter(
             update.eType
     ) match {
       case Some(value) =>
-        neighbours(getWriter(value.updateId)).sendAsync(serialise(value))
+        neighbours(getWriter(value.updateId)) sendAsync value
         storage.trackEdgeAddition(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
-    streamWriterEdgeAdditions.inc()
+    telemetry.streamWriterEdgeAdditionsCollector.labels(partitionID.toString, deploymentID).inc()
   }
 
   def processEdgeDelete(update: EdgeDelete): Unit = {
@@ -180,11 +132,11 @@ class StreamWriter(
     storage.timings(update.updateTime)
     storage.removeEdge(update.updateTime, update.srcId, update.dstId) match {
       case Some(value) =>
-        neighbours(getWriter(value.updateId)).sendAsync(serialise(value))
+        neighbours(getWriter(value.updateId)) sendAsync value
         storage.trackEdgeDeletion(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
-    streamWriterEdgeDeletions.inc()
+    telemetry.streamWriterEdgeDeletionsCollector.labels(partitionID.toString, deploymentID).inc()
   }
 
   def processVertexDelete(update: VertexDelete): Unit = {
@@ -192,12 +144,12 @@ class StreamWriter(
 
     val edgeRemovals = storage.removeVertex(update.updateTime, update.srcId)
     if (edgeRemovals.nonEmpty) {
-      edgeRemovals.foreach(effect =>
-        neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
-      )
+      edgeRemovals.foreach(effect => neighbours(getWriter(effect.updateId)) sendAsync effect)
       storage.trackVertexDeletion(update.updateTime, update.srcId, edgeRemovals.size)
     }
-    streamWriterVertexDeletions.inc()
+    telemetry.streamWriterVertexDeletionsCollector
+      .labels(partitionID.toString, deploymentID)
+      .inc()
   }
 
   // Graph Effects for syncing edge adds
@@ -207,8 +159,8 @@ class StreamWriter(
     storage.timings(req.msgTime)
     val effect = storage
       .syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
-    totalSyncedStreamWriterUpdates.inc()
+    neighbours(getWriter(effect.updateId)) sendAsync effect
+    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
   def processSyncExistingEdgeAdd(req: SyncExistingEdgeAdd): Unit = {
@@ -218,8 +170,8 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
-    totalSyncedStreamWriterUpdates.inc()
+    neighbours(getWriter(effect.updateId)) sendAsync effect
+    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
   // Graph Effects for syncing edge deletions
@@ -230,8 +182,8 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
-    totalSyncedStreamWriterUpdates.inc()
+    neighbours(getWriter(effect.updateId)) sendAsync effect
+    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
   def processSyncExistingEdgeRemoval(req: SyncExistingEdgeRemoval): Unit = {
@@ -241,8 +193,8 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.syncExistingEdgeRemoval(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
-    totalSyncedStreamWriterUpdates.inc()
+    neighbours(getWriter(effect.updateId)) sendAsync effect
+    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
   // Graph Effects for syncing vertex deletions
@@ -253,8 +205,8 @@ class StreamWriter(
 
     storage.timings(req.msgTime)
     val effect = storage.outboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
-    totalSyncedStreamWriterUpdates.inc()
+    neighbours(getWriter(effect.updateId)) sendAsync effect
+    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
   def processInboundEdgeRemovalViaVertex(req: InboundEdgeRemovalViaVertex): Unit = { //remote worker same as above
@@ -263,8 +215,8 @@ class StreamWriter(
     )
 
     val effect = storage.inboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
-    neighbours(getWriter(effect.updateId)).sendAsync(serialise(effect))
-    totalSyncedStreamWriterUpdates.inc()
+    neighbours(getWriter(effect.updateId)) sendAsync effect
+    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
   // Responses from the secondary server
@@ -275,7 +227,7 @@ class StreamWriter(
 
     storage.syncExistingRemovals(req.msgTime, req.srcId, req.dstId, req.removals)
     untrackEdgeUpdate(req.msgTime, req.srcId, req.dstId, req.fromAddition)
-    totalSyncedStreamWriterUpdates.inc()
+    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
   def processEdgeSyncAck(req: EdgeSyncAck): Unit = {
@@ -289,7 +241,7 @@ class StreamWriter(
             req.dstId,
             req.fromAddition
     ) //when the edge isn't new we will get this response instead
-    totalSyncedStreamWriterUpdates.inc()
+    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
   private def untrackEdgeUpdate(msgTime: Long, srcId: Long, dstId: Long, fromAddition: Boolean) =
@@ -304,14 +256,14 @@ class StreamWriter(
     )
 
     storage.untrackVertexDeletion(req.msgTime, req.updateId)
-    totalSyncedStreamWriterUpdates.inc()
+    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
   private def dedupe(): Unit = storage.deduplicate()
 
   def handleUpdateCount() = {
     processedMessages += 1
-    streamWriterGraphUpdates.inc()
+    telemetry.streamWriterGraphUpdatesCollector.labels(partitionID.toString, deploymentID).inc()
 
     // TODO Should this be externalised?
     //  Do we need it now that we have progress tracker?

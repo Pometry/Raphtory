@@ -4,8 +4,8 @@ import com.raphtory.components.partition.BatchWriter
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
 import org.slf4j.LoggerFactory
-
 import Properties._
+import com.raphtory.config.telemetry.ComponentTelemetryHandler
 import io.prometheus.client.Counter
 
 import scala.collection.mutable
@@ -47,10 +47,6 @@ trait GraphBuilder[T] extends Serializable {
   private var batchWriters: mutable.Map[Int, BatchWriter[T]] = _
   private var builderID: Int                                 = _
   private var deploymentID: String                           = _
-  private var vertexAddCounter: Counter                      = _
-  private var vertexDeleteCounter: Counter                   = _
-  private var edgeAddCounter: Counter                        = _
-  private var edgeDeleteCounter: Counter                     = _
   private var batching: Boolean                              = false
   private var totalPartitions: Int                           = 1
 
@@ -98,18 +94,10 @@ trait GraphBuilder[T] extends Serializable {
 
   private[raphtory] def setBuilderMetaData(
       builderID: Int,
-      deploymentID: String,
-      vertexAddCounter: Counter,
-      vertexDeleteCounter: Counter,
-      edgeAddCounter: Counter,
-      edgeDeleteCounter: Counter
+      deploymentID: String
   ) = {
     this.builderID = builderID
     this.deploymentID = deploymentID
-    this.vertexAddCounter = vertexAddCounter
-    this.vertexDeleteCounter = vertexDeleteCounter
-    this.edgeAddCounter = edgeAddCounter
-    this.edgeDeleteCounter = edgeDeleteCounter
   }
 
   private[raphtory] def setupBatchIngestion(
@@ -131,7 +119,7 @@ trait GraphBuilder[T] extends Serializable {
   protected def addVertex(updateTime: Long, srcId: Long): Unit = {
     val update = VertexAdd(updateTime, srcId, Properties(), None)
     handleVertexAdd(update)
-    vertexAddCounter.inc()
+    ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
   }
 
   /** Add a new vertex to the graph or update existing vertex
@@ -144,7 +132,7 @@ trait GraphBuilder[T] extends Serializable {
   protected def addVertex(updateTime: Long, srcId: Long, properties: Properties): Unit = {
     val update = VertexAdd(updateTime, srcId, properties, None)
     handleVertexAdd(update)
-    vertexAddCounter.inc()
+    ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
   }
 
    /** Add a new vertex to the graph or update existing vertex
@@ -156,7 +144,7 @@ trait GraphBuilder[T] extends Serializable {
   protected def addVertex(updateTime: Long, srcId: Long, vertexType: Type): Unit = {
     val update = VertexAdd(updateTime, srcId, Properties(), Some(vertexType))
     handleVertexAdd(update)
-    vertexAddCounter.inc()
+    ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
   }
 
   /** Add a new vertex to the graph or update existing vertex
@@ -175,7 +163,7 @@ trait GraphBuilder[T] extends Serializable {
   ): Unit = {
     val update = VertexAdd(updateTime, srcId, properties, Some(vertexType))
     handleVertexAdd(update)
-    vertexAddCounter.inc()
+    ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
   }
 
   /** mark vertex as deleted
@@ -184,7 +172,7 @@ trait GraphBuilder[T] extends Serializable {
     */
   protected def deleteVertex(updateTime: Long, srcId: Long): Unit = {
     updates += VertexDelete(updateTime, srcId)
-    vertexDeleteCounter.inc()
+    ComponentTelemetryHandler.vertexDeleteCounter.labels(deploymentID).inc()
   }
 
   /** Add a new edge to the graph or update an existing edge
@@ -195,7 +183,7 @@ trait GraphBuilder[T] extends Serializable {
   protected def addEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, Properties(), None)
     handleEdgeAdd(update)
-    edgeAddCounter.inc()
+    ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
   }
 
   /** Add a new edge to the graph or update an existing edge
@@ -214,7 +202,7 @@ trait GraphBuilder[T] extends Serializable {
   ): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, properties, None)
     handleEdgeAdd(update)
-    edgeAddCounter.inc()
+    ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
   }
 
   /** Add a new edge to the graph or update an existing edge
@@ -226,7 +214,7 @@ trait GraphBuilder[T] extends Serializable {
   protected def addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, Properties(), Some(edgeType))
     handleEdgeAdd(update)
-    edgeAddCounter.inc()
+    ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
   }
 
   /** Add a new edge to the graph or update an existing edge
@@ -246,7 +234,7 @@ trait GraphBuilder[T] extends Serializable {
   ): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, properties, Some(edgeType))
     handleEdgeAdd(update)
-    edgeAddCounter.inc()
+    ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
   }
 
   /** Mark edge as deleted
@@ -256,7 +244,7 @@ trait GraphBuilder[T] extends Serializable {
     * */
   protected def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
     updates += EdgeDelete(updateTime, srcId, dstId)
-    edgeDeleteCounter.inc()
+    ComponentTelemetryHandler.edgeDeleteCounter.labels(deploymentID).inc()
   }
 
   private def handleVertexAdd(update: VertexAdd) =

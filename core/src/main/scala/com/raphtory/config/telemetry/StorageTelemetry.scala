@@ -1,6 +1,8 @@
 package com.raphtory.config.telemetry
 
 import com.raphtory.config.ConfigHandler
+import com.raphtory.deployment.Raphtory
+import com.typesafe.config.Config
 import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
 
@@ -10,13 +12,14 @@ import io.prometheus.client.Gauge
   */
 object StorageTelemetry {
 
-  val conf = new ConfigHandler().getConfig
+  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
-  def pojoLensGraphSize(ID: String): Gauge =
+  def pojoLensGraphSize(): Gauge =
     Gauge.build
-      .namespace(conf.getString("raphtory.prometheus.namespaces.storage"))
-      .name(s"pojo_lens_graph_size_$ID")
+      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.storage"))
+      .name("pojo_lens_graph_size")
       .help("Total graph size for Graph Lens")
+      .labelNames("jobID")
       .register
 
 }

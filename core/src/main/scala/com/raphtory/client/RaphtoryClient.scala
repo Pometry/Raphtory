@@ -8,8 +8,6 @@ import com.raphtory.components.Component
 import com.raphtory.components.querymanager.Query
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.config.ComponentFactory
-import com.raphtory.config.PulsarController
-import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -81,10 +79,10 @@ private[raphtory] class RaphtoryClient(
     * @return a tracker tied to the job status
     * */
   def pointQuery(
-                  graphAlgorithm: GraphAlgorithm,
-                  outputFormat: OutputFormat,
-                  timestamp: Long
-                ): QueryProgressTracker = pointQuery(graphAlgorithm, outputFormat, timestamp,  List())
+      graphAlgorithm: GraphAlgorithm,
+      outputFormat: OutputFormat,
+      timestamp: Long
+  ): QueryProgressTracker = pointQuery(graphAlgorithm, outputFormat, timestamp, List())
 
   /** Queries for a range of timestamps, returns [`QueryProgressTracker`](com.raphtory.components.querytracker.QueryProgressTracker)
     * @param graphAlgorithm  Graph algorithm to use for query

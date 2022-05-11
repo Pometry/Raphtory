@@ -1,11 +1,11 @@
 package com.raphtory.components.querymanager
 
+import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
-import com.raphtory.config.PulsarController
+import com.raphtory.config.Scheduler
 import com.raphtory.config.telemetry.QueryTelemetry
 import com.typesafe.config.Config
 import io.prometheus.client.Counter
-import monix.execution.Scheduler
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
@@ -14,32 +14,28 @@ import org.apache.pulsar.client.api.Schema
 import scala.collection.mutable
 
 /** @note DoNotDocument */
-class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarController)
-        extends Component[QueryManagement](conf: Config, pulsarController: PulsarController) {
-  private val currentQueries                            = mutable.Map[String, QueryHandler]()
-  private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher()
-  private val watermarks                                = mutable.Map[Int, WatermarkTime]()
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
+        extends Component[QueryManagement](conf) {
+  private val currentQueries = mutable.Map[String, QueryHandler]()
+  //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
+  private val watermarks     = mutable.Map[Int, WatermarkTime]()
 
-  val globalWatermarkMin  = QueryTelemetry.globalWatermarkMin(deploymentID)
-  val globalWatermarkMax  = QueryTelemetry.globalWatermarkMax(deploymentID)
-  val totalQueriesSpawned = QueryTelemetry.totalQueriesSpawned(deploymentID)
+  private val listener = topics
+    .registerListener(
+            s"$deploymentID-query-manager",
+            handleMessage,
+            Seq(topics.submissions, topics.watermark, topics.completedQueries)
+    )
 
   override def run(): Unit = {
     logger.debug("Starting Query Manager Consumer.")
-
-    cancelableConsumer = Some(pulsarController.startQueryManagerConsumer(messageListener()))
+    listener.start()
   }
 
   override def stop(): Unit = {
-    cancelableConsumer match {
-      case Some(value) =>
-        value.unsubscribe()
-        value.close()
-      case None        =>
-    }
+    listener.close()
     currentQueries.foreach(_._2.stop())
-    watermarkGlobal.close()
+    // watermarkGlobal.close() TODO: turn back on when needed
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
@@ -77,10 +73,10 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
             id,
             query,
             conf,
-            pulsarController
+            topics
     )
     scheduler.execute(queryHandler)
-    totalQueriesSpawned.inc()
+    telemetry.totalQueriesSpawned.labels(deploymentID).inc()
     queryHandler
   }
 
@@ -98,13 +94,13 @@ class QueryManager(scheduler: Scheduler, conf: Config, pulsarController: PulsarC
           safe = watermark.safe && safe
           minTime = Math.min(minTime, watermark.endTime)
           maxTime = Math.max(maxTime, watermark.endTime)
-          globalWatermarkMin.set(minTime)
-          globalWatermarkMax.set(maxTime)
+          telemetry.globalWatermarkMin.labels(deploymentID).set(minTime)
+          telemetry.globalWatermarkMax.labels(deploymentID).set(maxTime)
       }
       if (safe) maxTime else minTime
     }
     else 0 // not received a message from each partition yet
-    watermarkGlobal.sendAsync(serialise(watermark))
+    // watermarkGlobal sendAsync watermark TODO: turn back on when needed
     watermark
   }
 

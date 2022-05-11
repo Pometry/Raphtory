@@ -1,12 +1,13 @@
 package com.raphtory.storage.pojograph.messaging
 
+import com.raphtory.communication.EndPoint
+
 import java.util.concurrent.atomic.AtomicInteger
 import com.raphtory.components.querymanager.GenericVertexMessage
-import com.raphtory.components.querymanager.VertexMessageBatch
+import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
 import com.raphtory.config.telemetry.StorageTelemetry
-import com.raphtory.serialisers.PulsarKryoSerialiser
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -20,12 +21,11 @@ import scala.concurrent.Future
 /** @note DoNotDocument */
 class VertexMessageHandler(
     config: Config,
-    producers: Map[Int, Producer[Array[Byte]]],
+    endPoints: Option[Map[Int, EndPoint[QueryManagement]]],
     pojoGraphLens: PojoGraphLens,
     sentMessages: AtomicInteger,
     receivedMessages: AtomicInteger
 ) {
-  private val kryo: PulsarKryoSerialiser = PulsarKryoSerialiser()
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -44,7 +44,7 @@ class VertexMessageHandler(
   logger.debug(s"Setting total partitions to '$totalPartitions'.")
 
   private val messageCache =
-    mutable.Map[Producer[Array[Byte]], mutable.ArrayBuffer[GenericVertexMessage[_]]]()
+    mutable.Map[EndPoint[QueryManagement], mutable.ArrayBuffer[GenericVertexMessage[_]]]()
   refreshBuffers()
 
   def sendMessage(message: GenericVertexMessage[_]): Unit = {
@@ -59,7 +59,7 @@ class VertexMessageHandler(
       receivedMessages.incrementAndGet()
     }
     else { //sending to a remote partition
-      val producer = producers(destinationPartition)
+      val producer = endPoints.get(destinationPartition)
       if (messageBatch) {
         val cache = messageCache(producer)
         cache.synchronized {
@@ -69,15 +69,13 @@ class VertexMessageHandler(
         }
       }
       else
-        producer sendAsync (kryo.serialise(message))
+        producer sendAsync message
     }
 
   }
 
-  def sendCached(readerJobWorker: Producer[Array[Byte]]): Unit = {
-    readerJobWorker sendAsync kryo.serialise(
-            VertexMessageBatch(messageCache(readerJobWorker).toArray)
-    )
+  def sendCached(readerJobWorker: EndPoint[QueryManagement]): Unit = {
+    readerJobWorker sendAsync VertexMessageBatch(messageCache(readerJobWorker).toArray)
     messageCache(readerJobWorker).clear() // synchronisation breaks if we create a new object here
   }
 
@@ -86,17 +84,21 @@ class VertexMessageHandler(
 
     if (messageBatch)
       messageCache.keys.foreach(producer => sendCached(producer))
-    val futures = producers.values.map(_.flushAsync())
-    CompletableFuture.allOf(futures.toSeq: _*)
+    endPoints match {
+      case Some(producers) =>
+        val futures = producers.values.map(_.flushAsync())
+        CompletableFuture.allOf(futures.toSeq: _*)
+      case None            => CompletableFuture.completedFuture(null)
+    }
   }
 
   private def refreshBuffers(): Unit = {
     logger.debug("Refreshing messageCache buffers for all Producers.")
 
-    producers.foreach {
+    endPoints.foreach(_.foreach {
       case (key, producer) =>
         messageCache.put(producer, mutable.ArrayBuffer[GenericVertexMessage[_]]())
-    }
+    })
   }
 
 }
@@ -105,7 +107,7 @@ object VertexMessageHandler {
 
   def apply(
       config: Config,
-      producers: Map[Int, Producer[Array[Byte]]],
+      producers: Option[Map[Int, EndPoint[QueryManagement]]],
       pojoGraphLens: PojoGraphLens,
       sentMessages: AtomicInteger,
       receivedMessages: AtomicInteger
