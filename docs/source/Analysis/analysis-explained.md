@@ -20,8 +20,8 @@ The next sections will explore how algorithms can be written using these vertex 
 The core of the Raphtory algorithm API is the {scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm`
 class which custom algorithms should extend.
 In general, an algorithm has two stages: graph processing and tabularising results. Graph processing is defined
-using the {s}`GraphAlgorithm.apply()` method whereas tabularising results is handled by the
-{s}`GraphAlgorithm.tabularise()` method. Graph information is handled by the
+using the {scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm.apply()` method whereas tabularising results is handled by the
+{scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm.tabularise()` method. Graph information is handled by the
 {scaladoc}`com.raphtory.algorithms.api.GraphPerspective`
 class and tabular data by the {scaladoc}`com.raphtory.algorithms.api.Table` class.
 Rows in a {scaladoc}`com.raphtory.algorithms.api.Table` are manipulated using the
@@ -116,7 +116,7 @@ it can be set here.
 Many algorithms require computing some global properties, e.g., normalisation constants. This is supported in
 Raphtory by using accumulators. The function defining the algorithmic step for both the {s}`step()` and {s}`iterate()`
 method can optionally take a second {scaladoc}`com.raphtory.algorithms.api.GraphState` argument. Before we can
-use the global state, we first have to define some accumulators using the {s}`GraphPerspective.setGlobalState()` method.
+use the global state, we first have to define some accumulators using the {scaladoc}`com.raphtory.algorithms.api.GraphPerspective.setGlobalState()` method.
 The {scaladoc}`com.raphtory.algorithms.api.Accumulator` class has a {s}`+=` operator to add new values to the
 accumulator and a {s}`value` attribute for accessing the last computed value.
 
@@ -140,7 +140,7 @@ graph
 
 Once graph processing is complete, the algorithm proceeds to collect vertex state into tabular form.
 This stage of the algorithm is implemented by overriding the {s}`tabularise()` method of the
-{scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm`] class, i.e.
+{scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm` class, i.e.
 
 ```scala
 override def tabularise(graph: GraphPerspective): Table = {
