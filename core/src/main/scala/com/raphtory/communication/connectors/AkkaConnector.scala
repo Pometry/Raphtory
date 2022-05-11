@@ -73,6 +73,7 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
         context.system.receptionist ! Receptionist.Register(getServiceKey(topic), context.self)
       }
       Behaviors.receiveMessage[Array[Byte]] { message =>
+        logger.trace(s"Processing message by component $id")
         try messageHandler.apply(deserialise(message))
         catch {
           case e: Exception =>
