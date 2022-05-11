@@ -59,9 +59,8 @@ class VertexQuantileFilter[T: Numeric: Bounded: ClassTag](
   override def apply(graph: GraphPerspective): GraphPerspective = {
     // Check inputs are sound
     if (lower < 0.0f || upper > 1.0f || lower > upper) {
-      println("Lower and upper quantiles must be a floats with 0 <= lower < upper <= 1.0")
       logger.error("Lower and upper quantiles must be a floats with 0 <= lower < upper <= 1.0")
-      sys.exit(-1)
+      return graph
     }
 
     // Get minimum and maximum edge weights for histogram creation
@@ -69,71 +68,50 @@ class VertexQuantileFilter[T: Numeric: Bounded: ClassTag](
       .setGlobalState { state =>
         state.newMin("propertyMin", retainState = true)
         state.newMax("propertyMax", retainState = true)
-        state.newHistogram("propertyDist", noBins = noBins, retainState = true)
-        state.newAdder[Int]("nodeCount", retainState = true)
       }
       .step { (vertex, state) =>
         state("propertyMin") += vertex.getState(propertyString, true)
         state("propertyMax") += vertex.getState(propertyString, true)
-        state("nodeCount") += 1
+      }
+      .setGlobalState { state =>
+        val propertyMin = state("propertyMin").value
+        val propertyMax = state("propertyMax").value
+        state.newHistogram[T]("propertyDist", noBins = noBins, propertyMin, propertyMax)
       }
 
       // Populate histogram with weights
       .step { (vertex, state) =>
-        val toAdd        = Array.fill(noBins)(0)
-        val (wMin, wMax) = (state[T]("propertyMin").value, state[T]("propertyMax").value)
-        var binNumber    = (noBins * (vertex
-          .getState[T](propertyString, true) - wMin).toFloat / (wMax - wMin).toFloat).floor.toInt
-        if (binNumber == noBins)
-          binNumber -= 1
-        toAdd(binNumber) += 1
-        state("propertyDist") += toAdd
+        val histogram = state.getHistogram("propertyDist").get
+        histogram += vertex.getState[T](propertyString)
       }
 
       // Turn into a cdf for finding quantiles
       .setGlobalState { state =>
-        val hist   = state[Array[Int]]("propertyDist").value
-        val cumSum = hist.scanLeft(0)(_ + _)
-        val nc     = state[Int]("nodeCount").value
-
-        val lowerBin = cumSum.search((nc * lower).floor.toInt) match {
-          case InsertionPoint(insertionPoint) => insertionPoint - 1
-          case Found(foundIndex)              => foundIndex
-        }
-
-        val upperBin = cumSum.search((nc * upper).floor.toInt) match {
-          case InsertionPoint(insertionPoint) => insertionPoint
-          case Found(foundIndex)              => foundIndex
-        }
-
-        val (wMin, wMax) = (state[T]("propertyMin").value, state[T]("propertyMax").value)
-        state.newConstant[Float](
-                "lowerThreshold",
-                wMin.toFloat + (wMax - wMin).toFloat / noBins * lowerBin
-        )
-        state.newConstant[Float](
-                "upperThreshold",
-                wMin.toFloat + (wMax - wMin).toFloat / noBins * upperBin
-        )
+        val histogram = state.getHistogram("propertyDist").get
+        state.newConstant[Float]("upperQuantile", histogram.quantile(upper))
+        state.newConstant[Float]("lowerQuantile", histogram.quantile(lower))
       }
 
       // Finally remove edges that fall outside these quantiles
-      .filter((vertex, state) =>
-        (if (lowerExclusive)
-           vertex.getState[T](propertyString, true).toFloat > state[Float]("lowerThreshold").value
-         else
-           vertex.getState[T](propertyString, true).toFloat >= state[Float](
-                   "lowerThreshold"
-           ).value)
-          && (if (upperExclusive)
-                vertex.getState[T](propertyString, true).toFloat < state[Float](
-                        "upperThreshold"
-                ).value
-              else
-                vertex.getState[T](propertyString, true).toFloat <= state[Float](
-                        "upperThreshold"
-                ).value)
-      )
+      .vertexFilter { (vertex, state) =>
+        val vertexWeight  = vertex.getState[T](propertyString).toFloat
+        val upperQuantile = state[Float]("upperQuantile").value
+        val lowerQuantile = state[Float]("lowerQuantile").value
+
+        val lowerExclusiveTest: Boolean =
+          if (lowerExclusive)
+            vertexWeight > lowerQuantile
+          else
+            vertexWeight >= upperQuantile
+
+        val upperExclusiveTest: Boolean =
+          if (upperExclusive)
+            vertexWeight < upperQuantile
+          else
+            vertexWeight <= upperQuantile
+
+        lowerExclusiveTest && upperExclusiveTest
+      }
   }
 }
 

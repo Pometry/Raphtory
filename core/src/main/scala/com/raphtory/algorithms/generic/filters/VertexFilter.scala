@@ -7,7 +7,7 @@ import com.raphtory.graph.visitor.Vertex
 class VertexFilter(f: Vertex => Boolean) extends NodeList() {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
-    graph.filter(f)
+    graph.vertexFilter(f)
 
 }
 

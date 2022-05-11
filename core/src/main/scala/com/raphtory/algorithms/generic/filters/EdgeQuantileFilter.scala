@@ -62,9 +62,8 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
   override def apply(graph: GraphPerspective): GraphPerspective = {
     // Check inputs are sound
     if (lower < 0.0f || upper > 1.0f || lower > upper) {
-      println("Lower and upper quantiles must be a floats with 0 <= lower < upper <= 1.0")
       logger.error("Lower and upper quantiles must be a floats with 0 <= lower < upper <= 1.0")
-      sys.exit(-1)
+      return graph
     }
 
     // Get minimum and maximum edge weights for histogram creation
@@ -72,74 +71,53 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
       .setGlobalState { state =>
         state.newMin("weightMin", retainState = true)
         state.newMax("weightMax", retainState = true)
-        state.newHistogram("weightDist", noBins = noBins, retainState = true)
-        state.newAdder[Int]("edgeCount", retainState = true)
       }
       .step { (vertex, state) =>
         vertex.getOutEdges().foreach { edge =>
           state("weightMin") += edge.weight[T](weightString)
           state("weightMax") += edge.weight[T](weightString)
-          state("edgeCount") += 1
         }
+      }
+      .setGlobalState { state =>
+        val minWeight = state("weightMin").value
+        val maxWeight = state("weightMax").value
+        state.newHistogram[T]("weightDist", noBins = noBins, minWeight, maxWeight)
       }
 
       // Populate histogram with weights
       .step { (vertex, state) =>
-        val toAdd        = Array.fill(noBins)(0)
-        val (wMin, wMax) = (state[T]("weightMin").value, state[T]("weightMax").value)
+        val histogram = state.getHistogram("weightDist").get
         vertex.getOutEdges().foreach { edge =>
-          var binNumber = (noBins * (edge
-            .weight[T](weightString) - wMin).toFloat / (wMax - wMin).toFloat).floor.toInt
-          if (binNumber == noBins)
-            binNumber -= 1
-          toAdd(binNumber) += 1
+          histogram += (edge.weight(weightString))
         }
-        state("weightDist") += toAdd
       }
-
-      // Turn into a cdf for finding quantiles
       .setGlobalState { state =>
-        val hist   = state[Array[Int]]("weightDist").value
-        val cumSum = hist.scanLeft(0)(_ + _)
-        val nc     = state[Int]("edgeCount").value
-
-        val lowerBin = cumSum.search((nc * lower).floor.toInt) match {
-          case InsertionPoint(insertionPoint) => insertionPoint - 1
-          case Found(foundIndex)              => foundIndex
-        }
-
-        val upperBin = cumSum.search((nc * upper).floor.toInt) match {
-          case InsertionPoint(insertionPoint) => insertionPoint
-          case Found(foundIndex)              => foundIndex
-        }
-
-        val (wMin, wMax) = (state[T]("weightMin").value, state[T]("weightMax").value)
-        state.newConstant[Float](
-                "lowerThreshold",
-                wMin.toFloat + (wMax - wMin).toFloat / noBins * lowerBin
-        )
-        state.newConstant[Float](
-                "upperThreshold",
-                wMin.toFloat + (wMax - wMin).toFloat / noBins * upperBin
-        )
+        val histogram = state.getHistogram("weightDist").get
+        state.newConstant[Float]("upperQuantile", histogram.quantile(upper))
+        state.newConstant[Float]("lowerQuantile", histogram.quantile(lower))
       }
 
       // Finally remove edges that fall outside these quantiles
       .edgeFilter(
-              (edge, state) =>
-                (if (lowerExclusive)
-                   edge.weight[T](weightString).toFloat > state[Float]("lowerThreshold").value
-                 else edge.weight[T](weightString).toFloat >= state[Float]("lowerThreshold").value)
-                  && (
-                          if (upperExclusive)
-                            edge.weight[T](weightString).toFloat < state[Float](
-                                    "upperThreshold"
-                            ).value
-                          else
-                            edge.weight[T](weightString).toFloat <= state[Float](
-                                    "upperThreshold"
-                            ).value
-                  ),
+              (edge, state) => {
+                val edgeWeight    = edge.weight[T](weightString).toFloat
+                val upperQuantile = state[Float]("upperQuantile").value
+                val lowerQuantile = state[Float]("lowerQuantile").value
+
+                val lowerExclusiveTest: Boolean =
+                  if (lowerExclusive)
+                    edgeWeight > lowerQuantile
+                  else
+                    edgeWeight >= upperQuantile
+
+                val upperExclusiveTest: Boolean =
+                  if (upperExclusive)
+                    edgeWeight < upperQuantile
+                  else
+                    edgeWeight <= upperQuantile
+
+                lowerExclusiveTest && upperExclusiveTest
+              },
               pruneNodes = pruneNodes
       )
   }

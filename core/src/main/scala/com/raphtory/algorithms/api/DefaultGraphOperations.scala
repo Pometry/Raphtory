@@ -14,19 +14,20 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
 ) extends GraphOperations[G] {
   override def setGlobalState(f: GraphState => Unit): G = addFunction(Setup(f))
 
-  override def filter(f: (Vertex) => Boolean): G = step(vertex => if (!f(vertex)) vertex.remove())
+  override def vertexFilter(f: (Vertex) => Boolean): G =
+    step(vertex => if (!f(vertex)) vertex.remove())
 
-  override def filter(f: (Vertex, GraphState) => Boolean): G =
+  override def vertexFilter(f: (Vertex, GraphState) => Boolean): G =
     step((vertex, graphState) => if (!f(vertex, graphState)) vertex.remove())
 
   override def edgeFilter(f: Edge => Boolean, pruneNodes: Boolean): G = {
     val filtered = step { vertex =>
       vertex
         .getOutEdges()
-        .foreach(edge => if (!f(edge.asInstanceOf[Edge])) edge.remove())
+        .foreach(edge => if (!f(edge)) edge.remove())
     }
     if (pruneNodes)
-      filtered.filter(vertex => vertex.degree > 0)
+      filtered.vertexFilter(vertex => vertex.degree > 0)
     else filtered
   }
 
@@ -34,10 +35,10 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
     val filtered = step((vertex, graphState) =>
       vertex
         .getOutEdges()
-        .foreach(edge => if (!f(edge.asInstanceOf[Edge], graphState)) edge.remove())
+        .foreach(edge => if (!f(edge, graphState)) edge.remove())
     )
     if (pruneNodes)
-      filtered.filter(vertex => vertex.degree > 0)
+      filtered.vertexFilter(vertex => vertex.degree > 0)
     else filtered
   }
 

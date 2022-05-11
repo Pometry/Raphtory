@@ -93,10 +93,11 @@ abstract class GraphState {
   ): Unit
 
   /** Create a new histogram that tracks the distribution of a graph quantity */
-  def newHistogram(
+  def newHistogram[T: Numeric](
       name: String,
       noBins: Int,
-      retainState: Boolean
+      minValue: T,
+      maxValue: T
   ): Unit
 
   def newAll(name: String, retainState: Boolean = false): Unit
@@ -106,9 +107,15 @@ abstract class GraphState {
   /** Return the accumulator stored under name `name` */
   def apply[T](name: String): Accumulator[T]
 
-  /** Return the accumulator stored under name name if it exists, else return None */
+  /** Return the accumulator stored under `name` name if it exists, else return None */
   def get[T](name: String): Option[Accumulator[T]]
 
   /** Check if graph state with `name` exists */
   def contains(name: String): Boolean
+
+  /** Return the histogram stored under `name` name if it exists, else return None */
+  def getHistogram[T: Numeric](name: String): Option[Histogram[T]]
+
+  /** Check if histogram with `name` exists */
+  def containsHistogram(name: String): Boolean
 }

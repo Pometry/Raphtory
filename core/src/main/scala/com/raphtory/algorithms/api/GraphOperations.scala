@@ -209,8 +209,8 @@ final case class PerspectiveDone()                     extends GraphFunction
   */
 trait GraphOperations[G <: GraphOperations[G]] {
   def setGlobalState(f: (GraphState) => Unit): G
-  def filter(f: (Vertex) => Boolean): G
-  def filter(f: (Vertex, GraphState) => Boolean): G
+  def vertexFilter(f: (Vertex) => Boolean): G
+  def vertexFilter(f: (Vertex, GraphState) => Boolean): G
   def edgeFilter(f: (Edge) => Boolean, pruneNodes: Boolean): G
   def edgeFilter(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean): G
 

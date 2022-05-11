@@ -14,7 +14,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
       .until(500)
       .walk(100)
       .window(50)
-      .filter(_.getState[String]("name") == "some name")
+      .vertexFilter(_.getState[String]("name") == "some name")
       .step(_.setState("new", 1))
       .transform(ConnectedComponents())
       .select(vertex => Row(vertex.getState("new")))
