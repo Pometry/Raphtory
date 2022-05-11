@@ -221,6 +221,33 @@ def scala_inline_code(role, rawtext, text, lineno, inliner, options={}, content=
 
     return [node], []
 
-def scaladoc_link(role, rawtext, text, lineno, inliner, options={}, content=[]):
-    node = nodes.Text('<a href="http://www.google.com"> com.raphtory.algorithms.api.GraphAlgorithm </a>')
+
+def scaladoc_link(role, rawtext, text: str, lineno, inliner, options={}, content=[]):
+    parts = text.split(".")
+    if text.endswith(")"):
+        # get class and method name for method link
+        target = ".".join(parts[-2:])
+        package = "/".join(parts[:-1])
+    else:
+        target = parts[-1]
+        package = "/".join(parts)
+
+
+
+    source_dir = Path(inliner.document.settings.env.srcdir)
+    current_source = Path(inliner.document.current_source)
+
+    rel_path = current_source.relative_to(source_dir)
+    num_levels = len(rel_path.parents) - 1
+
+    if (source_dir / "_scaladoc" / (package+".html")).exists():
+        link = "../"*num_levels + "_static/" + package + ".html"
+    else:
+        link = "../"*num_levels + "_static/" + package + "/index.html"
+
+    children, _ = scala_inline_code("s", target, target, lineno, inliner, options, content)
+    node = nodes.reference(rawtext, refuri=link)
+    for child in children:
+        node += child
     return [node], []
+
