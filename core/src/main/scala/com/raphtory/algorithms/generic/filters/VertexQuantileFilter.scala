@@ -74,8 +74,8 @@ class VertexQuantileFilter[T: Numeric: Bounded: ClassTag](
         state("propertyMax") += vertex.getState(propertyString, true)
       }
       .setGlobalState { state =>
-        val propertyMin = state("propertyMin").value
-        val propertyMax = state("propertyMax").value
+        val propertyMin = state[T]("propertyMin").value
+        val propertyMax = state[T]("propertyMax").value
         state.newHistogram[T]("propertyDist", noBins = noBins, propertyMin, propertyMax)
       }
 

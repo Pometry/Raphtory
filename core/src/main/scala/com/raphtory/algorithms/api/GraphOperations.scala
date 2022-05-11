@@ -69,16 +69,36 @@ final case class PerspectiveDone()                     extends GraphFunction
   *      : function to set graph state (run exactly once)
   *
   *  `filter(f: (Vertex) => Boolean): G`
-  *    : Filter nodes
+  *    : Filter vertices of the graph
   *
   *      `f: (Vertex) => Boolean)`
   *      : filter function (only vertices for which `f` returns `true` are kept)
   *
   *  `filter(f: (Vertex, GraphState) => Boolean): G`
-  *    : Filter nodes with global graph state
+  *    : Filter vertices of the graph with global graph state
   *
   *      `f: (Vertex, GraphState) => Boolean`
   *        : filter function with access to graph state (only vertices for which `f` returns `true` are kept)
+  *
+  *  `edgeFilter(f: (Edge) => Boolean, pruneNodes: Boolean): G`
+  *    : Filter edges of the graph
+  *
+  *      `f: (Edge) => Boolean`
+  *        : filter function (only edges for which {s}`f` returns {s}`true` are kept)
+  *
+  *      `pruneNodes: Boolean`
+  *        : if this is {s}`true` then vertices which become isolated (have no incoming or outgoing edges)
+  *        after this filtering are also removed.
+  *
+  *  `edgeFilter(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean): G`
+  *    : Filter edges of the graph with global graph state
+  *
+  *      `f: (Edge, GraphState) => Boolean`
+  *        : filter function with access to graph state (only edges for which {s}`f` returns {s}`true` are kept)
+  *
+  *      `pruneNodes: Boolean`
+  *        : if this is {s}`true` then vertices which become isolated (have no incoming or outgoing edges)
+  *        after this filtering are also removed.
   *
   *  `step(f: (Vertex) => Unit): G`
   *    : Execute algorithm step

@@ -48,13 +48,13 @@ private class HistogramImplementation[T: Numeric](
   private var totalIncrements = 0
 
   override def +=(value: T): Unit = {
-    val bin = getBin(value)
+    val bin = getBin(value).min(noBins-1)
     bins(bin) = bins(bin) + 1
     totalIncrements += 1
   }
 
   override def getBin(value: T): Int =
-    (noBins * (value - minValue).toFloat / (minValue - maxValue).toFloat).floor.toInt
+    (noBins * (value - minValue).toFloat / (maxValue - minValue).toFloat).floor.toInt
 
   override def getBinCount(value: T): Int = bins(getBin(value))
 

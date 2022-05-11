@@ -27,6 +27,7 @@ abstract class GraphState {
       op: (T, T) => T
   ): Unit
 
+  /** Create a new constant that stores an immutable value */
   def newConstant[T](
                       name: String,
                       value: T
