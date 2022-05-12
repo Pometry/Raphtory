@@ -44,7 +44,7 @@ package com.raphtory.algorithms.api
   * ```
   */
 
-abstract class Histogram[T: Numeric](noBins: Int, minValue: T, maxValue: T) extends {
+abstract class Histogram[T: Numeric](noBins: Int, minValue: T, maxValue: T) {
   protected val bins: Array[Int] = Array.fill(noBins)(0)
 
   def cumSum(): Array[Int]

@@ -79,8 +79,8 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
         }
       }
       .setGlobalState { state =>
-        val minWeight = state("weightMin").value
-        val maxWeight = state("weightMax").value
+        val minWeight = state[T]("weightMin").value
+        val maxWeight = state[T]("weightMax").value
         state.newHistogram[T]("weightDist", noBins = noBins, minWeight, maxWeight)
       }
 
@@ -103,12 +103,11 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
                 val edgeWeight    = edge.weight[T](weightString).toFloat
                 val upperQuantile = state[Float]("upperQuantile").value
                 val lowerQuantile = state[Float]("lowerQuantile").value
-
                 val lowerExclusiveTest: Boolean =
                   if (lowerExclusive)
                     edgeWeight > lowerQuantile
                   else
-                    edgeWeight >= upperQuantile
+                    edgeWeight >= lowerQuantile
 
                 val upperExclusiveTest: Boolean =
                   if (upperExclusive)

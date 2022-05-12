@@ -94,21 +94,21 @@ class VertexQuantileFilter[T: Numeric: Bounded: ClassTag](
 
       // Finally remove edges that fall outside these quantiles
       .vertexFilter { (vertex, state) =>
-        val vertexWeight  = vertex.getState[T](propertyString).toFloat
+        val vertexProperty  = vertex.getState[T](propertyString).toFloat
         val upperQuantile = state[Float]("upperQuantile").value
         val lowerQuantile = state[Float]("lowerQuantile").value
 
         val lowerExclusiveTest: Boolean =
           if (lowerExclusive)
-            vertexWeight > lowerQuantile
+            vertexProperty > lowerQuantile
           else
-            vertexWeight >= upperQuantile
+            vertexProperty >= lowerQuantile
 
         val upperExclusiveTest: Boolean =
           if (upperExclusive)
-            vertexWeight < upperQuantile
+            vertexProperty < upperQuantile
           else
-            vertexWeight <= upperQuantile
+            vertexProperty <= upperQuantile
 
         lowerExclusiveTest && upperExclusiveTest
       }

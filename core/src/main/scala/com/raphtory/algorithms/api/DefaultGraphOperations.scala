@@ -12,7 +12,7 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
     private[api] val query: Query,
     private val querySender: QuerySender
 ) extends GraphOperations[G] {
-  override def setGlobalState(f: GraphState => Unit): G = addFunction(Setup(f))
+  override def setGlobalState(f: GraphState => Unit): G = addFunction(SetGlobalState(f))
 
   override def vertexFilter(f: (Vertex) => Boolean): G =
     step(vertex => if (!f(vertex)) vertex.remove())

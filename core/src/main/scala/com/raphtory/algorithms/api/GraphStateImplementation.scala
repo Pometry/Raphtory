@@ -49,7 +49,7 @@ private class HistogramImplementation[T: Numeric](
 
   override def +=(value: T): Unit = {
     val bin = getBin(value).min(noBins-1)
-    bins(bin) = bins(bin) + 1
+    bins(bin) += 1
     totalIncrements += 1
   }
 
@@ -58,9 +58,15 @@ private class HistogramImplementation[T: Numeric](
 
   override def getBinCount(value: T): Int = bins(getBin(value))
 
-  def mergeBins(partialBin: Array[Int]): Unit = bins.zip(partialBin).map { case (a, b) => a + b }
+  def mergeBins(partialBin: Array[Int]): Unit = {
+    for(bindex <- bins.indices){
+      bins(bindex) = bins(bindex)+partialBin(bindex)
+    }
+  }
 
-  override def cumSum(): Array[Int] = bins.scanLeft(0)(_ + _)
+  override def cumSum(): Array[Int] = {
+    bins.scanLeft(0)(_ + _)
+  }
 
   override def quantile(percentile: Float): Float = {
     val index = cumSum.search((totalIncrements * percentile).floor.toInt) match {
@@ -259,9 +265,10 @@ class GraphStateImplementation extends GraphState {
         accumulatorState(name) += value.currentValue
     }
     graphState.histogramState.foreach {
-      case (name, partitalHist) =>
-        histogramState(name).mergeBins(partitalHist.getBins)
+      case (name, partialHist) =>
+        histogramState(name).mergeBins(partialHist.getBins)
     }
+
   }
 
   def rotate(): Unit                         =

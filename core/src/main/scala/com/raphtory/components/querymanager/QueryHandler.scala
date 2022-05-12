@@ -20,7 +20,7 @@ import com.raphtory.algorithms.api.PerspectiveDone
 import com.raphtory.algorithms.api.ReduceView
 import com.raphtory.algorithms.api.Select
 import com.raphtory.algorithms.api.SelectWithGraph
-import com.raphtory.algorithms.api.Setup
+import com.raphtory.algorithms.api.SetGlobalState
 import com.raphtory.algorithms.api.Step
 import com.raphtory.algorithms.api.StepWithGraph
 import com.raphtory.algorithms.api.TableFunction
@@ -500,7 +500,7 @@ class QueryHandler(
         messagetoAllJobWorkers(f)
         Stages.ExecuteTable
 
-      case Setup(fun)                                                =>
+      case SetGlobalState(fun)                                                =>
         fun(graphState)
         nextGraphOperation(vertexCount)
 

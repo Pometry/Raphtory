@@ -8,7 +8,7 @@ import com.raphtory.graph.visitor.Vertex
 import PropertyMergeStrategy.PropertyMerge
 
 sealed trait GraphFunction                    extends QueryManagement
-final case class Setup(f: GraphState => Unit) extends GraphFunction
+final case class SetGlobalState(f: GraphState => Unit) extends GraphFunction
 
 final case class MultilayerView(
     interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
