@@ -23,7 +23,7 @@ copyright = '2022, Ben Steer'
 author = 'Ben Steer'
 
 # The full version, including alpha/beta/rc tags
-release = '0.4.0'
+release = '0.5.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -40,9 +40,11 @@ extensions = [
 myst_enable_extensions = ["deflist", "dollarmath"]
 myst_heading_anchors = 3
 
+raphtory_root = str(Path(__file__).resolve().parents[2])
 raphtory_src_root = str(Path(__file__).resolve().parents[2] / "core" / "src" / "main" / "scala")
 autodoc_packages = [
-    "com.raphtory"
+    "com.raphtory.algorithms.generic",
+    "com.raphtory.algorithms.temporal"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -66,4 +68,4 @@ html_theme_options = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static', 'images']
+html_static_path = ['_static', 'images', '_scaladoc']

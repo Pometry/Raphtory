@@ -1,0 +1,57 @@
+name: py39
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - ca-certificates=2021.10.8=h033912b_0
+  - certifi=2021.10.8=py39h6e9494a_2
+  - libcxx=12.0.0=h2f01273_0
+  - libffi=3.3=hb1e8313_2
+  - ncurses=6.3=hca72f7f_2
+  - openjdk=11.0.9.1=hcf210ce_1
+  - openssl=1.1.1o=hfe4f2af_0
+  - pip=21.2.4=py39hecd8cb5_0
+  - python=3.9.12=hdfd78df_0
+  - python_abi=3.9=2_cp39
+  - readline=8.1.2=hca72f7f_1
+  - sbt=1.6.2=hd8ed1ab_0
+  - setuptools=61.2.0=py39hecd8cb5_0
+  - sqlite=3.38.3=h707629a_0
+  - tk=8.6.11=h3fd3227_1
+  - tzdata=2022a=hda174b7_0
+  - wheel=0.37.1=pyhd3eb1b0_0
+  - xz=5.2.5=hca72f7f_1
+  - zlib=1.2.12=h4dc903c_2
+  - pip:
+    - alabaster==0.7.12
+    - babel==2.10.1
+    - charset-normalizer==2.0.12
+    - docutils==0.17.1
+    - idna==3.3
+    - imagesize==1.3.0
+    - importlib-metadata==4.11.3
+    - jinja2==3.1.2
+    - markdown-it-py==2.1.0
+    - markupsafe==2.1.1
+    - mdit-py-plugins==0.3.0
+    - mdurl==0.1.1
+    - myst-parser==0.17.2
+    - packaging==21.3
+    - pygments==2.12.0
+    - pyparsing==3.0.8
+    - pytz==2022.1
+    - pyyaml==6.0
+    - requests==2.27.1
+    - snowballstemmer==2.2.0
+    - sphinx==4.5.0
+    - sphinx-rtd-theme==1.0.0
+    - sphinxcontrib-applehelp==1.0.2
+    - sphinxcontrib-devhelp==1.0.2
+    - sphinxcontrib-htmlhelp==2.0.0
+    - sphinxcontrib-jsmath==1.0.1
+    - sphinxcontrib-qthelp==1.0.3
+    - sphinxcontrib-serializinghtml==1.1.5
+    - typing-extensions==4.2.0
+    - urllib3==1.26.9
+    - zipp==3.8.0
+prefix: /Users/haaroony/opt/anaconda3/envs/py39

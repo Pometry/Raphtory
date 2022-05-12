@@ -7,34 +7,17 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConverters._
 
-/**
-  * {s}`KubernetesNamespace`
-  *
-  * Kubernetes Namespace
-  *
-  * ## Methods
-  *
-  *   {s}`get(client: KubernetesClient, name: String): Namespace` 
-  *     : Get Kubernetes namespace
-  *
-  *   {s}`listAll( client: KubernetesClient): ListBuffer[String]`
-  *     : Get a list of Kubernetes namespaces
-  *
-  *   {s}`create( client: KubernetesClient, name: String, labels: Map[String, String] = Map()): Namespace`
-  *     : Create Kubernetes namespace
-  * 
-  *   {s}`delete(client: KubernetesClient, name: String): Boolean`
-  *     : Delete Kubernetes namespace
-  */
-
+/** Kubernetes Namespace */
 object KubernetesNamespace {
 
+  /** Get Kubernetes namespace */
   def get(
       client: KubernetesClient,
       name: String
   ): Namespace =
     client.namespaces.withName(name).get
 
+  /** Get a list of Kubernetes namespaces */
   def listAll(
       client: KubernetesClient
   ): ListBuffer[String] = {
@@ -43,6 +26,7 @@ object KubernetesNamespace {
     namespaces
   }
 
+  /**  Create Kubernetes namespace */
   def create(
       client: KubernetesClient,
       name: String,
@@ -57,6 +41,7 @@ object KubernetesNamespace {
     client.namespaces().createOrReplace(ns)
   }
 
+  /** Delete Kubernetes namespace */
   def delete(
       client: KubernetesClient,
       name: String

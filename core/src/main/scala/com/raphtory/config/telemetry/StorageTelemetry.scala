@@ -6,12 +6,9 @@ import com.typesafe.config.Config
 import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
 
-/**
-  * {s}`StorageTelemetry`
-  *  : Adds metrics for Raphtory storage components including {s}`GraphLens`, Vertex messaging and queue using Prometheus Client
-  *
-  *    Exposes Counter and Gauge stats for tracking number of files processed, lines parsed, spout reschedules and processing errors
-  *    Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
+/** Adds metrics for Raphtory storage components including `GraphLens`, Vertex messaging and queue using Prometheus Client
+  * Exposes Counter and Gauge stats for tracking number of files processed, lines parsed, spout reschedules and processing errors
+  * Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object StorageTelemetry {
 

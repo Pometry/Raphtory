@@ -8,7 +8,7 @@ import com.raphtory.config.Scheduler
 
 import scala.util.Random
 
-/** @DoNotDocument */
+/** @note DoNotDocument */
 class QuerySender(
     private val componentFactory: ComponentFactory,
     private val scheduler: Scheduler,

@@ -12,7 +12,7 @@ import java.util.Calendar
 import scala.collection.mutable
 import scala.language.postfixOps
 
-/** @DoNotDocument */
+/** @note DoNotDocument */
 class StreamWriter(
     partitionID: Int,
     storage: GraphPartition,

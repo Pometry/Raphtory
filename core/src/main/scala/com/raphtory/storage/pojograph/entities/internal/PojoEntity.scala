@@ -6,7 +6,7 @@ import com.raphtory.util.OrderedBuffer._
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 
-/** @DoNotDocument
+/** @note DoNotDocument
   * Represents Graph Entities (Edges and Vertices)
   * Contains a Map of properties (currently String to string)
   * longs representing unique vertex ID's stored in subclasses

@@ -13,9 +13,10 @@ import scala.reflect.runtime.universe.TypeTag
 import com.raphtory.config.telemetry.ComponentTelemetryHandler
 import com.raphtory.config.telemetry.SpoutTelemetry
 
+
 import scala.concurrent.duration.DurationInt
 
-/** @DoNotDocument */
+/** @note DoNotDocument */
 class SpoutExecutor[T](
     spout: Spout[T],
     conf: Config,

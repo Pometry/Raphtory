@@ -1,49 +1,25 @@
 package com.raphtory.serialisers
 
-/**
-  * {s}`Marshal()`
+/** Support serialisation (`dump`) and deserialisation (`load`) for `ByteArray` input and output streams
   *
-  * : support serialisation (`dump`) and deserialisation (`load`) for `ByteArray` input and output streams
-  *
-  * ## Methods
-  *
-  *    {s}`dump[A: ClassTag](o: A): Array[Byte]`
-  *      : Serialise to byte array
-  *
-  *        {s}`o: A`
-  *           : object to serialise
-  *
-  *    {s}`load[A: ClassTag](buffer: Array[Byte])`
-  *      : Deserialise object from Array[Byte]
-  *
-  *        {s}`buffer: Array[Byte]`
-  *           : input buffer
-  *
-  *    {s}`deepCopy[A: ClassTag](a: A)`
-  *      : Deep copy
-  *
-  *        {s}`a: A`
-  *           : deserialise and persist as deep copy by serialising
-  *
-  * Example Usage:
-  *
-  * ```{code-block} scala
+  * Usage:
+  * {{{
   * import com.raphtory.serialisers.Marshal
   * import com.raphtory.components.graphbuilder.GraphBuilder
   *
   * def setGraphBuilder(): GraphBuilder[T]
   * val graphBuilder = setGraphBuilder()
   * val safegraphBuilder = Marshal.deepCopy(graphBuilder)
-  * ```
+  * }}}
   *
-  * ```{seealso}
-  * [](com.raphtory.serialisers.PulsarKryoSerialiser)
-  * ```
+  * @see [[com.raphtory.serialisers.PulsarKryoSerialiser]]
   */
 object Marshal {
   import java.io._
   import scala.reflect.ClassTag
 
+  /** Serialise to byte array
+    * @param o object to serialise */
   def dump[A](o: A)(implicit t: ClassTag[A]): Array[Byte] = {
     val ba  = new ByteArrayOutputStream(512)
     val out = new ObjectOutputStream(ba)
@@ -53,6 +29,8 @@ object Marshal {
     ba.toByteArray
   }
 
+  /** Deserialise object from Array[Byte]
+    * @param buffer input buffer */
   @throws(classOf[IOException])
   @throws(classOf[ClassCastException])
   @throws(classOf[ClassNotFoundException])
@@ -75,6 +53,8 @@ object Marshal {
     finally in.close()
   }
 
+  /** Deep copy
+    * @param a deserialise and persist as deep copy by serialising */
   def deepCopy[A](a: A)(implicit m: reflect.ClassTag[A]): A =
     Marshal.load[A](Marshal.dump(a))
 }

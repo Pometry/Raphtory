@@ -1,6 +1,6 @@
 package com.raphtory.graph.visitor
 
-/** @DoNotDocument */
+/** @note DoNotDocument */
 trait ConcreteEdge[T] extends Edge {
   override type IDType = T
 }

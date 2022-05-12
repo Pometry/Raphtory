@@ -5,7 +5,8 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-/** @DoNotDocument */
+
+/** @note DoNotDocument */
 abstract class Component[T](conf: Config) {
 
   val logger: Logger           = Logger(LoggerFactory.getLogger(this.getClass))

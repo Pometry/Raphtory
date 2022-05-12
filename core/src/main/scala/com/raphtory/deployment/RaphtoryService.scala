@@ -9,33 +9,12 @@ import org.slf4j.LoggerFactory
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-/**
-  * {s}`RaphtoryService[T]`
+/**`RaphtoryService` is used for distributed deployment of Raphtory as a service.
+  * This is done by deploying each of it's core components - spout, graphbuilder, partitions and query manager
   *
-  *  : `RaphtoryService` is used for distributed deployment of Raphtory as a service. This is done by deploying each of it's core components - spout, graphbuilder, partitions and query manager
+  * Usage:
   *
-  * ## Methods
-  *
-  *    {s}`defineSpout(): Spout[T]`
-  *      : Defines type of Spout to be created including {s}`FileSpout`, {s}`ResourceSpout` and {s}`StaticGraphSpout` for ingesting data
-  *
-  *    {s}`defineBuilder(): GraphBuilder[T]`
-  *      : Initialise {s}`GraphBuilder` for building graphs
-  *
-  *    {s}`spoutDeploy(): Unit`
-  *      : Deploy spouts by using {s}`SpoutExecutor` to ingest data from files and resources, sending messages per row to builder producers
-  *
-  *    {s}`builderDeploy(): Unit`
-  *      : Deploys {s}`GraphBuilder` to build graphs by adding vertices and edges using data processed and ingested by the spout as tuples of rows
-  *
-  *   {s}`partitionDeploy(): Unit`
-  *      : Deploy partitions using Partition Manager for creating partitions as distributed storage units with readers and writers. Uses Zookeeper to create partition IDs
-  *
-  *   {s}`queryManagerDeploy(): Unit`
-  *      : Deploy query manager creating {s}`QueryManager` to spawn, handle and track queries in Raphtory
-  * Example Usage:
-  *
-  * ```{code-block} scala
+  * {{{
   * import com.raphtory.components.graphbuilder.GraphBuilder
   * import com.raphtory.components.spout.Spout
   * import com.raphtory.components.spout.instance.FileSpout
@@ -45,18 +24,21 @@ import scala.reflect.runtime.universe.TypeTag
   *   override def defineSpout(): Spout[String] = FileSpout()
   *   override def defineBuilder: GraphBuilder[String] = new LOTRGraphBuilder()
   * }
-  * ```
+  * }}}
   *
-  *  ```{seealso}
-  *  [](com.raphtory.components.graphbuilder.GraphBuilder),
-  *  [](com.raphtory.components.spout.Spout)
-  *  ```
+  *  @see [[com.raphtory.components.graphbuilder.GraphBuilder]] [[com.raphtory.components.spout.Spout]]
   */
 abstract class RaphtoryService[T: ClassTag] {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
+  /** Defines type of Spout to be created including `FileSpout`, `ResourceSpout` and
+    * `StaticGraphSpout` for ingesting data
+    */
   def defineSpout(): Spout[T]
+
+  /** Initialise `GraphBuilder` for building graphs  */
   def defineBuilder: GraphBuilder[T]
+
   def batchIngestion(): Boolean
 
   def main(args: Array[String]): Unit =
@@ -67,12 +49,18 @@ abstract class RaphtoryService[T: ClassTag] {
       case "querymanager"     => queryManagerDeploy()
     }
 
+  /** Deploy spouts by using `SpoutExecutor` to ingest data from files and resources,
+    * sending messages per row to builder producers */
   def spoutDeploy(): Unit =
     Raphtory.createSpout[T](defineSpout())
 
+  /** Deploys `GraphBuilder` to build graphs by adding vertices and edges using data
+    * processed and ingested by the spout as tuples of rows */
   def builderDeploy(): Unit =
     Raphtory.createGraphBuilder(defineBuilder)
 
+  /** Deploy partitions using Partition Manager for creating partitions as distributed
+    * storage units with readers and writers. Uses Zookeeper to create partition IDs */
   def partitionDeploy(): Unit =
     Raphtory.createPartitionManager[T](
             batchLoading = batchIngestion(),
@@ -80,6 +68,7 @@ abstract class RaphtoryService[T: ClassTag] {
             graphBuilder = Some(defineBuilder)
     )
 
+  /** Deploy query manager creating `QueryManager` to spawn, handle and track queries in Raphtory */
   def queryManagerDeploy(): Unit =
     Raphtory.createQueryManager()
 

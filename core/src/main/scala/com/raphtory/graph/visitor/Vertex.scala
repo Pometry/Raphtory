@@ -6,401 +6,91 @@ import com.raphtory.graph.visitor
 
 import scala.reflect.ClassTag
 
-/**
-  * {s}`Vertex`
-  *   : Extends [{s}`EntityVisitor`](com.raphtory.graph.visitor.EntityVisitor) with vertex-specific functionality
+/** Extends [`EntityVisitor`](com.raphtory.graph.visitor.EntityVisitor) with vertex-specific functionality
   *
-  * The {s}`Vertex` is the main entry point for exploring the graph using a
-  * [{s}`GraphAlgorithm`](com.raphtory.algorithms.api.GraphAlgorithm) given the node-centric nature of Raphtory.
+  * The `Vertex` is the main entry point for exploring the graph using a
+  * [`GraphAlgorithm`](com.raphtory.algorithms.api.GraphAlgorithm) given the node-centric nature of Raphtory.
   * It provides access to the edges of the graph and can send messages to and receive messages from other vertices.
-  * A {s}`Vertex` can also store computational state.
+  * A `Vertex` can also store computational state.
   *
-  * ## Generic types
-  *
-  * {s}`IDType`
-  *   : ID type of this vertex
-  *
-  * {s}`Edge`
-  *   : Concrete edge type for this vertex which implements [{s}`Edge`](com.raphtory.graph.visitor.Edge)
-  *
-  * {s}`ExplodedEdge`
-  *   : Concrete type for this vertex's exploded edges which implements
-  *     [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge)
-  *
-  * {s}`IDOrdering: Ordering[IDType]`
-  *   : implicit ordering object for use when comparing vertex IDs
-  *
-  * {s}`IDClassTag: ClassTag[IDType]`
-  *   : implicit ClassTag object for vertex IDType
-  *
-  * ## Attributes
-  *
-  * {s}`ID(): IDType`
-  *   : vertex ID
-  *
-  * {s}`name(nameProperty: String = "name"): String`
-  *   : get the name of the vertex
-  *
-  *     {s}`nameProperty: String = "name"`
-  *       : vertex property to use as name (should uniquely identify the vertex)
-  *
-  *     if {s}`nameProperty` does not exist, this function returns the string representation of the vertex ID
-  *
-  * {s}`inDegree: Int`
-  *   : number of in-neighbours of the vertex
-  *
-  * {s}`outDegree: Int`
-  *   : number of out-neighbours of the vertex
-  *
-  * {s}`degree: Int`
-  *   : total number of neighbours (including in-neighbours and out-neighbours) of the vertex
-  *
-  * {s}`weightedInDegree[A, B](weightProperty: String = "weight", edgeMergeStrategy: Seq[(Long, A)] => B = PropertyMergeStrategy.sum[A], defaultWeight: A = 1): B`
-  *   : sum of incoming edge weights
-  *
-  *     For the meaning of the input arguments see the
-  *     [{s}`Edge.weight` documentation](com.raphtory.graph.visitor.Edge).
-  *
-  * {s}`weightedOutDegree[A, B](weightProperty: String = "weight", edgeMergeStrategy: Seq[(Long, A)] => B = PropertyMergeStrategy.sum[A], defaultWeight: A = 1): B`
-  *   : sum of outgoing edge weights
-  *
-  *     For the meaning of the input arguments see the
-  *     [{s}`Edge.weight` documentation](com.raphtory.graph.visitor.Edge).
-  *
-  * {s}`weightedTotalDegree[A, B](weightProperty: String = "weight", edgeMergeStrategy: Seq[(Long, A)] => B = PropertyMergeStrategy.sum[A], defaultWeight: A = 1): B`
-  *   : sum of incoming and outgoing edge weights
-  *
-  *     For the meaning of the input arguments see the
-  *     [{s}`Edge.weight` documentation](com.raphtory.graph.visitor.Edge).
-  *
-  * ## Neighbours and Edges
-  *
-  * {s}`getAllNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType]`
-  *   : get IDs of all in- and out-neighbours of the vertex
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return neighbours that are active after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return neighbours that are active before time {s}`before`
-  *
-  * {s}`getOutNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType]`
-  *   : get IDs of all out-neighbours of the vertex
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return neighbours that are active after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return neighbours that are active before time {s}`before`
-  *
-  * {s}`getInNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType]`
-  *   : get IDs fo all in-neighbours of the vertex
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return neighbours that are active after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return neighbours that are active before time {s}`before`
-  *
-  * {s}`isNeighbour(id: IDType): Boolean`
-  *   : check if the vertex with ID {s}`id` is an in- or out-neighbour of this vertex
-  *
-  * {s}`isInNeighbour(id: IDType): Boolean`
-  *   : check if the vertex with ID {s}`id` is an in-neighbour of this vertex
-  *
-  * {s}`isOutNeighbour(id: IDType): Boolean`
-  *   : check if the vertex with ID {s}`id` is an out-neighbour of this vertex
-  *
-  * {s}`getEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]`
-  *   : return all edges starting or ending at this vertex
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return edges that are active after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return edges that are active before time {s}`before`
-  *
-  * {s}`getOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]`
-  *   : return all edges starting at this vertex
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return edges that are active after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return edges that are active before time {s}`before`
-  *
-  * {s}`getInEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]`
-  *   : return all edges ending at this vertex
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return edges that are active after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return edges that are active before time {s}`before`
-  *
-  * {s}`getEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[Edge]`
-  *   : return specified edge if it is an in- or out-edge of this vertex
-  *
-  *     {s}`id: IDType`
-  *       : ID of edge to return
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return edge if it is active after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return edge if it is active before time {s}`before`
-  *
-  * {s}`getOutEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[Edge]`
-  *   : return specified edge if it is an out-edge of this vertex
-  *
-  *     {s}`id: IDType`
-  *       : ID of edge to return
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return edge if it is active after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return edge if it is active before time {s}`before`
-  *
-  * {s}`getInEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[Edge]`
-  *   : return specified edge if it is an in-edge of this vertex
-  *
-  *     {s}`id: IDType`
-  *       : ID of edge to return
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return edge if it is active after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return edge if it is active before time {s}`before`
-  *
-  * {s}`explodeEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[ExplodedEdge]`
-  *   : return exploded [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge) views for each time point
-  *     that an in- or out-edge of this vertex is active
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return views for activity after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return view for activity before time {s}`before`
-  *
-  * {s}`explodeOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[ExplodedEdge]`
-  *   : return exploded [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge) views for each time point
-  *     that an out-edge of this vertex is active
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return views for activity after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return view for activity before time {s}`before`
-  *
-  * {s}`explodeInEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[ExplodedEdge]`
-  *   : return exploded [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge) views for each time point
-  *     that an in-edge of this vertex is active
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return views for activity after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return view for activity before time {s}`before`
-  *
-  * {s}`explodeEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[List[ExplodedEdge]]`
-  *   : return exploded [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge) views for an individual edge
-  *     if it is an in- or out-edge of this vertex
-  *
-  *     {s}`id: IDType`
-  *       : ID of edge to explode
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return views for activity after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return view for activity before time {s}`before`
-  *
-  * {s}`explodeOutEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[List[ExplodedEdge]]`
-  *   : return exploded [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge) views for an individual edge
-  *     if it is an out-edge of this vertex
-  *
-  *     {s}`id: IDType`
-  *       : ID of edge to explode
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return views for activity after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return view for activity before time {s}`before`
-  *
-  * {s}`explodeInEdge(id: IDType, after: Long = Long.MinValue, before: Long = Long.MaxValue): Option[List[ExplodedEdge]]`
-  *   : return exploded [{s}`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge) views for an individual edge
-  *     if it is an in-edge of this vertex
-  *
-  *     {s}`id: IDType`
-  *       : ID of edge to explode
-  *
-  *     {s}`after: Long = Long.MinValue`
-  *       : only return views for activity after time {s}`after`
-  *
-  *     {s}`before: Long = Long.MaxValue`
-  *       : only return view for activity before time {s}`before`
-  *
-  * ## Messaging
-  *
-  * {s}`voteToHalt(): Unit`
-  *   : vote to stop iterating (iteration stops if all vertices voted to halt)
-  *
-  * {s}`hasMessage(): Boolean`
-  *   : check if vertex has received messages
-  *
-  * {s}`messageQueue[T]: List[T]`
-  *   : queue of received messages
-  *
-  *     {s}`T`
-  *       : message data type
-  *
-  * {s}`messageSelf(data: Any): Unit`
-  *   : send data to this vertex at the next Step/Iteration
-  *
-  *     {s}`data: Any`
-  *       : message data to send
-  *
-  * {s}`messageVertex(vertexId: IDType, data: Any): Unit`
-  *   : send data to another vertex at next Step/Iteration
-  *
-  *     {s}`vertexID: IDType`
-  *       : ID of target vertex for the message
-  *
-  *     {s}`data: Any`
-  *       : message data to send
-  *
-  * {s}`messageAllNeighbours(message: Any): Unit`
-  *   : send the same message data to all in- and out-neighbours of this vertex
-  *
-  *     {s}`message: Any`
-  *       : message data to send
-  *
-  * {s}`messageOutNeighbours(message: Any): Unit`
-  *   : send the same message data to all out-neighbours of this vertex
-  *
-  *     {s}`message: Any`
-  *       : message data to send
-  *
-  * {s}`messageInNeighbours(message: Any): Unit`
-  *   : send the same message data to all in-neighbours of this vertex
-  *
-  *     {s}`message: Any`
-  *       : message data to send
-  *
-  * ## Algorithmic State
-  *
-  * {s}`setState(key: String, value: Any): Unit`
-  *   : set algorithmic state for this vertex
-  *
-  *     {s}`key: String`
-  *       : key to use for setting value
-  *
-  *     {s}`value: Any`
-  *       : new value for state
-  *
-  * {s}`getState[T](key: String, includeProperties: Boolean = false): T`
-  *   : retrieve value from algorithmic state
-  *
-  *     {s}`T`
-  *       : value type for state
-  *
-  *     {s}`key: String`
-  *       : key to use for retrieving state
-  *
-  *     {s}`includeProperties: Boolean = false`
-  *       : set this to {s}`true` to fall-through to vertex properties if {s}`key` is not found
-  *
-  * {s}`getStateOrElse[T](key: String, value: T, includeProperties: Boolean = false): T`
-  *  : retrieve value from algorithmic state if it exists or return a default value otherwise
-  *
-  *     {s}`T`
-  *       : value type for state
-  *
-  *     {s}`key: String`
-  *       : key to use for retrieving state
-  *
-  *     {s}`value: T`
-  *       : default value to return if state does not exist
-  *
-  *     {s}`includeProperties: Boolean = false`
-  *       : set this to {s}`true` to fall-through to vertex properties if {s}`key` is not found in
-  *         algorithmic state
-  *
-  * {s}`getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T`
-  *   : retrieve value from  algorithmic state if it exists, otherwise set state to default value and return it
-  *
-  *     {s}`T`
-  *       : value type for state
-  *
-  *     {s}`key: String`
-  *       : key to use for retrieving state
-  *
-  *     {s}`value: T`
-  *       : default value to return if state does not exist
-  *
-  *     {s}`includeProperties: Boolean = false`
-  *       : Set this to {s}`true` to fall-through to vertex properties if {s}`key` is not found in
-  *         algorithmic state. If the value is pulled in from properties, the new value is set as state.
-  *
-  * {s}`appendToState[T: ClassTag](key: String, value: T): Unit`
-  *   : append new value to existing array or initialise new array if state does not exist
-  *
-  *     The value type of the state is assumed to be {s}`Array[T]` if the state already exists.
-  *
-  *     {s}`T`
-  *       : value type for state (needs to have a `ClassTag` available due to Scala {s}`Array` implementation)
-  *
-  *     {s}`key: String`
-  *       : key to use for retrieving state
-  *
-  *     {s}`value: T`
-  *       : value to append to state
-  *
-  * {s}`containsState(key: String, includeProperties: Boolean = false): Boolean`
-  *   : check if algorithmic state with key {s}`key` exists
-  *
-  *     {s}`includeProperties: Boolean = false`
-  *       : Set this to {s}`true` to fall-through to vertex properties if {s}`key` is not found.
-  *         If set, this function only returns {s}`false` if {s}`key` is not included in either algorithmic state
-  *         or vertex properties
   */
 trait Vertex extends EntityVisitor {
+  /**  ID type of this vertex */
   type IDType
+
+  /** Concrete edge type for this vertex which implements [[com.raphtory.graph.visitor.Edge]] */
   type Edge <: visitor.ConcreteEdge[IDType]
+
+  /** Concrete type for this vertex's exploded edges which implements [[com.raphtory.graph.visitor.ExplodedEdge]] */
   type ExplodedEdge = visitor.ConcreteExplodedEdge[IDType]
+
+  /** implicit ordering object for use when comparing vertex IDs */
   implicit val IDOrdering: Ordering[IDType]
+
+  /** implicit ClassTag object for vertex IDType */
   implicit val IDClassTag: ClassTag[IDType] = ClassTag[IDType](ID().getClass)
 
+  /** Get the ID type of this vertex */
   def ID(): IDType
 
+  /** Get the name of the vertex.
+    * If `nameProperty` does not exist, this function returns the string representation of the vertex ID
+    * @param nameProperty vertex property to use as name (should uniquely identify the vertex)
+    * */
   def name(nameProperty: String = "name"): String =
     getPropertyOrElse[String](nameProperty, ID.toString)
 
   //functionality for checking messages
+  /**  check if vertex has received messages */
   def hasMessage(): Boolean
+
+  /** queue of received messages
+    * @tparam `T`  message data type */
   def messageQueue[T]: List[T]
+
+  /** vote to stop iterating (iteration stops if all vertices voted to halt) */
   def voteToHalt(): Unit
   //Send message
+
+  /** Send data to this vertex at the next Step/Iteration
+    * @param data message data to send */
   def messageSelf(data: Any): Unit = messageVertex(ID(), data)
+
+  /** Send data to another vertex at next Step/Iteration
+    * @param vertexId Vertex Id of target vertex for the message
+    * @param data message data to send
+    * */
   def messageVertex(vertexId: IDType, data: Any): Unit
 
+  /** Send the same message data to all out-neighbours of this vertex
+    * @param message message data to send */
   def messageOutNeighbours(message: Any): Unit =
     getOutNeighbours().foreach(messageVertex(_, message))
 
+  /** Send the same message data to all in- and out-neighbours of this vertex
+    * @param message message data to send */
   def messageAllNeighbours(message: Any): Unit =
     getAllNeighbours().foreach(messageVertex(_, message))
+
+  /** Send the same message data to all in-neighbours of this vertex
+    * @param message message data to send */
   def messageInNeighbours(message: Any): Unit  = getInNeighbours().foreach(messageVertex(_, message))
 
-  //Get Neighbours
+  /** Get IDs of all out-neighbours of the vertex
+    * @param after only return neighbours that are active after time `after`
+    * @param before only return neighbours that are active before time `before` */
   def getOutNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
     getOutEdges(after, before).map(_.dst())
 
+  /** Get IDs fo all in-neighbours of the vertex
+    * @param after only return neighbours that are active after time `after`
+    * @param before only return neighbours that are active before time `before` */
   def getInNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
     getInEdges(after, before).map(_.src())
 
+  /** Get IDs of all in- and out-neighbours of the vertex
+    * @param after  only return neighbours that are active after time `after`
+    * @param before only return neighbours that are active before time `before` */
   def getAllNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
     (getInNeighbours(after, before) ++ getOutNeighbours(after, before)).distinct
 
@@ -408,66 +98,107 @@ trait Vertex extends EntityVisitor {
   private lazy val inNeighbourSet  = getInNeighbours().toSet
   private lazy val outNeighbourSet = getOutNeighbours().toSet
 
+  /** check if the vertex with ID `id` is an in- or out-neighbour of this vertex */
   def isNeighbour(id: IDType): Boolean    =
     inNeighbourSet.contains(id) || outNeighbourSet.contains(id)
+
+  /** check if the vertex with ID `id` is an in-neighbour of this vertex */
   def isInNeighbour(id: IDType): Boolean  = inNeighbourSet.contains(id)
+
+  /** check if the vertex with ID `id` is an out-neighbour of this vertex */
   def isOutNeighbour(id: IDType): Boolean = outNeighbourSet.contains(id)
 
   //Degree
+  /**  total number of neighbours (including in-neighbours and out-neighbours) of the vertex */
   lazy val degree: Int    = getAllNeighbours().size
+
+  /** number of out-neighbours of the vertex */
   lazy val outDegree: Int = getOutNeighbours().size
+
+  /** number of in-neighbours of the vertex */
   lazy val inDegree: Int  = getInNeighbours().size
 
-  //all edges
+  /** Return all edges starting or ending at this vertex
+    * @param after only return edges that are active after time `after`
+    * @param before only return edges that are active before time `before`
+    *  */
   def getEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
-  //all out edges
+
+  /** Return all edges starting at this vertex
+    * @param after only return edges that are active after time `after`
+    * @param before only return edges that are active before time `before` */
   def getOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
-  //all in edges
+
+  /** Return all edges ending at this vertex
+    * @param after  only return edges that are active after time `after`
+    * @param before only return edges that are active before time `before` */
   def getInEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
 
-  //individual out edge
+  /** Return specified individual edge if it is an out-edge of this vertex
+    * @param id ID of edge to return
+    * @param after only return edge if it is active after time `after`
+    * @param before only return edge if it is active before time `before` */
   def getOutEdge(
       id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge]
 
-  //individual in edge
+  /** Return specified individual edge if it is an in-edge of this vertex
+    * @param id ID of edge to return
+    * @param after only return edge if it is active after time `after`
+    * @param before only return edge if it is active before time `before` */
   def getInEdge(
       id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge]
 
-  //get individual edge irrespective of direction
+  /** Return specified edge if it is an in- or out-edge of this vertex
+    * @param id ID of edge to return
+    * @param after only return edge if it is active after time `after`
+    * @param before only return edge if it is active before time `before` */
   def getEdge(
       id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Option[Edge]
 
-  //all edges
+  /** Return all exploded [[com.raphtory.graph.visitor.ExplodedEdge]] views for each time point
+    * that an in- or out-edge of this vertex is active
+    * @param after  only return views for activity after time `after`
+    * @param before only return view for activity before time `before` */
   def explodeEdges(
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): List[ExplodedEdge] =
     getEdges(after, before).flatMap(_.explode())
 
-  //all out edges
+  /** Return all exploded [[com.raphtory.graph.visitor.ExplodedEdge]] views for each time point
+    * that an out-edge of this vertex is active
+    * @param after  only return views for activity after time `after`
+    * @param before only return view for activity before time `before` */
   def explodeOutEdges(
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): List[ExplodedEdge] =
     getOutEdges(after, before).flatMap(_.explode())
 
-  //all in edges
+  /** Return all exploded [[com.raphtory.graph.visitor.ExplodedEdge]] views for each time point
+    * that an in-edge of this vertex is active
+    * @param after  only return views for activity after time `after`
+    * @param before only return view for activity before time `before` */
   def explodeInEdges(
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): List[ExplodedEdge] =
     getInEdges(after, before).flatMap(_.explode())
 
-  //individual out edge
+  /** Return an individual exploded [[com.raphtory.graph.visitor.ExplodedEdge]] views for an individual edge
+    * if it is an out-edge of this vertex
+    * @param id ID of edge to explode
+    * @param after  only return views for activity after time `after`
+    * @param before only return view for activity before time `before` */
   def explodeOutEdge(
       id: IDType,
       after: Long = Long.MinValue,
@@ -475,7 +206,11 @@ trait Vertex extends EntityVisitor {
   ): Option[List[ExplodedEdge]] =
     getOutEdge(id, after, before).map(_.explode())
 
-  //individual in edge
+  /** Return exploded [[com.raphtory.graph.visitor.ExplodedEdge]] views for an individual edge
+    * if it is an in-edge of this vertex
+    * @param id ID of edge to explode
+    * @param after  only return views for activity after time `after`
+    * @param before only return view for activity before time `before` */
   def explodeInEdge(
       id: IDType,
       after: Long = Long.MinValue,
@@ -483,7 +218,11 @@ trait Vertex extends EntityVisitor {
   ): Option[List[ExplodedEdge]] =
     getInEdge(id, after, before).map(_.explode())
 
-  //individual edge
+  /** Return an individual exploded [[com.raphtory.graph.visitor.ExplodedEdge]] views for an individual edge
+    * if it is an in- or out-edge of this vertex
+    * @param id ID of edge to explode
+    * @param after  only return views for activity after time `after`
+    * @param before only return view for activity before time `before` */
   def explodedEdge(
       id: IDType,
       after: Long = Long.MinValue,
@@ -492,13 +231,40 @@ trait Vertex extends EntityVisitor {
     getEdge(id, after, before).map(_.explode())
 
   // analytical state
+  /** Set algorithmic state for this vertex
+    * @param key key to use for setting value
+    * @param value new value for state */
   def setState(key: String, value: Any): Unit
+
   // if includeProperties = true, key is looked up first in analytical state with a fall-through to properties if not found
+  /** Retrieve value from algorithmic state
+    * @tparam `T` value type for state
+    * @param key key to use for retrieving state
+    * @param includeProperties set this to `true` to fall-through to vertex properties if `key` is not found */
   def getState[T](key: String, includeProperties: Boolean = false): T
+
+  /** Retrieve value from algorithmic state if it exists or return a default value otherwise
+    * @tparam `T` value type for state
+    * @param key key to use for retrieving state
+    * @param value default value to return if state does not exist
+    * @param includeProperties set this to `true` to fall-through to vertex properties
+    *                          if `key` is not found in algorithmic state */
   def getStateOrElse[T](key: String, value: T, includeProperties: Boolean = false): T
+
+  /** Checks if algorithmic state with key `key` exists
+    * @param key state key to check
+    * @param includeProperties Set this to `true` to fall-through to vertex properties if `key` is not found.
+    *         If set, this function only returns `false` if `key` is not included in either algorithmic state
+    *         or vertex properties */
   def containsState(key: String, includeProperties: Boolean = false): Boolean
   // if includeProperties = true and value is pulled in from properties, the new value is set as state
   def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T
+
+  /** append new value to existing array or initialise new array if state does not exist
+    * The value type of the state is assumed to be `Array[T]` if the state already exists.
+    * @tparam `T` value type for state (needs to have a `ClassTag` available due to Scala `Array` implementation)
+    * @param key key to use for retrieving state
+    * @param value value to append to state */
   def appendToState[T: ClassTag](key: String, value: T): Unit
 
   // weight
@@ -519,6 +285,8 @@ trait Vertex extends EntityVisitor {
       .map(_.weight(weightProperty, edgeMergeStrategy, defaultWeight))
       .sum
 
+  /** Sum of incoming edge weights.
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]  */
   def weightedInDegree[A, B: Numeric](
       weightProperty: String = "weight",
       edgeMergeStrategy: PropertyMerge[A, B],
@@ -531,33 +299,45 @@ trait Vertex extends EntityVisitor {
             defaultWeight
     )
 
+  /** Sum of incoming edge weights.
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]  */
   def weightedInDegree[A: Numeric, B: Numeric](
       weightProperty: String,
       edgeMergeStrategy: PropertyMerge[A, B]
   ): B =
     weightedInDegree(weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
 
+  /** Sum of incoming edge weights.
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]  */
   def weightedInDegree[A: Numeric, B: Numeric](
       edgeMergeStrategy: PropertyMerge[A, B]
   ): B =
     weightedInDegree(DefaultValues.weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
 
+  /** Sum of incoming edge weights.
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]  */
   def weightedInDegree[A: Numeric](
       weightProperty: String,
       defaultWeight: A
   ): A =
     weightedInDegree(weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
 
+  /** Sum of incoming edge weights.
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]  */
   def weightedInDegree[A: Numeric](
       defaultWeight: A
   ): A =
     weightedInDegree(DefaultValues.weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
 
+  /** Sum of incoming edge weights.
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]  */
   def weightedInDegree[A: Numeric](
       weightProperty: String
   ): A =
     weightedInDegree(weightProperty, DefaultValues.mergeStrategy[A], DefaultValues.defaultVal[A])
 
+  /** Sum of incoming edge weights.
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]  */
   def weightedInDegree[A: Numeric](
   ): A =
     weightedInDegree(
@@ -566,6 +346,9 @@ trait Vertex extends EntityVisitor {
             DefaultValues.defaultVal[A]
     )
 
+  /** Sum of outgoing edge weights
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedOutDegree[A, B: Numeric](
       weightProperty: String = "weight",
       edgeMergeStrategy: PropertyMerge[A, B],
@@ -578,23 +361,35 @@ trait Vertex extends EntityVisitor {
             defaultWeight
     )
 
+  /** Sum of outgoing edge weights
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedOutDegree[A: Numeric, B: Numeric](
       weightProperty: String,
       edgeMergeStrategy: PropertyMerge[A, B]
   ): B =
     weightedOutDegree(weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
 
+  /** Sum of outgoing edge weights
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedOutDegree[A: Numeric, B: Numeric](
       edgeMergeStrategy: PropertyMerge[A, B]
   ): B =
     weightedOutDegree(DefaultValues.weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
 
+  /** Sum of outgoing edge weights
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedOutDegree[A: Numeric](
       weightProperty: String,
       defaultWeight: A
   ): A =
     weightedOutDegree(weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
 
+  /** Sum of outgoing edge weights
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedOutDegree[A: Numeric](
       defaultWeight: A
   ): A =
@@ -604,11 +399,17 @@ trait Vertex extends EntityVisitor {
             defaultWeight
     )
 
+  /** Sum of outgoing edge weights
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedOutDegree[A: Numeric](
       weightProperty: String
   ): A =
     weightedOutDegree(weightProperty, DefaultValues.mergeStrategy[A], DefaultValues.defaultVal[A])
 
+  /** Sum of outgoing edge weights
+    * For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedOutDegree[A: Numeric](
   ): A =
     weightedOutDegree(
@@ -617,6 +418,9 @@ trait Vertex extends EntityVisitor {
             DefaultValues.defaultVal[A]
     )
 
+  /** Sum of incoming and outgoing edge weights
+    *  For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedTotalDegree[A, B: Numeric](
       weightProperty: String = "weight",
       edgeMergeStrategy: PropertyMerge[A, B],
@@ -629,12 +433,18 @@ trait Vertex extends EntityVisitor {
             defaultWeight
     )
 
+  /** Sum of incoming and outgoing edge weights
+    *  For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedTotalDegree[A: Numeric, B: Numeric](
       weightProperty: String,
       edgeMergeStrategy: PropertyMerge[A, B]
   ): B =
     weightedTotalDegree(weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
 
+  /** Sum of incoming and outgoing edge weights
+    *  For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedTotalDegree[A: Numeric, B: Numeric](
       edgeMergeStrategy: PropertyMerge[A, B]
   ): B =
@@ -644,22 +454,34 @@ trait Vertex extends EntityVisitor {
             DefaultValues.defaultVal[A]
     )
 
+  /** Sum of incoming and outgoing edge weights
+    *  For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedTotalDegree[A: Numeric](
       weightProperty: String,
       defaultWeight: A
   ): A =
     weightedTotalDegree(weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
 
+  /** Sum of incoming and outgoing edge weights
+    *  For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedTotalDegree[A: Numeric](
       defaultWeight: A
   ): A =
     weightedTotalDegree(DefaultValues.weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
 
+  /** Sum of incoming and outgoing edge weights
+    *  For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedTotalDegree[A: Numeric](
       weightProperty: String
   ): A =
     weightedTotalDegree(weightProperty, DefaultValues.mergeStrategy[A], DefaultValues.defaultVal[A])
 
+  /** Sum of incoming and outgoing edge weights
+    *  For the meaning of the input arguments see [[com.raphtory.graph.visitor.Edge]]
+    */
   def weightedTotalDegree[A: Numeric](
   ): A =
     weightedTotalDegree(

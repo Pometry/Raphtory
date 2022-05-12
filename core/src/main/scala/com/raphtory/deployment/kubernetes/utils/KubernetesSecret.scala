@@ -5,25 +5,10 @@ import io.fabric8.kubernetes.api.model.SecretBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import scala.collection.JavaConverters._
 
-/**
-  * {s}`KubernetesSecret`
-  *
-  * Kubernetes Secret
-  *
-  * ## Methods
-  *
-  *   {s}`build(client: KubernetesClient, data: Map[String, String], name: String, secretType: String): Secret`
-  *     : Build Kubernetes secret
-  *
-  *   {s}`create(client: KubernetesClient, namespace: String, secret: Secret): Secret`
-  *     : Create Kubernetes secret
-  * 
-  *   {s}`delete(client: KubernetesClient, namespace: String, name: String): Boolean`
-  *     : Delete Kubernetes secret
-  */
-
+/** Kubernetes Secret */
 object KubernetesSecret {
 
+  /** Build Kubernetes secret */
   def build(
       client: KubernetesClient,
       data: Map[String, String],
@@ -37,6 +22,7 @@ object KubernetesSecret {
       .withType(secretType)
       .build
 
+  /** Create Kubernetes secret */
   def create(
       client: KubernetesClient,
       namespace: String,
@@ -44,6 +30,7 @@ object KubernetesSecret {
   ): Secret =
     client.secrets.inNamespace(namespace).createOrReplace(secret)
 
+  /** Delete Kubernetes secret */
   def delete(
       client: KubernetesClient,
       namespace: String,

@@ -1,4 +1,4 @@
 package com.raphtory.graph.visitor
 
-/** @DoNotDocument */
+/** @note DoNotDocument */
 trait ConcreteExplodedEdge[T] extends ExplodedEdge with ConcreteEdge[T]
