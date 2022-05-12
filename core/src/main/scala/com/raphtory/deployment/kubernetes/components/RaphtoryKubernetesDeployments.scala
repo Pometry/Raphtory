@@ -2,33 +2,19 @@ package com.raphtory.deployment.kubernetes.components
 
 import com.raphtory.deployment.kubernetes.utils.KubernetesDeployment
 
-/**
-  * {s}`RaphtoryKubernetesDeployments`
-  *
-  * Extends KubernetesClient which extends Config.
-  *
+/** Extends KubernetesClient which extends Config.
   * KubernetesClient is used to establish kubernetes connection.
-  * 
   * Kubernetes objects that are iterated over are read from application.conf values.
   *
-  * ## Methods
-  *
-  *   {s}`create()`
-  *     : Create kubernetes deployments needed for Raphtory (if toggled in application.conf) 
-  *
-  *   {s}`delete()`
-  *     : Delete kubernetes deployments needed for Raphtory (if toggled in application.conf) 
-  *
-  * ```{seealso}
-  * [](com.raphtory.deployment.kubernetes.components.Config),
-  * [](com.raphtory.deployment.kubernetes.components.KubernetesClient),
-  * [](com.raphtory.deployment.kubernetes.utils.KubernetesDeployment)
-  * ```
+  * @see  [[com.raphtory.deployment.kubernetes.components.Config]]
+  * [[com.raphtory.deployment.kubernetes.components.KubernetesClient]]
+  * [[com.raphtory.deployment.kubernetes.utils.KubernetesDeployment]]
   */
 
 object RaphtoryKubernetesDeployments extends KubernetesClient {
   val systemEnvVars = System.getenv
 
+  /** Create kubernetes deployments needed for Raphtory (if toggled in application.conf) */
   def create(): Unit =
     raphtoryKubernetesDeployments.forEach { raphtoryComponent =>
       if (
@@ -124,6 +110,7 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
         )
     }
 
+  /** Delete kubernetes deployments needed for Raphtory (if toggled in application.conf) */
   def delete(): Unit =
     raphtoryKubernetesDeployments.forEach { raphtoryComponent =>
       if (conf.hasPath(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.create")) {

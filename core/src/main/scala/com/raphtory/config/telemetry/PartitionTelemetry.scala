@@ -7,12 +7,9 @@ import io.prometheus.client.Gauge
 
 import scala.collection.mutable
 
-/**
-  * {s}`PartitionTelemetry`
-  *  : Adds metrics for partitions, i.e. {s}`Reader`, {s}`BatchWriter` and {s}`StreamWriter` using Prometheus Client
-  *
-  *    Exposes Counter and Summary stats for tracking number of graph updates, watermarks created by reader, vertices and edges added and deleted by writers in Raphtory
-  *    Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
+/** Adds metrics for partitions, i.e. `Reader`, `BatchWriter` and `StreamWriter` using Prometheus Client
+  * Exposes Counter and Summary stats for tracking number of graph updates, watermarks created by reader, vertices and edges added and deleted by writers in Raphtory
+  * Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object PartitionTelemetry {
 

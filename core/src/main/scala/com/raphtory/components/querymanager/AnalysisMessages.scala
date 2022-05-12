@@ -12,7 +12,7 @@ import io.prometheus.client.Gauge
 
 import scala.collection.immutable.Queue
 
-/** @DoNotDocument */
+/** @note DoNotDocument */
 trait QueryManagement extends Serializable
 
 case class WatermarkTime(partitionID: Int, startTime: Long, endTime: Long, safe: Boolean)

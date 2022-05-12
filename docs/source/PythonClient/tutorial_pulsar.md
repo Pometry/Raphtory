@@ -17,7 +17,7 @@ In this demo we will
 * Add these results to the Graph
 * Visualise the graph with pymotif
 
-### Setup Code
+## Setup Code
 
 First we setup the various libraries we will need
 
@@ -27,7 +27,7 @@ from raphtoryclient import client
 from pymotif import Motif
 ```
 
-### Create Client
+## Create Client
 
 Now we create a client, and then create the readers which read from topics.
 
@@ -60,7 +60,7 @@ conCompReader  = raphtoryClient.createReader("ConnectedComponents", subscription
     Connected to topic: ConnectedComponents
 
 
-### Obtain dataframes
+## Obtain dataframes
 
 Now we will run the getDataframe function to retrieve results as dataframes.
 
@@ -78,7 +78,7 @@ df_con  = raphtoryClient.getDataframe(conCompReader)
 
 
 
-### Create a graph
+## Create a graph
 
 Next we create a graph by pulling the edge list from Raphtory.
 
@@ -98,7 +98,7 @@ G.number_of_nodes(), G.number_of_edges()
 
 
 
-### Adding properties to our graph
+## Adding properties to our graph
 
 Now we merge these as node properties into our graph
 
@@ -107,7 +107,7 @@ Now we merge these as node properties into our graph
 raphtoryClient.add_node_attributes(G, [df_page], ['PageRank'])
 ```
 
-### Visualisation
+## Visualisation
 
 Finally we plot the graph with an open source visualisation tool .
 

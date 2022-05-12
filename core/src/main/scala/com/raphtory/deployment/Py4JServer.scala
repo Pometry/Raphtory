@@ -15,10 +15,16 @@ import java.io.{DataOutputStream, File, FileOutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 
+/** Setups the Py4J Java server which allows Python to interact with Raphtory
+  *  */
 class Py4JServer(entryPoint: Object) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
+  /** Similar to the PySpark implementation. This writes the port details of the
+    * java gatway to a local file. When the python interface starts it reads this
+    * local file to identity the port required to connect.
+    *  */
   private def writePortToFile(port: Int, conf: Config): Unit = {
     val filename = conf.getString("raphtory.python.gatewayFilePath")
     logger.info("Writing PythonGatewayServer details to file...")
@@ -59,8 +65,12 @@ class Py4JServer(entryPoint: Object) {
       .build()
   private var startedServer = false
 
+  /** Getter for the secret
+    * @return Secret */
   def getSecret(): String = secret
 
+  /** This starts a java gateway server, and writes the port it binds to into a
+    * local file.  */
   def start(conf: Config): Unit = gatewayServer match {
     case gatewayServer: GatewayServer =>
       if (!startedServer) {
@@ -78,11 +88,13 @@ class Py4JServer(entryPoint: Object) {
     case other => logger.error(s"Start given unexpected Py4J gatewayServer ${other.getClass}")
   }
 
+  /** Getter to obtain the gateways listening port */
   def getListeningPort: Int = gatewayServer match {
     case gatewayServer: GatewayServer => gatewayServer.getListeningPort
     case other => logger.error(s"getListeningPort given unexpected Py4J gatewayServer ${other.getClass}"); -1
   }
 
+  /** Safely shutsdown the gateway server */
   def shutdown(): Unit = gatewayServer match {
     case gatewayServer: GatewayServer => gatewayServer.shutdown(); startedServer=false
     case other => logger.error(s"shutdown given unexpected Py4J gatewayServer ${other.getClass}")

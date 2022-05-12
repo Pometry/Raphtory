@@ -4,7 +4,7 @@ import com.raphtory.graph.visitor.Vertex
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-/** @DoNotDocument */
+/** @note DoNotDocument */
 abstract class GraphLens(jobId: String, start: Long, end: Long) {
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

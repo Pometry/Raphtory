@@ -18,8 +18,8 @@ import org.slf4j.LoggerFactory
 import scala.annotation.tailrec
 import scala.util.Try
 
-/** @DoNotDocument
-  * The PerspectiveController is responsible for constructing graph views
+/** The PerspectiveController is responsible for constructing graph views
+  * @note DoNotDocument
   */
 case class Perspective(
     timestamp: Long,

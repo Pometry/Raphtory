@@ -6,13 +6,10 @@ import io.prometheus.client.Counter
 
 import scala.collection.mutable
 
-/**
-  * {s}`GraphBuilderTelemetry`
-  *  : Adds metrics for {s}`GraphBuilder` using Prometheus Client
-  *
-  *    Exposes Counter and Gauge stats for tracking number of vertices and edges added and deleted, total partitions created
-  *    by the graph builder
-  *    Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
+/** Adds metrics for `GraphBuilder` using Prometheus Client
+  * Exposes Counter and Gauge stats for tracking number of vertices and edges added and deleted, total partitions created
+  * by the graph builder
+  * Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object BuilderTelemetry {
   val raphtoryConfig: Config = Raphtory.getDefaultConfig()

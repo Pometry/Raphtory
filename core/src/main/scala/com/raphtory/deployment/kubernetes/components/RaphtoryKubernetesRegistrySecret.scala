@@ -4,32 +4,17 @@ import java.util.Base64
 
 import com.raphtory.deployment.kubernetes.components.KubernetesClient
 
-/**
-  * {s}`RaphtoryKubernetesRegistrySecret`
-  *
-  * Extends KubernetesClient which extends Config.
-  *
+/** Extends KubernetesClient which extends Config.
   * KubernetesClient is used to establish kubernetes connection.
-  * 
   * Kubernetes object config is read from application.conf values.
   *
-  * ## Methods
-  *
-  *   {s}`create(): Unit`
-  *     : Create kubernetes registry secrets needed for Raphtory (if toggled in application.conf)
-  *
-  *   {s}`delete(): Unit`
-  *     : Delete kubernetes registry secrets needed for Raphtory (if toggled in application.conf)
-  *
-  * ```{seealso}
-  * [](com.raphtory.deployment.kubernetes.components.Config),
-  * [](com.raphtory.deployment.kubernetes.components.KubernetesClient),
-  * [](com.raphtory.deployment.kubernetes.utils.KubernetesSecret)
-  * ```
+  * @see [[com.raphtory.deployment.kubernetes.components.Config]]
+  * [[com.raphtory.deployment.kubernetes.components.KubernetesClient]]
+  * [[com.raphtory.deployment.kubernetes.utils.KubernetesSecret]]
   */
-
 object RaphtoryKubernetesRegistrySecret extends KubernetesClient {
 
+  /** Create kubernetes registry secrets needed for Raphtory (if toggled in application.conf) */
   def create(): Unit =
     if (
             conf.hasPath("raphtory.deploy.kubernetes.secrets.registry.create") &&
@@ -71,6 +56,7 @@ object RaphtoryKubernetesRegistrySecret extends KubernetesClient {
               s"Setting raphtory.deploy.kubernetes.secrets.registry.create is set to false"
       )
 
+  /** Delete kubernetes registry secrets needed for Raphtory (if toggled in application.conf) */
   def delete(): Unit =
     if (
             conf.hasPath("raphtory.deploy.kubernetes.secrets.registry.delete") &&

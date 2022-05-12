@@ -1,23 +1,12 @@
 package com.raphtory.algorithms.api
 
-/**
-  *  {s}`Accumulator[T]`
-  *    : Public accumulator interface
-  *
-  *  ## Methods
-  *
-  *    {s}`+= (newValue: T): Unit`
-  *      : add new value to accumulator
-  *
-  *    {s}`value: T`
-  *      : get last accumulated value
-  *
-  * ```{seealso}
-  * [](com.raphtory.algorithms.api.GraphState)
-  * ```
-  */
+/** Abstract class for the Accumulator interface.
+  * See also com.raphtory.algorithms.api.GraphState */
 abstract class Accumulator[T] {
+
+  /** Add new value to accumulator */
   def value: T
 
+  /** Get last accumulated value */
   def +=(newValue: T): Unit
 }

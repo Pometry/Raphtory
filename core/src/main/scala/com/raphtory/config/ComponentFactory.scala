@@ -24,7 +24,7 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-/** @DoNotDocument */
+/** @note DoNotDocument */
 private[raphtory] class ComponentFactory(
     conf: Config,
     topicRepo: TopicRepository,

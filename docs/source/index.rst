@@ -73,8 +73,14 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
 
 .. toctree::
    :hidden:
-   :caption: API
+   :caption: Algorithms
 
-   _autodoc/com/raphtory/index.rst
+   _autodoc/com/raphtory/algorithms/generic/index.rst
+   _autodoc/com/raphtory/algorithms/temporal/index.rst
 
 
+.. toctree::
+   :hidden:
+   :caption: API (Scaladoc)
+
+   Scaladoc/index.md

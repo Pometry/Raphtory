@@ -1,17 +1,10 @@
 package com.raphtory.graph.visitor
 
-/**
-  * {s}`InterlayerEdge(srcTime: Long, dstTime: Long, properties: Map[String, Any] = Map.empty[String, Any])`
-  *   : Class for representing interlayer edges
+/** Class for representing interlayer edges
   *
-  *     {s}`srcTime: Long`
-  *       : source time-stamp for the edge
-  *
-  *     {s}`dstTime: Long`
-  *       : destination time-stamp for the edge
-  *
-  *     {s}`properties: Map[String, Any] = Map.empty[String, Any]`
-  *       : properties that the interlayer edge should have
+  * @param srcTime source time-stamp for the edge
+  * @param dstTime destination time-stamp for the edge
+  * @param properties properties that the interlayer edge should have
   */
 case class InterlayerEdge(
     srcTime: Long,
@@ -69,16 +62,16 @@ case class InterlayerEdge(
 
 /** # InterlayerEdgeBuilders
   *
-  *  {s}`InterlayerEdgeBuilders`
+  *  `InterlayerEdgeBuilders`
   *   : Default builders for constructing interlayer edges
   *
   *  ## Builders
   *
-  *  {s}`linkNext`
+  *  `linkNext`
   *
-  *  {s}`linkPrevious`
+  *  `linkPrevious`
   *
-  *  {s}`linkPreviousAndNext`
+  *  `linkPreviousAndNext`
   */
 object InterlayerEdgeBuilders {
 

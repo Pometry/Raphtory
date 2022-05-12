@@ -13,7 +13,7 @@ import org.apache.pulsar.client.api.Schema
 
 import scala.collection.mutable
 
-/** @DoNotDocument */
+/** @note DoNotDocument */
 class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
         extends Component[QueryManagement](conf) {
   private val currentQueries = mutable.Map[String, QueryHandler]()

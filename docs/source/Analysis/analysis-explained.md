@@ -17,26 +17,26 @@ The next sections will explore how algorithms can be written using these vertex 
 
 ## The GraphAlgorithm API
 
-The core of the Raphtory algorithm API is the [{s}`GraphAlgorithm`](com.raphtory.algorithms.api.GraphAlgorithm)
+The core of the Raphtory algorithm API is the {scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm`
 class which custom algorithms should extend.
 In general, an algorithm has two stages: graph processing and tabularising results. Graph processing is defined
-using the {s}`GraphAlgorithm.apply()` method whereas tabularising results is handled by the
-{s}`GraphAlgorithm.tabularise()` method. Graph information is handled by the
-[{s}`GraphPerspective`](com.raphtory.algorithms.api.GraphPerspective)
-class and tabular data by the [{s}`Table`](com.raphtory.algorithms.api.Table) class.
-Rows in a [{s}`Table`](com.raphtory.algorithms.api.Table) are manipulated using the
-[{s}`Row`](com.raphtory.algorithms.api.Row) class.
+using the {scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm.apply()` method whereas tabularising results is handled by the
+{scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm.tabularise()` method. Graph information is handled by the
+{scaladoc}`com.raphtory.algorithms.api.GraphPerspective`
+class and tabular data by the {scaladoc}`com.raphtory.algorithms.api.Table` class.
+Rows in a {scaladoc}`com.raphtory.algorithms.api.Table` are manipulated using the
+{scaladoc}`com.raphtory.algorithms.api.Row` class.
 Thus, to import the core algorithm API use:
 
 ```scala
 import com.raphtory.algorithms.api.{GraphAlgorithm, GraphPerspective, Row, Table}
 ```
 
-There are two other classes that form part of the algorithm API, [{s}`Chain`](com.raphtory.algorithms.api.Chain)
-and [{s}`Identity`](com.raphtory.algorithms.api.Identity).
-A [{s}`Chain`](com.raphtory.algorithms.api.Chain) applies a sequence of algorithms to the same graph and is discussed
+There are two other classes that form part of the algorithm API, {scaladoc}`com.raphtory.algorithms.api.Chain`
+and {scaladoc}`com.raphtory.algorithms.api.Identity`.
+A {scaladoc}`com.raphtory.algorithms.api.Chain`applies a sequence of algorithms to the same graph and is discussed
 in more detail later.
-[{s}`Identity`](com.raphtory.algorithms.api.Identity) is an algorithm that leaves the graph unchanged and does
+{scaladoc}`com.raphtory.algorithms.api.Identity` is an algorithm that leaves the graph unchanged and does
 not write out any results. This is mainly useful as a default argument for algorithms that can optionally
 run another graph algorithm, e.g., as an optional pre- or post-processing step. An example of such an algorithm
 is community-based outlier detection [{s}`CBOD`](com.raphtory.algorithms.generic.CBOD) which can optionally
@@ -50,18 +50,18 @@ The graph processing is implemented by overriding the {s}`apply()` method, i.e.:
 ```scala
 override def apply(graph: GraphPerspective): GraphPerspective = {
 ```
-The {s}`apply()` method takes a [{s}`GraphPerspective`](com.raphtory.algorithms.api.GraphPerspective) as input,
+The {s}`apply()` method takes a {scaladoc}`com.raphtory.algorithms.api.GraphPerspective` as input,
 manipulates the state of vertices, and then returns the
-[{s}`GraphPerspective`](com.raphtory.algorithms.api.GraphPerspective), either for further processing by
+{scaladoc}`com.raphtory.algorithms.api.GraphPerspective`, either for further processing by
 other algorithms or for collecting and writing out results.
-A [{s}`GraphPerspective`](com.raphtory.algorithms.api.GraphPerspective) has two key methods which are used during
+A {scaladoc}`com.raphtory.algorithms.api.GraphPerspective`) has two key methods which are used during
 graph processing, {s}`step()` and {s}`iterate()`.
 
 #### step()
 {s}`step()` takes in a function to be applied to each vertex in the graph, and permits each vertex to mutate
-its state and send messages to some or all of its neighbours. Vertices are represented in Raphtory by the
-[{s}`Vertex`](com.raphtory.graph.visitor.Vertex) class, which exposes methods for storing computational state,
-messaging other vertices, accessing edges (represented by the [{s}`Edge`](com.raphtory.graph.visitor.Edge) class),
+its state and send messages to some or all of its neighbours. Vertices are represented in Raphtory by the 
+{scaladoc}`com.raphtory.graph.visitor.Vertex` class, which exposes methods for storing computational state,
+messaging other vertices, accessing edges (represented by the {scaladoc}`com.raphtory.graph.visitor.Edge` class),
 and accessing properties set when the graph was constructed. The {s}`step()` method is often used as the setup for
 an algorithm, getting each vertex ready with a default state or finding the subset of vertices that are required to
 send the first messages. For example:
@@ -82,7 +82,7 @@ its `cclabel` to its own ID and then sends this ID to all of its neighbours.
 {s}`iterate()` does the same thing as {s}`step()`, but is run repeatedly until some criterion is met or a
 maximum number of iterations is reached. Vertex state is often used to record progress during iterations and to
 decide if an algorithm has converged. The convergence criterion is established by vertices *voting to halt* unanimously
-using the [{s}`Vertex.voteToHalt()`](com.raphtory.graph.visitor.Vertex) method.  All of this can be seen in the example below:
+using the {scaladoc}`com.raphtory.graph.visitor.Vertex.voteToHalt()` method.  All of this can be seen in the example below:
 
 ```scala
         .iterate({
@@ -115,9 +115,9 @@ it can be set here.
 
 Many algorithms require computing some global properties, e.g., normalisation constants. This is supported in
 Raphtory by using accumulators. The function defining the algorithmic step for both the {s}`step()` and {s}`iterate()`
-method can optionally take a second [{s}`GraphState`](com.raphtory.algorithms.api.GraphState) argument. Before we can
-use the global state, we first have to define some accumulators using the {s}`GraphPerspective.setGlobalState()` method.
-The [{s}`Accumulator`](com.raphtory.algorithms.api.Accumulator) class has a {s}`+=` operator to add new values to the
+method can optionally take a second {scaladoc}`com.raphtory.algorithms.api.GraphState` argument. Before we can
+use the global state, we first have to define some accumulators using the {scaladoc}`com.raphtory.algorithms.api.GraphPerspective.setGlobalState()` method.
+The {scaladoc}`com.raphtory.algorithms.api.Accumulator` class has a {s}`+=` operator to add new values to the
 accumulator and a {s}`value` attribute for accessing the last computed value.
 
 The example below illustrates how to compute the maximum degree in the graph using an accumulator:
@@ -140,7 +140,7 @@ graph
 
 Once graph processing is complete, the algorithm proceeds to collect vertex state into tabular form.
 This stage of the algorithm is implemented by overriding the {s}`tabularise()` method of the
-[{s}`GraphAlgorithm`](com.raphtory.algorithms.api.GraphAlgorithm) class, i.e.
+{scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm` class, i.e.
 
 ```scala
 override def tabularise(graph: GraphPerspective): Table = {
@@ -150,7 +150,7 @@ override def tabularise(graph: GraphPerspective): Table = {
 
 Typically, one calls {s}`select()` on the input graph as the first step of {s}`tabularise()` (though one could
 in principle do further graph post-processing at this stage).
-`select()` maps a vertex to a [s}`Row`](com.raphtory.algorithms.api.Row) object containing the results for that vertex.
+`select()` maps a vertex to a {scaladoc}`com.raphtory.algorithms.api.Row` object containing the results for that vertex.
 
 
 As an alternative, one can also use the {s}`explodeSelect()` method. Like select, {s}`explodeSelect()` also takes a
@@ -158,10 +158,10 @@ function which is executed once per vertex, however, this function should return
 This can be used to return multiple rows per vertex (e.g. for edge-level outputs
 [{s}`EdgeList`](com.raphtory.algorithms.generic.EdgeList)) or as a way of filtering results by returning an empty list.
 Like the {s}`step()` and {s}`iterate()` methods, the {s}`select()` and {s}`explodeSelect()`
-step can also optionally take the global [{s}`GraphState`](com.raphtory.algorithms.api.GraphState) as an additional input.
+step can also optionally take the global {scaladoc}`com.raphtory.algorithms.api.GraphState` as an additional input.
 The final method for tabularising results is the {s}`globalSelect()` method which maps the global
-[{s}`GraphState`](com.raphtory.algorithms.api.GraphState) to
-a single [{s}`Row`](com.raphtory.algorithms.api.Row). For example, we could use this to return the maximum degree
+{scaladoc}`com.raphtory.algorithms.api.GraphState` to
+a single {scaladoc}`com.raphtory.algorithms.api.Row`. For example, we could use this to return the maximum degree
 computed above:
 
 ```scala
@@ -181,7 +181,7 @@ Once we have the data in Row form we may perform a different set of transformati
 #### filter()
 
 The filter function can only be run after the vertex data has been converted to
-[{s}`Table`](com.raphtory.algorithms.api.Table) format by the {s}`select()` call.
+{scaladoc}`com.raphtory.algorithms.api.Table` format by the {s}`select()` call.
 For example:
 
 ```scala
@@ -209,16 +209,16 @@ table
 ### Writing out results
 
 Finally, once you are happy with the format of your data you can output it to disk.
-This is implemented by using an [{s}`OutputFormat`](com.raphtory.algorithms.api.OutputFormat) which is given to the
+This is implemented by using an {scaladoc}`com.raphtory.algorithms.api.OutputFormat` which is given to the
 query when it is executed.
 
-Raphtory supports two formats at present: [{s}`FileOutputFormat`](com.raphtory.output.FileOutputFormat) and
-[{s}`PulsarOutputFormat`](com.raphtory.output.PulsarOutputFormat).
+Raphtory supports two formats at present: {scaladoc}`com.raphtory.output.FileOutputFormat` and
+{scaladoc}`com.raphtory.output.PulsarOutputFormat`.
 
-[{s}`FileOutputFormat`](com.raphtory.output.FileOutputFormat) saves the results of each partition as separate
+{scaladoc}`com.raphtory.output.FileOutputFormat` saves the results of each partition as separate
 files to a directory.
 Simply pass the directory as the primary argument when creating the
-[{s}`FileOutputFormat`](com.raphtory.output.FileOutputFormat) object and pass this to the query.
+{scaladoc}`com.raphtory.output.FileOutputFormat` object and pass this to the query.
 
 For example:
 
@@ -228,9 +228,9 @@ val outputFormat = FileOutputFormat("/tmp")
 graph.rangeQuery(ConnectedComponents(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
 ```
 
-Similarly, [{s}`PulsarOutputFormat`](com.raphtory.output.PulsarOutputFormat) can used to write results directly to
+Similarly, {scaladoc}`com.raphtory.output.PulsarOutputFormat` can used to write results directly to
 Pulsar topics. Set the Topic as the primary argument when creating the
-[{s}`PulsarOutputFormat`](com.raphtory.output.PulsarOutputFormat) object.
+{scaladoc}`com.raphtory.output.PulsarOutputFormat` object.
 
 For example:
 
@@ -371,7 +371,7 @@ method as needed.
 
 ## Chaining algorithms
 It is often useful to compose/chain different algorithms together. This is implemented in Raphtory using the
-[{s}`Chain`](com.raphtory.algorithms.api.Chain) class.
+{scaladoc}`com.raphtory.algorithms.api.Chain` class.
 
 As an example, consider the [{s}`CBOD`](com.raphtory.algorithms.generic.CBOD) algorithm which detects outliers
 based on community labels for vertices.
@@ -379,14 +379,14 @@ based on community labels for vertices.
 In some cases, community labels may already be included in the input data.
 However, most of the time one would need to run a community detection algorithm (e.g.,
 [{s}`LPA`](com.raphtory.algorithms.generic.community.LPA)) first to get the labels.
-One way to express this in Raphtory is to use a [{s}`Chain`](com.raphtory.algorithms.api.Chain), i.e,
+One way to express this in Raphtory is to use a {scaladoc}`com.raphtory.algorithms.api.Chain`, i.e,
 ```scala
 import com.raphtory.algorithms.api.Chain
 import com.raphtory.algorithms.generic.community.LPA
 import com.raphtory.algorithms.generic.CBOD
 val lpa_cbod = Chain(LPA(), CBOD(label="lpalabel"))
 ```
-The {s}`apply()` method of a [{s}`Chain`](com.raphtory.algorithms.api.Chain) simply calls the {s}`apply()` method
+The {s}`apply()` method of a {scaladoc}`com.raphtory.algorithms.api.Chain` simply calls the {s}`apply()` method
 of the input algorithms in sequence, i.e.,
 
  ```scala
@@ -409,15 +409,15 @@ CBOD(label="lpalabel").tabularise(graph)
 In this example, we first use [{s}`LPA`](com.raphtory.algorithms.generic.community.LPA) to compute community labels
 and store them in a vertex state with key {s}`"lpalabel"`.
 [{s}`CBOD`](com.raphtory.algorithms.generic.CBOD) then uses the labels to identify outliers and writes out the results.
-Instead of using [{s}`Chain`](com.raphtory.algorithms.api.Chain) directly, one can also use the {s}`->` operator
-of [{s}`GraphAlgorithm`](com.raphtory.algorithms.api.GraphAlgorithm) to achieve the same result, i.e.,
+Instead of using {scaladoc}`com.raphtory.algorithms.api.Chain` directly, one can also use the {s}`->` operator
+of {scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm` to achieve the same result, i.e.,
 
 ```scala
 val lpa_cbod = LPA() -> CBOD(label="lpalabel")
 ```
-which constructs the same [{s}`Chain`](com.raphtory.algorithms.api.Chain) object under the hood.
+which constructs the same {scaladoc}`com.raphtory.algorithms.api.Chain` object under the hood.
 In the case of [{s}`CBOD`](com.raphtory.algorithms.generic.CBOD), one can also supply the community detection
 algorithm as an optional argument, i.e., {s}`CBOD(label="lpalabel", labeler=LPA())`, where by default
 {s}`labeler=Identity()` which does nothing. This is an example of the intended use of the
-[{s}`Identity`](com.raphtory.algorithms.api.Identity) algorithm.
+{scaladoc}`com.raphtory.algorithms.api.Identity` algorithm.
 

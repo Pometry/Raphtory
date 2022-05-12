@@ -7,7 +7,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-/** @DoNotDocument */
+/** @note DoNotDocument */
 object IntervalParser {
 
   sealed trait Unit

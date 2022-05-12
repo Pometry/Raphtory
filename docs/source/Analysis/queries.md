@@ -4,7 +4,7 @@ To run your implemented algorithm or any of the algorithms included in the most 
 ([See here](com.raphtory.algorithms)), you must submit them to the graph. We use the [Lord of the Rings
 graph](../Ingestion/sprouter.md) and the [degrees of separation algorithm](LOTR_six_degrees.md) examples to illustrate the query API.
 
-When running queries, the start point is a [`TemporalGraph`](com.raphtory.algorithms.api.TemporalGraph),
+When running queries, the start point is a {scaladoc}`com.raphtory.algorithms.api.TemporalGraph`,
 which holds the information of a graph over a timeline. 
 From this point, the overall process to get things done is as follows.
 First, you can filter the portion of the timeline you are interested in.
@@ -113,7 +113,7 @@ The second step is to create perspectives from those points.
 We have three options here.
 We can just look to the `past` from every point, to the `future`, or set a `window`.
 In the third case, we can align the windows using the start, the middle, or the end of it.
-Refer to the [`DottedGraph`](com.raphtory.algorithms.api.DottedGraph) documentation for further details.
+Refer to the {scaladoc}`com.raphtory.algorithms.api.DottedGraph` documentation for further details.
 
 Coming back to our first example,
 we can set up a walk along a prefiltered year of our data in steps of one day
@@ -141,7 +141,7 @@ as there is no available data for them after the initial filtering.
 Once we have defined the set of perspectives we want to work with,
 we can define a sequence of operations to apply over every one of those perspectives.
 The operations available are described in the documentation for the
-[`GraphOperations`](com.raphtory.algorithms.api.GraphOperations) trait.
+{scaladoc}`com.raphtory.algorithms.api.GraphOperations` trait.
 In addition to using already defined graph algorithms as we have done so far,
 you can also use graph operations directly over the graph object this way:
 
