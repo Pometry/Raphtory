@@ -26,6 +26,8 @@
         </Logger>
         <Logger name="com.raphtory.client" level="${env:RAPHTORY_CLIENT_LOG:-INFO}">
         </Logger>
+        <Logger name="com.raphtory.communication" level="${env:RAPHTORY_COMMUNICATION_LOG:-INFO}">
+        </Logger>
         <Logger name="com.raphtory.config" level="${env:RAPHTORY_CONFIG_LOG:-INFO}">
         </Logger>
         <Logger name="com.raphtory.deployment" level="${env:RAPHTORY_DEPLOYMENT_LOG:-INFO}">
