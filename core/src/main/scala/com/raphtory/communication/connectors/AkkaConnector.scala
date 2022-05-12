@@ -18,7 +18,10 @@ import com.raphtory.communication.EndPoint
 import com.raphtory.communication.ExclusiveTopic
 import com.raphtory.communication.Topic
 import com.raphtory.communication.WorkPullTopic
+import com.raphtory.components.Component
 import com.raphtory.serialisers.KryoSerialiser
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 import java.util.concurrent.CompletableFuture
 import scala.annotation.tailrec
@@ -29,6 +32,7 @@ import scala.concurrent.duration.DurationInt
 
 /** @DoNotDocument */
 class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Connector {
+  val logger: Logger                              = Logger(LoggerFactory.getLogger(this.getClass))
   val akkaReceptionistRegisteringTimeout: Timeout = 1.seconds
   val akkaSpawnerTimeout: Timeout                 = 1.seconds
   val akkaReceptionistFindingTimeout: Timeout     = 1.seconds
@@ -69,7 +73,15 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
         context.system.receptionist ! Receptionist.Register(getServiceKey(topic), context.self)
       }
       Behaviors.receiveMessage[Array[Byte]] { message =>
-        messageHandler.apply(deserialise(message))
+        logger.trace(s"Processing message by component $id")
+        try messageHandler.apply(deserialise(message))
+        catch {
+          case e: Exception =>
+            e.printStackTrace()
+            logger.error(s"Component $id: Failed to handle message. ${e.getMessage}")
+            throw e
+        }
+
         Behaviors.same
       }
     }
