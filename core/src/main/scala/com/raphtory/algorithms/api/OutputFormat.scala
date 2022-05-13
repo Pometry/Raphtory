@@ -22,7 +22,10 @@ abstract class OutputFormat extends Serializable {
     * @param jobID ID of job that generated the data
     * @param row row of data to write out
     * @param partitionID ID of partition trying to write the data
-    * */
+    */
+
+  def setup(): Unit = {}
+
   def write(
       timestamp: Long,
       window: Option[Interval],
@@ -30,4 +33,6 @@ abstract class OutputFormat extends Serializable {
       row: Row,
       partitionID: Int
   ): Unit
+
+  def close(): Unit = {}
 }

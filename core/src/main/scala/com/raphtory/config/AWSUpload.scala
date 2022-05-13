@@ -22,41 +22,27 @@ import java.io.File
 
 object AWSUpload extends App {
 
-//  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
-//  val bucketName: String     = raphtoryConfig.getString("raphtory.aws.bucketName")
-//  val filePath: String       = raphtoryConfig.getString("raphtory.aws.inputFilePath")
-//  val uploadFileName: String = raphtoryConfig.getString("raphtory.aws.uploadFileName")
-//  //file to upload
-//  val fileToUpload           = new File(filePath)
-//
-//  // This will create a bucket for storage
-//  //  amazonS3Client.createBucket(bucketName)
-//  AwsS3Client.amazonS3Client.putObject(bucketName, uploadFileName, fileToUpload)
-//
-//  // Tests successful upload of the file by reading first line
-//  val s3object: S3Object =
-//    AwsS3Client.amazonS3Client.getObject(new GetObjectRequest(bucketName, uploadFileName))
-//  val in                 = new BufferedReader(new InputStreamReader(s3object.getObjectContent))
-//
-//  val line = in.readLine
-//  val data = s"$line"
-//  println("Printing first line of fetched file: ")
-//  println(data)
-
-}
-
-object AwsS3Client {
-
   val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  val bucketName: String     = raphtoryConfig.getString("raphtory.aws.bucketName")
+  val filePath: String       = raphtoryConfig.getString("raphtory.aws.inputFilePath")
+  val uploadFileName: String = raphtoryConfig.getString("raphtory.aws.uploadFileName")
+  //file to upload
+  val fileToUpload           = new File(filePath)
 
-  val clientConfiguration                =
-    new ClientConfiguration()
-  clientConfiguration.setSignerOverride("AWSS3V4SignerType")
-  System.setProperty(SDKGlobalConfiguration.ENABLE_S3_SIGV4_SYSTEM_PROPERTY, "true")
-  val awsS3ClientAccessKey: String       = raphtoryConfig.getString("raphtory.aws.accessKey")
-  val awsS3ClientSecretAccessKey: String = raphtoryConfig.getString("raphtory.aws.secretAccessKey")
-  val numberOfFileLines: Int             = raphtoryConfig.getInt("raphtory.aws.fileLines")
-  /* These Keys available  in “Security Credentials” of Amazon S3 account */
-  val AWSCredentials                     = new BasicAWSCredentials(awsS3ClientAccessKey, awsS3ClientSecretAccessKey)
-  val amazonS3Client                     = new AmazonS3Client(AWSCredentials, clientConfiguration)
+  // This will create a bucket for storage
+  //  amazonS3Client.createBucket(bucketName)
+  AwsS3Client.amazonS3Client.putObject(bucketName, uploadFileName, fileToUpload)
+
+  // Tests successful upload of the file by reading first line
+  val s3object: S3Object =
+    AwsS3Client.amazonS3Client.getObject(new GetObjectRequest(bucketName, uploadFileName))
+  val in                 = new BufferedReader(new InputStreamReader(s3object.getObjectContent))
+
+  val line = in.readLine
+  val data = s"$line"
+  println("Printing first line of fetched file: ")
+  println(data)
+
 }
+
+object AwsS3Client {}
