@@ -12,8 +12,8 @@ import scala.math.Numeric.Implicits.infixNumericOps
 import scala.reflect.ClassTag
 
 /**
-  * {s}`EdqeQuantileFilter()`
-  * : Filtered view of the graph based on edge weight
+  * `VertexQuantileFilter()`
+  * : Filtered view of the graph based on vertex state or property
   *
   *  This creates a filtered view of the graph where nodes are removed based on where their value of a given property/state lies in the global
   *  distribution of vertex states, understood in this algorithm as percentiles. For example, one can create a view of the
@@ -22,23 +22,23 @@ import scala.reflect.ClassTag
   *
   * ## Parameters
   *
-  *  {s}`lower: Float = 0.0f`
+  *  `lower: Float = 0.0f`
   *  : The lower cutoff percentile below which nodes will be removed, a float with 0 <= lower <= upper <=1.0 with default value 0.0f
   *
-  *  {s}`upper: Float = 1.0f`
+  *  `upper: Float = 1.0f`
   *  : The upper cutoff percentile above which nodes will be removed, a float with 0 <= lower <= upper <=1.0 with default value 1.0f
   *
-  *  {s}`weightString: String = "weight"`
+  *  `weightString: String = "weight"`
   *  : String name of the property/state, defaulting to "weight". As with other weighted algorithms in Raphtory, if no weight property
   *  is there but multi-edges are present, the number of occurrences of each edge is treated as the weight.
   *
-  *  {s}`lowerExclusive: Boolean = "false"`
+  *  `lowerExclusive: Boolean = "false"`
   *  : whether the inequality on the threshold is strict or not at the lower end
   *
-  *  {s}`upperExclusive: Boolean = "false"`
+  *  `upperExclusive: Boolean = "false"`
   *  : whether the inequality on the= threshold is strict or not at the upper end
   *
-  *  {s}`noBins: Int = 1000`
+  *  `noBins: Int = 1000`
   *  : Number of bins to be used in the histogram. The more the bins, the more precise the thresholds can be (depending on the underlying
   *  distribution of the node property data) but the bigger the array being broadcast.
   *

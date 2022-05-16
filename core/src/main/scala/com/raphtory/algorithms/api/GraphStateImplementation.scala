@@ -45,20 +45,21 @@ private class HistogramImplementation[T: Numeric](
     maxValue: T
 ) extends Histogram[T](noBins, minValue, maxValue) {
 
-  private var totalIncrements = 0
-
-  override def +=(value: T): Unit = {
+  override def +=(value: T): Unit = this.synchronized{
     val bin = getBin(value).min(noBins-1)
     bins(bin) += 1
     totalIncrements += 1
   }
+
+  def getTotalIncrements():Int = totalIncrements
 
   override def getBin(value: T): Int =
     (noBins * (value - minValue).toFloat / (maxValue - minValue).toFloat).floor.toInt
 
   override def getBinCount(value: T): Int = bins(getBin(value))
 
-  def mergeBins(partialBin: Array[Int]): Unit = {
+  def mergeBins(partialBin: Array[Int],partialIncrements:Int): Unit = {
+    totalIncrements += partialIncrements
     for(bindex <- bins.indices){
       bins(bindex) = bins(bindex)+partialBin(bindex)
     }
@@ -266,7 +267,7 @@ class GraphStateImplementation extends GraphState {
     }
     graphState.histogramState.foreach {
       case (name, partialHist) =>
-        histogramState(name).mergeBins(partialHist.getBins)
+        histogramState(name).mergeBins(partialHist.getBins,partialHist.getTotalIncrements())
     }
 
   }
