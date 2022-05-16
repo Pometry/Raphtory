@@ -2,6 +2,8 @@ package com.raphtory.algorithms.api
 
 import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
+import com.raphtory.graph.visitor.InterlayerEdge
+import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.graph.visitor.Edge
 import com.raphtory.graph.visitor.Vertex
 
@@ -19,6 +21,35 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
 
   override def vertexFilter(f: (Vertex, GraphState) => Boolean): G =
     step((vertex, graphState) => if (!f(vertex, graphState)) vertex.remove())
+
+  override def multilayerView: G =
+    addFunction(MultilayerView(None))
+
+  override def multilayerView(
+      interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
+  ): G =
+    addFunction(MultilayerView(Some(interlayerEdgeBuilder)))
+
+  override def reducedView: G =
+    addFunction(ReduceView(None, None))
+
+  override def reducedView(mergeStrategyMap: Map[String, PropertyMerge[_, _]]): G =
+    addFunction(ReduceView(None, Some(mergeStrategyMap)))
+
+  override def reducedView(mergeStrategy: PropertyMerge[_, _]): G =
+    addFunction(ReduceView(Some(mergeStrategy), None))
+
+  override def reducedView(
+      defaultMergeStrategy: PropertyMerge[_, _],
+      mergeStrategyMap: Map[String, PropertyMerge[_, _]]
+  ): G =
+    addFunction(ReduceView(Some(defaultMergeStrategy), Some(mergeStrategyMap)))
+
+  override def aggregate(
+      defaultMergeStrategy: PropertyMerge[_, _],
+      mergeStrategyMap: Map[String, PropertyMerge[_, _]]
+  ): G =
+    addFunction(ReduceView(Some(defaultMergeStrategy), Some(mergeStrategyMap), aggregate = true))
 
   override def edgeFilter(f: Edge => Boolean, pruneNodes: Boolean): G = {
     val filtered = step { vertex =>
@@ -41,35 +72,6 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
       filtered.vertexFilter(vertex => vertex.degree > 0)
     else filtered
   }
-
-  //  override def multilayerView: G =
-//    addFunction(MultilayerView(None))
-//
-//  override def multilayerView(
-//      interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
-//  ): G =
-//    addFunction(MultilayerView(Some(interlayerEdgeBuilder)))
-//
-//  override def reducedView: G =
-//    addFunction(ReduceView(None, None))
-//
-//  override def reducedView(mergeStrategyMap: Map[String, PropertyMerge[_, _]]): G =
-//    addFunction(ReduceView(None, Some(mergeStrategyMap)))
-//
-//  override def reducedView(mergeStrategy: PropertyMerge[_, _]): G =
-//    addFunction(ReduceView(Some(mergeStrategy), None))
-//
-//  override def reducedView(
-//      defaultMergeStrategy: PropertyMerge[_, _],
-//      mergeStrategyMap: Map[String, PropertyMerge[_, _]]
-//  ): G =
-//    addFunction(ReduceView(Some(defaultMergeStrategy), Some(mergeStrategyMap)))
-//
-//  override def aggregate(
-//      defaultMergeStrategy: PropertyMerge[_, _],
-//      mergeStrategyMap: Map[String, PropertyMerge[_, _]]
-//  ): G =
-//    addFunction(ReduceView(Some(defaultMergeStrategy), Some(mergeStrategyMap), aggregate = true))
 
   override def step(f: (Vertex) => Unit): G = addFunction(Step(f))
 
