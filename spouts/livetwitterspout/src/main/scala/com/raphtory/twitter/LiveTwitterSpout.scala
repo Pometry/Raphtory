@@ -48,7 +48,7 @@ class LiveTwitterAddSpout(tweetQueue: ConcurrentLinkedQueue[Tweet]) {
   val raphtoryConfig: Config = Raphtory.getDefaultConfig()
   val hashtag: String        = raphtoryConfig.getString("raphtory.spout.twitter.local.hashtag")
   val tag: String            = raphtoryConfig.getString("raphtory.spout.twitter.local.tag")
-println(hashtag)
+
   val enableRetweetGraphBuilder: Boolean =
     raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
 
@@ -77,6 +77,14 @@ println(hashtag)
           s"Cannot connect to Twitter API, check your credentials: $e"
         )
     }
+
+  if (hashtag.nonEmpty) {
+    filterRules()
+    twitterClient.startFilteredStream(twitterEventListener())
+  }
+  else {
+    twitterClient.startSampledStream(twitterEventListener())
+  }
 
   def filterRules() =
     if (hashtag.nonEmpty) {
