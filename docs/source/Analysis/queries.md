@@ -83,11 +83,11 @@ As can be seen in the example, the process to create perspectives has two steps.
 | Function            | Effect                                            |
 |---------------------|---------------------------------------------------|
 | `depart(time,increment)`   | Set the start time and increment           |
-| `climb(time,increment)`    | Set the start time and increment           |
+| `climb(time,increment)`    | Set the end time and increment             |
 | `range(start,end,increment`| Set the start time, end time and increment |
 | `walk(increment)`          | Set only the increment                     |
 
-**Note:** If no start and end time are provided, Raphtory will default to the minimum and maximum times in the data (or min and max of the time range if a `silce()` etc. has been applied).
+**Note:** If no start and end time are provided, Raphtory will default to the minimum and maximum times in the data (or min and max of the time range if a `slice()` etc. has been applied).
 
 The second step is to create perspectives from each time point, for which we have three options. We can look to the `past` from every point, to the `future`, or set a `window`. In the third case, we can align the time point as: 
 
@@ -109,7 +109,10 @@ graph
   .writeTo(output)
 ```
 
-As we don't specify any start or end for the sequence, the times run between the minimum and maximum available. We, therefore, end up with a sequence of windows where the first containers data between Dec 26, 2019 to Jan 1, 2020, the second one from Dec 27, 2019 to Jan 2, 2020, etc. The last window of the sequence is then going to be from Dec 31, 2020 to Jan 6, 2021. All the preceding and following windows are omitted, as there is no available data for them after the initial filtering (`.slice("2020-01-01", "2021-01-01")`).
+The `walk` function doesn't take a start or end time as it explores all possible perspectives within the queries other parameters. For the above instance this generates a sequence of perspectives where the first contains data between `Dec 26, 2019` to `Jan 1, 2020`, the second one from `Dec 27, 2019` to `Jan 2, 2020`, etc. The last perspective of the sequence is then going to be from `Dec 31, 2020` to `Jan 6, 2021`. 
+
+**Note** The reason dates outside of the `.slice("2020-01-01", "2021-01-01")` appear in this sequence is because Raphtory includes `partial windows` i.e. where only part of the perspective time range is inside of the slice. For instance, the perspective for `Dec 27, 2019` to `Jan 2, 2020` has a small amount of data inside of the slice which can be analysed. An example of these partial windows can be seen in the bottom left of the diagram at the top of the page.  
+
 
 ## Operating over the graph
 
