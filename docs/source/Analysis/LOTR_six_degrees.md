@@ -2,13 +2,12 @@
 
 # Your first algorithm - Six Degrees of Gandalf
 
-In the [previous entry](../Ingestion/sprouter.md), you learnt how to write your own spout and builder to ingest the data. Here, we're going to go over how to write a new algorithm for the Lord of the Rings dataset which will get the size of the _six degrees of separation_ network for a character; in this case,`Gandalf`. 
+In the [previous entry](../Ingestion/sprouter.md), you learnt about Spouts and how to write your own Graph Builder to ingest data. Here we're going to go over how to write a new algorithm for the Lord of the Rings dataset which will calculate the size of the _six degrees of separation_ network for a character; in this case,`Gandalf`. 
 Six degrees of separation is "the idea that all people on average are six, or fewer, social connections away from each other." ([wiki here in case you want to know more](https://en.wikipedia.org/wiki/Six_degrees_of_separation)).
 
 ## Algorithm
 
-The class we are creating extends {scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm` with the type of 
-the data the algorithm is to return, in this case:
+The class we are creating extends {scaladoc}`com.raphtory.algorithms.api.GraphAlgorithm`:
 
 ```scala
 import com.raphtory.algorithms.api.{GraphAlgorithm, GraphPerspective, Row, Table}
@@ -20,7 +19,7 @@ class DegreesSeparation(name: String = "Gandalf") extends GraphAlgorithm {
 This means if the user does not explicitly give a name when they create an instance of the algorithm, this value will 
 be used. 
 
-To actually implement the algorithm we need to override the `apply` method within which we gain access to a `GraphPerspective`. This has all of the functional building blocks which allow us to specify what a vertex should be doing at each stage from initialisation through to output. All of these functions are explored in-depth in the [next section of the tutorial](analysis-explained.md).
+To actually implement the algorithm we need to override the `apply` method within which we gain access to a {scaladoc}`com.raphtory.algorithms.api.GraphPerspective`. This has all of the functional building blocks which allow us to specify what a vertex should be doing at each stage from initialisation through to output. All of these functions are explored in-depth in the [next section of the tutorial](analysis-explained.md).
 
 ```scala
 override def apply(graph: GraphPerspective): GraphPerspective = {
