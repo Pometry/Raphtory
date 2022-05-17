@@ -16,9 +16,9 @@ process large dynamic datasets across time. Raphtory is funded in part by
 and built by `Pometry <http://pometry.com>`_, The `QMUL Networks Group  <http://networks.eecs.qmul.ac.uk>`_ and a host of wonderful independent contributors.
 
 If you would like a brief summary of what its used for before fully diving into the getting start guide please check
-out our latest talk on Raphtory at `NetSciX <https://www.youtube.com/watch?v=QxhrONca4FE>`_ !
+out our latest talks on Raphtory at `AIUK 20222 <https://www.youtube.com/watch?v=7S9Ymnih-YM&list=PLuD_SqLtxSdVEUsCYlb5XjWm9D6WuNKEz&index=8>`_ , `KGC 2022 <https://www.youtube.com/watch?v=37S4bSN5EaU>`_ and `NetSciX <https://www.youtube.com/watch?v=QxhrONca4FE>`_ !
 
-Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/installdependencies>`.
+Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/installdependencies>`. Alternatively, if you want to dive headfirst into the internals you visit the `ScalaDocs <Scaladoc/index.md>`.
 
 .. toctree::
    :maxdepth: 3
@@ -32,9 +32,6 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    Analysis/LOTR_six_degrees.md
    Analysis/queries.md
    Analysis/analysis-explained.md
-
-
-.. Querying/presto.md
 
 .. toctree:: 
    :maxdepth: 2
@@ -64,14 +61,12 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    :caption: Examples Projects
 
    Examples/lotr.md
-   Examples/gab.md
    Examples/community-of-cheese.md
+   Examples/gab.md
    Examples/higgs-twitter.md
    Examples/twitter-social-circles.md
    Examples/facebook-social-circles.md
    Examples/enron.md
-   
-
 
 .. toctree::
    :hidden:
