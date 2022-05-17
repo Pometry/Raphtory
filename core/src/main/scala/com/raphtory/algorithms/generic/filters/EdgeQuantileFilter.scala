@@ -2,6 +2,7 @@ package com.raphtory.algorithms.generic.filters
 
 import com.raphtory.algorithms.api.Bounded
 import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.algorithms.api.Histogram
 import com.raphtory.algorithms.api.Identity
 
 import scala.collection.Searching.Found
@@ -69,8 +70,8 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
     // Get minimum and maximum edge weights for histogram creation
     graph
       .setGlobalState { state =>
-        state.newMin("weightMin", retainState = true)
-        state.newMax("weightMax", retainState = true)
+        state.newMin[T]("weightMin", retainState = true)
+        state.newMax[T]("weightMax", retainState = true)
       }
       .step { (vertex, state) =>
         vertex.getOutEdges().foreach { edge =>
@@ -79,20 +80,20 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
         }
       }
       .setGlobalState { state =>
-        val minWeight = state[T]("weightMin").value
-        val maxWeight = state[T]("weightMax").value
+        val minWeight: T = state("weightMin").value
+        val maxWeight: T = state("weightMax").value
         state.newHistogram[T]("weightDist", noBins = noBins, minWeight, maxWeight)
       }
 
       // Populate histogram with weights
       .step { (vertex, state) =>
-        val histogram = state.getHistogram("weightDist").get
+        val histogram = state("weightDist")
         vertex.getOutEdges().foreach { edge =>
           histogram += (edge.weight(weightString))
         }
       }
       .setGlobalState { state =>
-        val histogram = state.getHistogram("weightDist").get
+        val histogram: Histogram[T] = state("weightDist").value
         state.newConstant[Float]("upperQuantile", histogram.quantile(upper))
         state.newConstant[Float]("lowerQuantile", histogram.quantile(lower))
         println(histogram.quantile(lower), histogram.quantile(upper))
@@ -101,9 +102,9 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
       // Finally remove edges that fall outside these quantiles
       .edgeFilter(
               (edge, state) => {
-                val edgeWeight    = edge.weight[T](weightString).toFloat
-                val upperQuantile = state[Float]("upperQuantile").value
-                val lowerQuantile = state[Float]("lowerQuantile").value
+                val edgeWeight                  = edge.weight[T](weightString).toFloat
+                val upperQuantile: Float        = state("upperQuantile").value
+                val lowerQuantile: Float        = state("lowerQuantile").value
                 val lowerExclusiveTest: Boolean =
                   if (lowerExclusive)
                     edgeWeight > lowerQuantile

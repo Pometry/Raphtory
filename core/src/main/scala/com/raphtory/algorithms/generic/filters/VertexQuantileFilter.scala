@@ -2,6 +2,7 @@ package com.raphtory.algorithms.generic.filters
 
 import com.raphtory.algorithms.api.Bounded
 import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.algorithms.api.Histogram
 import com.raphtory.algorithms.api.Identity
 import com.raphtory.algorithms.generic.NodeList
 
@@ -74,29 +75,29 @@ class VertexQuantileFilter[T: Numeric: Bounded: ClassTag](
         state("propertyMax") += vertex.getState(propertyString, true)
       }
       .setGlobalState { state =>
-        val propertyMin = state[T]("propertyMin").value
-        val propertyMax = state[T]("propertyMax").value
+        val propertyMin: T = state("propertyMin").value
+        val propertyMax: T = state("propertyMax").value
         state.newHistogram[T]("propertyDist", noBins = noBins, propertyMin, propertyMax)
       }
 
       // Populate histogram with weights
       .step { (vertex, state) =>
-        val histogram = state.getHistogram("propertyDist").get
+        val histogram = state("propertyDist")
         histogram += vertex.getState[T](propertyString)
       }
 
       // Turn into a cdf for finding quantiles
       .setGlobalState { state =>
-        val histogram = state.getHistogram("propertyDist").get
+        val histogram: Histogram[T] = state("propertyDist").value
         state.newConstant[Float]("upperQuantile", histogram.quantile(upper))
         state.newConstant[Float]("lowerQuantile", histogram.quantile(lower))
       }
 
       // Finally remove edges that fall outside these quantiles
       .vertexFilter { (vertex, state) =>
-        val vertexProperty  = vertex.getState[T](propertyString).toFloat
-        val upperQuantile = state[Float]("upperQuantile").value
-        val lowerQuantile = state[Float]("lowerQuantile").value
+        val vertexProperty       = vertex.getState[T](propertyString).toFloat
+        val upperQuantile: Float = state("upperQuantile").value
+        val lowerQuantile: Float = state("lowerQuantile").value
 
         val lowerExclusiveTest: Boolean =
           if (lowerExclusive)

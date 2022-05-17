@@ -44,15 +44,11 @@ package com.raphtory.algorithms.api
   * ```
   */
 
-abstract class Histogram[T: Numeric](noBins: Int, minValue: T, maxValue: T) {
-  protected val bins: Array[Int] = Array.fill(noBins)(0)
-  protected var totalIncrements = 0
-
+abstract class Histogram[T: Numeric](val minValue: T, val maxValue: T) {
+  def totalCount: Int
   def cumSum(): Array[Int]
   def quantile(percentile: Float): Float
-  def getBins: Array[Int] = bins
+  def getBins: Array[Int]
   def getBin(value: T): Int
   def getBinCount(value: T): Int
-  def +=(newValue: T): Unit
-
 }

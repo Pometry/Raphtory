@@ -29,25 +29,31 @@ abstract class GraphState {
 
   /** Create a new constant that stores an immutable value */
   def newConstant[T](
-                      name: String,
-                      value: T
-                    ): Unit
+      name: String,
+      value: T
+  ): Unit
 
   /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String): Unit
+
   /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String, initialValue: T): Unit
+
   /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String, retainState: Boolean): Unit
+
   /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
   /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String): Unit
+
   /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String, initialValue: T): Unit
+
   /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String, retainState: Boolean): Unit
+
   /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
@@ -98,7 +104,8 @@ abstract class GraphState {
       name: String,
       noBins: Int,
       minValue: T,
-      maxValue: T
+      maxValue: T,
+      retainState: Boolean = true
   ): Unit
 
   def newAll(name: String, retainState: Boolean = false): Unit
@@ -106,17 +113,11 @@ abstract class GraphState {
   def newAny(name: String, retainState: Boolean = false): Unit
 
   /** Return the accumulator stored under name `name` */
-  def apply[T](name: String): Accumulator[T]
+  def apply[S, T](name: String): Accumulator[S, T]
 
   /** Return the accumulator stored under `name` name if it exists, else return None */
-  def get[T](name: String): Option[Accumulator[T]]
+  def get[S, T](name: String): Option[Accumulator[S, T]]
 
   /** Check if graph state with `name` exists */
   def contains(name: String): Boolean
-
-  /** Return the histogram stored under `name` name if it exists, else return None */
-  def getHistogram[T: Numeric](name: String): Option[Histogram[T]]
-
-  /** Check if histogram with `name` exists */
-  def containsHistogram(name: String): Boolean
 }
