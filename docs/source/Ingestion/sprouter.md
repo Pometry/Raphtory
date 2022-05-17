@@ -11,7 +11,7 @@ Once these classes are defined, they can be passed to the `stream()` or `batchLo
 
 If you have the LOTR example already set up from the installation guide previously ([raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)) then please continue. If not, please return there and complete this step first.  
 
-For this tutorial section we will continue to use the `raphtory-example-lotr` project and a dataset that tells us when two characters have some type of interaction in the Lord of the Rings trilogy. The `csv` file (comma-separated values) in the examples folder can be found [here](https://github.com/Raphtory/Examples/blob/0.5.0/raphtory-example-lotr/resources/lotr.csv). Each line contains two characters that appear in the same sentence, along with which sentence they appeared in, indicated by a number (sentence count). In the example, the first line of the file is `Gandalf,Elrond,33` which tells us that Gandalf and Elrond appear together in sentence 33.  
+For this tutorial section we will continue to use the `raphtory-example-lotr` project and the dataset of interactions between characters in the Lord of the Rings trilogy. The `csv` file (comma-separated values) in the examples folder can be found [here](https://github.com/Raphtory/Examples/blob/0.5.0/raphtory-example-lotr/resources/lotr.csv). Each line contains two characters that appear in the same sentence, along with which sentence they appeared in, indicated by a number (sentence count). In the example, the first line of the file is `Gandalf,Elrond,33` which tells us that Gandalf and Elrond appear together in sentence 33.  
 
 ```
 Gandalf,Elrond,33
@@ -29,7 +29,7 @@ Gollum,Bilbo,308
 Also, in the examples folder you will find `LOTRGraphBuilder.scala`, `DegreesSeparation.scala` and `FileOutputRunner.scala` which we will go through in detail. 
 
 ## Local Deployment
-First lets open `FileOutputRunner.scala`, which is our `main` class i.e. the file which we actually run. To do this we have made our class a scala app via `extends App`.This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. Inside of this we can create spout and graphbuilder objects and combine them into a `TemporalGraph` (via `stream()` or `batchLoad()`), which can be used to make queries:
+First lets open `FileOutputRunner.scala`, which is our `main` class i.e. the file which we actually run. To do this we have made our class a scala app via `extends App`. This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. Inside of this we can create spout and graphbuilder objects and combine them into a `TemporalGraph` (via `stream()` or `batchLoad()`), which can be used to make queries:
 
 ````scala
 object FileOutputRunner extends App {
@@ -92,13 +92,13 @@ First, we take the String output from the Spout. We then break up the line into 
 
 There are a few things worth pointing out here:
 
-* We added a `name` property to each of the nodes. If we had reason to, we could have added any other property that might be appropriate. We set this as an `ImmutableProperty` in this case, as character names are treated as fixed, but this could be a mutable property if it were required to change later. The different types of properties that can be added into a Raphtory graph can be found [here](com.raphtory.components.graphbuilder.Properties).
+* We added a `name` property to each of the nodes. If we had reason to, we could have added any other property that might be appropriate. We set this as an `ImmutableProperty` in this case, as character names are treated as fixed, but this could be a mutable property if it were required to change later. The different types of properties that can be added into a Raphtory graph can be found here: {scaladoc}`com.raphtory.components.graphbuilder.Properties`.
 
 * We didn't check whether either vertices exist before sending an `addVertex` update. Another class deals with this so we don't have to worry about that.
 
 * The spout wasn't doing much heavy lifting here, just reading in the file line by line. The spout is used for pulling data from external sources (potentially streams) or extracting the useful parts of less structured data to send as a record to the graph builder.
 
-To summarise, the spout takes an external source of data and turns it into a _stream of records_ and the graph builder converts each item from this stream of records into a _graph updates_.
+To summarise, the spout takes an external source of data and turns it into a _stream of records_ and the graph builder converts each item from this stream of records into one or more _graph updates_.
 
 ## What next?
 
