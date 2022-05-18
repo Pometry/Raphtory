@@ -57,6 +57,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
 
    Scaladoc/index.md   
 
+
 .. toctree:: 
    :maxdepth: 2
    :hidden:
@@ -65,8 +66,9 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    PythonClient/setup.md
    PythonClient/tutorial_pulsar.md
    PythonClient/RaphtoryClient.md
-   PythonClient/conf.md
    PythonClient/tutorial_algorithms.md
+   PythonClient/conf.md
+   
 
 
 .. toctree::
