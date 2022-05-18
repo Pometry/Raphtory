@@ -65,7 +65,7 @@ lazy val core = (project in file("core"))
           Compile / doc / scalacOptions := Seq(
                   "-skip-packages",
                   "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal",
-                  "--access:private"
+                  "-private"
           ),
           assemblySettings,
           defaultSettings,
