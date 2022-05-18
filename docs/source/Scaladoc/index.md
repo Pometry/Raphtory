@@ -1,4 +1,4 @@
-   <p align="center"><img src="_static/raphtory-banner.png" alt="Raphtory Banner"/></p>
+   <p align="center"><img src="../_static/raphtory-banner.png" alt="Raphtory Banner"/></p>
 
 # Scaladoc
 
