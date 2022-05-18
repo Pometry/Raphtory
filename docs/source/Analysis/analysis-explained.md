@@ -54,7 +54,7 @@ The {s}`apply()` method takes a {scaladoc}`com.raphtory.algorithms.api.GraphPers
 manipulates the state of vertices, and then returns the
 {scaladoc}`com.raphtory.algorithms.api.GraphPerspective`, either for further processing by
 other algorithms or for collecting and writing out results.
-A {scaladoc}`com.raphtory.algorithms.api.GraphPerspective`) has two key methods which are used during
+A {scaladoc}`com.raphtory.algorithms.api.GraphPerspective` has two key methods which are used during
 graph processing, {s}`step()` and {s}`iterate()`.
 
 #### step()
@@ -209,18 +209,12 @@ table
 ### Writing out results
 
 Finally, once you are happy with the format of your data you can output it to disk.
-This is implemented by using an {scaladoc}`com.raphtory.algorithms.api.OutputFormat` which is given to the
-query when it is executed.
+This is done by using an {scaladoc}`com.raphtory.algorithms.api.OutputFormat` which is given to the
+query when it is executed. Several inbuilt output formats are available within Raphtory, but it is also very simple to implement your own if you have a specific destination in mind.
 
-Raphtory supports two formats at present: {scaladoc}`com.raphtory.output.FileOutputFormat` and
-{scaladoc}`com.raphtory.output.PulsarOutputFormat`.
-
-{scaladoc}`com.raphtory.output.FileOutputFormat` saves the results of each partition as separate
-files to a directory.
-Simply pass the directory as the primary argument when creating the
-{scaladoc}`com.raphtory.output.FileOutputFormat` object and pass this to the query.
-
-For example:
+As an example from our prior code snippets the {scaladoc}`com.raphtory.output.FileOutputFormat` saves the results of each partition as separate
+files to a directory. This directory is the only argument required when creating the
+{scaladoc}`com.raphtory.output.FileOutputFormat` object and passing it to the query:
 
 ```scala
 val outputFormat = FileOutputFormat("/tmp")
@@ -229,11 +223,9 @@ graph
   .writeTo(outputFormat)
 ```
 
-Similarly, {scaladoc}`com.raphtory.output.PulsarOutputFormat` can used to write results directly to
-Pulsar topics. Set the Topic as the primary argument when creating the
-{scaladoc}`com.raphtory.output.PulsarOutputFormat` object.
-
-For example:
+Similarly the {scaladoc}`com.raphtory.output.PulsarOutputFormat` can used to write results directly to
+[Pulsar](https://pulsar.apache.org) topics. Where the user gives the Topic as an argument when creating the
+{scaladoc}`com.raphtory.output.PulsarOutputFormat` object:
 
 ```scala
 val outputFormat = PulsarOutputFormat("components")
