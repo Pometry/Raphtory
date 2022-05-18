@@ -36,17 +36,6 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
 .. toctree:: 
    :maxdepth: 2
    :hidden:
-   :caption: Python Library (Alpha)
-
-   PythonClient/setup.md
-   PythonClient/tutorial_pulsar.md
-   PythonClient/RaphtoryClient.md
-   PythonClient/conf.md
-   PythonClient/tutorial_algorithms.md
-
-.. toctree:: 
-   :maxdepth: 2
-   :hidden:
    :caption: Deployment
 
    Deployment/pulsarlocal.md
@@ -66,7 +55,18 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    :hidden:
    :caption: API (Scaladoc)
 
-   Scaladoc/index.md
+   Scaladoc/index.md   
+
+.. toctree:: 
+   :maxdepth: 2
+   :hidden:
+   :caption: Python Library (Alpha)
+
+   PythonClient/setup.md
+   PythonClient/tutorial_pulsar.md
+   PythonClient/RaphtoryClient.md
+   PythonClient/conf.md
+   PythonClient/tutorial_algorithms.md
 
 
 .. toctree::
