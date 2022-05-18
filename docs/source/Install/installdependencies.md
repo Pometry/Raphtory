@@ -58,17 +58,19 @@ All the example projects can be found in the [Raphtory repo](https://github.com/
 git clone https://github.com/Raphtory/Raphtory.git
 git checkout THE_BRANCH_YOU_ARE_WORKING_ON
 ```
-We need to firstly build the Raphtory jar into the Maven folder on your local computer by running this command in your root Raphtory directory:
-
-```bash
-sbt "core/publishLocal"
-```
 
 As we are using the Lord of the Rings example, we should now move into this directory - this is a totally independent sbt project. 
 
 ```bash
 cd examples/raphtory-example-lotr
 ```
+
+We need to firstly build the Raphtory jar into the Maven folder on your local computer by running this command in your root Raphtory directory:
+
+```bash
+sbt "core/publishLocal"
+```
+
 
 If you are working on this via Intellij you should give your sbt a refresh to reload the project locally and make sure it is using the new Raphtory jar. The button for this is the two rotating arrows located on the on the right hand side window within the sbt tab.  
 
