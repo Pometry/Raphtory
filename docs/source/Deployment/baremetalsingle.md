@@ -1,5 +1,27 @@
 # Bare metal
 
+## SBT bits
+We need to firstly build the Raphtory jar into the Maven folder on your local computer by running this command in your root Raphtory directory:
+
+```bash
+sbt "core/publishLocal"
+```
+
+
+If you are working on this via Intellij you should give your sbt a refresh to reload the project locally and make sure it is using the new Raphtory jar. The button for this is the two rotating arrows located on the on the right hand side window within the sbt tab.  
+
+If you make any changes to the core Raphtory code, you can go into your local ivy repo to delete the old jar and then re-publish using `sbt "core/publishLocal"`
+
+```bash
+cd .ivy2/local/com.raphtory
+ls
+rm (whichever jar you want to delete)
+```
+
+ Alternatively, if you are making several iterative changes, you can add a dependency `version := "0.1-SNAPSHOT"` in the examples `build.sbt` file and subsequent calls to `sbt publishLocal` will not require you to manually delete jars from your local repo. 
+
+ **Note:** If there are a million errors saying that classes are not part of the package `com.raphtory` this is probably because your `raphtory.jar` did not publish correctly or your refresh of the sbt project did not occur. Alternatively 
+
 ## Bare metal single node
 
 Set up dependencies
