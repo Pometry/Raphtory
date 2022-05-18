@@ -239,7 +239,7 @@ graph
 ### Zero-step algorithms
 Zero-step algorithms refer to all algorithms which require no vertex messaging step, and can be expressed just using a
 {s}`select()` operation. This means that the algorithm only requires knowledge of each vertex and the edges
-connected to it, and might be known as local measures in the network science literature. Some algorithms that fit
+connected to it. This might be familiar as `local measures` in the network science literature. Some algorithms that fit
 into this category are:
 * Vertex degree
 * Vertex/edge property extraction
