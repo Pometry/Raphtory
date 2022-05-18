@@ -55,19 +55,6 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
   
 
 .. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Examples Projects
-
-   Examples/lotr.md
-   Examples/community-of-cheese.md
-   Examples/gab.md
-   Examples/higgs-twitter.md
-   Examples/twitter-social-circles.md
-   Examples/facebook-social-circles.md
-   Examples/enron.md
-
-.. toctree::
    :hidden:
    :caption: Algorithms
 
@@ -80,3 +67,18 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    :caption: API (Scaladoc)
 
    Scaladoc/index.md
+
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: Examples Projects
+
+   Examples/lotr.md
+   Examples/community-of-cheese.md
+   Examples/gab.md
+   Examples/higgs-twitter.md
+   Examples/twitter-social-circles.md
+   Examples/facebook-social-circles.md
+   Examples/enron.md
+
