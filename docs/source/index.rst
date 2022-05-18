@@ -49,9 +49,8 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    :hidden:
    :caption: Deployment
 
-   Deployment/baremetalsingle.md
-   Deployment/graphvsservice.md  
    Deployment/pulsarlocal.md
+   Deployment/baremetalsingle.md
    Deployment/kubernetes.md
   
 
