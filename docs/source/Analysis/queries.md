@@ -1,14 +1,14 @@
 # Running queries across time
 
-To run your implemented algorithm or any of the algorithms included in Raphtory ({scaladoc}`com.raphtory.algorithms`), you must submit them to the graph. We can again use the [Lord of the Rings
+To run your implemented algorithm or any of the algorithms included in Raphtory (both [Generic](com.raphtory.algorithms.generic) and [Temporal](com.raphtory.algorithms.temporal)), you must submit them to the graph. We can again use the [Lord of the Rings
 graph](../Ingestion/sprouter.md) and the [degrees of separation algorithm](LOTR_six_degrees.md) to illustrate the query API.
 
 When running queries, our starting point is always the {scaladoc}`com.raphtory.algorithms.api.TemporalGraph` created from a call to `Raphtory.stream()` or `Raphtory.batchLoad()`. This contains the full history of your data over its lifetime. From this point, the overall process to get things done is as follows: 
 
 * First, you can filter the timeline to the segment you are interested in. 
 * Secondly, you can create a collection of perspectives over the selected timeline.
-* Thirdly, you can apply a sequence of graph operations (such as `step` and `iterate`) that end with a `select()` (returning a `Table`) and a sequence of table operations to get a writable result for your query.
-* Finally, you can write out your result using an `Output Format`. This last step kicks off the computation inside Raphtory.
+* Thirdly, you can apply a sequence of graph operations (such as `step` and `iterate`) that end with a `select()` (returning a {scaladoc}`com.raphtory.algorithms.api.Table`) and a sequence of table operations to get a writable result for your query.
+* Finally, you can write out your result using an {scaladoc}`com.raphtory.algorithms.api.OutputFormat`. This last step kicks off the computation inside Raphtory.
 
 A conceptual example of the stages for creating perspectives from a temporal graph is depicted below.
 
@@ -30,7 +30,7 @@ In this case, Raphtory runs the algorithm using all the information it has about
 
 ## Timeline filtering
 
-However, maybe we are just interested in a portion of the data. Let's say that you want to see the relationships between characters before sentence 1000 or between sentences 4000 and 5000. You can get new versions of the graph object for both cases:
+However, maybe we are just interested in a portion of the data. Let's say that you want to see the relationships between characters before sentence 1000 or between sentences 4000 and 5000. We need different versions ({scaladoc}`com.raphtory.algorithms.api.GraphPerspective`) of the graph for both cases:
 
 ```scala
 val first1000sentences = graph.until(1000)
@@ -53,7 +53,7 @@ The table below provides a quick summary:
 If you are working with real times, then you can also provide strings expressing timestamps. The default format is `"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`. 
 This means that you can provide just dates (`"2020-01-01"`), or timestamps with up to seconds (`"2020-01-01 00:00:00"`) or up to milliseconds (`"2020-01-01 00:00:00.000"`). **Note:** These examples are interpreted as having all trailing units as zeros.
 
-For instance, let's say that you are only interested in the activity of your graph within the year 2020. In order to apply an algorithm only over that interval, we can do the following:
+For instance, let's say that you are only interested in the activity of your graph within the year 2020. In order to apply an algorithm over onlyb that interval, we can do the following:
 
 ```scala
 graph
@@ -78,7 +78,7 @@ graph
 ```
 In this example, starting from January 1 2020 we move forward one day at a time, looking back over only the last data of data. At each of these stopping points (`perspectives`) we execute the algorithm and write the results to the file. If we set up a spout from a streaming source which continues to ingest data, Raphtory will continue to create a new `windowed perspective` every day as the new information arrives.
 
-As can be seen in the example, the process to create perspectives has two steps. The first of these is setting the times you are interested in, which can be a singular point (using `at()`) or, alternatively, a sequence of points with a given increment. For the latter, four different methods are available:
+As can be seen in the example, the process to create perspectives has two steps. The first of these is setting the times you are interested in, which can be a singular point (using `at()`) or, alternatively, a sequence of points with a given increment. For sequences, four different methods are available:
 
 | Function            | Effect                                            |
 |---------------------|---------------------------------------------------|
@@ -89,16 +89,16 @@ As can be seen in the example, the process to create perspectives has two steps.
 
 **Note:** If no start and end time are provided, Raphtory will default to the minimum and maximum times in the data (or min and max of the time range if a `slice()` etc. has been applied).
 
-The second step is to create perspectives from each time point, for which we have three options. We can look to the `past` from every point, to the `future`, or set a `window`. In the third case, we can align the time point as: 
+The second step is to specify which direction we are looking in at each time point, for which we have three options. We can look to the `past`, to the `future`, or set a `window`. In the third case, we can align the time point as: 
 
 * The `Start` of the window - looking into the future the set amount of time. This is the default.
 * The `End` of the window - looking into the past the set amount of time. 
 * The `Middle` of the window - including data from half the time in both the past and future, providing a smoothing effect.
 
 
-**Note:** You can refer to the [`DottedGraph`](com.raphtory.algorithms.api.DottedGraph) documentation for further details.
+**Note:** You can refer to the {scaladoc}`com.raphtory.algorithms.api.DottedGraph`} documentation for further details.
 
-Coming back to our first example, we can set up a walk along a prefiltered year of our data in steps of one day creating a window of one week in each step as follows:
+Coming back to our first example, we can execute a `walk` along a year of data with increments of one day, and a window of one week into the future as follows:
 
 ```scala
 graph
@@ -109,14 +109,14 @@ graph
   .writeTo(output)
 ```
 
-The `walk` function doesn't take a start or end time as it explores all possible perspectives within the queries other parameters. For the above instance this generates a sequence of perspectives where the first contains data between `Dec 26, 2019` to `Jan 1, 2020`, the second one from `Dec 27, 2019` to `Jan 2, 2020`, etc. The last perspective of the sequence is then going to be from `Dec 31, 2020` to `Jan 6, 2021`. 
+The `walk` function doesn't take a start or end time as it explores all available perspectives (given the other filters applied). For the above instance this generates a sequence of perspectives where the first contains data between `Dec 26, 2019` to `Jan 1, 2020`, the second one from `Dec 27, 2019` to `Jan 2, 2020`, etc. The last perspective of the sequence is then going to be from `Dec 31, 2020` to `Jan 6, 2021`. 
 
-**Note** The reason dates outside of the `.slice("2020-01-01", "2021-01-01")` appear in this sequence is because Raphtory includes `partial windows` i.e. where only part of the perspective time range is inside of the slice. For instance, the perspective for `Dec 27, 2019` to `Jan 2, 2020` has a small amount of data inside of the slice which can be analysed. An example of these partial windows can be seen in the bottom left of the diagram at the top of the page.  
+**Note** The reason dates outside of the `.slice("2020-01-01", "2021-01-01")` appear in this sequence is because Raphtory includes `partial windows` i.e. where only part of the perspectives time range is inside of the slice. For instance, the perspective for `Dec 27, 2019` to `Jan 2, 2020` has a small amount of data inside of the slice which can be analysed. An example of these partial windows can be seen in the bottom left of the diagram at the top of the page.  
 
 
 ## Operating over the graph
 
-Once we have defined the set of perspectives we want to work with, we can define a sequence of operations to apply to them all. The operations available are described in the documentation for the {scaladoc}`com.raphtory.algorithms.api.GraphOperations trait. In addition to using already defined graph algorithms (as we have done so far), you can also apply operations directly to the graph object, for instance:
+Once we have defined the set of perspectives we want to work with, we can define a sequence of operations to apply to them all. The operations available are described in the documentation for the {scaladoc}`com.raphtory.algorithms.api.GraphOperations` trait. In addition to using already defined graph algorithms (as we have done so far), you can also apply operations directly to the graph object, for instance:
 
 ```scala
 graph
@@ -143,7 +143,7 @@ graph
 
 This is especially useful when you want to preprocess the graph before applying an already defined algorithm. For instance, above we only keep nodes with an out degree greater than 10.
 
-**Note:** When filtering vertices, if a vertex is to be removed so will ALL of its edges. This means they will no longer be available on the vertex attached on the other side. 
+**Note:** When filtering vertices, if a vertex is to be removed so will ALL of its edges. This means they will no longer be available to the vertex attached on the other side. 
 
 ## Looking at the output
 
@@ -156,7 +156,7 @@ graph
   .execute(DegreesSeparation())
   .writeTo(output)
 ```
-As we can now understand, what we are doing here is creating a perspective at sentence 32670, looking at the past and, therefore, including including everything from sentence 1. Running this algorithm returns the following data:
+As we can now understand, what we are doing here is creating a perspective at sentence 32670, looking into the past and, therefore, including everything from sentence 1. Running this algorithm returns the following data:
 
 ```
 32670,Odo,2
@@ -172,13 +172,14 @@ As we can now understand, what we are doing here is creating a perspective at se
 32670,Celebrimbor,2
 32670,Grimbeorn,2
 32670,Lobelia,2
+...
 ```
 
 This data tells us that at a given time, person X and Gandalf are N number of hops away. In this instance, at time 32670, Samwise was at minimum 1 hop away from Gandalf, whereas Odo was 2 hops away.
 
 ## Using Raphtory as a client
 
-Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `deployedGraph(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
+Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `deployedGraph(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
 
 ```scala
 val graph = Raphtory.deployedGraph()
