@@ -132,11 +132,11 @@ The text that follows the prefix in the key is used as the key for the environme
 Example of how to add run time environment variables to all pods or to specific component pods:
 
 ```
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_ALL_PODS_ENV_ENVIRONMENT_VARABLE="environment variable added to all component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_SPOUT_PODS_ENV_ENVIRONMENT_VARABLE="environment variable added to spout component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_PARTITIONMANAGER_PODS_ENV_ENVIRONMENT_VARABLE="environment variable added to partition manager component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_QUERYMANAGER_PODS_ENV_ENVIRONMENT_VARABLE="environment variable added to query manager component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_BUILDER_PODS_ENV_ENVIRONMENT_VARABLE="environment variable added to builder component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_ALL_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable added to all component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_SPOUT_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable added to spout component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_PARTITIONMANAGER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable added to partition manager component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_QUERYMANAGER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable added to query manager component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_BUILDER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable added to builder component pods"
 ```
 
 Required run time settings

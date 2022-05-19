@@ -29,6 +29,9 @@ logs
 .scala_dependencies
 .worksheet
 .idea
+.metals
+.vscode
+.bloop
 
 #raphtory env
 mainproject/.env
