@@ -31,17 +31,17 @@ object AWSUpload extends App {
 
   // This will create a bucket for storage
   //  amazonS3Client.createBucket(bucketName)
-  AwsS3Client.amazonS3Client.putObject(bucketName, uploadFileName, fileToUpload)
+//  AwsS3Client.amazonS3Client.putObject(bucketName, uploadFileName, fileToUpload)
 
   // Tests successful upload of the file by reading first line
-  val s3object: S3Object =
-    AwsS3Client.amazonS3Client.getObject(new GetObjectRequest(bucketName, uploadFileName))
-  val in                 = new BufferedReader(new InputStreamReader(s3object.getObjectContent))
-
-  val line = in.readLine
-  val data = s"$line"
-  println("Printing first line of fetched file: ")
-  println(data)
+//  val s3object: S3Object =
+//    AwsS3Client.amazonS3Client.getObject(new GetObjectRequest(bucketName, uploadFileName))
+//  val in                 = new BufferedReader(new InputStreamReader(s3object.getObjectContent))
+//
+//  val line = in.readLine
+//  val data = s"$line"
+//  println("Printing first line of fetched file: ")
+//  println(data)
 
 }
 

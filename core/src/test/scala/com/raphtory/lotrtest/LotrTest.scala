@@ -52,8 +52,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000),
-            outputFormat =
-              AwsS3OutputFormat(awsS3OutputFormatBucketName, awsS3OutputFormatBucketKey)
+            outputFormat = FileOutputFormat("/tmp/lotrResults")
     )
 
     val expected = "c21170ae40544156af69000d2b0d6e8eaf5f593d3905810c7527f2e09b8e9172"
@@ -297,7 +296,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //  }
 
   override def setSpout() =
-    FileSpout("/tmp/lotr.csv") //AwsS3Spout(awsS3SpoutBucketName, awsS3SpoutBucketPath)
+    AwsS3Spout(awsS3SpoutBucketName, awsS3SpoutBucketPath)
 
   override def setGraphBuilder(): GraphBuilder[String] = new LOTRGraphBuilder()
 
