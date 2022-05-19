@@ -38,7 +38,7 @@ class PulsarConnector(config: Config) extends Connector {
   case class PulsarEndPoint[T](producer: Producer[Array[Byte]]) extends EndPoint[T] {
 
     override def sendAsync(message: T): Unit = {
-      logger.trace(s"sending message: '$message' to topic: '${producer.getTopic}'")
+      logger.debug(s"sending message: '$message' to topic: '${producer.getTopic}'")
       producer.sendAsync(serialise(message))
     }
     override def close(): Unit = producer.flushAsync().thenApply(_ => producer.closeAsync())
