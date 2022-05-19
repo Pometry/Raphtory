@@ -71,8 +71,8 @@ class VertexQuantileFilter[T: Numeric: Bounded: ClassTag](
         state.newMax("propertyMax", retainState = true)
       }
       .step { (vertex, state) =>
-        state("propertyMin") += vertex.getState(propertyString, true)
-        state("propertyMax") += vertex.getState(propertyString, true)
+        state("propertyMin") += vertex.getState(propertyString, includeProperties = true)
+        state("propertyMax") += vertex.getState(propertyString, includeProperties = true)
       }
       .setGlobalState { state =>
         val propertyMin: T = state("propertyMin").value
