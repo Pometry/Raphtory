@@ -31,7 +31,10 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 
 /** @DoNotDocument */
+case object StopActor
+
 class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Connector {
+
   val logger: Logger                              = Logger(LoggerFactory.getLogger(this.getClass))
   val akkaReceptionistRegisteringTimeout: Timeout = 1.seconds
   val akkaSpawnerTimeout: Timeout                 = 1.seconds
@@ -66,6 +69,7 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
       messageHandler: T => Unit,
       topics: Seq[CanonicalTopic[T]]
   ): CancelableListener = {
+
     val behavior = Behaviors.setup[Array[Byte]] { context =>
       implicit val timeout: Timeout     = akkaReceptionistRegisteringTimeout
       implicit val scheduler: Scheduler = context.system.scheduler
@@ -74,27 +78,43 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
       }
       Behaviors.receiveMessage[Array[Byte]] { message =>
         logger.trace(s"Processing message by component $id")
-        try messageHandler.apply(deserialise(message))
-        catch {
-          case e: Exception =>
-            e.printStackTrace()
-            logger.error(s"Component $id: Failed to handle message. ${e.getMessage}")
-            throw e
-        }
+        val nextBehavior =
+          try {
+            val value = deserialise[Any](message)
+            if (value.isInstanceOf[StopActor.type]) {
+              logger.debug(s"Closing akka listener for component $id")
+              Behaviors.stopped[Array[Byte]]
+            }
+            else {
+              messageHandler.apply(value.asInstanceOf[T])
+              Behaviors.same[Array[Byte]]
+            }
+          }
+          catch {
+            case e: Exception =>
+              e.printStackTrace()
+              logger.error(s"Component $id: Failed to handle message. ${e.getMessage}")
+              throw e
+          }
+          finally Behaviors.same[Array[Byte]]
 
-        Behaviors.same
+        nextBehavior
       }
     }
     new CancelableListener {
+      var futureSelf: Future[ActorRef[Array[Byte]]] = _
       override def start(): Unit = {
         implicit val timeout: Timeout     = akkaSpawnerTimeout
         implicit val scheduler: Scheduler = actorSystem.scheduler
-        actorSystem ? ((ref: ActorRef[ActorRef[Array[Byte]]]) =>
+        futureSelf = actorSystem ? ((ref: ActorRef[ActorRef[Array[Byte]]]) =>
           SpawnProtocol.Spawn(behavior, id, Props.empty, ref)
         )
       }
 
-      override def close(): Unit = {} // TODO: deregister the actor
+      override def close(): Unit = {
+        val selfResolutionTimeout: Duration = 10.seconds
+        Await.result(futureSelf, selfResolutionTimeout) ! serialise(StopActor)
+      }
     }
   }
 
