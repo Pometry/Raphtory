@@ -8,56 +8,35 @@ package com.raphtory.algorithms.api
   *
   * @see
   * [[com.raphtory.algorithms.api.GraphState]], [[com.raphtory.algorithms.generic.filters.EdgeQuantileFilter]], [[com.raphtory.algorithms.generic.filters.VertexQuantileFilter]]
-  * ```
-  *
-  *  ## Parameters
-  *   {s}`noBins: Int = 1000`
-  *     : Number of bins to be used in the histogram. The more the bins, the more precise the quantiles can be (depending on the underlying
-  *     distribution) but the bigger the array being maintained in the graph state.
-  *
-  *   {s}`minValue: T`
-  *     : Value corresponding to the lower bound of the leftmost bin (sensible to set as the minimum value that the quantity takes).
-  *
-  *   {s}`maxValue: T`
-  *     : Value corresponding to the upper bound of the rightmost bin (sensible to set as the maximum value that the quantity takes).
-  *
-  *  ## Methods
-  *    {s}`cumSum(): Array[Int]`
-  *      : returns the cumulative distribution of the quantity (though only in terms of relative bin position)
-  *
-  *    {s}`quantile(percentile: Float): Float`
-  *      : returns the value associated with a given quantile
-  *
-  *    {s} `getBins: Array[Int]`
-  *      : accessor function for the histogram bins
-  *
-  *    {s} `getBin(value T):Int`
-  *      : find the bin index at which {s}`value` should be placed
-  *
-  *    {s} `getBinCount(value: T): Int`
-  *      : the number of values in the same bin as {s}`value`.
-  *
-  *    {s}`+= (newValue: T): Unit`
-  *      : Updates the histogram by placing the given value within the correct bin.
-  *
-  * ```{seealso}
-  * [](com.raphtory.algorithms.api.GraphState)
-  * [](com.raphtory.algorithms.generic.filters.EdgeQuantileFilter)
-  * [](com.raphtory.algorithms.generic.filters.VertexQuantileFilter)
-  * ```
   */
 
 abstract class Histogram[T: Numeric](val minValue: T, val maxValue: T) {
   /** Return the total population size
-    * @return
     */
   def totalCount: Int
 
+  /** Compute the cumulative density function of the property histogram unnormalised (in raw counts so adds to `totalCount`)
+    */
   def cumSum(): Array[Int]
+
+  /** Cumulative density function normalised */
   def cdf: Array[Float] = pdf.scanLeft(0.0f)(_+_)
+
+  /** Probability density function */
   def pdf: Array[Float] = getBins.map(_/totalCount)
+
+  /** Compute the value associated with a given quantile
+    *  @param quantile  quantile to find. For example, 0.5 would correspond to the median value.
+    */
   def quantile(percentile: Float): Float
+
+  /** Getter function for obtaining the bins counts of the histogram.
+    */
   def getBins: Array[Int]
+
+  /** Get the bin associated with a given value. */
   def getBin(value: T): Int
+
+  /** Find the population of a bin associated with a given value. */
   def getBinCount(value: T): Int
 }
