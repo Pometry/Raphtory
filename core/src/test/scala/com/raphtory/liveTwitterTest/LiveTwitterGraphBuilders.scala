@@ -30,7 +30,6 @@ class LiveTwitterRetweetGraphBuilder() extends GraphBuilder[Tweet] {
     } yield twitterClient.getUserFromUserName(username.substring(1)).getId
     val targetNode      = retweetedUserId.getOrElse(sourceNode)
     val tarID           = targetNode.toLong
-    println(tweet.getText)
     addVertex(
             timeStamp,
             srcID,
@@ -55,7 +54,6 @@ class LiveTwitterUserGraphBuilder() extends GraphBuilder[Tweet] {
     val targetNode = tweet.getId
     val tarID      = targetNode.toLong
     val timeStamp  = tweet.getCreatedAt.toEpochSecond(ZoneOffset.UTC)
-    println(tweet.getText)
     addVertex(
             timeStamp,
             srcID,

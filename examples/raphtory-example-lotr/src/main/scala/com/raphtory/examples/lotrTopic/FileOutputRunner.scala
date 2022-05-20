@@ -5,7 +5,10 @@ import com.raphtory.output.FileOutputFormat
 import com.raphtory.examples.lotrTopic.analysis.DegreesSeparation
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
-import com.raphtory.spouts.ResourceSpout
+import com.raphtory.algorithms.api.Chain
+import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.centrality.{Degree, WeightedDegree}
+import com.raphtory.algorithms.generic.filters.{EdgeQuantileFilter, VertexQuantileFilter}
 import com.raphtory.util.FileUtils
 
 import scala.language.postfixOps
@@ -26,7 +29,7 @@ object FileOutputRunner extends App {
     val queryHandler = graph
       .at(32674)
       .past()
-      .execute(DegreesSeparation())
+      .execute(Chain(EdgeQuantileFilter[Int](lower = 0.5f, weightString = "weight"),ConnectedComponents()))
       .writeTo(output)
 
     queryHandler.waitForJob()

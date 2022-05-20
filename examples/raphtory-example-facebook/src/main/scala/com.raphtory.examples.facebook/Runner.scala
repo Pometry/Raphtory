@@ -23,7 +23,6 @@ object Runner extends App {
     try s"curl -o $path https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv " !!
     catch {
       case ex: Exception =>
-        println(s"Failed to download 'facebook.csv' due to ${ex.getMessage}.")
         ex.printStackTrace()
 
         (s"rm $path" !)
