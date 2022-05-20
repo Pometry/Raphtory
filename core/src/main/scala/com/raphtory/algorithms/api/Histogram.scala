@@ -1,11 +1,14 @@
 package com.raphtory.algorithms.api
 
 /**
-  *  {s}`Histogram[T:Numeric](noBins: Int, minValue: T, maxValue: T) `
-  *    : Public interface for the Histograms API within Graph State.
+  * Public interface for the Histograms API within Graph State.
   *
-  *    A Histogram maintains the distribution of a graph quantity in bins between the minimum and maximum value that
-  *    this quantity takes.
+  *  A Histogram maintains the distribution of a graph quantity in bins between the minimum and maximum value that
+  *  this quantity takes.
+  *
+  * @see
+  * [[com.raphtory.algorithms.api.GraphState]], [[com.raphtory.algorithms.generic.filters.EdgeQuantileFilter]], [[com.raphtory.algorithms.generic.filters.VertexQuantileFilter]]
+  * ```
   *
   *  ## Parameters
   *   {s}`noBins: Int = 1000`
@@ -23,7 +26,7 @@ package com.raphtory.algorithms.api
   *      : returns the cumulative distribution of the quantity (though only in terms of relative bin position)
   *
   *    {s}`quantile(percentile: Float): Float`
-  *      : returns the value associated with a given percentile
+  *      : returns the value associated with a given quantile
   *
   *    {s} `getBins: Array[Int]`
   *      : accessor function for the histogram bins
@@ -45,8 +48,14 @@ package com.raphtory.algorithms.api
   */
 
 abstract class Histogram[T: Numeric](val minValue: T, val maxValue: T) {
+  /** Return the total population size
+    * @return
+    */
   def totalCount: Int
+
   def cumSum(): Array[Int]
+  def cdf: Array[Float] = pdf.scanLeft(0.0f)(_+_)
+  def pdf: Array[Float] = getBins.map(_/totalCount)
   def quantile(percentile: Float): Float
   def getBins: Array[Int]
   def getBin(value: T): Int
