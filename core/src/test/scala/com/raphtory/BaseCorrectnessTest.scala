@@ -13,11 +13,6 @@ import java.nio.charset.StandardCharsets
 
 abstract class BaseCorrectnessTest extends BaseRaphtoryAlgoTest[String] {
 
-  private val numberOfPartitions = Map[String, Any](
-          ("raphtory.partitions.countPerServer", 4),
-          ("raphtory.builders.countPerServer", 4)
-  )
-
   override def setGraphBuilder(): GraphBuilder[String] = BasicGraphBuilder()
 
   def setSpout(): Spout[String] = new IdentitySpout
