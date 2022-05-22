@@ -19,6 +19,7 @@ import org.apache.pulsar.client.api.MessageId
 import org.apache.pulsar.client.api.MessageListener
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.PulsarClient
+import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException
 import org.apache.pulsar.client.api.Schema
 import org.apache.pulsar.client.api.SubscriptionInitialPosition
 import org.apache.pulsar.client.api.SubscriptionType
@@ -108,7 +109,13 @@ class PulsarConnector(config: Config) extends Connector {
       override def start(): Unit                = consumers = consumerBuilders map (_.subscribe())
       override def close(): Unit                =
         consumers foreach { consumer =>
-          consumer.unsubscribe()
+          try consumer.unsubscribe()
+          catch {
+            case e: BrokerMetadataException =>
+              logger.info(
+                      s"Consumer ${consumer.getConsumerName} failed to unsubscribe from ${consumer.getTopic} during close. Attempting close now."
+              )
+          }
           consumer.close()
         }
     }

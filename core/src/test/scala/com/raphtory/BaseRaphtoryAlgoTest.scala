@@ -37,11 +37,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val numberOfPartitions = Map[String, Any](
-          ("raphtory.partitions.countPerServer", 4),
-          ("raphtory.builders.countPerServer", 4)
-  )
-
   var jobId: String                     = ""
   val outputDirectory: String           = "/tmp/raphtoryTest"
   def defaultOutputFormat: OutputFormat = FileOutputFormat(outputDirectory)
