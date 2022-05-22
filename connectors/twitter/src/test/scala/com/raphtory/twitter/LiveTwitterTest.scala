@@ -1,4 +1,4 @@
-package com.raphtory.liveTwitterTest
+package com.raphtory.twitter
 
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.deployment.Raphtory
