@@ -1,26 +1,7 @@
 # Bare metal
 
-## SBT bits
-We need to firstly build the Raphtory jar into the Maven folder on your local computer by running this command in your root Raphtory directory:
+The difference between the two from an analysis perspective is that `batchLoad` will block any submitted queries until the data has finished ingesting - allowing it to handle completely out of order data. On the other hand when using `stream` it is assumed new data is continuously arriving (in roughly chronological order) which Raphtory handles with a watermarking heuristic to decide what time is safe to analyse across all the partitions. Therefore, queries where the perspective time   fully ingested and synchronised allowed to progress and which should be blocked until the time they are set to run at has arrived and has been synchronised.
 
-```bash
-sbt "core/publishLocal"
-```
-
-
-If you are working on this via Intellij you should give your sbt a refresh to reload the project locally and make sure it is using the new Raphtory jar. The button for this is the two rotating arrows located on the on the right hand side window within the sbt tab.  
-
-If you make any changes to the core Raphtory code, you can go into your local ivy repo to delete the old jar and then re-publish using `sbt "core/publishLocal"`
-
-```bash
-cd .ivy2/local/com.raphtory
-ls
-rm (whichever jar you want to delete)
-```
-
- Alternatively, if you are making several iterative changes, you can add a dependency `version := "0.1-SNAPSHOT"` in the examples `build.sbt` file and subsequent calls to `sbt publishLocal` will not require you to manually delete jars from your local repo. 
-
- **Note:** If there are a million errors saying that classes are not part of the package `com.raphtory` this is probably because your `raphtory.jar` did not publish correctly or your refresh of the sbt project did not occur. Alternatively 
 
 ## Bare metal single node
 
@@ -32,6 +13,25 @@ To run Raphtory locally on a macbook/laptop there are several ways this can be a
 - Intelij IDE
 - Local java process 
 - Minikube - See [ kubernetes deployment ](kubernetes.md)
+
+
+
+## Using Raphtory as a client
+
+Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `deployedGraph(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
+
+```scala
+val graph = Raphtory.deployedGraph()
+```
+
+From this point, you can keep working with your graph as we have done so far.
+
+Additionally, you still have access to the `RaphtoryClient` class provided in previous releases of Raphtory. This is, however, deprecated and will be removed in later versions:
+
+```scala
+val client = Raphtory.createClient()
+client.pointQuery(ConnectedComponents(), output, 10000)
+```
 
 ## Bare metal distributed -- Raphtory services
 
