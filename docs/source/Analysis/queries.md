@@ -96,7 +96,7 @@ The second step is to specify which direction we are looking in at each time poi
 * The `Middle` of the window - including data from half the time in both the past and future, providing a smoothing effect.
 
 
-**Note:** You can refer to the {scaladoc}`com.raphtory.algorithms.api.DottedGraph`} documentation for further details.
+**Note:** You can refer to the {scaladoc}`com.raphtory.algorithms.api.DottedGraph` documentation for further details.
 
 Coming back to our first example, we can execute a `walk` along a year of data with increments of one day, and a window of one week into the future as follows:
 
