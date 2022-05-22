@@ -13,7 +13,6 @@ import scala.reflect.runtime.universe.TypeTag
 import com.raphtory.config.telemetry.ComponentTelemetryHandler
 import com.raphtory.config.telemetry.SpoutTelemetry
 
-
 import scala.concurrent.duration.DurationInt
 
 /** @note DoNotDocument */
@@ -60,7 +59,7 @@ class SpoutExecutor[T](
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
-    scheduledRun = Some(scheduler.scheduleOnce(10.seconds, rescheduler))
+    scheduledRun = scheduler.scheduleOnce(10.seconds, rescheduler)
   }
 
 }
