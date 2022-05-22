@@ -1,4 +1,4 @@
-20# Lord of the Rings Character Interactions
+# Lord of the Rings Character Interactions
 
 ## Overview
 This example is a dataset that tells us when two characters have some type of interaction in the Lord of the Rings trilogy books. It's a great dataset to test different algorithms or even your own written algorithms.

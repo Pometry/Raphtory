@@ -13,7 +13,6 @@ import com.raphtory.storage.pojograph.messaging.VertexMultiQueue
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-/** @DoNotDocument */
 trait PojoVertexBase extends Vertex {
   // abstract state
   protected def lens: PojoGraphLens

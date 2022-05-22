@@ -9,7 +9,6 @@ import scala.Ordering.Implicits._
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 
-/** @DoNotDocument */
 object OrderedBuffer {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
