@@ -2,6 +2,7 @@ package com.raphtory.deployment
 
 import com.raphtory.algorithms.api.DeployedTemporalGraph
 import com.raphtory.algorithms.api.TemporalGraph
+import com.raphtory.algorithms.api.TemporalGraphConnection
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.config.ComponentFactory
@@ -14,10 +15,6 @@ import com.raphtory.communication.topicRepositories.PulsarTopicRepository
 import com.raphtory.components.querymanager.Query
 import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
-import py4j.GatewayServer
-import py4j.Py4JNetworkException
-import com.raphtory.deployment.Py4JServer
 
 import scala.reflect.ClassTag
 import scala.reflect.classTag
@@ -87,14 +84,14 @@ object Raphtory {
     * @param customConfig Custom configuration for the deployment being referenced
     * @return a temporal graph object
     */
-  def deployedGraph(customConfig: Map[String, Any] = Map()): TemporalGraph = {
+  def deployedGraph(customConfig: Map[String, Any] = Map()): TemporalGraphConnection = {
     val scheduler        = new MonixScheduler()
     val conf             = confBuilder(customConfig)
     javaPy4jGatewayServer.start(conf)
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     val querySender      = new QuerySender(componentFactory, scheduler, topics)
-    new TemporalGraph(Query(), querySender, conf)
+    new TemporalGraphConnection(Query(), querySender, conf, scheduler, topics)
   }
 
   /** Creates `Spout` to read or ingest data from resources or files, sending messages to builder
@@ -176,7 +173,6 @@ object Raphtory {
             batchLoading,
             spout,
             graphBuilder,
-            querySender,
             conf,
             componentFactory,
             scheduler

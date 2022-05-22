@@ -36,4 +36,9 @@ private[raphtory] class MonixScheduler extends Scheduler {
     val cancelable = scheduler.scheduleOnce(delay)(task)
     () => cancelable.cancel()
   }
+
+  def shutdown(): Unit = {
+    scheduledExecutor.shutdown()
+    executorService.shutdown()
+  }
 }

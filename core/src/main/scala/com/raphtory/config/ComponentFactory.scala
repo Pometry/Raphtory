@@ -30,11 +30,11 @@ private[raphtory] class ComponentFactory(
     topicRepo: TopicRepository,
     localDeployment: Boolean = false
 ) {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val deploymentID = conf.getString("raphtory.deploy.id")
+  private lazy val deploymentID = conf.getString("raphtory.deploy.id")
 
-  private val (builderIDManager, partitionIDManager) =
+  private lazy val (builderIDManager, partitionIDManager) =
     if (localDeployment)
       (new LocalIDManager, new LocalIDManager)
     else {
