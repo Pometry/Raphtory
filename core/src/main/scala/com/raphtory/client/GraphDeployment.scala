@@ -58,7 +58,11 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 
   try prometheusServer = Option(new HTTPServer(prometheusPort))
   catch {
-    case e: IOException => e.printStackTrace()
+    case e: IOException =>
+      logger.warn(
+              s"Cannot create new prometheus server as port $prometheusPort is already bound, " +
+                s"this could be you have multiple raphtory instances running on the same machine. "
+      )
   }
 
   /** Stops components - partitions, query manager, graph builders, spout worker */
