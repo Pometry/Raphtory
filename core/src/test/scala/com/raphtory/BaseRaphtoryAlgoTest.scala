@@ -59,7 +59,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
     graph = Option
       .when(batchLoading())(Raphtory.batchLoad[T](spout, graphBuilder))
-      .fold(Raphtory.stream[T](spout, graphBuilder, numberOfPartitions))(identity)
+      .fold(Raphtory.stream[T](spout, graphBuilder))(identity)
   }
 
   override def afterAll(): Unit =
