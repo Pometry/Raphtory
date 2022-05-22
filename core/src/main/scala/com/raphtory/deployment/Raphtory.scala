@@ -9,7 +9,6 @@ import com.raphtory.config.ConfigHandler
 import com.raphtory.config.MonixScheduler
 import com.raphtory.client.GraphDeployment
 import com.raphtory.client.QuerySender
-import com.raphtory.client.RaphtoryClient
 import com.raphtory.communication.topicRepositories.PulsarAkkaTopicRepository
 import com.raphtory.communication.topicRepositories.PulsarTopicRepository
 import com.raphtory.components.querymanager.Query
@@ -50,7 +49,6 @@ import scala.reflect.runtime.universe._
   *  [[com.raphtory.algorithms.api.TemporalGraph]]
   */
 object Raphtory {
-  private val scheduler                  = new MonixScheduler()
   private lazy val javaPy4jGatewayServer = new Py4JServer(this)
 
   /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from and to access the deployment
@@ -90,6 +88,7 @@ object Raphtory {
     * @return a temporal graph object
     */
   def deployedGraph(customConfig: Map[String, Any] = Map()): TemporalGraph = {
+    val scheduler        = new MonixScheduler()
     val conf             = confBuilder(customConfig)
     javaPy4jGatewayServer.start(conf)
     val topics           = PulsarTopicRepository(conf)
@@ -98,25 +97,12 @@ object Raphtory {
     new TemporalGraph(Query(), querySender, conf)
   }
 
-  /** Creates a `RaphtoryClient` object referencing an already deployed graph
-    * that can be used to express point range and live queries
-    * using the given `customConfig`.
-    *
-    * @param customConfig Custom configuration for the deployment being referenced
-    * @return a raphtory client object that can send queries
-    *  */
-  def createClient(customConfig: Map[String, Any] = Map()): RaphtoryClient = {
-    val conf             = confBuilder(customConfig)
-    val topics           = PulsarTopicRepository(conf)
-    val componentFactory = new ComponentFactory(conf, topics)
-    val querySender      = new QuerySender(componentFactory, scheduler, topics)
-    new RaphtoryClient(querySender, conf)
-  }
-
   /** Creates `Spout` to read or ingest data from resources or files, sending messages to builder
     * producers for each row. Supported spout types are FileSpout`, `ResourceSpout`,
-    * `StaticGraphSpout`. */
+    * `StaticGraphSpout`.
+    */
   def createSpout[T](spout: Spout[T]): Unit = {
+    val scheduler        = new MonixScheduler()
     val conf             = confBuilder()
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
@@ -129,6 +115,7 @@ object Raphtory {
   def createGraphBuilder[T: ClassTag](
       builder: GraphBuilder[T]
   ): Unit = {
+    val scheduler        = new MonixScheduler()
     val conf             = confBuilder()
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
@@ -143,6 +130,7 @@ object Raphtory {
       spout: Option[Spout[T]] = None,
       graphBuilder: Option[GraphBuilder[T]] = None
   ): Unit = {
+    val scheduler        = new MonixScheduler()
     val conf             = confBuilder()
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
@@ -151,8 +139,9 @@ object Raphtory {
 
   /** Creates `QueryManager` for spawning, handling and tracking queries. Query types
     * supported include `PointQuery`, `RangeQuery` and `LiveQuery`
-    *  */
+    */
   def createQueryManager(): Unit = {
+    val scheduler        = new MonixScheduler()
     val conf             = confBuilder()
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
@@ -177,6 +166,7 @@ object Raphtory {
       customConfig: Map[String, Any] = Map(),
       batchLoading: Boolean
   ) = {
+    val scheduler        = new MonixScheduler()
     val conf             = confBuilder(customConfig)
     javaPy4jGatewayServer.start(conf)
     val topics           = PulsarAkkaTopicRepository(conf)
