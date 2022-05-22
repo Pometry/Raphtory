@@ -127,10 +127,9 @@ class Reader(
 
   private def scheduleWaterMarker(): Unit = {
     logger.trace("Scheduled watermarker to recheck time in 1 second.")
-    scheduledWatermark = Some(
-            scheduler
-              .scheduleOnce(1.seconds, createWatermark)
-    )
+    scheduledWatermark = scheduler
+      .scheduleOnce(1.seconds, createWatermark)
+
   }
 
 }

@@ -13,4 +13,11 @@ object Runner extends App {
   val graphBuilder = new LOTRGraphBuilder()
   val graph        = Raphtory.batchLoad(spout, graphBuilder)
 
+  graph.deployment.stop()
+  Thread.sleep(5000)
+  println("should finish here but these threads are still alive")
+
+  Thread.getAllStackTraces.keySet().forEach { thread =>
+    println(s"${thread.getName} with status ${thread.getState}")
+  }
 }
