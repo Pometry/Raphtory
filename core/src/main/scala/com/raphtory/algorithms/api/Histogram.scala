@@ -11,6 +11,7 @@ package com.raphtory.algorithms.api
   */
 
 abstract class Histogram[T: Numeric](val minValue: T, val maxValue: T) {
+
   /** Return the total population size
     */
   def totalCount: Int
@@ -20,10 +21,10 @@ abstract class Histogram[T: Numeric](val minValue: T, val maxValue: T) {
   def cumSum(): Array[Int]
 
   /** Cumulative density function normalised */
-  def cdf: Array[Float] = pdf.scanLeft(0.0f)(_+_)
+  def cdf: Array[Float] = pdf.scanLeft(0.0f)(_ + _)
 
   /** Probability density function */
-  def pdf: Array[Float] = getBins.map(_/totalCount)
+  def pdf: Array[Float] = getBins.map(_ / totalCount)
 
   /** Compute the value associated with a given quantile
     *  @param quantile  quantile to find. For example, 0.5 would correspond to the median value.
