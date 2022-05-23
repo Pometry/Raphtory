@@ -22,13 +22,10 @@ object AWSS3Upload extends App {
     val uploadBucketName: String     = raphtoryConfig.getString("raphtory.spout.aws.local.uploadBucketName")
     val inputFilePath: String       = raphtoryConfig.getString("raphtory.spout.aws.local.inputFilePath")
     val uploadFileName: String = raphtoryConfig.getString("raphtory.spout.aws.local.uploadFileName")
-
-    //file to upload
     val fileToUpload           = new File(inputFilePath)
-
     val AwsS3Client = AwsS3Spout(spoutBucketName, spoutBucketPath).s3Client
 
-    //   This will create a bucket for storage
+//Create AWS Bucket and upload file
     AwsS3Client.createBucket(uploadBucketName)
     AwsS3Client.putObject(uploadBucketName, uploadFileName, fileToUpload)
 
@@ -36,8 +33,6 @@ object AWSS3Upload extends App {
     val s3object: S3Object =
       AwsS3Client.getObject(new GetObjectRequest(uploadBucketName, uploadFileName))
     val in                 = new BufferedReader(new InputStreamReader(s3object.getObjectContent))
-
     val line = in.readLine
     logger.info(s"Printing first line of uploaded file: $line")
-
 }
