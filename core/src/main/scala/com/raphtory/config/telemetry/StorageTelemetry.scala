@@ -19,7 +19,7 @@ object StorageTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.storage"))
       .name("pojo_lens_graph_size")
       .help("Total graph size for Graph Lens")
-      .labelNames("jobID")
+      .labelNames("raphtory_jobID")
       .register
 
 }

@@ -30,8 +30,8 @@ object SpoutTelemetry {
       .labelNames("raphtory_deploymentID")
       .register
 
-  val totalLinesSent: Gauge =
-    Gauge.build
+  val totalLinesSent: Counter =
+    Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_line_sent_total")
       .help("Total lines of file sent")

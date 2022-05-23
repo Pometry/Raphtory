@@ -26,7 +26,8 @@ class SpoutExecutor[T](
   protected val failOnError: Boolean           = conf.getBoolean("raphtory.spout.failOnError")
   private var linesProcessed: Int              = 0
   private var scheduledRun: Option[Cancelable] = None
-
+  val spoutReschedulesCount               = telemetry.spoutReschedules.labels(deploymentID)
+  val fileLinesSent = telemetry.fileLinesSent.labels(deploymentID)
   val rescheduler: () => Unit = () =>
     {
       spout.executeReschedule()
@@ -45,9 +46,9 @@ class SpoutExecutor[T](
   override def handleMessage(msg: T): Unit = {} //No messages received by this component
 
   private def executeSpout() = {
-    telemetry.spoutReschedules.labels(deploymentID).inc()
+    spoutReschedulesCount.inc()
     while (spout.hasNext) {
-      telemetry.fileLinesSent.labels(deploymentID).inc()
+      fileLinesSent.inc()
       linesProcessed = linesProcessed + 1
       if (linesProcessed % 100_000 == 0)
         logger.debug(s"Spout: sent $linesProcessed messages.")

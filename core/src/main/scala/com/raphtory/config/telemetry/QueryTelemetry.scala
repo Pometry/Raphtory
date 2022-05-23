@@ -18,7 +18,7 @@ object QueryTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("handler_received_messages")
       .help("Total received messages count in Query Handler")
-      .labelNames("jobID", "deploymentID")
+      .labelNames("raphtory_jobID", "raphtory_deploymentID")
       .register
 
   def sentMessageCount(): Counter =
@@ -26,7 +26,7 @@ object QueryTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("handler_sent_messages")
       .help("Total sent messages count in Query Handler")
-      .labelNames("jobID", "deploymentID")
+      .labelNames("raphtory_jobID", "raphtory_deploymentID")
       .register
 
   def globalWatermarkMin(): Gauge =
@@ -34,7 +34,7 @@ object QueryTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("manager_min_watermark_timestamp")
       .help("Minimum watermark for Query Manager")
-      .labelNames("deploymentID")
+      .labelNames("raphtory_deploymentID")
       .register
 
   def globalWatermarkMax(): Gauge =
@@ -42,7 +42,7 @@ object QueryTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("manager_max_watermark_timestamp")
       .help("Maximum watermark for Query Manager")
-      .labelNames("deploymentID")
+      .labelNames("raphtory_deploymentID")
       .register
 
   def totalGraphOperations(): Counter =
@@ -50,7 +50,7 @@ object QueryTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("handler_graph_operations")
       .help("Total graph operations by Query Handler")
-      .labelNames("jobID", "deploymentID")
+      .labelNames("raphtory_jobID", "raphtory_deploymentID")
       .register
 
   def totalTableOperations(): Counter =
@@ -58,7 +58,7 @@ object QueryTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("handler_table_operations")
       .help("Total table operations by Query Handler")
-      .labelNames("jobID", "deploymentID")
+      .labelNames("raphtory_jobID", "raphtory_deploymentID")
       .register
 
   def totalPerspectivesProcessed(): Counter =
@@ -66,7 +66,7 @@ object QueryTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("handler_perspectives_processed")
       .help("Total perspectives processed by Query Handler")
-      .labelNames("jobID", "deploymentID")
+      .labelNames("raphtory_jobID", "raphtory_deploymentID")
       .register
 
   def totalQueriesSpawned(): Counter =
@@ -74,7 +74,7 @@ object QueryTelemetry {
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("manager_queries_spawned")
       .help("Total queries spawned by Query Manager")
-      .labelNames("deploymentID")
+      .labelNames("raphtory_deploymentID")
       .register
 
 }

@@ -1,7 +1,5 @@
 package com.raphtory.config.telemetry
 
-import io.prometheus.client.Counter
-import io.prometheus.client.Gauge
 
 private[raphtory] object ComponentTelemetryHandler {
   val filesProcessed                          = SpoutTelemetry.totalFilesProcessed
