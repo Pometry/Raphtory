@@ -12,7 +12,7 @@ import java.util.concurrent.RejectedExecutionException
 import scala.concurrent.duration.FiniteDuration
 
 /** @note DoNotDocument */
-private[raphtory] class MonixScheduler extends Scheduler {
+private[raphtory] class MonixScheduler {
   private val threads: Int     = 8
   private var schedulerStarted = false
   private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
@@ -28,14 +28,14 @@ private[raphtory] class MonixScheduler extends Scheduler {
   private val uncaughtExceptionReporter =
     UncaughtExceptionReporter(executorService.reportFailure)
 
-  private val scheduler = MScheduler(
+  implicit val scheduler: MScheduler = MScheduler(
           scheduledExecutor,
           executorService,
           uncaughtExceptionReporter,
           AlwaysAsyncExecution
   )
 
-  override def execute[T](component: Component[T]): Unit =
+  def execute[T](component: Component[T]): Unit =
     if (schedulerStarted)
       try scheduler.execute(() => component.run())
       catch {
@@ -43,7 +43,7 @@ private[raphtory] class MonixScheduler extends Scheduler {
           logger.error(s"Scheduler rejected scheduling of Component $component")
       }
 
-  override def scheduleOnce(delay: FiniteDuration, task: => Unit): Option[Cancelable] =
+  def scheduleOnce(delay: FiniteDuration, task: => Unit): Option[Cancelable] =
     if (schedulerStarted)
       try {
         val cancelable = scheduler.scheduleOnce(delay)(task)

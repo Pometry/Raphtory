@@ -27,7 +27,7 @@ import com.raphtory.algorithms.api.TableFunction
 import com.raphtory.communication.TopicRepository
 import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.Component
-import com.raphtory.config.Scheduler
+import com.raphtory.config.MonixScheduler
 import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.config.telemetry.QueryTelemetry
 import com.raphtory.config.telemetry.StorageTelemetry
@@ -49,7 +49,7 @@ import scala.util.Try
 /** @note DoNotDocument */
 class QueryHandler(
     queryManager: QueryManager,
-    scheduler: Scheduler,
+    scheduler: MonixScheduler,
     jobID: String,
     query: Query,
     conf: Config,
@@ -500,7 +500,7 @@ class QueryHandler(
         messagetoAllJobWorkers(f)
         Stages.ExecuteTable
 
-      case SetGlobalState(fun)                                                =>
+      case SetGlobalState(fun)                                       =>
         fun(graphState)
         nextGraphOperation(vertexCount)
 

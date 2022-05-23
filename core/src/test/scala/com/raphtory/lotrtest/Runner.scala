@@ -14,7 +14,6 @@ object Runner extends App {
   val graph        = Raphtory.batchLoad(spout, graphBuilder)
 
   graph.deployment.stop()
-  Thread.sleep(5000)
   println("should finish here but these threads are still alive")
 
   Thread.getAllStackTraces.keySet().forEach { thread =>

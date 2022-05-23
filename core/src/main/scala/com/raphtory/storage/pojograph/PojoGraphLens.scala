@@ -5,6 +5,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.communication.EndPoint
 import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.QueryManagement
+import com.raphtory.config.MonixScheduler
 import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph.GraphLens
@@ -18,7 +19,6 @@ import org.apache.pulsar.client.api.Producer
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
-import monix.execution.Scheduler.Implicits.global
 import monix.eval.Task
 import monix.execution.Callback
 
@@ -33,7 +33,8 @@ final case class PojoGraphLens(
     private val neighbours: Option[Map[Int, EndPoint[QueryManagement]]],
     private val sentMessages: AtomicInteger,
     private val receivedMessages: AtomicInteger,
-    private val errorHandler: (Throwable) => Unit
+    private val errorHandler: (Throwable) => Unit,
+    private val scheduler: MonixScheduler
 ) extends GraphLens(jobId, start, end)
         with LensInterface {
   private val voteCount         = new AtomicInteger(0)
@@ -42,6 +43,7 @@ final case class PojoGraphLens(
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
   var needsFiltering            = false
+  import scheduler.scheduler
 
   val messageHandler: VertexMessageHandler =
     VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)
@@ -250,8 +252,10 @@ final case class PojoGraphLens(
     }
 
   private def executeInParallel(tasks: Iterable[Task[Unit]], onSuccess: => Unit): Unit =
-    Task.parSequenceUnordered(tasks).runAsync {
-      case Right(_)                   => onSuccess
-      case Left(exception: Exception) => errorHandler(exception)
-    }
+    Task
+      .parSequenceUnordered(tasks)
+      .runAsync {
+        case Right(_)                   => onSuccess
+        case Left(exception: Exception) => errorHandler(exception)
+      }(scheduler.scheduler)
 }

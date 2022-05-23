@@ -14,10 +14,7 @@ object CancelableListener {
 
       override def close(): Unit =
         listeners foreach (listener => {
-          try listener.close()
-          catch {
-            case e: NullPointerException => //already Nulled by the closer of the scheduler
-          }
+          listener.close()
         })
     }
 }
