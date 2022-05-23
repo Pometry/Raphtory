@@ -14,7 +14,7 @@ import scala.concurrent.duration.FiniteDuration
 /** @note DoNotDocument */
 private[raphtory] class MonixScheduler {
   private val threads: Int     = 8
-  private var schedulerStarted = false
+  private var schedulerStarted = true
   private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
 
   // Will schedule things with delays

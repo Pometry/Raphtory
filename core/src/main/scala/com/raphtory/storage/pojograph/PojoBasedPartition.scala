@@ -19,13 +19,15 @@ import com.raphtory.storage.pojograph.entities.internal.PojoEntity
 import com.raphtory.storage.pojograph.entities.internal.PojoVertex
 import com.raphtory.storage.pojograph.entities.internal.SplitEdge
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
 /** @note DoNotDocument */
 class PojoBasedPartition(partition: Int, conf: Config)
         extends GraphPartition(partition: Int, conf: Config) {
-
+  val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
   val hasDeletionsPath      = "raphtory.data.containsDeletions"
   val hasDeletions: Boolean = conf.getBoolean(hasDeletionsPath)
   logger.debug(

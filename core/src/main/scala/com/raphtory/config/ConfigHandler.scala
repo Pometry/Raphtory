@@ -5,6 +5,8 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigValue
 import com.typesafe.config.ConfigValueFactory
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 import sun.util.logging.resources.logging
 
 import scala.collection.mutable.ArrayBuffer
@@ -12,7 +14,8 @@ import scala.util.Random
 
 /** @note DoNotDocument */
 private[raphtory] class ConfigHandler {
-  private lazy val defaults = createConf()
+  private lazy val defaults            = createConf()
+  private lazy val logger: Logger      = Logger(LoggerFactory.getLogger(this.getClass))
 
   private lazy val deployedDistributed =
     defaults.resolve().getBoolean("raphtory.deploy.distributed")
@@ -31,12 +34,12 @@ private[raphtory] class ConfigHandler {
 
   def updateSalt(): Unit = {
     this.salt = Random.nextInt().abs
-    logger.info(s"Raphtory deployment salt updated to '${salt}'.")
+    logger.info(s"Raphtory deployment salt updated to '$salt'.")
   }
 
   def setSalt(salt: Int): Unit = {
     this.salt = salt
-    logger.info(s"Raphtory deployment salt set to '${salt}'.")
+    logger.info(s"Raphtory deployment salt set to '$salt'.")
   }
 
   private def createConf(): Config = {

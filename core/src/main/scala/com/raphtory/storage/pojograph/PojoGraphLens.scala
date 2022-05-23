@@ -15,12 +15,14 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.api.Producer
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import monix.eval.Task
 import monix.execution.Callback
+import org.slf4j.LoggerFactory
 
 /** @note DoNotDocument */
 final case class PojoGraphLens(
@@ -37,9 +39,11 @@ final case class PojoGraphLens(
     private val scheduler: MonixScheduler
 ) extends GraphLens(jobId, start, end)
         with LensInterface {
+  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
   private val voteCount         = new AtomicInteger(0)
   private val vertexCount       = new AtomicInteger(0)
-  var t1                        = System.currentTimeMillis()
+  private var t1                = System.currentTimeMillis()
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
   var needsFiltering            = false

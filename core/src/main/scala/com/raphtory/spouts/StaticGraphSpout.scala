@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory
 import scala.io.Source
 
 case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   val source = Source.fromFile(fileDataPath)
   val lines  = source.getLines()

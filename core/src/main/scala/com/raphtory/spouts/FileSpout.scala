@@ -23,7 +23,6 @@ import scala.reflect.runtime.universe._
 class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String => T), conf: Config)
         extends Spout[T] {
   private val completedFiles: mutable.Set[String] = mutable.Set.empty[String]
-  private val logger: Logger                      = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val reReadFiles     = conf.getBoolean("raphtory.spout.file.local.reread")
   private val recurse         = conf.getBoolean("raphtory.spout.file.local.recurse")
