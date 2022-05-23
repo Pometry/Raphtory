@@ -2,7 +2,7 @@ package com.raphtory.config.telemetry
 
 import com.raphtory.deployment.Raphtory
 import com.typesafe.config.Config
-import io.prometheus.client.Counter
+import io.prometheus.client.{Counter, Gauge}
 
 import scala.collection.mutable
 
@@ -15,7 +15,7 @@ object PartitionTelemetry {
   val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
   def lastWatermarkProcessed() =
-    Counter.build
+    Gauge.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.reader"))
       .name("last_watermark_processed")
       .help("Last watermark processed by Partition Reader")
@@ -23,7 +23,7 @@ object PartitionTelemetry {
       .register()
 
   def queryExecutorCounter() =
-    Counter.build
+    Gauge.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.reader"))
       .name("query_executor_jobs_total")
       .help("Total query executors running in this partition")

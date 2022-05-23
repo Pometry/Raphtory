@@ -2,7 +2,7 @@ package com.raphtory.config.telemetry
 
 import com.raphtory.deployment.Raphtory
 import com.typesafe.config.Config
-import io.prometheus.client.Counter
+import io.prometheus.client.{Counter, Gauge}
 
 /** Adds metrics for `QueryHandler`, `QueryManager` and `QueryExecutor`  using Prometheus Client
   * Exposes Counter stats for tracking number of vertices, messages received and sent by `Query` handler, manager and executor
@@ -28,16 +28,16 @@ object QueryTelemetry {
       .labelNames("raphtory_jobID", "raphtory_deploymentID")
       .register
 
-  def globalWatermarkMin(): Counter =
-    Counter.build
+  def globalWatermarkMin(): Gauge =
+    Gauge.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("manager_min_watermark_timestamp")
       .help("Minimum watermark for Query Manager")
       .labelNames("raphtory_deploymentID")
       .register
 
-  def globalWatermarkMax(): Counter =
-    Counter.build
+  def globalWatermarkMax(): Gauge =
+    Gauge.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("manager_max_watermark_timestamp")
       .help("Maximum watermark for Query Manager")

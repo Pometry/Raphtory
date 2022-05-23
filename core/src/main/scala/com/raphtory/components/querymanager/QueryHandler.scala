@@ -157,7 +157,7 @@ class QueryHandler(
         readyCount += 1
         if (readyCount == totalPartitions) {
           readyCount = 0
-          telemetry.graphSizeCollector.labels(jobID).set(vertexCount)
+          telemetry.graphSizeCollector.labels(jobID).inc(vertexCount)
           messagetoAllJobWorkers(SetMetaData(vertexCount))
           val establishingPerspectiveTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(
