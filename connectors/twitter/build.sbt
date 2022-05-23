@@ -1,4 +1,4 @@
-name := "livetwitterspout"
+name := "twitter"
 version := "0.5"
 organization := "com.raphtory"
 scalaVersion := "2.13.7"

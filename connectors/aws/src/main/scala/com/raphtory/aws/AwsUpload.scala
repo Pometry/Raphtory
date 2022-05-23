@@ -1,0 +1,46 @@
+package com.raphtory.aws
+
+
+
+import com.amazonaws.services.s3.model.GetObjectRequest
+import com.amazonaws.services.s3.model.S3Object
+
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import com.raphtory.deployment.Raphtory
+import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
+
+import java.io.File
+
+object AWSUpload extends App {
+
+    val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
+    val raphtoryConfig: Config = ConfigFactory.load()
+
+    val spoutBucketName: String = raphtoryConfig.getString("aws.local.spoutBucketName")
+    val spoutBucketPath: String = raphtoryConfig.getString("aws.local.spoutBucketPath")
+    val uploadBucketName: String     = raphtoryConfig.getString("aws.local.uploadBucketName")
+    val filePath: String       = raphtoryConfig.getString("aws.local.inputFilePath")
+    val uploadFileName: String = raphtoryConfig.getString("aws.local.uploadFileName")
+
+    //file to upload
+    val fileToUpload           = new File(filePath)
+
+    val AwsS3Client = AwsS3Spout(spoutBucketName, spoutBucketPath).s3Client
+
+    //   This will create a bucket for storage
+    AwsS3Client.createBucket(uploadBucketName)
+    AwsS3Client.putObject(uploadBucketName, uploadFileName, fileToUpload)
+
+//   Tests successful upload of the file by reading first line
+    val s3object: S3Object =
+      AwsS3Client.getObject(new GetObjectRequest(uploadBucketName, uploadFileName))
+    val in                 = new BufferedReader(new InputStreamReader(s3object.getObjectContent))
+
+    val line = in.readLine
+    logger.info(s"Printing first line of uploaded file: $line")
+
+}
